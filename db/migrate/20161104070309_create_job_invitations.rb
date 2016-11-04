@@ -9,6 +9,6 @@ class CreateJobInvitations < ActiveRecord::Migration
 
       t.timestamps null: false
     end
-    add_index :job_invitations, [:receipent_type , :receipent_id , :sender_id , :job_id]
+    # add_index :job_invitations, [:receipent_type , :receipent_id , :sender_id , :job_id]
   end
 end
