@@ -1,0 +1,3 @@
+class HiringManager < User
+
+end
