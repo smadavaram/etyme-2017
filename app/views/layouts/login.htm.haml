@@ -1,0 +1,21 @@
+%body.animated.fadeInDown
+  %header#header
+    %title Etyme
+    = stylesheet_link_tag    'application', media: 'all', 'data-turbolinks-track' => true
+    = javascript_include_tag 'application', 'data-turbolinks-track' => true
+    %link{:href => "#{image_path('splash/sptouch-icon-iphone.png')}", :rel => "apple-touch-icon"}/
+    %link{:href => "#{image_path('splash/touch-icon-ipad.png')}", :rel => "apple-touch-icon", :sizes => "76x76"}/
+    %link{:href => "#{image_path('splash/touch-icon-iphone-retina.png')}", :rel => "apple-touch-icon", :sizes => "120x120"}/
+    %link{:href => "#{image_path('splash/touch-icon-ipad-retina.png')}", :rel => "apple-touch-icon", :sizes => "152x152"}/
+    %meta{:content => "yes", :name => "apple-mobile-web-app-capable"}/
+    %meta{:content => "black", :name => "apple-mobile-web-app-status-bar-style"}/
+    / Startup image for web apps
+    %link{:href => "#{image_path('splash/ipad-landscape.png')}", :media => "screen and (min-device-width: 481px) and (max-device-width: 1024px) and (orientation:landscape)", :rel => "apple-touch-startup-image"}/
+    %link{:href => "#{image_path('splash/ipad-portrait.png')}", :media => "screen and (min-device-width: 481px) and (max-device-width: 1024px) and (orientation:portrait)", :rel => "apple-touch-startup-image"}/
+    %link{:href => "#{image_path('splash/iphone.png')}", :media => "screen and (max-device-width: 320px)", :rel => "apple-touch-startup-image"}/
+    #logo-group
+      %span#logo
+        %img{:alt => "Etyme", :src => "#{image_path('logo.png')}"}/
+      %span#extr-page-header-space
+        %span.hidden-mobile.hiddex-xs Need an account?
+        %a.btn.btn-danger{:href => "register.html"} Create account

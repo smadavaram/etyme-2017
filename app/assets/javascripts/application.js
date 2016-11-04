@@ -13,4 +13,16 @@
 //= require jquery
 //= require jquery_ujs
 //= require turbolinks
-//= require_tree .
+//= require pace.min
+//= require jquery.min
+//= require jquery-2.1.1.min
+//= require jquery-ui.min
+//= require jquery-ui-1.10.3.min
+//= require app.config
+//= require jquery.ui.touch-punch.min
+//= require bootstrap.min
+//= require jquery.validate.min
+//= require jquery.maskedinput.min
+//= require app.min
+
+
