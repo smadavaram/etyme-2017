@@ -10,7 +10,12 @@
 // Read Sprockets README (https://github.com/sstephenson/sprockets#sprockets-directives) for details
 // about supported directives.
 //
-//= require jquery
-//= require jquery_ujs
-//= require turbolinks
+//= require plugin/pace/pace.min
+//= require app.config
+//= require bootstrap/bootstrap.min
+//= require plugin/jquery-validate/jquery.validate.min
+//= require plugin/masked-input/jquery.maskedinput.min
+//= require app.min
+
 //= require_tree .
+

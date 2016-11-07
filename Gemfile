@@ -58,6 +58,7 @@ group :development, :test do
   gem "letter_opener"
   gem 'byebug'
   gem 'hirb', '~> 0.7.3'
+  gem 'annotate', '~> 2.7'
   # Access an IRB console on exception pages or by using <%= console %> in views
   gem 'web-console', '~> 2.0'
 

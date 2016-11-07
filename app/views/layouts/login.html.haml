@@ -1,0 +1,40 @@
+!!!
+%html
+  %head
+    -#%meta{:content => "text/html; charset=UTF-8", "http-equiv" => "Content-Type"}/
+    %title Etyme
+    = stylesheet_link_tag    'application', media: 'all', 'data-turbolinks-track' => true
+    %script{:src => "//ajax.googleapis.com/ajax/libs/jquery/2.1.1/jquery.min.js"}
+
+    %link{:href => "#{image_path('favicon/favicon.ico')}", :rel => "shortcut icon", :type => "image/x-icon"}/
+    %link{:href => "#{image_path('favicon/favicon.ico')}", :rel => "icon", :type => "image/x-icon"}/
+    %link{:href => "http://fonts.googleapis.com/css?family=Open+Sans:400italic,700italic,300,400,700", :rel => "stylesheet"}/
+
+    %link{:href => "#{image_path('splash/sptouch-icon-iphone.png')}", :rel => "apple-touch-icon"}/
+    %link{:href => "#{image_path('splash/touch-icon-ipad.png')}", :rel => "apple-touch-icon", :sizes => "76x76"}/
+    %link{:href => "#{image_path('splash/touch-icon-iphone-retina.png')}", :rel => "apple-touch-icon", :sizes => "120x120"}/
+    %link{:href => "#{image_path('splash/touch-icon-ipad-retina.png')}", :rel => "apple-touch-icon", :sizes => "152x152"}/
+    %meta{:content => "yes", :name => "apple-mobile-web-app-capable"}/
+    %meta{:content => "black", :name => "apple-mobile-web-app-status-bar-style"}/
+    / Startup image for web apps
+    %link{:href => "#{image_path('splash/ipad-landscape.png')}", :media => "screen and (min-device-width: 481px) and (max-device-width: 1024px) and (orientation:landscape)", :rel => "apple-touch-startup-image"}/
+    %link{:href => "#{image_path('splash/ipad-portrait.png')}", :media => "screen and (min-device-width: 481px) and (max-device-width: 1024px) and (orientation:portrait)", :rel => "apple-touch-startup-image"}/
+    %link{:href => "#{image_path('splash/iphone.png')}", :media => "screen and (max-device-width: 320px)", :rel => "apple-touch-startup-image"}/
+    %script{src: "//ajax.googleapis.com/ajax/libs/jquery/2.1.1/jquery.min.js"}
+    :javascript
+      if (!window.jQuery){ 'document.write('<script src="js/libs/jquery-2.1.1.min.js"><\/script>')'}
+    %script{:src => "//ajax.googleapis.com/ajax/libs/jqueryui/1.10.3/jquery-ui.min.js"}
+    :javascript
+      if (!window.jQuery){ 'document.write('<script src="js/libs/jquery-ui-1.10.3.min.js"><\/script>')'}
+    = csrf_meta_tags
+  %body
+    %header#header
+      #logo-group
+        %span#logo
+          %img{:alt => "SmartAdmin", :src => " #{image_path('logo.png')} " }/
+      %span#extr-page-header-space
+        %span.hidden-mobile.hiddex-xs Need an account?
+        %a.btn.btn-danger{:href => "register.html"} Create account
+    = yield
+
+  = javascript_include_tag 'application', 'data-turbolinks-track' => true
