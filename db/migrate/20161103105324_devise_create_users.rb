@@ -1,6 +1,6 @@
 class DeviseCreateUsers < ActiveRecord::Migration
   def change
-    create_table :users do |t|
+    create_table :devise do |t|
       ## Database authenticatable
       t.string  :first_name , default: ""
       t.string  :last_name , default: ""
@@ -46,9 +46,9 @@ class DeviseCreateUsers < ActiveRecord::Migration
       t.timestamps null: false
     end
 
-    add_index :users, :email,                unique: true
-    add_index :users, :reset_password_token, unique: true
-    add_index :users, :confirmation_token,   unique: true
-    # add_index :users, :unlock_token,         unique: true
+    add_index :devise, :email,                unique: true
+    add_index :devise, :reset_password_token, unique: true
+    add_index :devise, :confirmation_token,   unique: true
+    # add_index :devise, :unlock_token,         unique: true
   end
 end

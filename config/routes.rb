@@ -42,10 +42,6 @@
 
 Rails.application.routes.draw do
 
-  # devise_for :users
-  devise_for :users, controllers: {
-      sessions: 'users/sessions'
-  }
 
 
   class NakedEtymeDomain
@@ -60,25 +56,20 @@ Rails.application.routes.draw do
 
   scope module: :company do
 
-    resources :companies, only: [:index] do
-      # collection do
-      #   get 'dashboard' => 'company/companies#dashboard', as: :dashboard
-      #   get :dashboard
-      # end
-    end # End of :companies
   end # End of module company
 
 
-  # devise_for :users
+  # devise_for :devise
   devise_for :users, path: '', path_names: { sign_in: 'login', sign_out: 'logout'}
   devise_scope :user do
-    get 'dashboard', to: 'users/registrations#dashboard', as: 'dashboard'
+    get 'dashboard', to: 'devise/registrations#dashboard', as: 'dashboard'
   end
 
   # The priority is based upon order of creation: first created -> highest priority.
   # See how all your routes lay out with "rake routes".
 
-
+  # You can have the root of your site routed with "root"
+  # root 'welcome#index'
 
   # Example of regular route:
   #   get 'products/:id' => 'catalog#view'
@@ -130,7 +121,8 @@ Rails.application.routes.draw do
   #   end
 
   constraints(NakedEtymeDomain) do
-    root :to => "static#index"
+    # root :to => "static#index"
   end
   resources :companies , :static
+  root :to => "static#index"
 end

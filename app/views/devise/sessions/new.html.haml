@@ -22,6 +22,7 @@
               Et harum quidem rerum facilis est et expedita distinctio. Nam libero tempore, cum soluta nobis est eligendi voluptatem accusantium!
       .col-xs-12.col-sm-12.col-md-5.col-lg-4
         .well.no-padding
+          - form_for(resource, as: resource_name, url: session_path(resource_name) ,{id: 'login-form'}) do |f|
           %form#login-form.smart-form.client-form{:action => "index.html"}
             %header
               Sign In
@@ -124,20 +125,29 @@
 
 
 
--#%h2 Log in
--#= form_for(resource, as: resource_name, url: session_path(resource_name)) do |f|
--#  .field
--#    = f.label :email
--#    %br/
--#    = f.email_field :email, autofocus: true
--#  .field
--#    = f.label :password
--#    %br/
--#    = f.password_field :password, autocomplete: "off"
--#  - if devise_mapping.rememberable?
--#    .field
--#      = f.check_box :remember_me
--#      = f.label :remember_me
--#  .actions
--#    = f.submit "Log in"
--#= render "users/shared/links"
+-#<h2>Log in</h2>
+-#
+-#<%= form_for(resource, as: resource_name, url: session_path(resource_name)) do |f| %>
+-#  <div class="field">
+-#    <%= f.label :email %><br />
+-#    <%= f.email_field :email, autofocus: true %>
+-#  </div>
+-#
+-#  <div class="field">
+-#    <%= f.label :password %><br />
+-#    <%= f.password_field :password, autocomplete: "off" %>
+-#  </div>
+-#
+-#  <% if devise_mapping.rememberable? -%>
+-#    <div class="field">
+-#      <%= f.check_box :remember_me %>
+-#      <%= f.label :remember_me %>
+-#    </div>
+-#  <% end -%>
+-#
+-#  <div class="actions">
+-#    <%= f.submit "Log in" %>
+-#  </div>
+-#<% end %>
+-#
+-#<%= render "devise/shared/links" %>

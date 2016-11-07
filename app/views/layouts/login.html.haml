@@ -3,7 +3,7 @@
   %head
     -#%meta{:content => "text/html; charset=UTF-8", "http-equiv" => "Content-Type"}/
     %title Etyme
-    = stylesheet_link_tag    'application', media: 'all', 'data-turbolinks-track' => true
+    = stylesheet_link_tag    'application'
     %script{:src => "//ajax.googleapis.com/ajax/libs/jquery/2.1.1/jquery.min.js"}
 
     %link{:href => "#{image_path('favicon/favicon.ico')}", :rel => "shortcut icon", :type => "image/x-icon"}/
@@ -37,4 +37,4 @@
         %a.btn.btn-danger{:href => "register.html"} Create account
     = yield
 
-  = javascript_include_tag 'application', 'data-turbolinks-track' => true
+  = javascript_include_tag 'application'

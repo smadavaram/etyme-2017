@@ -1,0 +1,22 @@
+= form_for @company  do |f|
+  %h5 Company Name
+  = f.text_field :name  ,:placeholder => "Company name", required: true,minlength: "3"
+  = f.fields_for :owner do |u|
+    %h5 First Name
+    = u.text_field :first_name, :placeholder => "Your First name", required: true
+    %h5 Last Name
+    = u.text_field :last_name, :placeholder => "Your Last name", required: true
+    %h5 Email
+    = u.email_field :email, :placeholder => "Your email address", required: true, email: true
+    %h5 Password
+    = u.password_field :password, :placeholder => "Password", required: true,minlength: "6"
+    %h5 Confirm Password
+    = u.password_field :password_confirmation, :placeholder => "Confirm password", "data-rule-equalTo": "#company_owner_attributes_password"
+    = u.radio_button :type, "HiringManager", :checked => true
+    = label :type, 'Hiring Manager'
+    = u.radio_button :type,  "Vendor"
+    = label :type, 'Vendor'
+  %br/
+  %br/
+  .line.line-dashed
+  = f.submit value: "SUBMIT"

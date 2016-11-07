@@ -1,6 +1,6 @@
 # == Schema Information
 #
-# Table name: users
+# Table name: devise
 #
 #  id                     :integer          not null, primary key
 #  first_name             :string           default("")
