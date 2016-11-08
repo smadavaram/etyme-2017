@@ -1,153 +1,107 @@
-#main{:role => "main"}
-  / MAIN CONTENT
-  #content.container
-    .row
-      .col-xs-12.col-sm-12.col-md-7.col-lg-8.hidden-xs.hidden-sm
-        %h1.txt-color-red.login-header-big SmartAdmin
-        .hero
-          .pull-left.login-desc-box-l
-            %h4.paragraph-header It's Okay to be Smart. Experience the simplicity of SmartAdmin, everywhere you go!
-            .login-app-icons
-              %a.btn.btn-danger.btn-sm{:href => "javascript:void(0);"} Frontend Template
-              %a.btn.btn-danger.btn-sm{:href => "javascript:void(0);"} Find out more
-          %img.pull-right.display-image{:alt => "", :src => "#{image_path('demo/iphoneview.png')}", :style => "width:210px"}
-        .row
-          .col-xs-12.col-sm-12.col-md-6.col-lg-6
-            %h5.about-heading About SmartAdmin - Are you up to date?
-            %p
-              Sed ut perspiciatis unde omnis iste natus error sit voluptatem accusantium doloremque laudantium, totam rem aperiam, eaque ipsa.
-          .col-xs-12.col-sm-12.col-md-6.col-lg-6
-            %h5.about-heading Not just your average template!
-            %p
-              Et harum quidem rerum facilis est et expedita distinctio. Nam libero tempore, cum soluta nobis est eligendi voluptatem accusantium!
-      .col-xs-12.col-sm-12.col-md-5.col-lg-4
-        .well.no-padding
-          - form_for(resource, as: resource_name, url: session_path(resource_name) ,{id: 'login-form'}) do |f|
-          %form#login-form.smart-form.client-form{:action => "index.html"}
-            %header
-              Sign In
-            %fieldset
-              %section
-                %label.label E-mail
-                %label.input
-                  %i.icon-append.fa.fa-user
-                  %input{:name => "email", :type => "email"}/
-                  %b.tooltip.tooltip-top-right
-                    %i.fa.fa-user.txt-color-teal
-                    Please enter email address/username
-              %section
-                %label.label Password
-                %label.input
-                  %i.icon-append.fa.fa-lock
-                  %input{:name => "password", :type => "password"}/
-                  %b.tooltip.tooltip-top-right
-                    %i.fa.fa-lock.txt-color-teal
-                    Enter your password
-                .note
-                  %a{:href => "forgotpassword.html"} Forgot password?
-              %section
-                %label.checkbox
-                  %input{:checked => "checked", :name => "remember", :type => "checkbox"}/
-                  = succeed "Stay" do
-                    %i
-            %footer
-              %button.btn.btn-primary{:type => "submit"}
-                Sign in
-        %h5.text-center - Or sign in using -
-        %ul.list-inline.text-center
-          %li
-            %a.btn.btn-primary.btn-circle{:href => "javascript:void(0);"}
-              %i.fa.fa-facebook
-          %li
-            %a.btn.btn-info.btn-circle{:href => "javascript:void(0);"}
-              %i.fa.fa-twitter
-          %li
-            %a.btn.btn-warning.btn-circle{:href => "javascript:void(0);"}
-              %i.fa.fa-linkedin
+- content_for :html_id, "extr-page"
+- content_for :body_class, "animated fadeInDown"
+- content_for :top_right do
+  %span#extr-page-header-space
+    %span.hidden-mobile.hiddex-xs Need an account?
+    = link_to 'Create account', register_path, class: 'btn btn-danger'
+/ MAIN CONTENT
+#content.container
+  .row
+    .col-xs-12.col-sm-12.col-md-7.col-lg-8.hidden-xs.hidden-sm
+      %h1.txt-color-red.login-header-big SmartAdmin
+      .hero
+        .pull-left.login-desc-box-l
+          %h4.paragraph-header It's Okay to be Smart. Experience the simplicity of SmartAdmin, everywhere you go!
+          .login-app-icons
+            %a.btn.btn-danger.btn-sm{:href => "javascript:void(0);"} Frontend Template
+            %a.btn.btn-danger.btn-sm{:href => "javascript:void(0);"} Find out more
+        = image_tag 'demo/iphoneview.png', class: 'pull-right display-image', alt: '', style: 'width:210px'
+      .row
+        .col-xs-12.col-sm-12.col-md-6.col-lg-6
+          %h5.about-heading About SmartAdmin - Are you up to date?
+          %p
+            Sed ut perspiciatis unde omnis iste natus error sit voluptatem accusantium doloremque laudantium, totam rem aperiam, eaque ipsa.
+        .col-xs-12.col-sm-12.col-md-6.col-lg-6
+          %h5.about-heading Not just your average template!
+          %p
+            Et harum quidem rerum facilis est et expedita distinctio. Nam libero tempore, cum soluta nobis est eligendi voluptatem accusantium!
+    .col-xs-12.col-sm-12.col-md-5.col-lg-4
+      .well.no-padding
+        = form_for(resource, as: resource_name, url: session_path(resource_name), html: {id: 'login-form', class: 'smart-form client-form'}) do |f|
+          %header
+            Sign In
+          %fieldset
+            %section
+              %label.label E-mail
+              %label.input
+                %i.icon-append.fa.fa-user
+                = f.email_field :email, autofocus: true
+                %b.tooltip.tooltip-top-right
+                  %i.fa.fa-user.txt-color-teal
+                  Please enter email address/username
+            %section
+              %label.label Password
+              %label.input
+                %i.icon-append.fa.fa-lock
+                = f.password_field :password, autocomplete: "off"
+                %b.tooltip.tooltip-top-right
+                  %i.fa.fa-lock.txt-color-teal
+                  Enter your password
+              .note
+                = link_to 'Forgot password?', '#'
+            %section
+              %label.checkbox
+                = f.check_box :remember_me
+                = succeed "Stay" do
+                  %i
+          %footer
+            %button.btn.btn-primary{:type => "submit"}
+              Sign in
+      %h5.text-center - Or sign in using -
+      %ul.list-inline.text-center
+        %li
+          %a.btn.btn-primary.btn-circle{:href => "javascript:void(0);"}
+            %i.fa.fa-facebook
+        %li
+          %a.btn.btn-info.btn-circle{:href => "javascript:void(0);"}
+            %i.fa.fa-twitter
+        %li
+          %a.btn.btn-warning.btn-circle{:href => "javascript:void(0);"}
+            %i.fa.fa-linkedin
+- content_for :scripts do
+  :javascript
+    runAllForms();
 
-
-
-
-
-:javascript
-  runAllForms();
-
-  $(function() {
-  	// Validation
-  	$("#login-form").validate({
-  		// Rules for form validation
-  		rules : {
-  			email : {
-  				required : true,
-  				email : true
-  			},
-  			password : {
-  				required : true,
-  				minlength : 3,
-  				maxlength : 20
-  			}
-  		},
-
-  		// Messages for form validation
-  		messages : {
-  			email : {
-  				required : 'Please enter your email address',
-  				email : 'Please enter a VALID email address'
-  			},
-  			password : {
-  				required : 'Please enter your password'
-  			}
-  		},
-
-  		// Do not change code below
-  		errorPlacement : function(error, element) {
-  			error.insertAfter(element.parent());
-  		}
-  	});
-  });
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
--#<h2>Log in</h2>
--#
--#<%= form_for(resource, as: resource_name, url: session_path(resource_name)) do |f| %>
--#  <div class="field">
--#    <%= f.label :email %><br />
--#    <%= f.email_field :email, autofocus: true %>
--#  </div>
--#
--#  <div class="field">
--#    <%= f.label :password %><br />
--#    <%= f.password_field :password, autocomplete: "off" %>
--#  </div>
--#
--#  <% if devise_mapping.rememberable? -%>
--#    <div class="field">
--#      <%= f.check_box :remember_me %>
--#      <%= f.label :remember_me %>
--#    </div>
--#  <% end -%>
--#
--#  <div class="actions">
--#    <%= f.submit "Log in" %>
--#  </div>
--#<% end %>
--#
--#<%= render "devise/shared/links" %>
+    -#$(function() {
+    -#  // Validation
+    -#  $("#login-form").validate({
+    -#    // Rules for form validation
+    -#    rules : {
+    -#      email : {
+    -#        required : true,
+    -#        email : true
+    -#      },
+    -#      password : {
+    -#        required : true,
+    -#        minlength : 3,
+    -#        maxlength : 20
+    -#      }
+    -#    },
+    -#
+    -#    // Messages for form validation
+    -#    messages : {
+    -#      email : {
+    -#        required : 'Please enter your email address',
+    -#        email : 'Please enter a VALID email address'
+    -#      },
+    -#      password : {
+    -#        required : 'Please enter your password'
+    -#      }
+    -#    },
+    -#
+    -#    // Do not change code below
+    -#    errorPlacement : function(error, element) {
+    -#      error.insertAfter(element.parent());
+    -#    }
+    -#  });
+    -#});

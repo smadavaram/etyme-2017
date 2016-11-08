@@ -6,19 +6,32 @@
  * or any plugin's vendor/assets/stylesheets directory can be referenced here using a relative path.
  *
  * You're free to add application-wide styles to this file and they'll appear at the bottom of the
- * compiled file so the styles you add here take precedence over styles defined in any styles
- * defined in the other CSS/SCSS files in this directory. It is generally better to create a new
- * file per style scope.
+ * compiled file so the styles you add here take precedence over styles defined in any other CSS/SCSS
+ * files in this directory. Styles in this file should be added after the last require_* statement.
+ * It is generally better to create a new file per style scope.
  *
- *= require bootstrap.min
- *= require font-awesome.min
- *= require smartadmin-production-plugins.min
- *= require smartadmin-production.min
- *= require smartadmin-skins.min
- *= require smartadmin-rtl.min
- *= require demo.min
+ * Basic Styles
+ *= require bootstrap
+ *= require font-awesome
+ *
+ * SmartAdmin Styles : Caution! DO NOT change the order
+ *= require smartadmin-production
+ *= require smartadmin-skins
+ *
+ * We recommend you use "your_style.scss" to override SmartAdmin
+ * specific styles this will also ensure you retrain your customization with
+ * each SmartAdmin update.
  *= require your_style
+ *
+ *= require_self
+ *
+ * Invoice related styles
+ *= require invoice
+ *
+ * Lock screen related styles
+ *= require lockscreen
  */
+
 
 
 

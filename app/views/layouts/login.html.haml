@@ -1,40 +1,71 @@
 !!!
-%html
+%html{:id => "#{yield :html_id}"}
   %head
-    -#%meta{:content => "text/html; charset=UTF-8", "http-equiv" => "Content-Type"}/
+    %meta{:charset => "utf-8"}/
     %title Etyme
-    = stylesheet_link_tag    'application'
-    %script{:src => "//ajax.googleapis.com/ajax/libs/jquery/2.1.1/jquery.min.js"}
-
-    %link{:href => "#{image_path('favicon/favicon.ico')}", :rel => "shortcut icon", :type => "image/x-icon"}/
-    %link{:href => "#{image_path('favicon/favicon.ico')}", :rel => "icon", :type => "image/x-icon"}/
-    %link{:href => "http://fonts.googleapis.com/css?family=Open+Sans:400italic,700italic,300,400,700", :rel => "stylesheet"}/
-
-    %link{:href => "#{image_path('splash/sptouch-icon-iphone.png')}", :rel => "apple-touch-icon"}/
-    %link{:href => "#{image_path('splash/touch-icon-ipad.png')}", :rel => "apple-touch-icon", :sizes => "76x76"}/
-    %link{:href => "#{image_path('splash/touch-icon-iphone-retina.png')}", :rel => "apple-touch-icon", :sizes => "120x120"}/
-    %link{:href => "#{image_path('splash/touch-icon-ipad-retina.png')}", :rel => "apple-touch-icon", :sizes => "152x152"}/
+    = csrf_meta_tags
+    %meta{:content => "", :name => "description"}/
+    %meta{:content => "", :name => "author"}/
+    %meta{:content => "width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no", :name => "viewport"}/
+    = stylesheet_link_tag 'application', media: 'screen'
+    / FAVICONS
+    = favicon_link_tag 'favicon/favicon.ico'
+    = favicon_link_tag 'favicon/favicon.ico', rel: 'icon'
+    / GOOGLE FONT
+    = stylesheet_link_tag 'https://fonts.googleapis.com/css?family=Open+Sans:400italic,700italic,300,400,700'
+    /
+    = favicon_link_tag 'splash/sptouch-icon-iphone.png', type: 'image/png', rel: 'apple-touch-icon'
+    = favicon_link_tag 'splash/touch-icon-ipad.png', type: 'image/png', sizes: '76x76', rel: 'apple-touch-icon'
+    = favicon_link_tag 'splash/touch-icon-iphone-retina.png', type: 'image/png', sizes: '120x120', rel: 'apple-touch-icon'
+    = favicon_link_tag 'splash/touch-icon-ipad-retina.png', type: 'image/png', sizes: '152x152', rel: 'apple-touch-icon'
+    / iOS web-app metas : hides Safari UI Components and Changes Status Bar Appearance
     %meta{:content => "yes", :name => "apple-mobile-web-app-capable"}/
     %meta{:content => "black", :name => "apple-mobile-web-app-status-bar-style"}/
     / Startup image for web apps
-    %link{:href => "#{image_path('splash/ipad-landscape.png')}", :media => "screen and (min-device-width: 481px) and (max-device-width: 1024px) and (orientation:landscape)", :rel => "apple-touch-startup-image"}/
-    %link{:href => "#{image_path('splash/ipad-portrait.png')}", :media => "screen and (min-device-width: 481px) and (max-device-width: 1024px) and (orientation:portrait)", :rel => "apple-touch-startup-image"}/
-    %link{:href => "#{image_path('splash/iphone.png')}", :media => "screen and (max-device-width: 320px)", :rel => "apple-touch-startup-image"}/
-    %script{src: "//ajax.googleapis.com/ajax/libs/jquery/2.1.1/jquery.min.js"}
-    :javascript
-      if (!window.jQuery){ 'document.write('<script src="js/libs/jquery-2.1.1.min.js"><\/script>')'}
-    %script{:src => "//ajax.googleapis.com/ajax/libs/jqueryui/1.10.3/jquery-ui.min.js"}
-    :javascript
-      if (!window.jQuery){ 'document.write('<script src="js/libs/jquery-ui-1.10.3.min.js"><\/script>')'}
-    = csrf_meta_tags
-  %body
-    %header#header
-      #logo-group
-        %span#logo
-          %img{:alt => "SmartAdmin", :src => " #{image_path('logo.png')} " }/
-      %span#extr-page-header-space
-        %span.hidden-mobile.hiddex-xs Need an account?
-        %a.btn.btn-danger{:href => "register.html"} Create account
-    = yield
+    = favicon_link_tag 'splash/ipad-landscape.png', type: 'image/png', rel: 'apple-touch-startup-image', media: 'screen and (min-device-width: 481px) and (max-device-width: 1024px) and (orientation:landscape)'
+    = favicon_link_tag 'splash/ipad-portrait.png', type: 'image/png', rel: 'apple-touch-startup-image', media: 'screen and (min-device-width: 481px) and (max-device-width: 1024px) and (orientation:portrait)'
+    = favicon_link_tag 'splash/iphone.png', type: 'image/png', rel: 'apple-touch-startup-image', media: 'screen and (max-device-width: 320px)'
+    = yield :head
 
-  = javascript_include_tag 'application'
+  %body{:class => "#{yield :body_class}"}
+    = render partial: 'shared/header'
+    = render partial: 'shared/left_panel' if current_user && !@simulate_no_user
+    #main{:role => "main"}
+      = yield :ribbon
+      - if notice
+        .alert.alert-success.fade.in
+          %button.close{"data-dismiss" => "alert"}
+            ×
+          %i.fa-fw.fa.fa-check
+          = notice
+      - if alert
+        .alert.alert-warning.fade.in
+          %button.close{"data-dismiss" => "alert"}
+            ×
+          %i.fa-fw.fa.fa-warning
+          = alert
+      = yield
+    = render partial: 'shared/footer' if current_user && !@simulate_no_user
+    = render partial: 'shared/tiles' if current_user && !@simulate_no_user
+    / END SHORTCUT AREA
+    / ==================================================
+    / PACE LOADER - turn this on if you want ajax loading to show (caution: uses lots of memory on iDevices)
+    = javascript_include_tag 'plugin/pace/pace.min', 'data-pace-options' => '{ "restartOnRequestAfter": true }'
+    = javascript_include_tag 'application'
+    /[if IE 8]
+    = yield(:scripts).present? ? yield(:scripts) : render(partial: 'shared/scripts')
+    / Your GOOGLE ANALYTICS CODE Below
+    :javascript
+      var _gaq = _gaq || [];
+      _gaq.push(['_setAccount', 'UA-XXXXXXXX-X']);
+      _gaq.push(['_trackPageview']);
+
+      (function() {
+        var ga = document.createElement('script');
+        ga.type = 'text/javascript';
+        ga.async = true;
+        ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+        var s = document.getElementsByTagName('script')[0];
+        s.parentNode.insertBefore(ga, s);
+      })();
+
