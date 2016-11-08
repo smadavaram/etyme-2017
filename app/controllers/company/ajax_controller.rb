@@ -1,5 +1,5 @@
 # AJAX helpers
-class AjaxController < Company::BaseController
+class Company::AjaxController < Company::BaseController
   layout false
 
   def email_list

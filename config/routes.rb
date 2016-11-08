@@ -57,7 +57,6 @@ Rails.application.routes.draw do
   scope module: :company do
     get 'dashboard' , to: 'users#dashboard' , as: :dashboard
     # AJAX
-
     get 'ajax/email_compose', to: 'ajax#email_compose', as: :ajax_email_compose
     get 'ajax/email_list', to: 'ajax#email_list', as: :ajax_email_list
     get 'ajax/email_opened', to: 'ajax#email_opened', as: :ajax_email_opened
@@ -68,7 +67,7 @@ Rails.application.routes.draw do
     get 'ajax/notify_notifications',
         to: 'ajax#notify_notifications',
         as: :ajax_notify_notifications
-    get 'ajax/notify_tasks', to: 'ajax#notify_tasks', as: :ajax_notify_tasks
+    get 'company/ajax/notify_tasks', to: 'ajax#notify_tasks', as: :ajax_notify_tasks
 
   end # End of module company
 
@@ -80,9 +79,6 @@ Rails.application.routes.draw do
 
   # The priority is based upon order of creation: first created -> highest priority.
   # See how all your routes lay out with "rake routes".
-
-  # You can have the root of your site routed with "root"
-  # root 'welcome#index'
 
   # Example of regular route:
   #   get 'products/:id' => 'catalog#view'
@@ -136,6 +132,7 @@ Rails.application.routes.draw do
   constraints(NakedEtymeDomain) do
     # root :to => "static#index"
   end
-  resources :companies , :static
+  resources :companies , only: [:new , :create]
+  resources :static , only: [:index]
   root :to => "static#index"
 end
