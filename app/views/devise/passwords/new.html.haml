@@ -1,10 +1,59 @@
-%h2 Forgot your password?
-= form_for(resource, as: resource_name, url: password_path(resource_name), html: { method: :post }) do |f|
-  = devise_error_messages!
-  .field
-    = f.label :email
-    %br/
-    = f.email_field :email, autofocus: true
-  .actions
-    = f.submit "Send me reset password instructions"
-= render "users/shared/links"
+- content_for :html_id, "extr-page"
+- content_for :body_class, "animated fadeInDown"
+- content_for :top_right do
+  %span#extr-page-header-space
+    %span.hidden-mobile.hiddex-xs Need an account?
+    = link_to 'Create account', register_path, class: 'btn btn-danger'
+/ MAIN CONTENT
+#content.container
+  .row
+    .col-xs-12.col-sm-12.col-md-7.col-lg-8.hidden-xs.hidden-sm
+      %h1.txt-color-red.login-header-big #{SITE_NAME}
+      .hero
+        .pull-left.login-desc-box-l
+          %h4.paragraph-header It's Okay to be Smart. Experience the simplicity of SmartAdmin, everywhere you go!
+          .login-app-icons
+            %a.btn.btn-danger.btn-sm{:href => "javascript:void(0);"} Frontend Template
+            %a.btn.btn-danger.btn-sm{:href => "javascript:void(0);"} Find out more
+        = image_tag 'demo/iphoneview.png', class: 'pull-right display-image', alt: '', style: 'width:210px'
+      .row
+        .col-xs-12.col-sm-12.col-md-6.col-lg-6
+          %h5.about-heading About SmartAdmin - Are you up to date?
+          %p
+            Sed ut perspiciatis unde omnis iste natus error sit voluptatem accusantium doloremque laudantium, totam rem aperiam, eaque ipsa.
+        .col-xs-12.col-sm-12.col-md-6.col-lg-6
+          %h5.about-heading Not just your average template!
+          %p
+            Et harum quidem rerum facilis est et expedita distinctio. Nam libero tempore, cum soluta nobis est eligendi voluptatem accusantium!
+    .col-xs-12.col-sm-12.col-md-5.col-lg-4
+      .well.no-padding
+        = form_for(resource, as: resource_name, url: password_path(resource_name), html: {id: 'login-form', class: 'smart-form client-form',method: :post }) do |f|
+          = devise_error_messages!
+          %header
+            Forgot Password
+          %fieldset
+            %section
+              %label.label Enter your email address
+              %label.input
+                %i.icon-append.fa.fa-envelope
+                = f.email_field :email, autofocus: true
+                %b.tooltip.tooltip-top-right
+                  %i.fa.fa-envelope.txt-color-teal
+                  Please enter email address for password reset
+              .note
+                %a{href: new_user_session_path} I remembered my password!
+          %footer
+            %button.btn.btn-primary{:type => "submit"}
+              %i.fa.fa-refresh
+              Reset Password
+      %h5.text-center - Or sign in using -
+      %ul.list-inline.text-center
+        %li
+          %a.btn.btn-primary.btn-circle{:href => "javascript:void(0);"}
+            %i.fa.fa-facebook
+        %li
+          %a.btn.btn-info.btn-circle{:href => "javascript:void(0);"}
+            %i.fa.fa-twitter
+        %li
+          %a.btn.btn-warning.btn-circle{:href => "javascript:void(0);"}
+            %i.fa.fa-linkedin
