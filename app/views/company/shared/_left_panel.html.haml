@@ -6,7 +6,7 @@
       %a#show-shortcut{"data-action" => "toggleShortcut", :href => "javascript:void(0);"}
         = image_tag 'avatars/sunny.png', alt: 'me', class: 'online'
         %span
-          john.doe
+          = current_user.full_name
         %i.fa.fa-angle-down
   / end user info
   / NAVIGATION : This navigation is also responsive

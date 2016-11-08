@@ -3,12 +3,12 @@ class ApplicationController < ActionController::Base
   # For APIs, you may want to use :null_session instead.
   protect_from_forgery with: :exception
   before_filter :authenticate_user!
-  layout :set_layout
+  layout :set_devise_layout
 
   before_action :verify_company if Rails.env.production?
 
 
-  def set_layout
+  def set_devise_layout
     if devise_controller?
       'login'
     end

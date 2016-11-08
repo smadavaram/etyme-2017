@@ -1,142 +1,141 @@
-%body
-  %header#header
-    #logo-group
-      / PLACE YOUR LOGO HERE
-      %span#logo
-        = image_tag 'logo.png', alt: 'SmartAdmin'
-      / END LOGO PLACEHOLDER
-      - if current_user && !@simulate_no_user
-        /
-          Note: The activity badge color changes when clicked and resets the number to 0
-          Suggestion: You may want to set a flag when this happens to tick off all checked messages / notifications
-        %span#activity.activity-dropdown
-          %i.fa.fa-user
-          %b.badge 21
-        / AJAX-DROPDOWN : control this dropdown height, look and feel from the LESS variable file
-        .ajax-dropdown
-          / the ID links are fetched via AJAX to the ajax container "ajax-notifications"
-          .btn-group.btn-group-justified{"data-toggle" => "buttons"}
-            %label.btn.btn-default
-              %input{:id => ajax_notify_mail_path, :name => "activity", :type => "radio"}/
-              = _('Msgs')
-              (14)
-            %label.btn.btn-default
-              %input{:id => ajax_notify_notifications_path, :name => "activity", :type => "radio"}/
-              = _('notify')
-              (3)
-            %label.btn.btn-default
-              %input{:id => ajax_notify_tasks_path, :name => "activity", :type => "radio"}/
-              = _('Tasks')
-              (4)
-          / notification content
-          .ajax-notifications.custom-scroll
-            .alert.alert-transparent
-              %h4 Click a button to show messages here
-              This blank page message helps protect your privacy, or you can show the first message here automatically.
-            %i.fa.fa-lock.fa-4x.fa-border
-          / end notification content
-          / footer: refresh area
-          %span
-            Last updated on: 12/12/2013 9:43AM
-            %button.btn.btn-xs.btn-default.pull-right{"data-loading-text" => "<i class='fa fa-refresh fa-spin'></i> Loading...", :type => "button"}
-              %i.fa.fa-refresh
-          / end footer
-        / END AJAX-DROPDOWN
-    = yield :top_right
+%header#header
+  #logo-group
+    / PLACE YOUR LOGO HERE
+    %span#logo
+      = image_tag 'logo.png', alt: 'SmartAdmin'
+    / END LOGO PLACEHOLDER
     - if current_user && !@simulate_no_user
-      / projects dropdown
-      .project-context.hidden-xs
-        %span.label Projects:
-        %span.project-selector.dropdown-toggle{"data-toggle" => "dropdown"}
-          = _('Recent projects')
-          %i.fa.fa-angle-down
-        / Suggestion: populate this list with fetch and push technique
-        %ul.dropdown-menu
-          %li
-            %a{:href => "javascript:void(0);"} Online e-merchant management system - attaching integration with the iOS
-          %li
-            %a{:href => "javascript:void(0);"} Notes on pipeline upgradee
-          %li
-            %a{:href => "javascript:void(0);"} Assesment Report for merchant account
-          %li.divider
-          %li
-            %a{:href => "javascript:void(0);"}
-              %i.fa.fa-power-off
-              Clear
-        / end dropdown-menu
-      / end projects dropdown
-      / pulled right: nav area
-      .pull-right
-        / collapse menu button
-        #hide-menu.btn-header.pull-right
-          %span
-            %a{"data-action" => "toggleMenu", :href => "javascript:void(0);", :title => "Collapse Menu"}
-              %i.fa.fa-reorder
-        / end collapse menu
-        / #MOBILE
-        / Top menu profile link : this shows only when top menu is active
-        %ul#mobile-profile-img.header-dropdown-list.hidden-xs.padding-5
-          %li
-            %a.dropdown-toggle.no-margin.userdropdown{"data-toggle" => "dropdown", :href => "#"}
-              = image_tag 'avatars/sunny.png', alt: 'John Doe', class: 'online'
-            %ul.dropdown-menu.pull-right
-              %li
-                %a.padding-10.padding-top-0.padding-bottom-0{:href => "javascript:void(0);"}
-                  %i.fa.fa-cog
-                  Setting
-              %li.divider
-              %li
-                %a.padding-10.padding-top-0.padding-bottom-0{:href => "profile.html"}
-                  %i.fa.fa-user
-                  = succeed "rofile" do
-                    %u P
-              %li.divider
-              %li
-                %a.padding-10.padding-top-0.padding-bottom-0{"data-action" => "toggleShortcut", :href => "javascript:void(0);"}
-                  %i.fa.fa-arrow-down
-                  = succeed "hortcut" do
-                    %u S
-              %li.divider
-              %li
-                %a.padding-10.padding-top-0.padding-bottom-0{"data-action" => "launchFullscreen", :href => "javascript:void(0);"}
-                  %i.fa.fa-arrows-alt
-                  Full
-                  = succeed "creen" do
-                    %u S
-              %li.divider
-              %li
-                %a.padding-10.padding-top-5.padding-bottom-5{"data-action" => "userLogout", :href => "login.html"}
-                  %i.fa.fa-sign-out.fa-lg
-                  %strong
-                    %u> L
-                    ogout
-        / logout button
-        #logout.btn-header.transparent.pull-right
-          %span
-            = link_to(destroy_user_session_path, title: 'Sign Out', data: {action: 'userLogout', 'logout-msg' => 'You can improve your security further after logging out by closing this opened browser'}) do
-              %i.fa.fa-sign-out
-        / end logout button
-        / search mobile button (this is hidden till mobile view port)
-        #search-mobile.btn-header.transparent.pull-right
-          %span
-            %a{:href => "javascript:void(0)", :title => "Search"}
-              %i.fa.fa-search
-        / end search mobile button
-        / input: search field
-        %form.header-search.pull-right{:action => root_path}
-          %input#search-fld{"data-autocomplete" => "[\n            \"ActionScript\",\n            \"AppleScript\",\n            \"Asp\",\n            \"BASIC\",\n            \"C\",\n            \"C++\",\n            \"Clojure\",\n            \"COBOL\",\n            \"ColdFusion\",\n            \"Erlang\",\n            \"Fortran\",\n            \"Groovy\",\n            \"Haskell\",\n            \"Java\",\n            \"JavaScript\",\n            \"Lisp\",\n            \"Perl\",\n            \"PHP\",\n            \"Python\",\n            \"Ruby\",\n            \"Scala\",\n            \"Scheme\"]", :name => "param", :placeholder => "#{_('Find reports and more')}", :type => "text"}/
-          %button{:type => "submit"}
-            %i.fa.fa-search
-          %a#cancel-search-js{:href => "javascript:void(0);", :title => "Cancel Search"}
-            %i.fa.fa-times
-        / end input: search field
-        / fullscreen button
-        #fullscreen.btn-header.transparent.pull-right
-          %span
-            %a{"data-action" => "launchFullscreen", :href => "javascript:void(0);", :title => "Full Screen"}
-              %i.fa.fa-arrows-alt
-        / end fullscreen button
-        / multiple lang dropdown : find all flags in the flags page
-        = render 'layouts/locale_select'
-        / end multiple lang
-      / end pulled right: nav area
+      /
+        Note: The activity badge color changes when clicked and resets the number to 0
+        Suggestion: You may want to set a flag when this happens to tick off all checked messages / notifications
+      %span#activity.activity-dropdown
+        %i.fa.fa-user
+        %b.badge 21
+      / AJAX-DROPDOWN : control this dropdown height, look and feel from the LESS variable file
+      .ajax-dropdown
+        / the ID links are fetched via AJAX to the ajax container "ajax-notifications"
+        .btn-group.btn-group-justified{"data-toggle" => "buttons"}
+          %label.btn.btn-default
+            %input{:id => ajax_notify_mail_path, :name => "activity", :type => "radio"}/
+            -#= _('Msgs')
+            (14)
+          %label.btn.btn-default
+            %input{:id => ajax_notify_notifications_path, :name => "activity", :type => "radio"}/
+            -#= _('notify')
+            (3)
+          %label.btn.btn-default
+            %input{:id => ajax_notify_tasks_path, :name => "activity", :type => "radio"}/
+            -#= _('Tasks')
+            (4)
+        / notification content
+        .ajax-notifications.custom-scroll
+          .alert.alert-transparent
+            %h4 Click a button to show messages here
+            This blank page message helps protect your privacy, or you can show the first message here automatically.
+          %i.fa.fa-lock.fa-4x.fa-border
+        / end notification content
+        / footer: refresh area
+        %span
+          Last updated on: 12/12/2013 9:43AM
+          %button.btn.btn-xs.btn-default.pull-right{"data-loading-text" => "<i class='fa fa-refresh fa-spin'></i> Loading...", :type => "button"}
+            %i.fa.fa-refresh
+        / end footer
+      / END AJAX-DROPDOWN
+  = yield :top_right
+  -#- if current_user && !@simulate_no_user
+  -#  / projects dropdown
+  -#  .project-context.hidden-xs
+  -#    %span.label Projects:
+  -#    %span.project-selector.dropdown-toggle{"data-toggle" => "dropdown"}
+  -#      = _('Recent projects')
+  -#      %i.fa.fa-angle-down
+  -#    / Suggestion: populate this list with fetch and push technique
+  -#    %ul.dropdown-menu
+  -#      %li
+  -#        %a{:href => "javascript:void(0);"} Online e-merchant management system - attaching integration with the iOS
+  -#      %li
+  -#        %a{:href => "javascript:void(0);"} Notes on pipeline upgradee
+  -#      %li
+  -#        %a{:href => "javascript:void(0);"} Assesment Report for merchant account
+  -#      %li.divider
+  -#      %li
+  -#        %a{:href => "javascript:void(0);"}
+  -#          %i.fa.fa-power-off
+  -#          Clear
+  -#    / end dropdown-menu
+  -#  / end projects dropdown
+  -#  / pulled right: nav area
+  -#  .pull-right
+  -#    / collapse menu button
+  -#    #hide-menu.btn-header.pull-right
+  -#      %span
+  -#        %a{"data-action" => "toggleMenu", :href => "javascript:void(0);", :title => "Collapse Menu"}
+  -#          %i.fa.fa-reorder
+  -#    / end collapse menu
+  -#    / #MOBILE
+  -#    / Top menu profile link : this shows only when top menu is active
+  -#    %ul#mobile-profile-img.header-dropdown-list.hidden-xs.padding-5
+  -#      %li
+  -#        %a.dropdown-toggle.no-margin.userdropdown{"data-toggle" => "dropdown", :href => "#"}
+  -#          = image_tag 'avatars/sunny.png', alt: 'John Doe', class: 'online'
+  -#        %ul.dropdown-menu.pull-right
+  -#          %li
+  -#            %a.padding-10.padding-top-0.padding-bottom-0{:href => "javascript:void(0);"}
+  -#              %i.fa.fa-cog
+  -#              Setting
+  -#          %li.divider
+  -#          %li
+  -#            %a.padding-10.padding-top-0.padding-bottom-0{:href => "profile.html"}
+  -#              %i.fa.fa-user
+  -#              = succeed "rofile" do
+  -#                %u P
+  -#          %li.divider
+  -#          %li
+  -#            %a.padding-10.padding-top-0.padding-bottom-0{"data-action" => "toggleShortcut", :href => "javascript:void(0);"}
+  -#              %i.fa.fa-arrow-down
+  -#              = succeed "hortcut" do
+  -#                %u S
+  -#          %li.divider
+  -#          %li
+  -#            %a.padding-10.padding-top-0.padding-bottom-0{"data-action" => "launchFullscreen", :href => "javascript:void(0);"}
+  -#              %i.fa.fa-arrows-alt
+  -#              Full
+  -#              = succeed "creen" do
+  -#                %u S
+  -#          %li.divider
+  -#          %li
+  -#            %a.padding-10.padding-top-5.padding-bottom-5{"data-action" => "userLogout", :href => "login.html"}
+  -#              %i.fa.fa-sign-out.fa-lg
+  -#              %strong
+  -#                %u> L
+  -#                ogout
+  -#    / logout button
+  -#    #logout.btn-header.transparent.pull-right
+  -#      %span
+  -#        = link_to(destroy_user_session_path, title: 'Sign Out', data: {action: 'userLogout', 'logout-msg' => 'You can improve your security further after logging out by closing this opened browser'}) do
+  -#          %i.fa.fa-sign-out
+  -#    / end logout button
+  -#    / search mobile button (this is hidden till mobile view port)
+  -#    #search-mobile.btn-header.transparent.pull-right
+  -#      %span
+  -#        %a{:href => "javascript:void(0)", :title => "Search"}
+  -#          %i.fa.fa-search
+  -#    / end search mobile button
+  -#    / input: search field
+  -#    %form.header-search.pull-right{:action => root_path}
+  -#      %input#search-fld{"data-autocomplete" => "[\n            \"ActionScript\",\n            \"AppleScript\",\n            \"Asp\",\n            \"BASIC\",\n            \"C\",\n            \"C++\",\n            \"Clojure\",\n            \"COBOL\",\n            \"ColdFusion\",\n            \"Erlang\",\n            \"Fortran\",\n            \"Groovy\",\n            \"Haskell\",\n            \"Java\",\n            \"JavaScript\",\n            \"Lisp\",\n            \"Perl\",\n            \"PHP\",\n            \"Python\",\n            \"Ruby\",\n            \"Scala\",\n            \"Scheme\"]", :name => "param", :placeholder => "#{_('Find reports and more')}", :type => "text"}/
+  -#      %button{:type => "submit"}
+  -#        %i.fa.fa-search
+  -#      %a#cancel-search-js{:href => "javascript:void(0);", :title => "Cancel Search"}
+  -#        %i.fa.fa-times
+  -#    / end input: search field
+  -#    / fullscreen button
+  -#    #fullscreen.btn-header.transparent.pull-right
+  -#      %span
+  -#        %a{"data-action" => "launchFullscreen", :href => "javascript:void(0);", :title => "Full Screen"}
+  -#          %i.fa.fa-arrows-alt
+  -#    / end fullscreen button
+  -#    / multiple lang dropdown : find all flags in the flags page
+  -#    = render 'layouts/locale_select'
+  -#    / end multiple lang
+  -#  / end pulled right: nav area
