@@ -17,6 +17,9 @@
 // IMPORTANT: APP CONFIG
 //= require app.config.seed
 
+// JQUERY VALIDATE
+//= require plugin/jquery-validate/jquery.validate.min
+
 // BOOTSTRAP JS
 //= require bootstrap/bootstrap
 
