@@ -1,4 +1,4 @@
-class UserMailer < ApplicationMailer
+class UserMailer < Devise::Mailer
   default from: "no-reply@etyme.com"
 
 
@@ -10,5 +10,9 @@ class UserMailer < ApplicationMailer
     mail(:to => @owner.email, :subject => "Welcome to Etyme",:from => @email)
   end
 
+  def reset_password_instructions(record, token, opts={})
+    @token = token
+    devise_mail(record, :reset_password_instructions, opts)
+  end
 
 end
