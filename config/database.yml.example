@@ -1,0 +1,17 @@
+default: &default
+ adapter: postgresql
+ encoding: utf8
+ user: razeekhan
+ password:
+ host: localhost
+
+development:
+ <<: *default
+ database: etyme_development
+test:
+ <<: *default
+ database: etyme_test
+
+production:
+ <<: *default
+ database: etyme_production

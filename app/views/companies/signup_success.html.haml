@@ -9,10 +9,10 @@
     .row
       .col-md-3.col-lg-3
       .col-xs-12.col-sm-12.col-md-7.col-lg-7
-        %h1.txt-color-red.login-header-big Registration Successful
+        %h1.txt-color-red.login-header-big Sign Up Successful
         .hero
           .pull-left.login-desc-box-l
-            %h4.paragraph-header It's Okay to be Smart. Experience the simplicity of SmartAdmin, everywhere you go!
+            %h4.paragraph-header You have successfully signed up on eTyme. In order to continue to your domain and login, Click the link below
             .login-app-icons
-              =link_to 'CONTINUE',"http://#{@company.slug}"+"."+"#{ENV['etyme_domain']}", class: 'btn btn-lg btn-primary'
+              =link_to 'CONTINUE TO LOGIN',"http://#{@company.etyme_url}", class: 'btn btn-lg btn-primary'
           %img.pull-right.display-image{:alt => "", :src => "#{image_path('demo/iphoneview.png')}", :style => "width:210px"}/

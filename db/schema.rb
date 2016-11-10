@@ -92,7 +92,7 @@ ActiveRecord::Schema.define(version: 20161110095515) do
     t.integer  "company_id"
     t.string   "first_name",             default: ""
     t.string   "last_name",              default: ""
-    t.boolean  "gender"
+    t.integer  "gender"
     t.string   "email",                  default: "", null: false
     t.string   "type"
     t.string   "phone"

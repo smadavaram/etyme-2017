@@ -128,8 +128,23 @@ module ApplicationHelper
     [
         {
             href: root_path,
-            title: 'blank',
-            content: "<i class='fa fa-lg fa-fw fa-home'></i> <span class='menu-item-parent'>" + 'Blank' + "</span>",
+            title: 'HOME',
+            content: "<i class='fa fa-lg fa-fw fa-home'></i> <span class='menu-item-parent'>" + 'HOME' + "</span>",
+        },
+        {
+            href: root_path,
+            title: 'EMPLOYEES',
+            content: "<i class='fa fa-lg fa-fw fa-users'></i> <span class='menu-item-parent'>" + 'EMPLOYEES' + "</span>",
+        },
+        {
+            href: root_path,
+            title: 'JOBS',
+            content: "<i class='fa fa-lg fa-fw fa-briefcase'></i> <span class='menu-item-parent'>" + 'JOBS' + "</span>",
+        },
+        {
+            href: root_path,
+            title: 'VENDORS',
+            content: "<i class='fa fa-lg fa-fw fa-black-tie'></i> <span class='menu-item-parent'>" + 'VENDORS' + "</span>",
         },
     ]
   end

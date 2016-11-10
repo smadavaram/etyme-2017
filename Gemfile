@@ -33,6 +33,7 @@ gem 'activeadmin'
 gem 'filepicker-rails'
 gem 'has_scope'
 gem 'figaro'
+gem "breadcrumbs_on_rails"
 
 # Use ActiveModel has_secure_password
 # gem 'bcrypt', '~> 3.1.7'

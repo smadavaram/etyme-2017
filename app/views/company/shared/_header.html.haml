@@ -1,8 +1,8 @@
 %header#header
   #logo-group
     / PLACE YOUR LOGO HERE
-    %span#logo
-      = image_tag 'logo.png', alt: 'SmartAdmin'
+    %span#logo{style: 'margin-top: 3px;'}
+      = image_tag 'etyme-logo-dark.png', alt: 'SmartAdmin', style: 'width: 80px;'
     %span#activity.activity-dropdown
       %i.fa.fa-user
       %b.badge 21
@@ -36,9 +36,9 @@
   = yield :top_right
   / projects dropdown
   .project-context.hidden-xs
-    %span.label Projects:
+    %span.label Jobs:
     %span.project-selector.dropdown-toggle{"data-toggle" => "dropdown"}
-      = 'Recent projects'
+      = 'Most Recent'
       %i.fa.fa-angle-down
     %ul.dropdown-menu
       %li
