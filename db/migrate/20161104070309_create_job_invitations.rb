@@ -1,9 +1,10 @@
 class CreateJobInvitations < ActiveRecord::Migration
   def change
     create_table :job_invitations do |t|
-      t.integer :receipent_id
-      t.string  :receipent_type
-      t.integer :sender_id
+      t.integer :recipient_id
+      t.string  :email
+      t.string  :recipient_type
+      t.integer :created_by_id
       t.integer :job_id
       t.integer :status , default: 0
 

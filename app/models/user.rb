@@ -43,12 +43,20 @@ class User < ActiveRecord::Base
   # Include default devise modules. Others available are:
   # :confirmable, :lockable, :timeoutable and :omniauthable
   devise :database_authenticatable, :registerable,
-         :recoverable, :rememberable, :trackable, :validatable , :confirmable
+         :recoverable, :rememberable, :trackable, :validatable
+
+  # Validations
+  validates :first_name, :presence => true
+  validates :last_name, :presence => true
+  validates_confirmation_of :password
+  validates_presence_of :password, :on => :create
+  validates_presence_of :email
+  validates_uniqueness_of :email
+  validates_length_of :password, :minimum => 6,:message => "must be atleat 6 characters" ,:if => Proc.new { |user| user.password.present? }
+
 
   # Association
-  has_one :company, foreign_key: :owner_id , dependent: :destroy
-  has_many :job_invitations , foreign_key: :sender_id , dependent: :destroy
-  has_many :jobs
+  belongs_to :company
 
   def full_name
     self.first_name + " " + self.last_name

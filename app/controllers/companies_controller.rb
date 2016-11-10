@@ -29,6 +29,6 @@ class CompaniesController < ApplicationController
     end #End of set_new_company_and_owner
 
     def company_params
-      params.require(:company).permit(:name , owner_attributes:[:id, :type ,:first_name, :last_name, :email,:password, :password_confirmation])
+      params.require(:company).permit(:name , owner_attributes:[:id, :type ,:first_name, :last_name, :gender ,:email,:password, :password_confirmation])
     end # End of company_params
 end
