@@ -52,22 +52,24 @@ class Company < ActiveRecord::Base
   after_create :set_owner_company_id
   after_create :send_confirmation_email
 
-  def build_hiring_manager
-      build_owner(type: "HiringManager")
 
+  def etyme_url
+    "#{self.slug}.#{ENV['etyme_domain']}"
   end
 
   private
 
-  def create_slug
-    self.slug = self.name.parameterize("").gsub("_","-")
-  end
+    def create_slug
+      self.slug = self.name.parameterize("").gsub("_","-")
+    end
 
-  def set_owner_company_id
-    self.owner.update_column(:company_id, id)
-  end
+    def set_owner_company_id
+      self.owner.update_column(:company_id, id)
+    end
 
-  def send_confirmation_email
-    # UserMailer.signup_confirmation(self).deliver
-  end
+    def send_confirmation_email
+      # UserMailer.signup_confirmation(self).deliver
+    end
+
+
 end

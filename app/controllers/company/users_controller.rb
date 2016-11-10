@@ -1,6 +1,7 @@
 class Company::UsersController < Company::BaseController
 
-def dashboard
+  # Dashboard after HiringManager/Vendor login
+  def dashboard
+  end # End of dashboard
 
-end
 end

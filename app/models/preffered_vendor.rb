@@ -14,7 +14,7 @@
 #  index_prefferd_vendors_on_vendor_id   (vendor_id)
 #
 
-class PrefferdVendor < ActiveRecord::Base
+class PrefferedVendor < ActiveRecord::Base
   belongs_to :company
   belongs_to :vendor
 end

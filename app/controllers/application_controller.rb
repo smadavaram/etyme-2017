@@ -1,17 +1,15 @@
 class ApplicationController < ActionController::Base
-  # Prevent CSRF attacks by raising an exception.
-  # For APIs, you may want to use :null_session instead.
+
   protect_from_forgery with: :exception
-  before_filter :authenticate_user!
+
   layout :set_devise_layout
 
-  before_action :verify_company if Rails.env.production?
+  before_filter :authenticate_user!
+  before_action :verify_company #if Rails.env.production?
 
 
   def set_devise_layout
-    if devise_controller?
-      'login'
-    end
+    'login' if devise_controller?
   end
 
   def after_sign_in_path_for(resource)
@@ -34,4 +32,5 @@ class ApplicationController < ActionController::Base
     @company ||= Company.where(slug: request.subdomain).first
   end
   helper_method :current_company
+
 end

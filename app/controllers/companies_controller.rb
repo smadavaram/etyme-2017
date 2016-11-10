@@ -1,12 +1,14 @@
 class CompaniesController < ApplicationController
 
-  before_action :set_new_company , only: [:new]
-  before_action :build_new_company_owner , only: [:new]
+  #CallBacks
+  before_action :set_new_company_and_owner , only: [:new]
   skip_before_action :authenticate_user! , only:[:new , :create]
+
+  #Layout
   layout 'login'
 
   def new
-  end
+  end # End of new
 
   def create
     @company = Company.new(company_params)
@@ -17,20 +19,16 @@ class CompaniesController < ApplicationController
       flash.now[:errors] = @company.errors.full_messages
       return render 'new'
     end
-  end
+  end # End of create
 
   private
 
-  def set_new_company
-    @company = Company.new
-  end
+    def set_new_company_and_owner
+      @company = Company.new
+      @company.build_owner
+    end #End of set_new_company_and_owner
 
-  def build_new_company_owner
-    @company.build_owner
-  end
-
-
-  def company_params
-    params.require(:company).permit(:name , owner_attributes:[:id, :type ,:first_name, :last_name, :email,:password, :password_confirmation])
-  end
+    def company_params
+      params.require(:company).permit(:name , owner_attributes:[:id, :type ,:first_name, :last_name, :email,:password, :password_confirmation])
+    end # End of company_params
 end

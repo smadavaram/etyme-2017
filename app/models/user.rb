@@ -45,6 +45,7 @@ class User < ActiveRecord::Base
   devise :database_authenticatable, :registerable,
          :recoverable, :rememberable, :trackable, :validatable , :confirmable
 
+  # Association
   has_one :company, foreign_key: :owner_id , dependent: :destroy
   has_many :job_invitations , foreign_key: :sender_id , dependent: :destroy
   has_many :jobs
