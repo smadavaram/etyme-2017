@@ -11,14 +11,24 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema.define(version: 20161103144819) do
+ActiveRecord::Schema.define(version: 20161110095515) do
 
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
 
+  create_table "addresses", force: :cascade do |t|
+    t.string   "address_1"
+    t.string   "address_2"
+    t.string   "country"
+    t.string   "city"
+    t.string   "state"
+    t.string   "zip_code"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+  end
+
   create_table "companies", force: :cascade do |t|
     t.integer  "owner_id"
-    t.string   "company_type_id"
     t.string   "name"
     t.string   "website"
     t.string   "logo"
@@ -32,61 +42,63 @@ ActiveRecord::Schema.define(version: 20161103144819) do
     t.string   "twitter_url"
     t.string   "google_url"
     t.string   "time_zone"
-    t.boolean  "is_activated",     default: false
+    t.boolean  "is_activated",             default: false
     t.string   "dba"
-    t.boolean  "status"
+    t.integer  "status"
     t.date     "established_date"
     t.integer  "entity_type"
-    t.datetime "created_at",                       null: false
-    t.datetime "updated_at",                       null: false
+    t.integer  "hr_manager_id"
+    t.integer  "billing_contact_id"
+    t.string   "accountant_contact_email"
+    t.datetime "created_at",                               null: false
+    t.datetime "updated_at",                               null: false
   end
 
   add_index "companies", ["owner_id"], name: "index_companies_on_owner_id", using: :btree
 
-  create_table "company_types", force: :cascade do |t|
-    t.string   "name"
-    t.datetime "created_at", null: false
-    t.datetime "updated_at", null: false
+  create_table "job_invitations", force: :cascade do |t|
+    t.integer  "recipient_id"
+    t.string   "email"
+    t.string   "recipient_type"
+    t.integer  "created_by_id"
+    t.integer  "job_id"
+    t.integer  "status",         default: 0
+    t.datetime "created_at",                 null: false
+    t.datetime "updated_at",                 null: false
   end
 
   create_table "jobs", force: :cascade do |t|
     t.string   "title"
     t.text     "description"
-    t.integer  "company_id"
-    t.string   "country"
-    t.string   "zip_code"
-    t.string   "state"
-    t.string   "city"
+    t.integer  "location_id"
     t.date     "start_date"
     t.date     "end_date"
-    t.datetime "created_at",  null: false
-    t.datetime "updated_at",  null: false
-  end
-
-  create_table "prefferd_vendors", id: false, force: :cascade do |t|
+    t.integer  "parent_job_id"
     t.integer  "company_id"
-    t.integer  "vendor_id"
-    t.boolean  "status",     default: false
-    t.datetime "created_at",                 null: false
-    t.datetime "updated_at",                 null: false
+    t.integer  "created_by_id"
+    t.datetime "created_at",    null: false
+    t.datetime "updated_at",    null: false
   end
 
-  add_index "prefferd_vendors", ["company_id"], name: "index_prefferd_vendors_on_company_id", using: :btree
-  add_index "prefferd_vendors", ["vendor_id"], name: "index_prefferd_vendors_on_vendor_id", using: :btree
+  create_table "locations", force: :cascade do |t|
+    t.string   "name"
+    t.integer  "address_id"
+    t.integer  "status"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+  end
 
-  create_table "devise", force: :cascade do |t|
+  create_table "users", force: :cascade do |t|
+    t.integer  "company_id"
     t.string   "first_name",             default: ""
     t.string   "last_name",              default: ""
     t.boolean  "gender"
     t.string   "email",                  default: "", null: false
     t.string   "type"
-    t.string   "contact"
-    t.string   "country"
-    t.string   "state"
-    t.string   "city"
-    t.string   "zip_code"
+    t.string   "phone"
+    t.integer  "primary_address_id"
     t.string   "photo"
-    t.boolean  "status"
+    t.integer  "status"
     t.string   "encrypted_password",     default: "", null: false
     t.string   "reset_password_token"
     t.datetime "reset_password_sent_at"
@@ -96,11 +108,15 @@ ActiveRecord::Schema.define(version: 20161103144819) do
     t.datetime "last_sign_in_at"
     t.string   "current_sign_in_ip"
     t.string   "last_sign_in_ip"
+    t.string   "confirmation_token"
+    t.datetime "confirmed_at"
+    t.datetime "confirmation_sent_at"
+    t.string   "unconfirmed_email"
     t.datetime "created_at",                          null: false
     t.datetime "updated_at",                          null: false
   end
 
-  add_index "devise", ["email"], name: "index_users_on_email", unique: true, using: :btree
-  add_index "devise", ["reset_password_token"], name: "index_users_on_reset_password_token", unique: true, using: :btree
+  add_index "users", ["email"], name: "index_users_on_email", unique: true, using: :btree
+  add_index "users", ["reset_password_token"], name: "index_users_on_reset_password_token", unique: true, using: :btree
 
 end

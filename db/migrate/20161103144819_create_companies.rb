@@ -21,11 +21,11 @@ class CreateCompanies < ActiveRecord::Migration
       t.integer  :status
       t.date     :established_date
       t.integer  :entity_type
-      t.integer  :hr_manager_id,
-      t.integer  :billing_contact_id,
+      t.integer  :hr_manager_id
+      t.integer  :billing_contact_id
       t.string   :accountant_contact_email
 
-   t.timestamps null: false
+      t.timestamps null: false
     end
   end
 end
