@@ -50,8 +50,7 @@ class Company < ActiveRecord::Base
   accepts_nested_attributes_for :owner , allow_destroy: true
 
   # CallBacks
-
-  before_validate :create_slug
+  before_validation :create_slug
   after_create :set_owner_company_id
   after_create :send_confirmation_email
 
