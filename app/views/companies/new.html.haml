@@ -64,6 +64,10 @@
                     = u.password_field :password_confirmation, :placeholder => "Confirm password", "data-rule-equalTo": "#company_owner_attributes_password"
                     %b.tooltip.tooltip-bottom-right Please confirm the password
                 %section
+                  %label.select
+                    = select_tag 'company[owner_attributes][type]', options_for_select(USER_TYPES.collect{ |type| [type[0], type[1]] })
+                    %i
+                %section
                   -#%label.checkbox
                     %input#subscription{:name => "subscription", :type => "checkbox"}/
                     = succeed "I want to receive news and special offers" do
@@ -101,10 +105,10 @@
                       = select_tag 'company[owner_attributes][type]', options_for_select(USER_TYPES.collect{ |type| [type[0], type[1]] })
                       %i
                 %section
-                  %label.checkbox
-                    %input#subscription{:name => "subscription", :type => "checkbox"}/
-                    = succeed "I want to receive news and special offers" do
-                      %i
+                  %label.select
+                    = select_tag 'company[owner_attributes][type]', options_for_select(USER_TYPES.collect{ |type| [type[0], type[1]] })
+                    %i
+                %section
                   %label.checkbox
                     %input#terms{:name => "terms", :type => "checkbox"}/
                     = succeed "I agree with the " do

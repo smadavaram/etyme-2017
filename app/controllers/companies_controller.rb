@@ -2,7 +2,7 @@ class CompaniesController < ApplicationController
 
   #CallBacks
   before_action :set_new_company_and_owner , only: [:new]
-  skip_before_action :authenticate_user! , only:[:new , :create]
+  skip_before_action :authenticate_user! , only:[:new , :create , :signup_success]
 
   #Layout
   layout 'login'
@@ -15,6 +15,7 @@ class CompaniesController < ApplicationController
     if @company.valid?
       @company.save
       flash[:success] =  "Registration Successfull."
+      render 'companies/signup_success' , layout: 'login'
     else
       flash.now[:errors] = @company.errors.full_messages
       return render 'new'
@@ -29,6 +30,6 @@ class CompaniesController < ApplicationController
     end #End of set_new_company_and_owner
 
     def company_params
-      params.require(:company).permit(:name , owner_attributes:[:id, :type ,:first_name, :last_name, :gender ,:email,:password, :password_confirmation])
+      params.require(:company).permit(:name , owner_attributes:[:id, :type ,:first_name, :last_name ,:email,:password, :password_confirmation])
     end # End of company_params
 end

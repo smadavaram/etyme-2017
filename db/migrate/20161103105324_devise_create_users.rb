@@ -5,7 +5,7 @@ class DeviseCreateUsers < ActiveRecord::Migration
       t.integer :company_id
       t.string  :first_name , default: ""
       t.string  :last_name , default: ""
-      t.boolean :gender
+      t.integer :gender
       t.string  :email,              null: false, default: ""
       t.string  :type
       t.string  :phone
