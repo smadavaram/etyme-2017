@@ -60,6 +60,8 @@ Rails.application.routes.draw do
   get 'register' => 'companies#new'
 
   scope module: :company do
+    resources :employees , only: [:new , :create]
+
     get 'dashboard' , to: 'users#dashboard' , as: :dashboard
 
     # AJAX for layout setting, remove in future
@@ -77,7 +79,7 @@ Rails.application.routes.draw do
 
 
   # devise_for :devise
-  devise_for :users, path: '', path_names: { sign_in: 'login', sign_out: 'logout'}
+  # devise_for :users, path: '', path_names: { sign_in: 'login', sign_out: 'logout'}
 
 
 
@@ -136,6 +138,7 @@ Rails.application.routes.draw do
 
   resources :companies , only: [:new , :create]
   resources :static , only: [:index]
+  devise_for :users, :controllers => { :invitations => 'company/invitations' }
 
   # Route set when subdomain present?
   constraints(Subdomain) do

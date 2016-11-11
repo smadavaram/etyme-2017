@@ -1,3 +1,3 @@
 SITE_NAME = "Etyme"
 
-USER_TYPES = [["Hiring Manager", "HiringManager"], ["Vendor", "Vendor"]]
+USER_TYPES = [["Employer", "Employer"], ["Vendor", "Vendor"]]

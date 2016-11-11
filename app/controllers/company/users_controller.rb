@@ -1,6 +1,6 @@
 class Company::UsersController < Company::BaseController
 
-  # Dashboard after HiringManager/Vendor login
+  # Dashboard after Employer/Vendor login
   # add_breadcrumb :root_name, "/"
 
   def dashboard

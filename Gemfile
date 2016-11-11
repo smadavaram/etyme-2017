@@ -26,9 +26,16 @@ gem "font-awesome-rails"
 #****************************
 gem 'pg'
 
-# gem 'therubyracer', platforms: :ruby
+#****************************
+# Authentication
+#****************************
 gem 'devise'
+gem 'devise_invitable', '~> 1.7.0'
 gem 'activeadmin'
+
+
+# gem 'therubyracer', platforms: :ruby
+
 # gem 'paperclip'
 gem 'filepicker-rails'
 gem 'has_scope'
