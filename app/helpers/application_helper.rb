@@ -132,7 +132,7 @@ module ApplicationHelper
             content: "<i class='fa fa-lg fa-fw fa-home'></i> <span class='menu-item-parent'>" + 'HOME' + "</span>",
         },
         {
-            href: root_path,
+            href: new_employee_path,
             title: 'EMPLOYEES',
             content: "<i class='fa fa-lg fa-fw fa-users'></i> <span class='menu-item-parent'>" + 'EMPLOYEES' + "</span>",
         },

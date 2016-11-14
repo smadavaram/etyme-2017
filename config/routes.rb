@@ -60,7 +60,7 @@ Rails.application.routes.draw do
   get 'register' => 'companies#new'
 
   scope module: :company do
-    resources :employees , only: [:new , :create]
+    resources :employees
 
     get 'dashboard' , to: 'users#dashboard' , as: :dashboard
 

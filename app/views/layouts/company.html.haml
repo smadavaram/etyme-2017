@@ -41,6 +41,7 @@
     / PACE LOADER - turn this on if you want ajax loading to show (caution: uses lots of memory on iDevices)
     = javascript_include_tag 'plugin/pace/pace.min', 'data-pace-options' => '{ "restartOnRequestAfter": true }'
     = javascript_include_tag 'company'
+    = filepicker_js_include_tag
     /[if IE 8]
   = yield(:scripts).present? ? yield(:scripts) : render(partial: 'shared/scripts')
   :javascript

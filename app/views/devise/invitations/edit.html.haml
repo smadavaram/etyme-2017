@@ -1,203 +1,256 @@
-git add - content_for :html_id, "extr-page"
+- content_for :html_id, "extr-page"
 - content_for :body_class, "animated fadeInDown"
 #main{:role => "main"}
   / MAIN CONTENT
   #content.container
-    %h2= t 'devise.invitations.edit.header'
-    = simple_form_for resource, as: resource_name, url: invitation_path(resource_name), html: { method: :put } do |f|
-      = devise_error_messages!
-      = f.hidden_field :invitation_token
-      = f.input :password
-      = f.input :password_confirmation
-      = f.button :submit, t("devise.invitations.edit.submit_button")
+    %section#widget-grid
+      / row
+      .row
+        %article.col-sm-12.col-md-12.col-lg-12
+          / Widget ID (each widget will need unique ID)
+          #wid-id-0.jarviswidget.jarviswidget-color-darken{"data-widget-deletebutton" => "false", "data-widget-editbutton" => "false"}
+            /
+              widget options:
+              usage: <div class="jarviswidget" id="wid-id-0" data-widget-editbutton="false">
 
-    -#%section#widget-grid
-    -#  / row
-    -#  .row
-    -#    / NEW WIDGET START
-    -#    %article.col-sm-12.col-md-12.col-lg-12
-    -#      / Widget ID (each widget will need unique ID)
-    -#      #wid-id-0.jarviswidget.jarviswidget-color-darken{"data-widget-deletebutton" => "false", "data-widget-editbutton" => "false"}
-    -#        /
-    -#          widget options:
-    -#          usage: <div class="jarviswidget" id="wid-id-0" data-widget-editbutton="false">
-    -#
-    -#          data-widget-colorbutton="false"
-    -#          data-widget-editbutton="false"
-    -#          data-widget-togglebutton="false"
-    -#          data-widget-deletebutton="false"
-    -#          data-widget-fullscreenbutton="false"
-    -#          data-widget-custombutton="false"
-    -#          data-widget-collapsed="true"
-    -#          data-widget-sortable="false"
-    -#        %header
-    -#          %span.widget-icon
-    -#            %i.fa.fa-check
-    -#          %h2 Employee Information
-    -#        / widget div
-    -#        %div
-    -#          / widget edit box
-    -#          .jarviswidget-editbox
-    -#          / This area used as dropdown edit box
-    -#          / end widget edit box
-    -#          / widget content
-    -#          .widget-body
-    -#            .row
-    -#              = simple_form_for resource ,url: employees_path ,method: 'post' , html: {id: 'wizard-1' ,novalidate: "novalidate" } do |e|
-    -#                = e.hidden_field :invitation_token
-    -#                = e.simple_fields_for :employee_profile do |p|
-    -#                  #bootstrap-wizard-1.col-sm-12
-    -#                    .form-bootstrapWizard
-    -#                      %ul.bootstrapWizard.form-wizard
-    -#                        %li.active{"data-target" => "#step1"}
-    -#                          %a{"data-toggle" => "tab", :href => "#tab1"}
-    -#                            %span.step 1
-    -#                            %span.title Password
-    -#                        %li{"data-target" => "#step1"}
-    -#                          %a{"data-toggle" => "tab", :href => "#tab1"}
-    -#                            %span.step 1
-    -#                            %span.title Basic information
-    -#                        %li{"data-target" => "#step2"}
-    -#                          %a{"data-toggle" => "tab", :href => "#tab2"}
-    -#                            %span.step 2
-    -#                            %span.title Employment Detail
-    -#                        -#%li{"data-target" => "#step3"}
-    -#                        -#  %a{"data-toggle" => "tab", :href => "#tab3"}
-    -#                        -#    %span.step 3
-    -#                        -#    %span.title Address
-    -#                        %li{"data-target" => "#step4"}
-    -#                          %a{"data-toggle" => "tab", :href => "#tab4"}
-    -#                            %span.step 3
-    -#                            %span.title Save Form
-    -#                      .clearfix
-    -#                    .tab-content
-    -#                      #tab1.tab-pane.active
-    -#                        %br/
-    -#                        %h3
-    -#                          %strong Step 1
-    -#                          \- Password
-    -#                        .row
-    -#                          .col-sm-6
-    -#                            .form-group
-    -#                              .input-group
-    -#                                %span.input-group-addon
-    -#                                  %i.fa.fa-user.fa-lg.fa-fw
-    -#                                = e.text_field :password , class: 'form-control input-lg' , placeholder: "Password" , required: true
-    -#                          -#%input#fname.form-control.input-lg{:name => "fname", :placeholder => "First Name", :type => "text"}/
-    -#                        .row
-    -#                          .col-sm-6
-    -#                            .form-group
-    -#                              .input-group
-    -#                                %span.input-group-addon
-    -#                                  %i.fa.fa-user.fa-lg.fa-fw
-    -#                                = e.text_field :password_confirmation , class: 'form-control input-lg' , id: 'lname' , placeholder: "Confirm Password" , required: true
-    -#                      #tab1.tab-pane
-    -#                        %br/
-    -#                        %h3
-    -#                          %strong Step 1
-    -#                          \- Basic Information
-    -#                        .row
-    -#                          .col-sm-6
-    -#                            .form-group
-    -#                              .input-group
-    -#                                %span.input-group-addon
-    -#                                  %i.fa.fa-user.fa-lg.fa-fw
-    -#                                = e.text_field :first_name , class: 'form-control input-lg' , id: 'fname' , placeholder: "First Name" , required: true
-    -#                          -#%input#fname.form-control.input-lg{:name => "fname", :placeholder => "First Name", :type => "text"}/
-    -#                          .col-sm-6
-    -#                            .form-group
-    -#                              .input-group
-    -#                                %span.input-group-addon
-    -#                                  %i.fa.fa-user.fa-lg.fa-fw
-    -#                                = e.text_field :last_name , class: 'form-control input-lg' , id: 'lname' , placeholder: "Last Name" , required: true
-    -#                        .row
-    -#                          .col-sm-12
-    -#                            .form-group
-    -#                              .input-group
-    -#                                %span.input-group-addon
-    -#                                  %i.fa.fa-envelope.fa-lg.fa-fw
-    -#                                = e.email_field :email , class: 'form-control input-lg' , id: 'email' , placeholder: "email@address.com" , required: true
-    -#                      -#%input#email.form-control.input-lg{:name => "email", :placeholder => "email@address.com", :type => "text"}/
-    -#                      -#.row
-    -#                      -#  .col-sm-12
-    -#                      -#    .form-group
-    -#                      -#      .input-group
-    -#                      -#        %span.input-group-addon
-    -#                      -#          %i.fa.fa-envelope.fa-lg.fa-fw
-    -#                      -#        %input#email.form-control.input-lg{:name => "email", :placeholder => "Roles", :type => "text"}/
-    -#
-    -#                      #tab2.tab-pane
-    -#                        %br/
-    -#                        %h3
-    -#                          %strong Step 2
-    -#                          \- Employment Detail
-    -#                        .row
-    -#                          .col-sm-6
-    -#                            .form-group
-    -#                              .input-group
-    -#                                %span.input-group-addon
-    -#                                  %i.fa.fa-user.fa-lg.fa-fw
-    -#                                = p.text_field :designation , class: 'form-control input-lg' , placeholder: "Enter Designation" , required: true
-    -#                          -#%input#wphone.form-control.input-lg{"data-mask" => "+99 (999) 999-9999", "data-mask-placeholder" => "X", :name => "wphone", :placeholder => "+1", :type => "text"}/
-    -#
-    -#                          .col-sm-6
-    -#                            .form-group
-    -#                              .input-group
-    -#                                %span.input-group-addon
-    -#                                  %i.fa.fa-user.fa-lg.fa-fw
-    -#                                = p.text_field :joining_date , class: 'form-control input-lg' , placeholder: "Enter Joining Date" , required: true
-    -#                        .row
-    -#                          .col-sm-12
-    -#                            .form-group
-    -#                              .input-group
-    -#                                %span.input-group-addon
-    -#                                  %i.fa.fa-mobile.fa-lg.fa-fw
-    -#                                = p.text_field :employment_type , class: 'form-control input-lg' , placeholder: "Enter Employment Type" , required: true
-    -#                        .row
-    -#                          .col-sm-6
-    -#                            .form-group
-    -#                              .input-group
-    -#                                %span.input-group-addon
-    -#                                  %i.fa.fa-mobile.fa-lg.fa-fw
-    -#                                = p.text_field :salary_type , class: 'form-control input-lg' , placeholder: "Enter Salary Type" , required: true
-    -#                          .col-sm-6
-    -#                            .form-group
-    -#                              .input-group
-    -#                                %span.input-group-addon
-    -#                                  %i.fa.fa-mobile.fa-lg.fa-fw
-    -#                                = p.text_field :salary , class: 'form-control input-lg' , placeholder: "Enter Salary" , required: true
-    -#
-    -#                      #tab4.tab-pane
-    -#                        %br/
-    -#                        %h3
-    -#                          %strong Step 4
-    -#                          \- Save Form
-    -#                        %br/
-    -#                        %h1.text-center.text-success
-    -#                          %strong
-    -#                            %i.fa.fa-check.fa-lg
-    -#                            Complete
-    -#                        %h4.text-center Click next to finish
-    -#                        %br/
-    -#                        %br/
-    -#                      .form-actions
-    -#                        .row
-    -#                          .col-sm-12
-    -#                            %ul.pager.wizard.no-margin
-    -#                              /
-    -#                                <li class="previous first disabled">
-    -#                                <a href="javascript:void(0);" class="btn btn-lg btn-default"> First </a>
-    -#                                </li>
-    -#                              %li.previous.disabled
-    -#                                %a.btn.btn-lg.btn-default{:href => "javascript:void(0);"} Previous
-    -#                              /
-    -#                                <li class="next last">
-    -#                                <a href="javascript:void(0);" class="btn btn-lg btn-primary"> Last </a>
-    -#                                </li>
-    -#                              %li.next
-    -#                                %a.btn.btn-lg.txt-color-darken{:href => "javascript:void(0);"} Next
-    -#                              %li.pull-right.finish{:style=>"di"}
-    -#                                %a.btn.btn-lg.btn-default{:href => "javascript:;"} Finish
+              data-widget-colorbutton="false"
+              data-widget-editbutton="false"
+              data-widget-togglebutton="false"
+              data-widget-deletebutton="false"
+              data-widget-fullscreenbutton="false"
+              data-widget-custombutton="false"
+              data-widget-collapsed="true"
+              data-widget-sortable="false"
+            %header
+              %span.widget-icon
+                %h2 Employee Onboarding
+            / widget div
+            %div
+              / widget edit box
+              .jarviswidget-editbox
+              / This area used as dropdown edit box
+              / end widget edit box
+              / widget content
+              .widget-body
+                .row
+                  = simple_form_for resource, as: resource_name, url: invitation_path(resource_name), html: { method: :put , id: 'wizard-1' ,novalidate: "novalidate"} do |e|
+                    = e.hidden_field :invitation_token
+                    = e.simple_fields_for :employee_profile do |p|
+                      #bootstrap-wizard-1.col-sm-12
+                        .form-bootstrapWizard
+                          %ul.bootstrapWizard.form-wizard
+                            %li.active{"data-target" => "#step1"}
+                              %a{"data-toggle" => "tab", :href => "#tab1"}
+                                %span.step 1
+                                %span.title Password
+                            %li{"data-target" => "#step2"}
+                              %a{"data-toggle" => "tab", :href => "#tab2"}
+                                %span.step 2
+                                %span.title Basic information
+                            -#%li{"data-target" => "#step3"}
+                            -#  %a{"data-toggle" => "tab", :href => "#tab3"}
+                            -#    %span.step 3
+                            -#    %span.title Employment Detail
+                            %li{"data-target" => "#step4"}
+                              %a{"data-toggle" => "tab", :href => "#tab4"}
+                                %span.step 4
+                                %span.title Address
+                            %li{"data-target" => "#step5"}
+                              %a{"data-toggle" => "tab", :href => "#tab5"}
+                                %span.step 5
+                                %span.title Save Form
+                          .clearfix
+                        .tab-content
+                          #tab1.tab-pane.active
+                            %br/
+                            %h3
+                              %strong Step 1
+                              \- Set Password
+                            .row
+                              .col-sm-6
+                                .form-group
+                                  .input-group
+                                    %span.input-group-addon
+                                      %i.fa.fa-user.fa-lg.fa-fw
+                                    = e.password_field :password , class: 'form-control input-lg' , placeholder: "Password" , required: true
+                              -#%input#fname.form-control.input-lg{:name => "fname", :placeholder => "First Name", :type => "text"}/
+                              .col-sm-6
+                                .form-group
+                                  .input-group
+                                    %span.input-group-addon
+                                      %i.fa.fa-user.fa-lg.fa-fw
+                                    = e.password_field :password_confirmation , class: 'form-control input-lg' , id: 'lname' , placeholder: "Confirm Password" , required: true
+                          #tab2.tab-pane
+                            %br/
+                            %h3
+                              %strong Step 2
+                              \- Basic Information
+                            .row
+                              .col-sm-12
+                                .form-group
+                                  .input-group
+                                    %span.input-group-addon
+                                      %i.fa.fa-envelope.fa-lg.fa-fw
+                                    = e.filepicker_field :photo , class: 'form-control input-lg'  , required: true
+                            .row
+                              .col-sm-6
+                                .form-group
+                                  .input-group
+                                    %span.input-group-addon
+                                      %i.fa.fa-user.fa-lg.fa-fw
+                                    = e.text_field :first_name , class: 'form-control input-lg' , id: 'fname' , placeholder: "First Name" , required: true
+                              -#%input#fname.form-control.input-lg{:name => "fname", :placeholder => "First Name", :type => "text"}/
+                              .col-sm-6
+                                .form-group
+                                  .input-group
+                                    %span.input-group-addon
+                                      %i.fa.fa-user.fa-lg.fa-fw
+                                    = e.text_field :last_name , class: 'form-control input-lg' , id: 'lname' , placeholder: "Last Name" , required: true
+                            .row
+                              .col-sm-12
+                                .form-group
+                                  .input-group
+                                    %span.input-group-addon
+                                      %i.fa.fa-envelope.fa-lg.fa-fw
+                                    = e.email_field :email , class: 'form-control input-lg' , id: 'email' ,disabled: "disabled" , placeholder: "email@address.com" , required: true
+                            .row
+                              .col-sm-6
+                                .form-group
+                                  .input-group
+                                    %span.input-group-addon
+                                      %i.fa.fa-user.fa-lg.fa-fw
+                                    = e.text_field :phone , class: 'form-control input-lg' , id: 'fname' , "data-mask" => "+99 (999) 999-9999", "data-mask-placeholder" => "X", :placeholder => "+1", required: true
+                              -#%input#fname.form-control.input-lg{:name => "fname", :placeholder => "First Name", :type => "text"}/
+                              .col-sm-6
+                                .form-group
+                                  .input-group
+                                    %label.select
+                                      = e.select :gender, [['Male','0'],['Female','1']], {}, {:class=>"form-control input-lg"}
+                          -#%input#email.form-control.input-lg{:name => "email", :placeholder => "email@address.com", :type => "text"}/
+                          -#.row
+                          -#  .col-sm-12
+                          -#    .form-group
+                          -#      .input-group
+                          -#        %span.input-group-addon
+                          -#          %i.fa.fa-envelope.fa-lg.fa-fw
+                          -#        %input#email.form-control.input-lg{:name => "email", :placeholder => "Roles", :type => "text"}/
+
+                          -##tab2.tab-pane
+                          -#  %br/
+                          -#  %h3
+                          -#    %strong Step 2
+                          -#    \- Employment Detail
+                          -#  .row
+                          -#    .col-sm-6
+                          -#      .form-group
+                          -#        .input-group
+                          -#          %span.input-group-addon
+                          -#            %i.fa.fa-user.fa-lg.fa-fw
+                          -#          = p.text_field :designation , class: 'form-control input-lg' , placeholder: "Enter Designation" , required: true
+                          -#    -#%input#wphone.form-control.input-lg{"data-mask" => "+99 (999) 999-9999", "data-mask-placeholder" => "X", :name => "wphone", :placeholder => "+1", :type => "text"}/
+                          -#
+                          -#    .col-sm-6
+                          -#      .form-group
+                          -#        .input-group
+                          -#          %span.input-group-addon
+                          -#            %i.fa.fa-user.fa-lg.fa-fw
+                          -#          = p.text_field :joining_date , class: 'form-control input-lg' , placeholder: "Enter Joining Date" , required: true
+                            .row
+                              .col-sm-12
+                                .form-group
+                                  .input-group
+                                    %span.input-group-addon
+                                      %i.fa.fa-mobile.fa-lg.fa-fw
+                                    = p.text_field :employment_type , class: 'form-control input-lg' , placeholder: "Enter Employment Type" , required: true
+                            .row
+                              .col-sm-6
+                                .form-group
+                                  .input-group
+                                    %span.input-group-addon
+                                      %i.fa.fa-mobile.fa-lg.fa-fw
+                                    = p.text_field :salary_type , class: 'form-control input-lg' , placeholder: "Enter Salary Type" , required: true
+                              .col-sm-6
+                                .form-group
+                                  .input-group
+                                    %span.input-group-addon
+                                      %i.fa.fa-mobile.fa-lg.fa-fw
+                                    = p.text_field :salary , class: 'form-control input-lg' , placeholder: "Enter Salary" , required: true
+                          // Address Deatails
+                          #tab4.tab-pane
+                            %br/
+                            %h3
+                              %strong Step 4
+                              \- Address
+                            = e.fields_for :address do |a|
+                              .row
+                                .col-sm-12
+                                  .form-group
+                                    .input-group
+                                      %span.input-group-addon
+                                        %i.fa.fa-mobile.fa-lg.fa-fw
+                                      = a.text_field :address_1 , class: 'form-control input-lg' , placeholder: "Address"
+
+                              .row
+                                .col-sm-6
+                                  .form-group
+                                    .input-group
+                                      %span.input-group-addon
+                                        %i.fa.fa-user.fa-lg.fa-fw
+                                      = a.text_field :country , class: 'form-control input-lg' , placeholder: "Country"
+                                -#%input#wphone.form-control.input-lg{"data-mask" => "+99 (999) 999-9999", "data-mask-placeholder" => "X", :name => "wphone", :placeholder => "+1", :type => "text"}/
+
+                                .col-sm-6
+                                  .form-group
+                                    .input-group
+                                      %span.input-group-addon
+                                        %i.fa.fa-user.fa-lg.fa-fw
+                                      = a.text_field :state , class: 'form-control input-lg' , placeholder: "State"
+                              .row
+                                .col-sm-6
+                                  .form-group
+                                    .input-group
+                                      %span.input-group-addon
+                                        %i.fa.fa-mobile.fa-lg.fa-fw
+                                      = a.text_field :city , class: 'form-control input-lg' , placeholder: "City"
+                                .col-sm-6
+                                  .form-group
+                                    .input-group
+                                      %span.input-group-addon
+                                        %i.fa.fa-mobile.fa-lg.fa-fw
+                                      = a.text_field :zip_code , class: 'form-control input-lg' , placeholder: "Zip code"
+
+                          #tab5.tab-pane
+                            %br/
+                            %h3
+                              %strong Step 4
+                              \- Save Form
+                            %br/
+                            %h1.text-center.text-success
+                              %strong
+                                %i.fa.fa-check.fa-lg
+                                Complete
+                            %h4.text-center Click next to finish
+                            %br/
+                            %br/
+
+                          .form-actions
+                            .row
+                              .col-sm-12
+                                %ul.pager.wizard.no-margin
+                                  /
+                                    <li class="previous first disabled">
+                                    <a href="javascript:void(0);" class="btn btn-lg btn-default"> First </a>
+                                    </li>
+                                  %li.previous.disabled
+                                    %a.btn.btn-lg.btn-default{:href => "javascript:void(0);"} Previous
+                                  /
+                                    <li class="next last">
+                                    <a href="javascript:void(0);" class="btn btn-lg btn-primary"> Last </a>
+                                    </li>
+                                  %li.next
+                                    %a.btn.btn-lg.txt-color-darken{:href => "javascript:void(0);"} Next
+                                  %li.pull-right.finish{:style=>"di"}
+                                    %a.btn.btn-lg.btn-default{:href => "javascript:;"} Finish
 
   - content_for :scripts do
     :javascript
@@ -308,8 +361,10 @@ git add - content_for :html_id, "extr-page"
         });
 
          $('.finish').click(function(){
+            console.log('finish');
             if ($("#wizard-1").valid()) {
-              $('.new_employee').submit();
+               console.log('submit');
+              $('#wizard-1').submit();
 
             }
             return false;
@@ -345,5 +400,9 @@ git add - content_for :html_id, "extr-page"
 
         });
 
+        ///////////////////////////////////////
 
-      })
+
+
+
+      });

@@ -40,6 +40,7 @@ class Company < ActiveRecord::Base
   has_many :jobs
   has_many :users , dependent: :destroy
   has_many :employees , dependent: :destroy
+  # has_many :roles , dependen: :destroy
 
   # Validations
   validates :name,:presence => true,:uniqueness=>{:case_sensitive => false}

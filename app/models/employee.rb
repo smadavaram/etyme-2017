@@ -48,6 +48,7 @@ class Employee < User
 
   # Nested Attributes
   accepts_nested_attributes_for :employee_profile , allow_destroy: true
+  accepts_nested_attributes_for :address , reject_if: :all_blank
 
   #Validation
   validates :password,presence: true,if: Proc.new { |employee| !employee.password.nil? }

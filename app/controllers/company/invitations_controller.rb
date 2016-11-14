@@ -8,25 +8,52 @@ class Company::InvitationsController < Devise::InvitationsController
 
   def edit
     # resource.build_employee_profile
+    resource.build_address
     super
 
   end
 
   def update
+    self.resource = resource_class.find_by_invitation_token(update_resource_params[:invitation_token],true)
+    if resource.present?
+      resource = resource_class.accept_invitation!(update_resource_params)
+      if resource && resource.valid?
+        sign_in(resource)
+        flash[:notice] = "You have successfully completed your on-boarding."
+        redirect_to dashboard_path
+      else
+        resource.invitation_token = update_resource_params[:invitation_token]
+        flash[:errors] = resource.errors.full_messages
+        redirect_to :back
+      end
+    else
+      resource.invitation_token = update_resource_params[:invitation_token] if resource
+      flash[:errors] = resource.present? ? resource.errors.full_messages : ['Something is not right, Please try again.']
+      redirect_to :back
+    end
 
   end
 
   private
 
-  def resource_prams
-    params.permit(employee: [:invitation_token,:password, :password_confirmation, :photo, :first_name, :last_name, :secondary_email,:primary_phone, :secondary_phone, :dob, :gender, :identifier,
-                             :signature, :emergency_contact_first_name,:emergency_contact_last_name, :emergency_contact_email, :emergency_contact_phone,
-                             custom_fields_attributes: [:id,:field_name,:field_value,:is_required],
-                             employee_docs_attributes:[:id,:file,:_destroy],
-                             family_members_attributes: [:id,:first_name,:last_name,:cell_number,:relation,:_destroy,:email, :dob],
-                             preferences: [:collect_tax_info, :collect_payroll_info,:collect_address_info,:collect_emergency_contact_info],
-                             verification_documents_attributes: [:id, :name, :description, :_destroy, :employee_id, :uploaded_document],
-                             account_attributes:[:id, :account_number, :bank_name, :branch_address, :branch_code, :is_primary, :status,:ein,:routing_number,:account_type, :_destroy],
-                             address_attributes:[:id, :address_1, :address_2, :city, :country, :state, :status, :zip, :_destroy]])[:employee]
+  def update_resource_params
+    params.permit(user: [:invitation_token,
+                             :email,
+                             :photo ,
+                             :first_name ,
+                             :last_name ,
+                             :phone,
+                             :password,
+                             :password_confirmation,
+                             address_attributes:[
+                                 :id,
+                                 :address_1,
+                                 :address_2,
+                                 :city,
+                                 :country,
+                                 :state,
+                                 :zip_code ,  :_destroy],
+                             employee_profile_attributes:[:id, :location_id ,:designation, :joining_date ,:employment_type,:salary_type, :salary]
+                              ])[:user]
   end
 end

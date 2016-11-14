@@ -12,9 +12,9 @@ class CreateEmployeeProfiles < ActiveRecord::Migration
       t.timestamps null: false
     end
 
-    create_table :employees_roles , id: false do |t|
+    create_table :roles_users , id: false do |t|
       t.integer :role_id
-      t.integer :employee_id
+      t.integer :user_id
     end
 
   end
