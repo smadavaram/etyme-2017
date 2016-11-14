@@ -39,6 +39,33 @@
 #  index_users_on_reset_password_token  (reset_password_token) UNIQUE
 #
 
-class HiringManager < User
+class Employee < User
+
+  #Associations
+  has_one    :employee_profile , dependent: :destroy
+  belongs_to :company
+
+
+  # Nested Attributes
+  accepts_nested_attributes_for :employee_profile , allow_destroy: true
+  accepts_nested_attributes_for :address , reject_if: :all_blank
+
+  #Validation
+  validates :password,presence: true,if: Proc.new { |employee| !employee.password.nil? }
+  validates :password_confirmation,presence: true,if: Proc.new { |employee| !employee.password.nil? }
+
+  #CallBacks
+  after_create :send_invitation
+
+  private
+
+  def send_invitation
+    invite! do |u|
+      u.skip_invitation = true
+    end
+    UserMailer.invite_employee(self).deliver
+  end
+
+
 
 end

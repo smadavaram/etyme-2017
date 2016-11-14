@@ -1,7 +1,7 @@
 class UserMailer < ApplicationMailer
   default from: "no-reply@etyme.com"
 
-  # Confirmation Email Send to HiringManager/Vendor after User create
+  # Confirmation Email Send to Employer/Vendor after User create
   def confirmation_instructions(user, token, opts = {})
     @owner = user
     @company = user.company
@@ -10,7 +10,7 @@ class UserMailer < ApplicationMailer
     mail(:to => @owner.email, :subject => "Welcome to Etyme",:from => @email)
   end
 
-  # Reset Password  Email For HiringManager/Vendor
+  # Reset Password  Email For Employer/Vendor
   def reset_password_instructions(user, token, opts={})
     @user           = user
     @email          = "Etyme <no-reply@etyme.com>"
@@ -18,10 +18,17 @@ class UserMailer < ApplicationMailer
     mail(:to => user.email,  :subject => 'Reset password instructions',:from => @email)
   end
 
-  #Notify HiringManager/Vendor when their passwords change
+  #Notify Employer/Vendor when their passwords change
   def password_changed(id)
     @user = User.find(id)
     mail to: @user.email, subject: "Your password has changed"
+  end
+
+  def invite_employee(employee)
+    @employee   = employee
+    @name       = @employee.full_name
+    @link       = "#{@employee.company.etyme_url}/users/invitation/accept?invitation_token=#{@employee.raw_invitation_token}"
+    mail(:to => employee.email,  :subject => "#{@employee.company.name.titleize} Invited You to Etyme",:from => "Etyme <no-reply@etyme.com>")
   end
 
 end

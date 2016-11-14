@@ -26,14 +26,27 @@ gem "font-awesome-rails"
 #****************************
 gem 'pg'
 
-# gem 'therubyracer', platforms: :ruby
+#****************************
+# Authentication
+#****************************
 gem 'devise'
+gem 'devise_invitable', '~> 1.7.0'
 gem 'activeadmin'
+
+
+# gem 'therubyracer', platforms: :ruby
+
 # gem 'paperclip'
 gem 'filepicker-rails'
 gem 'has_scope'
 gem 'figaro'
 gem "breadcrumbs_on_rails"
+
+#****************************
+# Multimedia Files
+#****************************
+gem 'filepicker-rails'
+
 
 # Use ActiveModel has_secure_password
 # gem 'bcrypt', '~> 3.1.7'

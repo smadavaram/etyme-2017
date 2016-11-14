@@ -11,7 +11,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema.define(version: 20161110095515) do
+ActiveRecord::Schema.define(version: 20161111122527) do
 
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
@@ -42,25 +42,38 @@ ActiveRecord::Schema.define(version: 20161110095515) do
     t.string   "twitter_url"
     t.string   "google_url"
     t.string   "time_zone"
-    t.boolean  "is_activated",             default: false
+    t.boolean  "is_activated",                         default: false
     t.string   "dba"
     t.integer  "status"
     t.date     "established_date"
     t.integer  "entity_type"
     t.integer  "hr_manager_id"
-    t.integer  "billing_contact_id"
-    t.string   "accountant_contact_email"
-    t.datetime "created_at",                               null: false
-    t.datetime "updated_at",                               null: false
+    t.string   "accountant_contact_email", limit: 255
+    t.datetime "created_at",                                           null: false
+    t.datetime "updated_at",                                           null: false
   end
 
   add_index "companies", ["owner_id"], name: "index_companies_on_owner_id", using: :btree
+
+  create_table "employee_profiles", force: :cascade do |t|
+    t.integer  "employee_id"
+    t.string   "designation"
+    t.date     "joining_date"
+    t.integer  "location_id"
+    t.integer  "employment_type"
+    t.integer  "salary_type"
+    t.float    "salary"
+    t.datetime "created_at",      null: false
+    t.datetime "updated_at",      null: false
+  end
+
+  add_index "employee_profiles", ["employee_id"], name: "index_employee_profiles_on_employee_id", using: :btree
 
   create_table "job_invitations", force: :cascade do |t|
     t.integer  "recipient_id"
     t.string   "email"
     t.string   "recipient_type"
-    t.integer  "created_by_id"
+    t.integer  "sender_id"
     t.integer  "job_id"
     t.integer  "status",         default: 0
     t.datetime "created_at",                 null: false
@@ -83,20 +96,41 @@ ActiveRecord::Schema.define(version: 20161110095515) do
   create_table "locations", force: :cascade do |t|
     t.string   "name"
     t.integer  "address_id"
-    t.integer  "status"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+  end
+
+  create_table "permissions", force: :cascade do |t|
+    t.string   "name"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+  end
+
+  create_table "permissions_roles", id: false, force: :cascade do |t|
+    t.integer "role_id"
+    t.integer "permission_id"
+  end
+
+  create_table "roles", force: :cascade do |t|
+    t.string   "name"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+  end
+
+  create_table "roles_users", id: false, force: :cascade do |t|
+    t.integer "role_id"
+    t.integer "user_id"
   end
 
   create_table "users", force: :cascade do |t|
     t.integer  "company_id"
     t.string   "first_name",             default: ""
     t.string   "last_name",              default: ""
-    t.integer  "gender"
+    t.boolean  "gender"
     t.string   "email",                  default: "", null: false
     t.string   "type"
     t.string   "phone"
-    t.integer  "primary_address_id"
+    t.integer  "address_id"
     t.string   "photo"
     t.integer  "status"
     t.string   "encrypted_password",     default: "", null: false
@@ -108,15 +142,22 @@ ActiveRecord::Schema.define(version: 20161110095515) do
     t.datetime "last_sign_in_at"
     t.string   "current_sign_in_ip"
     t.string   "last_sign_in_ip"
-    t.string   "confirmation_token"
-    t.datetime "confirmed_at"
-    t.datetime "confirmation_sent_at"
-    t.string   "unconfirmed_email"
     t.datetime "created_at",                          null: false
     t.datetime "updated_at",                          null: false
+    t.string   "invitation_token"
+    t.datetime "invitation_created_at"
+    t.datetime "invitation_sent_at"
+    t.datetime "invitation_accepted_at"
+    t.integer  "invitation_limit"
+    t.integer  "invited_by_id"
+    t.string   "invited_by_type"
+    t.integer  "invitations_count",      default: 0
   end
 
   add_index "users", ["email"], name: "index_users_on_email", unique: true, using: :btree
+  add_index "users", ["invitation_token"], name: "index_users_on_invitation_token", unique: true, using: :btree
+  add_index "users", ["invitations_count"], name: "index_users_on_invitations_count", using: :btree
+  add_index "users", ["invited_by_id"], name: "index_users_on_invited_by_id", using: :btree
   add_index "users", ["reset_password_token"], name: "index_users_on_reset_password_token", unique: true, using: :btree
 
 end

@@ -1,0 +1,192 @@
+%body
+  - content_for :ribbon do
+    / RIBBON
+    #ribbon
+      %ol.breadcrumb
+        = render_breadcrumbs :tag => :li, :separator => ""
+  #content
+    .row
+    / widget grid
+    %section#widget-grid
+      / row
+      .row
+        / NEW WIDGET START
+        %article.col-sm-12.col-md-12.col-lg-12
+          / Widget ID (each widget will need unique ID)
+          #wid-id-0.jarviswidget.jarviswidget-color-darken{"data-widget-deletebutton" => "false", "data-widget-editbutton" => "false"}
+            /
+              widget options:
+              usage: <div class="jarviswidget" id="wid-id-0" data-widget-editbutton="false">
+
+              data-widget-colorbutton="false"
+              data-widget-editbutton="false"
+              data-widget-togglebutton="false"
+              data-widget-deletebutton="false"
+              data-widget-fullscreenbutton="false"
+              data-widget-custombutton="false"
+              data-widget-collapsed="true"
+              data-widget-sortable="false"
+            %header
+              %span.widget-icon
+                %i.fa.fa-check
+              %h2 Employee Information
+            / widget div
+            %div
+              / widget edit box
+              .jarviswidget-editbox
+              / This area used as dropdown edit box
+              / end widget edit box
+              / widget content
+              .widget-body
+                .row
+                  = render 'form'
+
+
+  - content_for :scripts do
+    :javascript
+      // DO NOT REMOVE : GLOBAL FUNCTIONS!
+
+      $(document).ready(function() {
+
+
+
+        pageSetUp();
+
+
+        // Joining Date
+          $('#employee_employee_profile_attributes_joining_date').datepicker({
+            dateFormat : 'dd.mm.yy',
+            prevText : '<i class="fa fa-chevron-left"></i>',
+            nextText : '<i class="fa fa-chevron-right"></i>',
+            onSelect : function(selectedDate) {
+              $('#employee_employee_profile_attributes_joining_date').datepicker('option', 'minDate', selectedDate);
+            }
+          });
+
+
+        //Bootstrap Wizard Validations
+
+        var $validator = $("#wizard-1").validate({
+
+          rules: {
+            email: {
+              required: true,
+              email: "Your email address must be in the format of name@domain.com"
+            },
+            fname: {
+              required: true
+            },
+            lname: {
+              required: true
+            },
+            country: {
+              required: true
+            },
+            city: {
+              required: true
+            },
+            postal: {
+              required: true,
+              minlength: 4
+            },
+            wphone: {
+              required: true,
+              minlength: 10
+            },
+            hphone: {
+              required: true,
+              minlength: 10
+            }
+          },
+
+          messages: {
+            fname: "Please specify your First name",
+            lname: "Please specify your Last name",
+            email: {
+              required: "We need your email address to contact you",
+              email: "Your email address must be in the format of name@domain.com"
+            }
+          },
+
+          highlight: function (element) {
+            $(element).closest('.form-group').removeClass('has-success').addClass('has-error');
+          },
+          unhighlight: function (element) {
+            $(element).closest('.form-group').removeClass('has-error').addClass('has-success');
+          },
+          errorElement: 'span',
+          errorClass: 'help-block',
+          errorPlacement: function (error, element) {
+            if (element.parent('.input-group').length) {
+              error.insertAfter(element.parent());
+            } else {
+              error.insertAfter(element);
+            }
+          }
+        });
+
+        $('#bootstrap-wizard-1').bootstrapWizard({
+          'tabClass': 'form-wizard',
+          'onNext': function (tab, navigation, index) {
+
+            var $total = navigation.find('li').length;
+            var $current = index+1;
+            wizard_set_finish_button($current , $total );
+            var $valid = $("#wizard-1").valid();
+            if (!$valid) {
+              $validator.focusInvalid();
+              return false;
+            }else {
+              $('#bootstrap-wizard-1').find('.form-wizard').children('li').eq(index - 1).addClass(
+                'complete');
+              $('#bootstrap-wizard-1').find('.form-wizard').children('li').eq(index - 1).find('.step')
+                .html('<i class="fa fa-check"></i>');
+            }
+          },'onPrevious': function(tab, navigation, index){
+
+              var $total = navigation.find('li').length;
+              var $current = index+1;
+              wizard_set_finish_button($current , $total );
+          }
+        });
+
+         $('.finish').click(function(){
+            if ($("#wizard-1").valid()) {
+              $('.new_employee').submit();
+
+            }
+            return false;
+        });
+
+        function wizard_set_finish_button(current , total )
+        {
+              if(current >= total) {
+                  $('#bootstrap-wizard-1').find('.pager .next').hide();
+                  $('#bootstrap-wizard-1').find('.pager .finish').show();
+                  $('#bootstrap-wizard-1').find('.pager .finish').removeClass('disabled');
+                } else {
+                  $('#bootstrap-wizard-1').find('.pager .next').show();
+                  $('#bootstrap-wizard-1').find('.pager .finish').hide();
+              }
+        }
+
+
+        // fuelux wizard
+        var wizard = $('.wizard').wizard();
+
+        wizard.on('finished', function (e, data) {
+
+          //$("#fuelux-wizard").submit();
+          //console.log("submitted!");
+          $.smallBox({
+            title: "Congratulations! Your form was submitted",
+            content: "<i class='fa fa-clock-o'></i> <i>1 seconds ago...</i>",
+            color: "#5F895F",
+            iconSmall: "fa fa-check bounce animated",
+            timeout: 4000
+          });
+
+        });
+
+
+      })
