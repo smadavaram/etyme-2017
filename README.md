@@ -10,7 +10,7 @@
      Authentication: Devise
      Database: postgresql
      Markup Language: HAML
-###  Database creation ###
+###  Database ###
      * postgresql
 
 ###  Setup ###
