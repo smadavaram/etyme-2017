@@ -50,11 +50,13 @@ class Company < ActiveRecord::Base
 
   # Nested Attributes
   accepts_nested_attributes_for :owner , allow_destroy: true
+  accepts_nested_attributes_for :locations, :allow_destroy => true,:reject_if => :all_blank
 
   # CallBacks
   before_validation :create_slug
   after_create :set_owner_company_id
   after_create :send_confirmation_email
+
 
 
   def etyme_url
