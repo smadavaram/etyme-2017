@@ -58,11 +58,15 @@ Rails.application.routes.draw do
 
 
   get 'register' => 'companies#new'
-
+  get 'configuration' , to: 'companies#edit' ,as: :configuration
   scope module: :company do
     resources :employees
+    resources :locations
+    resources :address
 
     get 'dashboard' , to: 'users#dashboard' , as: :dashboard
+
+
 
     # AJAX for layout setting, remove in future
     get 'ajax/email_compose', to: 'ajax#email_compose', as: :ajax_email_compose
@@ -136,7 +140,7 @@ Rails.application.routes.draw do
   #   end
 
 
-  resources :companies , only: [:new , :create]
+  resources :companies , only: [:new , :create,:update]
   resources :static , only: [:index]
   devise_for :users, :controllers => { :invitations => 'company/invitations' }
 

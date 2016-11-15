@@ -41,6 +41,8 @@
 // JQUERY MASKED INPUT
 //= require plugin/masked-input/jquery.maskedinput.min
 
+//= require best_in_place
+
 // JQUERY SELECT2 INPUT
 //= require plugin/select2/select2.min
 
@@ -140,3 +142,8 @@
 //= require plugin/moment/moment.min
 //= require plugin/chartjs/chart.min
 //= require plugin/fullcalendar/jquery.fullcalendar.min
+
+
+$(document).ready(function() {
+    jQuery(".best_in_place").best_in_place();
+});

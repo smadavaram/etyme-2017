@@ -4,6 +4,7 @@
 ruby '2.3.1'
 source 'https://rubygems.org'
 gem 'rails', '4.2.0'
+gem 'best_in_place'
 
 
 #****************************
@@ -16,7 +17,7 @@ gem 'jquery-rails'
 gem 'turbolinks'
 gem 'jbuilder', '~> 2.0'
 gem 'sdoc', '~> 0.4.0', group: :doc
-gem 'simple_form'
+#gem 'simple_form'
 gem "haml-rails", "~> 0.9"
 gem "font-awesome-rails"
 
