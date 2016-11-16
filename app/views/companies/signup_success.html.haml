@@ -1,0 +1,18 @@
+- content_for :html_id, "extr-page"
+- content_for :body_class, "animated fadeInDown"
+- content_for :top_right do
+  %span#extr-page-header-space
+    %span.hidden-mobile.hiddex-xs
+#main{:role => "main"}
+  / MAIN CONTENT
+  #content.container
+    .row
+      .col-md-3.col-lg-3
+      .col-xs-12.col-sm-12.col-md-7.col-lg-7
+        %h1.txt-color-red.login-header-big Sign Up Successful
+        .hero
+          .pull-left.login-desc-box-l
+            %h4.paragraph-header You have successfully signed up on eTyme. In order to continue to your domain and login, Click the link below
+            .login-app-icons
+              =link_to 'CONTINUE TO LOGIN',"http://#{@company.etyme_url}", class: 'btn btn-lg btn-primary'
+          %img.pull-right.display-image{:alt => "", :src => "#{image_path('demo/iphoneview.png')}", :style => "width:210px"}/

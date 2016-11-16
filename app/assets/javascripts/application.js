@@ -25,3 +25,8 @@
 
 // MAIN APP JS FILE
 //= require app.seed
+
+// WIZARD
+//= require plugin/bootstrap-wizard/jquery.bootstrap.wizard.min
+//= require plugin/fuelux/wizard/wizard.min
+

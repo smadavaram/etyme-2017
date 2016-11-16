@@ -41,8 +41,12 @@
 
 class Vendor < User
 
-  has_many :prefferd_vendors
-  has_many :companies, through: :prefferd_vendors
-  has_many :job_invitations , as: :receipent
+  #Validations
+  validates_confirmation_of :password
+  validates_presence_of :password, :on => :create
+  validates_length_of :password, :minimum => 6,:message => "must be atleat 6 characters" ,:if => Proc.new { |vendor| vendor.password.present? }
+
+  # Association & Relations
+  has_many :job_invitations , as: :recipient
 
 end

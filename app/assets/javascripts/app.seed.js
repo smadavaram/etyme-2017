@@ -180,13 +180,16 @@ var calc_navbar_height = function() {
 						buttons : '[No][Yes]'
 			
 					}, function(ButtonPressed) {
+                        alert("sadasd");
+
 						if (ButtonPressed == "Yes") {
 							$.root_.addClass('animated fadeOutUp');
 							setTimeout(logout, 1000);
 						}
 					});
 					function logout() {
-						window.location = $this.attr('href');
+
+                        $('#logout-hidden').trigger('click');
 					}
 			
 				},

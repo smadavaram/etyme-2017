@@ -42,12 +42,22 @@
 class User < ActiveRecord::Base
   # Include default devise modules. Others available are:
   # :confirmable, :lockable, :timeoutable and :omniauthable
-  devise :database_authenticatable, :registerable,
-         :recoverable, :rememberable, :trackable, :validatable , :confirmable
+  devise :invitable, :database_authenticatable, :registerable,
+         :recoverable, :rememberable, :trackable
 
-  has_one :company, foreign_key: :owner_id , dependent: :destroy
-  has_many :job_invitations , foreign_key: :sender_id , dependent: :destroy
-  has_many :jobs
+  # Validations
+  # validates :first_name, :presence => true
+  # validates :last_name, :presence => true
+  # validates_presence_of :email
+  # validates_uniqueness_of :email
+  #
+
+  # Association
+  belongs_to :company
+  belongs_to :address
+  has_and_belongs_to_many :roles
+
+
 
   def full_name
     self.first_name + " " + self.last_name

@@ -1,18 +1,33 @@
-class UserMailer < Devise::Mailer
+class UserMailer < ApplicationMailer
   default from: "no-reply@etyme.com"
 
-
-  def confirmation_instructions(owner, token, opts = {})
-    @owner = owner
-    @company = owner.company
+  # Confirmation Email Send to Employer/Vendor after User create
+  def confirmation_instructions(user, token, opts = {})
+    @owner = user
+    @company = user.company
     @email =  "Etyme <no-reply@etyme.com>"
-    @token = token
+    @link  = "#{@company.etyme_url}/confirmation?confirmation_token=#{token}"
     mail(:to => @owner.email, :subject => "Welcome to Etyme",:from => @email)
   end
 
-  def reset_password_instructions(record, token, opts={})
-    @token = token
-    devise_mail(record, :reset_password_instructions, opts)
+  # Reset Password  Email For Employer/Vendor
+  def reset_password_instructions(user, token, opts={})
+    @user           = user
+    @email          = "Etyme <no-reply@etyme.com>"
+    @link           = "#{@user.company.etyme_url}/password/edit?reset_password_token=#{token}"
+    mail(:to => user.email,  :subject => 'Reset password instructions',:from => @email)
   end
 
+  #Notify Employer/Vendor when their passwords change
+  def password_changed(id)
+    @user = User.find(id)
+    mail to: @user.email, subject: "Your password has changed"
+  end
+
+  def invite_employee(employee)
+    @employee   = employee
+    @name       = @employee.full_name
+    @link       = "#{@employee.company.etyme_url}/users/invitation/accept?invitation_token=#{@employee.raw_invitation_token}"
+    mail(:to => employee.email,  :subject => "#{@employee.company.name.titleize} Invited You to Etyme",:from => "Etyme <no-reply@etyme.com>")
+  end
 end

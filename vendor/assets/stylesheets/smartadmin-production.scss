@@ -9282,7 +9282,7 @@ textarea.clone {
 }
 #extr-page .login-app-icons {
   vertical-align: top;
-  margin-top: 90px;
+  margin-top: 40px;
   width: 300px;
 }
 @media (min-width: 768px) and (max-width: 880px) {
@@ -10896,7 +10896,8 @@ body {
   margin: 0;
   padding: 0;
   min-height: 100%;
-  background: asset-url('mybg.png') #ffffff;
+  //background: asset-url('mybg.png') #ffffff;
+  background: #fff;
   direction: ltr;
 }
 /* when mobile menu is active */
@@ -11123,13 +11124,14 @@ aside {
   height: 49px;
   margin: 0;
   padding: 0 13px 0 0;
-  background-color: #f3f3f3;
-  background-image: -moz-linear-gradient(top, #f3f3f3, #e2e2e2);
-  background-image: -webkit-gradient(linear, 0 0, 0 100%, from(#f3f3f3), to(#e2e2e2));
-  background-image: -webkit-linear-gradient(top, #f3f3f3, #e2e2e2);
-  background-image: -o-linear-gradient(top, #f3f3f3, #e2e2e2);
-  background-image: linear-gradient(to bottom, #f3f3f3, #e2e2e2);
-  background-repeat: repeat-x;
+  //background-color: #f3f3f3;
+  background-color: #FFF;
+  //background-image: -moz-linear-gradient(top, #f3f3f3, #e2e2e2);
+  //background-image: -webkit-gradient(linear, 0 0, 0 100%, from(#f3f3f3), to(#e2e2e2));
+  //background-image: -webkit-linear-gradient(top, #f3f3f3, #e2e2e2);
+  //background-image: -o-linear-gradient(top, #f3f3f3, #e2e2e2);
+  //background-image: linear-gradient(to bottom, #f3f3f3, #e2e2e2);
+  //background-repeat: repeat-x;
   position: relative;
   z-index: 905;
 }

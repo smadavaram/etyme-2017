@@ -3,13 +3,12 @@ class CreateJobs < ActiveRecord::Migration
     create_table :jobs do |t|
       t.string   :title
       t.text     :description
-      t.string   :country
-      t.string   :zip_code
-      t.string   :state
-      t.string   :city
+      t.integer  :location_id
       t.date     :start_date
       t.date     :end_date
-      t.integer  :user_id
+      t.integer  :parent_job_id
+      t.integer  :company_id
+      t.integer  :created_by_id
 
       t.timestamps null: false
     end

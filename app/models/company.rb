@@ -36,25 +36,29 @@ class Company < ActiveRecord::Base
 
   # Association
   belongs_to :owner , :class_name => 'User',  foreign_key: "owner_id"
-  belongs_to :company_type
-  has_many :jobs ,through: :user
-  has_many :prefferd_vendors
-  has_many :vendors, through: :prefferd_vendors
+  has_many :locations
+  has_many :jobs
+  has_many :users , dependent: :destroy
+  has_many :employees , dependent: :destroy
+  # has_many :roles , dependen: :destroy
 
   # Validations
+  validates :name,:presence => true,:uniqueness=>{:case_sensitive => false}
+  validates_length_of :name, :minimum => 3,:message => "must be atleat 3 characters"
+  validates_length_of :name, :maximum => 50,:message => "can have maximum of 50 characters"
+  validates :slug ,:uniqueness => true
 
   # Nested Attributes
   accepts_nested_attributes_for :owner , allow_destroy: true
 
   # CallBacks
-
-  before_create :create_slug
+  before_validation :create_slug
   after_create :set_owner_company_id
   after_create :send_confirmation_email
 
-  def build_hiring_manager
-      build_owner(type: "HiringManager")
 
+  def etyme_url
+    "#{self.slug}.#{ENV['domain']}"
   end
 
   private
@@ -70,4 +74,6 @@ class Company < ActiveRecord::Base
   def send_confirmation_email
     # UserMailer.signup_confirmation(self).deliver
   end
+
+
 end

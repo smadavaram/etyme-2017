@@ -1,8 +1,8 @@
 #****************************
 # Configuration
 #****************************
-source 'https://rubygems.org'
 ruby '2.3.1'
+source 'https://rubygems.org'
 gem 'rails', '4.2.0'
 
 
@@ -26,17 +26,26 @@ gem "font-awesome-rails"
 #****************************
 gem 'pg'
 
+#****************************
+# Authentication
+#****************************
+gem 'devise'
+gem 'devise_invitable', '~> 1.7.0'
+gem 'activeadmin'
 
 
 # gem 'therubyracer', platforms: :ruby
-gem 'devise'
-gem 'activeadmin'
+
 # gem 'paperclip'
 gem 'filepicker-rails'
 gem 'has_scope'
 gem 'figaro'
+gem "breadcrumbs_on_rails"
 
-
+#****************************
+# Multimedia Files
+#****************************
+gem 'filepicker-rails'
 
 
 # Use ActiveModel has_secure_password
@@ -49,8 +58,6 @@ gem 'figaro'
 # gem 'capistrano-rails', group: :development
 
 group :development, :test do
-
-
   gem "better_errors", '~> 1.1.0'
   gem "binding_of_caller"
   gem "rails-erd"
@@ -61,7 +68,6 @@ group :development, :test do
   gem 'annotate', '~> 2.7'
   # Access an IRB console on exception pages or by using <%= console %> in views
   gem 'web-console', '~> 2.0'
-
   # Spring speeds up development by keeping your application running in the background. Read more: https://github.com/rails/spring
   gem 'spring'
 end
