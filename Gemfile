@@ -34,6 +34,11 @@ gem "cocoon"
 gem 'pg'
 
 #****************************
+# Mailer
+#****************************
+gem 'mailgun_rails'
+
+#****************************
 # Authentication
 #****************************
 gem 'devise'
@@ -54,7 +59,7 @@ gem "breadcrumbs_on_rails"
 gem 'filepicker-rails'
 gem 'carrierwave'
 gem "mini_magick"
-gem 'fog'
+# gem 'fog'
 
 
 # Use ActiveModel has_secure_password
