@@ -86,6 +86,6 @@ Rails.application.configure do
   # Do not dump schema after migrations.
   config.active_record.dump_schema_after_migration = false
 
-  HOSTNAME='http://app-etyme.herokuapp.com'
-  COMPANY_URL = 'app-etyme.herokuapp.com'
+  HOSTNAME='http://demoetyme.com'
+  COMPANY_URL = 'demoetyme.com'
 end
