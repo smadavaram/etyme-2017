@@ -11,7 +11,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema.define(version: 20161111122527) do
+ActiveRecord::Schema.define(version: 20161116130233) do
 
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
@@ -25,6 +25,17 @@ ActiveRecord::Schema.define(version: 20161111122527) do
     t.string   "zip_code"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+  end
+
+  create_table "attachments", force: :cascade do |t|
+    t.string   "file"
+    t.string   "file_name"
+    t.integer  "file_size"
+    t.integer  "file_type"
+    t.string   "attachable_type"
+    t.integer  "attachable_id"
+    t.datetime "created_at",      null: false
+    t.datetime "updated_at",      null: false
   end
 
   create_table "companies", force: :cascade do |t|
@@ -42,21 +53,34 @@ ActiveRecord::Schema.define(version: 20161111122527) do
     t.string   "twitter_url"
     t.string   "google_url"
     t.string   "time_zone"
-    t.boolean  "is_activated",                         default: false
+    t.boolean  "is_activated",             default: false
     t.string   "dba"
     t.integer  "status"
     t.date     "established_date"
     t.integer  "entity_type"
     t.integer  "hr_manager_id"
-    t.string   "accountant_contact_email", limit: 255
-    t.datetime "created_at",                                           null: false
-    t.datetime "updated_at",                                           null: false
+    t.integer  "billing_contact_id"
+    t.string   "accountant_contact_email"
+    t.datetime "created_at",                               null: false
+    t.datetime "updated_at",                               null: false
   end
 
   add_index "companies", ["owner_id"], name: "index_companies_on_owner_id", using: :btree
 
-  create_table "employee_profiles", force: :cascade do |t|
-    t.integer  "employee_id"
+  create_table "company_docs", force: :cascade do |t|
+    t.string   "name"
+    t.integer  "doc_type"
+    t.integer  "created_by"
+    t.integer  "company_id"
+    t.string   "description"
+    t.string   "file"
+    t.boolean  "is_required_signature"
+    t.datetime "created_at",            null: false
+    t.datetime "updated_at",            null: false
+  end
+
+  create_table "consultant_profiles", force: :cascade do |t|
+    t.integer  "consultant_id"
     t.string   "designation"
     t.date     "joining_date"
     t.integer  "location_id"
@@ -67,13 +91,23 @@ ActiveRecord::Schema.define(version: 20161111122527) do
     t.datetime "updated_at",      null: false
   end
 
-  add_index "employee_profiles", ["employee_id"], name: "index_employee_profiles_on_employee_id", using: :btree
+  add_index "consultant_profiles", ["consultant_id"], name: "index_consultant_profiles_on_consultant_id", using: :btree
+
+  create_table "custom_fields", force: :cascade do |t|
+    t.string   "name"
+    t.string   "value"
+    t.integer  "status"
+    t.integer  "customizable_id"
+    t.string   "customizable_type"
+    t.datetime "created_at",        null: false
+    t.datetime "updated_at",        null: false
+  end
 
   create_table "job_invitations", force: :cascade do |t|
     t.integer  "recipient_id"
     t.string   "email"
     t.string   "recipient_type"
-    t.integer  "sender_id"
+    t.integer  "created_by_id"
     t.integer  "job_id"
     t.integer  "status",         default: 0
     t.datetime "created_at",                 null: false
@@ -96,6 +130,8 @@ ActiveRecord::Schema.define(version: 20161111122527) do
   create_table "locations", force: :cascade do |t|
     t.string   "name"
     t.integer  "address_id"
+    t.integer  "company_id"
+    t.integer  "status"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
   end
@@ -113,6 +149,7 @@ ActiveRecord::Schema.define(version: 20161111122527) do
 
   create_table "roles", force: :cascade do |t|
     t.string   "name"
+    t.integer  "company_id"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
   end
@@ -122,17 +159,28 @@ ActiveRecord::Schema.define(version: 20161111122527) do
     t.integer "user_id"
   end
 
+  create_table "user_docs", force: :cascade do |t|
+    t.integer  "company_doc_id"
+    t.integer  "user_id"
+    t.string   "description"
+    t.string   "file"
+    t.datetime "created_at",     null: false
+    t.datetime "updated_at",     null: false
+  end
+
   create_table "users", force: :cascade do |t|
     t.integer  "company_id"
     t.string   "first_name",             default: ""
     t.string   "last_name",              default: ""
-    t.boolean  "gender"
+    t.integer  "gender"
     t.string   "email",                  default: "", null: false
     t.string   "type"
     t.string   "phone"
-    t.integer  "address_id"
+    t.integer  "primary_address_id"
     t.string   "photo"
+    t.json     "signature"
     t.integer  "status"
+    t.date     "dob"
     t.string   "encrypted_password",     default: "", null: false
     t.string   "reset_password_token"
     t.datetime "reset_password_sent_at"
@@ -142,6 +190,10 @@ ActiveRecord::Schema.define(version: 20161111122527) do
     t.datetime "last_sign_in_at"
     t.string   "current_sign_in_ip"
     t.string   "last_sign_in_ip"
+    t.string   "confirmation_token"
+    t.datetime "confirmed_at"
+    t.datetime "confirmation_sent_at"
+    t.string   "unconfirmed_email"
     t.datetime "created_at",                          null: false
     t.datetime "updated_at",                          null: false
     t.string   "invitation_token"
