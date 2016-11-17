@@ -30,5 +30,4 @@ class UserMailer < ApplicationMailer
     @link       = "#{@employee.company.etyme_url}/users/invitation/accept?invitation_token=#{@employee.raw_invitation_token}"
     mail(:to => employee.email,  :subject => "#{@employee.company.name.titleize} Invited You to Etyme",:from => "Etyme <no-reply@etyme.com>")
   end
-
 end

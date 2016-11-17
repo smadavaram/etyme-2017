@@ -36,15 +36,15 @@
             %section
               %label.label New password
               %label.input
-                %i.icon-append.fa.fa-user
-                - if @minimum_password_length
-                  %em
-                    (#{@minimum_password_length} characters minimum)
-                  %br/
+                %i.icon-append.fa.fa-lock
                 = f.password_field :password, autofocus: true, autocomplete: "off"
                 %b.tooltip.tooltip-top-right
                   %i.fa.fa-user.txt-color-teal
                   Enter New Password
+                - if @minimum_password_length
+                  %em
+                    (#{@minimum_password_length} characters minimum)
+                  %br/
             %section
               %label.label Confirm new password
               %label.input
@@ -53,16 +53,9 @@
                 %b.tooltip.tooltip-top-right
                   %i.fa.fa-lock.txt-color-teal
                   Enter your password
-              .note
-                = link_to 'Forgot password?', '#'
-            %section
-              %label.checkbox
-                = f.check_box :remember_me
-                = succeed "Stay" do
-                  %i
-        %footer
-          %button.btn.btn-primary{:type => "submit"}
-            Change my password
+          %footer
+            %button.btn.btn-primary{:type => "submit"}
+              Change my password
       %h5.text-center - Or sign in using -
       %ul.list-inline.text-center
         %li
@@ -75,24 +68,3 @@
           %a.btn.btn-warning.btn-circle{:href => "javascript:void(0);"}
             %i.fa.fa-linkedin
 
-
-
--#%h2 Change your password
--#= form_for(resource, as: resource_name, url: password_path(resource_name), html: { method: :put }) do |f|
--#  = devise_error_messages!
--#  = f.hidden_field :reset_password_token
--#  .field
--#    = f.label :password, "New password"
--#    %br/
--#    - if @minimum_password_length
--#      %em
--#        (#{@minimum_password_length} characters minimum)
--#      %br/
--#    = f.password_field :password, autofocus: true, autocomplete: "off"
--#  .field
--#    = f.label :password_confirmation, "Confirm new password"
--#    %br/
--#    = f.password_field :password_confirmation, autocomplete: "off"
--#  .actions
--#    = f.submit "Change my password"
--#= render "users/shared/links"
