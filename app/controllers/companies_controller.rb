@@ -9,6 +9,7 @@ class CompaniesController < ApplicationController
   layout 'login',only:[:new,:create]
   layout 'company',only:[:edit]
 
+  # add_breadcrumb "Companies",companies_path
 
   def new
   end # End of new
@@ -27,6 +28,7 @@ class CompaniesController < ApplicationController
 
 
   def edit
+    add_breadcrumb current_company.name.titleize, edit_user_path(current_company), :title => ""
     @location=current_company.locations.build
     @location.build_address
 
@@ -35,6 +37,7 @@ class CompaniesController < ApplicationController
 
   def update
     current_company.update_attributes(company_params)
+
       flash[:success]="Company Updated Successfully"
     respond_with current_company
 

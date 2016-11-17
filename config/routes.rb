@@ -62,7 +62,12 @@ Rails.application.routes.draw do
   scope module: :company do
     resources :employees
     resources :locations
-    resources :address
+    resources :addresses
+
+
+    resources :users do
+      post 'update_photo',on: :member
+    end
 
     get 'dashboard' , to: 'users#dashboard' , as: :dashboard
 
@@ -143,6 +148,8 @@ Rails.application.routes.draw do
   resources :companies , only: [:new , :create,:update]
   resources :static , only: [:index]
   devise_for :users, :controllers => { :invitations => 'company/invitations' }
+
+
 
   # Route set when subdomain present?
   constraints(Subdomain) do
