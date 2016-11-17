@@ -76,7 +76,7 @@ Rails.application.configure do
       domain: ENV["mailgun_domain"]
   }
 
-  
+
   # Send deprecation notices to registered listeners.
   config.active_support.deprecation = :notify
 
@@ -86,6 +86,6 @@ Rails.application.configure do
   # Do not dump schema after migrations.
   config.active_record.dump_schema_after_migration = false
 
-  HOSTNAME='http://etyme.com'
-  COMPANY_URL = 'etyme.com'
+  HOSTNAME='http://app-etyme.herokuapp.com'
+  COMPANY_URL = 'app-etyme.herokuapp.com'
 end
