@@ -44,7 +44,7 @@ Rails.application.routes.draw do
 
   class NakedEtymeDomain
     def self.matches?(request)
-      (request.subdomain.blank? || request.subdomain == 'www') #&& request.domain == ENV['etyme_domain']
+      (request.subdomain.blank? || request.subdomain == 'www') && request.domain == ENV['domain']
     end
   end
 
