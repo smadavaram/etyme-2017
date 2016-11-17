@@ -32,6 +32,7 @@ gem "cocoon"
 # DataBase
 #****************************
 gem 'pg'
+gem 'rails_12factor', group: :production
 
 #****************************
 # Mailer
