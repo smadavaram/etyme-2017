@@ -42,7 +42,6 @@
 
 Rails.application.routes.draw do
 
-
   class NakedEtymeDomain
     def self.matches?(request)
       (request.subdomain.blank? || request.subdomain == 'www') #&& request.domain == ENV['etyme_domain']
@@ -59,18 +58,25 @@ Rails.application.routes.draw do
 
   get 'register' => 'companies#new'
   get 'configuration' , to: 'companies#edit' ,as: :configuration
+  # get '/consultants/invitation/accept', to: 'company/invitations#edit', as: :accept_consultant_invitation
+  # post '/consultants/invitation/accept', to: 'company/invitations#create', as: :consultant_invitation
+  # patch '/consultants/invitation/accept', to: 'company/invitations#update'
+
+  # COMPANY ROUTES
   scope module: :company do
-    resources :employees
+    resources :consultants
     resources :locations
+    resources :company_docs
+    resources :roles
     resources :addresses
 
 
-    resources :users do
-      post 'update_photo',on: :member
-    end
+    # resources :users do
+    #   post 'update_photo',on: :member
+    # end
 
-    get 'dashboard' , to: 'users#dashboard' , as: :dashboard
-
+    get 'dashboard' ,   to: 'users#dashboard' , as: :dashboard
+    post 'update_photo',to: 'users#update_photo'
 
 
     # AJAX for layout setting, remove in future
@@ -147,9 +153,7 @@ Rails.application.routes.draw do
 
   resources :companies , only: [:new , :create,:update]
   resources :static , only: [:index]
-  devise_for :users, :controllers => { :invitations => 'company/invitations' }
-
-
+  devise_for :users, controllers: { invitations: 'company/invitations' } , path_names: { sign_in: 'login', sign_out: 'logout'}
 
   # Route set when subdomain present?
   constraints(Subdomain) do
@@ -160,7 +164,7 @@ Rails.application.routes.draw do
 
   # Route set when subdomain is not present
   constraints(NakedEtymeDomain) do
-    root :to => "static#index"
+    root :to => "companies#new"
   end
 
 

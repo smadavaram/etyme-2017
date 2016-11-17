@@ -11,7 +11,9 @@ class DeviseCreateUsers < ActiveRecord::Migration
       t.string  :phone
       t.integer :primary_address_id
       t.string  :photo
+      t.json    :signature
       t.integer :status
+      t.date    :dob
 
       t.string :encrypted_password, null: false, default: ""
 

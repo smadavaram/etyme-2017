@@ -2,6 +2,7 @@ class Company::LocationsController < Company::BaseController
 
   before_action :set_location , only: [:create]
   before_action :find_location,only:[:update]
+  before_action :set_new_location , only: [:new]
   respond_to :html,:json
 
   def create
@@ -10,7 +11,6 @@ class Company::LocationsController < Company::BaseController
   end
 
   def new
-    @location=current_company.locations.new(location_params)
   end
   def show
 
@@ -22,6 +22,10 @@ class Company::LocationsController < Company::BaseController
   end
 
   private
+
+  def set_new_location
+    @location = current_company.locations.new
+  end
 
   def find_location
     @location=current_company.locations.find(params[:id])

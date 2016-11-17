@@ -6,7 +6,10 @@
 #   cities = City.create([{ name: 'Chicago' }, { name: 'Copenhagen' }])
 #   Mayor.create(name: 'Emanuel', city: cities.first)
 
-Role.create([{name: 'Admin'},{name: 'Project Manager'},{name: 'Associate Project Manger'},{name: 'Technical Officer'}])
-Permission.create(name: "Jobs")
-Permission.create(name: "Employees")
+Permission.create(name: "manage_jobs")
+Permission.create(name: "manage_consultants")
+Permission.create(name: "manage_all_consultants")
+Permission.create(name: "manage_company")
+Permission.create(name: "manage_vendors")
+Permission.create(name: "manage_company_docs")
 

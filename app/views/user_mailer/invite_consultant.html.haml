@@ -31,8 +31,8 @@
             %table
               %tr
                 %td
-                  %h3 Hi, #{@employee.full_name}
-                  %p.lead "#{@employee.company.name.titleize} has invited you, you can accept it through the link below."
+                  %h3 Hi, #{@consultant.full_name}
+                  %p.lead "#{@consultant.company.name.titleize} has invited you, you can accept it through the link below."
                   / Callout Panel
                   %p.callout
                     = t("devise.mailer.invitation_instructions.ignore").html_safe

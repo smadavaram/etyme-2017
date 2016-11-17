@@ -6,7 +6,7 @@
           ×
         %h4#myModalLabel.modal-title Add New Location
       .modal-body
-        =form_for @location , url: locations_path, method: 'post' do |location|
+        =form_for current_company.locations.new do |location|
           =location.fields_for :address do |address|
             .row
               .col-md-12

@@ -97,7 +97,7 @@
                 %u> Logout
     / logout button
     #logout.btn-header.transparent.pull-right
-      %span
+      %spa
         = link_to "",destroy_user_session_path, method: :delete , class: 'hidden' , id: 'logout-hidden'
         = link_to(destroy_user_session_path, title: 'Sign Out', data: {action: 'userLogout', 'logout-msg' => 'You can improve your security further after logging out by closing this opened browser'}) do
           %i.fa.fa-sign-out

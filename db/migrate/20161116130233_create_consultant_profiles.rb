@@ -1,7 +1,9 @@
-class CreateEmployeeProfiles < ActiveRecord::Migration
+class CreateConsultantProfiles < ActiveRecord::Migration
+
+
   def change
-    create_table :employee_profiles do |t|
-      t.integer  :employee_id , index: true
+    create_table :consultant_profiles do |t|
+      t.integer  :consultant_id , index: true
       t.string   :designation
       t.date     :joining_date
       t.integer  :location_id

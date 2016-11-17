@@ -1,0 +1,31 @@
+#myModal.modal.fade.in{"aria-hidden" => "true", "aria-labelledby" => "myModalLabel", :role => "dialog", :style => "display: none;", :tabindex => "-1"}
+  .modal-dialog
+    .modal-content
+      .modal-header
+        %button.close{"aria-hidden" => "true", "data-dismiss" => "modal", :type => "button"}
+          ×
+        %h4#myModalLabel.modal-title Add New Location
+      .modal-body
+        =form_for @location do |location|
+          =location.fields_for :address do |address|
+            .row
+              .col-md-12
+                .form-group
+                  =location.text_field :name,:placeholder => "Name",class: "form-control"
+                .form-group
+                  = address.select :country ,['Pakistan','USA ','China'],{},:class=>"form-control" , :required =>'required'
+            .row
+              .col-md-6
+                .form-group
+                  %label{:for => "category"} City
+                  = address.select :city ,['Burewala','Lahore','Multan'],{},:class=>"form-control" , :required => 'required'
+              .col-md-6
+                .form-group
+                  %label{:for => "tags"} Zip Code
+                  =address.text_field :zip_code,:placeholder => "Zip Code",class:"form-control"
+
+          .modal-footer
+            %button.btn.btn-default{"data-dismiss" => "modal", :type => "button"}
+              Cancel
+            %button.btn.btn-primary{:type => "submit"}
+              Create Location

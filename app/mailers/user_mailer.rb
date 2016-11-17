@@ -24,10 +24,10 @@ class UserMailer < ApplicationMailer
     mail to: @user.email, subject: "Your password has changed"
   end
 
-  def invite_employee(employee)
-    @employee   = employee
-    @name       = @employee.full_name
-    @link       = "#{@employee.company.etyme_url}/users/invitation/accept?invitation_token=#{@employee.raw_invitation_token}"
-    mail(:to => employee.email,  :subject => "#{@employee.company.name.titleize} Invited You to Etyme",:from => "Etyme <no-reply@etyme.com>")
+  def invite_consultant(consultant)
+    @consultant   = consultant
+    @name         = @consultant.full_name
+    @link         = "#{@consultant.company.etyme_url}/users/invitation/accept?invitation_token=#{@consultant.raw_invitation_token}"
+    mail(to: consultant.email,  subject: "#{@consultant.company.name.titleize} Invited You to Etyme",from: "Etyme <no-reply@etyme.com>")
   end
 end

@@ -1,12 +1,49 @@
-- if notice
-  .alert.alert-success.fade.in
-    %button.close{"data-dismiss" => "alert"}
-      ×
-    %i.fa-fw.fa.fa-check
-    = notice
-  - if alert
-    .alert.alert-warning.fade.in
-      %button.close{"data-dismiss" => "alert"}
-        ×
-      %i.fa-fw.fa.fa-warning
-      = alert
+-#- if notice
+-#  .alert.alert-success.fade.in
+-#    %button.close{"data-dismiss" => "alert"}
+-#      ×
+-#    %i.fa-fw.fa.fa-check
+-#    = notice
+-#  - if alert
+-#    .alert.alert-warning.fade.in
+-#      %button.close{"data-dismiss" => "alert"}
+-#        ×
+-#      %i.fa-fw.fa.fa-warning
+-#      = alert
+:javascript
+  function amaran_alert(color , msg){
+      $.amaran({
+        'theme'     :'colorful',
+        'content'   :{
+            bgcolor: color,
+            color:'#fff',
+            message:msg
+        },
+        'cssanimationOut'   :'slideRight',
+        'outEffect'         :'slideRight',
+        'closeOnClick'  :true,
+        'position'          :'top right',
+        'closeButton': true
+    });
+  }
+- if flash[:alert].present? || flash[:toastr].present? || flash[:error].present? || flash[:errors].present? || flash[:success].present? || flash[:notice].present? || flash[:info].present?
+  - if flash[:alert].present?
+    :javascript
+      amaran_alert('#FFC333',"#{flash[:alert]}");
+  - if flash[:error].present?
+    :javascript
+      amaran_alert('#D04B2B',"#{flash[:error]}");
+  - if flash[:errors].present?
+    - flash[:errors].each do |e|
+      :javascript
+        amaran_alert('#D04B2B',"#{e}");
+  - if flash[:success].present?
+    :javascript
+      amaran_alert('#80C14B',"#{flash[:success]}");
+  - if flash[:notice].present?
+    :javascript
+      amaran_alert('#80C14B',"#{flash[:notice]}");
+  - if flash[:info].present?
+    :javascript
+      amaran_alert('#35A4DA',"#{flash[:info]}");
+

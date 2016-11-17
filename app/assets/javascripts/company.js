@@ -143,4 +143,10 @@
 //= require plugin/chartjs/chart.min
 //= require plugin/fullcalendar/jquery.fullcalendar.min
 
+// Custom Fields
+//= require cocoon
+
+// Amaran For Alerts
+//= require jquery.amaran
+
 

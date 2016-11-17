@@ -9,11 +9,10 @@
       %div
         //= f.label :filepicker_url, "Upload Your Avatar:"
         = filepicker_field_tag "" ,class: "hidden file", onchange:"employeeLogoUpload(event)"
-        -if current_user.photo.present?
-          = image_tag current_user.photo,  style:"width:100px;height:100px", fit: 'clip',:class =>"profile-pic image-setting"
-          %p.imgDescription Change Photo
-        -else
-          = image_tag current_user.photo,  style:"width:100px;height:100px", fit: 'clip',:class =>"profile-pic image-setting"
+        = image_tag current_user.photo,  style:"width:100px;height:100px", fit: 'clip',:class =>"profile-pic image-setting"
+        -#  %p.imgDescription Change Photo
+        -#-else
+        -#  = image_tag current_user.photo,  style:"width:100px;height:100px", fit: 'clip',:class =>"profile-pic image-setting"
 
     %ul.links
       %li
@@ -143,7 +142,7 @@
                           = best_in_place location.address,:state, :as => :input
                         %td
                           = best_in_place location.address,:zip_code, :as => :input
-            =render 'companies/location_form'
+            =render 'company/locations/partials/location_form'
 
           #hr3.tab-pane
             .tabbable.tabs-below
@@ -170,34 +169,30 @@
             .tabbable.tabs-below
               .tab-content.padding-10
 
-:javascript
-  $(document).ready(function() {
-    $( ".profile-pic" ).click(function() {
+- content_for :scripts do
+  :javascript
+    $(document).ready(function() {
+      $( ".profile-pic" ).click(function()
+      {
         $( ".file" ).trigger( "click" );
-
+      });
+      $(".best_in_place").best_in_place();
     });
-  });
-  $(document).ready(function() {
-    jQuery(".best_in_place").best_in_place();
-  });
-  function employeeLogoUpload(event){
-   photo_url = event.fpfile.url
-   $('.profile-pic').html('')
-   $.ajax({
-     type: 'POST',
-     dataType: 'json',
-     url: "#{update_photo_user_path(current_user)}",
-     data: { photo: photo_url,authenticity_token: window._token },
-     success: function (data) {
-       image_tag = "<img src=" + photo_url + " alt='Logo' height='99px' style='position:initial !important;'> <p class='imgDescription'>Change Photo</p>"
-       $('.profile-pic').html(image_tag)
-       alert("ch");
-     }
-   });
-  }
+    function employeeLogoUpload(event){
+      photo_url = event.fpfile.url
+      $('.profile-pic').html('');
+      $.ajax({
+       type: 'POST',
+       dataType: 'json',
+       url: "#{update_photo_path}",
+       data: { photo: photo_url,authenticity_token: window._token },
+       success: function (data) {
+        $('.text img').attr("src",photo_url);
+       }
+     });
+    }
 
-  $(".edit_in_line").css("display","none");
-
-  $('td').on('mouseover mouseout',function(){
-  $(this).find('.editprofile-pic_in_line').toggle();
-  });
+    $(".edit_in_line").css("display","none");
+    $('td').on('mouseover mouseout',function(){
+    $(this).find('.editprofile-pic_in_line').toggle();
+    });

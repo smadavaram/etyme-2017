@@ -1,7 +1,7 @@
-class EmployeeProfile < ActiveRecord::Base
+class ConsultantProfile < ActiveRecord::Base
 
   #Associations
-  belongs_to :employee
+  belongs_to :consultant
 
   #Validations
   validates :designation, :joining_date, :salary, :salary_type , presence: true

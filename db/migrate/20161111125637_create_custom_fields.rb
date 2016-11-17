@@ -4,7 +4,7 @@ class CreateCustomFields < ActiveRecord::Migration
 
       t.string   :name
       t.string   :value
-      t.integer   :status
+      t.integer  :status
       t.integer  :customizable_id
       t.string   :customizable_type
       t.datetime :created_at

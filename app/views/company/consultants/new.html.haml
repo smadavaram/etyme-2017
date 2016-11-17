@@ -29,7 +29,7 @@
             %header
               %span.widget-icon
                 %i.fa.fa-check
-              %h2 Employee Information
+              %h2 Consultant Information
             / widget div
             %div
               / widget edit box
@@ -54,12 +54,12 @@
 
 
         // Joining Date
-          $('#employee_employee_profile_attributes_joining_date').datepicker({
+          $('#consultant_consultant_profile_attributes_joining_date').datepicker({
             dateFormat : 'dd.mm.yy',
             prevText : '<i class="fa fa-chevron-left"></i>',
             nextText : '<i class="fa fa-chevron-right"></i>',
             onSelect : function(selectedDate) {
-              $('#employee_employee_profile_attributes_joining_date').datepicker('option', 'minDate', selectedDate);
+              $('#consultant_consultant_profile_attributes_joining_date').datepicker('option', 'minDate', selectedDate);
             }
           });
 
@@ -152,7 +152,7 @@
 
          $('.finish').click(function(){
             if ($("#wizard-1").valid()) {
-              $('.new_employee').submit();
+              $('.new_consultant').submit();
 
             }
             return false;

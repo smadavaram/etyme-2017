@@ -2,7 +2,7 @@ class CreateCompanies < ActiveRecord::Migration
   def change
     create_table :companies do |t|
 
-      t.integer :owner_id , index: true
+      t.integer  :owner_id , index: true
       t.string   :name
       t.string   :website
       t.string   :logo

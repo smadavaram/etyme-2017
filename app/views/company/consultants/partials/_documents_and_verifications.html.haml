@@ -1,0 +1,14 @@
+.row
+  .col-sm-12
+    .form-group
+      .input-group
+        %span.input-group-addon
+          %i.fa.fa-envelope.fa-lg.fa-fw
+        = e.collection_select :company_doc_ids, current_company.company_docs, :id, :name, {}, {class:"form-control input-lg multi-select2-company-docs",multiple: true}
+      %span.help-block.m-b-none
+        Attach company documents like Contracts, Company Letter, Hiring Manifesto, W4, W9 Forms and etc.
+- content_for :scripts do
+  :javascript
+      $( document ).ready(function() {
+           $(".multi-select2-company-docs").select2({placeholder: "Select a Doc(s)"});
+      });
