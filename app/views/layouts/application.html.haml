@@ -7,5 +7,6 @@
     = javascript_include_tag 'application', 'data-turbolinks-track' => true
     = filepicker_js_include_tag
     = csrf_meta_tags
-  %body
+  %body{:class => "#{yield :body_class}"}
+    = render partial: 'shared/header'
     = yield

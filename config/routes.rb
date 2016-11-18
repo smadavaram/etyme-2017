@@ -61,7 +61,8 @@ Rails.application.routes.draw do
 
 
   get 'register' => 'companies#new'
-  get  'domain' => 'static#domain'
+  get  'signin' ,to: 'static#signin'
+  post 'signin' ,to: 'static#signin'
   # get '/consultants/invitation/accept', to: 'company/invitations#edit', as: :accept_consultant_invitation
   # post '/consultants/invitation/accept', to: 'company/invitations#create', as: :consultant_invitation
   # patch '/consultants/invitation/accept', to: 'company/invitations#update'

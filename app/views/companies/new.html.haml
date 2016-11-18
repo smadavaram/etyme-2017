@@ -3,7 +3,7 @@
 - content_for :top_right do
   %span#extr-page-header-space
     %span.hidden-mobile.hiddex-xs Already registered?
-    = link_to 'Sign In', new_user_session_path, class: 'btn btn-primary'
+    = link_to 'Sign In', request.subdomain.present? ? new_user_session_path : signin_path , class: 'btn btn-primary'
 #main{:role => "main"}
   / MAIN CONTENT
   #content.container
