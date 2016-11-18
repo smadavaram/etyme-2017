@@ -1,0 +1,48 @@
+#attachmentModal.modal.fade.in{"aria-hidden" => "true", "aria-labelledby" => "myModalLabel", :role => "dialog", :style => "display: none;", :tabindex => "-1"}
+  .modal-dialog
+    .modal-content
+      .modal-header
+        %button.close{"aria-hidden" => "true", "data-dismiss" => "modal", :type => "button"}
+          ×
+        %h4#myModalLabel.modal-title Add New Attachment
+      .modal-body
+        = simple_form_for @company_doc ,html:{ class:'form-horizontal'} do |f|
+          %fieldset
+            %legend Company Documents
+            .form-group
+              %label.col-md-2.control-label Name
+              .col-md-10
+                = f.text_field :name , class: 'form-control' , placeholder: 'Enter Document Name'
+            .form-group
+              %label.col-md-2.control-label File
+              .col-md-10
+                =f.fields_for :attachment do |attach|
+                  = attach.filepicker_field :file , class: 'form-control'
+            .form-group
+              %label.checkbox.col-md-2.control-label Is Required Signature
+              .col-md-10
+                =f.check_box :is_required_signature
+            -#%p.note
+            -#  %strong Note:
+            -#  works in Chrome, Firefox, Opera and IE10.
+            .form-group
+              %label.col-md-2.control-label Description
+              .col-md-10
+                =  f.text_area :description , class: 'form-control' ,rows: '4' , placeholder: 'Enter Description'
+
+
+          .form-actions
+            .row
+              .col-md-12
+                %button.btn.btn-default{:type => "submit"}
+                  Cancel
+                = f.submit "Submit", class: 'btn btn-primary'
+- content_for :scripts do
+  :javascript
+    // DO NOT REMOVE : GLOBAL FUNCTIONS!
+
+    $(document).ready(function() {
+
+      pageSetUp();
+
+    });

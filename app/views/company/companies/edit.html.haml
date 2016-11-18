@@ -4,28 +4,24 @@
 
 
 .col-lg-3.col-md-3
-  .panel-body.status
+  .panel-body.status.profile-margin
     .text
       %div
         //= f.label :filepicker_url, "Upload Your Avatar:"
         = filepicker_field_tag "" ,class: "hidden file", onchange:"employeeLogoUpload(event)"
-        = image_tag current_user.photo,  style:"width:100px;height:100px", fit: 'clip',:class =>"profile-pic image-setting"
-        -#  %p.imgDescription Change Photo
-        -#-else
-        -#  = image_tag current_user.photo,  style:"width:100px;height:100px", fit: 'clip',:class =>"profile-pic image-setting"
-
+        -if(current_user.photo.present?)
+          = image_tag current_user.photo,  style:"width:100px;height:100px", fit: 'clip',:class =>"profile-pic image-setting"
+        -else
+          = image_tag image_path('default_user.png'),  style: "width:100px;height:100px", fit: 'clip',:class =>"profile-pic image-setting"
     %ul.links
       %li
-        %a{:href => "javascript:void(0);"}
-          like
+
       %li
         %a{:href => "javascript:void(0);"}
-          %i.fa.fa-comment-o
-          Comment
+
       %li
         %a{:href => "javascript:void(0);"}
-          %i.fa.fa-share-square-o
-          Share
+
 
 
 .col-lg-9.col-md-9
@@ -129,15 +125,11 @@
                     %tbody
                       %tr
                         %td
-                          %span
-                            = best_in_place location, :name, :as => :input
+                          = best_in_place location, :name, :as => :input
                         %td
-                          %span
-                            = best_in_place location.address, :country, :as => :select, :collection => [[1, "Pakistan"],[2, "USA"],[3,'China']]
-
-                          -#= best_in_place location.address,:country, :as => :input
+                          = best_in_place location.address, :country, :as => :select, :collection => CS.countries.sort.map{|k,v|[k,v]}
                         %td
-                          = best_in_place location.address, :city, :as => :select, :collection => %w(Burewala Lahore Multan)
+                          = best_in_place location.address,:city, :as => :input
                         %td
                           = best_in_place location.address,:state, :as => :input
                         %td
@@ -166,8 +158,28 @@
                         = current_company.owner.phone
 
           #hr4.tab-pane
+            %button.btn.btn-primary{"data-target" => "#attachmentModal", "data-toggle" => "modal"}
+              Add Attachment
             .tabbable.tabs-below
               .tab-content.padding-10
+                %table.table.table-striped
+                  %thead
+                    %tr
+                      %th{style:'width:20%'}
+                        Name
+                      %th{style:'width:20%'}
+                        Description
+                  - current_company.company_docs.each do |document|
+                    - next if document.new_record?
+                    %tbody
+                      %tr
+                        %td
+                          = best_in_place document, :name, :as => :input
+                        %td
+                          = best_in_place document, :description, :as => :input
+
+
+            =render 'company/company_docs/partials/attachment_form'
 
 - content_for :scripts do
   :javascript

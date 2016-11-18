@@ -11,21 +11,31 @@
             .row
               .col-md-12
                 .form-group
-                  =location.text_field :name,:placeholder => "Name",class: "form-control"
+                  =location.text_field :name,:placeholder => "Name",class: "form-control",:required => 'required'
                 .form-group
-                  = address.select :country ,['Pakistan','USA ','China'],{},:class=>"form-control" , :required =>'required'
+                  =address.text_field :address_1,:placeholder => "Address 1",class: "form-control"
+                .form-group
+                  =address.text_field :address_2,:placeholder => "Address 2",class: "form-control"
+                .form-group
+                  = address.select :country ,CS.countries.sort.map{|k,v| [v,k] } ,{},:class=>"form-control" , :required =>'required', placeholder: "Select something"
             .row
-              .col-md-6
+              .col-md-4
                 .form-group
                   %label{:for => "category"} City
-                  = address.select :city ,['Burewala','Lahore','Multan'],{},:class=>"form-control" , :required => 'required'
-              .col-md-6
+                  = address.text_field :city,:placeholder => "City" ,:required => 'required',class:"form-control"
+              .col-md-4
                 .form-group
                   %label{:for => "tags"} Zip Code
                   =address.text_field :zip_code,:placeholder => "Zip Code",class:"form-control"
-
+              .col-md-4
+                .form-group
+                  %label{:for => "category"} State
+                  = address.text_field :state ,:placeholder => "State",class:"form-control"
           .modal-footer
             %button.btn.btn-default{"data-dismiss" => "modal", :type => "button"}
               Cancel
             %button.btn.btn-primary{:type => "submit"}
               Create Location
+- content_for :scripts do
+  :javascript
+    $('#location_address_attributes_country').find('option').first().html('Select Country....')
