@@ -82,6 +82,7 @@ Rails.application.routes.draw do
     get 'dashboard' ,     to: 'users#dashboard' , as: :dashboard
     post 'update_photo',  to: 'users#update_photo'
     get 'configuration' , to: 'companies#edit' ,  as: :configuration
+    resources :companies , only: [:update]
 
 
     # AJAX for layout setting, remove in future
