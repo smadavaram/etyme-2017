@@ -27,7 +27,7 @@ class UserMailer < ApplicationMailer
   def invite_consultant(consultant)
     @consultant   = consultant
     @name         = @consultant.full_name
-    @link         = "#{@consultant.company.etyme_url}/users/invitation/accept?invitation_token=#{@consultant.raw_invitation_token}"
+    @link         = "http://#{@consultant.company.etyme_url}/users/invitation/accept?invitation_token=#{@consultant.raw_invitation_token}"
     mail(to: consultant.email,  subject: "#{@consultant.company.name.titleize} Invited You to Etyme",from: "Etyme <no-reply@etyme.com>")
   end
 

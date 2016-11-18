@@ -19,7 +19,7 @@
         .col-sm-12
           .input-icon-left
             %i.fa.txt-color-green
-            -#= a.select :country, CS.countries.sort.map{|k,v|[k,v]}, {}, {:class=>"form-control input-lg"} , required: true
+            = a.select :country, CS.get.map{|name , id| [id , name]},{}, :class=>"form-control input-lg" , required: true
 
   .form-group
     %label.control-label.col-md-2
