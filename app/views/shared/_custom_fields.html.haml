@@ -1,0 +1,12 @@
+.nested-fields
+  .col-md-12
+    .form-group.col-sm-5
+      %label.control-label Field Name
+      %div
+        = f.text_field :name , class:"form-control  input-lg", required: true
+    .form-group.col-sm-5
+      %label.control-label Field Value
+      %div
+        = f.text_field :value, class: "form-control input-lg"
+    .form-group.col-md-2{:style => "margin-top: 40px;"}
+      = link_to_remove_association "Remove", f, class: "pull-right text-danger"

@@ -35,5 +35,7 @@
  *
  * Lock screen related styles
  *= require lockscreen
+
+ *= require amaran.min
  *= require custom
  */

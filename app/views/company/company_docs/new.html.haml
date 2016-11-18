@@ -1,0 +1,37 @@
+- content_for :ribbon do
+  / RIBBON
+  #ribbon
+    %ol.breadcrumb
+      = render_breadcrumbs :tag => :li, :separator => ""
+  #content
+    %section#widget-grid
+      .row
+        / NEW WIDGET START
+        %article.col-sm-12.col-md-12.col-lg-12
+          / Widget ID (each widget will need unique ID)
+          #wid-id-0.jarviswidget
+            /
+              widget options:
+              usage: <div class="jarviswidget" id="wid-id-0" data-widget-editbutton="false">
+
+              data-widget-colorbutton="false"
+              data-widget-editbutton="false"
+              data-widget-togglebutton="false"
+              data-widget-deletebutton="false"
+              data-widget-fullscreenbutton="false"
+              data-widget-custombutton="false"
+              data-widget-collapsed="true"
+              data-widget-sortable="false"
+            %header
+            -#  %span.widget-icon
+            -#    %i.fa.fa-eye
+            -#  %h2 Company Documents
+            / widget div
+            %div
+              / widget edit box
+              .jarviswidget-editbox
+              / This area used as dropdown edit box
+              / end widget edit box
+              / widget content
+              .widget-body
+                = render 'form'

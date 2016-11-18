@@ -30,3 +30,31 @@
 //= require plugin/bootstrap-wizard/jquery.bootstrap.wizard.min
 //= require plugin/fuelux/wizard/wizard.min
 
+// Custom Fields
+//= require cocoon
+
+// Amaran For Alerts
+//= require jquery.amaran
+
+// Signature Pad
+//= require 'signature-pad/jquery.signaturepad'
+//= require 'signature-pad/flashcanvas'
+//= require 'signature-pad/json2.min'
+
+function error(msg)
+{
+    $.amaran({
+        'theme'     :'colorful',
+        'content'   :{
+            bgcolor:'#D04B2B',
+            color:'#fff',
+            message:msg
+        },
+        'cssanimationOut'   :'slideRight',
+        'outEffect'         :'slideRight',
+        'closeOnClick'  :true,
+        'position'          :'top right',
+        'closeButton': true
+    });
+}
+

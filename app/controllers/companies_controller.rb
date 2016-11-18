@@ -6,10 +6,8 @@ class CompaniesController < ApplicationController
   respond_to :html,:json
 
   #Layout
-  layout 'login',only:[:new,:create]
-  layout 'company',only:[:edit]
+  layout 'login'
 
-  # add_breadcrumb "Companies",companies_path
 
   def new
   end # End of new
@@ -28,16 +26,15 @@ class CompaniesController < ApplicationController
 
 
   def edit
-    add_breadcrumb current_company.name.titleize, edit_user_path(current_company), :title => ""
-    @location=current_company.locations.build
+
+    add_breadcrumb current_company.name.titleize, "#", :title => ""
+    @location = current_company.locations.build
     @location.build_address
-
-
+    render layout: 'company'
   end
 
   def update
     current_company.update_attributes(company_params)
-
       flash[:success]="Company Updated Successfully"
     respond_with current_company
 
@@ -46,10 +43,6 @@ class CompaniesController < ApplicationController
 
 
   private
-
-    # def company_params
-    #   params.require(:company).permit(:name,:company_type_id, :website,:logo,:description,:phone,:email,:linkedin_url,:facebook_url,:twitter_url,:google_url,:is_activated,:status)
-    # end
 
     def set_new_company_and_owner
       @company = Company.new

@@ -1,0 +1,364 @@
+- content_for :html_id, "extr-page"
+- content_for :body_class, "animated fadeInDown"
+#main{:role => "main"}
+  / MAIN CONTENT
+  #content.container
+    %section#widget-grid
+      / row
+      .row
+        %article.col-sm-12.col-md-12.col-lg-12
+          / Widget ID (each widget will need unique ID)
+          #wid-id-0.jarviswidget.jarviswidget-color-darken{"data-widget-deletebutton" => "false", "data-widget-editbutton" => "false"}
+            /
+              widget options:
+              usage: <div class="jarviswidget" id="wid-id-0" data-widget-editbutton="false">
+
+              data-widget-colorbutton="false"
+              data-widget-editbutton="false"
+              data-widget-togglebutton="false"
+              data-widget-deletebutton="false"
+              data-widget-fullscreenbutton="false"
+              data-widget-custombutton="false"
+              data-widget-collapsed="true"
+              data-widget-sortable="false"
+            %header
+              %span.widget-icon
+                %h2 Consultant Onboarding
+            / widget div
+            %div
+              / widget edit box
+              .jarviswidget-editbox
+              / This area used as dropdown edit box
+              / end widget edit box
+              / widget content
+              .widget-body
+                .row
+                  = simple_form_for resource, as: resource_name, url: invitation_path(resource_name), html: { method: :put , id: 'wizard-1' ,novalidate: "novalidate"} do |e|
+                    = e.hidden_field :invitation_token
+                    = e.simple_fields_for :consultant_profile do |p|
+                      #bootstrap-wizard-1.col-sm-12
+                        .form-bootstrapWizard
+                          %ul.bootstrapWizard.form-wizard
+                            %li.active{"data-target" => "#step1"}
+                              %a{"data-toggle" => "tab", :href => "#tab1"}
+                                %span.step 1
+                                %span.title Password
+                            %li{"data-target" => "#step2"}
+                              %a{"data-toggle" => "tab", :href => "#tab2"}
+                                %span.step 2
+                                %span.title Basic information
+                            -#%li{"data-target" => "#step3"}
+                            -#  %a{"data-toggle" => "tab", :href => "#tab3"}
+                            -#    %span.step 3
+                            -#    %span.title Employment Detail
+                            %li{"data-target" => "#step4"}
+                              %a{"data-toggle" => "tab", :href => "#tab4"}
+                                %span.step 3
+                                %span.title Address
+                            %li{"data-target" => "#step5"}
+                              %a{"data-toggle" => "tab", :href => "#tab5"}
+                                %span.step 4
+                                %span.title Company Docs
+                            %li{"data-target" => "#step6"}
+                              %a{"data-toggle" => "tab", :href => "#tab6"}
+                                %span.step 5
+                                %span.title Custom Fields
+                            %li{"data-target" => "#step7"}
+                              %a{"data-toggle" => "tab", :href => "#tab7"}
+                                %span.step 6
+                                %span.title Signature
+                            -#%li{"data-target" => "#step5"}
+                            -#  %a{"data-toggle" => "tab", :href => "#tab5"}
+                            -#    %span.step 6
+                            -#    %span.title Save Form
+                          .clearfix
+                        .tab-content
+                          #tab1.tab-pane.active
+                            %br/
+                            %h3
+                              %strong Step 1
+                              \- Set Password
+                            = render partial: 'company/invitations/partials/set_password' , locals: {e: e}
+                          #tab2.tab-pane
+                            %br/
+                            %h3
+                              %strong Step 2
+                              \- Basic Information
+                              = render partial: 'company/invitations/partials/basic_information' , locals: {e: e}
+
+                          -#%input#email.form-control.input-lg{:name => "email", :placeholder => "email@address.com", :type => "text"}/
+                          -#.row
+                          -#  .col-sm-12
+                          -#    .form-group
+                          -#      .input-group
+                          -#        %span.input-group-addon
+                          -#          %i.fa.fa-envelope.fa-lg.fa-fw
+                          -#        %input#email.form-control.input-lg{:name => "email", :placeholder => "Roles", :type => "text"}/
+
+                          -##tab2.tab-pane
+                          -#  %br/
+                          -#  %h3
+                          -#    %strong Step 2
+                          -#    \- Employment Detail
+                          -#  .row
+                          -#    .col-sm-6
+                          -#      .form-group
+                          -#        .input-group
+                          -#          %span.input-group-addon
+                          -#            %i.fa.fa-user.fa-lg.fa-fw
+                          -#          = p.text_field :designation , class: 'form-control input-lg' , placeholder: "Enter Designation" , required: true
+                          -#    -#%input#wphone.form-control.input-lg{"data-mask" => "+99 (999) 999-9999", "data-mask-placeholder" => "X", :name => "wphone", :placeholder => "+1", :type => "text"}/
+                          -#
+                          -#    .col-sm-6
+                          -#      .form-group
+                          -#        .input-group
+                          -#          %span.input-group-addon
+                          -#            %i.fa.fa-user.fa-lg.fa-fw
+                          -#          = p.text_field :joining_date , class: 'form-control input-lg' , placeholder: "Enter Joining Date" , required: true
+                            .row
+                              .col-sm-12
+                                .form-group
+                                  .input-group
+                                    %span.input-group-addon
+                                      %i.fa.fa-mobile.fa-lg.fa-fw
+                                    = p.text_field :employment_type , class: 'form-control input-lg' , placeholder: "Enter Employment Type" , required: true
+                            .row
+                              .col-sm-6
+                                .form-group
+                                  .input-group
+                                    %span.input-group-addon
+                                      %i.fa.fa-mobile.fa-lg.fa-fw
+                                    = p.text_field :salary_type , class: 'form-control input-lg' , placeholder: "Enter Salary Type" , required: true
+                              .col-sm-6
+                                .form-group
+                                  .input-group
+                                    %span.input-group-addon
+                                      %i.fa.fa-mobile.fa-lg.fa-fw
+                                    = p.text_field :salary , class: 'form-control input-lg' , placeholder: "Enter Salary" , required: true
+                          // Address Deatails
+                          #tab4.tab-pane
+                            %br/
+                            %h3
+                              %strong Step 3
+                              \- Address
+                            = e.fields_for :address do |a|
+                              = render partial: 'company/invitations/partials/address' , locals: {a: a}
+                          #tab5.tab-pane
+                            %br/
+                            %h3
+                              %strong Step 4
+                              \- Company Documents
+                            = render partial: 'company/invitations/partials/docs' , locals: {f: e}
+
+                          // Custom Fields
+                          #tab6.tab-pane
+                            %br/
+                            %h3
+                              %strong Step 5
+                              \- Custom Fields
+                            = render partial: 'company/invitations/partials/custom_fields' , locals: {f: e}
+                            -##custom_fields
+                            -#  .col-sm-12
+                            -#    = e.fields_for :custom_fields do |lt|
+                            -#      = render 'shared/custom_fields', f: lt
+                            -#    / <div class="form-group col-sm-12">
+                            -#    / <div class="line line-dashed line-lg pull-in"></div>
+                            -#    / </div>
+                            -#%strong
+                            -#  .links.col-sm-12
+                            -#    = link_to_add_association '+ Add Custom Field', e, :custom_fields, class: 'text-info pull-right', partial: 'shared/custom_fields'
+                            -#    %br/
+                          #tab7.tab-pane
+                            %br/
+                            %h3
+                              %strong Step 6
+                              \- Signature
+                            = render partial: 'company/invitations/partials/signature_pad' , locals: {f: e}
+                          -##tab5.tab-pane
+                          -#  %br/
+                          -#  %h3
+                          -#    %strong Step 4
+                          -#    \- Save Form
+                          -#  %br/
+                          -#  %h1.text-center.text-success
+                          -#    %strong
+                          -#      %i.fa.fa-check.fa-lg
+                          -#      Complete
+                          -#  %h4.text-center Click next to finish
+                          -#  %br/
+                          -#  %br/
+
+                          .form-actions{style: 'background: #fff;'}
+                            .row
+                              .col-sm-12
+                                %ul.pager.wizard.no-margin
+                                  /
+                                    <li class="previous first disabled">
+                                    <a href="javascript:void(0);" class="btn btn-lg btn-default"> First </a>
+                                    </li>
+                                  %li.previous.disabled
+                                    %a.btn.btn-lg.btn-default{:href => "javascript:void(0);"} Previous
+                                  /
+                                    <li class="next last">
+                                    <a href="javascript:void(0);" class="btn btn-lg btn-primary"> Last </a>
+                                    </li>
+                                  %li.next
+                                    %a.btn.btn-lg.txt-color-darken{:href => "javascript:void(0);"} Next
+                                  %li.pull-right.finish{:style=>"di"}
+                                    %a.btn.btn-lg.btn-default{:href => "javascript:;"} Finish
+
+  - content_for :scripts do
+    :javascript
+      // DO NOT REMOVE : GLOBAL FUNCTIONS!
+
+      $(document).ready(function() {
+
+
+
+        pageSetUp();
+
+
+        // Joining Date
+          $('#user_dob').datepicker({
+            dateFormat : 'dd.mm.yy',
+            prevText : '<i class="fa fa-chevron-left"></i>',
+            nextText : '<i class="fa fa-chevron-right"></i>',
+            onSelect : function(selectedDate) {
+              $('#user_dob').datepicker('option', 'minDate', selectedDate);
+            }
+          });
+
+
+        //Bootstrap Wizard Validations
+
+        var $validator = $("#wizard-1").validate({
+
+          rules: {
+            email: {
+              required: true,
+              email: "Your email address must be in the format of name@domain.com"
+            },
+            fname: {
+              required: true
+            },
+            lname: {
+              required: true
+            },
+            country: {
+              required: true
+            },
+            city: {
+              required: true
+            },
+            postal: {
+              required: true,
+              minlength: 4
+            },
+            wphone: {
+              required: true,
+              minlength: 10
+            },
+            hphone: {
+              required: true,
+              minlength: 10
+            }
+          },
+
+          messages: {
+            fname: "Please specify your First name",
+            lname: "Please specify your Last name",
+            email: {
+              required: "We need your email address to contact you",
+              email: "Your email address must be in the format of name@domain.com"
+            }
+          },
+
+          highlight: function (element) {
+            $(element).closest('.form-group').removeClass('has-success').addClass('has-error');
+          },
+          unhighlight: function (element) {
+            $(element).closest('.form-group').removeClass('has-error').addClass('has-success');
+          },
+          errorElement: 'span',
+          errorClass: 'help-block',
+          errorPlacement: function (error, element) {
+            if (element.parent('.input-group').length) {
+              error.insertAfter(element.parent());
+            } else {
+              error.insertAfter(element);
+            }
+          }
+        });
+
+        $('#bootstrap-wizard-1').bootstrapWizard({
+          'tabClass': 'form-wizard',
+          'onNext': function (tab, navigation, index) {
+
+            var $total = navigation.find('li').length;
+            var $current = index+1;
+            wizard_set_finish_button($current , $total );
+            var $valid = $("#wizard-1").valid();
+            if (!$valid) {
+              $validator.focusInvalid();
+              return false;
+            }else {
+              $('#bootstrap-wizard-1').find('.form-wizard').children('li').eq(index - 1).addClass(
+                'complete');
+              $('#bootstrap-wizard-1').find('.form-wizard').children('li').eq(index - 1).find('.step')
+                .html('<i class="fa fa-check"></i>');
+            }
+          },'onPrevious': function(tab, navigation, index){
+
+              var $total = navigation.find('li').length;
+              var $current = index+1;
+              wizard_set_finish_button($current , $total );
+          }
+        });
+
+         $('.finish').click(function(){
+            console.log('finish');
+            if ($("#wizard-1").valid()) {
+               console.log('submit');
+              $('#wizard-1').submit();
+            }else{
+              error('Fields are Empty');
+            }
+            return false;
+        });
+
+        function wizard_set_finish_button(current , total )
+        {
+              if(current >= total) {
+                  $('#bootstrap-wizard-1').find('.pager .next').hide();
+                  $('#bootstrap-wizard-1').find('.pager .finish').show();
+                  $('#bootstrap-wizard-1').find('.pager .finish').removeClass('disabled');
+                } else {
+                  $('#bootstrap-wizard-1').find('.pager .next').show();
+                  $('#bootstrap-wizard-1').find('.pager .finish').hide();
+              }
+        }
+
+
+        // fuelux wizard
+        var wizard = $('.wizard').wizard();
+
+        wizard.on('finished', function (e, data) {
+
+          //$("#fuelux-wizard").submit();
+          //console.log("submitted!");
+          $.smallBox({
+            title: "Congratulations! Your form was submitted",
+            content: "<i class='fa fa-clock-o'></i> <i>1 seconds ago...</i>",
+            color: "#5F895F",
+            iconSmall: "fa fa-check bounce animated",
+            timeout: 4000
+          });
+
+        });
+
+        ///////////////////////////////////////
+
+
+
+
+      });

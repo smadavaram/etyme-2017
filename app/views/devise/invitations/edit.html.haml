@@ -23,7 +23,7 @@
               data-widget-sortable="false"
             %header
               %span.widget-icon
-                %h2 Employee Onboarding
+                %h2 Consultant Onboarding
             / widget div
             %div
               / widget edit box
@@ -35,7 +35,7 @@
                 .row
                   = simple_form_for resource, as: resource_name, url: invitation_path(resource_name), html: { method: :put , id: 'wizard-1' ,novalidate: "novalidate"} do |e|
                     = e.hidden_field :invitation_token
-                    = e.simple_fields_for :employee_profile do |p|
+                    = e.simple_fields_for :consultant_profile do |p|
                       #bootstrap-wizard-1.col-sm-12
                         .form-bootstrapWizard
                           %ul.bootstrapWizard.form-wizard
@@ -53,12 +53,24 @@
                             -#    %span.title Employment Detail
                             %li{"data-target" => "#step4"}
                               %a{"data-toggle" => "tab", :href => "#tab4"}
-                                %span.step 4
+                                %span.step 3
                                 %span.title Address
                             %li{"data-target" => "#step5"}
                               %a{"data-toggle" => "tab", :href => "#tab5"}
+                                %span.step 4
+                                %span.title Company Docs
+                            %li{"data-target" => "#step6"}
+                              %a{"data-toggle" => "tab", :href => "#tab6"}
                                 %span.step 5
-                                %span.title Save Form
+                                %span.title Custom Fields
+                            %li{"data-target" => "#step7"}
+                              %a{"data-toggle" => "tab", :href => "#tab7"}
+                                %span.step 6
+                                %span.title Signature
+                            -#%li{"data-target" => "#step5"}
+                            -#  %a{"data-toggle" => "tab", :href => "#tab5"}
+                            -#    %span.step 6
+                            -#    %span.title Save Form
                           .clearfix
                         .tab-content
                           #tab1.tab-pane.active
@@ -66,66 +78,14 @@
                             %h3
                               %strong Step 1
                               \- Set Password
-                            .row
-                              .col-sm-6
-                                .form-group
-                                  .input-group
-                                    %span.input-group-addon
-                                      %i.fa.fa-user.fa-lg.fa-fw
-                                    = e.password_field :password , class: 'form-control input-lg' , placeholder: "Password" , required: true
-                              -#%input#fname.form-control.input-lg{:name => "fname", :placeholder => "First Name", :type => "text"}/
-                              .col-sm-6
-                                .form-group
-                                  .input-group
-                                    %span.input-group-addon
-                                      %i.fa.fa-user.fa-lg.fa-fw
-                                    = e.password_field :password_confirmation , class: 'form-control input-lg' , id: 'lname' , placeholder: "Confirm Password" , required: true
+                            = render partial: 'devise/invitations/partials/set_password' , locals: {e: e}
                           #tab2.tab-pane
                             %br/
                             %h3
                               %strong Step 2
                               \- Basic Information
-                            .row
-                              .col-sm-12
-                                .form-group
-                                  .input-group
-                                    %span.input-group-addon
-                                      %i.fa.fa-envelope.fa-lg.fa-fw
-                                    = e.filepicker_field :photo , class: 'form-control input-lg'  , required: true
-                            .row
-                              .col-sm-6
-                                .form-group
-                                  .input-group
-                                    %span.input-group-addon
-                                      %i.fa.fa-user.fa-lg.fa-fw
-                                    = e.text_field :first_name , class: 'form-control input-lg' , id: 'fname' , placeholder: "First Name" , required: true
-                              -#%input#fname.form-control.input-lg{:name => "fname", :placeholder => "First Name", :type => "text"}/
-                              .col-sm-6
-                                .form-group
-                                  .input-group
-                                    %span.input-group-addon
-                                      %i.fa.fa-user.fa-lg.fa-fw
-                                    = e.text_field :last_name , class: 'form-control input-lg' , id: 'lname' , placeholder: "Last Name" , required: true
-                            .row
-                              .col-sm-12
-                                .form-group
-                                  .input-group
-                                    %span.input-group-addon
-                                      %i.fa.fa-envelope.fa-lg.fa-fw
-                                    = e.email_field :email , class: 'form-control input-lg' , id: 'email' ,disabled: "disabled" , placeholder: "email@address.com" , required: true
-                            .row
-                              .col-sm-6
-                                .form-group
-                                  .input-group
-                                    %span.input-group-addon
-                                      %i.fa.fa-user.fa-lg.fa-fw
-                                    = e.text_field :phone , class: 'form-control input-lg' , id: 'fname' , "data-mask" => "+99 (999) 999-9999", "data-mask-placeholder" => "X", :placeholder => "+1", required: true
-                              -#%input#fname.form-control.input-lg{:name => "fname", :placeholder => "First Name", :type => "text"}/
-                              .col-sm-6
-                                .form-group
-                                  .input-group
-                                    %label.select
-                                      = e.select :gender, [['Male','0'],['Female','1']], {}, {:class=>"form-control input-lg"}
+                              = render partial: 'devise/invitations/partials/basic_information' , locals: {e: e}
+
                           -#%input#email.form-control.input-lg{:name => "email", :placeholder => "email@address.com", :type => "text"}/
                           -#.row
                           -#  .col-sm-12
@@ -179,61 +139,56 @@
                           #tab4.tab-pane
                             %br/
                             %h3
-                              %strong Step 4
+                              %strong Step 3
                               \- Address
                             = e.fields_for :address do |a|
-                              .row
-                                .col-sm-12
-                                  .form-group
-                                    .input-group
-                                      %span.input-group-addon
-                                        %i.fa.fa-mobile.fa-lg.fa-fw
-                                      = a.text_field :address_1 , class: 'form-control input-lg' , placeholder: "Address"
-
-                              .row
-                                .col-sm-6
-                                  .form-group
-                                    .input-group
-                                      %span.input-group-addon
-                                        %i.fa.fa-user.fa-lg.fa-fw
-                                      = a.text_field :country , class: 'form-control input-lg' , placeholder: "Country"
-                                -#%input#wphone.form-control.input-lg{"data-mask" => "+99 (999) 999-9999", "data-mask-placeholder" => "X", :name => "wphone", :placeholder => "+1", :type => "text"}/
-
-                                .col-sm-6
-                                  .form-group
-                                    .input-group
-                                      %span.input-group-addon
-                                        %i.fa.fa-user.fa-lg.fa-fw
-                                      = a.text_field :state , class: 'form-control input-lg' , placeholder: "State"
-                              .row
-                                .col-sm-6
-                                  .form-group
-                                    .input-group
-                                      %span.input-group-addon
-                                        %i.fa.fa-mobile.fa-lg.fa-fw
-                                      = a.text_field :city , class: 'form-control input-lg' , placeholder: "City"
-                                .col-sm-6
-                                  .form-group
-                                    .input-group
-                                      %span.input-group-addon
-                                        %i.fa.fa-mobile.fa-lg.fa-fw
-                                      = a.text_field :zip_code , class: 'form-control input-lg' , placeholder: "Zip code"
-
+                              = render partial: 'devise/invitations/partials/address' , locals: {a: a}
                           #tab5.tab-pane
                             %br/
                             %h3
                               %strong Step 4
-                              \- Save Form
-                            %br/
-                            %h1.text-center.text-success
-                              %strong
-                                %i.fa.fa-check.fa-lg
-                                Complete
-                            %h4.text-center Click next to finish
-                            %br/
-                            %br/
+                              \- Company Documents
+                            = render partial: 'devise/invitations/partials/docs' , locals: {f: e}
 
-                          .form-actions
+                          // Custom Fields
+                          #tab6.tab-pane
+                            %br/
+                            %h3
+                              %strong Step 5
+                              \- Custom Fields
+                            = render partial: 'devise/invitations/partials/custom_fields' , locals: {f: e}
+                            -##custom_fields
+                            -#  .col-sm-12
+                            -#    = e.fields_for :custom_fields do |lt|
+                            -#      = render 'shared/custom_fields', f: lt
+                            -#    / <div class="form-group col-sm-12">
+                            -#    / <div class="line line-dashed line-lg pull-in"></div>
+                            -#    / </div>
+                            -#%strong
+                            -#  .links.col-sm-12
+                            -#    = link_to_add_association '+ Add Custom Field', e, :custom_fields, class: 'text-info pull-right', partial: 'shared/custom_fields'
+                            -#    %br/
+                          #tab7.tab-pane
+                            %br/
+                            %h3
+                              %strong Step 6
+                              \- Signature
+                            = render partial: 'devise/invitations/partials/signature_pad' , locals: {f: e}
+                          -##tab5.tab-pane
+                          -#  %br/
+                          -#  %h3
+                          -#    %strong Step 4
+                          -#    \- Save Form
+                          -#  %br/
+                          -#  %h1.text-center.text-success
+                          -#    %strong
+                          -#      %i.fa.fa-check.fa-lg
+                          -#      Complete
+                          -#  %h4.text-center Click next to finish
+                          -#  %br/
+                          -#  %br/
+
+                          .form-actions{style: 'background: #fff;'}
                             .row
                               .col-sm-12
                                 %ul.pager.wizard.no-margin
@@ -264,12 +219,12 @@
 
 
         // Joining Date
-          $('#employee_employee_profile_attributes_joining_date').datepicker({
+          $('#consultant_consultant_profile_attributes_joining_date').datepicker({
             dateFormat : 'dd.mm.yy',
             prevText : '<i class="fa fa-chevron-left"></i>',
             nextText : '<i class="fa fa-chevron-right"></i>',
             onSelect : function(selectedDate) {
-              $('#employee_employee_profile_attributes_joining_date').datepicker('option', 'minDate', selectedDate);
+              $('#consultant_consultant_profile_attributes_joining_date').datepicker('option', 'minDate', selectedDate);
             }
           });
 
@@ -365,7 +320,8 @@
             if ($("#wizard-1").valid()) {
                console.log('submit');
               $('#wizard-1').submit();
-
+            }else{
+              error('Fields are Empty');
             }
             return false;
         });

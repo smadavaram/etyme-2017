@@ -23,7 +23,7 @@ class ApplicationController < ActionController::Base
   end # End of after_sign_in_path_for
 
   def verify_company
-    if request.subdomain.present? && request.subdomain !='www' && Company.where(slug: request.subdomain).blank?
+    if request.subdomain.present? && request.subdomain !='www' && request.subdomain !='app-etyme' && Company.where(slug: request.subdomain).blank?
       return redirect_to HOSTNAME
     end
   end #End of verify_company

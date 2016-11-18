@@ -5,27 +5,38 @@ ruby '2.3.1'
 source 'https://rubygems.org'
 gem 'rails', '4.2.0'
 gem 'best_in_place'
+gem 'signature-pad-rails'
 
+
+#****************************
+# Javascript Configuration
+#****************************
+gem 'coffee-rails', '~> 4.1.0'
+gem 'jquery-rails'
 
 #****************************
 # Layout & Rendering
 #****************************
 gem 'sass-rails', '~> 5.0'
 gem 'uglifier', '>= 1.3.0'
-gem 'coffee-rails', '~> 4.1.0'
-gem 'jquery-rails'
-gem 'turbolinks'
+# gem 'turbolinks'
 gem 'jbuilder', '~> 2.0'
 gem 'sdoc', '~> 0.4.0', group: :doc
-#gem 'simple_form'
+gem 'simple_form'
 gem "haml-rails", "~> 0.9"
 gem "font-awesome-rails"
+gem "cocoon"
 
 
 #****************************
 # DataBase
 #****************************
 gem 'pg'
+
+#****************************
+# Mailer
+#****************************
+gem 'mailgun_rails'
 
 #****************************
 # Authentication
@@ -38,7 +49,6 @@ gem 'activeadmin'
 # gem 'therubyracer', platforms: :ruby
 
 # gem 'paperclip'
-gem 'filepicker-rails'
 gem 'has_scope'
 gem 'figaro'
 gem "breadcrumbs_on_rails"
@@ -47,6 +57,9 @@ gem "breadcrumbs_on_rails"
 # Multimedia Files
 #****************************
 gem 'filepicker-rails'
+gem 'carrierwave'
+gem "mini_magick"
+# gem 'fog'
 
 
 # Use ActiveModel has_secure_password

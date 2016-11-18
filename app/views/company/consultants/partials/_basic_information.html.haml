@@ -1,0 +1,29 @@
+.row
+  .col-sm-6
+    .form-group
+      .input-group
+        %span.input-group-addon
+          %i.fa.fa-user.fa-lg.fa-fw
+        = e.text_field :first_name , class: 'form-control input-lg' , id: 'fname' , placeholder: "First Name" , required: true
+  -#%input#fname.form-control.input-lg{:name => "fname", :placeholder => "First Name", :type => "text"}/
+  .col-sm-6
+    .form-group
+      .input-group
+        %span.input-group-addon
+          %i.fa.fa-user.fa-lg.fa-fw
+        = e.text_field :last_name , class: 'form-control input-lg' , id: 'lname' , placeholder: "Last Name" , required: true
+.row
+  .col-sm-12
+    .form-group
+      .input-group
+        %span.input-group-addon
+          %i.fa.fa-envelope.fa-lg.fa-fw
+        = e.email_field :email , class: 'form-control input-lg' , id: 'email' , placeholder: "email@address.com" , required: true
+.row
+  .col-sm-12
+    .form-group
+      .input-group
+        %span.input-group-addon
+          %i.fa.fa-envelope.fa-lg.fa-fw
+        -#= p.select :role_ids, options_for_select(@roles.collect{ |role| [role.name, role.id]})
+        = e.collection_select :role_ids, @roles, :id, :name, {}, {:class=>"form-control input-lg multi-select2-role",:multiple => true,required: true}

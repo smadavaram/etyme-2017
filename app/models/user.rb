@@ -45,6 +45,9 @@ class User < ActiveRecord::Base
   devise :invitable, :database_authenticatable, :registerable,
          :recoverable, :rememberable, :trackable
 
+  #Serializers
+  # serialize :signature, JSON
+
   # Validations
   # validates :first_name, :presence => true
   # validates :last_name, :presence => true
@@ -54,8 +57,14 @@ class User < ActiveRecord::Base
 
   # Association
   belongs_to :company
-  belongs_to :address
+  belongs_to :address , foreign_key: :primary_address_id
   has_and_belongs_to_many :roles
+  has_many :custom_fields, as: :customizable
+  has_many :user_docs,dependent: :destroy
+  has_and_belongs_to_many :company_docs,join_table: "user_docs"
+
+  accepts_nested_attributes_for :user_docs , reject_if: :all_blank
+  accepts_nested_attributes_for :custom_fields , reject_if: :all_blank
 
 
 

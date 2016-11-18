@@ -30,6 +30,11 @@
  *
  * Lock screen related styles
  *= require lockscreen
+ *
+ * Signature Pad
+ *= require signature-pad
+ *
+ *= require amaran.min
  */
 
 
