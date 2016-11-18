@@ -24,24 +24,6 @@ class CompaniesController < ApplicationController
     end
   end # End of create
 
-
-  def edit
-
-    add_breadcrumb current_company.name.titleize, "#", :title => ""
-    @location = current_company.locations.build
-    @location.build_address
-    render layout: 'company'
-  end
-
-  def update
-    current_company.update_attributes(company_params)
-      flash[:success]="Company Updated Successfully"
-    respond_with current_company
-
-
-  end
-
-
   private
 
     def set_new_company_and_owner

@@ -26,6 +26,7 @@ gem 'simple_form'
 gem "haml-rails", "~> 0.9"
 gem "font-awesome-rails"
 gem "cocoon"
+gem 'city-state'
 
 
 #****************************

@@ -41,8 +41,8 @@ Rails.application.configure do
   # Raises helpful error messages.
   config.assets.raise_runtime_errors = true
 
-  HOSTNAME='http://etyme.com'
-  COMPANY_URL = 'etyme.com'
+  HOSTNAME='http://etymedev.com'
+  COMPANY_URL = 'etymedev.com'
   # Raises error for missing translations
   # config.action_view.raise_on_missing_translations = true
 end

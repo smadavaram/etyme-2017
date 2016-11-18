@@ -32,3 +32,10 @@
     visibility: visible;
     opacity: 1;
 }
+
+.profile-margin
+{
+    background-color: aliceblue;
+    margin-top: 10px;
+    margin-left: 25px;
+}
