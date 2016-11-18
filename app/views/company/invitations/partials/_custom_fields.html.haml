@@ -1,8 +1,15 @@
-= f.fields_for :custom_fields do |c|
-  .row
-    .col-sm-12
-      .form-group
-        .input-group
-          %span.input-group-addon
-            %i.fa.fa-envelope.fa-lg.fa-fw
-          = c.text_field :value , class: 'form-control input-lg'  , placeholder: c.object.name , required: true
+%fieldset
+  = f.fields_for :custom_fields do |c|
+    .form-group
+      %label.control-label.col-md-2
+        = c.object.name
+        %span{:style => "color:red;"} *
+      .col-md-10
+        .row
+          .col-sm-12
+            .input-icon-left
+              %i.fa.txt-color-green
+              = c.text_field :value, class: "form-control  input-lg", placeholder:c.object.name, required: true
+%legend
+
+

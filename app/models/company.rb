@@ -56,7 +56,7 @@ class Company < ActiveRecord::Base
   # CallBacks
   before_validation :create_slug
   after_create :set_owner_company_id
-  after_create :send_confirmation_email
+  after_create :welcome_email_to_owner
 
 
 
@@ -74,8 +74,8 @@ class Company < ActiveRecord::Base
     self.owner.update_column(:company_id, id)
   end
 
-  def send_confirmation_email
-    # UserMailer.signup_confirmation(self).deliver
+  def welcome_email_to_owner
+     UserMailer.welcome_email_to_owner(self).deliver
   end
 
 

@@ -12,19 +12,26 @@
 -#      = alert
 :javascript
   function amaran_alert(color , msg){
-      $.amaran({
-        'theme'     :'colorful',
-        'content'   :{
-            bgcolor: color,
-            color:'#fff',
-            message:msg
-        },
-        'cssanimationOut'   :'slideRight',
-        'outEffect'         :'slideRight',
-        'closeOnClick'  :true,
-        'position'          :'top right',
-        'closeButton': true
-    });
+        $.smallBox({
+          title : msg,
+          content : "<i class='fa fa-clock-o'></i> <i>2 seconds ago...</i>",
+          color : color,
+          iconSmall : "fa fa-thumbs-up bounce animated",
+          timeout : 4000
+        });
+    //  $.amaran({
+    //    'theme'     :'colorful',
+    //    'content'   :{
+    //        bgcolor: color,
+    //        color:'#fff',
+    //        message:msg
+    //    },
+    //    'cssanimationOut'   :'slideRight',
+    //    'outEffect'         :'slideRight',
+    //    'closeOnClick'  :true,
+    //    'position'          :'top right',
+    //    'closeButton': true
+    //});
   }
 - if flash[:alert].present? || flash[:toastr].present? || flash[:error].present? || flash[:errors].present? || flash[:success].present? || flash[:notice].present? || flash[:info].present?
   - if flash[:alert].present?
@@ -39,7 +46,7 @@
         amaran_alert('#D04B2B',"#{e}");
   - if flash[:success].present?
     :javascript
-      amaran_alert('#80C14B',"#{flash[:success]}");
+      amaran_alert('#739E73',"#{flash[:success]}");
   - if flash[:notice].present?
     :javascript
       amaran_alert('#80C14B',"#{flash[:notice]}");

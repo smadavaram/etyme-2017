@@ -1,36 +1,55 @@
-.row
-  .col-sm-12
-    .form-group
-      .input-group
-        %span.input-group-addon
-          %i.fa.fa-mobile.fa-lg.fa-fw
-        = a.text_field :address_1 , class: 'form-control input-lg' , placeholder: "Address"
+%fieldset
+  .form-group
+    %label.control-label.col-md-2
+      Address
+      %span{:style => "color:red;"} *
+    .col-md-10
+      .row
+        .col-sm-12
+          .input-icon-left
+            %i.fa.txt-color-green
+            = a.text_field :address_1, class: "form-control  input-lg", placeholder:"Enter Address", required: true
 
-.row
-  .col-sm-6
-    .form-group
-      .input-group
-        %span.input-group-addon
-          %i.fa.fa-user.fa-lg.fa-fw
-        = a.text_field :country , class: 'form-control input-lg' , placeholder: "Country"
-  -#%input#wphone.form-control.input-lg{"data-mask" => "+99 (999) 999-9999", "data-mask-placeholder" => "X", :name => "wphone", :placeholder => "+1", :type => "text"}/
+  .form-group
+    %label.control-label.col-md-2
+      Country
+      %span{:style => "color:red;"} *
+    .col-md-10
+      .row
+        .col-sm-12
+          .input-icon-left
+            %i.fa.txt-color-green
+            -#= a.select :country, CS.countries.sort.map{|k,v|[k,v]}, {}, {:class=>"form-control input-lg"} , required: true
 
-  .col-sm-6
-    .form-group
-      .input-group
-        %span.input-group-addon
-          %i.fa.fa-user.fa-lg.fa-fw
-        = a.text_field :state , class: 'form-control input-lg' , placeholder: "State"
-.row
-  .col-sm-6
-    .form-group
-      .input-group
-        %span.input-group-addon
-          %i.fa.fa-mobile.fa-lg.fa-fw
-        = a.text_field :city , class: 'form-control input-lg' , placeholder: "City"
-  .col-sm-6
-    .form-group
-      .input-group
-        %span.input-group-addon
-          %i.fa.fa-mobile.fa-lg.fa-fw
-        = a.text_field :zip_code , class: 'form-control input-lg' , placeholder: "Zip code"
+  .form-group
+    %label.control-label.col-md-2
+      State
+      %span{:style => "color:red;"} *
+    .col-md-10
+      .row
+        .col-sm-12
+          .input-icon-left
+            %i.fa.txt-color-green
+            = a.text_field :state, class: "form-control  input-lg", placeholder:"Enter State", required: true
+
+  .form-group
+    %label.control-label.col-md-2
+      City
+      %span{:style => "color:red;"} *
+    .col-md-10
+      .row
+        .col-sm-12
+          .input-icon-left
+            %i.fa.txt-color-green
+            = a.text_field :city, class: "form-control  input-lg", placeholder:"Enter City", required: true
+  .form-group
+    %label.control-label.col-md-2
+      Zip Code
+      %span{:style => "color:red;"} *
+    .col-md-10
+      .row
+        .col-sm-12
+          .input-icon-left
+            %i.fa.txt-color-green
+            = a.text_field :zip_code, class: "form-control  input-lg", placeholder:"Enter Zip Code", required: true
+%legend

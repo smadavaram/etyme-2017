@@ -1,47 +1,73 @@
-.row
-  .col-sm-6
-    .form-group
-      .input-group
-        %span.input-group-addon
-          %i.fa.fa-envelope.fa-lg.fa-fw
-        = e.filepicker_field :photo , class: 'form-control input-lg'  , required: true
-  .col-sm-6
-    .form-group
-      .input-group
-        %span.input-group-addon
-          %i.fa.fa-envelope.fa-lg.fa-fw
-        = e.text_field :dob , class: 'form-control input-lg'  , required: true
-.row
-  .col-sm-6
-    .form-group
-      .input-group
-        %span.input-group-addon
-          %i.fa.fa-user.fa-lg.fa-fw
-        = e.text_field :first_name , class: 'form-control input-lg' , id: 'fname' , placeholder: "First Name" , required: true
-  -#%input#fname.form-control.input-lg{:name => "fname", :placeholder => "First Name", :type => "text"}/
-  .col-sm-6
-    .form-group
-      .input-group
-        %span.input-group-addon
-          %i.fa.fa-user.fa-lg.fa-fw
-        = e.text_field :last_name , class: 'form-control input-lg' , id: 'lname' , placeholder: "Last Name" , required: true
-.row
-  .col-sm-12
-    .form-group
-      .input-group
-        %span.input-group-addon
-          %i.fa.fa-envelope.fa-lg.fa-fw
-        = e.email_field :email , class: 'form-control input-lg' , id: 'email' ,disabled: "disabled" , placeholder: "email@address.com" , required: true
-.row
-  .col-sm-6
-    .form-group
-      .input-group
-        %span.input-group-addon
-          %i.fa.fa-mobile.fa-lg.fa-fw
-        = e.text_field :phone , class: 'form-control input-lg' , id: 'fname' , "data-mask" => "+99 (999) 999-9999", "data-mask-placeholder" => "X", :placeholder => "+1", required: true
-  -#%input#fname.form-control.input-lg{:name => "fname", :placeholder => "First Name", :type => "text"}/
-  .col-sm-6
-    .form-group
-      .input-group
-        %label.select
-          = e.select :gender, [['Male','0'],['Female','1']], {}, {:class=>"form-control input-lg"}
+%fieldset
+  .form-group
+    %label.control-label.col-md-2
+      First Name
+      %span{:style => "color:red;"} *
+    .col-md-10
+      .row
+        .col-sm-12
+          .input-icon-left
+            %i.fa.txt-color-green
+            = e.text_field :first_name, class: "form-control  input-lg", placeholder:"First Name", required: true
+  .form-group
+    %label.control-label.col-md-2
+      Last Name
+      %span{:style => "color:red;"} *
+    .col-md-10
+      .row
+        .col-sm-12
+          .input-icon-left
+            %i.fa.txt-color-green
+            = e.text_field :last_name, :class=>"form-control  input-lg", placeholder:"Last Name", required: true
+  .form-group
+    %label.control-label.col-md-2
+      DOB
+      %span{:style => "color:red;"} *
+    .col-md-10
+      .row
+        .col-sm-12
+          .input-icon-left
+            %i.fa.txt-color-green
+            = e.text_field :dob, :class=>"form-control  input-lg", placeholder:"Date of Birth", required: true
+  .form-group
+    %label.control-label.col-md-2
+      Email
+      %span{:style => "color:red;"} *
+    .col-md-10
+      .row
+        .col-sm-12
+          .input-icon-left
+            %i.fa.txt-color-green
+            = e.email_field :email, class: "form-control  input-lg", placeholder:"email@address.com",disabled: "disabled" , required: true
+  .form-group
+    %label.control-label.col-md-2
+      Photo
+      %span{:style => "color:red;"} *
+    .col-md-10
+      .row
+        .col-sm-3
+          .input-icon-left
+            %i.fa.txt-color-green
+            = e.filepicker_field :photo, class: "form-control  input-lg"
+  .form-group
+    %label.control-label.col-md-2
+      Phone
+      %span{:style => "color:red;"} *
+    .col-md-10
+      .row
+        .col-sm-12
+          .input-icon-left
+            %i.fa.txt-color-green
+            = e.text_field :phone, :class=>"form-control  input-lg", placeholder:"+1", required: true
+        -#= e.text_field :phone , class: 'form-control input-lg' , id: 'fname' , "data-mask" => "+99 (999) 999-9999", "data-mask-placeholder" => "X", :placeholder => "+1", required: true
+  .form-group
+    %label.control-label.col-md-2
+      Gender
+      %span{:style => "color:red;"} *
+    .col-md-10
+      .row
+        .col-sm-12
+          .input-icon-left
+            %i.fa.txt-color-green
+            = e.select :gender, [['Male','0'],['Female','1']], {}, {:class=>"form-control input-lg"}
+%legend
