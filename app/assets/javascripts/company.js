@@ -148,5 +148,3 @@
 
 // Amaran For Alerts
 //= require jquery.amaran
-
-
