@@ -21,7 +21,6 @@ class Company::CompanyDocsController < Company::BaseController
       flash[:success] = "Company doc added successfully."
       redirect_to company_docs_path
     else
-      scjc
       flash[:errors] = @company_doc.errors.full_messages
       redirect_to company_docs_path
     end
