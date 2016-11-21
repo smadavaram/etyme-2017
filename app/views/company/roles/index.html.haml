@@ -1,12 +1,3 @@
-- content_for :ribbon do
-  / RIBBON
-  #ribbon
-    %span.ribbon-button-alignment
-      %span#refresh.btn.btn-ribbon{"data-action" => "resetWidgets", "data-html" => "true", "data-original-title" => "<i class='text-warning fa fa-warning'></i> Warning! This will reset all your widget settings.", "data-placement" => "bottom", "data-title" => "refresh", :rel => "tooltip"}
-        %i.fa.fa-refresh
-    / breadcrumb
-    %ol.breadcrumb
-      = render_breadcrumbs :tag => :li, :separator => ""
 #content
   .row
     .col-xs-12.col-sm-3.col-md-3.col-lg-3.pull-right
