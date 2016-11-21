@@ -74,6 +74,7 @@ Rails.application.routes.draw do
     resources :company_docs
     resources :roles
     resources :addresses
+    resources :jobs
 
 
     # resources :users do
