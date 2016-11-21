@@ -1,3 +1,7 @@
+- content_for :html_id, "extr-page"
+- content_for :body_class, "animated fadeInDown"
+- content_for :top_right do
+  %span#extr-page-header-space
 #main{:role => "main"}
   / MAIN CONTENT
   -#= form_for :domain , url: signin_path , method: 'post' , class: 'lockscreen animated flipInY' do |f|
@@ -7,7 +11,7 @@
       -#%img{:alt => "", :src => "img/logo-o.png"}/
       Etyme
   %div
-    %img{:alt => "", :height => "120", :src => image_path('etyme-logo-dark.png'), :width => "120"}/
+    -#%img{:alt => "", :height => "120", :src => image_path('etyme-logo-dark.png'), :width => "120"}/
     %div
       %h1
         %i.fa-3x.text-muted.air.air-top-right.hidden-mobile>
