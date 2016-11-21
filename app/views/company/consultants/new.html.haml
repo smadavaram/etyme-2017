@@ -1,45 +1,39 @@
-%body
-  - content_for :ribbon do
-    / RIBBON
-    #ribbon
-      %ol.breadcrumb
-        = render_breadcrumbs :tag => :li, :separator => ""
-  #content
+#content
+  .row
+  / widget grid
+  %section#widget-grid
+    / row
     .row
-    / widget grid
-    %section#widget-grid
-      / row
-      .row
-        / NEW WIDGET START
-        %article.col-sm-12.col-md-12.col-lg-12
-          / Widget ID (each widget will need unique ID)
-          #wid-id-0.jarviswidget.jarviswidget-color-darken{"data-widget-deletebutton" => "false", "data-widget-editbutton" => "false"}
-            /
-              widget options:
-              usage: <div class="jarviswidget" id="wid-id-0" data-widget-editbutton="false">
+      / NEW WIDGET START
+      %article.col-sm-12.col-md-12.col-lg-12
+        / Widget ID (each widget will need unique ID)
+        #wid-id-0.jarviswidget.jarviswidget-color-darken{"data-widget-deletebutton" => "false", "data-widget-editbutton" => "false"}
+          /
+            widget options:
+            usage: <div class="jarviswidget" id="wid-id-0" data-widget-editbutton="false">
 
-              data-widget-colorbutton="false"
-              data-widget-editbutton="false"
-              data-widget-togglebutton="false"
-              data-widget-deletebutton="false"
-              data-widget-fullscreenbutton="false"
-              data-widget-custombutton="false"
-              data-widget-collapsed="true"
-              data-widget-sortable="false"
-            %header
-              %span.widget-icon
-                %i.fa.fa-check
-              %h2 Consultant Information
-            / widget div
-            %div
-              / widget edit box
-              .jarviswidget-editbox
-              / This area used as dropdown edit box
-              / end widget edit box
-              / widget content
-              .widget-body
-                .row
-                  = render 'form'
+            data-widget-colorbutton="false"
+            data-widget-editbutton="false"
+            data-widget-togglebutton="false"
+            data-widget-deletebutton="false"
+            data-widget-fullscreenbutton="false"
+            data-widget-custombutton="false"
+            data-widget-collapsed="true"
+            data-widget-sortable="false"
+          %header
+            %span.widget-icon
+              %i.fa.fa-check
+            %h2 Consultant Information
+          / widget div
+          %div
+            / widget edit box
+            .jarviswidget-editbox
+            / This area used as dropdown edit box
+            / end widget edit box
+            / widget content
+            .widget-body
+              .row
+                = render 'form'
 
 
   - content_for :scripts do

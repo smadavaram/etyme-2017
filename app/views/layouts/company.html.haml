@@ -36,7 +36,10 @@
     = render partial: 'company/shared/header'
     = render partial: 'company/shared/left_panel'
     #main{:role => "main"}
-      = yield :ribbon
+      #ribbon
+        %ol.breadcrumb
+          = render_breadcrumbs tag: :li, separator: ""
+      -#= yield :ribbon
       = yield
     = render partial: 'company/shared/footer'
     = render partial: 'company/shared/tiles'
