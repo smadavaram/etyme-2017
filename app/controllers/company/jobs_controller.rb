@@ -30,7 +30,7 @@ class Company::JobsController < Company::BaseController
   # POST /company/jobs
   # POST /company/jobs.json
   def create
-    @company_job = current_company.jobs.new(company_job_params)
+    @company_job = current_company.jobs.new(company_job_params.merge!(created_by_id: current_user.id))
 
     respond_to do |format|
       if @company_job.save
