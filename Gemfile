@@ -46,6 +46,7 @@ gem 'mailgun_rails'
 gem 'devise'
 gem 'devise_invitable', '~> 1.7.0'
 gem 'activeadmin'
+gem 'date_validator'
 
 
 # gem 'therubyracer', platforms: :ruby

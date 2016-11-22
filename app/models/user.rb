@@ -62,6 +62,10 @@ class User < ActiveRecord::Base
   has_many :custom_fields, as: :customizable
   has_many :user_docs,dependent: :destroy
   has_and_belongs_to_many :company_docs,join_table: "user_docs"
+  has_many :notifications,as: :notifiable
+
+
+  #Nested Attributes
 
   accepts_nested_attributes_for :user_docs , reject_if: :all_blank
   accepts_nested_attributes_for :custom_fields , reject_if: :all_blank

@@ -20,6 +20,9 @@ class Job < ActiveRecord::Base
 
   #Validations
   validates :title , :end_date , presence: true
+  validates :start_date, presence: true, date: { after_or_equal_to: Proc.new { Date.today }, message: "must be at least #{(Date.today + 1).to_s}" }, on: :create
+  validates :end_date, presence: true, date: { after_or_equal_to: :start_date, message: "must be at least #{(Date.today + 1).to_s}" }, on: :create
+  validates :start_date,:end_date, date: { allow_blank: false, message:"Date must be present" }
 
   #Associations
   belongs_to   :created_by , class_name: "User" ,foreign_key: :created_by_id

@@ -22,11 +22,17 @@ class JobInvitation < ActiveRecord::Base
   belongs_to :job
   belongs_to :user
   has_one :company , through: :job
+  has_many :custom_fields ,as: :customizable
+
 
   #ClassBacks
-  after_create :send_invitation_mail
+  after_create :send_invitation_mail ,:notify_recipient
 
   private
+
+    def notify_recipient
+      self.recipient.create(message: self.company.name+" has invited you for "+self.job.title ,title:"Job Invitation")
+    end
 
     def send_invitation_mail
       JobMailer.send_job_invitation(self).deliver
