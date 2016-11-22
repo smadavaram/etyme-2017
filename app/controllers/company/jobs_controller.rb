@@ -1,6 +1,6 @@
 class Company::JobsController < Company::BaseController
 
-  before_action :set_company_job, only: [:show, :edit, :update, :destroy]
+  before_action :set_company_job, only: [:show, :edit, :update, :destroy , :send_invitation]
   before_action :set_locations , only: [:new , :edit]
 
   add_breadcrumb "JOBS", :jobs_path, options: { title: "JOBS" }
@@ -9,6 +9,7 @@ class Company::JobsController < Company::BaseController
   # GET /company/jobs.json
   def index
     @company_jobs = current_company.jobs || []
+    @prefered_vendors = Vendor.all || []
   end
 
   # GET /company/jobs/1
@@ -64,6 +65,13 @@ class Company::JobsController < Company::BaseController
     respond_to do |format|
       format.html { redirect_to jobs_url, notice: 'Job was successfully destroyed.' }
       format.json { head :no_content }
+    end
+  end
+
+  def send_invitation
+    @job_invitation = @company_job.job_invitations.new
+    respond_to do |format|
+      format.js
     end
   end
 

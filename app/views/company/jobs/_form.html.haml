@@ -1,23 +1,30 @@
 = simple_form_for @company_job ,html:{ class:'form-horizontal'} do |f|
   %fieldset
-    %legend Company Jobs
+    -#%legend Company Jobs
     .form-group
-      %label.col-md-2.control-label Title
+      %label.col-md-2.control-label
+        Title
+        %sup.text-danger *
       .col-md-10
         = f.text_field :title , class: 'form-control' , placeholder: 'Enter Job Title' , required: true
     .form-group
-      %label.col-md-2.control-label Job Location
+      %label.col-md-2.control-label
+        Job Location
+        %sup.text-danger *
       .col-md-10
         = select_tag "job[location_id]", options_from_collection_for_select(@locations, "id", "name") , class: 'form-control'  , required: true
-        -#= f.text_field :location_id , class: 'form-control' , placeholder: 'Enter Job Location' , required: true
     .form-group
-      %label.col-md-2.control-label Start Date
+      %label.col-md-2.control-label
+        Start Date
+        %sup.text-danger *
       .col-md-10
-        = f.text_field :start_date , class: 'form-control' , placeholder: 'Enter Start Date'
+        = f.text_field :start_date , class: 'form-control' , placeholder: 'Enter Start Date' , required: true
     .form-group
-      %label.col-md-2.control-label End Date
+      %label.col-md-2.control-label
+        End Date
+        %sup.text-danger *
       .col-md-10
-        = f.text_field :end_date , class: 'form-control' , placeholder: 'Enter End Date'
+        = f.text_field :end_date , class: 'form-control' , placeholder: 'Enter End Date' , required: true
         %p.note
           %strong Note:
           works in Chrome, Firefox, Opera and IE10.
@@ -35,29 +42,11 @@
 - content_for :scripts do
   :javascript
     // DO NOT REMOVE : GLOBAL FUNCTIONS!
-
     $(document).ready(function() {
-
       pageSetUp();
-
-      // Job Strat Date
-      $('#job_start_date').datepicker({
-        dateFormat : 'dd.mm.yy',
-        prevText : '<i class="fa fa-chevron-left"></i>',
-        nextText : '<i class="fa fa-chevron-right"></i>',
-        onSelect : function(selectedDate) {
-          $('#job_start_date').datepicker('option', 'minDate', selectedDate);
-        }
-      });
-
       // Job End Date
-      $('#job_end_date').datepicker({
-        dateFormat : 'dd.mm.yy',
-        prevText : '<i class="fa fa-chevron-left"></i>',
-        nextText : '<i class="fa fa-chevron-right"></i>',
-        onSelect : function(selectedDate) {
-          $('#job_end_date').datepicker('option', 'minDate', selectedDate);
-        }
-      });
+      $('#job_end_date , #job_start_date').datepicker({
+        dateFormat : 'dd/mm/yy'
 
+      });
     });
