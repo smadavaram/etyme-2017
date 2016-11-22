@@ -8,6 +8,7 @@ gem 'best_in_place'
 gem 'signature-pad-rails'
 
 
+
 #****************************
 # Javascript Configuration
 #****************************
@@ -41,11 +42,13 @@ gem 'rails_12factor', group: :production
 gem 'mailgun_rails'
 
 #****************************
-# Authentication
+# Authentication & Validations
 #****************************
 gem 'devise'
 gem 'devise_invitable', '~> 1.7.0'
 gem 'activeadmin'
+gem 'validates_timeliness', '~> 4.0'
+
 
 
 # gem 'therubyracer', platforms: :ruby
