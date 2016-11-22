@@ -76,19 +76,15 @@ Rails.application.routes.draw do
     resources :addresses
     resources :jobs do
       resources :job_invitations
-      member do
-        post :send_invitation , as: :send_invitation
-      end
+        member do
+          post :send_invitation , as: :send_invitation
+        end
     end
 
-
-    # resources :users do
-    #   post 'update_photo',on: :member
-    # end
-
-    get 'dashboard' ,     to: 'users#dashboard' , as: :dashboard
-    post 'update_photo',  to: 'users#update_photo'
-    get 'configuration' , to: 'companies#edit' ,  as: :configuration
+    get 'job_invitations' , to: 'job_invitations#invitations' , as: :job_invitations
+    get 'dashboard' ,       to: 'users#dashboard' ,             as: :dashboard
+    post 'update_photo',    to: 'users#update_photo'
+    get 'configuration' ,   to: 'companies#edit' ,              as: :configuration
     resources :companies , only: [:update]
 
 
