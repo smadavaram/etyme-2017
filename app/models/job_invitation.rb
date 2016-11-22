@@ -14,9 +14,22 @@
 
 class JobInvitation < ActiveRecord::Base
 
+  #Validations
+
+  #Associations
   belongs_to :created_by , class_name: "User" ,foreign_key: :created_by_id
   belongs_to :recipient , polymorphic: true
   belongs_to :job
   belongs_to :user
+  has_one :company , through: :job
+
+  #ClassBacks
+  after_create :send_invitation_mail
+
+  private
+
+    def send_invitation_mail
+      JobMailer.send_job_invitation(self).deliver
+    end
 
 end
