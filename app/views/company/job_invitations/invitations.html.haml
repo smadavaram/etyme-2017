@@ -19,6 +19,7 @@
                       Last-Date
                     %th Location
                     %th Posted By
+                    %th Status
                     %th{"data-hide" => "phone,tablet"}
                       Actions
                 %tbody
@@ -28,11 +29,14 @@
                       %td= invitation.job.end_date
                       %td= invitation.job.location.name  rescue "  --"
                       %td= invitation.job.company.name  rescue "  --"
+                      %td= invitation.status
                       %td
-                        -#= link_to raw("<i class='fa fa-pencil'></i>") , edit_job_path(job) , class: 'btn btn-xs btn-default'
-                        -#= link_to raw("<i class='fa fa-times'></i>") , job_path(job) , method: :delete ,  class: 'btn btn-xs btn-default'
+                        - if current_user.is_vendor?
+                          = link_to 'Accept' , accept_job_invitation_job_job_invitation_path(invitation.job , invitation) , method: :post , remote: true , class: 'btn btn-xs btn-default'
+                          = link_to 'Reject' , reject_job_invitation_job_job_invitation_path(invitation.job , invitation) , method: :post , remote: true ,  class: 'btn btn-xs btn-default'
                         -#= link_to 'Send Invitation' ,send_invitation_job_path(job) , method: :post ,remote: true,  class: 'btn btn-xs btn-default'
-
+- content_for :modals do
+  #job_invitation
 - content_for :scripts do
   :javascript
     // DO NOT REMOVE : GLOBAL FUNCTIONS!

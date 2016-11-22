@@ -75,10 +75,15 @@ Rails.application.routes.draw do
     resources :roles
     resources :addresses
     resources :jobs do
-      resources :job_invitations
+      resources :job_invitations do
         member do
-          post :send_invitation , as: :send_invitation
+          post :accept_job_invitation , as: :accept_job_invitation
+          post :reject_job_invitation , as: :reject_job_invitation
         end
+      end
+      member do
+        post :send_invitation , as: :send_invitation
+      end
     end
 
     get 'job_invitations' , to: 'job_invitations#invitations' , as: :job_invitations

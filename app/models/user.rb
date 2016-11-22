@@ -68,6 +68,10 @@ class User < ActiveRecord::Base
   accepts_nested_attributes_for :user_docs , reject_if: :all_blank
   accepts_nested_attributes_for :custom_fields , reject_if: :all_blank
 
+  def is_vendor?
+    self.type == "Vendor"
+  end
+
 
 
   def full_name

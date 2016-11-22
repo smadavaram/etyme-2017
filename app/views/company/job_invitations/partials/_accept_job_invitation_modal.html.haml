@@ -1,0 +1,39 @@
+.modal.fade.in{ id: "job-invite-#{job_invitation.id}","aria-hidden": "true", "aria-labelledby": "myModalLabel", :role => "dialog", :style => "display: none;", :tabindex => "-1"}
+  .modal-dialog
+    .modal-content
+      .modal-header
+        %button.close{"aria-hidden" => "true", "data-dismiss" => "modal", :type => "button"}
+          ×
+        %h4#myModalLabel.modal-title Job Invitation - #{job.title}
+      .modal-body
+        = form_for [job,job_invitation] , remote: true do |f|
+          .row
+            .col-md-12
+              .form-group
+                = f.text_field :recipient_id ,class: "form-control" , required: 'required'
+          .row
+            .col-md-12
+              .form-group
+                = f.text_field :expiry ,class: "form-control" , required: 'required', placeholder: "Invitation Expire Date"
+          .row
+            .col-md-12
+              .form-group
+                = f.text_area :description ,class: "form-control" ,row: '3' , required: 'required', placeholder: "Enter Description"
+          = f.fields_for :custom_fields do |c|
+            .row
+              .col-sm-12
+                .form-group
+                  = c.text_field :value, class: "form-control", placeholder:c.object.name, required: true
+          .modal-footer
+            -#= button_tag 'Cancel' , class: 'btn btn-default' , data: {"dismiss": "modal"}
+            %button.btn.btn-default{"data-dismiss" => "modal", :type => "button"}
+              Cancel
+            = f.submit 'Send' , class: 'btn btn-primary'
+  :javascript
+    // DO NOT REMOVE : GLOBAL FUNCTIONS!
+    $(document).ready(function() {
+      $('#job_invitation_expiry').datepicker({
+        dateFormat : 'dd/mm/yy'
+
+      });
+    });

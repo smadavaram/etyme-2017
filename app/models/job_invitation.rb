@@ -14,6 +14,8 @@
 
 class JobInvitation < ActiveRecord::Base
 
+  enum status: { pending: 0, accepted: 1 , rejected: 2 }
+
   #Validations
 
   #Associations
@@ -31,6 +33,11 @@ class JobInvitation < ActiveRecord::Base
 
   #Nested Attributes
   accepts_nested_attributes_for :custom_fields , reject_if: :all_blank
+
+  #Scopes
+  scope :pending , -> {where(status: :pending)}
+  scope :accepted , -> {where(status: :accepted)}
+  scope :rejected , -> {where(status: :rejected)}
 
   private
 
