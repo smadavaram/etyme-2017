@@ -63,6 +63,7 @@ class User < ActiveRecord::Base
   has_many :user_docs,dependent: :destroy
   has_and_belongs_to_many :company_docs,join_table: "user_docs"
 
+  #Nested Attributes
   accepts_nested_attributes_for :user_docs , reject_if: :all_blank
   accepts_nested_attributes_for :custom_fields , reject_if: :all_blank
 
@@ -71,4 +72,5 @@ class User < ActiveRecord::Base
   def full_name
     self.first_name + " " + self.last_name
   end
+
 end

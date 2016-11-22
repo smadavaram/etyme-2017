@@ -133,13 +133,25 @@ module ApplicationHelper
         },
         {
             href: new_consultant_path,
-            title: 'CONSULTANT',
-            content: "<i class='fa fa-lg fa-fw fa-users'></i> <span class='menu-item-parent'>" + 'CONSULTANT' + "</span>",
+            title: 'CONSULTANTS',
+            content: "<i class='fa fa-lg fa-fw fa-users'></i> <span class='menu-item-parent'>" + 'CONSULTANTS' + "</span>",
         },
         {
-            href: jobs_path,
+            href: '#',
             title: 'JOBS',
             content: "<i class='fa fa-lg fa-fw fa-briefcase'></i> <span class='menu-item-parent'>" + 'JOBS' + "</span>",
+            children: [
+                {
+                    href: jobs_path,
+                    title: 'Jobs',
+                    content: "<span class='menu-item-parent'> Jobs </span>"
+                },
+                {
+                    href: job_invitations_path,
+                    title: 'Job Invitations',
+                    content: "<span class='menu-item-parent'> Job Invitations </span>"
+                },
+            ]
         },
         {
             href: root_path,

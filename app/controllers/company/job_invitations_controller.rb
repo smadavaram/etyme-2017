@@ -3,6 +3,11 @@ class Company::JobInvitationsController < Company::BaseController
   #CallBacks
   before_action :set_job , only: [:create]
 
+  # GET company/job_inivations
+  def invitations
+    add_breadcrumb "JOB INVITATIONS", :new_job_path, options: { title: "JOBS INVITATIONS" }
+  end
+
   def create
     @job_invitation = @job.job_invitations.new(job_invitation_params.merge!(created_by_id: current_user.id))
     respond_to do |format|
@@ -22,7 +27,7 @@ class Company::JobInvitationsController < Company::BaseController
     end
 
     def job_invitation_params
-      params.require(:job_invitation).permit(:job_id , :recipient_id , :email , :status , :expiry , :recipient_type)
+      params.require(:job_invitation).permit(:job_id , :description , :recipient_id , :email , :status , :expiry , :recipient_type)
     end
 
 
