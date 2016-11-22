@@ -74,7 +74,12 @@ Rails.application.routes.draw do
     resources :company_docs
     resources :roles
     resources :addresses
-    resources :jobs
+    resources :jobs do
+      resources :job_invitations
+      member do
+        post :send_invitation , as: :send_invitation
+      end
+    end
 
 
     # resources :users do
