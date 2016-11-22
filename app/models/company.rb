@@ -36,11 +36,12 @@ class Company < ActiveRecord::Base
   # Association
   belongs_to :owner , class_name: 'User',  foreign_key: "owner_id"
   has_many :locations
-  has_many :jobs
+  has_many :jobs        , dependent: :destroy
   has_many :users ,       dependent: :destroy
   has_many :consultants , dependent: :destroy
   has_many :roles ,       dependent: :destroy
   has_many :company_docs, dependent: :destroy
+  has_many :job_invitations , through: :jobs
 
 
   # Validations

@@ -11,10 +11,10 @@
 -#      %i.fa-fw.fa.fa-warning
 -#      = alert
 :javascript
-  function amaran_alert(color , msg){
+  function flash_alert(color , msg){
         $.smallBox({
           title : msg,
-          content : "<i class='fa fa-clock-o'></i> <i>2 seconds ago...</i>",
+          //content : "<i class='fa fa-clock-o'></i> <i>2 seconds ago...</i>",
           color : color,
           iconSmall : "fa fa-thumbs-up bounce animated",
           timeout : 4000
@@ -36,21 +36,21 @@
 - if flash[:alert].present? || flash[:toastr].present? || flash[:error].present? || flash[:errors].present? || flash[:success].present? || flash[:notice].present? || flash[:info].present?
   - if flash[:alert].present?
     :javascript
-      amaran_alert('#FFC333',"#{flash[:alert]}");
+      flash_alert('#FFC333',"#{flash[:alert]}");
   - if flash[:error].present?
     :javascript
-      amaran_alert('#D04B2B',"#{flash[:error]}");
+      flash_alert('#D04B2B',"#{flash[:error]}");
   - if flash[:errors].present?
     - flash[:errors].each do |e|
       :javascript
-        amaran_alert('#D04B2B',"#{e}");
+        flash_alert('#D04B2B',"#{e}");
   - if flash[:success].present?
     :javascript
-      amaran_alert('#739E73',"#{flash[:success]}");
+      flash_alert('#739E73',"#{flash[:success]}");
   - if flash[:notice].present?
     :javascript
-      amaran_alert('#80C14B',"#{flash[:notice]}");
+      flash_alert('#80C14B',"#{flash[:notice]}");
   - if flash[:info].present?
     :javascript
-      amaran_alert('#35A4DA',"#{flash[:info]}");
+      flash_alert('#35A4DA',"#{flash[:info]}");
 
