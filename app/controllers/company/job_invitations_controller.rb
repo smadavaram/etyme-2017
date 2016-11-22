@@ -2,6 +2,7 @@ class Company::JobInvitationsController < Company::BaseController
 
   #CallBacks
   before_action :set_job , only: [:create]
+  before_action :set_job_invitations , only: [:invitations]
 
   # GET company/job_inivations
   def invitations
@@ -18,6 +19,10 @@ class Company::JobInvitationsController < Company::BaseController
       end
 
     end
+  end
+
+  def set_job_invitations
+    @job_invitations = current_user.job_invitations || []
   end
 
   private

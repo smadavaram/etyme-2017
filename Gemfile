@@ -48,6 +48,7 @@ gem 'devise'
 gem 'devise_invitable', '~> 1.7.0'
 gem 'activeadmin'
 gem 'validates_timeliness', '~> 4.0'
+gem 'date_validator'
 
 
 

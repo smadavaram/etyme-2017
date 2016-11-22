@@ -1,7 +1,7 @@
 class Company::JobsController < Company::BaseController
 
   before_action :set_company_job, only: [:show, :edit, :update, :destroy , :send_invitation]
-  before_action :set_locations , only: [:new , :edit]
+  before_action :set_locations , only: [:new , :edit , :create]
   before_action :set_preferred_vendors , only: [:send_invitation]
 
   add_breadcrumb "JOBS", :jobs_path, options: { title: "JOBS" }

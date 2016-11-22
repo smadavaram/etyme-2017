@@ -9,7 +9,6 @@ class Company::CompaniesController < Company::BaseController
     @company_doc.build_attachment
     @location = current_company.locations.build
     @location.build_address
-    render layout: 'company'
   end
   def update
     current_company.update_attributes(company_params)
