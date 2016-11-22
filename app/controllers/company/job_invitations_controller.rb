@@ -32,7 +32,12 @@ class Company::JobInvitationsController < Company::BaseController
     end
 
     def job_invitation_params
-      params.require(:job_invitation).permit(:job_id , :description , :recipient_id , :email , :status , :expiry , :recipient_type)
+      params.require(:job_invitation).permit([:job_id , :description , :recipient_id , :email , :status , :expiry , :recipient_type, custom_fields_attributes:
+          [
+              :id,
+              :name,
+              :value
+          ]])
     end
 
 

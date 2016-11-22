@@ -28,6 +28,10 @@ class JobInvitation < ActiveRecord::Base
   after_create :send_invitation_mail
   after_create :notify_recipient
 
+
+  #Nested Attributes
+  accepts_nested_attributes_for :custom_fields , reject_if: :all_blank
+
   private
 
     def notify_recipient

@@ -21,6 +21,15 @@
             .col-md-12
               .form-group
                 = f.text_area :description ,class: "form-control" ,row: '3' , required: 'required', placeholder: "Enter Description"
+          .row
+            .col-md-12
+              .form-group
+                =f.fields_for :custom_fields do |custom_field|
+                  = render 'shared/custom_fields', f: custom_field
+              %strong
+                .links.col-sm-12
+                  = link_to_add_association '+ Add Custom Field', f, :custom_fields, class: 'text-info pull-right', partial: 'shared/custom_fields'
+                  %br/
           .modal-footer
             -#= button_tag 'Cancel' , class: 'btn btn-default' , data: {"dismiss": "modal"}
             %button.btn.btn-default{"data-dismiss" => "modal", :type => "button"}
