@@ -7,7 +7,7 @@ class Company::JobInvitationsController < Company::BaseController
 
   # GET company/job_inivations
   def invitations
-    add_breadcrumb "JOB INVITATIONS", :new_job_path, options: { title: "JOBS INVITATIONS" }
+    add_breadcrumb "JOB INVITATIONS", :job_invitations_path, options: { title: "JOBS INVITATIONS" }
   end
 
   def create
@@ -16,7 +16,7 @@ class Company::JobInvitationsController < Company::BaseController
       if @job_invitation.save
         format.js{ flash[:success] = "Job Invitation successfully send." }
       else
-        format.js{ flash[:errors] =  @job_invitation.errors }
+        format.js{ flash[:errors] =  @job_invitation.errors.full_messages }
       end
 
     end
@@ -28,7 +28,7 @@ class Company::JobInvitationsController < Company::BaseController
         format.html { redirect_to @job_invitation, notice: 'Successfully Accepted.' }
         format.js { flash[:success] = "Job Invitation successfully Accepted." }
       else
-        format.js{ flash[:errors] =  @job_invitation.errors }
+        format.js{ flash[:errors] =   @job_invitation.errors.full_messages }
       end
     end
   end

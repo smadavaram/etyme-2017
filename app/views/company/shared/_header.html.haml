@@ -17,7 +17,7 @@
         %label.btn.btn-default
           %input{:id => ajax_notify_notifications_path, :name => "activity", :type => "radio"}/
           ='notify'
-          (3)
+          = current_user.notifications.count
         %label.btn.btn-default
           %input{:id => ajax_notify_tasks_path, :name => "activity", :type => "radio"}/
           = 'Tasks'

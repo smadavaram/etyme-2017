@@ -1,7 +1,7 @@
 class Company::JobsController < Company::BaseController
 
   before_action :set_company_job, only: [:show, :edit, :update, :destroy , :send_invitation]
-  before_action :set_locations , only: [:new , :edit , :create]
+  before_action :set_locations , only: [:new , :edit , :create,:show]
   before_action :set_preferred_vendors , only: [:send_invitation]
 
   add_breadcrumb "JOBS", :jobs_path, options: { title: "JOBS" }
@@ -15,6 +15,7 @@ class Company::JobsController < Company::BaseController
   # GET /company/jobs/1
   # GET /company/jobs/1.json
   def show
+    add_breadcrumb @company_job.title. titleize, :job_invitations_path, options: { title: "Job Invitation" }
   end
 
   # GET /company/jobs/new
