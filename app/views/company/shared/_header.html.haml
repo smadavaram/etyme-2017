@@ -5,7 +5,8 @@
       = image_tag 'etyme-logo-dark.png', alt: 'SmartAdmin', style: 'width: 80px;'
     %span#activity.activity-dropdown
       %i.fa.fa-user
-      %b.badge 21
+      %b.badge
+        = current_user.notifications.count
     / AJAX-DROPDOWN : control this dropdown height, look and feel from the LESS variable file
     .ajax-dropdown
       / the ID links are fetched via AJAX to the ajax container "ajax-notifications"

@@ -24,6 +24,7 @@ class Company::AjaxController < Company::BaseController
   end
 
   def notify_notifications
+    @notifications=current_user.notifications.all
   end
 
   def notify_tasks
