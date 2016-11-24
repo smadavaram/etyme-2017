@@ -1,4 +1,4 @@
-class Employer < User
+class HiringManager < User
 
   #Validations
   validates_confirmation_of :password

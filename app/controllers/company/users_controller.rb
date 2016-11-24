@@ -1,7 +1,7 @@
 class Company::UsersController < Company::BaseController
 
   respond_to :js, :json, :html
-  # Dashboard after Employer/Vendor login
+  # Dashboard after HiringManager/Vendor login
   # add_breadcrumb :root_name, "/"
 
 

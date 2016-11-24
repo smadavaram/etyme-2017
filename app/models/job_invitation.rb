@@ -27,7 +27,7 @@ class JobInvitation < ActiveRecord::Base
   has_many :custom_fields ,as: :customizable
 
 
-  #ClassBacks
+  #CallBacks
   after_create :send_invitation_mail
   after_create :notify_recipient
 
@@ -42,10 +42,13 @@ class JobInvitation < ActiveRecord::Base
 
   private
 
+
+    # Call after create
     def notify_recipient
       self.recipient.notifications.create(message: self.company.name+" has invited you for "+self.job.title ,title:"Job Invitation")
     end
 
+    # Call after create
     def send_invitation_mail
       JobMailer.send_job_invitation(self).deliver
     end
