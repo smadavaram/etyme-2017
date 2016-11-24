@@ -154,7 +154,7 @@ module ApplicationHelper
             ]
         },
         {
-            href: root_path,
+            href: vendors_path,
             title: 'VENDORS',
             content: "<i class='fa fa-lg fa-fw fa-black-tie'></i> <span class='menu-item-parent'>" + 'VENDORS' + "</span>",
         },

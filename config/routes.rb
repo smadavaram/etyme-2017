@@ -42,6 +42,7 @@
 
 Rails.application.routes.draw do
 
+
   namespace :company do
   get 'companies/edit'
   end
@@ -91,6 +92,7 @@ Rails.application.routes.draw do
     post 'update_photo',    to: 'users#update_photo'
     get 'configuration' ,   to: 'companies#edit' ,              as: :configuration
     resources :companies , only: [:update]
+    resources :vendors ,only: [:show,:index]
 
 
     # AJAX for layout setting, remove in future

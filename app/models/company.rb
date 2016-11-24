@@ -42,6 +42,7 @@ class Company < ActiveRecord::Base
   has_many :roles ,       dependent: :destroy
   has_many :company_docs, dependent: :destroy
   has_many :job_invitations , through: :jobs
+  has_many :vendors ,dependent: :destroy
 
 
   # Validations

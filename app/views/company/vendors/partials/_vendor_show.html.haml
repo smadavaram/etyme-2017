@@ -1,0 +1,16 @@
+%h2= @vendor.full_name
+%p= @vendor.address
+%table.table.table-striped
+  %tbody
+    %tr
+      %th Email
+      %td= @vendor.email
+    %tr
+      %th Phone
+      %td= @vendor.phone
+    %tr
+      %th Company
+      %td= @vendor.company.name
+    %tr
+      %th Date Of Birth
+      %td= @vendor.dob

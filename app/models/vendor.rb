@@ -48,5 +48,6 @@ class Vendor < User
 
   # Association & Relations
   has_many :job_invitations , as: :recipient
+  belongs_to :company
 
 end
