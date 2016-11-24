@@ -30,5 +30,9 @@ class Job < ActiveRecord::Base
   belongs_to   :location
   has_many     :job_invitations ,dependent: :destroy
 
+  #Scopes
+  # scope :active , -> {where( :end_date <= Date.today )}
+  # scope :expired,->  {where( Date.today> :end_date )}
+
 
 end

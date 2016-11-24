@@ -36,9 +36,9 @@ class JobInvitation < ActiveRecord::Base
   accepts_nested_attributes_for :custom_fields , reject_if: :all_blank
 
   #Scopes
-  scope :pending , -> {where(status: :pending)}
-  scope :accepted , -> {where(status: :accepted)}
-  scope :rejected , -> {where(status: :rejected)}
+  scope :pending , -> {where(status: 0)}
+  scope :accepted , -> {where(status: 1)}
+  scope :rejected , -> {where(status: 2)}
 
   private
 
