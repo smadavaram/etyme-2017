@@ -24,9 +24,9 @@ class Company::JobInvitationsController < Company::BaseController
 
   def update
     respond_to do |format|
-      if @job_invitation.update(job_invitation_params.merge!(status: 1))
-        format.html { redirect_to @job_invitation, notice: 'Successfully Accepted.' }
-        format.js { flash[:success] = "Job Invitation successfully Accepted." }
+      if @job_invitation.update(job_invitation_params)
+        format.html { redirect_to @job_invitation, notice: "Successfully #{@job_invitation.status}." }
+        format.js { flash[:success] = "Job Invitation successfully #{@job_invitation.status}." }
       else
         format.js{ flash[:errors] =   @job_invitation.errors.full_messages }
       end
@@ -37,14 +37,6 @@ class Company::JobInvitationsController < Company::BaseController
   end
 
   def reject_job_invitation
-    respond_to do |format|
-      if @job_invitation.update_column(:status , 2)
-        format.js{ flash[:success] = "Successfully Rejected" }
-      else
-        format.js{ flash[:errors] =  @job_invitation.errors }
-      end
-
-    end
   end
 
 
@@ -65,7 +57,7 @@ class Company::JobInvitationsController < Company::BaseController
 
 
     def job_invitation_params
-      params.require(:job_invitation).permit([:job_id , :description , :recipient_id , :email , :status , :expiry , :recipient_type, custom_fields_attributes:
+      params.require(:job_invitation).permit([:job_id , :message , :cover_letter , :description , :recipient_id , :email , :status , :expiry , :recipient_type, custom_fields_attributes:
           [
               :id,
               :name,

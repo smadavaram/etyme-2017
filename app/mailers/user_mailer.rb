@@ -37,4 +37,11 @@ class UserMailer < ApplicationMailer
     @name      = @owner.full_name
     mail(to: @owner.email,  subject: "#{@company.name.titleize} welcome to Etyme",from: "Etyme <no-reply@etyme.com>")
   end
+
+  def notification_email notification
+    @notification = notification
+    @notifiable   = @notification.notifiable
+    @email        = @notification.notifiable.email
+    mail(to: @email,  subject: "Etyme Notification Alert",from: "Etyme <no-reply@etyme.com>")
+  end
 end

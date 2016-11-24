@@ -91,7 +91,11 @@ Rails.application.routes.draw do
     get 'dashboard' ,       to: 'users#dashboard' ,             as: :dashboard
     post 'update_photo',    to: 'users#update_photo'
     get 'configuration' ,   to: 'companies#edit' ,              as: :configuration
-    resources :companies , only: [:update]
+    resources :companies , only: [:update] do
+      collection do
+        post :get_consultant_list , as: :get_consultant_list
+      end
+    end
     resources :vendors ,only: [:show,:index]
 
 

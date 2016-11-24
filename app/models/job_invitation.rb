@@ -28,8 +28,9 @@ class JobInvitation < ActiveRecord::Base
 
 
   #CallBacks
-  after_create :send_invitation_mail
+  # after_create :send_invitation_mail
   after_create :notify_recipient
+  after_update :notify_on_status_change, if: Proc.new{|invitation| invitation.status_changed?}
 
 
   #Nested Attributes
@@ -48,10 +49,15 @@ class JobInvitation < ActiveRecord::Base
       self.recipient.notifications.create(message: self.company.name+" has invited you for "+self.job.title ,title:"Job Invitation")
     end
 
-    # Call after create
-    def send_invitation_mail
-      JobMailer.send_job_invitation(self).deliver
+    # Call after update
+    def notify_on_status_change
+      self.created_by.notifications.create(message: self.recipient.full_name+" has "+ self.status+" your request for "+self.job.title ,title:"Job Invitation")
     end
+
+    # # Call after create
+    # def send_invitation_mail
+    #   JobMailer.send_job_invitation(self).deliver
+    # end
 
     # def niti
     #   self.recipient.notifications.create()
