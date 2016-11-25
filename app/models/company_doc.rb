@@ -11,4 +11,7 @@ class CompanyDoc < ActiveRecord::Base
 
   accepts_nested_attributes_for :attachment , reject_if: :all_blank
 
+  acts_as_taggable
+
+
 end

@@ -37,7 +37,7 @@ class Company::CompanyDocsController < Company::BaseController
     end
 
     def company_docs_params
-      params.require(:company_doc).permit(:id,:name,:file, :created_by, :doc_type,  :description , :is_required_signature, attachment_attributes: [:id , :file,:file_size , :file_name, :file_type]
+      params.require(:company_doc).permit(:id,:name,:file, :created_by, :doc_type,:tag_list, :is_required_signature, attachment_attributes: [:id , :file,:file_size , :file_name, :file_type]
             )
     end
 
