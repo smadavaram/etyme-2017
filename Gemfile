@@ -28,6 +28,7 @@ gem "haml-rails", "~> 0.9"
 gem "font-awesome-rails"
 gem "cocoon"
 gem 'city-state'
+gem 'tinymce-rails'
 
 
 #****************************

@@ -1,5 +1,5 @@
 %h2= @company_job.title
-%p= @company_job.description
+%p= raw(@company_job.description)
 %table.table.table-striped
   %tbody
     %tr

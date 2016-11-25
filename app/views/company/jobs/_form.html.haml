@@ -31,7 +31,8 @@
     .form-group
       %label.col-md-2.control-label Description
       .col-md-10
-        =  f.text_area :description , class: 'form-control' ,rows: '4' , placeholder: 'Enter Job Description'
+        =  f.text_area :description , class: 'form-control',:class => "tinymce", :rows => 6, :cols => 60, placeholder: 'Enter Job Description'
+        = tinymce :default
   .form-actions
     .row
       .col-md-12
