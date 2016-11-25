@@ -43,6 +43,11 @@ gem 'rails_12factor', group: :production
 gem 'mailgun_rails'
 
 #****************************
+# Tagging
+#****************************
+gem 'acts-as-taggable-on', '~> 4.0'
+
+#****************************
 # Authentication & Validations
 #****************************
 gem 'devise'

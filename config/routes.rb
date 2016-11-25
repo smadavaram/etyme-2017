@@ -77,6 +77,7 @@ Rails.application.routes.draw do
     resources :addresses
     resources :jobs do
       resources :job_invitations do
+        resources :job_applications
         member do
           post :accept_job_invitation , as: :accept_job_invitation
           post :reject_job_invitation , as: :reject_job_invitation
