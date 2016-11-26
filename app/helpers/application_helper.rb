@@ -151,6 +151,11 @@ module ApplicationHelper
                     title: 'Job Invitations',
                     content: "<span class='menu-item-parent'> Job Invitations </span>"
                 },
+                {
+                    href: job_applications_path,
+                    title: 'Job Applications',
+                    content: "<span class='menu-item-parent'> Job Applications </span>"
+                },
             ]
         },
         {
@@ -162,6 +167,18 @@ module ApplicationHelper
             href: new_company_doc_path,
             title: 'Company Docs',
             content: "<i class='fa fa-lg fa-fw fa-black-tie'></i> <span class='menu-item-parent'>" + 'Company Docs' + "</span>",
+        },
+        {
+            href: '#',
+            title: 'CONFIGURATION',
+            content: "<i class='fa fa-lg fa-fw fa-gear'></i> <span class='menu-item-parent'>" + 'CONFIGURATION' + "</span>",
+            children: [
+                {
+                    href: new_admin_path,
+                    title: 'Admin',
+                    content: "<span class='menu-item-parent'> Admins </span>"
+                }
+            ]
         },
     ]
   end

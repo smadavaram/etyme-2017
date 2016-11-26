@@ -1,2 +1,2 @@
-$('#job_invitation').html("<%= j render(partial: 'company/job_invitations/partials/accept_job_invitation_modal' , locals: {job: @job , accept_state: true , job_invitation: @job_invitation})%>");
+$('#job_invitation').html("<%= j render(partial: 'company/job_invitations/partials/accept_job_invitation_modal' , locals: {job: @job , job_application: @job_application , accept_state: true , job_invitation: @job_invitation})%>");
 $('#job-invite-<%= @job_invitation.id %>').modal('show');

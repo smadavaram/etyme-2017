@@ -17,15 +17,14 @@ class JobInvitation < ActiveRecord::Base
   enum status: { pending: 0, accepted: 1 , rejected: 2 }
 
   #Validations
-  validates :expiry , presence: true,date: { after_or_equal_to: Proc.new { Date.today }, message: "Date must be at least #{(Date.today ).to_s}" }
+  # validates :expiry , presence: true,date: { after_or_equal_to: Proc.new { Date.today }, message: "Date must be at least #{(Date.today ).to_s}" }
 
   #Associations
   belongs_to :created_by , class_name: "User" ,foreign_key: :created_by_id
   belongs_to :recipient , polymorphic: true
   belongs_to :job
+  has_one :job_application
   has_one :company , through: :job
-  has_many :custom_fields ,as: :customizable
-
 
   #CallBacks
   # after_create :send_invitation_mail
@@ -33,13 +32,18 @@ class JobInvitation < ActiveRecord::Base
   after_update :notify_on_status_change, if: Proc.new{|invitation| invitation.status_changed?}
 
 
-  #Nested Attributes
-  accepts_nested_attributes_for :custom_fields , reject_if: :all_blank
-
   #Scopes
   scope :pending , -> {where(status: 0)}
   scope :accepted , -> {where(status: 1)}
   scope :rejected , -> {where(status: 2)}
+
+  def accepted!
+    self.update_column(:status , :accepted)
+  end
+
+  def rejected!
+    self.update_column(:status , :rejectedsa)
+  end
 
   private
 
@@ -57,9 +61,5 @@ class JobInvitation < ActiveRecord::Base
     # # Call after create
     # def send_invitation_mail
     #   JobMailer.send_job_invitation(self).deliver
-    # end
-
-    # def niti
-    #   self.recipient.notifications.create()
     # end
 end

@@ -12,7 +12,7 @@
           .row
             .col-md-12
               .form-group
-                = select_tag 'vendor_company', options_for_select(User.all.collect { |vendor|[vendor.company.name.titleize, vendor.company.id] }) ,class: 'form-control' , required: true
+                = select_tag 'vendor_company', options_for_select(companies.all.collect { |vendor|[vendor.name.titleize, vendor.id] }) ,class: 'form-control' , required: true
                 -#= select_tag :country_id, options_for_select(preferred_vendors.collect { |vendor|[vendor.company.name.titleize, vendor.company.id] }, 1), {}, { id: 'countries_select' }
                 -#= select_tag "company_id" ,preferred_vendors.map{|vendor| [vendor.company.name,vendor.id] } ,{include_blank: 'Select a Vendor'},class: "form-control" , required: 'required', placeholder: "Select something"
           .row
@@ -26,16 +26,7 @@
           .row
             .col-md-12
               .form-group
-                = f.text_area :description ,class: "form-control" ,row: '3' , required: 'required', placeholder: "Enter Description"
-          .row
-            .col-md-12
-              .form-group
-                =f.fields_for :custom_fields do |custom_field|
-                  = render 'shared/custom_fields', f: custom_field
-              %strong
-                .links.col-sm-12
-                  = link_to_add_association '+ Add Custom Field', f, :custom_fields, class: 'text-info pull-right', partial: 'shared/custom_fields'
-                  %br/
+                = f.text_area :message ,class: "form-control" ,row: '3' , required: 'required', placeholder: "Enter Description"
           .modal-footer
             -#= button_tag 'Cancel' , class: 'btn btn-default' , data: {"dismiss": "modal"}
             %button.btn.btn-default{"data-dismiss" => "modal", :type => "button"}
@@ -45,7 +36,7 @@
     // DO NOT REMOVE : GLOBAL FUNCTIONS!
     $(document).ready(function() {
       $( "#vendor_company" ).change(function() {
-        $.post("#{get_consultant_list_companies_path}" , { id: $("#vendor_company option:selected").val() } , function(data){
+        $.post("#{get_admins_list_companies_path}" , { id: $("#vendor_company option:selected").val() } , function(data){
 
         });
       });

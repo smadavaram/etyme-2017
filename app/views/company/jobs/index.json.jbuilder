@@ -1,1 +1,6 @@
-json.array! @company_jobs, partial: 'company_jobs/company_job', as: :company_job
+# json.array! @company_jobs, partial: 'jobs/_job', as: :company_job
+
+
+json.jobs @company_jobs do |job|
+  json.title "job.title"
+end

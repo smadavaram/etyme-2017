@@ -11,7 +11,6 @@ class Company::InvitationsController < Devise::InvitationsController
     # @document = resource.build_document
     resource.build_address
     super
-
   end
 
   def update

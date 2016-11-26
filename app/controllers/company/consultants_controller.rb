@@ -4,29 +4,22 @@ class Company::ConsultantsController < Company::BaseController
 
   #CallBacks
   before_action :set_new_consultant , only: [:new]
+
   def new
     add_breadcrumb "NEW", :new_consultant_path
-
     @roles = current_company.roles || []
-
   end
 
   def create
-
     @consultant = current_company.consultants.new(consultant_params)
     if @consultant.valid?
       @consultant.save
       flash[:success] =  "Successfull Added."
       redirect_to dashboard_path
     else
-      puts '%'*100
-      puts @consultant.errors.full_messages
-      puts '%'*100
       flash.now[:errors] = @consultant.errors.full_messages
       return render 'new'
     end
-
-
   end
 
   private

@@ -126,9 +126,9 @@
                                     %td= invitation.job.company.name  rescue "  --"
                                     %td= invitation.status
                                     %td
-                                      - if current_user.is_vendor?
-                                        = link_to 'Accept' , accept_job_invitation_job_job_invitation_path(invitation.job , invitation) , method: :post , remote: true , class: 'btn btn-xs btn-default'
-                                        = link_to 'Reject' , reject_job_invitation_job_job_invitation_path(invitation.job , invitation) , method: :post , remote: true ,  class: 'btn btn-xs btn-default'
+                                      -#- if current_user.is_vendor?
+                                      = link_to 'Accept' , accept_job_invitation_job_job_invitation_path(invitation.job , invitation) , method: :post , remote: true , class: 'btn btn-xs btn-default'
+                                      = link_to 'Reject' , reject_job_invitation_job_job_invitation_path(invitation.job , invitation) , method: :post , remote: true ,  class: 'btn btn-xs btn-default'
 - content_for :modals do
   #job_invitation
 - content_for :scripts do

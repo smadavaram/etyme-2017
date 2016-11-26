@@ -58,11 +58,11 @@ class User < ActiveRecord::Base
   # Association
   belongs_to :company
   belongs_to :address , foreign_key: :primary_address_id
-  has_and_belongs_to_many :roles
   has_many :custom_fields, as: :customizable
   has_many :user_docs,dependent: :destroy
-  has_and_belongs_to_many :company_docs,join_table: "user_docs"
   has_many :notifications,as: :notifiable
+  has_and_belongs_to_many :roles
+  has_and_belongs_to_many :company_docs,join_table: "user_docs"
 
   #Nested Attributes
   accepts_nested_attributes_for :user_docs , reject_if: :all_blank
@@ -70,6 +70,14 @@ class User < ActiveRecord::Base
 
   def is_vendor?
     self.type == "Vendor"
+  end
+
+  def is_admin?
+    self.type == "Admin"
+  end
+
+  def is_hiring_manager?
+    self.type == "HiringManager"
   end
 
 

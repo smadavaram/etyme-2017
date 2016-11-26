@@ -39,7 +39,7 @@ class Company::JobsController < Company::BaseController
         format.html { redirect_to @company_job, notice: 'Job was successfully created.' }
         format.json { render :show, status: :created, location: @company_job }
       else
-        format.html { render :new }
+        format.html { redirect_to :back , errors:  @company_job.errors.full_message}
         format.json { render json: @company_job.errors, status: :unprocessable_entity }
       end
     end
@@ -62,11 +62,11 @@ class Company::JobsController < Company::BaseController
   # DELETE /company/jobs/1
   # DELETE /company/jobs/1.json
   def destroy
-    @company_job.destroy
-    respond_to do |format|
-      format.html { redirect_to jobs_url, notice: 'Job was successfully destroyed.' }
-      format.json { head :no_content }
-    end
+    # @company_job.destroy
+    # respond_to do |format|
+    #   format.html { redirect_to jobs_url, notice: 'Job was successfully destroyed.' }
+    #   format.json { head :no_content }
+    # end
   end
 
   def send_invitation
@@ -86,11 +86,17 @@ class Company::JobsController < Company::BaseController
     end
 
     def set_preferred_vendors
-      @preferred_vendors = Vendor.all || []
+      @preferred_vendors_companies = Company.all || []
     end
 
     # Never trust parameters from the scary internet, only allow the white list through.
     def company_job_params
-      params.require(:job).permit(:title,:description,:location_id, :start_date , :end_date)
+      params.require(:job).permit([:title,:description,:location_id, :is_public , :start_date , :end_date , :tag_list ,custom_fields_attributes:
+          [
+              :id,
+              :name,
+              :value,
+              :_destroy
+          ]])
     end
 end

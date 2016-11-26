@@ -1,7 +1,7 @@
 class Company::JobInvitationsController < Company::BaseController
 
   #CallBacks
-  before_action :find_job , only: [:create , :accept_job_invitation , :reject_job_invitation , :update]
+  before_action :find_job            , only: [:create , :accept_job_invitation , :reject_job_invitation , :update]
   before_action :find_job_invitation , only: [:accept_job_invitation , :reject_job_invitation , :update]
   before_action :set_job_invitations , only: [:invitations]
 
@@ -34,6 +34,8 @@ class Company::JobInvitationsController < Company::BaseController
   end
 
   def accept_job_invitation
+    @job_application = @job_invitation.build_job_application
+    @job_application.custom_fields.build
   end
 
   def reject_job_invitation
@@ -54,15 +56,8 @@ class Company::JobInvitationsController < Company::BaseController
       @job_invitation = @job.job_invitations.find_by_id(params[:id]) || []
     end
 
-
-
     def job_invitation_params
-      params.require(:job_invitation).permit([:job_id , :message , :cover_letter , :description , :recipient_id , :email , :status , :expiry , :recipient_type, custom_fields_attributes:
-          [
-              :id,
-              :name,
-              :value
-          ]])
+      params.require(:job_invitation).permit(:job_id , :message , :recipient_id , :email , :status , :expiry , :recipient_type)
     end
 
 

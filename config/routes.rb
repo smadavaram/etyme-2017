@@ -74,10 +74,17 @@ Rails.application.routes.draw do
     resources :locations
     resources :company_docs
     resources :roles
+    resources :admins
     resources :addresses
+    resources :job_applications , only: [:index]
     resources :jobs do
       resources :job_invitations do
-        resources :job_applications
+        resources :job_applications , except: [:index] do
+          member do
+            post :accept_job_application , as: :accept_job_application
+            post :reject_job_application , as: :reject_job_application
+          end
+        end
         member do
           post :accept_job_invitation , as: :accept_job_invitation
           post :reject_job_invitation , as: :reject_job_invitation
@@ -94,7 +101,7 @@ Rails.application.routes.draw do
     get 'configuration' ,   to: 'companies#edit' ,              as: :configuration
     resources :companies , only: [:update] do
       collection do
-        post :get_consultant_list , as: :get_consultant_list
+        post :get_admins_list , as: :get_admins_list
       end
     end
     resources :vendors ,only: [:show,:index]

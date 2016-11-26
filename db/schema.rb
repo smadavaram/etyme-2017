@@ -11,7 +11,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema.define(version: 20161125085505) do
+ActiveRecord::Schema.define(version: 20161126200035) do
 
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
@@ -72,7 +72,6 @@ ActiveRecord::Schema.define(version: 20161125085505) do
     t.integer  "doc_type"
     t.integer  "created_by"
     t.integer  "company_id"
-    t.string   "description"
     t.string   "file"
     t.boolean  "is_required_signature"
     t.datetime "created_at",            null: false
@@ -134,8 +133,9 @@ ActiveRecord::Schema.define(version: 20161125085505) do
     t.integer  "parent_job_id"
     t.integer  "company_id"
     t.integer  "created_by_id"
-    t.datetime "created_at",    null: false
-    t.datetime "updated_at",    null: false
+    t.datetime "created_at",                   null: false
+    t.datetime "updated_at",                   null: false
+    t.boolean  "is_public",     default: true
   end
 
   create_table "locations", force: :cascade do |t|
@@ -156,6 +156,16 @@ ActiveRecord::Schema.define(version: 20161125085505) do
     t.integer  "notification_type", default: 0
     t.datetime "created_at",                    null: false
     t.datetime "updated_at",                    null: false
+  end
+
+  create_table "packages", force: :cascade do |t|
+    t.string   "name"
+    t.text     "description"
+    t.integer  "duration"
+    t.float    "price"
+    t.string   "slug"
+    t.datetime "created_at",  null: false
+    t.datetime "updated_at",  null: false
   end
 
   create_table "permissions", force: :cascade do |t|
@@ -179,6 +189,16 @@ ActiveRecord::Schema.define(version: 20161125085505) do
   create_table "roles_users", id: false, force: :cascade do |t|
     t.integer "role_id"
     t.integer "user_id"
+  end
+
+  create_table "subscriptions", force: :cascade do |t|
+    t.integer  "company_id"
+    t.integer  "package_id"
+    t.datetime "expiry"
+    t.integer  "status"
+    t.float    "amount"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
   end
 
   create_table "taggings", force: :cascade do |t|
