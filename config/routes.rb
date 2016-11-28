@@ -44,6 +44,14 @@ Rails.application.routes.draw do
 
 
   namespace :company do
+    resources :leaves
+  end
+
+  namespace :company do
+  get 'attachments/index'
+  end
+
+  namespace :company do
   get 'companies/edit'
   end
 
@@ -105,6 +113,7 @@ Rails.application.routes.draw do
       end
     end
     resources :vendors ,only: [:show,:index]
+    get 'attachment/documents_list',to: 'attachments#document_list'
 
 
     # AJAX for layout setting, remove in future

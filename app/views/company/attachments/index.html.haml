@@ -1,0 +1,153 @@
+
+#content
+  .inbox-nav-bar.no-content-padding
+    %h1.page-title.txt-color-blueDark.hidden-tablet
+      %i.fa.fa-fw.fa-inbox
+      Inbox  
+      %span.btn-group
+        %a.btn.btn-default.btn-xs.dropdown-toggle{"data-toggle" => "dropdown", :href => "#"}
+          %span.caret.single
+        %ul.dropdown-menu
+          %li
+            %a{:href => "#"} Action
+          %li
+            %a{:href => "#"} Another action
+          %li
+            %a{:href => "#"} Something else here
+          %li.divider
+          %li
+            %a{:href => "#"} Separated link
+    .btn-group.hidden-desktop.visible-tablet
+      %button.btn.btn-default.dropdown-toggle{"data-toggle" => "dropdown"}
+        Inbox
+        %i.fa.fa-caret-down
+      %ul.dropdown-menu.pull-left
+        %li
+          %a.inbox-load{:href => "javascript:void(0);"}
+            Inbox
+            %i.fa.fa-check
+        %li
+          %a{:href => "javascript:void(0);"} Sent
+        %li
+          %a{:href => "javascript:void(0);"} Trash
+        %li.divider
+        %li
+          %a{:href => "javascript:void(0);"} Spam
+    .inbox-checkbox-triggered
+      .btn-group
+        %a.btn.btn-default{"data-original-title" => "Mark Important", "data-placement" => "bottom", :href => "javascript:void(0);", :rel => "tooltip", :title => ""}
+          %strong
+            %i.fa.fa-exclamation.fa-lg.text-danger
+        %a.btn.btn-default{"data-original-title" => "Move to folder", "data-placement" => "bottom", :href => "javascript:void(0);", :rel => "tooltip", :title => ""}
+          %strong
+            %i.fa.fa-folder-open.fa-lg
+        %a.deletebutton.btn.btn-default{"data-original-title" => "Delete", "data-placement" => "bottom", :href => "javascript:void(0);", :rel => "tooltip", :title => ""}
+          %strong
+            %i.fa.fa-trash-o.fa-lg
+    %a#compose-mail-mini.btn.btn-primary.pull-right.hidden-desktop.visible-tablet{:href => "javascript:void(0);"}
+      %strong
+        %i.fa.fa-file.fa-lg
+    .btn-group.pull-right.inbox-paging
+      %a.btn.btn-default.btn-sm{:href => "javascript:void(0);"}
+        %strong
+          %i.fa.fa-chevron-left
+      %a.btn.btn-default.btn-sm{:href => "javascript:void(0);"}
+        %strong
+          %i.fa.fa-chevron-right
+    %span.pull-right
+      %strong 1-30
+      of
+      %strong 3,452
+  #inbox-content.inbox-body.no-content-padding
+    .inbox-side-bar
+      %a#compose-mail.btn.btn-primary.btn-block{:href => "javascript:void(0);"}
+        %strong Compose
+      %h6
+        Folder
+        %a.pull-right.txt-color-darken{"data-original-title" => "Refresh", "data-placement" => "right", :href => "javascript:void(0);", :rel => "tooltip", :title => ""}
+          %i.fa.fa-refresh
+      %ul.inbox-menu-lg
+        - if(@attachments.present?)
+          - @attachments.each_pair do |attachable_type , name |
+            %li.active
+              %a.inbox-load{:href => "javascript:void(0);"}= attachable_type
+      .air.air-bottom.inbox-space
+        3.5GB of
+        %strong 10GB
+        %a.pull-right.txt-color-darken{"data-original-title" => "Empty Spam", "data-placement" => "top", :href => "javascript:void(0);", :rel => "tooltip", :title => ""}
+          %i.fa.fa-trash-o.fa-lg
+        .progress.progress-micro
+          .progress-bar.progress-primary{:style => "width: 34%;"}
+    .table-wrap.custom-scroll.animated.fast.fadeInRight
+      / ajax will fill this area
+      LOADING...
+    .inbox-footer
+      .row
+        .col-xs-6.col-sm-1
+          .txt-color-white.hidden-desktop.visible-mobile
+            3.5GB of
+            %strong 10GB
+            .progress.progress-micro
+              .progress-bar.progress-primary{:style => "width: 34%;"}
+        .col-xs-6.col-sm-11.text-right
+          .txt-color-white.inline-block
+            %i.txt-color-blueLight.hidden-mobile
+              Last account activity
+              %i.fa.fa-clock-o
+              52 mins ago |
+            Displaying
+            %strong 44 of 259
+/ END MAIN CONTENT
+- content_for :scripts do
+  :javascript
+    $(document).ready(function() {
+
+      // DO NOT REMOVE : GLOBAL FUNCTIONS!
+      pageSetUp();
+
+      // PAGE RELATED SCRIPTS
+
+      /*
+       * Fixed table height
+       */
+
+      //tableHeightSize()
+
+      //$(window).resize(function() {
+      //	tableHeightSize()
+      //})
+
+      function tableHeightSize() {
+
+        if ($('body').hasClass('menu-on-top')) {
+          var menuHeight = 68;
+          // nav height
+
+          var tableHeight = ($(window).height() - 224) - menuHeight;
+          if (tableHeight < (320 - menuHeight)) {
+            $('.table-wrap').css('height', (320 - menuHeight) + 'px');
+          } else {
+            $('.table-wrap').css('height', tableHeight + 'px');
+          }
+
+        } else {
+          var tableHeight = $(window).height() - 224;
+          if (tableHeight < 320) {
+            $('.table-wrap').css('height', 320 + 'px');
+          } else {
+            $('.table-wrap').css('height', tableHeight + 'px');
+          }
+
+        }
+
+      }
+
+      /*
+       * LOAD INBOX MESSAGES
+       */
+      loadInbox();
+      function loadInbox() {
+        loadURL("#{attachment_documents_list_path}", $('#inbox-content > .table-wrap'))
+      }
+
+    });

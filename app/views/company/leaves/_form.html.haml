@@ -1,0 +1,13 @@
+= simple_form_for(@company_leafe) do |f|
+  = f.error_notification
+
+  .form-inputs
+    = f.input :from_date
+    = f.input :till_date
+    = f.input :reason
+    = f.input :response_message
+    = f.input :status
+    = f.input :leave_type
+
+  .form-actions
+    = f.button :submit

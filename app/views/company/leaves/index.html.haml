@@ -1,0 +1,31 @@
+%h1 Listing company_leaves
+
+%table
+  %thead
+    %tr
+      %th From date
+      %th Till date
+      %th Reason
+      %th Response message
+      %th Status
+      %th Leave type
+      %th
+      %th
+      %th
+
+  %tbody
+    - @company_leaves.each do |company_leafe|
+      %tr
+        %td= company_leafe.from_date
+        %td= company_leafe.till_date
+        %td= company_leafe.reason
+        %td= company_leafe.response_message
+        %td= company_leafe.status
+        %td= company_leafe.leave_type
+        %td= link_to 'Show', company_leafe
+        %td= link_to 'Edit', edit_company_leafe_path(company_leafe)
+        %td= link_to 'Destroy', company_leafe, :method => :delete, :data => { :confirm => 'Are you sure?' }
+
+%br
+
+= link_to 'New Leafe', new_company_leafe_path

@@ -1,0 +1,24 @@
+%p#notice= notice
+
+%p
+  %b From date:
+  = @company_leafe.from_date
+%p
+  %b Till date:
+  = @company_leafe.till_date
+%p
+  %b Reason:
+  = @company_leafe.reason
+%p
+  %b Response message:
+  = @company_leafe.response_message
+%p
+  %b Status:
+  = @company_leafe.status
+%p
+  %b Leave type:
+  = @company_leafe.leave_type
+
+= link_to 'Edit', edit_company_leafe_path(@company_leafe)
+\|
+= link_to 'Back', company_leaves_path

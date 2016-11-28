@@ -1,0 +1,48 @@
+#content
+  .row.hidden-mobile
+    .col-xs-12.col-sm-6.col-md-6.col-lg-6
+      %h1.page-title.txt-color-blueDark
+        %i.fa-fw.fa.fa-puzzle-piece
+        App Views
+        %span
+          \&gt;
+          Gallery
+    .col-xs-12.col-sm-6.col-md-6.col-lg-6.text-align-right
+      .page-title
+        %a.btn.btn-default{:href => "javascript:void(0);"} Upload
+        %a.btn.btn-default{:href => "javascript:void(0);"} Load Library
+  / row
+  .row
+    / SuperBox
+    .superbox.col-sm-12
+      -if(@attachments.present?)
+        - @attachments.each_pair do |attachable_type , attachments |
+          - attachments.each do |at|
+            -if(at.file_type=='image/jpeg'|| at.file_type=='image/png')
+              %a{:download => "", :href => image_path(at.file)}
+                .superbox-list
+                  %img.superbox-img{:alt => "My first photoshop layer mask on a high end PSD template theme", "data-img" => at.file, :src => image_path('image_icon'), :title =>  at.file_name}/
+                  =at.file_name
+            -elsif (at.file_type=='text/plain')
+              %a{:download => "", :href => image_path(at.file)}
+                .superbox-list
+                  %img.superbox-img{:alt => "My first photoshop layer mask on a high end PSD template theme", "data-img" => at.file, :src => image_path('text_image'), :title =>  at.file_name}/
+                  =at.file_name
+            -elsif (at.file_type=='pdf')
+              %a{:download => "", :href => image_path(at.file)}
+                .superbox-list
+                  %img.superbox-img{:alt => "My first photoshop layer mask on a high end PSD template theme", "data-img" => at.file, :src => image_path('pdf_image'), :title =>  at.file_name}/
+                  =at.file_name
+      .superbox-float
+    / /SuperBox
+    .superbox-show{:style => "height: 300px; display: none;"}
+
+
+- content_for :scripts do
+  :javascript
+    $(document).ready(function() {
+      pageSetUp();
+
+      $('.superbox').SuperBox();
+
+  });

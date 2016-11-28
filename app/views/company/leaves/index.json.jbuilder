@@ -1,0 +1,1 @@
+json.array! @company_leaves, partial: 'company_leaves/company_leafe', as: :company_leafe

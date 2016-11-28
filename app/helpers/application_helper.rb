@@ -164,10 +164,11 @@ module ApplicationHelper
             content: "<i class='fa fa-lg fa-fw fa-black-tie'></i> <span class='menu-item-parent'>" + 'VENDORS' + "</span>",
         },
         {
-            href: new_company_doc_path,
+            href: company_attachments_index_path(current_company),
             title: 'Company Docs',
             content: "<i class='fa fa-lg fa-fw fa-black-tie'></i> <span class='menu-item-parent'>" + 'Company Docs' + "</span>",
         },
+
         {
             href: '#',
             title: 'CONFIGURATION',

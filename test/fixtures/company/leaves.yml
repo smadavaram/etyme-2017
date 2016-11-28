@@ -1,0 +1,17 @@
+# Read about fixtures at http://api.rubyonrails.org/classes/ActiveRecord/FixtureSet.html
+
+one:
+  from_date: 2016-11-28
+  till_date: 2016-11-28
+  reason: MyString
+  response_message: MyString
+  status: 1
+  leave_type: MyString
+
+two:
+  from_date: 2016-11-28
+  till_date: 2016-11-28
+  reason: MyString
+  response_message: MyString
+  status: 1
+  leave_type: MyString
