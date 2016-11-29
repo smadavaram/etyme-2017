@@ -1,31 +1,43 @@
-%h1 Listing company_leaves
+#content
+  #wid-id-7#content.jarviswidget.jarviswidget-color-teal{"data-widget-attstyle" => "jarviswidget-color-teal", "data-widget-custombutton" => "false", "data-widget-editbutton" => "false", "data-widget-fullscreenbutton" => "false", "data-widget-sortable" => "false", :role => "widget", :style => ""}
+    %header{:role => "heading"}
+      %ul.nav.nav-tabs.pull-left.in
+        %li.active
+          %a{"aria-expanded" => "true", "data-toggle" => "tab", :href => "#hr1"}
+            %i.fa.fa-lg.fa-arrow-circle-o-down
+            %span.hidden-mobile.hidden-tablet Accepted
+        %li
+          %a{"aria-expanded" => "false", "data-toggle" => "tab", :href => "#hr2"}
+            %i.fa.fa-lg.fa-arrow-circle-o-up
+            %span.hidden-mobile.hidden-tablet
+              Rejected
+        %li
+          %a{"aria-expanded" => "false", "data-toggle" => "tab", :href => "#hr3"}
+            %i.fa.fa-lg.fa-arrow-circle-o-up
+            %span.hidden-mobile.hidden-tablet
+              Pending
 
-%table
-  %thead
-    %tr
-      %th From date
-      %th Till date
-      %th Reason
-      %th Response message
-      %th Status
-      %th Leave type
-      %th
-      %th
-      %th
+      %span.jarviswidget-loader
+        %i.fa.fa-refresh.fa-spin
+    / widget div
+    %div{:role => "content"}
+      .jarviswidget-editbox
 
-  %tbody
-    - @company_leaves.each do |company_leafe|
-      %tr
-        %td= company_leafe.from_date
-        %td= company_leafe.till_date
-        %td= company_leafe.reason
-        %td= company_leafe.response_message
-        %td= company_leafe.status
-        %td= company_leafe.leave_type
-        %td= link_to 'Show', company_leafe
-        %td= link_to 'Edit', edit_company_leafe_path(company_leafe)
-        %td= link_to 'Destroy', company_leafe, :method => :delete, :data => { :confirm => 'Are you sure?' }
+      .widget-body
+        .tab-content
+          #hr1.tab-pane.active
+            .tabbable.tabs-below
+              .tab-content.padding-10
+                %section#widget-grid{style: 'margin-top: 10px;'}
+                  =render partial: 'company/leaves/partials/leave_show',locals:{leaves: @consultant_leaves.accepted}
+          #hr2.tab-pane
+            .tabbable.tabs-below
+              .tab-content.padding-10
+                %section#widget-grid{style: 'margin-top: 10px;'}
+                  =render partial: 'company/leaves/partials/leave_show',locals:{leaves: @consultant_leaves.rejected}
 
-%br
-
-= link_to 'New Leafe', new_company_leafe_path
+          #hr3.tab-pane
+            .tabbable.tabs-below
+              .tab-content.padding-10
+                %section#widget-grid{style: 'margin-top: 10px;'}
+                  =render partial: 'company/leaves/partials/leave_show',locals:{leaves: @consultant_leaves.pending}

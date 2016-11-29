@@ -17,7 +17,7 @@ class Company::LeavesControllerTest < ActionController::TestCase
   end
 
   test "should create company_leafe" do
-    assert_difference('Company::Leafe.count') do
+    assert_difference('Company::Leave.count') do
       post :create, company_leafe: { from_date: @company_leafe.from_date, leave_type: @company_leafe.leave_type, reason: @company_leafe.reason, response_message: @company_leafe.response_message, status: @company_leafe.status, till_date: @company_leafe.till_date }
     end
 
@@ -40,7 +40,7 @@ class Company::LeavesControllerTest < ActionController::TestCase
   end
 
   test "should destroy company_leafe" do
-    assert_difference('Company::Leafe.count', -1) do
+    assert_difference('Company::Leave.count', -1) do
       delete :destroy, id: @company_leafe
     end
 

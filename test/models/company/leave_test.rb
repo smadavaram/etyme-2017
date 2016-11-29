@@ -1,6 +1,6 @@
 require 'test_helper'
 
-class Company::LeafeTest < ActiveSupport::TestCase
+class Company::LeaveTest < ActiveSupport::TestCase
   # test "the truth" do
   #   assert true
   # end

@@ -42,19 +42,6 @@
 
 Rails.application.routes.draw do
 
-
-  namespace :company do
-    resources :leaves
-  end
-
-  namespace :company do
-  get 'attachments/index'
-  end
-
-  namespace :company do
-  get 'companies/edit'
-  end
-
   class NakedEtymeDomain
     def self.matches?(request)
       (request.subdomain.blank? || request.subdomain == 'www') && request.domain == ENV['domain']
@@ -78,13 +65,17 @@ Rails.application.routes.draw do
 
   # COMPANY ROUTES
   scope module: :company do
-    resources :consultants
+
+    resources :consultants do
+      resources :leaves
+    end
     resources :locations
     resources :company_docs
     resources :roles
     resources :admins
     resources :addresses
     resources :job_applications , only: [:index]
+    resources :attachments , only: [:index]
     resources :jobs do
       resources :job_invitations do
         resources :job_applications , except: [:index] do

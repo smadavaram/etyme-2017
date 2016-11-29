@@ -45,6 +45,7 @@ class Consultant < User
   #Associations
   has_one    :consultant_profile , dependent: :destroy
   belongs_to :company
+  has_many   :leaves , class_name: 'Leave' , foreign_key: :user_id
 
 
   # Nested Attributes

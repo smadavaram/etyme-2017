@@ -2,23 +2,23 @@
 
 %p
   %b From date:
-  = @company_leafe.from_date
+  = @consultant_leave.from_date
 %p
   %b Till date:
-  = @company_leafe.till_date
+  = @consultant_leave.till_date
 %p
   %b Reason:
-  = @company_leafe.reason
+  = @consultant_leave.reason
 %p
   %b Response message:
-  = @company_leafe.response_message
+  = @consultant_leave.response_message
 %p
   %b Status:
-  = @company_leafe.status
+  = @consultant_leave.status
 %p
   %b Leave type:
-  = @company_leafe.leave_type
+  = @consultant_leave.leave_type
 
-= link_to 'Edit', edit_company_leafe_path(@company_leafe)
+= link_to 'Edit', edit_consultant_leafe_path(current_user,@consultant_leave)
 \|
-= link_to 'Back', company_leaves_path
+= link_to 'Back', consultant_leaves_path(current_user)

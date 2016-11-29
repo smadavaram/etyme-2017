@@ -32,7 +32,7 @@
     = favicon_link_tag 'splash/iphone.png', type: 'image/png', rel: 'apple-touch-startup-image', media: 'screen and (max-device-width: 320px)'
     = yield :head
 
-  %body{:class => "#{yield :body_class}"}
+  %body.menu-on-top{:class => "#{yield :body_class}"}
     = render partial: 'company/shared/header'
     = render partial: 'company/shared/left_panel'
     #main{:role => "main"}

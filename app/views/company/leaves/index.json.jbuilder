@@ -1,1 +1,1 @@
-json.array! @company_leaves, partial: 'company_leaves/company_leafe', as: :company_leafe
+json.array! @consultant_leaves, partial: 'company_leaves/company_leafe', as: :company_leafe
