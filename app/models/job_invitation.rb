@@ -38,11 +38,15 @@ class JobInvitation < ActiveRecord::Base
   scope :rejected , -> {where(status: 2)}
 
   def accepted!
-    self.update_column(:status , :accepted)
+    self.update_column(:status , 1)
   end
 
   def rejected!
-    self.update_column(:status , :rejectedsa)
+    self.update_column(:status , 2)
+  end
+
+  def is_pending?
+    self.status == 'pending'
   end
 
   private

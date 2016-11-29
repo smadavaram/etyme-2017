@@ -76,7 +76,9 @@ Rails.application.routes.draw do
     resources :addresses
     resources :job_applications , only: [:index]
     resources :attachments , only: [:index]
+    resources :contracts        , only: [:index]
     resources :jobs do
+      resources :contracts , except: [:index]
       resources :job_invitations do
         resources :job_applications , except: [:index] do
           member do

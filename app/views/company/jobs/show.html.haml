@@ -1,12 +1,210 @@
 #content
-  %section#widget-grid
-    .row.center-block
-      %article.col-sm-12.col-md-12.col-lg-12
-        #wid-id-0.jarviswidget
-          %header
-            %h2= @company_job.title.titleize
-          / widget div
-          %div
-            .jarviswidget-editbox
-            .widget-body
-              = render 'company/jobs/partials/job_show_form'
+  .row
+    %article.col-sm-12
+      / new widget
+      #wid-id-0.jarviswidget{"data-widget-colorbutton" => "false", "data-widget-deletebutton" => "false", "data-widget-editbutton" => "false", "data-widget-fullscreenbutton" => "false", "data-widget-togglebutton" => "false"}
+        %header
+          %span.widget-icon
+            %i.glyphicon.glyphicon-stats.txt-color-darken
+          %h2 #{@company_job.title.titleize}
+          %ul#myTab.nav.nav-tabs.pull-right.in
+            %li.active
+              %a{"data-toggle" => "tab", :href => "#s1"}
+                %i.fa.fa-clock-o
+                %span.hidden-mobile.hidden-tablet Job
+            %li
+              %a{"data-toggle" => "tab", :href => "#s2"}
+                %i.fa.fa-facebook
+                %span.hidden-mobile.hidden-tablet Job Invitations
+            %li
+              %a{"data-toggle" => "tab", :href => "#s3"}
+                %i.fa.fa-dollar
+                %span.hidden-mobile.hidden-tablet Job Applications
+        / widget div
+        .no-padding
+          / widget edit box
+          .jarviswidget-editbox
+            test
+          / end widget edit box
+          .widget-body
+            / content
+            #myTabContent.tab-content
+              #s1.tab-pane.fade.active.in.padding-10.no-padding-bottom
+                .row.no-space
+                  .col-xs-12.col-sm-12.col-md-8.col-lg-8
+                    %table.table.table-striped
+                      %tbody
+                        %tr
+                          %th Start Date
+                          %td= @company_job.start_date
+                        %tr
+                          %th End Date
+                          %td= @company_job.end_date
+                        %tr
+                          %th Company
+                          %td= @company_job.company.name
+                        %tr
+                          %th Location
+                          %td= @company_job.location.name
+                  .col-xs-12.col-sm-12.col-md-4.col-lg-4.show-stats
+                    .row
+                      .col-xs-6.col-sm-6.col-md-12.col-lg-12
+                        %span.text
+                          Invitations
+                          %span.pull-right 130/200
+                        .progress
+                          .progress-bar.bg-color-blueDark{:style => "width: 65%;"}
+                      .col-xs-6.col-sm-6.col-md-12.col-lg-12
+                        %span.text
+                          Transfered
+                          %span.pull-right 440 GB
+                        .progress
+                          .progress-bar.bg-color-blue{:style => "width: 34%;"}
+                      .col-xs-6.col-sm-6.col-md-12.col-lg-12
+                        %span.text
+                          Bugs Squashed
+                          %span.pull-right 77%
+                        .progress
+                          .progress-bar.bg-color-blue{:style => "width: 77%;"}
+                      .col-xs-6.col-sm-6.col-md-12.col-lg-12
+                        %span.text
+                          User Testing
+                          %span.pull-right 7 Days
+                        .progress
+                          .progress-bar.bg-color-greenLight{:style => "width: 84%;"}
+                      %span.show-stat-buttons
+                        %span.col-xs-12.col-sm-6.col-md-6.col-lg-6
+                          %a.btn.btn-default.btn-block.hidden-xs{:href => "javascript:void(0);"} Generate PDF
+                        %span.col-xs-12.col-sm-6.col-md-6.col-lg-6
+                          %a.btn.btn-default.btn-block.hidden-xs{:href => "javascript:void(0);"} Report a bug
+                .show-stat-microcharts
+                  .col-xs-12.col-sm-3.col-md-3.col-lg-3
+                    .easy-pie-chart.txt-color-orangeDark{"data-percent" => "33", "data-pie-size" => "50"}
+                      %span.percent.percent-sign 35
+                    %span.easy-pie-title
+                      Server Load
+                      %i.fa.fa-caret-up.icon-color-bad
+                    %ul.smaller-stat.hidden-sm.pull-right
+                      %li
+                        %span.label.bg-color-greenLight
+                          %i.fa.fa-caret-up
+                          97%
+                      %li
+                        %span.label.bg-color-blueLight
+                          %i.fa.fa-caret-down
+                          44%
+                    .sparkline.txt-color-greenLight.hidden-sm.hidden-md.pull-right{"data-fill-color" => "transparent", "data-sparkline-height" => "33px", "data-sparkline-type" => "line", "data-sparkline-width" => "70px"}
+                      130, 187, 250, 257, 200, 210, 300, 270, 363, 247, 270, 363, 247
+                  .col-xs-12.col-sm-3.col-md-3.col-lg-3
+                    .easy-pie-chart.txt-color-greenLight{"data-percent" => "78.9", "data-pie-size" => "50"}
+                      %span.percent.percent-sign 78.9
+                    %span.easy-pie-title
+                      Disk Space
+                      %i.fa.fa-caret-down.icon-color-good
+                    %ul.smaller-stat.hidden-sm.pull-right
+                      %li
+                        %span.label.bg-color-blueDark
+                          %i.fa.fa-caret-up
+                          76%
+                      %li
+                        %span.label.bg-color-blue
+                          %i.fa.fa-caret-down
+                          3%
+                    .sparkline.txt-color-blue.hidden-sm.hidden-md.pull-right{"data-fill-color" => "transparent", "data-sparkline-height" => "33px", "data-sparkline-type" => "line", "data-sparkline-width" => "70px"}
+                      257, 200, 210, 300, 270, 363, 130, 187, 250, 247, 270, 363, 247
+                  .col-xs-12.col-sm-3.col-md-3.col-lg-3
+                    .easy-pie-chart.txt-color-blue{"data-percent" => "23", "data-pie-size" => "50"}
+                      %span.percent.percent-sign 23
+                    %span.easy-pie-title
+                      Transfered
+                      %i.fa.fa-caret-up.icon-color-good
+                    %ul.smaller-stat.hidden-sm.pull-right
+                      %li
+                        %span.label.bg-color-darken 10GB
+                      %li
+                        %span.label.bg-color-blueDark
+                          %i.fa.fa-caret-up
+                          10%
+                    .sparkline.txt-color-darken.hidden-sm.hidden-md.pull-right{"data-fill-color" => "transparent", "data-sparkline-height" => "33px", "data-sparkline-type" => "line", "data-sparkline-width" => "70px"}
+                      200, 210, 363, 247, 300, 270, 130, 187, 250, 257, 363, 247, 270
+                  .col-xs-12.col-sm-3.col-md-3.col-lg-3
+                    .easy-pie-chart.txt-color-darken{"data-percent" => "36", "data-pie-size" => "50"}
+                      %span.percent.degree-sign
+                        36
+                        %i.fa.fa-caret-up
+                    %span.easy-pie-title
+                      Temperature
+                      %i.fa.fa-caret-down.icon-color-good
+                    %ul.smaller-stat.hidden-sm.pull-right
+                      %li
+                        %span.label.bg-color-red
+                          %i.fa.fa-caret-up
+                          124
+                      %li
+                        %span.label.bg-color-blue
+                          %i.fa.fa-caret-down
+                          40 F
+                    .sparkline.txt-color-red.hidden-sm.hidden-md.pull-right{"data-fill-color" => "transparent", "data-sparkline-height" => "33px", "data-sparkline-type" => "line", "data-sparkline-width" => "70px"}
+                      2700, 3631, 2471, 2700, 3631, 2471, 1300, 1877, 2500, 2577, 2000, 2100, 3000
+              / end s1 tab pane
+              #s2.tab-pane.fade
+                .widget-body-toolbar.bg-color-white
+                  %form.form-inline{:role => "form"}
+                    .form-group
+                      %label.sr-only{:for => "s123"} Show From
+                      %input#s123.form-control.input-sm{:placeholder => "Show From", :type => "email"}/
+                    .form-group
+                      %input#s124.form-control.input-sm{:placeholder => "To", :type => "email"}/
+                    .btn-group.hidden-phone.pull-right
+                      %a.btn.dropdown-toggle.btn-xs.btn-default{"data-toggle" => "dropdown"}
+                        %i.fa.fa-cog
+                        More
+                        %span.caret
+                      %ul.dropdown-menu.pull-right
+                        %li
+                          %a{:href => "javascript:void(0);"}
+                            %i.fa.fa-file-text-alt
+                            Export to PDF
+                        %li
+                          %a{:href => "javascript:void(0);"}
+                            %i.fa.fa-question-sign
+                            Help
+                .padding-10
+                  #statsChart.chart-large.has-legend-unique
+              / end s2 tab pane
+              #s3.tab-pane.fade
+                #rev-toggles.widget-body-toolbar.bg-color-white.smart-form
+                  .inline-group
+                    %label.checkbox{:for => "gra-0"}
+                      %input#gra-0{:checked => "checked", :name => "gra-0", :type => "checkbox"}/
+                      %i
+                      Target
+                    %label.checkbox{:for => "gra-1"}
+                      %input#gra-1{:checked => "checked", :name => "gra-1", :type => "checkbox"}/
+                      %i
+                      Actual
+                    %label.checkbox{:for => "gra-2"}
+                      %input#gra-2{:checked => "checked", :name => "gra-2", :type => "checkbox"}/
+                      %i
+                      Signups
+                  .btn-group.hidden-phone.pull-right
+                    %a.btn.dropdown-toggle.btn-xs.btn-default{"data-toggle" => "dropdown"}
+                      %i.fa.fa-cog
+                      More
+                      %span.caret
+                    %ul.dropdown-menu.pull-right
+                      %li
+                        %a{:href => "javascript:void(0);"}
+                          %i.fa.fa-file-text-alt
+                          Export to PDF
+                      %li
+                        %a{:href => "javascript:void(0);"}
+                          %i.fa.fa-question-sign
+                          Help
+                .padding-10
+                  #flotcontainer.chart-large.has-legend-unique
+                    / end s3 tab pane
+                    / end content
+                    / end widget div
+                    / end widget
+

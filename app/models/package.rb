@@ -4,6 +4,9 @@ class Package < ActiveRecord::Base
   has_many :subscriptions
   has_many :companies , through: :subscriptions
 
+  #Validates
+  validates :name , :slug , presence: true , uniqueness: true
+
   #Call Backs
   before_create :set_slug
 
@@ -30,4 +33,5 @@ class Package < ActiveRecord::Base
   def set_slug
     self.slug = name.parameterize('-')
   end
+
 end

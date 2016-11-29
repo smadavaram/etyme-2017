@@ -11,7 +11,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema.define(version: 20161129073607) do
+ActiveRecord::Schema.define(version: 20161126200035) do
 
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
@@ -31,7 +31,7 @@ ActiveRecord::Schema.define(version: 20161129073607) do
     t.string   "file"
     t.string   "file_name"
     t.integer  "file_size"
-    t.string   "file_type"
+    t.integer  "file_type"
     t.string   "attachable_type"
     t.integer  "attachable_id"
     t.datetime "created_at",      null: false
@@ -136,18 +136,6 @@ ActiveRecord::Schema.define(version: 20161129073607) do
     t.datetime "created_at",                   null: false
     t.datetime "updated_at",                   null: false
     t.boolean  "is_public",     default: true
-  end
-
-  create_table "leaves", force: :cascade do |t|
-    t.date     "from_date"
-    t.date     "till_date"
-    t.string   "reason"
-    t.string   "response_message"
-    t.integer  "status",           default: 0
-    t.string   "leave_type"
-    t.integer  "user_id"
-    t.datetime "created_at",                   null: false
-    t.datetime "updated_at",                   null: false
   end
 
   create_table "locations", force: :cascade do |t|

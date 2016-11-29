@@ -1,11 +1,12 @@
 class JobApplication < ActiveRecord::Base
 
-  enum status: { pending: 0, accept: 1 , reject: 2 , short_list: 3 }
+  enum status: { accept: 1 , pending: 0  , reject: 2 , short_list: 3 }
 
   #Association
   belongs_to :job_invitation
   has_one    :job ,through: :job_invitation
   has_one    :company , through: :job
+  has_one    :contract
   has_many   :custom_fields ,as: :customizable
 
 
@@ -34,7 +35,7 @@ class JobApplication < ActiveRecord::Base
     self.update_column(:status , 2)
   end
 
-  def short_list!
+  def short_listed!
     self.update_column(:status , 3) # short_list: 3
   end
 

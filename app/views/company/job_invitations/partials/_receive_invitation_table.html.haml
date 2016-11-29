@@ -1,0 +1,96 @@
+.table-responsive
+  %table#resultTable.table.table-striped.table-bordered.table-hover
+    %thead
+      %tr
+        %th{style: "width:30px"} Pic
+        %th Sender
+        %th Company
+        %th Job
+        %th Email / Username
+        %th Created By
+        %th Phone
+        %th Expiry
+        %th Status
+    %tbody
+      - data.each do |invitation|
+        %tr{class: "#{set_background_status_color(invitation.status)}"}
+          %td= image_tag invitation.created_by.photo, alt: '', width: '20'
+          %td= link_to invitation.created_by.full_name , '#'
+          %td= link_to invitation.created_by.company.name , '#'
+          %td= link_to invitation.job.title , '#'
+          %td
+            = invitation.created_by.email
+            %a.pull-right{:href => "javascript:void(0);"}
+              %i.fa.fa-key
+          %td= link_to invitation.created_by.full_name , '#'
+          %td= invitation.recipient.phone
+          %td= invitation.expiry
+          %td
+            - if invitation.is_pending?
+              = link_to 'Accept' , accept_job_invitation_job_job_invitation_path(invitation.job , invitation) , method: :post , remote: true , class: 'btn btn-xs btn-default'
+              = link_to 'Reject' , reject_job_invitation_job_job_invitation_path(invitation.job , invitation) , method: :post , remote: true ,  class: 'btn btn-xs btn-default'
+            -else
+              %span.label.label-success= invitation.status
+  -#%tr.danger
+  -#  %td= image_tag 'avatars/male.png', alt: '', width: '20'
+  -#  %td Cleo
+  -#  %td Blue
+  -#  %td 1993-04-30
+  -#  %td
+  -#    collin@berry.info
+  -#    %a.pull-right{:href => "javascript:void(0);"}
+  -#      %i.fa.fa-key
+  -#  %td Groesbeck
+  -#  %td 12764
+  -#  %td 543-827-8732
+  -#  %td
+  -#    %span.label.label-danger Disabled
+  -#%tr.success
+  -#  %td= image_tag 'avatars/male.png', alt: '', width: '20'
+  -#  %td Chantel
+  -#  %td Medina
+  -#  %td 1993-04-01
+  -#  %td
+  -#    marilynn.lucretia@animalanswer.edu
+  -#    %a.pull-right{:href => "javascript:void(0);"}
+  -#      %i.fa.fa-key
+  -#  %td Lozano
+  -#  %td 46151
+  -#  %td 789-917-1518
+  -#  %td
+  -#    %span.label.label-primary ADMIN
+  -#%tr.warning
+  -#  %td= image_tag 'avatars/male.png', alt: '', width: '20'
+  -#  %td Lesley
+  -#  %td Mccall
+  -#  %td 2000-07-27
+  -#  %td
+  -#    pam.kelli@recordred.me
+  -#    %a.pull-right{:href => "javascript:void(0);"}
+  -#      %i.fa.fa-key
+  -#  %td Eagle Lake
+  -#  %td 83430
+  -#  %td 255-974-8448
+  -#  %td
+  -#    %span.label.label-warning Inactive
+  -#.text-center
+  -#  %hr/
+  -#  = will_paginate data
+      -#%ul.pagination.no-margin
+      -#  %li.prev.disabled
+      -#    %a{:href => "javascript:void(0);"} Previous
+      -#  %li.active
+      -#    %a{:href => "javascript:void(0);"} 1
+      -#  %li
+      -#    %a{:href => "javascript:void(0);"} 2
+      -#  %li
+      -#    %a{:href => "javascript:void(0);"} 3
+      -#  %li
+      -#    %a{:href => "javascript:void(0);"} 4
+      -#  %li
+      -#    %a{:href => "javascript:void(0);"} 5
+      -#  %li.next
+      -#    %a{:href => "javascript:void(0);"} Next
+      -#%br/
+      -#%br/
+      -#%br/

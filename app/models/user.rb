@@ -57,10 +57,11 @@ class User < ActiveRecord::Base
 
   # Association
   belongs_to :company
-  belongs_to :address , foreign_key: :primary_address_id
-  has_many :custom_fields, as: :customizable
-  has_many :user_docs,dependent: :destroy
-  has_many :notifications,as: :notifiable
+  belongs_to :address         , foreign_key: :primary_address_id
+  has_many :created_by        , class: 'Contract' , foreign_key: 'created_by_id'
+  has_many :user_docs         , dependent: :destroy
+  has_many :notifications     , as: :notifiable
+  has_many :custom_fields     , as: :customizable
   has_and_belongs_to_many :roles
   has_and_belongs_to_many :company_docs,join_table: "user_docs"
 
@@ -78,6 +79,10 @@ class User < ActiveRecord::Base
 
   def is_hiring_manager?
     self.type == "HiringManager"
+  end
+
+  def photo
+    super.present? ? super : 'avatars/male.png'
   end
 
 

@@ -2,4 +2,5 @@
   - flash[:errors].each do |e|
     flash_error("#{e}");
 - if flash[:success].present?
+  $("#contract-#{@job.id}").modal('toggle');
   flash_success("#{flash[:success]}");

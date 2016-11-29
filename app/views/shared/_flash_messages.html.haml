@@ -11,6 +11,7 @@
 -#      %i.fa-fw.fa.fa-warning
 -#      = alert
 :javascript
+
   function flash_alert(color , msg){
         $.smallBox({
           title : msg,
@@ -19,38 +20,50 @@
           iconSmall : "fa fa-thumbs-up bounce animated",
           timeout : 4000
         });
-    //  $.amaran({
-    //    'theme'     :'colorful',
-    //    'content'   :{
-    //        bgcolor: color,
-    //        color:'#fff',
-    //        message:msg
-    //    },
-    //    'cssanimationOut'   :'slideRight',
-    //    'outEffect'         :'slideRight',
-    //    'closeOnClick'  :true,
-    //    'position'          :'top right',
-    //    'closeButton': true
-    //});
+  }
+  function flash_error(msg)
+  {
+    var $error    = '#D04B2B';
+    flash_alert($error,msg);
+  }
+  function flash_success(msg)
+  {
+   var $success  = '#739E73';
+    flash_alert($success,msg);
+  }
+  function flash_info(msg)
+  {
+    var $info     = '#35A4DA';
+    flash_alert($info,msg);
+  }
+  function flash_notice(msg)
+  {
+   var $notice   = '#80C14B';
+    flash_alert($notice,msg);
+  }
+  function alert_alert(msg)
+  {
+    var $alert    = '#FFC333';
+    flash_alert($alert,msg);
   }
 - if flash[:alert].present? || flash[:toastr].present? || flash[:error].present? || flash[:errors].present? || flash[:success].present? || flash[:notice].present? || flash[:info].present?
   - if flash[:alert].present?
     :javascript
-      flash_alert('#FFC333',"#{flash[:alert]}");
+      flash_alert("#{flash[:alert]}");
   - if flash[:error].present?
     :javascript
-      flash_alert('#D04B2B',"#{flash[:error]}");
+      flash_error("#{flash[:error]}");
   - if flash[:errors].present?
     - flash[:errors].each do |e|
       :javascript
-        flash_alert('#D04B2B',"#{e}");
+        flash_error("#{e}");
   - if flash[:success].present?
     :javascript
-      flash_alert('#739E73',"#{flash[:success]}");
+      flash_success("#{flash[:success]}");
   - if flash[:notice].present?
     :javascript
-      flash_alert('#80C14B',"#{flash[:notice]}");
+      flash_notice("#{flash[:notice]}");
   - if flash[:info].present?
     :javascript
-      flash_alert('#35A4DA',"#{flash[:info]}");
+      flash_info("#{flash[:info]}");
 

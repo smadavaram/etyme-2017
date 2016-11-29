@@ -38,8 +38,8 @@ class Company::JobApplicationsController < Company::BaseController
       else
         format.js{ flash[:errors] =  ["Request Not Completed."]}
       end
-
     end
+
   end
 
   # POST company/jobs/:job_id/job_invitations/:job_invitation_id/job_applications/:id/reject_job_application

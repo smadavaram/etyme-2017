@@ -1,0 +1,50 @@
+.row
+  .col-sm-12
+    %ul#myTab1.nav.nav-tabs.bordered
+      %li.active
+        %a{"data-toggle" => "tab", :href => "#s1"}
+          Job Invitations All
+          %i.fa.fa-caret-down
+      %li
+        %a{"data-toggle" => "tab", :href => "#s2"} Pending
+      %li
+        %a{"data-toggle" => "tab", :href => "#s3"} Search History
+      %li.pull-right.hidden-mobile
+        %a{:href => "javascript:void(0);"}
+          %span.note About 24,431 results (0.15 seconds)
+    #myTabContent1.tab-content.bg-color-white.padding-10
+      #s1.tab-pane.fade.in.active
+        %h1
+          Search
+          %span.semi-bold Everything
+        %br/
+        = render 'company/job_invitations/partials/invitation_table'
+      #s2.tab-pane.fade
+        %h1
+          Search
+          %span.semi-bold Users
+        %br/
+        .input-group.input-group-lg
+          %input#search-user.form-control.input-lg{:placeholder => "Search again...", :type => "text"}/
+          .input-group-btn
+            %button.btn.btn-default{:type => "submit"}
+              %i.fa.fa-fw.fa-search.fa-lg
+        %h1.font-md
+          Search Results for
+          %span.semi-bold Users
+          %small.text-danger   (181 results)
+        %br/
+        = render 'company/job_invitations/partials/invitation_table'
+      #s3.tab-pane.fade
+        %h1
+          Search
+          %span.semi-bold history
+        %p.alert.alert-info
+          Your search history is turned off.
+        %span.onoffswitch-title Auto save Search History
+        %span.onoffswitch
+          %input#save_history.onoffswitch-checkbox{:checked => "checked", :name => "save_history", :type => "checkbox"}/
+          %label.onoffswitch-label{:for => "save_history"}
+            %span.onoffswitch-inner{"data-swchoff-text" => "OFF", "data-swchon-text" => "ON"}
+            %span.onoffswitch-switch
+  / end row

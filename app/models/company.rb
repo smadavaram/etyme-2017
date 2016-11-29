@@ -37,6 +37,7 @@ class Company < ActiveRecord::Base
   acts_as_taggable_on :skills
 
   # Association
+  #Note: Do not change the through association order.
   belongs_to :owner , class_name: 'User',  foreign_key: "owner_id"
   has_many :locations         , dependent: :destroy
   has_many :jobs              , dependent: :destroy
@@ -44,10 +45,12 @@ class Company < ActiveRecord::Base
   has_many :consultants
   has_many :roles             , dependent: :destroy
   has_many :company_docs      , dependent: :destroy
+  has_many :contracts
   has_many :vendors
   has_many :admins
   has_many :job_invitations   , through:   :jobs
   has_many :job_applications  , through:   :job_invitations
+  has_many :contracts         , through:   :job_applications
   has_one  :subscription      , dependent: :destroy
   has_one  :package           , through:   :subscription
 

@@ -43,6 +43,11 @@ gem 'rails_12factor', group: :production
 gem 'mailgun_rails'
 
 #****************************
+# Pagination
+#****************************
+gem 'will_paginate', '~> 3.1'
+
+#****************************
 # Tagging
 #****************************
 gem 'acts-as-taggable-on', '~> 4.0'
