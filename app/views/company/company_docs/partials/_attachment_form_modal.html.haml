@@ -1,0 +1,9 @@
+#attachmentModal.modal.fade.in{"aria-hidden" => "true", "aria-labelledby" => "myModalLabel", :role => "dialog", :style => "display: none;", :tabindex => "-1"}
+  .modal-dialog
+    .modal-content
+      .modal-header
+        %button.close{"aria-hidden" => "true", "data-dismiss" => "modal", :type => "button"}
+          ×
+        %h4#myModalLabel.modal-title Add New Attachment
+      .modal-body
+        =render 'company/company_docs/partials/form'

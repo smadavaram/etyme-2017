@@ -4,7 +4,8 @@ class Company::AttachmentsController < Company::BaseController
   # add_breadcrumb current_company.name.titleize, "#", :title => ""
 
   def index
-    add_breadcrumb "Company Documents", company_attachments_index_path(current_company), :title => ""
+    @attachments_page=Attachment.paginate(:page => params[:page], :per_page => 20)
+    add_breadcrumb "Company Documents", attachments_path(current_company), :title => ""
   end
 
   def document_list

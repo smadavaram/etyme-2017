@@ -52,83 +52,13 @@
         .tab-content
           #hr1.tab-pane.active
             .tabbable.tabs-below
-              .tab-content.padding-10
-                %table.table.table-striped
-                  %tbody
-                    %tr
-                      %th{style:'width:50%'}
-                        Name
-                      %td{style:'width:50%'}
-                        = best_in_place current_company, :name, :as => :input,placeholder:"Click here to edit"
-                    %tr
-                      %th
-                        Email
-                      %td
-                        = best_in_place current_company,:email, :as => :input, :place_holder => "Click me to add content!"
-
-                    %tr
-                      %th
-                        Phone
-                      %td
-                        = best_in_place current_company,:phone, :as => :input, :place_holder => "Click me to add content!"
-                    %tr
-                      %th
-                        Description
-                      %td
-                        = best_in_place current_company,:description, :as => :textarea, :place_holder => "Click me to add content!"
-                    %tr
-                      %th
-                        Time Zone
-                      %td
-                        = best_in_place current_company,:time_zone, :as => :input, :place_holder => "Click me to add content!"
-                    %tr
-                      %th
-                        Twitter URl
-                      %td
-                        = best_in_place current_company,:twitter_url, :as => :input, :place_holder => "Click me to add content!"
-                    %tr
-                      %th
-                        LinkedIn URl
-                      %td
-                        = best_in_place current_company,:linkedin_url, :as => :input, :place_holder => "Click me to add content!"
-                    %tr
-                      %th
-                        Google URl
-                      %td
-                        = best_in_place current_company,:google_url, :as => :input, :place_holder => "Click me to add content!"
+            =render partial: 'company/companies/partials/company_form_html'
 
           #hr2.tab-pane
             %button.btn.btn-primary{"data-target" => "#myModal", "data-toggle" => "modal"}
               Add Location
             .tabbable.tabs-below
-              .tab-content.padding-10
-                %table.table.table-striped
-                  %thead
-                    %tr
-                      %th{style:'width:20%'}
-                        Name
-                      %th{style:'width:20%'}
-                        Country
-                      %th{style:'width:20%'}
-                        City
-                      %th{style:'width:20%'}
-                        State
-                      %th{style:'width:20%'}
-                        Zipcode
-                  - current_company.locations.each do |location|
-                    - next if location.new_record?
-                    %tbody
-                      %tr
-                        %td
-                          = best_in_place location, :name, :as => :input, :place_holder => "Click me to add content!"
-                        %td
-                          = best_in_place location.address, :country, :as => :select, :collection => CS.countries.sort.map{|k,v|[k,v]}
-                        %td
-                          = best_in_place location.address,:city, :as => :input, :place_holder => "Click me to add content!"
-                        %td
-                          = best_in_place location.address,:state, :as => :input, :place_holder => "Click me to add content!"
-                        %td
-                          = best_in_place location.address,:zip_code, :as => :input, :place_holder => "Click me to add content!"
+              =render partial: 'company/companies/partials/location_form'
             =render 'company/locations/partials/location_form'
 
           #hr3.tab-pane
@@ -156,25 +86,9 @@
             %button.btn.btn-primary{"data-target" => "#attachmentModal", "data-toggle" => "modal"}
               Add Attachment
             .tabbable.tabs-below
-              .tab-content.padding-10
-                %table.table.table-striped
-                  %thead
-                    %tr
-                      %th{style:'width:20%'}
-                        Name
-                      %th{style:'width:20%'}
-                        Tags
-                  - current_company.company_docs.each do |document|
-                    - next if document.new_record?
-                    %tbody
-                      %tr
-                        %td
-                          = best_in_place document, :name, :as => :input, :place_holder => "Click me to add content!"
-                        %td
-                          = best_in_place document, :tag_list, :as => :input, :place_holder => "Click me to add content!"
+              =render partial: 'company/companies/partials/company_doc_form'
 
-
-            =render 'company/company_docs/partials/attachment_form'
+            =render 'company/company_docs/partials/attachment_form_modal'
 
 - content_for :scripts do
   :javascript

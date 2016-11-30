@@ -8,8 +8,11 @@
     .form-group
       %label.col-md-2.control-label File
       .col-md-10
-        =f.fields_for :attachment do |attach|
-          = attach.filepicker_field :file , class: 'btn btn-primary'
+        =f.fields_for :attachment ,id:"attachment" do |attach|
+          = attach.filepicker_field :file , class: 'btn btn-primary file-pick', onChange: 'onUpload(event)'
+          = attach.hidden_field :file_type,id:"type"
+          = attach.hidden_field :file_size,id:"size"
+          = attach.hidden_field :file_name,id:"name"
     .form-group
       %label.checkbox.col-md-2.control-label Is Required Signature
       .col-md-10
@@ -18,9 +21,9 @@
         -#  %strong Note:
         -#  works in Chrome, Firefox, Opera and IE10.
     .form-group
-      %label.col-md-2.control-label Description
+      %label.col-md-2.control-label Tags
       .col-md-10
-        =  f.text_area :description , class: 'form-control' ,rows: '4' , placeholder: 'Enter Description'
+        =  f.text_field :tag_list , class: 'form-control ' ,rows: '4' , placeholder: 'Enter Tags comma seperated'
 
 
   .form-actions
@@ -31,10 +34,25 @@
         = f.submit "Submit", class: 'btn btn-primary'
 - content_for :scripts do
   :javascript
-    // DO NOT REMOVE : GLOBAL FUNCTIONS!
 
     $(document).ready(function() {
 
+      $( ".file-pick" ).on('click',function() {
+
+       $('.fp__overlay').css({'z-index':'99999'})});
+
+
       pageSetUp();
 
+
     });
+    function onUpload(event) {
+      var file=event.fpfile;
+      var name = file.filename;
+      var size=file.size;
+      var type=file.mimetype;
+      $('#name').val(name);
+      $('#size').val(size);
+      $('#type').val(type);
+
+    }

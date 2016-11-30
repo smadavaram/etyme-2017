@@ -177,6 +177,11 @@ module ApplicationHelper
                     href: new_admin_path,
                     title: 'Admin',
                     content: "<span class='menu-item-parent'> Admins </span>"
+                },
+                {
+                    href: attachments_path,
+                    title: 'Attachments',
+                    content: "<span class='menu-item-parent'>Attachments </span>"
                 }
             ]
         },

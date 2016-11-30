@@ -1,0 +1,28 @@
+.tab-content.padding-10
+  %table.table.table-striped
+    %thead
+      %tr
+        %th{style:'width:20%'}
+          Name
+        %th{style:'width:20%'}
+          Country
+        %th{style:'width:20%'}
+          City
+        %th{style:'width:20%'}
+          State
+        %th{style:'width:20%'}
+          Zipcode
+    - current_company.locations.each do |location|
+      - next if location.new_record?
+      %tbody
+        %tr
+          %td
+            = best_in_place location, :name, :as => :input, :place_holder => "Click me to add content!"
+          %td
+            = best_in_place location.address, :country, :as => :select, :collection => CS.countries.sort.map{|k,v|[k,v]}
+          %td
+            = best_in_place location.address,:city, :as => :input, :place_holder => "Click me to add content!"
+          %td
+            = best_in_place location.address,:state, :as => :input, :place_holder => "Click me to add content!"
+          %td
+            = best_in_place location.address,:zip_code, :as => :input, :place_holder => "Click me to add content!"

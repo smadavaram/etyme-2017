@@ -55,9 +55,7 @@
         %strong
           %i.fa.fa-chevron-right
     %span.pull-right
-      %strong 1-30
-      of
-      %strong 3,452
+      = will_paginate @attachments_page
   #inbox-content.inbox-body.no-content-padding
     .inbox-side-bar
       %a#compose-mail.btn.btn-primary.btn-block{:href => "javascript:void(0);"}

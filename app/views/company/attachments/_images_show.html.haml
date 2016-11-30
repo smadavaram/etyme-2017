@@ -28,7 +28,7 @@
                 .superbox-list
                   %img.superbox-img{:alt => "My first photoshop layer mask on a high end PSD template theme", "data-img" => at.file, :src => image_path('text_image'), :title =>  at.file_name}/
                   =at.file_name
-            -elsif (at.file_type=='pdf')
+            -elsif (at.file_type=='application/pdf')
               %a{:download => "", :href => image_path(at.file)}
                 .superbox-list
                   %img.superbox-img{:alt => "My first photoshop layer mask on a high end PSD template theme", "data-img" => at.file, :src => image_path('pdf_image'), :title =>  at.file_name}/

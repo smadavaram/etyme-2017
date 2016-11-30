@@ -1,0 +1,44 @@
+.tab-content.padding-10
+  %table.table.table-striped
+    %tbody
+      %tr
+        %th{style:'width:50%'}
+          Name
+        %td{style:'width:50%'}
+          = best_in_place current_company, :name, :as => :input,placeholder:"Click here to edit"
+      %tr
+        %th
+          Email
+        %td
+          = best_in_place current_company,:email, :as => :input, :place_holder => "Click me to add content!"
+
+      %tr
+        %th
+          Phone
+        %td
+          = best_in_place current_company,:phone, :as => :input, :place_holder => "Click me to add content!"
+      %tr
+        %th
+          Description
+        %td
+          = best_in_place current_company,:description, :as => :textarea, :place_holder => "Click me to add content!"
+      %tr
+        %th
+          Time Zone
+        %td
+          = best_in_place current_company,:time_zone, :as => :input, :place_holder => "Click me to add content!"
+      %tr
+        %th
+          Twitter URl
+        %td
+          = best_in_place current_company,:twitter_url, :as => :input, :place_holder => "Click me to add content!"
+      %tr
+        %th
+          LinkedIn URl
+        %td
+          = best_in_place current_company,:linkedin_url, :as => :input, :place_holder => "Click me to add content!"
+      %tr
+        %th
+          Google URl
+        %td
+          = best_in_place current_company,:google_url, :as => :input, :place_holder => "Click me to add content!"
