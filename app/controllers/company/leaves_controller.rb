@@ -37,7 +37,7 @@ class Company::LeavesController <Company::BaseController
     @consultant_leave =  @consultant.leaves.new(leave_params)
       if  @consultant_leave.save
         flash[:success] = 'Leave was successfully created.'
-         redirect_to  consultant_leafe_path(@consultant,@consultant_leave)
+         redirect_to  consultant_leaves_path(current_user)
       else
         flash[:errors] =  @consultant_leave.errors.full_messages
        redirect_to :back
