@@ -3,7 +3,7 @@ class Company::CompanyDocsController < Company::BaseController
   before_action :find_document ,only: :update
   respond_to :json,:html
   # // BREADCRUMBS
-  add_breadcrumb "COMPANY DOCUMENTS", :company_docs_path, options: { title: "COMPANY DOCUMENTS" }
+  add_breadcrumb "COMPANY DOCUMENTS", :attachments_path, options: { title: "COMPANY DOCUMENTS" }
 
   def index
 
