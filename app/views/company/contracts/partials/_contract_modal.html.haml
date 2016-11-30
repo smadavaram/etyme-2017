@@ -18,6 +18,7 @@
 
       .modal-body
         = form_for [job,job.contracts.new] , html: {class: 'form-horizontal'} , remote: true do |f|
+          = f.hidden_field :job_application_id , value: job_application.id
           %fieldset
             .form-group
               %label.col-md-2.control-label Start Date

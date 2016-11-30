@@ -2,7 +2,8 @@ class Company::JobApplicationsController < Company::BaseController
 
   #CallBacks
   before_action :find_job , only: [:create , :accept_job_application ,:reject_job_application ]
-  before_action :find_job_invitation , only: [:create , :accept_job_application , :reject_job_application]
+  before_action :find_job_invitation , only: [:accept_job_application , :reject_job_application]
+  before_action :find_received_job_invitation , only: [:create]
   before_action :set_job_applications , only: [:index]
   before_action :find_job_application , only: [:accept_job_application , :reject_job_application]
 
@@ -70,6 +71,10 @@ class Company::JobApplicationsController < Company::BaseController
 
   def find_job_invitation
     @job_invitation = @job.job_invitations.find_by_id(params[:job_invitation_id]) || []
+  end
+
+  def find_received_job_invitation
+    @job_invitation = current_company.received_job_invitations.where(id: params[:job_invitation_id]).first || []
   end
 
   def find_job_application

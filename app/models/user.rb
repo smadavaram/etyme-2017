@@ -58,7 +58,8 @@ class User < ActiveRecord::Base
   # Association
   belongs_to :company
   belongs_to :address         , foreign_key: :primary_address_id
-  has_many :created_by        , class: 'Contract' , foreign_key: 'created_by_id'
+  has_many :created_by        , class_name: 'Contract' , foreign_key: :created_by_id
+  has_many :respond_by        , class_name: 'User' , foreign_key: :responed_by_id
   has_many :user_docs         , dependent: :destroy
   has_many :notifications     , as: :notifiable
   has_many :custom_fields     , as: :customizable

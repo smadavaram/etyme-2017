@@ -10,6 +10,10 @@ class Company::ConsultantsController < Company::BaseController
     @roles = current_company.roles || []
   end
 
+  def index
+
+  end
+
   def create
     @consultant = current_company.consultants.new(consultant_params)
     if @consultant.valid?

@@ -23,8 +23,9 @@ class JobInvitation < ActiveRecord::Base
   belongs_to :created_by , class_name: "User" ,foreign_key: :created_by_id
   belongs_to :recipient , polymorphic: true
   belongs_to :job
-  has_one :job_application
-  has_one :company , through: :job
+  has_one    :job_application
+  has_one    :company , through: :job
+  has_one   :contract  , through: :job_application
 
   #CallBacks
   # after_create :send_invitation_mail
@@ -33,7 +34,7 @@ class JobInvitation < ActiveRecord::Base
 
 
   #Scopes
-  scope :pending , -> {where(status: 0)}
+  scope :pending  , -> {where(status: 0)}
   scope :accepted , -> {where(status: 1)}
   scope :rejected , -> {where(status: 2)}
 
@@ -51,7 +52,6 @@ class JobInvitation < ActiveRecord::Base
 
   private
 
-
     # Call after create
     def notify_recipient
       self.recipient.notifications.create(message: self.company.name+" has invited you for "+self.job.title ,title:"Job Invitation")
@@ -61,9 +61,4 @@ class JobInvitation < ActiveRecord::Base
     def notify_on_status_change
       self.created_by.notifications.create(message: self.recipient.full_name+" has "+ self.status+" your request for "+self.job.title ,title:"Job Invitation")
     end
-
-    # # Call after create
-    # def send_invitation_mail
-    #   JobMailer.send_job_invitation(self).deliver
-    # end
 end

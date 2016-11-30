@@ -151,6 +151,16 @@ module ApplicationHelper
                     title: 'Job Invitations',
                     content: "<span class='menu-item-parent'> Job Invitations </span>"
                 },
+                {
+                    href: job_applications_path,
+                    title: 'Job Applications',
+                    content: "<span class='menu-item-parent'> Job Applications </span>"
+                },
+                {
+                    href: contracts_path,
+                    title: 'Contracts',
+                    content: "<span class='menu-item-parent'> Contracts </span>"
+                },
             ]
         },
         {

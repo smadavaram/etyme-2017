@@ -2,6 +2,7 @@ class Admin < User
 
   #Associations
   belongs_to :company
+  has_many :job_invitations , as: :recipient
 
   #Validation
   validates :password,presence: true,if: Proc.new { |consultant| !consultant.password.nil? }

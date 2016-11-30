@@ -42,6 +42,11 @@
 
 Rails.application.routes.draw do
 
+
+  namespace :company do
+  get 'companies/edit'
+  end
+
   class NakedEtymeDomain
     def self.matches?(request)
       (request.subdomain.blank? || request.subdomain == 'www') && request.domain == ENV['domain']
@@ -54,8 +59,6 @@ Rails.application.routes.draw do
     end
   end
 
-
-
   get 'register' => 'companies#new'
   get  'signin' ,to: 'static#signin'
   post 'signin' ,to: 'static#signin'
@@ -65,7 +68,6 @@ Rails.application.routes.draw do
 
   # COMPANY ROUTES
   scope module: :company do
-
     resources :consultants do
       resources :leaves do
         member do
@@ -79,28 +81,35 @@ Rails.application.routes.draw do
     resources :roles
     resources :admins
     resources :addresses
+    resources :attachments      , only: [:index]
     resources :job_applications , only: [:index]
-    resources :attachments , only: [:index]
     resources :contracts        , only: [:index]
     resources :jobs do
-      resources :contracts , except: [:index]
+      resources :contracts , except: [:index] do
+        member do
+          post :accept_contract , as: :accept_contract
+          post :reject_contract , as: :reject_contract
+        end # End of member
+      end # End of :contracts
       resources :job_invitations do
         resources :job_applications , except: [:index] do
           member do
             post :accept_job_application , as: :accept_job_application
             post :reject_job_application , as: :reject_job_application
-          end
-        end
+          end # End of member
+        end # End of :job_applications
         member do
           post :accept_job_invitation , as: :accept_job_invitation
           post :reject_job_invitation , as: :reject_job_invitation
-        end
-      end
+        end # End of member
+      end # End of :job_invitations
+
       member do
         post :send_invitation , as: :send_invitation
       end
     end
 
+    get 'attachment/documents_list',to: 'attachments#document_list'
     get 'job_invitations' , to: 'job_invitations#invitations' , as: :job_invitations
     get 'dashboard' ,       to: 'users#dashboard' ,             as: :dashboard
     post 'update_photo',    to: 'users#update_photo'
@@ -111,7 +120,6 @@ Rails.application.routes.draw do
       end
     end
     resources :vendors ,only: [:show,:index]
-    get 'attachment/documents_list',to: 'attachments#document_list'
 
 
     # AJAX for layout setting, remove in future

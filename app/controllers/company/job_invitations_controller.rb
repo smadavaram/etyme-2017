@@ -52,8 +52,9 @@ class Company::JobInvitationsController < Company::BaseController
   private
 
     def set_job_invitations
-      # @job_invitations = params[:type].present? && params[:type] == 'receive' ? [] : current_user.job_invitations.includes(job: [:location , :company]).paginate(page: params[:page], per_page: 30) || []
-      @job_invitations_received  = JobInvitation.where(recipient_id: current_company.admins.ids).includes(job: [:location , :company]).paginate(page: params[:page], per_page: 30) || []
+
+      @job_invitations_received  = current_company.received_job_invitations.includes(job: [:location , :company]).paginate(page: params[:page], per_page: 30) || []
+
       @job_invitations           = current_company.job_invitations.includes(job: [:location , :company]).paginate(page: params[:page], per_page: 30) || []
     end
 

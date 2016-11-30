@@ -1,0 +1,6 @@
+- if flash[:errors].present?
+  - flash[:errors].each do |e|
+    flash_error("#{e}");
+- if flash[:success].present?
+  $("#job_invitation_recipient_id").val($("#job_invitation_recipient_id option:first").val());
+  flash_success("#{flash[:success]}");

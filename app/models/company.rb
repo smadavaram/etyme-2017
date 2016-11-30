@@ -45,12 +45,12 @@ class Company < ActiveRecord::Base
   has_many :consultants
   has_many :roles             , dependent: :destroy
   has_many :company_docs      , dependent: :destroy
-  has_many :contracts
   has_many :vendors
   has_many :admins
   has_many :job_invitations   , through:   :jobs
   has_many :job_applications  , through:   :job_invitations
-  has_many :contracts         , through:   :job_applications
+  has_many :contracts         , through:   :jobs
+  has_many :job_invitations_received , through: :admins , source: :recipient , source_type: :job_invitations
   has_one  :subscription      , dependent: :destroy
   has_one  :package           , through:   :subscription
 
@@ -72,7 +72,21 @@ class Company < ActiveRecord::Base
   after_create      :welcome_email_to_owner
   after_create      :assign_free_subscription
 
+  # def job_invitations
+  #   super + JobInvitation.where(recipient_id: self.admins.ids) || []
+  # end
 
+  def received_job_invitations
+    JobInvitation.where(recipient_id: self.admins.ids) || []
+  end
+
+  def received_job_applications
+    JobApplication.where(job_invitation_id: received_job_invitations.ids) || []
+  end
+
+  def received_contracts
+    Contract.where(job_application_id: received_job_applications.ids) || []
+  end
 
   def etyme_url
     "#{self.slug}.#{ENV['domain']}"
