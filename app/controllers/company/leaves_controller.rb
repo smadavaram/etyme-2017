@@ -2,13 +2,13 @@ class Company::LeavesController <Company::BaseController
 
   #Callbacks
   before_action :find_consultant
-  before_action :find_leave ,only: [:show,:edit,:update,:destroy]
-  # add_breadcrumb "Leaves", consultant_leaves_path, options: {}
+  before_action :find_leave ,only: [:show,:edit,:update,:destroy,:accept_leave,:reject_leave]
+
 
   # GET /consultant/leaves
   # GET /consultant/leaves.json
   def index
-    add_breadcrumb "Leaves", consultant_leaves_path(current_user), options: {}
+    add_breadcrumb "Leaves", consultant_leaves_path(current_user)
     @consultant_leaves = @consultant.leaves || []
   end
 
@@ -20,29 +20,28 @@ class Company::LeavesController <Company::BaseController
 
   # GET /company/jobs/new
   def new
+    add_breadcrumb "Leaves", consultant_leaves_path(current_user)
     add_breadcrumb "NEW", new_consultant_leafe_path(current_user,@consultant_leave), options: {  }
     @consultant_leave = @consultant.leaves.new
   end
 
   # GET /company/jobs/1/edit
   def edit
-    # add_breadcrumb "EDIT", edit_job_path(@company_job), options: { title: "NEW EDIT" }
+      add_breadcrumb "Leaves", consultant_leaves_path()
+     add_breadcrumb "Edit", edit_consultant_leafe_path(current_user,@consultant_leave)
   end
 
   # POST /company/jobs
   # POST /company/jobs.json
   def create
     @consultant_leave =  @consultant.leaves.new(leave_params)
-
-    respond_to do |format|
       if  @consultant_leave.save
-        format.html { redirect_to  consultant_leafe_path(@consultant,@consultant_leave), notice: 'Leave was successfully created.' }
-        format.json { render :show, status: :created, location:  @consultant_leave }
+        flash[:success] = 'Leave was successfully created.'
+         redirect_to  consultant_leafe_path(@consultant,@consultant_leave)
       else
-        format.html { redirect_to :back , errors:  @consultant_leave.errors.full_messages}
-        format.json { render json:  @consultant_leave.errors, status: :unprocessable_entity }
+        flash[:errors] =  @consultant_leave.errors.full_messages
+       redirect_to :back
       end
-    end
   end
 
   # def destroy
@@ -52,31 +51,37 @@ class Company::LeavesController <Company::BaseController
   # PATCH/PUT /company/jobs/1
   # PATCH/PUT /company/jobs/1.json
   def update
-    respond_to do |format|
-      if @consultant_leave.update(leave_params)
-        format.html { redirect_to @consultant_leave, notice: 'Job was successfully updated.' }
-        format.json { render :show, status: :ok, location: @consultant_leave }
-      else
-        format.html { render :edit }
-        format.json { render json: @consultant_leave.errors, status: :unprocessable_entity }
-      end
-    end
-  end
 
-  def accept_leave
-    if(@consultant_leave.status.is_pending?)
-      if @consultant_leave.accepted!
-        format.js{ flash[:success] = "successfully Accepted." }
-      else
-        format.js{ flash[:errors] =  @consultant_leave.errors.full_messages }
-      end
+    if @consultant_leave.update(leave_params)
+      flash[:success]="Leave Successfully Updated"
+      redirect_to consultant_leaves_path(current_user)
     else
-      format.js{ flash[:errors] =  ["Request Not Completed."]}
+      flash[:errors]="Leave not updated"
+      redirect_to :back
     end
 
   end
+
+
+  # accept leave
+  def accept_leave
+    respond_to do |format|
+      if @consultant_leave.is_pending?
+        if @consultant_leave.accepted!
+          format.js{ flash[:success] = "successfully Accepted." }
+        else
+          format.js{ flash[:errors] =  @consultant_leave.errors.full_messages }
+        end
+      else
+        format.js{ flash[:errors] =  ["Request Not Completed."]}
+      end
+    end
+  end
+
+  # reject leave
   def reject_leave
-    if(@consultant_leave.status.is_pending?)
+    respond_to do |format|
+    if(@consultant_leave.is_pending?)
       if @consultant_leave.rejected!
         format.js{ flash[:success] = "successfully Accepted." }
       else
@@ -85,8 +90,9 @@ class Company::LeavesController <Company::BaseController
     else
       format.js{ flash[:errors] =  ["Request Not Completed."]}
     end
-
+    end
   end
+
 
 
 
@@ -94,9 +100,9 @@ class Company::LeavesController <Company::BaseController
     def find_consultant
       @consultant= current_company.consultants.find_by_id(params[:consultant_id])
     end
-    def find_leave
-      @consultant_leave=@consultant.leaves.find(params[:id])
 
+    def find_leave
+      @consultant_leave = @consultant.leaves.find_by_id(params[:id])
     end
 
     def leave_params

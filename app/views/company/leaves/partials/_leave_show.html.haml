@@ -20,6 +20,7 @@
                 %th UpTill
                 %th Type
                 %th Status
+                %th Actions
             %tbody
               - leaves.each_with_index do |leave , index|
                 %tr
@@ -28,3 +29,11 @@
                   %td= leave.till_date
                   %td= leave.leave_type
                   %td= leave.status
+                  %td
+                    - if(leave.pending? && is_owner? )
+                      = link_to 'Accept' , accept_leave_consultant_leafe_path(leave.user,leave) , method: :post , remote: true , class: 'btn btn-xs btn-default'
+                      = link_to 'Reject' , reject_leave_consultant_leafe_path(leave.user , leave) , method: :post , remote: true ,  class: 'btn btn-xs btn-default'
+                    -elsif(leave.pending?)
+                      = link_to raw("<i class='fa fa-pencil'></i>") , edit_consultant_leafe_path(leave.user,leave) , class: 'btn btn-xs btn-default'
+
+

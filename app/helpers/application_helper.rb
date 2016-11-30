@@ -166,7 +166,19 @@ module ApplicationHelper
         {
             href:  consultant_leaves_path(current_user),
             title: 'Leaves',
-            content: "<i class='fa fa-lg fa-fw fa-black-tie'></i> <span class='menu-item-parent'>" + 'Company Leaves' + "</span>",
+            content: "<i class='fa fa-lg fa-fw fa-black-tie'></i> <span class='menu-item-parent'>" + 'Leaves' + "</span>",
+        },
+        {
+            href: '#',
+            title: 'CONFIGURATION',
+            content: "<i class='fa fa-lg fa-fw fa-gear'></i> <span class='menu-item-parent'>" + 'CONFIGURATION' + "</span>",
+            children: [
+                {
+                    href: new_admin_path,
+                    title: 'Admin',
+                    content: "<span class='menu-item-parent'> Admins </span>"
+                }
+            ]
         },
     ]
   end

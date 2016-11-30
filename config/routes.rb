@@ -67,7 +67,12 @@ Rails.application.routes.draw do
   scope module: :company do
 
     resources :consultants do
-      resources :leaves
+      resources :leaves do
+        member do
+          post :accept_leave ,   as: :accept_leave
+          post :reject_leave ,   as: :reject_leave
+        end
+      end
     end
     resources :locations
     resources :company_docs

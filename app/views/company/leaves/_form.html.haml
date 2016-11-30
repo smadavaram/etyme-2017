@@ -7,7 +7,7 @@
         Leave Type
         %sup.text-danger *
       .col-md-10
-        = select_tag 'leave[leave_type]', options_for_select(["Select One", 'Sick','Casual','personal','other']) , class: 'form-control'  , required: true
+        = select_tag 'leave[leave_type]', options_for_select(["Select One", 'Sick','Casual','personal','other'],@consultant_leave.leave_type) , class: 'form-control'  , required: true
     .form-group
       %label.col-md-2.control-label
         Start Date
