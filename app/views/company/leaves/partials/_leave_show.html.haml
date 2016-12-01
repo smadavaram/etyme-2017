@@ -1,6 +1,6 @@
 .row
   .col-xs-12.col-sm-3.col-md-3.col-lg-3.pull-right
-    = link_to 'New Leave' , new_consultant_leafe_path(current_user,@consultant_leave) ,class: 'btn btn-success btn-lg pull-right header-btn hidden-mobile'
+    = link_to 'New Leave' , new_consultant_leave_path(current_user,@consultant_leave) ,class: 'btn btn-success btn-lg pull-right header-btn hidden-mobile'
   %article.col-xs-12.col-sm-12.col-md-12.col-lg-12{style: 'margin-top: 10px;'}
     #wid-id-0.jarviswidget.jarviswidget-color-darken{"data-widget-editbutton" => "false"}
       %header
@@ -31,9 +31,9 @@
                   %td= leave.status
                   %td
                     - if(leave.pending? && is_owner? )
-                      = link_to 'Accept' , accept_leave_consultant_leafe_path(leave.user,leave) , method: :post , remote: true , class: 'btn btn-xs btn-default'
-                      = link_to 'Reject' , reject_leave_consultant_leafe_path(leave.user , leave) , method: :post , remote: true ,  class: 'btn btn-xs btn-default'
+                      = link_to 'Accept' , accept_consultant_leave_path(leave.user,leave) , method: :post , remote: true , class: 'btn btn-xs btn-default'
+                      = link_to 'Reject' , reject_consultant_leave_path(leave.user , leave) , method: :post , remote: true ,  class: 'btn btn-xs btn-default'
                     -elsif(leave.pending?)
-                      = link_to raw("<i class='fa fa-pencil'></i>") , edit_consultant_leafe_path(leave.user,leave) , class: 'btn btn-xs btn-default'
+                      = link_to raw("<i class='fa fa-pencil'></i>") , edit_consultant_leave_path(leave.user,leave) , class: 'btn btn-xs btn-default'
 
 

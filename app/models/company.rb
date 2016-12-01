@@ -50,6 +50,7 @@ class Company < ActiveRecord::Base
   has_many :job_invitations   , through:   :jobs
   has_many :job_applications  , through:   :job_invitations
   has_many :contracts         , through:   :jobs
+  has_many :leaves            , through:   :users
   has_many :job_invitations_received , through: :admins , source: :recipient , source_type: :job_invitations
   has_one  :subscription      , dependent: :destroy
   has_one  :package           , through:   :subscription

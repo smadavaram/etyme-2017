@@ -178,6 +178,11 @@ module ApplicationHelper
         #     title: 'Leaves',
         #     content: "<i class='fa fa-lg fa-fw fa-black-tie'></i> <span class='menu-item-parent'>" + 'Leaves' + "</span>",
         # },
+        # {
+        #     href: employees_leaves_path ,
+        #     title: 'Leaves',
+        #     content: "<i class='fa fa-lg fa-fw fa-black-tie'></i> <span class='menu-item-parent'>" + 'Leaves' + "</span>",
+        # },
         {
             href: '#',
             title: 'CONFIGURATION',
@@ -191,7 +196,7 @@ module ApplicationHelper
                 {
                     href: attachments_path,
                     title: 'Attachments',
-                    content: "<span class='menu-item-parent'>Attachments </span>"
+                    content: "<span class='menu-item-parent'>Documents </span>"
                 }
             ]
         },

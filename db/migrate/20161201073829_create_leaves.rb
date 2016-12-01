@@ -1,5 +1,6 @@
-class CreateCompanyLeaves < ActiveRecord::Migration
+class CreateLeaves < ActiveRecord::Migration
   def change
+    drop_table :leaves
     create_table :leaves do |t|
       t.date    :from_date
       t.date    :till_date
@@ -8,6 +9,7 @@ class CreateCompanyLeaves < ActiveRecord::Migration
       t.integer :status ,default: 0
       t.string  :leave_type
       t.integer :user_id
+
 
       t.timestamps null: false
     end

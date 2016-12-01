@@ -1,5 +1,8 @@
 class CompanyDoc < ActiveRecord::Base
 
+  #pagination
+  self.per_page = 15
+
   #Associations
   has_one :attachment , as: :attachable
   belongs_to :company

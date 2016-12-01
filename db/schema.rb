@@ -11,7 +11,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema.define(version: 20161126200035) do
+ActiveRecord::Schema.define(version: 20161201073829) do
 
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
@@ -27,11 +27,23 @@ ActiveRecord::Schema.define(version: 20161126200035) do
     t.datetime "updated_at", null: false
   end
 
+  create_table "attachable_docs", force: :cascade do |t|
+    t.integer  "company_doc_id"
+    t.string   "orignal_file"
+    t.integer  "documentable_id"
+    t.string   "documentable_type"
+    t.datetime "created_at",        null: false
+    t.datetime "updated_at",        null: false
+  end
+
+  add_index "attachable_docs", ["company_doc_id"], name: "index_attachable_docs_on_company_doc_id", using: :btree
+  add_index "attachable_docs", ["documentable_type", "documentable_id"], name: "index_attachable_docs_on_documentable_type_and_documentable_id", using: :btree
+
   create_table "attachments", force: :cascade do |t|
     t.string   "file"
     t.string   "file_name"
     t.integer  "file_size"
-    t.integer  "file_type"
+    t.string   "file_type"
     t.string   "attachable_type"
     t.integer  "attachable_id"
     t.datetime "created_at",      null: false
@@ -92,6 +104,23 @@ ActiveRecord::Schema.define(version: 20161126200035) do
 
   add_index "consultant_profiles", ["consultant_id"], name: "index_consultant_profiles_on_consultant_id", using: :btree
 
+  create_table "contracts", force: :cascade do |t|
+    t.integer  "job_application_id"
+    t.integer  "job_id"
+    t.date     "start_date"
+    t.date     "end_date"
+    t.text     "terms_conditions"
+    t.string   "message_from_hiring"
+    t.string   "response_from_vendor"
+    t.integer  "created_by_id"
+    t.integer  "responed_by_id"
+    t.string   "responed_at"
+    t.integer  "status",               default: 0
+    t.integer  "assignee_id"
+    t.datetime "created_at",                       null: false
+    t.datetime "updated_at",                       null: false
+  end
+
   create_table "custom_fields", force: :cascade do |t|
     t.string   "name"
     t.string   "value"
@@ -136,6 +165,18 @@ ActiveRecord::Schema.define(version: 20161126200035) do
     t.datetime "created_at",                   null: false
     t.datetime "updated_at",                   null: false
     t.boolean  "is_public",     default: true
+  end
+
+  create_table "leaves", force: :cascade do |t|
+    t.date     "from_date"
+    t.date     "till_date"
+    t.string   "reason"
+    t.string   "response_message"
+    t.integer  "status",           default: 0
+    t.string   "leave_type"
+    t.integer  "user_id"
+    t.datetime "created_at",                   null: false
+    t.datetime "updated_at",                   null: false
   end
 
   create_table "locations", force: :cascade do |t|

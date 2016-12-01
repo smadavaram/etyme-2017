@@ -3,19 +3,26 @@ class Company::CompaniesController < Company::BaseController
   respond_to :html,:json
 
   before_action :find_company , only: [:get_admins_list]
+  add_breadcrumb 'Companies', "#", :title => ""
 
   def edit
-    add_breadcrumb current_company.name.titleize, "#", :title => ""
-    @company_doc = current_company.company_docs.new
-    @company_doc.build_attachment
-    @location = current_company.locations.build
-    @location.build_address
   end
 
   def update
     current_company.update_attributes(company_params)
     flash[:success]="Company Updated Successfully"
     respond_with current_company
+  end
+
+  def show
+    add_breadcrumb current_company.name.titleize, company_path, :title => ""
+    @company_doc = current_company.company_docs.new
+    @company_doc.build_attachment
+    @location = current_company.locations.build
+    @location.build_address
+
+    #pagination
+    # @company_docs = current_company.company_docs.paginate(:page => params[:page], :per_page => 15)
   end
 
   #POST company/:id/get_admins_list

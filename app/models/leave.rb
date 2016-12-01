@@ -1,5 +1,4 @@
 class Leave < ActiveRecord::Base
-
   enum status: { pending: 0, accepted: 1 , rejected: 2 }
 
   #Scopes
@@ -20,6 +19,7 @@ class Leave < ActiveRecord::Base
 
   #Associations
   belongs_to :user
+  has_one    :company , through: :user
 
 
   #validations

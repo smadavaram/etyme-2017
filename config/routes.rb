@@ -71,11 +71,11 @@ Rails.application.routes.draw do
     resources :consultants do
       resources :leaves do
         member do
-          post :accept_leave ,   as: :accept_leave
-          post :reject_leave ,   as: :reject_leave
-        end
-      end
-    end
+          post :accept
+          post :reject
+        end #end of member
+      end #end of leaves
+    end  #end of consultants
     resources :locations
     resources :company_docs
     resources :roles
@@ -109,12 +109,15 @@ Rails.application.routes.draw do
       end
     end
 
+    #leaves path for owner of company
+    get 'leaves',            to: 'leaves#employees_leaves'      , as: :employees_leaves
     get 'attachment/documents_list',to: 'attachments#document_list'
     get 'job_invitations' , to: 'job_invitations#invitations' , as: :job_invitations
     get 'dashboard' ,       to: 'users#dashboard' ,             as: :dashboard
     post 'update_photo',    to: 'users#update_photo'
-    get 'configuration' ,   to: 'companies#edit' ,              as: :configuration
-    resources :companies , only: [:update] do
+
+    # get 'configuration' ,   to: 'companies#edit' ,              as: :configuration
+    resources :companies , only: [:update,:show] do
       collection do
         post :get_admins_list , as: :get_admins_list
       end

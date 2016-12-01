@@ -1,0 +1,43 @@
+#content
+  #wid-id-7#content.jarviswidget.jarviswidget-color-teal{"data-widget-attstyle" => "jarviswidget-color-teal", "data-widget-custombutton" => "false", "data-widget-editbutton" => "false", "data-widget-fullscreenbutton" => "false", "data-widget-sortable" => "false", :role => "widget", :style => ""}
+    %header{:role => "heading"}
+      %ul.nav.nav-tabs.pull-left.in
+        %li.active
+          %a{"aria-expanded" => "true", "data-toggle" => "tab", :href => "#hr1"}
+            %i.fa.fa-lg.fa-arrow-circle-o-down
+            %span.hidden-mobile.hidden-tablet Accepted
+        %li
+          %a{"aria-expanded" => "false", "data-toggle" => "tab", :href => "#hr2"}
+            %i.fa.fa-lg.fa-arrow-circle-o-up
+            %span.hidden-mobile.hidden-tablet
+              Rejected
+        %li
+          %a{"aria-expanded" => "false", "data-toggle" => "tab", :href => "#hr3"}
+            %i.fa.fa-lg.fa-arrow-circle-o-up
+            %span.hidden-mobile.hidden-tablet
+              Pending
+
+      %span.jarviswidget-loader
+        %i.fa.fa-refresh.fa-spin
+    / widget div
+    %div{:role => "content"}
+      .jarviswidget-editbox
+
+      .widget-body
+        .tab-content
+          #hr1.tab-pane.active
+            .tabbable.tabs-below
+              .tab-content.padding-10
+                %section#widget-grid{style: 'margin-top: 10px;'}
+                  =render partial: 'company/leaves/partials/leave_show',locals:{leaves: @employee_leaves.accepted}
+          #hr2.tab-pane
+            .tabbable.tabs-below
+              .tab-content.padding-10
+                %section#widget-grid{style: 'margin-top: 10px;'}
+                  =render partial: 'company/leaves/partials/leave_show',locals:{leaves: @employee_leaves.rejected}
+
+          #hr3.tab-pane
+            .tabbable.tabs-below
+              .tab-content.padding-10
+                %section#widget-grid{style: 'margin-top: 10px;'}
+                  =render partial: 'company/leaves/partials/leave_show',locals:{leaves: @employee_leaves.pending}

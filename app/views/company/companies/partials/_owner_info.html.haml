@@ -1,0 +1,32 @@
+.tabbable.tabs-below
+  %table.table.table-striped
+    %thead
+      %tr
+        %th{style:'width:25%'}
+          Name
+        %th{style:'width:25%'}
+          Email
+        %th{style:'width:25%'}
+          Phone
+        %th{style:'width:25%'}
+          Type
+    %tbody
+      %tr
+        %td
+          = owner_data.full_name
+        %td
+          = owner_data.email
+        %td
+          = owner_data.phone
+        %td
+          owner
+      -admins.each do |admin|
+        %tr
+          %td
+            = admin.full_name
+          %td
+            = admin.email
+          %td
+            = admin.phone
+          %td
+            = admin.type

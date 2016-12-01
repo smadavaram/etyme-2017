@@ -23,7 +23,10 @@
     .form-group
       %label.col-md-2.control-label Tags
       .col-md-10
-        =  f.text_field :tag_list , class: 'form-control ' ,rows: '4' , placeholder: 'Enter Tags comma seperated'
+        = f.text_field :tag_list , class: 'tagsinput form-control' ,"data-role" => "tagsinput" , placeholder: 'Enter Tags comma seperated'
+        -#%input.form-control.tagsinput{"data-role" => "tagsinput", name: 'tag_list',:value => ""}/
+
+        -#=  f.text_field :tag_list , class: 'form-control tagsinput' ,rows: '4',data-role: "tagsinput" , placeholder: 'Enter Tags comma seperated'
 
 
   .form-actions
