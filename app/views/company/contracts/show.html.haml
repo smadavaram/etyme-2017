@@ -1,0 +1,14 @@
+#content
+  %h2
+    Company Name: #{@job.company.name}
+  %h3
+    Job Title: #{@job.title}
+  %p Job Description: #{raw @job.description}
+  %p Job Type: #{@job.is_public? ? "Public" : "Private"}
+  %p Company: #{@job.company.name}
+  %h3
+    Terms & Conditions: #{@contract.terms_conditions}
+
+
+  = link_to 'Accept' , accept_contract_job_contract_path(@job , @contract) , method: :post , remote: true , class: 'btn btn-xs btn-default',data: {confirm: 'Are you sure?', verify: 'Accept', verify_text: 'Type "Accept" to confirm'}
+  = link_to 'Reject' , reject_contract_job_contract_path(@job , @contract) , method: :post , remote: true ,  class: 'btn btn-xs btn-default',data: {confirm: 'Are you sure?', verify: 'Reject', verify_text: 'Type "Reject" to confirm'}

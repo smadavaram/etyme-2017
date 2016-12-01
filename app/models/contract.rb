@@ -1,6 +1,8 @@
 class Contract < ActiveRecord::Base
   #Enum
-  enum status: { pending: 0, accepted: 1 , rejected: 2 }
+  enum status:                { pending: 0, accepted: 1 , rejected: 2 }
+  enum billing_frequency:     { weekly: 0, by_weekly: 1 , monthly: 2 , by_monthly: 3 }
+  # enum time_sheet_frequency:  { weekly: 0, by_weekly: 1 , monthly: 2 , by_monthly: 3 }
 
   attr_accessor :company_doc_ids
 
@@ -12,6 +14,7 @@ class Contract < ActiveRecord::Base
   belongs_to :location
   has_one    :company        , through: :job
   has_one    :job_invitation , through: :job_application
+  has_many   :contract_terms , dependent: :destroy
   has_many   :attachable_docs, as: :documentable
 
   # Callbacks

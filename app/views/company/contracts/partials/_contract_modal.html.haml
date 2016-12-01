@@ -1,4 +1,4 @@
-.modal.fade.in{ id: "contract-#{job.id}","aria-hidden": "true", "aria-labelledby": "myModalLabel", :role => "dialog", :style => "display: none;", :tabindex => "-1"}
+.modal.fade.in{ id: "contract-#{job.id}","aria-hidden": "true", "aria-labelledby": "myModalLabel", :role => "dialog"}
   .modal-dialog.modal-lg
     .modal-content
       .modal-header
@@ -34,8 +34,15 @@
             .form-group
               %label.col-md-2.control-label Terms & Conditions
               .col-md-10
-                =  f.text_area :terms_conditions , class: 'form-control',:class => "tinymce", rows: 6, cols: 30, placeholder: 'Enter Contract Terms & conditions'
-                = tinymce :default
+                -#=  f.text_area :terms_conditions , class: 'form-control',:class => "tinymce", rows: 6, cols: 30, placeholder: 'Enter Contract Terms & conditions'
+                -#= tinymce :default
+            .form-group
+              %label.col-md-2.control-label Billing Frequency
+              .col-md-4
+                = select_tag 'contract[binding_frequency]', options_for_select(BILLING_FREQUENCY.collect{ |type| [type[0], type[1]] })  , class: "form-control"
+              %label.col-md-2.control-label Time Sheet Frequency
+              .col-md-4
+                = select_tag 'contract[time_sheet_frequency]', options_for_select(BILLING_FREQUENCY.collect{ |type| [type[0], type[1]] }) , class: "form-control"
             %hr
             .form-group
               %label.col-md-2.control-label Message (optional)

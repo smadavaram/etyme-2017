@@ -54,7 +54,7 @@
 
 // FastClick: For mobile devices
 //= require plugin/fastclick/fastclick.min
-
+//= require data-confirm-modal
 // MAIN APP JS FILE
 //= require app.min
 
@@ -150,4 +150,5 @@
 //= require jquery.amaran
 
 // Tinymc
-//= require tinymce-jquery
+
+//= require data-confirm-modal

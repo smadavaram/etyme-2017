@@ -1,0 +1,17 @@
+# Read about fixtures at http://api.rubyonrails.org/classes/ActiveRecord/FixtureSet.html
+
+one:
+  rate: 9.99
+  note: MyText
+  terms_condition: MyText
+  created_by: 1
+  status: 1
+  references: 
+
+two:
+  rate: 9.99
+  note: MyText
+  terms_condition: MyText
+  created_by: 1
+  status: 1
+  references: 

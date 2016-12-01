@@ -87,8 +87,10 @@ Rails.application.routes.draw do
     resources :jobs do
       resources :contracts , except: [:index] do
         member do
-          post :accept_contract , as: :accept_contract
-          post :reject_contract , as: :reject_contract
+          post :accept_contract        , as: :accept_contract
+          post :reject_contract        , as: :reject_contract
+          post :open_contract , as: :open_contract
+          post :update_contract_response        , as: :update_contract_response
         end # End of member
       end # End of :contracts
       resources :job_invitations do

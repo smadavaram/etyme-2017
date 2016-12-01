@@ -29,6 +29,7 @@ gem "font-awesome-rails"
 gem "cocoon"
 gem 'city-state'
 gem 'tinymce-rails'
+gem 'data-confirm-modal'
 
 
 #****************************

@@ -30,15 +30,16 @@ class Company::JobApplicationsController < Company::BaseController
   # POST company/jobs/:job_id/job_invitations/:job_invitation_id/job_applications/:id/accept_job_application
   def accept_job_application
     respond_to do |format|
-      if @job_application.is_pending?
-        if @job_application.accepted!
-          format.js{ flash[:success] = "successfully Accepted." }
-        else
-          format.js{ flash[:errors] =  @job_application.errors.full_messages }
-        end
-      else
-        format.js{ flash[:errors] =  ["Request Not Completed."]}
-      end
+      # if @job_application.is_pending?
+      #   if @job_application.accepted!
+      #     format.js{ flash[:success] = "successfully Accepted." }
+      #   else
+      #     format.js{ flash[:errors] =  @job_application.errors.full_messages }
+      #   end
+      # else
+      #   format.js{ flash[:errors] =  ["Request Not Completed."]}
+      # end
+      format.js{ flash[:success] = "successfully Accepted." }
     end
 
   end

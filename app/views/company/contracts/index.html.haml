@@ -8,11 +8,11 @@
             %li.active
               %a{"data-toggle" => "tab", :href => "#tab-r1"}
                 %span.badge.bg-color-blue.txt-color-white= @send_contracts.count
-                Send Contracts
+                Sent Contracts
             %li
               %a{"data-toggle" => "tab", :href => "#tab-r2"}
                 %span.badge.bg-color-blueDark.txt-color-white= @received_contracts.count
-                Receive Contracts
+                Received Contracts
           .col-md-10
             .tab-content
               #tab-r1.tab-pane.active
@@ -56,7 +56,8 @@
                     = render partial: 'company/contracts/partials/receive_contract_table' , locals: {data: @received_contracts.pending}
                   #is-3.tab-pane.fade.active.in
                     = render partial: 'company/contracts/partials/receive_contract_table' , locals: {data: @received_contracts}
-
+- content_for :modals do
+  #ajax-modal
 - content_for :scripts do
   :javascript
     // DO NOT REMOVE : GLOBAL FUNCTIONS!

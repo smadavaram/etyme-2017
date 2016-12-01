@@ -2,11 +2,15 @@ class Company::ContractsController < Company::BaseController
 
 
 
-  before_action :find_job      , only: [ :create , :accept_contract , :reject_contract]
-  before_action :find_contract , only: [:create , :accept_contract , :reject_contract]
+  before_action :find_job      , only: [ :show , :create , :update_contract_response  , :open_contract]
+  before_action :find_contract , only: [:show ,:create , :update_contract_response  , :open_contract]
   before_action :set_contracts , only: [:index]
 
   def index
+
+  end
+
+  def show
 
   end
 
@@ -26,29 +30,24 @@ class Company::ContractsController < Company::BaseController
     end
   end
 
-  # POST company/jobs/:job_id/contracts/:id/accept_contract
-  def accept_contract
-    respond_to do |format|
-      if @contract.is_pending?
-        if @contract.update_attributes(responed_by_id: current_user.id , responed_at: Time.now , status: 1 )
-          format.js{ flash[:success] = "successfully Accepted." }
-        else
-          format.js{ flash[:errors] =  @contract.errors.full_messages }
-        end
-      else
-        format.js{ flash[:errors] =  ["Request Not Completed."]}
-      end
-
-    end
-
+  # POST company/jobs/:job_id/contracts/:id/open_contract?status=value
+  def open_contract
+    # @accept_status = nil
+    # if params[:status] == 'accept'
+    #   @accept_status = true
+    # elsif  params[:status] == 'reject'
+    #   @accept_status = false
+    # end
+    # puts params[:status]
   end
 
-  # POST company/jobs/:job_id/contracts/:id/reject_contract
-  def reject_contract
+  # POST company/jobs/:job_id/contracts/:id/update_contract_response?status= :value
+  def update_contract_response
+    status = params[:status] == "reject" ? 2 : params[:status] == "accept" ? 1 : nil
     respond_to do |format|
       if @contract.is_pending?
-        if @contract.update_attributes(responed_by_id: current_user.id , responed_at: Time.now , status: 2 )
-          format.js{ flash[:success] = "successfully Rejected." }
+        if @contract.update_attributes(response_from_vendor: params[:contract][:response_from_vendor] ,responed_by_id: current_user.id , responed_at: Time.now , status: status)
+          format.js{ flash[:success] = "successfully Submitted." }
         else
           format.js{ flash[:errors] =  @contract.errors.full_messages }
         end
@@ -57,6 +56,7 @@ class Company::ContractsController < Company::BaseController
       end
     end
   end
+
   private
 
     def find_contract
@@ -76,7 +76,7 @@ class Company::ContractsController < Company::BaseController
 
 
   def contract_params
-    params.require(:contract).permit([:job_id  , :job_application_id , :start_date , :end_date , :terms_conditions , :message_from_hiring , :status , company_doc_ids: []])
+    params.require(:contract).permit([:job_id  , :billing_frequency , :time_sheet_frequency, :job_application_id , :start_date , :end_date , :terms_conditions , :message_from_hiring , :status , company_doc_ids: []])
   end
 
 

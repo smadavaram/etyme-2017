@@ -1,9 +1,10 @@
 class Company::JobInvitationsController < Company::BaseController
 
   #CallBacks
-  before_action :find_job            , only: [:create , :accept_job_invitation , :reject_job_invitation , :update]
-  before_action :find_job_invitation , only: [:accept_job_invitation , :reject_job_invitation , :update]
+  before_action :find_job            , only: [:create , :update]
+  before_action :find_job_invitation , only: [ :update]
   before_action :set_job_invitations , only: [:invitations]
+  before_action :find_received_job_invitations , only: [:accept_job_invitation , :reject_job_invitation]
 
   #BreadCrumbs
   add_breadcrumb "JOB INVITATIONS", :job_invitations_path, options: { title: "JOBS INVITATIONS" }
@@ -43,6 +44,7 @@ class Company::JobInvitationsController < Company::BaseController
   def accept_job_invitation
     @job_application = @job_invitation.build_job_application
     @job_application.custom_fields.build
+    # render layout: 'company'
   end
 
   def reject_job_invitation
@@ -54,17 +56,20 @@ class Company::JobInvitationsController < Company::BaseController
     def set_job_invitations
 
       @job_invitations_received  = current_company.received_job_invitations.includes(job: [:location , :company]).paginate(page: params[:page], per_page: 30) || []
-
       @job_invitations           = current_company.job_invitations.includes(job: [:location , :company]).paginate(page: params[:page], per_page: 30) || []
     end
 
     def find_job
-      # @job = current_company.jobs.find_by_id(params[:job_id]) || []
-      @job = Job.find_by_id(params[:job_id]) || []
+      @job = current_company.jobs.find_by_id(params[:job_id]) || []
+      # @job = Job.find_by_id(params[:job_id]) || []
     end
 
     def find_job_invitation
       @job_invitation = @job.job_invitations.find_by_id(params[:id]) || []
+    end
+
+    def find_received_job_invitations
+      @job_invitation =  current_company.received_job_invitations.where(id: params[:id]).first
     end
 
     def job_invitation_params

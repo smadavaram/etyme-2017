@@ -1,10 +1,12 @@
 default:
+  menubar: false
   plugins:
-    - image
     - link
+    - table
 
 alternate:
-  selector: textarea.table-editor
+  menubar: false
+  selector: textarea.tinymce
   toolbar: styleselect | bold italic | undo redo | table
   plugins:
     - table
