@@ -195,7 +195,7 @@ module ApplicationHelper
                 },
                 {
                     href: attachments_path,
-                    title: 'Attachments',
+                    title: 'Company Documents',
                     content: "<span class='menu-item-parent'>Documents </span>"
                 }
             ]
