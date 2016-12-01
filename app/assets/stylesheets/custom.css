@@ -13,7 +13,7 @@
 }
 
 .imgDescription {
-    position: absolute;
+    position: initial;
     top: 0;
     bottom: 0;
     left: 0;
@@ -28,7 +28,7 @@
 }
 
 
-.profile-pic:hover .imgDescription {
+.profile-hover:hover .imgDescription {
     visibility: visible;
     opacity: 1;
 }
@@ -38,4 +38,8 @@
     background-color: aliceblue;
     margin-top: 10px;
     margin-left: 25px;
+}
+
+.pictureContainer img:hover {
+    outline: #333 double 4px;
 }

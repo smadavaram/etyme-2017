@@ -1,13 +1,17 @@
 .col-lg-3.col-md-3
   .panel-body.status.profile-margin
     .text
-      %div
+      %div.profile-hover
         //= f.label :filepicker_url, "Upload Your Avatar:"
-        = filepicker_field_tag "" ,class: "hidden file", onchange:"employeeLogoUpload(event)"
-        -if(current_user.photo.present?)
-          = image_tag current_user.photo,  style:"width:100px;height:100px", fit: 'clip',:class =>"profile-pic image-setting"
-        -else
-          = image_tag image_path('default_user.png'),  style: "width:100px;height:100px", fit: 'clip',:class =>"profile-pic image-setting"
+        %p.imgDescription Change Image
+        %div.pictureContainer
+          = filepicker_field_tag "" ,class: "hidden file", onchange:"employeeLogoUpload(event)"
+          -if(current_user.photo.present?)
+            = image_tag current_user.photo,  style:"width:100px;height:100px", fit: 'clip',:class =>"profile-pic image-setting"
+
+          -else
+            = image_tag image_path('default_user.png'),  style: "width:100px;height:100px", fit: 'clip',:class =>"profile-pic image-setting"
+
     %ul.links
       %li
 
