@@ -87,17 +87,17 @@ Rails.application.routes.draw do
     resources :jobs do
       resources :contracts , except: [:index] do
         member do
-          post :accept_contract        , as: :accept_contract
-          post :reject_contract        , as: :reject_contract
           post :open_contract , as: :open_contract
           post :update_contract_response        , as: :update_contract_response
         end # End of member
       end # End of :contracts
+
       resources :job_invitations do
         resources :job_applications , except: [:index] do
           member do
-            post :accept_job_application , as: :accept_job_application
-            post :reject_job_application , as: :reject_job_application
+            post :accept_job_application               , as: :accept_job_application
+            post :reject_job_application               , as: :reject_job_application
+            post :short_list_job_application           , as: :short_list_job_application
           end # End of member
         end # End of :job_applications
         member do

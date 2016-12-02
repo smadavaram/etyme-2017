@@ -17,7 +17,7 @@
 
 
       .modal-body
-        = form_for [job,job.contracts.new] , html: {class: 'form-horizontal'} , remote: true do |f|
+        = form_for [job,contract] , html: {class: 'form-horizontal'} , remote: true do |f|
           = f.hidden_field :job_application_id , value: job_application.id
           %fieldset
             .form-group
@@ -32,17 +32,27 @@
               .col-md-10
                 = select_tag "contract[company_doc_ids]", options_from_collection_for_select(current_company.company_docs, "id", "name"), prompt: "Select something" , class:"form-control input-lg multi-select2-company-docs",multiple: true
             .form-group
-              %label.col-md-2.control-label Terms & Conditions
-              .col-md-10
-                -#=  f.text_area :terms_conditions , class: 'form-control',:class => "tinymce", rows: 6, cols: 30, placeholder: 'Enter Contract Terms & conditions'
-                -#= tinymce :default
-            .form-group
               %label.col-md-2.control-label Billing Frequency
               .col-md-4
-                = select_tag 'contract[binding_frequency]', options_for_select(BILLING_FREQUENCY.collect{ |type| [type[0], type[1]] })  , class: "form-control"
+                = select_tag 'contract[biling_frequency]', options_for_select(BILLING_FREQUENCY.collect{ |type| [type[0], type[1]] })  , class: "form-control"
               %label.col-md-2.control-label Time Sheet Frequency
               .col-md-4
                 = select_tag 'contract[time_sheet_frequency]', options_for_select(BILLING_FREQUENCY.collect{ |type| [type[0], type[1]] }) , class: "form-control"
+            = f.fields_for :contract_terms do |c|
+              = c.hidden_field :created_by , value: current_user.id
+              .form-group
+                %label.col-md-2.control-label Rate
+                .col-md-10
+                  = c.number_field :rate ,class: "form-control" , required: 'required', placeholder: ""
+              .form-group
+                %label.col-md-2.control-label Terms & Conditions
+                .col-md-10
+                  =  c.text_area :terms_condition , class: 'form-control tinymce', rows: 6, placeholder: 'Enter Contract Terms & conditions'
+                  = tinymce :default
+              .form-group
+                %label.col-md-2.control-label Note (optional)
+                .col-md-10
+                  = c.text_area :note, class: "form-control", rows: "2" ,placeholder: 'Write tour note'
             %hr
             .form-group
               %label.col-md-2.control-label Message (optional)

@@ -76,7 +76,7 @@ class Company::ContractsController < Company::BaseController
 
 
   def contract_params
-    params.require(:contract).permit([:job_id  , :billing_frequency , :time_sheet_frequency, :job_application_id , :start_date , :end_date , :terms_conditions , :message_from_hiring , :status , company_doc_ids: []])
+    params.require(:contract).permit([:job_id  , :billing_frequency , :time_sheet_frequency, :job_application_id , :start_date , :end_date  , :message_from_hiring  ,:status ,company_doc_ids: [] , contract_terms_attributes: [:id, :created_by, :contract_id , :status , :terms_condition ,:rate , :note]])
   end
 
 

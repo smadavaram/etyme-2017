@@ -1,11 +1,11 @@
 class Company::JobApplicationsController < Company::BaseController
 
   #CallBacks
-  before_action :find_job , only: [:create , :accept_job_application ,:reject_job_application ]
-  before_action :find_job_invitation , only: [:accept_job_application , :reject_job_application]
+  before_action :find_job , only: [:create , :accept_job_application ,:reject_job_application , :short_list_job_application]
+  before_action :find_job_invitation , only: [:accept_job_application , :reject_job_application , :short_list_job_application]
   before_action :find_received_job_invitation , only: [:create]
   before_action :set_job_applications , only: [:index]
-  before_action :find_job_application , only: [:accept_job_application , :reject_job_application]
+  before_action :find_job_application , only: [:accept_job_application , :reject_job_application , :short_list_job_application]
 
   # BreadCrumbs
   add_breadcrumb "JOB APPLICATION", :job_applications_path, options: { title: "JOBS APPLICATION" }
@@ -29,6 +29,8 @@ class Company::JobApplicationsController < Company::BaseController
 
   # POST company/jobs/:job_id/job_invitations/:job_invitation_id/job_applications/:id/accept_job_application
   def accept_job_application
+    @contract = @job.contracts.new
+    @contract.contract_terms.new
     respond_to do |format|
       # if @job_application.is_pending?
       #   if @job_application.accepted!
@@ -50,6 +52,22 @@ class Company::JobApplicationsController < Company::BaseController
       if @job_application.is_pending?
         if @job_application.rejected!
           format.js{ flash[:success] = "successfully Rejected." }
+        else
+          format.js{ flash[:errors] =  @job_application.errors.full_messages }
+        end
+      else
+        format.js{ flash[:errors] =  ["Request Not Completed."]}
+      end
+
+    end
+  end
+
+  # POST company/jobs/:job_id/job_invitations/:job_invitation_id/job_applications/:id/short_list_job_application
+  def short_list_job_application
+    respond_to do |format|
+      if @job_application.is_pending?
+        if @job_application.short_listed!
+          format.js{ flash[:success] = "successfully ShortListed." }
         else
           format.js{ flash[:errors] =  @job_application.errors.full_messages }
         end
