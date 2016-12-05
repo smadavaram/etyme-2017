@@ -24,12 +24,14 @@ class UserMailer < ApplicationMailer
     mail to: @user.email, subject: "Your password has changed"
   end
 
-  def invite_consultant(consultant)
-    @consultant   = consultant
-    @name         = @consultant.full_name
-    @link         = "http://#{@consultant.company.etyme_url}/users/invitation/accept?invitation_token=#{@consultant.raw_invitation_token}"
-    mail(to: consultant.email,  subject: "#{@consultant.company.name.titleize} Invited You to Etyme",from: "Etyme <no-reply@etyme.com>")
+  def invite_user(user)
+    @user   = user
+    @name         = @user.full_name
+    @link         = "http://#{@user.company.etyme_url}/users/invitation/accept?invitation_token=#{@user.raw_invitation_token}"
+    mail(to: user.email,  subject: "#{@user.company.name.titleize} Invited You to Etyme",from: "Etyme <no-reply@etyme.com>")
   end
+
+
 
   def welcome_email_to_owner(company)
     @company   = company

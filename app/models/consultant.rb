@@ -68,7 +68,7 @@ class Consultant < User
       invite! do |u|
         u.skip_invitation = true
       end
-      UserMailer.invite_consultant(self).deliver
+      UserMailer.invite_user(self).deliver
     end
 
     # after create

@@ -11,16 +11,16 @@ class Admin < User
   accepts_nested_attributes_for :address , reject_if: :all_blank
 
   #CallBacks
-  after_create :send_invitation
+  after_create :send_invitation ,if: Proc.new { |admin| admin.company.present? }
 
   private
 
   # Call after create
   def send_invitation
-    # invite! do |u|
-    #   u.skip_invitation = true
-    # end
-    # UserMailer.invite_consultant(self).deliver
+    invite! do |u|
+      u.skip_invitation = true
+    end
+    UserMailer.invite_user(self).deliver
   end
 
 end

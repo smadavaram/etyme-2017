@@ -78,6 +78,10 @@ class User < ActiveRecord::Base
     self.type == "Admin"
   end
 
+  def is_owner?
+    self == self.company.owner
+  end
+
   def photo
     super.present? ? super : 'avatars/male.png'
   end

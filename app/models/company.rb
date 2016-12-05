@@ -104,6 +104,7 @@ class Company < ActiveRecord::Base
 
   def set_owner_company_id
     self.owner.update_column(:company_id, id)
+    # self.owner.accept_invitation!
   end
 
   def welcome_email_to_owner
