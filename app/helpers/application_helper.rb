@@ -127,7 +127,7 @@ module ApplicationHelper
   def left_menu_content
     [
         {
-            href: root_path,
+            href: '/dashboard',
             title: 'HOME',
             content: "<i class='fa fa-lg fa-fw fa-home'></i> <span class='menu-item-parent'>" + 'HOME' + "</span>",
         },

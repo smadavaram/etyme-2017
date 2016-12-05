@@ -53,7 +53,7 @@ class Company::ConsultantsController < Company::BaseController
                                                :name,
                                                :value
                                            ],
-                                       company_doc_ids: []
+                                       company_doc_ids:[]
     )
   end # End of company_params
 end

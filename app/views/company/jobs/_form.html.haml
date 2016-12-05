@@ -50,10 +50,10 @@
       .col-md-12
         .form-group
           =f.fields_for :custom_fields do |custom_field|
-            = render 'shared/custom_fields', f: custom_field
+            = render 'company/jobs/partials/custom_fields', f: custom_field
         %strong
           .links.col-sm-12
-            = link_to_add_association '+ Add Custom Field', f, :custom_fields, class: 'text-info pull-right', partial: 'shared/custom_fields'
+            = link_to_add_association '+ Add Custom Field', f, :custom_fields, class: 'text-info pull-right', partial: 'company/jobs/partials/custom_fields'
             %br/
   .form-actions
     .row

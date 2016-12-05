@@ -1,12 +1,13 @@
 class Location < ActiveRecord::Base
 
+  #Validation
+  validates :name , presence: true
+
   # Association
   belongs_to  :company
   has_many    :jobs
   belongs_to  :address
 
-  #Validation
-  validates :name , presence: true
 
 
   # Nested Attributes

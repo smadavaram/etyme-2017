@@ -4,7 +4,8 @@
       .modal-header
         %button.close{"aria-hidden" => "true", "data-dismiss" => "modal", :type => "button"}
           ×
-        %h4#myModalLabel.modal-title Job Invitation - #{job.title}
+        %h2#myModalLabel.modal-title
+          %strong Job Invitation - #{job.title}
       .modal-body
         = form_for [job,job.job_invitations.new] , remote: true do |f|
           = f.hidden_field :job_id , value: params[:job_id]

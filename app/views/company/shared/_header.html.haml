@@ -73,7 +73,7 @@
               Setting
           %li.divider
           %li
-            %a.padding-10.padding-top-0.padding-bottom-0{:href => "profile.html"}
+            = link_to company_path(current_company) , class: 'padding-10 padding-top-0 padding-bottom-0' do
               %i.fa.fa-user
               = succeed "rofile" do
                 %u P

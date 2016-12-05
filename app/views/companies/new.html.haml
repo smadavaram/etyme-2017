@@ -65,7 +65,7 @@
                     %b.tooltip.tooltip-bottom-right Please confirm the password
                 %section
                   %label.select
-                    = select_tag 'company[owner_attributes][type]', options_for_select(USER_TYPES.collect{ |type| [type[0], type[1]] })
+                    = f.select :company_type , Company.company_types.map { |key, value| [key.humanize, key] }
                     %i
                 %section
                   -#%label.checkbox

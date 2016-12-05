@@ -1,0 +1,18 @@
+.nested-fields
+  .form-group
+    %label.col-md-2.control-label
+      Field Name
+      %sup.text-danger *
+    .col-md-8
+      = f.text_field :name , class: 'form-control' , placeholder: 'Enter Field Name' , required: true
+    .col-md-1
+      = link_to_remove_association "Remove", f, class: "btn btn-danger pull-right"
+  -#.col-md-12
+  -#  .form-group.col-sm-5
+  -#    %label.control-label Field Name
+  -#    %div
+  -#      = f.text_field :name , class:"form-control  input-lg", required: true
+  -#  -#.form-group.col-sm-5
+  -#  -#  %label.control-label Field Value
+  -#  -#  %div
+  -#  -#    = f.text_field :value, class: "form-control input-lg"

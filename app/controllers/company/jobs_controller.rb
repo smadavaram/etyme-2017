@@ -86,7 +86,8 @@ class Company::JobsController < Company::BaseController
     end
 
     def set_preferred_vendors
-      @preferred_vendors_companies = Company.joins(:users).where("users.type = ?" , 'Vendor') - [current_company]|| []
+      # @preferred_vendors_companies = Company.joins(:users).where("users.type = ?" , 'Vendor') - [current_company]|| []
+      @preferred_vendors_companies = Company.where(company_type: 'vendor') - [current_company] || []
     end
 
     # Never trust parameters from the scary internet, only allow the white list through.

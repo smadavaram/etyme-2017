@@ -41,7 +41,7 @@ class Company::InvitationsController < Devise::InvitationsController
                              address_attributes:[:id,:address_1,:address_2,:city,:country,:state,:zip_code,:_destroy],
                              consultant_profile_attributes:[:id,:location_id,:designation,:joining_date,:employment_type,:salary_type,:salary,:_destroy],
                              custom_fields_attributes:[:id,:name,:value,:_destroy],
-                             user_docs_attributes:[:id,:file,:_destroy]
+                             attachable_docs_attributes:[:id,:file,:_destroy]
                         ])[:user]
   end
 end

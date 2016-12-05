@@ -25,7 +25,7 @@
           %span
             Billing
     %li
-      = link_to company_path(current_company), class: 'jarvismetro-tile big-cubes bg-color-blueDark' do
+      = link_to root_path, class: 'jarvismetro-tile big-cubes bg-color-blueDark' do
         %span.iconbox
           %i.fa.fa-gears.fa-4x
           %span Settings
@@ -35,7 +35,7 @@
           %i.fa.fa-gears.fa-4x
           %span Roles
     %li
-      = link_to root_path, class: 'jarvismetro-tile big-cubes selected bg-color-blueDark' do
+      = link_to company_path(current_company), class: 'jarvismetro-tile big-cubes selected bg-color-blueDark' do
         %span.iconbox
           %i.fa.fa-user.fa-4x
           %span My Profile

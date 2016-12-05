@@ -41,6 +41,7 @@
 
 class Consultant < User
 
+  attr_accessor :company_doc_ids
 
   #Associations
   has_one    :consultant_profile , dependent: :destroy
@@ -57,7 +58,9 @@ class Consultant < User
   validates :password_confirmation,presence: true,if: Proc.new { |consultant| !consultant.password.nil? }
 
   #CallBacks
+  after_create :insert_attachable_docs
   after_create :send_invitation
+
 
   private
 
@@ -66,6 +69,14 @@ class Consultant < User
         u.skip_invitation = true
       end
       UserMailer.invite_consultant(self).deliver
+    end
+
+    # after create
+    def insert_attachable_docs
+      company_docs = self.company.company_docs.where(id: company_doc_ids).includes(:attachment) || []
+      company_docs.each do |company_doc|
+        self.attachable_docs.find_or_create_by(company_doc_id: company_doc.id , orignal_file: company_doc.attachment.try(:file))
+      end
     end
 
 

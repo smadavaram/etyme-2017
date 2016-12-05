@@ -1,7 +1,6 @@
 class Admin < User
 
   #Associations
-  belongs_to :company
   has_many :job_invitations , as: :recipient
 
   #Validation
@@ -18,10 +17,10 @@ class Admin < User
 
   # Call after create
   def send_invitation
-    invite! do |u|
-      u.skip_invitation = true
-    end
-    UserMailer.invite_consultant(self).deliver
+    # invite! do |u|
+    #   u.skip_invitation = true
+    # end
+    # UserMailer.invite_consultant(self).deliver
   end
 
 end
