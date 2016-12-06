@@ -58,9 +58,9 @@ class User < ActiveRecord::Base
   # Association
   belongs_to :company
   belongs_to :address         , foreign_key: :primary_address_id
-  has_many :contracts         , class_name: 'Contract' , foreign_key: :created_by_id
+  has_many :created_contracts , class_name: 'Contract' , foreign_key: :created_by_id
   has_many :contract_terms    , class_name: 'ContractTerm' , foreign_key: 'created_by'
-  has_many :respond_by        , class_name: 'Contract' , foreign_key: :responed_by_id
+  has_many :responded_contracts,class_name: 'Contract' , foreign_key: :respond_by_id
   has_many :leaves            , dependent: :destroy
   has_many :notifications     , as: :notifiable
   has_many :custom_fields     , as: :customizable

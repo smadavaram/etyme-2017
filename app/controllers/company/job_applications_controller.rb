@@ -32,16 +32,15 @@ class Company::JobApplicationsController < Company::BaseController
     @contract = @job.contracts.new
     @contract.contract_terms.new
     respond_to do |format|
-      # if @job_application.is_pending?
-      #   if @job_application.accepted!
-      #     format.js{ flash[:success] = "successfully Accepted." }
-      #   else
-      #     format.js{ flash[:errors] =  @job_application.errors.full_messages }
-      #   end
-      # else
-      #   format.js{ flash[:errors] =  ["Request Not Completed."]}
-      # end
-      format.js{ flash[:success] = "successfully Accepted." }
+      if @job_application.is_pending?
+        if @job_application.accepted!
+          format.js{ flash[:success] = "successfully Accepted." }
+        else
+          format.js{ flash[:errors] =  @job_application.errors.full_messages }
+        end
+      else
+        format.js{ flash[:errors] =  ["Request Not Completed."]}
+      end
     end
 
   end

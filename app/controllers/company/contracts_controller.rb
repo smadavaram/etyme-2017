@@ -2,8 +2,9 @@ class Company::ContractsController < Company::BaseController
 
 
 
-  before_action :find_job      , only: [ :show , :create , :update_contract_response  , :open_contract]
-  before_action :find_contract , only: [:show  , :update_contract_response  , :open_contract]
+  before_action :find_job      , only: [ :show , :create   , :open_contract]
+  before_action :find_receive_contract , only: [:update_contract_response]
+  before_action :find_contract , only: [:show    , :open_contract]
   before_action :set_contracts , only: [:index]
 
   def index
@@ -30,15 +31,8 @@ class Company::ContractsController < Company::BaseController
     end
   end
 
-  # POST company/jobs/:job_id/contracts/:id/open_contract?status=value
+  # POST company/jobs/:job_id/contracts/:id/open_contract?status= :value
   def open_contract
-    # @accept_status = nil
-    # if params[:status] == 'accept'
-    #   @accept_status = true
-    # elsif  params[:status] == 'reject'
-    #   @accept_status = false
-    # end
-    # puts params[:status]
   end
 
   # POST company/jobs/:job_id/contracts/:id/update_contract_response?status= :value
@@ -46,7 +40,7 @@ class Company::ContractsController < Company::BaseController
     status = params[:status] == "reject" ? 2 : params[:status] == "accept" ? 1 : nil
     respond_to do |format|
       if @contract.is_pending?
-        if @contract.update_attributes(response_from_vendor: params[:contract][:response_from_vendor] ,responed_by_id: current_user.id , responed_at: Time.now , status: status)
+        if @contract.update_attributes(response_from_vendor: params[:contract][:response_from_vendor] ,respond_by_id: current_user.id , responed_at: Time.now , status: status)
           format.js{ flash[:success] = "successfully Submitted." }
         else
           format.js{ flash[:errors] =  @contract.errors.full_messages }
@@ -64,8 +58,12 @@ class Company::ContractsController < Company::BaseController
       @contract = @job.contracts.find_by_id(params[:id]) || []
     end
 
+    def find_receive_contract
+      @contract   = current_company.received_contracts.where(id: params[:id]).first || []
+    end
+
     def find_job
-       @job = Job.find_by_id(params[:job_id])
+       @job = current_company.jobs.find_by_id(params[:job_id])
     end
 
     def set_contracts
