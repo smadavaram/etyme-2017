@@ -4,9 +4,9 @@
       %article.col-sm-12.col-md-12.col-lg-12
         #wid-id-0.jarviswidget
           %header
-            %h2= @company_job.title.titleize
+            %h2= @job.title.titleize
           / widget div
           %div
             .jarviswidget-editbox
             .widget-body
-              = render 'company/jobs/partials/job_show_form'
+              = render 'candidate/jobs/partials/job_show_form'

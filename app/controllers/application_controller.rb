@@ -4,8 +4,8 @@ class ApplicationController < ActionController::Base
 
   layout :set_devise_layout
 
-  before_filter :authenticate_user!
-  before_action :verify_company #if Rails.env.production?
+  # before_filter :authenticate_user!
+  before_action :verify_company
 
 
   def set_devise_layout
@@ -15,8 +15,10 @@ class ApplicationController < ActionController::Base
   def after_sign_in_path_for(resource)
     if session[:previous_url]
       return session[:previous_url]
-    elsif resource.class.name == 'HiringManager' || resource.class.name == 'Vendor'
+    elsif resource.class.name == 'Admin'
       return dashboard_path
+    elsif resource.class.name=='Candidate'
+      return candidate_dashboard_path
     else
       super
     end
@@ -28,9 +30,6 @@ class ApplicationController < ActionController::Base
     end
   end #End of verify_company
 
-  def current_company
-    @company ||= Company.where(slug: request.subdomain).first
-  end
-  helper_method :current_company
+
 
 end

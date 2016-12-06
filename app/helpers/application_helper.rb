@@ -142,7 +142,7 @@ module ApplicationHelper
             content: "<i class='fa fa-lg fa-fw fa-briefcase'></i> <span class='menu-item-parent'>" + 'JOBS' + "</span>",
             children: [
                 {
-                    href: jobs_path,
+                    href: candidate_jobs_path,
                     title: 'Jobs',
                     content: "<span class='menu-item-parent'> Jobs </span>"
                 },

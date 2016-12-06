@@ -42,7 +42,22 @@
 
 Rails.application.routes.draw do
 
+  devise_for :candidates, controllers: {
+      sessions: 'candidates/sessions',
+      registrations: 'candidates/registrations',
+      password:'candidates/passwords'
+  }
+  # devise_for :candidates
+  namespace :candidate do
+    resources :jobs
+  end
+  scope module: :candidate do
+    get 'dashboard' ,       to: 'candidates#dashboard' ,             as: :candidate_dashboard
+    # resources :jobs , as: :candidate_jobs
+  end
 
+
+  # devise_for :candidates
   namespace :company do
   get 'companies/edit'
   end

@@ -11,7 +11,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema.define(version: 20161201073829) do
+ActiveRecord::Schema.define(version: 20161206100453) do
 
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
@@ -34,6 +34,7 @@ ActiveRecord::Schema.define(version: 20161201073829) do
     t.string   "documentable_type"
     t.datetime "created_at",        null: false
     t.datetime "updated_at",        null: false
+    t.string   "file"
   end
 
   add_index "attachable_docs", ["company_doc_id"], name: "index_attachable_docs_on_company_doc_id", using: :btree
@@ -49,6 +50,34 @@ ActiveRecord::Schema.define(version: 20161201073829) do
     t.datetime "created_at",      null: false
     t.datetime "updated_at",      null: false
   end
+
+  create_table "candidates", force: :cascade do |t|
+    t.string   "first_name",             default: ""
+    t.string   "last_name",              default: ""
+    t.integer  "gender"
+    t.string   "email",                  default: "", null: false
+    t.string   "type"
+    t.string   "phone"
+    t.integer  "primary_address_id"
+    t.string   "photo"
+    t.json     "signature"
+    t.integer  "status"
+    t.date     "dob"
+    t.string   "encrypted_password",     default: "", null: false
+    t.string   "reset_password_token"
+    t.datetime "reset_password_sent_at"
+    t.datetime "remember_created_at"
+    t.integer  "sign_in_count",          default: 0,  null: false
+    t.datetime "current_sign_in_at"
+    t.datetime "last_sign_in_at"
+    t.inet     "current_sign_in_ip"
+    t.inet     "last_sign_in_ip"
+    t.datetime "created_at",                          null: false
+    t.datetime "updated_at",                          null: false
+  end
+
+  add_index "candidates", ["email"], name: "index_candidates_on_email", unique: true, using: :btree
+  add_index "candidates", ["reset_password_token"], name: "index_candidates_on_reset_password_token", unique: true, using: :btree
 
   create_table "companies", force: :cascade do |t|
     t.integer  "owner_id"
@@ -75,6 +104,7 @@ ActiveRecord::Schema.define(version: 20161201073829) do
     t.string   "accountant_contact_email"
     t.datetime "created_at",                               null: false
     t.datetime "updated_at",                               null: false
+    t.integer  "company_type",             default: 0
   end
 
   add_index "companies", ["owner_id"], name: "index_companies_on_owner_id", using: :btree
@@ -104,21 +134,35 @@ ActiveRecord::Schema.define(version: 20161201073829) do
 
   add_index "consultant_profiles", ["consultant_id"], name: "index_consultant_profiles_on_consultant_id", using: :btree
 
+  create_table "contract_terms", force: :cascade do |t|
+    t.decimal  "rate"
+    t.text     "note"
+    t.text     "terms_condition"
+    t.integer  "created_by"
+    t.integer  "status",          default: 0
+    t.integer  "contract_id"
+    t.datetime "created_at",                  null: false
+    t.datetime "updated_at",                  null: false
+  end
+
+  add_index "contract_terms", ["created_by"], name: "index_contract_terms_on_created_by", using: :btree
+
   create_table "contracts", force: :cascade do |t|
     t.integer  "job_application_id"
     t.integer  "job_id"
     t.date     "start_date"
     t.date     "end_date"
-    t.text     "terms_conditions"
     t.string   "message_from_hiring"
     t.string   "response_from_vendor"
     t.integer  "created_by_id"
-    t.integer  "responed_by_id"
+    t.integer  "respond_by_id"
     t.string   "responed_at"
     t.integer  "status",               default: 0
     t.integer  "assignee_id"
     t.datetime "created_at",                       null: false
     t.datetime "updated_at",                       null: false
+    t.integer  "billing_frequency",    default: 0
+    t.integer  "time_sheet_frequency", default: 0
   end
 
   create_table "custom_fields", force: :cascade do |t|

@@ -11,3 +11,4 @@ Rails.application.config.assets.version = '1.0'
 # Rails.application.config.assets.precompile += %w(plugin/pace/pace.min.js)
 Rails.application.config.assets.precompile += %w(company.js)
 Rails.application.config.assets.precompile += %w(company.css tinymce-jquery.js)
+Rails.application.config.assets.precompile += %w( plugin/pace/pace.min.js )

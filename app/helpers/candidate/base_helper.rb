@@ -1,0 +1,2 @@
+module Candidate::BaseHelper
+end
