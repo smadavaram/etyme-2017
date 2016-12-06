@@ -3,7 +3,7 @@ class Company::ContractsController < Company::BaseController
 
 
   before_action :find_job      , only: [ :show , :create , :update_contract_response  , :open_contract]
-  before_action :find_contract , only: [:show ,:create , :update_contract_response  , :open_contract]
+  before_action :find_contract , only: [:show  , :update_contract_response  , :open_contract]
   before_action :set_contracts , only: [:index]
 
   def index
@@ -76,7 +76,7 @@ class Company::ContractsController < Company::BaseController
 
 
   def contract_params
-    params.require(:contract).permit([:job_id  , :billing_frequency , :time_sheet_frequency, :job_application_id , :start_date , :end_date  , :message_from_hiring  ,:status ,company_doc_ids: [] , contract_terms_attributes: [:id, :created_by, :contract_id , :status , :terms_condition ,:rate , :note]])
+    params.require(:contract).permit([:job_id  , :billing_frequency, :time_sheet_frequency, :job_application_id , :start_date , :end_date  , :message_from_hiring  ,:status ,company_doc_ids: [] , contract_terms_attributes: [:id, :created_by, :contract_id , :status , :terms_condition ,:rate , :note , :_destroy]])
   end
 
 

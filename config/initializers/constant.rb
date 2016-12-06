@@ -1,3 +1,3 @@
 SITE_NAME = "Etyme"
-USER_TYPES = [["HiringManager", "HiringManager"], ["Vendor", "Vendor"]]
+COMPANY_TYPES = [["HiringManager", 0], ["Vendor", 1]]
 BILLING_FREQUENCY = [["Weekly", 0], ["BiWeekly", 1] , ["Monthly", 2] ,["BiMonthly", 3]]

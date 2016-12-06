@@ -5,6 +5,6 @@ class ContractTerm < ActiveRecord::Base
 
   #Association
   belongs_to :contract
-  belongs_to :created_by , class_name: 'User' , foreign_key: :created_by
+  belongs_to :user , class_name: 'User' , foreign_key: 'created_by'
 
 end

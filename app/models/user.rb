@@ -59,20 +59,18 @@ class User < ActiveRecord::Base
   belongs_to :company
   belongs_to :address         , foreign_key: :primary_address_id
   has_many :contracts         , class_name: 'Contract' , foreign_key: :created_by_id
-  has_many :contract_terms    , class_name: 'ContractTerm' , foreign_key: :created_by
-  has_many :respond_by        , class_name: 'User' , foreign_key: :responed_by_id
+  has_many :contract_terms    , class_name: 'ContractTerm' , foreign_key: 'created_by'
+  has_many :respond_by        , class_name: 'Contract' , foreign_key: :responed_by_id
   has_many :leaves            , dependent: :destroy
   has_many :notifications     , as: :notifiable
   has_many :custom_fields     , as: :customizable
   has_many :attachable_docs   , as: :documentable , dependent: :destroy
   has_many :company_docs      , through: :attachable_docs
   has_and_belongs_to_many :roles
-  # has_and_belongs_to_many :company_docs,join_table: "user_docs"
 
   #Nested Attributes
   accepts_nested_attributes_for :attachable_docs , reject_if: :all_blank
-
-  accepts_nested_attributes_for :custom_fields , reject_if: :all_blank
+  accepts_nested_attributes_for :custom_fields   , reject_if: :all_blank
 
   def is_admin?
     self.type == "Admin"

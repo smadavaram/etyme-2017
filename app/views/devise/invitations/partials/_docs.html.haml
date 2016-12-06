@@ -6,7 +6,7 @@
 -#    Your company requires you to download and review the documents below, in some cases signing is required. Please sign and upload the documents marked in red before hitting Next.
 -#%br/
 .nested-fields
-  = f.fields_for :user_docs do |ed|
+  = f.fields_for :attachment_docs do |ed|
     %div{class: "employee-doc-#{ed.object.id}"}
       .col-sm-8
         %h4
