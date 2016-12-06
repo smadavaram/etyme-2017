@@ -49,7 +49,12 @@ Rails.application.routes.draw do
   }
   # devise_for :candidates
   namespace :candidate do
-    resources :jobs
+    resources :jobs do
+      resources :job_applications
+      member do
+        post :apply
+      end #end of member
+    end # End of jobs
   end
   scope module: :candidate do
     get 'dashboard' ,       to: 'candidates#dashboard' ,             as: :candidate_dashboard

@@ -66,6 +66,7 @@ class User < ActiveRecord::Base
   has_many :custom_fields     , as: :customizable
   has_many :attachable_docs   , as: :documentable , dependent: :destroy
   has_many :company_docs      , through: :attachable_docs
+  has_many :job_applications  , dependent: :destroy
   has_and_belongs_to_many :roles
 
   #Nested Attributes
