@@ -45,7 +45,7 @@ Rails.application.routes.draw do
   devise_for :candidates, controllers: {
       sessions: 'candidates/sessions',
       registrations: 'candidates/registrations',
-      password:'candidates/passwords'
+      passwords:'candidates/passwords'
   }
   # devise_for :candidates
   namespace :candidate do
