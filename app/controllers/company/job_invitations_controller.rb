@@ -3,17 +3,13 @@ class Company::JobInvitationsController < Company::BaseController
   #CallBacks
   before_action :find_job            , only: [:create , :update]
   before_action :find_job_invitation , only: [ :update]
-  before_action :set_job_invitations , only: [:invitations]
+  before_action :set_job_invitations , only: [:index]
   before_action :find_received_job_invitations , only: [:accept_job_invitation , :reject_job_invitation]
 
   #BreadCrumbs
   add_breadcrumb "JOB INVITATIONS", :job_invitations_path, options: { title: "JOBS INVITATIONS" }
 
   # GET company/job_inivations
-  def invitations
-
-  end
-
   def index
 
   end

@@ -46,11 +46,11 @@ class Company < ActiveRecord::Base
   has_many :jobs              , dependent: :destroy
   has_many :users             , dependent: :destroy
   has_many :admins            , dependent: :destroy
-  has_many :consultants
+  has_many :consultants       , dependent: :destroy
   has_many :roles             , dependent: :destroy
   has_many :company_docs      , dependent: :destroy
   has_many :job_invitations   , through:   :jobs
-  has_many :job_applications  , through:   :job_invitations
+  has_many :job_applications  , through:   :jobs
   has_many :contracts         , through:   :jobs
   has_many :leaves            , through:   :users
   # has_many :job_invitations_received , through: :admins , source: :recipient , source_type: :job_invitations

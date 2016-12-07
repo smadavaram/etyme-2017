@@ -32,7 +32,7 @@ class Job < ActiveRecord::Base
   has_many     :job_applications ,dependent: :destroy
   has_many     :job_invitations  ,dependent: :destroy
   has_many     :custom_fields    ,as: :customizable
-  has_many     :job_applications ,through: :job_invitations
+  # has_many     :job_applications ,through: :job_invitations
 
   #Nested Attributes
   accepts_nested_attributes_for :custom_fields , reject_if: :all_blank

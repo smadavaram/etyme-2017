@@ -42,23 +42,19 @@
 
 Rails.application.routes.draw do
 
-  devise_for :candidates, controllers: {
-      sessions: 'candidates/sessions',
-      registrations: 'candidates/registrations',
-      passwords:'candidates/passwords'
-  }
+
   # devise_for :candidates
   namespace :candidate do
+    get '/' ,       to: 'candidates#dashboard' ,             as: :candidate_dashboard
+
+    resources :job_applications , only: [:index]
+    resources :contracts        , only: [:index]
     resources :jobs do
       resources :job_applications
       member do
         post :apply
       end #end of member
     end # End of jobs
-  end
-  scope module: :candidate do
-    get 'dashboard' ,       to: 'candidates#dashboard' ,             as: :candidate_dashboard
-    # resources :jobs , as: :candidate_jobs
   end
 
 
@@ -99,10 +95,17 @@ Rails.application.routes.draw do
     resources :locations
     resources :company_docs
     resources :roles
-    resources :admins
+    resources :adminsgit 
     resources :addresses
     resources :attachments      , only: [:index]
-    resources :job_applications , only: [:index]
+    resources :job_invitations  , only: [:index]
+    resources :job_applications , only: [:index] do
+      member do
+        post :accept_job_application               , as: :accept_job_application
+        post :reject_job_application               , as: :reject_job_application
+        post :short_list_job_application           , as: :short_list_job_application
+      end # End of member
+    end
     resources :contracts        , only: [:index]
     resources :jobs do
       resources :contracts , except: [:index] do
@@ -112,14 +115,8 @@ Rails.application.routes.draw do
         end # End of member
       end # End of :contracts
 
-      resources :job_invitations do
-        resources :job_applications , except: [:index] do
-          member do
-            post :accept_job_application               , as: :accept_job_application
-            post :reject_job_application               , as: :reject_job_application
-            post :short_list_job_application           , as: :short_list_job_application
-          end # End of member
-        end # End of :job_applications
+      resources :job_invitations , except: [:index] do
+        resources :job_applications , except: [:index]
         member do
           post :accept_job_invitation , as: :accept_job_invitation
           post :reject_job_invitation , as: :reject_job_invitation
@@ -134,7 +131,6 @@ Rails.application.routes.draw do
     #leaves path for owner of company
     get 'leaves',            to: 'leaves#employees_leaves'      , as: :employees_leaves
     get 'attachment/documents_list',to: 'attachments#document_list'
-    get 'job_invitations' , to: 'job_invitations#invitations' , as: :job_invitations
     get 'dashboard' ,       to: 'users#dashboard' ,             as: :dashboard
     post 'update_photo',    to: 'users#update_photo'
 
@@ -221,6 +217,13 @@ Rails.application.routes.draw do
 
   resources :companies , only: [:new , :create,:update]
   resources :static , only: [:index]
+
+  # Devise Routes
+  devise_for :candidates, controllers: {
+                            sessions: 'candidates/sessions',
+                            registrations: 'candidates/registrations',
+                            password:'candidates/passwords'
+                        }
 
   devise_for :users, controllers: { invitations: 'company/invitations' } , path_names: { sign_in: 'login', sign_out: 'logout'}
 

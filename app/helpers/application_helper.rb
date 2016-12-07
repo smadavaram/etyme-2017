@@ -3,6 +3,9 @@ module ApplicationHelper
   def left_menu
     left_menu_entries(left_menu_content)
   end
+  def candidate_left_menu
+    left_menu_entries(candidate_left_menu_content)
+  end
 
   private
 
@@ -142,7 +145,7 @@ module ApplicationHelper
             content: "<i class='fa fa-lg fa-fw fa-briefcase'></i> <span class='menu-item-parent'>" + 'JOBS' + "</span>",
             children: [
                 {
-                    href: candidate_jobs_path,
+                    href: jobs_path,
                     title: 'Jobs',
                     content: "<span class='menu-item-parent'> Jobs </span>"
                 },
@@ -200,6 +203,39 @@ module ApplicationHelper
                 }
             ]
         },
+    ]
+  end
+
+
+  def candidate_left_menu_content
+    [
+        {
+            href: '/candidate',
+            title: 'HOME',
+            content: "<i class='fa fa-lg fa-fw fa-home'></i> <span class='menu-item-parent'>" + 'HOME' + "</span>",
+        },
+        {
+            href: '#',
+            title: 'JOBS',
+            content: "<i class='fa fa-lg fa-fw fa-briefcase'></i> <span class='menu-item-parent'>" + 'JOBS' + "</span>",
+            children: [
+                {
+                    href: candidate_jobs_path,
+                    title: 'Jobs',
+                    content: "<span class='menu-item-parent'> Jobs </span>"
+                },
+                {
+                    href: candidate_job_applications_path,
+                    title: 'Job Applications',
+                    content: "<span class='menu-item-parent'> Job Applications </span>"
+                },
+                {
+                    href: candidate_contracts_path,
+                    title: 'Contracts',
+                    content: "<span class='menu-item-parent'> Contracts </span>"
+                },
+            ]
+        }
     ]
   end
 

@@ -17,6 +17,9 @@ class Candidate::JobsController < Candidate::BaseController
   end
 
   def apply
+    # if current_candidate.jobs_applications.where(job: @job)
+    #
+    # end
 
   end
 

@@ -3,7 +3,7 @@ class Candidate::JobApplicationsController < Candidate::BaseController
   before_action :find_job , only: [:create]
 
   def create
-    @job_application  = current_candidate.job_applications.new(job_application_params.merge!(job_id: @job.id))
+    @job_application  = current_candidate.job_applications.new(job_application_params.merge!(job_id: @job.id , application_type: :candidate_direct))
     respond_to do |format|
       if @job_application.save
         format.js{ flash[:success] = "successfully Accepted." }

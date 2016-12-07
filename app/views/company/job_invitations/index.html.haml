@@ -7,11 +7,11 @@
           %ul#demo-pill-nav.nav.nav-tabs.tabs-left
             %li.active
               %a{"data-toggle" => "tab", :href => "#tab-r1"}
-                %span.badge.bg-color-blue.txt-color-white= @job_invitations.pending.count
+                %span.badge.bg-color-blue.txt-color-white= @job_invitations.count
                 Sent Invitations
             %li
               %a{"data-toggle" => "tab", :href => "#tab-r2"}
-                %span.badge.bg-color-blueDark.txt-color-white 3
+                %span.badge.bg-color-blueDark.txt-color-white= @job_invitations_received.count
                 Received Invitations
           .col-md-10
             .tab-content

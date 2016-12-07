@@ -1,6 +1,7 @@
 class JobApplication < ActiveRecord::Base
 
   enum status: { accept: 1 , pending: 0  , reject: 2 , short_list: 3 }
+  enum application_type: [:direct , :candidate_direct , :vendor_direct , :invitation]
 
   #Association
   belongs_to :job_invitation
@@ -23,10 +24,12 @@ class JobApplication < ActiveRecord::Base
 
   # Scopes
   default_scope { order(created_at: :desc) }
-  scope :pending    , -> {where(status: 0)}
-  scope :accepted   , -> {where(status: 1)}
-  scope :rejected   , -> {where(status: 2)}
-  scope :short_list , -> {where(status: 2)}
+  scope :pending          , -> {where(status: 0)}
+  scope :accepted         , -> {where(status: 1)}
+  scope :rejected         , -> {where(status: 2)}
+  scope :short_list       , -> {where(status: 3)}
+  scope :candidate_direct , -> {where(application_type: 'candidate_direct')}
+  scope :invitation       , -> {where(application_type: 'invitation')}
 
   def accepted!
     self.update_column(:status , 1)
