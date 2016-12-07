@@ -14,4 +14,6 @@
     %tr
       %th Location
       %td= @job.location.name
-
+    %tr
+      %th
+      %td= link_to 'Apply Now' , apply_candidate_job_path(@job) , method: :post , remote: true ,  class: 'btn btn-md btn-default btn-success pull-right'

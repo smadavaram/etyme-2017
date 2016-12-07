@@ -4,7 +4,8 @@ class JobApplication < ActiveRecord::Base
 
   #Association
   belongs_to :job_invitation
-  has_one    :job ,through: :job_invitation
+  belongs_to :user
+  belongs_to :job
   has_one    :company , through: :job
   has_one    :contract
   has_many   :custom_fields ,as: :customizable
@@ -14,7 +15,7 @@ class JobApplication < ActiveRecord::Base
   validates :cover_letter , presence: true
 
   #CallBacks
-  after_create :update_job_invitation_status
+  after_create :update_job_invitation_status , if: Proc.new{|application| application.job_invitation.present?}
   after_update :notify_recipient_on_status_change, if: Proc.new{|application| application.status_changed?}
 
   #Nested Attributes

@@ -29,6 +29,7 @@ class Job < ActiveRecord::Base
   belongs_to   :company
   belongs_to   :location
   has_many     :contracts        ,dependent: :destroy
+  has_many     :job_applications ,dependent: :destroy
   has_many     :job_invitations  ,dependent: :destroy
   has_many     :custom_fields    ,as: :customizable
   has_many     :job_applications ,through: :job_invitations
@@ -42,8 +43,8 @@ class Job < ActiveRecord::Base
 
   #Scopes
    scope :active ,   -> { where('end_date>=?',Date.today) }
-   scope :expired,   ->  { where('end_date<?',Date.today) }
-   scope :is_public, ->{where(is_public: true)}
+   scope :expired,   -> { where('end_date<?',Date.today) }
+   scope :is_public, -> { where(is_public: true)}
 
 
 end

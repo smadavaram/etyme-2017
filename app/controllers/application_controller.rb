@@ -30,6 +30,11 @@ class ApplicationController < ActionController::Base
     end
   end #End of verify_company
 
+  def current_company
+    @company ||= Company.where(slug: request.subdomain).first if request.subdomain.present?
+  end
+  helper_method :current_company
+
 
 
 end

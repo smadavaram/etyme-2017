@@ -1,7 +1,7 @@
 class Candidate::JobsController < Candidate::BaseController
 
   #CallBacks
-  before_action :set_job,only: :show
+  before_action :set_job,only: [:show, :apply]
   before_action :set_public_jobs,only: [:index]
 
   #Breadcumb
@@ -13,6 +13,10 @@ class Candidate::JobsController < Candidate::BaseController
   end
 
   def index
+
+  end
+
+  def apply
 
   end
 

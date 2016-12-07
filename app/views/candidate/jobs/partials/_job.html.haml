@@ -8,4 +8,4 @@
     %td
       -#= link_to raw("<i class='fa fa-pencil '></i>") , edit_job_path(job) , class: 'btn btn-xs btn-default btn-primary'
       -#= link_to raw("<i class='fa fa-times '></i>") , job_path(job) , method: :delete ,  class: 'btn btn-xs btn-default btn-danger'
-      = link_to 'Apply' ,send_invitation_job_path(job) , method: :post ,remote: true,class: 'btn btn-xs btn-default btn-success'
+      = link_to 'View Details' ,candidate_job_path(job) ,target: '_blank' ,class: 'btn btn-xs btn-default btn-success'
