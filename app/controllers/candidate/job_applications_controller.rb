@@ -1,6 +1,7 @@
 class Candidate::JobApplicationsController < Candidate::BaseController
 
   before_action :find_job , only: [:create]
+  before_action :job_applications,only: :index
 
   def create
     @job_application  = current_candidate.job_applications.new(job_application_params.merge!({job_id: @job.id , application_type: :candidate_direct}))
@@ -12,8 +13,13 @@ class Candidate::JobApplicationsController < Candidate::BaseController
       end
     end
   end
+  def index
+  end
 
   private
+  def job_applications
+    @job_applications=current_candidate.job_applications
+  end
   def find_job
     @job = Job.find_by_id(params[:job_id]) || []
   end
