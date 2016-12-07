@@ -149,6 +149,6 @@
 // Amaran For Alerts
 //= require jquery.amaran
 
-// Tinymc
+//= require tinymce
 
 //= require data-confirm-modal
