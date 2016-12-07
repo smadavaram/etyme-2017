@@ -95,7 +95,7 @@ Rails.application.routes.draw do
     resources :locations
     resources :company_docs
     resources :roles
-    resources :adminsgit 
+    resources :admins
     resources :addresses
     resources :attachments      , only: [:index]
     resources :job_invitations  , only: [:index]

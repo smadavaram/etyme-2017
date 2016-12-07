@@ -18,7 +18,7 @@ class ApplicationController < ActionController::Base
     elsif resource.class.name == 'Admin'
       return dashboard_path
     elsif resource.class.name=='Candidate'
-      return '/candidates'
+      return '/candidate'
     else
       super
     end
