@@ -167,11 +167,6 @@ module ApplicationHelper
             ]
         },
         {
-            href: vendors_path,
-            title: 'VENDORS',
-            content: "<i class='fa fa-lg fa-fw fa-black-tie'></i> <span class='menu-item-parent'>" + 'VENDORS' + "</span>",
-        },
-        {
             href: new_company_doc_path,
             title: 'Company Docs',
             content: "<i class='fa fa-lg fa-fw fa-black-tie'></i> <span class='menu-item-parent'>" + 'Company Docs' + "</span>",

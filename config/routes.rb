@@ -140,7 +140,6 @@ Rails.application.routes.draw do
         post :get_admins_list , as: :get_admins_list
       end
     end
-    resources :vendors ,only: [:show,:index]
 
 
     # AJAX for layout setting, remove in future
