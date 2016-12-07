@@ -1,11 +1,12 @@
 .modal.fade.in{ id: "job-invite-#{job.id}"}
-  .modal-dialog
+  .modal-dialog.modal-lg
     .modal-content
       .modal-header
         %button.close{"aria-hidden" => "true", "data-dismiss" => "modal", :type => "button"}
           ×
         %h2#myModalLabel.modal-title
           %strong Job Application - #{job.title}
+        %hr
         .modal-title
           = raw job.description
 
