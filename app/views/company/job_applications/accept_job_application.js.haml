@@ -3,5 +3,5 @@
     flash_error("#{e}");
 - if flash[:success].present?
   flash_success("#{flash[:success]}");
-  $('#ajax-modal').html("#{ j render(partial: 'company/contracts/partials/contract_modal' , locals: {job: @job , contract: @contract ,  job_application: @job_application})}");
-  $("#contract-#{@job.id}").modal('show');
+  $('#ajax-modal').html("#{ j render(partial: 'company/contracts/partials/contract_modal' , locals: {job: @job_application.job , contract: @contract ,  job_application: @job_application})}");
+  $("#contract-#{@job_application.job.id}").modal('show');

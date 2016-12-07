@@ -29,7 +29,7 @@ class Company::JobApplicationsController < Company::BaseController
 
   # POST company/jobs/:job_id/job_invitations/:job_invitation_id/job_applications/:id/accept_job_application
   def accept_job_application
-    @contract = @job.contracts.new
+    @contract = @job_application.job.contracts.new
     @contract.contract_terms.new
     respond_to do |format|
       if @job_application.is_pending?

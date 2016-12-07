@@ -7,7 +7,7 @@
         %h1
           %span.semi-bold Contract -
           %i.ultra-light #{job_application.company.try(:name)}
-          (#{link_to job_application.job_invitation.try(:recipient).full_name ,  '#' , target: '_blank'})
+          (#{link_to job_application.try(:user).full_name ,  '#' , target: '_blank'})
           -#%sup.badge.bg-color-red.bounceIn.animated v 2.0
           %br/
           %small.text-danger.slideInRight.fast.animated
