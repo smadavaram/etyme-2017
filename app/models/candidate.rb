@@ -7,6 +7,10 @@ class Candidate < User
 
 
 
+  def etyme_url
+    ENV['domain']
+  end
+
 
   private
 
