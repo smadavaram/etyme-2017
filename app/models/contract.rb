@@ -48,7 +48,7 @@ class Contract < ActiveRecord::Base
 
     # Call after create
     def notify_recipient
-      self.job_invitation.recipient.notifications.create(message: self.company.name+" send a contract offer for "+self.job.title ,title:"Contract- #{self.job.title}") if self.job_application.present?
+      self.job_application.user.notifications.create(message: self.company.name+" send a contract offer for "+self.job.title ,title:"Contract- #{self.job.title}") if self.job_application.present?
     end
 
     # Call after update

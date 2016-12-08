@@ -224,11 +224,11 @@ module ApplicationHelper
                     title: 'Job Applications',
                     content: "<span class='menu-item-parent'> Job Applications </span>"
                 },
-                {
-                    href: candidate_contracts_path,
-                    title: 'Contracts',
-                    content: "<span class='menu-item-parent'> Contracts </span>"
-                },
+                # {
+                #     href: candidate_contracts_path,
+                #     title: 'Contracts',
+                #     content: "<span class='menu-item-parent'> Contracts </span>"
+                # },
             ]
         }
     ]

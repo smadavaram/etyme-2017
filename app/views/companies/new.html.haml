@@ -78,9 +78,19 @@
                       %i
                     %a{"data-target" => "#myModal", "data-toggle" => "modal", :href => "#"} Terms and Conditions
               %footer
-                %button.btn.btn-primary{:type => "submit"}
-                  Register
-                =link_to ' Candidate Signup?',new_candidate_registration_path
+                .row
+                  .col-md-4{style: 'margin-top: 16px; margin-left: 20px;'}
+                    = link_to ' Candidate Signup?',new_candidate_registration_path
+                  .col-md-6
+                    %button.btn.btn-primary{:type => "submit"}
+                      Register
+
+            -#%fieldset
+              %section
+                %label.input
+                  %i.icon-append.fa.fa-user
+                  = f.text_field :name  ,:placeholder => "Company name", required: true,minlength: "3"
+                  %b.tooltip.tooltip-bottom-right Company Name
 
 
         %h5.text-center - Or sign in using -

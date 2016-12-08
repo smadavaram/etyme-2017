@@ -62,8 +62,12 @@
                     = f.password_field :password_confirmation, :placeholder => "Confirm password", "data-rule-equalTo": "#company_owner_attributes_password"
                     %b.tooltip.tooltip-bottom-right Please confirm the password
               %footer
-                %button.btn.btn-primary{:type => "submit"}
-                  Register
+                .row
+                  .col-md-4{style: 'margin-top: 16px; margin-left: 20px;'}
+                    = link_to ' Company Signup?', '/'
+                  .col-md-6
+                    %button.btn.btn-primary{:type => "submit"}
+                      Register
         %h5.text-center - Or sign in using -
         %ul.list-inline.text-center
           %li

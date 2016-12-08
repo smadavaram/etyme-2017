@@ -5,38 +5,17 @@
       .widget-body
         .tabs-left.row
           %ul#demo-pill-nav.nav.nav-tabs.tabs-left
-            %li.active
-              %a{"data-toggle" => "tab", :href => "#tab-r1"}
-                %span.badge.bg-color-blue.txt-color-white= @send_contracts.count
-                Sent Contracts
+            -#%li.active
+            -#  %a{"data-toggle" => "tab", :href => "#tab-r1"}
+            -#    %span.badge.bg-color-blue.txt-color-white= @job_applications.invitation.count
+                Vendors
             %li
               %a{"data-toggle" => "tab", :href => "#tab-r2"}
-                %span.badge.bg-color-blueDark.txt-color-white= @received_contracts.count
-                Received Contracts
+                %span.badge.bg-color-blueDark.txt-color-white= @job_applications.count
+                Direct
           .col-md-10
             .tab-content
-              #tab-r1.tab-pane.active
-                #hb2.tab-pane.active
-                  %ul#internal-tab-1.nav.nav-tabs.tabs-pull-right
-                    %li
-                      %a{"aria-expanded" => "false", "data-toggle" => "tab", :href => "#is4"} Rejected
-                    %li
-                      %a{"aria-expanded" => "false", "data-toggle" => "tab", :href => "#is1"} Accepted
-                    %li
-                      %a{"aria-expanded" => "false", "data-toggle" => "tab", :href => "#is2"} Pending
-                    %li.active
-                      %a{"aria-expanded" => "true", "data-toggle" => "tab", :href => "#is3"} All
-                  .tab-content.padding-10
-                    #is4.tab-pane
-                      = render partial: 'company/contracts/partials/contract_table' , locals: {data: @send_contracts.rejected}
-                    #is1.tab-pane
-                      = render partial: 'company/contracts/partials/contract_table' , locals: {data: @send_contracts.accepted}
-                    #is2.tab-pane.fade
-                      = render partial: 'company/contracts/partials/contract_table' , locals: {data: @send_contracts.pending}
-                    #is3.tab-pane.fade.active.in
-                      = render partial: 'company/contracts/partials/contract_table' , locals: { data: @send_contracts}
-
-              #tab-r2.tab-pane
+              #tab-r2.tab-pane.active
                 #hb22.tab-pane.active
                 %ul#internal-tab-2.nav.nav-tabs.tabs-pull-right
                   %li
@@ -49,15 +28,15 @@
                     %a{"aria-expanded" => "true", "data-toggle" => "tab", :href => "#is-3"} All
                 .tab-content.padding-10
                   #is-4.tab-pane
-                    = render partial: 'company/contracts/partials/receive_contract_table'  , locals: {data: @received_contracts.rejected}
+                    = render  'candidate/job_applications/partials/application_table' ,data: @job_applications.rejected
                   #is-1.tab-pane
-                    = render partial: 'company/contracts/partials/receive_contract_table'  , locals: {data: @received_contracts.accepted}
+                    = render 'candidate/job_applications/partials/application_table' ,data: @job_applications.accepted
                   #is-2.tab-pane.fade
-                    = render partial: 'company/contracts/partials/receive_contract_table' , locals: {data: @received_contracts.pending}
+                    = render 'candidate/job_applications/partials/application_table' , data: @job_applications.pending
                   #is-3.tab-pane.fade.active.in
-                    = render partial: 'company/contracts/partials/receive_contract_table' , locals: {data: @received_contracts}
+                    = render 'candidate/job_applications/partials/application_table' , data: @job_applications
 - content_for :modals do
-  #ajax-modal
+  #job_invitation
 - content_for :scripts do
   :javascript
     // DO NOT REMOVE : GLOBAL FUNCTIONS!
