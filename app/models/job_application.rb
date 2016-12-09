@@ -7,7 +7,7 @@ class JobApplication < ActiveRecord::Base
   belongs_to :job_invitation
   belongs_to :user
   belongs_to :job
-  has_one    :company , through: :job
+  has_one    :company
   has_one    :contract
   has_many   :custom_fields ,as: :customizable
 
@@ -18,6 +18,7 @@ class JobApplication < ActiveRecord::Base
   #CallBacks
   after_create :update_job_invitation_status , if: Proc.new{|application| application.job_invitation.present?}
   after_update :notify_recipient_on_status_change, if: Proc.new{|application| application.status_changed?}
+  after_create :set_application_type, if: Proc.new{|application| application.job_invitation.present?}
 
   #Nested Attributes
   accepts_nested_attributes_for :custom_fields , reject_if: :all_blank
@@ -66,6 +67,10 @@ class JobApplication < ActiveRecord::Base
     # Call after update
     def notify_recipient_on_status_change
       self.job_invitation.recipient.notifications.create(message: self.company.name + " has #{self.status} your Job Application - #{self.job.title}")
+    end
+
+    def set_application_type
+      self.invitation!
     end
 
 end

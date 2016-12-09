@@ -2,10 +2,9 @@ class Company::JobApplicationsController < Company::BaseController
 
   #CallBacks
   before_action :find_job , only: [:create]
-  # before_action :find_job_invitation , only: [ , :reject_job_application , :short_list_job_application]
   before_action :find_received_job_invitation , only: [:create]
   before_action :set_job_applications , only: [:index]
-  before_action :find_job_application , only: [:accept_job_application , :reject_job_application , :short_list_job_application]
+  before_action :find_received_job_application , only: [:accept_job_application , :reject_job_application , :short_list_job_application]
 
   # BreadCrumbs
   add_breadcrumb "JOB APPLICATION", :job_applications_path, options: { title: "JOBS APPLICATION" }
@@ -16,7 +15,8 @@ class Company::JobApplicationsController < Company::BaseController
   end
 
   def create
-    @job_application  = @job_invitation.build_job_application(job_application_params)
+
+    @job_application  = current_company.job_applications.new(job_application_params.merge!(user_id: current_user.id , job_id: @job.id , job_invitation_id: @job_invitation.id))
     respond_to do |format|
       if @job_application.save
         format.js{ flash[:success] = "successfully Accepted." }
@@ -80,11 +80,13 @@ class Company::JobApplicationsController < Company::BaseController
   private
 
   def set_job_applications
-    @job_applications = current_company.job_applications || []
+    @received_job_applications = current_company.received_job_applications || []
+    @sent_job_applications     = current_company.sent_job_applications     || []
   end
 
   def find_job
-    @job = current_company.jobs.find_by_id(params[:job_id]) || []
+    # @job = current_company.jobs.find_by_id(params[:job_id]) || []
+    @job = Job.active.where(id: params[:job_id]).first || []
   end
 
   def find_job_invitation
@@ -95,8 +97,8 @@ class Company::JobApplicationsController < Company::BaseController
     @job_invitation = current_company.received_job_invitations.where(id: params[:job_invitation_id]).first || []
   end
 
-  def find_job_application
-    @job_application = current_company.job_applications.where(id: params[:id]).first || []
+  def find_received_job_application
+    @job_application = current_company.received_job_applications.where(id: params[:id]).first || []
   end
 
   def job_application_params

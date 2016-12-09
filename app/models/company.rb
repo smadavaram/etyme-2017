@@ -41,21 +41,23 @@ class Company < ActiveRecord::Base
 
   # Association
   #Note: Do not change the through association order.
-  belongs_to :owner , class_name: 'Admin',  foreign_key: "owner_id"
-  has_many :locations         , dependent: :destroy
-  has_many :jobs              , dependent: :destroy
-  has_many :users             , dependent: :destroy
-  has_many :admins            , dependent: :destroy
-  has_many :consultants       , dependent: :destroy
-  has_many :roles             , dependent: :destroy
-  has_many :company_docs      , dependent: :destroy
-  has_many :job_invitations   , through:   :jobs
-  has_many :job_applications  , through:   :jobs
-  has_many :contracts         , through:   :jobs
-  has_many :leaves            , through:   :users
+  belongs_to :owner                   , class_name: 'Admin',  foreign_key: "owner_id"
+  has_many :locations                 , dependent: :destroy
+  has_many :jobs                      , dependent: :destroy
+  has_many :users                     , dependent: :destroy
+  has_many :admins                    , dependent: :destroy
+  has_many :consultants               , dependent: :destroy
+  has_many :roles                     , dependent: :destroy
+  has_many :company_docs              , dependent: :destroy
+  has_many :job_invitations           , dependent: :destroy
+  has_many :sent_job_applications     , class_name: 'JobApplication', foreign_key: 'company_id' ,dependent: :destroy
+  has_many :received_job_applications , through: :jobs , source: 'job_applications'
+  has_many :received_contracts        , through:   :job_applications , source: :contracts
+  has_many :contracts                 , dependent: :destroy
+  has_many :leaves                    , through:   :users
   # has_many :job_invitations_received , through: :admins , source: :recipient , source_type: :job_invitations
-  has_one  :subscription      , dependent: :destroy
-  has_one  :package           , through:   :subscription
+  has_one  :subscription              , dependent: :destroy
+  has_one  :package                   , through:   :subscription
 
 
 
@@ -84,13 +86,9 @@ class Company < ActiveRecord::Base
     JobInvitation.where(recipient_id: self.admins.ids) || []
   end
 
-  def received_job_applications
-    JobApplication.where(job_invitation_id: received_job_invitations.ids) || []
-  end
-
-  def received_contracts
-    Contract.where(job_application_id: received_job_applications.ids) || []
-  end
+  # def received_contracts
+  #   Contract.where(job_application_id: received_job_applications.ids) || []
+  # end
 
   def etyme_url
     "#{self.slug}.#{ENV['domain']}"

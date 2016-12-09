@@ -12,6 +12,7 @@ class Contract < ActiveRecord::Base
   belongs_to :job_application
   belongs_to :job
   belongs_to :location
+  belongs_to :user
   has_one    :company        , through: :job
   has_one    :job_invitation , through: :job_application
   has_many   :contract_terms , dependent: :destroy

@@ -15,7 +15,7 @@ class Company::JobInvitationsController < Company::BaseController
   end
 
   def create
-    @job_invitation = @job.job_invitations.new(job_invitation_params.merge!(created_by_id: current_user.id))
+    @job_invitation = current_company.job_invitations.new(job_invitation_params.merge!(job_id: @job.id , created_by_id: current_user.id))
     respond_to do |format|
       if @job_invitation.save
         format.js{ flash[:success] = "Job Invitation successfully send." }

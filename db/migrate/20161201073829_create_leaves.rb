@@ -1,6 +1,5 @@
 class CreateLeaves < ActiveRecord::Migration
   def change
-    drop_table :leaves
     create_table :leaves do |t|
       t.date    :from_date
       t.date    :till_date
