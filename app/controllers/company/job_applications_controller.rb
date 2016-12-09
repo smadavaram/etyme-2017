@@ -15,8 +15,7 @@ class Company::JobApplicationsController < Company::BaseController
   end
 
   def create
-
-    @job_application  = current_company.job_applications.new(job_application_params.merge!(user_id: current_user.id , job_id: @job.id , job_invitation_id: @job_invitation.id))
+    @job_application  = current_company.sent_job_applications.new(job_application_params.merge!(user_id: current_user.id , job_id: @job.id , job_invitation_id: @job_invitation.id))
     respond_to do |format|
       if @job_application.save
         format.js{ flash[:success] = "successfully Accepted." }
@@ -29,15 +28,11 @@ class Company::JobApplicationsController < Company::BaseController
 
   # POST company/jobs/:job_id/job_invitations/:job_invitation_id/job_applications/:id/accept_job_application
   def accept_job_application
-    @contract = @job_application.job.contracts.new
-    @contract.contract_terms.new
     respond_to do |format|
       if @job_application.is_pending?
-        if @job_application.accepted!
-          format.js{ flash[:success] = "successfully Accepted." }
-        else
-          format.js{ flash[:errors] =  @job_application.errors.full_messages }
-        end
+        @contract = @job_application.job.contracts.new
+        @contract.contract_terms.new
+        format.js
       else
         format.js{ flash[:errors] =  ["Request Not Completed."]}
       end

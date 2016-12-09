@@ -41,7 +41,7 @@ class Company < ActiveRecord::Base
 
   # Association
   #Note: Do not change the through association order.
-  belongs_to :owner                   , class_name: 'Admin',  foreign_key: "owner_id"
+  belongs_to :owner                   , class_name: 'Admin'         , foreign_key: "owner_id"
   has_many :locations                 , dependent: :destroy
   has_many :jobs                      , dependent: :destroy
   has_many :users                     , dependent: :destroy
@@ -49,13 +49,13 @@ class Company < ActiveRecord::Base
   has_many :consultants               , dependent: :destroy
   has_many :roles                     , dependent: :destroy
   has_many :company_docs              , dependent: :destroy
-  has_many :job_invitations           , dependent: :destroy
+  has_many :sent_contracts            , class_name: 'Contract'      , foreign_key: 'company_id' ,dependent: :destroy
   has_many :sent_job_applications     , class_name: 'JobApplication', foreign_key: 'company_id' ,dependent: :destroy
-  has_many :received_job_applications , through: :jobs , source: 'job_applications'
-  has_many :received_contracts        , through:   :job_applications , source: :contracts
-  has_many :contracts                 , dependent: :destroy
+  has_many :sent_job_invitations      , class_name: 'JobInvitation' , foreign_key: 'company_id' ,dependent: :destroy
+  has_many :received_job_applications , through:   :jobs                  , source: 'job_applications'
+  has_many :received_job_invitations  , through:   :admins                , source: 'job_invitations'
+  has_many :received_contracts        , through:   :sent_job_applications , source: 'contract'
   has_many :leaves                    , through:   :users
-  # has_many :job_invitations_received , through: :admins , source: :recipient , source_type: :job_invitations
   has_one  :subscription              , dependent: :destroy
   has_one  :package                   , through:   :subscription
 
@@ -78,16 +78,11 @@ class Company < ActiveRecord::Base
   after_create      :welcome_email_to_owner
   after_create      :assign_free_subscription
 
+  #Scopes
+  scope :vendors, -> {where(company_type: 1)}
+
   # def job_invitations
   #   super + JobInvitation.where(recipient_id: self.admins.ids) || []
-  # end
-
-  def received_job_invitations
-    JobInvitation.where(recipient_id: self.admins.ids) || []
-  end
-
-  # def received_contracts
-  #   Contract.where(job_application_id: received_job_applications.ids) || []
   # end
 
   def etyme_url
@@ -105,6 +100,7 @@ class Company < ActiveRecord::Base
     # self.owner.accept_invitation!
   end
 
+  # Call after create
   def welcome_email_to_owner
      UserMailer.welcome_email_to_owner(self).deliver
   end

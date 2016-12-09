@@ -7,7 +7,7 @@
           %ul#demo-pill-nav.nav.nav-tabs.tabs-left
             %li.active
               %a{"data-toggle" => "tab", :href => "#tab-r1"}
-                %span.badge.bg-color-blue.txt-color-white= @send_contracts.count
+                %span.badge.bg-color-blue.txt-color-white= @sent_contracts.count
                 Sent Contracts
             %li
               %a{"data-toggle" => "tab", :href => "#tab-r2"}
@@ -28,13 +28,13 @@
                       %a{"aria-expanded" => "true", "data-toggle" => "tab", :href => "#is3"} All
                   .tab-content.padding-10
                     #is4.tab-pane
-                      = render partial: 'company/contracts/partials/contract_table' , locals: {data: @send_contracts.rejected}
+                      = render partial: 'company/contracts/partials/contract_table' , locals: {data: @sent_contracts.rejected}
                     #is1.tab-pane
-                      = render partial: 'company/contracts/partials/contract_table' , locals: {data: @send_contracts.accepted}
+                      = render partial: 'company/contracts/partials/contract_table' , locals: {data: @sent_contracts.accepted}
                     #is2.tab-pane.fade
-                      = render partial: 'company/contracts/partials/contract_table' , locals: {data: @send_contracts.pending}
+                      = render partial: 'company/contracts/partials/contract_table' , locals: {data: @sent_contracts.pending}
                     #is3.tab-pane.fade.active.in
-                      = render partial: 'company/contracts/partials/contract_table' , locals: { data: @send_contracts}
+                      = render partial: 'company/contracts/partials/contract_table' , locals: {data: @sent_contracts}
 
               #tab-r2.tab-pane
                 #hb22.tab-pane.active

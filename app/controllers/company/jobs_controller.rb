@@ -1,7 +1,7 @@
 class Company::JobsController < Company::BaseController
 
   before_action :set_company_job, only: [:show, :edit, :update, :destroy , :send_invitation]
-  before_action :set_locations , only: [:new , :edit , :create,:show]
+  before_action :set_locations  , only: [:new , :edit , :create,:show]
   before_action :set_preferred_vendors , only: [:send_invitation]
 
   add_breadcrumb "JOBS", :jobs_path, options: { title: "JOBS" }
@@ -87,7 +87,7 @@ class Company::JobsController < Company::BaseController
 
     def set_preferred_vendors
       # @preferred_vendors_companies = Company.joins(:users).where("users.type = ?" , 'Vendor') - [current_company]|| []
-      @preferred_vendors_companies = Company.where(company_type: 1) - [current_company] || []
+      @preferred_vendors_companies = Company.vendors - [current_company] || []
     end
 
     # Never trust parameters from the scary internet, only allow the white list through.

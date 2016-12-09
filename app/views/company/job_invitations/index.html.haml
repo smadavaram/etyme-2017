@@ -7,11 +7,11 @@
           %ul#demo-pill-nav.nav.nav-tabs.tabs-left
             %li.active
               %a{"data-toggle" => "tab", :href => "#tab-r1"}
-                %span.badge.bg-color-blue.txt-color-white= @job_invitations.count
+                %span.badge.bg-color-blue.txt-color-white= @sent_job_invitations.count
                 Sent Invitations
             %li
               %a{"data-toggle" => "tab", :href => "#tab-r2"}
-                %span.badge.bg-color-blueDark.txt-color-white= @job_invitations_received.count
+                %span.badge.bg-color-blueDark.txt-color-white= @received_job_invitations.count
                 Received Invitations
           .col-md-10
             .tab-content
@@ -28,13 +28,13 @@
                       %a{"aria-expanded" => "true", "data-toggle" => "tab", :href => "#is3"} All
                   .tab-content.padding-10
                     #is4.tab-pane
-                      = render partial: 'company/job_invitations/partials/invitation_table' , locals: {data: @job_invitations.rejected}
+                      = render partial: 'company/job_invitations/partials/invitation_table' , locals: {data: @sent_job_invitations.rejected}
                     #is1.tab-pane
-                      = render partial: 'company/job_invitations/partials/invitation_table' , locals: {data: @job_invitations.accepted}
+                      = render partial: 'company/job_invitations/partials/invitation_table' , locals: {data: @sent_job_invitations.accepted}
                     #is2.tab-pane.fade
-                      = render partial: 'company/job_invitations/partials/invitation_table' , locals: {data: @job_invitations.pending}
+                      = render partial: 'company/job_invitations/partials/invitation_table' , locals: {data: @sent_job_invitations.pending}
                     #is3.tab-pane.fade.active.in
-                      = render partial: 'company/job_invitations/partials/invitation_table' , locals: {data: @job_invitations}
+                      = render partial: 'company/job_invitations/partials/invitation_table' , locals: {data: @sent_job_invitations}
 
               #tab-r2.tab-pane
                 #hb22.tab-pane.active
@@ -49,13 +49,13 @@
                     %a{"aria-expanded" => "true", "data-toggle" => "tab", :href => "#is-3"} All
                 .tab-content.padding-10
                   #is-4.tab-pane
-                    = render partial: 'company/job_invitations/partials/receive_invitation_table' , locals: {data: @job_invitations_received.rejected}
+                    = render partial: 'company/job_invitations/partials/receive_invitation_table' , locals: {data: @received_job_invitations.rejected}
                   #is-1.tab-pane
-                    = render partial: 'company/job_invitations/partials/receive_invitation_table' , locals: {data: @job_invitations_received.accepted}
+                    = render partial: 'company/job_invitations/partials/receive_invitation_table' , locals: {data: @received_job_invitations.accepted}
                   #is-2.tab-pane.fade
-                    = render partial: 'company/job_invitations/partials/receive_invitation_table' , locals: {data: @job_invitations_received.pending}
+                    = render partial: 'company/job_invitations/partials/receive_invitation_table' , locals: {data: @received_job_invitations.pending}
                   #is-3.tab-pane.fade.active.in
-                    = render partial: 'company/job_invitations/partials/receive_invitation_table' , locals: {data: @job_invitations_received}
+                    = render partial: 'company/job_invitations/partials/receive_invitation_table' , locals: {data: @received_job_invitations}
 
 
 

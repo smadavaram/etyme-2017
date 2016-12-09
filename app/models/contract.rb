@@ -13,7 +13,7 @@ class Contract < ActiveRecord::Base
   belongs_to :job
   belongs_to :location
   belongs_to :user
-  has_one    :company        , through: :job
+  belongs_to :company
   has_one    :job_invitation , through: :job_application
   has_many   :contract_terms , dependent: :destroy
   has_many   :attachable_docs, as: :documentable
@@ -22,6 +22,7 @@ class Contract < ActiveRecord::Base
   after_create :insert_attachable_docs
   after_create :notify_recipient
   after_update :notify_on_status_change, if: Proc.new{|application| application.status_changed?}
+  after_create :update_contract_application_status
 
   #Scopes
   default_scope  -> {order(created_at: :desc)}
@@ -55,6 +56,11 @@ class Contract < ActiveRecord::Base
     # Call after update
     def notify_on_status_change
       self.created_by.notifications.create(message: self.respond_by.full_name+" has "+ self.status+" your contract request for "+self.job.title ,title:"Contract- #{self.job.title}")
+    end
+
+    # Call after create
+    def update_contract_application_status
+      self.job_application.accepted!
     end
 
 end

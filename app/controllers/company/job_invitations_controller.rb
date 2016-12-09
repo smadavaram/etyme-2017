@@ -51,13 +51,13 @@ class Company::JobInvitationsController < Company::BaseController
 
     def set_job_invitations
 
-      @job_invitations_received  = current_company.received_job_invitations.includes(job: [:location , :company]).paginate(page: params[:page], per_page: 30) || []
-      @job_invitations           = current_company.job_invitations.includes(job: [:location , :company]).paginate(page: params[:page], per_page: 30) || []
+      @received_job_invitations      = current_company.received_job_invitations.includes(job: [:location , :company]).paginate(page: params[:page], per_page: 30) || []
+      @sent_job_invitations           = current_company.sent_job_invitations.includes(job: [:location , :company]).paginate(page: params[:page], per_page: 30) || []
     end
 
     def find_job
-      @job = current_company.jobs.find_by_id(params[:job_id]) || []
-      # @job = Job.find_by_id(params[:job_id]) || []
+      # @job = current_company.jobs.find_by_id(params[:job_id]) || []
+      @job = Job.find_by_id(params[:job_id]) || []
     end
 
     def find_job_invitation

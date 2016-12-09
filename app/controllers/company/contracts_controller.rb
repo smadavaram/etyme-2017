@@ -21,7 +21,8 @@ class Company::ContractsController < Company::BaseController
 
   # POST company/job/:job_id/job_invitation/:job_invitation_id/job_application/:job_application_id/create
   def create
-    @contract  = @job.contracts.new(contract_params.merge!(created_by_id: current_user.id))
+    # @contract  = @job.contracts.new(contract_params.merge!(created_by_id: current_user.id))
+    @contract  = current_company.sent_contracts.new(contract_params.merge!(job_id: @job.id , created_by_id: current_user.id))
     respond_to do |format|
       if @contract.save
         format.js{ flash[:success] = "successfully Send." }
@@ -62,13 +63,15 @@ class Company::ContractsController < Company::BaseController
       @contract   = current_company.received_contracts.where(id: params[:id]).first || []
     end
 
+
+
     def find_job
        @job = current_company.jobs.find_by_id(params[:job_id])
     end
 
     def set_contracts
       @received_contracts   = current_company.received_contracts.paginate(page: params[:page], per_page: 30) || []
-      @send_contracts       = current_company.contracts.paginate(page: params[:page], per_page: 30) || []
+      @sent_contracts       = current_company.sent_contracts.paginate(page: params[:page], per_page: 30) || []
     end
 
 

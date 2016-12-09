@@ -85,7 +85,6 @@ class User < ActiveRecord::Base
     super.present? ? super : 'avatars/male.png'
   end
 
-
   def full_name
     self.first_name + " " + self.last_name
   end
