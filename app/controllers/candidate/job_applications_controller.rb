@@ -7,7 +7,7 @@ class Candidate::JobApplicationsController < Candidate::BaseController
     @job_application  = current_candidate.job_applications.new(job_application_params.merge!({job_id: @job.id , application_type: :candidate_direct}))
     respond_to do |format|
       if @job_application.save
-        format.js{ flash[:success] = "successfully Accepted." }
+        format.js{ flash[:success] = "successfully created." }
       else
         format.js{ flash[:errors] =  @job_application.errors.full_messages }
       end
@@ -21,7 +21,7 @@ class Candidate::JobApplicationsController < Candidate::BaseController
     @job_applications=current_candidate.job_applications
   end
   def find_job
-    @job = Job.find_by_id(params[:job_id]) || []
+    @job = Job.active.is_public.where(id: params[:job_id]).first || []
   end
 
   def job_application_params

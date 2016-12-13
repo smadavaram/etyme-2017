@@ -59,14 +59,14 @@
           -## Basic Info form TAB
           #hr1.tab-pane.active
             .tabbable.tabs-below
-            =render partial: 'candidate/candidates/partials/basic_info',locals: {candidate: @candidate}
+            =render partial: 'candidate/candidates/partials/basic_info',locals: {candidate: current_candidate}
 
           -# Locations form TAB
           #hr2.tab-pane
             -#%button.btn.btn-primary{"data-target" => "#myModal", "data-toggle" => "modal"}
             -#  Add Location
             .tabbable.tabs-below
-              =render partial: 'candidate/candidates/partials/location',locals:{address: current_candidate.address}
+              -#=render partial: 'candidate/candidates/partials/location',locals:{address: current_candidate.address}
 
         -#  -# Owner And Admin TAB
         -#  #hr3.tab-pane
