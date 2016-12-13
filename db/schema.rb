@@ -11,7 +11,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema.define(version: 20161207103801) do
+ActiveRecord::Schema.define(version: 20161208134347) do
 
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
@@ -135,6 +135,7 @@ ActiveRecord::Schema.define(version: 20161207103801) do
     t.datetime "updated_at",                       null: false
     t.integer  "billing_frequency",    default: 0
     t.integer  "time_sheet_frequency", default: 0
+    t.integer  "company_id"
   end
 
   create_table "custom_fields", force: :cascade do |t|
@@ -157,6 +158,7 @@ ActiveRecord::Schema.define(version: 20161207103801) do
     t.integer  "user_id"
     t.integer  "job_id"
     t.integer  "application_type"
+    t.integer  "company_id"
   end
 
   create_table "job_invitations", force: :cascade do |t|
@@ -170,6 +172,7 @@ ActiveRecord::Schema.define(version: 20161207103801) do
     t.datetime "updated_at",                 null: false
     t.date     "expiry"
     t.string   "message"
+    t.integer  "company_id"
   end
 
   create_table "jobs", force: :cascade do |t|
@@ -287,15 +290,6 @@ ActiveRecord::Schema.define(version: 20161207103801) do
   end
 
   add_index "tags", ["name"], name: "index_tags_on_name", unique: true, using: :btree
-
-  create_table "user_docs", force: :cascade do |t|
-    t.integer  "company_doc_id"
-    t.integer  "user_id"
-    t.string   "description"
-    t.string   "file"
-    t.datetime "created_at",     null: false
-    t.datetime "updated_at",     null: false
-  end
 
   create_table "users", force: :cascade do |t|
     t.integer  "company_id"

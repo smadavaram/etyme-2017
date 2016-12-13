@@ -1,0 +1,24 @@
+.tab-content.padding-10
+  %table.table.table-striped
+    %tbody
+      %tr
+        %th{style:'width:50%'}
+          Country
+        %td{style:'width:50%'}
+          = best_in_place address,:country, :as => :select, :collection => CS.countries.sort.map{|k,v|[k,v]},path:candidate_address_path
+      %tr
+        %th{style:'width:50%'}
+          City
+        %td{style:'width:50%'}
+          = best_in_place address,:city, :as => :input, :place_holder => "Click me to add content!"
+      %tr
+        %th
+          State
+        %td
+          = best_in_place address,:state, :as => :input, :place_holder => "Click me to add content!"
+
+      %tr
+        %th
+          Zip Code
+        %td
+          = best_in_place address,:zip_code, :as => :input, :place_holder => "Click me to add content!"

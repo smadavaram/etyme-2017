@@ -1,0 +1,2 @@
+module Candidate::AddressesHelper
+end

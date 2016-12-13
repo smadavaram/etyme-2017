@@ -42,13 +42,17 @@
 
 Rails.application.routes.draw do
 
+  scope module: :candidate do
+     resources :candidates ,path: :candidate ,only: [:show,:update]
+  end
 
-  # devise_for :candidates
   namespace :candidate do
     get '/' ,       to: 'candidates#dashboard' ,             as: :candidate_dashboard
+    resources :addresses
 
     resources :job_applications , only: [:index]
     resources :contracts        , only: [:index]
+    resources :candidates ,only: [:show,:update]
     resources :jobs do
       resources :job_applications
       member do
@@ -218,13 +222,12 @@ Rails.application.routes.draw do
   resources :static , only: [:index]
 
   # Devise Routes
-  devise_for :candidates, controllers: {
+  devise_for :users, controllers: { invitations: 'company/invitations' } , path_names: { sign_in: 'login', sign_out: 'logout'}
+  devise_for :candidates , controllers: {
                             sessions: 'candidates/sessions',
                             registrations: 'candidates/registrations',
                             password:'candidates/passwords'
                         }
-
-  devise_for :users, controllers: { invitations: 'company/invitations' } , path_names: { sign_in: 'login', sign_out: 'logout'}
 
   # Route set when subdomain present?
   constraints(Subdomain) do

@@ -14,7 +14,7 @@ class UserMailer < ApplicationMailer
   def reset_password_instructions(user, token, opts={})
     @user           = user
     @email          = "Etyme <no-reply@etyme.com>"
-    @link           = @user.company.present? ? "#{@user.company.etyme_url}/password/edit?reset_password_token=#{token}" : " #{@user.etyme_url}/candidates/password/edit?reset_password_token=#{token}"
+    @link           = @user.company.present? ? "#{@user.company.etyme_url}/password/edit?reset_password_token=#{token}" : " http:#{@user.etyme_url}/candidates/password/edit?reset_password_token=#{token}"
     mail(:to => user.email,  :subject => 'Reset password instructions',:from => @email)
   end
 

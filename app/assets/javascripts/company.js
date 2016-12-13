@@ -152,3 +152,5 @@
 //= require tinymce
 
 //= require data-confirm-modal
+
+//= require best_in_place.jquery-ui

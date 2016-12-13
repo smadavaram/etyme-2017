@@ -72,6 +72,8 @@ class User < ActiveRecord::Base
   #Nested Attributes
   accepts_nested_attributes_for :attachable_docs , reject_if: :all_blank
   accepts_nested_attributes_for :custom_fields   , reject_if: :all_blank
+  accepts_nested_attributes_for :address   , reject_if: :all_blank
+
 
   def is_admin?
     self.type == "Admin"
@@ -84,7 +86,6 @@ class User < ActiveRecord::Base
   def photo
     super.present? ? super : 'avatars/male.png'
   end
-
 
   def full_name
     self.first_name + " " + self.last_name

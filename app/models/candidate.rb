@@ -3,8 +3,11 @@ class Candidate < User
   #Callbacks
   after_create :welcome_candidate
 
+  #Associations
+  has_many :contracts         , through: :job_applications,dependent: :destroy
 
-
+  #Tags Input
+  # acts_as_taggable_on :skills
 
 
   def etyme_url

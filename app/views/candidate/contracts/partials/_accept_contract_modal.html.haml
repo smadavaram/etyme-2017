@@ -8,18 +8,17 @@
           - job_application = contract.job_application
           %span.semi-bold Contract -
           %i.ultra-light #{job_application.company.try(:name)}
-          - if job_application.job_invitation.present?
-            (#{link_to job_application.job_invitation.try(:recipient).full_name ,  '#' , target: '_blank'})
+          (#{link_to job_application.job_invitation.try(:recipient).full_name ,  '#' , target: '_blank'})
           -#%sup.badge.bg-color-red.bounceIn.animated v 2.0
           %br/
           %small.text-danger.slideInRight.fast.animated
-            %strong Job - #{contract.job.title}
+            %strong Job - #{job.title}
         %p
-          = raw contract.job.description
+          = raw job.description
 
 
       .modal-body
-        = form_for [contract.job,contract] , url: update_contract_response_job_contract_path(contract.job,contract , status: status) ,  method: :post , html: {class: 'form-horizontal'} , remote: true do |f|
+        = form_for [job,contract] , url: update_contract_response_job_contract_path(job,contract , status: status) ,  method: :post , html: {class: 'form-horizontal'} , remote: true do |f|
           %fieldset
             -#.form-group
             -#  %label.col-md-2.control-label Start Date
