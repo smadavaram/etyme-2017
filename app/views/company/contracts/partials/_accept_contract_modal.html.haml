@@ -13,13 +13,13 @@
           -#%sup.badge.bg-color-red.bounceIn.animated v 2.0
           %br/
           %small.text-danger.slideInRight.fast.animated
-            %strong Job - #{job.title}
+            %strong Job - #{contract.job.title}
         %p
-          = raw job.description
+          = raw contract.job.description
 
 
       .modal-body
-        = form_for [job,contract] , url: update_contract_response_job_contract_path(job,contract , status: status) ,  method: :post , html: {class: 'form-horizontal'} , remote: true do |f|
+        = form_for [contract.job,contract] , url: update_contract_response_job_contract_path(contract.job,contract , status: status) ,  method: :post , html: {class: 'form-horizontal'} , remote: true do |f|
           %fieldset
             -#.form-group
             -#  %label.col-md-2.control-label Start Date

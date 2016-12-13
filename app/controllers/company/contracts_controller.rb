@@ -2,9 +2,9 @@ class Company::ContractsController < Company::BaseController
 
 
 
-  before_action :find_job              , only: [:show,:create,:open_contract]
-  before_action :find_receive_contract , only: [:update_contract_response]
-  before_action :find_contract         , only: [:show,:open_contract]
+  before_action :find_job              , only: [:show,:create]
+  before_action :find_receive_contract , only: [:open_contract , :update_contract_response]
+  before_action :find_contract         , only: [:show]
   before_action :set_contracts         , only: [:index]
 
   def index
