@@ -1,7 +1,7 @@
 class Address < ActiveRecord::Base
 
   #Associations
-  has_one   :user
+  # has_one   :user
   has_many  :locations
 
   #Validation

@@ -6,7 +6,8 @@ class Candidate < User
   #Associations
   has_many :contracts         , through: :job_applications,dependent: :destroy
 
-
+  #Tags Input
+  # acts_as_taggable_on :skills
 
 
   def etyme_url
