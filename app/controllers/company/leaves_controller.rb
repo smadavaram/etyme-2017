@@ -1,38 +1,28 @@
 class Company::LeavesController <Company::BaseController
 
-  #Callbacks
   before_action :find_consultant
   before_action :find_leave ,only: [:show,:edit,:update,:destroy,:accept_leave,:reject_leave]
 
-
-  # GET /consultant/leaves
-  # GET /consultant/leaves.json
   def index
     add_breadcrumb "Leaves", consultant_leaves_path(current_user)
     @consultant_leaves = @consultant.leaves || []
   end
 
-  # GET /company/jobs/1
-  # GET /company/jobs/1.json
   def show
     # add_breadcrumb @company_job.title. titleize, :job_invitations_path, options: { title: "Job Invitation" }
   end
 
-  # GET /company/jobs/new
   def new
     add_breadcrumb "Leaves", consultant_leaves_path(current_user)
     add_breadcrumb "NEW", new_consultant_leave_path(current_user,@consultant_leave), options: {  }
     @consultant_leave = @consultant.leaves.new
   end
 
-  # GET /company/jobs/1/edit
   def edit
     add_breadcrumb "Leaves", consultant_leaves_path()
     add_breadcrumb "Edit", edit_consultant_leave_path(current_user,@consultant_leave)
   end
 
-  # POST /company/jobs
-  # POST /company/jobs.json
   def create
     @consultant_leave =  @consultant.leaves.new(leave_params)
     if  @consultant_leave.save
@@ -44,19 +34,15 @@ class Company::LeavesController <Company::BaseController
     end
   end
 
-  # GET company/leaves
   def employees_leaves
-     @employee_leaves=current_company.leaves
+    @employee_leaves=current_company.leaves
   end
 
   # def destroy
   #
   # end
 
-  # PATCH/PUT /company/jobs/1
-  # PATCH/PUT /company/jobs/1.json
   def update
-
     if @consultant_leave.update(leave_params)
       flash[:success]="Leave Successfully Updated"
       redirect_to consultant_leaves_path(current_user)
@@ -64,11 +50,8 @@ class Company::LeavesController <Company::BaseController
       flash[:errors]="Leave not updated"
       redirect_to :back
     end
-
   end
 
-
-  # accept leave
   def accept_leave
     respond_to do |format|
       if @consultant_leave.is_pending?
@@ -83,7 +66,6 @@ class Company::LeavesController <Company::BaseController
     end
   end
 
-  # reject leave
   def reject_leave
     respond_to do |format|
       if(@consultant_leave.is_pending?)
@@ -97,9 +79,6 @@ class Company::LeavesController <Company::BaseController
       end
     end
   end
-
-
-
 
   private
   def find_consultant

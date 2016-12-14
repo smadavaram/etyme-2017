@@ -12,11 +12,12 @@ class Company::LocationsController < Company::BaseController
 
   def new
   end
+
   def show
 
   end
-  def update
 
+  def update
     @location.update_attributes(location_params)
     respond_with @location
   end
@@ -35,6 +36,7 @@ class Company::LocationsController < Company::BaseController
   end
 
   def location_params
-    params.require(:location).permit(:id,:name,:status,  address_attributes:[:id,:address_1,:country,:city,:state,:zip_code] )
+    params.require(:location).permit(:id,:name,:status,
+                                     address_attributes:[:id,:address_1,:country,:city,:state,:zip_code] )
   end
 end
