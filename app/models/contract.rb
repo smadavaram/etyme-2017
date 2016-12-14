@@ -32,6 +32,11 @@ class Contract < ActiveRecord::Base
   scope :accepted , -> {where(status: 1)}
   scope :rejected , -> {where(status: 2)}
 
+  #Validates
+  validates           :start_date,  presence:   true
+  validates           :end_date,    presence:   true
+
+
   # Nested Attributes
   accepts_nested_attributes_for :contract_terms, allow_destroy: true ,reject_if: :all_blank
 
