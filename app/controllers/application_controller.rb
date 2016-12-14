@@ -22,19 +22,17 @@ class ApplicationController < ActionController::Base
     else
       super
     end
-  end # End of after_sign_in_path_for
+  end
 
   def verify_company
     if request.subdomain.present? && request.subdomain !='www' && request.subdomain !='app-etyme' && Company.where(slug: request.subdomain).blank?
       return redirect_to HOSTNAME
     end
-  end #End of verify_company
+  end
 
   def current_company
     @company ||= Company.where(slug: request.subdomain).first if request.subdomain.present?
   end
   helper_method :current_company
-
-
 
 end
