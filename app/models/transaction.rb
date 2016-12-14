@@ -5,4 +5,5 @@ class Transaction < ActiveRecord::Base
 
   #Association
   belongs_to :timesheet_log
+  has_one :timesheet, through: :timesheet_log
 end
