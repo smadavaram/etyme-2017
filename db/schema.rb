@@ -11,7 +11,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema.define(version: 20161208134347) do
+ActiveRecord::Schema.define(version: 20161213134515) do
 
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
@@ -147,6 +147,22 @@ ActiveRecord::Schema.define(version: 20161208134347) do
     t.datetime "created_at",        null: false
     t.datetime "updated_at",        null: false
   end
+
+  create_table "delayed_jobs", force: :cascade do |t|
+    t.integer  "priority",   default: 0, null: false
+    t.integer  "attempts",   default: 0, null: false
+    t.text     "handler",                null: false
+    t.text     "last_error"
+    t.datetime "run_at"
+    t.datetime "locked_at"
+    t.datetime "failed_at"
+    t.string   "locked_by"
+    t.string   "queue"
+    t.datetime "created_at"
+    t.datetime "updated_at"
+  end
+
+  add_index "delayed_jobs", ["priority", "run_at"], name: "delayed_jobs_priority", using: :btree
 
   create_table "job_applications", force: :cascade do |t|
     t.integer  "job_invitation_id"
@@ -291,6 +307,55 @@ ActiveRecord::Schema.define(version: 20161208134347) do
 
   add_index "tags", ["name"], name: "index_tags_on_name", unique: true, using: :btree
 
+  create_table "timesheet_approvers", force: :cascade do |t|
+    t.integer  "user_id"
+    t.integer  "timesheet_id"
+    t.datetime "created_at",   null: false
+    t.datetime "updated_at",   null: false
+  end
+
+  add_index "timesheet_approvers", ["user_id", "timesheet_id"], name: "index_timesheet_approvers_on_user_id_and_timesheet_id", using: :btree
+
+  create_table "timesheet_logs", force: :cascade do |t|
+    t.integer  "timesheet_id"
+    t.date     "transaction_day"
+    t.integer  "status",          default: 0
+    t.datetime "created_at",                  null: false
+    t.datetime "updated_at",                  null: false
+  end
+
+  add_index "timesheet_logs", ["timesheet_id"], name: "index_timesheet_logs_on_timesheet_id", using: :btree
+
+  create_table "timesheets", force: :cascade do |t|
+    t.integer  "job_id"
+    t.integer  "user_id"
+    t.integer  "company_id"
+    t.integer  "contract_id"
+    t.integer  "status",                      default: 0
+    t.float    "total_time"
+    t.date     "start_date"
+    t.date     "end_date"
+    t.date     "submitted_date"
+    t.date     "next_timesheet_created_date"
+    t.datetime "created_at",                              null: false
+    t.datetime "updated_at",                              null: false
+  end
+
+  add_index "timesheets", ["job_id"], name: "index_timesheets_on_job_id", using: :btree
+
+  create_table "transactions", force: :cascade do |t|
+    t.integer  "timesheet_log_id"
+    t.datetime "strat_time"
+    t.datetime "end_time"
+    t.float    "total_time"
+    t.integer  "status",           default: 0
+    t.text     "memo"
+    t.datetime "created_at",                   null: false
+    t.datetime "updated_at",                   null: false
+  end
+
+  add_index "transactions", ["timesheet_log_id"], name: "index_transactions_on_timesheet_log_id", using: :btree
+
   create_table "users", force: :cascade do |t|
     t.integer  "company_id"
     t.string   "first_name",             default: ""
@@ -327,6 +392,7 @@ ActiveRecord::Schema.define(version: 20161208134347) do
     t.integer  "invited_by_id"
     t.string   "invited_by_type"
     t.integer  "invitations_count",      default: 0
+    t.string   "skills"
   end
 
   add_index "users", ["email"], name: "index_users_on_email", unique: true, using: :btree

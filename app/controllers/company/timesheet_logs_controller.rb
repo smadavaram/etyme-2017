@@ -1,6 +1,6 @@
-class Company::TimeLogsController < Company::BaseController
+class Company:: TimesheetLogsController < Company::BaseController
 
-  def index
+  def show
 
   end
 end
