@@ -1,10 +1,10 @@
 class Candidate < User
 
   #Callbacks
-  after_create :welcome_candidate
+  after_create :send_welcome_email
 
   #Associations
-  has_many :contracts         , through: :job_applications,dependent: :destroy
+  has_many :contracts , through: :job_applications,dependent: :destroy
 
   #Tags Input
   # acts_as_taggable_on :skills
@@ -18,7 +18,7 @@ class Candidate < User
   private
 
   # send welcome email to candidate
-  def welcome_candidate
+  def send_welcome_email
     CandidateMailer.welcome_candidate(self).deliver_now
   end
 

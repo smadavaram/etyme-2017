@@ -25,7 +25,7 @@ class JobInvitation < ActiveRecord::Base
   belongs_to :company
   belongs_to :job
   has_one    :job_application
-  has_one   :contract  , through: :job_application
+  has_one    :contract  , through: :job_application
 
   #CallBacks
   # after_create :send_invitation_mail
@@ -37,14 +37,6 @@ class JobInvitation < ActiveRecord::Base
   scope :pending  , -> {where(status: 0)}
   scope :accepted , -> {where(status: 1)}
   scope :rejected , -> {where(status: 2)}
-
-  def accepted!
-    self.update_column(:status , 1)
-  end
-
-  def rejected!
-    self.update_column(:status , 2)
-  end
 
   def is_pending?
     self.status == 'pending'

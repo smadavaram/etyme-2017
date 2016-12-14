@@ -57,16 +57,18 @@ class User < ActiveRecord::Base
 
   # Association
   belongs_to :company
-  belongs_to :address         , foreign_key: :primary_address_id
-  has_many :created_contracts , class_name: 'Contract' , foreign_key: :created_by_id
-  has_many :contract_terms    , class_name: 'ContractTerm' , foreign_key: 'created_by'
-  has_many :responded_contracts,class_name: 'Contract' , foreign_key: :respond_by_id
-  has_many :leaves            , dependent: :destroy
-  has_many :notifications     , as: :notifiable
-  has_many :custom_fields     , as: :customizable
-  has_many :attachable_docs   , as: :documentable , dependent: :destroy
-  has_many :company_docs      , through: :attachable_docs
-  has_many :job_applications  , dependent: :destroy
+  belongs_to :address           , foreign_key: :primary_address_id
+  has_many :created_contracts   , class_name: 'Contract' , foreign_key: :created_by_id
+  has_many :contract_terms      , class_name: 'ContractTerm' , foreign_key: 'created_by'
+  has_many :responded_contracts , class_name: 'Contract' , foreign_key: :respond_by_id
+  has_many :leaves              , dependent: :destroy
+  has_many :notifications       , as: :notifiable,dependent: :destroy
+  has_many :custom_fields       , as: :customizable,dependent: :destroy
+  has_many :attachable_docs     , as: :documentable , dependent: :destroy
+  has_many :company_docs        , through: :attachable_docs
+  has_many :job_applications    , dependent: :destroy
+  has_many :timesheets          , dependent: :destroy
+  has_many :timesheet_approvers , dependent: :destroy
   has_and_belongs_to_many :roles
 
   #Nested Attributes

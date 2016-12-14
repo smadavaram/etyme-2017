@@ -62,6 +62,12 @@ gem 'activeadmin'
 gem 'validates_timeliness', '~> 4.0'
 gem 'date_validator'
 
+#****************************
+# CronJobs
+#****************************
+gem 'whenever', :require => false
+gem 'delayed_job_active_record', '4.0.3'
+
 
 
 # gem 'therubyracer', platforms: :ruby

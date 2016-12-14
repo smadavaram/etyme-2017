@@ -146,7 +146,7 @@ Rails.application.routes.draw do
     get 'attachment/documents_list',to: 'attachments#document_list'
     get 'dashboard' ,       to: 'users#dashboard' ,             as: :dashboard
     post 'update_photo',    to: 'users#update_photo'
-
+    resources :timesheet_logs,only: [:show , :index]
     # get 'configuration' ,   to: 'companies#edit' ,              as: :configuration
     resources :companies , only: [:update,:show] do
       collection do
