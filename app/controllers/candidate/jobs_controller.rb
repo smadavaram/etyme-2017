@@ -26,7 +26,7 @@ class Candidate::JobsController < Candidate::BaseController
   private
 
   def set_public_jobs
-    @jobs = Job.is_public.active
+    @jobs = Job.is_public.active.includes(:location , :created_by)
   end
 
   def set_job

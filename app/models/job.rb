@@ -30,6 +30,7 @@ class Job < ActiveRecord::Base
   belongs_to   :location
   has_many     :contracts        ,dependent: :destroy
   has_many     :job_applications ,dependent: :destroy
+  has_many     :timesheets       ,dependent: :destroy
   # has_many     :received_job_applications, class_name: 'JobApplication', s
   has_many     :job_invitations  ,dependent: :destroy
   has_many     :custom_fields    ,as: :customizable
