@@ -62,8 +62,8 @@ class User < ActiveRecord::Base
   has_many :contract_terms    , class_name: 'ContractTerm' , foreign_key: 'created_by'
   has_many :responded_contracts,class_name: 'Contract' , foreign_key: :respond_by_id
   has_many :leaves            , dependent: :destroy
-  has_many :notifications     , as: :notifiable
-  has_many :custom_fields     , as: :customizable
+  has_many :notifications     , as: :notifiable, dependent: :destroy
+  has_many :custom_fields     , as: :customizable, dependent: :destroy
   has_many :attachable_docs   , as: :documentable , dependent: :destroy
   has_many :company_docs      , through: :attachable_docs
   has_many :job_applications  , dependent: :destroy

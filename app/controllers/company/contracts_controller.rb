@@ -1,7 +1,5 @@
 class Company::ContractsController < Company::BaseController
 
-
-
   before_action :find_job              , only: [:show,:create]
   before_action :find_receive_contract , only: [:open_contract , :update_contract_response]
   before_action :find_contract         , only: [:show]
@@ -54,30 +52,28 @@ class Company::ContractsController < Company::BaseController
 
   private
 
-    def find_contract
-      # find_contract
-      @contract = @job.contracts.find_by_id(params[:id]) || []
-    end
+  def find_contract
+    # find_contract
+    @contract = @job.contracts.find_by_id(params[:id]) || []
+  end
 
-    def find_receive_contract
-      @contract   = current_company.received_contracts.where(id: params[:id]).first || []
-    end
+  def find_receive_contract
+    @contract   = current_company.received_contracts.where(id: params[:id]).first || []
+  end
 
+  def find_job
+    @job = current_company.jobs.find_by_id(params[:job_id])
+  end
 
-
-    def find_job
-       @job = current_company.jobs.find_by_id(params[:job_id])
-    end
-
-    def set_contracts
-      @received_contracts   = current_company.received_contracts.paginate(page: params[:page], per_page: 30) || []
-      @sent_contracts       = current_company.sent_contracts.paginate(page: params[:page], per_page: 30) || []
-    end
-
-
+  def set_contracts
+    @received_contracts   = current_company.received_contracts.paginate(page: params[:page], per_page: 30) || []
+    @sent_contracts       = current_company.sent_contracts.paginate(page: params[:page], per_page: 30) || []
+  end
 
   def contract_params
-    params.require(:contract).permit([:job_id  , :billing_frequency, :time_sheet_frequency, :job_application_id , :start_date , :end_date  , :message_from_hiring  ,:status ,company_doc_ids: [] , contract_terms_attributes: [:id, :created_by, :contract_id , :status , :terms_condition ,:rate , :note , :_destroy]])
+    params.require(:contract).permit([:job_id  , :billing_frequency, :time_sheet_frequency,
+                                      :job_application_id , :start_date , :end_date  , :message_from_hiring  ,:status ,company_doc_ids: [] ,
+                                      contract_terms_attributes: [:id, :created_by, :contract_id , :status , :terms_condition ,:rate , :note , :_destroy]])
   end
 
 

@@ -2,7 +2,6 @@ class Company::CompaniesController < Company::BaseController
 
   respond_to :html,:json
 
-  before_action :find_company , only: [:get_admins_list]
   add_breadcrumb 'Companies', "#", :title => ""
 
   def edit
@@ -27,17 +26,13 @@ class Company::CompaniesController < Company::BaseController
 
   #POST company/:id/get_admins_list
   def get_admins_list
-    @users = @company.admins || []
+    @users = current_company.admins || []
     respond_to do |format|
         format.js
     end
   end
 
   private
-
-    def find_company
-      @company = Company.find_by_id(params[:id]) || []
-    end
 
     def company_params
       params.require(:company).permit(:name ,:company_type, :skill_list , :website,:logo,:description,:phone,:email,:linkedin_url,:facebook_url,:twitter_url,:google_url,:is_activated,:status,:time_zone,:tag_line, owner_attributes:[:id, :type ,:first_name, :last_name ,:email,:password, :password_confirmation],locations_attributes:[:id,:name,:status,  address_attributes:[:id,:address_1,:country,:city,:state,:zip_code] ] )

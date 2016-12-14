@@ -2,8 +2,9 @@ class Attachment < ActiveRecord::Base
 
   belongs_to :attachable, polymorphic: true
 
-  validates :file, presence: {message: ' cannot be empty.'}
-  self.per_page = 10
+  validates :file, presence: {message: ' cannot be blank.'}
+
+  # self.per_page = 10
   # validate :file_size_validation
   #
   # mount_uploader :file, TaskAttachmentUploader
