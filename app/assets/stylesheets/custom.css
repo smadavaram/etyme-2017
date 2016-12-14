@@ -43,3 +43,13 @@
 .pictureContainer img:hover {
     outline: #333 double 4px;
 }
+.ml20{
+    style: 'margin-left: 20px;'
+}
+.mr20{
+    style: 'margin-right: 20px;'
+}
+.mrl15{
+    margin-right: 15px;
+    margin-left: 15px;
+}
