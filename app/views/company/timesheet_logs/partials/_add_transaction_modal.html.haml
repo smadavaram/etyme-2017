@@ -1,0 +1,19 @@
+#myModal.modal.fade{:role => "dialog", :tabindex => "-1"}
+  .modal-dialog
+    .modal-content
+      .modal-header
+        %button.close{"aria-hidden" => "true", "data-dismiss" => "modal", :type => "button"}
+          ×
+        %h4.modal-title
+          New Transaction
+      .modal-body.no-padding
+        .row
+          .col-md-12
+            .form-group
+              =text_field :name,:placeholder => "Name",class: "form-control",:required => 'required'
+      .modal-footer
+        -#= button_tag 'Cancel' , class: 'btn btn-default' , data: {"dismiss": "modal"}
+        %button.btn.btn-default{"data-dismiss" => "modal", :type => "button"}
+          Cancel
+        %btn.btn.primary
+          Add

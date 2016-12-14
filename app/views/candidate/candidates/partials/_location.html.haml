@@ -5,7 +5,7 @@
         %th{style:'width:50%'}
           Country
         %td{style:'width:50%'}
-          = best_in_place address,:country, :as => :select, :collection => CS.countries.sort.map{|k,v|[k,v]},path:candidate_address_path
+          = best_in_place address,:country, :as => :select, :collection => CS.countries.sort.map{|k,v|[k,v]},path: candidate_address_path(address)
       %tr
         %th{style:'width:50%'}
           City

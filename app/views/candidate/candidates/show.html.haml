@@ -31,21 +31,21 @@
           %a{"aria-expanded" => "true", "data-toggle" => "tab", :href => "#hr1"}
             %i.fa.fa-lg.fa-arrow-circle-o-down
             %span.hidden-mobile.hidden-tablet Basic Info
-        %li
-          %a{"aria-expanded" => "false", "data-toggle" => "tab", :href => "#hr2"}
-            %i.fa.fa-lg.fa-arrow-circle-o-up
-            %span.hidden-mobile.hidden-tablet
-              Locations
-        %li
-          %a{"aria-expanded" => "false", "data-toggle" => "tab", :href => "#hr3"}
-            %i.fa.fa-lg.fa-arrow-circle-o-up
-            %span.hidden-mobile.hidden-tablet
-              Owner
-        %li
-          %a{"aria-expanded" => "false", "data-toggle" => "tab", :href => "#hr4"}
-            %i.fa.fa-lg.fa-arrow-circle-o-up
-            %span.hidden-mobile.hidden-tablet
-              Company Documents
+        -#%li
+        -#  %a{"aria-expanded" => "false", "data-toggle" => "tab", :href => "#hr2"}
+        -#    %i.fa.fa-lg.fa-arrow-circle-o-up
+        -#    %span.hidden-mobile.hidden-tablet
+        -#      Locations
+        -#%li
+        -#  %a{"aria-expanded" => "false", "data-toggle" => "tab", :href => "#hr3"}
+        -#    %i.fa.fa-lg.fa-arrow-circle-o-up
+        -#    %span.hidden-mobile.hidden-tablet
+        -#      Owner
+        -#%li
+        -#  %a{"aria-expanded" => "false", "data-toggle" => "tab", :href => "#hr4"}
+        -#    %i.fa.fa-lg.fa-arrow-circle-o-up
+        -#    %span.hidden-mobile.hidden-tablet
+        -#      Company Documents
       %span.jarviswidget-loader
         %i.fa.fa-refresh.fa-spin
     / widget div
@@ -59,14 +59,14 @@
           -## Basic Info form TAB
           #hr1.tab-pane.active
             .tabbable.tabs-below
-            =render partial: 'candidate/candidates/partials/basic_info',locals: {candidate: @candidate}
+            =render partial: 'candidate/candidates/partials/basic_info',locals: {candidate: current_candidate}
 
           -# Locations form TAB
           #hr2.tab-pane
             -#%button.btn.btn-primary{"data-target" => "#myModal", "data-toggle" => "modal"}
             -#  Add Location
             .tabbable.tabs-below
-              =render partial: 'candidate/candidates/partials/location',locals:{address: current_candidate.address}
+              -#=render partial: 'candidate/candidates/partials/location',locals:{address: current_candidate.build_address}
 
         -#  -# Owner And Admin TAB
         -#  #hr3.tab-pane

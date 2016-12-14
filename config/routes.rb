@@ -43,17 +43,26 @@
 Rails.application.routes.draw do
 
   scope module: :candidate do
-     resources :candidates ,path: :candidate ,only: [:show,:update]
+     resources :candidates ,path: :candidate ,only: [:update]
+    get '/profile',to:'candidates#show'
   end
 
   namespace :candidate do
     get '/' ,       to: 'candidates#dashboard' ,             as: :candidate_dashboard
-    resources :addresses
+    resources :addresses,only: [:update]
 
     resources :job_applications , only: [:index]
     resources :contracts        , only: [:index]
     resources :candidates ,only: [:show,:update]
     resources :jobs do
+
+      resources :contracts , except: [:index] do
+        member do
+          post :open_contract , as: :open_contract
+          post :update_contract_response        , as: :update_contract_response
+        end # End of member
+      end # End of :contracts
+
       resources :job_applications
       member do
         post :apply
@@ -137,7 +146,7 @@ Rails.application.routes.draw do
     get 'attachment/documents_list',to: 'attachments#document_list'
     get 'dashboard' ,       to: 'users#dashboard' ,             as: :dashboard
     post 'update_photo',    to: 'users#update_photo'
-
+    resources :timesheet_logs,only: [:show , :index]
     # get 'configuration' ,   to: 'companies#edit' ,              as: :configuration
     resources :companies , only: [:update,:show] do
       collection do

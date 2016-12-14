@@ -1,12 +1,32 @@
 class Candidate::ContractsController < Candidate::BaseController
   before_action :set_contracts ,only: [:index]
-  before_action :find_contract         , only: [:show,:open_contract]
+  before_action :find_job              , only: [:show,:create,:open_contract]
+  before_action :find_contract         , only: [:show,:open_contract, :update_contract_response]
 
 
   def index
   end
 
   def show
+  end
+
+  def open_contract
+  end
+
+  # POST candidate/jobs/:job_id/contracts/:id/update_contract_response?status= :value
+  def update_contract_response
+    status = params[:status] == "reject" ? 2 : params[:status] == "accept" ? 1 : nil
+    respond_to do |format|
+      if @contract.is_pending?
+        if @contract.update_attributes(respond_by_id: current_candidate.id , responed_at: Time.now , status: status)
+          format.js{ flash[:success] = "successfully Submitted." }
+        else
+          format.js{ flash[:errors] =  @contract.errors.full_messages }
+        end
+      else
+        format.js{ flash[:errors] =  ["Request Not Completed."]}
+      end
+    end
   end
 
   private
@@ -20,7 +40,10 @@ class Candidate::ContractsController < Candidate::BaseController
 
   def find_contract
     # find_contract
-    @contract = @job.contracts.find_by_id(params[:id]) || []
+    @contract = current_candidate.contracts.find_by_id(params[:id]) || []
+  end
+  def find_job
+    @job = Job.active.is_public.where(id: params[:job_id])
   end
 
 end

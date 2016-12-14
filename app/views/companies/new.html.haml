@@ -92,41 +92,7 @@
                   = f.text_field :name  ,:placeholder => "Company name", required: true,minlength: "3"
                   %b.tooltip.tooltip-bottom-right Company Name
 
-              -#%fieldset
-                .row
-                  %section.col.col-6
-                    %label.input
-                      = u.text_field :first_name, :placeholder => "Your First name", required: true
-                  %section.col.col-6
-                    %label.input
-                      = u.text_field :last_name, :placeholder => "Your Last name", required: true
-                .row
-                  %section.col.col-6
-                    %label.select
-                      = select_tag 'company[owner_attributes][gender]', options_for_select([["Male", "0"], ["Female", "1"]])
-                      %i
-                  %section.col.col-6
-                    %label.select
-                      = select_tag 'company[owner_attributes][type]', options_for_select(USER_TYPES.collect{ |type| [type[0], type[1]] })
-                      %i
-                %section
-                  %label.select
-                    = select_tag 'company[owner_attributes][type]', options_for_select(USER_TYPES.collect{ |type| [type[0], type[1]] })
-                    %i
-                %section
-                  %label.checkbox
-                    %input#terms{:name => "terms", :type => "checkbox"}/
-                    = succeed "I agree with the " do
-                      %i
-                    %a{"data-target" => "#myModal", "data-toggle" => "modal", :href => "#"} Terms and Conditions
-              %footer
-                %button.btn.btn-primary{:type => "submit"}
-                  Register
-              .message
-                %i.fa.fa-check
-                %p
-                  Thank you for your registration!
-        -#%p.note.text-center *FREE Registration ends on October 2015.
+
         %h5.text-center - Or sign in using -
         %ul.list-inline.text-center
           %li
