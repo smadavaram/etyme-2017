@@ -18,25 +18,25 @@
               %table#dt_basic.table.table-striped.table-bordered.table-hover{:width => "100%"}
                 %thead
                   %tr
-                    %th{"data-hide" => "phone"} Job
+                    %th{"data-hide" => "phone"} Title
                     %th{"data-hide" => "phone"} Billing
                     %th{"data-class" => "expand"}
                       %i.fa.fa-fw.fa-calendar.txt-color-blue.hidden-md.hidden-sm.hidden-xs
-                      Strat-Date
+                      Strat Cycle
                     %th{"data-class" => "expand"}
                       %i.fa.fa-fw.fa-calendar.txt-color-blue.hidden-md.hidden-sm.hidden-xs
-                      Last-Date
+                      End Cycle
                     %th{"data-hide" => "phone,tablet"}
                       Actions
                 %tbody
                   - @timesheets.each_with_index do |timesheet , index|
                     %tr
-                      %td= link_to timesheet.job.title , job_path(timesheet.job)
+                      %td= timesheet.title
                       %td= timesheet.contract.billing_frequency.humanize
                       %td= timesheet.start_date
                       %td= timesheet.end_date
                       %td
-                        = link_to 'open' ,timesheet_timesheet_log_path(timesheet, timesheet.timesheet_logs.last) ,  target: '_blank' ,class: 'btn btn-xs btn-default btn-primary'
+                        = link_to 'View Details' ,timesheet_timesheet_log_path(timesheet, timesheet.timesheet_logs.last) ,  target: '_blank' ,class: 'btn btn-xs btn-default btn-primary'
                         - if timesheet.open?
                           = link_to 'Approve' ,timesheet_approve_path(timesheet) ,class: 'btn btn-xs btn-default btn-success' , data: {confirm: "Are you sure?", verify: 'Approve', verify_text: "Type 'Approve' to confirm"}
                         - else

@@ -2,7 +2,7 @@
   .row
     .center.text-center
       %legend.h1
-        #{@timesheet.job.title} Job - Contract # #{@timesheet.contract.id}
+        #{@timesheet.title}
       %p
         = '('+@timesheet.start_date.to_s+'  -  '++@timesheet.end_date.to_s+')'
     %b.text-muted{style: 'margin-left: 20px;'}

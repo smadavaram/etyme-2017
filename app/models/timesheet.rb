@@ -31,6 +31,10 @@ class Timesheet < ActiveRecord::Base
     total_time
   end
 
+  def title
+    self.job.title + " Job - Contract # " + self.contract.id.to_s
+  end
+
 
   private
   def create_timesheet_logs
@@ -39,7 +43,7 @@ class Timesheet < ActiveRecord::Base
   end
 
   def schedule_timesheet
-    self.contract.timesheets.create(job_id: self.job.id ,start_date: self.end_date + 1.day , company_id: self.job.company.id , status: 'open')
+    self.contract.timesheets.create(user_id: self.user_id , job_id: self.job.id ,start_date: self.end_date + 1.day , company_id: self.company_id , status: 'open')
     self.pending_review!
   end
 
