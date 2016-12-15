@@ -17,7 +17,7 @@
     .text-center.center
       %br
       %b.text-muted{style: 'margin-left: 20px;'}
-        = 'Total Hours: 5.25 Hours'
+        = @timesheet_log.total_time
   .row
     .pull-right{style: 'margin-right: 20px;'}
       %btn.btn-lg.btn-primary.pull-right.header-btn.hidden-mobile{"data-target" => "#myModal", "data-toggle" => "modal"} Log Hours

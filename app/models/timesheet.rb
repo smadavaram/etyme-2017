@@ -15,6 +15,14 @@ class Timesheet < ActiveRecord::Base
   validates           :start_date,  presence:   true
   validates           :end_date,    presence:   true
 
+
+  def total_time
+    total_logged_time=0
+    self.timesheet_logs.each do |tsl|
+      total_logged_time=total_logged_time +ts.total_time
+    end
+  end
+
   private
   def create_timesheet_logs
       self.timesheet_logs.create(transaction_day: start_date)
