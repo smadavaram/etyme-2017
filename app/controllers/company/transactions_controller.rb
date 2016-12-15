@@ -11,7 +11,10 @@ class Company::TransactionsController < Company::BaseController
         format.html { redirect_to :back, notice: 'Job was successfully created.' }
         format.json { render :show, status: :created, location: @transaction }
       else
-        format.html { redirect_to :back , errors:  @transaction.errors.full_message}
+        format.html {
+          flash[:errors] =  @transaction.errors.full_messages
+          redirect_to :back
+        }
         format.json { render json: @transaction.errors, status: :unprocessable_entity }
       end
     end
