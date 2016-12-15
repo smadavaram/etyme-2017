@@ -17,6 +17,17 @@ class Company::TimesheetLogsController < Company::BaseController
 
   end
 
+  def approve
+    if @timesheet_log.transactions.pending.update_all(status: Transaction.statuses[:accepted])
+      @timesheet_log.approved!
+      flash[:success] = "Successfully Approved"
+    else
+      flash[:errors] = @timesheet_log.errors.full_messages
+    end
+    redirect_to :back
+
+  end
+
   private
 
   def find_timesheet
@@ -24,7 +35,7 @@ class Company::TimesheetLogsController < Company::BaseController
   end
 
   def find_timesheet_log
-    @timesheet_log = @timesheet.timesheet_logs.find_by_id(params[:id]) || []
+    @timesheet_log = @timesheet.timesheet_logs.find_by_id(params[:id] || params[:timesheet_log_id]) || []
   end
 
 end

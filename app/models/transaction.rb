@@ -6,4 +6,6 @@ class Transaction < ActiveRecord::Base
 
   belongs_to :timesheet_log
   has_one :timesheet, through: :timesheet_log
+
+  scope :pending, -> {where(status: 'pending')}
 end

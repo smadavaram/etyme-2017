@@ -7,7 +7,7 @@
         %h2#myModalLabel.modal-title
           %strong Add Time log #{@timesheet_log.transaction_day.strftime("%A, %d %b %Y")}
       .modal-body
-        = form_for [@timesheet , @timesheet_log , @timesheet_log.transactions.new] do |f|
+        = form_for [@timesheet , @timesheet_log , Transaction.new] do |f|
           = f.hidden_field :timesheet_log_date
           .row
             .col-sm-12
