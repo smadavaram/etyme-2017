@@ -1,6 +1,7 @@
 class Company::TransactionsController < Company::BaseController
-  before_action :find_timesheet , only: [:create]
-  before_action :find_timesheet_log , only: [:create]
+  before_action :find_timesheet , only: [:create , :accept , :reject]
+  before_action :find_timesheet_log , only: [:create , :accept , :reject]
+  before_action :find_transaction   , only: [:accept , :reject]
 
   def create
     @transaction = @timesheet_log.transactions.new(transaction_params)
@@ -15,6 +16,24 @@ class Company::TransactionsController < Company::BaseController
       end
     end
   end
+
+  def accept
+    if @transaction.accepted!
+      flash[:success] = "Successfully Approved"
+    else
+      flash[:errors] = @transaction.errors.full_messages
+    end
+    redirect_to :back
+  end
+
+  def reject
+    if @transaction.rejected!
+      flash[:success] = "Successfully Reject"
+    else
+      flash[:errors] = @transaction.errors.full_messages
+    end
+    redirect_to :back
+  end
   private
 
   def find_timesheet
@@ -23,6 +42,10 @@ class Company::TransactionsController < Company::BaseController
 
   def find_timesheet_log
     @timesheet_log   = @timesheet.timesheet_logs.find_by_id(params[:timesheet_log_id]) || []
+  end
+
+  def find_transaction
+    @transaction = @timesheet_log.transactions.find_by_id(params[:transaction_id]) || []
   end
 
   def transaction_params

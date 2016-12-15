@@ -198,6 +198,11 @@ module ApplicationHelper
                 }
             ]
         },
+        {
+            href: timesheets_path,
+            title: 'Timesheets',
+            content: "<i class='fa fa-lg fa-fw fa-black-tie'></i> <span class='menu-item-parent'>" + 'TIMESHEETS' + "</span>",
+        },
     ]
   end
 
