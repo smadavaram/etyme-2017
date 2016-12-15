@@ -38,7 +38,7 @@
                 -#= select_tag 'contract[billing_frequency]', Contract.billing_frequency.map { |key, value| [key.humanize, key] }  , class: "form-control"
               %label.col-md-2.control-label Time Sheet Frequency
               .col-md-4.select
-                = f.select :time_sheet_frequency , Contract.billing_frequencies.map { |key, value| [key.humanize, key] }, {},{class: "form-control" }
+                = f.select :time_sheet_frequency , Contract.billing_frequencies.map { |key, value| [key.humanize, value] }, {},{class: "form-control" }
                 -#= select_tag 'contract[time_sheet_frequency]', options_for_select(BILLING_FREQUENCY.collect{ |type| [type[0], type[1]] }) , class: "form-control"
             = f.fields_for :contract_terms do |c|
               = c.hidden_field :created_by , value: current_user.id.to_i
