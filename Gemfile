@@ -61,6 +61,7 @@ gem 'devise_invitable', '~> 1.7.0'
 gem 'activeadmin'
 gem 'validates_timeliness', '~> 4.0'
 gem 'date_validator'
+gem 'ruby-duration', '~> 3.2', '>= 3.2.1'
 
 #****************************
 # CronJobs

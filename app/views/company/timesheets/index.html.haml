@@ -36,10 +36,11 @@
                       %td= timesheet.start_date
                       %td= timesheet.end_date
                       %td
+                        = link_to 'open' ,timesheet_timesheet_log_path(timesheet, timesheet.timesheet_logs.last) ,  target: '_blank' ,class: 'btn btn-xs btn-default btn-primary'
                         - if timesheet.open?
-                          = link_to 'open' ,timesheet_timesheet_log_path(timesheet, timesheet.timesheet_logs.last) ,  target: '_blank' ,class: 'btn btn-xs btn-default btn-success'
+                          = link_to 'Approve' ,timesheet_approve_path(timesheet) ,class: 'btn btn-xs btn-default btn-success' , data: {confirm: "Are you sure?", verify: 'Approve', verify_text: "Type 'Approve' to confirm"}
                         - else
-                          = link_to timesheet.status ,'#' ,  class: 'btn btn-xs btn-default btn-danger'
+                          = link_to timesheet.status ,'#'  ,class: 'btn btn-xs btn-default btn-info' , disabled: true
 - content_for :modals do
   #job_invitation
 

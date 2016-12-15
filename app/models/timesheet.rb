@@ -11,9 +11,26 @@ class Timesheet < ActiveRecord::Base
 
   before_validation :set_recurring_timesheet_cycle
   after_create  :create_timesheet_logs
+  after_update :update_pending_timesheet_logs, if: Proc.new{|t| t.status_changed? && t.approved?}
 
   validates           :start_date,  presence:   true
   validates           :end_date,    presence:   true
+
+  def total_time
+    total_time = 0
+    self.timesheet_logs.each do |t|
+      total_time = total_time + t.total_time
+    end
+    total_time
+  end
+  def approved_total_time
+    total_time = 0
+    self.timesheet_logs.approved.each do |t|
+      total_time = total_time + t.accepted_total_time
+    end
+    total_time
+  end
+
 
   private
   def create_timesheet_logs
@@ -34,6 +51,12 @@ class Timesheet < ActiveRecord::Base
     else
       self.next_timesheet_created_date = temp_date - 1
       self.end_date                    = temp_date
+    end
+  end
+
+  def update_pending_timesheet_logs
+    self.timesheet_logs.pending.each do |timesheet_log|
+      timesheet_log.approved!
     end
   end
 
