@@ -2,26 +2,29 @@
   .row
     .center.text-center
       %legend.h1
-        Ruby on Rails Job - Contract # 3331
+        #{@timesheet.job.title} Job - Contract # #{@timesheet.contract.id}
       %p
-        = '('+Date.today.to_s+'  -  '+Date.today.to_s+')'
+        = '('+@timesheet.start_date.to_s+'  -  '++@timesheet.end_date.to_s+')'
     %b.text-muted{style: 'margin-left: 20px;'}
       = 'Total Hours: 24 Hours'
-      -#= link_to 'Add' , new_job_path ,class: 'btn btn-success btn-lg pull-right header-btn hidden-mobile'
   .row
     .text-center.center
-      %a#btn-prev.btn.btn-default.btn-lg{:href => "javascript:void(0)"}
-        %i.fa.fa-chevron-left
-      %span.h2{style: 'margin-right: 15px;margin-left: 15px;'}= Time.now.strftime("%A, %d %b %Y")
-      %a#btn-next.btn.btn-default.btn-lg{:href => "javascript:void(0)"}
-        %i.fa.fa-chevron-right
+      - if @prev.present?
+        %a#btn-prev.btn.btn-default.btn-lg{:href => "javascript:void(0)"}
+          %i.fa.fa-chevron-left
+      %span.h2{style: 'margin-right: 15px;margin-left: 15px;'}= @timesheet_log.transaction_day.strftime("%A, %d %b %Y")
+      - if @next.present?
+        = link_to '' , timesheet_timesheet_log_path(@timesheet, @next) , id: 'btn-next' , class: 'btn btn-default btn-lg'
+        %a#btn-next.btn.btn-default.btn-lg{:href => "javascript:void(0)"}
+          %i.fa.fa-chevron-right
     .text-center.center
       %br
       %b.text-muted{style: 'margin-left: 20px;'}
         = 'Total Hours: 5.25 Hours'
   .row
     .pull-right{style: 'margin-right: 20px;'}
-      %btn.btn-lg.btn-success.pull-right.header-btn.hidden-mobile{"data-target" => "#myModal", "data-toggle" => "modal"} Log Hours
+      %btn.btn-lg.btn-primary.pull-right.header-btn.hidden-mobile{"data-target" => "#myModal", "data-toggle" => "modal"} Log Hours
+      %btn.btn-lg.btn-success.pull-right.header-btn.hidden-mobile{style: 'margin-right: 5px;'} Approved
       =render 'company/timesheet_logs/partials/add_transaction_modal'
   %section#widget-grid{style: 'margin-top: 10px;'}
     / row
@@ -52,18 +55,15 @@
                     %th{"data-hide" => "phone,tablet"}
                       Actions
                 %tbody
-                  -#- @company_jobs.each_with_index do |job , index|
-                  -#  %tr
-                  -#    %td= job.title
-                  -#    %td= job.end_date
-                  -#    %td= job.location.name  rescue "  --"
-                  -#    %td= job.created_by.full_name  rescue "  --"
-                  -#    %td
-                  -#      = link_to raw("<i class='fa fa-pencil '></i>") , edit_job_path(job) , class: 'btn btn-xs btn-default btn-primary'
-                  -#      = link_to raw("<i class='fa fa-times '></i>") , job_path(job) , method: :delete ,  class: 'btn btn-xs btn-default btn-danger'
-                  -#      = link_to 'Send Invitation' ,send_invitation_job_path(job) , method: :post ,remote: true,  class: 'btn btn-xs btn-default btn-success'
-
-
+                  - @timesheet_log.transactions.each_with_index do |t , index|
+                    %tr
+                      %td= t.start_time.strftime("%I:%M%p") if t.start_time.present?
+                      %td= t.end_time
+                      %td= t.memo
+                      %td
+                        = link_to 'Accept' , '#' , class: 'btn btn-xs btn-default btn-primary'
+                        = link_to 'Reject' , '#' , method: :delete ,  class: 'btn btn-xs btn-default btn-danger'
 - content_for :scripts do
   :javascript
-
+    $('#transaction_start_time').timepicker();
+    $('#transaction_end_time').timepicker();

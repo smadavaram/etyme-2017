@@ -5,9 +5,9 @@
         %button.close{"aria-hidden" => "true", "data-dismiss" => "modal", :type => "button"}
           ×
         %h2#myModalLabel.modal-title
-          %strong Add Time log #{@timesheet_log.transaction_day.strftime("%A, %d %b %Y")}
+          %strong Add Time log
       .modal-body
-        = form_for [@timesheet , @timesheet_log , @timesheet_log.transactions.new] do |f|
+        = form_for [@timesheet , Transaction.new] , remote: true do |f|
           = f.hidden_field :timesheet_log_date
           .row
             .col-sm-12

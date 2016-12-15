@@ -1,9 +1,9 @@
 class Transaction < ActiveRecord::Base
 
-  #Enum
   enum status: [:pending , :accepted , :rejected]
 
-  #Association
+  attr_accessor :timesheet_log_date
+
   belongs_to :timesheet_log
   has_one :timesheet, through: :timesheet_log
 end

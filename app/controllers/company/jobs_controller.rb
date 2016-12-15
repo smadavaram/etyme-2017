@@ -29,8 +29,6 @@ class Company::JobsController < Company::BaseController
     add_breadcrumb "EDIT", edit_job_path(@company_job), options: { title: "NEW EDIT" }
   end
 
-  # POST /company/jobs
-  # POST /company/jobs.json
   def create
     @company_job = current_company.jobs.new(company_job_params.merge!(created_by_id: current_user.id))
 
@@ -76,7 +74,6 @@ class Company::JobsController < Company::BaseController
   end
 
   private
-    # Use callbacks to share common setup or constraints between actions.
     def set_company_job
       @company_job = current_company.jobs.find_by_id(params[:id]) || []
     end
@@ -90,7 +87,6 @@ class Company::JobsController < Company::BaseController
       @preferred_vendors_companies = Company.vendors - [current_company] || []
     end
 
-    # Never trust parameters from the scary internet, only allow the white list through.
     def company_job_params
       params.require(:job).permit([:title,:description,:location_id, :is_public , :start_date , :end_date , :tag_list ,custom_fields_attributes:
           [
