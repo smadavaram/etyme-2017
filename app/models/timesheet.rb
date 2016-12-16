@@ -1,6 +1,6 @@
 class Timesheet < ActiveRecord::Base
 
-  enum status: [:open,:pending_review, :approved , :partially_approved , :rejected]
+  enum status: [:open,:pending_review, :approved , :partially_approved , :rejected , :submitted]
 
   belongs_to :company
   belongs_to :contract
@@ -19,6 +19,7 @@ class Timesheet < ActiveRecord::Base
   def total_time
     total_time = 0
     self.timesheet_logs.each do |t| total_time = total_time + t.total_time end
+
     total_time
   end
 
@@ -30,6 +31,14 @@ class Timesheet < ActiveRecord::Base
 
   def title
     self.job.title + " Job - Contract # " + self.contract.id.to_s
+  end
+
+  def approvers
+    title = ""
+    self.timesheet_approvers.each do |aa|
+      title = title + aa.status_by
+    end
+    title
   end
 
 

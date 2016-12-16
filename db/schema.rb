@@ -11,7 +11,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema.define(version: 20161213134515) do
+ActiveRecord::Schema.define(version: 20161216115046) do
 
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
@@ -312,6 +312,7 @@ ActiveRecord::Schema.define(version: 20161213134515) do
     t.integer  "timesheet_id"
     t.datetime "created_at",   null: false
     t.datetime "updated_at",   null: false
+    t.integer  "status"
   end
 
   add_index "timesheet_approvers", ["user_id", "timesheet_id"], name: "index_timesheet_approvers_on_user_id_and_timesheet_id", using: :btree
@@ -345,7 +346,7 @@ ActiveRecord::Schema.define(version: 20161213134515) do
 
   create_table "transactions", force: :cascade do |t|
     t.integer  "timesheet_log_id"
-    t.datetime "strat_time"
+    t.datetime "start_time"
     t.datetime "end_time"
     t.float    "total_time"
     t.integer  "status",           default: 0
@@ -355,6 +356,15 @@ ActiveRecord::Schema.define(version: 20161213134515) do
   end
 
   add_index "transactions", ["timesheet_log_id"], name: "index_transactions_on_timesheet_log_id", using: :btree
+
+  create_table "user_docs", force: :cascade do |t|
+    t.integer  "company_doc_id"
+    t.integer  "user_id"
+    t.string   "description"
+    t.string   "file"
+    t.datetime "created_at",     null: false
+    t.datetime "updated_at",     null: false
+  end
 
   create_table "users", force: :cascade do |t|
     t.integer  "company_id"
@@ -393,6 +403,8 @@ ActiveRecord::Schema.define(version: 20161213134515) do
     t.string   "invited_by_type"
     t.integer  "invitations_count",      default: 0
     t.string   "skills"
+    t.string   "ssn"
+    t.integer  "max_working_hours",      default: 0
   end
 
   add_index "users", ["email"], name: "index_users_on_email", unique: true, using: :btree

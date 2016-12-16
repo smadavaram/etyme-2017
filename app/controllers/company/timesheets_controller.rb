@@ -1,5 +1,5 @@
 class Company::TimesheetsController < Company::BaseController
-  before_action :find_timesheet , only: [:show , :approve]
+  before_action :find_timesheet , except: [:index]
   before_action :set_timesheets , only: [:index]
 
   def index
@@ -9,13 +9,33 @@ class Company::TimesheetsController < Company::BaseController
   def show
   end
 
-  def approve
-    if current_user.timesheet_approvers.create!(timesheet_id: @timesheet.id)
-    flash[:success] = "Successfully Approved"
-  else
-    flash[:errors] = @timesheet.errors.full_messages
+  def submit
+    if current_user.timesheet_approvers.create!(timesheet_id: @timesheet.id , status: Timesheet.statuses[:submitted].to_i)
+      @timesheet.submitted!
+      flash[:success] = "Successfully Approved"
+    else
+      flash[:errors] = @timesheet.errors.full_messages
+    end
+    redirect_to :back
   end
-  redirect_to :back
+
+  def reject
+    if current_user.timesheet_approvers.create!(timesheet_id: @timesheet.id , status: Timesheet.statuses[:rejected].to_i)
+      @timesheet.rejected!
+      flash[:success] = "Successfully Approved"
+    else
+      flash[:errors] = @timesheet.errors.full_messages
+    end
+    redirect_to :back
+  end
+
+  def approve
+    if current_user.timesheet_approvers.create!(timesheet_id: @timesheet.id , status: Timesheet.statuses[:approved].to_i)
+      flash[:success] = "Successfully Approved"
+    else
+      flash[:errors] = @timesheet.errors.full_messages
+    end
+    redirect_to :back
   end
 
   private

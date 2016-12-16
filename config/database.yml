@@ -2,7 +2,7 @@ default: &default
  adapter: postgresql
  encoding: utf8
  user: root
- password: root
+ password: 12345678
  host: localhost
 
 development:

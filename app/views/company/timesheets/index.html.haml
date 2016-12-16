@@ -26,10 +26,12 @@
                     %th{"data-class" => "expand"}
                       %i.fa.fa-fw.fa-calendar.txt-color-blue.hidden-md.hidden-sm.hidden-xs
                       End Cycle
-                    %th{"data-hide" => "phone,tablet"}
-                      Actions
+                    %th
+
                 %tbody
                   - @timesheets.each_with_index do |timesheet , index|
+                    - content_for :modals do
+                      = render 'company/timesheets/partials/histroy_modal' , timesheet: timesheet
                     %tr
                       %td= timesheet.title
                       %td= timesheet.contract.billing_frequency.humanize
@@ -37,10 +39,12 @@
                       %td= timesheet.end_date
                       %td
                         = link_to 'View Details' ,timesheet_timesheet_log_path(timesheet, timesheet.timesheet_logs.last) ,  target: '_blank' ,class: 'btn btn-xs btn-default btn-primary'
+                        = link_to 'Histroy' ,'#' , "data-target" => "#timesheet-#{timesheet.id}", "data-toggle" => "modal"  ,class: 'btn btn-xs btn-default btn-primary'
                         - if timesheet.open?
+                          = link_to 'Submit' ,timesheet_submit_path(timesheet) ,class: 'btn btn-xs btn-default btn-success' , data: {confirm: "Once submitted! you will not be able to add or modify any logs in this timesheet. It can only be Approve or Reject.", verify: 'Submit', verify_text: "Type 'Submit' to confirm"}
+                        - elsif timesheet.submitted?  && !timesheet.timesheet_approvers.accepted_or_rejected(current_user).present?
                           = link_to 'Approve' ,timesheet_approve_path(timesheet) ,class: 'btn btn-xs btn-default btn-success' , data: {confirm: "Are you sure?", verify: 'Approve', verify_text: "Type 'Approve' to confirm"}
-                        - else
-                          = link_to timesheet.status ,'#'  ,class: 'btn btn-xs btn-default btn-info' , disabled: true
+                          = link_to 'Reject' ,timesheet_reject_path(timesheet) ,class: 'btn btn-xs btn-default btn-danger' , data: {confirm: "Are you sure?", verify: 'Reject', verify_text: "Type 'Reject' to confirm"}
 - content_for :modals do
   #job_invitation
 

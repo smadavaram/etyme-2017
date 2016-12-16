@@ -148,11 +148,13 @@ Rails.application.routes.draw do
     post 'update_photo',    to: 'users#update_photo'
     resources :timesheets,only: [:show , :index] do
       get 'approve'
+      get 'submit'
+      get 'reject'
       resources :timesheet_logs , only:[:show] do
         get 'approve'
         resources :transactions , only:[:create] do
-          get 'accept'
-          get 'reject'
+          post 'accept'
+          post 'reject'
         end
       end
 

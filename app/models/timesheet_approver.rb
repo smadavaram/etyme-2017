@@ -1,4 +1,6 @@
 class TimesheetApprover < ActiveRecord::Base
+  enum status: [:open,:pending_review, :approved , :partially_approved , :rejected , :submitted]
+
 
   #Associations
   belongs_to :user
@@ -8,6 +10,14 @@ class TimesheetApprover < ActiveRecord::Base
 
   def is_master_user?
     self.user == self.job.created_by
+  end
+
+  default_scope -> {where.not(status: nil)}
+  scope :approved, -> {where(status: 2)}
+  scope :rejected, -> {where(status: 4)}
+  scope :accepted_or_rejected, ->(user) {where('timesheet_approvers.user_id = ? AND (timesheet_approvers.status = ? OR timesheet_approvers.status = ?)' , user.id , 2 , 4)}
+  def status_by
+    "#{self.status.humanize+' by '+ self.user.full_name}"
   end
 
   private

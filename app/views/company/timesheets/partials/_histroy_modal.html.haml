@@ -1,0 +1,19 @@
+.modal.fade.in{ id: "timesheet-#{timesheet.id}","aria-hidden": "true", "aria-labelledby": "myModalLabel", :role => "dialog", :style => "display: none;", :tabindex => "-1"}
+  .modal-dialog
+    .modal-content
+      .modal-header
+        %button.close{"aria-hidden" => "true", "data-dismiss" => "modal", :type => "button"}
+          ×
+        %h2#myModalLabel.modal-title
+          %strong Histroy - #{timesheet.title}
+      .modal-body
+        - if timesheet.timesheet_approvers.present?
+          %ol
+            - timesheet.timesheet_approvers.each do |approver|
+              %li #{approver.status_by}
+        - else
+          %ul
+            %li No Record Found
+        .modal-footer
+          %button.btn.btn-default{"data-dismiss" => "modal", :type => "button"}
+            Cancel

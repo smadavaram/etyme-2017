@@ -12,6 +12,9 @@ class Transaction < ActiveRecord::Base
   validate                  :end_time_is_not_in_future
   validate                  :max_hours_limit
   validate                  :timesheet_open
+  validate             :time_overlap , on: [:create]
+  validate             :start_time_less_than_end_time
+  validate             :end_time_is_not_in_future
 
   # Relationships
   belongs_to                :timesheet_log
@@ -27,15 +30,11 @@ class Transaction < ActiveRecord::Base
   private
 
   def timesheet_open
-    if !(self.timesheet.open?)
-      errors.add(:base,"Timesheet is closed!")
-    end
+      errors.add(:base,"Timesheet is closed!") if !self.timesheet.open?
   end
 
   def max_hours_limit
-    if self.total_time+self.timesheet_log.total_time > self.timesheet.user.max_working_hours
-      errors.add(:base,"Max Working Hour limit reached!")
-    end
+    errors.add(:base,"Max Working Hour limit reached!") if (self.total_time + self.timesheet_log.total_time) > self.timesheet.user.max_working_hours
   end
 
   def end_time_is_not_in_future
@@ -45,27 +44,20 @@ class Transaction < ActiveRecord::Base
   end
 
   def start_time_less_than_end_time
-    if self.start_time >= self.end_time
-      errors.add(:base,"Start time should be less than end time!")
-    end
+    errors.add(:base,"Start time should be less than end time!") if self.start_time >= self.end_time
   end
 
   def time_overlap
-    if check_dates_overlap?
-      errors.add(:base,'The time you entered overlaps with an earlier entry!')
-    end
-
+    errors.add(:base,'The time you entered overlaps with an earlier entry!') if check_dates_overlap?
   end
 
   def set_total_time
-    if start_time.present? && end_time.present?
-      self.total_time= ((end_time - start_time)).to_i
-    end
+    self.total_time= ((end_time - start_time)).to_i  if start_time.present? && end_time.present?
   end
 
   def set_time_date
-    self.start_time=DateTime.new(self.timesheet_log.transaction_day.year,self.timesheet_log.transaction_day.month,self.timesheet_log.transaction_day.day,self.start_time.hour,self.start_time.min,self.start_time.sec,self.start_time.zone)
-    self.end_time=DateTime.new(self.timesheet_log.transaction_day.year,self.timesheet_log.transaction_day.month,self.timesheet_log.transaction_day.day,self.end_time.hour,self.end_time.min,self.end_time.sec,self.end_time.zone);
+    self.start_time=DateTime.new(self.timesheet_log.transaction_day.year,self.timesheet_log.transaction_day.month,self.timesheet_log.transaction_day.day,self.start_time.hour,self.start_time.min,self.start_time.sec,DateTime.now.zone)
+    self.end_time=DateTime.new(self.timesheet_log.transaction_day.year,self.timesheet_log.transaction_day.month,self.timesheet_log.transaction_day.day,self.end_time.hour,self.end_time.min,self.end_time.sec,DateTime.now.zone)
   end
 
 
