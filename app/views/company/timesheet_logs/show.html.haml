@@ -2,42 +2,45 @@
   .row
     .center.text-center
       %legend.h1
-        #{@timesheet.job.title} Job - Contract # #{@timesheet.contract.id}
+        #{@timesheet.title}
       %p
         = '('+@timesheet.start_date.to_s+'  -  '++@timesheet.end_date.to_s+')'
     %b.text-muted{style: 'margin-left: 20px;'}
-      = 'Total Hours: 24 Hours'
+      = "Total Time: #{time_format(@timesheet.total_time)}"
+    %br
+    %b.text-success{style: 'margin-left: 20px;'}
+      = "Approved Time: #{time_format(@timesheet.approved_total_time)}"
+    %br
+    %b.text-danger{style: 'margin-left: 20px;'}
+      = "Due: #{(@timesheet.end_date + 2.day).strftime("%A, %d %b %Y")}"
   .row
     .text-center.center
-      - if @prev.present?
-        = link_to raw("<i class='fa fa-chevron-left'></i>") , timesheet_timesheet_log_path(@timesheet, @prev) , id: 'btn-prev' , class: 'btn btn-default btn-lg'
+
+      = link_to raw("<i class='fa fa-chevron-left'></i>") , @prev.present? ? timesheet_timesheet_log_path(@timesheet, @prev) : '#' , disabled: !@prev.present?, id: 'btn-prev' , class: 'btn btn-default btn-lg'
       %span.h2{style: 'margin-right: 15px;margin-left: 15px;'}= @timesheet_log.transaction_day.strftime("%A, %d %b %Y")
-      - if @next.present?
-        = link_to raw("<i class='fa fa-chevron-right'></i>") , timesheet_timesheet_log_path(@timesheet, @next) , id: 'btn-next' , class: 'btn btn-default btn-lg'
+      = link_to raw("<i class='fa fa-chevron-right'></i>") , @next.present? ? timesheet_timesheet_log_path(@timesheet, @next) : '#' , disabled: !@next.present?, id: 'btn-prev' , class: 'btn btn-default btn-lg'
     .text-center.center
       %br
       %b.text-muted{style: 'margin-left: 20px;'}
-        = @timesheet_log.total_time
+        = "Total Time: #{time_format(@timesheet_log.total_time)}"
+      %br
+      %b.text-success{style: 'margin-left: 20px;'}
+        = "Approved Time: #{time_format(@timesheet_log.accepted_total_time)}"
   .row
     .pull-right{style: 'margin-right: 20px;'}
       %btn.btn-lg.btn-primary.pull-right.header-btn.hidden-mobile{"data-target" => "#myModal", "data-toggle" => "modal"} Log Hours
       -if @timesheet_log.pending?
-        = link_to  ' Approved',timesheet_timesheet_log_approve_path(@timesheet ,@timesheet_log ) ,style: 'margin-right: 5px;' ,class: 'btn-lg btn-success pull-right header-btn hidden-mobile', data: {confirm: "Are you sure to approve all 25 hours logged on #{@timesheet_log.transaction_day.strftime('%A, %d %b %Y')}?", verify: 'Approve', verify_text: "Type 'Approve' to confirm"}
+        = link_to  ' Approved',timesheet_timesheet_log_approve_path(@timesheet ,@timesheet_log ) ,style: 'margin-right: 5px;' ,class: 'btn-lg btn-success pull-right header-btn hidden-mobile', data: {confirm: "Are you sure to approve all #{time_format(@timesheet_log.accepted_total_time)} hours logged on #{@timesheet_log.transaction_day.strftime('%A, %d %b %Y')}?", verify: 'Approve', verify_text: "Type 'Approve' to confirm"}
       =render 'company/timesheet_logs/partials/add_transaction_modal'
   %section#widget-grid{style: 'margin-top: 10px;'}
-    / row
     .row
-      / NEW WIDGET START
       %article.col-xs-12.col-sm-12.col-md-12.col-lg-12
-        / Widget ID (each widget will need unique ID)
         #wid-id-0.jarviswidget.jarviswidget-color-darken{"data-widget-editbutton" => "false"}
           %header
             %span.widget-icon
               %i.fa.fa-table
             %h2 Time Logs
-          / widget div
           %div
-            / widget edit box
             .jarviswidget-editbox
             .widget-body.no-padding
               %table#dt_basic.table.table-striped.table-bordered.table-hover{:width => "100%"}
@@ -49,6 +52,9 @@
                     %th{"data-class" => "expand"}
                       %i.fa.fa-fw.fa-calendar.txt-color-blue.hidden-md.hidden-sm.hidden-xs
                       End Time
+                    %th{"data-class" => "expand"}
+                      %i.fa.fa-fw.fa-clock-o.txt-color-blue.hidden-md.hidden-sm.hidden-xs
+                      Hours
                     %th{"data-hide" => "phone"} Memo
                     %th{"data-hide" => "phone,tablet"}
                       Actions
@@ -56,7 +62,8 @@
                   - @timesheet_log.transactions.each_with_index do |t , index|
                     %tr
                       %td= t.start_time.strftime("%I:%M%p") if t.start_time.present?
-                      %td= t.end_time
+                      %td= t.end_time.strftime("%I:%M%p") if t.start_time.present?
+                      %td= time_format(t.total_time)
                       %td= t.memo
                       %td
                         - if t.pending?

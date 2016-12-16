@@ -147,6 +147,7 @@ Rails.application.routes.draw do
     get 'dashboard' ,       to: 'users#dashboard' ,             as: :dashboard
     post 'update_photo',    to: 'users#update_photo'
     resources :timesheets,only: [:show , :index] do
+      get 'approve'
       resources :timesheet_logs , only:[:show] do
         get 'approve'
         resources :transactions , only:[:create] do
@@ -156,16 +157,12 @@ Rails.application.routes.draw do
       end
 
     end
-    # resources :timesheet_logs,only: [:show , :index] do
-    #   resources :transactions , only:[:create]
-    # end
     # get 'configuration' ,   to: 'companies#edit' ,              as: :configuration
     resources :companies , only: [:update,:show] do
       collection do
         post :get_admins_list , as: :get_admins_list
       end
     end
-
 
     # AJAX for layout setting, remove in future
     get 'ajax/email_compose', to: 'ajax#email_compose', as: :ajax_email_compose

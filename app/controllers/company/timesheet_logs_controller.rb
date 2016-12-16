@@ -13,13 +13,10 @@ class Company::TimesheetLogsController < Company::BaseController
     current_index = timesheet_log_ids.index(@timesheet_log.id)
     @next = current_index + 1 == timesheet_log_ids.size ? nil : @timesheet.timesheet_logs.find_by_id(timesheet_log_ids[current_index + 1])
     @prev = current_index == 0 ? nil : @timesheet.timesheet_logs.find_by_id(timesheet_log_ids[current_index - 1])
-
-
   end
 
   def approve
-    if @timesheet_log.transactions.pending.update_all(status: Transaction.statuses[:accepted])
-      @timesheet_log.approved!
+    if @timesheet_log.approved!
       flash[:success] = "Successfully Approved"
     else
       flash[:errors] = @timesheet_log.errors.full_messages

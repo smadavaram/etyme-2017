@@ -176,11 +176,6 @@ module ApplicationHelper
         #     title: 'Leaves',
         #     content: "<i class='fa fa-lg fa-fw fa-black-tie'></i> <span class='menu-item-parent'>" + 'Leaves' + "</span>",
         # },
-        # {
-        #     href: employees_leaves_path ,
-        #     title: 'Leaves',
-        #     content: "<i class='fa fa-lg fa-fw fa-black-tie'></i> <span class='menu-item-parent'>" + 'Leaves' + "</span>",
-        # },
         {
             href: '#',
             title: 'CONFIGURATION',
@@ -237,6 +232,14 @@ module ApplicationHelper
             ]
         }
     ]
+  end
+
+  def time_format s
+    return "--" if s.nil?
+    seconds = s % 60
+    minutes = (s / 60) % 60
+    hours = s / (60 * 60)
+    format("%02d:%02d:%02d", hours, minutes, seconds)
   end
 
 end

@@ -63,7 +63,11 @@ class Contract < ActiveRecord::Base
     end
 
     def schedule_timesheet
-      self.timesheets.create!(job_id: self.job.id ,start_date: self.start_date , company_id: self.job.company.id , status: 'open')
+      if self.job_application.user.class.name == "Candidate"
+        self.timesheets.create!(user_id: self.job_application.user.id , job_id: self.job.id ,start_date: self.start_date , status: 'open')
+      else
+        self.timesheets.create!(user_id: self.job_application.user.id , job_id: self.job.id ,start_date: self.start_date , company_id: self.job_application.user.company.id , status: 'open')
+      end
     end
 
     def create_timesheet
