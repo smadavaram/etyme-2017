@@ -3,42 +3,56 @@ class Transaction < ActiveRecord::Base
   enum status: [:pending , :accepted , :rejected]
 
   # Callbacks
-  before_validation    :set_time_date
-  before_save          :set_total_time
-  
+  before_validation         :set_time_date
+  before_validation         :set_total_time
+
   # Validations
-  validate             :time_overlap
-  validate             :start_time_less_than_end_time
-  validate             :end_time_is_not_in_future
+  validate                  :time_overlap
+  validate                  :start_time_less_than_end_time
+  validate                  :end_time_is_not_in_future
+  validate                  :max_hours_limit
+  validate                  :timesheet_open
 
   # Relationships
-  belongs_to :timesheet_log
-  has_one :timesheet, through: :timesheet_log
+  belongs_to                :timesheet_log
+  has_one                   :timesheet, through: :timesheet_log
 
   # Scopes
-  default_scope  -> {order(created_at: :desc)}
-  scope :pending,  -> {where(status: 0)}
-  scope :accepted, -> {where(status: 1)}
-  scope :rejected, -> {where(status: 2)}
-  scope :not_rejected, -> {where.not(status: 2)}
+  default_scope             -> {order(created_at: :desc)}
+  scope :pending,           -> {where(status: 0)}
+  scope :accepted,          -> {where(status: 1)}
+  scope :rejected,          -> {where(status: 2)}
+  scope :not_rejected,      -> {where.not(status: 2)}
 
   private
 
+  def timesheet_open
+    if !(self.timesheet.open?)
+      errors.add(:base,"Timesheet is closed!")
+    end
+  end
+
+  def max_hours_limit
+    if self.total_time+self.timesheet_log.total_time > self.timesheet.user.max_working_hours
+      errors.add(:base,"Max Working Hour limit reached!")
+    end
+  end
+
   def end_time_is_not_in_future
-    if self.end_time >DateTime.now
-      errors.add(:base,'Time can not be in future')
+    if self.end_time > DateTime.now
+      errors.add(:base,'Time can not be in future!')
     end
   end
 
   def start_time_less_than_end_time
     if self.start_time >= self.end_time
-      errors.add(:base,"Start time should be less than end time")
+      errors.add(:base,"Start time should be less than end time!")
     end
   end
 
   def time_overlap
     if check_dates_overlap?
-      errors.add(:base,'The time you entered overlaps with an earlier entry.')
+      errors.add(:base,'The time you entered overlaps with an earlier entry!')
     end
 
   end
@@ -56,7 +70,7 @@ class Transaction < ActiveRecord::Base
 
 
   def check_dates_overlap?
-    self.timesheet_log.transactions.all.each do |t|
+    self.timesheet_log.transactions.not_rejected.all.each do |t|
       if self.start_time.between?(t.start_time,t.end_time)
         return true
       elsif  self.end_time.between?(t.start_time,t.end_time)
