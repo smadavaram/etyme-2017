@@ -53,12 +53,11 @@ class Consultant < User
 
   validates :password,presence: true,if: Proc.new { |consultant| !consultant.password.nil? }
   validates :password_confirmation,presence: true,if: Proc.new { |consultant| !consultant.password.nil? }
-  validates_numericality_of :max_working_hours, only_integer: true, greater_than_or_equal_to: 0 , less_than_or_equal_to: 86400
   validates :max_working_hours, presence: true
 
   after_create :insert_attachable_docs
   after_create :send_invitation
-  before_save  :convert_max_working_hours_to_seconds
+  before_validation  :convert_max_working_hours_to_seconds
 
 
   private
@@ -78,8 +77,7 @@ class Consultant < User
     end
 
   def convert_max_working_hours_to_seconds
-    self.max_working_hours = self.max_working_hours * 3600
-    self.save
+    self.max_working_hours = (self.temp_working_hours.to_f * 3600).to_i
   end
 
 

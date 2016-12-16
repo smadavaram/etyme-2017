@@ -55,7 +55,8 @@ class User < ActiveRecord::Base
   # validates_uniqueness_of :email
   #
 
-  # Association
+  attr_accessor :temp_working_hours
+
   belongs_to :company
   belongs_to :address           , foreign_key: :primary_address_id
   has_many :created_contracts   , class_name: 'Contract' , foreign_key: :created_by_id
@@ -75,6 +76,8 @@ class User < ActiveRecord::Base
   accepts_nested_attributes_for :attachable_docs , reject_if: :all_blank
   accepts_nested_attributes_for :custom_fields   , reject_if: :all_blank
   accepts_nested_attributes_for :address   , reject_if: :all_blank
+  validates_numericality_of :max_working_hours, only_integer: true, greater_than_or_equal_to: 0 , less_than_or_equal_to: 86400
+
 
 
   def is_admin?
@@ -92,5 +95,7 @@ class User < ActiveRecord::Base
   def full_name
     self.first_name + " " + self.last_name
   end
+
+
 
 end

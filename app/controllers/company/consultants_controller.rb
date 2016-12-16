@@ -36,7 +36,7 @@ class Company::ConsultantsController < Company::BaseController
     params.require(:consultant).permit(:first_name,
                                        :last_name ,
                                        :email ,
-                                       :max_working_hours,
+                                       :temp_working_hours,
                                        role_ids: [],
                                        consultant_profile_attributes:
                                            [

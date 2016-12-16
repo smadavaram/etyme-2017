@@ -30,7 +30,7 @@
       .pull-right{style: 'margin-right: 20px;'}
         %btn.btn-lg.btn-primary.pull-right.header-btn.hidden-mobile{"data-target" => "#myModal", "data-toggle" => "modal"} Log Hours
         -if @timesheet_log.pending?
-          = link_to  ' Approved',timesheet_timesheet_log_approve_path(@timesheet ,@timesheet_log ) ,style: 'margin-right: 5px;' ,class: 'btn-lg btn-success pull-right header-btn hidden-mobile', data: {confirm: "Are you sure to approve all #{time_format(@timesheet_log.accepted_total_time)} hours logged on #{@timesheet_log.transaction_day.strftime('%A, %d %b %Y')}?", verify: 'Approve', verify_text: "Type 'Approve' to confirm"}
+          = link_to  ' Approve',timesheet_timesheet_log_approve_path(@timesheet ,@timesheet_log ) ,style: 'margin-right: 5px;' ,class: 'btn-lg btn-success pull-right header-btn hidden-mobile', data: {confirm: "Are you sure to approve all #{time_format(@timesheet_log.accepted_total_time)} hours logged on #{@timesheet_log.transaction_day.strftime('%A, %d %b %Y')}?", verify: 'Approve', verify_text: "Type 'Approve' to confirm"}
         =render 'company/timesheet_logs/partials/add_transaction_modal'
   %section#widget-grid{style: 'margin-top: 10px;'}
     .row
