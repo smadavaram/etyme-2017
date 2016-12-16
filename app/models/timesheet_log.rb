@@ -22,17 +22,6 @@ class TimesheetLog < ActiveRecord::Base
     self.transactions.accepted.sum(:total_time)
   end
 
-
-
-
-  def total_time
-    logged_time = 0
-    self.transactions.each do |transaction|
-      logged_time = logged_time + transaction.total_time
-    end
-    logged_time
-  end
-
   private
 
   def set_recurring_log_cycle

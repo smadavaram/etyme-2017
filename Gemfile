@@ -14,6 +14,7 @@ gem 'signature-pad-rails'
 #****************************
 gem 'coffee-rails', '~> 4.1.0'
 gem 'jquery-rails'
+gem "jquery-ui-rails"
 
 #****************************
 # Layout & Rendering
@@ -58,7 +59,7 @@ gem 'acts-as-taggable-on', '~> 4.0'
 #****************************
 gem 'devise'
 gem 'devise_invitable', '~> 1.7.0'
-gem 'activeadmin'
+# gem 'activeadmin'
 gem 'validates_timeliness', '~> 4.0'
 gem 'date_validator'
 gem 'ruby-duration', '~> 3.2', '>= 3.2.1'
