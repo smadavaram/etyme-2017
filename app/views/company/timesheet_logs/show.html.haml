@@ -15,7 +15,6 @@
       = "Due: #{(@timesheet.end_date + 2.day).strftime("%A, %d %b %Y")}"
   .row
     .text-center.center
-
       = link_to raw("<i class='fa fa-chevron-left'></i>") , @prev.present? ? timesheet_timesheet_log_path(@timesheet, @prev) : '#' , disabled: !@prev.present?, id: 'btn-prev' , class: 'btn btn-default btn-lg'
       %span.h2{style: 'margin-right: 15px;margin-left: 15px;'}= @timesheet_log.transaction_day.strftime("%A, %d %b %Y")
       = link_to raw("<i class='fa fa-chevron-right'></i>") , @next.present? ? timesheet_timesheet_log_path(@timesheet, @next) : '#' , disabled: !@next.present?, id: 'btn-prev' , class: 'btn btn-default btn-lg'

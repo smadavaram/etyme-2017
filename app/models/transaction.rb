@@ -13,10 +13,10 @@ class Transaction < ActiveRecord::Base
   has_one :timesheet, through: :timesheet_log
 
   default_scope  -> {order(created_at: :desc)}
-  scope :pending, -> {where(status: 'pending')}
-
-
+  scope :pending,  -> {where(status: 0)}
   scope :accepted, -> {where(status: 1)}
+  scope :rejected, -> {where(status: 2)}
+  scope :not_rejected, -> {where.not(status: 2)}
 
   def set_total_time
     if start_time.present? && end_time.present?
@@ -28,16 +28,10 @@ class Transaction < ActiveRecord::Base
   private
 
   def over_lap_time
-    if self.timesheet_log.transactions.all.select{|t| (self.end_time.between?(t.start_time,t.end_time))==true && (self.start_time.between?(t.start_time,t.end_time))==true }
+    if self.timesheet_log.transactions.not_rejected.select{|t| (self.end_time.between?(t.start_time,t.end_time))==true && (self.start_time.between?(t.start_time,t.end_time))==true }
       errors.add(:base,'The time you entered overlaps with an earlier entry.')
     end
 
-  end
-
-  def set_total_time
-    if start_time.present? && end_time.present?
-      self.total_time= ((end_time - start_time)).toend_i
-    end
   end
 
   def set_time_date

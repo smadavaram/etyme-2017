@@ -37,7 +37,7 @@ class Company::InvitationsController < Devise::InvitationsController
   private
 
   def update_resource_params
-    params.permit(user: [:invitation_token,:signature , :dob ,:email,:photo,:gender,:first_name,:last_name,:phone,:password,:password_confirmation,
+    params.permit(user: [:invitation_token,:signature , :ssn, :dob ,:email,:photo,:gender,:first_name,:last_name,:phone,:password,:password_confirmation,
                              address_attributes:[:id,:address_1,:address_2,:city,:country,:state,:zip_code,:_destroy],
                              consultant_profile_attributes:[:id,:location_id,:designation,:joining_date,:employment_type,:salary_type,:salary,:_destroy],
                              custom_fields_attributes:[:id,:name,:value,:_destroy],

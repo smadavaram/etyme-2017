@@ -10,7 +10,7 @@ class Company::TimesheetsController < Company::BaseController
   end
 
   def approve
-    if @timesheet.approved!
+    if current_user.timesheet_approvers.create!(timesheet_id: @timesheet.id)
     flash[:success] = "Successfully Approved"
   else
     flash[:errors] = @timesheet.errors.full_messages

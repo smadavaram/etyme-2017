@@ -18,16 +18,13 @@ class Timesheet < ActiveRecord::Base
 
   def total_time
     total_time = 0
-    self.timesheet_logs.each do |t|
-      total_time = total_time + t.total_time
-    end
+    self.timesheet_logs.each do |t| total_time = total_time + t.total_time end
     total_time
   end
+
   def approved_total_time
     total_time = 0
-    self.timesheet_logs.approved.each do |t|
-      total_time = total_time + t.accepted_total_time
-    end
+    self.timesheet_logs.approved.each do |t| total_time = total_time + t.accepted_total_time end
     total_time
   end
 

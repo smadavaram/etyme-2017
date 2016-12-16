@@ -16,12 +16,11 @@ class Company::ConsultantsController < Company::BaseController
 
   def create
     @consultant = current_company.consultants.new(consultant_params)
-    if @consultant.valid?
-      @consultant.save
+    if @consultant.valid? && @consultant.save
       flash[:success] =  "Successfull Added."
       redirect_to dashboard_path
     else
-      flash.now[:errors] = @consultant.errors.full_messages
+      flash[:errors] = @consultant.errors.full_messages
       return render 'new'
     end
   end
@@ -37,6 +36,7 @@ class Company::ConsultantsController < Company::BaseController
     params.require(:consultant).permit(:first_name,
                                        :last_name ,
                                        :email ,
+                                       :max_working_hours,
                                        role_ids: [],
                                        consultant_profile_attributes:
                                            [
@@ -55,5 +55,5 @@ class Company::ConsultantsController < Company::BaseController
                                            ],
                                        company_doc_ids:[]
     )
-  end # End of company_params
+  end
 end

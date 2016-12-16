@@ -24,4 +24,4 @@
       .input-group
         %span.input-group-addon
           %i.fa.fa-envelope.fa-lg.fa-fw
-        = e.collection_select :role_ids, @roles, :id, :name, {}, {:class=>"form-control input-lg multi-select2-role",:multiple => true,required: true}
+        = e.collection_select :role_ids, current_company.roles, :id, :name, {}, {:class=>"form-control input-lg multi-select2-role",:multiple => true}

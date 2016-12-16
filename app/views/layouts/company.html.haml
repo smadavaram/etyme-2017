@@ -15,7 +15,6 @@
 
     / GOOGLE FONT
     = stylesheet_link_tag 'https://fonts.googleapis.com/css?family=Open+Sans:400italic,700italic,300,400,700'
-
     / PACE LOADER - turn this on if you want ajax loading to show (caution: uses lots of memory on iDevices)
     -#= javascript_include_tag 'plugin/pace/pace.min', 'data-pace-options' => '{ "restartOnRequestAfter": true }'
     /
@@ -44,12 +43,9 @@
     = yield :modals
     = render partial: 'company/shared/footer'
     = render partial: 'company/shared/tiles'
-    / END SHORTCUT AREA
-    / ==================================================
-    / PACE LOADER - turn this on if you want ajax loading to show (caution: uses lots of memory on iDevices)
-    -#= javascript_include_tag 'plugin/pace/pace.min', 'data-pace-options' => '{ "restartOnRequestAfter": true }'
     = javascript_include_tag 'company'
     = filepicker_js_include_tag
-    = render partial: 'shared/flash_messages'
-    /[if IE 8]
-    = yield(:scripts).present? ? yield(:scripts) : render(partial: 'shared/scripts')
+
+  /[if IE 8]
+  = yield(:scripts).present? ? yield(:scripts) : render(partial: 'shared/scripts')
+  = render 'shared/flash_messages'

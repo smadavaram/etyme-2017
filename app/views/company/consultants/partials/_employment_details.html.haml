@@ -14,12 +14,18 @@
           %i.fa.fa-user.fa-lg.fa-fw
         = p.text_field :joining_date , class: 'form-control input-lg' , placeholder: "Enter Joining Date" , required: true
 .row
-  .col-sm-12
+  .col-sm-6
     .form-group
       .input-group
         %span.input-group-addon
           %i.fa.fa-mobile.fa-lg.fa-fw
         = p.select :employment_type, [['Full Time (30 hours or more)','full_time'],['Part Time (30 hours or less)','part_time'],['Temp or Intern','temp_intern']], {}, {:class=>"form-control input-lg"}
+  .col-sm-6
+    .form-group
+      .input-group
+        %span.input-group-addon
+          %i.fa.fa-mobile.fa-lg.fa-fw
+        = e.number_field :max_working_hours ,value: e.object.max_working_hours/3600.0, class: 'form-control input-lg' , placeholder: "Enter Per Day Working Hours" , required: true
 .row
   .col-sm-6
     .form-group
