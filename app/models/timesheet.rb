@@ -15,6 +15,7 @@ class Timesheet < ActiveRecord::Base
 
   validates           :start_date,  presence:   true
   validates           :end_date,    presence:   true
+  validates :status ,             inclusion: {in: statuses.keys}
 
   def total_time
     total_time = 0

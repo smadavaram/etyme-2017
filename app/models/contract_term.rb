@@ -5,4 +5,6 @@ class ContractTerm < ActiveRecord::Base
   belongs_to :contract
   belongs_to :user , class_name: 'User' , foreign_key: 'created_by'
 
+  validates :status ,             inclusion: {in: statuses.keys}
+
 end

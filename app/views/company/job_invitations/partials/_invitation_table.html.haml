@@ -16,7 +16,7 @@
         %tr{class: "#{set_background_status_color(invitation.status)}"}
           %td= image_tag invitation.recipient.photo, alt: '', width: '20'
           %td= link_to invitation.recipient.full_name , '#'
-          %td= link_to invitation.recipient.company.name , '#'
+          %td= link_to invitation.recipient.company.name , '#' if invitation.recipient.type!="Candidate"
           %td= link_to invitation.job.title , '#'
           %td
             = invitation.recipient.email

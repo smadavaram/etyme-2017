@@ -27,7 +27,7 @@
           %td= #invitation.expiry
           %td
             - if d.pending?
-              = link_to 'Accept' , open_contract_job_contract_path(d.job , d , status: 'accept') , method: :post , remote: true , class: 'btn btn-xs btn-default'
-              = link_to 'Reject' , open_contract_job_contract_path(d.job , d , status: 'reject') , method: :post , remote: true ,  class: 'btn btn-xs btn-default'
+              = link_to 'Accept' , open_job_contract_path(d.job , d , status: 'accept') , method: :post , remote: true , class: 'btn btn-xs btn-default'
+              = link_to 'Reject' , open_job_contract_path(d.job , d , status: 'reject') , method: :post , remote: true ,  class: 'btn btn-xs btn-default'
             -else
               %span.label.label-success= d.status

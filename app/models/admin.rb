@@ -1,13 +1,13 @@
 class Admin < User
 
-  has_many :job_invitations , as: :recipient
+  has_many          :job_invitations , as: :recipient
 
-  validates :password,presence: true,if: Proc.new { |consultant| !consultant.password.nil? }
-  validates :password_confirmation,presence: true,if: Proc.new { |consultant| !consultant.password.nil? }
+  validates         :password,presence: true,if: Proc.new { |consultant| !consultant.password.nil? }
+  validates         :password_confirmation,presence: true,if: Proc.new { |consultant| !consultant.password.nil? }
 
   accepts_nested_attributes_for :address , reject_if: :all_blank
 
-  after_create :send_invitation ,if: Proc.new { |admin| admin.company.present? }
+  after_create                  :send_invitation ,if: Proc.new { |admin| admin.company.present? }
 
   private
 

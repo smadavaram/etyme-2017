@@ -3,7 +3,6 @@ class JobApplication < ActiveRecord::Base
   enum status: { accepted: 1 , pending: 0  , rejected: 2 , short_listed: 3 }
   enum application_type: {direct: 0 , candidate_direct: 1 , vendor_direct: 2 , invitation: 3}
 
-  #Association
   belongs_to :job_invitation
   belongs_to :user
   belongs_to :job
@@ -12,8 +11,8 @@ class JobApplication < ActiveRecord::Base
   has_many   :custom_fields ,as: :customizable
 
   validates :cover_letter , presence: true
-  # validates :application_type, inclusion: { in: application_types.keys }
-  # validates :application_type
+  validates :application_type, inclusion: { in: application_types.keys }
+  validates :status ,             inclusion: {in: statuses.keys}
 
   after_create :update_job_invitation_status ,     if: Proc.new{|application| application.job_invitation.present?}
   after_update :notify_recipient_on_status_change, if: Proc.new{|application| application.status_changed? && application.job_invitation.present?}

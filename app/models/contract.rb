@@ -24,12 +24,11 @@ class Contract < ActiveRecord::Base
   after_save   :create_timesheet, if: Proc.new{|contract| contract.status_changed? && contract.accepted? && contract.is_not_ended? && !contract.timesheets.present?}
 
   default_scope  -> {order(created_at: :desc)}
-  scope :pending , -> {where(status: 0)}
-  scope :accepted , -> {where(status: 1)}
-  scope :rejected , -> {where(status: 2)}
 
-  validates           :start_date,  presence:   true
-  validates           :end_date,    presence:   true
+  validates :status ,             inclusion: {in: statuses.keys}
+  validates :billing_frequency ,             inclusion: {in: billing_frequencies.keys}
+  validates :start_date,  presence:   true
+  validates :end_date,    presence:   true
 
   accepts_nested_attributes_for :contract_terms, allow_destroy: true ,reject_if: :all_blank
 

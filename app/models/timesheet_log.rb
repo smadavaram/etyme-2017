@@ -10,9 +10,7 @@ class TimesheetLog < ActiveRecord::Base
   after_create :schedule_timesheet_log
 
   validates  :transaction_day,  presence:   true
-
-  scope :pending, -> {where(status: 0)}
-  scope :approved, -> {where(status: 1)}
+  validates :status ,             inclusion: {in: statuses.keys}
 
   def total_time
     self.transactions.sum(:total_time)

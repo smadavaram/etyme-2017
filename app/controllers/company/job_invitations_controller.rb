@@ -4,7 +4,7 @@ class Company::JobInvitationsController < Company::BaseController
   before_action :find_job            , only: [:create , :update]
   before_action :find_job_invitation , only: [ :update]
   before_action :set_job_invitations , only: [:index]
-  before_action :find_received_job_invitations , only: [:accept_job_invitation , :reject_job_invitation]
+  before_action :find_received_job_invitations , only: [:accept , :reject]
 
   #BreadCrumbs
   add_breadcrumb "JOB INVITATIONS", :job_invitations_path, options: { title: "JOBS INVITATIONS" }
@@ -36,13 +36,13 @@ class Company::JobInvitationsController < Company::BaseController
     end
   end
 
-  def accept_job_invitation
+  def accept
     @job_application = @job_invitation.build_job_application
     @job_application.custom_fields.build
     # render layout: 'company'
   end
 
-  def reject_job_invitation
+  def reject
   end
 
 

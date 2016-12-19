@@ -16,6 +16,7 @@ class JobInvitation < ActiveRecord::Base
 
   enum status: { pending: 0, accepted: 1 , rejected: 2 }
 
+  validates :status ,             inclusion: {in: statuses.keys}
   # validates :expiry , presence: true,date: { after_or_equal_to: Proc.new { Date.today }, message: "Date must be at least #{(Date.today ).to_s}" }
 
   belongs_to :created_by , class_name: "User" ,foreign_key: :created_by_id

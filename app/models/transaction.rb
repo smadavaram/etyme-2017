@@ -13,6 +13,7 @@ class Transaction < ActiveRecord::Base
   validate                  :time_overlap , on: [:create]
   validate                  :start_time_less_than_end_time
   validate                  :end_time_is_not_in_future
+  validates                 :status ,             inclusion: {in: statuses.keys}
 
   belongs_to                :timesheet_log
   has_one                   :timesheet, through: :timesheet_log

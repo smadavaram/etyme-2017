@@ -53,7 +53,7 @@ class User < ActiveRecord::Base
   # validates :last_name, :presence => true
   # validates_presence_of :email
   # validates_uniqueness_of :email
-  #
+
 
   attr_accessor :temp_working_hours
 

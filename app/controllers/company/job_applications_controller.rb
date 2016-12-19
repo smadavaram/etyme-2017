@@ -4,7 +4,7 @@ class Company::JobApplicationsController < Company::BaseController
   before_action :find_job , only: [:create]
   before_action :find_received_job_invitation , only: [:create]
   before_action :set_job_applications , only: [:index]
-  before_action :find_received_job_application , only: [:accept_job_application , :reject_job_application , :short_list_job_application]
+  before_action :find_received_job_application , only: [:accept , :reject , :short_list]
 
   # BreadCrumbs
   add_breadcrumb "JOB APPLICATION", :job_applications_path, options: { title: "JOBS APPLICATION" }
@@ -27,7 +27,7 @@ class Company::JobApplicationsController < Company::BaseController
   end
 
   # POST company/jobs/:job_id/job_invitations/:job_invitation_id/job_applications/:id/accept_job_application
-  def accept_job_application
+  def accept
     respond_to do |format|
       if @job_application.pending?
         @contract = @job_application.job.contracts.new
@@ -41,7 +41,7 @@ class Company::JobApplicationsController < Company::BaseController
   end
 
   # POST company/jobs/:job_id/job_invitations/:job_invitation_id/job_applications/:id/reject_job_application
-  def reject_job_application
+  def reject
     respond_to do |format|
       if @job_application.pending?
         if @job_application.rejected!
@@ -57,7 +57,7 @@ class Company::JobApplicationsController < Company::BaseController
   end
 
   # POST company/jobs/:job_id/job_invitations/:job_invitation_id/job_applications/:id/short_list_job_application
-  def short_list_job_application
+  def short_list
     respond_to do |format|
       if @job_application.pending?
         if @job_application.short_listed!
