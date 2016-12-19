@@ -66,7 +66,7 @@ class Company < ActiveRecord::Base
 
   # Validations
   # validates           :company_type, inclusion: { in: [0, 1] } , presence: true
-  validates           :company_type, inclusion: {in: [:hiring_manager, :vendor]}
+  # validates           :company_type, inclusion: {in: %w(0 , 1)}
   validates           :name,  presence:   true, uniqueness:{case_sensitive: false}
   validates_length_of :name,  minimum:    3   , message: "must be atleat 3 characters"
   validates_length_of :name,  maximum:    50  , message: "can have maximum of 50 characters"
