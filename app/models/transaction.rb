@@ -2,30 +2,23 @@ class Transaction < ActiveRecord::Base
 
   enum status: [:pending , :accepted , :rejected]
 
-  # Callbacks
   before_validation         :set_time_date
   before_validation         :set_total_time
 
-  # Validations
   validate                  :time_overlap
   validate                  :start_time_less_than_end_time
   validate                  :end_time_is_not_in_future
   validate                  :max_hours_limit
   validate                  :timesheet_open
-  validate             :time_overlap , on: [:create]
-  validate             :start_time_less_than_end_time
-  validate             :end_time_is_not_in_future
+  validate                  :time_overlap , on: [:create]
+  validate                  :start_time_less_than_end_time
+  validate                  :end_time_is_not_in_future
 
-  # Relationships
   belongs_to                :timesheet_log
   has_one                   :timesheet, through: :timesheet_log
 
-  # Scopes
   default_scope             -> {order(created_at: :desc)}
-  scope :pending,           -> {where(status: 0)}
-  scope :accepted,          -> {where(status: 1)}
-  scope :rejected,          -> {where(status: 2)}
-  scope :not_rejected,      -> {where.not(status: 2)}
+  scope :not_rejected,      -> {where.not(status: :rejected)}
 
   private
 

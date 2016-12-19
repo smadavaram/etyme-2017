@@ -33,10 +33,6 @@ class Contract < ActiveRecord::Base
 
   accepts_nested_attributes_for :contract_terms, allow_destroy: true ,reject_if: :all_blank
 
-  def is_pending?
-    status == 'pending'
-  end
-
   def is_not_ended?
     self.end_date >= Date.today
   end

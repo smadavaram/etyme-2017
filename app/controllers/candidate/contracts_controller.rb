@@ -17,7 +17,7 @@ class Candidate::ContractsController < Candidate::BaseController
   def update_contract_response
     status = params[:status] == "reject" ? 2 : params[:status] == "accept" ? 1 : nil
     respond_to do |format|
-      if @contract.is_pending?
+      if @contract.pending?
         if @contract.update_attributes(respond_by_id: current_candidate.id , responed_at: Time.now , status: status)
           format.js{ flash[:success] = "successfully Submitted." }
         else

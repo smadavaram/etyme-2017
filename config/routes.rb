@@ -43,8 +43,15 @@
 Rails.application.routes.draw do
 
   scope module: :candidate do
-     resources :candidates ,path: :candidate ,only: [:update]
-    get '/profile',to:'candidates#show'
+
+    resources :candidates ,path: :candidate ,only: [:update]
+    resources :candidates do
+      member do
+        get '/profile',to:'candidates#show'
+      end
+    end
+
+
   end
 
   namespace :candidate do

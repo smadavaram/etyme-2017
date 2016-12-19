@@ -1,8 +1,6 @@
 class TimesheetApprover < ActiveRecord::Base
   enum status: [:open,:pending_review, :approved , :partially_approved , :rejected , :submitted]
 
-
-  #Associations
   belongs_to :user
   belongs_to :timesheet
   has_one    :job , through: :timesheet

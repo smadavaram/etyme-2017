@@ -16,10 +16,8 @@ class JobInvitation < ActiveRecord::Base
 
   enum status: { pending: 0, accepted: 1 , rejected: 2 }
 
-  #Validations
   # validates :expiry , presence: true,date: { after_or_equal_to: Proc.new { Date.today }, message: "Date must be at least #{(Date.today ).to_s}" }
 
-  #Associations
   belongs_to :created_by , class_name: "User" ,foreign_key: :created_by_id
   belongs_to :recipient , polymorphic: true
   belongs_to :company
@@ -27,20 +25,10 @@ class JobInvitation < ActiveRecord::Base
   has_one    :job_application
   has_one    :contract  , through: :job_application
 
-  #CallBacks
   # after_create :send_invitation_mail
   after_create :notify_recipient
   after_update :notify_on_status_change, if: Proc.new{|invitation| invitation.status_changed?}
 
-
-  #Scopes
-  scope :pending  , -> {where(status: 0)}
-  scope :accepted , -> {where(status: 1)}
-  scope :rejected , -> {where(status: 2)}
-
-  def is_pending?
-    self.status == 'pending'
-  end
 
   private
 

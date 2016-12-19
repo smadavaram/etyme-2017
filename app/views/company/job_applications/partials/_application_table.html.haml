@@ -21,7 +21,7 @@
           %td
             %span.label.label-success= application.status
           %td
-            - if application.is_pending?
+            - if application.pending?
               = link_to 'Reject' , reject_job_application_job_application_path(application) , method: :post , remote: true , class:'btn btn-xs btn-danger' , style: 'margin-left: 5px'
               = link_to 'Short List' , short_list_job_application_job_application_path(application) , method: :post , remote: true , class:'btn btn-xs btn-primary' , style: "margin-left: 5px;"
               = link_to 'Accept' , accept_job_application_job_application_path(application) , method: :post , remote: true , class:'btn btn-xs btn-success'

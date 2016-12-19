@@ -54,7 +54,7 @@ class Company::LeavesController <Company::BaseController
 
   def accept_leave
     respond_to do |format|
-      if @consultant_leave.is_pending?
+      if @consultant_leave.pending?
         if @consultant_leave.accepted!
           format.js{ flash[:success] = "successfully Accepted." }
         else
@@ -68,7 +68,7 @@ class Company::LeavesController <Company::BaseController
 
   def reject_leave
     respond_to do |format|
-      if(@consultant_leave.is_pending?)
+      if(@consultant_leave.pending?)
         if @consultant_leave.rejected!
           format.js{ flash[:success] = "successfully Accepted." }
         else

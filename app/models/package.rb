@@ -1,13 +1,10 @@
 class Package < ActiveRecord::Base
 
-  #Associations
   has_many :subscriptions
   has_many :companies , through: :subscriptions
 
-  #Validates
   validates :name , :slug , presence: true , uniqueness: true
 
-  #Call Backs
   before_create :set_slug
 
   def self.free

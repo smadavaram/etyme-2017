@@ -11,39 +11,17 @@ class JobApplication < ActiveRecord::Base
   has_one    :contract
   has_many   :custom_fields ,as: :customizable
 
-
-  #validation
   validates :cover_letter , presence: true
+  # validates :application_type, inclusion: { in: application_types.keys }
+  # validates :application_type
 
-  #CallBacks
   after_create :update_job_invitation_status ,     if: Proc.new{|application| application.job_invitation.present?}
   after_update :notify_recipient_on_status_change, if: Proc.new{|application| application.status_changed? && application.job_invitation.present?}
   after_create :set_application_type,              if: Proc.new{|application| application.job_invitation.present?}
 
-  #Nested Attributes
   accepts_nested_attributes_for :custom_fields , reject_if: :all_blank
 
-  # Scopes
   default_scope                { order(created_at: :desc) }
-  scope :pending          , -> {where(status: 0)}
-  scope :accepted         , -> {where(status: 1)}
-  scope :rejected         , -> {where(status: 2)}
-  scope :short_list       , -> {where(status: 3)}
-  scope :candidate_direct , -> {where(application_type: 1)}
-  scope :invitation       , -> {where(application_type: 3)}
-
-  def is_pending?
-    self.pending?
-  end
-
-  def is_accepted?
-    self.accepted?
-  end
-
-  def is_rejected?
-    self.rejected?
-  end
-
 
   private
 

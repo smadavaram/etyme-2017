@@ -1,10 +1,8 @@
 class Candidate < User
 
-  #Callbacks
   after_create :send_welcome_email
   after_create :create_address
 
-  #Associations
   has_many :contracts , through: :job_applications,dependent: :destroy
 
   #Tags Input

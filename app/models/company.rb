@@ -33,13 +33,10 @@
 
 class Company < ActiveRecord::Base
 
-  # Tagging
   acts_as_taggable_on :skills
 
-  #Enum
   enum company_type: [:hiring_manager, :vendor]
 
-  # Association
   #Note: Do not change the through association order.
   belongs_to :owner                   , class_name: 'Admin'         , foreign_key: "owner_id"
   has_many :locations                 , dependent: :destroy
@@ -63,8 +60,6 @@ class Company < ActiveRecord::Base
   has_one  :package                   , through:   :subscription
 
 
-
-  # Validations
   # validates           :company_type, inclusion: { in: [0, 1] } , presence: true
   # validates           :company_type, inclusion: {in: %w(0 , 1)}
   validates           :name,  presence:   true, uniqueness:{case_sensitive: false}
@@ -72,17 +67,14 @@ class Company < ActiveRecord::Base
   validates_length_of :name,  maximum:    50  , message: "can have maximum of 50 characters"
   validates           :slug,  uniqueness: true
 
-  # Nested Attributes
   accepts_nested_attributes_for :owner    , allow_destroy: true
   accepts_nested_attributes_for :locations, allow_destroy: true,reject_if: :all_blank
 
-  # CallBacks
   before_validation :create_slug
   after_create      :set_owner_company_id
   after_create      :welcome_email_to_owner
   after_create      :assign_free_subscription
 
-  #Scopes
   scope :vendors, -> {where(company_type: 1)}
 
   # def job_invitations
