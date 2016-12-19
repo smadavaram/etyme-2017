@@ -31,11 +31,11 @@
           %a{"aria-expanded" => "true", "data-toggle" => "tab", :href => "#hr1"}
             %i.fa.fa-lg.fa-arrow-circle-o-down
             %span.hidden-mobile.hidden-tablet Basic Info
-        -#%li
-        -#  %a{"aria-expanded" => "false", "data-toggle" => "tab", :href => "#hr2"}
-        -#    %i.fa.fa-lg.fa-arrow-circle-o-up
-        -#    %span.hidden-mobile.hidden-tablet
-        -#      Locations
+        %li
+          %a{"aria-expanded" => "false", "data-toggle" => "tab", :href => "#hr2"}
+            %i.fa.fa-lg.fa-arrow-circle-o-up
+            %span.hidden-mobile.hidden-tablet
+              Locations
         -#%li
         -#  %a{"aria-expanded" => "false", "data-toggle" => "tab", :href => "#hr3"}
         -#    %i.fa.fa-lg.fa-arrow-circle-o-up
@@ -66,7 +66,7 @@
             -#%button.btn.btn-primary{"data-target" => "#myModal", "data-toggle" => "modal"}
             -#  Add Location
             .tabbable.tabs-below
-              -#=render partial: 'candidate/candidates/partials/location',locals:{address: current_candidate.build_address}
+              =render partial: 'candidate/candidates/partials/location',locals:{address: current_candidate.address}
 
         -#  -# Owner And Admin TAB
         -#  #hr3.tab-pane

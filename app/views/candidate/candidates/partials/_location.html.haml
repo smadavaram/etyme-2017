@@ -5,20 +5,20 @@
         %th{style:'width:50%'}
           Country
         %td{style:'width:50%'}
-          = best_in_place address,:country, :as => :select, :collection => CS.countries.sort.map{|k,v|[k,v]},path: candidate_address_path(address)
+          = best_in_place current_candidate.address,:country, :as => :select, :collection => CS.countries.sort.map{|k,v|[k,v]},url:candidate_path(current_candidate), param: "candidate[address_attributes]"
       %tr
         %th{style:'width:50%'}
           City
         %td{style:'width:50%'}
-          = best_in_place address,:city, :as => :input, :place_holder => "Click me to add content!"
+          = best_in_place current_candidate.address,:city, :as => :input, :place_holder => "Click me to add content!",url:candidate_path(current_candidate), param: "candidate[address_attributes]"
       %tr
         %th
           State
         %td
-          = best_in_place address,:state, :as => :input, :place_holder => "Click me to add content!"
+          = best_in_place current_candidate.address,:state, :as => :input, :place_holder => "Click me to add content!",url:candidate_path(current_candidate), param: "candidate[address_attributes]"
 
       %tr
         %th
           Zip Code
         %td
-          = best_in_place address,:zip_code, :as => :input, :place_holder => "Click me to add content!"
+          = best_in_place current_candidate.address,:zip_code, :as => :input, :place_holder => "Click me to add content!",url:candidate_path(current_candidate), param: "candidate[address_attributes]"
