@@ -138,7 +138,7 @@ Rails.application.routes.draw do
       resources :job_invitations , except: [:index] do
         resources :job_applications , except: [:index]
         member do
-          post :accept ,as:
+          post :accept
           post :reject
         end # End of member
       end # End of :job_invitations
