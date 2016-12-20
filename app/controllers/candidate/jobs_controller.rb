@@ -17,6 +17,10 @@ class Candidate::JobsController < Candidate::BaseController
   end
 
   def apply
+    @job_application = @job.job_applications.new
+    @job.custom_fields.each do |cf|
+      @job_application.custom_fields.new(name: cf.name)
+    end
     # if current_candidate.jobs_applications.where(job: @job)
     #
     # end

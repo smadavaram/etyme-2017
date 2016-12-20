@@ -45,8 +45,13 @@ Rails.application.routes.draw do
   scope module: :candidate do
 
     resources :candidates ,path: :candidate ,only: [:update]
-    get '/profile',to:'candidates#show'
-    
+    resources :candidates do
+      member do
+        get '/profile',to:'candidates#show'
+      end
+    end
+
+
   end
 
   namespace :candidate do
@@ -133,7 +138,7 @@ Rails.application.routes.draw do
       resources :job_invitations , except: [:index] do
         resources :job_applications , except: [:index]
         member do
-          post :accept
+          post :accept ,as:
           post :reject
         end # End of member
       end # End of :job_invitations
