@@ -45,12 +45,7 @@ Rails.application.routes.draw do
   scope module: :candidate do
 
     resources :candidates ,path: :candidate ,only: [:update]
-    resources :candidates do
-      member do
-        get '/profile',to:'candidates#show'
-      end
-    end
-
+    get '/profile',to:'candidates#show'
 
   end
 
@@ -104,6 +99,7 @@ Rails.application.routes.draw do
 
   # COMPANY ROUTES
   scope module: :company do
+
     resources :consultants do
       resources :leaves do
         member do
@@ -169,6 +165,7 @@ Rails.application.routes.draw do
     # get 'configuration' ,   to: 'companies#edit' ,              as: :configuration
     resources :companies , only: [:update,:show] do
       collection do
+        post :change_owner
         post :get_admins_list , as: :get_admins_list
       end
     end

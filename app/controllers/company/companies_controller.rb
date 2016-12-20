@@ -1,5 +1,7 @@
 class Company::CompaniesController < Company::BaseController
 
+  before_action :find_admin, only: :change_owner
+
   respond_to :html,:json
 
   add_breadcrumb 'Companies', "#", :title => ""
@@ -32,7 +34,17 @@ class Company::CompaniesController < Company::BaseController
     end
   end
 
+  def change_owner
+    if current_company.update_column(:owner_id , @admin.id)
+      flash[:success]="Owner Changed"
+    end
+  end
+
   private
+
+  def find_admin
+    @admin=current_company.admins.find_by_id(params[:admin_id])
+  end
 
     def company_params
       params.require(:company).permit(:name ,:company_type, :skill_list , :website,:logo,:description,:phone,:email,:linkedin_url,:facebook_url,:twitter_url,:google_url,:is_activated,:status,:time_zone,:tag_line, owner_attributes:[:id, :type ,:first_name, :last_name ,:email,:password, :password_confirmation],locations_attributes:[:id,:name,:status,  address_attributes:[:id,:address_1,:country,:city,:state,:zip_code] ] )

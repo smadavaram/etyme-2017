@@ -33,4 +33,4 @@
           %td
             = admin.type
           %td
-            = link_to 'Make Owner' ,'#' , method: :post ,remote: true,  class: 'btn btn-xs btn-default btn-success'
+            = link_to 'Make Owner' ,change_owner_companies_path(admin_id: admin.id) , method: :post ,remote: true,  class: 'btn btn-xs btn-default btn-success', data: {confirm: 'Are you sure?', verify: "Accept", verify_text: "Type 'Accept' to confirm"}
