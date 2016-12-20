@@ -2,5 +2,20 @@
   %h1.page-title.txt-color-blueDark
     %i.fa-fw.fa.fa-home
     = "Welcome #{current_user.full_name.titleize} ,"
+- if !current_company.locations.present? || !current_company.roles.present?
+  .col-xs-12.col-sm-7.col-md-12.col-lg-12
+    .alert.alert-success.alert-block
+      %h4.alert-heading Success!
+      Please fill in these detail in order to  use etyme.
+      %ul
+        -if !current_company.locations.present?
+          %li
+            = link_to 'Click here ' , locations_path , target: '_blank'
+            To complete your location.
+        -if !current_company.roles.present?
+          %li
+            = link_to 'Click here ' , admin_path , target: '_blank'
+            To complete your roles.
+
 - content_for :scripts do
   \// Empty
