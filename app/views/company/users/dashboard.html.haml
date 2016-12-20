@@ -6,11 +6,11 @@
   .col-xs-12.col-sm-7.col-md-12.col-lg-12
     .alert.alert-success.alert-block
       %h4.alert-heading Success!
-      Please fill in these detail in order to  use etyme.
+      Please fill in these details in order to  use etyme.
       %ul
         -if !current_company.locations.present?
           %li
-            = link_to 'Click here ' , locations_path , target: '_blank'
+            = link_to 'Click here ' , company_path(current_company) , target: '_blank'
             To complete your location.
         -if !current_company.roles.present?
           %li
