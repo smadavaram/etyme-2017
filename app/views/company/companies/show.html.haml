@@ -94,6 +94,9 @@
         $( ".file" ).trigger( "click" );
       });
       $(".best_in_place").best_in_place();
+      $(".best_in_place").on('change', function(event) {
+          flash_success('Change Saved!');
+      });
     });
     function employeeLogoUpload(event){
       photo_url = event.fpfile.url
@@ -113,3 +116,4 @@
     $('td').on('mouseover mouseout',function(){
     $(this).find('.editprofile-pic_in_line').toggle();
     });
+

@@ -15,7 +15,7 @@ class Company::JobsController < Company::BaseController
   # GET /company/jobs/1
   # GET /company/jobs/1.json
   def show
-    add_breadcrumb @company_job.title. titleize, :job_invitations_path, options: { title: "Job Invitation" }
+    add_breadcrumb @company_job.title. titleize, :job_path, options: { title: "Job Invitation" }
   end
 
   # GET /company/jobs/new

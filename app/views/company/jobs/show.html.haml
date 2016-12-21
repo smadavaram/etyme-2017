@@ -1,12 +1,82 @@
-#content
-  %section#widget-grid
-    .row.center-block
-      %article.col-sm-12.col-md-12.col-lg-12
-        #wid-id-0.jarviswidget
-          %header
-            %h2= @company_job.title.titleize
-          / widget div
-          %div
-            .jarviswidget-editbox
-            .widget-body
-              = render 'company/jobs/partials/job_show_form'
+.container.c-color
+  .col-sm-12.animated.fadeInRightBig
+    %section.panel.mt-20s
+      %header.panel-heading
+        -#%a.pull-right.btn.btn-primary.right.mt-12{href:"#",}  Apply Now
+        %h1= @company_job.title
+        - @company_job.tags.each do |tag|
+          %span.h4.badge
+            =tag.name
+      %ul.ul-s
+        %li.list-group-item.list-p-15
+          %span.text-muted Detail
+          =raw(@company_job.description)
+          .row
+            .col-lg-3.col-md-3
+              %span.text-muted.fs-13 Location
+              = @company_job.location.name.titleize if @company_job.location.present?
+            .col-lg-3.col-md-3
+              %span.text-muted.fs-13 Catagory
+              - @company_job.tags.each do |tag|
+                %span.h4.badge
+                  =tag.name
+            .col-lg-3.col-md-3
+              %span.text-muted.fs-13 Date
+              = @company_job.start_date.to_s + " - "
+              = @company_job.end_date.to_s
+            .col-lg-3.col-md-3
+              %span.text-muted.fs-13 Company
+              = @company_job.company.name
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+              -##content.container
+-#  .col-sm-12.animated.fadeInRightBig
+-#    %section.panel.b-light.m-t
+-#      %header.panel-heading.bg-white.b-light
+-#        %a.pull-right.btn.btn-primary.right{:href => "/job/2-software-engineer-experienced-ruby-on-rails/apply", :style => "margin-top:12px;"} Apply Now
+-#        %h1.m-t-sm{:style => "padding-left:20px;"}= @company_job.title
+-#        %span.h4.badge.ml20{:style => "background: #E8E8E8; color: #717171; padding: 5px;border-radius: 2px;font-weight: normal;"} Web Development
+-#      %ul{:style => "list-style: none outside none;text-align:justify;padding:20px;overflow: auto;"}
+-#        %li.list-group-item{:style => "text-align:justify;font-size:14px;line-height:25px;border:none;"}
+-#          / <b>Details:</b><br/>
+-#          %span.text-muted{:style => "font-size: 13px;display: block"} Details
+-#          = raw(@company_job.description)
+-#          .row
+-#            .col-lg-3.col-md-3.mb10{:style => "text-align:left;font-size: 13px;"}
+-#              %span.text-muted{:style => "font-size: 13px;display: block"} Experience Level
+-#              2 Years
+-#            .col-lg-3.col-md-3.mb10{:style => "text-align:left;font-size: 13px;"}
+-#              %span.text-muted{:style => "font-size: 13px;display: block"} Category
+-#            .col-lg-3.col-md-3.mb10{:style => "text-align:left;font-size: 13px;"}
+-#              %span.text-muted{"data-original-title" => "72-T, Phase 2 (2nd Floor) Commercial, Lahore, Punjab, Pakistan", "data-toggle" => "tooltip", :style => "font-size: 13px;display: block", :title => ""} Location
+-#              = @company_job.location.name.titleize
+-#        %li{:style => "list-style:none;float:right;"}
+-#          / <span style="vertical-align:10px !important;">Share</span>
+-#          / <span class='st_email_large' displayText='Email'></span>
+-#          %span.st_facebook_large{:displaytext => "Facebook", :st_processed => "yes"}
+-#            %span.stButton{:style => "text-decoration:none;color:#000000;display:inline-block;cursor:pointer;"}
+-#              %span.stLarge{:style => "background-image: url(\"http://w.sharethis.com/images/facebook_32.png\");"}
+-#          %span.st_twitter_large{:displaytext => "Tweet", :st_processed => "yes"}
+-#            %span.stButton{:style => "text-decoration:none;color:#000000;display:inline-block;cursor:pointer;"}
+-#              %span.stLarge{:style => "background-image: url(\"http://w.sharethis.com/images/twitter_32.png\");"}
+-#          %span.st_linkedin_large{:displaytext => "LinkedIn", :st_processed => "yes"}
+-#            %span.stButton{:style => "text-decoration:none;color:#000000;display:inline-block;cursor:pointer;"}
+-#              %span.stLarge{:style => "background-image: url(\"http://w.sharethis.com/images/linkedin_32.png\");"}
+-#      %table
+
+
+
+

@@ -42,12 +42,15 @@
 
 Rails.application.routes.draw do
 
+  get '/states/:country', to: 'application#states'
+  get '/cities/:state/:country', to: 'application#cities'
   scope module: :candidate do
 
     resources :candidates ,path: :candidate ,only: [:update]
     get '/profile',to:'candidates#show'
 
   end
+
 
   namespace :candidate do
     get '/' ,       to: 'candidates#dashboard' ,             as: :candidate_dashboard
@@ -122,7 +125,7 @@ Rails.application.routes.draw do
         post :short_list
       end # End of member
     end
-    resources :contracts        , only: [:index]
+    resources :contracts        , only: [:index,:show]
     resources :jobs do
       resources :contracts , except: [:index] do
         member do
@@ -149,6 +152,7 @@ Rails.application.routes.draw do
     get 'attachment/documents_list',to: 'attachments#document_list'
     get 'dashboard' ,       to: 'users#dashboard' ,             as: :dashboard
     post 'update_photo',    to: 'users#update_photo'
+
     resources :timesheets,only: [:show , :index] do
       get 'approve'
       get 'submit'

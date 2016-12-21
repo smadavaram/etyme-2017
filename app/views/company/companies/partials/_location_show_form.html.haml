@@ -21,8 +21,53 @@
           %td
             = best_in_place location.address, :country, :as => :select, :collection => CS.countries.sort.map{|k,v|[k,v]}
           %td
-            = best_in_place location.address,:city, :as => :input, :place_holder => "Click me to add content!"
+            = best_in_place location.address,:city, :as => :select, :collection => CS.cities(location.address.state,location.address.country).sort.map{|k,v|[k,k]}
           %td
-            = best_in_place location.address,:state, :as => :input, :place_holder => "Click me to add content!"
+            = best_in_place location.address,:state, :as => :select, :collection => CS.states(location.address.country).sort.map{|k,v|[k,v]}
           %td
             = best_in_place location.address,:zip_code, :as => :input, :place_holder => "Click me to add content!"
+
+
+
+
+
+
+
+- content_for :scripts do
+  :javascript
+    $(document).ready(function() {
+
+        $('.country').change(
+         function() {
+         var states_of_country=$('.state')
+         $.getJSON('/states/'+$(this).val(),function(data) {
+              states_of_country.empty();
+              states_of_country
+              states_of_country.append('<option value="">Select State ...</option>');
+              $.each(data,function(key,value) {
+              var opt = '<option value=' + key + '>' + value + '</option>';
+              states_of_country.append(opt);
+              });
+
+           });//End OF json
+
+         }); //End OF Country Change
+
+
+      $('.state').change(
+         function() {
+         var country=$('.country').val();
+         var cities_of_sate=$('.city')
+         $.getJSON('/cities/'+$(this).val()+"/"+country,function(data) {
+              cities_of_sate.empty();
+              cities_of_sate.append('<option value="">Select City ...</option>');
+              $.each(data,function(key,value) {
+              var opt = '<option value=' + key + '>' + value + '</option>';
+              cities_of_sate.append(opt);
+              });
+
+           });//End OF json
+
+         }); //End OF State Change
+
+      }); // End of document ready

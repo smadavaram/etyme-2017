@@ -1,14 +1,62 @@
-#content
-  %h2
-    Company Name: #{@job.company.name}
-  %h3
-    Job Title: #{@job.title}
-  %p Job Description: #{raw @job.description}
-  %p Job Type: #{@job.is_public? ? "Public" : "Private"}
-  %p Company: #{@job.company.name}
-  %h3
-    Terms & Conditions: #{@contract.terms_conditions}
+.container.c-color
+  .col-sm-12.animated.fadeInRightBig
+    %section.panel.mt-20s
+      %header.panel-heading
+        -#= link_to 'Accept' , open_contract_candidate_job_contract_path(@job , @contract) , method: :post , remote: true , class: 'btn   pull-right btn-primary right mt-12 ',data: {confirm: 'Are you sure?', verify: 'Accept', verify_text: 'Type "Accept" to confirm'}
+        -#= link_to 'Reject' , update_contract_response_job_contract_path(@job , @contract) , method: :post , remote: true ,  class: 'btn   pull-right btn-primary right mt-12 mr-5',data: {confirm: 'Are you sure?', verify: 'Reject', verify_text: 'Type "Reject" to confirm'}
+        %h1= @contract.job.title
+        - @contract.job.tags.each do |tag|
+          %span.h4.badge
+            =tag.name
+      %ul.ul-s
+        %li.list-group-item.list-p-15
+          %span.text-muted
+            = raw(@contract.job.description)
+          .row
+            .col-lg-3.col-md-3
+              %span.text-muted.fs-13 Location
+              = @contract.job.location.name.titleize if @contract.job.location.present?
+            .col-lg-3.col-md-3
+              %span.text-muted.fs-13 Catagory
+              - @contract.job.tags.each do |tag|
+                %span.h4.badge
+                  =tag.name
+            .col-lg-3.col-md-3
+              %span.text-muted.fs-13 Date
+              = @contract.start_date.to_s + " - "
+              = @contract.end_date.to_s
+            .col-lg-3.col-md-3
+              %span.text-muted.fs-13 Company
+              = @contract.job.company.name.titleize
 
 
-  = link_to 'Accept' , accept_contract_job_contract_path(@job , @contract) , method: :post , remote: true , class: 'btn btn-xs btn-default',data: {confirm: 'Are you sure?', verify: 'Accept', verify_text: 'Type "Accept" to confirm'}
-  = link_to 'Reject' , reject_contract_job_contract_path(@job , @contract) , method: :post , remote: true ,  class: 'btn btn-xs btn-default',data: {confirm: 'Are you sure?', verify: 'Reject', verify_text: 'Type "Reject" to confirm'}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+-#
+-##content
+-#  %h2
+-#    Company Name: #{@job.company.name}
+-#  %h3
+-#    Job Title: #{@job.title}
+-#  %p Job Description: #{raw @job.description}
+-#  %p Job Type: #{@job.is_public? ? "Public" : "Private"}
+-#  %p Company: #{@job.company.name}
+-#  %h3
+-#    Terms & Conditions: #{@contract.terms_conditions}
+-#
+-#

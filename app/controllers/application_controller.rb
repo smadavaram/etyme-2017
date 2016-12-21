@@ -7,6 +7,14 @@ class ApplicationController < ActionController::Base
   # before_filter :authenticate_user!
   before_action :verify_company
 
+  def states
+    render json: CS.states(params[:country].to_sym).to_json
+  end
+
+  def cities
+    puts CS.cities(params[:state].to_sym, params[:country].to_sym).to_json
+    render json: CS.cities(params[:state].to_sym, params[:country].to_sym).to_json
+  end
 
   def set_devise_layout
     'login' if devise_controller?

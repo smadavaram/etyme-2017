@@ -46,6 +46,7 @@ class Company < ActiveRecord::Base
   has_many :consultants               , dependent: :destroy
   has_many :roles                     , dependent: :destroy
   has_many :company_docs              , dependent: :destroy
+  has_many :attachments               ,as: :attachable
   has_many :timesheets                , dependent: :destroy
   has_many :sent_contracts            , class_name: 'Contract'      , foreign_key: 'company_id' ,dependent: :destroy
   has_many :sent_job_applications     , class_name: 'JobApplication', foreign_key: 'company_id' ,dependent: :destroy
