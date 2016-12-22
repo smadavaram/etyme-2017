@@ -1,3 +1,4 @@
+
 class Candidate::JobApplicationsController < Candidate::BaseController
 
   before_action :find_job , only: [:create]
@@ -7,9 +8,9 @@ class Candidate::JobApplicationsController < Candidate::BaseController
     @job_application  = current_candidate.job_applications.new(job_application_params.merge!({job_id: @job.id , application_type: :candidate_direct}))
     respond_to do |format|
       if @job_application.save
-        format.js{ flash[:success] = "successfully created." }
+        format.js{ flash.now[:success] = "successfully created." }
       else
-        format.js{ flash[:errors] =  @job_application.errors.full_messages }
+        format.js{ flash.now[:errors] =  @job_application.errors.full_messages }
       end
     end
   end

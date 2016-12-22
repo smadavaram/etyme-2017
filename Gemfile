@@ -6,6 +6,9 @@ source 'https://rubygems.org'
 gem 'rails', '4.2.0'
 gem 'best_in_place'
 gem 'signature-pad-rails'
+gem 'mina' , github: 'nadarei/mina'
+gem 'mina-multistage', require: false
+
 
 
 
@@ -31,6 +34,8 @@ gem "cocoon"
 gem 'city-state'
 gem 'tinymce-rails'
 gem 'data-confirm-modal'
+gem 'wicked_pdf'
+gem 'wkhtmltopdf-binary'
 
 
 #****************************

@@ -5,7 +5,7 @@
         %button.close{"aria-hidden" => "true", "data-dismiss" => "modal", :type => "button"}
           ×
         %h2#myModalLabel.modal-title
-          %strong Histroy - #{timesheet.title}
+          %strong Histroy - #{timesheet.contract.title}
       .modal-body
         - if timesheet.timesheet_approvers.present?
           %ol

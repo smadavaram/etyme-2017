@@ -26,7 +26,7 @@
           %td= invitation.recipient.phone
           %td= invitation.expiry
           %td
-            %span.label.label-success= invitation.status
+            %span.label.label-success= invitation.status.humanize
       -#%tr.danger
       -#  %td= image_tag 'avatars/male.png', alt: '', width: '20'
       -#  %td Cleo

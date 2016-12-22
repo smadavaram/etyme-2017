@@ -6,10 +6,8 @@ class Company::JobApplicationsController < Company::BaseController
   before_action :set_job_applications , only: [:index]
   before_action :find_received_job_application , only: [:accept , :reject , :short_list]
 
-  # BreadCrumbs
   add_breadcrumb "JOB APPLICATION", :job_applications_path, options: { title: "JOBS APPLICATION" }
 
-  # company/job_applications
   def index
 
   end
@@ -18,15 +16,14 @@ class Company::JobApplicationsController < Company::BaseController
     @job_application  = current_company.sent_job_applications.new(job_application_params.merge!(user_id: current_user.id , job_id: @job.id , job_invitation_id: @job_invitation.id))
     respond_to do |format|
       if @job_application.save
-        format.js{ flash[:success] = "successfully Accepted." }
+        format.js{ flash.now[:success] = "successfully Accepted." }
       else
-        format.js{ flash[:errors] =  @job_application.errors.full_messages }
+        format.js{ flash.now[:errors] =  @job_application.errors.full_messages }
       end
 
     end
   end
 
-  # POST company/jobs/:job_id/job_invitations/:job_invitation_id/job_applications/:id/accept_job_application
   def accept
     respond_to do |format|
       if @job_application.pending?
@@ -34,39 +31,37 @@ class Company::JobApplicationsController < Company::BaseController
         @contract.contract_terms.new
         format.js
       else
-        format.js{ flash[:errors] =  ["Request Not Completed."]}
+        format.js{ flash.now[:errors] =  ["Request Not Completed."]}
       end
     end
 
   end
 
-  # POST company/jobs/:job_id/job_invitations/:job_invitation_id/job_applications/:id/reject_job_application
   def reject
     respond_to do |format|
       if @job_application.pending?
         if @job_application.rejected!
-          format.js{ flash[:success] = "successfully Rejected." }
+          format.js{ flash.now[:success] = "successfully Rejected." }
         else
-          format.js{ flash[:errors] =  @job_application.errors.full_messages }
+          format.js{ flash.now[:errors] =  @job_application.errors.full_messages }
         end
       else
-        format.js{ flash[:errors] =  ["Request Not Completed."]}
+        format.js{ flash.now[:errors] =  ["Request Not Completed."]}
       end
 
     end
   end
 
-  # POST company/jobs/:job_id/job_invitations/:job_invitation_id/job_applications/:id/short_list_job_application
   def short_list
     respond_to do |format|
       if @job_application.pending?
         if @job_application.short_listed!
-          format.js{ flash[:success] = "successfully ShortListed." }
+          format.js{ flash.now[:success] = "successfully ShortListed." }
         else
-          format.js{ flash[:errors] =  @job_application.errors.full_messages }
+          format.js{ flash.now[:errors] =  @job_application.errors.full_messages }
         end
       else
-        format.js{ flash[:errors] =  ["Request Not Completed."]}
+        format.js{ flash.now[:errors] =  ["Request Not Completed."]}
       end
 
     end

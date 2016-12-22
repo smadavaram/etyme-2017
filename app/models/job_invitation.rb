@@ -15,7 +15,7 @@
 class JobInvitation < ActiveRecord::Base
 
   enum status: { pending: 0, accepted: 1 , rejected: 2 }
-  enum invitation_type: [:Vendor,:Candidate,:DirectEmail]
+  enum invitation_type: [:vendor,:candidate,:by_email]
 
   validates :status ,             inclusion: {in: statuses.keys}
   # validates :expiry , presence: true,date: { after_or_equal_to: Proc.new { Date.today }, message: "Date must be at least #{(Date.today ).to_s}" }

@@ -1,15 +1,12 @@
 class Company::JobInvitationsController < Company::BaseController
 
-  #CallBacks
   before_action :find_job            , only: [:create , :update]
   before_action :find_job_invitation , only: [ :update]
   before_action :set_job_invitations , only: [:index]
   before_action :find_received_job_invitations , only: [:accept , :reject]
 
-  #BreadCrumbs
   add_breadcrumb "JOB INVITATIONS", :job_invitations_path, options: { title: "JOBS INVITATIONS" }
 
-  # GET company/job_inivations
   def index
 
   end
@@ -18,9 +15,9 @@ class Company::JobInvitationsController < Company::BaseController
     @job_invitation = current_company.sent_job_invitations.new(job_invitation_params.merge!(job_id: @job.id , created_by_id: current_user.id))
     respond_to do |format|
       if @job_invitation.save
-        format.js{ flash[:success] = "Job Invitation successfully send." }
+        format.js{ flash.now[:success] = "Job Invitation successfully send." }
       else
-        format.js{ flash[:errors] =  @job_invitation.errors.full_messages }
+        format.js{ flash.now[:errors] =  @job_invitation.errors.full_messages }
       end
     end
   end
@@ -29,9 +26,9 @@ class Company::JobInvitationsController < Company::BaseController
     respond_to do |format|
       if @job_invitation.update(job_invitation_params)
         format.html { redirect_to @job_invitation, notice: "Successfully #{@job_invitation.status}." }
-        format.js { flash[:success] = "Job Invitation successfully #{@job_invitation.status}." }
+        format.js { flash.now[:success] = "Job Invitation successfully #{@job_invitation.status}." }
       else
-        format.js{ flash[:errors] =   @job_invitation.errors.full_messages }
+        format.js{ flash.now[:errors] =   @job_invitation.errors.full_messages }
       end
     end
   end

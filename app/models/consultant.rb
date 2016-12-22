@@ -79,7 +79,4 @@ class Consultant < User
   def convert_max_working_hours_to_seconds
     self.max_working_hours = (self.temp_working_hours.to_f * 3600).to_i
   end
-
-
-
 end

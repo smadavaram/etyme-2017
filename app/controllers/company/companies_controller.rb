@@ -26,9 +26,8 @@ class Company::CompaniesController < Company::BaseController
     # @company_docs = current_company.company_docs.paginate(:page => params[:page], :per_page => 15)
   end
 
-  #POST company/:id/get_admins_list
   def get_admins_list
-    @users = current_company.admins || []
+    @users = Company.find_by_id(params[:id]).admins || []
     respond_to do |format|
         format.js
     end
@@ -48,6 +47,6 @@ class Company::CompaniesController < Company::BaseController
 
     def company_params
       params.require(:company).permit(:name ,:company_type, :skill_list , :website,:logo,:description,:phone,:email,:linkedin_url,:facebook_url,:twitter_url,:google_url,:is_activated,:status,:time_zone,:tag_line, owner_attributes:[:id, :type ,:first_name, :last_name ,:email,:password, :password_confirmation],locations_attributes:[:id,:name,:status,  address_attributes:[:id,:address_1,:country,:city,:state,:zip_code] ] )
-    end # End of company_params
+    end
 
 end

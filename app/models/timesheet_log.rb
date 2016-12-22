@@ -3,11 +3,15 @@ class TimesheetLog < ActiveRecord::Base
   enum status: [:pending , :approved , :partially_approved , :rejected]
 
   belongs_to :timesheet
-  has_many   :transactions
+  has_many   :transactions  , dependent: :destroy
+  belongs_to :contract_term
   has_one    :company , through: :timesheet
-  has_one    :contract , through: :timesheet
+  has_one    :contract, through: :timesheet
+  has_one    :invoice , through: :timesheet
+
   after_update :update_pending_transaction , if: Proc.new{|t| t.status_changed? && t.approved?}
   after_create :schedule_timesheet_log
+  before_create :set_contract_term_id
 
   validates  :transaction_day,  presence:   true
   validates :status ,             inclusion: {in: statuses.keys}
@@ -16,8 +20,20 @@ class TimesheetLog < ActiveRecord::Base
     self.transactions.sum(:total_time)
   end
 
+  def total_amount
+    self.accepted_hours * self.contract_term.rate
+  end
+
+  def rate
+    self.contract_term.rate
+  end
+
   def accepted_total_time
     self.transactions.accepted.sum(:total_time)
+  end
+
+  def accepted_hours
+    accepted_total_time / 3600.0
   end
 
   private
@@ -34,6 +50,10 @@ class TimesheetLog < ActiveRecord::Base
 
   def update_pending_transaction
     self.transactions.pending.update_all(status: 1)
+  end
+
+  def set_contract_term_id
+    self.contract_term_id = self.contract.contract_terms.active.first.id
   end
 
 end

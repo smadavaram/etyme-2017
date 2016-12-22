@@ -1,7 +1,7 @@
 = form_for [job,job.job_invitations.new] , remote: true do |f|
   = f.hidden_field :job_id , value: params[:job_id]
   = f.hidden_field :recipient_type , value: 'User'
-  = f.hidden_field :invitation_type , value: 'Candidate'
+  = f.hidden_field :invitation_type , value: 'candidate'
   .row
     .col-md-12
       .form-group

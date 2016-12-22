@@ -1,13 +1,15 @@
 class Timesheet < ActiveRecord::Base
 
-  enum status: [:open,:pending_review, :approved , :partially_approved , :rejected , :submitted]
+  enum status: [:open,:pending_review, :approved , :partially_approved , :rejected , :submitted , :invoiced]
 
   belongs_to :company
   belongs_to :contract
   belongs_to :user
   belongs_to :job
+  belongs_to :invoice
   has_many   :timesheet_logs , dependent: :destroy
   has_many   :timesheet_approvers  , dependent: :destroy
+  has_many   :transactions  , through: :timesheet_logs
 
   before_validation :set_recurring_timesheet_cycle
   after_create  :create_timesheet_logs
@@ -15,12 +17,27 @@ class Timesheet < ActiveRecord::Base
 
   validates           :start_date,  presence:   true
   validates           :end_date,    presence:   true
-  validates :status ,             inclusion: {in: statuses.keys}
+  validates :status , inclusion: {in: statuses.keys}
+
+  scope :not_invoiced , -> {where(invoice_id: nil)}
+  # scope :is_already_submitted?, ->(user) {timesheet_approvers.present?}
+
+
+  def assignee
+    self.contract.assignee
+  end
+
+  def is_already_submitted?(user)
+    self.timesheet_approvers.where('timesheet_approvers.user_id = ? AND (timesheet_approvers.status = ?)' , user.id , Timesheet.statuses[:submitted]).present?
+  end
+
+  def is_already_approved_or_rejected?(user)
+    self.timesheet_approvers.where('timesheet_approvers.user_id = ? AND (timesheet_approvers.status = ? OR timesheet_approvers.status = ?)' , user.id , Timesheet.statuses[:approved] , Timesheet.statuses[:rejected]).present?
+  end
 
   def total_time
     total_time = 0
     self.timesheet_logs.each do |t| total_time = total_time + t.total_time end
-
     total_time
   end
 
@@ -30,9 +47,6 @@ class Timesheet < ActiveRecord::Base
     total_time
   end
 
-  def title
-    self.job.title + " Job - Contract # " + self.contract.id.to_s
-  end
 
   def approvers
     title = ""

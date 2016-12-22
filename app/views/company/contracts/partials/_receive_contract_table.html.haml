@@ -17,7 +17,7 @@
           %td= image_tag d.created_by.photo, alt: '', width: '20'
           %td= link_to d.created_by.full_name , '#'
           %td= link_to d.created_by.company.name , '#'
-          %td= link_to d.job.title , '#'
+          %td= link_to d.job.title , job_path(d.job) , target: '_blank'
           %td
             = d.created_by.email
             %a.pull-right{:href => "javascript:void(0);"}
@@ -27,7 +27,7 @@
           %td= #invitation.expiry
           %td
             - if d.pending?
-              = link_to 'Accept' , open_job_contract_path(d.job , d , status: 'accept') , method: :post , remote: true , class: 'btn btn-xs btn-default'
-              = link_to 'Reject' , open_job_contract_path(d.job , d , status: 'reject') , method: :post , remote: true ,  class: 'btn btn-xs btn-default'
+              = link_to 'Accept' , open_contract_job_contract_path(d.job , d , status: 'accept') , method: :post , remote: true , class: 'btn btn-xs btn-default'
+              = link_to 'Reject' , open_contract_job_contract_path(d.job , d , status: 'reject') , method: :post , remote: true ,  class: 'btn btn-xs btn-default'
             -else
               %span.label.label-success= d.status

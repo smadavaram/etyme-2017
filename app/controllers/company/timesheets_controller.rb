@@ -10,12 +10,12 @@ class Company::TimesheetsController < Company::BaseController
   end
 
   def submit
-    if current_user.timesheet_approvers.create!(timesheet_id: @timesheet.id , status: Timesheet.statuses[:submitted].to_i)
-      @timesheet.submitted!
-      flash[:success] = "Successfully Approved"
-    else
-      flash[:errors] = @timesheet.errors.full_messages
-    end
+      @timesheet_approver = current_user.timesheet_approvers.new(timesheet_id: @timesheet.id , status: Timesheet.statuses[:submitted].to_i)
+      if @timesheet_approver.save
+        flash[:success] = "Successfully Submitted"
+      else
+        flash[:errors] = @timesheet_approver.errors.full_messages
+      end
     redirect_to :back
   end
 

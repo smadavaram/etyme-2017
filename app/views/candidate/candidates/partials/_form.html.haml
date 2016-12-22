@@ -1,6 +1,6 @@
 = form_for :candidate ,url: candidate_registration_path,remote:true do |f|
   -#= f.hidden_field :job_id , value: params[:job_id]
-  = f.hidden_field :invitation_type , value: "DirectEmail"
+  = f.hidden_field :invitation_type , value: "by_email"
   .row
     .col-md-12
       .form-group

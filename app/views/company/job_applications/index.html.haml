@@ -7,12 +7,20 @@
           %ul#demo-pill-nav.nav.nav-tabs.tabs-left
             %li.active
               %a{"data-toggle" => "tab", :href => "#tab-r1"}
-                %span.badge.bg-color-blue.txt-color-white= @received_job_applications.invitation.count
+                %span.badge.bg-color-blue.txt-color-white= @received_job_applications.vendor.count
                 Vendors
             %li
               %a{"data-toggle" => "tab", :href => "#tab-r2"}
-                %span.badge.bg-color-blueDark.txt-color-white= @received_job_applications.candidate_direct.count
+                %span.badge.bg-color-blueDark.txt-color-white= @received_job_applications.candidate.count
+                Candidate
+            %li
+              %a{"data-toggle" => "tab", :href => "#tab-r3"}
+                %span.badge.bg-color-blueDark.txt-color-white= @received_job_applications.direct.count
                 Direct
+            %li
+              %a{"data-toggle" => "tab", :href => "#tab-r4"}
+                %span.badge.bg-color-blueDark.txt-color-white= @received_job_applications.by_email.count
+                By Email
           .col-md-10
             .tab-content
               #tab-r1.tab-pane.active
@@ -28,13 +36,13 @@
                       %a{"aria-expanded" => "true", "data-toggle" => "tab", :href => "#is3"} All
                   .tab-content.padding-10
                     #is4.tab-pane
-                      = render  'company/job_applications/partials/application_table' ,data: @received_job_applications.invitation.rejected
+                      = render  'company/job_applications/partials/application_table' ,data: @received_job_applications.vendor.rejected
                     #is1.tab-pane
-                      = render  'company/job_applications/partials/application_table' ,data: @received_job_applications.invitation.accepted
+                      = render  'company/job_applications/partials/application_table' ,data: @received_job_applications.vendor.accepted
                     #is2.tab-pane.fade
-                      = render  'company/job_applications/partials/application_table' ,data: @received_job_applications.invitation.pending
+                      = render  'company/job_applications/partials/application_table' ,data: @received_job_applications.vendor.pending
                     #is3.tab-pane.fade.active.in
-                      = render  'company/job_applications/partials/application_table' ,data: @received_job_applications.invitation
+                      = render  'company/job_applications/partials/application_table' ,data: @received_job_applications.vendor
 
               #tab-r2.tab-pane
                 #hb22.tab-pane.active
@@ -49,13 +57,55 @@
                     %a{"aria-expanded" => "true", "data-toggle" => "tab", :href => "#is-3"} All
                 .tab-content.padding-10
                   #is-4.tab-pane
-                    = render  'company/job_applications/partials/application_table' ,data: @received_job_applications.candidate_direct.rejected
+                    = render  'company/job_applications/partials/application_table' ,data: @received_job_applications.candidate.rejected
                   #is-1.tab-pane
-                    = render 'company/job_applications/partials/application_table' ,data: @received_job_applications.candidate_direct.accepted
+                    = render 'company/job_applications/partials/application_table' ,data: @received_job_applications.candidate.accepted
                   #is-2.tab-pane.fade
-                    = render 'company/job_applications/partials/application_table' , data: @received_job_applications.candidate_direct.pending
+                    = render 'company/job_applications/partials/application_table' , data: @received_job_applications.candidate.pending
                   #is-3.tab-pane.fade.active.in
-                    = render 'company/job_applications/partials/application_table' , data: @received_job_applications.candidate_direct
+                    = render 'company/job_applications/partials/application_table' , data: @received_job_applications.candidate
+
+              #tab-r3.tab-pane
+                #hb23.tab-pane.active
+                %ul#internal-tab-3.nav.nav-tabs.tabs-pull-right
+                  %li
+                    %a{"aria-expanded" => "false", "data-toggle" => "tab", :href => "#is-4-3"} Rejected
+                  %li
+                    %a{"aria-expanded" => "false", "data-toggle" => "tab", :href => "#is-1-3"} Accepted
+                  %li
+                    %a{"aria-expanded" => "false", "data-toggle" => "tab", :href => "#is-2-3"} Pending
+                  %li.active
+                    %a{"aria-expanded" => "true", "data-toggle" => "tab", :href => "#is-3-3"} All
+                .tab-content.padding-10
+                  #is-4-3.tab-pane
+                    = render  'company/job_applications/partials/application_table' ,data: @received_job_applications.direct.rejected
+                  #is-1-3.tab-pane
+                    = render 'company/job_applications/partials/application_table' ,data: @received_job_applications.direct.accepted
+                  #is-2-3.tab-pane.fade
+                    = render 'company/job_applications/partials/application_table' , data: @received_job_applications.direct.pending
+                  #is-3-3.tab-pane.fade.active.in
+                    = render 'company/job_applications/partials/application_table' , data: @received_job_applications.direct
+
+              #tab-r4.tab-pane
+                #hb24.tab-pane.active
+                %ul#internal-tab-3.nav.nav-tabs.tabs-pull-right
+                  %li
+                    %a{"aria-expanded" => "false", "data-toggle" => "tab", :href => "#is-4-4"} Rejected
+                  %li
+                    %a{"aria-expanded" => "false", "data-toggle" => "tab", :href => "#is-1-4"} Accepted
+                  %li
+                    %a{"aria-expanded" => "false", "data-toggle" => "tab", :href => "#is-2-4"} Pending
+                  %li.active
+                    %a{"aria-expanded" => "true", "data-toggle" => "tab", :href => "#is-3-4"} All
+                .tab-content.padding-10
+                  #is-4-4.tab-pane
+                    = render  'company/job_applications/partials/application_table' ,data: @received_job_applications.by_email.rejected
+                  #is-1-4.tab-pane
+                    = render 'company/job_applications/partials/application_table' ,data: @received_job_applications.by_email.accepted
+                  #is-2-4.tab-pane.fade
+                    = render 'company/job_applications/partials/application_table' , data: @received_job_applications.by_email.pending
+                  #is-3-4.tab-pane.fade.active.in
+                    = render 'company/job_applications/partials/application_table' , data: @received_job_applications.by_email
 - content_for :modals do
   #ajax-modal
 - content_for :scripts do

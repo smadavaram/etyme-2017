@@ -117,6 +117,7 @@ Rails.application.routes.draw do
     resources :admins
     resources :addresses
     resources :attachments      , only: [:index]
+    resources :invoices         , only: [:index]
     resources :job_invitations  , only: [:index]
     resources :job_applications , only: [:index] do
       member do
@@ -125,13 +126,20 @@ Rails.application.routes.draw do
         post :short_list
       end # End of member
     end
-    resources :contracts        , only: [:index,:show]
+    resources :contracts        , only: [:index] do
+      resources :invoices , only: [:index , :show] do
+        member do
+          get :download
+        end
+      end
+    end
     resources :jobs do
       resources :contracts , except: [:index] do
         member do
           post :open_contract , as: :open_contract
           post :update_contract_response        , as: :update_contract_response
-        end # End of member
+        end
+
       end # End of :contracts
 
       resources :job_invitations , except: [:index] do
@@ -152,7 +160,6 @@ Rails.application.routes.draw do
     get 'attachment/documents_list',to: 'attachments#document_list'
     get 'dashboard' ,       to: 'users#dashboard' ,             as: :dashboard
     post 'update_photo',    to: 'users#update_photo'
-
     resources :timesheets,only: [:show , :index] do
       get 'approve'
       get 'submit'

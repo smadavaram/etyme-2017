@@ -16,5 +16,8 @@
 every 1.day, :at => '11:59 pm' do
   runner "Contract.ended"
 end
+endevery 1.day, :at => '11:59 pm' do
+  runner "Contract.invoiced_timesheets"
+end
 
 # Learn more: http://github.com/javan/whenever

@@ -1,19 +1,20 @@
 %h2= @job.title
 %p= raw(@job.description)
-%table.table.table-striped
-  %tbody
-    %tr
-      %th Start Date
-      %td= @job.start_date
-    %tr
-      %th End Date
-      %td= @job.end_date
-    %tr
-      %th Company
-      %td= @job.company.name
-    %tr
-      %th Location
-      %td= @job.location.name
-    %tr
-      %th
-      %td= link_to 'Apply Now' , apply_candidate_job_path(@job) , method: :post , remote: true ,  class: 'btn btn-md btn-default btn-success pull-right'
+.container
+  %table.table.table-striped
+    %tbody
+      %tr
+        %th Start Date
+        %td= @job.start_date
+      %tr
+        %th End Date
+        %td= @job.end_date
+      %tr
+        %th Company
+        %td= @job.company.name
+      %tr
+        %th Location
+        %td= @job.location.name
+      %tr
+        %th
+        %td= link_to 'Apply Now' , apply_candidate_job_path(@job) , method: :post , remote: true ,  class: 'btn btn-md btn-default btn-success pull-right'

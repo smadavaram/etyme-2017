@@ -2,24 +2,28 @@ class Transaction < ActiveRecord::Base
 
   enum status: [:pending , :accepted , :rejected]
 
-  before_validation         :set_time_date
-  before_validation         :set_total_time
+  before_validation   :set_time_date
+  before_validation   :set_total_time
 
-  validate                  :time_overlap
-  validate                  :start_time_less_than_end_time
-  validate                  :end_time_is_not_in_future
-  validate                  :max_hours_limit
-  validate                  :timesheet_open
-  validate                  :time_overlap , on: [:create]
-  validate                  :start_time_less_than_end_time
-  validate                  :end_time_is_not_in_future
-  validates                 :status ,             inclusion: {in: statuses.keys}
+  validate             :time_overlap
+  validate             :start_time_less_than_end_time
+  validate             :end_time_is_not_in_future
+  validate             :max_hours_limit
+  validate             :timesheet_open
+  validate             :time_overlap , on: [:create]
+  validate             :start_time_less_than_end_time
+  validate             :end_time_is_not_in_future
 
-  belongs_to                :timesheet_log
-  has_one                   :timesheet, through: :timesheet_log
+  belongs_to           :timesheet_log
+  has_one              :timesheet, through: :timesheet_log
+  has_one              :contract , through: :timesheet
 
   default_scope             -> {order(created_at: :desc)}
   scope :not_rejected,      -> {where.not(status: :rejected)}
+
+  def hour
+    total_time.nil? ? 0.0 : total_time/3600.0
+  end
 
   private
 
