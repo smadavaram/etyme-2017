@@ -1,0 +1,21 @@
+= form_for [job,job.job_invitations.new] , remote: true do |f|
+  = f.hidden_field :job_id , value: params[:job_id]
+  = f.hidden_field :recipient_type , value: 'User'
+  = f.hidden_field :invitation_type , value: 'Candidate'
+  .row
+    .col-md-12
+      .form-group
+        = f.select :recipient_id,candidates.all.collect { |c| [c.full_name,c.id] } ,{include_blank: 'Select a Candidate'},id: 'user_select' , class: "form-control" , required: 'required', placeholder: "Select Candidate"
+  .row
+    .col-md-12
+      .form-group
+        = f.text_field :expiry ,class: "form-control" , required: 'required', placeholder: "Invitation Expire Date",id:"vendor_expiry"
+  .row
+    .col-md-12
+      .form-group
+        = f.text_area :message ,class: "form-control" ,row: '3' , required: 'required', placeholder: "Enter Description"
+  .modal-footer
+    -#= button_tag 'Cancel' , class: 'btn btn-default' , data: {"dismiss": "modal"}
+    %button.btn.btn-default{"data-dismiss" => "modal", :type => "button"}
+      Cancel
+    = f.submit 'Send' , class: 'btn btn-primary'

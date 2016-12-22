@@ -67,6 +67,6 @@ class Company::JobInvitationsController < Company::BaseController
     end
 
     def job_invitation_params
-      params.require(:job_invitation).permit(:job_id , :message , :recipient_id , :email , :status , :expiry , :recipient_type)
+      params.require(:job_invitation).permit(:job_id , :message , :recipient_id , :email , :status , :expiry , :recipient_type,:invitation_type)
     end
 end

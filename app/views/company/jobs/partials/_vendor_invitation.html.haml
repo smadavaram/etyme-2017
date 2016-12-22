@@ -1,0 +1,27 @@
+= form_for [job,job.job_invitations.new] , remote: true do |f|
+  = f.hidden_field :job_id , value: params[:job_id]
+  = f.hidden_field :recipient_type , value: 'User'
+  = f.hidden_field :invitation_type , value: 'Vendor'
+  .row
+    .col-md-12
+      .form-group
+        = select_tag 'vendor_company', options_for_select(companies.collect { |company|[company.name.titleize, company.id] }) ,prompt: "Select Company" ,class: 'form-control' , required: true
+  -#= select_tag :country_id, options_for_select(preferred_vendors.collect { |vendor|[vendor.company.name.titleize, vendor.company.id] }, 1), {}, { id: 'countries_select' }
+  -#= select_tag "company_id" ,preferred_vendors.map{|vendor| [vendor.company.name,vendor.id] } ,{include_blank: 'Select a Vendor'},class: "form-control" , required: 'required', placeholder: "Select something"
+  .row
+    .col-md-12
+      .form-group
+        = f.select :recipient_id,{} ,{include_blank: 'Select a Employee'},id: 'user_select' , class: "form-control" , required: 'required', placeholder: "Select something"
+  .row
+    .col-md-12
+      .form-group
+        = f.text_field :expiry ,class: "form-control" , required: 'required', placeholder: "Invitation Expire Date"
+  .row
+    .col-md-12
+      .form-group
+        = f.text_area :message ,class: "form-control" ,row: '3' , required: 'required', placeholder: "Enter Description"
+  .modal-footer
+    -#= button_tag 'Cancel' , class: 'btn btn-default' , data: {"dismiss": "modal"}
+    %button.btn.btn-default{"data-dismiss" => "modal", :type => "button"}
+      Cancel
+    = f.submit 'Send' , class: 'btn btn-primary'

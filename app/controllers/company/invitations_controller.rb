@@ -20,7 +20,7 @@ class Company::InvitationsController < Devise::InvitationsController
       if resource && resource.valid?
         sign_in(resource)
         flash[:notice] = "You have successfully completed your on-boarding."
-        redirect_to dashboard_path
+        redirect_to resource.class.name == "Candidate" ? '/candidate' : dashboard_path
       else
         resource.invitation_token = update_resource_params[:invitation_token]
         flash[:errors] = resource.errors.full_messages

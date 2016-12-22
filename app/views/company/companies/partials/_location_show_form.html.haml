@@ -42,7 +42,6 @@
          var states_of_country=$('.state')
          $.getJSON('/states/'+$(this).val(),function(data) {
               states_of_country.empty();
-              states_of_country
               states_of_country.append('<option value="">Select State ...</option>');
               $.each(data,function(key,value) {
               var opt = '<option value=' + key + '>' + value + '</option>';
