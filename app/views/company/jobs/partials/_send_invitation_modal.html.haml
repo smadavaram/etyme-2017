@@ -7,32 +7,87 @@
         %h2#myModalLabel.modal-title
           %strong Job Invitation - #{job.title}
       .modal-body
-        = form_for [job,job.job_invitations.new] , remote: true do |f|
-          = f.hidden_field :job_id , value: params[:job_id]
-          = f.hidden_field :recipient_type , value: 'User'
-          .row
-            .col-md-12
-              .form-group
-                = select_tag 'vendor_company', options_for_select(companies.collect { |company|[company.name.titleize, company.id] }) ,prompt: "Select something" ,class: 'form-control' , required: true
-                -#= select_tag :country_id, options_for_select(preferred_vendors.collect { |vendor|[vendor.company.name.titleize, vendor.company.id] }, 1), {}, { id: 'countries_select' }
-                -#= select_tag "company_id" ,preferred_vendors.map{|vendor| [vendor.company.name,vendor.id] } ,{include_blank: 'Select a Vendor'},class: "form-control" , required: 'required', placeholder: "Select something"
-          .row
-            .col-md-12
-              .form-group
-                = f.select :recipient_id,{} ,{include_blank: 'Select a Employee'},id: 'user_select' , class: "form-control" , required: 'required', placeholder: "Select something"
-          .row
-            .col-md-12
-              .form-group
-                = f.text_field :expiry ,class: "form-control" , required: 'required', placeholder: "Invitation Expire Date"
-          .row
-            .col-md-12
-              .form-group
-                = f.text_area :message ,class: "form-control" ,row: '3' , required: 'required', placeholder: "Enter Description"
-          .modal-footer
-            -#= button_tag 'Cancel' , class: 'btn btn-default' , data: {"dismiss": "modal"}
-            %button.btn.btn-default{"data-dismiss" => "modal", :type => "button"}
-              Cancel
-            = f.submit 'Send' , class: 'btn btn-primary'
+        %header{:role => "heading"}
+          %ul.nav.nav-tabs.pull-left.in
+            %li.active
+              %a{"aria-expanded" => "true", "data-toggle" => "tab", :href => "#hr1"}
+                %span.hidden-mobile.hidden-tablet Vendor
+            %li
+              %a{"aria-expanded" => "false", "data-toggle" => "tab", :href => "#hr2"}
+                %span.hidden-mobile.hidden-tablet
+                  Candidate
+            %li
+              %a{"aria-expanded" => "false", "data-toggle" => "tab", :href => "#hr3"}
+                %span.hidden-mobile.hidden-tablet
+                  Direct Email
+          .widget-body
+            .tab-content
+              #hr1.tab-pane.active
+                .tabbable.tabs-below
+                  .tab-content.padding-10
+                    %section#widget-grid{}
+                      = render partial: 'company/jobs/partials/vendor_invitation',locals: {job: job ,companies: companies}
+
+                      -#=render partial: 'company/leaves/partials/leave_show',locals:{leaves: @consultant_leaves.accepted}
+              #hr2.tab-pane
+                .tabbable.tabs-below
+                  .tab-content.padding-10
+                    %section#widget-grid{style: 'margin-top: 10px;'}
+                      = render partial: 'company/jobs/partials/send_candidate_invitation',locals: {job: job ,candidates: candidates}
+                      -#=render partial: 'company/leaves/partials/leave_show',locals:{leaves: @consultant_leaves.rejected}
+
+              #hr3.tab-pane
+                .tabbable.tabs-below
+                  .tab-content.padding-10
+                    %section#widget-grid{style: 'margin-top: 10px;'}
+                      = render partial: 'candidate/candidates/partials/form',locals:{job: job}
+
+
+  -#
+  -##content
+  -#  #wid-id-7#content.jarviswidget.jarviswidget-color-teal{"data-widget-attstyle" => "jarviswidget-color-teal", "data-widget-custombutton" => "false", "data-widget-editbutton" => "false", "data-widget-fullscreenbutton" => "false", "data-widget-sortable" => "false", :role => "widget", :style => ""}
+  -#    %header{:role => "heading"}
+  -#      %ul.nav.nav-tabs.pull-left.in
+  -#        %li.active
+  -#          %a{"aria-expanded" => "true", "data-toggle" => "tab", :href => "#hr1"}
+  -#            %i.fa.fa-lg.fa-arrow-circle-o-down
+  -#            %span.hidden-mobile.hidden-tablet Accepted
+  -#        %li
+  -#          %a{"aria-expanded" => "false", "data-toggle" => "tab", :href => "#hr2"}
+  -#            %i.fa.fa-lg.fa-arrow-circle-o-up
+  -#            %span.hidden-mobile.hidden-tablet
+  -#              Rejected
+  -#        %li
+  -#          %a{"aria-expanded" => "false", "data-toggle" => "tab", :href => "#hr3"}
+  -#            %i.fa.fa-lg.fa-arrow-circle-o-up
+  -#            %span.hidden-mobile.hidden-tablet
+  -#              Pending
+  -#
+        %span.jarviswidget-loader
+          %i.fa.fa-refresh.fa-spin
+      / widget div
+      %div{:role => "content"}
+        .jarviswidget-editbox
+
+        .widget-body
+          .tab-content
+            #hr1.tab-pane.active
+              .tabbable.tabs-below
+                .tab-content.padding-10
+                  %section#widget-grid{style: 'margin-top: 10px;'}
+                    =render partial: 'company/leaves/partials/leave_show',locals:{leaves: @consultant_leaves.accepted}
+            #hr2.tab-pane
+              .tabbable.tabs-below
+                .tab-content.padding-10
+                  %section#widget-grid{style: 'margin-top: 10px;'}
+                    =render partial: 'company/leaves/partials/leave_show',locals:{leaves: @consultant_leaves.rejected}
+
+            #hr3.tab-pane
+              .tabbable.tabs-below
+                .tab-content.padding-10
+                  %section#widget-grid{style: 'margin-top: 10px;'}
+                    =render partial: 'company/leaves/partials/leave_show',locals:{leaves: @consultant_leaves.pending}
+
   :javascript
     // DO NOT REMOVE : GLOBAL FUNCTIONS!
     $(document).ready(function() {
@@ -42,7 +97,7 @@
         });
       });
 
-      $('#job_invitation_expiry').datepicker({
+      $('#job_invitation_expiry,#candidate_expiry,#vendor_expiry').datepicker({
           dateFormat : 'dd/mm/yy'
       });
 

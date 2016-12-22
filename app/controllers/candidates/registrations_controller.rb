@@ -11,6 +11,7 @@ class Candidates::RegistrationsController < Devise::RegistrationsController
 
   # POST /resource
    def create
+     # resource.invite!(current_user)
      super
    end
 
@@ -67,7 +68,7 @@ class Candidates::RegistrationsController < Devise::RegistrationsController
   def configure_permitted_parameters
     devise_parameter_sanitizer.permit(:sign_up) do |u|
       u.permit(:first_name, :last_name,
-               :email, :password, :password_confirmation)
+               :email, :invited_by ,:invited_by_id,:invitation_type,:invited_by_type,:job_id,:expiry,:message, :password, :password_confirmation)
     end
     devise_parameter_sanitizer.permit(:account_update) do |u|
       u.permit(:first_name, :last_name,
