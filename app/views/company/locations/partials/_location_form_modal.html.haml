@@ -17,20 +17,21 @@
                 .form-group
                   =address.text_field :address_2,:placeholder => "Address 2",class: "form-control"
                 .form-group
-                  = address.select :country ,CS.countries.sort.map{|k,v| [v,k] } ,{},:class=>"form-control" , :required =>'required', placeholder: "Select something"
+                  = address.select :country ,CS.countries.sort.map{|k,v| [v,k] } ,{prompt:"Select Country"},:class=>"form-control" , :required =>'required',id:"country"
             .row
               .col-md-4
                 .form-group
-                  %label{:for => "category"} City
-                  = address.text_field :city,:placeholder => "City" ,:required => 'required',class:"form-control"
+                  %label State
+                  = address.select :state ,CS.states(:us).sort.map {|k,v| [v,k] },{prompt:"Select State"},class:"form-control", selected: address.object.state,id:"state"
               .col-md-4
                 .form-group
-                  %label{:for => "tags"} Zip Code
+                  %label City
+                  = address.select :city,CS.cities(address.object.state,:us).sort.map {|k,v| [v,k] },{prompt:"Select City"},class:"form-control",id:"city"
+              .col-md-4
+                .form-group
+                  %label Zip Code
                   =address.text_field :zip_code,:placeholder => "Zip Code",class:"form-control"
-              .col-md-4
-                .form-group
-                  %label{:for => "category"} State
-                  = address.text_field :state ,:placeholder => "State",class:"form-control"
+
           .modal-footer
             %button.btn.btn-default{"data-dismiss" => "modal", :type => "button"}
               Cancel
@@ -38,4 +39,38 @@
               Create Location
 - content_for :scripts do
   :javascript
-    $('#location_address_attributes_country').find('option').first().html('Select Country....')
+    $(document).ready(function() {
+
+        $('#country').change(
+         function() {
+         var states_of_country=$('#state')
+         $.getJSON('/states/'+$(this).val(),function(data) {
+              states_of_country.empty();
+              states_of_country.append('<option value="">Select State ...</option>');
+              $.each(data,function(key,value) {
+              var opt = '<option value=' + key + '>' + value + '</option>';
+              states_of_country.append(opt);
+              });
+
+           });//End OF json
+
+         }); //End OF Country Change
+
+
+      $('#state').change(
+         function() {
+         var country=$('#country').val();
+         var cities_of_sate=$('#city')
+         $.getJSON('/cities/'+$(this).val()+"/"+country,function(data) {
+              cities_of_sate.empty();
+              cities_of_sate.append('<option value="">Select City ...</option>');
+              $.each(data,function(key,value) {
+              var opt = '<option value=' + key + '>' + value + '</option>';
+              cities_of_sate.append(opt);
+              });
+
+           });//End OF json
+
+         }); //End OF State Change
+
+      }); // End of document ready

@@ -1,6 +1,6 @@
 class Company::ContractsController < Company::BaseController
 
-  before_action :find_job              , only: [:show,:create]
+  before_action :find_job              , only: [:create]
   before_action :find_receive_contract , only: [:open_contract , :update_contract_response]
   before_action :find_contract         , only: [:show]
   before_action :set_contracts         , only: [:index]
@@ -53,8 +53,8 @@ class Company::ContractsController < Company::BaseController
   private
 
   def find_contract
-    # find_contract
-    @contract = @job.contracts.find_by_id(params[:id]) || []
+    @contract = current_company.received_contracts.find(params[:id]) || []
+    # @contract = current_company.sent_contracts.find(params[:id]) || []
   end
 
   def find_receive_contract
