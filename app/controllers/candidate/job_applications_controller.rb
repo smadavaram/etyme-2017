@@ -18,6 +18,7 @@ class Candidate::JobApplicationsController < Candidate::BaseController
   end
 
   private
+
   def job_applications
     @job_applications=current_candidate.job_applications
   end
@@ -26,7 +27,7 @@ class Candidate::JobApplicationsController < Candidate::BaseController
   end
 
   def job_application_params
-    params.require(:job_application).permit([ :message , :cover_letter , :status, custom_fields_attributes:
+    params.require(:job_application).permit([ :message , :cover_letter ,:job_invitation_id ,:status, custom_fields_attributes:
                                                            [
                                                                :id,
                                                                :name,

@@ -225,6 +225,11 @@ module ApplicationHelper
                     content: "<span class='menu-item-parent'> Job Applications </span>"
                 },
                 {
+                    href: candidate_job_invitations_path,
+                    title: 'Job Invitations',
+                    content: "<span class='menu-item-parent'> Job Invitations </span>"
+                },
+                {
                     href: candidate_contracts_path,
                     title: 'Contracts',
                     content: "<span class='menu-item-parent'> Contracts </span>"

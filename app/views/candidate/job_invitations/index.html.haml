@@ -1,0 +1,36 @@
+#content.no-border.well.well-sm
+  #wid-id-5.no-border.jarviswidget{"data-widget-colorbutton" => "false", "data-widget-custombutton" => "false", "data-widget-editbutton" => "false", "data-widget-fullscreenbutton" => "false", "data-widget-sortable" => "false"}
+    %div
+      .jarviswidget-editbox
+      .widget-body
+        .tabs-left.row
+          %ul#demo-pill-nav.nav.nav-tabs.tabs-left
+            %li.active
+              %a{"data-toggle" => "tab", :href => "#tab-r1"}
+                %span.badge.bg-color-blue.txt-color-white= @job_invitations.count
+                Received Invitations
+
+          .col-md-10
+            .tab-content
+              #tab-r1.tab-pane.active
+                #hb2.tab-pane.active
+                  %ul#internal-tab-1.nav.nav-tabs.tabs-pull-right
+                    %li
+                      %a{"aria-expanded" => "false", "data-toggle" => "tab", :href => "#is4"} Rejected
+                    %li
+                      %a{"aria-expanded" => "false", "data-toggle" => "tab", :href => "#is1"} Accepted
+                    %li
+                      %a{"aria-expanded" => "false", "data-toggle" => "tab", :href => "#is2"} Pending
+                    %li.active
+                      %a{"aria-expanded" => "true", "data-toggle" => "tab", :href => "#is3"} All
+                  .tab-content.padding-10
+                    #is4.tab-pane
+                      = render partial: 'candidate/job_invitations/partials/invitations_table' , locals: {data: @job_invitations.rejected}
+                    #is1.tab-pane
+                      = render partial: 'candidate/job_invitations/partials/invitations_table' , locals: {data: @job_invitations.accepted}
+                    #is2.tab-pane.fade
+                      = render partial: 'candidate/job_invitations/partials/invitations_table' , locals: {data: @job_invitations.pending}
+                    #is3.tab-pane.fade.active.in
+                      = render partial: 'candidate/job_invitations/partials/invitations_table' , locals: {data: @job_invitations}
+
+#job_invitation

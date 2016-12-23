@@ -32,6 +32,13 @@ class JobInvitation < ActiveRecord::Base
   after_update :notify_on_status_change, if: Proc.new{|invitation| invitation.status_changed?}
 
 
+
+
+  def is_active?
+    self.expiry >= Date.today
+  end
+
+
   private
 
     # Call after create
