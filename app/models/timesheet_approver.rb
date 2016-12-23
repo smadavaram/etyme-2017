@@ -21,7 +21,7 @@ class TimesheetApprover < ActiveRecord::Base
   default_scope -> {where.not(status: nil)}
 
   scope :accepted_or_rejected, ->(user) {where('timesheet_approvers.user_id = ? AND (timesheet_approvers.status = ? OR timesheet_approvers.status = ?)' , user.id , Timesheet.statuses[:approved] , Timesheet.statuses[:rejected])}
-  scope :is_already_submitted?, ->(user) {where('timesheet_approvers.user_id = ? AND (timesheet_approvers.status = ?)' , user.id , Timesheet.statuses[:approved]).present?}
+  scope :is_already_submitted?, ->(user) {where('timesheet_approvers.user_id = ? AND (timesheet_approvers.status = ?)' , user.id , Timesheet.statuses[:submitted]).present?}
 
   def status_by
     "#{self.status.humanize+' by '+ self.user.full_name}"
@@ -33,7 +33,7 @@ class TimesheetApprover < ActiveRecord::Base
     self.timesheet.approved!
   end
 
-  def approve_timesheet
+  def submit_timesheet
     self.timesheet.submitted!
   end
 

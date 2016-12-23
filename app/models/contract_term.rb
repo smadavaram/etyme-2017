@@ -7,5 +7,7 @@ class ContractTerm < ActiveRecord::Base
   belongs_to :user , class_name: 'User' , foreign_key: 'created_by'
 
   validates :status ,             inclusion: {in: statuses.keys}
+  validates_numericality_of :rate, presence: true, greater_than_or_equal_to: 1
+
 
 end

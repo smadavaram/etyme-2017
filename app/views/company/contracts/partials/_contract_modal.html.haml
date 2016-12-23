@@ -45,16 +45,35 @@
               .form-group
                 %label.col-md-2.control-label Rate
                 .col-md-10
-                  = c.number_field :rate ,class: "form-control" , required: 'required', placeholder: ""
+                  = c.text_field :rate ,class: "form-control" , placeholder: ""
               .form-group
                 %label.col-md-2.control-label Terms & Conditions
                 .col-md-10
                   =  c.text_area :terms_condition , class: 'form-control tinymce', rows: 6, placeholder: 'Enter Contract Terms & conditions'
                   = tinymce :default
+            .form-group
+              %label.col-md-2.control-label Is Commission
+              .col-md-10.select
+                = f.select :is_commission , [["No", false] , ["Yes" , true]], {} , {class: "form-control" }
+            #contract-commision
               .form-group
-                %label.col-md-2.control-label Note (optional)
-                .col-md-10
-                  = c.text_area :note, class: "form-control", rows: "2" ,placeholder: 'Write your note'
+                %label.col-md-2.control-label Commission Type
+                .col-md-4.select
+                  = f.select :commission_type , Contract.commission_types.map { |key, value| [key.humanize, key] }, {} , {class: "form-control" }
+                %label.col-md-2.control-label Commission For
+                .col-md-4.select
+                  = f.select :commission_for_id , options_for_select(current_company.admins.collect { |admin|[admin.full_name.titleize, admin.id] }) ,prompt: "Select Admin" ,html: {class: "form-control"}
+              .form-group
+                %label.col-md-2.control-label Commission Amount
+                .col-md-4.select
+                  = f.text_field :commission_amount , class: "form-control" , placeholder: ""
+                %label.col-md-2.control-label Max Commission
+                .col-md-4.select
+                  = f.text_field :max_commission , class: "form-control" , placeholder: ""
+            -#.form-group
+            -#  %label.col-md-2.control-label Note (optional)
+            -#  .col-md-10
+            -#    = f.text_area :note, class: "form-control", rows: "2" ,placeholder: 'Write your note'
             %hr
             .form-group
               .col-md-10
@@ -69,8 +88,14 @@
             = f.submit 'Save' , class: 'btn btn-primary'
 - content_for :scripts do
   :javascript
+    function toggleFields() {
+      if ($('#contract_is_commission').val() == "true")
+        $("#contract-commision").show();
+      else
+        $("#contract-commision").hide();
+    }
     $( document ).ready(function() {
-          alert("ada");
+        toggleFields();
          //$(".multi-select2-company-docs").select2({placeholder: "Select a Doc(s)"});
          $('#contract_start_date').datepicker({
             dateFormat : 'dd/mm/yy'
@@ -78,6 +103,8 @@
           });
          $('#contract_end_date').datepicker({
           dateFormat : 'dd/mm/yy'
-
+        });
+        $("#contract_is_commission").change(function () {
+          toggleFields();
         });
     });

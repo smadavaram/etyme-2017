@@ -20,8 +20,6 @@ class Timesheet < ActiveRecord::Base
   validates :status , inclusion: {in: statuses.keys}
 
   scope :not_invoiced , -> {where(invoice_id: nil)}
-  # scope :is_already_submitted?, ->(user) {timesheet_approvers.present?}
-
 
   def assignee
     self.contract.assignee
@@ -45,6 +43,12 @@ class Timesheet < ActiveRecord::Base
     total_time = 0
     self.timesheet_logs.approved.each do |t| total_time = total_time + t.accepted_total_time end
     total_time
+  end
+
+  def total_amount
+    amount = 0
+    self.timesheet_logs.approved.each do |t| amount = amount + t.total_amount end
+    amount
   end
 
 

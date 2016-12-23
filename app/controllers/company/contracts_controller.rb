@@ -68,7 +68,7 @@ class Company::ContractsController < Company::BaseController
   end
 
   def contract_params
-    params.require(:contract).permit([:job_id  , :billing_frequency, :time_sheet_frequency, :assignee_id ,
+    params.require(:contract).permit([:job_id  , :is_commission , :commission_type , :commission_amount , :max_commission , :commission_for_id , :billing_frequency, :time_sheet_frequency, :assignee_id ,
                                       :job_application_id , :start_date , :end_date  , :message_from_hiring  ,:status ,company_doc_ids: [] ,
                                       contract_terms_attributes: [:id, :created_by, :contract_id , :status , :terms_condition ,:rate , :note , :_destroy],
                                      attachments_attributes:[:id,:file,:file_name,:file_size,:attachable_type,:attachable_id,:_destroy]])

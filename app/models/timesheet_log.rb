@@ -21,7 +21,7 @@ class TimesheetLog < ActiveRecord::Base
   end
 
   def total_amount
-    self.accepted_hours * self.contract_term.rate
+    self.approved? ? self.accepted_hours * self.contract_term.rate : 0.0
   end
 
   def rate
