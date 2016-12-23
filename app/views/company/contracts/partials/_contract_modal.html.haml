@@ -57,16 +57,20 @@
                   = c.text_area :note, class: "form-control", rows: "2" ,placeholder: 'Write your note'
             %hr
             .form-group
-              %label.col-md-2.control-label Message (optional)
               .col-md-10
-                = f.text_area :message_from_hiring, class: "form-control", rows: "2" ,placeholder: 'Write your message'
+                = f.fields_for :attachments do |attachment|
+                  = render 'company/contracts/attachment_fields', f: attachment
+                .links
+                  = link_to_add_association 'Add Attachment', f, :attachments,partial:'company/contracts/attachment_fields',class:"btn btn-primary"
           .modal-footer
             -#= button_tag 'Cancel' , class: 'btn btn-default' , data: {"dismiss": "modal"}
             %button.btn.btn-default{"data-dismiss" => "modal", :type => "button"}
               Cancel
             = f.submit 'Save' , class: 'btn btn-primary'
-:javascript
+- content_for :scripts do
+  :javascript
     $( document ).ready(function() {
+          alert("ada");
          //$(".multi-select2-company-docs").select2({placeholder: "Select a Doc(s)"});
          $('#contract_start_date').datepicker({
             dateFormat : 'dd/mm/yy'

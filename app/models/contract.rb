@@ -21,7 +21,7 @@ class Contract < ActiveRecord::Base
   has_many   :transactions   , through: :timesheets
   has_many   :timesheet_approvers   , through: :timesheets
   has_many   :attachable_docs, as: :documentable
-  has_many   :attachment , as: :attachable
+  has_many   :attachments , as: :attachable
 
   after_create :insert_attachable_docs
   after_create :notify_recipient
@@ -37,6 +37,7 @@ class Contract < ActiveRecord::Base
   validates :end_date,    presence:   true
 
   accepts_nested_attributes_for :contract_terms, allow_destroy: true ,reject_if: :all_blank
+  accepts_nested_attributes_for :attachments ,allow_destroy: true,reject_if: :all_blank
 
   def is_not_ended?
     self.end_date >= Date.today
