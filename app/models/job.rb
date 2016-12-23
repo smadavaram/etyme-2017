@@ -43,5 +43,9 @@ class Job < ActiveRecord::Base
    scope :expired,   -> { where('end_date<?',Date.today) }
    scope :is_public, -> { where(is_public: true)}
 
+  def is_active?
+    self.end_date >= Date.today
+  end
+
 
 end

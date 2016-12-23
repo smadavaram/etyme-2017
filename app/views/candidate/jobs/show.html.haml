@@ -3,7 +3,8 @@
     %section.panel.mt-20s
       %header.panel-heading
         -#%a.pull-right.btn.btn-primary.right.mt-12{href:"#",}  Apply Now
-        = link_to 'Apply Now' , apply_candidate_job_path(@job) , method: :post , remote: true ,  class: 'btn btn-md btn-default btn-success pull-right'
+        - if @job.is_active?
+          = link_to 'Apply Now' , apply_candidate_job_path(@job) , method: :post , remote: true ,  class: 'btn btn-md btn-default btn-success pull-right'
         %h1= @job.title
         - @job.tags.each do |tag|
           %span.h4.badge

@@ -39,7 +39,8 @@
                       %td
                         = link_to raw("<i class='fa fa-pencil '></i>") , edit_job_path(job) , class: 'btn btn-xs btn-default btn-primary'
                         = link_to raw("<i class='fa fa-times '></i>") , job_path(job) , method: :delete ,  class: 'btn btn-xs btn-default btn-danger'
-                        = link_to 'Send Invitation' ,send_invitation_job_path(job) , method: :post ,remote: true,  class: 'btn btn-xs btn-default btn-success'
+                        - if(job.is_active?)
+                          = link_to 'Send Invitation' ,send_invitation_job_path(job) , method: :post ,remote: true,  class: 'btn btn-xs btn-default btn-success'
 - content_for :modals do
   #job_invitation
 

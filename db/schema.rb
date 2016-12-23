@@ -11,7 +11,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema.define(version: 20161216115046) do
+ActiveRecord::Schema.define(version: 20161222141731) do
 
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
@@ -136,6 +136,7 @@ ActiveRecord::Schema.define(version: 20161216115046) do
     t.integer  "billing_frequency",    default: 0
     t.integer  "time_sheet_frequency", default: 0
     t.integer  "company_id"
+    t.date     "next_invoice_date"
   end
 
   create_table "custom_fields", force: :cascade do |t|
@@ -164,6 +165,14 @@ ActiveRecord::Schema.define(version: 20161216115046) do
 
   add_index "delayed_jobs", ["priority", "run_at"], name: "delayed_jobs_priority", using: :btree
 
+  create_table "invoices", force: :cascade do |t|
+    t.integer  "contract_id"
+    t.date     "start_date"
+    t.date     "end_date"
+    t.datetime "created_at",  null: false
+    t.datetime "updated_at",  null: false
+  end
+
   create_table "job_applications", force: :cascade do |t|
     t.integer  "job_invitation_id"
     t.text     "cover_letter"
@@ -183,12 +192,13 @@ ActiveRecord::Schema.define(version: 20161216115046) do
     t.string   "recipient_type"
     t.integer  "created_by_id"
     t.integer  "job_id"
-    t.integer  "status",         default: 0
-    t.datetime "created_at",                 null: false
-    t.datetime "updated_at",                 null: false
+    t.integer  "status",          default: 0
+    t.datetime "created_at",                  null: false
+    t.datetime "updated_at",                  null: false
     t.date     "expiry"
     t.string   "message"
     t.integer  "company_id"
+    t.integer  "invitation_type"
   end
 
   create_table "jobs", force: :cascade do |t|
@@ -320,9 +330,10 @@ ActiveRecord::Schema.define(version: 20161216115046) do
   create_table "timesheet_logs", force: :cascade do |t|
     t.integer  "timesheet_id"
     t.date     "transaction_day"
-    t.integer  "status",          default: 0
-    t.datetime "created_at",                  null: false
-    t.datetime "updated_at",                  null: false
+    t.integer  "status",           default: 0
+    t.datetime "created_at",                   null: false
+    t.datetime "updated_at",                   null: false
+    t.integer  "contract_term_id"
   end
 
   add_index "timesheet_logs", ["timesheet_id"], name: "index_timesheet_logs_on_timesheet_id", using: :btree
@@ -340,6 +351,7 @@ ActiveRecord::Schema.define(version: 20161216115046) do
     t.date     "next_timesheet_created_date"
     t.datetime "created_at",                              null: false
     t.datetime "updated_at",                              null: false
+    t.integer  "invoice_id"
   end
 
   add_index "timesheets", ["job_id"], name: "index_timesheets_on_job_id", using: :btree
@@ -348,7 +360,7 @@ ActiveRecord::Schema.define(version: 20161216115046) do
     t.integer  "timesheet_log_id"
     t.datetime "start_time"
     t.datetime "end_time"
-    t.float    "total_time"
+    t.integer  "total_time",       default: 0
     t.integer  "status",           default: 0
     t.text     "memo"
     t.datetime "created_at",                   null: false
@@ -357,21 +369,12 @@ ActiveRecord::Schema.define(version: 20161216115046) do
 
   add_index "transactions", ["timesheet_log_id"], name: "index_transactions_on_timesheet_log_id", using: :btree
 
-  create_table "user_docs", force: :cascade do |t|
-    t.integer  "company_doc_id"
-    t.integer  "user_id"
-    t.string   "description"
-    t.string   "file"
-    t.datetime "created_at",     null: false
-    t.datetime "updated_at",     null: false
-  end
-
   create_table "users", force: :cascade do |t|
     t.integer  "company_id"
     t.string   "first_name",             default: ""
     t.string   "last_name",              default: ""
     t.integer  "gender"
-    t.string   "email",                  default: "", null: false
+    t.string   "email",                  default: "",    null: false
     t.string   "type"
     t.string   "phone"
     t.integer  "primary_address_id"
@@ -379,11 +382,11 @@ ActiveRecord::Schema.define(version: 20161216115046) do
     t.json     "signature"
     t.integer  "status"
     t.date     "dob"
-    t.string   "encrypted_password",     default: "", null: false
+    t.string   "encrypted_password",     default: "",    null: false
     t.string   "reset_password_token"
     t.datetime "reset_password_sent_at"
     t.datetime "remember_created_at"
-    t.integer  "sign_in_count",          default: 0,  null: false
+    t.integer  "sign_in_count",          default: 0,     null: false
     t.datetime "current_sign_in_at"
     t.datetime "last_sign_in_at"
     t.string   "current_sign_in_ip"
@@ -392,8 +395,8 @@ ActiveRecord::Schema.define(version: 20161216115046) do
     t.datetime "confirmed_at"
     t.datetime "confirmation_sent_at"
     t.string   "unconfirmed_email"
-    t.datetime "created_at",                          null: false
-    t.datetime "updated_at",                          null: false
+    t.datetime "created_at",                             null: false
+    t.datetime "updated_at",                             null: false
     t.string   "invitation_token"
     t.datetime "invitation_created_at"
     t.datetime "invitation_sent_at"
@@ -404,7 +407,7 @@ ActiveRecord::Schema.define(version: 20161216115046) do
     t.integer  "invitations_count",      default: 0
     t.string   "skills"
     t.string   "ssn"
-    t.integer  "max_working_hours",      default: 0
+    t.integer  "max_working_hours",      default: 28800
   end
 
   add_index "users", ["email"], name: "index_users_on_email", unique: true, using: :btree

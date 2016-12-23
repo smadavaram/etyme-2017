@@ -57,6 +57,7 @@ Rails.application.routes.draw do
     resources :addresses,only: [:update]
 
     resources :job_applications , only: [:index]
+    resources :job_invitations , only: [:index]
     resources :contracts        , only: [:index]
     resources :candidates ,only: [:show,:update]
     resources :jobs do

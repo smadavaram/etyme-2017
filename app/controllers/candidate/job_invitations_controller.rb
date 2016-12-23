@@ -1,4 +1,4 @@
-class Candidate::JobInvitationsController < ApplicationController
+class Candidate::JobInvitationsController < Candidate::BaseController
   before_action :set_job_invitations
 
   def index
