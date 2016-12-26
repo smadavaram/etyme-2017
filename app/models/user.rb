@@ -78,8 +78,12 @@ class User < ActiveRecord::Base
   accepts_nested_attributes_for :custom_fields   , reject_if: :all_blank
   accepts_nested_attributes_for :address   , reject_if: :all_blank, update_only: true
   validates_numericality_of :max_working_hours, only_integer: true, greater_than_or_equal_to: 0 , less_than_or_equal_to: 86400
+  validates :time_zone , presence: true
 
 
+  def time_zone_now
+    self.time_zone.present? ? Time.now.in_time_zone(self.time_zone) : Time.now
+  end
 
   def is_admin?
     self.type == "Admin"

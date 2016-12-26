@@ -28,7 +28,7 @@ class CompaniesController < ApplicationController
 
   def company_params
     params.require(:company).permit(:name ,:company_type, :website,:logo,:description,:phone,:email,:linkedin_url,:facebook_url,:twitter_url,:google_url,:is_activated,:status,:time_zone,:tag_line,
-                                    owner_attributes:[:id, :type ,:first_name, :last_name ,:email,:password, :password_confirmation],
+                                    owner_attributes:[:id, :type ,:time_zone , :first_name, :last_name ,:email,:password, :password_confirmation],
                                     locations_attributes:[:id,:name,:status,
                                                           address_attributes:[:id,:address_1,:country,:city,:state,:zip_code] ] )
   end
