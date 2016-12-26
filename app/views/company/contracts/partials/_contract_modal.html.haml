@@ -86,25 +86,25 @@
             %button.btn.btn-default{"data-dismiss" => "modal", :type => "button"}
               Cancel
             = f.submit 'Save' , class: 'btn btn-primary'
-- content_for :scripts do
-  :javascript
-    function toggleFields() {
-      if ($('#contract_is_commission').val() == "true")
-        $("#contract-commision").show();
-      else
-        $("#contract-commision").hide();
-    }
-    $( document ).ready(function() {
-        toggleFields();
-         //$(".multi-select2-company-docs").select2({placeholder: "Select a Doc(s)"});
-         $('#contract_start_date').datepicker({
-            dateFormat : 'dd/mm/yy'
 
-          });
-         $('#contract_end_date').datepicker({
-          dateFormat : 'dd/mm/yy'
-        });
-        $("#contract_is_commission").change(function () {
-          toggleFields();
-        });
-    });
+:javascript
+  function toggleFields() {
+    if ($('#contract_is_commission').val() == "true")
+      $("#contract-commision").show();
+    else
+      $("#contract-commision").hide();
+  };
+  $( document ).ready(function() {
+     toggleFields();
+     //$(".multi-select2-company-docs").select2({placeholder: "Select a Doc(s)"});
+     $('#contract_start_date').datepicker({
+        dateFormat : 'dd/mm/yy'
+
+      });
+     $('#contract_end_date').datepicker({
+      dateFormat : 'dd/mm/yy'
+     });
+     $("#contract_is_commission").change(function () {
+      toggleFields();
+     });
+  });
