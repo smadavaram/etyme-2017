@@ -1,7 +1,8 @@
 class Contract < ActiveRecord::Base
 
-  enum status:                { pending: 0, accepted: 1 , rejected: 2 , is_ended: 3  , cancelled: 4 , paused: 5 }
+  enum status:           [ :pending, :accepted , :rejected , :is_ended  , :cancelled , :paused , :in_progress]
   enum billing_frequency:     { weekly: 0, by_weekly: 1 , monthly: 2 , by_monthly: 3 }
+  enum commission_type:  [:percentage, :fixed]
 
   attr_accessor :company_doc_ids
 
@@ -27,14 +28,19 @@ class Contract < ActiveRecord::Base
   after_create :notify_recipient
   after_update :notify_on_status_change, if: Proc.new{|contract| contract.status_changed? && contract.respond_by.present?}
   after_create :update_contract_application_status
-  after_save   :create_timesheet, if: Proc.new{|contract| contract.status_changed? && contract.accepted? && contract.is_not_ended? && !contract.timesheets.present? && contract.next_invoice_date.nil?}
+  after_save   :create_timesheet, if: Proc.new{|contract| contract.status_changed? && contract.in_progress? && contract.is_not_ended? && !contract.timesheets.present? && contract.next_invoice_date.nil?}
 
   default_scope  -> {order(created_at: :desc)}
 
+  validate :date_validation
   validates :status ,             inclusion: {in: statuses.keys}
-  validates :billing_frequency ,             inclusion: {in: billing_frequencies.keys}
+  validates :billing_frequency ,  inclusion: {in: billing_frequencies.keys}
+  # validates :time_sheet_frequency,inclusion: {in: billing_frequencies.keys}
+  validates :commission_type ,    inclusion: {in: commission_types.keys}
+  validates :is_commission,       inclusion: { in: [ true, false ] }
   validates :start_date,  presence:   true
   validates :end_date,    presence:   true
+  validates :commission_amount , :max_commission , numericality: true  , presence: true , if: Proc.new{|contract| contract.is_commission}
 
   accepts_nested_attributes_for :contract_terms, allow_destroy: true ,reject_if: :all_blank
   accepts_nested_attributes_for :attachments ,allow_destroy: true,reject_if: :all_blank
@@ -75,6 +81,15 @@ class Contract < ActiveRecord::Base
       self.created_by.notifications.create(message: self.respond_by.full_name+" has "+ self.status+" your contract request for "+self.job.title ,title:"Contract- #{self.job.title}")
     end
 
+  def date_validation
+    if self.end_date < self.start_date
+      errors.add(:start_date, ' cannot be less than end date.')
+      return false
+    else
+      return true
+    end
+  end
+
     def update_contract_application_status
       self.job_application.accepted!
     end
@@ -93,19 +108,39 @@ class Contract < ActiveRecord::Base
       self.delay(run_at: self.start_date).schedule_timesheet
     end
 
-    def self.ended
+    def self.end_contracts
       Contract.where(end_date: Date.today).each do |contract|
         contract.is_ended!
       end
     end
-
+  def self.start_contracts
+    Contract.where(start_date: Date.today).each do |contract|
+      contract.in_progress!
+    end
+  end
     def self.invoiced_timesheets
       contracts = self.accepted.where(next_invoice_date: Date.today)
       contracts.each do |contract|
+        total_amount    = 0.0
+        commission      = 0.0
         timesheets      = contract.timesheets.approved.not_invoiced || []
         invoice         = contract.invoices.create!(start_date: contract.next_invoice_date - TIMESHEET_FREQUENCY[contract.time_sheet_frequency].days - 2.days , end_date: contract.next_invoice_date)
-        timesheets.update_all(status: 'invoiced' , invoice_id: invoice.id)
-        contract.update_column(:next_invoice_date , contract.next_invoice_date + TIMESHEET_FREQUENCY[contract.time_sheet_frequency].days + 2.days)
+        timesheets.each do |t|
+          total_amount = total_amount + t.total_amount
+          t.invoice_id =  invoice.id
+          t.status     = 'invoiced'
+          t.save
+        end
+        if contract.is_commission
+          if contract.fixed?
+            commission = contract.commission_amount
+          else
+            commission = total_amount * 0.01 * contract.commission_amount
+            commission = commission > contract.max_commission ? contract.max_commission : commission
+          end
+        end
+        invoice.update_column(total_amount: total_amount , commission_amount: commission , billing_amount: total_amount + commission )
+        contract.update_column(:next_invoice_date , contract.next_invoice_date + TIMESHEET_FREQUENCY[contract.time_sheet_frequency].days)
       end
     end
 
