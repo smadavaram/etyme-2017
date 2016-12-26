@@ -118,31 +118,12 @@ class Contract < ActiveRecord::Base
       contract.in_progress!
     end
   end
-    def self.invoiced_timesheets
-      contracts = self.accepted.where(next_invoice_date: Date.today)
-      contracts.each do |contract|
-        total_amount    = 0.0
-        commission      = 0.0
-        timesheets      = contract.timesheets.approved.not_invoiced || []
-        invoice         = contract.invoices.create!(start_date: contract.next_invoice_date - TIMESHEET_FREQUENCY[contract.time_sheet_frequency].days - 2.days , end_date: contract.next_invoice_date)
-        timesheets.each do |t|
-          total_amount = total_amount + t.total_amount
-          t.invoice_id =  invoice.id
-          t.status     = 'invoiced'
-          t.save
-        end
-        if contract.is_commission
-          if contract.fixed?
-            commission = contract.commission_amount
-          else
-            commission = total_amount * 0.01 * contract.commission_amount
-            commission = commission > contract.max_commission ? contract.max_commission : commission
-          end
-        end
-        invoice.update_column(total_amount: total_amount , commission_amount: commission , billing_amount: total_amount + commission )
-        contract.update_column(:next_invoice_date , contract.next_invoice_date + TIMESHEET_FREQUENCY[contract.time_sheet_frequency].days)
-      end
+
+  def self.invoiced_timesheets
+    self.in_progress.where(next_invoice_date: Date.today).each do |contract|
+      contract.invoices.create!
     end
+  end
 
 
 end
