@@ -1,8 +1,8 @@
 class Candidate < User
 
   after_create :send_welcome_email
-  after_create :send_invitation
-  after_create :send_job_invitation
+  after_create :send_invitation    ,if: Proc.new{|candidate|candidate.invited_by.present?}
+  after_create :send_job_invitation, if: Proc.new{ |candidate| candidate.invited_by.present?}
   after_create :create_address
 
   attr_accessor :job_id
