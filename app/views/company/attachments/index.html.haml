@@ -1,3 +1,103 @@
+%body
+  .container-fluid.no-padding
+    %section.box-typical.files-manager.m-t-lg
+      %nav.files-manager-side{:style => "height: auto;"}
+        %header.files-manager-side-title My files
+        %ul.files-manager-side-list
+          %li
+            %a{:href => "#"} Recived
+          %li
+            %a{:href => "#"} Sent
+          %li
+            %a{:href => "#"} Recent
+          %li
+            %a{:href => "#"} Shared with me
+          %li
+            %a.active{:href => "#"} Trash
+          %li
+            %a{:href => "#"} Inviations
+      .files-manager-panel
+        .files-manager-panel-in
+          %header.files-manager-header
+            .files-manager-header-left
+              -#%button.btn.btn-rounded{:type => "button"}
+              -#  %i.font-icon-left.font-icon-upload-2>
+              -#  Upload file
+              -#%button.btn-icon{:type => "button"}
+              -#  %i.font-icon.font-icon-folder
+              -#%button.btn-icon{:type => "button"}
+              -#  %i.font-icon.font-icon-download-2
+              -#%button.btn-icon{:type => "button"}
+              -#  %i.font-icon.font-icon-share
+              -#%button.btn-icon{:type => "button"}
+              -#  %i.font-icon.font-icon-trash
+            .files-manager-header-right
+              -#.views
+              -#  %button.btn-icon.view.active{:type => "button"}
+              -#    %i.font-icon.font-icon-view-grid
+              -#  %button.btn-icon.view{:type => "button"}
+              -#    %i.font-icon.font-icon-view-rows
+              -#.search
+              -#  %input.form-control.form-control-rounded{:placeholder => "Search", :type => "text"}/
+              -#  %button.btn-icon{:type => "submit"}
+              -#    %i.font-icon.font-icon-search
+          .files-manager-content
+            .files-manager-content-in.scrollable-block.jspScrollable{:style => "overflow: hidden; padding: 0px; height: auto; width: 100%;", :tabindex => "0"}
+              .jspContainer{:style => "width: 600px; height: 380px;"}
+                .jspPane{:style => "padding: 0px; top: 0px; left: 0px; width: 588px;"}
+                  .fm-file-grid
+                    .fm-file.selected
+                      .fm-file-icon
+                        = image_tag 'folder.png'
+                      .fm-file-name App design assets
+                      .fm-file-size 7 files, 358 MB
+                    .fm-file
+                      .fm-file-icon
+                        = image_tag 'folder.png'
+                      .fm-file-size 144 files, 52 MB
+                    .fm-file
+                      .fm-file-icon
+                        = image_tag 'folder.png'
+                      .fm-file-name 2014_projects.rar
+                      .fm-file-size 4 MB
+                    .fm-file
+                      .fm-file-icon
+                        = image_tag 'file.png'
+                      .fm-file-name Inspiration
+                      .fm-file-size 7 files, 358 MB
+                .jspVerticalBar
+                  .jspCap.jspCapTop
+                  .jspTrack{:style => "height: 380px;"}
+                    .jspDrag{:style => "height: 356px;"}
+                      .jspDragTop
+                      .jspDragBottom
+                  .jspCap.jspCapBottom
+          -#%section.files-manager-aside{:style => "height: auto;"}
+          -#  .files-manager-aside-section
+          -#    .box-typical-header-sm PSD
+          -#    .info-list
+          -#      %p Owner: Mark Osborn
+          -#      %p Changed: 08.01.2016  12:45
+          -#      %p Downloaded: 9 times
+          -#      %p The link was viewed: 83 times
+          -#    %a.btn.btn-rounded{:href => "#"}
+          -#      %i.font-icon-left.font-icon-download-3>
+          -#      Download
+          -#  .files-manager-aside-section
+          -#    .box-typical-header-sm Share a folder
+          -#    %input.form-control{:type => "text", :value => "http://yadi.sk/d/kitSdZIXmjnD8"}/
+          -#    %a.soc{:href => "#"}
+          -#      %i.font-icon.font-icon-fb-fill
+          -#    %a.soc{:href => "#"}
+          -#      %i.font-icon.font-icon-vk-fill
+          -#    %a.soc{:href => "#"}
+          -#      %i.font-icon.font-icon-ok-fill
+          -#    %a.soc{:href => "#"}
+          -#      %i.font-icon.font-icon-tw-fill
+          -#    %a.soc{:href => "#"}
+          -#      %i.font-icon.font-icon-gp-fill
+
+
 
 #content
   .inbox-nav-bar.no-content-padding

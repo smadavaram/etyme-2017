@@ -40,3 +40,232 @@
  *= require custom
  *= require Job
  */
+
+.files-manager {
+    zoom: 1;
+}
+.box-typical {
+    -webkit-border-radius: 4px;
+    border-radius: 4px;
+    background: #fff;
+    border: 1px solid #d8e2e7;
+    margin: 0 0 20px;
+}
+.files-manager-side {
+    float: left;
+    width: 168px;
+    position: relative;
+    /*background: #f6f8fa;*/
+    /*border-right: solid 1px #d8e2e7;*/
+    -webkit-border-radius: 3px 0 0 3px;
+    /*border-radius: 3px 0 0 3px;*/
+}
+.files-manager-side-title {
+    padding: 15px;
+    font-weight: 600;
+    border-bottom: solid 1px #d8e2e7;
+}
+.files-manager-side-list {
+    font-weight: 600;
+    padding: 0 0 5px;
+}
+.files-manager-panel {
+    float: right;
+    width: 100%;
+    margin-left: -168px;
+    border: solid 1px #d8e2e7;
+}
+.files-manager-panel-in {
+    margin-left: 168px;
+    zoom: 1;
+}
+.files-manager-header {
+    border-bottom: solid 1px #d8e2e7;
+    border-left: solid 1px #d8e2e7;
+    border-right: solid 1px #d8e2e7;
+    padding: 10px 15px;
+    zoom: 1;
+    height: 48px;
+}
+.files-manager-header .files-manager-header-left {
+    float: left;
+}
+.files-manager-header .btn {
+    margin: 0 22px 0 0;
+}
+.files-manager-header .btn, .files-manager-header .btn-icon {
+    vertical-align: top;
+}
+.files-manager-header .files-manager-header-right {
+    float: right;
+    zoom: 1;
+}
+.files-manager-header .views {
+    float: left;
+    margin: 0 10px 0 0;
+}
+.files-manager-header .btn-icon.view.active, .files-manager-header .btn-icon.view:hover {
+    color: #919fa9;
+}
+.files-manager-header .btn-icon.view {
+    color: #c5d6de;
+}
+.files-manager-header .btn-icon {
+    height: 38px;
+    padding: 0;
+    background: 0 0;
+    border: none;
+    color: #919fa9;
+    margin: 0 8px 0 0;
+}
+.files-manager-header .btn, .files-manager-header .btn-icon {
+    vertical-align: top;
+}
+.files-manager-header .search {
+    float: left;
+    width: 216px;
+    position: relative;
+}
+.files-manager-header .search .btn-icon {
+    position: absolute;
+    right: 5px;
+    top: -1px;
+}
+.files-manager-header .btn-icon {
+    height: 38px;
+    padding: 0;
+    background: 0 0;
+    border: none;
+    color: #919fa9;
+    margin: 0 8px 0 0;
+}
+
+.files-manager-header .btn, .files-manager-header .btn-icon {
+    vertical-align: top;
+}
+.files-manager-content {
+    float: left;
+    width: 100%;
+    margin-right: -280px;
+    border-left: solid 1px #d8e2e7;
+}
+.files-manager-content {
+}
+.files-manager-content-in {
+    margin-right: 280px;
+    border-right: solid 1px #d8e2e7;
+}
+.scrollable-block {
+    overflow: auto;
+}
+.jspContainer {
+    overflow: hidden;
+    position: relative;
+    width: 100%!important;
+}
+.jspPane {
+    position: absolute;
+    width: 100%!important;
+}
+.fm-file-grid {
+    padding: 18px 0 0 18px;
+    zoom: 1;
+}
+.fm-file.selected, .fm-file:hover {
+    background-color: #f6f8fa;
+}
+.fm-file {
+    float: left;
+    width: 150px;
+    margin: 0 18px 18px 0;
+    -webkit-border-radius: .25rem;
+    border-radius: .25rem;
+    padding: 18px 10px 15px;
+    text-align: center;
+    cursor: default;
+}
+.fm-file .fm-file-icon {
+    height: 100px;
+    line-height: 100px;
+}
+.fm-file-name {
+    white-space: nowrap;
+    overflow: hidden;
+    width: 100%;
+}
+.fm-file .fm-file-size {
+    color: #6c7a86;
+}
+.fm-file .fm-file-icon img {
+    vertical-align: middle;
+    width: 100px;
+    height: 100px;
+}
+.jspVerticalBar {
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: 8px;
+    height: 100%;
+    background: 0 0;
+}
+.jspCap {
+    display: none;
+}
+.jspContainer .jspTrack {
+    opacity: 0;
+    -webkit-transition: all .2s ease-in-out;
+    transition: all .2s ease-in-out;
+}
+.jspContainer .jspTrack, .upload-list .font-icon {
+    -moz-transition: all .2s ease-in-out;
+    -o-transition: all .2s ease-in-out;
+}
+.jspTrack {
+    background: 0 0;
+}
+.jspDrag {
+    background: #d3dee6;
+    border: 1px solid #fff;
+    -webkit-border-radius: 2px;
+    border-radius: 2px;
+    top: 0;
+    left: 0;
+    cursor: pointer;
+}
+.jspCap {
+    display: none;
+}
+.files-manager-aside {
+    float: right;
+    width: 280px;
+    position: relative;
+}
+.files-manager-aside-section:first-child {
+    border-top: none;
+}
+.files-manager-aside-section {
+    border-top: solid 1px #d8e2e7;
+    padding: 15px 15px 20px;
+}
+.files-manager-aside-section .box-typical-header-sm, .files-manager-aside-section .info-list {
+    padding: 0 0 10px;
+}
+.box-typical .box-typical-header-sm {
+    padding: 12px 15px;
+    font-weight: 600;
+    position: relative;
+}
+.files-manager-aside-section .info-list p {
+    margin: 0 0 6px;
+}
+.files-manager-aside-section {
+    border-top: solid 1px #d8e2e7;
+    padding: 15px 15px 20px;
+}
+.files-manager-aside-section .soc {
+    display: inline-block;
+    font-size: 22px;
+    margin: 15px 5px 0 0;
+}
+
