@@ -3,19 +3,20 @@
     %i.fa-fw.fa.fa-home
     = "Welcome #{current_user.full_name.titleize} ,"
 - if !current_company.locations.present? || !current_company.roles.present?
-  .col-xs-12.col-sm-7.col-md-12.col-lg-12
+  .col-xs-12.col-sm-7.col-md-12.col-lg-12.m-t-lg{style: 'margin-top: 20px;'}
     .alert.alert-success.alert-block
-      %h4.alert-heading Success!
-      Please fill in these details in order to  use etyme.
-      %ul
+      %h4.alert-heading Info!
+      %p.margin-top-5
+        In order to take full advantage of Etyme, Please take a moment to complete your profile setup.
+      %ul.margin-top-5
         -if !current_company.locations.present?
           %li
-            = link_to 'Click here ' , company_path(current_company) , target: '_blank'
-            To complete your location.
+            Please setup your company locations by
+            = link_to 'clicking here ' , company_path(current_company) , target: '_blank'
         -if !current_company.roles.present?
           %li
-            = link_to 'Click here ' , roles_path , target: '_blank'
-            To complete your roles.
+            Please setup some roles & permissions by
+            = link_to 'clicking here ' , roles_path , target: '_blank'
 
 - content_for :scripts do
   \// Empty

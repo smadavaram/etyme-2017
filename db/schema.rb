@@ -11,7 +11,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema.define(version: 20161222141731) do
+ActiveRecord::Schema.define(version: 20161226090515) do
 
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
@@ -131,12 +131,17 @@ ActiveRecord::Schema.define(version: 20161222141731) do
     t.string   "responed_at"
     t.integer  "status",               default: 0
     t.integer  "assignee_id"
-    t.datetime "created_at",                       null: false
-    t.datetime "updated_at",                       null: false
+    t.datetime "created_at",                           null: false
+    t.datetime "updated_at",                           null: false
     t.integer  "billing_frequency",    default: 0
     t.integer  "time_sheet_frequency", default: 0
     t.integer  "company_id"
     t.date     "next_invoice_date"
+    t.boolean  "is_commission",        default: false
+    t.integer  "commission_type",      default: 0
+    t.float    "commission_amount",    default: 0.0
+    t.float    "max_commission"
+    t.integer  "commission_for_id"
   end
 
   create_table "custom_fields", force: :cascade do |t|
@@ -169,8 +174,11 @@ ActiveRecord::Schema.define(version: 20161222141731) do
     t.integer  "contract_id"
     t.date     "start_date"
     t.date     "end_date"
-    t.datetime "created_at",  null: false
-    t.datetime "updated_at",  null: false
+    t.datetime "created_at",                      null: false
+    t.datetime "updated_at",                      null: false
+    t.decimal  "total_amount",      default: 0.0
+    t.decimal  "commission_amount", default: 0.0
+    t.decimal  "billing_amount",    default: 0.0
   end
 
   create_table "job_applications", force: :cascade do |t|
@@ -192,13 +200,14 @@ ActiveRecord::Schema.define(version: 20161222141731) do
     t.string   "recipient_type"
     t.integer  "created_by_id"
     t.integer  "job_id"
-    t.integer  "status",          default: 0
-    t.datetime "created_at",                  null: false
-    t.datetime "updated_at",                  null: false
+    t.integer  "status",           default: 0
+    t.datetime "created_at",                   null: false
+    t.datetime "updated_at",                   null: false
     t.date     "expiry"
     t.string   "message"
     t.integer  "company_id"
     t.integer  "invitation_type"
+    t.text     "response_message"
   end
 
   create_table "jobs", force: :cascade do |t|
@@ -408,6 +417,7 @@ ActiveRecord::Schema.define(version: 20161222141731) do
     t.string   "skills"
     t.string   "ssn"
     t.integer  "max_working_hours",      default: 28800
+    t.string   "time_zone"
   end
 
   add_index "users", ["email"], name: "index_users_on_email", unique: true, using: :btree

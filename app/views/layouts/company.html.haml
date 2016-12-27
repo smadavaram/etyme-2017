@@ -31,7 +31,7 @@
     = favicon_link_tag 'splash/iphone.png', type: 'image/png', rel: 'apple-touch-startup-image', media: 'screen and (max-device-width: 320px)'
     = yield :head
 
-  %body.menu-on-top{class: "#{yield :body_class}"}
+  %body.smart-style-6{class: "#{yield :body_class}"}
     = render partial: 'company/shared/header'
     = render partial: 'company/shared/left_panel'
     #main{:role => "main"}
@@ -49,3 +49,44 @@
   /[if IE 8]
   = yield(:scripts).present? ? yield(:scripts) : render(partial: 'shared/scripts')
   = render 'shared/flash_messages'
+
+:css
+  body.smart-style-6 #content {
+    margin-left: 10px!important;
+    margin-right: 10px!important;
+  }
+
+  .jarviswidget-color-blue > header {
+    background: #f9f9f9 none repeat scroll 0 0!important;
+    border-color: #ccc !important;
+    color: #888!important;
+  }
+  .widget-toolbar {
+    display:none!important;
+  }
+  .jarviswidget-ctrls{
+    display:none!important;
+  }
+
+  body.smart-style-6 .form-control, body.smart-style-6 .smart-form .icon-append, body.smart-style-6 .smart-form .icon-prepend, body.smart-style-6 .smart-form .input input, body.smart-style-6 .smart-form .select select, body.smart-style-6 .smart-form .textarea textarea {
+    border-left-width: 0!important;
+    border-right-width: 1px!important;
+    border-top-width: 1px!important;
+  }
+
+  body.smart-style-6 #ribbon {
+    background: #fff none repeat scroll 0 0 !important;
+    margin-top: -17px;
+  }
+
+  body.smart-style-6 #ribbon .breadcrumb li:last-child, #ribbon .breadcrumb body.smart-style-6 > .active, body.smart-style-6 #ribbon .breadcrumb, body.smart-style-6 #ribbon .breadcrumb a, .breadcrumb body.smart-style-6 > li + li::before {
+    color: #888 !important;
+    font-size: 12px;
+    font-weight: 300;
+  }
+  #shortcut {
+    background-color: rgba(255, 255, 255, 1)!important;
+  }
+  body.smart-style-6 .bg-color-blueDark {
+    background: #2196f3 none repeat scroll 0 0 !important;
+  }
