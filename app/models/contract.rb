@@ -35,7 +35,7 @@ class Contract < ActiveRecord::Base
   validate :date_validation
   validates :status ,             inclusion: {in: statuses.keys}
   validates :billing_frequency ,  inclusion: {in: billing_frequencies.keys}
-  validates :time_sheet_frequency,inclusion: {in: billing_frequencies.keys}
+  # validates :time_sheet_frequency,inclusion: {in: billing_frequencies.keys}
   validates :commission_type ,    inclusion: {in: commission_types.keys}
   validates :is_commission,       inclusion: { in: [ true, false ] }
   validates :start_date,  presence:   true

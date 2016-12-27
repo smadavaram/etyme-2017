@@ -146,31 +146,36 @@ module ApplicationHelper
             children: [
                 {
                     href: jobs_path,
-                    title: 'Jobs',
-                    content: "<span class='menu-item-parent'> Jobs </span>"
+                    title: 'All Jobs',
+                    content: "<span class='menu-item-parent'> All Posted Job(s) </span>"
                 },
                 {
                     href: job_invitations_path,
                     title: 'Job Invitations',
-                    content: "<span class='menu-item-parent'> Job Invitations </span>"
+                    content: "<span class='menu-item-parent'> Invitation(s) </span>"
                 },
                 {
                     href: job_applications_path,
                     title: 'Job Applications',
-                    content: "<span class='menu-item-parent'> Job Applications </span>"
-                },
-                {
-                    href: contracts_path,
-                    title: 'Contracts',
-                    content: "<span class='menu-item-parent'> Contracts </span>"
+                    content: "<span class='menu-item-parent'> Application(s)/Candidate(s) </span>"
                 },
             ]
         },
         {
-            href: new_company_doc_path,
-            title: 'Company Docs',
-            content: "<i class='fa fa-lg fa-fw fa-black-tie'></i> <span class='menu-item-parent'>" + 'Company Docs' + "</span>",
+            href: contracts_path,
+            title: 'Contracts',
+            content: "<i class='fa fa-lg fa-fw fa-file'></i> <span class='menu-item-parent'> Contracts </span>"
+         },
+        {
+            href: timesheets_path,
+            title: 'Timesheets',
+            content: "<i class='fa fa-lg fa-fw fa-clock-o'></i> <span class='menu-item-parent'>" + 'TIMESHEETS' + "</span>",
         },
+        # {
+        #     href: new_company_doc_path,
+        #     title: 'Company Docs',
+        #     content: "<i class='fa fa-lg fa-fw fa-black-tie'></i> <span class='menu-item-parent'>" + 'Company Docs' + "</span>",
+        # },
         # {
         #     href:  consultant_leaves_path(current_user),
         #     title: 'Leaves',
@@ -192,12 +197,7 @@ module ApplicationHelper
                     content: "<span class='menu-item-parent'>Documents </span>"
                 }
             ]
-        },
-        {
-            href: timesheets_path,
-            title: 'Timesheets',
-            content: "<i class='fa fa-lg fa-fw fa-black-tie'></i> <span class='menu-item-parent'>" + 'TIMESHEETS' + "</span>",
-        },
+        }
     ]
   end
 

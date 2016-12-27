@@ -3,25 +3,25 @@
     .form-group
       .input-group
         %span.input-group-addon
-          %i.fa.fa-user.fa-lg.fa-fw
+          %i.fa.fa-user.fa-fw
         = e.text_field :first_name , class: 'form-control input-lg' , id: 'fname' , placeholder: "First Name" , required: true
   .col-sm-6
     .form-group
       .input-group
         %span.input-group-addon
-          %i.fa.fa-user.fa-lg.fa-fw
+          %i.fa.fa-user.fa-fw
         = e.text_field :last_name , class: 'form-control input-lg' , id: 'lname' , placeholder: "Last Name" , required: true
 .row
   .col-sm-12
     .form-group
       .input-group
         %span.input-group-addon
-          %i.fa.fa-envelope.fa-lg.fa-fw
+          %i.fa.fa-envelope.fa-fw
         = e.email_field :email , class: 'form-control input-lg' , id: 'email' , placeholder: "email@address.com" , required: true
 .row
   .col-sm-12
     .form-group
       .input-group
         %span.input-group-addon
-          %i.fa.fa-envelope.fa-lg.fa-fw
+          %i.fa.fa-key.fa-fw
         = e.collection_select :role_ids, current_company.roles, :id, :name, {}, {:class=>"form-control input-lg multi-select2-role",:multiple => true}

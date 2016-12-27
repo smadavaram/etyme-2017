@@ -1,10 +1,4 @@
 .nested-fields
-  -#.form-group
-  -#  %label.col-md-2.control-label
-  -#    File
-  -#    %sup.text-danger *
-  -#  .col-md-8
-      = f.text_field :file_name , class: 'form-control' , placeholder: 'File Name' , required: true
   .form-group
     %label.col-md-2.control-label
       File
@@ -25,7 +19,6 @@
       });
       function onUpload(event) {
         var file = event.fpfile;
-        console.log(event);
         var name = file.filename;
         var size = file.size;
         var type = file.mimetype;
