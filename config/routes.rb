@@ -48,7 +48,7 @@ Rails.application.routes.draw do
 
     resources :candidates ,path: :candidate ,only: [:update]
     get '/profile',to:'candidates#show'
-
+    get 'candidate/candidates/notify_notifications', to: 'candidates#notify_notifications', as: :candidate_ajax_notify_notifications
   end
 
 

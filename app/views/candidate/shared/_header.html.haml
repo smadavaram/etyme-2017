@@ -2,7 +2,7 @@
   #logo-group
     / PLACE YOUR LOGO HERE
     %span#logo{style: 'margin-top: 3px;'}
-      = image_tag 'etyme-logo-dark.png', alt: 'SmartAdmin', style: 'width: 80px;'
+      = image_tag 'etyme-logo.png', alt: 'SmartAdmin', style: 'width: 80px;'
     %span#activity.activity-dropdown
       %i.fa.fa-user
       %b.badge
@@ -16,7 +16,7 @@
         -#  = 'Msgs'
         -#  (14)
         %label.btn.btn-default
-          %input{:id => ajax_notify_notifications_path, :name => "activity", :type => "radio"}/
+          %input{:id => candidate_ajax_notify_notifications_path, :name => "activity", :type => "radio"}/
           ='notify'
           -#= current_user.notifications.count
         -#%label.btn.btn-default
@@ -36,7 +36,7 @@
           %i.fa.fa-refresh
   = yield :top_right
   / projects dropdown
-  .project-context.hidden-xs
+  -#.project-context.hidden-xs
     %span.label Jobs:
     %span.project-selector.dropdown-toggle{"data-toggle" => "dropdown"}
       = 'Most Recent'
@@ -103,19 +103,19 @@
         = link_to(destroy_candidate_session_path, title: 'Sign Out', data: {action: 'userLogout', 'logout-msg' => 'You can improve your security further after logging out by closing this opened browser'}) do
           %i.fa.fa-sign-out
     / search mobile button (this is hidden till mobile view port)
-    #search-mobile.btn-header.transparent.pull-right
+    -##search-mobile.btn-header.transparent.pull-right
       %span
         %a{:href => "javascript:void(0)", :title => "Search"}
           %i.fa.fa-search
     / input: search field
-    %form.header-search.pull-right{:action => root_path}
+    -#%form.header-search.pull-right{:action => root_path}
       %input#search-fld{"data-autocomplete" => "[\n            \"ActionScript\",\n            \"AppleScript\",\n            \"Asp\",\n            \"BASIC\",\n            \"C\",\n            \"C++\",\n            \"Clojure\",\n            \"COBOL\",\n            \"ColdFusion\",\n            \"Erlang\",\n            \"Fortran\",\n            \"Groovy\",\n            \"Haskell\",\n            \"Java\",\n            \"JavaScript\",\n            \"Lisp\",\n            \"Perl\",\n            \"PHP\",\n            \"Python\",\n            \"Ruby\",\n            \"Scala\",\n            \"Scheme\"]", :name => "param", :placeholder => "#{'Find reports and more'}", :type => "text"}/
       %button{:type => "submit"}
         %i.fa.fa-search
       %a#cancel-search-js{:href => "javascript:void(0);", :title => "Cancel Search"}
         %i.fa.fa-times
     / fullscreen button
-    #fullscreen.btn-header.transparent.pull-right
+    -##fullscreen.btn-header.transparent.pull-right
       %span
         %a{"data-action" => "launchFullscreen", :href => "javascript:void(0);", :title => "Full Screen"}
           %i.fa.fa-arrows-alt

@@ -35,6 +35,8 @@
  *= require signature-pad
  *
  *= require amaran.min
+
+ *= require candidate_override
  */
 
 

@@ -5,6 +5,8 @@ class Company::ContractsController < Company::BaseController
   before_action :find_contract         , only: [:show]
   before_action :set_contracts         , only: [:index]
 
+  add_breadcrumb "CONTRACTS", :contracts_path, options: { title: "CONTRACTS" }
+
   def index
 
   end
