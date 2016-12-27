@@ -88,6 +88,10 @@ class User < ActiveRecord::Base
     self.type == "Admin"
   end
 
+  def is_candidate?
+    self.class.name == "Candidate"
+  end
+
   def is_owner?
     self == self.company.owner
   end
