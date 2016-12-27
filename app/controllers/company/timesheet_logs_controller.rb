@@ -3,6 +3,8 @@ class Company::TimesheetLogsController < Company::BaseController
   before_action :find_timesheet
   before_action :find_timesheet_log
 
+  add_breadcrumb "TIMESHEET LOGS", '#', options: { title: "TIMESHEET LOGS" }
+
   def index
 
   end

@@ -39,6 +39,7 @@
  *= require amaran.min
  *= require custom
  *= require Job
+ *= require company_override
  */
 
 .files-manager {

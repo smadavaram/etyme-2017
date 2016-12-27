@@ -67,7 +67,7 @@ class Candidates::RegistrationsController < Devise::RegistrationsController
   # my custom fields are :first_name, :last_name
   def configure_permitted_parameters
     devise_parameter_sanitizer.permit(:sign_up) do |u|
-      u.permit(:first_name, :last_name, :time_zone ,
+      u.permit(:first_name, :last_name ,
                :email, :invited_by ,:invited_by_id,:invitation_type,:invited_by_type,:job_id,:expiry,:message, :password, :password_confirmation)
     end
     devise_parameter_sanitizer.permit(:account_update) do |u|

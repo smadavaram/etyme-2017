@@ -83,7 +83,7 @@
 /*
  * Turn on/off sortable feature for JarvisWidgets 
  */	
-	sortableJarvisWidgets = true,		
+	sortableJarvisWidgets = true,
 /*
  * Warning: Enabling mobile widgets could potentially crash your webApp 
  * if you have too many widgets running at once 

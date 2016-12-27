@@ -4,7 +4,7 @@
     %span
       / User image size is adjusted inside CSS, it should stay as it
       %a#show-shortcut{"data-action" => "toggleShortcut", :href => "javascript:void(0);"}
-        = image_tag((current_user.photo.present? ? current_user.photo : 'avatars/sunny.png'), alt: 'me', class: 'online')
+        = image_tag((current_user.photo.present? ? current_user.photo : 'avatars/male.png'), alt: 'me', class: 'online')
         %span
           = current_user.full_name
         %i.fa.fa-angle-down

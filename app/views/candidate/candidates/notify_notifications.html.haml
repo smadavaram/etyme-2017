@@ -1,0 +1,13 @@
+%ul.notification-body
+  - @notifications.each do |n|
+    %li
+      %span.unread
+        -#%a.msg{:href => "javascript:void(0);"}
+          -#= image_tag 'avatars/4.png', alt: '', class: 'air air-top-left margin-top-5', width: '40', height: '40'
+        %span.from
+          = n.title.titleize
+          %i.icon-paperclip
+        %time= time_ago_in_words(n.created_at)+' ago'
+        -#%span.subject Msed quia non numquam eius modi tempora
+        %span.msg-body
+          = n.message

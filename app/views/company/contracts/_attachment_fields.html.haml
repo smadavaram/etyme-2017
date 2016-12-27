@@ -3,19 +3,19 @@
     %label.col-md-2.control-label
       File
       %sup.text-danger *
-    .col-md-8
+    .col-md-3
       = f.text_field :file_name , class: 'form-control' , placeholder: 'File Name' , required: true
-  .form-group
-    %label.col-md-2.control-label
+    %label.col-md-1.control-label
       File
       %sup.text-danger *
     .col-md-2
       = filepicker_js_include_tag
-      = f.filepicker_field :file, :button_text => "Add File", class: 'file-pick', onChange: 'onUpload(event)'
+      = f.filepicker_field :file, :button_text => "Add File", class: 'file-pick btn btn-primary btm-sm', onChange: 'onUpload(event)'
       = f.hidden_field :file_type,id:"type"
       = f.hidden_field :file_size,id:"size"
       = f.hidden_field :file_name,id:"name"
-    = link_to_remove_association "Remove", f, class: "btn btn-danger pull-right"
+    .col-md-1
+      = link_to_remove_association "Remove", f, class: "text-danger pull-right"
 
 
 
