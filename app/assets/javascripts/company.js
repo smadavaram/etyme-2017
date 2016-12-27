@@ -78,9 +78,6 @@
 //= require plugin/jqgrid/jquery.jqGrid.min
 //= require plugin/jqgrid/grid.locale-en.min
 
-//= require plugin/highChartCore/highcharts-custom.min
-//= require plugin/highchartTable/jquery.highchartTable.min
-
 //= require plugin/maxlength/bootstrap-maxlength.min
 //= require plugin/bootstrap-timepicker/bootstrap-timepicker.min
 //= require plugin/clockpicker/clockpicker.min
@@ -156,3 +153,6 @@
 //= require best_in_place.jquery-ui
 
 //= require custom
+
+//= require highcharts.js
+//= require highcharts-exporting.js

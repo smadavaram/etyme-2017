@@ -32,3 +32,45 @@ function alert_alert(msg)
     var $alert    = '#FFC333';
     flash_alert($alert,msg);
 }
+
+    $( document ).ready(function() {
+        $('#container-chart').highcharts({
+            colors: ['#53C986','#334A5E','#ffc333','#fb6b5b'],
+            chart: {
+                type: 'column'
+            },
+            title: {
+                text: 'Timesheet'
+            },
+            tooltip: {
+                pointFormat: '<span>{series.name}</span>: <b>{point.y}</b><br/>'
+            },
+            subtitle: {
+                text: 'Approved Hours / Day'
+            },
+            xAxis: {
+                categories: ['19th Dec','21th Dec','22th Dec','23th Dec','24th Dec','25th Dec','26th Dec','27th Dec']
+            },
+            plotOptions: {
+                series: {
+                    minPointLength: 0,
+                    dataLabels: {
+                        enabled: true,
+
+                    },
+                }
+            },
+            yAxis: {
+                title: {
+                    text: 'Days'
+                }
+
+            },
+            series: [{
+                name: 'Total Hours ',
+                data: [4,7,5,7,10,7,10,4.4],
+                color: '#2196F3'
+            }]
+        })
+    });
+
