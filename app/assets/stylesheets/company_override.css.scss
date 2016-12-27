@@ -1,0 +1,68 @@
+body.smart-style-6 #content {
+  margin-left: 10px!important;
+  margin-right: 10px!important;
+}
+
+.jarviswidget-color-blue > header {
+  background: #f9f9f9 none repeat scroll 0 0!important;
+  border-color: #ccc !important;
+  color: #888!important;
+}
+.widget-toolbar {
+  display:none!important;
+}
+.jarviswidget-ctrls{
+  display:none!important;
+}
+
+body.smart-style-6 .form-control, body.smart-style-6 .smart-form .icon-append, body.smart-style-6 .smart-form .icon-prepend, body.smart-style-6 .smart-form .input input, body.smart-style-6 .smart-form .select select, body.smart-style-6 .smart-form .textarea textarea {
+  border-left-width: 1px!important;
+  border-right-width: 1px!important;
+  border-top-width: 1px!important;
+}
+
+body.smart-style-6 .form-control, body.smart-style-6 .smart-form .icon-append, body.smart-style-6 .smart-form .icon-prepend, body.smart-style-6 .smart-form .select select, body.smart-style-6 .smart-form .textarea textarea {
+  padding-left: 10px;
+}
+
+body.smart-style-6 #ribbon {
+  background: #fff none repeat scroll 0 0 !important;
+  //margin-top: -17px;
+}
+
+body.smart-style-6 #ribbon .breadcrumb li:last-child, #ribbon .breadcrumb body.smart-style-6 > .active, body.smart-style-6 #ribbon .breadcrumb, body.smart-style-6 #ribbon .breadcrumb a, .breadcrumb body.smart-style-6 > li + li::before {
+  color: #888 !important;
+  font-size: 12px;
+  font-weight: 300;
+}
+#shortcut {
+  background-color: rgba(255, 255, 255, 1)!important;
+}
+body.smart-style-6 .bg-color-blueDark {
+  background: #2196f3 none repeat scroll 0 0 !important;
+}
+body.smart-style-6 .txt-color-magenta, body.smart-style-6 nav ul li.active > a::before {
+  color: #2196f3 !important;
+}
+
+.bootstrapWizard li.active .step, .bootstrapWizard li.active.complete .step {
+  padding: 7px 11px;
+}
+.bootstrapWizard li .step {
+  padding: 7px 11px;
+}
+
+.bootstrapWizard li.complete .step {
+  padding: 2px 5px;
+}
+body.smart-style-6 #logo img {
+  display: block!important;
+}
+body.smart-style-6 #logo-group > span#logo::before {
+  color: #fff;
+  display: block;
+  font-size: 17px;
+  font-weight: 300;
+  margin-top: -1px;
+  content: '';
+}

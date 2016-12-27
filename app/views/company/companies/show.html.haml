@@ -73,7 +73,7 @@
             -#%button.btn.btn-primary.pull-right
             -#  Add owner
             .tab-content.padding-10
-              = render partial: 'company/companies/partials/owner_info' ,locals:{owner_data: current_company.owner,admins: current_company.admins}
+              = render partial: 'company/companies/partials/owner_info' ,locals:{owner_data: current_company.owner,admins: current_company.admins - [current_company.owner]}
 
           -# Company Documents TAB
           #hr4.tab-pane

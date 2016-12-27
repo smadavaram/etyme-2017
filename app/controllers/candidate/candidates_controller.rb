@@ -1,15 +1,14 @@
 class Candidate::CandidatesController < Candidate::BaseController
 
-
   respond_to :html,:json
 
-  #Callbacks
   before_action :set_candidate ,only: [:show,:update]
 
   add_breadcrumb 'Companies', "#", :title => ""
 
   def dashboard
   end
+
   def show
     add_breadcrumb current_candidate.full_name.titleize, profile_path(current_candidate), :title => ""
   end
@@ -22,7 +21,10 @@ class Candidate::CandidatesController < Candidate::BaseController
       redirect_to :back
       # format.js(current_candidate,notice:"Incorrect Information")
     end
+  end
 
+  def notify_notifications
+    @notifications = current_candidate.notifications || []
   end
 
 

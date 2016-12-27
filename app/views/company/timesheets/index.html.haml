@@ -1,18 +1,13 @@
 #content
-  %section#widget-grid{style: 'margin-top: 10px;'}
-    / row
+  %section{style: 'margin-top: 10px;'}
     .row
-      / NEW WIDGET START
       %article.col-xs-12.col-sm-12.col-md-12.col-lg-12
-        / Widget ID (each widget will need unique ID)
-        #wid-id-0.jarviswidget.jarviswidget-color-darken{"data-widget-editbutton" => "false"}
+        #wid-id-0.jarviswidget
           %header
             %span.widget-icon
               %i.fa.fa-table
             %h2 Timesheets
-          / widget div
           %div
-            / widget edit box
             .jarviswidget-editbox
             .widget-body.no-padding
               %table#dt_basic.table.table-striped.table-bordered.table-hover{:width => "100%"}

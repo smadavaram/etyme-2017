@@ -2,6 +2,8 @@ class Company::TimesheetsController < Company::BaseController
   before_action :find_timesheet , except: [:index]
   before_action :set_timesheets , only: [:index]
 
+  add_breadcrumb "TIMESHEETS", :timesheets_path, options: { title: "TIMESHEETS" }
+
   def index
 
   end
