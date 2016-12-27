@@ -75,7 +75,7 @@
             -#  .col-md-10
             -#    = f.text_area :note, class: "form-control", rows: "2" ,placeholder: 'Write your note'
             %hr
-            .form-group
+            .form-group#contract-attachment
               .col-md-10
                 = f.fields_for :attachments do |attachment|
                   = render 'company/contracts/attachment_fields', f: attachment
@@ -107,4 +107,25 @@
      $("#contract_is_commission").change(function () {
       toggleFields();
      });
-  });
+
+     $(".filepicker-attachment").on('click',function() {
+        $('.fp__overlay').css({'z-index':'99999'})
+        });
+
+    });
+
+
+  $('#contract-attachment').on('cocoon:after-insert', function(e, insertedItem) {
+        insertedItem.find('.filepicker-attachment').each(function(i,e){
+          filepicker.constructWidget(e);
+
+        $(".filepicker-attachment").on('click',function() {
+        $('.fp__overlay').css({'z-index':'99999'})
+        });
+
+        $('.filepicker-attachment').on('click',function() {
+          $(this).hide();
+         });
+
+        });
+    });

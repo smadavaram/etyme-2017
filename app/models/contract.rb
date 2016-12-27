@@ -8,7 +8,7 @@ class Contract < ActiveRecord::Base
 
   belongs_to :created_by , class_name: 'User' , foreign_key: :created_by_id
   belongs_to :respond_by , class_name: 'User' , foreign_key: :respond_by_id
-  belongs_to :assignee , class_name: 'User' , foreign_key: :assignee_id
+  belongs_to :assignee   , class_name: 'User' , foreign_key: :assignee_id
   belongs_to :job_application
   belongs_to :job
   belongs_to :location
@@ -74,7 +74,7 @@ class Contract < ActiveRecord::Base
     end
 
     def notify_recipient
-      self.job_application.user.notifications.create(message: self.company.name+" send a contract offer for "+self.job.title ,title: self.title) if self.job_application.present?
+      self.job_application.user.notifications.create(message: self.company.name+" sent a contract offer for "+self.job.title ,title: self.title) if self.job_application.present?
     end
 
     def notify_on_status_change

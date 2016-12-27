@@ -1,53 +1,39 @@
 .nested-fields
-  .form-group
-    %label.col-md-2.control-label
-      File
-      %sup.text-danger *
-    .col-md-8
+  -#.form-group
+  -#  %label.col-md-2.control-label
+  -#    File
+  -#    %sup.text-danger *
+  -#  .col-md-8
       = f.text_field :file_name , class: 'form-control' , placeholder: 'File Name' , required: true
   .form-group
     %label.col-md-2.control-label
       File
       %sup.text-danger *
     .col-md-2
-      = filepicker_js_include_tag
-      = f.filepicker_field :file, :button_text => "Add File", class: 'file-pick', onChange: 'onUpload(event)'
-      = f.hidden_field :file_type,id:"type"
-      = f.hidden_field :file_size,id:"size"
-      = f.hidden_field :file_name,id:"name"
-    = link_to_remove_association "Remove", f, class: "btn btn-danger pull-right"
+      = f.text_field :file_name,class:"name hidden" , disable: true , readonly: true
+      = f.filepicker_field :file, :button_text => "Pick File", disable: true , class: 'file-pick btn btn-primary filepicker-attachment', onChange: 'onUpload(event)'
+      = f.hidden_field :file_type,class:"type"
+      = f.hidden_field :file_size,class:"size"
 
+    = link_to_remove_association "Remove", f, class: "btn remove btn-danger pull-right"
 
-
-
-
-
-
-
-
-- content_for :scripts do
-  :javascript
-
+:javascript
     $(document).ready(function() {
-    alert("ahhsha");
 
-      // $( ".file-pick" ).on('click',function() {
-      //
-      //  $('.fp__overlay').css({'z-index':'99999'})});
+        pageSetUp();
+
+      });
+      function onUpload(event) {
+        var file = event.fpfile;
+        console.log(event);
+        var name = file.filename;
+        var size = file.size;
+        var type = file.mimetype;
+        $('.name:last').val(name);
+        $('.size:last').val(size);
+        $('.type:last').val(type);
+        alert(type);
+        if($('.name:last').hasClass('hidden')){$('.name:last').removeClass('hidden');}
 
 
-
-      pageSetUp();
-
-
-    });
-    function onUpload(event) {
-      var file=event.fpfile;
-      var name = file.filename;
-      var size=file.size;
-      var type=file.mimetype;
-      $('#name').val(name);
-      $('#size').val(size);
-      $('#type').val(type);
-
-    }
+      }
