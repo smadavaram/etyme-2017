@@ -34,6 +34,7 @@ function alert_alert(msg)
 }
 
     $( document ).ready(function() {
+        if($('#container-chart').length > 0) {
         $('#container-chart').highcharts({
             colors: ['#53C986','#334A5E','#ffc333','#fb6b5b'],
             chart: {
@@ -72,5 +73,6 @@ function alert_alert(msg)
                 color: '#2196F3'
             }]
         })
+    }
     });
 
