@@ -1,7 +1,7 @@
 class Contract < ActiveRecord::Base
 
   enum status:           [ :pending, :accepted , :rejected , :is_ended  , :cancelled , :paused , :in_progress]
-  enum billing_frequency:     { weekly: 0, by_weekly: 1 , monthly: 2 , by_monthly: 3 }
+  enum billing_frequency:     [ :weekly, :by_weekly , :monthly , :by_monthly ]
   enum commission_type:  [:percentage, :fixed]
 
   attr_accessor :company_doc_ids
@@ -35,12 +35,13 @@ class Contract < ActiveRecord::Base
   validate :date_validation
   validates :status ,             inclusion: {in: statuses.keys}
   validates :billing_frequency ,  inclusion: {in: billing_frequencies.keys}
-  # validates :time_sheet_frequency,inclusion: {in: billing_frequencies.keys}
+  validates :time_sheet_frequency,inclusion: {in: billing_frequencies.keys}
   validates :commission_type ,    inclusion: {in: commission_types.keys}
   validates :is_commission,       inclusion: { in: [ true, false ] }
   validates :start_date,  presence:   true
   validates :end_date,    presence:   true
   validates :commission_amount , :max_commission , numericality: true  , presence: true , if: Proc.new{|contract| contract.is_commission}
+
 
   accepts_nested_attributes_for :contract_terms, allow_destroy: true ,reject_if: :all_blank
   accepts_nested_attributes_for :attachments ,allow_destroy: true,reject_if: :all_blank
