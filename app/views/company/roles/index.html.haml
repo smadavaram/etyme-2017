@@ -3,15 +3,15 @@
     .col-xs-12.col-sm-3.col-md-3.col-lg-3.pull-right
       %a.btn.btn-success.btn-lg.pull-right.header-btn.hidden-mobile{"data-toggle" => "modal", :href => "#myModal"}
         %i.fa.fa-circle-arrow-up.fa-lg
-        Create New Role
+        New
 
-  %section#widget-grid{style: 'margin-top: 10px;'}
+  %section{style: 'margin-top: 10px;'}
     / row
     .row
       / NEW WIDGET START
       %article.col-xs-12.col-sm-12.col-md-12.col-lg-12
         / Widget ID (each widget will need unique ID)
-        #wid-id-0.jarviswidget.jarviswidget-color-darken{"data-widget-editbutton" => "false"}
+        #wid-id-0.jarviswidget{"data-widget-editbutton" => "false"}
           %header
             %span.widget-icon
               %i.fa.fa-table

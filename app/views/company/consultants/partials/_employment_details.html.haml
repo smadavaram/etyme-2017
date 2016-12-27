@@ -3,7 +3,7 @@
     .form-group
       .input-group
         %span.input-group-addon
-          %i.fa.fa-user.fa-lg.fa-fw
+          %i.fa.fa-user.fa-fw
         = p.text_field :designation , class: 'form-control input-lg' , placeholder: "Enter Designation" , required: true
   -#%input#wphone.form-control.input-lg{"data-mask" => "+99 (999) 999-9999", "data-mask-placeholder" => "X", :name => "wphone", :placeholder => "+1", :type => "text"}/
 
@@ -11,31 +11,31 @@
     .form-group
       .input-group
         %span.input-group-addon
-          %i.fa.fa-user.fa-lg.fa-fw
+          %i.fa.fa-calendar.fa-fw
         = p.text_field :joining_date , class: 'form-control input-lg' , placeholder: "Enter Joining Date" , required: true
 .row
   .col-sm-6
     .form-group
       .input-group
         %span.input-group-addon
-          %i.fa.fa-mobile.fa-lg.fa-fw
+          %i.fa.fa-user-times.fa-fw
         = p.select :employment_type, [['Full Time (30 hours or more)','full_time'],['Part Time (30 hours or less)','part_time'],['Temp or Intern','temp_intern']], {}, {:class=>"form-control input-lg"}
   .col-sm-6
     .form-group
       .input-group
         %span.input-group-addon
-          %i.fa.fa-mobile.fa-lg.fa-fw
+          %i.fa.fa-clock-o.fa-fw
         = e.number_field :temp_working_hours ,value: e.object.max_working_hours/3600.0, class: 'form-control input-lg' , placeholder: "Enter Per Day Working Hours" , required: true
 .row
   .col-sm-6
     .form-group
       .input-group
         %span.input-group-addon
-          %i.fa.fa-mobile.fa-lg.fa-fw
+          %i.fa.fa-dollar.fa-fw
         = p.select :salary_type, [['Salaried','salaried'],['Hourly','hourly']], {}, {:class=>"form-control input-lg"}
   .col-sm-6
     .form-group
       .input-group
         %span.input-group-addon
-          %i.fa.fa-mobile.fa-lg.fa-fw
+          %i.fa.fa-dollar.fa-fw
         = p.text_field :salary , class: 'form-control input-lg' , placeholder: "Enter Salary" , required: true

@@ -57,14 +57,17 @@
           %h3
             %strong Step 4
             \- Custom Fields
-          #custom_fields
+          .row
             .col-sm-12
-              = e.fields_for :custom_fields do |lt|
-                = render 'shared/custom_fields', f: lt
-          %strong
-            .links.col-sm-12
-              = link_to_add_association '+ Add Custom Field', e, :custom_fields, class: 'text-info pull-right', partial: 'shared/custom_fields'
-              %br/
+              .form-group
+                #custom_fields
+                  .col-sm-12
+                    = e.fields_for :custom_fields do |lt|
+                      = render 'shared/custom_fields', f: lt
+                %strong
+                  .links.col-sm-12
+                    = link_to_add_association '+ Add Custom Field', e, :custom_fields, class: 'text-info pull-right', partial: 'shared/custom_fields'
+                    %br/
         .form-actions
           .row
             .col-sm-12
@@ -79,5 +82,5 @@
   :javascript
       $( document ).ready(function() {
           $(".multi-select2-role").select2({placeholder: "Select a Role(s)"});
-           $(".multi-select2-company-docs").select2({placeholder: "Select a Doc(s)"});
+           $(".multi-select2-company-docs").select2({placeholder: "Select Document(s)"});
       });
