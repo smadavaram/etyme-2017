@@ -61,10 +61,6 @@
                     %i.icon-append.fa.fa-lock
                     = f.password_field :password_confirmation, :placeholder => "Confirm password", "data-rule-equalTo": "#company_owner_attributes_password"
                     %b.tooltip.tooltip-bottom-right Please confirm the password
-                %section
-                  %label.input
-                    %i.select
-                    = f.time_zone_select :time_zone, nil, {} , class: 'form-control' , include_blank: false
               %footer
                 .row
                   .col-md-4{style: 'margin-top: 16px; margin-left: 20px;'}

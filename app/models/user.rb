@@ -78,7 +78,7 @@ class User < ActiveRecord::Base
   accepts_nested_attributes_for :address   , reject_if: :all_blank, update_only: true
 
   validates_numericality_of :max_working_hours, only_integer: true, greater_than_or_equal_to: 0 , less_than_or_equal_to: 86400
-  # validates :time_zone , inclusion: {in: ActiveSupport::TimeZone.zones_map(&:name)}
+  # validates_inclusion_of :time_zone, in: ActiveSupport::TimeZone.all.map { |tz| tz.tzinfo.name }
 
   def time_zone_now
     self.time_zone.present? ? Time.now.in_time_zone(self.time_zone) : Time.now

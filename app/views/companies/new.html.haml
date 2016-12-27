@@ -55,10 +55,6 @@
                     %b.tooltip.tooltip-bottom-right Your Company Email
                 %section
                   %label.input
-                    %i.select
-                    = u.time_zone_select :time_zone, nil, {} , class: 'form-control' , include_blank: false
-                %section
-                  %label.input
                     %i.icon-append.fa.fa-lock
                     = u.password_field :password, :placeholder => "Password", required: true,minlength: "6"
                     %b.tooltip.tooltip-bottom-right Please enter a password of minimum 6 characters
