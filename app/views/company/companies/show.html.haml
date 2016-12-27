@@ -1,5 +1,5 @@
-.col-lg-3.col-md-3
-  .panel-body.status.profile-margin
+.col-lg-3.col-md-3.margin-top-10
+  .panel-body.status.profile-margin{style: 'background: #FFF!important;border: 1px solid #ccc;'}
     .text
       %div.profile-hover
         //= f.label :filepicker_url, "Upload Your Avatar:"
@@ -11,7 +11,7 @@
           -else
             = image_tag image_path('default_user.png'),  style: "width:100px;height:100px", fit: 'clip',:class =>"profile-pic image-setting"
 
-    %ul.links
+    %ul.links{style: 'background: #FFF!important'}
       %li.col-sm-4.padding-bottom-10
         %i.fa.fa-user.fa-2x.text-muted
           5
