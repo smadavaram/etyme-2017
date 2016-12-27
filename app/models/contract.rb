@@ -1,7 +1,7 @@
 class Contract < ActiveRecord::Base
 
   enum status:           [ :pending, :accepted , :rejected , :is_ended  , :cancelled , :paused , :in_progress]
-  enum billing_frequency:     [ :weekly, :by_weekly , :monthly , :by_monthly ]
+  enum billing_frequency:     [ :weekly, :bi_weekly , :monthly , :bi_monthly ]
   enum commission_type:  [:percentage, :fixed]
 
   attr_accessor :company_doc_ids

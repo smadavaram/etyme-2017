@@ -5,7 +5,7 @@ class ApplicationController < ActionController::Base
   layout :set_devise_layout
 
   # before_filter :authenticate_user!
-  before_action :verify_company
+
 
   def states
     render json: CS.states(params[:country].to_sym).to_json
@@ -32,11 +32,6 @@ class ApplicationController < ActionController::Base
     end
   end
 
-  def verify_company
-    if request.subdomain.present? && request.subdomain !='www' && request.subdomain !='app-etyme' && Company.where(slug: request.subdomain).blank?
-      return redirect_to HOSTNAME
-    end
-  end
 
   def current_company
     @company ||= Company.where(slug: request.subdomain).first if request.subdomain.present?
