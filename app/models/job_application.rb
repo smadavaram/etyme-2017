@@ -1,7 +1,7 @@
 class JobApplication < ActiveRecord::Base
 
-  enum status: { accepted: 1 , pending: 0  , rejected: 2 , short_listed: 3 }
-  enum application_type: {direct: 0 , candidate_direct: 1 , vendor_direct: 2 , invitation: 3}
+  enum status: [ :pending ,:accepted  , :rejected , :short_listed ]
+  enum application_type: [:direct , :candidate_direct , :vendor_direct , :invitation]
 
   belongs_to :job_invitation
   belongs_to :user
@@ -10,8 +10,9 @@ class JobApplication < ActiveRecord::Base
   has_one    :contract
   has_many   :custom_fields ,as: :customizable
 
+
   validates :cover_letter , presence: true
-  # validates :application_type, inclusion: { in: application_types.keys }
+  validates :application_type, inclusion: { in: application_types.keys }
   validates :status ,             inclusion: {in: statuses.keys}
 
   after_create :update_job_invitation_status ,     if: Proc.new{|application| application.job_invitation.present?}
@@ -34,7 +35,9 @@ class JobApplication < ActiveRecord::Base
 
     # Call after update
     def notify_recipient_on_status_change
-      self.job_invitation.recipient.notifications.create(message: self.company.name + " has #{self.status} your Job Application - #{self.job.title}")
+      if status_changed?
+        self.job_invitation.recipient.notifications.create(message: self.company.name + " has #{self.status} your Job Application - #{self.job.title}")
+      end
     end
 
     def set_application_type

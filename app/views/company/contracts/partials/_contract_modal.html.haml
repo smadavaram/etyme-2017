@@ -5,13 +5,17 @@
         %button.close{"aria-hidden" => "true", "data-dismiss" => "modal", :type => "button"}
           ×
         %h1
-          %span.semi-bold Creating New Contract
+          %span.semi-bold Contract -
           %i.ultra-light #{job_application.company.try(:name)}
+          (#{link_to job_application.try(:user).full_name ,  '#' , target: '_blank'})
+          -#%sup.badge.bg-color-red.bounceIn.animated v 2.0
           %br/
-          %small.text-muted
-            %strong #{link_to job_application.try(:user).full_name ,  '#' , target: '_blank'} - #{job.title}
-        -#%p
+          %small.text-danger.slideInRight.fast.animated
+            %strong Job - #{job.title}
+        %p
           = raw job.description
+
+
       .modal-body
         = form_for [job,contract] , html: {class: 'form-horizontal'} , remote: true do |f|
           = f.hidden_field :job_application_id , value: job_application.id
@@ -48,7 +52,7 @@
                   =  c.text_area :terms_condition , class: 'form-control tinymce', rows: 6, placeholder: 'Enter Contract Terms & conditions'
                   = tinymce :default
             .form-group
-              %label.col-md-2.control-label Are you paying any commission for this contract ?
+              %label.col-md-2.control-label Is Commission
               .col-md-10.select
                 = f.select :is_commission , [["No", false] , ["Yes" , true]], {} , {class: "form-control" }
             #contract-commision
@@ -58,7 +62,7 @@
                   = f.select :commission_type , Contract.commission_types.map { |key, value| [key.humanize, key] }, {} , {class: "form-control" }
                 %label.col-md-2.control-label Commission For
                 .col-md-4.select
-                  = f.select :commission_for_id , options_for_select(current_company.admins.collect { |admin|[admin.full_name.titleize, admin.id] }),{} ,prompt: "Select User" , class: "form-control input-lg"
+                  = f.select :commission_for_id , options_for_select(current_company.admins.collect { |admin|[admin.full_name.titleize, admin.id] }) ,prompt: "Select Admin" ,html: {class: "form-control"}
               .form-group
                 %label.col-md-2.control-label Commission Amount
                 .col-md-4.select
@@ -71,12 +75,12 @@
             -#  .col-md-10
             -#    = f.text_area :note, class: "form-control", rows: "2" ,placeholder: 'Write your note'
             %hr
-            .form-group
-              .col-md-12
+            .form-group#contract-attachment
+              .col-md-10
                 = f.fields_for :attachments do |attachment|
                   = render 'company/contracts/attachment_fields', f: attachment
                 .links
-                  = link_to_add_association 'Add Attachment', f, :attachments,partial:'company/contracts/attachment_fields',class:"btn btn-primary pull-right"
+                  = link_to_add_association 'Add Attachment', f, :attachments,partial:'company/contracts/attachment_fields',class:"btn btn-primary"
           .modal-footer
             -#= button_tag 'Cancel' , class: 'btn btn-default' , data: {"dismiss": "modal"}
             %button.btn.btn-default{"data-dismiss" => "modal", :type => "button"}
@@ -103,4 +107,21 @@
      $("#contract_is_commission").change(function () {
       toggleFields();
      });
-  });
+
+    });
+
+
+  $('#contract-attachment').on('cocoon:after-insert', function(e, insertedItem) {
+        insertedItem.find('.filepicker-attachment').each(function(i,e){
+          filepicker.constructWidget(e);
+
+        $(".filepicker-attachment").on('click',function() {
+        $('.fp__overlay').css({'z-index':'99999'})
+        });
+
+        $('.filepicker-attachment').on('click',function() {
+          $(this).hide();
+         });
+
+        });
+    });

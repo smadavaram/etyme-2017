@@ -1,14 +1,14 @@
 class Contract < ActiveRecord::Base
 
   enum status:           [ :pending, :accepted , :rejected , :is_ended  , :cancelled , :paused , :in_progress]
-  enum billing_frequency:     { weekly: 0, by_weekly: 1 , monthly: 2 , by_monthly: 3 }
+  enum billing_frequency:     [ :weekly, :by_weekly , :monthly , :by_monthly ]
   enum commission_type:  [:percentage, :fixed]
 
   attr_accessor :company_doc_ids
 
   belongs_to :created_by , class_name: 'User' , foreign_key: :created_by_id
   belongs_to :respond_by , class_name: 'User' , foreign_key: :respond_by_id
-  belongs_to :assignee , class_name: 'User' , foreign_key: :assignee_id
+  belongs_to :assignee   , class_name: 'User' , foreign_key: :assignee_id
   belongs_to :job_application
   belongs_to :job
   belongs_to :location
@@ -42,6 +42,7 @@ class Contract < ActiveRecord::Base
   validates :end_date,    presence:   true
   validates :commission_amount , :max_commission , numericality: true  , presence: true , if: Proc.new{|contract| contract.is_commission}
 
+
   accepts_nested_attributes_for :contract_terms, allow_destroy: true ,reject_if: :all_blank
   accepts_nested_attributes_for :attachments ,allow_destroy: true,reject_if: :all_blank
 
@@ -74,7 +75,7 @@ class Contract < ActiveRecord::Base
     end
 
     def notify_recipient
-      self.job_application.user.notifications.create(message: self.company.name+" send a contract offer for "+self.job.title ,title: self.title) if self.job_application.present?
+      self.job_application.user.notifications.create(message: self.company.name+" sent a contract offer for "+self.job.title ,title: self.title) if self.job_application.present?
     end
 
     def notify_on_status_change
