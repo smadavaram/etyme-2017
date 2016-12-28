@@ -1,7 +1,7 @@
 class JobApplication < ActiveRecord::Base
 
-  enum status: { accepted: 1 , pending: 0  , rejected: 2 , short_listed: 3 }
-  enum application_type: {direct: 0 , candidate_direct: 1 , vendor_direct: 2 , invitation: 3}
+  enum status: [ :pending ,:accepted  , :rejected , :short_listed ]
+  enum application_type: [:direct , :candidate_direct , :vendor_direct , :invitation]
 
   belongs_to :job_invitation
   belongs_to :user

@@ -26,7 +26,7 @@
             .form-group
               %label.col-md-2.control-label Company Docs
               .col-md-10.select
-                = select_tag "contract[company_doc_ids]", options_from_collection_for_select(current_company.company_docs, "id", "name"), prompt: "Select something" , class:"form-control input-lg multi-select2-company-docs",multiple: true
+                = f.select :commission_for_id , options_for_select(current_company.admins.collect { |admin|[admin.full_name.titleize, admin.id] }),{} ,prompt: "Select User" , class: "form-control input-lg"
             .form-group
               %label.col-md-2.control-label Billing Frequency
               .col-md-4.select
@@ -58,7 +58,7 @@
                   = f.select :commission_type , Contract.commission_types.map { |key, value| [key.humanize, key] }, {} , {class: "form-control" }
                 %label.col-md-2.control-label Commission For
                 .col-md-4.select
-                  = f.select :commission_for_id , options_for_select(current_company.admins.collect { |admin|[admin.full_name.titleize, admin.id] }),{} ,prompt: "Select User" , class: "form-control input-lg"
+                  = f.select :commission_for_id , options_for_select(current_company.admins.collect { |admin|[admin.full_name.titleize, admin.id] }) ,{},prompt: "Select Admin" ,class: "form-control"
               .form-group
                 %label.col-md-2.control-label Commission Amount
                 .col-md-4.select
@@ -71,8 +71,8 @@
             -#  .col-md-10
             -#    = f.text_area :note, class: "form-control", rows: "2" ,placeholder: 'Write your note'
             %hr
-            .form-group
-              .col-md-12
+            .form-group#contract-attachment
+              .col-md-10
                 = f.fields_for :attachments do |attachment|
                   = render 'company/contracts/attachment_fields', f: attachment
                 .links
@@ -103,4 +103,21 @@
      $("#contract_is_commission").change(function () {
       toggleFields();
      });
-  });
+
+    });
+
+
+  $('#contract-attachment').on('cocoon:after-insert', function(e, insertedItem) {
+        insertedItem.find('.filepicker-attachment').each(function(i,e){
+          filepicker.constructWidget(e);
+
+        $(".filepicker-attachment").on('click',function() {
+        $('.fp__overlay').css({'z-index':'99999'})
+        });
+
+        $('.filepicker-attachment').on('click',function() {
+          $(this).hide();
+         });
+
+        });
+    });
