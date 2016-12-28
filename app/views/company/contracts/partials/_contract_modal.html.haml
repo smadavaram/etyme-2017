@@ -58,7 +58,7 @@
                   = f.select :commission_type , Contract.commission_types.map { |key, value| [key.humanize, key] }, {} , {class: "form-control" }
                 %label.col-md-2.control-label Commission For
                 .col-md-4.select
-                  = f.select :commission_for_id , options_for_select(current_company.admins.collect { |admin|[admin.full_name.titleize, admin.id] }) ,prompt: "Select Admin" ,html: {class: "form-control"}
+                  = f.select :commission_for_id , options_for_select(current_company.admins.collect { |admin|[admin.full_name.titleize, admin.id] }) ,{},prompt: "Select Admin" ,class: "form-control"
               .form-group
                 %label.col-md-2.control-label Commission Amount
                 .col-md-4.select

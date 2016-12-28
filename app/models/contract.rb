@@ -28,7 +28,7 @@ class Contract < ActiveRecord::Base
   after_create :notify_recipient
   after_update :notify_on_status_change, if: Proc.new{|contract| contract.status_changed? && contract.respond_by.present?}
   after_create :update_contract_application_status
-  after_save   :create_timesheet, if: Proc.new{|contract| contract.status_changed? && contract.in_progress? && contract.is_not_ended? && !contract.timesheets.present? && contract.next_invoice_date.nil?}
+  # after_save   :create_timesheet, if: Proc.new{|contract| contract.status_changed? && contract.accepted?} # && contract.is_not_ended? && !contract.timesheets.present? && contract.next_invoice_date.nil?}
 
   default_scope  -> {order(created_at: :desc)}
 
@@ -61,26 +61,27 @@ class Contract < ActiveRecord::Base
   def note
     self.contract_terms.active.first.note
   end
+
   def terms_and_conditions
     self.contract_terms.active.first.terms_condition
   end
 
-  private
+  # private
 
-    def insert_attachable_docs
-      company_docs = self.company.company_docs.where(id: company_doc_ids).includes(:attachment) || []
-      company_docs.each do |company_doc|
-        self.attachable_docs.create(company_doc_id: company_doc.id , orignal_file: company_doc.attachment.try(:file))
-      end
+  def insert_attachable_docs
+    company_docs = self.company.company_docs.where(id: company_doc_ids).includes(:attachment) || []
+    company_docs.each do |company_doc|
+      self.attachable_docs.create(company_doc_id: company_doc.id , orignal_file: company_doc.attachment.try(:file))
     end
+  end
 
-    def notify_recipient
-      self.job_application.user.notifications.create(message: self.company.name+" sent a contract offer for "+self.job.title ,title: self.title) if self.job_application.present?
-    end
+  def notify_recipient
+    self.job_application.user.notifications.create(message: self.company.name+" sent a contract offer for "+self.job.title ,title: self.title) if self.job_application.present?
+  end
 
-    def notify_on_status_change
-      self.created_by.notifications.create(message: self.respond_by.full_name+" has "+ self.status+" your contract request for "+self.job.title ,title:"Contract- #{self.job.title}")
-    end
+  def notify_on_status_change
+    self.created_by.notifications.create(message: self.respond_by.full_name+" has "+ self.status+" your contract request for "+self.job.title ,title:"Contract- #{self.job.title}")
+  end
 
   def date_validation
     if self.end_date < self.start_date
@@ -91,29 +92,30 @@ class Contract < ActiveRecord::Base
     end
   end
 
-    def update_contract_application_status
-      self.job_application.accepted!
-    end
+  def update_contract_application_status
+    self.job_application.accepted!
+  end
 
-    def schedule_timesheet
-      if self.job_application.user.class.name == "Candidate"
-        self.timesheets.create!(user_id: self.job_application.user.id , job_id: self.job.id ,start_date: self.start_date , status: 'open')
-      else
-        self.timesheets.create!(user_id: self.job_application.user.id , job_id: self.job.id ,start_date: self.start_date , company_id: self.job_application.user.company.id , status: 'open')
-      end
+  def schedule_timesheet
+    if self.job_application.user.class.name == "Candidate"
+      self.timesheets.create!(user_id: self.job_application.user.id , job_id: self.job.id ,start_date: self.start_date , status: 'open')
+    else
+      self.timesheets.create!(user_id: self.job_application.user.id , job_id: self.job.id ,start_date: self.start_date , company_id: self.job_application.user.company.id , status: 'open')
     end
+  end
 
-    def create_timesheet
-      self.next_invoice_date = self.start_date + TIMESHEET_FREQUENCY[self.time_sheet_frequency].days + 2.days
-      self.save
-      self.delay(run_at: self.start_date).schedule_timesheet
-    end
+  def create_timesheet
+    self.next_invoice_date = self.start_date + TIMESHEET_FREQUENCY[self.time_sheet_frequency].days + 2.days
+    self.save
+    self.delay(run_at: self.start_date).schedule_timesheet
+  end
 
-    def self.end_contracts
-      Contract.where(end_date: Date.today).each do |contract|
-        contract.is_ended!
-      end
+  def self.end_contracts
+    Contract.where(end_date: Date.today).each do |contract|
+      contract.is_ended!
     end
+  end
+
   def self.start_contracts
     Contract.where(start_date: Date.today).each do |contract|
       contract.in_progress!
