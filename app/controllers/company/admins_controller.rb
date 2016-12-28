@@ -3,9 +3,13 @@ class Company::AdminsController < Company::BaseController
   add_breadcrumb "Admins", :admins_path, options: { title: "Admins" }
 
   #CallBacks
-  before_action :set_new_admin , only: [:new]
-  before_action :set_roles , only: [:new]
-  before_action :set_locations , only: [:new]
+  before_action :set_new_admin , only: [:new , :index]
+  before_action :set_roles , only: [:new , :index]
+  before_action :set_locations , only: [:new , :index]
+
+  def index
+    @admins = current_company.admins || []
+  end
 
   def new
     add_breadcrumb "NEW", :new_admin_path
@@ -16,7 +20,7 @@ class Company::AdminsController < Company::BaseController
     if @admin.valid?
       @admin.save
       flash[:success] =  "Successfull Added."
-      redirect_to new_admin_path
+      redirect_to admins_path
     else
       flash.now[:errors] = @admin.errors.full_messages
       return render 'new'
@@ -43,5 +47,5 @@ class Company::AdminsController < Company::BaseController
                                        role_ids: [],
                                        company_doc_ids: []
     )
-  end # End of company_params
+  end
 end
