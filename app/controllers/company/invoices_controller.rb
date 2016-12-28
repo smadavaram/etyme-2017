@@ -1,7 +1,11 @@
 class Company::InvoicesController < Company::BaseController
+
   before_action :find_contract , only: [:show, :download , :index]
   before_action :find_invoice , only: [:show, :download]
   before_action :set_invoices , only: [:index]
+
+  add_breadcrumb "INVOICES", '#', options: { title: "INVOICES" }
+
   def index
   end
 
