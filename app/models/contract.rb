@@ -28,7 +28,7 @@ class Contract < ActiveRecord::Base
   after_create :notify_recipient
   after_update :notify_on_status_change, if: Proc.new{|contract| contract.status_changed? && contract.respond_by.present?}
   after_create :update_contract_application_status
-  # after_save   :create_timesheet, if: Proc.new{|contract| contract.status_changed? && contract.accepted?} # && contract.is_not_ended? && !contract.timesheets.present? && contract.next_invoice_date.nil?}
+  after_save   :create_timesheet, if: Proc.new{|contract| contract.status_changed? && contract.is_not_ended? && !contract.timesheets.present? && contract.next_invoice_date.nil?}
 
   default_scope  -> {order(created_at: :desc)}
 
@@ -105,9 +105,8 @@ class Contract < ActiveRecord::Base
   end
 
   def create_timesheet
-    self.next_invoice_date = self.start_date + TIMESHEET_FREQUENCY[self.time_sheet_frequency].days + 2.days
-    self.save
-    self.delay(run_at: self.start_date).schedule_timesheet
+    self.update_column(:next_invoice_date, self.start_date + TIMESHEET_FREQUENCY[self.time_sheet_frequency].days + 2.days)
+    self.delay(run_at: self.start_date.to_time).schedule_timesheet
   end
 
   def self.end_contracts

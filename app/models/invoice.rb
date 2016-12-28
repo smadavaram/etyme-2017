@@ -6,12 +6,12 @@ class Invoice < ActiveRecord::Base
   before_validation :set_total_amount
   before_validation :set_commissions
   before_validation :set_start_date_and_end_date
-  # after_create :set_next_invoice_date_create
+  after_create :set_next_invoice_date
   after_create :update_timesheet_status_to_invoiced
 
-  # validate :date_validation
-  # validates_numericality_of :total_amount , :billing_amount , presence: true, greater_than_or_equal_to: 1
-  # validate :contract_validation , if: Proc.new{|invoice| !invoice.contract.in_progress?}
+  validate :date_validation
+  validates_numericality_of :total_amount , :billing_amount , presence: true, greater_than_or_equal_to: 1
+  validate :contract_validation , if: Proc.new{|invoice| !invoice.contract.in_progress?}
 
   private
 
@@ -56,7 +56,7 @@ class Invoice < ActiveRecord::Base
   end
 
   def update_timesheet_status_to_invoiced
-    timesheets      = self.contract.timesheets.approved.not_invoiced || []
+    timesheets  = self.contract.timesheets.approved.not_invoiced || []
     timesheets.each do |t|
       t.update_attributes!(invoice_id:  self.id, status: 'invoiced')
     end
