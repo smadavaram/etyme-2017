@@ -1,6 +1,5 @@
-= simple_form_for @company_job ,html:{ class:'form-horizontal'} do |f|
+= simple_form_for current_company.jobs.new ,html:{ class:'form-horizontal'} do |f|
   %fieldset
-    -#%legend Company Jobs
     .form-group
       %label.col-md-2.control-label
         Title
@@ -58,8 +57,7 @@
   .form-actions
     .row
       .col-md-12
-        %button.btn.btn-default{:type => "submit"}
-          Cancel
+        = button_tag 'Cancel' , class: 'btn btn-default' , "data-dismiss": "modal"
         = f.submit "Submit", class: 'btn btn-primary'
 
 - content_for :scripts do
