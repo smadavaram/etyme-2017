@@ -38,6 +38,6 @@
 
  *= require amaran.min
  *= require custom
- *= require Job
+ *= require candidate/jobs
  *= require company_override
  */

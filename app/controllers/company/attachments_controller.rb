@@ -13,8 +13,10 @@ class Company::AttachmentsController < Company::BaseController
   end
 
   private
+
   def set_attachments
     all_attachemts=current_company.attachments
     @attachments=all_attachemts.group_by(&:attachable_type)
+    @attachment_types = current_company.attachments.map(&:attachable_type).uniq
   end
 end
