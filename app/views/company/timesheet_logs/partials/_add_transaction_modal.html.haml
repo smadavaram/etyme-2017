@@ -34,8 +34,23 @@
                 %label Memo
                 .input-group.col-sm-12
                   = f.text_area :memo ,class: "form-control" ,row: '3' , placeholder: "Enter Memo"
+          .row
+            .col-sm-4
+              .form-group
+                .input-group.col-sm-6
+                  = f.filepicker_field :file, :button_text => "Pick File", disable: true , class: 'btn btn-primary file'
+                  -#= f.filepicker_field :file, class: "form-control btn btn-primary" ,button_text: "Pick File"
           .modal-footer
             -#= button_tag 'Cancel' , class: 'btn btn-default' , data: {"dismiss": "modal"}
             %button.btn.btn-default{"data-dismiss" => "modal", :type => "button"}
               Cancel
             = f.submit 'Send' , class: 'btn btn-primary'
+- content_for :scripts do
+  :javascript
+    $(document).ready(
+    function() {
+
+        $(".file").on('click',function() {
+        $('.fp__overlay').css({'z-index':'99999'})
+    });
+    });
