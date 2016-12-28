@@ -2,23 +2,23 @@
   .row
     .col-sm-12.animated.fadeInLeftBig
       %section.panel.text-center
-        %header.panel-heading.equal-height{:style => "display: table; width: 100%; text-align: left;border-bottom:1px solid #e4e4e4;"}
-          %span.h3{:style => "vertical-align: middle;text-align: left;font-weight:300;"}
+        %header.panel-heading.equal-height.job-panel
+          %span.h3.cjob-span
             = link_to job.title,candidate_job_path(job)
             = link_to  "Apply",apply_candidate_job_path(job), method: :post , remote: true ,  class: 'btn btn-success pull-right'
           %h4
             = link_to job.company.name.titleize,"#"
 
         %ul.list-group
-          %li.list-group-item.less-desc{:style => "text-align:justify;font-size:14px"}
+          %li.list-group-item.less-desc.cjob-list-li
             = truncate(strip_tags(job.description),length:200)
             %br
             %br
-            %a.pull-right{:href => "#", :onclick => "showMore(this);return false",:style => "margin-top: -20px;"} Show More
+            %a.pull-right.mt-20{:href => "#", :onclick => "showMore(this);return false" } Show More
           %li.list-group-item.hidden.complete-desc
             = raw (job.description)
-            %a.pull-right{:href => "#", :onclick => "showLess(this);return false", :style => "margin-top: -20px;"} Show less
-            %b{style:"font-size:16px;padding-top:5px; padding-bottom:5px;"}
+            %a.pull-right.mt-20{:href => "#", :onclick => "showLess(this);return false"} Show less
+            %b.p-bt
               - job.tags.each do |tag|
                 %span.label.badge
                   = tag.name
