@@ -69,15 +69,15 @@
               .forum-attachment
                 -#%a{:href => "javascript:void(0);"} Download all attachments
                 %ul.list-inline.margin-top-10
-                  - @contract.attachable_docs.each do |attachment|
+                  - @contract.attachable_docs.each do |doc|
                     %li.well.well-sm.padding-5
-                      %strong= attachment.file_name
+                      %strong= doc.company_doc.name
                       %br/
-                      = number_to_human_size(attachment.file_size)
+                      = number_to_human_size(doc.company_doc.attachment.file_size)
                       %br/
-                      = link_to 'Download' , attachment.file , download: true
+                      = link_to 'Download' , doc.company_doc.attachment.file , download: true
                       |
-                      = link_to 'View' , attachment.file , target: '_blank'
+                      = link_to 'View' , doc.company_doc.attachment.file , target: '_blank'
             - if @contract.attachments.present?
               %h3.price-container
                 #{@contract.attachments.size} attachment(s)

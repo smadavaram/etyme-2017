@@ -26,7 +26,7 @@
             .form-group
               %label.col-md-2.control-label Company Docs
               .col-md-10.select
-                = f.select :commission_for_id , options_for_select(current_company.admins.collect { |admin|[admin.full_name.titleize, admin.id] }),{} ,prompt: "Select User" , class: "form-control input-lg"
+                = f.select :company_doc_ids , options_for_select(current_company.company_docs.collect { |doc|[doc.name, doc.id] }),{} ,prompt: "Select Docs" , class: "form-control input-lg" , multiple: true
             .form-group
               %label.col-md-2.control-label Invoicing Frequency
               .col-md-4.select
