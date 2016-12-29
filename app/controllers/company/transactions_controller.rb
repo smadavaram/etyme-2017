@@ -52,6 +52,6 @@ class Company::TransactionsController < Company::BaseController
   end
 
   def transaction_params
-    params.require(:transaction).permit(:start_time , :end_time , :memo)
+    params.require(:transaction).permit(:start_time , :end_time , :memo,:file)
   end
 end
