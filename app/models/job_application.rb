@@ -1,6 +1,6 @@
 class JobApplication < ActiveRecord::Base
 
-  enum status: [ :pending ,:accepted  , :rejected , :short_listed ]
+  enum status: [ :pending_review ,:rejected , :short_listed,:interviewing,:hired ]
   enum application_type: [:direct , :candidate_direct , :vendor_direct , :invitation]
 
   belongs_to :job_invitation
