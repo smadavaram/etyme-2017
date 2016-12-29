@@ -1,7 +1,7 @@
 #content
   .row
     .col-xs-12.col-sm-3.col-md-3.col-lg-3.pull-right
-      = link_to 'NEW' , new_job_path ,class: 'btn btn-success btn-lg pull-right header-btn hidden-mobile'
+      = button_tag 'NEW' ,class: 'btn btn-success btn-lg pull-right header-btn hidden-mobile' , "data-toggle": "modal" , "data-target":"#new-job"
   %section{style: 'margin-top: 10px;'}
     / row
     .row
@@ -43,6 +43,7 @@
                           = link_to 'Send Invitation' ,send_invitation_job_path(job) , method: :post ,remote: true,  class: 'btn btn-xs btn-default btn-success'
 - content_for :modals do
   #job_invitation
+  = render 'company/jobs/partials/new_modal'
 
 - content_for :scripts do
   :javascript

@@ -1,7 +1,7 @@
 class Company::JobsController < Company::BaseController
 
   before_action :set_company_job, only: [:show, :edit, :update, :destroy , :send_invitation]
-  before_action :set_locations  , only: [:new , :edit , :create,:show]
+  before_action :set_locations  , only: [:new , :index, :edit , :create,:show]
   before_action :set_preferred_vendors , only: [:send_invitation]
   before_action :set_candidates,only: :send_invitation
 

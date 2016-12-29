@@ -3,7 +3,7 @@ class Company::AdminsController < Company::BaseController
   add_breadcrumb "Admins", :admins_path, options: { title: "Admins" }
 
   #CallBacks
-  before_action :set_new_admin , only: [:new , :index]
+  before_action :set_new_admin , only: [:new]
   before_action :set_roles , only: [:new , :index]
   before_action :set_locations , only: [:new , :index]
 
