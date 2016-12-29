@@ -28,7 +28,7 @@ class Contract < ActiveRecord::Base
   after_create :insert_attachable_docs
   after_create :notify_recipient
   after_update :notify_on_status_change, if: Proc.new{|contract| contract.status_changed? && contract.respond_by.present?}
-  after_create :update_contract_application_status
+  # after_create :update_contract_application_status
   after_save   :create_timesheet, if: Proc.new{|contract| contract.status_changed? && contract.is_not_ended? && !contract.timesheets.present? && contract.next_invoice_date.nil?}
 
   default_scope  -> {order(created_at: :desc)}
@@ -91,10 +91,6 @@ class Contract < ActiveRecord::Base
     else
       return true
     end
-  end
-
-  def update_contract_application_status
-    self.job_application.accepted!
   end
 
   def schedule_timesheet
