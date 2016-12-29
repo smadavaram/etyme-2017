@@ -56,7 +56,7 @@ Rails.application.routes.draw do
     get '/' ,       to: 'candidates#dashboard' ,             as: :candidate_dashboard
     resources :addresses,only: [:update]
 
-    resources :job_applications , only: [:index]
+    resources :job_applications , only: [:index,:show]
     resources :job_invitations , only: [:index] do
       post :reject
       get  :show_invitation
