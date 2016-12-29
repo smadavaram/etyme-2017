@@ -41,58 +41,61 @@ class Company::JobApplicationsController < Company::BaseController
     respond_to do |format|
       if @job_application.pending_review?
         if @job_application.rejected!
-          format.js{ flash.now[:success] = "Successfully Rejected." }
+          format.html{ flash[:success] = "Successfully Rejected." }
         else
-          format.js{ flash.now[:errors] =  @job_application.errors.full_messages }
+          format.html{ flash[:errors] =  @job_application.errors.full_messages }
         end
       else
-        format.js{ flash.now[:errors] =  ["Request Not Completed."]}
+        format.html{ flash[:errors] =  ["Request Not Completed."]}
       end
 
     end
+    redirect_to :back
   end
 
   def short_list
-    respond_to do |format|
+
       if @job_application.pending_review?
         if @job_application.short_listed!
-          format.js{ flash.now[:success] = "Successfully ShortListed." }
+           flash[:success] = "Successfully ShortListed."
         else
-          format.js{ flash.now[:errors] =  @job_application.errors.full_messages }
+           flash[:errors] =  @job_application.errors.full_messages
         end
       else
-        format.js{ flash.now[:errors] =  ["Request Not Completed."]}
+        flash[:errors] =  ["Request Not Completed."]
       end
 
-    end
+    redirect_to :back
   end
   def interview
     respond_to do |format|
       if @job_application.short_listed?
         if @job_application.interviewing!
-          format.js{ flash.now[:success] = "Successfully Interviewed." }
+          format.html{ flash[:success] = "Successfully Interviewed." }
         else
-          format.js{ flash.now[:errors] =  @job_application.errors.full_messages }
+          format.html{ flash[:errors] =  @job_application.errors.full_messages }
         end
       else
-        format.js{ flash.now[:errors] =  ["Request Not Completed."]}
+        format.html{ flash[:errors] =  ["Request Not Completed."]}
       end
 
     end
+    redirect_to :back
   end
   def hire
     respond_to do |format|
       if @job_application.interviewing?
         if @job_application.hired!
-          format.js{ flash.now[:success] = "Successfully Hired." }
+          format.html{ flash[:success] = "Successfully Hired." }
         else
-          format.js{ flash.now[:errors] =  @job_application.errors.full_messages }
+          format.html{ flash[:errors] =  @job_application.errors.full_messages }
         end
       else
-        format.js{ flash.now[:errors] =  ["Request Not Completed."]}
+        format.html{ flash[:errors] =  ["Request Not Completed."]}
       end
 
     end
+    redirect_to :back
   end
 
   def show
