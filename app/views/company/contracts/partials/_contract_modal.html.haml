@@ -81,7 +81,7 @@
             -#    = f.text_area :note, class: "form-control", rows: "2" ,placeholder: 'Write your note'
             %hr
             .form-group#contract-attachment
-              .col-md-10
+              .col-md-12
                 = f.fields_for :attachments do |attachment|
                   = render 'company/contracts/attachment_fields', f: attachment
                 .links

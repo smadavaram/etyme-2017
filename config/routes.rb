@@ -123,11 +123,13 @@ Rails.application.routes.draw do
     resources :attachments      , only: [:index]
     resources :invoices         , only: [:index]
     resources :job_invitations  , only: [:index]
-    resources :job_applications , only: [:index] do
+    resources :job_applications , only: [:index,:show] do
       member do
         post :accept
         post :reject
         post :short_list
+        post :interview
+        post :hire
       end # End of member
     end
     resources :contracts        , only: [:index] do
