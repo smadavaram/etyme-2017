@@ -1,11 +1,9 @@
-= form_for [job,job.job_invitations.new] , remote: true do |f|
-  = f.hidden_field :job_id , value: params[:job_id]
-  = f.hidden_field :recipient_type , value: 'User'
-  = f.hidden_field :invitation_type , value: 'candidate'
+= form_for [job,job.job_invitations.new] , url: create_multiple_job_job_invitations_path(job) do |f|
+  = f.hidden_field :job_id , value: job.id
   .row
     .col-md-12
       .form-group
-        = f.select :recipient_id,candidates.all.collect { |c| [c.full_name,c.id] } ,{include_blank: 'Select a Candidate'},id: 'user_select' , class: "form-control" , required: 'required', placeholder: "Select Candidate"
+        = select_tag 'temp_candidates', options_for_select(candidates.collect { |c| [c.full_name,c.id] }),prompt: "Select Candidate" ,class: 'form-control' , required: true ,:multiple => true
   .row
     .col-md-12
       .form-group

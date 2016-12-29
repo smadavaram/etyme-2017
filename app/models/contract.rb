@@ -24,13 +24,14 @@ class Contract < ActiveRecord::Base
   has_many   :timesheet_approvers   , through: :timesheets
   has_many   :attachable_docs, as: :documentable
   has_many   :attachments , as: :attachable
+  belongs_to :contractable, polymorphic: true
 
   after_create :insert_attachable_docs
   after_create :notify_recipient
   after_update :notify_on_status_change, if: Proc.new{|contract| contract.status_changed? && contract.respond_by.present?}
   # after_create :update_contract_application_status
   after_save   :create_timesheet, if: Proc.new{|contract| contract.status_changed? && contract.is_not_ended? && !contract.timesheets.present? && contract.next_invoice_date.nil?}
-
+  before_create :set_contractable
   default_scope  -> {order(created_at: :desc)}
 
   validate :date_validation
@@ -51,6 +52,26 @@ class Contract < ActiveRecord::Base
     self.end_date >= Date.today
   end
 
+  def self.find_sent_or_received(contract_id , obj)
+    where("contracts.id = :c_id and (contracts.company_id = :obj_id or (contracts.contractable_id = :obj_id and contracts.contractable_type = :obj_type))" , {obj_id: obj.id , obj_type: obj.class.name , c_id: contract_id}  )
+  end
+
+  def invoices?
+    self.invoices.present?
+  end
+
+  def is_sent?(current_company)
+    self.company == current_company
+  end
+
+  def is_received? obj
+    self.contractable_id == obj.id && self.contractable_type == obj.class.name && self.contractable_id.present?
+  end
+
+  def assignee?
+    assignee.present?
+  end
+
   def title
     self.job.title + " Job - Contract # " + self.id.to_s
   end
@@ -68,6 +89,11 @@ class Contract < ActiveRecord::Base
   end
 
   # private
+
+  def set_contractable
+    self.contractable_type = self.job_application.user.is_candidate? ? "Candidate" : "Company"
+    self.contractable_id   = self.job_application.user.is_candidate? ? self.job_application.user.id : self.job_application.user.company.id
+  end
 
   def insert_attachable_docs
     company_docs = self.company.company_docs.where(id: company_doc_ids).includes(:attachment) || []

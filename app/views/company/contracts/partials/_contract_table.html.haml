@@ -28,7 +28,7 @@
           %td=# invitation.expiry
           %td
             %span.label.label-success= contract.status
-          %td= link_to 'View Invoices' , contract.accepted? ? contract_invoices_path(contract) : '#' , target: '_blank'
+          %td= link_to 'View' , contract_path(contract), target: '_blank'
   -#%tr.danger
   -#  %td= image_tag 'avatars/male.png', alt: '', width: '20'
   -#  %td Cleo

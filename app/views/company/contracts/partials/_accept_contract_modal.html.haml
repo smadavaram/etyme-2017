@@ -15,45 +15,41 @@
           %small.text-danger.slideInRight.fast.animated
             %strong Job - #{contract.job.title}
       .modal-body
-        %p
-          = raw contract.job.description
-        %p
-          = raw contract.terms_and_conditions
-        %table.table.table-striped
-          %tbody
-            %tr
-              %th Start Date
-              %td= contract.start_date
-            %tr
-              %th End Date
-              %td= contract.end_date
-            %tr
-              %th Company
-              %td= contract.job.company.name
-            %tr
-              %th Location
-              %td= contract.job.location.name
-            %tr
-              %th Per Hour
-              %td$#{contract.rate}
-              %tr
-                %th Note
-                %td= contract.note
-
         = form_for [contract.job,contract] , url: update_contract_response_job_contract_path(contract.job,contract , status: status) ,  method: :post , html: {class: 'form-horizontal'} , remote: true do |f|
           %fieldset
-            %hr
-            .form-group
-              %label.col-md-2.control-label Assign To
-              .col-md-10
-                = select_tag 'contract[assignee_id]', options_for_select(current_company.consultants.collect { |c|[c.full_name, c.id] })  , class: "form-control"
+            - if status == 'accept'
+              .form-group
+                %label.col-md-2.control-label Assign To
+                .col-md-10
+                  = select_tag 'contract[assignee_id]', options_for_select(current_company.consultants.collect { |c|[c.full_name, c.id] })  , class: "form-control"
+              .form-group
+                %label.col-md-2.control-label Are you paying any commission for this contract ?
+                .col-md-10.select
+                  = f.select :is_commission , [["No", false] , ["Yes" , true]], {} , {class: "form-control" }
+              #contract-commision
+                .form-group
+                  %label.col-md-2.control-label Commission Type
+                  .col-md-4.select
+                    = f.select :commission_type , Contract.commission_types.map { |key, value| [key.humanize, key] }, {} , {class: "form-control" }
+                  %label.col-md-2.control-label Commission For
+                  .col-md-4.select
+                    = f.select :commission_for_id , options_for_select(current_company.admins.collect { |admin|[admin.full_name.titleize, admin.id] }) ,{},prompt: "Select Admin" ,class: "form-control"
+                .form-group
+                  %label.col-md-2.control-label Commission Amount
+                  .col-md-4.select
+                    = f.text_field :commission_amount , class: "form-control" , placeholder: ""
+                  %label.col-md-2.control-label Max Commission
+                  .col-md-4.select
+                    = f.text_field :max_commission , class: "form-control" , placeholder: ""
+
             .form-group
               %label.col-md-2.control-label Message (optional)
               .col-md-10
                 = f.text_area :response_from_vendor, value: '' , class: "form-control", rows: "2" ,placeholder: 'Write tour message'
             .form-group
               %label.col-md-2.control-label Received By Name
-              = f.text_field :received_by_name,place_holder:"Received By Name"   ,required: 'required'
+              .col-md-10
+                = f.text_field :received_by_name, place_holder:"Received By Name"   ,required: 'required' , class: "form-control"
             .form-group
               = render partial: 'company/contracts/partials/received_by_signarture_pad',locals: {f: f}
           .modal-footer
@@ -62,14 +58,24 @@
               Cancel
             = f.submit status.titleize , class: 'btn btn-primary' , data: {confirm: 'Are you sure?', verify: status.titleize, verify_text: "Type '#{status.titleize}' to confirm"}
 :javascript
-    $( document ).ready(function() {
-         //$(".multi-select2-company-docs").select2({placeholder: "Select a Doc(s)"});
-         $('#contract_start_date').datepicker({
-            dateFormat : 'dd/mm/yy'
+  function toggleFields() {
+    if ($('#contract_is_commission').val() == "true")
+      $("#contract-commision").show();
+    else
+      $("#contract-commision").hide();
+  };
+  $( document ).ready(function() {
+    toggleFields();
+    //$(".multi-select2-company-docs").select2({placeholder: "Select a Doc(s)"});
+    $('#contract_start_date').datepicker({
+      dateFormat : 'dd/mm/yy'
 
-          });
-         $('#contract_end_date').datepicker({
-          dateFormat : 'dd/mm/yy'
+      });
+    $('#contract_end_date').datepicker({
+      dateFormat : 'dd/mm/yy'
+    });
+    $("#contract_is_commission").change(function () {
+      toggleFields();
+    });
 
-        });
     });

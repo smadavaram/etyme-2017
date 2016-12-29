@@ -1,62 +1,140 @@
-.container.c-color
-  .col-sm-12.animated.fadeInRightBig
-    %section.panel.mt-20s
-      %header.panel-heading
-        -#= link_to 'Accept' , open_contract_candidate_job_contract_path(@job , @contract) , method: :post , remote: true , class: 'btn   pull-right btn-primary right mt-12 ',data: {confirm: 'Are you sure?', verify: 'Accept', verify_text: 'Type "Accept" to confirm'}
-        -#= link_to 'Reject' , update_contract_response_job_contract_path(@job , @contract) , method: :post , remote: true ,  class: 'btn   pull-right btn-primary right mt-12 mr-5',data: {confirm: 'Are you sure?', verify: 'Reject', verify_text: 'Type "Reject" to confirm'}
-        %h1= @contract.job.title
-        - @contract.job.tags.each do |tag|
-          %span.h4.badge
-            =tag.name
-      %ul.ul-s
-        %li.list-group-item.list-p-15
-          %span.text-muted
-            = raw(@contract.job.description)
-          .row
-            .col-lg-3.col-md-3
-              %span.text-muted.fs-13 Location
-              = @contract.job.location.name.titleize if @contract.job.location.present?
-            .col-lg-3.col-md-3
-              %span.text-muted.fs-13 Catagory
-              - @contract.job.tags.each do |tag|
-                %span.h4.badge
-                  =tag.name
-            .col-lg-3.col-md-3
-              %span.text-muted.fs-13 Date
-              = @contract.start_date.to_s + " - "
-              = @contract.end_date.to_s
-            .col-lg-3.col-md-3
-              %span.text-muted.fs-13 Company
-              = @contract.job.company.name.titleize
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
--#
--##content
--#  %h2
--#    Company Name: #{@job.company.name}
--#  %h3
--#    Job Title: #{@job.title}
--#  %p Job Description: #{raw @job.description}
--#  %p Job Type: #{@job.is_public? ? "Public" : "Private"}
--#  %p Company: #{@job.company.name}
--#  %h3
--#    Terms & Conditions: #{@contract.terms_conditions}
--#
--#
+#content
+  .row
+    .col-sm-12.col-md-12.col-lg-12
+      .product-content.product-wrap.clearfix.product-deatil
+        .row
+          .col-md-12.col-sm-12.col-xs-12
+            - if @contract.pending? && !@contract.is_sent?(current_company)
+              .btn-group.pull-right
+                = link_to 'Accept' , open_contract_job_contract_path(@contract.job , @contract , status: 'accept') , method: :post , remote: true , class: 'btn btn-success btn-default margin-right-5'
+                = link_to 'Reject' , open_contract_job_contract_path(@contract.job , @contract , status: 'reject') , method: :post , remote: true ,  class: 'btn btn-danger btn-default'
+            %h2.name
+              = @contract.title
+              %small
+                Created by
+                = link_to @contract.created_by.full_name , '#'
+              %i.fa.fa-star.fa-2x.text-primary
+              %i.fa.fa-star.fa-2x.text-primary
+              %i.fa.fa-star.fa-2x.text-primary
+              %i.fa.fa-star.fa-2x.text-primary
+              %i.fa.fa-star.fa-2x.text-muted
+              %span.badge= @contract.status.humanize
+            %hr/
+            -#%h3.price-container
+              -#%small *includes tax
+            .certified
+              %ul
+                %li
+                  %a{:href => "javascript:void(0);"}
+                    Current Rate
+                    %span $#{@contract.rate}
+                %li
+                  %a{:href => "javascript:void(0);"}
+                    Invoices Frequency
+                    %span= @contract.billing_frequency.humanize
+                %li
+                  %a{:href => "javascript:void(0);"}
+                    Timesheet Frequency
+                    %span= @contract.time_sheet_frequency.humanize
+                - if @contract.assignee?
+                  %li
+                    %a{:href => "javascript:void(0);"}
+                      Assignee
+                      %span= @contract.assignee.full_name
+                - if @contract.is_commission
+                  %li
+                    %a{:href => "javascript:void(0);"}
+                      Commission
+                      %span=  @contract.fixed? ? '$'+ @contract.commission_amount.to_s : @contract.commission_amount.to_s + '%'
+                  %li
+                    %a{:href => "javascript:void(0);"}
+                      Max Commission
+                      %span $#{@contract.max_commission}
+                %li
+                  %a{:href => "javascript:void(0);"}
+                    Date
+                    %span= @contract.start_date.to_s + " - " + @contract.end_date.to_s
+            - if @contract.is_sent?(current_company)
+              %button.pull-right.btn.btn-white.btn-default.margin-right-5
+                Change Terms
+            %p
+              = raw @contract.terms_and_conditions
+            -#%em
+            -#  \- Sadi Orlaf
+            -#  %br/
+            -#  Executive, SmartAdmin
+            - if @contract.attachable_docs.present?
+              %h3.price-container
+                Company Docs
+              .forum-attachment
+                -#%a{:href => "javascript:void(0);"} Download all attachments
+                %ul.list-inline.margin-top-10
+                  - @contract.attachable_docs.each do |attachment|
+                    %li.well.well-sm.padding-5
+                      %strong= attachment.file_name
+                      %br/
+                      = number_to_human_size(attachment.file_size)
+                      %br/
+                      = link_to 'Download' , attachment.file , download: true
+                      |
+                      = link_to 'View' , attachment.file , target: '_blank'
+            - if @contract.attachments.present?
+              %h3.price-container
+                #{@contract.attachments.size} attachment(s)
+              .forum-attachment
+                -#%a{:href => "javascript:void(0);"} Download all attachments
+                %ul.list-inline.margin-top-10
+                  - @contract.attachments.each do |attachment|
+                    %li.well.well-sm.padding-5
+                      %strong= attachment.file_name
+                      %br/
+                      = number_to_human_size(attachment.file_size)
+                      %br/
+                      = link_to 'Download' , attachment.file , download: true
+                      |
+                      = link_to 'View' , attachment.file , target: '_blank'
+            %hr/
+            .description.description-tabs
+              %ul#myTab.nav.nav-pills
+                %li.active
+                  %a.no-margin{"aria-expanded" => "false", "data-toggle" => "tab", :href => "#application"}Job Application
+                - if @contract.invoices?
+                  %li
+                    %a{"aria-expanded" => "true", "data-toggle" => "tab", :href => "#invoices"} Invoices
+                %li
+                  = link_to 'Teams' , '#teams' , {"aria-expanded" => "true", "data-toggle" => "tab"}
+              #myTabContent.tab-content
+                #teams.tab-pane.fade.in
+                #application.tab-pane.fade.active.in
+                  = render 'company/contracts/partials/application' , application: @contract.job_application
+                - if @contract.invoices?
+                  #invoices.tab-pane.fade.in
+                    %table#dt_basic.table.table-striped.table-bordered.table-hover{:width => "100%"}
+                      %thead
+                        %tr
+                          %th{"data-hide" => "phone"} #
+                          %th{"data-class" => "expand"}
+                            %i.fa.fa-fw.fa-calendar.txt-color-blue.hidden-md.hidden-sm.hidden-xs
+                            Start-Date
+                          %th{"data-class" => "expand"}
+                            %i.fa.fa-fw.fa-calendar.txt-color-blue.hidden-md.hidden-sm.hidden-xs
+                            Last-Date
+                          %th{"data-hide" => "phone,tablet"}
+                      %tbody
+                        -@contract.invoices.each_with_index do |invoice , index|
+                          %tr
+                            %td= index + 1
+                            %td= invoice.start_date
+                            %td= invoice.end_date
+                            %td
+                              = link_to 'View Detail' , contract_invoice_path(@contract , invoice) , target: '_blank' ,class: 'btn btn-xs btn-default btn-primary'
+            -#%hr/
+            -#.row
+            -#  .col-sm-12.col-md-12.col-lg-12
+                .btn-group.pull-right
+                  %button.btn.btn-success.btn-default.margin-right-5
+                    Accept
+                  %button.btn.btn-danger.btn-default
+                    Reject
+- content_for :modals do
+  #ajax-modal

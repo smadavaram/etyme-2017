@@ -67,7 +67,7 @@ class Company::JobsController < Company::BaseController
 
   private
     def set_candidates
-      @candidates=Candidate.all
+      @candidates = Candidate.all
     end
     def set_company_job
       @company_job = current_company.jobs.find_by_id(params[:id]) || []

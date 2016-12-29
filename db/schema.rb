@@ -11,7 +11,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema.define(version: 20161226090515) do
+ActiveRecord::Schema.define(version: 20161229121901) do
 
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
@@ -129,19 +129,25 @@ ActiveRecord::Schema.define(version: 20161226090515) do
     t.integer  "created_by_id"
     t.integer  "respond_by_id"
     t.string   "responed_at"
-    t.integer  "status",               default: 0
+    t.integer  "status",                default: 0
     t.integer  "assignee_id"
-    t.datetime "created_at",                           null: false
-    t.datetime "updated_at",                           null: false
-    t.integer  "billing_frequency",    default: 0
-    t.integer  "time_sheet_frequency", default: 0
+    t.datetime "created_at",                            null: false
+    t.datetime "updated_at",                            null: false
+    t.integer  "billing_frequency",     default: 0
+    t.integer  "time_sheet_frequency",  default: 0
     t.integer  "company_id"
     t.date     "next_invoice_date"
-    t.boolean  "is_commission",        default: false
-    t.integer  "commission_type",      default: 0
-    t.float    "commission_amount",    default: 0.0
+    t.boolean  "is_commission",         default: false
+    t.integer  "commission_type",       default: 0
+    t.float    "commission_amount",     default: 0.0
     t.float    "max_commission"
     t.integer  "commission_for_id"
+    t.json     "received_by_signature"
+    t.string   "received_by_name"
+    t.json     "sent_by_signature"
+    t.string   "sent_by_name"
+    t.integer  "contractable_id"
+    t.string   "contractable_type"
   end
 
   create_table "custom_fields", force: :cascade do |t|
@@ -374,9 +380,19 @@ ActiveRecord::Schema.define(version: 20161226090515) do
     t.text     "memo"
     t.datetime "created_at",                   null: false
     t.datetime "updated_at",                   null: false
+    t.string   "file"
   end
 
   add_index "transactions", ["timesheet_log_id"], name: "index_transactions_on_timesheet_log_id", using: :btree
+
+  create_table "user_docs", force: :cascade do |t|
+    t.integer  "company_doc_id"
+    t.integer  "user_id"
+    t.string   "description"
+    t.string   "file"
+    t.datetime "created_at",     null: false
+    t.datetime "updated_at",     null: false
+  end
 
   create_table "users", force: :cascade do |t|
     t.integer  "company_id"

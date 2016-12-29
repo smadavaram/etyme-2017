@@ -132,7 +132,7 @@ Rails.application.routes.draw do
         post :hire
       end # End of member
     end
-    resources :contracts        , only: [:index] do
+    resources :contracts        , only: [:index ,:show] do
       resources :invoices , only: [:index , :show] do
         member do
           get :download
@@ -140,7 +140,7 @@ Rails.application.routes.draw do
       end
     end
     resources :jobs do
-      resources :contracts , except: [:index] do
+      resources :contracts , except: [:index , :show] do
         member do
           post :open_contract , as: :open_contract
           post :update_contract_response        , as: :update_contract_response
@@ -149,6 +149,9 @@ Rails.application.routes.draw do
       end # End of :contracts
 
       resources :job_invitations , except: [:index] do
+        collection do
+          post :create_multiple
+        end
         resources :job_applications , except: [:index]
         member do
           post :accept

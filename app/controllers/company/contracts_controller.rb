@@ -20,7 +20,6 @@ class Company::ContractsController < Company::BaseController
   end
 
   def create
-    # @contract  = @job.contracts.new(contract_params.merge!(created_by_id: current_user.id))
     @contract  = current_company.sent_contracts.new(contract_params.merge!(job_id: @job.id , created_by_id: current_user.id))
     respond_to do |format|
       if @contract.save
@@ -38,7 +37,7 @@ class Company::ContractsController < Company::BaseController
     status = params[:status] == "reject" ? Contract.statuses["rejected"] : params[:status] == "accept" ? Contract.statuses["accepted"] : nil
     respond_to do |format|
       if @contract.pending?
-        if @contract.update_attributes(assignee_id: params[:contract][:assignee_id] ,response_from_vendor: params[:contract][:response_from_vendor] ,respond_by_id: current_user.id , responed_at: Time.now , status: status)
+        if @contract.update_attributes(update_contract_response_params.merge!(respond_by_id: current_user.id , responed_at: Time.zone.now , status: status))
           format.js{ flash.now[:success] = "successfully Submitted." }
         else
           format.js{ flash.now[:errors] =  @contract.errors.full_messages }
@@ -52,8 +51,7 @@ class Company::ContractsController < Company::BaseController
   private
 
   def find_contract
-    @contract = current_company.received_contracts.find(params[:id]) || []
-    # @contract = current_company.sent_contracts.find(params[:id]) || []
+    @contract = Contract.find_sent_or_received(params[:id] , current_company).first || []
   end
 
   def find_receive_contract
@@ -78,6 +76,10 @@ class Company::ContractsController < Company::BaseController
                                       contract_terms_attributes: [:id, :created_by, :contract_id , :status , :terms_condition ,:rate , :note , :_destroy],
                                      attachments_attributes:[:id,:file,:file_name,:file_size,:file_type,:attachable_type,:attachable_id,:_destroy]
                                      ])
+  end
+
+  def update_contract_response_params
+    params.require(:contract).permit(:is_commission , :response_from_vendor , :received_by_signature,:received_by_name, :commission_type,:commission_amount , :max_commission , :commission_for_id, :assignee_id)
   end
 
 
