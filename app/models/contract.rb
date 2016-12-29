@@ -1,7 +1,8 @@
 class Contract < ActiveRecord::Base
 
   enum status:           [ :pending, :accepted , :rejected , :is_ended  , :cancelled , :paused , :in_progress]
-  enum billing_frequency:     [ :weekly, :bi_weekly , :monthly , :bi_monthly ]
+  enum billing_frequency:     [ :weekly_invoice, :monthly_invoice  ]
+  enum time_sheet_frequency:[:daily,:weekly,:monthly]
   enum commission_type:  [:percentage, :fixed]
 
   attr_accessor :company_doc_ids
@@ -35,7 +36,7 @@ class Contract < ActiveRecord::Base
   validate :date_validation
   validates :status ,             inclusion: {in: statuses.keys}
   validates :billing_frequency ,  inclusion: {in: billing_frequencies.keys}
-  # validates :time_sheet_frequency,inclusion: {in: billing_frequencies.keys}
+  validates :time_sheet_frequency,inclusion: {in: time_sheet_frequencies.keys}
   validates :commission_type ,    inclusion: {in: commission_types.keys}
   validates :is_commission,       inclusion: { in: [ true, false ] }
   validates :start_date,  presence:   true
