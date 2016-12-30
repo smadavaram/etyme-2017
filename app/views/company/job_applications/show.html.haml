@@ -24,10 +24,8 @@
             %span.text-muted.fs-13 Job Location
             = @job_application.job.location.name.titleize if @job_application.job.location.present?
           .col-lg-3.col-md-3
-            %span.text-muted.fs-13 Job Catagory
-            - @job_application.job.tags.each do |tag|
-              %span.h4.badge
-                =tag.name
+            %span.text-muted.fs-13 Job Category
+            = @job_application.job.job_category || 'Not Mentioned'
           .col-lg-3.col-md-3
             %span.text-muted.fs-13 Date
             = @job_application.job.start_date.to_s + " - "

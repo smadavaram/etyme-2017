@@ -11,7 +11,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema.define(version: 20161229121901) do
+ActiveRecord::Schema.define(version: 20161230121139) do
 
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
@@ -228,6 +228,7 @@ ActiveRecord::Schema.define(version: 20161229121901) do
     t.datetime "created_at",                   null: false
     t.datetime "updated_at",                   null: false
     t.boolean  "is_public",     default: true
+    t.string   "job_category"
   end
 
   create_table "leaves", force: :cascade do |t|
@@ -384,15 +385,6 @@ ActiveRecord::Schema.define(version: 20161229121901) do
   end
 
   add_index "transactions", ["timesheet_log_id"], name: "index_transactions_on_timesheet_log_id", using: :btree
-
-  create_table "user_docs", force: :cascade do |t|
-    t.integer  "company_doc_id"
-    t.integer  "user_id"
-    t.string   "description"
-    t.string   "file"
-    t.datetime "created_at",     null: false
-    t.datetime "updated_at",     null: false
-  end
 
   create_table "users", force: :cascade do |t|
     t.integer  "company_id"
