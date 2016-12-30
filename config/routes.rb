@@ -136,6 +136,7 @@ Rails.application.routes.draw do
       member do
         post :update_attachable_doc
       end
+      post :change_invoice_date
       resources :invoices , only: [:index , :show] do
         member do
           get :download

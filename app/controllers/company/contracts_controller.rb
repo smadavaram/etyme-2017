@@ -2,7 +2,7 @@ class Company::ContractsController < Company::BaseController
 
   before_action :find_job              , only: [:create]
   before_action :find_receive_contract , only: [:open_contract , :update_contract_response]
-  before_action :find_contract         , only: [:show , :update_attachable_doc]
+  before_action :find_contract         , only: [:show , :update_attachable_doc , :change_invoice_date]
   before_action :set_contracts         , only: [:index]
   before_action :find_attachable_doc   , only: [:update_attachable_doc]
 
@@ -57,11 +57,19 @@ class Company::ContractsController < Company::BaseController
       end
     end
   end
+  def change_invoice_date
+    if @contract.update_attributes(next_invoice_date: params[:contract][:next_invoice_date])
+      flash[:success] = "Date Changed"
+    else
+      flash[:errors]  = @contract.errors.full_messages
+    end
+    redirect_to :back
+  end
 
   private
 
   def find_contract
-    @contract = Contract.find_sent_or_received(params[:id], current_company).first || []
+    @contract = Contract.find_sent_or_received(params[:id] || params[:contract_id]  , current_company).first || []
   end
 
   def find_attachable_doc
@@ -93,7 +101,7 @@ class Company::ContractsController < Company::BaseController
   end
 
   def update_contract_response_params
-    params.require(:contract).permit([:is_commission , :response_from_vendor , :received_by_signature,:received_by_name, :commission_type,:commission_amount , :max_commission , :commission_for_id, :assignee_id , attachable_docs_attributes: [:id , :file]])
+    params.require(:contract).permit(:is_commission , :response_from_vendor , :received_by_signature,:received_by_name, :commission_type,:commission_amount , :max_commission , :commission_for_id, :assignee_id)
   end
 
 
