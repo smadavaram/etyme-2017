@@ -19,7 +19,7 @@
         = "Next Invoice Date: #{(@timesheet.contract.next_invoice_date)}"
   .row
     .col-md-3{style: 'margin-left: 5px;'}
-      = link_to "Change Invoice Date",'#',class:"btn btn-primary",id:"#myModal","data-target" => "#myModal", "data-toggle" => "modal", :type => "button"
+      = link_to "Change Invoice Date",'#',class:"btn btn-primary",id:"#change_invoice","data-target" => "#change_invoice", "data-toggle" => "modal", :type => "button"
       = render partial:  'company/contracts/partials/change_invoice_date',locals: {contract: @timesheet.contract}
 
   .row
