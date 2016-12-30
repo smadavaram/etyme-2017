@@ -36,12 +36,6 @@
               .col-md-4.select
                 = f.select :time_sheet_frequency , Contract.time_sheet_frequencies.map { |key, value| [key.humanize, key] }, {},{class: "form-control" }
                 -#= select_tag 'contract[time_sheet_frequency]', options_for_select(BILLING_FREQUENCY.collect{ |type| [type[0], type[1]] }) , class: "form-control"
-            .form-group
-              %label.col-md-2.control-label Sent By Name
-              .col-md-10
-                = f.text_field :sent_by_name,place_holder:"Sent By Name"   ,required: 'required',class:"form-control"
-            .form-group
-              = render partial: 'company/contracts/partials/sent_by_signature_pad',locals: {f: f}
             = f.fields_for :contract_terms do |c|
               = c.hidden_field :created_by , value: current_user.id.to_i
               .form-group
@@ -58,6 +52,8 @@
             -#  %label.col-md-2.control-label Note (optional)
             -#  .col-md-10
             -#    = f.text_area :note, class: "form-control", rows: "2" ,placeholder: 'Write your note'
+            .form-group
+              = render partial: 'company/contracts/partials/sent_by_signature_pad',locals: {f: f}
             %hr
             .form-group#contract-attachment
               .col-md-12
