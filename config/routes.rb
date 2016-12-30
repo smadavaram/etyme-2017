@@ -133,6 +133,7 @@ Rails.application.routes.draw do
       end # End of member
     end
     resources :contracts        , only: [:index ,:show] do
+      post :change_invoice_date
       resources :invoices , only: [:index , :show] do
         member do
           get :download

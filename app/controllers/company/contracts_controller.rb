@@ -3,6 +3,7 @@ class Company::ContractsController < Company::BaseController
   before_action :find_job              , only: [:create]
   before_action :find_receive_contract , only: [:open_contract , :update_contract_response]
   before_action :find_contract         , only: [:show]
+  before_action :find_before_change_invoice_date,only: :change_invoice_date
   before_action :set_contracts         , only: [:index]
 
   add_breadcrumb "CONTRACTS", :contracts_path, options: { title: "CONTRACTS" }
@@ -47,6 +48,14 @@ class Company::ContractsController < Company::BaseController
       end
     end
   end
+  def change_invoice_date
+    if @contract.update_attributes(next_invoice_date: params[:contract][:next_invoice_date])
+      flash[:success]="Date Changed"
+    else
+      flash[:errors]=@contract.errors.full_messages
+    end
+    redirect_to :back
+  end
 
   private
 
@@ -80,6 +89,9 @@ class Company::ContractsController < Company::BaseController
 
   def update_contract_response_params
     params.require(:contract).permit(:is_commission , :response_from_vendor , :received_by_signature,:received_by_name, :commission_type,:commission_amount , :max_commission , :commission_for_id, :assignee_id)
+  end
+  def  find_before_change_invoice_date
+    @contract = Contract.find_sent_or_received(params[:contract_id] , current_company).first || []
   end
 
 
