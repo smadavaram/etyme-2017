@@ -1,49 +1,47 @@
-.container.c-color
+.containers.c-colors
   .col-sm-12.animated.fadeInRightBig
     %section.panel.mt-20s
       %header.panel-heading
-        .row
-          .col-md-3
-            .text-muted Status
-            = @job_application.status.titleize
-          .col-md-offset-7
-            = raw job_application_top_links(@job_application)
-
         %h1
+          = @job_application.user.full_name.titleize
+          .pull-right
+            = raw job_application_top_links(@job_application)
+        %h3.highlighted.margin-top-0
           = link_to @job_application.job.title,job_path(@job_application.job)
-        - @job_application.job.tags.each do |tag|
-          %span.h4.badge
-            =tag.name
-        %br
-        .row
-          .col-md-3
-            %h2.highlighted
-              = @job_application.user.full_name.titleize
         .row
           .col-lg-3.col-md-3
-            %span.text-muted.fs-13 Job Location
-            = @job_application.job.location.name.titleize if @job_application.job.location.present?
+            %span.text-muted.fs-13 Current Status
+            %b
+              = @job_application.status.titleize
           .col-lg-3.col-md-3
             %span.text-muted.fs-13 Job Category
-            = @job_application.job.job_category || 'Not Mentioned'
+            %b
+              = @job_application.job.job_category || 'Not Mentioned'
           .col-lg-3.col-md-3
             %span.text-muted.fs-13 Date
-            = @job_application.job.start_date.to_s + " - "
-            = @job_application.job.end_date.to_s
+            %b
+              = @job_application.created_at.to_date
           .col-lg-3.col-md-3
-            %span.text-muted.fs-13 Company
-            = @job_application.job.company.name.titleize
-      %ul.ul-s
-        %li.list-group-item.list-p-15
+            %span.text-muted.fs-13 Vendor Company
+            %b
+              = @job_application.user.class.name == 'Candidate' ? 'Candidate' : @job_application.user.company.name.titleize
+      %ul.ul-s.margin-top-10
+        %li
           %span.text-muted Cover Letter
           %br
           = raw(@job_application.cover_letter)
-        %li.list-group-item.list-p-15
+        %hr
+        %li
           %span.text-muted Message
           %br
           = raw(@job_application.message)
-          %br
+        - @job_application.custom_fields.each do |cf|
           %hr
+          %li
+            %span.text-muted
+              = cf.name
+            %br
+            = cf.value
 - content_for :modals do
   #ajax-modal
 

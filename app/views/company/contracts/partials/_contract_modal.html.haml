@@ -6,7 +6,7 @@
           ×
         %h1
           %span.semi-bold Creating New Contract
-          %i.ultra-light #{job_application.company.try(:name)}
+          -#%i.ultra-light #{job_application.company.try(:name)}
           %br/
           %small.text-muted
             %strong #{link_to job_application.try(:user).full_name ,  '#' , target: '_blank'} - #{job.title}
@@ -52,8 +52,7 @@
             -#  %label.col-md-2.control-label Note (optional)
             -#  .col-md-10
             -#    = f.text_area :note, class: "form-control", rows: "2" ,placeholder: 'Write your note'
-            .form-group
-              = render partial: 'company/contracts/partials/sent_by_signature_pad',locals: {f: f}
+
             %hr
             .form-group#contract-attachment
               .col-md-12
@@ -61,6 +60,9 @@
                   = render 'company/contracts/attachment_fields', f: attachment
                 .links
                   = link_to_add_association 'Add Attachment', f, :attachments,partial:'company/contracts/attachment_fields',class:"btn btn-primary pull-right"
+            %hr
+            .form-group
+              = render partial: 'company/contracts/partials/sent_by_signature_pad',locals: {f: f}
           .modal-footer
             -#= button_tag 'Cancel' , class: 'btn btn-default' , data: {"dismiss": "modal"}
             %button.btn.btn-default{"data-dismiss" => "modal", :type => "button"}

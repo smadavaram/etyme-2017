@@ -45,12 +45,12 @@
         =  f.text_area :description , class: 'form-control',:class => "tinymce", :rows => 6, :cols => 60, placeholder: 'Enter Job Description'
         = tinymce :default
     .form-group
-      %label.checkbox.col-md-2.control-label Should we keep this job private ?
+      %label.checkbox.col-md-2.control-label Should we keep this job public ?
       .col-md-10
         =f.check_box :is_public
         %p.note
           %strong Note:
-          If un-checked, We will show this job to all candidates in your system and will be posted on etyme. So anyone can apply. To control job applications by invitations only, Please make this private.
+          If checked, We will show this job to all candidates in your system and will be posted on etyme. So anyone can apply. To control job applications by invitations only, Please make this private.
     .row
       .col-md-12
         .form-group
