@@ -15,7 +15,7 @@
             .form-group
               %label.col-md-2.control-label Cover Letter
               .col-md-10
-                =  f.text_field :cover_letter , class: "form-control tinymces", rows: 8, cols: 30, placeholder: 'Cover Letter'  , required: true
+                =  f.text_area :cover_letter , class: "form-control tinymces", rows: 8, cols: 30, placeholder: 'Cover Letter'  , required: true
                 -#=  tinymce :alternate
             - job.custom_fields.each do |c|
               = f.fields_for :custom_fields do |custom|
