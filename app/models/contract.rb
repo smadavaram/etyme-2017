@@ -30,7 +30,7 @@ class Contract < ActiveRecord::Base
   after_create :notify_recipient
   after_update :notify_on_status_change, if: Proc.new{|contract| contract.status_changed? && contract.respond_by.present?}
   # after_create :update_contract_application_status
-  after_save   :create_timesheet, if: Proc.new{|contract| contract.status_changed? && contract.is_not_ended? && !contract.timesheets.present? && contract.next_invoice_date.nil?}
+  after_save   :create_timesheet, if: Proc.new{|contract| contract.status_changed? && contract.is_not_ended? && !contract.timesheets.present? && contract.accepted? && contract.next_invoice_date.nil?}
   before_create :set_contractable
   default_scope  -> {order(created_at: :desc)}
 
@@ -42,11 +42,13 @@ class Contract < ActiveRecord::Base
   validates :is_commission,       inclusion: { in: [ true, false ] }
   validates :start_date,  presence:   true
   validates :end_date,    presence:   true
-  validates :commission_amount , :max_commission , numericality: true  , presence: true , if: Proc.new{|contract| contract.is_commission}
+  validates :commission_amount  , numericality: true  , presence: true , if: Proc.new{|contract| contract.is_commission}
+  validates :max_commission , numericality: true  , presence: true , if: Proc.new{|contract| contract.is_commission && contract.percentage?}
 
 
   accepts_nested_attributes_for :contract_terms, allow_destroy: true ,reject_if: :all_blank
   accepts_nested_attributes_for :attachments ,allow_destroy: true,reject_if: :all_blank
+  accepts_nested_attributes_for :attachable_docs , reject_if: :all_blank
 
   def is_not_ended?
     self.end_date >= Date.today
@@ -58,6 +60,14 @@ class Contract < ActiveRecord::Base
 
   def invoices?
     self.invoices.present?
+  end
+
+  def attachable_docs?
+    self.attachable_docs.present?
+  end
+
+  def signature_required_docs?
+    self.attachable_docs.where(file:  nil).joins(:company_doc).where('company_docs.is_required_signature = ?' , true).present?
   end
 
   def is_sent?(current_company)

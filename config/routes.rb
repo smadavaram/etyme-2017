@@ -133,6 +133,9 @@ Rails.application.routes.draw do
       end # End of member
     end
     resources :contracts        , only: [:index ,:show] do
+      member do
+        post :update_attachable_doc
+      end
       resources :invoices , only: [:index , :show] do
         member do
           get :download
