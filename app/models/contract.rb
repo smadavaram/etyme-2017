@@ -49,6 +49,7 @@ class Contract < ActiveRecord::Base
   accepts_nested_attributes_for :contract_terms, allow_destroy: true ,reject_if: :all_blank
   accepts_nested_attributes_for :attachments ,allow_destroy: true,reject_if: :all_blank
   accepts_nested_attributes_for :attachable_docs , reject_if: :all_blank
+  accepts_nested_attributes_for :job    , allow_destroy: true
 
   def is_not_ended?
     self.end_date >= Date.today

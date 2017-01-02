@@ -132,7 +132,7 @@ Rails.application.routes.draw do
         post :hire
       end # End of member
     end
-    resources :contracts        , only: [:index ,:show] do
+    resources :contracts        , only: [:index ,:show , :new] do
       member do
         post :update_attachable_doc
       end

@@ -17,6 +17,10 @@ class Company::ContractsController < Company::BaseController
   end
 
   def new
+    @contract = current_company.sent_contracts.new
+    @contract.build_company
+    @contract.build_job
+    @contract.contract_terms.new
 
   end
 
