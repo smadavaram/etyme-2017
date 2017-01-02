@@ -11,7 +11,7 @@ class Company::ConsultantsController < Company::BaseController
   end
 
   def index
-
+    @consultants = current_company.consultants.order(created_at: :desc) || []
   end
 
   def create

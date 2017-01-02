@@ -105,8 +105,8 @@ class Company::JobApplicationsController < Company::BaseController
   private
 
   def set_job_applications
-    @received_job_applications = current_company.received_job_applications || []
-    @sent_job_applications     = current_company.sent_job_applications     || []
+    @received_job_applications = current_company.received_job_applications.order(created_at: :desc) || []
+    @sent_job_applications     = current_company.sent_job_applications.order(created_at: :desc)     || []
   end
 
   def find_job
