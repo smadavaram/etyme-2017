@@ -34,7 +34,8 @@ class Contract < ActiveRecord::Base
   before_create :set_contractable
   default_scope  -> {order(created_at: :desc)}
 
-  validate :date_validation
+  validate  :next_invoice_date_should_be_in_future
+  validate  :date_validation
   validates :status ,             inclusion: {in: statuses.keys}
   validates :billing_frequency ,  inclusion: {in: billing_frequencies.keys}
   validates :time_sheet_frequency,inclusion: {in: time_sheet_frequencies.keys}
@@ -119,6 +120,15 @@ class Contract < ActiveRecord::Base
 
   def notify_on_status_change
     self.created_by.notifications.create(message: self.respond_by.full_name+" has "+ self.status+" your contract request for "+self.job.title ,title:"Contract- #{self.job.title}")
+  end
+
+  def next_invoice_date_should_be_in_future
+    if self.next_invoice_date <= Date.today
+      errors.add(:next_invoice_date,' should be in future')
+      return true
+    else
+      return true
+    end
   end
 
   def date_validation

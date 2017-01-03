@@ -16,7 +16,7 @@
   .row
     .col-md-3{style: 'margin-left: 3px;'}
       %b.text-muted{style: 'margin-left: 3px;'}
-        = "Next Invoice Date: #{(@timesheet.contract.next_invoice_date)}"
+        = "Next Invoice Date: #{(@timesheet.contract.next_invoice_date).strftime("%d %b %Y")}"
   .row
     .col-md-3{style: 'margin-left: 5px;'}
       = link_to "Change Invoice Date",'#',class:"btn btn-primary",id:"#change_invoice","data-target" => "#change_invoice", "data-toggle" => "modal", :type => "button"
