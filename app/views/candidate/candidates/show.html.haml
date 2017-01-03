@@ -2,10 +2,9 @@
   .panel-body.status.profile-margin
     .text
       %div.profile-hover
-        //= f.label :filepicker_url, "Upload Your Avatar:"
         %p.imgDescription Change Image
         %div.pictureContainer
-          = filepicker_field_tag "" ,class: "hidden file", onchange:"employeeLogoUpload(event)"
+          = filepicker_field_tag "" ,class: "hidden file", onchange:"employeeLogoUpload(event)","data-fp-crop-ratio" => "2/2"
           -if(current_candidate.photo.present?)
             = image_tag current_candidate.photo,  style:"width:100px;height:100px", fit: 'clip',:class =>"profile-pic image-setting"
 
@@ -36,16 +35,6 @@
             %i.fa.fa-lg.fa-arrow-circle-o-up
             %span.hidden-mobile.hidden-tablet
               Address
-        -#%li
-        -#  %a{"aria-expanded" => "false", "data-toggle" => "tab", :href => "#hr3"}
-        -#    %i.fa.fa-lg.fa-arrow-circle-o-up
-        -#    %span.hidden-mobile.hidden-tablet
-        -#      Owner
-        -#%li
-        -#  %a{"aria-expanded" => "false", "data-toggle" => "tab", :href => "#hr4"}
-        -#    %i.fa.fa-lg.fa-arrow-circle-o-up
-        -#    %span.hidden-mobile.hidden-tablet
-        -#      Company Documents
       %span.jarviswidget-loader
         %i.fa.fa-refresh.fa-spin
     / widget div
@@ -68,22 +57,6 @@
             .tabbable.tabs-below
               =render partial: 'candidate/candidates/partials/location',locals:{address: current_candidate.address}
 
-        -#  -# Owner And Admin TAB
-        -#  #hr3.tab-pane
-        -#    -#%button.btn.btn-primary.pull-right
-        -#    -#  Add owner
-        -#    .tab-content.padding-10
-        -#      = render partial: 'company/companies/partials/owner_info' ,locals:{owner_data: current_company.owner,admins: current_company.admins}
-        -#
-        -#  -# Company Documents TAB
-        -#  #hr4.tab-pane
-        -#    %button.btn.btn-primary{"data-target" => "#attachmentModal", "data-toggle" => "modal"}
-        -#      New Document
-        -#    -#= will_paginate @company_docs
-        -#    .tabbable.tabs-below
-        -#      =render partial: 'company/companies/partials/company_doc_form'
-        -#
-        -#    =render 'company/company_docs/partials/attachment_form_modal'
 
 - content_for :scripts do
   :javascript

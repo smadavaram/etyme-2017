@@ -34,7 +34,7 @@ class Contract < ActiveRecord::Base
   before_create :set_contractable
   default_scope  -> {order(created_at: :desc)}
 
-  validate  :next_invoice_date_should_be_in_future
+  validate  :next_invoice_date_should_be_in_future, if: Proc.new{|c| c.next_invoice_date.present? }
   validate  :date_validation
   validates :status ,             inclusion: {in: statuses.keys}
   validates :billing_frequency ,  inclusion: {in: billing_frequencies.keys}

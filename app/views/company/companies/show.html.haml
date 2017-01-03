@@ -3,7 +3,7 @@
     .text
       %div.profile-hover
         //= f.label :filepicker_url, "Upload Your Avatar:"
-        %p.imgDescription Change Image
+        %p.imgDescription Change Logo
         %div.pictureContainer
           = filepicker_field_tag "" ,class: "hidden file", onchange:"employeeLogoUpload(event)","data-fp-crop-ratio" => "2/2"
           -if(current_company.logo.present?)
