@@ -59,6 +59,18 @@ class Consultant < User
   after_create :send_invitation
   before_validation  :convert_max_working_hours_to_seconds
 
+  def salaried?
+    self.consultant_profile.salaried?
+  end
+
+  def hourly_rate
+    if self.consultant_profile.salaried?
+      self.consultant_profile.salary
+    else
+      self.consultant_profile.salary
+    end
+  end
+
 
   private
 

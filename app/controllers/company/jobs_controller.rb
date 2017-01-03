@@ -9,7 +9,7 @@ class Company::JobsController < Company::BaseController
 
 
   def index
-    @company_jobs = current_company.jobs || []
+    @company_jobs = current_company.jobs.order(created_at: :desc) || []
   end
 
   def show

@@ -8,7 +8,7 @@ class Company::AdminsController < Company::BaseController
   before_action :set_locations , only: [:new , :index]
 
   def index
-    @admins = current_company.admins || []
+    @admins = current_company.admins.order(created_at: :desc).includes(:roles) || []
   end
 
   def new

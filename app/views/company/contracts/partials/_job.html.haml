@@ -1,0 +1,19 @@
+%fieldset
+  .form-group
+    %label.col-md-2.control-label
+      Company Name
+      %sup.text-danger *
+    .col-md-10
+      = job.text_field :title , class: 'form-control' , placeholder: 'Company Name' , required: true
+  .form-group
+    %label.col-md-2.control-label
+      Job Title
+      %sup.text-danger *
+    .col-md-10
+      = job.text_field :title , class: 'form-control' , placeholder: 'Enter Job Title' , required: true
+  .form-group
+    %label.col-md-2.control-label
+      Email
+      %sup.text-danger *
+    .col-md-10
+      = job.text_field :title , class: 'form-control' , placeholder: 'Email' , required: true

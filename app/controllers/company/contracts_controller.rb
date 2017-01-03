@@ -2,9 +2,9 @@ class Company::ContractsController < Company::BaseController
 
   before_action :find_job              , only: [:create]
   before_action :find_receive_contract , only: [:open_contract , :update_contract_response]
-  before_action :find_contract         , only: [:show]
-  before_action :find_before_change_invoice_date,only: :change_invoice_date
+  before_action :find_contract         , only: [:show , :update_attachable_doc , :change_invoice_date]
   before_action :set_contracts         , only: [:index]
+  before_action :find_attachable_doc   , only: [:update_attachable_doc]
 
   add_breadcrumb "CONTRACTS", :contracts_path, options: { title: "CONTRACTS" }
 
@@ -17,6 +17,10 @@ class Company::ContractsController < Company::BaseController
   end
 
   def new
+    @contract = current_company.sent_contracts.new
+    @contract.build_company
+    @contract.build_job
+    @contract.contract_terms.new
 
   end
 
@@ -32,6 +36,15 @@ class Company::ContractsController < Company::BaseController
   end
 
   def open_contract
+  end
+
+  def update_attachable_doc
+    if @attachable_doc.update_attributes(file: params[:attachable_doc][:file])
+      flash[:success] = "File Uploaded."
+    else
+      flash[:errors] = @attachable_doc.errors.full_messages
+    end
+    redirect_to :back
   end
 
   def update_contract_response
@@ -50,9 +63,9 @@ class Company::ContractsController < Company::BaseController
   end
   def change_invoice_date
     if @contract.update_attributes(next_invoice_date: params[:contract][:next_invoice_date])
-      flash[:success]="Date Changed"
+      flash[:success] = "Date Changed"
     else
-      flash[:errors]=@contract.errors.full_messages
+      flash[:errors]  = @contract.errors.full_messages
     end
     redirect_to :back
   end
@@ -60,7 +73,11 @@ class Company::ContractsController < Company::BaseController
   private
 
   def find_contract
-    @contract = Contract.find_sent_or_received(params[:id] , current_company).first || []
+    @contract = Contract.find_sent_or_received(params[:id] || params[:contract_id]  , current_company).first || []
+  end
+
+  def find_attachable_doc
+    @attachable_doc = @contract.attachable_docs.find_by_id(params[:attachable_doc][:id])
   end
 
   def find_receive_contract
@@ -89,9 +106,6 @@ class Company::ContractsController < Company::BaseController
 
   def update_contract_response_params
     params.require(:contract).permit(:is_commission , :response_from_vendor , :received_by_signature,:received_by_name, :commission_type,:commission_amount , :max_commission , :commission_for_id, :assignee_id)
-  end
-  def  find_before_change_invoice_date
-    @contract = Contract.find_sent_or_received(params[:contract_id] , current_company).first || []
   end
 
 

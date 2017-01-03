@@ -62,7 +62,7 @@ class User < ActiveRecord::Base
   has_many :created_contracts   , class_name: 'Contract' , foreign_key: :created_by_id
   has_many :contract_terms      , class_name: 'ContractTerm' , foreign_key: 'created_by'
   has_many :responded_contracts , class_name: 'Contract' , foreign_key: :respond_by_id
-  has_many :assigned_contracts , class_name: 'Contract' , foreign_key: :assignee_id
+  has_many :assigned_contracts  , class_name: 'Contract' , foreign_key: :assignee_id
   has_many :leaves              , dependent: :destroy
   has_many :notifications       , as: :notifiable,dependent: :destroy
   has_many :custom_fields       , as: :customizable,dependent: :destroy
