@@ -140,6 +140,8 @@ Rails.application.routes.draw do
       resources :invoices , only: [:index , :show] do
         member do
           get :download
+          post :accept_invoice
+          post :reject_invoice
         end
       end
     end

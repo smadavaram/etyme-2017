@@ -18,11 +18,13 @@
               .widget-body.no-padding
                 .widget-body-toolbar
                   .row
-                    .col-sm-4
-                    .col-sm-8.text-align-right
-                      .btn-group
-                        =link_to raw("<i class='fa fa-download'>Download</i>") , download_contract_invoice_path(@contract,@invoice) , class: 'btn btn-sm btn-success'
-                .padding-10
+                    .col-sm-12
+                      .btn-group.pull-left
+                        =link_to raw("Download") , download_contract_invoice_path(@contract,@invoice) , class: 'btn btn-sm btn-success'
+                      .btn-group.pull-right
+                        -if @contract.is_received?(current_company) && @invoice.pending_submission?
+                          =link_to raw("Accept")  ,accept_invoice_contract_invoice_path(@contract,@invoice), method: :post ,class: 'btn btn-success pull-right  ', data: {confirm: "Are you sure you want to Submit this invoice ?", verify: 'Submit', verify_text: "Type 'Submit' to confirm"}
+                          =link_to raw("Reject")  ,reject_invoice_contract_invoice_path(@contract,@invoice),method: :post, class: 'btn btn-default pull-right  ', data: {confirm: "Are you sure you want to Cancelled this invoice ?", verify: 'Cancel', verify_text: "Type 'Cancel' to confirm"}
                   %br/
                   .pull-left
                     = wicked_pdf_image_tag 'etyme-logo-dark.png', alt: 'Etyme', style: 'width: 80px;'
@@ -35,7 +37,7 @@
                       #{@contract.job.location.address.city} - #{@contract.job.location.address.zip_code}, #{@contract.job.location.address.country}
                       %br/
                       %abbr{:title => "Phone"} P:
-                      = @contract.job.company.phone
+                      #{@contract.job.company.phone}
                   .pull-right
                     %h1.font-400= @contract.title
                   .clearfix
@@ -47,9 +49,11 @@
                       %address
                         %strong= @contract.assignee.full_name
                         %br/
-                        342 Mirlington Road,
-                        %br/
-                        Calfornia, CA 431464
+                        =show_address(@contract.assignee.try(:primary_address_id)).address_1
+                        =show_address(@contract.assignee.try(:primary_address_id)).city
+                        =show_address(@contract.assignee.try(:primary_address_id)).zip_code
+                        =show_address(@contract.assignee.try(:primary_address_id)).country
+
                         %br/
                         %abbr{:title => "Phone"} P:
                         = @contract.assignee.company.phone
@@ -101,6 +105,10 @@
                           %td $#{timesheet_log.rate}
                           %td= timesheet_log.accepted_hours
                           %td $#{timesheet_log.total_amount}
+                      %tr
+                        %td{:colspan => "5"} Consultant Amount
+                        %td
+                          %strong $#{@invoice.consultant_amount}
                       %tr
                         %td{:colspan => "5"} Total
                         %td

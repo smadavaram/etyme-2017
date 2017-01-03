@@ -9,6 +9,8 @@ class Admin < User
 
   after_create                  :send_invitation ,if: Proc.new { |admin| admin.company.present? }
 
+  has_many          :invoices,class_name:"Invoice",:foreign_key => "submitted_by"
+
   private
 
   # Call after create

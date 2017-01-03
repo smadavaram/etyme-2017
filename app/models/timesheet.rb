@@ -45,6 +45,10 @@ class Timesheet < ActiveRecord::Base
     total_time
   end
 
+  def approved_total_hours
+    approved_total_time / 3600.0
+  end
+
   def total_amount
     amount = 0
     self.timesheet_logs.approved.each do |t| amount = amount + t.total_amount end
@@ -61,10 +65,11 @@ class Timesheet < ActiveRecord::Base
   end
 
 
-  private
+  # private
   def create_timesheet_logs
       self.timesheet_logs.create(transaction_day: start_date)
-      self.delay(run_at: self.next_timesheet_created_date).schedule_timesheet if self.next_timesheet_created_date.present? && self.contract.is_not_ended?
+      # self.delay(run_at: self.next_timesheet_created_date).schedule_timesheet if self.next_timesheet_created_date.present? && self.contract.is_not_ended?
+      self.schedule_timesheet if self.next_timesheet_created_date.present? && self.contract.is_not_ended?
   end
 
   def schedule_timesheet
