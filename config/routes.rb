@@ -191,6 +191,7 @@ Rails.application.routes.draw do
       collection do
         post :change_owner
         post :get_admins_list , as: :get_admins_list
+        post :update_logo
       end
     end
 

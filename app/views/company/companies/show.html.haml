@@ -5,9 +5,9 @@
         //= f.label :filepicker_url, "Upload Your Avatar:"
         %p.imgDescription Change Image
         %div.pictureContainer
-          = filepicker_field_tag "" ,class: "hidden file", onchange:"employeeLogoUpload(event)"
-          -if(current_user.photo.present?)
-            = image_tag current_user.photo,  style:"width:100px;height:100px", fit: 'clip',:class =>"profile-pic image-setting"
+          = filepicker_field_tag "" ,class: "hidden file", onchange:"employeeLogoUpload(event)","data-fp-crop-ratio" => "2/2"
+          -if(current_company.logo.present?)
+            = image_tag current_company.logo,  style:"width:100px;height:100px", fit: 'clip',:class =>"profile-pic image-setting"
           -else
             = image_tag image_path('default_user.png'),  style: "width:100px;height:100px", fit: 'clip',:class =>"profile-pic image-setting"
 
@@ -103,7 +103,7 @@
       $.ajax({
        type: 'POST',
        dataType: 'json',
-       url: "#{update_photo_path}",
+       url: "#{update_logo_companies_path}",
        data: { photo: photo_url,authenticity_token: window._token },
        success: function (data) {
         $('.text img').attr("src",photo_url);

@@ -25,6 +25,10 @@ class Company::CompaniesController < Company::BaseController
     #pagination
     # @company_docs = current_company.company_docs.paginate(:page => params[:page], :per_page => 15)
   end
+  def update_logo
+    render json: current_company.update_attribute(:logo, params[:photo])
+    flash.now[:success] = "Logo Successfully Updated"
+  end
 
   def get_admins_list
     @users = Company.find_by_id(params[:id]).admins || []
