@@ -29,7 +29,7 @@ class Company::InvoicesController < Company::BaseController
       @invoice.submitted_by = current_user
       @invoice.submitted_on = DateTime.now
       if @invoice.save
-        flash[:success] = "Successfully Submitted"
+        flash[:success] = "Successfully Cancelled"
       else
         flash[:errors] = @invoice.errors.full_messages
       end
