@@ -34,6 +34,12 @@ function alert_alert(msg)
 }
 
     $( document ).ready(function() {
+        $("#comment_body").keypress(function(event) {
+            if (event.which == 13) {
+                event.preventDefault();
+                $("#new_comment").submit();
+            }
+        });
         if($('#container-chart').length > 0) {
         $('#container-chart').highcharts({
             colors: ['#53C986','#334A5E','#ffc333','#fb6b5b'],

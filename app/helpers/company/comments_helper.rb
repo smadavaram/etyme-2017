@@ -1,0 +1,2 @@
+module Company::CommentsHelper
+end

@@ -2,7 +2,6 @@ class Invoice < ActiveRecord::Base
 
   enum status: [:pending_submission,:submitted, :paid , :partially_paid , :cancelled ]
 
-
   belongs_to  :contract
   has_many    :timesheets
   has_many    :timesheet_logs , through: :timesheets
@@ -27,7 +26,6 @@ class Invoice < ActiveRecord::Base
     self.contract.timesheets.approved.not_invoiced.each{ |t| hours += t.approved_total_hours }
     self.consultant_amount = rate * hours
   end
-
 
   private
 

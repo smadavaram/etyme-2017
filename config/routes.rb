@@ -122,6 +122,7 @@ Rails.application.routes.draw do
     resources :roles
     resources :admins
     resources :addresses
+    resources :comments         , only: [:create]
     resources :attachments      , only: [:index]
     resources :invoices         , only: [:index]
     resources :job_invitations  , only: [:index]
@@ -156,7 +157,6 @@ Rails.application.routes.draw do
           post :open_contract , as: :open_contract
           post :update_contract_response        , as: :update_contract_response
         end
-
       end # End of :contracts
 
       resources :job_invitations , except: [:index] do

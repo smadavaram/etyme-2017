@@ -9,6 +9,7 @@ class JobApplication < ActiveRecord::Base
   belongs_to :company
   has_one    :contract
   has_many   :custom_fields ,as: :customizable
+  has_many   :comments ,as: :commentable
 
   validates :cover_letter , presence: true
   # validates :application_type, inclusion: { in: application_types.keys }

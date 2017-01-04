@@ -28,7 +28,7 @@
           %strong Step 1
 
           \- Job Details
-          = button_tag 'NEW' ,class: 'btn btn-success btn-sm pull-right header-btn hidden-mobile' , "data-toggle": "modal" , "data-target":"#new-contract-company"
+          = link_to 'NEW', "#" ,class: 'btn btn-success btn-sm pull-right header-btn hidden-mobile' , "data-toggle": "modal" , "data-target":"#new-contract-company"
         = render 'company/contracts/partials/job' , f: contract
       #tab2.tab-pane
         %br/
