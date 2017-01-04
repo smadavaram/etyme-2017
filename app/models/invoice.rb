@@ -1,17 +1,33 @@
 class Invoice < ActiveRecord::Base
+
+  enum status: [:pending_submission,:submitted, :paid , :partially_paid , :cancelled ]
+
+
   belongs_to  :contract
   has_many    :timesheets
   has_many    :timesheet_logs , through: :timesheets
   has_one     :company        , through: :company
+  belongs_to  :submitted_by,class_name:"Admin",:foreign_key => "submitted_by"
   before_validation :set_total_amount
   before_validation :set_commissions
   before_validation :set_start_date_and_end_date
+  before_validation :set_consultant_amount
   after_create :set_next_invoice_date
   after_create :update_timesheet_status_to_invoiced
 
   validate :date_validation
   validates_numericality_of :total_amount , :billing_amount , presence: true, greater_than_or_equal_to: 1
   validate :contract_validation , if: Proc.new{|invoice| !invoice.contract.in_progress?}
+  before_validation :set_consultant_amount
+
+
+  def set_consultant_amount
+    rate = self.contract.assignee.hourly_rate
+    hours = 0.0
+    self.contract.timesheets.approved.not_invoiced.each{ |t| hours += t.approved_total_hours }
+    self.consultant_amount = rate * hours
+  end
+
 
   private
 

@@ -125,7 +125,7 @@
 
          $('.finish').click(function(){
             if ($("#wizard-1").valid()) {
-              $('.new_consultant').submit();
+              $('.new_contract').submit();
 
             }
             return false;
@@ -142,24 +142,6 @@
                   $('#bootstrap-wizard-1').find('.pager .finish').hide();
               }
         }
-
-
-        // fuelux wizard
-        var wizard = $('.wizard').wizard();
-
-        wizard.on('finished', function (e, data) {
-
-          //$("#fuelux-wizard").submit();
-          //console.log("submitted!");
-          $.smallBox({
-            title: "Congratulations! Your form was submitted",
-            content: "<i class='fa fa-clock-o'></i> <i>1 seconds ago...</i>",
-            color: "#5F895F",
-            iconSmall: "fa fa-check bounce animated",
-            timeout: 4000
-          });
-
-        });
 
 
       });

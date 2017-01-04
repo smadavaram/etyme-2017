@@ -4,6 +4,7 @@ class Contract < ActiveRecord::Base
   enum billing_frequency:     [ :weekly_invoice, :monthly_invoice  ]
   enum time_sheet_frequency:[:daily,:weekly,:monthly]
   enum commission_type:  [:percentage, :fixed]
+  CONTRACTABLE = [:company, :candidate]
 
   attr_accessor :company_doc_ids
 
@@ -15,6 +16,7 @@ class Contract < ActiveRecord::Base
   belongs_to :location
   belongs_to :user
   belongs_to :company
+  belongs_to :receiver_company, class_name: 'Company', foreign_key: :contractable_id
   has_one    :job_invitation , through: :job_application
   has_many   :contract_terms , dependent: :destroy
   has_many   :timesheets     , dependent: :destroy
@@ -27,11 +29,11 @@ class Contract < ActiveRecord::Base
   belongs_to :contractable, polymorphic: true
 
   after_create :insert_attachable_docs
-  after_create :notify_recipient
-  after_update :notify_on_status_change, if: Proc.new{|contract| contract.status_changed? && contract.respond_by.present?}
+  after_create :notify_recipient , if: Proc.new{ |contract| contract.not_system_generated? }
+  after_update :notify_on_status_change, if: Proc.new{|contract| contract.status_changed? && contract.respond_by.present? && contract.not_system_generated?}
   # after_create :update_contract_application_status
   after_save   :create_timesheet, if: Proc.new{|contract| contract.status_changed? && contract.is_not_ended? && !contract.timesheets.present? && contract.accepted? && contract.next_invoice_date.nil?}
-  before_create :set_contractable
+  before_create :set_contractable , if: Proc.new{ |contract| contract.not_system_generated? }
   default_scope  -> {order(created_at: :desc)}
 
   validate  :next_invoice_date_should_be_in_future, if: Proc.new{|c| c.next_invoice_date.present? }
@@ -40,7 +42,7 @@ class Contract < ActiveRecord::Base
   validates :billing_frequency ,  inclusion: {in: billing_frequencies.keys}
   validates :time_sheet_frequency,inclusion: {in: time_sheet_frequencies.keys}
   validates :commission_type ,    inclusion: {in: commission_types.keys}
-  validates :is_commission,       inclusion: { in: [ true, false ] }
+  validates :is_commission,       inclusion: {in: [ true, false ] }
   validates :start_date,  presence:   true
   validates :end_date,    presence:   true
   validates :commission_amount  , numericality: true  , presence: true , if: Proc.new{|contract| contract.is_commission}
@@ -48,6 +50,7 @@ class Contract < ActiveRecord::Base
 
 
   accepts_nested_attributes_for :contract_terms, allow_destroy: true ,reject_if: :all_blank
+  accepts_nested_attributes_for :receiver_company, allow_destroy: true ,reject_if: :all_blank
   accepts_nested_attributes_for :attachments ,allow_destroy: true,reject_if: :all_blank
   accepts_nested_attributes_for :attachable_docs , reject_if: :all_blank
   accepts_nested_attributes_for :job    , allow_destroy: true
@@ -62,6 +65,14 @@ class Contract < ActiveRecord::Base
 
   def invoices?
     self.invoices.present?
+  end
+
+  def is_system_generated?
+    self.job_application.present? && !self.job.is_system_generated
+  end
+
+  def not_system_generated?
+    self.job_application.present? && self.job.is_system_generated
   end
 
   def attachable_docs?

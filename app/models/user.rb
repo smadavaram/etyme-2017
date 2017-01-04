@@ -85,7 +85,7 @@ class User < ActiveRecord::Base
   end
 
   def is_admin?
-    self.type == "Admin"
+    self.class.name == "Admin"
   end
 
   def is_candidate?
