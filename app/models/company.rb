@@ -102,7 +102,11 @@ class Company < ActiveRecord::Base
 
   # Call after create
   def welcome_email_to_owner
-     UserMailer.welcome_email_to_owner(self).deliver
+    if self.owner.password.present?
+      UserMailer.welcome_email_to_owner(self).deliver_now
+    else
+      self.owner.send_invitation
+    end
   end
 
   def assign_free_subscription

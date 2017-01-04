@@ -21,6 +21,11 @@
       %label.col-md-2.control-label Rate
       .col-md-10
         = c.text_field :rate ,class: "form-control" , placeholder: ""
+    .form-group
+      %label.col-md-2.control-label Terms & Conditions
+      .col-md-10
+        =  c.text_area :terms_condition , class: 'form-control tinymce', rows: 6, placeholder: 'Enter Contract Terms & conditions'
+        = tinymce :default
     -#.form-group
     -#  %label.col-md-2.control-label Terms & Conditions
     -#  .col-md-10

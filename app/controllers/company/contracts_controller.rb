@@ -9,30 +9,31 @@ class Company::ContractsController < Company::BaseController
   add_breadcrumb "CONTRACTS", :contracts_path, options: { title: "CONTRACTS" }
 
   def index
-
   end
 
   def show
-
   end
 
   def new
     @contract = current_company.sent_contracts.new
-    @contract.build_company
+    @contract.build_receiver_company.build_owner(type: 'Admin')
     @contract.build_job
     @contract.contract_terms.new
 
   end
 
   def create
-    @contract  = current_company.sent_contracts.new(contract_params.merge!(job_id: @job.id , created_by_id: current_user.id))
+    @contract  = current_company.sent_contracts.new(create_contract_params)
     respond_to do |format|
       if @contract.save
+        format.html {flash[:success] = "successfully Send."}
         format.js{ flash.now[:success] = "successfully Send." }
       else
         format.js{ flash.now[:errors] =  @contract.errors.full_messages }
+        format.html{ flash[:errors] =  @contract.errors.full_messages }
       end
     end
+    redirect_to :back
   end
 
   def open_contract
@@ -94,19 +95,38 @@ class Company::ContractsController < Company::BaseController
   end
 
   def contract_params
-    params.require(:contract).permit([:job_id  , :is_commission ,
+      params.require(:contract).permit([:job_id  , :is_commission ,
+                                        :received_by_signature,:received_by_name,:sent_by_signature,:sent_by_name,
+                                        :commission_type,:commission_amount , :max_commission , :commission_for_id ,
+                                        :billing_frequency, :time_sheet_frequency, :assignee_id ,
+                                        :job_application_id , :start_date , :end_date  , :message_from_hiring  ,:status ,company_doc_ids: [] ,
+                                        contract_terms_attributes: [:id, :created_by, :contract_id , :status , :terms_condition ,:rate , :note , :_destroy],
+                                       attachments_attributes:[:id,:file,:file_name,:file_size,:file_type,:attachable_type,:attachable_id,:_destroy]
+                                       ])
+  end
+
+  def nested_contract_params
+    params.require(:contract).permit([:is_commission , :contractable_type ,
                                       :received_by_signature,:received_by_name,:sent_by_signature,:sent_by_name,
                                       :commission_type,:commission_amount , :max_commission , :commission_for_id ,
                                       :billing_frequency, :time_sheet_frequency, :assignee_id ,
                                       :job_application_id , :start_date , :end_date  , :message_from_hiring  ,:status ,company_doc_ids: [] ,
                                       contract_terms_attributes: [:id, :created_by, :contract_id , :status , :terms_condition ,:rate , :note , :_destroy],
-                                     attachments_attributes:[:id,:file,:file_name,:file_size,:file_type,:attachable_type,:attachable_id,:_destroy]
+                                      attachments_attributes:[:id,:file,:file_name,:file_size,:file_type,:attachable_type,:attachable_id,:_destroy],
+                                      receiver_company_attributes: [:id , :name  ,owner_attributes:[:id, :type  , :first_name, :last_name ,:email]] , job_attributes: [:title]
                                      ])
+  end
+
+  def create_contract_params
+    if @job.present? && params[:job_id]
+      contract_params.merge!(job_id: @job.id , created_by_id: current_user.id)
+    else
+      nested_contract_params.merge!(respond_by_id: current_user.id, created_by_id: current_user.id, status: Contract.statuses["accepted"] ,job_attributes: nested_contract_params[:job_attributes].merge!(is_public: false , company_id: current_company.id,created_by_id: current_user.id , is_system_generated: true))
+    end
   end
 
   def update_contract_response_params
     params.require(:contract).permit(:is_commission , :response_from_vendor , :received_by_signature,:received_by_name, :commission_type,:commission_amount , :max_commission , :commission_for_id, :assignee_id)
   end
-
 
 end

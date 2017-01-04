@@ -112,9 +112,9 @@ Rails.application.routes.draw do
         member do
           post :accept
           post :reject
-        end #end of member
-      end #end of leaves
-    end  #end of consultants
+        end
+      end
+    end
     resources :locations
     resources :company_docs
     resources :roles
@@ -132,7 +132,10 @@ Rails.application.routes.draw do
         post :hire
       end # End of member
     end
-    resources :contracts        , only: [:index ,:show , :new] do
+    resources :contracts        , only: [:index ,:show , :new , :create] do
+      collection do
+        post :nested_create
+      end
       member do
         post :update_attachable_doc
       end

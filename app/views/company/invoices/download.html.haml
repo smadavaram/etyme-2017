@@ -38,8 +38,8 @@
                         %br/
                         %abbr{:title => "Phone"} P:
                         = @contract.job.company.phone
-                    .pull-right
-                      %h1.font-400
+                    .pull-right.margin-right-5
+                      %h3.font-md
                         = @contract.title
                     .clearfix
                     %br/
@@ -75,11 +75,6 @@
                             %span.pull-right
                               %i.fa.fa-calendar
                               = @invoice.end_date.strftime('%m/%d/%y')
-                        %br/
-                        .well.well-sm.bg-color-darken.txt-color-white.no-border
-                          .fa-lg
-                            Total Due :
-                            %span.pull-right 4,972 USD**
                         %br/
                         %br/
                     %table.table.table-hover

@@ -11,6 +11,7 @@ class Invoice < ActiveRecord::Base
   before_validation :set_total_amount
   before_validation :set_commissions
   before_validation :set_start_date_and_end_date
+  before_validation :set_consultant_amount
   after_create :set_next_invoice_date
   after_create :update_timesheet_status_to_invoiced
 

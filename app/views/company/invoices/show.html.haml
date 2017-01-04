@@ -27,7 +27,7 @@
                           =link_to raw("Reject")  ,reject_invoice_contract_invoice_path(@contract,@invoice),method: :post, class: 'btn btn-default pull-right  ', data: {confirm: "Are you sure you want to Cancelled this invoice ?", verify: 'Cancel', verify_text: "Type 'Cancel' to confirm"}
                   %br/
                   .pull-left
-                    = wicked_pdf_image_tag 'etyme-logo-dark.png', alt: 'Etyme', style: 'width: 80px;'
+                    = image_tag 'etyme-logo-dark.png', alt: 'Etyme', style: 'width: 80px;'
                     %address
                       %br/
                       %strong= @contract.job.company.name.titleize
