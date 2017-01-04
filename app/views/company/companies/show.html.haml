@@ -26,7 +26,7 @@
 .col-lg-9.col-md-9
   #wid-id-7#content.jarviswidget{"data-widget-attstyle" => "jarviswidget-color-teal", "data-widget-custombutton" => "false", "data-widget-editbutton" => "false", "data-widget-fullscreenbutton" => "false", "data-widget-sortable" => "false", :role => "widget", :style => ""}
     %header{:role => "heading"}
-      %ul.nav.nav-tabs.pull-left.in
+      %ul.nav.nav-tabs.pull-left.in#myTab
         %li.active
           %a{"aria-expanded" => "true", "data-toggle" => "tab", :href => "#hr1"}
             %i.fa.fa-lg.fa-building
@@ -62,7 +62,7 @@
 
           -# Locations form TAB
           #hr2.tab-pane
-            %button.btn.btn-primary.pull-right.margin-bottom-5{"data-target" => "#myModal", "data-toggle" => "modal"}
+            %button.btn.btn-primary.pull-right.margin-bottom-5.margin-right-10{"data-target" => "#myModal", "data-toggle" => "modal"}
               New
             .tabbable.tabs-below
               =render partial: 'company/companies/partials/location_show_form'
@@ -70,14 +70,12 @@
 
           -# Owner And Admin TAB
           #hr3.tab-pane
-            -#%button.btn.btn-primary.pull-right
-            -#  Add owner
             .tab-content.padding-10
               = render partial: 'company/companies/partials/owner_info' ,locals:{owner_data: current_company.owner,admins: current_company.admins - [current_company.owner]}
 
           -# Company Documents TAB
           #hr4.tab-pane
-            %button.btn.btn-primary.pull-right.margin-bottom-5{"data-target" => "#attachmentModal", "data-toggle" => "modal"}
+            %button.btn.btn-primary.pull-right.margin-bottom-5.margin-right-10{"data-target" => "#attachmentModal", "data-toggle" => "modal"}
               New
             -#= will_paginate @company_docs
             .tabbable.tabs-below
@@ -88,6 +86,14 @@
 - content_for :scripts do
   :javascript
     $(document).ready(function() {
+         $('a[data-toggle="tab"]').on('show.bs.tab', function(e) {
+          // localStorage.setItem('activeTab', $(e.target).attr('href'));
+          var id = $(e.target).attr("href").substr(1);
+          window.location.hash = id;
+        });
+        var hash = window.location.hash;
+        $('#myTab a[href="' + hash + '"]').tab('show');
+
       $( ".profile-pic" ).click(function()
       {
         $( ".file" ).trigger( "click" );

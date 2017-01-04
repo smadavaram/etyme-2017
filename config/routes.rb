@@ -107,6 +107,8 @@ Rails.application.routes.draw do
   # COMPANY ROUTES
   scope module: :company do
 
+    resources :users, only: [:show,:update]
+
     resources :consultants do
       resources :leaves do
         member do
