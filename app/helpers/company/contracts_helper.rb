@@ -9,11 +9,15 @@ module Company::ContractsHelper
   end
 
   def show_recipient_picture contractable
-    return "" if contractable.nil?
+    return "default_user.png" if contractable.nil?
     if contractable.class.name == "Candidate"
       contractable.photo
     else
-      contractable.logo
+      if contractable.logo.nil?
+        return "default_user.png"
+      else
+        contractable.logo
+      end
     end
   end
 end

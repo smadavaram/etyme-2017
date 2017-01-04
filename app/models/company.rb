@@ -48,6 +48,8 @@ class Company < ActiveRecord::Base
   has_many :company_docs              , dependent: :destroy
   has_many :attachments               , as: :attachable
   has_many :timesheets                , dependent: :destroy
+  has_many :invited_companies         ,class_name: "InvitedCompany" , foreign_key: "invited_by_company_id", dependent:  :destroy
+  has_one  :invited_by                ,class_name: "InvitedCompany" , foreign_key: "invited_company_id", dependent:  :destroy
   has_many :sent_contracts            , class_name: 'Contract'      , foreign_key: 'company_id' ,dependent: :destroy
   has_many :sent_job_applications     , class_name: 'JobApplication', foreign_key: 'company_id' ,dependent: :destroy
   has_many :sent_job_invitations      , class_name: 'JobInvitation' , foreign_key: 'company_id' ,dependent: :destroy
@@ -73,6 +75,8 @@ class Company < ActiveRecord::Base
 
   accepts_nested_attributes_for :owner    , allow_destroy: true
   accepts_nested_attributes_for :locations, allow_destroy: true,reject_if: :all_blank
+  accepts_nested_attributes_for :invited_by    , allow_destroy: true
+
 
   before_validation :create_slug
   after_create      :set_owner_company_id

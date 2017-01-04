@@ -1,34 +1,12 @@
 %fieldset
-  = f.fields_for :receiver_company do |c|
-    = f.hidden_field :contractable_type , value: "Company"
-    .form-group
-      %label.col-md-2.control-label
-        Company Name
-        %sup.text-danger *
-      .col-md-10
-        = c.text_field :name , class: 'form-control' , placeholder: 'Company Name' , required: true
-    = c.fields_for :owner do |u|
-      .form-group
-        %label.col-md-2.control-label
-          First Name
-          %sup.text-danger *
-        .col-md-4
-          = u.text_field :first_name ,class: "form-control" , required: 'required', placeholder: "First Name"
-        %label.col-md-2.control-label
-          Last Name
-          %sup.text-danger *
-        .col-md-4
-          = u.text_field :last_name ,class: "form-control" , required: 'required', placeholder: "Last Name"
-      .form-group
-        %label.col-md-2.control-label
-          Email
-          %sup.text-danger *
-        .col-md-10
-          = u.text_field :email , class: 'form-control' , placeholder: 'Email' , required: true
   = f.fields_for :job do |j|
     .form-group
       %label.col-md-2.control-label
         Job Title
         %sup.text-danger *
       .col-md-10
-        = j.text_field :title , class: 'form-control' , placeholder: 'Enter Job Title' , required: true
+        = j.text_field :title , class: 'form-control' , placeholder: 'Job ' , required: true
+    .form-group
+      %label.col-md-2.control-label  Company
+      .col-md-10
+        = select_tag 'contract[contractable_id]', options_for_select(current_company.invited_companies.collect { |c|[c.invited_company.name, c.invited_company.id] })  , class: "form-control"

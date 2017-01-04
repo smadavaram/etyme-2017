@@ -192,7 +192,7 @@ Rails.application.routes.draw do
 
     end
     # get 'configuration' ,   to: 'companies#edit' ,              as: :configuration
-    resources :companies , only: [:update,:show] do
+    resources :companies , only: [:update,:show , :create] do
       collection do
         post :change_owner
         post :get_admins_list , as: :get_admins_list
