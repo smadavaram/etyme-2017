@@ -16,7 +16,7 @@
   .row
     .col-md-3{style: 'margin-left: 3px;'}
       %b.text-muted{style: 'margin-left: 3px;'}
-        = "Next Invoice Date: #{(@timesheet.contract.next_invoice_date)}"
+        = "Next Invoice Date: #{(@timesheet.contract.next_invoice_date).strftime("%d %b %Y")}"
   .row
     .col-md-3{style: 'margin-left: 5px;'}
       = link_to "Change Invoice Date",'#',class:"btn btn-primary",id:"#change_invoice","data-target" => "#change_invoice", "data-toggle" => "modal", :type => "button"
@@ -27,7 +27,6 @@
       = link_to raw("<i class='fa fa-chevron-left'></i>") , @prev.present? ? timesheet_timesheet_log_path(@timesheet, @prev) : '#' , disabled: !@prev.present?, id: 'btn-prev' , class: 'btn btn-default btn-lg'
       %span.h2{style: 'margin-right: 15px;margin-left: 15px;'}= @timesheet_log.transaction_day.strftime("%A, %d %b %Y")
       = link_to raw("<i class='fa fa-chevron-right'></i>") , @next.present? ? timesheet_timesheet_log_path(@timesheet, @next) : '#' , disabled: !@next.present?, id: 'btn-prev' , class: 'btn btn-default btn-lg'
-
     .text-center.center
       %br
       %b.text-muted{style: 'margin-left: 20px;'}

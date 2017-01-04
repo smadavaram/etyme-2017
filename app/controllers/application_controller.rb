@@ -12,7 +12,6 @@ class ApplicationController < ActionController::Base
   end
 
   def cities
-    puts CS.cities(params[:state].to_sym, params[:country].to_sym).to_json
     render json: CS.cities(params[:state].to_sym, params[:country].to_sym).to_json
   end
 

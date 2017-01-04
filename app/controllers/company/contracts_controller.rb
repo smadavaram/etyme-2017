@@ -66,7 +66,7 @@ class Company::ContractsController < Company::BaseController
   end
   def change_invoice_date
     if @contract.update_attributes(next_invoice_date: params[:contract][:next_invoice_date])
-      flash[:success] = "Date Changed"
+      flash[:success] = "Next invoice date changed"
     else
       flash[:errors]  = @contract.errors.full_messages
     end

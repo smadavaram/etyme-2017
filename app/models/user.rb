@@ -54,6 +54,8 @@ class User < ActiveRecord::Base
   # validates_presence_of :email
   # validates_uniqueness_of :email
 
+  after_create :create_address
+
 
   attr_accessor :temp_working_hours
 
@@ -106,6 +108,13 @@ class User < ActiveRecord::Base
 
   def has_submission_permission?(user)
     self == user
+  end
+
+  def create_address
+    address=Address.new
+    address.save(validate: false)
+    self.primary_address_id = address.try(:id)
+    self.save
   end
 
 
