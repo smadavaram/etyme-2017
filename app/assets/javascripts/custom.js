@@ -34,6 +34,10 @@ function flash_alert(msg)
 }
 
     $( document ).ready(function() {
+        $(".multi-select2").select2({
+            placeholder: $('#'+$('.multi-select2').attr('id')).attr('placeholder'),
+            tokenSeparators: [',', ' ']
+        });
         $("#comment_body").keypress(function(event) {
             if (event.which == 13) {
                 event.preventDefault();
