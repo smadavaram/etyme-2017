@@ -1,36 +1,36 @@
-function flash_alert(color , msg){
+function flash(color , msg , icon){
     $.smallBox({
         title : msg,
-        //content : "<i class='fa fa-clock-o'></i> <i>2 seconds ago...</i>",
+        // content : "<i class='fa fa-clock-o'></i> <i>2 seconds ago...</i>",
         color : color,
-        iconSmall : "fa fa-thumbs-up bounce animated",
+        iconSmall : icon+" bounce animated",
         timeout : 4000
     });
 }
 function flash_error(msg)
 {
     $error    = '#D04B2B';
-    flash_alert($error,msg);
+    flash($error,msg , 'fa fa-exclamation-triangle');
 }
 function flash_success(msg)
 {
-    var $success  = '#739E73';
-    flash_alert($success,msg);
+    var $success  = '#80C14B';
+    flash($success,msg , 'fa fa-check');
 }
 function flash_info(msg)
 {
     var $info     = '#35A4DA';
-    flash_alert($info,msg);
+    flash($info,msg , 'fa fa-info');
 }
 function flash_notice(msg)
 {
     var $notice   = '#80C14B';
-    flash_alert($notice,msg);
+    flash($notice,msg , 'fa fa-thumbs');
 }
-function alert_alert(msg)
+function flash_alert(msg)
 {
     var $alert    = '#FFC333';
-    flash_alert($alert,msg);
+    flash($alert,msg , 'fa fa-exclamation-triangle');
 }
 
     $( document ).ready(function() {
