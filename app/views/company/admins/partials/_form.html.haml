@@ -26,7 +26,7 @@
         = select_tag "admin[location_id]", options_from_collection_for_select(@locations, "id", "name") , class: 'form-control'  , required: true
     .form-group
       %label.col-md-2.control-label
-        Job Location
+        Roles
         %sup.text-danger *
       .col-md-10
         = f.collection_select :role_ids, @roles, :id, :name, {}, {:class=>"form-control input-lg multi-select2-role",:multiple => true,required: true}
@@ -34,6 +34,4 @@
     .row
       .col-md-12
         = button_tag 'Cancel' , class: 'btn btn-default' , "data-dismiss": "modal"
-        -#%button.btn.btn-default{:type => "submit"}
-        -#  Cancel
         = f.submit "Submit", class: 'btn btn-primary'

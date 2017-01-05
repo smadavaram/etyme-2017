@@ -1,4 +1,4 @@
-class Company::CommentsController < ApplicationController
+class Company::CommentsController < Company::BaseController
 
   def create
     @comment = current_user.comments.new(comments_params)

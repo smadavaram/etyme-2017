@@ -27,6 +27,10 @@ class JobApplication < ActiveRecord::Base
   scope :vendor , -> {joins(:job_invitation).where('job_invitations.invitation_type = ?' , 0)}
   scope :by_email , -> {joins(:job_invitation).where('job_invitations.invitation_type = ?' , 2)}
 
+  def is_candidate_applicant?
+    self.user.is_candidate?
+  end
+
   private
 
     def update_job_invitation_status

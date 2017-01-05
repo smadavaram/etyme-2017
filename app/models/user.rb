@@ -85,10 +85,15 @@ class User < ActiveRecord::Base
   accepts_nested_attributes_for :educations  ,reject_if: :all_blank
 
   validates_numericality_of :max_working_hours, only_integer: true, greater_than_or_equal_to: 0 , less_than_or_equal_to: 86400
+  validates_uniqueness_of :email, scope: :company_id
   # validates_inclusion_of :time_zone, in: ActiveSupport::TimeZone.all.map { |tz| tz.tzinfo.name }
 
   def time_zone_now
     self.time_zone.present? ? Time.now.in_time_zone(self.time_zone) : Time.now
+  end
+
+  def send_confirmation_to_company_about_onboarding
+      self.notifications.create!(title: "#{self.full_name} On-Boarding" , message:  "#{self.full_name} has successfully completed on-boarding on Etyme.")
   end
 
   def is_admin?
@@ -116,7 +121,7 @@ class User < ActiveRecord::Base
   end
 
   def create_address
-    address=Address.new
+    address = Address.new
     address.save(validate: false)
     self.primary_address_id = address.try(:id)
     self.save

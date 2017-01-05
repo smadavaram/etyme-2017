@@ -11,7 +11,6 @@
         %th Phone
         %th Expiry
         %th Status
-        %th
     %tbody
       - data.each do |d|
         %tr{class: "#{set_background_status_color(d.status)}"}
@@ -27,5 +26,4 @@
           %td= #invitation.recipient.phone
           %td= #invitation.expiry
           %td
-            %span.label.label-success= d.status
-          %td= link_to 'View' , contract_path(d), target: '_blank'
+            = label_status_color(d.status)

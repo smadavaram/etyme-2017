@@ -1,4 +1,4 @@
-#content.no-border.well.well-sm
+#content.no-border
   #wid-id-5.no-border.jarviswidget{"data-widget-colorbutton" => "false", "data-widget-custombutton" => "false", "data-widget-editbutton" => "false", "data-widget-fullscreenbutton" => "false", "data-widget-sortable" => "false"}
     %div
       .jarviswidget-editbox
@@ -20,13 +20,12 @@
                   %br
                   .input-group.input-group-lg.hidden-mobile
                     .input-group-btn
-                      %button.btn.btn-default.dropdown-toggle{"data-toggle" => "dropdown", :type => "button"}
+                      %button.btn.btn-default.dropdown-toggle.textbtn{"data-toggle" => "dropdown", :type => "button"}
                         All
                         %span.caret
                       %ul.dropdown-menu
                         %li.active
                           %a{:href => "javascript:void(0)"}
-                            %i.fa.fa-check
                             All
                         %li.divider
                         %li
@@ -66,13 +65,12 @@
                 %br
                 .input-group.input-group-lg.hidden-mobile
                   .input-group-btn
-                    %button.btn.btn-default.dropdown-toggle{"data-toggle" => "dropdown", :type => "button"}
+                    %button.btn.btn-default.dropdown-toggle.textbtn{"data-toggle" => "dropdown", :type => "button"}
                       All
                       %span.caret
                     %ul.dropdown-menu
                       %li.active
                         %a{:href => "javascript:void(0)"}
-                          %i.fa.fa-check
                           All
                       %li.divider
                       %li
