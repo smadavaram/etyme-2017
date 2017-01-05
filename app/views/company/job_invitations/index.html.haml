@@ -3,59 +3,108 @@
     %div
       .jarviswidget-editbox
       .widget-body
-        .tabs-left.row
-          %ul#demo-pill-nav.nav.nav-tabs.tabs-left
-            %li.active
-              %a{"data-toggle" => "tab", :href => "#tab-r1"}
-                %span.badge.bg-color-blue.txt-color-white= @sent_job_invitations.count
-                Sent Invitations
-            %li
-              %a{"data-toggle" => "tab", :href => "#tab-r2"}
-                %span.badge.bg-color-blueDark.txt-color-white= @received_job_invitations.count
-                Received Invitations
-          .col-md-10
-            .tab-content
-              #tab-r1.tab-pane.active
-                #hb2.tab-pane.active
-                  %ul#internal-tab-1.nav.nav-tabs.tabs-pull-right
-                    %li
-                      %a{"aria-expanded" => "false", "data-toggle" => "tab", :href => "#is4"} Rejected
-                    %li
-                      %a{"aria-expanded" => "false", "data-toggle" => "tab", :href => "#is1"} Accepted
-                    %li
-                      %a{"aria-expanded" => "false", "data-toggle" => "tab", :href => "#is2"} Pending
-                    %li.active
-                      %a{"aria-expanded" => "true", "data-toggle" => "tab", :href => "#is3"} All
-                  .tab-content.padding-10
-                    #is4.tab-pane
-                      = render partial: 'company/job_invitations/partials/invitation_table' , locals: {data: @sent_job_invitations.rejected}
-                    #is1.tab-pane
-                      = render partial: 'company/job_invitations/partials/invitation_table' , locals: {data: @sent_job_invitations.accepted}
-                    #is2.tab-pane.fade
-                      = render partial: 'company/job_invitations/partials/invitation_table' , locals: {data: @sent_job_invitations.pending}
-                    #is3.tab-pane.fade.active.in
-                      = render partial: 'company/job_invitations/partials/invitation_table' , locals: {data: @sent_job_invitations}
-
-              #tab-r2.tab-pane
-                #hb22.tab-pane.active
-                %ul#internal-tab-2.nav.nav-tabs.tabs-pull-right
+        %ul#myTab1.nav.nav-tabs.bordered
+          %li.active
+            %a{"data-toggle" => "tab", :href => "#tab-r1"}
+              %span.badge.bg-color-blue.txt-color-white= @sent_job_invitations.count
+              Sent Invitations
+          %li
+            %a{"data-toggle" => "tab", :href => "#tab-r2"}
+              %span.badge.bg-color-blueDark.txt-color-white= @received_job_invitations.count
+              Received Invitations
+        .col-md-12
+          .tab-content
+            #tab-r1.tab-pane.active
+              #hb2.tab-pane.active
+                %ul#internal-tab-1.nav.nav-tabs.tabs-pull-right
+                  %br
+                  .input-group.input-group-lg.hidden-mobile
+                    .input-group-btn
+                      %button.btn.btn-default.dropdown-toggle{"data-toggle" => "dropdown", :type => "button"}
+                        All
+                        %span.caret
+                      %ul.dropdown-menu
+                        %li.active
+                          %a{:href => "javascript:void(0)"}
+                            %i.fa.fa-check
+                            All
+                        %li.divider
+                        %li
+                          %a{:href => "javascript:void(0)"} Rejected
+                        %li
+                          %a{:href => "javascript:void(0)"} Accepted
+                        %li
+                          %a{:href => "javascript:void(0)"} Pending
+                    %input#search-project.form-control.input-lg{:placeholder => "Search Job Invitation...", :type => "text"}/
+                    .input-group-btn
+                      %button.btn.btn-default{:type => "submit"}
+                        \   
+                        %i.fa.fa-fw.fa-search.fa-lg>
+                        \  
+                  %br 
                   %li
-                    %a{"aria-expanded" => "false", "data-toggle" => "tab", :href => "#is-4"} Rejected
+                    %a{"aria-expanded" => "false", "data-toggle" => "tab", :href => "#is4"} Rejected
                   %li
-                    %a{"aria-expanded" => "false", "data-toggle" => "tab", :href => "#is-1"} Accepted
+                    %a{"aria-expanded" => "false", "data-toggle" => "tab", :href => "#is1"} Accepted
                   %li
-                    %a{"aria-expanded" => "false", "data-toggle" => "tab", :href => "#is-2"} Pending
+                    %a{"aria-expanded" => "false", "data-toggle" => "tab", :href => "#is2"} Pending
                   %li.active
-                    %a{"aria-expanded" => "true", "data-toggle" => "tab", :href => "#is-3"} All
+                    %a{"aria-expanded" => "true", "data-toggle" => "tab", :href => "#is3"} All
                 .tab-content.padding-10
-                  #is-4.tab-pane
-                    = render partial: 'company/job_invitations/partials/receive_invitation_table' , locals: {data: @received_job_invitations.rejected}
-                  #is-1.tab-pane
-                    = render partial: 'company/job_invitations/partials/receive_invitation_table' , locals: {data: @received_job_invitations.accepted}
-                  #is-2.tab-pane.fade
-                    = render partial: 'company/job_invitations/partials/receive_invitation_table' , locals: {data: @received_job_invitations.pending}
-                  #is-3.tab-pane.fade.active.in
-                    = render partial: 'company/job_invitations/partials/receive_invitation_table' , locals: {data: @received_job_invitations}
+                  #is4.tab-pane
+                    = render partial: 'company/job_invitations/partials/invitation_table' , locals: {data: @sent_job_invitations.rejected}
+                  #is1.tab-pane
+                    = render partial: 'company/job_invitations/partials/invitation_table' , locals: {data: @sent_job_invitations.accepted}
+                  #is2.tab-pane.fade
+                    = render partial: 'company/job_invitations/partials/invitation_table' , locals: {data: @sent_job_invitations.pending}
+                  #is3.tab-pane.fade.active.in
+                    = render partial: 'company/job_invitations/partials/invitation_table' , locals: {data: @sent_job_invitations}
+
+            #tab-r2.tab-pane
+              #hb22.tab-pane.active
+              %ul#internal-tab-2.nav.nav-tabs.tabs-pull-right
+                %br
+                .input-group.input-group-lg.hidden-mobile
+                  .input-group-btn
+                    %button.btn.btn-default.dropdown-toggle{"data-toggle" => "dropdown", :type => "button"}
+                      All
+                      %span.caret
+                    %ul.dropdown-menu
+                      %li.active
+                        %a{:href => "javascript:void(0)"}
+                          %i.fa.fa-check
+                          All
+                      %li.divider
+                      %li
+                        %a{:href => "javascript:void(0)"} Rejected
+                      %li
+                        %a{:href => "javascript:void(0)"} Accepted
+                      %li
+                        %a{:href => "javascript:void(0)"} Pending
+                  %input#search-project.form-control.input-lg{:placeholder => "Search Job Invitation...", :type => "text"}/
+                  .input-group-btn
+                    %button.btn.btn-default{:type => "submit"}
+                      \   
+                      %i.fa.fa-fw.fa-search.fa-lg>
+                      \  
+                %br 
+                %li
+                  %a{"aria-expanded" => "false", "data-toggle" => "tab", :href => "#is-4"} Rejected
+                %li
+                  %a{"aria-expanded" => "false", "data-toggle" => "tab", :href => "#is-1"} Accepted
+                %li
+                  %a{"aria-expanded" => "false", "data-toggle" => "tab", :href => "#is-2"} Pending
+                %li.active
+                  %a{"aria-expanded" => "true", "data-toggle" => "tab", :href => "#is-3"} All
+              .tab-content.padding-10
+                #is-4.tab-pane
+                  = render partial: 'company/job_invitations/partials/receive_invitation_table' , locals: {data: @received_job_invitations.rejected}
+                #is-1.tab-pane
+                  = render partial: 'company/job_invitations/partials/receive_invitation_table' , locals: {data: @received_job_invitations.accepted}
+                #is-2.tab-pane.fade
+                  = render partial: 'company/job_invitations/partials/receive_invitation_table' , locals: {data: @received_job_invitations.pending}
+                #is-3.tab-pane.fade.active.in
+                  = render partial: 'company/job_invitations/partials/receive_invitation_table' , locals: {data: @received_job_invitations}
 
 
 

@@ -1,27 +1,25 @@
-.row
-  .col-sm-6
-    .form-group
-      .input-group
-        %span.input-group-addon
-          %i.fa.fa-user.fa-fw
-        = e.text_field :first_name , class: 'form-control input-lg' , id: 'fname' , placeholder: "First Name" , required: true
-  .col-sm-6
-    .form-group
-      .input-group
-        %span.input-group-addon
-          %i.fa.fa-user.fa-fw
-        = e.text_field :last_name , class: 'form-control input-lg' , id: 'lname' , placeholder: "Last Name" , required: true
-.row
-  .col-sm-12
-    .form-group
-      .input-group
-        %span.input-group-addon
-          %i.fa.fa-envelope.fa-fw
-        = e.email_field :email , class: 'form-control input-lg' , id: 'email' , placeholder: "email@address.com" , required: true
-.row
-  .col-sm-12
-    .form-group
-      .input-group
-        %span.input-group-addon
-          %i.fa.fa-key.fa-fw
-        = e.collection_select :role_ids, current_company.roles, :id, :name, {}, {:class=>"form-control input-lg multi-select2-role",:multiple => true}
+%fieldset
+  .form-group
+    %label.col-md-2.control-label
+      First Name
+      %sup.text-danger *
+    .col-md-10
+      = e.text_field :first_name , class: 'form-control ' , id: 'fname' , placeholder: "First Name" , required: true
+  .form-group
+    %label.col-md-2.control-label
+      Last Name
+      %sup.text-danger *
+    .col-md-10
+      = e.text_field :last_name , class: 'form-control ' , id: 'lname' , placeholder: "Last Name" , required: true
+  .form-group
+    %label.col-md-2.control-label
+      Email
+      %sup.text-danger *
+    .col-md-10
+      = e.email_field :email , class: 'form-control ' , id: 'email' , placeholder: "email@address.com" , required: true
+  .form-group
+    %label.col-md-2.control-label
+      Roles
+      %sup.text-danger *
+    .col-md-10
+      = e.collection_select :role_ids, current_company.roles, :id, :name, {}, {:class=>"form-control input-lg multi-select2-role",:multiple => true, required: true}
