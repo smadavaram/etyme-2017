@@ -46,14 +46,17 @@ class Company < ActiveRecord::Base
   has_many :consultants               , dependent: :destroy
   has_many :roles                     , dependent: :destroy
   has_many :company_docs              , dependent: :destroy
-  has_many :attachments               ,as: :attachable
+  has_many :attachments               , as: :attachable
   has_many :timesheets                , dependent: :destroy
+  has_many :invited_companies         ,class_name: "InvitedCompany" , foreign_key: "invited_by_company_id", dependent:  :destroy
+  has_one  :invited_by                ,class_name: "InvitedCompany" , foreign_key: "invited_company_id", dependent:  :destroy
   has_many :sent_contracts            , class_name: 'Contract'      , foreign_key: 'company_id' ,dependent: :destroy
   has_many :sent_job_applications     , class_name: 'JobApplication', foreign_key: 'company_id' ,dependent: :destroy
   has_many :sent_job_invitations      , class_name: 'JobInvitation' , foreign_key: 'company_id' ,dependent: :destroy
   has_many :received_job_applications , through:   :jobs                  , source: 'job_applications'
   has_many :received_job_invitations  , through:   :admins                , source: 'job_invitations'
-  has_many :received_contracts        , through:   :sent_job_applications , source: 'contract'
+  # has_many :received_contracts        , through:   :sent_job_applications , source: 'contract'
+  has_many :received_contracts        , class_name: 'Contract'      , as: :contractable
   has_many :leaves                    , through:   :users
   has_many :timesheet_logs            , through:   :timesheets
   has_many :timesheet_approvers       , through:   :timesheets
@@ -72,6 +75,8 @@ class Company < ActiveRecord::Base
 
   accepts_nested_attributes_for :owner    , allow_destroy: true
   accepts_nested_attributes_for :locations, allow_destroy: true,reject_if: :all_blank
+  accepts_nested_attributes_for :invited_by    , allow_destroy: true
+
 
   before_validation :create_slug
   after_create      :set_owner_company_id
@@ -101,7 +106,11 @@ class Company < ActiveRecord::Base
 
   # Call after create
   def welcome_email_to_owner
-     UserMailer.welcome_email_to_owner(self).deliver
+    if self.owner.password.present?
+      UserMailer.welcome_email_to_owner(self).deliver_now
+    else
+      self.owner.send_invitation
+    end
   end
 
   def assign_free_subscription

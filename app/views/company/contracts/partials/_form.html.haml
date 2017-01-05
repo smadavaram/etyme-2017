@@ -1,0 +1,141 @@
+= form_for  @contract ,html: {id: 'wizard-1' , class: 'form-horizontal new_contract' ,novalidate: "novalidate" } do |contract|
+  =contract.hidden_field :contractable_type , value: "Company"
+  -#= e.fields_for :consultant_profile do |p|
+  #bootstrap-wizard-1.col-sm-12
+    .form-bootstrapWizard
+      %ul.bootstrapWizard.form-wizard
+        %li.active{"data-target" => "#step1"}
+          %a{"data-toggle" => "tab", :href => "#tab1"}
+            %span.step 1
+            %span.title Job
+        %li{"data-target" => "#step2"}
+          %a{"data-toggle" => "tab", :href => "#tab2"}
+            %span.step 2
+            %span.title Contract
+        %li{"data-target" => "#step3"}
+          %a{"data-toggle" => "tab", :href => "#tab3"}
+            %span.step 3
+            %span.title Documents & Attachments
+        %li{"data-target" => "#step4"}
+          %a{"data-toggle" => "tab", :href => "#tab4"}
+            %span.step 4
+            %span.title Teams & Commissions
+      .clearfix
+    .tab-content
+      #tab1.tab-pane.active
+        %br/
+        %h3
+          %strong Step 1
+
+          \- Job Details
+          = link_to 'NEW', "#" ,class: 'btn btn-success btn-sm pull-right header-btn hidden-mobile' , "data-toggle": "modal" , "data-target":"#new-contract-company"
+        = render 'company/contracts/partials/job' , f: contract
+      #tab2.tab-pane
+        %br/
+        %h3
+          %strong Step 2
+          \- Contract Detail
+        = render 'company/contracts/partials/contract_and_docs' , f: contract
+      #tab3.tab-pane
+        %br/
+        %h3
+          %strong Step 3
+          \- Documents & Attachments
+        = render 'company/contracts/partials/docs_and_attachments' , f: contract
+      #tab4.tab-pane
+        %br/
+        %h3
+          %strong Step 4
+          \- Teams & Commission
+        = render 'company/contracts/partials/teams_and_commission', f: contract
+      -##tab4.tab-pane
+      -#  %br/
+      -#  %h3
+      -#    %strong Step 4
+      -#    \- Save Form
+      -#  %br/
+      -#  %h1.text-center.text-success
+      -#    %strong
+      -#      %i.fa.fa-check.fa-lg
+      -#      Complete
+      -#  %h4.text-center Click next to finish
+      -#  %br/
+      -#  %br/
+      #tab4.tab-pane
+        %br/
+        %h3
+          %strong Step 4
+          \- Teams & Commission
+        .row
+          .col-sm-12
+            .form-group
+              #custom_fields
+                .col-sm-12
+                  = render 'company/contracts/partials/teams_and_commission', f: contract
+              %strong
+                .links.col-sm-12
+                  = #link_to_add_association '+ Add Custom Field', e, :custom_fields, class: 'text-info pull-right', partial: 'shared/custom_fields'
+                  %br/
+      .form-actions
+        .row
+          .col-sm-12
+            %ul.pager.wizard.no-margin
+              %li.previous.disabled
+                %a.btn.btn-lg.btn-default{:href => "javascript:void(0);"} Previous
+              %li.next
+                %a.btn.btn-lg.txt-color-darken{:href => "javascript:void(0);"} Next
+              %li.pull-right.finish{:style=>"di"}
+                %a.btn.btn-lg.btn-default{:href => "javascript:;"} Finish
+- content_for :scripts do
+  :javascript
+    $( document ).ready(function() {
+        $(".multi-select2-role").select2({placeholder: "Select a Role(s)"});
+         $(".multi-select2-company-docs").select2({placeholder: "Select Document(s)"});
+    });
+    $( document ).ready(function() {
+     //$(".multi-select2-company-docs").select2({placeholder: "Select a Doc(s)"});
+     $('#contract_start_date').datepicker({
+        dateFormat : 'dd/mm/yy'
+      });
+     $('#contract_end_date').datepicker({
+      dateFormat : 'dd/mm/yy'
+     });
+
+    });
+    $('#contract-attachment').on('cocoon:after-insert', function(e, insertedItem) {
+      insertedItem.find('.filepicker-attachment').each(function(i,e){
+        filepicker.constructWidget(e);
+        $(".filepicker-attachment").on('click',function() {
+          $('.fp__overlay').css({'z-index':'99999'})
+        });
+        $('.filepicker-attachment').on('click',function() {
+          $(this).hide();
+        });
+      });
+    });
+    function toggleFields() {
+        if($('#contract_is_commission').val() == "true")
+          $("#contract-commision").show();
+        else
+          $("#contract-commision").hide();
+
+        if($('#contract_commission_type option:selected').val() == "fixed")
+           $(".max-commission").hide();
+        else
+          $(".max-commission").show();
+
+      }
+    $(document).ready(function(){
+      $('.sigPad').signaturePad({drawOnly:true});
+      toggleFields();
+      $(".multi-select2-company-docs").select2({placeholder: "Select a Doc(s)"});
+      $('#contract_start_date').datepicker({
+        dateFormat : 'dd/mm/yy'
+      });
+      $('#contract_end_date').datepicker({
+        dateFormat : 'dd/mm/yy'
+      });
+      $("#contract_is_commission , #contract_commission_type").change(function () {
+        toggleFields();
+      });
+    });

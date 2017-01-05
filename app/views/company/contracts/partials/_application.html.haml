@@ -1,0 +1,36 @@
+.row
+  .col-sm-12
+    %table.table.table-striped.table-forum
+      %tbody
+        %tr
+          %td.pull-left
+            %a{:href => "#"}
+              = image_tag(application.user.photo)
+              %strong= application.user.full_name
+          -#%td
+          -#  on
+          -#  %em Jan 1, 2014 - 12:00am
+        %tr
+          -#%td.text-center{:style => "width: 12%;"}
+          -#  .push-bit
+          -#    %a{:href => "profile.html"}
+          -#      = image_tag(application.user.photo , class: 'offline')
+          -#      -#%img.offline{:alt => "avatar", :src => "img/avatars/5.png", :width => "50"}/
+          -#  %small 473 Posts
+          %td{:style => "width: -12%;"}
+            %p
+              = raw application.cover_letter
+            -# if application.attachments.present?
+              .forum-attachment
+                #{application.attachments.size} attachment(s) —
+                -#%a{:href => "javascript:void(0);"} Download all attachments
+                %ul.list-inline.margin-top-10
+                  - application.attachments.each do |attachment|
+                    %li.well.well-sm.padding-5
+                      %strong= attachment.file_name
+                      %br/
+                      = number_to_human_size(attachment.file_size)
+                      %br/
+                      = link_to 'Download' , attachment.file , download: true
+                      |
+                    = link_to 'View' , attachment.file , target: '_blank'

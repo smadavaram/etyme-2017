@@ -56,7 +56,7 @@ Rails.application.routes.draw do
     get '/' ,       to: 'candidates#dashboard' ,             as: :candidate_dashboard
     resources :addresses,only: [:update]
 
-    resources :job_applications , only: [:index]
+    resources :job_applications , only: [:index,:show]
     resources :job_invitations , only: [:index] do
       post :reject
       get  :show_invitation
@@ -107,46 +107,62 @@ Rails.application.routes.draw do
   # COMPANY ROUTES
   scope module: :company do
 
+    resources :users, only: [:show,:update]
+
     resources :consultants do
       resources :leaves do
         member do
           post :accept
           post :reject
-        end #end of member
-      end #end of leaves
-    end  #end of consultants
+        end
+      end
+    end
     resources :locations
     resources :company_docs
     resources :roles
     resources :admins
     resources :addresses
+    resources :comments         , only: [:create]
     resources :attachments      , only: [:index]
     resources :invoices         , only: [:index]
     resources :job_invitations  , only: [:index]
-    resources :job_applications , only: [:index] do
+    resources :job_applications , only: [:index,:show] do
       member do
         post :accept
         post :reject
         post :short_list
+        post :interview
+        post :hire
       end # End of member
     end
-    resources :contracts        , only: [:index] do
+    resources :contracts        , only: [:index ,:show , :new , :create] do
+      collection do
+        post :nested_create
+      end
+      member do
+        post :update_attachable_doc
+      end
+      post :change_invoice_date
       resources :invoices , only: [:index , :show] do
         member do
           get :download
+          post :accept_invoice
+          post :reject_invoice
         end
       end
     end
     resources :jobs do
-      resources :contracts , except: [:index] do
+      resources :contracts , except: [:index , :show] do
         member do
           post :open_contract , as: :open_contract
           post :update_contract_response        , as: :update_contract_response
         end
-
       end # End of :contracts
 
       resources :job_invitations , except: [:index] do
+        collection do
+          post :create_multiple
+        end
         resources :job_applications , except: [:index]
         member do
           post :accept
@@ -178,10 +194,11 @@ Rails.application.routes.draw do
 
     end
     # get 'configuration' ,   to: 'companies#edit' ,              as: :configuration
-    resources :companies , only: [:update,:show] do
+    resources :companies , only: [:update,:show , :create] do
       collection do
         post :change_owner
         post :get_admins_list , as: :get_admins_list
+        post :update_logo
       end
     end
 

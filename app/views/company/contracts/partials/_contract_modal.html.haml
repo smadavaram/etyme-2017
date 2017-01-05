@@ -6,7 +6,7 @@
           ×
         %h1
           %span.semi-bold Creating New Contract
-          %i.ultra-light #{job_application.company.try(:name)}
+          -#%i.ultra-light #{job_application.company.try(:name)}
           %br/
           %small.text-muted
             %strong #{link_to job_application.try(:user).full_name ,  '#' , target: '_blank'} - #{job.title}
@@ -26,15 +26,15 @@
             .form-group
               %label.col-md-2.control-label Company Docs
               .col-md-10.select
-                = f.select :commission_for_id , options_for_select(current_company.admins.collect { |admin|[admin.full_name.titleize, admin.id] }),{} ,prompt: "Select User" , class: "form-control input-lg"
+                = f.select :company_doc_ids , options_for_select(current_company.company_docs.collect { |doc|[doc.name, doc.id] }),{} ,prompt: "Select Docs" , class: "form-control input-lg" , multiple: true
             .form-group
-              %label.col-md-2.control-label Billing Frequency
+              %label.col-md-2.control-label Invoicing Frequency
               .col-md-4.select
                 = f.select :billing_frequency , Contract.billing_frequencies.map { |key, value| [key.humanize, key] }, {} , {class: "form-control" }
                 -#= select_tag 'contract[billing_frequency]', Contract.billing_frequency.map { |key, value| [key.humanize, key] }  , class: "form-control"
               %label.col-md-2.control-label Time Sheet Frequency
               .col-md-4.select
-                = f.select :time_sheet_frequency , Contract.billing_frequencies.map { |key, value| [key.humanize, value] }, {},{class: "form-control" }
+                = f.select :time_sheet_frequency , Contract.time_sheet_frequencies.map { |key, value| [key.humanize, key] }, {},{class: "form-control" }
                 -#= select_tag 'contract[time_sheet_frequency]', options_for_select(BILLING_FREQUENCY.collect{ |type| [type[0], type[1]] }) , class: "form-control"
             = f.fields_for :contract_terms do |c|
               = c.hidden_field :created_by , value: current_user.id.to_i
@@ -47,36 +47,22 @@
                 .col-md-10
                   =  c.text_area :terms_condition , class: 'form-control tinymce', rows: 6, placeholder: 'Enter Contract Terms & conditions'
                   = tinymce :default
-            .form-group
-              %label.col-md-2.control-label Are you paying any commission for this contract ?
-              .col-md-10.select
-                = f.select :is_commission , [["No", false] , ["Yes" , true]], {} , {class: "form-control" }
-            #contract-commision
-              .form-group
-                %label.col-md-2.control-label Commission Type
-                .col-md-4.select
-                  = f.select :commission_type , Contract.commission_types.map { |key, value| [key.humanize, key] }, {} , {class: "form-control" }
-                %label.col-md-2.control-label Commission For
-                .col-md-4.select
-                  = f.select :commission_for_id , options_for_select(current_company.admins.collect { |admin|[admin.full_name.titleize, admin.id] }) ,{},prompt: "Select Admin" ,class: "form-control"
-              .form-group
-                %label.col-md-2.control-label Commission Amount
-                .col-md-4.select
-                  = f.text_field :commission_amount , class: "form-control" , placeholder: ""
-                %label.col-md-2.control-label Max Commission
-                .col-md-4.select
-                  = f.text_field :max_commission , class: "form-control" , placeholder: ""
+
             -#.form-group
             -#  %label.col-md-2.control-label Note (optional)
             -#  .col-md-10
             -#    = f.text_area :note, class: "form-control", rows: "2" ,placeholder: 'Write your note'
+
             %hr
             .form-group#contract-attachment
-              .col-md-10
+              .col-md-12
                 = f.fields_for :attachments do |attachment|
                   = render 'company/contracts/attachment_fields', f: attachment
                 .links
                   = link_to_add_association 'Add Attachment', f, :attachments,partial:'company/contracts/attachment_fields',class:"btn btn-primary pull-right"
+            %hr
+            .form-group
+              = render partial: 'company/contracts/partials/sent_by_signature_pad',locals: {f: f}
           .modal-footer
             -#= button_tag 'Cancel' , class: 'btn btn-default' , data: {"dismiss": "modal"}
             %button.btn.btn-default{"data-dismiss" => "modal", :type => "button"}
@@ -84,14 +70,7 @@
             = f.submit 'Save' , class: 'btn btn-primary'
 
 :javascript
-  function toggleFields() {
-    if ($('#contract_is_commission').val() == "true")
-      $("#contract-commision").show();
-    else
-      $("#contract-commision").hide();
-  };
   $( document ).ready(function() {
-     toggleFields();
      //$(".multi-select2-company-docs").select2({placeholder: "Select a Doc(s)"});
      $('#contract_start_date').datepicker({
         dateFormat : 'dd/mm/yy'
@@ -99,9 +78,6 @@
       });
      $('#contract_end_date').datepicker({
       dateFormat : 'dd/mm/yy'
-     });
-     $("#contract_is_commission").change(function () {
-      toggleFields();
      });
 
     });

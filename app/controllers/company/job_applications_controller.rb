@@ -4,9 +4,9 @@ class Company::JobApplicationsController < Company::BaseController
   before_action :find_job , only: [:create]
   before_action :find_received_job_invitation , only: [:create]
   before_action :set_job_applications , only: [:index]
-  before_action :find_received_job_application , only: [:accept , :reject , :short_list]
+  before_action :find_received_job_application , only: [:accept , :reject ,:interview,:hire, :short_list,:show]
 
-  add_breadcrumb "JOB APPLICATION", :job_applications_path, options: { title: "JOBS APPLICATION" }
+  add_breadcrumb "JOB APPLICATIONS", :job_applications_path, options: { title: "JOBS APPLICATION" }
 
   def index
 
@@ -16,7 +16,7 @@ class Company::JobApplicationsController < Company::BaseController
     @job_application  = current_company.sent_job_applications.new(job_application_params.merge!(user_id: current_user.id , job_id: @job.id , job_invitation_id: @job_invitation.id))
     respond_to do |format|
       if @job_application.save
-        format.js{ flash.now[:success] = "successfully Accepted." }
+        format.js{ flash.now[:success] = "Successfully Created." }
       else
         format.js{ flash.now[:errors] =  @job_application.errors.full_messages }
       end
@@ -26,7 +26,7 @@ class Company::JobApplicationsController < Company::BaseController
 
   def accept
     respond_to do |format|
-      if @job_application.pending?
+      if @job_application.hired?
         @contract = @job_application.job.contracts.new
         @contract.contract_terms.new
         format.js
@@ -39,39 +39,74 @@ class Company::JobApplicationsController < Company::BaseController
 
   def reject
     respond_to do |format|
-      if @job_application.pending?
+      if @job_application.pending_review?
         if @job_application.rejected!
-          format.js{ flash.now[:success] = "successfully Rejected." }
+          format.html{ flash[:success] = "Successfully Rejected." }
         else
-          format.js{ flash.now[:errors] =  @job_application.errors.full_messages }
+          format.html{ flash[:errors] =  @job_application.errors.full_messages }
         end
       else
-        format.js{ flash.now[:errors] =  ["Request Not Completed."]}
+        format.html{ flash[:errors] =  ["Request Not Completed."]}
       end
 
     end
+    redirect_to :back
   end
 
   def short_list
-    respond_to do |format|
-      if @job_application.pending?
+
+      if @job_application.pending_review?
         if @job_application.short_listed!
-          format.js{ flash.now[:success] = "successfully ShortListed." }
+           flash[:success] = "Successfully ShortListed."
         else
-          format.js{ flash.now[:errors] =  @job_application.errors.full_messages }
+           flash[:errors] =  @job_application.errors.full_messages
         end
       else
-        format.js{ flash.now[:errors] =  ["Request Not Completed."]}
+        flash[:errors] =  ["Request Not Completed."]
+      end
+
+    redirect_to :back
+  end
+  def interview
+    respond_to do |format|
+      if @job_application.short_listed?
+        if @job_application.interviewing!
+          format.html{ flash[:success] = "Successfully Interviewed." }
+        else
+          format.html{ flash[:errors] =  @job_application.errors.full_messages }
+        end
+      else
+        format.html{ flash[:errors] =  ["Request Not Completed."]}
       end
 
     end
+    redirect_to :back
+  end
+  def hire
+    respond_to do |format|
+      if @job_application.interviewing?
+        if @job_application.hired!
+          format.html{ flash[:success] = "Successfully Hired." }
+        else
+          format.html{ flash[:errors] =  @job_application.errors.full_messages }
+        end
+      else
+        format.html{ flash[:errors] =  ["Request Not Completed."]}
+      end
+
+    end
+    redirect_to :back
+  end
+
+  def show
+
   end
 
   private
 
   def set_job_applications
-    @received_job_applications = current_company.received_job_applications || []
-    @sent_job_applications     = current_company.sent_job_applications     || []
+    @received_job_applications = current_company.received_job_applications.order(created_at: :desc).includes(:job ,:user) || []
+    @sent_job_applications     = current_company.sent_job_applications.order(created_at: :desc).includes(:job,:user)     || []
   end
 
   def find_job

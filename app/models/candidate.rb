@@ -3,7 +3,6 @@ class Candidate < User
   after_create :send_welcome_email
   after_create :send_invitation    ,if: Proc.new{|candidate|candidate.invited_by.present?}
   after_create :send_job_invitation, if: Proc.new{ |candidate| candidate.invited_by.present?}
-  after_create :create_address
 
   attr_accessor :job_id
   attr_accessor :expiry
@@ -23,13 +22,6 @@ class Candidate < User
 
 
   private
-
-  def create_address
-    address=Address.new
-    address.save(validate: false)
-    self.primary_address_id = address.try(:id)
-    self.save
-  end
 
   # send welcome email to candidate
   def send_welcome_email

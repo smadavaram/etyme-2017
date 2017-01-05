@@ -135,7 +135,7 @@ module ApplicationHelper
             content: "<i class='fa fa-lg fa-fw fa-home'></i> <span class='menu-item-parent'>" + 'HOME' + "</span>",
         },
         {
-            href: new_consultant_path,
+            href: consultants_path,
             title: 'CONSULTANTS',
             content: "<i class='fa fa-lg fa-fw fa-users'></i> <span class='menu-item-parent'>" + 'CONSULTANTS' + "</span>",
         },
@@ -187,9 +187,9 @@ module ApplicationHelper
             content: "<i class='fa fa-lg fa-fw fa-gear'></i> <span class='menu-item-parent'>" + 'CONFIGURATION' + "</span>",
             children: [
                 {
-                    href: new_admin_path,
-                    title: 'Admin',
-                    content: "<span class='menu-item-parent'> Admins </span>"
+                    href: admins_path,
+                    title: 'Admin(s)',
+                    content: "<span class='menu-item-parent'> Admin(s) </span>"
                 },
                 {
                     href: attachments_path,

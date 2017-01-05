@@ -58,7 +58,28 @@ class Consultant < User
   after_create :insert_attachable_docs
   after_create :send_invitation
   before_validation  :convert_max_working_hours_to_seconds
+  before_validation :hourly_rate
 
+  def salaried?
+    self.consultant_profile.salaried?
+  end
+
+  def hourly_rate
+    if self.consultant_profile.salaried?
+      self.consultant_profile.salary
+    else
+      self.consultant_profile.salary
+    end
+  end
+
+
+  def hourly_rate
+    if self.consultant_profile.salaried?
+      return (self.consultant_profile.salary)/((self.max_working_hours)/3600.0)*20
+    else
+      return self.consultant_profile.salary
+    end
+  end
 
   private
 
@@ -79,4 +100,5 @@ class Consultant < User
   def convert_max_working_hours_to_seconds
     self.max_working_hours = (self.temp_working_hours.to_f * 3600).to_i
   end
+
 end

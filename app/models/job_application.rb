@@ -1,6 +1,6 @@
 class JobApplication < ActiveRecord::Base
 
-  enum status: [ :pending ,:accepted  , :rejected , :short_listed ]
+  enum status: [ :pending_review ,:rejected , :short_listed,:interviewing,:hired ]
   enum application_type: [:direct , :candidate_direct , :vendor_direct , :invitation]
 
   belongs_to :job_invitation
@@ -9,6 +9,7 @@ class JobApplication < ActiveRecord::Base
   belongs_to :company
   has_one    :contract
   has_many   :custom_fields ,as: :customizable
+  has_many   :comments ,as: :commentable
 
   validates :cover_letter , presence: true
   # validates :application_type, inclusion: { in: application_types.keys }

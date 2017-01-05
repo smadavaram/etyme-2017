@@ -7,7 +7,7 @@
     %meta{:content => "", :name => "description"}/
     %meta{:content => "", :name => "author"}/
     %meta{:content => "width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no", :name => "viewport"}/
-    = stylesheet_link_tag 'company', media: 'screen'
+    = stylesheet_link_tag 'candidate', media: 'screen'
 
     / FAVICONS
     = favicon_link_tag 'favicon/favicon.ico'
@@ -48,7 +48,7 @@
     / ==================================================
     / PACE LOADER - turn this on if you want ajax loading to show (caution: uses lots of memory on iDevices)
     -#= javascript_include_tag 'plugin/pace/pace.min', 'data-pace-options' => '{ "restartOnRequestAfter": true }'
-    = javascript_include_tag 'company'
+    = javascript_include_tag 'candidate'
     = filepicker_js_include_tag
     = render partial: 'shared/flash_messages'
     /[if IE 8]

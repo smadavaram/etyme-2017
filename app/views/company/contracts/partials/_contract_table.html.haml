@@ -3,32 +3,23 @@
     %thead
       %tr
         %th{:style => "width:30px"} Pic
-        %th Recipient Name
-        %th Company
-        %th Job
-        %th Email / Username
+        %th Title
+        %th Company/Candidate
         %th Created By
-        %th Phone
         %th Expiry
         %th Status
         %th
     %tbody
       - data.each do |contract|
         %tr{class: "#{set_background_status_color(contract.status)}"}
-          %td= image_tag contract.try(:job_application).try(:job_invitation).try(:recipient).try(:recipient).try(:photo), alt: '', width: '20'
-          %td=# link_to contract.try(:job_application).try(:job_invitation).try(:recipient).try(:recipient).try(:full_name), '#'
-          %td= #link_to contract.try(:job_application).try(:job_invitation).try(:recipient).try(:recipient).try(:company.name) , '#'
-          %td=# link_to contract.job.title , '#'
-          %td
-            = #invitation.recipient.email
-            %a.pull-right{:href => "javascript:void(0);"}
-              %i.fa.fa-key
+          %td=image_tag show_recipient_picture(contract.contractable), alt: '', width: '20'
+          %td=link_to contract.title ,contract_path(contract)
+          %td= link_to show_recipient_name(contract.contractable)
           %td= link_to contract.created_by.full_name , '#'
-          %td= #contract.job_application.job_invitation.recipient.recipient.phone
-          %td=# invitation.expiry
+          %td= contract.end_date
           %td
             %span.label.label-success= contract.status
-          %td= link_to 'View Invoices' , contract.accepted? ? contract_invoices_path(contract) : '#' , target: '_blank'
+          %td= link_to 'View' , contract_path(contract), target: '_blank'
   -#%tr.danger
   -#  %td= image_tag 'avatars/male.png', alt: '', width: '20'
   -#  %td Cleo

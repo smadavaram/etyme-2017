@@ -4,3 +4,4 @@
 - if flash[:success].present?
     $('#job-invite-#{@job_invitation.id}').modal('toggle');
     flash_success("#{flash[:success]}");
+    window.location.reload();

@@ -1,0 +1,6 @@
+%li
+  = image_tag comment.created_by.photo , class: 'online'
+  %span.pull-right.font-xs.text-muted
+    %i #{time_ago_in_words(comment.created_at)} age
+  %span.name= comment.created_by.full_name
+  = comment.body

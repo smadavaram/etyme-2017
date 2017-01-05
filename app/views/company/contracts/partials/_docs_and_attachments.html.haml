@@ -1,0 +1,12 @@
+%fieldset
+  .form-group
+    %label.col-md-2.control-label Company Docs
+    .col-md-10.select
+      = f.select :company_doc_ids , options_for_select(current_company.company_docs.collect { |doc|[doc.name, doc.id] }),{} ,prompt: "Select Docs" , class: "form-control input-lg" , multiple: true
+  %hr
+  .form-group#contract-attachment
+    .col-md-12
+      = f.fields_for :attachments do |attachment|
+        = render 'company/contracts/attachment_fields', f: attachment
+      .links
+        = link_to_add_association 'Add Attachment', f, :attachments,partial:'company/contracts/attachment_fields',class:"btn btn-primary pull-right"

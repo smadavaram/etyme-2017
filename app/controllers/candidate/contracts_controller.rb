@@ -18,7 +18,7 @@ class Candidate::ContractsController < Candidate::BaseController
     status = params[:status] == "reject" ? 2 : params[:status] == "accept" ? 1 : nil
     respond_to do |format|
       if @contract.pending?
-        if @contract.update_attributes(respond_by_id: current_candidate.id , responed_at: Time.now , status: status)
+        if @contract.update_attributes(contract_params.merge!(respond_by_id: current_candidate.id , responed_at: Time.now , status: status))
           format.js{ flash[:success] = "successfully Submitted." }
         else
           format.js{ flash[:errors] =  @contract.errors.full_messages }
@@ -32,10 +32,15 @@ class Candidate::ContractsController < Candidate::BaseController
   private
 
   def set_contracts
-    @received_contracts=current_candidate.contracts.paginate(page: params[:page], per_page: 30)
+    @received_contracts = current_candidate.contracts.paginate(page: params[:page], per_page: 30)
   end
   def contract_params
-    params.require(:contract).permit([:job_id  , :billing_frequency, :time_sheet_frequency, :job_application_id , :start_date , :end_date  , :message_from_hiring  ,:status ,company_doc_ids: [] , contract_terms_attributes: [:id, :created_by, :contract_id , :status , :terms_condition ,:rate , :note , :_destroy]])
+    params.require(:contract).permit([:job_id  , :billing_frequency,
+                                      :time_sheet_frequency, :job_application_id ,
+                                      :response_from_vendor,
+                                      :start_date , :end_date  , :message_from_hiring ,
+                                      :received_by_signature,:received_by_name,:sent_by_signature,:sent_by_name,
+                                      :status ,company_doc_ids: [] , contract_terms_attributes: [:id, :created_by, :contract_id , :status , :terms_condition ,:rate , :note , :_destroy]])
   end
 
   def find_contract

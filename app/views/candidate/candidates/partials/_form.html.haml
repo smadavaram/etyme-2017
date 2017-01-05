@@ -2,14 +2,11 @@
   -#= f.hidden_field :job_id , value: params[:job_id]
   = f.hidden_field :invitation_type , value: "by_email"
   .row
-    .col-md-12
-      .form-group
-        = f.text_field :first_name , class: 'form-control' , placeholder: 'Enter First Name' , required: true
-  .row
-    .col-md-12
-      .form-group
-        = f.text_field :last_name , class: 'form-control' , placeholder: 'Enter Last Name' , required: true
-  .row
+    .col-md-6
+      = f.text_field :first_name , class: 'form-control' , placeholder: 'Enter First Name' , required: true
+    .col-md-6
+      = f.text_field :last_name , class: 'form-control' , placeholder: 'Enter Last Name' , required: true
+  .row.margin-top-10
     .col-md-12
       .form-group
         = f.email_field :email , class: 'form-control' , placeholder: 'Enter Email Address' , required: true

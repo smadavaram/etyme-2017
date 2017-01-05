@@ -1,2 +1,12 @@
 module Company::JobApplicationsHelper
+  def job_application_top_links(app)
+    # status: [ :pending_review ,:rejected , :short_listed,:interviewing,:hired ]
+    btn = ""
+    btn += link_to 'Short list' ,short_list_job_application_path(app) , method: :post   ,  class: "btn btn-md  btn-primary mt-12 margin-right-5 #{!app.pending_review? ? 'disabled' : "" }"
+    btn += link_to 'Reject' , reject_job_application_path(app), method: :post  , class: "btn btn-md  btn-primary mt-12 margin-right-5 #{!app.pending_review? ? 'disabled' : "" }"
+    btn += link_to 'Interview' , interview_job_application_path(app) , method: :post  , class: "btn btn-md  btn-primary mt-12 margin-right-5 #{!app.short_listed? ? 'disabled' : "" }"
+    btn += link_to 'Hire' , hire_job_application_path(app) , method: :post  ,  class:  " btn btn-md  btn-primary mt-12 margin-right-5 #{!app.interviewing? ? 'disabled' : "" }"
+    btn += link_to 'Start Contract' , accept_job_application_path(app) , method: :post , remote: true ,   class: "contract btn btn-md btn-default mt-12 margin-right-5 #{  !app.hired? || app.contract.present? ? 'disabled' : "" }"
+    btn.to_s
+  end
 end

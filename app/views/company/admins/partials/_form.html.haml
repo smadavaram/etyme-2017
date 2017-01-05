@@ -1,6 +1,5 @@
-= simple_form_for @admin ,html:{ class:'form-horizontal'} do |f|
+= simple_form_for current_company.admins.new ,html:{ class:'form-horizontal'} do |f|
   %fieldset
-    -#%legend Company Jobs
     .form-group
       %label.col-md-2.control-label
         First Name
@@ -34,19 +33,7 @@
   .form-actions
     .row
       .col-md-12
-        = button_tag 'Cancel' , class: 'btn btn-default'
+        = button_tag 'Cancel' , class: 'btn btn-default' , "data-dismiss": "modal"
         -#%button.btn.btn-default{:type => "submit"}
         -#  Cancel
         = f.submit "Submit", class: 'btn btn-primary'
-
-- content_for :scripts do
-  :javascript
-    // DO NOT REMOVE : GLOBAL FUNCTIONS!
-    $(document).ready(function() {
-      pageSetUp();
-      // Job End Date
-      $('#job_end_date , #job_start_date').datepicker({
-        dateFormat : 'dd/mm/yy'
-
-      });
-    });

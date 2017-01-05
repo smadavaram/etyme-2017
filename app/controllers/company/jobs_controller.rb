@@ -1,7 +1,7 @@
 class Company::JobsController < Company::BaseController
 
   before_action :set_company_job, only: [:show, :edit, :update, :destroy , :send_invitation]
-  before_action :set_locations  , only: [:new , :edit , :create,:show]
+  before_action :set_locations  , only: [:new , :index, :edit , :create,:show]
   before_action :set_preferred_vendors , only: [:send_invitation]
   before_action :set_candidates,only: :send_invitation
 
@@ -9,7 +9,7 @@ class Company::JobsController < Company::BaseController
 
 
   def index
-    @company_jobs = current_company.jobs || []
+    @company_jobs = current_company.jobs.not_system_generated.order(created_at: :desc) || []
   end
 
   def show
@@ -67,7 +67,7 @@ class Company::JobsController < Company::BaseController
 
   private
     def set_candidates
-      @candidates=Candidate.all
+      @candidates = Candidate.all
     end
     def set_company_job
       @company_job = current_company.jobs.find_by_id(params[:id]) || []
@@ -83,7 +83,7 @@ class Company::JobsController < Company::BaseController
     end
 
     def company_job_params
-      params.require(:job).permit([:title,:description,:location_id, :is_public , :start_date , :end_date , :tag_list ,custom_fields_attributes:
+      params.require(:job).permit([:title,:description,:location_id,:job_category, :is_public , :start_date , :end_date , :tag_list ,custom_fields_attributes:
           [
               :id,
               :name,

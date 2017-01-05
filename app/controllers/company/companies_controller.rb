@@ -9,6 +9,21 @@ class Company::CompaniesController < Company::BaseController
   def edit
   end
 
+
+  def create
+    @company = Company.new(create_params)
+    respond_to do |format|
+      if @company.save
+        format.html {flash[:success] = "successfully Send."}
+        format.js{ flash.now[:success] = "successfully Send." }
+      else
+        format.js{ flash.now[:errors] =  @company.errors.full_messages }
+        format.html{ flash[:errors] =  @company.errors.full_messages }
+      end
+    end
+    redirect_to :back
+  end
+
   def update
     current_company.update_attributes(company_params)
     flash[:success]="Company Updated Successfully"
@@ -24,6 +39,10 @@ class Company::CompaniesController < Company::BaseController
 
     #pagination
     # @company_docs = current_company.company_docs.paginate(:page => params[:page], :per_page => 15)
+  end
+  def update_logo
+    render json: current_company.update_attribute(:logo, params[:photo])
+    flash.now[:success] = "Logo Successfully Updated"
   end
 
   def get_admins_list
@@ -49,4 +68,7 @@ class Company::CompaniesController < Company::BaseController
       params.require(:company).permit(:name ,:company_type, :skill_list , :website,:logo,:description,:phone,:email,:linkedin_url,:facebook_url,:twitter_url,:google_url,:is_activated,:status,:time_zone,:tag_line, owner_attributes:[:id, :type ,:first_name, :last_name ,:email,:password, :password_confirmation],locations_attributes:[:id,:name,:status,  address_attributes:[:id,:address_1,:country,:city,:state,:zip_code] ] )
     end
 
+    def create_params
+      params.require(:company).permit([:name ,owner_attributes:[:id, :type  , :first_name, :last_name ,:email] , invited_by_attributes: [:invited_by_company_id , :user_id]])
+    end
 end
