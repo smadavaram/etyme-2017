@@ -40,4 +40,5 @@
  *= require custom
  *= require candidate/jobs
  *= require company_override
+ *= require global
  */
