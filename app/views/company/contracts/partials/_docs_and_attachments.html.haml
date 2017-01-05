@@ -14,9 +14,8 @@
         = link_to_add_association 'Add Attachment', f, :attachments,partial:'company/contracts/attachment_fields',class:"btn btn-primary pull-right"
 :javascript
   $( document ).ready(function() {
-           $(".multi-select2-company-docs").select2({
-           placeholder: "Select a Doc(s)",
-            tokenSeparators: [',', ' ']
-
-           })
-      });
+     $(".multi-select2-company-docs").select2({
+     placeholder: "Select a Doc(s)",
+      tokenSeparators: [',', ' ']
+     });
+  });

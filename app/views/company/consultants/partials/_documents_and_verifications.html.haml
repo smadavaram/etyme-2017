@@ -9,10 +9,9 @@
         Attach company documents like Contracts, Company Letter, Hiring Manifesto, W4, W9 Forms and etc.
 - content_for :scripts do
   :javascript
-      $( document ).ready(function() {
-           $(".multi-select2-company-docs").select2({
-           placeholder: "Select a Doc(s)",
-            tokenSeparators: [',', ' ']
-
-           })
-      });
+    $( document ).ready(function() {
+       $(".multi-select2-company-docs").select2({
+       placeholder: "Select a Doc(s)",
+        tokenSeparators: [',', ' ']
+       });
+    });

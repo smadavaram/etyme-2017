@@ -80,10 +80,10 @@
                   %a.btn.btn-lg.btn-default{:href => "javascript:;"} Finish
 - content_for :scripts do
   :javascript
-      $( document ).ready(function() {
-          $(".multi-select2-role").select2({
-          placeholder: "Select a Role(s)",
-          tokenSeparators: [',', ' ']
-          })
-           // $(".multi-select2-company-docs").select2({placeholder: "Select Document(s)"});
+    $( document ).ready(function() {
+      $(".multi-select2-role").select2({
+      placeholder: "Select a Role(s)",
+      tokenSeparators: [',', ' ']
       });
+       // $(".multi-select2-company-docs").select2({placeholder: "Select Document(s)"});
+    });
