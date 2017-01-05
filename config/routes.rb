@@ -127,6 +127,7 @@ Rails.application.routes.draw do
     resources :invoices         , only: [:index]
     resources :job_invitations  , only: [:index]
     resources :job_applications , only: [:index,:show] do
+      resources :consultants , only: [:new , :create]
       member do
         post :accept
         post :reject

@@ -1,4 +1,4 @@
-= form_for @consultant , html: {id: 'wizard-1',class:"form-horizontal" ,novalidate: "novalidate" } do |e|
+= form_for @consultant , url: params.has_key?(:job_application_id) ? job_application_consultants_path(@job_application) : consultants_path ,html: {id: 'wizard-1',class:"form-horizontal new_consultant" ,novalidate: "novalidate" } do |e|
   = e.fields_for :consultant_profile do |p|
     #bootstrap-wizard-1.col-sm-12
       .form-bootstrapWizard
@@ -26,7 +26,7 @@
           %h3
             %strong Step 1
             \- Basic Information
-          = render partial: 'company/consultants/partials/basic_information' , locals: {e: e}
+          = render  'company/consultants/partials/basic_information' , e: e
         #tab2.tab-pane
           %br/
           %h3
@@ -38,7 +38,7 @@
           %h3
             %strong Step 3
             \- Documents & Verification
-          = render partial: 'company/consultants/partials/documents_and_verifications' , locals: {e: e}
+          = render  'company/consultants/partials/documents_and_verifications' ,  e: e
         -##tab4.tab-pane
         -#  %br/
         -#  %h3
