@@ -125,8 +125,9 @@
                 #teams.tab-pane.fade.in
                 #application.tab-pane.fade.active.in
                   = render 'company/contracts/partials/application' , application: @contract.job_application
-                #comments.tab-pane.fade
-                  = render 'company/contracts/partials/comments' , application: @contract.job_application
+                - if not @contract.job_application_id.nil?
+                  #comments.tab-pane.fade
+                    = render 'company/contracts/partials/comments' , application: @contract.job_application
                 -if @contract.invoices?
                   #invoices.tab-pane.fade.in
                     %table#dt_basic.table.table-striped.table-bordered.table-hover{:width => "100%"}

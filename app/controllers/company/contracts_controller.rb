@@ -17,7 +17,7 @@ class Company::ContractsController < Company::BaseController
   def new
     @contract = current_company.sent_contracts.new
     # @contract.build_receiver_company.build_owner(type: 'Admin')
-    @contract.build_job
+    # @contract.build_job
     @contract.contract_terms.new
     @new_company = Company.new
     @new_company.build_owner
@@ -35,7 +35,7 @@ class Company::ContractsController < Company::BaseController
         format.html{ flash[:errors] =  @contract.errors.full_messages }
       end
     end
-    redirect_to :back
+    redirect_to contract_path(@contract)
   end
 
   def open_contract
@@ -108,14 +108,14 @@ class Company::ContractsController < Company::BaseController
   end
 
   def nested_contract_params
-    params.require(:contract).permit([:is_commission , :contractable_type , :contractable_id,
+    params.require(:contract).permit([:is_commission , :contractable_type , :contractable_id,:job_id,
                                       :received_by_signature,:received_by_name,:sent_by_signature,:sent_by_name,
                                       :commission_type,:commission_amount , :max_commission , :commission_for_id ,
                                       :billing_frequency, :time_sheet_frequency, :assignee_id ,
                                       :job_application_id , :start_date , :end_date  , :message_from_hiring  ,:status ,company_doc_ids: [] ,
                                       contract_terms_attributes: [:id, :created_by, :contract_id , :status , :terms_condition ,:rate , :note , :_destroy],
                                       attachments_attributes:[:id,:file,:file_name,:file_size,:file_type,:attachable_type,:attachable_id,:_destroy],
-                                       job_attributes: [:title]
+
                                      ])
   end
 
@@ -123,7 +123,7 @@ class Company::ContractsController < Company::BaseController
     if @job.present? && params[:job_id]
       contract_params.merge!(job_id: @job.id , created_by_id: current_user.id)
     else
-      nested_contract_params.merge!(respond_by_id: current_user.id, created_by_id: current_user.id, status: Contract.statuses["accepted"] ,job_attributes: nested_contract_params[:job_attributes].merge!(is_public: false , company_id: current_company.id,created_by_id: current_user.id , is_system_generated: true))
+      nested_contract_params.merge!(respond_by_id: current_user.id, created_by_id: current_user.id, status: Contract.statuses["accepted"])
     end
   end
 

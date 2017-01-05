@@ -247,4 +247,12 @@ module ApplicationHelper
     format("%02d:%02d:%02d", hours, minutes, seconds)
   end
 
+  def digg_pagination data
+    digg = ""
+    digg = "<div class='text-center'><div class='digg_pagination'><hr/>"
+    digg += will_paginate(data).to_s
+    digg += "</div></div>"
+    raw(digg)
+  end
+
 end

@@ -1,8 +1,10 @@
 %fieldset
   .form-group
-    %label.col-md-2.control-label Company Docs
-    .col-md-10.select
-      = f.select :company_doc_ids , options_for_select(current_company.company_docs.collect { |doc|[doc.name, doc.id] }),{} ,prompt: "Select Docs" , class: "form-control input-lg" , multiple: true
+    %label.col-md-2.control-label
+      Documents
+      %sup.text-danger *
+    .col-md-10
+      = f.select :company_doc_ids , options_for_select(current_company.company_docs.collect { |doc|[doc.name, doc.id] }),{} ,prompt: "Select Docs" , class: "form-control input-lg multi-select2-company-docs" , multiple: true , style:"width: 100%;"
   %hr
   .form-group#contract-attachment
     .col-md-12
@@ -10,3 +12,11 @@
         = render 'company/contracts/attachment_fields', f: attachment
       .links
         = link_to_add_association 'Add Attachment', f, :attachments,partial:'company/contracts/attachment_fields',class:"btn btn-primary pull-right"
+:javascript
+  $( document ).ready(function() {
+           $(".multi-select2-company-docs").select2({
+           placeholder: "Select a Doc(s)",
+            tokenSeparators: [',', ' ']
+
+           })
+      });

@@ -154,6 +154,8 @@
 
 //= require custom
 
+//= require global
+
 //= require highcharts.js
 //= require highcharts-exporting.js
 
