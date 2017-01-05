@@ -44,6 +44,7 @@ Rails.application.routes.draw do
 
   get '/states/:country', to: 'application#states'
   get '/cities/:state/:country', to: 'application#cities'
+
   scope module: :candidate do
 
     resources :candidates ,path: :candidate ,only: [:update]
@@ -53,6 +54,8 @@ Rails.application.routes.draw do
 
 
   namespace :candidate do
+    resources :educations, only:[:create,:update]
+    resources :experiences, only: [:create,:update]
     get '/' ,       to: 'candidates#dashboard' ,             as: :candidate_dashboard
     resources :addresses,only: [:update]
 

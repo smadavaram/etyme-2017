@@ -35,6 +35,11 @@
             %i.fa.fa-lg.fa-location-arrow
             %span.hidden-mobile.hidden-tablet
               Address
+        %li
+          %a{"aria-expanded" => "false", "data-toggle" => "tab", :href => "#hr3"}
+            %i.fa.fa-lg.fa-graduation-cap
+            %span.hidden-mobile.hidden-tablet
+              Educations
       %span.jarviswidget-loader
         %i.fa.fa-refresh.fa-spin
     / widget div
@@ -56,6 +61,12 @@
             -#  Add Location
             .tabbable.tabs-below
               =render partial: 'candidate/candidates/partials/location',locals:{address: current_candidate.address}
+          #hr3.tab-pane
+            %button.btn.btn-primary.pull-right.margin-bottom-5.margin-right-10{"data-target" => "#education", "data-toggle" => "modal"}
+              New
+            .tabbable.tabs-below
+              = render partial: 'candidate/educations/partials/education_details',locals: {user: current_candidate}
+            = render partial: 'candidate/educations/partials/education_fields' ,locals: {user: current_candidate}
 
 
 - content_for :scripts do
@@ -68,6 +79,12 @@
        $(".best_in_place").best_in_place();
        $(".best_in_place").on('change', function(event) {
           flash_success('Change Saved!');
+      });
+      $('#education_start_year').datepicker({
+        dateFormat : 'dd/mm/yy'
+      });
+      $('#education_completion_year').datepicker({
+        dateFormat : 'dd/mm/yy'
       });
     });
     function employeeLogoUpload(event){
@@ -85,7 +102,7 @@
     }
     $.datepicker.setDefaults({
         changeYear: true,
-        yearRange: "1900:2016",
+        yearRange: "1900:2017",
         showMonthAfterYear: true,
         showButtonPanel: true,
         showAnim: "fold",
@@ -97,4 +114,5 @@
     $(".edit_in_line").css("display","none");
     $('td').on('mouseover mouseout',function(){
     $(this).find('.editprofile-pic_in_line').toggle();
+
     });

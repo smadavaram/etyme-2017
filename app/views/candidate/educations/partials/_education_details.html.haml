@@ -1,0 +1,37 @@
+
+.tab-content.padding-10
+  %table.table.table-striped
+    %thead
+      %tr
+        %th{style:'width:20%'}
+          Title
+        %th{style:'width:20%'}
+          From
+        %th{style:'width:20%'}
+          To
+        %th{style:'width:20%'}
+          Description
+        -#%th{style:'width:20%'}
+        -#  Zipcode
+    - user.educations.each do |edu|
+      - next if edu.new_record?
+      %tbody
+        %tr
+          %td
+            = best_in_place edu, :degree_title, :as => :input, :place_holder => "Click me to add content!",url:candidate_education_path(edu)
+          %td
+            = best_in_place edu, :start_year, :as => :date,url:candidate_education_path(edu),class: 'education_start_year'
+          %td
+            = best_in_place edu,:completion_year,:as => :date, url:candidate_education_path(edu),class: 'education_completion_year'
+          %td
+            = best_in_place edu,:description, :as => :textarea ,url:candidate_education_path(edu), :place_holder => "Click me to add content!"
+          -#%td
+          -#  = best_in_place location.address,:city, :as => :select, :collection => CS.cities(location.address.state,location.address.country).sort.map{|k,v|[k,k]}
+          -#
+          -#%td
+          -#  = best_in_place location.address,:zip_code, :as => :input, :place_holder => "Click me to add content!"
+
+
+
+
+
