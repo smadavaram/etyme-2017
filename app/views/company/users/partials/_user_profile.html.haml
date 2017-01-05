@@ -1,55 +1,57 @@
-.col-lg-3.col-md-3
-  .panel-body.status.profile-margin
-    .text
-      %div.profile-hover
-        %p.imgDescription Change Image
-        %div.pictureContainer
-          = filepicker_field_tag "" ,class: "hidden file", onchange:"employeeLogoUpload(event)","data-fp-crop-ratio" => "2/2"
-          -if(user.photo.present?)
-            = image_tag user.photo,  style:"width:100px;height:100px", fit: 'clip',:class =>"profile-pic image-setting"
+#content
+  .row
+    .col-sm-12.col-md-12.col-lg-3
+      .panel-body.status.profile-margin
+        .text
+          %div.profile-hover
+            %p.imgDescription.col-sm-offset-4  Change Image
+            %div.pictureContainer.col-md-offset-2
+              = filepicker_field_tag "" ,class: "hidden file", onchange:"employeeLogoUpload(event)","data-fp-crop-ratio" => "2/2"
+              -if(user.photo.present?)
+                = image_tag user.photo,  style:"width:100px;height:100px", fit: 'clip',:class =>"profile-pic image-setting"
 
-          -else
-            = image_tag image_path('default_user.png'),  style: "width:100px;height:100px", fit: 'clip',:class =>"profile-pic image-setting"
+              -else
+                = image_tag image_path('default_user.png'),  style: "width:100px;height:100px", fit: 'clip',:class =>"profile-pic image-setting"
 
-    %ul.links
-      %li
+        %ul.links
+          %li
 
-      %li
-        %a{:href => "javascript:void(0);"}
+          %li
+            %a{:href => "javascript:void(0);"}
 
-      %li
-        %a{:href => "javascript:void(0);"}
+          %li
+            %a{:href => "javascript:void(0);"}
 
 
 
-.col-lg-9.col-md-9
-  #wid-id-7#content.jarviswidget.jarviswidget-color-teal{"data-widget-attstyle" => "jarviswidget-color-teal", "data-widget-custombutton" => "false", "data-widget-editbutton" => "false", "data-widget-fullscreenbutton" => "false", "data-widget-sortable" => "false", :role => "widget", :style => ""}
-    %header{:role => "heading"}
-      %ul.nav.nav-tabs.pull-left.in#myTab
-        %li.active
-          %a{"aria-expanded" => "true", "data-toggle" => "tab", :href => "#hr1"}
-            %i.fa.fa-lg.fa-info-circle
-            %span.hidden-mobile.hidden-tablet Basic Info
-        %li
-          %a{"aria-expanded" => "false", "data-toggle" => "tab", :href => "#hr2"}
-            %i.fa.fa-lg.fa-location-arrow
-            %span.hidden-mobile.hidden-tablet
-              Address
-      %span.jarviswidget-loader
-        %i.fa.fa-refresh.fa-spin
-    / widget div
-    %div{:role => "content"}
-      .jarviswidget-editbox
+    .col-sm-12.col-md-12.col-lg-9
+      #wid-id-7.jarviswidget.jarviswidget-color-teal{"data-widget-attstyle" => "jarviswidget-color-teal", "data-widget-custombutton" => "false", "data-widget-editbutton" => "false", "data-widget-fullscreenbutton" => "false", "data-widget-sortable" => "false", :role => "widget", :style => ""}
+        %header{:role => "heading"}
+          %ul.nav.nav-tabs.pull-left.in#myTab
+            %li.active
+              %a{"aria-expanded" => "true", "data-toggle" => "tab", :href => "#hr1"}
+                %i.fa.fa-lg.fa-info-circle
+                %span.hidden-mobile.hidden-tablet Basic Info
+            %li
+              %a{"aria-expanded" => "false", "data-toggle" => "tab", :href => "#hr2"}
+                %i.fa.fa-lg.fa-location-arrow
+                %span.hidden-mobile.hidden-tablet
+                  Address
+          %span.jarviswidget-loader
+            %i.fa.fa-refresh.fa-spin
+        / widget div
+        %div{:role => "content"}
+          .jarviswidget-editbox
 
-      .widget-body
-        .tab-content
-          #hr1.tab-pane.active
-            .tabbable.tabs-below
-            =render partial: 'company/users/partials/basic_info',locals: {user: user}
+          .widget-body
+            .tab-content
+              #hr1.tab-pane.active
+                .tabbable.tabs-below
+                =render partial: 'company/users/partials/basic_info',locals: {user: user}
 
-          #hr2.tab-pane
-            .tabbable.tabs-below
-              =render partial: 'company/users/partials/location',locals:{user:current_user,address:current_user.address}
+              #hr2.tab-pane
+                .tabbable.tabs-below
+                  =render partial: 'company/users/partials/location',locals:{user:current_user,address:current_user.address}
 
 
 - content_for :scripts do
