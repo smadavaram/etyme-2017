@@ -25,12 +25,6 @@
             = best_in_place edu,:completion_year,:as => :date, url:candidate_education_path(edu),class: 'education_completion_year'
           %td
             = best_in_place edu,:description, :as => :textarea ,url:candidate_education_path(edu), :place_holder => "Click me to add content!"
-          -#%td
-          -#  = best_in_place location.address,:city, :as => :select, :collection => CS.cities(location.address.state,location.address.country).sort.map{|k,v|[k,k]}
-          -#
-          -#%td
-          -#  = best_in_place location.address,:zip_code, :as => :input, :place_holder => "Click me to add content!"
-
 
 
 

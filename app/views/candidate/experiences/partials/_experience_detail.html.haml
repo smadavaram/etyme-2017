@@ -1,0 +1,28 @@
+
+.tab-content.padding-10
+  %table.table.table-striped
+    %thead
+      %tr
+        %th{style:'width:20%'}
+          Title
+        %th{style:'width:20%'}
+          From
+        %th{style:'width:20%'}
+          To
+        %th{style:'width:20%'}
+          Description
+    -#%th{style:'width:20%'}
+    -#  Zipcode
+    - user.experiences.each do |experience|
+      - next if experience.new_record?
+      %tbody
+        %tr
+          %td
+            = best_in_place experience, :experience_title, :as => :input, :place_holder => "Click me to add content!",url: candidate_experience_path(experience)
+          %td
+            = best_in_place experience, :start_date, :as => :date,url: candidate_experience_path(experience)
+          %td
+            = best_in_place experience,:end_date,:as => :date, url: candidate_experience_path(experience)
+          %td
+            = best_in_place experience,:description, :as => :textarea ,url: candidate_experience_path(experience), :place_holder => "Click me to add content!"
+

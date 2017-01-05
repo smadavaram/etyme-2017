@@ -40,6 +40,11 @@
             %i.fa.fa-lg.fa-graduation-cap
             %span.hidden-mobile.hidden-tablet
               Educations
+        %li
+          %a{"aria-expanded" => "false", "data-toggle" => "tab", :href => "#hr4"}
+            %i.fa.fa-lg
+            %span.hidden-mobile.hidden-tablet
+              Experience
       %span.jarviswidget-loader
         %i.fa.fa-refresh.fa-spin
     / widget div
@@ -65,8 +70,15 @@
             %button.btn.btn-primary.pull-right.margin-bottom-5.margin-right-10{"data-target" => "#education", "data-toggle" => "modal"}
               New
             .tabbable.tabs-below
-              = render partial: 'candidate/educations/partials/education_details',locals: {user: current_candidate}
-            = render partial: 'candidate/educations/partials/education_fields' ,locals: {user: current_candidate}
+              = render partial: 'candidate/educations/partials/education_detail',locals: {user: current_candidate}
+            = render partial: 'candidate/educations/partials/form' ,locals: {user: current_candidate}
+          #hr4.tab-pane
+            %button.btn.btn-primary.pull-right.margin-bottom-5.margin-right-10{"data-target" => "#experience", "data-toggle" => "modal"}
+              New
+            .tabbable.tabs-below
+              = render partial: 'candidate/experiences/partials/experience_detail',locals: {user: current_candidate}
+            = render partial: 'candidate/experiences/partials/form' ,locals: {user: current_candidate}
+
 
 
 - content_for :scripts do
@@ -86,6 +98,13 @@
       $('#education_completion_year').datepicker({
         dateFormat : 'dd/mm/yy'
       });
+      $('#experience_start_date').datepicker({
+        dateFormat : 'dd/mm/yy'
+      });
+      $('#experience_end_date').datepicker({
+        dateFormat : 'dd/mm/yy'
+      });
+
     });
     function employeeLogoUpload(event){
       photo_url = event.fpfile.url
