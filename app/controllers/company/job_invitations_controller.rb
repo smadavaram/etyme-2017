@@ -57,8 +57,8 @@ class Company::JobInvitationsController < Company::BaseController
   private
 
     def set_job_invitations
-      @received_job_invitations      = current_company.received_job_invitations.order(created_at: :desc).includes(:created_by ,:recipient,job: [:created_by , :location , :company]).paginate(page: params[:page], per_page: 10) || []
-      @sent_job_invitations          = current_company.sent_job_invitations.order(created_at: :desc).includes(:created_by ,:recipient,job: [:created_by , :location , :company]).paginate(page: params[:page], per_page: 10) || []
+      @received_job_invitations      = current_company.received_job_invitations.order(created_at: :desc).includes(:created_by ,:recipient,job: [:created_by  , :company]).paginate(page: params[:page], per_page: 10) || []
+      @sent_job_invitations          = current_company.sent_job_invitations.order(created_at: :desc).includes(:created_by ,:recipient,job: [:created_by  , :company]).paginate(page: params[:page], per_page: 10) || []
     end
 
     def find_job

@@ -9,9 +9,9 @@
     .form-group
       %label.col-md-2.control-label
         Job Location
-        %sup.text-danger
+        %sup.text-danger *
       .col-md-10
-        = select_tag "job[location_id]", options_from_collection_for_select(@locations, "id", "name") , class: 'form-control'  , required: true
+        = f.text_field :location , class: 'form-control' , placeholder: 'Enter Job Location' , required: true
     .form-group
       %label.col-md-2.control-label
         Category
