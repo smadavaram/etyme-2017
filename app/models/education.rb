@@ -3,7 +3,7 @@ class Education < ActiveRecord::Base
   validates :start_year ,  presence: true
   validates :completion_year , presence: true
   validate  :completion_year_is_greater_than_start_year
-  belongs_to :user
+  belongs_to :candidate , class_name:  "Candidate" ,foreign_key: 'user_id'
 
   private
 

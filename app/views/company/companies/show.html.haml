@@ -1,87 +1,89 @@
-.col-lg-3.col-md-3.margin-top-10
-  .panel-body.status.profile-margin{style: 'background: #FFF!important;border: 1px solid #ccc;'}
-    .text
-      %div.profile-hover
-        //= f.label :filepicker_url, "Upload Your Avatar:"
-        %p.imgDescription Change Logo
-        %div.pictureContainer
-          = filepicker_field_tag "" ,class: "hidden file", onchange:"employeeLogoUpload(event)","data-fp-crop-ratio" => "2/2"
-          -if(current_company.logo.present?)
-            = image_tag current_company.logo,  style:"width:100px;height:100px", fit: 'clip',:class =>"profile-pic image-setting"
-          -else
-            = image_tag image_path('default_user.png'),  style: "width:100px;height:100px", fit: 'clip',:class =>"profile-pic image-setting"
+#content
+  .row
+    .col-sm-12.col-md-12.col-lg-3
+      .panel-body.status.profile-margin{style: 'background: #FFF!important;border: 1px solid #ccc;'}
+        .text
+          %div.profile-hover
+            //= f.label :filepicker_url, "Upload Your Avatar:"
+            %p.imgDescription.col-sm-offset-4  Change Logo
+            %div.pictureContainer.col-md-offset-2
+              = filepicker_field_tag "" ,class: "hidden file", onchange:"employeeLogoUpload(event)","data-fp-crop-ratio" => "2/2"
+              -if(current_company.logo.present?)
+                = image_tag current_company.logo,  style:"width:100px;height:100px", fit: 'clip',:class =>"profile-pic image-setting"
+              -else
+                = image_tag image_path('default_user.png'),  style: "width:100px;height:100px", fit: 'clip',:class =>"profile-pic image-setting"
 
-    %ul.links{style: 'background: #FFF!important'}
-      %li.col-sm-4.padding-bottom-10
-        %i.fa.fa-user.fa-2x.text-muted
-          5
-      %li.col-sm-4.padding-bottom-10
-        %i.fa.fa-file-pdf-o.fa-2x.text-muted
-          5
-      %li.col-sm-4.padding-bottom-10
-        %i.fa.fa-user.fa-2x.text-muted
-          5
+        %ul.links{style: 'background: #FFF!important'}
+          %li.col-sm-4.padding-bottom-10
+            %i.fa.fa-user.fa-2x.text-muted
+              5
+          %li.col-sm-4.padding-bottom-10
+            %i.fa.fa-file-pdf-o.fa-2x.text-muted
+              5
+          %li.col-sm-4.padding-bottom-10
+            %i.fa.fa-user.fa-2x.text-muted
+              5
 
 
-.col-lg-9.col-md-9
-  #wid-id-7#content.jarviswidget{"data-widget-attstyle" => "jarviswidget-color-teal", "data-widget-custombutton" => "false", "data-widget-editbutton" => "false", "data-widget-fullscreenbutton" => "false", "data-widget-sortable" => "false", :role => "widget", :style => ""}
-    %header{:role => "heading"}
-      %ul.nav.nav-tabs.pull-left.in#myTab
-        %li.active
-          %a{"aria-expanded" => "true", "data-toggle" => "tab", :href => "#hr1"}
-            %i.fa.fa-lg.fa-building
-            %span.hidden-mobile.hidden-tablet Company Info
-        %li
-          %a{"aria-expanded" => "false", "data-toggle" => "tab", :href => "#hr2"}
-            %i.fa.fa-lg.fa-location-arrow
-            %span.hidden-mobile.hidden-tablet
-              Locations
-        %li
-          %a{"aria-expanded" => "false", "data-toggle" => "tab", :href => "#hr3"}
-            %i.fa.fa-lg.fa-users
-            %span.hidden-mobile.hidden-tablet
-              Admin(s)
-        %li
-          %a{"aria-expanded" => "false", "data-toggle" => "tab", :href => "#hr4"}
-            %i.fa.fa-lg.fa-files-o
-            %span.hidden-mobile.hidden-tablet
-              Company Documents
-      %span.jarviswidget-loader
-        %i.fa.fa-refresh.fa-spin
-    / widget div
-    %div{:role => "content"}
-      .jarviswidget-editbox
+    .col-sm-12.col-md-12.col-lg-9
+      #wid-id-7.jarviswidget{"data-widget-attstyle" => "jarviswidget-color-teal", "data-widget-custombutton" => "false", "data-widget-editbutton" => "false", "data-widget-fullscreenbutton" => "false", "data-widget-sortable" => "false", :role => "widget", :style => ""}
+        %header{:role => "heading"}
+          %ul.nav.nav-tabs.pull-left.in#myTab
+            %li.active
+              %a{"aria-expanded" => "true", "data-toggle" => "tab", :href => "#hr1"}
+                %i.fa.fa-lg.fa-building
+                %span.hidden-mobile.hidden-tablet Company Info
+            %li
+              %a{"aria-expanded" => "false", "data-toggle" => "tab", :href => "#hr2"}
+                %i.fa.fa-lg.fa-location-arrow
+                %span.hidden-mobile.hidden-tablet
+                  Locations
+            %li
+              %a{"aria-expanded" => "false", "data-toggle" => "tab", :href => "#hr3"}
+                %i.fa.fa-lg.fa-users
+                %span.hidden-mobile.hidden-tablet
+                  Admin(s)
+            %li
+              %a{"aria-expanded" => "false", "data-toggle" => "tab", :href => "#hr4"}
+                %i.fa.fa-lg.fa-files-o
+                %span.hidden-mobile.hidden-tablet
+                  Company Documents
+          %span.jarviswidget-loader
+            %i.fa.fa-refresh.fa-spin
+        / widget div
+        %div{:role => "content"}
+          .jarviswidget-editbox
 
-      .widget-body
-        .tab-content
+          .widget-body
+            .tab-content
 
-          -## Company form TAB
-          #hr1.tab-pane.active
-            .tabbable.tabs-below
-            =render partial: 'company/companies/partials/company_form_html'
+              -## Company form TAB
+              #hr1.tab-pane.active
+                .tabbable.tabs-below
+                =render partial: 'company/companies/partials/company_form_html'
 
-          -# Locations form TAB
-          #hr2.tab-pane
-            %button.btn.btn-primary.pull-right.margin-bottom-5.margin-right-10{"data-target" => "#myModal", "data-toggle" => "modal"}
-              New
-            .tabbable.tabs-below
-              =render partial: 'company/companies/partials/location_show_form'
-            =render 'company/locations/partials/location_form_modal'
+              -# Locations form TAB
+              #hr2.tab-pane
+                %button.btn.btn-primary.pull-right.margin-bottom-5.margin-right-10{"data-target" => "#myModal", "data-toggle" => "modal"}
+                  New
+                .tabbable.tabs-below
+                  =render partial: 'company/companies/partials/location_show_form'
+                =render 'company/locations/partials/location_form_modal'
 
-          -# Owner And Admin TAB
-          #hr3.tab-pane
-            .tab-content.padding-10
-              = render partial: 'company/companies/partials/owner_info' ,locals:{owner_data: current_company.owner,admins: current_company.admins - [current_company.owner]}
+              -# Owner And Admin TAB
+              #hr3.tab-pane
+                .tab-content.padding-10
+                  = render partial: 'company/companies/partials/owner_info' ,locals:{owner_data: current_company.owner,admins: current_company.admins - [current_company.owner]}
 
-          -# Company Documents TAB
-          #hr4.tab-pane
-            %button.btn.btn-primary.pull-right.margin-bottom-5.margin-right-10{"data-target" => "#attachmentModal", "data-toggle" => "modal"}
-              New
-            -#= will_paginate @company_docs
-            .tabbable.tabs-below
-              =render partial: 'company/companies/partials/company_doc_form'
+              -# Company Documents TAB
+              #hr4.tab-pane
+                %button.btn.btn-primary.pull-right.margin-bottom-5.margin-right-10{"data-target" => "#attachmentModal", "data-toggle" => "modal"}
+                  New
+                -#= will_paginate @company_docs
+                .tabbable.tabs-below
+                  =render partial: 'company/companies/partials/company_doc_form'
 
-            =render 'company/company_docs/partials/attachment_form_modal'
+                =render 'company/company_docs/partials/attachment_form_modal'
 
 - content_for :scripts do
   :javascript

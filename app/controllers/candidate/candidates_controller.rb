@@ -4,7 +4,7 @@ class Candidate::CandidatesController < Candidate::BaseController
 
   before_action :set_candidate ,only: [:show,:update]
 
-  add_breadcrumb 'Companies', "#", :title => ""
+  add_breadcrumb 'Candidates', "#", :title => ""
 
   def dashboard
   end

@@ -11,6 +11,12 @@ class Candidate < User
 
   has_many :contracts , through: :job_applications,dependent: :destroy
   has_many          :job_invitations , as: :recipient
+  has_many :educations    ,foreign_key: 'user_id'      , dependent: :destroy
+  has_many :experiences   ,foreign_key: 'user_id'      , dependent: :destroy
+
+
+  accepts_nested_attributes_for :experiences ,reject_if: :all_blank, allow_destroy: true
+  accepts_nested_attributes_for :educations  ,reject_if: :all_blank, allow_destroy: true
 
   #Tags Input
   # acts_as_taggable_on :skills

@@ -5,7 +5,7 @@ class Experience < ActiveRecord::Base
   validates :end_date , presence: true
   validate  :end_date_is_greater_than_start_date
 
-  belongs_to :user
+  belongs_to :candidate  , class_name:  "Candidate" ,foreign_key: 'user_id'
 
   private
 
