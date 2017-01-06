@@ -5,25 +5,25 @@
         %th{style:'width:50%'}
           First Name
         %td{style:'width:50%'}
-          = best_in_place user, :first_name, :as => :input,placeholder:"Click here to edit",url:user_path(user),param:'user'
+          = best_in_place user, :first_name, :as => :input,placeholder:"Click here to edit",url:company_user_path(user),param:'user'
       %tr
         %th{style:'width:50%'}
           Last Name
         %td{style:'width:50%'}
-          = best_in_place user, :last_name, :as => :input,placeholder:"Click here to edit",url:user_path(user),param:'user'
+          = best_in_place user, :last_name, :as => :input,placeholder:"Click here to edit",url:company_user_path(user),param:'user'
       %tr
         %th
           Email
         %td
-          = best_in_place user,:email, :as => :input, :place_holder => "Click me to add content!",url:user_path(user),param:'user'
+          = best_in_place user,:email, :as => :input, :place_holder => "Click me to add content!",url:company_user_path(user),param:'user'
 
       %tr
         %th
           Phone
         %td
-          = best_in_place user,:phone, :as => :input, :place_holder => "Click me to add content!",url:user_path(user),param:'user'
+          = best_in_place user,:phone, :as => :input, :place_holder => "Click me to add content!",url:company_user_path(user),param:'user'
       %tr
         %th
           Date of Birth
         %td
-          = best_in_place user,:dob, :as => :date, :place_holder => "Click me to add content!",url:user_path(user),param:'user'
+          = best_in_place user,:dob, :as => :date, :place_holder => "Click me to add content!",url:company_user_path(user),param:'user'

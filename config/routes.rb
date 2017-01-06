@@ -108,9 +108,11 @@ Rails.application.routes.draw do
   # patch '/consultants/invitation/accept', to: 'company/invitations#update'
 
   # COMPANY ROUTES
+  namespace  :company do
+    resources :users, only: [:show,:update]
+  end
   scope module: :company do
 
-    resources :users, only: [:show,:update]
 
     resources :consultants do
       resources :leaves do
