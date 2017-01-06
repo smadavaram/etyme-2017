@@ -104,6 +104,10 @@ class User < ActiveRecord::Base
     self.class.name == "Candidate"
   end
 
+  def is_consultant?
+    self.class.name == "Consultant"
+  end
+
   def is_owner?
     self == self.company.owner
   end

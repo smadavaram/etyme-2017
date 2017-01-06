@@ -1,39 +1,30 @@
 .row
-  .col-xs-12.col-sm-3.col-md-3.col-lg-3.pull-right
-    = link_to 'New Leave' , new_consultant_leave_path(current_user,@consultant_leave) ,class: 'btn btn-success btn-lg pull-right header-btn hidden-mobile'
-  %article.col-xs-12.col-sm-12.col-md-12.col-lg-12{style: 'margin-top: 10px;'}
-    #wid-id-0.jarviswidget.jarviswidget-color-darken{"data-widget-editbutton" => "false"}
-      %header
-        %span.widget-icon
-          %i.fa.fa-table
-        %h2 Leaves
-      %div
-        .jarviswidget-editbox
-        .widget-body.no-padding
-          %table#dt_basic.table.table-striped.table-bordered.table-hover{ width: "100%" }
-            %thead
-              %tr
-                %th{"data-hide" => "phone"} Employee
-                %th{"data-class" => "expand"}
-                  %i.fa.fa-fw.fa-calendar.txt-color-blue.hidden-md.hidden-sm.hidden-xs
-                  From
-                %th UpTill
-                %th Type
-                %th Status
-                %th Actions
-            %tbody
-              - leaves.each_with_index do |leave , index|
-                %tr
-                  %td= link_to leave.user.full_name ,"#"
-                  %td= leave.from_date
-                  %td= leave.till_date
-                  %td= leave.leave_type
-                  %td= leave.status
-                  %td
-                    - if(leave.pending? && is_owner? )
-                      = link_to 'Accept' , accept_consultant_leave_path(leave.user,leave) , method: :post , remote: true , class: 'btn btn-xs btn-default'
-                      = link_to 'Reject' , reject_consultant_leave_path(leave.user , leave) , method: :post , remote: true ,  class: 'btn btn-xs btn-default'
-                    -elsif(leave.pending?)
-                      = link_to raw("<i class='fa fa-pencil'></i>") , edit_consultant_leave_path(leave.user,leave) , class: 'btn btn-xs btn-default'
+  .table-responsive
+    %table#resultTable.table.table-striped.table-bordered.table-hover
+      %thead
+        %tr
+          %th{"data-hide" => "phone"} Employee
+          %th{"data-class" => "expand"}
+            %i.fa.fa-fw.fa-calendar.txt-color-blue.hidden-md.hidden-sm.hidden-xs
+            From
+          %th UpTill
+          %th Type
+          %th Status
+          %th Actions
+      %tbody
+        - leaves.each_with_index do |leave , index|
+          %tr
+            %td= link_to leave.user.full_name ,"#"
+            %td= leave.from_date
+            %td= leave.till_date
+            %td= leave.leave_type
+            %td= leave.status
+            %td
+              - if(leave.pending? && is_owner? )
+                = link_to 'Accept' , accept_consultant_leave_path(leave.user,leave) , method: :post , remote: true , class: 'btn btn-xs btn-default'
+                = link_to 'Reject' , reject_consultant_leave_path(leave.user , leave) , method: :post , remote: true ,  class: 'btn btn-xs btn-default'
+              -elsif(leave.pending?)
+                = link_to raw("<i class='fa fa-pencil'></i>"),"#" , class: 'btn btn-xs btn-default', "data-toggle"=> "modal" , "data-target"=>"#edit-#{leave.id}"
+                = render partial: 'company/leaves/partials/form', locals:{leave: leave}
 
 

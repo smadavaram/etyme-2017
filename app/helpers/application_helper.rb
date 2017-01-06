@@ -176,11 +176,11 @@ module ApplicationHelper
         #     title: 'Company Docs',
         #     content: "<i class='fa fa-lg fa-fw fa-black-tie'></i> <span class='menu-item-parent'>" + 'Company Docs' + "</span>",
         # },
-        # {
-        #     href:  consultant_leaves_path(current_user),
-        #     title: 'Leaves',
-        #     content: "<i class='fa fa-lg fa-fw fa-black-tie'></i> <span class='menu-item-parent'>" + 'Leaves' + "</span>",
-        # },
+          {
+              href:  current_user.is_owner? ? employees_leaves_path(current_company) : current_user.is_consultant? ? consultant_leaves_path(current_user): '#',
+              title: 'Leaves',
+              content: "<i class='fa fa-lg fa-fw fa-calendar'></i> <span class='menu-item-parent'>" + 'Leaves' + "</span>",
+          },
         {
             href: '#',
             title: 'CONFIGURATION',

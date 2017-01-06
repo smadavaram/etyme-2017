@@ -1,0 +1,54 @@
+.modal.fade.in{ id: leave.new_record? ?   "newLeave":  "edit-#{leave.id}","aria-hidden": "true", "aria-labelledby": "myModalLabel", :role => "dialog", :style => "display: none;", :tabindex => "-1"}
+  .modal-dialog.modal-md
+    .modal-content
+      .modal-header
+        %button.close{"aria-hidden" => "true", "data-dismiss" => "modal", :type => "button"}
+          ×
+        %h2#myModalLabel.modal-title
+          %strong New Leave
+      .modal-body
+        = simple_form_for [current_user , leave ] ,html:{ class:'form-horizontal'} do |f|
+          %fieldset
+
+            .form-group
+              %label.col-md-2.control-label
+                Leave Type
+                %sup.text-danger *
+              .col-md-10
+                = f.input :leave_type ,collection: [ 'Sick','Casual','personal','other'],label: false,include_blank: 'Select Type...'  ,input_html:{class: 'form-control', required: true}
+            .form-group
+              %label.col-md-2.control-label
+                Start Date
+                %sup.text-danger *
+              .col-md-10
+                = f.text_field :from_date , class: 'form-control' , placeholder: 'From' , required: true
+            .form-group
+              %label.col-md-2.control-label
+                Till Date
+                %sup.text-danger *
+              .col-md-10
+                = f.text_field :till_date , class: 'form-control' , placeholder: 'Till Date' , required: true
+            .form-group
+              %label.col-md-2.control-label
+                Reason
+                %sup.text-danger
+              .col-md-10
+                = f.text_field  :reason , class: 'form-control' , placeholder: 'Reason'
+          .form-actions
+            .row
+              .col-md-12
+                %button.btn.btn-default{:type => "submit"}
+                  Cancel
+                = f.submit "Submit", class: 'btn btn-primary'
+
+- content_for :scripts do
+  :javascript
+    // DO NOT REMOVE : GLOBAL FUNCTIONS!
+    $(document).ready(function() {
+      pageSetUp();
+      // Job End Date
+      $('#leave_from_date , #leave_till_date').datepicker({
+        dateFormat : 'dd/mm/yy'
+
+      });
+    });

@@ -1,7 +1,7 @@
 class Company::LeavesController <Company::BaseController
 
   before_action :find_consultant
-  before_action :find_leave ,only: [:show,:edit,:update,:destroy,:accept_leave,:reject_leave]
+  before_action :find_leave ,only: [:show,:edit,:update,:destroy,:accept,:reject]
 
   def index
     add_breadcrumb "Leaves", consultant_leaves_path(current_user)
@@ -12,16 +12,16 @@ class Company::LeavesController <Company::BaseController
     # add_breadcrumb @company_job.title. titleize, :job_invitations_path, options: { title: "Job Invitation" }
   end
 
-  def new
-    add_breadcrumb "Leaves", consultant_leaves_path(current_user)
-    add_breadcrumb "NEW", new_consultant_leave_path(current_user,@consultant_leave), options: {  }
-    @consultant_leave = @consultant.leaves.new
-  end
+  # def new
+  #   add_breadcrumb "Leaves", consultant_leaves_path(current_user)
+  #   add_breadcrumb "NEW", new_consultant_leave_path(current_user,@consultant_leave), options: {  }
+  #   @consultant_leave = @consultant.leaves.new
+  # end
 
-  def edit
-    add_breadcrumb "Leaves", consultant_leaves_path()
-    add_breadcrumb "Edit", edit_consultant_leave_path(current_user,@consultant_leave)
-  end
+  # def edit
+  #   add_breadcrumb "Leaves", consultant_leaves_path()
+  #   add_breadcrumb "Edit", edit_consultant_leave_path(current_user,@consultant_leave)
+  # end
 
   def create
     @consultant_leave =  @consultant.leaves.new(leave_params)
@@ -35,7 +35,7 @@ class Company::LeavesController <Company::BaseController
   end
 
   def employees_leaves
-    @employee_leaves=current_company.leaves
+    @employee_leaves = current_company.leaves
   end
 
   # def destroy
@@ -44,15 +44,15 @@ class Company::LeavesController <Company::BaseController
 
   def update
     if @consultant_leave.update(leave_params)
-      flash[:success]="Leave Successfully Updated"
+      flash[:success] = "Leave Successfully Updated"
       redirect_to consultant_leaves_path(current_user)
     else
-      flash[:errors]="Leave not updated"
+      flash[:errors] = "Leave not updated"
       redirect_to :back
     end
   end
 
-  def accept_leave
+  def accept
     respond_to do |format|
       if @consultant_leave.pending?
         if @consultant_leave.accepted!
@@ -66,9 +66,9 @@ class Company::LeavesController <Company::BaseController
     end
   end
 
-  def reject_leave
+  def reject
     respond_to do |format|
-      if(@consultant_leave.pending?)
+      if @consultant_leave.pending?
         if @consultant_leave.rejected!
           format.js{ flash[:success] = "successfully Accepted." }
         else
@@ -82,7 +82,7 @@ class Company::LeavesController <Company::BaseController
 
   private
   def find_consultant
-    @consultant= current_company.consultants.find_by_id(params[:consultant_id])
+    @consultant = current_company.consultants.find_by_id(params[:consultant_id])
   end
 
   def find_leave
