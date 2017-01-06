@@ -4,3 +4,4 @@ $(selector).on('click', function(){
     $(this).addClass('active');
     $('.textbtn').html($(this).text()+"<span class='caret'></span>");
 });
+

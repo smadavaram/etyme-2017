@@ -4,15 +4,14 @@
       Documents
       %sup.text-danger *
     .col-md-10
-      = e.collection_select :company_doc_ids, current_company.company_docs, :id, :name, {}, {class:"form-control multi-select2-company-docs",multiple: true, style:"width: 100%;"}
+      = e.collection_select :company_doc_ids, current_company.company_docs, :id, :name, {}, {class:"form-control multi-select2", plachholder: 'Select Document(s)',multiple: true, style:"width: 100%;"}
       %span.help-block.m-b-none
         Attach company documents like Contracts, Company Letter, Hiring Manifesto, W4, W9 Forms and etc.
-- content_for :scripts do
-  :javascript
-      $( document ).ready(function() {
-           $(".multi-select2-company-docs").select2({
-           placeholder: "Select a Doc(s)",
-            tokenSeparators: [',', ' ']
-
-           })
-      });
+-#-#- content_for :scripts do
+-#:javascript
+-#  $( document ).ready(function() {
+-#     $(".multi-select2-company-docs").select2({
+-#      placeholder: "Select a Doc(s)",
+-#      tokenSeparators: [',', ' ']
+-#     });
+-#  });

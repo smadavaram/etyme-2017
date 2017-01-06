@@ -79,15 +79,11 @@
      //$(".multi-select2-company-docs").select2({placeholder: "Select a Doc(s)"});
      $('#contract_start_date').datepicker({
         dateFormat : 'dd/mm/yy'
-
       });
      $('#contract_end_date').datepicker({
       dateFormat : 'dd/mm/yy'
      });
-
-    });
-
-
+  });
   $('#contract-attachment').on('cocoon:after-insert', function(e, insertedItem) {
         insertedItem.find('.filepicker-attachment').each(function(i,e){
           filepicker.constructWidget(e);
