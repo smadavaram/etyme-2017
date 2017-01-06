@@ -3,7 +3,7 @@
   .row
     .col-md-12
       .form-group
-        = select_tag 'temp_candidates', options_for_select(candidates.collect { |c| [c.full_name,c.id] }),prompt: "Select Candidate" ,class: 'form-control' , required: true ,:multiple => true
+        = select_tag 'temp_candidates', options_for_select(candidates.collect { |c| [c.full_name,c.id] }) ,class: 'form-control multi-select2-company-docs' , required: true ,:multiple => true
   .row
     .col-md-12
       .form-group
@@ -17,3 +17,11 @@
     %button.btn.btn-default{"data-dismiss" => "modal", :type => "button"}
       Cancel
     = f.submit 'Send' , class: 'btn btn-primary'
+:javascript
+  $( document ).ready(function() {
+           $(".multi-select2-company-docs").select2({
+           placeholder: "Select a Doc(s)",
+            tokenSeparators: [',', ' ']
+
+           })
+      });

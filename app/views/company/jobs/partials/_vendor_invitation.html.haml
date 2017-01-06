@@ -5,7 +5,7 @@
   .row
     .col-md-12
       .form-group.select
-        = select_tag 'vendor_company', options_for_select(companies.collect { |company|[company.name.titleize, company.id] }),prompt: "Select Company" ,class: 'form-control' , required: true ,:multiple => true
+        = select_tag 'vendor_company', options_for_select(companies.collect { |company|[company.name.titleize, company.id] }) ,class: 'form-control multi-select2' , required: true ,:multiple => true
   -#.row
   -#  .col-md-12
   -#    .form-group
@@ -23,3 +23,11 @@
     %button.btn.btn-default{"data-dismiss" => "modal", :type => "button"}
       Cancel
     = f.submit 'Send' , class: 'btn btn-primary'
+:javascript
+  $( document ).ready(function() {
+           $(".multi-select2").select2({
+           placeholder: "Select Company(s)",
+            tokenSeparators: [',', ' ']
+
+           })
+      });

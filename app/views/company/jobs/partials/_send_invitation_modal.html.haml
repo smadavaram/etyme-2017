@@ -25,7 +25,7 @@
               #hr1.tab-pane.active
                 .tabbable.tabs-below
                   .tab-content.padding-10
-                    %section#widget-grid{}
+                    %section#widget-grid
                       = render partial: 'company/jobs/partials/vendor_invitation',locals: {job: job ,companies: companies}
 
                       -#=render partial: 'company/leaves/partials/leave_show',locals:{leaves: @consultant_leaves.accepted}
@@ -48,7 +48,7 @@
   :javascript
     // DO NOT REMOVE : GLOBAL FUNCTIONS!
     $(document).ready(function() {
-      $("#vendor_company , #job_invitation_recipient_id").select2({});
+      // $("#vendor_company , #job_invitation_recipient_id").select2({});
       $('#job_invitation_expiry,#candidate_expiry,#vendor_expiry').datepicker({
           dateFormat : 'dd/mm/yy'
       });
