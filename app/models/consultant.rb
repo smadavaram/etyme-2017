@@ -54,6 +54,7 @@ class Consultant < User
   validates :password,presence: true,if: Proc.new { |consultant| !consultant.password.nil? }
   validates :password_confirmation,presence: true,if: Proc.new { |consultant| !consultant.password.nil? }
   validates :max_working_hours, presence: true
+  validates_uniqueness_of :email, scope: :company_id , :case_sensitive => false
 
   after_create :insert_attachable_docs
   after_create :send_invitation

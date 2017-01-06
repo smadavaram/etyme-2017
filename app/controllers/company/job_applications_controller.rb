@@ -20,7 +20,6 @@ class Company::JobApplicationsController < Company::BaseController
       else
         format.js{ flash.now[:errors] =  @job_application.errors.full_messages }
       end
-
     end
   end
 

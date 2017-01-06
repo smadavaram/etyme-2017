@@ -4,7 +4,7 @@
       $(window).load(function() {
 
         if("#{flash[:error].present?}" == "true"){
-          flash_success("#{flash[:error]}");
+          flash_error("#{flash[:error]}");
         }
         else if("#{flash[:success].present?}" == "true"){
           flash_success("#{flash[:success]}");
@@ -13,10 +13,10 @@
           flash_info("#{flash[:info]}");
         }
         else if("#{flash[:alert].present?}" == "true"){
-          alert_alert("#{flash[:alert]}");
+          flash_alert("#{flash[:alert]}");
         }
         else if("#{flash[:notice].present?}" == "true"){
-          alert_alert("#{flash[:notice]}");
+          flash_alert("#{flash[:notice]}");
         }else if("#{flash[:errors].present?}" == "true"){
          $.each(#{flash[:errors] || []}, function( index, value ) {
             flash_error(value);

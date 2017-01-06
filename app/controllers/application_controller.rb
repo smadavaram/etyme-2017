@@ -22,7 +22,7 @@ class ApplicationController < ActionController::Base
   def after_sign_in_path_for(resource)
     if session[:previous_url]
       return session[:previous_url]
-    elsif resource.class.name == 'Admin'
+    elsif resource.class.name == 'Admin' || resource.class.name == 'Consultant'
       return dashboard_path
     elsif resource.class.name=='Candidate'
       return '/candidate'

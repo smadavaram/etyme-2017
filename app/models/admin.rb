@@ -4,6 +4,7 @@ class Admin < User
 
   validates         :password,presence: true,if: Proc.new { |admin| !admin.password.nil? }
   validates         :password_confirmation,presence: true,if: Proc.new { |admin| !admin.password.nil? }
+  validates_uniqueness_of :email, scope: :company_id , :case_sensitive => false
 
   accepts_nested_attributes_for :address , reject_if: :all_blank
 
@@ -18,5 +19,7 @@ class Admin < User
     end
     UserMailer.invite_user(self).deliver
   end
+
+
 
 end

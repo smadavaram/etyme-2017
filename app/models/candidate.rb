@@ -1,4 +1,7 @@
 class Candidate < User
+  devise authentication_keys: [:email ] , reset_password_keys: [:email]
+
+  validates_uniqueness_of :email , :case_sensitive => false
 
   after_create :send_welcome_email
   after_create :send_invitation    ,if: Proc.new{|candidate|candidate.invited_by.present?}
@@ -18,9 +21,14 @@ class Candidate < User
   accepts_nested_attributes_for :experiences ,reject_if: :all_blank, allow_destroy: true
   accepts_nested_attributes_for :educations  ,reject_if: :all_blank, allow_destroy: true
 
+
+
   #Tags Input
   # acts_as_taggable_on :skills
+  def self.find_for_authentication(conditions={})
 
+    super(conditions)
+  end
 
   def etyme_url
     ENV['domain']

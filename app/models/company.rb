@@ -33,6 +33,8 @@
 
 class Company < ActiveRecord::Base
 
+  EXCLUDED_SUBDOMAINS = %w(admin www administrator admins owner etyme mail ftp)
+
   acts_as_taggable_on :skills
 
   enum company_type: [:hiring_manager, :vendor]
@@ -72,6 +74,10 @@ class Company < ActiveRecord::Base
   validates_length_of :name,  minimum:    3   , message: "must be atleat 3 characters"
   validates_length_of :name,  maximum:    50  , message: "can have maximum of 50 characters"
   validates           :slug,  uniqueness: true
+  validates_exclusion_of :slug, in: EXCLUDED_SUBDOMAINS, message: "is not allowed. Please choose another subdomain"
+  validates_format_of :slug, with: /\A[\w\-]+\Z/i, allow_blank: true, message: "is not allowed. Please choose another subdomain."
+
+
 
   accepts_nested_attributes_for :owner    , allow_destroy: true
   accepts_nested_attributes_for :locations, allow_destroy: true,reject_if: :all_blank
@@ -82,6 +88,7 @@ class Company < ActiveRecord::Base
   after_create      :set_owner_company_id
   after_create      :welcome_email_to_owner
   after_create      :assign_free_subscription
+
 
   scope :vendors, -> {where(company_type: 1)}
 
@@ -96,7 +103,7 @@ class Company < ActiveRecord::Base
   private
 
   def create_slug
-    self.slug = self.name.parameterize("").gsub("_","-")
+    self.slug = self.name.parameterize("").gsub("_","-").to_s.downcase
   end
 
   def set_owner_company_id

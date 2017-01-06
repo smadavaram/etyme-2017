@@ -1,5 +1,5 @@
 class Candidate::CandidatesController < Candidate::BaseController
-
+  before_filter :authenticate_user!
   respond_to :html,:json
 
   before_action :set_candidate ,only: [:show,:update]

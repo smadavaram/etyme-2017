@@ -200,7 +200,7 @@ Rails.application.routes.draw do
 
     end
     # get 'configuration' ,   to: 'companies#edit' ,              as: :configuration
-    resources :companies , only: [:update,:show , :create] do
+    resources :companies , only: [:update,:show ,:create] do
       collection do
         post :change_owner
         post :get_admins_list , as: :get_admins_list
@@ -285,23 +285,17 @@ Rails.application.routes.draw do
 
   # Devise Routes
   devise_for :users, controllers: { invitations: 'company/invitations' } , path_names: { sign_in: 'login', sign_out: 'logout'}
-  devise_for :candidates , controllers: {
-                            sessions: 'candidates/sessions',
-                            registrations: 'candidates/registrations',
-                            password:'candidates/passwords'
-                        }
 
   # Route set when subdomain present?
-  constraints(Subdomain) do
-    devise_scope :user do
-      match '/' => 'devise/sessions#new', via: [:get, :post]
-    end
-  end
+  # constraints(Subdomain) do
+  #   devise_scope :user do
+  #     match '/' => 'devise/sessions#new', via: [:get, :post]
+  #   end
+  # end
 
   # Route set when subdomain is not present
   constraints(NakedEtymeDomain) do
-    root :to => "companies#new"
+    # root to: "static#index"
   end
-
-
+  root "static#index"
 end

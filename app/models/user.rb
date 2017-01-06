@@ -43,7 +43,7 @@ class User < ActiveRecord::Base
   # Include default devise modules. Others available are:
   # :confirmable, :lockable, :timeoutable and :omniauthable
   devise :invitable, :database_authenticatable, :registerable,
-         :recoverable, :rememberable, :trackable
+         :recoverable, :rememberable, :trackable , authentication_keys: [:email]
 
   #Serializers
   # serialize :signature, JSON
@@ -85,7 +85,7 @@ class User < ActiveRecord::Base
   accepts_nested_attributes_for :educations  ,reject_if: :all_blank
 
   validates_numericality_of :max_working_hours, only_integer: true, greater_than_or_equal_to: 0 , less_than_or_equal_to: 86400
-  validates_uniqueness_of :email, scope: :company_id
+  validates_presence_of :email
   # validates_inclusion_of :time_zone, in: ActiveSupport::TimeZone.all.map { |tz| tz.tzinfo.name }
 
   def time_zone_now
@@ -95,6 +95,28 @@ class User < ActiveRecord::Base
   def send_confirmation_to_company_about_onboarding
       self.notifications.create!(title: "#{self.full_name} On-Boarding" , message:  "#{self.full_name} has successfully completed on-boarding on Etyme.")
   end
+
+  def self.find_for_authentication(conditions={})
+    puts conditions
+    if conditions[:subdomain].present?
+      c_id = Company.find_by_slug(conditions[:subdomain]).try(:id)
+      conditions[:company_id] = c_id if c_id.present?
+      conditions.delete(:subdomain)
+    else
+      conditions.delete(:company_id)
+      conditions[:type] = 'Candidate'
+    end
+    super(conditions)
+  end
+
+  # protected
+  # def self.find_for_database_authentication(warden_conditions)
+  #   aaldkadlkasjkdlkajdl , dspdjks;ldj
+  #   conditions = warden_conditions.dup
+  #   login = conditions.delete(:email)
+  #   company_id = conditions.delete(:company_id)
+  #   where(conditions).where(["lower(email) = :value", { :value => login.downcase }]).where("company_id = ?", company_id).first
+  # end
 
   def is_admin?
     self.class.name == "Admin"
