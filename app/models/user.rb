@@ -54,7 +54,7 @@ class User < ActiveRecord::Base
   # validates_presence_of :email
   # validates_uniqueness_of :email
 
-  validates_numericality_of :phone
+  # validates_numericality_of :phone
 
   after_create :create_address
 
