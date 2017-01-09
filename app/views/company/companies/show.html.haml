@@ -7,7 +7,7 @@
             //= f.label :filepicker_url, "Upload Your Avatar:"
             %p.imgDescription.col-sm-offset-4  Change Logo
             %div.pictureContainer.col-md-offset-2
-              = filepicker_field_tag "" ,class: "hidden file", onchange:"employeeLogoUpload(event)","data-fp-crop-ratio" => "2/2"
+              = filepicker_field_tag "" ,class: "hidden file", onchange:"employeeLogoUpload(event)","data-fp-crop-ratio" => "2/2",mimetypes: "image/*"
               -if(current_company.logo.present?)
                 = image_tag current_company.logo,  style:"width:100px;height:100px", fit: 'clip',:class =>"profile-pic image-setting"
               -else
