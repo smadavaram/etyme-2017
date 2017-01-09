@@ -115,7 +115,7 @@
       $.ajax({
        type: 'POST',
        dataType: 'json',
-       url: "#{update_photo_path}",
+       url: "#{candidate_update_photo_path}",
        data: { photo: photo_url,authenticity_token: window._token },
        success: function (data) {
         $('.text img').attr("src",photo_url);
