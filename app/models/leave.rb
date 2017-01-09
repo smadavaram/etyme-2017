@@ -10,6 +10,10 @@ class Leave < ActiveRecord::Base
   belongs_to :user
   has_one :company , through: :user
 
+  def is_leave_owner?
+    self.user==current_user
+  end
+
   private
 
   def date_overlap

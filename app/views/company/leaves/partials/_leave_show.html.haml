@@ -20,10 +20,10 @@
             %td= leave.leave_type
             %td= leave.status
             %td
-              - if(leave.pending? && is_owner? )
+              - if leave.pending? && current_user.is_owner?
                 = link_to 'Accept' , accept_consultant_leave_path(leave.user,leave) , method: :post , remote: true , class: 'btn btn-xs btn-default'
                 = link_to 'Reject' , reject_consultant_leave_path(leave.user , leave) , method: :post , remote: true ,  class: 'btn btn-xs btn-default'
-              -elsif(leave.pending?)
+              -elsif leave.pending? && leave.is_leave_owner?
                 = link_to raw("<i class='fa fa-pencil'></i>"),"#" , class: 'btn btn-xs btn-default', "data-toggle"=> "modal" , "data-target"=>"#edit-#{leave.id}"
                 = render partial: 'company/leaves/partials/form', locals:{leave: leave}
 
