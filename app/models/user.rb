@@ -76,15 +76,11 @@ class User < ActiveRecord::Base
   has_many :job_applications    , dependent: :destroy
   has_many :timesheets          , dependent: :destroy
   has_many :timesheet_approvers , dependent: :destroy
-  has_many :educations          , dependent: :destroy
-  has_many :experiences         , dependent: :destroy
   has_and_belongs_to_many :roles
 
   accepts_nested_attributes_for :attachable_docs , reject_if: :all_blank
   accepts_nested_attributes_for :custom_fields   , reject_if: :all_blank
   accepts_nested_attributes_for :address   , reject_if: :all_blank, update_only: true
-  accepts_nested_attributes_for :experiences ,reject_if: :all_blank
-  accepts_nested_attributes_for :educations  ,reject_if: :all_blank
 
   validates_numericality_of :max_working_hours, only_integer: true, greater_than_or_equal_to: 0 , less_than_or_equal_to: 86400
   validates_uniqueness_of :email, scope: :company_id

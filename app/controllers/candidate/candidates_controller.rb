@@ -23,6 +23,11 @@ class Candidate::CandidatesController < Candidate::BaseController
     end
   end
 
+  def update_photo
+    render json: current_candidate.update_attribute(:photo, params[:photo])
+    flash.now[:success] = "Photo Successfully Updated"
+  end
+
   def notify_notifications
     @notifications = current_candidate.notifications || []
   end
