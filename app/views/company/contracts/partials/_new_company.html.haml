@@ -7,7 +7,7 @@
         %h2#myModalLabel.modal-title
           %strong New Company
       .modal-body
-        = form_for @new_company , url: companies_path , html:{ class:'form-horizontal'} do |f|
+        = form_for @new_company , url: company_companies_path , html:{ class:'form-horizontal'} do |f|
           = f.fields_for :invited_by do |i|
             = i.hidden_field :user_id , value: current_user.id
             = i.hidden_field :invited_by_company_id , value: current_company.id

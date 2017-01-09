@@ -97,7 +97,7 @@ class User < ActiveRecord::Base
   def is_admin?
     self.class.name == "Admin"
   end
-  
+
   def is_consultant?
     self.class.name == "Consultant"
   end
