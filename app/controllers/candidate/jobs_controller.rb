@@ -21,7 +21,7 @@ class Candidate::JobsController < Candidate::BaseController
     @job.custom_fields.each do |cf|
       @job_application.custom_fields.new(name: cf.name)
     end
-    # if current_candidate.jobs_applications.where(job: @job)
+    # if current_candidate.jobs_applicationhttps://www.google.com.pk/?gws_rd=ssls.where(job: @job)
     #
     # end
 
@@ -30,10 +30,10 @@ class Candidate::JobsController < Candidate::BaseController
   private
 
   def set_public_jobs
-    @jobs = Job.is_public.active.includes(:location , :created_by)
+    @jobs = Job.is_public.active.includes(:created_by)
   end
 
   def set_job
-    @job = Job.find_by_id(params[:id])
+    @job = Job.find_by_id(params[:id]) || []
   end
 end

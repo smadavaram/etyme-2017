@@ -123,6 +123,7 @@ Rails.application.routes.draw do
 
 
     resources :consultants do
+      collection { post :import }
       resources :leaves do
         member do
           post :accept
@@ -165,6 +166,7 @@ Rails.application.routes.draw do
         end
       end
     end
+
     resources :jobs do
       resources :contracts , except: [:index , :show] do
         member do

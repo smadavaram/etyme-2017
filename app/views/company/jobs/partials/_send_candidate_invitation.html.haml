@@ -1,5 +1,6 @@
 = form_for [job,job.job_invitations.new] , url: create_multiple_job_job_invitations_path(job) do |f|
   = f.hidden_field :job_id , value: job.id
+  = f.hidden_field :recipient_type , value: 'Candidate'
   .row
     .col-md-12
       .form-group

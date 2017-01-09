@@ -5,7 +5,7 @@
   .row
     .col-md-12
       .form-group.select
-        = select_tag 'vendor_company', options_for_select(companies.collect { |company|[company.name.titleize, company.id] }),prompt: "Select Company" ,class: 'form-control' , required: true ,:multiple => true
+        = select_tag 'vendor_company', options_for_select(companies.collect { |company|[company.name.titleize, company.id] }) ,class: 'form-control' , required: true ,:multiple => true
   -#.row
   -#  .col-md-12
   -#    .form-group
