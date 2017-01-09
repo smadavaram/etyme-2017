@@ -42,6 +42,8 @@
 
 Rails.application.routes.draw do
 
+
+
   get '/states/:country', to: 'application#states'
   get '/cities/:state/:country', to: 'application#cities'
 
@@ -284,19 +286,16 @@ Rails.application.routes.draw do
   resources :static , only: [:index]
 
   # Devise Routes
-  devise_for :users, controllers: { invitations: 'company/invitations' } , path_names: { sign_in: 'login', sign_out: 'logout'}
-  devise_for :candidates , controllers: {
-                            sessions: 'candidates/sessions',
-                            registrations: 'candidates/registrations',
-                            password:'candidates/passwords'
-                        }
+  # devise_for :users, controllers: { invitations: 'company/invitations' } , path_names: { sign_in: 'login', sign_out: 'logout'} , controllers: {
+  #                         }
+  devise_for :candidates
 
   # Route set when subdomain present?
-  constraints(Subdomain) do
-    devise_scope :user do
-      match '/' => 'devise/sessions#new', via: [:get, :post]
-    end
-  end
+  # constraints(Subdomain) do
+  #   devise_scope :user do
+  #     match '/' => 'devise/sessions#new', via: [:get, :post]
+  #   end
+  # end
 
   # Route set when subdomain is not present
   constraints(NakedEtymeDomain) do

@@ -54,6 +54,8 @@ class User < ActiveRecord::Base
   # validates_presence_of :email
   # validates_uniqueness_of :email
 
+  # validates_numericality_of :phone
+
   after_create :create_address
 
 
@@ -102,6 +104,10 @@ class User < ActiveRecord::Base
 
   def is_candidate?
     self.class.name == "Candidate"
+  end
+
+  def is_consultant?
+    self.class.name == "Consultant"
   end
 
   def is_owner?
