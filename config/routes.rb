@@ -48,9 +48,19 @@ Rails.application.routes.draw do
       registrations: 'candidates/registrations',
       passwords:'candidates/passwords'
   }
-  # devise_for :candidates
+
+
   get '/states/:country', to: 'application#states'
   get '/cities/:state/:country', to: 'application#cities'
+
+  namespace :static do
+    resources :jobs ,only: [:index,:show] do
+      post :apply
+      resources :job_applications ,only:[:create]
+    end
+
+  end
+
 
   scope module: :candidate do
 
@@ -91,11 +101,6 @@ Rails.application.routes.draw do
   end
 
 
-  # devise_for :candidates
-  namespace :company do
-  get 'companies/edit'
-  end
-
   class NakedEtymeDomain
     def self.matches?(request)
       (request.subdomain.blank? || request.subdomain == 'www') && request.domain == ENV['domain']
@@ -117,6 +122,7 @@ Rails.application.routes.draw do
 
   # COMPANY ROUTES
   namespace  :company do
+    get 'companies/edit'
     resources :users, only: [:show,:update]
     resources :companies ,only: :create
   end
@@ -167,7 +173,7 @@ Rails.application.routes.draw do
       end
     end
 
-    resources :jobs do
+    resources :jobs  do
       resources :contracts , except: [:index , :show] do
         member do
           post :open_contract , as: :open_contract

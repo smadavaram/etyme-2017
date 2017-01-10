@@ -11,6 +11,10 @@ class JobApplication < ActiveRecord::Base
   has_many   :custom_fields ,as: :customizable
   has_many   :comments ,as: :commentable
 
+  attr_accessor :candidate_email
+  attr_accessor :candidate_first_name
+  attr_accessor :candidate_last_name
+
   validates :cover_letter , presence: true
   # validates :application_type, inclusion: { in: application_types.keys }
   validates :status ,             inclusion: {in: statuses.keys}
@@ -18,8 +22,10 @@ class JobApplication < ActiveRecord::Base
   after_create :update_job_invitation_status ,     if: Proc.new{|application| application.job_invitation.present?}
   after_update :notify_recipient_on_status_change, if: Proc.new{|application| application.status_changed? && application.job_invitation.present?}
   after_create :set_application_type,              if: Proc.new{|application| application.job_invitation.present?}
+  after_create :create_candidate   ,               if: Proc.new{|application| application.applicationable_id.nil?}
 
   accepts_nested_attributes_for :custom_fields , reject_if: :all_blank
+
 
   default_scope                { order(created_at: :desc) }
   scope :direct , -> {where(job_invitation_id: nil)}
@@ -48,6 +54,17 @@ class JobApplication < ActiveRecord::Base
 
     def set_application_type
       self.invitation!
+    end
+
+    def create_candidate
+
+      if Candidate.find_by_email(self.candidate_email).present?
+
+      else
+        puts self.candidate_email
+        Candidate.create(email: self.candidate_email ,first_name: self.candidate_first_name ,last_name: self.candidate_last_name)
+
+      end
     end
 
 

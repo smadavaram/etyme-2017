@@ -9,17 +9,22 @@ class Candidate < ActiveRecord::Base
   # after_create :send_job_invitation, if: Proc.new{ |candidate| candidate.invited_by.present?}
   after_create :create_address
 
+
+  has_many   :consultants
+  has_many   :notifications       , as: :notifiable             ,dependent: :destroy
+  has_many   :custom_fields       , as: :customizable           ,dependent: :destroy
+  has_many   :job_applications    , as: :applicationable
+  has_many   :job_invitations     , as: :recipient
+  has_many   :contracts           , through: :job_applications   ,dependent: :destroy
+  has_many   :job_invitations     , as: :recipient
+  has_many   :educations          , dependent: :destroy          ,foreign_key: 'user_id'
+  has_many   :experiences         , dependent: :destroy          ,foreign_key: 'user_id'
+  belongs_to :address             , foreign_key: :primary_address_id
+
   attr_accessor :job_id
   attr_accessor :expiry
   attr_accessor :message
   attr_accessor :invitation_type
-
-  has_many :contracts , through: :job_applications,dependent: :destroy
-  has_many          :job_invitations , as: :recipient
-  belongs_to :address             , foreign_key: :primary_address_id
-  has_many   :educations          , dependent: :destroy,foreign_key: 'user_id'
-  has_many   :experiences         , dependent: :destroy,foreign_key: 'user_id'
-
 
   accepts_nested_attributes_for :experiences ,reject_if: :all_blank
   accepts_nested_attributes_for :educations  ,reject_if: :all_blank
@@ -34,11 +39,6 @@ class Candidate < ActiveRecord::Base
   end
 
 
-  has_many   :consultants
-  has_many :notifications       , as: :notifiable,dependent: :destroy
-  has_many :custom_fields       , as: :customizable,dependent: :destroy
-  has_many :job_applications ,as: :applicationable
-  has_many :job_invitations ,as: :recipient
 
   def photo
     super.present? ? super : 'avatars/male.png'

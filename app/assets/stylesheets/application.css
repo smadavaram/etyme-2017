@@ -39,6 +39,8 @@
  *= require candidate_override
 
  *= require global
+ *= require custom
+ *= require Job
  */
 
 
