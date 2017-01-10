@@ -2,7 +2,7 @@ class Candidate < ActiveRecord::Base
   # Include default devise modules. Others available are:
   # :confirmable, :lockable, :timeoutable and :omniauthable
   devise :invitable, :database_authenticatable, :registerable,
-         :recoverable, :rememberable, :trackable, :validatable , :confirmable, :invitable
+         :recoverable, :rememberable, :trackable, :validatable
 
   after_create :send_welcome_email
   # after_create :send_invitation    ,if: Proc.new{|candidate|candidate.invited_by.present?}

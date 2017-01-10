@@ -59,7 +59,20 @@ class Consultant < User
   after_create :insert_attachable_docs
   after_create :send_invitation
   before_validation  :convert_max_working_hours_to_seconds
-  before_validation :hourly_rate
+  before_validation :hourly_rate , if: Proc.new { |consultant| consultant.consultant_profile.present? }
+
+
+  def self.import(file , company , user)
+    spreadsheet = open_spreadsheet(file)
+    header = spreadsheet.row(1)
+    (2..spreadsheet.last_row).each do |i|
+      row = Hash[[header, spreadsheet.row(i)].transpose]
+      # consultant = new(company_id: company.id , invited_by_id: user.id , invited_by_type: 'User' )
+      invite!(row.to_hash.merge!(company_id: company.id ), user)
+      # consultant.attributes = row.to_hash
+      # consultant.save(validation: false)
+    end
+  end
 
   def salaried?
     self.consultant_profile.salaried?
@@ -83,6 +96,15 @@ class Consultant < User
   end
 
   private
+
+    def self.open_spreadsheet(file)
+      case File.extname(file.original_filename)
+        when ".csv" then Roo::Csv.new(file.path, packed: nil, file_warning: :ignore)
+        when ".xls" then Roo::Excel.new(file.path, packed: nil, file_warning: :ignore)
+        when ".xlsx" then Roo::Excelx.new(file.path, packed: nil, file_warning: :ignore)
+        else raise "Unknown file type: #{file.original_filename}"
+      end
+    end
 
     def send_invitation
       invite! do |u|

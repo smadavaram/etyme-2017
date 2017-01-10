@@ -123,7 +123,6 @@ Rails.application.routes.draw do
   scope module: :company do
 
     resources :consultants do
-      collection { post :import }
       resources :leaves do
         member do
           post :accept
@@ -133,6 +132,7 @@ Rails.application.routes.draw do
     end
     resources :locations
     resources :company_docs
+    resources :candidates , only: [:create]
     resources :roles
     resources :admins
     resources :addresses
@@ -177,6 +177,7 @@ Rails.application.routes.draw do
 
       resources :job_invitations , except: [:index] do
         collection do
+          post :import
           post :create_multiple
         end
         resources :job_applications , except: [:index]
