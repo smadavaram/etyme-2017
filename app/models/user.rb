@@ -98,10 +98,6 @@ class User < ActiveRecord::Base
     self.class.name == "Admin"
   end
 
-  def is_candidate?
-    self.class.name == "Candidate"
-  end
-
   def is_consultant?
     self.class.name == "Consultant"
   end

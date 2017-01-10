@@ -46,7 +46,7 @@ Rails.application.routes.draw do
   devise_for :candidates , controllers: {
       sessions: 'candidates/sessions',
       registrations: 'candidates/registrations',
-      password:'candidates/passwords'
+      passwords:'candidates/passwords'
   }
   # devise_for :candidates
   get '/states/:country', to: 'application#states'
@@ -118,9 +118,9 @@ Rails.application.routes.draw do
   # COMPANY ROUTES
   namespace  :company do
     resources :users, only: [:show,:update]
+    resources :companies ,only: :create
   end
   scope module: :company do
-
 
     resources :consultants do
       collection { post :import }
@@ -210,7 +210,7 @@ Rails.application.routes.draw do
 
     end
     # get 'configuration' ,   to: 'companies#edit' ,              as: :configuration
-    resources :companies , only: [:update,:show , :create] do
+    resources :companies , only: [:update,:show] do
       collection do
         post :change_owner
         post :get_admins_list , as: :get_admins_list
@@ -294,15 +294,14 @@ Rails.application.routes.draw do
   resources :static , only: [:index]
 
   # Devise Routes
-   devise_for :users, controllers: { invitations: 'company/invitations' } , path_names: { sign_in: 'login', sign_out: 'logout'} , controllers: {
-                           }
+   devise_for :users, controllers: { invitations: 'company/invitations' } , path_names: { sign_in: 'login', sign_out: 'logout'}
 
   # Route set when subdomain present?
-  # constraints(Subdomain) do
-  #   devise_scope :user do
-  #     match '/' => 'devise/sessions#new', via: [:get, :post]
-  #   end
-  # end
+  constraints(Subdomain) do
+    devise_scope :user do
+      match '/' => 'devise/sessions#new', via: [:get, :post]
+    end
+  end
 
   # Route set when subdomain is not present
   constraints(NakedEtymeDomain) do
