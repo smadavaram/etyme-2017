@@ -46,7 +46,7 @@ class Company < ActiveRecord::Base
   has_many :consultants               , dependent: :destroy
   has_many :roles                     , dependent: :destroy
   has_many :company_docs              , dependent: :destroy
-  has_many :attachments               , as: :attachable
+  has_many :attachments
   has_many :timesheets                , dependent: :destroy
   has_many :invited_companies         ,class_name: "InvitedCompany" , foreign_key: "invited_by_company_id", dependent:  :destroy
   has_one  :invited_by                ,class_name: "InvitedCompany" , foreign_key: "invited_company_id", dependent:  :destroy
@@ -60,7 +60,6 @@ class Company < ActiveRecord::Base
   has_many :leaves                    , through:   :users
   has_many :timesheet_logs            , through:   :timesheets
   has_many :timesheet_approvers       , through:   :timesheets
-  has_many :attachments               , through:   :company_docs
   # has_many :invoices                  , through:   :timesheets
   has_one  :subscription              , dependent: :destroy
   has_one  :package                   , through:   :subscription
