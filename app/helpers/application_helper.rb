@@ -1,5 +1,8 @@
 # :nodoc:
 module ApplicationHelper
+  def disable_spinning text
+    return  "<i class='fa fa-spinner fa-spin pull-left'></i> #{text}"
+  end
   def left_menu
     left_menu_entries(left_menu_content)
   end

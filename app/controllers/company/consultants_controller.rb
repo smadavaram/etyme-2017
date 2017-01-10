@@ -4,7 +4,7 @@ class Company::ConsultantsController < Company::BaseController
 
   #CallBacks
   before_action :set_new_consultant , only: [:new]
-  before_action :find_job_application , only: [:new] , if:
+  before_action :find_job_application , only: [:new]
 
   def new
     add_breadcrumb "NEW", :new_consultant_path
@@ -25,6 +25,8 @@ class Company::ConsultantsController < Company::BaseController
       return render 'new'
     end
   end
+
+
 
   private
 

@@ -1,70 +1,68 @@
--#%body
+%body
   .container-fluid.no-padding
     %section.box-typical.files-manager.m-t-lg
       %nav.files-manager-side{:style => "height: auto;"}
         %header.files-manager-side-title My files
         %ul.files-manager-side-list
-          %li
-            %a{:href => "#"} Recived
-          %li
-            %a{:href => "#"} Sent
-          %li
-            %a{:href => "#"} Recent
-          %li
-            %a{:href => "#"} Shared with me
-          %li
-            %a.active{:href => "#"} Trash
-          %li
-            %a{:href => "#"} Inviations
+          - @attachment_types.each do |type|
+            %li.this_is{class: params[:type] == type ? 'active' : ''}
+              = link_to type , attachments_path(type: type)
+              -#%a{"data-toggle" => "tab", :href => "#"}= type
       .files-manager-panel
         .files-manager-panel-in
           %header.files-manager-header
             .files-manager-header-left
-              -#%button.btn.btn-rounded{:type => "button"}
-              -#  %i.font-icon-left.font-icon-upload-2>
-              -#  Upload file
-              -#%button.btn-icon{:type => "button"}
-              -#  %i.font-icon.font-icon-folder
-              -#%button.btn-icon{:type => "button"}
-              -#  %i.font-icon.font-icon-download-2
-              -#%button.btn-icon{:type => "button"}
-              -#  %i.font-icon.font-icon-share
-              -#%button.btn-icon{:type => "button"}
-              -#  %i.font-icon.font-icon-trash
+              %button.btn.btn-rounded{:type => "button"}
+                %i.font-icon-left.font-icon-upload-2>
+                Upload file
+              %button.btn-icon{:type => "button"}
+                %i.font-icon.font-icon-folder
+              %button.btn-icon{:type => "button"}
+                %i.font-icon.font-icon-download-2
+              %button.btn-icon{:type => "button"}
+                %i.font-icon.font-icon-share
+              %button.btn-icon{:type => "button"}
+                %i.font-icon.font-icon-trash
             .files-manager-header-right
-              -#.views
-              -#  %button.btn-icon.view.active{:type => "button"}
-              -#    %i.font-icon.font-icon-view-grid
-              -#  %button.btn-icon.view{:type => "button"}
-              -#    %i.font-icon.font-icon-view-rows
-              -#.search
-              -#  %input.form-control.form-control-rounded{:placeholder => "Search", :type => "text"}/
-              -#  %button.btn-icon{:type => "submit"}
-              -#    %i.font-icon.font-icon-search
+              .views
+                %button.btn-icon.view.active{:type => "button"}
+                  %i.font-icon.font-icon-view-grid
+                %button.btn-icon.view{:type => "button"}
+                  %i.font-icon.font-icon-view-rows
+              .search
+                %input.form-control.form-control-rounded{:placeholder => "Search", :type => "text"}/
+                %button.btn-icon{:type => "submit"}
+                  %i.font-icon.font-icon-search
           .files-manager-content
             .files-manager-content-in.scrollable-block.jspScrollable{:style => "overflow: hidden; padding: 0px; height: auto; width: 100%;", :tabindex => "0"}
               .jspContainer{:style => "width: 600px; height: 380px;"}
                 .jspPane{:style => "padding: 0px; top: 0px; left: 0px; width: 588px;"}
                   .fm-file-grid
-                    .fm-file.selected
-                      .fm-file-icon
-                        = image_tag 'folder.png'
-                      .fm-file-name App design assets
-                      .fm-file-size 7 files, 358 MB
-                    .fm-file
-                      .fm-file-icon
-                        = image_tag 'folder.png'
-                      .fm-file-size 144 files, 52 MB
-                    .fm-file
-                      .fm-file-icon
-                        = image_tag 'folder.png'
-                      .fm-file-name 2014_projects.rar
-                      .fm-file-size 4 MB
-                    .fm-file
-                      .fm-file-icon
-                        = image_tag 'file.png'
-                      .fm-file-name Inspiration
-                      .fm-file-size 7 files, 358 MB
+                    - @selected_attachments.each do |attachable_type|
+                      .fm-file
+                        .fm-file-icon.dblclick
+                          = image_tag image_type(attachable_type)
+                        .fm-file-name
+                          = attachable_type.file_name
+                        .fm-file-size
+                          %a{:download => "", :href => image_path(attachable_type.file)}
+                            Download
+                          -#= @attachments.count.to_s + "file"
+                      -#.fm-file
+                      -#  .fm-file-icon
+                      -#    = image_tag 'folder.png'
+                      -#  .fm-file-name Home
+                      -#  .fm-file-size 144 files, 52 MB
+                    -#.fm-file
+                    -#  .fm-file-icon
+                    -#    = image_tag 'folder.png'
+                    -#  .fm-file-name 2014_projects.rar
+                    -#  .fm-file-size 4 MB
+                    -#.fm-file
+                    -#  .fm-file-icon
+                    -#    = image_tag 'file.png'
+                    -#  .fm-file-name Inspiration
+                    -#  .fm-file-size 7 files, 358 MB
                 .jspVerticalBar
                   .jspCap.jspCapTop
                   .jspTrack{:style => "height: 380px;"}
@@ -99,103 +97,103 @@
 
 
 
-#content
-  .inbox-nav-bar.no-content-padding
-    -#%h1.page-title.txt-color-blueDark.hidden-tablet
-    -#  %i.fa.fa-fw.fa-inbox
-    -#  Inbox  
-    -#  %span.btn-group
-    -#    %a.btn.btn-default.btn-xs.dropdown-toggle{"data-toggle" => "dropdown", :href => "#"}
-    -#      %span.caret.single
-    -#    %ul.dropdown-menu
-    -#      %li
-    -#        %a{:href => "#"} Action
-    -#      %li
-    -#        %a{:href => "#"} Another action
-    -#      %li
-    -#        %a{:href => "#"} Something else here
-    -#      %li.divider
-    -#      %li
-    -#        %a{:href => "#"} Separated link
-    -#.btn-group.hidden-desktop.visible-tablet
-    -#  %button.btn.btn-default.dropdown-toggle{"data-toggle" => "dropdown"}
-    -#    Inbox
-    -#    %i.fa.fa-caret-down
-    -#  %ul.dropdown-menu.pull-left
-    -#    %li
-    -#      %a.inbox-load{:href => "javascript:void(0);"}
-    -#        Inbox
-    -#        %i.fa.fa-check
-    -#    %li
-    -#      %a{:href => "javascript:void(0);"} Sent
-    -#    %li
-    -#      %a{:href => "javascript:void(0);"} Trash
-    -#    %li.divider
-    -#    %li
-    -#      %a{:href => "javascript:void(0);"} Spam
-    -#.inbox-checkbox-triggered
-    -#  .btn-group
-    -#    %a.btn.btn-default{"data-original-title" => "Mark Important", "data-placement" => "bottom", :href => "javascript:void(0);", :rel => "tooltip", :title => ""}
+  -##content
+  -#  .inbox-nav-bar.no-content-padding
+      -#%h1.page-title.txt-color-blueDark.hidden-tablet
+      -#  %i.fa.fa-fw.fa-inbox
+      -#  Inbox  
+      -#  %span.btn-group
+      -#    %a.btn.btn-default.btn-xs.dropdown-toggle{"data-toggle" => "dropdown", :href => "#"}
+      -#      %span.caret.single
+      -#    %ul.dropdown-menu
+      -#      %li
+      -#        %a{:href => "#"} Action
+      -#      %li
+      -#        %a{:href => "#"} Another action
+      -#      %li
+      -#        %a{:href => "#"} Something else here
+      -#      %li.divider
+      -#      %li
+      -#        %a{:href => "#"} Separated link
+      -#.btn-group.hidden-desktop.visible-tablet
+      -#  %button.btn.btn-default.dropdown-toggle{"data-toggle" => "dropdown"}
+      -#    Inbox
+      -#    %i.fa.fa-caret-down
+      -#  %ul.dropdown-menu.pull-left
+      -#    %li
+      -#      %a.inbox-load{:href => "javascript:void(0);"}
+      -#        Inbox
+      -#        %i.fa.fa-check
+      -#    %li
+      -#      %a{:href => "javascript:void(0);"} Sent
+      -#    %li
+      -#      %a{:href => "javascript:void(0);"} Trash
+      -#    %li.divider
+      -#    %li
+      -#      %a{:href => "javascript:void(0);"} Spam
+      -#.inbox-checkbox-triggered
+      -#  .btn-group
+      -#    %a.btn.btn-default{"data-original-title" => "Mark Important", "data-placement" => "bottom", :href => "javascript:void(0);", :rel => "tooltip", :title => ""}
+      -#      %strong
+      -#        %i.fa.fa-exclamation.fa-lg.text-danger
+      -#    %a.btn.btn-default{"data-original-title" => "Move to folder", "data-placement" => "bottom", :href => "javascript:void(0);", :rel => "tooltip", :title => ""}
+      -#      %strong
+      -#        %i.fa.fa-folder-open.fa-lg
+      -#    %a.deletebutton.btn.btn-default{"data-original-title" => "Delete", "data-placement" => "bottom", :href => "javascript:void(0);", :rel => "tooltip", :title => ""}
+      -#      %strong
+      -#        %i.fa.fa-trash-o.fa-lg
+    -#  %a#compose-mail-mini.btn.btn-primary.pull-right.hidden-desktop.visible-tablet{:href => "javascript:void(0);"}
+    -#    %strong
+    -#      %i.fa.fa-file.fa-lg
+    -#  .btn-group.pull-right.inbox-paging
+    -#    %a.btn.btn-default.btn-sm{:href => "javascript:void(0);"}
     -#      %strong
-    -#        %i.fa.fa-exclamation.fa-lg.text-danger
-    -#    %a.btn.btn-default{"data-original-title" => "Move to folder", "data-placement" => "bottom", :href => "javascript:void(0);", :rel => "tooltip", :title => ""}
+    -#        %i.fa.fa-chevron-left
+    -#    %a.btn.btn-default.btn-sm{:href => "javascript:void(0);"}
     -#      %strong
-    -#        %i.fa.fa-folder-open.fa-lg
-    -#    %a.deletebutton.btn.btn-default{"data-original-title" => "Delete", "data-placement" => "bottom", :href => "javascript:void(0);", :rel => "tooltip", :title => ""}
-    -#      %strong
-    -#        %i.fa.fa-trash-o.fa-lg
-    %a#compose-mail-mini.btn.btn-primary.pull-right.hidden-desktop.visible-tablet{:href => "javascript:void(0);"}
-      %strong
-        %i.fa.fa-file.fa-lg
-    .btn-group.pull-right.inbox-paging
-      %a.btn.btn-default.btn-sm{:href => "javascript:void(0);"}
-        %strong
-          %i.fa.fa-chevron-left
-      %a.btn.btn-default.btn-sm{:href => "javascript:void(0);"}
-        %strong
-          %i.fa.fa-chevron-right
-    %span.pull-right
-      = will_paginate @attachments_page
-  #inbox-content.inbox-body.no-content-padding
-    .inbox-side-bar
-      -#%a#compose-mail.btn.btn-primary.btn-block{:href => "javascript:void(0);"}
-      -#  %strong Compose
-      %h6
-        Folders
-        %a.pull-right.txt-color-darken{"data-original-title" => "Refresh", "data-placement" => "right", :href => "javascript:void(0);", :rel => "tooltip", :title => ""}
-          %i.fa.fa-refresh
-      %ul.inbox-menu-lg
-        - if(@attachments.present?)
-          - @attachments.each_pair do |attachable_type , name |
-            %li.active
-              %a.inbox-load{:href => "javascript:void(0);"}= attachable_type
-      -#.air.air-bottom.inbox-space
-      -#  3.5GB of
-      -#  %strong 10GB
-      -#  %a.pull-right.txt-color-darken{"data-original-title" => "Empty Spam", "data-placement" => "top", :href => "javascript:void(0);", :rel => "tooltip", :title => ""}
-      -#    %i.fa.fa-trash-o.fa-lg
-      -#  .progress.progress-micro
-      -#    .progress-bar.progress-primary{:style => "width: 34%;"}
-    .table-wrap.custom-scroll.animated.fast.fadeInRight
-      / ajax will fill this area
-      LOADING...
-    -#.inbox-footer
-    -#  .row
-    -#    .col-xs-6.col-sm-1
-    -#      .txt-color-white.hidden-desktop.visible-mobile
-    -#        3.5GB of
-    -#        %strong 10GB
-    -#        .progress.progress-micro
-    -#          .progress-bar.progress-primary{:style => "width: 34%;"}
-    -#    .col-xs-6.col-sm-11.text-right
-    -#      .txt-color-white.inline-block
-    -#        %i.txt-color-blueLight.hidden-mobile
-    -#          Last account activity
-    -#          %i.fa.fa-clock-o
-    -#          52 mins ago |
-    -#        Displaying
-    -#        %strong 44 of 259
-/ END MAIN CONTENT
+    -#        %i.fa.fa-chevron-right
+    -#  %span.pull-right
+    -#    = will_paginate @attachments_page
+    -##inbox-content.inbox-body.no-content-padding
+    -#  .inbox-side-bar
+    -#    -#%a#compose-mail.btn.btn-primary.btn-block{:href => "javascript:void(0);"}
+    -#    -#  %strong Compose
+    -#    %h6
+    -#      Folders
+    -#      %a.pull-right.txt-color-darken{"data-original-title" => "Refresh", "data-placement" => "right", :href => "javascript:void(0);", :rel => "tooltip", :title => ""}
+    -#        %i.fa.fa-refresh
+    -#    %ul.inbox-menu-lg
+    -#      - if(@attachments.present?)
+    -#        - @attachments.each_pair do |attachable_type , name |
+    -#          %li.active
+    -#            %a.inbox-load{:href => "javascript:void(0);"}= attachable_type
+        -#.air.air-bottom.inbox-space
+        -#  3.5GB of
+        -#  %strong 10GB
+        -#  %a.pull-right.txt-color-darken{"data-original-title" => "Empty Spam", "data-placement" => "top", :href => "javascript:void(0);", :rel => "tooltip", :title => ""}
+        -#    %i.fa.fa-trash-o.fa-lg
+        -#  .progress.progress-micro
+        -#    .progress-bar.progress-primary{:style => "width: 34%;"}
+      .table-wrap.custom-scroll.animated.fast.fadeInRight
+        / ajax will fill this area
+        LOADING...
+      -#.inbox-footer
+      -#  .row
+      -#    .col-xs-6.col-sm-1
+      -#      .txt-color-white.hidden-desktop.visible-mobile
+      -#        3.5GB of
+      -#        %strong 10GB
+      -#        .progress.progress-micro
+      -#          .progress-bar.progress-primary{:style => "width: 34%;"}
+      -#    .col-xs-6.col-sm-11.text-right
+      -#      .txt-color-white.inline-block
+      -#        %i.txt-color-blueLight.hidden-mobile
+      -#          Last account activity
+      -#          %i.fa.fa-clock-o
+      -#          52 mins ago |
+      -#        Displaying
+      -#        %strong 44 of 259
+  / END MAIN CONTENT
 - content_for :scripts do
   :javascript
     $(document).ready(function() {
@@ -203,6 +201,10 @@
       // DO NOT REMOVE : GLOBAL FUNCTIONS!
       pageSetUp();
 
+      // $( ".this_is" ).click(function() {
+      //   var v = $(this).text();
+      //   alert(v);
+      // });
       // PAGE RELATED SCRIPTS
 
       /*

@@ -1,6 +1,6 @@
 class Company::JobInvitationsController < Company::BaseController
 
-  before_action :find_job            , only: [:create , :update , :create_multiple]
+  before_action :find_job            , only: [:create , :update , :create_multiple , :import]
   before_action :find_job_invitation , only: [ :update]
   before_action :set_job_invitations , only: [:index]
   before_action :find_received_job_invitations , only: [:accept , :reject]
@@ -57,6 +57,11 @@ class Company::JobInvitationsController < Company::BaseController
       flash[:error] = "Error!"
     end
     redirect_to :back
+  end
+
+  def import
+    Consultant.import(params[:consultant][:file] , current_company , current_user)
+    redirect_to :back, notice: "Bulk imported."
   end
 
   private

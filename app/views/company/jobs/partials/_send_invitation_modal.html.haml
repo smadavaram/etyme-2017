@@ -39,9 +39,9 @@
                   .tab-content.padding-10
                     %section#widget-grid{style: 'margin-top: 10px;'}
                       .col-sm-12
-                        = form_tag import_consultants_path, multipart: true do
-                          = file_field_tag :file
-                          = submit_tag "Bulk Import" , class: 'btn btn-primary btn-sm pull-right margin-bottom-10'
+                        = form_for :consultant ,url: import_job_job_invitations_path(job), multipart: true do |f|
+                          = f.file_field :file
+                          = f.button "Bulk Import".html_safe, data: {disable_with: disable_spinning("Importing...")} , class: 'btn btn-primary btn-sm pull-right margin-bottom-10'
                       = render partial: 'candidate/candidates/partials/form',locals:{job: job}
 :javascript
   $(document).ready(function () {
