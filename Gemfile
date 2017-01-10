@@ -90,6 +90,7 @@ gem "breadcrumbs_on_rails"
 gem 'filepicker-rails'
 gem 'carrierwave'
 gem "mini_magick"
+gem 'roo'
 # gem 'fog'
 
 gem 'daemons'

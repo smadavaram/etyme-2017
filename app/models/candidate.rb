@@ -1,8 +1,8 @@
 class Candidate < ActiveRecord::Base
   # Include default devise modules. Others available are:
   # :confirmable, :lockable, :timeoutable and :omniauthable
-  devise :database_authenticatable, :registerable,
-         :recoverable, :rememberable, :trackable, :validatable
+  devise :invitable, :database_authenticatable, :registerable,
+         :recoverable, :rememberable, :trackable, :validatable , :confirmable, :invitable
 
   after_create :send_welcome_email
   # after_create :send_invitation    ,if: Proc.new{|candidate|candidate.invited_by.present?}
@@ -32,6 +32,13 @@ class Candidate < ActiveRecord::Base
   def etyme_url
     ENV['domain']
   end
+
+
+  has_many   :consultants
+  has_many :notifications       , as: :notifiable,dependent: :destroy
+  has_many :custom_fields       , as: :customizable,dependent: :destroy
+  has_many :job_applications ,as: :applicationable
+  has_many :job_invitations ,as: :recipient
 
   def photo
     super.present? ? super : 'avatars/male.png'
