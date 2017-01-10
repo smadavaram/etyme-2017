@@ -1,0 +1,48 @@
+
+#experience.modal.fade.in{"aria-hidden" => "true", "aria-labelledby" => "myModalLabel", :role => "dialog", :style => "display: none;", :tabindex => "-1"}
+  .modal-dialog
+    .modal-content
+      .modal-header
+        %button.close{"aria-hidden" => "true", "data-dismiss" => "modal", :type => "button"}
+          ×
+        %h4#experience.modal-title Add New Experience
+      .modal-body
+        = form_for :experience,url: candidate_experiences_path do |experience|
+          .row
+            .col-md-12
+              .form-group
+                = experience.text_field :experience_title,placeholder: "Experience Title",class: 'form-control'
+          .row
+            .col-md-6
+              .form-group
+                = experience.text_field :start_date,placeholder: "Start Date",class: 'form-control '
+            .col-md-6
+              .form-group
+                = experience.text_field :end_date,placeholder:"End Date",class: 'form-control '
+          .row
+            .col-md-12
+              .form-group
+                = experience.text_area :description,placeholder: "Description",class: 'form-control'
+
+
+          -#    .form-group
+          -#      = address.select :country ,CS.countries.sort.map{|k,v| [v,k] } ,{prompt:"Select Country"},:class=>"form-control" , :required =>'required',id:"country"
+          -#.row
+          -#  .col-md-4
+          -#    .form-group
+          -#      %label State
+          -#      = address.select :state ,CS.states(:us).sort.map {|k,v| [v,k] },{prompt:"Select State"},class:"form-control", selected: address.object.state,id:"state"
+          -#  .col-md-4
+          -#    .form-group
+          -#      %label City
+          -#      = address.select :city,CS.cities(address.object.state,:us).sort.map {|k,v| [v,k] },{prompt:"Select City"},class:"form-control",id:"city"
+          -#  .col-md-4
+          -#    .form-group
+          -#      %label Zip Code
+          -#      =address.text_field :zip_code,:placeholder => "Zip Code",class:"form-control"
+
+          .modal-footer
+            %button.btn.btn-default{"data-dismiss" => "modal", :type => "button"}
+              Cancel
+            %button.btn.btn-primary{:type => "submit"}
+              Create Location

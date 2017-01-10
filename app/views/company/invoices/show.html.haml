@@ -32,9 +32,7 @@
                       %br/
                       %strong= @contract.job.company.name.titleize
                       %br/
-                      =@contract.job.location.address.address_1
-                      %br/
-                      #{@contract.job.location.address.city} - #{@contract.job.location.address.zip_code}, #{@contract.job.location.address.country}
+                      =@contract.job.location
                       %br/
                       %abbr{:title => "Phone"} P:
                       #{@contract.job.company.phone}

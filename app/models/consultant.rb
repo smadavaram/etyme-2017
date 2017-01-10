@@ -43,9 +43,10 @@ class Consultant < User
 
   attr_accessor :company_doc_ids
 
+  belongs_to :candidate
   has_one    :consultant_profile , dependent: :destroy
-  belongs_to :company
   has_many   :leaves , class_name: 'Leave' , foreign_key: :user_id
+
 
 
   accepts_nested_attributes_for :consultant_profile , allow_destroy: true

@@ -4,7 +4,7 @@ class Candidate::CandidatesController < Candidate::BaseController
 
   before_action :set_candidate ,only: [:show,:update]
 
-  add_breadcrumb 'Companies', "#", :title => ""
+  add_breadcrumb 'Candidates', "#", :title => ""
 
   def dashboard
   end
@@ -21,6 +21,11 @@ class Candidate::CandidatesController < Candidate::BaseController
       redirect_to :back
       # format.js(current_candidate,notice:"Incorrect Information")
     end
+  end
+
+  def update_photo
+    render json: current_candidate.update_attribute(:photo, params[:photo])
+    flash.now[:success] = "Photo Successfully Updated"
   end
 
   def notify_notifications

@@ -34,7 +34,7 @@
                     %tr
                       %td= link_to job.title , job_path(job) , target: '_blank'
                       %td= job.end_date
-                      %td= job.location.name  rescue "  --"
+                      %td= job.location
                       %td= job.created_by.full_name  rescue "  --"
                       %td
                         = link_to raw("<i class='fa fa-pencil '></i>") , edit_job_path(job) , class: 'btn btn-xs btn-default btn-primary'

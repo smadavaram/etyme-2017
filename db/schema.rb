@@ -11,7 +11,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema.define(version: 20161230121139) do
+ActiveRecord::Schema.define(version: 20170109112621) do
 
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
@@ -49,6 +49,47 @@ ActiveRecord::Schema.define(version: 20161230121139) do
     t.integer  "attachable_id"
     t.datetime "created_at",      null: false
     t.datetime "updated_at",      null: false
+  end
+
+  create_table "candidates", force: :cascade do |t|
+    t.string   "first_name",             default: ""
+    t.string   "last_name",              default: ""
+    t.integer  "gender"
+    t.string   "email",                  default: "", null: false
+    t.string   "phone"
+    t.string   "time_zone"
+    t.integer  "primary_address_id"
+    t.string   "photo"
+    t.json     "signature"
+    t.integer  "status"
+    t.date     "dob"
+    t.string   "encrypted_password",     default: "", null: false
+    t.string   "reset_password_token"
+    t.datetime "reset_password_sent_at"
+    t.datetime "remember_created_at"
+    t.integer  "sign_in_count",          default: 0,  null: false
+    t.datetime "current_sign_in_at"
+    t.datetime "last_sign_in_at"
+    t.string   "current_sign_in_ip"
+    t.string   "last_sign_in_ip"
+    t.string   "confirmation_token"
+    t.datetime "confirmed_at"
+    t.datetime "confirmation_sent_at"
+    t.string   "unconfirmed_email"
+    t.datetime "created_at",                          null: false
+    t.datetime "updated_at",                          null: false
+  end
+
+  add_index "candidates", ["email"], name: "index_candidates_on_email", unique: true, using: :btree
+  add_index "candidates", ["reset_password_token"], name: "index_candidates_on_reset_password_token", unique: true, using: :btree
+
+  create_table "comments", force: :cascade do |t|
+    t.string   "body"
+    t.integer  "commentable_id"
+    t.string   "commentable_type"
+    t.integer  "created_by_id"
+    t.datetime "created_at",       null: false
+    t.datetime "updated_at",       null: false
   end
 
   create_table "companies", force: :cascade do |t|
@@ -176,6 +217,43 @@ ActiveRecord::Schema.define(version: 20161230121139) do
 
   add_index "delayed_jobs", ["priority", "run_at"], name: "delayed_jobs_priority", using: :btree
 
+  create_table "educations", force: :cascade do |t|
+    t.string   "degree_title"
+    t.string   "grade"
+    t.date     "completion_year"
+    t.date     "start_year"
+    t.string   "institute"
+    t.integer  "status"
+    t.text     "description"
+    t.integer  "user_id"
+    t.datetime "created_at",      null: false
+    t.datetime "updated_at",      null: false
+  end
+
+  create_table "experiences", force: :cascade do |t|
+    t.string   "experience_title"
+    t.date     "start_date"
+    t.date     "end_date"
+    t.string   "institute"
+    t.integer  "status"
+    t.text     "description"
+    t.integer  "user_id"
+    t.datetime "created_at",       null: false
+    t.datetime "updated_at",       null: false
+  end
+
+  create_table "invited_companies", force: :cascade do |t|
+    t.integer  "user_id"
+    t.integer  "invited_company_id"
+    t.integer  "invited_by_company_id"
+    t.datetime "created_at",            null: false
+    t.datetime "updated_at",            null: false
+  end
+
+  add_index "invited_companies", ["invited_by_company_id"], name: "index_invited_companies_on_invited_by_company_id", using: :btree
+  add_index "invited_companies", ["invited_company_id"], name: "index_invited_companies_on_invited_company_id", using: :btree
+  add_index "invited_companies", ["user_id"], name: "index_invited_companies_on_user_id", using: :btree
+
   create_table "invoices", force: :cascade do |t|
     t.integer  "contract_id"
     t.date     "start_date"
@@ -185,19 +263,24 @@ ActiveRecord::Schema.define(version: 20161230121139) do
     t.decimal  "total_amount",      default: 0.0
     t.decimal  "commission_amount", default: 0.0
     t.decimal  "billing_amount",    default: 0.0
+    t.float    "consultant_amount", default: 0.0
+    t.integer  "submitted_by"
+    t.datetime "submitted_on"
+    t.integer  "status",            default: 0
   end
 
   create_table "job_applications", force: :cascade do |t|
     t.integer  "job_invitation_id"
     t.text     "cover_letter"
     t.string   "message"
-    t.integer  "status",            default: 0
-    t.datetime "created_at",                    null: false
-    t.datetime "updated_at",                    null: false
-    t.integer  "user_id"
+    t.integer  "status",               default: 0
+    t.datetime "created_at",                       null: false
+    t.datetime "updated_at",                       null: false
     t.integer  "job_id"
     t.integer  "application_type"
     t.integer  "company_id"
+    t.integer  "applicationable_id"
+    t.string   "applicationable_type"
   end
 
   create_table "job_invitations", force: :cascade do |t|
@@ -219,16 +302,17 @@ ActiveRecord::Schema.define(version: 20161230121139) do
   create_table "jobs", force: :cascade do |t|
     t.string   "title"
     t.text     "description"
-    t.integer  "location_id"
+    t.string   "location"
     t.date     "start_date"
     t.date     "end_date"
     t.integer  "parent_job_id"
     t.integer  "company_id"
     t.integer  "created_by_id"
-    t.datetime "created_at",                   null: false
-    t.datetime "updated_at",                   null: false
-    t.boolean  "is_public",     default: true
+    t.datetime "created_at",                          null: false
+    t.datetime "updated_at",                          null: false
+    t.boolean  "is_public",           default: true
     t.string   "job_category"
+    t.boolean  "is_system_generated", default: false
   end
 
   create_table "leaves", force: :cascade do |t|
@@ -386,6 +470,15 @@ ActiveRecord::Schema.define(version: 20161230121139) do
 
   add_index "transactions", ["timesheet_log_id"], name: "index_transactions_on_timesheet_log_id", using: :btree
 
+  create_table "user_docs", force: :cascade do |t|
+    t.integer  "company_doc_id"
+    t.integer  "user_id"
+    t.string   "description"
+    t.string   "file"
+    t.datetime "created_at",     null: false
+    t.datetime "updated_at",     null: false
+  end
+
   create_table "users", force: :cascade do |t|
     t.integer  "company_id"
     t.string   "first_name",             default: ""
@@ -426,9 +519,10 @@ ActiveRecord::Schema.define(version: 20161230121139) do
     t.string   "ssn"
     t.integer  "max_working_hours",      default: 28800
     t.string   "time_zone"
+    t.integer  "candidate_id"
   end
 
-  add_index "users", ["email"], name: "index_users_on_email", unique: true, using: :btree
+  add_index "users", ["email", "company_id"], name: "index_users_on_email_and_company_id", unique: true, using: :btree
   add_index "users", ["invitation_token"], name: "index_users_on_invitation_token", unique: true, using: :btree
   add_index "users", ["invitations_count"], name: "index_users_on_invitations_count", using: :btree
   add_index "users", ["invited_by_id"], name: "index_users_on_invited_by_id", using: :btree

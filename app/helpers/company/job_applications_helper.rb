@@ -6,7 +6,11 @@ module Company::JobApplicationsHelper
     btn += link_to 'Reject' , reject_job_application_path(app), method: :post  , class: "btn btn-md  btn-primary mt-12 margin-right-5 #{!app.pending_review? ? 'disabled' : "" }"
     btn += link_to 'Interview' , interview_job_application_path(app) , method: :post  , class: "btn btn-md  btn-primary mt-12 margin-right-5 #{!app.short_listed? ? 'disabled' : "" }"
     btn += link_to 'Hire' , hire_job_application_path(app) , method: :post  ,  class:  " btn btn-md  btn-primary mt-12 margin-right-5 #{!app.interviewing? ? 'disabled' : "" }"
-    btn += link_to 'Start Contract' , accept_job_application_path(app) , method: :post , remote: true ,   class: "contract btn btn-md btn-default mt-12 margin-right-5 #{  !app.hired? || app.contract.present? ? 'disabled' : "" }"
+    if app.is_candidate_applicant?
+      btn += link_to 'Start Contract' , new_job_application_consultant_path(app)  ,   class: "contract btn btn-md btn-default mt-12 margin-right-5 #{  !app.hired? || app.contract.present? ? 'disabled' : "" }"
+    else
+      btn += link_to 'Start Contract' , accept_job_application_path(app) , method: :post , remote: true ,   class: "contract btn btn-md btn-default mt-12 margin-right-5 #{  !app.hired? || app.contract.present? ? 'disabled' : "" }"
+    end
     btn.to_s
   end
 end

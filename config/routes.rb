@@ -42,8 +42,16 @@
 
 Rails.application.routes.draw do
 
+  # devise_for :candidates
+  devise_for :candidates , controllers: {
+      sessions: 'candidates/sessions',
+      registrations: 'candidates/registrations',
+      password:'candidates/passwords'
+  }
+  # devise_for :candidates
   get '/states/:country', to: 'application#states'
   get '/cities/:state/:country', to: 'application#cities'
+
   scope module: :candidate do
 
     resources :candidates ,path: :candidate ,only: [:update]
@@ -53,6 +61,9 @@ Rails.application.routes.draw do
 
 
   namespace :candidate do
+    post 'update_photo',    to: 'candidates#update_photo'
+    resources :educations, only:[:create,:update]
+    resources :experiences, only: [:create,:update]
     get '/' ,       to: 'candidates#dashboard' ,             as: :candidate_dashboard
     resources :addresses,only: [:update]
 
@@ -105,11 +116,14 @@ Rails.application.routes.draw do
   # patch '/consultants/invitation/accept', to: 'company/invitations#update'
 
   # COMPANY ROUTES
+  namespace  :company do
+    resources :users, only: [:show,:update]
+  end
   scope module: :company do
 
-    resources :users, only: [:show,:update]
 
     resources :consultants do
+      collection { post :import }
       resources :leaves do
         member do
           post :accept
@@ -127,6 +141,7 @@ Rails.application.routes.draw do
     resources :invoices         , only: [:index]
     resources :job_invitations  , only: [:index]
     resources :job_applications , only: [:index,:show] do
+      resources :consultants , only: [:new , :create]
       member do
         post :accept
         post :reject
@@ -151,6 +166,7 @@ Rails.application.routes.draw do
         end
       end
     end
+
     resources :jobs do
       resources :contracts , except: [:index , :show] do
         member do
@@ -278,19 +294,15 @@ Rails.application.routes.draw do
   resources :static , only: [:index]
 
   # Devise Routes
-  devise_for :users, controllers: { invitations: 'company/invitations' } , path_names: { sign_in: 'login', sign_out: 'logout'}
-  devise_for :candidates , controllers: {
-                            sessions: 'candidates/sessions',
-                            registrations: 'candidates/registrations',
-                            password:'candidates/passwords'
-                        }
+   devise_for :users, controllers: { invitations: 'company/invitations' } , path_names: { sign_in: 'login', sign_out: 'logout'} , controllers: {
+                           }
 
   # Route set when subdomain present?
-  constraints(Subdomain) do
-    devise_scope :user do
-      match '/' => 'devise/sessions#new', via: [:get, :post]
-    end
-  end
+  # constraints(Subdomain) do
+  #   devise_scope :user do
+  #     match '/' => 'devise/sessions#new', via: [:get, :post]
+  #   end
+  # end
 
   # Route set when subdomain is not present
   constraints(NakedEtymeDomain) do

@@ -1,12 +1,11 @@
 #shortcut
   %ul
     %li
-      = link_to root_path, class: 'jarvismetro-tile big-cubes bg-color-blueDark' do
+      = link_to profile_path(current_candidate), class: 'jarvismetro-tile big-cubes bg-color-blueDark' do
         %span.iconbox
-          %i.fa.fa-black-tie.fa-4x
+          %i.fa.fa-user.fa-4x
           %span
-            Preferred Vendors
-            %span.label.pull-right.bg-color-darken 14
+            Profile
     %li
       = link_to root_path, class: 'jarvismetro-tile big-cubes bg-color-blueDark' do
         %span.iconbox

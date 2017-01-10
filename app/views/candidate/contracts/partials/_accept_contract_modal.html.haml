@@ -40,13 +40,12 @@
             = f.submit status.titleize , class: 'btn btn-primary' , data: {confirm: 'Are you sure?', verify: status.titleize, verify_text: "Type '#{status.titleize}' to confirm"}
 :javascript
     $( document ).ready(function() {
-         //$(".multi-select2-company-docs").select2({placeholder: "Select a Doc(s)"});
-         $('#contract_start_date').datepicker({
-            dateFormat : 'dd/mm/yy'
-
-          });
-         $('#contract_end_date').datepicker({
+       //$(".multi-select2-company-docs").select2({placeholder: "Select a Doc(s)"});
+       $('#contract_start_date').datepicker({
           dateFormat : 'dd/mm/yy'
 
         });
+       $('#contract_end_date').datepicker({
+        dateFormat : 'dd/mm/yy'
+      });
     });

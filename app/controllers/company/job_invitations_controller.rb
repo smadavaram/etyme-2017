@@ -12,7 +12,7 @@ class Company::JobInvitationsController < Company::BaseController
   end
 
   def create
-    @job_invitation = current_company.senssdt_job_invitations.new(job_invitation_params.merge!(job_id: @job.id , created_by_id: current_user.id ))
+    @job_invitation = current_company.sent_job_invitations.new(job_invitation_params.merge!(job_id: @job.id , created_by_id: current_user.id ))
     respond_to do |format|
       if @job_invitation.save
         format.js{ flash.now[:success] = "Job Invitation successfully send." }
@@ -43,22 +43,27 @@ class Company::JobInvitationsController < Company::BaseController
   end
 
   def create_multiple
+    invitation_params = job_invitation_params
     if params.has_key?("vendor_company")
       vendor_companies = Company.vendor.where(id: params[:vendor_company]) || []
-      current_company.sent_job_invitations.create!(vendor_companies.map{ |c| job_invitation_params.merge!( created_by_id: current_user.id,invitation_type: 'vendor' ,recipient_type: 'User' ,recipient_id: c.owner_id)})
+      invitation_params = vendor_companies.map{ |c| invitation_params.merge!( created_by_id: current_user.id,invitation_type: 'vendor' ,recipient_type: 'User' ,recipient_id: c.owner_id)}
     elsif params.has_key?("temp_candidates")
       candidates = Candidate.where(id: params[:temp_candidates]) || []
-      current_company.sent_job_invitations.create! candidates.map{ |candidate| job_invitation_params.merge!(created_by_id: current_user.id ,invitation_type: 'candidate',recipient_type: 'User' ,recipient_id: candidate.id)}
+      invitation_params = candidates.map{ |candidate| job_invitation_params.merge!(created_by_id: current_user.id ,invitation_type: 'candidate',recipient_type: 'Candidate' ,recipient_id: candidate.id)}
+    end
+    if current_company.sent_job_invitations.create!(invitation_params)
+      flash[:success] = "Invitation Sent!"
+    else
+      flash[:error] = "Error!"
     end
     redirect_to :back
   end
 
-
   private
 
     def set_job_invitations
-      @received_job_invitations      = current_company.received_job_invitations.order(created_at: :desc).includes(:created_by ,:recipient,job: [:created_by , :location , :company]).paginate(page: params[:page], per_page: 10) || []
-      @sent_job_invitations          = current_company.sent_job_invitations.order(created_at: :desc).includes(:created_by ,:recipient,job: [:created_by , :location , :company]).paginate(page: params[:page], per_page: 10) || []
+      @received_job_invitations      = current_company.received_job_invitations.order(created_at: :desc).includes(:created_by ,:recipient,job: [:created_by  , :company]).paginate(page: params[:page], per_page: 10) || []
+      @sent_job_invitations          = current_company.sent_job_invitations.order(created_at: :desc).includes(:created_by ,:recipient,job: [:created_by  , :company]).paginate(page: params[:page], per_page: 10) || []
     end
 
     def find_job

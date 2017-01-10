@@ -1,14 +1,13 @@
-.table-responsive
+.table-responsive{:style => "width:100"}
   %table#resultTable.table.table-striped.table-bordered.table-hover
     %thead
       %tr
-        %th{:style => "width:30px"} Pic
+        %th Pic
         %th Title
         %th Company/Candidate
         %th Created By
         %th Expiry
         %th Status
-        %th
     %tbody
       - data.each do |contract|
         %tr{class: "#{set_background_status_color(contract.status)}"}
@@ -18,50 +17,6 @@
           %td= link_to contract.created_by.full_name , '#'
           %td= contract.end_date
           %td
-            %span.label.label-success= contract.status
-          %td= link_to 'View' , contract_path(contract), target: '_blank'
-  -#%tr.danger
-  -#  %td= image_tag 'avatars/male.png', alt: '', width: '20'
-  -#  %td Cleo
-  -#  %td Blue
-  -#  %td 1993-04-30
-  -#  %td
-  -#    collin@berry.info
-  -#    %a.pull-right{:href => "javascript:void(0);"}
-  -#      %i.fa.fa-key
-  -#  %td Groesbeck
-  -#  %td 12764
-  -#  %td 543-827-8732
-  -#  %td
-  -#    %span.label.label-danger Disabled
-  -#%tr.success
-  -#  %td= image_tag 'avatars/male.png', alt: '', width: '20'
-  -#  %td Chantel
-  -#  %td Medina
-  -#  %td 1993-04-01
-  -#  %td
-  -#    marilynn.lucretia@animalanswer.edu
-  -#    %a.pull-right{:href => "javascript:void(0);"}
-  -#      %i.fa.fa-key
-  -#  %td Lozano
-  -#  %td 46151
-  -#  %td 789-917-1518
-  -#  %td
-  -#    %span.label.label-primary ADMIN
-  -#%tr.warning
-  -#  %td= image_tag 'avatars/male.png', alt: '', width: '20'
-  -#  %td Lesley
-  -#  %td Mccall
-  -#  %td 2000-07-27
-  -#  %td
-  -#    pam.kelli@recordred.me
-  -#    %a.pull-right{:href => "javascript:void(0);"}
-  -#      %i.fa.fa-key
-  -#  %td Eagle Lake
-  -#  %td 83430
-  -#  %td 255-974-8448
-  -#  %td
-  -#    %span.label.label-warning Inactive
-  .text-center
-    %hr/
-    = will_paginate data
+            = label_status_color(contract.status)
+
+  = digg_pagination(data)

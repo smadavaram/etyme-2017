@@ -33,5 +33,5 @@
           .modal-footer
             %button.btn.btn-default{"data-dismiss" => "modal", :type => "button"}
               Cancel
-            = f.submit 'Save' , class: 'btn btn-primary'
+            = f.button "Save" , class: 'btn btn-primary' , data: {disable_with: "<i class='fa fa-spin'></i>Submiting..."}
 

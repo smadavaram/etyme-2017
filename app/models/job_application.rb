@@ -4,7 +4,7 @@ class JobApplication < ActiveRecord::Base
   enum application_type: [:direct , :candidate_direct , :vendor_direct , :invitation]
 
   belongs_to :job_invitation
-  belongs_to :user
+  belongs_to :applicationable, polymorphic: true
   belongs_to :job
   belongs_to :company
   has_one    :contract
@@ -27,6 +27,14 @@ class JobApplication < ActiveRecord::Base
   scope :vendor , -> {joins(:job_invitation).where('job_invitations.invitation_type = ?' , 0)}
   scope :by_email , -> {joins(:job_invitation).where('job_invitations.invitation_type = ?' , 2)}
 
+  def is_candidate_applicant?
+    self.applicationable.class.name == "Candidate"
+  end
+
+  def user
+    self.applicationable
+  end
+
   private
 
     def update_job_invitation_status
@@ -41,5 +49,7 @@ class JobApplication < ActiveRecord::Base
     def set_application_type
       self.invitation!
     end
+
+
 
 end

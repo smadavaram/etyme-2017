@@ -37,6 +37,8 @@
  *= require amaran.min
 
  *= require candidate_override
+
+ *= require global
  */
 
 
