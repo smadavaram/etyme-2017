@@ -15,6 +15,8 @@
       .modal-body
         = form_for [job,contract] , html: {class: 'form-horizontal'} , remote: false do |f|
           = f.hidden_field :job_application_id , value: job_application.id
+          -  if job_application.is_candidate_applicant? &&  !current_company.consultants.where(candidate_id: job_application.applicationable_id).present?
+            = f.hidden_field :assignee_id , value: current_company.consultants.where(candidate_id: job_application.applicationable_id).first.id
           %fieldset
             .form-group
               %label.col-md-2.control-label
@@ -31,7 +33,7 @@
               %label.col-md-2.control-label
                 Company Docs
               .col-md-10.select
-                = f.select :company_doc_ids , options_for_select(current_company.company_docs.collect { |doc|[doc.name, doc.id] }),{} ,prompt: "Select Docs" , class: "form-control input-lg" , multiple: true
+                = f.select :company_doc_ids , options_for_select(current_company.company_docs.collect { |doc|[doc.name, doc.id] }),{}  , class: "form-control multi-select2" , multiple: true
             .form-group
               %label.col-md-2.control-label Invoicing Frequency
               .col-md-4.select

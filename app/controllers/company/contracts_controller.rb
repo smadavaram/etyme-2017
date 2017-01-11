@@ -27,14 +27,18 @@ class Company::ContractsController < Company::BaseController
     @contract  = current_company.sent_contracts.new(create_contract_params)
     respond_to do |format|
       if @contract.save
-        format.html {flash[:success] = "successfully Send."}
+        format.html {
+          flash[:success] = "successfully Send."
+          redirect_to contracts_path(@contract)
+        }
         format.js{ flash.now[:success] = "successfully Send." }
       else
         format.js{ flash.now[:errors] =  @contract.errors.full_messages }
-        format.html{ flash[:errors] =  @contract.errors.full_messages }
+        format.html{ flash[:errors] =  @contract.errors.full_messages
+          redirect_to :back
+        }
       end
     end
-    redirect_to contract_path(@contract)
   end
 
   def open_contract

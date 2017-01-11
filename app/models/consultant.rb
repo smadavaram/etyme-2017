@@ -80,15 +80,6 @@ class Consultant < User
 
   def hourly_rate
     if self.consultant_profile.salaried?
-      self.consultant_profile.salary
-    else
-      self.consultant_profile.salary
-    end
-  end
-
-
-  def hourly_rate
-    if self.consultant_profile.salaried?
       return (self.consultant_profile.salary)/((self.max_working_hours)/3600.0)*20
     else
       return self.consultant_profile.salary
