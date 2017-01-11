@@ -30,10 +30,11 @@ class JobInvitation < ActiveRecord::Base
   has_one    :contract  , through: :job_application
 
   # after_create :send_invitation_mail
+  after_create :associate_invitation_with_candidate , if: Proc.new{|invitation| invitation.email.present?}
   after_create :notify_recipient
   after_update :notify_on_status_change, if: Proc.new{|invitation| invitation.status_changed?}
 
-
+  attr_accessor :email , :first_name , :last_name
 
 
   def is_active?
@@ -52,4 +53,21 @@ class JobInvitation < ActiveRecord::Base
     def notify_on_status_change
       self.created_by.notifications.create(message: self.recipient.full_name+" has "+ self.status+" your request for "+self.job.title ,title:"Job Invitation")
     end
+
+  def associate_invitation_with_candidate
+    candidate = Candidate.where(email: self.email).first || []
+    if candidate.present?
+      self.recipient_id = candidate.id
+      self.recipient_type = "Candidate"
+        candidate.invite! do |u|
+          u.skip_invitation = true
+        end
+    else
+      self.recipient = Candidate.invite!({first_name: first_name, last_name: last_name, email: email} , self.created_by) do |u|
+        u.skip_invitation = true
+      end
+      # self.recipient.sent_invitation_mail
+    end
+    self.save
+  end
 end

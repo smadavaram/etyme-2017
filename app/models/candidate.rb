@@ -4,8 +4,11 @@ class Candidate < ActiveRecord::Base
   devise :invitable, :database_authenticatable, :registerable,
          :recoverable, :rememberable, :trackable, :validatable
 
+  validates :password,presence: true,if: Proc.new { |consultant| !consultant.password.nil? }
+  validates :password_confirmation,presence: true,if: Proc.new { |consultant| !consultant.password.nil? }
+
   after_create :send_welcome_email
-  # after_create :send_invitation    ,if: Proc.new{|candidate|candidate.invited_by.present?}
+  before_create :send_invitation    ,if: Proc.new{|candidate|candidate.invited_by.present?}
   # after_create :send_job_invitation, if: Proc.new{ |candidate| candidate.invited_by.present?}
   after_create :create_address
 
@@ -48,6 +51,16 @@ class Candidate < ActiveRecord::Base
     self.first_name + " " + self.last_name
   end
 
+  # protected
+  #   def password_required?
+  #     return false if skip_password_validation
+  #     super
+  #   end
+
+  def send_invitation
+    CandidateMailer.invite_user(self,self.invited_by).deliver_now
+  end
+
   private
 
   def create_address
@@ -62,16 +75,11 @@ class Candidate < ActiveRecord::Base
     CandidateMailer.welcome_candidate(self).deliver_now
   end
 
-  def send_invitation
-    invite! do |u|
-      u.skip_invitation = true
-    end
-    CandidateMailer.invite_user(self,self.invited_by).deliver_now
-  end
-
   def send_job_invitation
     self.invited_by.company.sent_job_invitations.create!( recipient:self , created_by:self.invited_by , job_id: self.job_id.to_i,message:self.message,expiry:self.expiry,invitation_type: self.invitation_type)
   end
+
+
 
 
 end

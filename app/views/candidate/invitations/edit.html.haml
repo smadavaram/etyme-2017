@@ -1,0 +1,49 @@
+- content_for :html_id, "extr-page"
+- content_for :body_class, "animated fadeInDown"
+#main{:role => "main"}
+  / MAIN CONTENT
+  #content.container
+    %section
+      / row
+      .row
+        %article.col-sm-12.col-md-12.col-lg-12
+          / Widget ID (each widget will need unique ID)
+          #wid-id-2.jarviswidget{"data-widget-deletebutton" => "false", "data-widget-editbutton" => "false"}
+            %header
+              %h2 #{resource.class.name.titleize} Onboarding
+            %div
+              .jarviswidget-editbox
+                = form_for resource , url: candidate_invitation_path(resource_name) ,html: { method: :put , class: 'form-horizontal'} do |e|
+                  = e.hidden_field :invitation_token
+                  %fieldset
+                    .form-group
+                      %label.control-label.col-md-2
+                        Password
+                        %span{:style => "color:red;"} *
+                      .col-md-6
+                        .row
+                          .col-sm-12
+                            .input-icon-left
+                              %i.fa.txt-color-green
+                              = e.password_field :password, :class=>"form-control  input-sm", placeholder:"Enter Password", required: true
+                    .form-group
+                      %label.control-label.col-md-2
+                        Confirm Password
+                        %span{:style => "color:red;"} *
+                      .col-md-6
+                        .row
+                          .col-sm-12
+                            .input-icon-left
+                              %i.fa.txt-color-green
+                              = e.password_field :password_confirmation, :class=>"form-control  input-sm", placeholder:"Confirm Password", required: true
+                    .form-group
+                      .col-md-offset-2.col-md-6
+                        .row
+                          .col-sm-12
+                            = e.button 'Submit' , class: 'btn btn-info btn-sm' , data: {disable_with: disable_spinning('saving...')}
+  - content_for :scripts do
+    :javascript
+      // DO NOT REMOVE : GLOBAL FUNCTIONS!
+      $(document).ready(function() {
+        pageSetUp();
+      });

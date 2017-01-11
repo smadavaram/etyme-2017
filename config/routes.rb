@@ -46,7 +46,8 @@ Rails.application.routes.draw do
   devise_for :candidates , controllers: {
       sessions: 'candidates/sessions',
       registrations: 'candidates/registrations',
-      passwords:'candidates/passwords'
+      passwords:'candidates/passwords',
+      invitations: 'candidate/invitations'
   }
   # devise_for :candidates
   get '/states/:country', to: 'application#states'
@@ -119,6 +120,7 @@ Rails.application.routes.draw do
   namespace  :company do
     resources :users, only: [:show,:update]
     resources :companies ,only: :create
+    resources :candidates , only: [:create]
   end
   scope module: :company do
 
@@ -132,7 +134,6 @@ Rails.application.routes.draw do
     end
     resources :locations
     resources :company_docs
-    resources :candidates , only: [:create]
     resources :roles
     resources :admins
     resources :addresses
