@@ -4,7 +4,7 @@ class Static::JobsController < ApplicationController
   before_action :find_job,only: [:show,:apply]
 
   def index
-
+    session[:previous_url] = request.url
   end
 
   def show

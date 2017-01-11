@@ -22,21 +22,6 @@
               %label.col-md-2.control-label Message (optional)
               .col-md-10
                 = f.text_area :message, class: "form-control", rows: "2" ,placeholder: 'Write tour message'
-          %fieldset
-            .form-group
-              %label.col-md-2.control-label First Name
-              .col-md-10
-                = f.text_field :candidate_first_name, class: "form-control" ,placeholder: 'First Name'
-            .form-group
-              %label.col-md-2.control-label Last Name
-              .col-md-10
-                = f.text_field :candidate_last_name, class: "form-control",placeholder: 'Last Name'
-            .form-group
-              %label.col-md-2.control-label Email
-              .col-md-10
-                = f.email_field :candidate_email, class: "form-control",placeholder: 'Email'
-
-
             -#= job.custom_fields.each do |c|
             .nested-fields
               = f.fields_for :custom_fields do |custom|
@@ -48,4 +33,7 @@
           .modal-footer
             %button.btn.btn-default{"data-dismiss" => "modal", :type => "button"}
               Cancel
-            = f.button "Save" , class: 'btn btn-primary' , data: {disable_with: "<i class='fa fa-spin'></i>Submiting..."}
+            = f.button "Save" , class: 'btn btn-primary' , data: {"data-dismiss" => "modal", :type => "button"}
+
+
+

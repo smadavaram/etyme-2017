@@ -1,24 +1,25 @@
 #content
   .row
-    - @jobs.each do |job|
-      .col-sm-3.animated.fadeInLeftBig
-        .panel
-          %section.panel.b-light.text-center{style:"border-color:thistle height: 100%"}
-            %header.panel-heading.bg-color-white{:style => "display: table; width: 100%; height: 100%;"}
-              %h3.equal-height
-                = job.title
-                %br
-                %span.h4.text-muted
-                  = job.job_category
-              %ul.list-group
-                %li.list-group-item
-                  %p.h4
-                    = job.company.name.titleize
-                %li.list-group-item.text-muted.text-center{:style => "text-align: justify; font-size: 14px; height: 140px;"}
-                  = truncate(strip_tags(job.description),length: 200)
-              .pannel-footer.b-light.links{:style => ""}
-                = link_to 'Apply',static_job_apply_path(job),remote: true,method: :post ,class: 'btn btn-primary size'
-                = link_to 'View Detail',static_job_path(job),class: 'btn btn-primary size'
+    .col-md-12
+      - @jobs.each do |job|
+        .col-sm-3.animated.fadeInLeftBig
+          .panel
+            %section.panel.b-light.text-center{style:"border-color:thistle height: 100%"}
+              %header.panel-heading.bg-color-white{:style => "display: table; width: 100%; height: 100%;"}
+                %h3.equal-height
+                  = job.title
+                  %br
+                  %span.h4.text-muted
+                    = job.job_category
+                %ul.list-group
+                  %li.list-group-item
+                    %p.h4
+                      = job.company.name.titleize
+                  %li.list-group-item.text-muted.text-center{:style => "text-align: justify; font-size: 14px; height: 140px;"}
+                    = truncate(strip_tags(job.description),length: 200)
+                .pannel-footer.b-light.links{:style => ""}
+                  = link_to 'Apply',candidate_signed_in? ? static_job_apply_path(job,status:true)  : static_job_apply_path(job,status: false) ,method: :post,remote: true ,class: 'btn btn-primary size'
+                  = link_to 'View Detail',static_job_path(job),class: 'btn btn-primary size'
 
 - content_for :modals do
   #job_invitation
@@ -73,6 +74,8 @@
   :javascript
     $(document).ready(function() {
         $('.equal-height').equalHeights();
-        // $('.equal-height2').equalHeights();
-        // $('.equal-height3').equalHeights();
+
+        $('.btn').click(function() {
+          $('.modal').modal('toggle');
+        });
     });

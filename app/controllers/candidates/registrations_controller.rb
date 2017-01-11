@@ -11,7 +11,7 @@ class Candidates::RegistrationsController < Devise::RegistrationsController
 
   # POST /resource
    def create
-     resource.invitsde!(configure_permitted_parameters , current_user)
+     # resource.invitsde!(configure_permitted_parameters , current_user)
      super
      # Candidate.invite!(current_user)
    end
