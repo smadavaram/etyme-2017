@@ -8,7 +8,7 @@ class Company::TransactionsController < Company::BaseController
 
     respond_to do |format|
       if @transaction.save
-        format.html { redirect_to :back, notice: 'Entry has beenN successfully created.' }
+        format.html { redirect_to :back, notice: 'Entry has been successfully created.' }
         format.json { render :show, status: :created, location: @transaction }
       else
         format.html {
