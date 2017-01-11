@@ -1,0 +1,97 @@
+
+#offer.modal.fade.in{"aria-hidden" => "false", :style => "display: block;"}
+  .modal-dialog.modal-admin
+    .modal-content
+      .modal-header
+        %button.close{"aria-hidden" => "true", "data-dismiss" => "modal", :type => "button"} ×
+        %h4.modal-title Sign-up or Login.
+      .modal-body
+        %section.panel-default
+          .col-sm-12
+            .col-sm-5
+              %legend Login
+              = form_for(resource, as: resource_name, url: session_path(resource_name,status: true), html: {id: 'login-form', class: 'smart-form client-form'}) do |f|
+                %fieldset
+                  %section
+                    %section
+                      %label.label E-mail
+                      %label.input
+                        %i.icon-append.fa.fa-user
+                        = f.email_field :email, autofocus: true
+                        %b.tooltip.tooltip-top-right
+                          %i.fa.fa-user.txt-color-teal
+                          Please enter email address/username
+                    %section
+                      %label.label Password
+                      %label.input
+                        %i.icon-append.fa.fa-lock
+                        = f.password_field :password, autocomplete: "off"
+                        %b.tooltip.tooltip-top-right
+                          %i.fa.fa-lock.txt-color-teal
+                          Enter your password
+                      .note
+                        = link_to 'Forgot password?', new_candidate_password_path
+                    %section
+                      %label.checkbox
+                        = f.check_box :remember_me
+                        = succeed "Stay" do
+                          %i
+                  %footer
+                    %button.btn.btn-primary{:type => "submit"}
+                      Sign in
+              / <div class="line line-dashed"></div>
+              -#%div{:style => "margin-top: 70px"}
+              -#  %p If you have already used ActiveApplicant before for applying to a job, Then just use the link below to activate and login to your account.
+              -#  %form.simple_form{"accept-charset" => "UTF-8", :action => "/applicant/resend_invitation", :method => "post", :novalidate => "novalidate"}
+              -#    %input{:name => "utf8", :type => "hidden", :value => "✓"}/
+              -#    %input{:name => "authenticity_token", :type => "hidden", :value => "X1KSaZOcC+IRPYIqLboBilI+f2bTienHlbrMMDvsWqp/bP3Lha5lrwkTbFvtuIcbg4NKOZw2emu2+f/obqe76w=="}/
+              -#    .input.email.optional
+              -#      %input.string.email.optional.form-control.input-lg{:name => "applicant[email]", :placeholder => "Email", :type => "email"}/
+              -#    .line.line-dashed
+              -#    %input.btn.btn-primary{:name => "commit", :type => "submit", :value => "Send Activation Email"}/
+            / <input type="text" class="form-control input-lg" placeholder="Email"/>
+            / <div class="line line-dashed"></div>
+            / <a href='/applicant/new/resend_invitation' class="btn btn-primary btn-lg">Send Activation Email</a>
+            %div{:style => " height:350px; border-right: 1px solid gainsboro;float: left; position: relative;top: 70px;left: 30px "}
+            .col-sm-6{:style => "margin-left: 25px"}
+              %legend Sign Up
+              = simple_form_for(resource, as: resource_name, url: registration_path(resource_name), html: {id: 'smart-form-register' , class: 'smart-form client-form' }) do |f|
+                %fieldset
+                  %section
+                    %label.input
+                      %i.icon-append.fa.fa-building-o
+                    %section
+                      %label.input
+                        %i.icon-append.fa.fa-user
+                        = f.text_field :first_name, :placeholder => "First name", required: true
+                        %b.tooltip.tooltip-bottom-right Your First Name
+                    %section
+                      %label.input
+                        %i.icon-append.fa.fa-user
+                        = f.text_field :last_name, :placeholder => "Last name", required: true
+                        %b.tooltip.tooltip-bottom-right Your Last Name
+                    %section
+                      %label.input
+                        %i.icon-append.fa.fa-envelope
+                        = f.email_field :email, :placeholder => "Your Email", required: true, email: true
+                        %b.tooltip.tooltip-bottom-right Your Company Email
+                    %section
+                      %label.input
+                        %i.icon-append.fa.fa-lock
+                        = f.password_field :password, :placeholder => "Password", required: true,minlength: "6"
+                        %b.tooltip.tooltip-bottom-right Please enter a password of minimum 6 characters
+                    %section
+                      %label.input
+                        %i.icon-append.fa.fa-lock
+                        = f.password_field :password_confirmation, :placeholder => "Confirm password", "data-rule-equalTo": "#company_owner_attributes_password"
+                        %b.tooltip.tooltip-bottom-right Please confirm the password
+                %br/
+                .line.line-dashed
+                .form-group
+                  %span
+                    By Clicking The SIGN UP You Agree The
+                    %a{:href => "/terms", :target => "_blank"} Terms &amp; Policy
+                    of ActiveApplicant
+                %input.btn.btn-primary.btn-lg.pull-right{:name => "commit", :onclick => "if ($('#terms').is(':checked')){$('#new_applicant').submit();}", :type => "submit", :value => "Sign Up"}/
+        %section.panel-default
+      .modal-footer{:style => "border-top:0px;"}

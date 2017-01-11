@@ -7,7 +7,12 @@
     = csrf_meta_tags
   %body{:class => "#{yield :body_class}"}
     = render partial: 'shared/header'
-    = yield
-  = javascript_include_tag 'application'
-  = filepicker_js_include_tag
-
+    #main{:role => "main"}
+      -##ribbon
+      -#  %ol.breadcrumb
+      -#    = render_breadcrumbs tag: :li, separator: ""
+      = yield
+    = javascript_include_tag 'application'
+    = filepicker_js_include_tag
+    = yield(:scripts).present? ? yield(:scripts) : render(partial: 'shared/scripts')
+    = yield :modals

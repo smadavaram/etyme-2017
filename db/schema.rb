@@ -104,6 +104,8 @@ ActiveRecord::Schema.define(version: 20170110104758) do
     t.datetime "updated_at",       null: false
   end
 
+  add_index "comments", ["created_by_id"], name: "index_comments_on_created_by_id", using: :btree
+
   create_table "companies", force: :cascade do |t|
     t.integer  "owner_id"
     t.string   "name"
@@ -481,15 +483,6 @@ ActiveRecord::Schema.define(version: 20170110104758) do
   end
 
   add_index "transactions", ["timesheet_log_id"], name: "index_transactions_on_timesheet_log_id", using: :btree
-
-  create_table "user_docs", force: :cascade do |t|
-    t.integer  "company_doc_id"
-    t.integer  "user_id"
-    t.string   "description"
-    t.string   "file"
-    t.datetime "created_at",     null: false
-    t.datetime "updated_at",     null: false
-  end
 
   create_table "users", force: :cascade do |t|
     t.integer  "company_id"

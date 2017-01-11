@@ -1,0 +1,81 @@
+#content
+  .row
+    .col-md-12
+      - @jobs.each do |job|
+        .col-sm-3.animated.fadeInLeftBig
+          .panel
+            %section.panel.b-light.text-center{style:"border-color:thistle height: 100%"}
+              %header.panel-heading.bg-color-white{:style => "display: table; width: 100%; height: 100%;"}
+                %h3.equal-height
+                  = job.title
+                  %br
+                  %span.h4.text-muted
+                    = job.job_category
+                %ul.list-group
+                  %li.list-group-item
+                    %p.h4
+                      = job.company.name.titleize
+                  %li.list-group-item.text-muted.text-center{:style => "text-align: justify; font-size: 14px; height: 140px;"}
+                    = truncate(strip_tags(job.description),length: 200)
+                .pannel-footer.b-light.links{:style => ""}
+                  = link_to 'Apply',candidate_signed_in? ? static_job_apply_path(job,status:true)  : static_job_apply_path(job,status: false) ,method: :post,remote: true ,class: 'btn btn-primary size'
+                  = link_to 'View Detail',static_job_path(job),class: 'btn btn-primary size'
+
+- content_for :modals do
+  #job_invitation
+
+
+  -#.row
+  -#  .col-xs-12.col-sm-3.col-md-3.col-lg-3.pull-right
+  -#    = button_tag 'NEW' ,class: 'btn btn-success btn-lg pull-right header-btn hidden-mobile' , "data-toggle": "modal" , "data-target":"#new-job"
+  -#%section{style: 'margin-top: 10px;'}
+  -#  / row
+  -#  .row
+  -#    / NEW WIDGET START
+  -#    %article.col-xs-12.col-sm-12.col-md-12.col-lg-12
+  -#      / Widget ID (each widget will need unique ID)
+  -#      #wid-id-0.jarviswidget{"data-widget-editbutton" => "false"}
+  -#        %header.text-muted
+  -#          %span.widget-icon
+  -#            %i.fa.fa-table.text-muted
+  -#          %h2.text-muted ALL JOBS
+  -#        / widget div
+  -#        %div
+  -#          / widget edit box
+  -#          .jarviswidget-editbox
+  -#          .widget-body.no-padding
+  -#            %table#dt_basic.table.table-striped.table-bordered.table-hover{:width => "100%"}
+  -#              %thead
+  -#                %tr
+  -#                  %th{"data-hide" => "phone"} Title
+  -#                  %th{"data-class" => "expand"}
+  -#                    %i.fa.fa-fw.fa-calendar.txt-color-blue.hidden-md.hidden-sm.hidden-xs
+  -#                    Last-Date
+  -#                  %th Location
+  -#                  %th Posted By
+  -#                  %th{"data-hide" => "phone,tablet"}
+  -#                    Actions
+  -#              %tbody
+  -#                - @jobs.each_with_index do |job , index|
+  -#                  %tr
+  -#                    %td= link_to job.title , job_path(job) , target: '_blank'
+  -#                    %td= job.end_date
+  -#                    %td= job.location
+  -#                    %td= job.created_by.full_name  rescue "  --"
+  -#                    %td
+  -#                      = link_to raw("<i class='fa fa-pencil '></i>") , edit_job_path(job) , class: 'btn btn-xs btn-default btn-primary'
+  -#                      = link_to raw("<i class='fa fa-times '></i>") , job_path(job) , method: :delete ,  class: 'btn btn-xs btn-default btn-danger'
+  -#                      - if(job.is_active?)
+  -#                        = link_to 'Send Invitation' ,send_invitation_job_path(job) , method: :post ,remote: true,  class: 'btn btn-xs btn-default btn-success'
+
+
+-content_for :scripts do
+
+  :javascript
+    $(document).ready(function() {
+        $('.equal-height').equalHeights();
+
+        $('.btn').click(function() {
+          $('.modal').modal('toggle');
+        });
+    });

@@ -1,0 +1,7 @@
+-if params[:status]=='true'
+  $('#job_invitation').html("#{ j render('static/job_applications/partials/job_application_modal' , job: @job , job_application: @job_application )}");
+  $('#job-invite-#{@job.id }').modal('show');
+
+-else
+  $('#job_invitation').html("#{j render('static/new_candidate')}");
+  $('#offer').modal('show');
