@@ -65,13 +65,18 @@ Rails.application.routes.draw do
 
   scope module: :candidate do
 
-    resources :candidates ,path: :candidate ,only: [:update]
+    resources :candidates ,path: :candidate ,only: [:update] do
+      collection do
+        get :notify_notifications
+      end
+    end
     get '/profile',to:'candidates#show'
-    get 'candidate/candidates/notify_notifications', to: 'candidates#notify_notifications', as: :candidate_ajax_notify_notifications
+
   end
 
 
   namespace :candidate do
+
     post 'update_photo',    to: 'candidates#update_photo'
     resources :educations, only:[:create,:update]
     resources :experiences, only: [:create,:update]
@@ -83,16 +88,15 @@ Rails.application.routes.draw do
       post :reject
       get  :show_invitation
     end
-    resources :contracts        , only: [:index]
+    # resources :contracts        , only: [:index]
     resources :candidates ,only: [:show,:update]
     resources :jobs do
-
-      resources :contracts , except: [:index] do
-        member do
-          post :open_contract , as: :open_contract
-          post :update_contract_response        , as: :update_contract_response
-        end # End of member
-      end # End of :contracts
+      # resources :contracts , except: [:index] do
+      #   member do
+      #     post :open_contract , as: :open_contract
+      #     post :update_contract_response        , as: :update_contract_response
+      #   end # End of member
+      # end # End of :contracts
 
       resources :job_applications
       member do
@@ -124,7 +128,11 @@ Rails.application.routes.draw do
   # COMPANY ROUTES
   namespace  :company do
     get 'companies/edit'
-    resources :users, only: [:show,:update]
+    resources :users, only: [:show,:update] do
+      collection do
+        get :notify_notifications
+      end
+    end
     resources :companies ,only: :create
     resources :candidates , only: [:create]
   end
@@ -225,17 +233,6 @@ Rails.application.routes.draw do
         post :update_logo
       end
     end
-
-    # AJAX for layout setting, remove in future
-    get 'ajax/email_compose', to: 'ajax#email_compose', as: :ajax_email_compose
-    get 'ajax/email_list', to: 'ajax#email_list', as: :ajax_email_list
-    get 'ajax/email_opened', to: 'ajax#email_opened', as: :ajax_email_opened
-    get 'ajax/email_reply', to: 'ajax#email_reply', as: :ajax_email_reply
-    get 'ajax/demo_widget', to: 'ajax#demo_widget', as: :ajax_demo_widget
-    get 'ajax/data_list.json', to: 'ajax#data_list', as: :ajax_data_list
-    get 'ajax/notify_mail', to: 'ajax#notify_mail', as: :ajax_notify_mail
-    get 'ajax/notify_notifications', to: 'ajax#notify_notifications', as: :ajax_notify_notifications
-    get 'company/ajax/notify_tasks', to: 'ajax#notify_tasks', as: :ajax_notify_tasks
 
   end # End of module company
 

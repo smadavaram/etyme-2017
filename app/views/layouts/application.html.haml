@@ -14,5 +14,7 @@
       = yield
     = javascript_include_tag 'application'
     = filepicker_js_include_tag
+    = tinymce_assets
     = yield(:scripts).present? ? yield(:scripts) : render(partial: 'shared/scripts')
-    = yield :modals
+    .modals
+

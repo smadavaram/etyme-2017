@@ -1,4 +1,4 @@
-.modal.fade.in{ id: "job-invite-#{job.id}"}
+.modal.fade.in{ id: "job-apply-#{job.id}"}
   .modal-dialog.modal-lg
     .modal-content
       .modal-header
@@ -33,7 +33,7 @@
           .modal-footer
             %button.btn.btn-default{"data-dismiss" => "modal", :type => "button"}
               Cancel
-            = f.button "Save" , class: 'btn btn-primary' , data: {"data-dismiss" => "modal", :type => "button"}
+            = f.button "Save".html_safe , class: 'btn btn-primary' , data: {disable_with: disable_spinning('Saving...')}
 
 
 

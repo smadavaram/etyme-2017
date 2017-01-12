@@ -33,7 +33,7 @@
     = yield :head
 
   %body.smart-style-3{class: "#{yield :body_class}"}
-    = render partial: 'candidate/shared/header'
+    = render partial: 'candidate/shared/header' ,locals:{notifications_count: current_candidate.notifications.count}
     = render partial: 'candidate/shared/left_panel'
     #main{:role => "main"}
       #ribbon

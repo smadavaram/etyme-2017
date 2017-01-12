@@ -2,14 +2,16 @@ class Static::JobApplicationsController < ApplicationController
 
   before_action :find_job ,only: :create
 
+
   def create
     @job_application=current_candidate.job_applications.new(job_application_params.merge(job_id:params[:job_id]))
     if @job_application.save
       flash[:success] = "Job Application Created"
     else
       flash[:errors] = @job_application.errors.full_messages
-      redirect_to :back
     end
+    redirect_to :back
+
   end
 
 

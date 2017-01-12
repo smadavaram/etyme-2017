@@ -16,7 +16,7 @@
         -#  = 'Msgs'
         -#  (14)
         %label.btn.btn-default
-          %input{:id => ajax_notify_notifications_path, :name => "activity", :type => "radio"}/
+          %input{:id => notify_notifications_company_users_path, :name => "activity", :type => "radio"}/
           ='notify'
           = current_user.notifications.count
         -#%label.btn.btn-default
@@ -31,7 +31,8 @@
         %i.fa.fa-lock.fa-4x.fa-border
       / footer: refresh area
       %span
-        Last updated on: 12/12/2013 9:43AM
+        Last updated on
+        = Time.now.strftime("%D %T")
         %button.btn.btn-xs.btn-default.pull-right{"data-loading-text" => "<i class='fa fa-refresh fa-spin'></i> Loading...", :type => "button"}
           %i.fa.fa-refresh
   = yield :top_right
