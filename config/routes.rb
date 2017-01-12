@@ -83,16 +83,15 @@ Rails.application.routes.draw do
       post :reject
       get  :show_invitation
     end
-    resources :contracts        , only: [:index]
+    # resources :contracts        , only: [:index]
     resources :candidates ,only: [:show,:update]
     resources :jobs do
-
-      resources :contracts , except: [:index] do
-        member do
-          post :open_contract , as: :open_contract
-          post :update_contract_response        , as: :update_contract_response
-        end # End of member
-      end # End of :contracts
+      # resources :contracts , except: [:index] do
+      #   member do
+      #     post :open_contract , as: :open_contract
+      #     post :update_contract_response        , as: :update_contract_response
+      #   end # End of member
+      # end # End of :contracts
 
       resources :job_applications
       member do

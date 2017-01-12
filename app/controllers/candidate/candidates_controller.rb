@@ -10,7 +10,7 @@ class Candidate::CandidatesController < Candidate::BaseController
   end
 
   def show
-    add_breadcrumb current_candidate.full_name.titleize, profile_path(current_candidate), :title => ""
+    add_breadcrumb current_candidate.full_name.titleize, profile_path, :title => ""
   end
 
   def update
