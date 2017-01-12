@@ -33,18 +33,18 @@ function flash_alert(msg)
     flash($alert,msg , 'fa fa-exclamation-triangle');
 }
 
-    $( document ).ready(function() {
-        $(".multi-select2").select2({
-            placeholder: $('#'+$('.multi-select2').attr('id')).attr('placeholder'),
-            tokenSeparators: [',', ' ']
-        })
-        $("#comment_body").keypress(function(event) {
-            if (event.which == 13) {
-                event.preventDefault();
-                $("#new_comment").submit();
-            }
-        });
-        if($('#container-chart').length > 0) {
+$( document ).ready(function() {
+    $(".multi-select2").select2({
+        placeholder: $('#'+$('.multi-select2').attr('id')).attr('placeholder'),
+        tokenSeparators: [',', ' ']
+    })
+    $("#comment_body").keypress(function(event) {
+        if (event.which == 13) {
+            event.preventDefault();
+            $("#new_comment").submit();
+        }
+    });
+    if($('#container-chart').length > 0) {
         $('#container-chart').highcharts({
             colors: ['#53C986','#334A5E','#ffc333','#fb6b5b'],
             chart: {
@@ -84,5 +84,24 @@ function flash_alert(msg)
             }]
         })
     }
+});
+
+function toggleFields() {
+    if($('#contract_is_commission').val() == "true")
+        $("#contract-commision").show();
+    else
+        $("#contract-commision").hide();
+
+    if($('#contract_commission_type option:selected').val() == "fixed")
+        $(".max-commission").hide();
+    else
+        $(".max-commission").show();
+
+}
+$(document).ready(function(){
+    toggleFields();
+    $("#contract_is_commission , #contract_commission_type").change(function () {
+        toggleFields();
     });
+});
 

@@ -66,8 +66,7 @@ class Candidate < ActiveRecord::Base
   def create_address
     address=Address.new
     address.save(validate: false)
-    self.primary_address_id = address.try(:id)
-    self.save
+    self.update_column(:primary_address_id , address.try(:id))
   end
 
   # send welcome email to candidate

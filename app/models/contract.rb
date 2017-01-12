@@ -32,7 +32,7 @@ class Contract < ActiveRecord::Base
   after_create :notify_recipient , if: Proc.new{ |contract| contract.not_system_generated? }
   after_update :notify_on_status_change, if: Proc.new{|contract| contract.status_changed? && contract.respond_by.present? && contract.not_system_generated?}
   # after_create :update_contract_application_status
-  after_save   :create_timesheet, if: Proc.new{|contract| contract.status_changed? && contract.is_not_ended? && !contract.timesheets.present? && contract.accepted? && contract.next_invoice_date.nil?}
+  after_save   :create_timesheet, if: Proc.new{|contract| contract.status_changed? && contract.is_not_ended? && !contract.timesheets.present? && contract.in_progress? && contract.next_invoice_date.nil?}
   before_create :set_contractable , if: Proc.new{ |contract| contract.not_system_generated? }
   default_scope  -> {order(created_at: :desc)}
 
@@ -47,10 +47,9 @@ class Contract < ActiveRecord::Base
   validates :end_date,    presence:   true
   validates :commission_amount  , numericality: true  , presence: true , if: Proc.new{|contract| contract.is_commission}
   validates :max_commission , numericality: true  , presence: true , if: Proc.new{|contract| contract.is_commission && contract.percentage?}
-  validates_uniqueness_of :job_id , scope: :job_application_id , message: "You have already applied for this Job."
+  validates_uniqueness_of :job_id , scope: :job_application_id , message: "You have already applied for this Job." , if: Proc.new{|contract| contract.job_application.present?}
 
   accepts_nested_attributes_for :contract_terms, allow_destroy: true ,reject_if: :all_blank
-  # accepts_nested_attributes_for :receiver_company, allow_destroy: true ,reject_if: :all_blank
   accepts_nested_attributes_for :attachments ,allow_destroy: true,reject_if: :all_blank
   accepts_nested_attributes_for :attachable_docs , reject_if: :all_blank
   accepts_nested_attributes_for :job    , allow_destroy: true
@@ -115,6 +114,11 @@ class Contract < ActiveRecord::Base
 
   def set_contractable
       self.contractable = self.job_application.company  if not self.job_application.is_candidate_applicant?
+      if self.job_application.is_candidate_applicant? && self.assignee.present?
+        self.contractable = self.company
+        self.status       = Contract.statuses["accepted"]
+      end
+
   end
 
   def insert_attachable_docs
@@ -151,12 +155,13 @@ class Contract < ActiveRecord::Base
   end
 
   def schedule_timesheet
-    self.timesheets.create!(user_id: self.job_application.applicationable_id , job_id: self.job.id ,start_date: self.start_date , company_id: self.job_application.company.id , status: 'open') if not self.job_application.is_candidate_applicant?
+    self.timesheets.create!(user_id: self.assignee.id , job_id: self.job.id ,start_date: self.start_date , company_id: self.contractable.id , status: 'open')
   end
 
   def create_timesheet
     self.update_column(:next_invoice_date, self.start_date + TIMESHEET_FREQUENCY[self.time_sheet_frequency].days + 2.days)
-    self.delay(run_at: self.start_date.to_time).schedule_timesheet
+    # self.delay(run_at: self.start_date.to_time).schedule_timesheet
+    self.schedule_timesheet
   end
 
   def self.end_contracts
@@ -166,7 +171,7 @@ class Contract < ActiveRecord::Base
   end
 
   def self.start_contracts
-    Contract.where(start_date: Date.today).each do |contract|
+    Contract.where(start_date: Date.today).accepted.each do |contract|
       contract.in_progress!
     end
   end

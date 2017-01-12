@@ -1,5 +1,5 @@
 .modal.fade.in{ id: "new-contract-company","aria-hidden": "true", "aria-labelledby": "myModalLabel", :role => "dialog", :style => "display: none;", :tabindex => "-1"}
-  .modal-dialog.modal-lg
+  .modal-dialog.modal-md
     .modal-content
       .modal-header
         %button.close{"aria-hidden" => "true", "data-dismiss" => "modal", :type => "button"}
@@ -41,4 +41,4 @@
             .row
               .col-md-12
                 = button_tag 'Cancel' , class: 'btn btn-default' , "data-dismiss"=> "modal"
-                = f.submit "Submit", class: 'btn btn-primary'
+                = f.button "Submit".html_safe, data: {disable_with: disable_spinning("Saving...")} , class: 'btn btn-primary'
