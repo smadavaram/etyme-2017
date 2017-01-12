@@ -13,14 +13,15 @@
     %br
     %b.text-danger{style: 'margin-left: 20px;'}
       = "Due: #{(@timesheet.end_date + 2.day).strftime("%A, %d %b %Y")}"
-  .row
-    .col-md-3{style: 'margin-left: 3px;'}
-      %b.text-muted{style: 'margin-left: 3px;'}
-        = "Next Invoice Date: #{(@timesheet.contract.next_invoice_date).strftime("%d %b %Y")}"
-  .row
-    .col-md-3{style: 'margin-left: 5px;'}
-      = link_to "Change Invoice Date",'#',class:"btn btn-primary",id:"#change_invoice","data-target" => "#change_invoice", "data-toggle" => "modal", :type => "button"
-      = render partial:  'company/contracts/partials/change_invoice_date',locals: {contract: @timesheet.contract}
+  - if @timesheet.contract.next_invoice_date > (@timesheet.end_date)
+    .row
+      .col-md-3{style: 'margin-left: 3px;'}
+        %b.text-muted{style: 'margin-left: 3px;'}
+          = "Next Invoice Date: #{(@timesheet.contract.next_invoice_date).strftime("%d %b %Y")}"
+    .row
+      .col-md-3{style: 'margin-left: 5px;'}
+        = link_to "Change Invoice Date",'#',class:"btn btn-primary",id:"#change_invoice","data-target" => "#change_invoice", "data-toggle" => "modal", :type => "button"
+        = render partial:  'company/contracts/partials/change_invoice_date',locals: {contract: @timesheet.contract}
 
   .row
     .text-center.center
