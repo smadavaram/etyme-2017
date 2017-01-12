@@ -23,6 +23,15 @@ class Candidate::CandidatesController < Candidate::BaseController
     end
   end
 
+  def upload_resume
+    if current_candidate.update(resume: params[:resume])
+      flash[:success] = "Resume uploaded successfully."
+    else
+      flash[:errors] = 'Resume not updated'
+    end
+    redirect_to :back
+  end
+
   def update_photo
     render json: current_candidate.update_attribute(:photo, params[:photo])
     flash.now[:success] = "Photo Successfully Updated"

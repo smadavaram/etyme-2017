@@ -15,7 +15,11 @@
 
         %ul.links
           %li
-            -#= link_to "Upload CV"
+            = filepicker_field_tag "" ,class: "hidden resume_file", onchange:"uploadResume(event)"
+            - if !current_candidate.resume.present?
+              = link_to "Upload CV" ,"#",class: 'resume btn btn-md btn-primary'
+            - else
+              = link_to "Change CV","#",class: 'resume btn btn-md btn-primary'
 
           %li
             %a{:href => "javascript:void(0);"}
@@ -28,7 +32,7 @@
     .col-sm-12.col-md-12.col-lg-9
       #wid-id-7.jarviswidget.jarviswidget-color-teal{"data-widget-attstyle" => "jarviswidget-color-teal", "data-widget-custombutton" => "false", "data-widget-editbutton" => "false", "data-widget-fullscreenbutton" => "false", "data-widget-sortable" => "false", :role => "widget", :style => ""}
         %header{:role => "heading"}
-          %ul.nav.nav-tabs.pull-left.in
+          %ul.nav.nav-tabs.pull-left.in#myTab
             %li.active
               %a{"aria-expanded" => "true", "data-toggle" => "tab", :href => "#hr1"}
                 %i.fa.fa-lg.fa-info-circle
@@ -86,11 +90,29 @@
 
 - content_for :scripts do
   :javascript
+
     $(document).ready(function() {
+
+      $('a[data-toggle="tab"]').on('show.bs.tab', function(e) {
+            // localStorage.setItem('activeTab', $(e.target).attr('href'));
+            var id = $(e.target).attr("href").substr(1);
+            window.location.hash = id;
+          });
+        var hash = window.location.hash;
+        $('#myTab a[href="' + hash + '"]').tab('show');
+
       $( ".profile-pic" ).click(function()
       {
         $( ".file" ).trigger( "click" );
       });
+
+      $('.resume').on("click",function(){
+
+          $(".resume_file").trigger("click");
+
+      });
+
+
        $(".best_in_place").best_in_place();
        $(".best_in_place").on('change', function(event) {
           flash_success('Change Saved!');
@@ -120,6 +142,17 @@
        success: function (data) {
         $('.text img').attr("src",photo_url);
        }
+     });
+    }
+    function uploadResume(event){
+      resume_url = event.fpfile.url
+      $.ajax({
+       type: 'POST',
+       dataType: 'json',
+       url: "#{upload_resume_candidates_path}",
+       data: { resume: resume_url,authenticity_token: window._token },
+       // success: function (data) {
+       // }
      });
     }
     $.datepicker.setDefaults({

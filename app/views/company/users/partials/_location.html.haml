@@ -36,27 +36,11 @@
       $('.country').change(
         function() {
         window.location.reload();
-      // var activeTab = localStorage.getItem('activeTab');
-      // if(activeTab){
-      //     $('#myTab a[href="' + activeTab + '"]').tab('show');
-      // }
       }); //End OF Country Change
 
       $('.state').change(
        function() {
          window.location.reload();
-         // var country=$('.country').val();
-         // var cities_of_sate=$('.city')
-         // $.getJSON('/cities/'+$(this).val()+"/"+country,function(data) {
-         //      cities_of_sate.empty();
-         //      cities_of_sate.append('<option value="">Select City ...</option>');
-         //      $.each(data,function(key,value) {
-         //      var opt = '<option value=' + key + '>' + value + '</option>';
-         //      cities_of_sate.append(opt);
-         //      });
-         //
-         //   });//End OF json
-
          }); //End OF State Change
 
       }); // End of document ready

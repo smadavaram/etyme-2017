@@ -68,6 +68,7 @@ Rails.application.routes.draw do
     resources :candidates ,path: :candidate ,only: [:update] do
       collection do
         get :notify_notifications
+        post :upload_resume
       end
     end
     get '/profile',to:'candidates#show'
