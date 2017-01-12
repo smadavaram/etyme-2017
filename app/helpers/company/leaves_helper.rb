@@ -10,7 +10,7 @@ module Company::LeavesHelper
 
   end
 
-  def label_status_color status
+  def leave_status_color status
     color = "<span class ='span label label-"
     if status == 'accepted'
       color += "success'>#{status.to_s.titleize}</span>"

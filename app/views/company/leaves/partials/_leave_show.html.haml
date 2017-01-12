@@ -19,7 +19,7 @@
             %td= leave.from_date
             %td= leave.till_date
             %td= leave.leave_type
-            %td= label_status_color(leave.status)
+            %td= leave_status_color(leave.status)
             -if leave.user != current_user
               %td
                 - if leave.pending? && current_user.is_owner?
