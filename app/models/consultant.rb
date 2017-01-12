@@ -55,6 +55,7 @@ class Consultant < User
   validates :password,presence: true,if: Proc.new { |consultant| !consultant.password.nil? }
   validates :password_confirmation,presence: true,if: Proc.new { |consultant| !consultant.password.nil? }
   validates :max_working_hours, presence: true
+  validates_numericality_of :max_working_hours, only_integer: true, greater_than_or_equal_to: 0 , less_than_or_equal_to: 86400
 
   after_create :insert_attachable_docs
   after_create :send_invitation
@@ -88,31 +89,31 @@ class Consultant < User
 
   private
 
-    def self.open_spreadsheet(file)
-      case File.extname(file.original_filename)
-        when ".csv" then Roo::Csv.new(file.path, packed: nil, file_warning: :ignore)
-        when ".xls" then Roo::Excel.new(file.path, packed: nil, file_warning: :ignore)
-        when ".xlsx" then Roo::Excelx.new(file.path, packed: nil, file_warning: :ignore)
-        else raise "Unknown file type: #{file.original_filename}"
-      end
+  def self.open_spreadsheet(file)
+    case File.extname(file.original_filename)
+      when ".csv" then Roo::Csv.new(file.path, packed: nil, file_warning: :ignore)
+      when ".xls" then Roo::Excel.new(file.path, packed: nil, file_warning: :ignore)
+      when ".xlsx" then Roo::Excelx.new(file.path, packed: nil, file_warning: :ignore)
+      else raise "Unknown file type: #{file.original_filename}"
     end
+  end
 
-    def send_invitation
-      invite! do |u|
-        u.skip_invitation = true
-      end
-      UserMailer.invite_user(self).deliver
+  def send_invitation
+    invite! do |u|
+      u.skip_invitation = true
     end
+    UserMailer.invite_user(self).deliver
+  end
 
-    def insert_attachable_docs
-      company_docs = self.company.company_docs.where(id: company_doc_ids).includes(:attachment) || []
-      company_docs.each do |company_doc|
-        self.attachable_docs.find_or_create_by(company_doc_id: company_doc.id , orignal_file: company_doc.attachment.try(:file))
-      end
+  def insert_attachable_docs
+    company_docs = self.company.company_docs.where(id: company_doc_ids).includes(:attachment) || []
+    company_docs.each do |company_doc|
+      self.attachable_docs.find_or_create_by(company_doc_id: company_doc.id , orignal_file: company_doc.attachment.try(:file))
     end
+  end
 
   def convert_max_working_hours_to_seconds
-    self.max_working_hours = (self.temp_working_hours.to_f * 3600).to_i
+    self.max_working_hours = (self.temp_working_hours.to_f * 3600).to_i if temp_working_hours.present?
   end
 
 end

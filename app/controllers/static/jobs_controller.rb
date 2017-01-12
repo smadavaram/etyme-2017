@@ -10,6 +10,7 @@ class Static::JobsController < ApplicationController
   def show
 
   end
+
   def apply
     @job_application = @job.job_applications.new
     @job.custom_fields.each do |cf|
@@ -20,9 +21,10 @@ class Static::JobsController < ApplicationController
   private
 
   def set_jobs
-    @jobs=Job.active.is_public
+    @jobs = Job.active.is_public
   end
+
   def find_job
-    @job=Job.active.is_public.where(id: params[:id]|| params[:job_id]).first
+    @job  = Job.active.is_public.where(id: params[:id]|| params[:job_id]).first
   end
 end

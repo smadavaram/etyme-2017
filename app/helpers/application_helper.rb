@@ -1,7 +1,7 @@
 # :nodoc:
 module ApplicationHelper
   def disable_spinning text
-    return  "<i class='fa fa-spinner fa-spin pull-left'></i> #{text}"
+    return  "<i class='fa fa-spinner fa-pulse fa-spin pull-left'></i> #{text}"
   end
   def left_menu
     left_menu_entries(left_menu_content)
@@ -231,11 +231,6 @@ module ApplicationHelper
                     href: candidate_job_invitations_path,
                     title: 'Job Invitations',
                     content: "<span class='menu-item-parent'> Job Invitations </span>"
-                },
-                {
-                    href: candidate_contracts_path,
-                    title: 'Contracts',
-                    content: "<span class='menu-item-parent'> Contracts </span>"
                 }
             ]
         }

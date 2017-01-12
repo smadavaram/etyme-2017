@@ -29,7 +29,7 @@ class Company::ContractsController < Company::BaseController
       if @contract.save
         format.html {
           flash[:success] = "successfully Send."
-          redirect_to contracts_path(@contract)
+          redirect_to contract_path(@contract)
         }
         format.js{ flash.now[:success] = "successfully Send." }
       else
@@ -106,7 +106,7 @@ class Company::ContractsController < Company::BaseController
                                         :billing_frequency, :time_sheet_frequency, :assignee_id ,
                                         :job_application_id , :start_date , :end_date  , :message_from_hiring  ,:status ,company_doc_ids: [] ,
                                         contract_terms_attributes: [:id, :created_by, :contract_id , :status , :terms_condition ,:rate , :note , :_destroy],
-                                       attachments_attributes:[:id,:file,:file_name,:file_size,:file_type,:attachable_type,:attachable_id,:_destroy]
+                                       attachments_attributes:[:id,:file,:file_name,:file_size, :company_id ,:file_type,:attachable_type,:attachable_id,:_destroy]
                                        ])
   end
 

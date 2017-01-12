@@ -1,6 +1,9 @@
 #content
   .row
-    .col-md-12
+    .col-lg-12
+      = link_to 'Company Signup', register_path, class: 'btn btn-primary pull-right'
+      = link_to 'Candidate Signup', new_registration_path(:candidate), class: 'btn btn-primary pull-right', style: 'margin-right: 5px;'
+    .col-lg-12
       - @jobs.each do |job|
         .col-sm-3.animated.fadeInLeftBig
           .panel
@@ -18,11 +21,8 @@
                   %li.list-group-item.text-muted.text-center{:style => "text-align: justify; font-size: 14px; height: 140px;"}
                     = truncate(strip_tags(job.description),length: 200)
                 .pannel-footer.b-light.links{:style => ""}
-                  = link_to 'Apply',candidate_signed_in? ? static_job_apply_path(job,status:true)  : static_job_apply_path(job,status: false) ,method: :post,remote: true ,class: 'btn btn-primary size'
+                  = link_to 'Apply',candidate_signed_in? ? static_job_apply_path(job,status:true)  : static_job_apply_path(job,status: false) ,method: :post,remote: true ,class: "btn btn-primary size #{current_candidate.present? ?  (current_candidate.job_applications.find_by_job_id(job.id).present? ? 'disabled' : " ") :''  } "
                   = link_to 'View Detail',static_job_path(job),class: 'btn btn-primary size'
-
-- content_for :modals do
-  #job_invitation
 
 
   -#.row
@@ -74,8 +74,4 @@
   :javascript
     $(document).ready(function() {
         $('.equal-height').equalHeights();
-
-        $('.btn').click(function() {
-          $('.modal').modal('toggle');
-        });
     });

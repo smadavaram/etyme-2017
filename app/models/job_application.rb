@@ -14,9 +14,10 @@ class JobApplication < ActiveRecord::Base
   validates :cover_letter , presence: true
   # validates :application_type, inclusion: { in: application_types.keys }
   validates :status ,             inclusion: {in: statuses.keys}
+  validates_uniqueness_of :applicationable_id,scope: [:job_id,:applicationable_type] ,on: :create
 
   after_create :update_job_invitation_status ,     if: Proc.new{|application| application.job_invitation.present?}
-  after_update :notify_recipient_on_status_change, if: Proc.new{|application| application.status_changed? && application.job_invitation.present?}
+  after_update :notify_recipient_on_status_change, if: Proc.new{|application| application.status_changed? }
   after_create :set_application_type,              if: Proc.new{|application| application.job_invitation.present?}
 
   accepts_nested_attributes_for :custom_fields , reject_if: :all_blank
@@ -44,7 +45,7 @@ class JobApplication < ActiveRecord::Base
 
     # Call after update
     def notify_recipient_on_status_change
-      self.job_invitation.recipient.notifications.create(message: self.job_invitation.company.name + " has #{self.status} your Job Application - #{self.job.title}")
+      self.user.notifications.create(message: self.job.company.name + " has #{self.status.humanize} your Job Application - #{self.job.title}",title:"Job Application")
     end
 
     def set_application_type

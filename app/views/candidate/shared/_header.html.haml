@@ -6,7 +6,7 @@
     %span#activity.activity-dropdown
       %i.fa.fa-user
       %b.badge
-        -#= current_candidate.notifications.count
+        -#= notifications_count || 0
     / AJAX-DROPDOWN : control this dropdown height, look and feel from the LESS variable file
     .ajax-dropdown
       / the ID links are fetched via AJAX to the ajax container "ajax-notifications"
@@ -16,8 +16,9 @@
         -#  = 'Msgs'
         -#  (14)
         %label.btn.btn-default
-          %input{:id => candidate_ajax_notify_notifications_path, :name => "activity", :type => "radio"}/
+          %input{:id => notify_notifications_candidates_path, :name => "activity", :type => "radio"}/
           ='notify'
+          -#= notifications_count
           -#= current_user.notifications.count
         -#%label.btn.btn-default
         -#  %input{:id => ajax_notify_tasks_path, :name => "activity", :type => "radio"}/
@@ -31,7 +32,8 @@
         %i.fa.fa-lock.fa-4x.fa-border
       / footer: refresh area
       %span
-        Last updated on: 12/12/2013 9:43AM
+        Last updated on
+        = Time.now.strftime("%D %T")
         %button.btn.btn-xs.btn-default.pull-right{"data-loading-text" => "<i class='fa fa-refresh fa-spin'></i> Loading...", :type => "button"}
           %i.fa.fa-refresh
   = yield :top_right

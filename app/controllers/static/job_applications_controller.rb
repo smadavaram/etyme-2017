@@ -8,14 +8,12 @@ class Static::JobApplicationsController < ApplicationController
       flash[:success] = "Job Application Created"
     else
       flash[:errors] = @job_application.errors.full_messages
-      redirect_to :back
     end
+    redirect_to :back
   end
 
 
   private
-
-
   def job_application_params
     params.require(:job_application).permit([ :message , :cover_letter ,:candidate_email,:candidate_first_name,:candidate_last_name, :status, custom_fields_attributes:
         [

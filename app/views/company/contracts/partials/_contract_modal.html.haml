@@ -15,7 +15,7 @@
       .modal-body
         = form_for [job,contract] , html: {class: 'form-horizontal'} , remote: false do |f|
           = f.hidden_field :job_application_id , value: job_application.id
-          -  if job_application.is_candidate_applicant? &&  !current_company.consultants.where(candidate_id: job_application.applicationable_id).present?
+          -  if is_applicant_is_consultant?(job_application)
             = f.hidden_field :assignee_id , value: current_company.consultants.where(candidate_id: job_application.applicationable_id).first.id
           %fieldset
             .form-group
@@ -41,6 +41,8 @@
               %label.col-md-2.control-label Time Sheet Frequency
               .col-md-4.select
                 = f.select :time_sheet_frequency , Contract.time_sheet_frequencies.map { |key, value| [key.humanize, key] }, {},{class: "form-control" }
+            - if is_applicant_is_consultant?(job_application)
+              = render 'company/contracts/partials/commission' , f: f
             = f.fields_for :contract_terms do |c|
               = c.hidden_field :created_by , value: current_user.id.to_i
               .form-group
@@ -77,6 +79,10 @@
             = f.button "Send".html_safe, data: {disable_with: disable_spinning("Sending...")} , class: 'btn btn-primary btn-sm'
 :javascript
   $( document ).ready(function() {
+      toggleFields();
+      $("#contract_is_commission , #contract_commission_type").change(function () {
+         toggleFields();
+      });
      //$(".multi-select2-company-docs").select2({placeholder: "Select a Doc(s)"});
      $('#contract_start_date').datepicker({
         dateFormat : 'dd/mm/yy'

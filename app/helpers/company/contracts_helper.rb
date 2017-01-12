@@ -20,4 +20,8 @@ module Company::ContractsHelper
       end
     end
   end
+
+  def is_applicant_is_consultant? job_application
+    (job_application.present? && job_application.is_candidate_applicant? &&  current_company.consultants.where(candidate_id: job_application.applicationable_id).present?)
+  end
 end
