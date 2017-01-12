@@ -26,7 +26,7 @@ class Company::LeavesController <Company::BaseController
   def create
     @consultant_leave =  @consultant.leaves.new(leave_params)
     if  @consultant_leave.save
-      flash[:success] = 'Leave was successfully created.'
+      flash[:success] = 'Successfully Applied for Leave.'
       redirect_to  consultant_leaves_path(current_user)
     else
       flash[:errors] =  @consultant_leave.errors.full_messages
@@ -56,7 +56,7 @@ class Company::LeavesController <Company::BaseController
     respond_to do |format|
       if @consultant_leave.pending?
         if @consultant_leave.accepted!
-          format.js{ flash[:success] = "successfully Accepted." }
+          format.js{ flash[:success] = "Successfully Accepted." }
         else
           format.js{ flash[:errors] =  @consultant_leave.errors.full_messages }
         end
@@ -70,7 +70,7 @@ class Company::LeavesController <Company::BaseController
     respond_to do |format|
       if @consultant_leave.pending?
         if @consultant_leave.rejected!
-          format.js{ flash[:success] = "successfully Accepted." }
+          format.js{ flash[:success] = "Successfully Rejected." }
         else
           format.js{ flash[:errors] =  @consultant_leave.errors.full_messages }
         end
