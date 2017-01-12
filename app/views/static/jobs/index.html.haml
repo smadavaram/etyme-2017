@@ -1,3 +1,16 @@
+- content_for :html_id, "extr-page"
+-content_for :top_right do
+  - if candidate_signed_in?
+    %span#extr-page-header-space
+      =  current_candidate.full_name.titleize
+      %span.hidden-mobile.hiddex-xs
+      = link_to 'Log out', destroy_candidate_session_path, method: :delete, class: 'btn btn-danger'
+  -else
+    %span#extr-page-header-space
+      = link_to 'Need an account?',new_candidate_registration_path
+      %span.hidden-mobile.hiddex-xs
+      = link_to 'Sign In', new_candidate_session_path, class: 'btn btn-danger'
+
 #content
   .row
     .col--12
@@ -20,6 +33,8 @@
                 .pannel-footer.b-light.links{:style => ""}
                   = link_to 'Apply',candidate_signed_in? ? static_job_apply_path(job,status:true)  : static_job_apply_path(job,status: false) ,method: :post,remote: true ,class: "btn btn-primary size #{current_candidate.present? ?  (current_candidate.job_applications.find_by_job_id(job.id).present? ? 'disabled' : " ") :''  } "
                   = link_to 'View Detail',static_job_path(job),class: 'btn btn-primary size'
+
+
 
 
   -#.row

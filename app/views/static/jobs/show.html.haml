@@ -1,3 +1,16 @@
+- content_for :html_id, "extr-page"
+-content_for :top_right do
+  - if candidate_signed_in?
+    %span#extr-page-header-space
+      =  current_candidate.full_name.titleize
+      %span.hidden-mobile.hiddex-xs
+      = link_to 'Log out', destroy_candidate_session_path, method: :delete, class: 'btn btn-danger'
+  -else
+    %span#extr-page-header-space
+      = link_to 'Need an account?',new_candidate_registration_path
+      %span.hidden-mobile.hiddex-xs
+      = link_to 'Sign In', new_candidate_session_path, class: 'btn btn-danger'
+
 .container
   .col-sm-12.animated.fadeInRightBig
     %section.panel.mt-20s

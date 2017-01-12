@@ -1,6 +1,7 @@
 class Static::JobApplicationsController < ApplicationController
 
   before_action :find_job ,only: :create
+  layout 'static'
 
 
   def create

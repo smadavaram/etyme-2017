@@ -8,9 +8,19 @@
   %body{:class => "#{yield :body_class}"}
     = render partial: 'shared/header'
     #main{:role => "main"}
-      -##ribbon
-      -#  %ol.breadcrumb
-      -#    = render_breadcrumbs tag: :li, separator: ""
+      = yield :ribbon
+      - if notice
+        .alert.alert-success.fade.in
+          %button.close{"data-dismiss" => "alert"}
+            ×
+          %i.fa-fw.fa.fa-check
+          = notice
+      - if alert
+        .alert.alert-warning.fade.in
+          %button.close{"data-dismiss" => "alert"}
+            ×
+          %i.fa-fw.fa.fa-warning
+          = alert
       = yield
     = javascript_include_tag 'application'
     = filepicker_js_include_tag
