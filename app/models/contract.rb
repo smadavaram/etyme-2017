@@ -4,6 +4,7 @@ class Contract < ActiveRecord::Base
   enum billing_frequency:     [ :weekly_invoice, :monthly_invoice  ]
   enum time_sheet_frequency:[:daily,:weekly,:monthly]
   enum commission_type:  [:percentage, :fixed]
+
   CONTRACTABLE = [:company, :candidate]
 
   attr_accessor :company_doc_ids
@@ -16,6 +17,7 @@ class Contract < ActiveRecord::Base
   belongs_to :location
   belongs_to :user
   belongs_to :company
+  belongs_to :contractable, polymorphic: true
   # belongs_to :receiver_company, class_name: 'Company', foreign_key: :contractable_id
   has_one    :job_invitation , through: :job_application
   has_many   :contract_terms , dependent: :destroy
@@ -26,7 +28,7 @@ class Contract < ActiveRecord::Base
   has_many   :timesheet_approvers   , through: :timesheets
   has_many   :attachable_docs, as: :documentable
   has_many   :attachments , as: :attachable
-  belongs_to :contractable, polymorphic: true
+
 
   after_create :insert_attachable_docs
   after_create :notify_recipient , if: Proc.new{ |contract| contract.not_system_generated? }
@@ -34,6 +36,7 @@ class Contract < ActiveRecord::Base
   # after_create :update_contract_application_status
   after_save   :create_timesheet, if: Proc.new{|contract| contract.status_changed? && contract.is_not_ended? && !contract.timesheets.present? && contract.in_progress? && contract.next_invoice_date.nil?}
   before_create :set_contractable , if: Proc.new{ |contract| contract.not_system_generated? }
+
   default_scope  -> {order(created_at: :desc)}
 
   # validate  :next_invoice_date_should_be_in_future, if: Proc.new{|c| c.next_invoice_date.present? }
@@ -113,11 +116,11 @@ class Contract < ActiveRecord::Base
   # private
 
   def set_contractable
-      self.contractable = self.job_application.company  if not self.job_application.is_candidate_applicant?
-      if self.job_application.is_candidate_applicant? && self.assignee.present?
-        self.contractable = self.company
-        self.status       = Contract.statuses["accepted"]
-      end
+    self.contractable = self.job_application.company  if not self.job_application.is_candidate_applicant?
+    if self.job_application.is_candidate_applicant? && self.assignee.present?
+      self.contractable = self.company
+      self.status       = Contract.statuses["accepted"]
+    end
 
   end
 
@@ -160,8 +163,7 @@ class Contract < ActiveRecord::Base
 
   def create_timesheet
     self.update_column(:next_invoice_date, self.start_date + TIMESHEET_FREQUENCY[self.time_sheet_frequency].days + 2.days)
-    # self.delay(run_at: self.start_date.to_time).schedule_timesheet
-    self.schedule_timesheet
+    self.delay(run_at: self.start_date.to_time).schedule_timesheet
   end
 
   def self.end_contracts
@@ -171,7 +173,7 @@ class Contract < ActiveRecord::Base
   end
 
   def self.start_contracts
-    Contract.where(start_date: Date.today).accepted.each do |contract|
+    Contract.where("start_date <= '#{Date.today.to_s}'").accepted.each do |contract|
       contract.in_progress!
     end
   end

@@ -67,9 +67,9 @@ class Timesheet < ActiveRecord::Base
 
   # private
   def create_timesheet_logs
-      self.timesheet_logs.create(transaction_day: start_date)
-      # self.delay(run_at: self.next_timesheet_created_date).schedule_timesheet if self.next_timesheet_created_date.present? && self.contract.is_not_ended?
-      self.schedule_timesheet if self.next_timesheet_created_date.present? && self.contract.is_not_ended?
+    self.timesheet_logs.create(transaction_day: start_date)
+    self.delay(run_at: self.next_timesheet_created_date).schedule_timesheet if self.next_timesheet_created_date.present? && self.contract.is_not_ended?
+      # self.schedule_timesheet if self.next_timesheet_created_date.present? && self.contract.is_not_ended?
   end
 
   def schedule_timesheet

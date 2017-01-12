@@ -108,7 +108,7 @@ Rails.application.routes.draw do
 
   class NakedEtymeDomain
     def self.matches?(request)
-      (request.subdomain.blank? || request.subdomain == 'www') && request.domain == ENV['domain']
+      (request.subdomain.blank? || request.subdomain == 'www') #&& request.domain == ENV['domain']
     end
   end
 
@@ -310,7 +310,7 @@ Rails.application.routes.draw do
 
   # Route set when subdomain is not present
   constraints(NakedEtymeDomain) do
-    root :to => "companies#new"
+    match '/'  => "static/jobs#index", via: [:get, :post]
   end
 
 

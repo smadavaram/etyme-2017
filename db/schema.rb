@@ -11,7 +11,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema.define(version: 20170111112839) do
+ActiveRecord::Schema.define(version: 20170109132950) do
 
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
@@ -49,7 +49,6 @@ ActiveRecord::Schema.define(version: 20170111112839) do
     t.integer  "attachable_id"
     t.datetime "created_at",      null: false
     t.datetime "updated_at",      null: false
-    t.integer  "company_id"
   end
 
   create_table "candidates", force: :cascade do |t|
@@ -495,7 +494,7 @@ ActiveRecord::Schema.define(version: 20170111112839) do
     t.integer  "primary_address_id"
     t.string   "photo"
     t.json     "signature"
-    t.integer  "status",                 default: 0
+    t.integer  "status"
     t.date     "dob"
     t.string   "encrypted_password",     default: "",    null: false
     t.string   "reset_password_token"
