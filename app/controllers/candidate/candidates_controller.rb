@@ -30,6 +30,7 @@ class Candidate::CandidatesController < Candidate::BaseController
 
   def notify_notifications
     @notifications = current_candidate.notifications || []
+    render layout: false
   end
 
 

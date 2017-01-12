@@ -45,7 +45,7 @@ class JobApplication < ActiveRecord::Base
 
     # Call after update
     def notify_recipient_on_status_change
-      self.user.notifications.create(message: self.job.company.name + " has #{self.status} your Job Application - #{self.job.title}")
+      self.user.notifications.create(message: self.job.company.name + " has #{self.status} your Job Application - #{self.job.title}",title:"Job Application")
     end
 
     def set_application_type

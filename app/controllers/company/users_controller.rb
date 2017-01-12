@@ -20,7 +20,11 @@ class Company::UsersController < Company::BaseController
       flash[:errors] = current_user.errors.full_messages
       redirect_to :back
     end
+  end
 
+  def notify_notifications
+    @notifications = current_user.notifications || []
+    render layout: false
   end
 
   private
