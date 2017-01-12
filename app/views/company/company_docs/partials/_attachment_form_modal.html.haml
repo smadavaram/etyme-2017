@@ -4,6 +4,7 @@
       .modal-header
         %button.close{"aria-hidden" => "true", "data-dismiss" => "modal", :type => "button"}
           ×
-        %h4#myModalLabel.modal-title Add New Attachment
+        %h4#myModalLabel.modal-title
+          %strong Add New Attachment
       .modal-body
         =render 'company/company_docs/partials/form'

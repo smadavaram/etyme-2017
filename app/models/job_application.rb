@@ -16,7 +16,7 @@ class JobApplication < ActiveRecord::Base
   validates :status ,             inclusion: {in: statuses.keys}
 
   after_create :update_job_invitation_status ,     if: Proc.new{|application| application.job_invitation.present?}
-  after_update :notify_recipient_on_status_change, if: Proc.new{|application| application.status_changed? && application.job_invitation.presen}
+  after_update :notify_recipient_on_status_change, if: Proc.new{|application| application.status_changed? && application.job_invitation.present?}
   after_create :set_application_type,              if: Proc.new{|application| application.job_invitation.present?}
 
   accepts_nested_attributes_for :custom_fields , reject_if: :all_blank
