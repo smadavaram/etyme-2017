@@ -45,16 +45,15 @@ class Company::JobInvitationsController < Company::BaseController
   def create_multiple
     invitation_params = job_invitation_params
     if params.has_key?("vendor_company")
-      vendor_companies = Company.vendor.where(id: params[:vendor_company]) || []
-      invitation_params = vendor_companies.map{ |c| invitation_params.merge!( created_by_id: current_user.id,invitation_type: 'vendor' ,recipient_type: 'User' ,recipient_id: c.owner_id)}
+      Company.vendor.where(id: params[:vendor_company]).each do |c|
+        invitation_params = job_invitation_params
+        current_company.sent_job_invitations.create!(invitation_params.merge!( created_by_id: current_user.id,invitation_type: 'vendor' ,recipient_type: 'User' ,recipient_id: c.owner_id))
+      end
     elsif params.has_key?("temp_candidates")
-      candidates = Candidate.where(id: params[:temp_candidates]) || []
-      invitation_params = candidates.map{ |candidate| job_invitation_params.merge!(created_by_id: current_user.id ,invitation_type: 'candidate',recipient_type: 'Candidate' ,recipient_id: candidate.id)}
-    end
-    if current_company.sent_job_invitations.create!(invitation_params)
-      flash[:success] = "Invitation Sent!"
-    else
-      flash[:error] = "Error!"
+      Candidate.where(id: params[:temp_candidates]).each do |c|
+        invitation_params = job_invitation_params
+        current_company.sent_job_invitations.create!(invitation_params.merge!( created_by_id: current_user.id,invitation_type: 'candidate',recipient_type: 'Candidate' ,recipient_id: c.id))
+      end
     end
     redirect_to :back
   end
@@ -84,6 +83,6 @@ class Company::JobInvitationsController < Company::BaseController
     end
 
     def job_invitation_params
-      params.require(:job_invitation).permit(:job_id , :message ,:response_message, :recipient_id , :email , :status , :expiry , :recipient_type,:invitation_type)
+      params.require(:job_invitation).permit(:job_id , :email , :first_name , :last_name , :message ,:response_message, :recipient_id , :email , :status , :expiry , :recipient_type,:invitation_type)
     end
 end

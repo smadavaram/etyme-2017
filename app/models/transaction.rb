@@ -8,7 +8,7 @@ class Transaction < ActiveRecord::Base
   validate             :time_overlap
   validate             :start_time_less_than_end_time
   validate             :end_time_is_not_in_future
-  validate             :max_hours_limit
+  validate             :max_hours_limit , on: :create
   validate             :timesheet_open
   validate             :time_overlap , on: [:create]
   validate             :start_time_less_than_end_time

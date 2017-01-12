@@ -47,7 +47,7 @@ class Contract < ActiveRecord::Base
   validates :end_date,    presence:   true
   validates :commission_amount  , numericality: true  , presence: true , if: Proc.new{|contract| contract.is_commission}
   validates :max_commission , numericality: true  , presence: true , if: Proc.new{|contract| contract.is_commission && contract.percentage?}
-
+  validates_uniqueness_of :job_id , scope: :job_application_id , message: "You have already applied for this Job."
 
   accepts_nested_attributes_for :contract_terms, allow_destroy: true ,reject_if: :all_blank
   # accepts_nested_attributes_for :receiver_company, allow_destroy: true ,reject_if: :all_blank
@@ -68,11 +68,11 @@ class Contract < ActiveRecord::Base
   end
 
   def is_system_generated?
-    self.job_application.present? && !self.job.is_system_generated
+    self.job_application.present? && self.job.is_system_generated
   end
 
   def not_system_generated?
-    self.job_application.present? && self.job.is_system_generated
+    self.job_application.present? && !self.job.is_system_generated
   end
 
   def attachable_docs?
@@ -114,8 +114,7 @@ class Contract < ActiveRecord::Base
   # private
 
   def set_contractable
-    self.contractable_type = self.job_application.user.is_candidate? ? "Candidate" : "Company"
-    self.contractable_id   = self.job_application.user.is_candidate? ? self.job_application.user.id : self.job_application.user.company.id
+      self.contractable = self.job_application.company  if not self.job_application.is_candidate_applicant?
   end
 
   def insert_attachable_docs
@@ -152,11 +151,7 @@ class Contract < ActiveRecord::Base
   end
 
   def schedule_timesheet
-    if self.job_application.user.class.name == "Candidate"
-      self.timesheets.create!(user_id: self.job_application.user.id , job_id: self.job.id ,start_date: self.start_date , status: 'open')
-    else
-      self.timesheets.create!(user_id: self.job_application.user.id , job_id: self.job.id ,start_date: self.start_date , company_id: self.job_application.user.company.id , status: 'open')
-    end
+    self.timesheets.create!(user_id: self.job_application.applicationable_id , job_id: self.job.id ,start_date: self.start_date , company_id: self.job_application.company.id , status: 'open') if not self.job_application.is_candidate_applicant?
   end
 
   def create_timesheet

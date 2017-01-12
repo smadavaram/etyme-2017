@@ -13,7 +13,7 @@ class Company::JobApplicationsController < Company::BaseController
   end
 
   def create
-    @job_application  = current_company.sent_job_applications.new(job_application_params.merge!(user_id: current_user.id , job_id: @job.id , job_invitation_id: @job_invitation.id))
+    @job_application  = current_company.sent_job_applications.new(job_application_params.merge!(applicationable_id: current_user.id , job_id: @job.id , job_invitation_id: @job_invitation.id , applicationable_type: 'User'))
     respond_to do |format|
       if @job_application.save
         format.js{ flash.now[:success] = "Successfully Created." }
