@@ -1,8 +1,6 @@
 class Static::JobApplicationsController < ApplicationController
 
   before_action :find_job ,only: :create
-  layout 'static'
-
 
   def create
     @job_application=current_candidate.job_applications.new(job_application_params.merge(job_id:params[:job_id]))
