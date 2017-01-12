@@ -1,0 +1,39 @@
+.modal.fade.in{ id: "job-invite-#{job.id}"}
+  .modal-dialog.modal-lg
+    .modal-content
+      .modal-header
+        %button.close{"aria-hidden" => "true", "data-dismiss" => "modal", :type => "button"}
+          ×
+        %h2#myModalLabel.modal-title
+          %strong Job Application - #{job.title}
+        %hr
+        .modal-title
+          = raw job.description
+
+      .modal-body
+        = form_for [:static , job,job_application], html: {class: 'form-horizontal'} ,remote: true do |f|
+          %fieldset
+            .form-group
+              %label.col-md-2.control-label Cover Letter
+              .col-md-10
+                =  f.text_area :cover_letter , class: "form-control tinymce", rows: 8, cols: 25, placeholder: 'Cover Letter'
+                =  tinymce :default
+            .form-group
+              %label.col-md-2.control-label Message (optional)
+              .col-md-10
+                = f.text_area :message, class: "form-control", rows: "2" ,placeholder: 'Write tour message'
+            -#= job.custom_fields.each do |c|
+            .nested-fields
+              = f.fields_for :custom_fields do |custom|
+                .form-group
+                  %label.col-md-2.control-label #{custom.object.name}
+                  .col-md-10
+                    = custom.hidden_field  :name , value: custom.object.name
+                    = custom.text_field  :value, class: "form-control", placeholder: custom.object.name
+          .modal-footer
+            %button.btn.btn-default{"data-dismiss" => "modal", :type => "button"}
+              Cancel
+            = f.button "Save" , class: 'btn btn-primary' , data: {"data-dismiss" => "modal", :type => "button"}
+
+
+

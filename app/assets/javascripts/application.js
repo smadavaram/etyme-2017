@@ -41,4 +41,4 @@
 //= require signature-pad/flashcanvas
 //= require signature-pad/json2.min
 
-//= require custom
+//= require global

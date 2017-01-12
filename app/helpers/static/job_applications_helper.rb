@@ -1,0 +1,2 @@
+module Static::JobApplicationsHelper
+end
