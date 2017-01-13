@@ -74,10 +74,11 @@
       .box
         %h2 Skills
         .skills
-          = @candidate.skills.each do |skill|
-            %span
-              %label.label-info
-                = skill.name
+          -if @candidate.skills.present?
+            - @candidate.try(:skills).each do |skill|
+              %span
+                %label.label-info
+                  = skill.name
 
           -#.item-skills{"data-percent" => "1.00", :style => "width: 458px;"} HTML
           -#.item-skills{"data-percent" => "0.90", :style => "width: 412.2px;"} CSS
@@ -91,24 +92,24 @@
           -#  .legend-right.legend
           -#    %span Expert
           -#  .legend-right.legend Master
-      / LANGUAGES
-      .box
-        %h2 Languages
-        #language-skills
-          .skill
-            Polish
-            .icons.pull-right
-              .icons-red{:style => "width: 80%; height: 14px;"}
-          .skill
-            English
-            .icons.pull-right
-              .icons-red{:style => "width: 60%; height: 14px;"}
-      / HOBBIES
-      .box
-        %h2 Hobbies
-        .hobby Photography
-        .hobby Fitness
-        .hobby Programming
+      -#/ LANGUAGES
+      -#.box
+      -#  %h2 Languages
+      -#  #language-skills
+      -#    .skill
+      -#      Polish
+      -#      .icons.pull-right
+      -#        .icons-red{:style => "width: 80%; height: 14px;"}
+      -#    .skill
+      -#      English
+      -#      .icons.pull-right
+      -#        .icons-red{:style => "width: 60%; height: 14px;"}
+      -#/ HOBBIES
+      -#.box
+      -#  %h2 Hobbies
+      -#  .hobby Photography
+      -#  .hobby Fitness
+      -#  .hobby Programming
 
 
 -content_for :head do

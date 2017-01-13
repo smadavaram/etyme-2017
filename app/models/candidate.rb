@@ -34,7 +34,7 @@ class Candidate < ActiveRecord::Base
   accepts_nested_attributes_for :address   , reject_if: :all_blank, update_only: true
 
   #Tags Input
-  # acts_as_taggable_on :skills
+  acts_as_taggable_on :skills
 
 
   def etyme_url

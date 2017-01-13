@@ -60,12 +60,12 @@
 
           .widget-body
             .tab-content
-
-
               -## Basic Info form TAB
               #hr1.tab-pane.active
+                = link_to 'Add Skills' ,"#",class:'btn btn-primary pull-right margin-bottom-5 margin-right-10',"data-target" => "#skills", "data-toggle" => "modal"
                 .tabbable.tabs-below
-                =render partial: 'candidate/candidates/partials/basic_info',locals: {candidate: current_candidate}
+                  =render partial: 'candidate/candidates/partials/basic_info',locals: {candidate: current_candidate}
+                = render partial: 'candidate/candidates/partials/skills_modal'
 
               -# Locations form TAB
               #hr2.tab-pane
