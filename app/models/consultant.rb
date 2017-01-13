@@ -80,12 +80,9 @@ class Consultant < User
   end
 
   def hourly_rate
-    if self.consultant_profile.salaried?
-      return (self.consultant_profile.salary)/((self.max_working_hours)/3600.0)*20
-    else
-      return self.consultant_profile.salary
-    end
+    return self.salaried? ? (self.consultant_profile.salary)/(((self.max_working_hours)/3600.0)*20) : self.consultant_profile.salary
   end
+
 
   private
 
@@ -99,9 +96,7 @@ class Consultant < User
   end
 
   def send_invitation
-    invite! do |u|
-      u.skip_invitation = true
-    end
+    invite! { |u| u.skip_invitation = true }
     UserMailer.invite_user(self).deliver
   end
 

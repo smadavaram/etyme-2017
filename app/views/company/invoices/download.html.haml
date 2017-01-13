@@ -93,7 +93,7 @@
                               %strong= index +1
                             %td
                             %td
-                              = link_to timesheet_log.transaction_day.strftime('%B %d, %Y') , timesheet_timesheet_log_path(timesheet_log.timesheet, timesheet_log) ,  target: '_blank'
+                              = timesheet_log.transaction_day.strftime('%B %d, %Y')
                             -#%a{:href => "javascript:void(0);"} #{}
                             -#-#%td Perspiciatis unde omnis iste natus error sit voluptatem accusantium doloremque laudantium totam rem aperiam xplicabo.
                             %td $#{timesheet_log.rate}
