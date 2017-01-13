@@ -26,7 +26,6 @@ class Candidate::JobsController < Candidate::BaseController
     # end
 
   end
-
   private
 
   def set_public_jobs

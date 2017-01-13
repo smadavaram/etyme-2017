@@ -4,6 +4,8 @@
     %section.panel.mt-20s
       %header.panel-heading
         -#%a.pull-right.btn.btn-primary.right.mt-12{href:"#",}  Apply Now
+        - if @job.is_active?
+          = link_to 'Apply Now' ,candidate_signed_in? ? static_job_apply_path(@job,status:true)  : static_job_apply_path(@job,status: false) , method: :post , remote: true ,  class: "btn btn-md  btn-success pull-right #{current_candidate.present? ? (current_candidate.is_already_applied?(@job.id) ? "disabled " : "" ) : "" } "
         %h1= @job.title
         - @job.tags.each do |tag|
           %span.h4.badge
@@ -30,3 +32,5 @@
               %span.text-muted.fs-13 Company
               %b
                 = @job.company.name
+- content_for :modals do
+  #job_application

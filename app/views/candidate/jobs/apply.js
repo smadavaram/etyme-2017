@@ -1,5 +1,5 @@
-$('#job_invitation').html("<%= j render('candidate/job_applications/partials/job_application_modal' , job: @job , job_application: @job_application , accept_state: true) %>");
-$('#job-invite-<%=@job.id %>').modal('show');
+$('#job_application').html("<%= j render('candidate/job_applications/partials/job_application_modal' , job: @job , job_application: @job_application , accept_state: true) %>");
+$('#job-apply-<%=@job.id %>').modal('show');
 //tinymce.init({
 //    selector: '.r#{@job.id}',
 //    menubar: false ,
