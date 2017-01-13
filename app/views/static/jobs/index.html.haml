@@ -1,7 +1,10 @@
 = render  'static/jobs/partials/header'
 #content
   .row
-    .col--12
+    .col-lg-12
+      = link_to 'Company Signup', register_path, class: 'btn btn-primary pull-right'
+      = link_to 'Candidate Signup', new_registration_path(:candidate), class: 'btn btn-primary pull-right', style: 'margin-right: 5px;'
+    .col-lg-12
       - @jobs.each do |job|
         .col-sm-3.animated.fadeInLeftBig
           .panel

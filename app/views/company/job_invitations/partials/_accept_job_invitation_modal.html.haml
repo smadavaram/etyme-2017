@@ -32,5 +32,5 @@
             -#= button_tag 'Cancel' , class: 'btn btn-default' , data: {"dismiss": "modal"}
             %button.btn.btn-default{"data-dismiss" => "modal", :type => "button"}
               Cancel
-            = f.submit 'Save' , class: 'btn btn-primary'
+            = f.button 'Save'.html_safe , class: 'btn btn-primary' , data: {disable_with: disable_spinning('Saving...')}
 

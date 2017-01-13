@@ -19,7 +19,7 @@ class Company::CompanyDocsController < Company::BaseController
     @company_doc = current_company.company_docs.new(company_docs_params.merge!(created_by: current_user.id))
     if @company_doc.save
       flash[:success] = "Company doc added successfully."
-      redirect_to attachments_path
+      redirect_to :back
     else
       flash[:errors] = @company_doc.errors.full_messages
       redirect_to :back
@@ -37,7 +37,8 @@ class Company::CompanyDocsController < Company::BaseController
     end
 
     def company_docs_params
-      params.require(:company_doc).permit(:id,:name,:file, :created_by, :doc_type,:tag_list, :is_required_signature, attachment_attributes: [:id , :file,:file_size , :file_name, :file_type]
+      params.require(:company_doc).permit(:id,:name,:file, :created_by, :doc_type,:tag_list, :is_required_signature, attachment_attributes: [:id , :file,:file_size , :file_name, :file_type ,:company_id],
+
             )
     end
 

@@ -15,6 +15,8 @@
       .modal-body
         = form_for [job,contract] , html: {class: 'form-horizontal'} , remote: false do |f|
           = f.hidden_field :job_application_id , value: job_application.id
+          -  if is_applicant_is_consultant?(job_application)
+            = f.hidden_field :assignee_id , value: current_company.consultants.where(candidate_id: job_application.applicationable_id).first.id
           %fieldset
             .form-group
               %label.col-md-2.control-label
@@ -31,7 +33,7 @@
               %label.col-md-2.control-label
                 Company Docs
               .col-md-10.select
-                = f.select :company_doc_ids , options_for_select(current_company.company_docs.collect { |doc|[doc.name, doc.id] }),{} ,prompt: "Select Docs" , class: "form-control input-lg" , multiple: true
+                = f.select :company_doc_ids , options_for_select(current_company.company_docs.collect { |doc|[doc.name, doc.id] }),{}  , class: "form-control multi-select2" , multiple: true
             .form-group
               %label.col-md-2.control-label Invoicing Frequency
               .col-md-4.select
@@ -39,6 +41,8 @@
               %label.col-md-2.control-label Time Sheet Frequency
               .col-md-4.select
                 = f.select :time_sheet_frequency , Contract.time_sheet_frequencies.map { |key, value| [key.humanize, key] }, {},{class: "form-control" }
+            - if is_applicant_is_consultant?(job_application)
+              = render 'company/contracts/partials/commission' , f: f
             = f.fields_for :contract_terms do |c|
               = c.hidden_field :created_by , value: current_user.id.to_i
               .form-group
@@ -75,6 +79,10 @@
             = f.button "Send".html_safe, data: {disable_with: disable_spinning("Sending...")} , class: 'btn btn-primary btn-sm'
 :javascript
   $( document ).ready(function() {
+      toggleFields();
+      $("#contract_is_commission , #contract_commission_type").change(function () {
+         toggleFields();
+      });
      //$(".multi-select2-company-docs").select2({placeholder: "Select a Doc(s)"});
      $('#contract_start_date').datepicker({
         dateFormat : 'dd/mm/yy'

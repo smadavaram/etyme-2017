@@ -11,7 +11,7 @@ class Leave < ActiveRecord::Base
   has_one :company , through: :user
 
   def is_leave_owner?
-    self.user==current_user
+    self.user == self.user.is_consultant?
   end
 
   private

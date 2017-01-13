@@ -1,7 +1,7 @@
 # :nodoc:
 module ApplicationHelper
   def disable_spinning text
-    return  "<i class='fa fa-spinner fa-spin pull-left'></i> #{text}"
+    return  "<i class='fa fa-spinner fa-pulse fa-spin pull-left'></i> #{text}"
   end
   def left_menu
     left_menu_entries(left_menu_content)
@@ -180,7 +180,7 @@ module ApplicationHelper
         #     content: "<i class='fa fa-lg fa-fw fa-black-tie'></i> <span class='menu-item-parent'>" + 'Company Docs' + "</span>",
         # },
           {
-              href:  current_user.is_owner? ? employees_leaves_path(current_company) : (current_user.is_consultant? ? consultant_leaves_path(current_user) : '#'),
+              href:  current_user.is_owner? ? employees_leaves_path : (current_user.is_consultant? ? consultant_leaves_path(current_user) : '#'),
               title: 'Leaves',
               content: "<i class='fa fa-lg fa-fw fa-calendar'></i> <span class='menu-item-parent'>" + 'Leaves' + "</span>",
           },

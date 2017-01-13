@@ -27,14 +27,18 @@ class Company::ContractsController < Company::BaseController
     @contract  = current_company.sent_contracts.new(create_contract_params)
     respond_to do |format|
       if @contract.save
-        format.html {flash[:success] = "successfully Send."}
+        format.html {
+          flash[:success] = "successfully Send."
+          redirect_to contract_path(@contract)
+        }
         format.js{ flash.now[:success] = "successfully Send." }
       else
         format.js{ flash.now[:errors] =  @contract.errors.full_messages }
-        format.html{ flash[:errors] =  @contract.errors.full_messages }
+        format.html{ flash[:errors] =  @contract.errors.full_messages
+          redirect_to :back
+        }
       end
     end
-    redirect_to contract_path(@contract)
   end
 
   def open_contract
@@ -102,7 +106,7 @@ class Company::ContractsController < Company::BaseController
                                         :billing_frequency, :time_sheet_frequency, :assignee_id ,
                                         :job_application_id , :start_date , :end_date  , :message_from_hiring  ,:status ,company_doc_ids: [] ,
                                         contract_terms_attributes: [:id, :created_by, :contract_id , :status , :terms_condition ,:rate , :note , :_destroy],
-                                       attachments_attributes:[:id,:file,:file_name,:file_size,:file_type,:attachable_type,:attachable_id,:_destroy]
+                                       attachments_attributes:[:id,:file,:file_name,:file_size, :company_id ,:file_type,:attachable_type,:attachable_id,:_destroy]
                                        ])
   end
 

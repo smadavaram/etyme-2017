@@ -6,7 +6,7 @@
     %span#activity.activity-dropdown
       %i.fa.fa-user
       %b.badge
-        = notifications_count
+        -#= notifications_count || 0
     / AJAX-DROPDOWN : control this dropdown height, look and feel from the LESS variable file
     .ajax-dropdown
       / the ID links are fetched via AJAX to the ajax container "ajax-notifications"
@@ -18,7 +18,7 @@
         %label.btn.btn-default
           %input{:id => notify_notifications_candidates_path, :name => "activity", :type => "radio"}/
           ='notify'
-          = notifications_count
+          -#= notifications_count
           -#= current_user.notifications.count
         -#%label.btn.btn-default
         -#  %input{:id => ajax_notify_tasks_path, :name => "activity", :type => "radio"}/

@@ -82,7 +82,6 @@ class User < ActiveRecord::Base
   accepts_nested_attributes_for :custom_fields   , reject_if: :all_blank
   accepts_nested_attributes_for :address   , reject_if: :all_blank, update_only: true
 
-  validates_numericality_of :max_working_hours, only_integer: true, greater_than_or_equal_to: 0 , less_than_or_equal_to: 86400
   validates_uniqueness_of :email, scope: :company_id
   # validates_inclusion_of :time_zone, in: ActiveSupport::TimeZone.all.map { |tz| tz.tzinfo.name }
 
@@ -124,6 +123,8 @@ class User < ActiveRecord::Base
     self.primary_address_id = address.try(:id)
     self.save
   end
+
+
 
 
 

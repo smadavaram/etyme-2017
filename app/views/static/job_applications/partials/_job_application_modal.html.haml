@@ -11,7 +11,7 @@
           = raw job.description
 
       .modal-body
-        = form_for [:static , job,job_application], html: {class: 'form-horizontal'} ,remote: true do |f|
+        = form_for [:static , job,job_application], html: {class: 'form-horizontal'} do |f|
           %fieldset
             .form-group
               %label.col-md-2.control-label Cover Letter

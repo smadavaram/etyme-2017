@@ -21,34 +21,33 @@
                 Start Date
                 %sup.text-danger *
               .col-md-10
-                = f.text_field :from_date , class: 'form-control' , placeholder: 'From' , required: true
+                = f.input :from_date ,as: :string, input_html:{class: 'form-control datepick'} , placeholder: 'From' , required: true,label: false
             .form-group
               %label.col-md-2.control-label
                 Till Date
                 %sup.text-danger *
               .col-md-10
-                = f.text_field :till_date , class: 'form-control' , placeholder: 'Till Date' , required: true
+                = f.input :till_date ,as: :string, input_html:{class: 'form-control datepick'} , placeholder: 'Till Date' , required: true ,label: false
             .form-group
               %label.col-md-2.control-label
                 Reason
                 %sup.text-danger
               .col-md-10
-                = f.text_field  :reason , class: 'form-control' , placeholder: 'Reason'
+                = f.text_area  :reason , class: 'form-control' ,:rows => 3, :cols => 60, placeholder: 'Reason'
           .form-actions
             .row
               .col-md-12
-                %button.btn.btn-default{:type => "submit"}
+                %button.btn.btn-default{"data-dismiss" => "modal", :type => "button"}
                   Cancel
-                = f.submit "Submit", class: 'btn btn-primary'
+                = f.button "submit".html_safe , class: 'btn btn-primary btn-sm' , data: {disable_with: ("Submitting...")}
 
 - content_for :scripts do
   :javascript
     // DO NOT REMOVE : GLOBAL FUNCTIONS!
     $(document).ready(function() {
-      pageSetUp();
+      // pageSetUp();
       // Job End Date
-      $('#leave_from_date , #leave_till_date').datepicker({
-        dateFormat : 'dd/mm/yy'
-
+      $('.datepick').datepicker({
+        dateFormat: 'yy-mm-dd'
       });
     });

@@ -10,21 +10,23 @@
           %th UpTill
           %th Type
           %th Status
-          %th Actions
+          -if @consultant != current_user
+            %th Actions
       %tbody
         - leaves.each_with_index do |leave , index|
-          %tr
+          %tr{class: "#{set_background_status_color(leave.status)}"}
             %td= link_to leave.user.full_name ,"#"
             %td= leave.from_date
             %td= leave.till_date
             %td= leave.leave_type
-            %td= leave.status
-            %td
-              - if leave.pending? && current_user.is_owner?
-                = link_to 'Accept' , accept_consultant_leave_path(leave.user,leave) , method: :post , remote: true , class: 'btn btn-xs btn-default'
-                = link_to 'Reject' , reject_consultant_leave_path(leave.user , leave) , method: :post , remote: true ,  class: 'btn btn-xs btn-default'
-              -elsif leave.pending? && leave.is_leave_owner?
-                = link_to raw("<i class='fa fa-pencil'></i>"),"#" , class: 'btn btn-xs btn-default', "data-toggle"=> "modal" , "data-target"=>"#edit-#{leave.id}"
-                = render partial: 'company/leaves/partials/form', locals:{leave: leave}
+            %td= leave_status_color(leave.status)
+            -if leave.user != current_user
+              %td
+                - if leave.pending? && current_user.is_owner?
+                  = link_to 'Accept' , accept_consultant_leave_path(leave.user,leave) , method: :post , remote: true , class: 'btn btn-xs btn-default'
+                  = link_to 'Reject' , reject_consultant_leave_path(leave.user , leave) , method: :post , remote: true ,  class: 'btn btn-xs btn-default'
+                -elsif leave.pending? && leave.user == current_user
+                  = link_to raw("<i class='fa fa-pencil'></i>"),"#" , class: 'btn btn-xs btn-default', "data-toggle"=> "modal" , "data-target"=>"#edit-#{leave.id}"
+                  = render 'company/leaves/partials/form', leave: leave
 
 

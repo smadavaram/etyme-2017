@@ -66,11 +66,11 @@ class Company::InvoicesController < Company::BaseController
 
   def find_invoice
     @invoice  = @contract.invoices.includes(timesheets: [timesheet_logs: [:transactions , :contract_term]]).find(params[:id])
-    if  !@contract.is_sent?(current_company)
-
-    elsif  not @invoice.submitted? && @contract.is_sent?(current_company)
-      redirect_to contract_path(@contract)
-    end
+    # if  !@contract.is_sent?(current_company)
+    #
+    # elsif  not @invoice.submitted? && @contract.is_sent?(current_company)
+    #   redirect_to contract_path(@contract)
+    # end
   end
 
   def set_invoices

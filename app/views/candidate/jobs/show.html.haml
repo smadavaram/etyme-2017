@@ -16,7 +16,7 @@
           .row
             .col-lg-3.col-md-3
               %span.text-muted.fs-13 Location
-              = @job.location.name.titleize if @job.location.present?
+              = @job.location.titleize if @job.location.present?
             .col-lg-3.col-md-3
               %span.text-muted.fs-13 Catagory
               - @job.tags.each do |tag|

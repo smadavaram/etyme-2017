@@ -2,28 +2,21 @@
   %table#resultTable.table.table-striped.table-bordered.table-hover
     %thead
       %tr
-        %th{style: "width:30px"} Pic
-        %th Sender
-        %th Company
-        %th Job
-        %th Email / Username
+        %th Pic
+        %th Title
+        %th Company/Candidate
         %th Created By
-        %th Phone
         %th Expiry
         %th Status
     %tbody
-      - data.each do |d|
-        %tr{class: "#{set_background_status_color(d.status)}"}
-          %td= image_tag d.created_by.photo, alt: '', width: '20'
-          %td= link_to d.created_by.full_name , '#'
-          %td= link_to d.created_by.company.name , '#'
-          %td= link_to d.job.title , job_path(d.job) , target: '_blank'
+      - data.each do |contract|
+        %tr{class: "#{set_background_status_color(contract.status)}"}
+          %td=image_tag show_recipient_picture(contract.contractable), alt: '', width: '20'
+          %td=link_to contract.title ,contract_path(contract)
+          %td= link_to show_recipient_name(contract.contractable)
+          %td= link_to contract.created_by.full_name , '#'
+          %td= contract.end_date
           %td
-            = d.created_by.email
-            %a.pull-right{:href => "javascript:void(0);"}
-              %i.fa.fa-key
-          %td= link_to d.created_by.full_name , '#'
-          %td= #invitation.recipient.phone
-          %td= #invitation.expiry
-          %td
-            = label_status_color(d.status)
+            = label_status_color(contract.status)
+
+  = digg_pagination(data)

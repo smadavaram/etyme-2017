@@ -1,6 +1,5 @@
 = simple_form_for @company_doc ,html:{ class:'form-horizontal'} do |f|
   %fieldset
-    %legend Company Documents
     .form-group
       %label.col-md-2.control-label Name
       .col-md-10
@@ -13,6 +12,7 @@
           = attach.hidden_field :file_type,id:"type"
           = attach.hidden_field :file_size,id:"size"
           = attach.hidden_field :file_name,id:"name"
+          = attach.hidden_field :company_id, value: current_company.id
     .form-group
       %label.checkbox.col-md-2.control-label Is Required Signature
       .col-md-10
@@ -27,7 +27,7 @@
   .form-actions
     .row
       .col-md-12
-        %button.btn.btn-default{:type => "submit"}
+        %button.btn.btn-default{"data-dismiss" => "modal", :type => "button"}
           Cancel
         = f.submit "Submit", class: 'btn btn-primary'
 - content_for :scripts do

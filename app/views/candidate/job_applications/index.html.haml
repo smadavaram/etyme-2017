@@ -1,48 +1,62 @@
-#content.no-border.well.well-sm
+#content
   #wid-id-5.no-border.jarviswidget{"data-widget-colorbutton" => "false", "data-widget-custombutton" => "false", "data-widget-editbutton" => "false", "data-widget-fullscreenbutton" => "false", "data-widget-sortable" => "false"}
     %div
       .jarviswidget-editbox
       .widget-body
-        .tabs-left.row
-          %ul#demo-pill-nav.nav.nav-tabs.tabs-left
-            -#%li.active
-            -#  %a{"data-toggle" => "tab", :href => "#tab-r1"}
-            -#    %span.badge.bg-color-blue.txt-color-white= @job_applications.invitation.count
-                Vendors
-            %li
-              %a{"data-toggle" => "tab", :href => "#tab-r2"}
-                %span.badge.bg-color-blueDark.txt-color-white= @job_applications.count
-                Directly Applied
-          .col-md-10
-            .tab-content
-              #tab-r2.tab-pane.active
-                #hb22.tab-pane.active
-                %ul#internal-tab-2.nav.nav-tabs.tabs-pull-right
-                  %li
-                    %a{"aria-expanded" => "false", "data-toggle" => "tab", :href => "#is-6"} Hired
-                  %li
-                    %a{"aria-expanded" => "false", "data-toggle" => "tab", :href => "#is-5"} Interviewing
-                  %li
-                    %a{"aria-expanded" => "false", "data-toggle" => "tab", :href => "#is-4"} Rejected
-                  %li
-                    %a{"aria-expanded" => "false", "data-toggle" => "tab", :href => "#is-3"} Short Listed
-                  %li
-                    %a{"aria-expanded" => "false", "data-toggle" => "tab", :href => "#is-2"} Pending
-                  %li.active
-                    %a{"aria-expanded" => "true", "data-toggle" => "tab", :href => "#is-1"} All
-                .tab-content.padding-10
-                  #is-6.tab-pane
-                    = render  'candidate/job_applications/partials/application_table' ,data: @job_applications.hired
-                  #is-5.tab-pane
-                    = render 'candidate/job_applications/partials/application_table' ,data: @job_applications.interviewing
-                  #is-4.tab-pane
-                    = render  'candidate/job_applications/partials/application_table' ,data: @job_applications.rejected
-                  #is-3.tab-pane
-                    = render 'candidate/job_applications/partials/application_table' ,data: @job_applications.short_listed
-                  #is-2.tab-pane.fade
-                    = render 'candidate/job_applications/partials/application_table' , data: @job_applications.pending_review
-                  #is-1.tab-pane.fade.active.in
-                    = render 'candidate/job_applications/partials/application_table' , data: @job_applications
+        .col-md-12
+          .tab-content
+            #tab-r2.tab-pane.active
+              #hb22.tab-pane.active
+              %ul#internal-tab-2.nav.nav-tabs.tabs-pull-right
+                %br
+                .input-group.input-group-lg.hidden-mobile
+                  .input-group-btn
+                    %button.btn.btn-default.dropdown-toggle.textbtn{"data-toggle" => "dropdown", :type => "button"}
+                      All
+                      %span.caret
+                    %ul.dropdown-menu
+                      %li.active
+                        %a{:href => "javascript:void(0)"}
+                          All
+                      %li.divider
+                      %li
+                        %a{:href => "javascript:void(0)"} Rejected
+                      %li
+                        %a{:href => "javascript:void(0)"} Accepted
+                      %li
+                        %a{:href => "javascript:void(0)"} Pending
+                  %input#search-project.form-control.input-lg{:placeholder => "Search Application...", :type => "text"}/
+                  .input-group-btn
+                    %button.btn.btn-default{:type => "submit"}
+                      \   
+                      %i.fa.fa-fw.fa-search.fa-lg>
+                      \  
+                %br 
+                %li
+                  %a{"aria-expanded" => "false", "data-toggle" => "tab", :href => "#is-6"} Hired
+                %li
+                  %a{"aria-expanded" => "false", "data-toggle" => "tab", :href => "#is-5"} Interviewing
+                %li
+                  %a{"aria-expanded" => "false", "data-toggle" => "tab", :href => "#is-4"} Rejected
+                %li
+                  %a{"aria-expanded" => "false", "data-toggle" => "tab", :href => "#is-3"} Short Listed
+                %li
+                  %a{"aria-expanded" => "false", "data-toggle" => "tab", :href => "#is-2"} Pending
+                %li.active
+                  %a{"aria-expanded" => "true", "data-toggle" => "tab", :href => "#is-1"} All
+              .tab-content.padding-10
+                #is-6.tab-pane
+                  = render  'candidate/job_applications/partials/application_table' ,data: @job_applications.hired
+                #is-5.tab-pane
+                  = render 'candidate/job_applications/partials/application_table' ,data: @job_applications.interviewing
+                #is-4.tab-pane
+                  = render  'candidate/job_applications/partials/application_table' ,data: @job_applications.rejected
+                #is-3.tab-pane
+                  = render 'candidate/job_applications/partials/application_table' ,data: @job_applications.short_listed
+                #is-2.tab-pane.fade
+                  = render 'candidate/job_applications/partials/application_table' , data: @job_applications.pending_review
+                #is-1.tab-pane.fade.active.in
+                  = render 'candidate/job_applications/partials/application_table' , data: @job_applications
 - content_for :modals do
   #job_invitation
 - content_for :scripts do
