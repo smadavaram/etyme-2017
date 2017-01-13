@@ -59,7 +59,9 @@ Rails.application.routes.draw do
       post :apply
       resources :job_applications ,only:[:create]
     end
-
+    resources :candidates  do
+      get :resume
+    end
   end
 
 
@@ -68,6 +70,7 @@ Rails.application.routes.draw do
     resources :candidates ,path: :candidate ,only: [:update] do
       collection do
         get :notify_notifications
+        post :upload_resume
       end
     end
     get '/profile',to:'candidates#show'

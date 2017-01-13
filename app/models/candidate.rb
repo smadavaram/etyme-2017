@@ -60,6 +60,9 @@ class Candidate < ActiveRecord::Base
   def send_invitation
     CandidateMailer.invite_user(self,self.invited_by).deliver_now
   end
+  def is_already_applied? job_id
+    self.job_applications.find_by_job_id(job_id).present?
+  end
 
   private
 

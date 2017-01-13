@@ -87,11 +87,6 @@
                         %b.tooltip.tooltip-bottom-right Please confirm the password
                 %br/
                 .line.line-dashed
-                .form-group
-                  %span
-                    By Clicking The SIGN UP You Agree The
-                    %a{:href => "/terms", :target => "_blank"} Terms &amp; Policy
-                    of ActiveApplicant
                 %input.btn.btn-primary.btn-lg.pull-right{:name => "commit", :onclick => "if ($('#terms').is(':checked')){$('#new_applicant').submit();}", :type => "submit", :value => "Sign Up"}/
         %section.panel-default
       .modal-footer{:style => "border-top:0px;"}
