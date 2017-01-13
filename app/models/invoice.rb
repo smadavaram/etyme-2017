@@ -6,18 +6,19 @@ class Invoice < ActiveRecord::Base
   has_many    :timesheets
   has_many    :timesheet_logs , through: :timesheets
   has_one     :company        , through: :company
-  belongs_to  :submitted_by,class_name:"Admin",:foreign_key => "submitted_by"
-  before_validation :set_total_amount
-  before_validation :set_commissions
-  before_validation :set_start_date_and_end_date
-  before_validation :set_consultant_amount
-  after_create :set_next_invoice_date
-  after_create :update_timesheet_status_to_invoiced
+  belongs_to  :submitted_by   , class_name:"Admin", foreign_key: :submitted_by
 
-  validate :date_validation
-  validates_numericality_of :total_amount , :billing_amount , presence: true, greater_than_or_equal_to: 1
+  before_validation :set_total_amount , on: :create
+  before_validation :set_commissions , on: :create
+  before_validation :set_start_date_and_end_date , on: :create
+  before_validation :set_consultant_amount, on: :create
+  after_create      :set_next_invoice_date
+  after_create      :update_timesheet_status_to_invoiced
+
+  validate :start_date_cannot_be_less_than_end_date
   validate :contract_validation , if: Proc.new{|invoice| !invoice.contract.in_progress?}
-  before_validation :set_consultant_amount
+  validates_numericality_of :total_amount , :billing_amount , presence: true, greater_than_or_equal_to: 1
+
 
 
   def set_consultant_amount
@@ -29,13 +30,8 @@ class Invoice < ActiveRecord::Base
 
   private
 
-  def date_validation
-    if self.end_date < self.start_date
-      errors.add(:start_date, ' cannot be less than end date.')
-      return false
-    else
-      return true
-    end
+  def start_date_cannot_be_less_than_end_date
+      errors.add(:start_date, ' cannot be less than end date.') if self.end_date < self.start_date
   end
 
   def contract_validation

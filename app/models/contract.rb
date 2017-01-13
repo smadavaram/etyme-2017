@@ -18,7 +18,6 @@ class Contract < ActiveRecord::Base
   belongs_to :user
   belongs_to :company
   belongs_to :contractable, polymorphic: true
-  # belongs_to :receiver_company, class_name: 'Company', foreign_key: :contractable_id
   has_one    :job_invitation , through: :job_application
   has_many   :contract_terms , dependent: :destroy
   has_many   :timesheets     , dependent: :destroy
@@ -29,7 +28,6 @@ class Contract < ActiveRecord::Base
   has_many   :attachable_docs, as: :documentable
   has_many   :attachments , as: :attachable
 
-
   after_create :insert_attachable_docs
   after_create :notify_recipient , if: Proc.new{ |contract| contract.not_system_generated? }
   after_update :notify_on_status_change, if: Proc.new{|contract| contract.status_changed? && contract.respond_by.present? && contract.not_system_generated?}
@@ -37,17 +35,14 @@ class Contract < ActiveRecord::Base
   after_save   :create_timesheet, if: Proc.new{|contract| contract.status_changed? && contract.is_not_ended? && !contract.timesheets.present? && contract.in_progress? && contract.next_invoice_date.nil?}
   before_create :set_contractable , if: Proc.new{ |contract| contract.not_system_generated? }
 
-  default_scope  -> {order(created_at: :desc)}
-
-  # validate  :next_invoice_date_should_be_in_future, if: Proc.new{|c| c.next_invoice_date.present? }
-  validate  :date_validation
+  validate  :start_date_cannot_be_less_than_end_date , on: :create
+  validate  :start_date_cannot_be_in_the_past , :next_invoice_date_should_be_in_future
   validates :status ,             inclusion: {in: statuses.keys}
   validates :billing_frequency ,  inclusion: {in: billing_frequencies.keys}
   validates :time_sheet_frequency,inclusion: {in: time_sheet_frequencies.keys}
   validates :commission_type ,    inclusion: {in: commission_types.keys}
   validates :is_commission,       inclusion: {in: [ true, false ] }
-  validates :start_date,  presence:   true
-  validates :end_date,    presence:   true
+  validates :start_date, :end_date , presence:   true
   validates :commission_amount  , numericality: true  , presence: true , if: Proc.new{|contract| contract.is_commission}
   validates :max_commission , numericality: true  , presence: true , if: Proc.new{|contract| contract.is_commission && contract.percentage?}
   validates_uniqueness_of :job_id , scope: :job_application_id , message: "You have already applied for this Job." , if: Proc.new{|contract| contract.job_application.present?}
@@ -56,6 +51,8 @@ class Contract < ActiveRecord::Base
   accepts_nested_attributes_for :attachments ,allow_destroy: true,reject_if: :all_blank
   accepts_nested_attributes_for :attachable_docs , reject_if: :all_blank
   accepts_nested_attributes_for :job    , allow_destroy: true
+
+  default_scope  -> {order(created_at: :desc)}
 
   def is_not_ended?
     self.end_date >= Date.today
@@ -140,21 +137,15 @@ class Contract < ActiveRecord::Base
   end
 
   def next_invoice_date_should_be_in_future
-    if self.next_invoice_date <= Date.today
-      errors.add(:next_invoice_date,' should be in future')
-      return true
-    else
-      return true
-    end
+    errors.add(:next_invoice_date,' should be in future')  if self.next_invoice_date.present? && self.next_invoice_date < Date.today
   end
 
-  def date_validation
-    if self.end_date < self.start_date
-      errors.add(:start_date, ' cannot be less than end date.')
-      return false
-    else
-      return true
-    end
+  def start_date_cannot_be_less_than_end_date
+      errors.add(:start_date, ' cannot be less than end date.') if self.end_date < self.start_date
+  end
+
+  def start_date_cannot_be_in_the_past
+      errors.add(:start_date, "can't be in the past") if start_date.nil? || start_date < Date.today
   end
 
   def schedule_timesheet
@@ -173,7 +164,7 @@ class Contract < ActiveRecord::Base
   end
 
   def self.start_contracts
-    Contract.where("start_date <= '#{Date.today.to_s}'").accepted.each do |contract|
+    Contract.where("start_date = '#{Date.today.to_s}'").accepted.each do |contract|
       contract.in_progress!
     end
   end
