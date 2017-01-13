@@ -71,13 +71,13 @@
           .title.pull-right Google
           .description.pull-right= @candidate.try(:google_url)
       / SKILLS
-      .box
-        %h2 Skills
-        .skills
-          = @candidate.skills.each do |skill|
-            %span
-              %label.label-info
-                = skill.name
+      -#.box
+      -#  %h2 Skills
+      -#  .skills
+      -#    - @candidate.skills.each do |skill|
+      -#      %span
+      -#        %label.label-info
+      -#          = skill.name
 
           -#.item-skills{"data-percent" => "1.00", :style => "width: 458px;"} HTML
           -#.item-skills{"data-percent" => "0.90", :style => "width: 412.2px;"} CSS
