@@ -59,7 +59,9 @@ Rails.application.routes.draw do
       post :apply
       resources :job_applications ,only:[:create]
     end
-
+    resources :candidates  do
+      get :resume
+    end
   end
 
 

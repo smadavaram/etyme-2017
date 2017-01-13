@@ -13,6 +13,10 @@
               .form-group
                 = edu.text_field :degree_title,placeholder: "Degree Title",class: 'form-control'
           .row
+            .col-md-12
+              .form-group
+                = edu.text_field :institute,placeholder: "Institute Name",class: 'form-control'
+          .row
             .col-md-6
               .form-group
                 = edu.text_field :start_year,placeholder: "Start Year",class: 'form-control education_start_year'
@@ -23,24 +27,9 @@
             .col-md-12
               .form-group
                 = edu.text_area :description,placeholder: "Description",class: 'form-control'
-            -#    .form-group
-            -#      = address.select :country ,CS.countries.sort.map{|k,v| [v,k] } ,{prompt:"Select Country"},:class=>"form-control" , :required =>'required',id:"country"
-            -#.row
-            -#  .col-md-4
-            -#    .form-group
-            -#      %label State
-            -#      = address.select :state ,CS.states(:us).sort.map {|k,v| [v,k] },{prompt:"Select State"},class:"form-control", selected: address.object.state,id:"state"
-            -#  .col-md-4
-            -#    .form-group
-            -#      %label City
-            -#      = address.select :city,CS.cities(address.object.state,:us).sort.map {|k,v| [v,k] },{prompt:"Select City"},class:"form-control",id:"city"
-            -#  .col-md-4
-            -#    .form-group
-            -#      %label Zip Code
-            -#      =address.text_field :zip_code,:placeholder => "Zip Code",class:"form-control"
 
           .modal-footer
             %button.btn.btn-default{"data-dismiss" => "modal", :type => "button"}
               Cancel
             %button.btn.btn-primary{:type => "submit"}
-              Create Location
+              Create
