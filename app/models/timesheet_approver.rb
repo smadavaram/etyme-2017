@@ -10,6 +10,11 @@ class TimesheetApprover < ActiveRecord::Base
 
   validates :status ,             inclusion: {in: statuses.keys}
 
+  default_scope -> {where.not(status: nil)}
+  scope :accepted_or_rejected, ->(user) {where('timesheet_approvers.user_id = ? AND (timesheet_approvers.status = ? OR timesheet_approvers.status = ?)' , user.id , Timesheet.statuses[:approved] , Timesheet.statuses[:rejected])}
+  scope :is_already_submitted?, ->(user) {where('timesheet_approvers.user_id = ? AND (timesheet_approvers.status = ?)' , user.id , Timesheet.statuses[:submitted]).present?}
+
+
   def is_master_user?
     self.user == self.job.created_by
   end
@@ -17,11 +22,6 @@ class TimesheetApprover < ActiveRecord::Base
   def is_assign_user?
     self.user.has_submission_permission?(self.contract.assignee)
   end
-
-  default_scope -> {where.not(status: nil)}
-
-  scope :accepted_or_rejected, ->(user) {where('timesheet_approvers.user_id = ? AND (timesheet_approvers.status = ? OR timesheet_approvers.status = ?)' , user.id , Timesheet.statuses[:approved] , Timesheet.statuses[:rejected])}
-  scope :is_already_submitted?, ->(user) {where('timesheet_approvers.user_id = ? AND (timesheet_approvers.status = ?)' , user.id , Timesheet.statuses[:submitted]).present?}
 
   def status_by
     "#{self.status.humanize+' by '+ self.user.full_name}"

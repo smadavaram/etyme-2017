@@ -30,7 +30,7 @@ class Company::TimesheetLogsController < Company::BaseController
   private
 
   def find_timesheet
-    @timesheet = current_company.timesheets.find_by_id(params[:timesheet_id]) || []
+    @timesheet = Timesheet.find_sent_or_received(params[:timesheet_id] , current_company)
   end
 
   def find_timesheet_log

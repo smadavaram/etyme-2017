@@ -72,8 +72,8 @@
                 %tbody
                   - @timesheet_log.transactions.each_with_index do |t , index|
                     %tr
-                      %td= t.start_time.strftime("%I:%M%p") if t.start_time.present?
-                      %td= t.end_time.strftime("%I:%M%p") if t.start_time.present?
+                      %td= t.start_time.localtime.strftime("%I:%M%p") if t.start_time.present?
+                      %td= t.end_time.localtime.strftime("%I:%M%p") if t.start_time.present?
                       %td= time_format(t.total_time)
                       %td= t.memo
                       %td

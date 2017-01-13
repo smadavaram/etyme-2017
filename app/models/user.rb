@@ -93,6 +93,10 @@ class User < ActiveRecord::Base
       self.notifications.create!(title: "#{self.full_name} On-Boarding" , message:  "#{self.full_name} has successfully completed on-boarding on Etyme.")
   end
 
+  def has_submission_permission?(user)
+    self == user
+  end
+
   def is_admin?
     self.class.name == "Admin"
   end
@@ -113,19 +117,11 @@ class User < ActiveRecord::Base
     self.first_name + " " + self.last_name
   end
 
-  def has_submission_permission?(user)
-    self == user
-  end
-
   def create_address
     address = Address.new
     address.save(validate: false)
     self.primary_address_id = address.try(:id)
     self.save
   end
-
-
-
-
 
 end

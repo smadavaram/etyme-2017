@@ -57,6 +57,7 @@ class Company < ActiveRecord::Base
   has_many :sent_job_invitations      , class_name: 'JobInvitation' , foreign_key: 'company_id' ,dependent: :destroy
   has_many :received_job_applications , through:   :jobs                  , source: 'job_applications'
   has_many :received_job_invitations  , through:   :admins                , source: 'job_invitations'
+  has_many :received_timesheets       , through:   :jobs                  , source: 'timesheets'
   # has_many :received_contracts        , through:   :sent_job_applications , source: 'contract'
   has_many :received_contracts        , class_name: 'Contract'      , as: :contractable
   has_many :leaves                    , through:   :users

@@ -22,7 +22,7 @@
                       .btn-group.pull-left
                         =link_to raw("Download") , download_contract_invoice_path(@contract,@invoice) , class: 'btn btn-sm btn-success'
                       .btn-group.pull-right
-                        -if @contract.is_received?(current_company) && @invoice.pending_submission?
+                        -if @contract.is_received?(current_company) && @invoice.pending_submission? && current_user.is_admin?
                           =link_to raw("Accept")  ,accept_invoice_contract_invoice_path(@contract,@invoice), method: :post ,class: 'btn btn-success pull-right  ', data: {confirm: "Are you sure you want to Submit this invoice ?", verify: 'Submit', verify_text: "Type 'Submit' to confirm"}
                           =link_to raw("Reject")  ,reject_invoice_contract_invoice_path(@contract,@invoice),method: :post, class: 'btn btn-default pull-right  ', data: {confirm: "Are you sure you want to Cancelled this invoice ?", verify: 'Cancel', verify_text: "Type 'Cancel' to confirm"}
                   %br/
@@ -105,23 +105,37 @@
                           %td= timesheet_log.accepted_hours
                           %td $#{timesheet_log.total_amount}
                       %tr
-                        %td{:colspan => "5"} Consultant Amount
-                        %td
-                          %strong $#{@invoice.consultant_amount}
-                      %tr
                         %td{:colspan => "5"} Total
                         %td
                           %strong $#{total_amount}
+                      -if @contract.is_received?(current_company)
+                        %tr
+                          %td{:colspan => "5"} Consultant Amount
+                          %td
+                            %strong $#{@invoice.consultant_amount}
+                        - if  @invoice.contract.is_commission
+                          %tr
+                            %td{:colspan => "5"} Commission
+                            %td
+                              %strong $#{@invoice.commission_amount}
                   .invoice-footer
                     .row
                       .col-sm-7
                         .payment-methods
                       .col-sm-5
                         .invoice-sum-total.pull-right
-                          %h3
-                            %strong
-                              Total:
-                              %span.text-success $#{@invoice.total_amount}
+                          -if @contract.is_received?(current_company)
+                            %h3
+                              %strong
+                                Gross Profit:
+                                %span.text-success #{@invoice.billing_amount > 0 ? '$'+ @invoice.billing_amount.to_s : '- $'+@invoice.billing_amount.to_s }
+                          -else
+                            %h3
+                              %strong
+                                Total:
+                                %span.text-success $#{@invoice.total_amount }
+
+
                     .row
                       .col-sm-12
                         %p.note **To avoid any excess penalty charges, please make payments within 30 days of the due date. There will be a 2% interest charge per month on all late invoices.

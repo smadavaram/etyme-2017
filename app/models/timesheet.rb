@@ -25,6 +25,10 @@ class Timesheet < ActiveRecord::Base
     self.contract.assignee
   end
 
+  def self.find_sent_or_received(timesheet_id , obj)
+    joins(:job).where("timesheets.id = :t_id and (timesheets.company_id = :obj_id or (jobs.company_id = :obj_id))" , {obj_id: obj.id , t_id: timesheet_id}).first
+  end
+
   def is_already_submitted?(user)
     self.timesheet_approvers.where('timesheet_approvers.user_id = ? AND (timesheet_approvers.status = ?)' , user.id , Timesheet.statuses[:submitted]).present?
   end

@@ -1,134 +1,95 @@
 #content
-  %section{style: 'margin-top: 10px;'}
-    .row
-      %article.col-xs-12.col-sm-12.col-md-12.col-lg-12
-        #wid-id-0.jarviswidget
-          %header
-            %span.widget-icon
-              %i.fa.fa-table
-            %h2 Timesheets
-          %div
-            .jarviswidget-editbox
-            .widget-body.no-padding
-              %table#dt_basic.table.table-striped.table-bordered.table-hover{:width => "100%"}
-                %thead
-                  %tr
-                    %th{"data-hide" => "phone"} Title
-                    %th{"data-hide" => "phone"} Billing
-                    %th{"data-class" => "expand"}
-                      %i.fa.fa-fw.fa-calendar.txt-color-blue.hidden-md.hidden-sm.hidden-xs
-                      Start Cycle
-                    %th{"data-class" => "expand"}
-                      %i.fa.fa-fw.fa-calendar.txt-color-blue.hidden-md.hidden-sm.hidden-xs
-                      End Cycle
-                    %th
+  #wid-id-5.no-border.jarviswidget{"data-widget-colorbutton" => "false", "data-widget-custombutton" => "false", "data-widget-editbutton" => "false", "data-widget-fullscreenbutton" => "false", "data-widget-sortable" => "false"}
+    %div
+      .jarviswidget-editbox
+      .widget-body
+        %ul#myTab1.nav.nav-tabs.bordered
+          %li.active
+            %a{"data-toggle" => "tab", :href => "#tab-r1"}
+              %span.badge.bg-color-blue.txt-color-white= @timesheets.count
+              Sent Timesheets
+          %li
+            %a{"data-toggle" => "tab", :href => "#tab-r2"}
+              %span.badge.bg-color-blueDark.txt-color-white= @received_timesheets.count
+              Received Timesheets
+        .col-md-12
+          .tab-content
+            #tab-r1.tab-pane.active
+              #hb2.tab-pane.active
+                %ul#internal-tab-1.nav.nav-tabs.tabs-pull-right
+                  %br
+                  .input-group.input-group-lg.hidden-mobile
+                    .input-group-btn
+                      %button.btn.btn-default.dropdown-toggle.textbtn{"data-toggle" => "dropdown", :type => "button"}
+                        All
+                        %span.caret
+                      %ul.dropdown-menu
+                        %li.active
+                          %a{:href => "javascript:void(0)"}
+                            All
+                        %li.divider
+                        %li
+                          %a{:href => "javascript:void(0)"} Rejected
+                        %li
+                          %a{:href => "javascript:void(0)"} Accepted
+                        %li
+                          %a{:href => "javascript:void(0)"} Pending
+                    %input#search-project.form-control.input-lg{:placeholder => "Search Contract...", :type => "text"}/
+                    .input-group-btn
+                      %button.btn.btn-default{:type => "submit"}
+                        \   
+                        %i.fa.fa-fw.fa-search.fa-lg>
+                        \  
+                  %br 
+                  - Timesheet.statuses.reverse_each do |value , key|
+                    %li{class: key == 0 ? 'active' : ''}
+                      %a{"aria-expanded" => "false", "data-toggle" => "tab", :href => "#is-#{key}"} #{value.titleize}
+                .tab-content.padding-10
+                  - Timesheet.statuses.reverse_each do |value , key|
+                    .tab-pane{id: "is-#{key}" , class: key == 0 ? 'active fade in' : ''}
+                      = render'company/timesheets/partials/sent_timesheets' , data: @timesheets.where(status: key)
 
-                %tbody
-                  - @timesheets.each_with_index do |timesheet , index|
-                    - content_for :modals do
-                      = render 'company/timesheets/partials/histroy_modal' , timesheet: timesheet
-                    %tr
-                      %td= timesheet.contract.title
-                      %td= timesheet.contract.billing_frequency.humanize
-                      %td= timesheet.start_date
-                      %td= timesheet.end_date
-                      %td
-                        = link_to 'View Details' ,timesheet_timesheet_log_path(timesheet, timesheet.timesheet_logs.last) ,  target: '_blank' ,class: 'btn btn-xs btn-default btn-primary'
-                        = link_to 'Histroy' ,'#' , "data-target" => "#timesheet-#{timesheet.id}", "data-toggle" => "modal"  ,class: 'btn btn-xs btn-default btn-primary'
-                        - if timesheet.open? && !timesheet.is_already_submitted?(current_user)
-                          = link_to 'Submit' ,timesheet_submit_path(timesheet) ,class: 'btn btn-xs btn-default btn-success' , data: {confirm: "Once submitted! you will not be able to add or modify any logs in this timesheet. It can only be Approve or Reject.", verify: 'Submit', verify_text: "Type 'Submit' to confirm"}
-                        - elsif timesheet.submitted?  && !timesheet.is_already_approved_or_rejected?(current_user)
-                          = link_to 'Approve' ,timesheet_approve_path(timesheet) ,class: 'btn btn-xs btn-default btn-success' , data: {confirm: "Are you sure?", verify: 'Approve', verify_text: "Type 'Approve' to confirm"}
-                          = link_to 'Reject' ,timesheet_reject_path(timesheet) ,class: 'btn btn-xs btn-default btn-danger' , data: {confirm: "Are you sure?", verify: 'Reject', verify_text: "Type 'Reject' to confirm"}
+            #tab-r2.tab-pane
+              #hb22.tab-pane.active
+              %ul#internal-tab-2.nav.nav-tabs.tabs-pull-right
+                %br
+                .input-group.input-group-lg.hidden-mobile
+                  .input-group-btn
+                    %button.btn.btn-default.dropdown-toggle.textbtn{"data-toggle" => "dropdown", :type => "button"}
+                      All
+                      %span.caret
+                    %ul.dropdown-menu
+                      %li.active
+                        %a{:href => "javascript:void(0)"}
+                          All
+                      %li.divider
+                      %li
+                        %a{:href => "javascript:void(0)"} Rejected
+                      %li
+                        %a{:href => "javascript:void(0)"} Accepted
+                      %li
+                        %a{:href => "javascript:void(0)"} Pending
+                  %input#search-project.form-control.input-lg{:placeholder => "Search Contract...", :type => "text"}/
+                  .input-group-btn
+                    %button.btn.btn-default{:type => "submit"}
+                      \   
+                      %i.fa.fa-fw.fa-search.fa-lg>
+                      \  
+                %br 
+                - Timesheet.statuses.reverse_each do |value , key|
+                  %li{class: key == 0 ? 'active' : ''}
+                    %a{"aria-expanded" => "false", "data-toggle" => "tab", :href => "#is#{key}"} #{value.titleize}
+              .tab-content.padding-10
+                - Timesheet.statuses.reverse_each do |value , key|
+                  .tab-pane{id: "is#{key}" , class: key == 0 ? 'active' : ''}
+                    = render'company/timesheets/partials/received_timesheets' , data: @received_timesheets.where(status: key)
 - content_for :modals do
-  #job_invitation
-
+  #ajax-modal
 - content_for :scripts do
   :javascript
     // DO NOT REMOVE : GLOBAL FUNCTIONS!
 
     $(document).ready(function() {
-
       pageSetUp();
-
-      /* // DOM Position key index //
-
-       l - Length changing (dropdown)
-       f - Filtering input (search)
-       t - The Table! (datatable)
-       i - Information (records)
-       p - Pagination (paging)
-       r - pRocessing
-       < and > - div elements
-       <"#id" and > - div with an id
-       <"class" and > - div with a class
-       <"#id.class" and > - div with an id and class
-
-       Also see: http://legacy.datatables.net/usage/features
-       */
-
-      /* BASIC ;*/
-      var responsiveHelper_dt_basic = undefined;
-      var responsiveHelper_datatable_fixed_column = undefined;
-      var responsiveHelper_datatable_col_reorder = undefined;
-      var responsiveHelper_datatable_tabletools = undefined;
-
-      var breakpointDefinition = {
-        tablet : 1024,
-        phone : 480
-      };
-
-      $('#dt_basic').dataTable({
-        "sDom": "<'dt-toolbar'<'col-xs-12 col-sm-6'f><'col-sm-6 col-xs-12 hidden-xs'l>r>"+
-        "t"+
-        "<'dt-toolbar-footer'<'col-sm-6 col-xs-12 hidden-xs'i><'col-xs-12 col-sm-6'p>>",
-        "autoWidth" : true,
-        "oLanguage": {
-          "sSearch": '<span class="input-group-addon"><i class="glyphicon glyphicon-search"></i></span>'
-        },
-        "preDrawCallback" : function() {
-          // Initialize the responsive datatables helper once.
-          if (!responsiveHelper_dt_basic) {
-            responsiveHelper_dt_basic = new ResponsiveDatatablesHelper($('#dt_basic'), breakpointDefinition);
-          }
-        },
-        "rowCallback" : function(nRow) {
-          responsiveHelper_dt_basic.createExpandIcon(nRow);
-        },
-        "drawCallback" : function(oSettings) {
-          responsiveHelper_dt_basic.respond();
-        }
-      });
-
-      /* END BASIC */
-
-      /* COLUMN FILTER  */
-      var otable = $('#datatable_fixed_column').DataTable({
-        //"bFilter": false,
-        //"bInfo": false,
-        //"bLengthChange": false
-        //"bAutoWidth": false,
-        //"bPaginate": false,
-        //"bStateSave": true // saves sort state using localStorage
-        "sDom": "<'dt-toolbar'<'col-xs-12 col-sm-6 hidden-xs'f><'col-sm-6 col-xs-12 hidden-xs'<'toolbar'>>r>"+
-        "t"+
-        "<'dt-toolbar-footer'<'col-sm-6 col-xs-12 hidden-xs'i><'col-xs-12 col-sm-6'p>>",
-        "autoWidth" : true,
-        "oLanguage": {
-          "sSearch": '<span class="input-group-addon"><i class="glyphicon glyphicon-search"></i></span>'
-        },
-        "preDrawCallback" : function() {
-          // Initialize the responsive datatables helper once.
-          if (!responsiveHelper_datatable_fixed_column) {
-            responsiveHelper_datatable_fixed_column = new ResponsiveDatatablesHelper($('#datatable_fixed_column'), breakpointDefinition);
-          }
-        },
-        "rowCallback" : function(nRow) {
-          responsiveHelper_datatable_fixed_column.createExpandIcon(nRow);
-        },
-        "drawCallback" : function(oSettings) {
-          responsiveHelper_datatable_fixed_column.respond();
-        }
-
-      });
     });
+

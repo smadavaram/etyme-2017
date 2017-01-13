@@ -8,10 +8,10 @@ class Invoice < ActiveRecord::Base
   has_one     :company        , through: :company
   belongs_to  :submitted_by   , class_name:"Admin", foreign_key: :submitted_by
 
+  before_validation :set_consultant_amount, on: :create
   before_validation :set_total_amount , on: :create
   before_validation :set_commissions , on: :create
-  before_validation :set_start_date_and_end_date , on: :create
-  before_validation :set_consultant_amount, on: :create
+  before_validation :set_start_date_and_end_date , on: :creat
   after_create      :set_next_invoice_date
   after_create      :update_timesheet_status_to_invoiced
 
@@ -28,7 +28,7 @@ class Invoice < ActiveRecord::Base
     self.consultant_amount = rate * hours
   end
 
-  private
+  # private
 
   def start_date_cannot_be_less_than_end_date
       errors.add(:start_date, ' cannot be less than end date.') if self.end_date < self.start_date
@@ -56,7 +56,7 @@ class Invoice < ActiveRecord::Base
       end
     end
     self.commission_amount = commission
-    self.billing_amount    = self.commission_amount + self.total_amount
+    self.billing_amount    = self.total_amount - self.commission_amount - self.consultant_amount
   end
 
   def set_next_invoice_date

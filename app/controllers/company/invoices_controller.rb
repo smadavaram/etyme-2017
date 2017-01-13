@@ -17,21 +17,21 @@ class Company::InvoicesController < Company::BaseController
       if @invoice.save
       flash[:success] = "Successfully Submitted"
     else
-      flash[:errors] = @invoice.errors.full_messages
+      flash[:errors] = "You are Not authorized to Submitt this Invoice. "
       end
     end
     redirect_to :back
   end
 
   def reject_invoice
-    if current_user.is_admin?
+    if @contract.assignee == current_user
       @invoice.cancelled!
       @invoice.submitted_by = current_user
       @invoice.submitted_on = DateTime.now
       if @invoice.save
         flash[:success] = "Successfully Cancelled"
       else
-        flash[:errors] = @invoice.errors.full_messages
+        flash[:errors] = "You are Not authorized to Cancel this Invoice. "
       end
     end
     redirect_to :back
@@ -66,11 +66,11 @@ class Company::InvoicesController < Company::BaseController
 
   def find_invoice
     @invoice  = @contract.invoices.includes(timesheets: [timesheet_logs: [:transactions , :contract_term]]).find(params[:id])
-    # if  !@contract.is_sent?(current_company)
-    #
-    # elsif  not @invoice.submitted? && @contract.is_sent?(current_company)
-    #   redirect_to contract_path(@contract)
-    # end
+    if  !@contract.is_sent?(current_company)
+
+    elsif  not @invoice.submitted? && @contract.is_sent?(current_company)
+      redirect_to contract_invoices_path(@contract)
+    end
   end
 
   def set_invoices
