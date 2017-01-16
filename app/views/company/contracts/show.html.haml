@@ -8,6 +8,9 @@
               .btn-group.pull-right
                 = button_tag 'Accept' , class: 'btn btn-success btn-default margin-right-5' , disabled: @contract.signature_required_docs? , onclick: 'openAccept();'
                 = button_tag 'Reject' ,  class: 'btn btn-default' , "data-toggle": "modal" , "data-target":"#contract-reject-#{@contract.id}"
+            - if @contract.status == "accepted"  && @contract.is_received?(current_company)
+              = link_to 'Create Sub Contracts','#',class: 'btn btn-primary pull-right',target: '_blank', style: 'margin-top: 20px;margin-right: 10px;'
+
             %h2.name
               = @contract.title
               %small
