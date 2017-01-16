@@ -26,24 +26,21 @@
                           =link_to raw("Accept")  ,accept_invoice_contract_invoice_path(@contract,@invoice), method: :post ,class: 'btn btn-success pull-right  ', data: {confirm: "Are you sure you want to Submit this invoice ?", verify: 'Submit', verify_text: "Type 'Submit' to confirm"}
                           =link_to raw("Reject")  ,reject_invoice_contract_invoice_path(@contract,@invoice),method: :post, class: 'btn btn-default pull-right  ', data: {confirm: "Are you sure you want to Cancelled this invoice ?", verify: 'Cancel', verify_text: "Type 'Cancel' to confirm"}
                   %br/
-                  .pull-left
-                    = image_tag 'etyme-logo-dark.png', alt: 'Etyme', style: 'width: 80px;'
-                    %address
-                      %br/
-                      %strong= @contract.job.company.name.titleize
-                      %br/
-                      =@contract.job.location
-                      %br/
-                      %abbr{:title => "Phone"} P:
-                      #{@contract.job.company.phone}
-                  .pull-right
+                  .text-center
                     %h1.font-400
                       = @contract.title
+                    %h2.font-xl
+                      %label Invoice#
+                      = @invoice.id
+                    %h2.font-xl
+                      = @invoice.start_date.strftime('%m/%d/%y')+"-" + @invoice.end_date.strftime('%m/%d/%y')
                   .clearfix
                   %br/
                   %br/
                   .row
                     .col-sm-9
+                      %br/
+                      %strong.font-xl For Company
                       %h4.semi-bold= @contract.assignee.company.name.titleize
                       %address
                         %strong= @contract.assignee.full_name
@@ -59,21 +56,21 @@
                     .col-sm-3
                       %div
                         %div
-                          %strong INVOICE NO :
-                          %span.pull-right.text-center # #{@invoice.id}
-                      %div
-                        .font-md
-                          %strong START DATE :
-                          %span.pull-right
-                            %i.fa.fa-calendar
-                            = @invoice.start_date.strftime('%m/%d/%y')
-                      %div
-                        .font-md
-                          %strong END DATE :
-                          %span.pull-right
-                            %i.fa.fa-calendar
-                            = @invoice.end_date.strftime('%m/%d/%y')
-                      %br/
+                          -#%strong INVOICE NO :
+                          -#%span.pull-right.text-center # #{@invoice.id}
+                      -#%div
+                      -#  .font-md
+                      -#    %strong START DATE :
+                      -#    %span.pull-right
+                      -#      %i.fa.fa-calendar
+                      -#      = @invoice.start_date.strftime('%m/%d/%y')
+                      -#%div
+                      -#  .font-md
+                      -#    %strong END DATE :
+                      -#    %span.pull-right
+                      -#      %i.fa.fa-calendar
+                      -#      = @invoice.end_date.strftime('%m/%d/%y')
+                      -#%br/
                       -#.well.well-sm.bg-color-darken.txt-color-white.no-border
                       -#  .fa-lg
                       -#    Total Due :

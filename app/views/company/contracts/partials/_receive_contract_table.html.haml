@@ -16,7 +16,7 @@
           %td=link_to contract.title ,contract_path(contract)
           %td= link_to show_recipient_name(contract.contractable)
           %td= link_to contract.created_by.full_name , '#'
-          %td= local_time( contract.end_date)
+          %td= (contract.end_date)
           %td
             = label_status_color(contract.status)
           %td
