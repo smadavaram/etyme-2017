@@ -19,7 +19,7 @@
         .col-sm-12
           .input-icon-left
             %i.fa.txt-color-green
-            = a.select :country, CS.get.map{|name , id| [id , name]},{}, :class=>"form-control input-lg" , required: true
+            = a.select :country, CS.get.map{|name , id| [id , name]},{}, :class=>"form-control input-lg" , required: true ,id: 'country'
 
   .form-group
     %label.control-label.col-md-2
@@ -30,7 +30,8 @@
         .col-sm-12
           .input-icon-left
             %i.fa.txt-color-green
-            = a.text_field :state, class: "form-control  input-lg", placeholder:"Enter State", required: true
+            = a.select :state ,CS.states(:us).sort.map {|k,v| [v,k] },{prompt:"Select State"},class:"form-control", selected: a.object.state,id:"state"
+            -#= a.text_field :state, class: "form-control  input-lg", placeholder:"Enter State", required: true,id: 'state'
 
   .form-group
     %label.control-label.col-md-2
@@ -41,7 +42,8 @@
         .col-sm-12
           .input-icon-left
             %i.fa.txt-color-green
-            = a.text_field :city, class: "form-control  input-lg", placeholder:"Enter City", required: true
+            = a.select :city,CS.cities(a.object.state,:us).sort.map {|k,v| [v,k] },{prompt:"Select City"},class:"form-control",id:"city"
+            -#= a.text_field :city, class: "form-control  input-lg", placeholder:"Enter City", required: true,id: 'city'
   .form-group
     %label.control-label.col-md-2
       Zip Code
@@ -53,3 +55,41 @@
             %i.fa.txt-color-green
             = a.text_field :zip_code, class: "form-control  input-lg", placeholder:"Enter Zip Code", required: true
 %legend
+
+- content_for :scripts do
+  :javascript
+    $(document).ready(function() {
+
+        $('#country').change(
+         function() {
+         var states_of_country=$('#state')
+         $.getJSON('/states/'+$(this).val(),function(data) {
+              states_of_country.empty();
+              states_of_country.append('<option value="">Select State ...</option>');
+              $.each(data,function(key,value) {
+              var opt = '<option value=' + key + '>' + value + '</option>';
+              states_of_country.append(opt);
+              });
+
+           });//End OF json
+
+         }); //End OF Country Change
+
+
+      $('#state').change(
+         function() {
+         var country=$('#country').val();
+         var cities_of_sate=$('#city')
+         $.getJSON('/cities/'+$(this).val()+"/"+country,function(data) {
+              cities_of_sate.empty();
+              cities_of_sate.append('<option value="">Select City ...</option>');
+              $.each(data,function(key,value) {
+              var opt = '<option value=' + key + '>' + value + '</option>';
+              cities_of_sate.append(opt);
+              });
+
+           });//End OF json
+
+         }); //End OF State Change
+
+      }); // End of document ready
