@@ -1,6 +1,6 @@
 class Candidate::CandidatesController < Candidate::BaseController
 
-  respond_to :html,:json
+  respond_to :html,:json,:js
 
   before_action :set_candidate ,only: [:show,:update]
 
@@ -14,12 +14,19 @@ class Candidate::CandidatesController < Candidate::BaseController
   end
 
   def update
+    respond_to do  |format|
     if current_candidate.update_attributes candidate_params
-      flash[:success]="Candidate Updated"
-      respond_with current_candidate
+
+      format.json {respond_with current_candidate}
+      format.html {
+        flash[:success] = "Candidate Updated"
+        redirect_to :back
+      }
+
     else
-      redirect_to :back
-      # format.js(current_candidate,notice:"Incorrect Information")
+      format.html{redirect_to :back}
+      format.json{redirect_to :back }
+    end
     end
   end
 
@@ -50,7 +57,7 @@ class Candidate::CandidatesController < Candidate::BaseController
     end
 
     def candidate_params
-      params.require(:candidate).permit(:first_name,:invited_by ,:job_id, :last_name,:dob,:email,:phone,:skills, :primary_address_id,:tag_list,address_attributes: [:id,:country,:city,:state,:zip_code])
+      params.require(:candidate).permit(:first_name,:invited_by ,:job_id,:description, :last_name,:dob,:email,:phone, :skill_list, :primary_address_id,address_attributes: [:id,:country,:city,:state,:zip_code])
     end
 
 
