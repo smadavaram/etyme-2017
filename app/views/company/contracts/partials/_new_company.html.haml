@@ -1,0 +1,44 @@
+.modal.fade.in{ id: "new-contract-company","aria-hidden": "true", "aria-labelledby": "myModalLabel", :role => "dialog", :style => "display: none;", :tabindex => "-1"}
+  .modal-dialog.modal-md
+    .modal-content
+      .modal-header
+        %button.close{"aria-hidden" => "true", "data-dismiss" => "modal", :type => "button"}
+          ×
+        %h2#myModalLabel.modal-title
+          %strong New Company
+      .modal-body
+        = form_for @new_company , url: company_companies_path , html:{ class:'form-horizontal'} do |f|
+          = f.fields_for :invited_by do |i|
+            = i.hidden_field :user_id , value: current_user.id
+            = i.hidden_field :invited_by_company_id , value: current_company.id
+          %fieldset
+            .form-group
+              %label.col-md-2.control-label
+                Name
+                %sup.text-danger *
+              .col-md-10
+                = f.text_field :name , class: 'form-control' , placeholder: 'Enter Company Name' , required: true
+            = f.fields_for :owner do |u|
+              .form-group
+                %label.col-md-2.control-label
+                  First Name
+                  %sup.text-danger *
+                .col-md-4
+                  = u.text_field :first_name ,class: "form-control" , required: 'required', placeholder: "First Name"
+                %label.col-md-2.control-label
+                  Last Name
+                  %sup.text-danger *
+                .col-md-4
+                  = u.text_field :last_name ,class: "form-control" , required: 'required', placeholder: "Last Name"
+              .form-group
+                %label.col-md-2.control-label
+                  Email
+                  %sup.text-danger *
+                .col-md-10
+                  = u.text_field :email , class: 'form-control' , placeholder: 'Email' , required: true
+              %br/
+          .form-actions
+            .row
+              .col-md-12
+                = button_tag 'Cancel' , class: 'btn btn-default' , "data-dismiss"=> "modal"
+                = f.button "Submit".html_safe, data: {disable_with: disable_spinning("Saving...")} , class: 'btn btn-primary'

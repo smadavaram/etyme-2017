@@ -1,0 +1,16 @@
+.tab-content.padding-10
+  %table.table.table-striped
+    %thead
+      %tr
+        %th{style:'width:20%'}
+          Name
+        %th{style:'width:20%'}
+          Tags
+    - current_company.company_docs.each do |document|
+      - next if document.new_record?
+      %tbody
+        %tr
+          %td
+            = best_in_place document, :name, :as => :input, :place_holder => "Click me to add content!"
+          %td
+            = best_in_place document, :tag_list, :as => :input, :place_holder => "Click me to add content!"

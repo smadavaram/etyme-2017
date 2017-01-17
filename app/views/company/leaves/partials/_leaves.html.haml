@@ -1,0 +1,143 @@
+#content.no-border
+  .row
+    .col-lg-11.col-md-offset-1
+      - if current_user.is_consultant?
+        = link_to 'New' ,'#' ,class: 'btn btn-success btn-lg pull-right header-btn hidden-mobile', "data-toggle": "modal" , "data-target":"#newLeave"
+        = render 'company/leaves/partials/form', leave: current_user.leaves.new
+  #wid-id-5.no-border.jarviswidget{"data-widget-colorbutton" => "false", "data-widget-custombutton" => "false", "data-widget-editbutton" => "false", "data-widget-fullscreenbutton" => "false", "data-widget-sortable" => "false"}
+    %div
+      .jarviswidget-editbox
+      .widget-body
+        %ul#myTab1.nav.nav-tabs.bordered
+          %li.active
+            %a{"data-toggle" => "tab", :href => "#tab-r1"}
+              %span.badge.bg-color-blue.txt-color-white= leaves.count
+              All leaves
+          %li
+            %a{"data-toggle" => "tab", :href => "#tab-r2"}
+              %span.badge.bg-color-blueDark.txt-color-white= leaves.pending.count
+              Pending leaves
+          %li
+            %a{"data-toggle" => "tab", :href => "#tab-r3"}
+              %span.badge.bg-color-blue.txt-color-white= leaves.accepted.count
+              Accepted Leaves
+          %li
+            %a{"data-toggle" => "tab", :href => "#tab-r4"}
+              %span.badge.bg-color-blue.txt-color-white= leaves.rejected.count
+              Rejected leaves
+        .col-md-12
+          .tab-content
+            #tab-r1.tab-pane.active
+              #hb2.tab-pane.active
+                %ul#internal-tab-1.nav.nav-tabs.tabs-pull-right
+                  %br
+                  .input-group.input-group-lg.hidden-mobile
+                    .input-group-btn
+                      %button.btn.btn-default.dropdown-toggle.textbtn{"data-toggle" => "dropdown", :type => "button"}
+                        All
+                        %span.caret
+                      %ul.dropdown-menu
+                        %li.active
+                          %a{:href => "javascript:void(0)"}
+                            All
+                        %li.divider
+                        %li
+                          %a{:href => "javascript:void(0)"} Rejected
+                        %li
+                          %a{:href => "javascript:void(0)"} Accepted
+                        %li
+                          %a{:href => "javascript:void(0)"} Pending
+                    %input#search-project.form-control.input-lg{:placeholder => "Search Contract...", :type => "text"}/
+                    .input-group-btn
+                      %button.btn.btn-default{:type => "submit"}
+                        \   
+                        %i.fa.fa-fw.fa-search.fa-lg>
+                        \  
+
+                  %br
+                    = render partial: 'company/leaves/partials/leave_show',locals: {leaves: leaves }
+            #tab-r2.tab-pane
+              #hb2.tab-pane.active
+                %ul#internal-tab-1.nav.nav-tabs.tabs-pull-right
+                  %br
+                  .input-group.input-group-lg.hidden-mobile
+                    .input-group-btn
+                      %button.btn.btn-default.dropdown-toggle.textbtn{"data-toggle" => "dropdown", :type => "button"}
+                        All
+                        %span.caret
+                      %ul.dropdown-menu
+                        %li.active
+                          %a{:href => "javascript:void(0)"}
+                            All
+                        %li.divider
+                        %li
+                          %a{:href => "javascript:void(0)"} Rejected
+                        %li
+                          %a{:href => "javascript:void(0)"} Accepted
+                        %li
+                          %a{:href => "javascript:void(0)"} Pending
+                    %input#search-project.form-control.input-lg{:placeholder => "Search Contract...", :type => "text"}/
+                    .input-group-btn
+                      %button.btn.btn-default{:type => "submit"}
+                        \   
+                        %i.fa.fa-fw.fa-search.fa-lg>
+                        \  
+
+                  %br
+                    = render partial: 'company/leaves/partials/leave_show',locals: {leaves: leaves.pending }
+            #tab-r3.tab-pane
+              #hb3.tab-pane.active
+                %ul#internal-tab-2.nav.nav-tabs.tabs-pull-right
+                  %br
+                  .input-group.input-group-lg.hidden-mobile
+                    .input-group-btn
+                      %button.btn.btn-default.dropdown-toggle.textbtn{"data-toggle" => "dropdown", :type => "button"}
+                        All
+                        %span.caret
+                      %ul.dropdown-menu
+                        %li.active
+                          %a{:href => "javascript:void(0)"}
+                            All
+                        %li.divider
+                        %li
+                          %a{:href => "javascript:void(0)"} Rejected
+                        %li
+                          %a{:href => "javascript:void(0)"} Accepted
+                        %li
+                          %a{:href => "javascript:void(0)"} Pending
+                    %input#search-project.form-control.input-lg{:placeholder => "Search Contract...", :type => "text"}/
+                    .input-group-btn
+                      %button.btn.btn-default{:type => "submit"}
+                        \   
+                        %i.fa.fa-fw.fa-search.fa-lg>
+                        \  
+                  %br
+                    = render partial: 'company/leaves/partials/leave_show',locals: {leaves: leaves.accepted }
+            #tab-r4.tab-pane
+              #hb3.tab-pane.active
+                %ul#internal-tab-2.nav.nav-tabs.tabs-pull-right
+                  %br
+                  .input-group.input-group-lg.hidden-mobile
+                    .input-group-btn
+                      %button.btn.btn-default.dropdown-toggle.textbtn{"data-toggle" => "dropdown", :type => "button"}
+                        All
+                        %span.caret
+                      %ul.dropdown-menu
+                        %li.active
+                          %a{:href => "javascript:void(0)"}
+                            All
+                        %li.divider
+                        %li
+                          %a{:href => "javascript:void(0)"} Rejected
+                        %li
+                          %a{:href => "javascript:void(0)"} Accepted
+                        %li
+                          %a{:href => "javascript:void(0)"} Pending
+                    %input#search-project.form-control.input-lg{:placeholder => "Search Contract...", :type => "text"}/
+                    .input-group-btn
+                      %button.btn.btn-default{:type => "submit"}
+                        \   
+                        %i.fa.fa-fw.fa-search.fa-lg>
+                        \  
+                  %br
+                    = render partial: 'company/leaves/partials/leave_show',locals: {leaves: leaves.rejected }

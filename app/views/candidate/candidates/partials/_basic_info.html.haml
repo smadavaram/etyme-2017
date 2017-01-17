@@ -1,0 +1,50 @@
+.tab-content.padding-10
+  %table.table.table-striped
+    %tbody
+      %tr
+        %th{style:'width:50%'}
+          First Name
+        %td{style:'width:50%'}
+          = best_in_place candidate, :first_name, :as => :input,placeholder:"Click here to edit"
+      %tr
+        %th{style:'width:50%'}
+          Last Name
+        %td{style:'width:50%'}
+          = best_in_place candidate, :last_name, :as => :input,placeholder:"Click here to edit"
+      %tr
+        %th
+          Email
+        %td
+          = best_in_place candidate,:email, :as => :input, :place_holder => "Click me to add content!"
+
+      %tr
+        %th
+          Phone
+        %td
+          = best_in_place candidate,:phone, :as => :input, :place_holder => "Click me to add content!"
+      %tr
+        %th
+          Date of Birth
+        %td
+          = best_in_place candidate,:dob, :as => :date, :place_holder => "Click me to add content!"
+
+      %tr
+        %th
+          About You
+        %td
+          = best_in_place candidate, :description, :as => :textarea, :place_holder => "Click me to add content!"
+      %tr
+        %th
+          Skills
+        %td
+          - candidate.skills.each do |skill|
+            %span
+              .label-info.badge
+                = skill.name
+
+
+      -#%tr
+      -#  %th
+      -#    Google Url
+      -#  %td
+      -#    = best_in_place candidate, :google_url, :as => :input, :place_holder => "Click me to add content!"

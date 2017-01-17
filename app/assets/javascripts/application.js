@@ -25,3 +25,20 @@
 
 // MAIN APP JS FILE
 //= require app.seed
+//= require plugin/select2/select2.min
+// WIZARD
+//= require plugin/bootstrap-wizard/jquery.bootstrap.wizard.min
+//= require plugin/fuelux/wizard/fuelux
+
+// Custom Fields
+//= require cocoon
+
+// Amaran For Alerts
+//= require jquery.amaran
+
+// Signature Pad
+//= require signature-pad/jquery.signaturepad
+//= require signature-pad/flashcanvas
+//= require signature-pad/json2.min
+
+//= require global

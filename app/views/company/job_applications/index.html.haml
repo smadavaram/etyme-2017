@@ -1,0 +1,346 @@
+#content.no-border
+  #wid-id-5.no-border.jarviswidget{"data-widget-colorbutton" => "false", "data-widget-custombutton" => "false", "data-widget-editbutton" => "false", "data-widget-fullscreenbutton" => "false", "data-widget-sortable" => "false"}
+    %div
+      .jarviswidget-editbox
+      .widget-body
+        %ul#myTab1.nav.nav-tabs.bordered
+          %li.active
+            %a{"data-toggle" => "tab", :href => "#tab-r1"}
+              %span.badge.bg-color-blue.txt-color-white= @received_job_applications.vendor.count
+              Vendors
+          %li
+            %a{"data-toggle" => "tab", :href => "#tab-r2"}
+              %span.badge.bg-color-blueDark.txt-color-white= @received_job_applications.candidate.count
+              Candidate
+          %li
+            %a{"data-toggle" => "tab", :href => "#tab-r3"}
+              %span.badge.bg-color-blueDark.txt-color-white= @received_job_applications.direct.count
+              Directly Applied
+          %li
+            %a{"data-toggle" => "tab", :href => "#tab-r4"}
+              %span.badge.bg-color-blueDark.txt-color-white= @received_job_applications.by_email.count
+              By Email
+        .col-md-12
+          .tab-content
+            #tab-r1.tab-pane.active
+              #hb2.tab-pane.active
+                %ul#internal-tab-1.nav.nav-tabs.tabs-pull-right
+                  %br
+                  .input-group.input-group-lg.hidden-mobile
+                    .input-group-btn
+                      %button.btn.btn-default.dropdown-toggle.textbtn{"data-toggle" => "dropdown", :type => "button"}
+                        All
+                        %span.caret
+                      %ul.dropdown-menu
+                        %li.active
+                          %a{:href => "javascript:void(0)"}
+                            %i.fa.fa-check
+                            All
+                        %li.divider
+                        %li
+                          %a{:href => "javascript:void(0)"} Hired
+                        %li
+                          %a{:href => "javascript:void(0)"} Interviewing
+                        %li
+                          %a{:href => "javascript:void(0)"} Short Listed
+                        %li
+                          %a{:href => "javascript:void(0)"} Rejected
+                        %li
+                          %a{:href => "javascript:void(0)"} Pending Review
+                    %input#search-project.form-control.input-lg.textbtn{:placeholder => "Search Job Application...", :type => "text"}/
+                    .input-group-btn
+                      %button.btn.btn-default{:type => "submit"}
+                        \   
+                        %i.fa.fa-fw.fa-search.fa-lg>
+                        \
+                  %br  
+                  %li
+                    %a{"aria-expanded" => "false", "data-toggle" => "tab", :href => "#is6"} Hired
+                  %li
+                    %a{"aria-expanded" => "false", "data-toggle" => "tab", :href => "#is5"} Interviewing
+                  %li
+                    %a{"aria-expanded" => "false", "data-toggle" => "tab", :href => "#is4"} Short Listed
+                  %li
+                    %a{"aria-expanded" => "false", "data-toggle" => "tab", :href => "#is3"} Rejected
+                  %li
+                    %a{"aria-expanded" => "false", "data-toggle" => "tab", :href => "#is2"} Pending Review
+                  %li.active
+                    %a{"aria-expanded" => "true", "data-toggle" => "tab", :href => "#is1"} All
+                .tab-content.padding-10
+                  #is6.tab-pane
+                    = render  'company/job_applications/partials/application_table' ,data: @received_job_applications.vendor.hired
+                  #is5.tab-pane
+                    = render  'company/job_applications/partials/application_table' ,data: @received_job_applications.vendor.interviewing
+                  #is4.tab-pane
+                    = render  'company/job_applications/partials/application_table' ,data: @received_job_applications.vendor.short_listed
+                  #is3.tab-pane
+                    = render  'company/job_applications/partials/application_table' ,data: @received_job_applications.vendor.rejected
+                  #is2.tab-pane.fade
+                    = render  'company/job_applications/partials/application_table' ,data: @received_job_applications.vendor.pending_review
+                  #is1.tab-pane.fade.active.in
+                    = render  'company/job_applications/partials/application_table' ,data: @received_job_applications.vendor
+
+            #tab-r2.tab-pane
+              #hb22.tab-pane.active
+              %ul#internal-tab-2.nav.nav-tabs.tabs-pull-right
+                %br
+                .input-group.input-group-lg.hidden-mobile
+                  .input-group-btn
+                    %button.btn.btn-default.dropdown-toggle.textbtn{"data-toggle" => "dropdown", :type => "button"}
+                      All
+                      %span.caret
+                    %ul.dropdown-menu
+                      %li.active
+                        %a{:href => "javascript:void(0)"}
+                          %i.fa.fa-check
+                          All
+                      %li.divider
+                      %li
+                        %a{:href => "javascript:void(0)"} Hired
+                      %li
+                        %a{:href => "javascript:void(0)"} Interviewing
+                      %li
+                        %a{:href => "javascript:void(0)"} Short Listed
+                      %li
+                        %a{:href => "javascript:void(0)"} Rejected
+                      %li
+                        %a{:href => "javascript:void(0)"} Pending Review
+                  %input#search-project.form-control.input-lg.textbtn{:placeholder => "Search Job Application...", :type => "text"}/
+                  .input-group-btn
+                    %button.btn.btn-default{:type => "submit"}
+                      \   
+                      %i.fa.fa-fw.fa-search.fa-lg>
+                      \
+                %br 
+                %li
+                  %a{"aria-expanded" => "false", "data-toggle" => "tab", :href => "#is-6"} Hired
+                  %li
+                    %a{"aria-expanded" => "false", "data-toggle" => "tab", :href => "#is-5"} Interviewing
+                  %li
+                    %a{"aria-expanded" => "false", "data-toggle" => "tab", :href => "#is-4"} Short Listed
+                  %li
+                    %a{"aria-expanded" => "false", "data-toggle" => "tab", :href => "#is-3"} Rejected
+                  %li
+                    %a{"aria-expanded" => "false", "data-toggle" => "tab", :href => "#is-2"} Pending Review
+                  %li.active
+                    %a{"aria-expanded" => "true", "data-toggle" => "tab", :href => "#is-1"} All
+              .tab-content.padding-10
+                #is-6.tab-pane
+                  = render  'company/job_applications/partials/application_table' ,data: @received_job_applications.candidate.hired
+                #is-5.tab-pane
+                  = render  'company/job_applications/partials/application_table' ,data: @received_job_applications.candidate.interviewing
+                #is-4.tab-pane
+                  = render  'company/job_applications/partials/application_table' ,data: @received_job_applications.candidate.short_listed
+                #is-3.tab-pane
+                  = render 'company/job_applications/partials/application_table' ,data: @received_job_applications.candidate.rejected
+                #is-2.tab-pane.fade
+                  = render 'company/job_applications/partials/application_table' , data: @received_job_applications.candidate.pending_review
+                #is-1.tab-pane.fade.active.in
+                  = render 'company/job_applications/partials/application_table' , data: @received_job_applications.candidate
+
+            #tab-r3.tab-pane
+              #hb23.tab-pane.active
+              %ul#internal-tab-3.nav.nav-tabs.tabs-pull-right
+                %br
+                .input-group.input-group-lg.hidden-mobile
+                  .input-group-btn
+                    %button.btn.btn-default.dropdown-toggle.textbtn{"data-toggle" => "dropdown", :type => "button"}
+                      All
+                      %span.caret
+                    %ul.dropdown-menu
+                      %li.active
+                        %a{:href => "javascript:void(0)"}
+                          %i.fa.fa-check
+                          All
+                        %li.divider
+                        %li
+                          %a{:href => "javascript:void(0)"} Hired
+                        %li
+                          %a{:href => "javascript:void(0)"} Interviewing
+                        %li
+                          %a{:href => "javascript:void(0)"} Short Listed
+                        %li
+                          %a{:href => "javascript:void(0)"} Rejected
+                        %li
+                          %a{:href => "javascript:void(0)"} Pending Review
+                  %input#search-project.form-control.input-lg.textbtn{:placeholder => "Search Job Application...", :type => "text"}/
+                  .input-group-btn
+                    %button.btn.btn-default{:type => "submit"}
+                      \   
+                      %i.fa.fa-fw.fa-search.fa-lg>
+                      \
+                %br 
+                %li
+                  %a{"aria-expanded" => "false", "data-toggle" => "tab", :href => "#is-6-3"} Hired
+                %li
+                  %a{"aria-expanded" => "false", "data-toggle" => "tab", :href => "#is-5-3"} Interviewing
+                %li
+                  %a{"aria-expanded" => "false", "data-toggle" => "tab", :href => "#is-4-3"} Short Listed
+                %li
+                  %a{"aria-expanded" => "false", "data-toggle" => "tab", :href => "#is-3-3"} Rejected
+                %li
+                  %a{"aria-expanded" => "false", "data-toggle" => "tab", :href => "#is-2-3"} Pending Review
+                %li.active
+                  %a{"aria-expanded" => "true", "data-toggle" => "tab", :href => "#is-1-3"} All
+              .tab-content.padding-10
+                #is-6-3.tab-pane
+                  = render  'company/job_applications/partials/application_table' ,data: @received_job_applications.direct.hired
+                #is-5-3.tab-pane
+                  = render 'company/job_applications/partials/application_table' ,data: @received_job_applications.direct.interviewing
+                #is-4-3.tab-pane
+                  = render  'company/job_applications/partials/application_table' ,data: @received_job_applications.direct.short_listed
+                #is-3-3.tab-pane
+                  = render 'company/job_applications/partials/application_table' ,data: @received_job_applications.direct.rejected
+                #is-2-3.tab-pane.fade
+                  = render 'company/job_applications/partials/application_table' , data: @received_job_applications.direct.pending_review
+                #is-1-3.tab-pane.fade.active.in
+                  = render 'company/job_applications/partials/application_table' , data: @received_job_applications.direct
+
+            #tab-r4.tab-pane
+              #hb24.tab-pane.active
+              %ul#internal-tab-3.nav.nav-tabs.tabs-pull-right
+                %br
+                .input-group.input-group-lg.hidden-mobile
+                  .input-group-btn
+                    %button.btn.btn-default.dropdown-toggle.textbtn{"data-toggle" => "dropdown", :type => "button"}
+                      All
+                      %span.caret
+                    %ul.dropdown-menu
+                      %li.active
+                        %a{:href => "javascript:void(0)"}
+                          %i.fa.fa-check
+                          All
+                        %li.divider
+                        %li
+                          %a{:href => "javascript:void(0)"} Hired
+                        %li
+                          %a{:href => "javascript:void(0)"} Interviewing
+                        %li
+                          %a{:href => "javascript:void(0)"} Short Listed
+                        %li
+                          %a{:href => "javascript:void(0)"} Rejected
+                        %li
+                          %a{:href => "javascript:void(0)"} Pending Review
+                  %input#search-project.form-control.input-lg.textbtn{:placeholder => "Search Job Application...", :type => "text"}/
+                  .input-group-btn
+                    %button.btn.btn-default{:type => "submit"}
+                      \   
+                      %i.fa.fa-fw.fa-search.fa-lg>
+                      \
+                %br 
+                %li
+                  %a{"aria-expanded" => "false", "data-toggle" => "tab", :href => "#is-6-4"} Hired
+                %li
+                  %a{"aria-expanded" => "false", "data-toggle" => "tab", :href => "#is-5-4"} Accepted
+                %li
+                  %a{"aria-expanded" => "false", "data-toggle" => "tab", :href => "#is-4-4"} Short Listed
+                %li
+                  %a{"aria-expanded" => "false", "data-toggle" => "tab", :href => "#is-3-4"} Rejected
+                %li
+                  %a{"aria-expanded" => "false", "data-toggle" => "tab", :href => "#is-2-4"} Pending Review
+                %li.active
+                  %a{"aria-expanded" => "true", "data-toggle" => "tab", :href => "#is-1-4"} All
+              .tab-content.padding-10
+                #is-6-4.tab-pane
+                  = render  'company/job_applications/partials/application_table' ,data: @received_job_applications.by_email.hired
+                #is-5-4.tab-pane
+                  = render 'company/job_applications/partials/application_table' ,data: @received_job_applications.by_email.interviewing
+                #is-4-4.tab-pane
+                  = render  'company/job_applications/partials/application_table' ,data: @received_job_applications.by_email.short_listed
+                #is-3-4.tab-pane
+                  = render 'company/job_applications/partials/application_table' ,data: @received_job_applications.by_email.rejected
+                #is-2-4.tab-pane.fade
+                  = render 'company/job_applications/partials/application_table' , data: @received_job_applications.by_email.pending_review
+                #is-1-4.tab-pane.fade.active.in
+                  = render 'company/job_applications/partials/application_table' , data: @received_job_applications.by_email
+- content_for :modals do
+  #ajax-modal
+- content_for :scripts do
+  :javascript
+    // DO NOT REMOVE : GLOBAL FUNCTIONS!
+
+    $(document).ready(function() {
+
+      pageSetUp();
+
+      /* // DOM Position key index //
+
+       l - Length changing (dropdown)
+       f - Filtering input (search)
+       t - The Table! (datatable)
+       i - Information (records)
+       p - Pagination (paging)
+       r - pRocessing
+       < and > - div elements
+       <"#id" and > - div with an id
+       <"class" and > - div with a class
+       <"#id.class" and > - div with an id and class
+
+       Also see: http://legacy.datatables.net/usage/features
+       */
+
+      /* BASIC ;*/
+      var responsiveHelper_dt_basic = undefined;
+      var responsiveHelper_datatable_fixed_column = undefined;
+      var responsiveHelper_datatable_col_reorder = undefined;
+      var responsiveHelper_datatable_tabletools = undefined;
+
+      var breakpointDefinition = {
+        tablet : 1024,
+        phone : 480
+      };
+
+      $('#dt_basic').dataTable({
+        "sDom": "<'dt-toolbar'<'col-xs-12 col-sm-6'f><'col-sm-6 col-xs-12 hidden-xs'l>r>"+
+        "t"+
+        "<'dt-toolbar-footer'<'col-sm-6 col-xs-12 hidden-xs'i><'col-xs-12 col-sm-6'p>>",
+        "autoWidth" : true,
+        "oLanguage": {
+          "sSearch": '<span class="input-group-addon"><i class="glyphicon glyphicon-search"></i></span>'
+        },
+        "preDrawCallback" : function() {
+          // Initialize the responsive datatables helper once.
+          if (!responsiveHelper_dt_basic) {
+            responsiveHelper_dt_basic = new ResponsiveDatatablesHelper($('#dt_basic'), breakpointDefinition);
+          }
+        },
+        "rowCallback" : function(nRow) {
+          responsiveHelper_dt_basic.createExpandIcon(nRow);
+        },
+        "drawCallback" : function(oSettings) {
+          responsiveHelper_dt_basic.respond();
+        }
+      });
+
+      /* END BASIC */
+
+      /* COLUMN FILTER  */
+      var otable = $('#datatable_fixed_column').DataTable({
+        //"bFilter": false,
+        //"bInfo": false,
+        //"bLengthChange": false
+        //"bAutoWidth": false,
+        //"bPaginate": false,
+        //"bStateSave": true // saves sort state using localStorage
+        "sDom": "<'dt-toolbar'<'col-xs-12 col-sm-6 hidden-xs'f><'col-sm-6 col-xs-12 hidden-xs'<'toolbar'>>r>"+
+        "t"+
+        "<'dt-toolbar-footer'<'col-sm-6 col-xs-12 hidden-xs'i><'col-xs-12 col-sm-6'p>>",
+        "autoWidth" : true,
+        "oLanguage": {
+          "sSearch": '<span class="input-group-addon"><i class="glyphicon glyphicon-search"></i></span>'
+        },
+        "preDrawCallback" : function() {
+          // Initialize the responsive datatables helper once.
+          if (!responsiveHelper_datatable_fixed_column) {
+            responsiveHelper_datatable_fixed_column = new ResponsiveDatatablesHelper($('#datatable_fixed_column'), breakpointDefinition);
+          }
+        },
+        "rowCallback" : function(nRow) {
+          responsiveHelper_datatable_fixed_column.createExpandIcon(nRow);
+        },
+        "drawCallback" : function(oSettings) {
+          responsiveHelper_datatable_fixed_column.respond();
+        }
+
+      });
+    });

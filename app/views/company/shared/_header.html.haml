@@ -1,27 +1,28 @@
 %header#header
   #logo-group
     / PLACE YOUR LOGO HERE
-    %span#logo
-      = image_tag 'logo.png', alt: 'SmartAdmin'
+    %span#logo{style: 'margin-top: 3px;'}
+      = image_tag 'etyme-logo.png', alt: 'Etyme', style: 'width: 80px;'
     %span#activity.activity-dropdown
       %i.fa.fa-user
-      %b.badge 21
+      %b.badge
+        = current_user.notifications.count
     / AJAX-DROPDOWN : control this dropdown height, look and feel from the LESS variable file
     .ajax-dropdown
       / the ID links are fetched via AJAX to the ajax container "ajax-notifications"
       .btn-group.btn-group-justified{"data-toggle" => "buttons"}
+        -#%label.btn.btn-default
+        -#  %input{:id => ajax_notify_mail_path, :name => "activity", :type => "radio"}/
+        -#  = 'Msgs'
+        -#  (14)
         %label.btn.btn-default
-          %input{:id => ajax_notify_mail_path, :name => "activity", :type => "radio"}/
-          = 'Msgs'
-          (14)
-        %label.btn.btn-default
-          %input{:id => ajax_notify_notifications_path, :name => "activity", :type => "radio"}/
+          %input{:id => notify_notifications_company_users_path, :name => "activity", :type => "radio"}/
           ='notify'
-          (3)
-        %label.btn.btn-default
-          %input{:id => ajax_notify_tasks_path, :name => "activity", :type => "radio"}/
-          = 'Tasks'
-          (4)
+          = current_user.notifications.count
+        -#%label.btn.btn-default
+        -#  %input{:id => ajax_notify_tasks_path, :name => "activity", :type => "radio"}/
+        -#  = 'Tasks'
+        -#  (4)
       / notification content
       .ajax-notifications.custom-scroll
         .alert.alert-transparent
@@ -30,15 +31,16 @@
         %i.fa.fa-lock.fa-4x.fa-border
       / footer: refresh area
       %span
-        Last updated on: 12/12/2013 9:43AM
+        Last updated on
+        = Time.now.strftime("%D %T")
         %button.btn.btn-xs.btn-default.pull-right{"data-loading-text" => "<i class='fa fa-refresh fa-spin'></i> Loading...", :type => "button"}
           %i.fa.fa-refresh
   = yield :top_right
   / projects dropdown
   .project-context.hidden-xs
-    %span.label Projects:
+    %span.label Timesheets:
     %span.project-selector.dropdown-toggle{"data-toggle" => "dropdown"}
-      = 'Recent projects'
+      = 'Pending (4)'
       %i.fa.fa-angle-down
     %ul.dropdown-menu
       %li
@@ -72,7 +74,7 @@
               Setting
           %li.divider
           %li
-            %a.padding-10.padding-top-0.padding-bottom-0{:href => "profile.html"}
+            = link_to company_path(current_company) , class: 'padding-10 padding-top-0 padding-bottom-0' do
               %i.fa.fa-user
               = succeed "rofile" do
                 %u P
@@ -97,23 +99,24 @@
                 %u> Logout
     / logout button
     #logout.btn-header.transparent.pull-right
-      %span
+      %spa
+        = link_to "",destroy_user_session_path, method: :delete , class: 'hidden' , id: 'logout-hidden'
         = link_to(destroy_user_session_path, title: 'Sign Out', data: {action: 'userLogout', 'logout-msg' => 'You can improve your security further after logging out by closing this opened browser'}) do
           %i.fa.fa-sign-out
     / search mobile button (this is hidden till mobile view port)
-    #search-mobile.btn-header.transparent.pull-right
+    -##search-mobile.btn-header.transparent.pull-right
       %span
         %a{:href => "javascript:void(0)", :title => "Search"}
           %i.fa.fa-search
     / input: search field
-    %form.header-search.pull-right{:action => root_path}
+    -#%form.header-search.pull-right{:action => root_path}
       %input#search-fld{"data-autocomplete" => "[\n            \"ActionScript\",\n            \"AppleScript\",\n            \"Asp\",\n            \"BASIC\",\n            \"C\",\n            \"C++\",\n            \"Clojure\",\n            \"COBOL\",\n            \"ColdFusion\",\n            \"Erlang\",\n            \"Fortran\",\n            \"Groovy\",\n            \"Haskell\",\n            \"Java\",\n            \"JavaScript\",\n            \"Lisp\",\n            \"Perl\",\n            \"PHP\",\n            \"Python\",\n            \"Ruby\",\n            \"Scala\",\n            \"Scheme\"]", :name => "param", :placeholder => "#{'Find reports and more'}", :type => "text"}/
       %button{:type => "submit"}
         %i.fa.fa-search
       %a#cancel-search-js{:href => "javascript:void(0);", :title => "Cancel Search"}
         %i.fa.fa-times
     / fullscreen button
-    #fullscreen.btn-header.transparent.pull-right
+    -##fullscreen.btn-header.transparent.pull-right
       %span
         %a{"data-action" => "launchFullscreen", :href => "javascript:void(0);", :title => "Full Screen"}
           %i.fa.fa-arrows-alt

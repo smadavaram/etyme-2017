@@ -1,0 +1,15 @@
+# Read about fixtures at http://api.rubyonrails.org/classes/ActiveRecord/FixtureSet.html
+
+one:
+  company_id: 1
+  package_id: 1
+  expiry: 2016-11-27 01:00:35
+  status: 1
+  amount: 1.5
+
+two:
+  company_id: 1
+  package_id: 1
+  expiry: 2016-11-27 01:00:35
+  status: 1
+  amount: 1.5

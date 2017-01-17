@@ -42,47 +42,211 @@
 
 Rails.application.routes.draw do
 
+  # devise_for :candidates
+  devise_for :candidates , controllers: {
+      sessions: 'candidates/sessions',
+      registrations: 'candidates/registrations',
+      passwords:'candidates/passwords',
+      invitations: 'candidate/invitations'
+  }
 
 
-  class NakedEtymeDomain
-    def self.matches?(request)
-      (request.subdomain.blank? || request.subdomain == 'www') && request.domain == ENV['etyme_domain']
+  get '/states/:country', to: 'application#states'
+  get '/cities/:state/:country', to: 'application#cities'
+
+  namespace :static do
+    resources :jobs ,only: [:index,:show] do
+      post :apply
+      resources :job_applications ,only:[:create]
+    end
+    resources :candidates  do
+      get :resume
     end
   end
 
 
+  scope module: :candidate do
+
+    resources :candidates ,path: :candidate ,only: [:update] do
+      collection do
+        get :notify_notifications
+        post :upload_resume
+      end
+    end
+    get '/profile',to:'candidates#show'
+
+  end
+
+
+  namespace :candidate do
+
+    post 'update_photo',    to: 'candidates#update_photo'
+    resources :educations, only:[:create,:update]
+    resources :experiences, only: [:create,:update]
+    get '/' ,       to: 'candidates#dashboard' ,             as: :candidate_dashboard
+    resources :addresses,only: [:update]
+
+    resources :job_applications , only: [:index,:show]
+    resources :job_invitations , only: [:index] do
+      post :reject
+      get  :show_invitation
+    end
+    # resources :contracts        , only: [:index]
+    resources :candidates ,only: [:show,:update]
+    resources :jobs do
+      # resources :contracts , except: [:index] do
+      #   member do
+      #     post :open_contract , as: :open_contract
+      #     post :update_contract_response        , as: :update_contract_response
+      #   end # End of member
+      # end # End of :contracts
+
+      resources :job_applications
+      member do
+        post :apply
+      end #end of member
+    end # End of jobs
+  end
+
+
+  class NakedEtymeDomain
+    def self.matches?(request)
+      (request.subdomain.blank? || request.subdomain == 'www') #&& request.domain == ENV['domain']
+    end
+  end
+
+  class Subdomain
+    def self.matches?(request)
+      request.subdomain.present? && request.subdomain != 'www' && request.subdomain != 'app-etyme'
+    end
+  end
 
   get 'register' => 'companies#new'
+  get  'signin' ,to: 'static#signin'
+  post 'signin' ,to: 'static#signin'
+  # get '/consultants/invitation/accept', to: 'company/invitations#edit', as: :accept_consultant_invitation
+  # post '/consultants/invitation/accept', to: 'company/invitations#create', as: :consultant_invitation
+  # patch '/consultants/invitation/accept', to: 'company/invitations#update'
 
+  # COMPANY ROUTES
+  namespace  :company do
+    get 'companies/edit'
+    resources :users, only: [:show,:update] do
+      collection do
+        get :notify_notifications
+      end
+    end
+    resources :companies ,only: :create
+    resources :candidates , only: [:create]
+  end
   scope module: :company do
-    get 'dashboard' , to: 'users#dashboard' , as: :dashboard
-    # AJAX
 
-    get 'ajax/email_compose', to: 'ajax#email_compose', as: :ajax_email_compose
-    get 'ajax/email_list', to: 'ajax#email_list', as: :ajax_email_list
-    get 'ajax/email_opened', to: 'ajax#email_opened', as: :ajax_email_opened
-    get 'ajax/email_reply', to: 'ajax#email_reply', as: :ajax_email_reply
-    get 'ajax/demo_widget', to: 'ajax#demo_widget', as: :ajax_demo_widget
-    get 'ajax/data_list.json', to: 'ajax#data_list', as: :ajax_data_list
-    get 'ajax/notify_mail', to: 'ajax#notify_mail', as: :ajax_notify_mail
-    get 'ajax/notify_notifications',
-        to: 'ajax#notify_notifications',
-        as: :ajax_notify_notifications
-    get 'ajax/notify_tasks', to: 'ajax#notify_tasks', as: :ajax_notify_tasks
+    resources :consultants do
+      resources :leaves do
+        member do
+          post :accept
+          post :reject
+        end
+      end
+    end
+    resources :locations
+    resources :company_docs
+    resources :roles
+    resources :admins
+    resources :addresses
+    resources :comments         , only: [:create]
+    resources :attachments      , only: [:index]
+    resources :invoices         , only: [:index]
+    resources :job_invitations  , only: [:index]
+    resources :job_applications , only: [:index,:show] do
+      resources :consultants , only: [:new , :create]
+      member do
+        post :accept
+        post :reject
+        post :short_list
+        post :interview
+        post :hire
+      end # End of member
+    end
+    resources :contracts        , only: [:index ,:show , :new , :create] do
+      collection do
+        post :nested_create
+      end
+      member do
+        post :update_attachable_doc
+      end
+      post :change_invoice_date
+      resources :invoices , only: [:index , :show] do
+        member do
+          get :download
+          post :accept_invoice
+          post :reject_invoice
+        end
+      end
+    end
+
+    resources :jobs  do
+      resources :contracts , except: [:index , :show] do
+        member do
+          post :open_contract , as: :open_contract
+          post :update_contract_response        , as: :update_contract_response
+        end
+      end # End of :contracts
+
+      resources :job_invitations , except: [:index] do
+        collection do
+          post :import
+          post :create_multiple
+        end
+        resources :job_applications , except: [:index]
+        member do
+          post :accept
+          post :reject
+        end # End of member
+      end # End of :job_invitations
+
+      member do
+        post :send_invitation , as: :send_invitation
+      end
+    end
+
+    #leaves path for owner of company
+    get 'leaves',            to: 'leaves#employees_leaves'      , as: :employees_leaves
+    get 'attachment/documents_list',to: 'attachments#document_list'
+    get 'dashboard' ,       to: 'users#dashboard' ,             as: :dashboard
+    post 'update_photo',    to: 'users#update_photo'
+    resources :timesheets,only: [:show , :index] do
+      get 'approve'
+      get 'submit'
+      get 'reject'
+      resources :timesheet_logs , only:[:show] do
+        get 'approve'
+        resources :transactions , only:[:create] do
+          post 'accept'
+          post 'reject'
+        end
+      end
+
+    end
+    # get 'configuration' ,   to: 'companies#edit' ,              as: :configuration
+    resources :companies , only: [:update,:show] do
+      collection do
+        post :change_owner
+        post :get_admins_list , as: :get_admins_list
+        post :update_logo
+      end
+    end
 
   end # End of module company
 
 
   # devise_for :devise
-  devise_for :users, path: '', path_names: { sign_in: 'login', sign_out: 'logout'}
+  # devise_for :users, path: '', path_names: { sign_in: 'login', sign_out: 'logout'}
 
 
 
   # The priority is based upon order of creation: first created -> highest priority.
   # See how all your routes lay out with "rake routes".
-
-  # You can have the root of your site routed with "root"
-  # root 'welcome#index'
 
   # Example of regular route:
   #   get 'products/:id' => 'catalog#view'
@@ -133,9 +297,24 @@ Rails.application.routes.draw do
   #     resources :products
   #   end
 
-  constraints(NakedEtymeDomain) do
-    # root :to => "static#index"
+
+  resources :companies , only: [:new , :create,:update]
+  resources :static , only: [:index]
+
+  # Devise Routes
+   devise_for :users, controllers: { invitations: 'company/invitations' } , path_names: { sign_in: 'login', sign_out: 'logout'}
+
+  # Route set when subdomain present?
+  constraints(Subdomain) do
+    devise_scope :user do
+      match '/' => 'devise/sessions#new', via: [:get, :post]
+    end
   end
-  resources :companies , :static
-  root :to => "static#index"
+
+  # Route set when subdomain is not present
+  constraints(NakedEtymeDomain) do
+    match '/'  => "static/jobs#index", via: [:get, :post]
+  end
+
+
 end

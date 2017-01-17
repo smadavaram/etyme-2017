@@ -1,0 +1,46 @@
+.tab-content.padding-10
+  %table.table.table-striped
+    %tbody
+      %tr
+        %th{style:'width:50%'}
+          Country
+        %td{style:'width:50%'}
+          = best_in_place address,:country, :as => :select, :collection => CS.countries.sort.map{|k,v|[k,v]},:class => "country",url: address_path(address,status: true)
+      %tr
+        %th
+          State
+        %td
+          = best_in_place address,:state, :as => :select, :collection => CS.states(user.address.country).sort.map{|k,v|[k,v]},:class => "state",url: address_path(address,status: true)
+      %tr
+        %th{style:'width:50%'}
+          City
+        %td{style:'width:50%'}
+          = best_in_place address,:city, :as => :select, :collection => CS.cities(user.address.state,user.address.country).sort.map{|k,v|[k,k]},url: address_path(address,status: true)
+      %tr
+        %th
+          Zip Code
+        %td
+          = best_in_place address,:zip_code, :as => :input, :place_holder => "Click me to add content!",url: address_path(address,status: true)
+
+
+
+
+
+
+
+
+- content_for :scripts do
+  :javascript
+      $(document).ready(function() {
+
+      $('.country').change(
+        function() {
+        window.location.reload();
+      }); //End OF Country Change
+
+      $('.state').change(
+       function() {
+         window.location.reload();
+         }); //End OF State Change
+
+      }); // End of document ready

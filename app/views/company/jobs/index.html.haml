@@ -1,0 +1,136 @@
+#content
+  .row
+    .col-xs-12.col-sm-3.col-md-3.col-lg-3.pull-right
+      = button_tag 'NEW' ,class: 'btn btn-success btn-lg pull-right header-btn hidden-mobile' , "data-toggle": "modal" , "data-target":"#new-job"
+  %section{style: 'margin-top: 10px;'}
+    / row
+    .row
+      / NEW WIDGET START
+      %article.col-xs-12.col-sm-12.col-md-12.col-lg-12
+        / Widget ID (each widget will need unique ID)
+        #wid-id-0.jarviswidget{"data-widget-editbutton" => "false"}
+          %header.text-muted
+            %span.widget-icon
+              %i.fa.fa-table.text-muted
+            %h2.text-muted ALL JOBS
+          / widget div
+          %div
+            / widget edit box
+            .jarviswidget-editbox
+            .widget-body.no-padding
+              %table#dt_basic.table.table-striped.table-bordered.table-hover{:width => "100%"}
+                %thead
+                  %tr
+                    %th{"data-hide" => "phone"} Title
+                    %th{"data-class" => "expand"}
+                      %i.fa.fa-fw.fa-calendar.txt-color-blue.hidden-md.hidden-sm.hidden-xs
+                      Last-Date
+                    %th Location
+                    %th Posted By
+                    %th{"data-hide" => "phone,tablet"}
+                      Actions
+                %tbody
+                  - @company_jobs.each_with_index do |job , index|
+                    %tr
+                      %td= link_to job.title , job_path(job) , target: '_blank'
+                      %td= job.end_date
+                      %td= job.location
+                      %td= job.created_by.full_name  rescue "  --"
+                      %td
+                        = link_to raw("<i class='fa fa-pencil '></i>") , edit_job_path(job) , class: 'btn btn-xs btn-default btn-primary'
+                        = link_to raw("<i class='fa fa-times '></i>") , job_path(job) , method: :delete ,  class: 'btn btn-xs btn-default btn-danger'
+                        - if(job.is_active?)
+                          = link_to 'Send Invitation' ,send_invitation_job_path(job) , method: :post ,remote: true,  class: 'btn btn-xs btn-default btn-success'
+- content_for :modals do
+  #job_invitation
+  = render 'company/jobs/partials/new_modal'
+
+- content_for :scripts do
+  :javascript
+    // DO NOT REMOVE : GLOBAL FUNCTIONS!
+
+    $(document).ready(function() {
+
+      pageSetUp();
+
+      /* // DOM Position key index //
+
+       l - Length changing (dropdown)
+       f - Filtering input (search)
+       t - The Table! (datatable)
+       i - Information (records)
+       p - Pagination (paging)
+       r - pRocessing
+       < and > - div elements
+       <"#id" and > - div with an id
+       <"class" and > - div with a class
+       <"#id.class" and > - div with an id and class
+
+       Also see: http://legacy.datatables.net/usage/features
+       */
+
+      /* BASIC ;*/
+      var responsiveHelper_dt_basic = undefined;
+      var responsiveHelper_datatable_fixed_column = undefined;
+      var responsiveHelper_datatable_col_reorder = undefined;
+      var responsiveHelper_datatable_tabletools = undefined;
+
+      var breakpointDefinition = {
+        tablet : 1024,
+        phone : 480
+      };
+
+      $('#dt_basic').dataTable({
+        "sDom": "<'dt-toolbar'<'col-xs-12 col-sm-6'f><'col-sm-6 col-xs-12 hidden-xs'l>r>"+
+        "t"+
+        "<'dt-toolbar-footer'<'col-sm-6 col-xs-12 hidden-xs'i><'col-xs-12 col-sm-6'p>>",
+        "autoWidth" : true,
+        "oLanguage": {
+          "sSearch": '<span class="input-group-addon"><i class="glyphicon glyphicon-search"></i></span>'
+        },
+        "preDrawCallback" : function() {
+          // Initialize the responsive datatables helper once.
+          if (!responsiveHelper_dt_basic) {
+            responsiveHelper_dt_basic = new ResponsiveDatatablesHelper($('#dt_basic'), breakpointDefinition);
+          }
+        },
+        "rowCallback" : function(nRow) {
+          responsiveHelper_dt_basic.createExpandIcon(nRow);
+        },
+        "drawCallback" : function(oSettings) {
+          responsiveHelper_dt_basic.respond();
+        }
+      });
+
+      /* END BASIC */
+
+      /* COLUMN FILTER  */
+      var otable = $('#datatable_fixed_column').DataTable({
+        //"bFilter": false,
+        //"bInfo": false,
+        //"bLengthChange": false
+        //"bAutoWidth": false,
+        //"bPaginate": false,
+        //"bStateSave": true // saves sort state using localStorage
+        "sDom": "<'dt-toolbar'<'col-xs-12 col-sm-6 hidden-xs'f><'col-sm-6 col-xs-12 hidden-xs'<'toolbar'>>r>"+
+        "t"+
+        "<'dt-toolbar-footer'<'col-sm-6 col-xs-12 hidden-xs'i><'col-xs-12 col-sm-6'p>>",
+        "autoWidth" : true,
+        "oLanguage": {
+          "sSearch": '<span class="input-group-addon"><i class="glyphicon glyphicon-search"></i></span>'
+        },
+        "preDrawCallback" : function() {
+          // Initialize the responsive datatables helper once.
+          if (!responsiveHelper_datatable_fixed_column) {
+            responsiveHelper_datatable_fixed_column = new ResponsiveDatatablesHelper($('#datatable_fixed_column'), breakpointDefinition);
+          }
+        },
+        "rowCallback" : function(nRow) {
+          responsiveHelper_datatable_fixed_column.createExpandIcon(nRow);
+        },
+        "drawCallback" : function(oSettings) {
+          responsiveHelper_datatable_fixed_column.respond();
+        }
+
+      });
+    });

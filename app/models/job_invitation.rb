@@ -13,8 +13,61 @@
 #
 
 class JobInvitation < ActiveRecord::Base
-  belongs_to   :sender , class_name: "User" ,foreign_key: :sender_id
-  belongs_to   :receipent , polymorphic: true
+
+
+  enum status: { pending: 0, accepted: 1 , rejected: 2 }
+  enum invitation_type: [:vendor,:candidate,:by_email]
+
+  validates :status ,             inclusion: {in: statuses.keys}
+  validate :is_active?
+  # validates :expiry , presence: true,date: { after_or_equal_to: Proc.new { Date.today }, message: "Date must be at least #{(Date.today ).to_s}" }
+
+  belongs_to :created_by , class_name: "User" ,foreign_key: :created_by_id
+  belongs_to :recipient , polymorphic: true
+  belongs_to :company
   belongs_to :job
-  belongs_to :user
+  has_one    :job_application
+  has_one    :contract  , through: :job_application
+
+  # after_create :send_invitation_mail
+  after_create :associate_invitation_with_candidate , if: Proc.new{|invitation| invitation.email.present?}
+  after_create :notify_recipient
+  after_update :notify_on_status_change, if: Proc.new{|invitation| invitation.status_changed?}
+
+  attr_accessor :email , :first_name , :last_name
+
+
+  def is_active?
+    self.expiry >= Date.today
+  end
+
+
+  private
+
+    # Call after create
+    def notify_recipient
+      self.recipient.notifications.create(message: self.company.name+" has invited you for "+self.job.title ,title:"Job Invitation")
+    end
+
+    # Call after update
+    def notify_on_status_change
+      self.created_by.notifications.create(message: self.recipient.full_name+" has "+ self.status+" your request for "+self.job.title ,title:"Job Invitation")
+    end
+
+  def associate_invitation_with_candidate
+    candidate = Candidate.where(email: self.email).first || []
+    if candidate.present?
+      self.recipient_id = candidate.id
+      self.recipient_type = "Candidate"
+        candidate.invite! do |u|
+          u.skip_invitation = true
+        end
+    else
+      self.recipient = Candidate.invite!({first_name: first_name, last_name: last_name, email: email} , self.created_by) do |u|
+        u.skip_invitation = true
+      end
+      # self.recipient.sent_invitation_mail
+    end
+    self.save
+  end
 end

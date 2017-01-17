@@ -1,0 +1,24 @@
+.table-responsive
+  %table#resultTable.table.table-striped.table-bordered.table-hover
+    %thead
+      %tr
+        %th{:style => "width:30px"} Pic
+        %th Name
+        %th Job
+        %th Email / Username
+        %th Status
+        %th Action
+    %tbody
+      - data.each do |application|
+        %tr{class: "#{set_background_status_color(application.status)}"}
+          %td= image_tag application.user.photo, alt: '', width: '20'
+          %td= link_to application.user.full_name , '#'
+          %td= link_to application.job.title , candidate_job_path(application.job)
+          %td
+            = application.user.email
+            %a.pull-right{:href => "javascript:void(0);"}
+              %i.fa.fa-key
+          %td
+            %span.label.label-success= application.status
+          %td
+            = link_to "View Detail",candidate_job_application_path(application), class: 'btn btn-xs btn-default btn-success'

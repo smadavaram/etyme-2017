@@ -1,0 +1,24 @@
+%p#notice= notice
+
+%p
+  %b From date:
+  = @consultant_leave.from_date
+%p
+  %b Till date:
+  = @consultant_leave.till_date
+%p
+  %b Reason:
+  = @consultant_leave.reason
+%p
+  %b Response message:
+  = @consultant_leave.response_message
+%p
+  %b Status:
+  = @consultant_leave.status
+%p
+  %b Leave type:
+  = @consultant_leave.leave_type
+
+= link_to 'Edit', edit_consultant_leave_path(current_user,@consultant_leave)
+\|
+= link_to 'Back', consultant_leaves_path(current_user)

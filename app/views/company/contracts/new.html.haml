@@ -1,0 +1,150 @@
+#content
+  .row
+  %section
+    .row
+      %article.col-sm-12.col-md-12.col-lg-12
+        #wid-id-0.jarviswidget{"data-widget-deletebutton" => "false", "data-widget-editbutton" => "false"}
+          %header
+            %span.widget-icon
+              %i.fa.fa-check
+            %h2 Adding New Contract
+          %div
+            .jarviswidget-editbox
+            .widget-body
+              .row
+                = render 'company/contracts/partials/form'
+
+  =render  'company/contracts/partials/new_company'
+  - content_for :scripts do
+    :javascript
+      // DO NOT REMOVE : GLOBAL FUNCTIONS!
+
+      $(document).ready(function() {
+
+
+
+        pageSetUp();
+
+
+        // Joining Date
+          $('#consultant_consultant_profile_attributes_joining_date').datepicker({
+            dateFormat : 'dd.mm.yy',
+            prevText : '<i class="fa fa-chevron-left"></i>',
+            nextText : '<i class="fa fa-chevron-right"></i>',
+            onSelect : function(selectedDate) {
+              $('#consultant_consultant_profile_attributes_joining_date').datepicker('option', 'minDate', selectedDate);
+            }
+          });
+
+
+        //Bootstrap Wizard Validations
+
+        var $validator = $("#wizard-1").validate({
+
+          rules: {
+            email: {
+              required: true,
+              email: "Your email address must be in the format of name@domain.com"
+            },
+            fname: {
+              required: true
+            },
+            lname: {
+              required: true
+            },
+            country: {
+              required: true
+            },
+            city: {
+              required: true
+            },
+            postal: {
+              required: true,
+              minlength: 4
+            },
+            wphone: {
+              required: true,
+              minlength: 10
+            },
+            hphone: {
+              required: true,
+              minlength: 10
+            }
+          },
+
+          messages: {
+            fname: "Please specify your First name",
+            lname: "Please specify your Last name",
+            email: {
+              required: "We need your email address to contact you",
+              email: "Your email address must be in the format of name@domain.com"
+            }
+          },
+
+          highlight: function (element) {
+            $(element).closest('.form-group').removeClass('has-success').addClass('has-error');
+          },
+          unhighlight: function (element) {
+            $(element).closest('.form-group').removeClass('has-error').addClass('has-success');
+          },
+          errorElement: 'span',
+          errorClass: 'help-block',
+          errorPlacement: function (error, element) {
+            if (element.parent('.input-group').length) {
+              error.insertAfter(element.parent());
+            } else {
+              error.insertAfter(element);
+            }
+          }
+        });
+
+        $('#bootstrap-wizard-1').bootstrapWizard({
+          'tabClass': 'form-wizard',
+          'onNext': function (tab, navigation, index) {
+
+            var $total = navigation.find('li').length;
+            var $current = index+1;
+            wizard_set_finish_button($current , $total );
+            var $valid = $("#wizard-1").valid();
+            if (!$valid) {
+              $validator.focusInvalid();
+              return false;
+            }else {
+              $('#bootstrap-wizard-1').find('.form-wizard').children('li').eq(index - 1).addClass(
+                'complete');
+              $('#bootstrap-wizard-1').find('.form-wizard').children('li').eq(index - 1).find('.step')
+                .html('<i class="fa fa-check"></i>');
+            }
+          },'onPrevious': function(tab, navigation, index){
+
+              var $total = navigation.find('li').length;
+              var $current = index+1;
+              wizard_set_finish_button($current , $total );
+          },'onTabClick': function(tab, navigation, index){
+
+             return false;
+          }
+        });
+
+         $('.finish').click(function(){
+            if ($("#wizard-1").valid()) {
+              $('.new_contract').submit();
+
+            }
+            return false;
+        });
+
+        function wizard_set_finish_button(current , total )
+        {
+              if(current >= total) {
+                  $('#bootstrap-wizard-1').find('.pager .next').hide();
+                  $('#bootstrap-wizard-1').find('.pager .finish').show();
+                  $('#bootstrap-wizard-1').find('.pager .finish').removeClass('disabled');
+                } else {
+                  $('#bootstrap-wizard-1').find('.pager .next').show();
+                  $('#bootstrap-wizard-1').find('.pager .finish').hide();
+              }
+        }
+
+
+      });

@@ -1,0 +1,117 @@
+#content
+  .row
+    .col-xs-12.col-sm-3.col-md-3.col-lg-3.pull-right
+      = link_to 'NEW',new_contract_path ,class: 'btn btn-success btn-lg pull-right header-btn hidden-mobile'
+  #wid-id-5.no-border.jarviswidget{"data-widget-colorbutton" => "false", "data-widget-custombutton" => "false", "data-widget-editbutton" => "false", "data-widget-fullscreenbutton" => "false", "data-widget-sortable" => "false"}
+    %div
+      .jarviswidget-editbox
+      .widget-body
+        %ul#myTab1.nav.nav-tabs.bordered
+          %li.active
+            %a{"data-toggle" => "tab", :href => "#tab-r1"}
+              %span.badge.bg-color-blue.txt-color-white= @sent_contracts.count
+              Sent Contracts
+          %li
+            %a{"data-toggle" => "tab", :href => "#tab-r2"}
+              %span.badge.bg-color-blueDark.txt-color-white= @received_contracts.count
+              Received Contracts
+        .col-md-12
+          .tab-content
+            #tab-r1.tab-pane.active
+              #hb2.tab-pane.active
+                %ul#internal-tab-1.nav.nav-tabs.tabs-pull-right
+                  %br
+                  .input-group.input-group-lg.hidden-mobile
+                    .input-group-btn
+                      %button.btn.btn-default.dropdown-toggle.textbtn{"data-toggle" => "dropdown", :type => "button"}
+                        All
+                        %span.caret
+                      %ul.dropdown-menu
+                        %li.active
+                          %a{:href => "javascript:void(0)"}
+                            All
+                        %li.divider
+                        %li
+                          %a{:href => "javascript:void(0)"} Rejected
+                        %li
+                          %a{:href => "javascript:void(0)"} Accepted
+                        %li
+                          %a{:href => "javascript:void(0)"} Pending
+                    %input#search-project.form-control.input-lg{:placeholder => "Search Contract...", :type => "text"}/
+                    .input-group-btn
+                      %button.btn.btn-default{:type => "submit"}
+                        \   
+                        %i.fa.fa-fw.fa-search.fa-lg>
+                        \  
+                  %br 
+                  %li
+                    %a{"aria-expanded" => "false", "data-toggle" => "tab", :href => "#is4"} Rejected
+                  %li
+                    %a{"aria-expanded" => "false", "data-toggle" => "tab", :href => "#is1"} Accepted
+                  %li
+                    %a{"aria-expanded" => "false", "data-toggle" => "tab", :href => "#is2"} Pending
+                  %li.active
+                    %a{"aria-expanded" => "true", "data-toggle" => "tab", :href => "#is3"} All
+                .tab-content.padding-10
+                  #is4.tab-pane
+                    = render partial: 'company/contracts/partials/contract_table' , locals: {data: @sent_contracts.rejected}
+                  #is1.tab-pane
+                    = render partial: 'company/contracts/partials/contract_table' , locals: {data: @sent_contracts.accepted}
+                  #is2.tab-pane.fade
+                    = render partial: 'company/contracts/partials/contract_table' , locals: {data: @sent_contracts.pending}
+                  #is3.tab-pane.fade.active.in
+                    = render partial: 'company/contracts/partials/contract_table' , locals: {data: @sent_contracts}
+
+            #tab-r2.tab-pane
+              #hb22.tab-pane.active
+              %ul#internal-tab-2.nav.nav-tabs.tabs-pull-right
+                %br
+                .input-group.input-group-lg.hidden-mobile
+                  .input-group-btn
+                    %button.btn.btn-default.dropdown-toggle.textbtn{"data-toggle" => "dropdown", :type => "button"}
+                      All
+                      %span.caret
+                    %ul.dropdown-menu
+                      %li.active
+                        %a{:href => "javascript:void(0)"}
+                          All
+                      %li.divider
+                      %li
+                        %a{:href => "javascript:void(0)"} Rejected
+                      %li
+                        %a{:href => "javascript:void(0)"} Accepted
+                      %li
+                        %a{:href => "javascript:void(0)"} Pending
+                  %input#search-project.form-control.input-lg{:placeholder => "Search Contract...", :type => "text"}/
+                  .input-group-btn
+                    %button.btn.btn-default{:type => "submit"}
+                      \   
+                      %i.fa.fa-fw.fa-search.fa-lg>
+                      \  
+                %br 
+                %li
+                  %a{"aria-expanded" => "false", "data-toggle" => "tab", :href => "#is-4"} Rejected
+                %li
+                  %a{"aria-expanded" => "false", "data-toggle" => "tab", :href => "#is-1"} Accepted
+                %li
+                  %a{"aria-expanded" => "false", "data-toggle" => "tab", :href => "#is-2"} Pending
+                %li.active
+                  %a{"aria-expanded" => "true", "data-toggle" => "tab", :href => "#is-3"} All
+              .tab-content.padding-10
+                #is-4.tab-pane
+                  = render partial: 'company/contracts/partials/receive_contract_table'  , locals: {data: @received_contracts.rejected}
+                #is-1.tab-pane
+                  = render partial: 'company/contracts/partials/receive_contract_table'  , locals: {data: @received_contracts.accepted}
+                #is-2.tab-pane.fade
+                  = render partial: 'company/contracts/partials/receive_contract_table' , locals: {data: @received_contracts.pending}
+                #is-3.tab-pane.fade.active.in
+                  = render partial: 'company/contracts/partials/receive_contract_table' , locals: {data: @received_contracts}
+- content_for :modals do
+  #ajax-modal
+- content_for :scripts do
+  :javascript
+    // DO NOT REMOVE : GLOBAL FUNCTIONS!
+
+    $(document).ready(function() {
+      pageSetUp();
+    });

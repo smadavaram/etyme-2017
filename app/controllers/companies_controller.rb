@@ -1,11 +1,15 @@
 class CompaniesController < ApplicationController
 
-  before_action :set_new_company , only: [:new]
-  before_action :build_new_company_owner , only: [:new]
-  skip_before_action :authenticate_user! , only:[:new , :create]
+  skip_before_action :authenticate_user! , only:[:new , :create , :signup_success]
+
+  respond_to :html,:json
+
   layout 'login'
 
+
   def new
+    @company = Company.new
+    @company.build_owner(type: 'Admin')
   end
 
   def create
@@ -13,6 +17,7 @@ class CompaniesController < ApplicationController
     if @company.valid?
       @company.save
       flash[:success] =  "Registration Successfull."
+      render 'companies/signup_success' , layout: 'login'
     else
       flash.now[:errors] = @company.errors.full_messages
       return render 'new'
@@ -21,16 +26,10 @@ class CompaniesController < ApplicationController
 
   private
 
-  def set_new_company
-    @company = Company.new
-  end
-
-  def build_new_company_owner
-    @company.build_owner
-  end
-
-
   def company_params
-    params.require(:company).permit(:name , owner_attributes:[:id, :type ,:first_name, :last_name, :email,:password, :password_confirmation])
+    params.require(:company).permit(:name ,:company_type, :website,:logo,:description,:phone,:email,:linkedin_url,:facebook_url,:twitter_url,:google_url,:is_activated,:status,:tag_line,
+                                    owner_attributes:[:id, :type  , :first_name, :last_name ,:email,:password, :password_confirmation],
+                                    locations_attributes:[:id,:name,:status,
+                                                          address_attributes:[:id,:address_1,:country,:city,:state,:zip_code] ] )
   end
 end

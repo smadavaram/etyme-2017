@@ -1,0 +1,180 @@
+#content
+  .row
+    .col-sm-12.col-md-12.col-lg-12
+      .product-content.product-wrap.clearfix.product-deatil
+        .row
+          .col-md-12.col-sm-12.col-xs-12
+            - if @contract.pending? && !@contract.is_sent?(current_company)
+              .btn-group.pull-right
+                = button_tag 'Accept' , class: 'btn btn-success btn-default margin-right-5' , disabled: @contract.signature_required_docs? , onclick: 'openAccept();'
+                = button_tag 'Reject' ,  class: 'btn btn-default' , "data-toggle": "modal" , "data-target":"#contract-reject-#{@contract.id}"
+            %h2.name
+              = @contract.title
+              %small
+                Created by
+                = link_to @contract.created_by.full_name , '#'
+              %i.fa.fa-star.fa-2x.text-primary
+              %i.fa.fa-star.fa-2x.text-primary
+              %i.fa.fa-star.fa-2x.text-primary
+              %i.fa.fa-star.fa-2x.text-primary
+              %i.fa.fa-star.fa-2x.text-muted
+              %span.badge= @contract.status.humanize
+            %hr/
+            -#%h3.price-container
+              -#%small *includes tax
+            - if @contract.signature_required_docs? && @contract.pending? && !@contract.is_sent?(current_company)
+              .alert.alert-danger.alert-block
+                %h4.alert-heading Required Documents
+                Please upload the following required documents.
+                - @contract.attachable_docs.each_with_index do |doc , index|
+                  %ul.margin-top-5
+                    - if doc.company_doc.is_required_signature? && @contract.pending? && !@contract.is_sent?(current_company) && !doc.is_file?
+                      %li
+                        = form_for [@contract , doc] , url: update_attachable_doc_contract_path(@contract) , method: :post  do |f|
+                          = f.hidden_field :file , class: "attachment-file-upload-field-#{doc.id}"
+                          = f.hidden_field :id
+                        %p
+                          Please upload a signed copy of #{link_to doc.company_doc.name , doc.orignal_file , class: 'text-white' , download: true },To upload now please #{link_to 'click here ' , '#' , id: "attachment-file-upload-field-#{doc.id}"  , class: 'upload-doc-button'}.
+            %h5.price-container.margin-bottom-10
+              Quick Details
+            .certified
+              %ul
+                %li
+                  %a{:href => "javascript:void(0);"}
+                    Current Rate
+                    %span $#{@contract.rate}
+                %li
+                  %a{:href => "javascript:void(0);"}
+                    Invoices Frequency
+                    %span= @contract.billing_frequency.humanize
+                %li
+                  %a{:href => "javascript:void(0);"}
+                    Timesheet Frequency
+                    %span= @contract.time_sheet_frequency.humanize
+                - if @contract.assignee?
+                  %li
+                    %a{:href => "javascript:void(0);"}
+                      Assignee
+                      %span= @contract.assignee.full_name
+                - if @contract.is_commission
+                  %li
+                    %a{:href => "javascript:void(0);"}
+                      Commission
+                      %span=  @contract.fixed? ? '$'+ @contract.commission_amount.to_s : @contract.commission_amount.to_s + '%'
+                  %li
+                    %a{:href => "javascript:void(0);"}
+                      Max Commission
+                      %span $#{@contract.max_commission}
+                %li
+                  %a{:href => "javascript:void(0);"}
+                    Start/End Date
+                    %span= @contract.start_date.to_s + "   /   " + @contract.end_date.to_s
+
+            - if @contract.is_sent?(current_company)
+              %button.pull-right.btn.btn-white.btn-default.margin-right-5
+                Change Terms
+            %p
+              %b
+                Current Terms:
+              = raw @contract.terms_and_conditions
+            - if @contract.attachable_docs.present?
+              %h5.price-container.margin-bottom-10
+                #{@contract.attachable_docs.count} Contract Document(s)
+              .table-responsive
+                %table.table.table-bordered.table-condensed
+                  %thead
+                    %tr
+                      %th{:style => "width:50%"} Name
+                      %th{:style => "width:50%;"} Action
+                  %tbody
+                    -@contract.attachable_docs.each_with_index do |doc , index|
+                      %tr
+                        %td= doc.company_doc.name
+                        %td
+                          = link_to 'Download Orignal',doc.orignal_file,target:'_blank', class: 'margin-right-10 btn btn-default' , download: true
+                          - if doc.is_file?
+                            = link_to 'Download Signed',doc.file,target:'_blank', class: 'margin-right-10 btn btn-default' , download: true
+            - if @contract.attachments.present?
+              %h3.price-container
+                #{@contract.attachments.size} Attachment(s)
+              .forum-attachment
+                -#%a{:href => "javascript:void(0);"} Download all attachments
+                %ul.list-inline.margin-top-10
+                  - @contract.attachments.each do |attachment|
+                    %li.well.well-sm.padding-5
+                      %strong= attachment.file_name.nil? ? '--'  : attachment.file_name.truncate(15)
+                      %br/
+                      = number_to_human_size(attachment.file_size)
+                      %br/
+                      = link_to 'Download' , attachment.file , download: true
+                      |
+                      = link_to 'View' , attachment.file , target: '_blank'
+            %hr/
+            .description.description-tabs
+              %ul#myTab.nav.nav-pills
+                %li.active
+                  %a.no-margin{"aria-expanded" => "false", "data-toggle" => "tab", :href => "#application"}Job Application
+                - if @contract.invoices?
+                  %li
+                    %a{"aria-expanded" => "true", "data-toggle" => "tab", :href => "#invoices"} Invoices
+                %li
+                  = link_to 'Teams' , '#teams' , {"aria-expanded" => "true", "data-toggle" => "tab"}
+                %li
+                  = link_to 'Comments' , '#comments' , {"aria-expanded" => "true", "data-toggle" => "tab"}
+              #myTabContent.tab-content
+                #teams.tab-pane.fade.in
+                #application.tab-pane.fade.active.in
+                  = render 'company/contracts/partials/application' , application: @contract.job_application
+                - if not @contract.job_application_id.nil?
+                  #comments.tab-pane.fade
+                    = render 'company/contracts/partials/comments' , application: @contract.job_application
+                -if @contract.invoices?
+                  #invoices.tab-pane.fade.in
+                    %table#dt_basic.table.table-striped.table-bordered.table-hover{:width => "100%"}
+                      %thead
+                        %tr
+                          %th{"data-hide" => "phone"} #
+                          %th{"data-class" => "expand"}
+                            %i.fa.fa-fw.fa-calendar.txt-color-blue.hidden-md.hidden-sm.hidden-xs
+                            Start-Date
+                          %th{"data-class" => "expand"}
+                            %i.fa.fa-fw.fa-calendar.txt-color-blue.hidden-md.hidden-sm.hidden-xs
+                            Last-Date
+                          %th{"data-hide" => "phone,tablet"}
+                      %tbody
+                        -@contract.invoices.each_with_index do |invoice , index|
+                          %tr
+                            %td= index + 1
+                            %td= invoice.start_date
+                            %td= invoice.end_date
+                            %td
+                              = link_to 'View Detail' , contract_invoice_path(@contract , invoice) , target: '_blank' ,class: 'btn btn-xs btn-default btn-primary'
+            -#%hr/
+            -#.row
+            -#  .col-sm-12.col-md-12.col-lg-12
+                .btn-group.pull-right
+                  %button.btn.btn-success.btn-default.margin-right-5
+                    Accept
+                  %button.btn.btn-danger.btn-default
+                    Reject
+- if @contract.pending? && !@contract.is_sent?(current_company)
+  - content_for :modals do
+    = render 'company/contracts/partials/accept_contract_modal' , contract: @contract , status: 'accept'
+    = render 'company/contracts/partials/accept_contract_modal' , contract: @contract , status: 'reject'
+  - content_for :scripts do
+    :javascript
+      function openAccept(){
+        $("#contract-accept-#{@contract.id}").modal('show');
+      }
+      $(".upload-doc-button").click(function(){
+        file = '.'+$(this).attr('id');
+        filepicker.setKey("#{ENV['filepicker_api_key']}");
+        filepicker.pick({},function(blob){
+          $(file).val(blob.url);
+          $(file).parent().submit();
+          console.log(blob);
+        });
+        console.log($(this).attr('id'));
+      });
+
+

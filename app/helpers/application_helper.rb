@@ -1,7 +1,13 @@
 # :nodoc:
 module ApplicationHelper
+  def disable_spinning text
+    return  "<i class='fa fa-spinner fa-pulse fa-spin pull-left'></i> #{text}"
+  end
   def left_menu
     left_menu_entries(left_menu_content)
+  end
+  def candidate_left_menu
+    left_menu_entries(candidate_left_menu_content)
   end
 
   private
@@ -127,11 +133,124 @@ module ApplicationHelper
   def left_menu_content
     [
         {
-            href: root_path,
-            title: 'blank',
-            content: "<i class='fa fa-lg fa-fw fa-home'></i> <span class='menu-item-parent'>" + 'Blank' + "</span>",
+            href: '/dashboard',
+            title: 'HOME',
+            content: "<i class='fa fa-lg fa-fw fa-home'></i> <span class='menu-item-parent'>" + 'HOME' + "</span>",
         },
+        {
+            href: consultants_path,
+            title: 'CONSULTANTS',
+            content: "<i class='fa fa-lg fa-fw fa-users'></i> <span class='menu-item-parent'>" + 'CONSULTANTS' + "</span>",
+        },
+        {
+            href: '#',
+            title: 'JOBS',
+            content: "<i class='fa fa-lg fa-fw fa-briefcase'></i> <span class='menu-item-parent'>" + 'JOBS' + "</span>",
+            children: [
+                {
+                    href: jobs_path,
+                    title: 'All Jobs',
+                    content: "<span class='menu-item-parent'> All Posted Job(s) </span>"
+                },
+                {
+                    href: job_invitations_path,
+                    title: 'Job Invitations',
+                    content: "<span class='menu-item-parent'> Invitation(s) </span>"
+                },
+                {
+                    href: job_applications_path,
+                    title: 'Job Applications',
+                    content: "<span class='menu-item-parent'> Application(s)/Candidate(s) </span>"
+                },
+            ]
+        },
+        {
+            href: contracts_path,
+            title: 'Contracts',
+            content: "<i class='fa fa-lg fa-fw fa-file'></i> <span class='menu-item-parent'> Contracts </span>"
+         },
+        {
+            href: timesheets_path,
+            title: 'Timesheets',
+            content: "<i class='fa fa-lg fa-fw fa-clock-o'></i> <span class='menu-item-parent'>" + 'TIMESHEETS' + "</span>",
+        },
+        # {
+        #     href: new_company_doc_path,
+        #     title: 'Company Docs',
+        #     content: "<i class='fa fa-lg fa-fw fa-black-tie'></i> <span class='menu-item-parent'>" + 'Company Docs' + "</span>",
+        # },
+          {
+              href:  current_user.is_owner? ? employees_leaves_path : (current_user.is_consultant? ? consultant_leaves_path(current_user) : '#'),
+              title: 'Leaves',
+              content: "<i class='fa fa-lg fa-fw fa-calendar'></i> <span class='menu-item-parent'>" + 'Leaves' + "</span>",
+          },
+        {
+            href: '#',
+            title: 'CONFIGURATION',
+            content: "<i class='fa fa-lg fa-fw fa-gear'></i> <span class='menu-item-parent'>" + 'CONFIGURATION' + "</span>",
+            children: [
+                {
+                    href: admins_path,
+                    title: 'Admin(s)',
+                    content: "<span class='menu-item-parent'> Admin(s) </span>"
+                },
+                {
+                    href: attachments_path,
+                    title: 'Company Documents',
+                    content: "<span class='menu-item-parent'>Documents </span>"
+                }
+            ]
+        }
     ]
+  end
+
+
+  def candidate_left_menu_content
+    [
+        {
+            href: '/candidate',
+            title: 'HOME',
+            content: "<i class='fa fa-lg fa-fw fa-home'></i> <span class='menu-item-parent'>" + 'HOME' + "</span>",
+        },
+        {
+            href: '#',
+            title: 'JOBS',
+            content: "<i class='fa fa-lg fa-fw fa-briefcase'></i> <span class='menu-item-parent'>" + 'JOBS' + "</span>",
+            children: [
+                {
+                    href: candidate_jobs_path,
+                    title: 'Jobs',
+                    content: "<span class='menu-item-parent'> Jobs </span>"
+                },
+                {
+                    href: candidate_job_applications_path,
+                    title: 'Job Applications',
+                    content: "<span class='menu-item-parent'> Job Applications </span>"
+                },
+                {
+                    href: candidate_job_invitations_path,
+                    title: 'Job Invitations',
+                    content: "<span class='menu-item-parent'> Job Invitations </span>"
+                }
+            ]
+        }
+    ]
+  end
+
+  def time_format s
+    return "--" if s.nil?
+    seconds = s % 60
+    minutes = (s / 60) % 60
+    hours = s / (60 * 60)
+    format("%02d:%02d:%02d", hours, minutes, seconds)
+  end
+
+  def digg_pagination data
+    digg = ""
+    digg = "<div class='text-center'><div class='digg_pagination'><hr/>"
+    digg += will_paginate(data).to_s
+    digg += "</div></div>"
+    raw(digg)
   end
 
 end

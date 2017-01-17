@@ -1,0 +1,53 @@
+.modal.fade.in{ id: leave.new_record? ?   "newLeave":  "edit-#{leave.id}","aria-hidden": "true", "aria-labelledby": "myModalLabel", :role => "dialog", :style => "display: none;", :tabindex => "-1"}
+  .modal-dialog.modal-md
+    .modal-content
+      .modal-header
+        %button.close{"aria-hidden" => "true", "data-dismiss" => "modal", :type => "button"}
+          ×
+        %h2#myModalLabel.modal-title
+          %strong New Leave
+      .modal-body
+        = simple_form_for [current_user , leave ] ,html:{ class:'form-horizontal'} do |f|
+          %fieldset
+
+            .form-group
+              %label.col-md-2.control-label
+                Leave Type
+                %sup.text-danger *
+              .col-md-10
+                = f.input :leave_type ,collection: [ 'Sick','Casual','personal','other'],label: false,include_blank: 'Select Type...'  ,input_html:{class: 'form-control', required: true}
+            .form-group
+              %label.col-md-2.control-label
+                Start Date
+                %sup.text-danger *
+              .col-md-10
+                = f.input :from_date ,as: :string, input_html:{class: 'form-control datepick'} , placeholder: 'From' , required: true,label: false
+            .form-group
+              %label.col-md-2.control-label
+                Till Date
+                %sup.text-danger *
+              .col-md-10
+                = f.input :till_date ,as: :string, input_html:{class: 'form-control datepick'} , placeholder: 'Till Date' , required: true ,label: false
+            .form-group
+              %label.col-md-2.control-label
+                Reason
+                %sup.text-danger
+              .col-md-10
+                = f.text_area  :reason , class: 'form-control' ,:rows => 3, :cols => 60, placeholder: 'Reason'
+          .form-actions
+            .row
+              .col-md-12
+                %button.btn.btn-default{"data-dismiss" => "modal", :type => "button"}
+                  Cancel
+                = f.button "submit".html_safe , class: 'btn btn-primary btn-sm' , data: {disable_with: ("Submitting...")}
+
+- content_for :scripts do
+  :javascript
+    // DO NOT REMOVE : GLOBAL FUNCTIONS!
+    $(document).ready(function() {
+      // pageSetUp();
+      // Job End Date
+      $('.datepick').datepicker({
+        dateFormat: 'yy-mm-dd'
+      });
+    });

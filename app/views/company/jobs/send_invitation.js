@@ -1,0 +1,2 @@
+$('#job_invitation').html("<%= j render(partial: 'company/jobs/partials/send_invitation_modal' , locals: {companies: @preferred_vendors_companies ,job: @company_job,candidates: @candidates})%>");
+$('#job-invite-<%= @company_job.id %>').modal('show');

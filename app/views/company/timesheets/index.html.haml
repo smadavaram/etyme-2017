@@ -1,0 +1,95 @@
+#content
+  #wid-id-5.no-border.jarviswidget{"data-widget-colorbutton" => "false", "data-widget-custombutton" => "false", "data-widget-editbutton" => "false", "data-widget-fullscreenbutton" => "false", "data-widget-sortable" => "false"}
+    %div
+      .jarviswidget-editbox
+      .widget-body
+        %ul#myTab1.nav.nav-tabs.bordered
+          %li.active
+            %a{"data-toggle" => "tab", :href => "#tab-r1"}
+              %span.badge.bg-color-blue.txt-color-white= @timesheets.count
+              Sent Timesheets
+          %li
+            %a{"data-toggle" => "tab", :href => "#tab-r2"}
+              %span.badge.bg-color-blueDark.txt-color-white= @received_timesheets.count
+              Received Timesheets
+        .col-md-12
+          .tab-content
+            #tab-r1.tab-pane.active
+              #hb2.tab-pane.active
+                %ul#internal-tab-1.nav.nav-tabs.tabs-pull-right
+                  %br
+                  .input-group.input-group-lg.hidden-mobile
+                    .input-group-btn
+                      %button.btn.btn-default.dropdown-toggle.textbtn{"data-toggle" => "dropdown", :type => "button"}
+                        All
+                        %span.caret
+                      %ul.dropdown-menu
+                        %li.active
+                          %a{:href => "javascript:void(0)"}
+                            All
+                        %li.divider
+                        %li
+                          %a{:href => "javascript:void(0)"} Rejected
+                        %li
+                          %a{:href => "javascript:void(0)"} Accepted
+                        %li
+                          %a{:href => "javascript:void(0)"} Pending
+                    %input#search-project.form-control.input-lg{:placeholder => "Search Contract...", :type => "text"}/
+                    .input-group-btn
+                      %button.btn.btn-default{:type => "submit"}
+                        \   
+                        %i.fa.fa-fw.fa-search.fa-lg>
+                        \  
+                  %br 
+                  - Timesheet.statuses.reverse_each do |value , key|
+                    %li{class: key == 0 ? 'active' : ''}
+                      %a{"aria-expanded" => "false", "data-toggle" => "tab", :href => "#is-#{key}"} #{value.titleize}
+                .tab-content.padding-10
+                  - Timesheet.statuses.reverse_each do |value , key|
+                    .tab-pane{id: "is-#{key}" , class: key == 0 ? 'active fade in' : ''}
+                      = render'company/timesheets/partials/sent_timesheets' , data: @timesheets.where(status: key)
+
+            #tab-r2.tab-pane
+              #hb22.tab-pane.active
+              %ul#internal-tab-2.nav.nav-tabs.tabs-pull-right
+                %br
+                .input-group.input-group-lg.hidden-mobile
+                  .input-group-btn
+                    %button.btn.btn-default.dropdown-toggle.textbtn{"data-toggle" => "dropdown", :type => "button"}
+                      All
+                      %span.caret
+                    %ul.dropdown-menu
+                      %li.active
+                        %a{:href => "javascript:void(0)"}
+                          All
+                      %li.divider
+                      %li
+                        %a{:href => "javascript:void(0)"} Rejected
+                      %li
+                        %a{:href => "javascript:void(0)"} Accepted
+                      %li
+                        %a{:href => "javascript:void(0)"} Pending
+                  %input#search-project.form-control.input-lg{:placeholder => "Search Contract...", :type => "text"}/
+                  .input-group-btn
+                    %button.btn.btn-default{:type => "submit"}
+                      \   
+                      %i.fa.fa-fw.fa-search.fa-lg>
+                      \  
+                %br 
+                - Timesheet.statuses.reverse_each do |value , key|
+                  %li{class: key == 0 ? 'active' : ''}
+                    %a{"aria-expanded" => "false", "data-toggle" => "tab", :href => "#is#{key}"} #{value.titleize}
+              .tab-content.padding-10
+                - Timesheet.statuses.reverse_each do |value , key|
+                  .tab-pane{id: "is#{key}" , class: key == 0 ? 'active' : ''}
+                    = render'company/timesheets/partials/received_timesheets' , data: @received_timesheets.where(status: key)
+- content_for :modals do
+  #ajax-modal
+- content_for :scripts do
+  :javascript
+    // DO NOT REMOVE : GLOBAL FUNCTIONS!
+
+    $(document).ready(function() {
+      pageSetUp();
+    });
+

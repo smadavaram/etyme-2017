@@ -1,0 +1,1 @@
+json.array! @consultant_leaves, partial: 'company_leaves/company_leave', as: :company_leave

@@ -1,10 +1,31 @@
 !!!
-%html
+%html{:id => "#{yield :html_id}"}
   %head
     -#%meta{:content => "text/html; charset=UTF-8", "http-equiv" => "Content-Type"}/
     %title Etyme
-    = stylesheet_link_tag    'application', media: 'all', 'data-turbolinks-track' => true
-    = javascript_include_tag 'application', 'data-turbolinks-track' => true
+    = stylesheet_link_tag    'application'
     = csrf_meta_tags
-  %body
-    = yield
+    = yield :head
+  %body{:class => "#{yield :body_class}"}
+    = render partial: 'shared/header'
+    #main{:role => "main"}
+      = yield :ribbon
+      - if notice
+        .alert.alert-success.fade.in
+          %button.close{"data-dismiss" => "alert"}
+            ×
+          %i.fa-fw.fa.fa-check
+          = notice
+      - if alert
+        .alert.alert-warning.fade.in
+          %button.close{"data-dismiss" => "alert"}
+            ×
+          %i.fa-fw.fa.fa-warning
+          = alert
+      = yield
+    = javascript_include_tag 'application'
+    = filepicker_js_include_tag
+    = tinymce_assets
+    = yield(:scripts).present? ? yield(:scripts) : render(partial: 'shared/scripts')
+    .modals
+

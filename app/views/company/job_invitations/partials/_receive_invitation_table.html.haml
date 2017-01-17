@@ -1,0 +1,34 @@
+.table-responsive
+  %table#resultTable.table.table-striped.table-bordered.table-hover
+    %thead
+      %tr
+        %th{style: "width:30px"} Pic
+        %th Sender
+        %th Company
+        %th Job
+        %th Email / Username
+        %th Created By
+        %th Phone
+        %th Expiry
+        %th Status
+    %tbody
+      - data.each do |invitation|
+        %tr{class: "#{set_background_status_color(invitation.status)}"}
+          %td= image_tag invitation.created_by.photo, alt: '', width: '20'
+          %td= link_to invitation.created_by.full_name , '#'
+          %td= link_to invitation.created_by.company.name , '#' if invitation.created_by.type!="Candidate"
+          %td= link_to invitation.job.title , '#'
+          %td
+            = invitation.created_by.email
+            %a.pull-right{:href => "javascript:void(0);"}
+              %i.fa.fa-key
+          %td= link_to invitation.created_by.full_name , '#'
+          %td= invitation.recipient.phone
+          %td= invitation.expiry
+          %td
+            - if invitation.pending?
+              = link_to 'Accept' , accept_job_job_invitation_path(invitation.job , invitation) , method: :post , remote: true , class: 'btn btn-xs btn-default'
+              = link_to 'Reject' , reject_job_job_invitation_path(invitation.job , invitation) , method: :post , remote: true ,  class: 'btn btn-xs btn-default'
+            -else
+              %span.label.label-success= invitation.status
+  = digg_pagination(data)

@@ -1,0 +1,87 @@
+class Candidate < ActiveRecord::Base
+  # Include default devise modules. Others available are:
+  # :confirmable, :lockable, :timeoutable and :omniauthable
+  devise :invitable, :database_authenticatable, :registerable,
+         :recoverable, :rememberable, :trackable, :validatable
+
+  validates :password,presence: true,if: Proc.new { |consultant| !consultant.password.nil? }
+  validates :password_confirmation,presence: true,if: Proc.new { |consultant| !consultant.password.nil? }
+
+  after_create :send_welcome_email
+  before_create :send_invitation    ,if: Proc.new{|candidate|candidate.invited_by.present?}
+  # after_create :send_job_invitation, if: Proc.new{ |candidate| candidate.invited_by.present?}
+  after_create :create_address
+
+
+  has_many   :consultants
+  has_many   :notifications       , as: :notifiable             ,dependent: :destroy
+  has_many   :custom_fields       , as: :customizable           ,dependent: :destroy
+  has_many   :job_applications    , as: :applicationable
+  has_many   :job_invitations     , as: :recipient
+  has_many   :contracts           , through: :job_applications   ,dependent: :destroy
+  has_many   :job_invitations     , as: :recipient
+  has_many   :educations          , dependent: :destroy          ,foreign_key: 'user_id'
+  has_many   :experiences         , dependent: :destroy          ,foreign_key: 'user_id'
+  belongs_to :address             , foreign_key: :primary_address_id
+
+  attr_accessor :job_id
+  attr_accessor :expiry
+  attr_accessor :message
+  attr_accessor :invitation_type
+
+  accepts_nested_attributes_for :experiences ,reject_if: :all_blank
+  accepts_nested_attributes_for :educations  ,reject_if: :all_blank
+  accepts_nested_attributes_for :address   , reject_if: :all_blank, update_only: true
+
+  #Tags Input
+  acts_as_taggable_on :skills
+
+
+  def etyme_url
+    ENV['domain']
+  end
+
+
+
+  def photo
+    super.present? ? super : 'avatars/male.png'
+  end
+
+  def full_name
+    self.first_name + " " + self.last_name
+  end
+
+  # protected
+  #   def password_required?
+  #     return false if skip_password_validation
+  #     super
+  #   end
+
+  def send_invitation
+    CandidateMailer.invite_user(self,self.invited_by).deliver_now
+  end
+  def is_already_applied? job_id
+    self.job_applications.find_by_job_id(job_id).present?
+  end
+
+  private
+
+  def create_address
+    address=Address.new
+    address.save(validate: false)
+    self.update_column(:primary_address_id , address.try(:id))
+  end
+
+  # send welcome email to candidate
+  def send_welcome_email
+    CandidateMailer.welcome_candidate(self).deliver_now
+  end
+
+  def send_job_invitation
+    self.invited_by.company.sent_job_invitations.create!( recipient:self , created_by:self.invited_by , job_id: self.job_id.to_i,message:self.message,expiry:self.expiry,invitation_type: self.invitation_type)
+  end
+
+
+
+
+end

@@ -1,0 +1,66 @@
+.image-setting
+{
+    width: 99px !important;
+    height: 99px !important;
+    margin-left: 35px !important;
+    margin-bottom: 60px !important;
+    padding: 0px !important;
+    position: initial !important;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    padding: 5px;
+}
+
+.imgDescription {
+    position: initial;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background:none;
+    color: #000;
+
+
+    visibility: hidden;
+    opacity: 0;
+
+}
+
+
+.profile-hover:hover .imgDescription {
+    visibility: visible;
+    opacity: 1;
+}
+
+.profile-margin
+{
+    background-color: aliceblue;
+    /*margin-top: 10px;*/
+    /*margin-left: 25px;*/
+}
+
+.pictureContainer img:hover {
+    outline: #333 double 4px;
+}
+.ml20{
+    style: 'margin-left: 20px;'
+}
+.mr20{
+    style: 'margin-right: 20px;'
+}
+.margin-right-10
+{
+    margin-right: 10px;
+}
+.mrl15{
+    margin-right: 15px;
+    margin-left: 15px;
+}
+.b-light
+{
+    border-color: #e4e4e4;
+}
+.size
+{
+    width: 49%;
+}

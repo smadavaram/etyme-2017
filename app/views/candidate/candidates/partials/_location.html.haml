@@ -1,0 +1,40 @@
+.tab-content.padding-10
+  %table.table.table-striped
+    %tbody
+      %tr
+        %th{style:'width:50%'}
+          Country
+        %td{style:'width:50%'}
+          = best_in_place current_candidate.address,:country, :as => :select, :collection => CS.countries.sort.map{|k,v|[k,v]},url:candidate_path(current_candidate), param: "candidate[address_attributes]",:class => "country"
+      %tr
+        %th
+          State
+        %td
+          = best_in_place current_candidate.address,:state, :as => :select, :collection => CS.states(current_candidate.address.country).sort.map{|k,v|[k,v]},:class => "state",url: candidate_path(current_candidate), param: "candidate[address_attributes]"
+          -#= best_in_place current_candidate.address,:state, :as => :input, :place_holder => "Click me to add content!",url:candidate_path(current_candidate), param: "candidate[address_attributes]",:class => "state"
+      %tr
+        %th{style:'width:50%'}
+          City
+        %td{style:'width:50%'}
+          = best_in_place current_candidate.address,:city, :as => :select, :collection => CS.cities(current_candidate.address.state,current_candidate.address.country).sort.map{|k,v|[k,k]},url: candidate_path(current_candidate), param: "candidate[address_attributes]"
+          -#= best_in_place current_candidate.address,:city, :as => :input, :place_holder => "Click me to add content!",url:candidate_path(current_candidate), param: "candidate[address_attributes]"
+      %tr
+        %th
+          Zip Code
+        %td
+          = best_in_place current_candidate.address,:zip_code, :as => :input, :place_holder => "Click me to add content!",url:candidate_path(current_candidate), param: "candidate[address_attributes]"
+- content_for :scripts do
+  :javascript
+      $(document).ready(function() {
+
+      $('.country').change(
+        function() {
+        window.location.reload();
+      }); //End OF Country Change
+
+      $('.state').change(
+       function() {
+         window.location.reload();
+         }); //End OF State Change
+
+      }); // End of document ready

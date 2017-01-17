@@ -1,12 +1,26 @@
-- if notice
-  .alert.alert-success.fade.in
-    %button.close{"data-dismiss" => "alert"}
-      ×
-    %i.fa-fw.fa.fa-check
-    = notice
-  - if alert
-    .alert.alert-warning.fade.in
-      %button.close{"data-dismiss" => "alert"}
-        ×
-      %i.fa-fw.fa.fa-warning
-      = alert
+- if flash[:alert].present? || flash[:toastr].present? || flash[:error].present? || flash[:errors].present? || flash[:success].present? || flash[:notice].present? || flash[:info].present?
+  :javascript
+    $(document).ready(function () {
+      $(window).load(function() {
+
+        if("#{flash[:error].present?}" == "true"){
+          flash_success("#{flash[:error]}");
+        }
+        else if("#{flash[:success].present?}" == "true"){
+          flash_success("#{flash[:success]}");
+        }
+        else if("#{flash[:info].present?}" == "true"){
+          flash_info("#{flash[:info]}");
+        }
+        else if("#{flash[:alert].present?}" == "true"){
+          flash_alert("#{flash[:alert]}");
+        }
+        else if("#{flash[:notice].present?}" == "true"){
+          flash_alert("#{flash[:notice]}");
+        }else if("#{flash[:errors].present?}" == "true"){
+         $.each(#{flash[:errors] || []}, function( index, value ) {
+            flash_error(value);
+          });
+        }
+      });
+    });

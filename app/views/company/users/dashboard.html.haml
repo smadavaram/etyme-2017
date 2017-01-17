@@ -1,17 +1,24 @@
-- content_for :ribbon do
-  / RIBBON
-  #ribbon
-    / breadcrumb
-    %ol.breadcrumb
-      %li Home
-      %li Blank
 .col-xs-12.col-sm-7.col-md-7.col-lg-4
   %h1.page-title.txt-color-blueDark
-    / PAGE HEADER
     %i.fa-fw.fa.fa-home
-    Page Header
-    %span
-      \&gt;
-      Subtitle
+    = "Welcome #{current_user.full_name.titleize} ,"
+- if !current_company.locations.present? || !current_company.roles.present?
+  .col-xs-12.col-sm-7.col-md-12.col-lg-12.m-t-lg{style: 'margin-top: 20px;'}
+    .alert.alert-success.alert-block
+      %h4.alert-heading Info!
+      %p.margin-top-5
+        In order to take full advantage of Etyme, Please take a moment to complete your profile setup.
+      %ul.margin-top-5
+        -if !current_company.locations.present?
+          %li
+            Please setup your company locations by
+            = link_to 'clicking here ' , company_path(current_company) , target: '_blank'
+        -if !current_company.roles.present?
+          %li
+            Please setup some roles & permissions by
+            = link_to 'clicking here ' , roles_path , target: '_blank'
+.col-xs-12.margin-bottom-10
+  = render 'company/users/partials/timesheet_graph'
+
 - content_for :scripts do
   \// Empty

@@ -1,0 +1,51 @@
+.modal.fade.in{ id: "contract-#{contract.id}","aria-hidden": "true", "aria-labelledby": "myModalLabel", :role => "dialog", :style => "display: none;", :tabindex => "-1"}
+  .modal-dialog.modal-lg
+    .modal-content
+      .modal-header
+        %button.close{"aria-hidden" => "true", "data-dismiss" => "modal", :type => "button"}
+          ×
+        %h1
+          - job_application = contract.job_application
+          %span.semi-bold Contract -
+          %i.ultra-light #{job_application.company.try(:name)}
+          (#{link_to current_candidate.full_name ,  '#' , target: '_blank'})
+          -#%sup.badge.bg-color-red.bounceIn.animated v 2.0
+          %br/
+          %small.text-danger.slideInRight.fast.animated
+            %strong Job - #{contract.job.title}
+        %p
+          = raw contract.job.description
+
+
+      .modal-body
+        = form_for [contract.job,contract] , url: update_contract_response_candidate_job_contract_path(contract.job,contract , status: status) ,  method: :post , html: {class: 'form-horizontal'} , remote: true do |f|
+          %fieldset
+            .form-group
+              %label.col-md-2.control-label Received By Name
+              .col-md-10
+                = f.text_field :received_by_name,placeholder:"Received By Name"   ,required: 'required',class:"form-control"
+
+            .form-group
+              .col-md-10
+                = render partial: 'candidate/contracts/partials/received_by_signarture_pad',locals: {f: f}
+            %hr
+            .form-group
+              %label.col-md-2.control-label Message (optional)
+              .col-md-10
+                = f.text_area :response_from_vendor, class: "form-control", rows: "2" ,placeholder: 'Write tour message'
+          .modal-footer
+            -#= button_tag 'Cancel' , class: 'btn btn-default' , data: {"dismiss": "modal"}
+            %button.btn.btn-default{"data-dismiss" => "modal", :type => "button"}
+              Cancel
+            = f.submit status.titleize , class: 'btn btn-primary' , data: {confirm: 'Are you sure?', verify: status.titleize, verify_text: "Type '#{status.titleize}' to confirm"}
+:javascript
+    $( document ).ready(function() {
+       //$(".multi-select2-company-docs").select2({placeholder: "Select a Doc(s)"});
+       $('#contract_start_date').datepicker({
+          dateFormat : 'dd/mm/yy'
+
+        });
+       $('#contract_end_date').datepicker({
+        dateFormat : 'dd/mm/yy'
+      });
+    });

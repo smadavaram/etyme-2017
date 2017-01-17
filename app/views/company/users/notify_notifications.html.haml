@@ -1,0 +1,13 @@
+%ul.notification-body
+  - @notifications.each do |n|
+    %li
+      %span
+        %a
+          -#= image_tag'default_user.png', alt: '', class: 'air air-top-left margin-top-5', width: '40', height: '40'
+          %span.from.icon-paperclip
+            = n.try(:title).try(:titleize)
+            %i.icon-paperclip
+          %time
+            =time_ago_in_words(n.created_at)+' ago'
+          %span.msg-body
+            = n.message

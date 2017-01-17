@@ -1,0 +1,69 @@
+.tab-content.padding-10
+  %table.table.table-striped
+    %thead
+      %tr
+        %th{style:'width:20%'}
+          Name
+        %th{style:'width:20%'}
+          Country
+        %th{style:'width:20%'}
+          State
+        %th{style:'width:20%'}
+          City
+        %th{style:'width:20%'}
+          Zipcode
+    - current_company.locations.each do |location|
+      - next if location.new_record?
+      %tbody
+        %tr
+          %td
+            = best_in_place location, :name, :as => :input, :place_holder => "Click me to add content!"
+          %td
+            = best_in_place location.address, :country, :as => :select, :collection => CS.countries.sort.map{|k,v|[k,v]},:classes => "country"
+          %td
+            = best_in_place location.address,:state, :as => :select, :collection => CS.states(location.address.country).sort.map{|k,v|[k,v]},:classes => "state"
+          %td
+            = best_in_place location.address,:city, :as => :select, :collection => CS.cities(location.address.state,location.address.country).sort.map{|k,v|[k,k]}
+
+          %td
+            = best_in_place location.address,:zip_code, :as => :input, :place_holder => "Click me to add content!"
+
+
+
+
+
+
+
+- content_for :scripts do
+  :javascript
+    $(document).ready(function() {
+      // $('.country').bind("ajax:success", function(){alert('sc');});
+
+        $('.country').change(
+         function() {
+          window.location.reload();
+        // var activeTab = localStorage.getItem('activeTab');
+        // if(activeTab){
+        //     $('#myTab a[href="' + activeTab + '"]').tab('show');
+        // }
+     }); //End OF Country Change
+
+
+      $('.state').change(
+         function() {
+         window.location.reload();
+         // var country=$('.country').val();
+         // var cities_of_sate=$('.city')
+         // $.getJSON('/cities/'+$(this).val()+"/"+country,function(data) {
+         //      cities_of_sate.empty();
+         //      cities_of_sate.append('<option value="">Select City ...</option>');
+         //      $.each(data,function(key,value) {
+         //      var opt = '<option value=' + key + '>' + value + '</option>';
+         //      cities_of_sate.append(opt);
+         //      });
+         //
+         //   });//End OF json
+
+         }); //End OF State Change
+
+      }); // End of document ready

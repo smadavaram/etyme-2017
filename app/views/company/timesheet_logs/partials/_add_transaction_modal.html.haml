@@ -1,0 +1,58 @@
+.modal.fade.in{ id: "myModal","aria-hidden": "true", "aria-labelledby": "myModalLabel", :role => "dialog", :style => "display: none;", :tabindex => "-1"}
+  .modal-dialog
+    .modal-content
+      .modal-header
+        %button.close{"aria-hidden" => "true", "data-dismiss" => "modal", :type => "button"}
+          ×
+        %h2#myModalLabel.modal-title
+          %strong Add Time log #{@timesheet_log.transaction_day.strftime("%A, %d %b %Y")}
+      .modal-body
+        = form_for [@timesheet , @timesheet_log , Transaction.new] do |f|
+          .row
+            .col-sm-12
+              .row
+                .col-sm-12
+                  .form-group
+                    %label Start Time
+                    .input-group
+                      = f.text_field :start_time ,class: "form-control" , required: 'required', placeholder: "Strat  Time"
+                      %span.input-group-addon
+                        %i.fa.fa-clock-o
+          .row
+            .col-sm-12
+              .row
+                .col-sm-12
+                  .form-group
+                    %label End Time
+                    .input-group
+                      = f.text_field :end_time ,class: "form-control" , required: 'required', placeholder: "Strat  Time"
+                      %span.input-group-addon
+                        %i.fa.fa-clock-o
+          .row
+            .col-sm-12
+              .form-group
+                %label Memo
+                .input-group.col-sm-12
+                  = f.text_area :memo ,class: "form-control" ,row: '3' , placeholder: "Enter Memo"
+          .row
+            .col-sm-12
+              .form-group
+                .input-group.col-sm-6
+                  = f.filepicker_field :file, :button_text => "Pick File", disable: true , class: 'btn btn-primary file'
+                %p.note.text-muted
+                  Please upload any document detailing this transaction.
+                  -#= f.filepicker_field :file, class: "form-control btn btn-primary" ,button_text: "Pick File"
+          .modal-footer
+            -#= button_tag 'Cancel' , class: 'btn btn-default' , data: {"dismiss": "modal"}
+            %button.btn.btn-default{"data-dismiss" => "modal", :type => "button"}
+              Cancel
+            = f.submit 'Send' , class: 'btn btn-primary'
+- content_for :scripts do
+  :javascript
+    $(document).ready(
+    function() {
+
+        $(".file").on('click',function() {
+        $('.fp__overlay').css({'z-index':'99999'})
+    });
+    });

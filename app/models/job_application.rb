@@ -1,0 +1,56 @@
+class JobApplication < ActiveRecord::Base
+
+  enum status: [ :pending_review ,:rejected , :short_listed,:interviewing,:hired ]
+  enum application_type: [:direct , :candidate_direct , :vendor_direct , :invitation]
+
+  belongs_to :job_invitation
+  belongs_to :applicationable, polymorphic: true
+  belongs_to :job
+  belongs_to :company
+  has_one    :contract
+  has_many   :custom_fields ,as: :customizable
+  has_many   :comments ,as: :commentable
+
+  validates :cover_letter , presence: true
+  # validates :application_type, inclusion: { in: application_types.keys }
+  validates :status ,             inclusion: {in: statuses.keys}
+  validates_uniqueness_of :applicationable_id,scope: [:job_id,:applicationable_type] ,on: :create
+
+  after_create :update_job_invitation_status ,     if: Proc.new{|application| application.job_invitation.present?}
+  after_update :notify_recipient_on_status_change, if: Proc.new{|application| application.status_changed? }
+  after_create :set_application_type,              if: Proc.new{|application| application.job_invitation.present?}
+
+  accepts_nested_attributes_for :custom_fields , reject_if: :all_blank
+
+
+  default_scope                { order(created_at: :desc) }
+  scope :direct , -> {where(job_invitation_id: nil)}
+  scope :candidate , -> {joins(:job_invitation).where('job_invitations.invitation_type = ?' , 1)}
+  scope :vendor , -> {joins(:job_invitation).where('job_invitations.invitation_type = ?' , 0)}
+  scope :by_email , -> {joins(:job_invitation).where('job_invitations.invitation_type = ?' , 2)}
+
+  def is_candidate_applicant?
+    self.applicationable.class.name == "Candidate"
+  end
+
+  def user
+    self.applicationable
+  end
+
+  private
+
+    def update_job_invitation_status
+      self.job_invitation.accepted!
+    end
+
+    # Call after update
+    def notify_recipient_on_status_change
+      self.user.notifications.create(message: self.job.company.name + " has #{self.status.humanize} your Job Application - #{self.job.title}",title:"Job Application")
+    end
+
+    def set_application_type
+      self.invitation!
+    end
+
+
+end

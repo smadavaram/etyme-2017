@@ -1,0 +1,25 @@
+%fieldset
+  .form-group
+    %label.col-md-2.control-label
+      First Name
+      %sup.text-danger *
+    .col-md-10
+      = e.text_field :first_name , class: 'form-control ' , id: 'fname' , placeholder: "First Name" , required: true
+  .form-group
+    %label.col-md-2.control-label
+      Last Name
+      %sup.text-danger *
+    .col-md-10
+      = e.text_field :last_name , class: 'form-control ' , id: 'lname' , placeholder: "Last Name" , required: true
+  .form-group
+    %label.col-md-2.control-label
+      Email
+      %sup.text-danger *
+    .col-md-10
+      = e.email_field :email , class: 'form-control ' , id: 'email' , placeholder: "email@address.com" , required: true
+  .form-group
+    %label.col-md-2.control-label
+      Roles
+      %sup.text-danger *
+    .col-md-10
+      = e.collection_select :role_ids, current_company.roles, :id, :name, {}, {:class=>"form-control input-lg multi-select2",placeholder: 'Select role(s)' ,:multiple => true, required: true}

@@ -1,0 +1,59 @@
+.modal.fade.in{ id: "job-invite-#{job.id}","aria-hidden": "true", "aria-labelledby": "myModalLabel", :role => "dialog", :style => "display: none;", :tabindex => "-1"}
+  .modal-dialog
+    .modal-content
+      .modal-header
+        %button.close{"aria-hidden" => "true", "data-dismiss" => "modal", :type => "button"}
+          ×
+        %h2#myModalLabel.modal-title
+          %strong Job Invitation - #{job.title}
+      .modal-body
+        %header{:role => "heading"}
+          %ul.nav.nav-tabs.pull-left.in.margin-bottom-10.col-sm-12
+            %li.active
+              %a{"aria-expanded" => "true", "data-toggle" => "tab", :href => "#hr1"}
+                %span.hidden-mobile.hidden-tablet Vendor
+            %li
+              %a{"aria-expanded" => "false", "data-toggle" => "tab", :href => "#hr2"}
+                %span.hidden-mobile.hidden-tablet
+                  Candidate
+            %li
+              %a{"aria-expanded" => "false", "data-toggle" => "tab", :href => "#hr3"}
+                %span.hidden-mobile.hidden-tablet
+                  Direct Email
+          .widget-body
+            .tab-content
+              #hr1.tab-pane.active
+                .tabbable.tabs-below
+                  .tab-content.padding-10
+                    %section#widget-grid{}
+                      = render 'company/jobs/partials/vendor_invitation', job: job ,companies: companies
+              #hr2.tab-pane
+                .tabbable.tabs-below
+                  .tab-content.padding-10
+                    %section#widget-grid{style: 'margin-top: 10px;'}
+                      = render 'company/jobs/partials/send_candidate_invitation',job: job ,candidates: candidates
+                      -#=render partial: 'company/leaves/partials/leave_show',locals:{leaves: @consultant_leaves.rejected}
+
+              #hr3.tab-pane
+                .tabbable.tabs-below
+                  .tab-content.padding-10
+                    %section#widget-grid{style: 'margin-top: 10px;'}
+                      .col-sm-12
+                        = form_for :consultant ,url: import_job_job_invitations_path(job), multipart: true do |f|
+                          -#= f.file_field :file
+                          = f.button "Bulk Import".html_safe, data: {disable_with: disable_spinning("Importing...")} , class: 'btn btn-primary btn-sm pull-right margin-bottom-10'
+                      = render partial: 'candidate/candidates/partials/form',locals:{job: job}
+:javascript
+  $(document).ready(function () {
+     $("#vendor_company").select2({
+          placeholder: "Select Companies"
+      });
+     $("#temp_candidates").select2({placeholder: "Select Candidate"});
+     $('#job_invitation_expiry,#candidate_expiry,#vendor_expiry').datepicker({
+        dateFormat : 'dd/mm/yy'
+     });
+  });
+:css
+  .select2 {
+  width: 100%!important;
+  }

@@ -1,0 +1,88 @@
+= form_for [job,job.job_invitations.new] ,remote: true , method: :post  do |f|
+  -#= f.hidden_field :job_id , value: params[:job_id]
+  = f.hidden_field :invitation_type , value: "by_email"
+  .row
+    .col-md-6
+      = f.text_field :first_name , class: 'form-control' , placeholder: 'Enter First Name' , required: true
+    .col-md-6
+      = f.text_field :last_name , class: 'form-control' , placeholder: 'Enter Last Name' , required: true
+  .row.margin-top-10
+    .col-md-12
+      .form-group
+        = f.email_field :email , class: 'form-control' , placeholder: 'Enter Email Address' , required: true
+        = f.hidden_field :invited_by_id,  value: current_user.id
+        = f.hidden_field :invited_by_type, value: current_user.class.name
+        = f.hidden_field :job_id,value: job.id
+  .row
+    .col-md-12
+      .form-group
+        = f.text_field :expiry ,class: "form-control" , required: 'required', placeholder: "Invitation Expire Date"
+  .row
+    .col-md-12
+      .form-group
+        = f.text_area :message ,class: "form-control" ,row: '3' , required: 'required', placeholder: "Enter Description"
+  .modal-footer
+    -#= button_tag 'Cancel' , class: 'btn btn-default' , data: {"dismiss": "modal"}
+    %button.btn.btn-default{"data-dismiss" => "modal", :type => "button"}
+      Cancel
+    = f.button "Send".html_safe, data: {disable_with: disable_spinning("Sending...")} , class: 'btn btn-primary btn-sm'
+
+
+
+
+
+
+
+
+
+
+-#
+-#= simple_form_for :candidate ,html:{ class:'form-horizontal'} do |f|
+-#  %fieldset
+-#    -#%legend Company Jobs
+-#    .form-group
+-#      %label.col-md-2.control-label
+-#        First Name
+-#        %sup.text-danger *
+-#      .col-md-10
+-#        = f.text_field :first_name , class: 'form-control' , placeholder: 'Enter First Name' , required: true
+-#    .form-group
+-#      %label.col-md-2.control-label
+-#        Last Name
+-#        %sup.text-danger *
+-#      .col-md-10
+-#        = f.text_field :last_name , class: 'form-control' , placeholder: 'Enter Last Name' , required: true
+-#    .form-group
+-#      %label.col-md-2.control-label
+-#        Email
+-#        %sup.text-danger *
+-#      .col-md-10
+-#        = f.email_field :email , class: 'form-control' , placeholder: 'Enter Email Address' , required: true
+-#    -#.form-group
+-#    -#  %label.col-md-2.control-label
+-#    -#    Job Location
+-#    -#    %sup.text-danger *
+-#    -#  .col-md-10
+-#    -#    = select_tag "admin[location_id]", options_from_collection_for_select(@locations, "id", "name") , class: 'form-control'  , required: true
+-#    -#.form-group
+-#    -#  %label.col-md-2.control-label
+-#    -#    Job Location
+-#    -#    %sup.text-danger *
+-#    -#  .col-md-10
+-#    -#    = f.collection_select :role_ids, @roles, :id, :name, {}, {:class=>"form-control input-lg multi-select2-role",:multiple => true,required: true}
+-#  .form-actions
+-#    .row
+-#      .col-md-12
+-#        = button_tag 'Cancel' , class: 'btn btn-default'
+-#        -#%button.btn.btn-default{:type => "submit"}
+-#        -#  Cancel
+-#        = f.submit "Submit", class: 'btn btn-primary'
+
+- content_for :scripts do
+  :javascript
+    // DO NOT REMOVE : GLOBAL FUNCTIONS!
+    $(document).ready(function() {
+      pageSetUp();
+      // Job End Date
+
+    });

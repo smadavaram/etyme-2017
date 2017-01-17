@@ -1,0 +1,19 @@
+# Read about fixtures at http://api.rubyonrails.org/classes/ActiveRecord/FixtureSet.html
+
+one:
+  name: MyString
+  doc_type: 1
+  created_by: 1
+  company_id: 1
+  description: MyString
+  file: MyString
+  is_required_signature: false
+
+two:
+  name: MyString
+  doc_type: 1
+  created_by: 1
+  company_id: 1
+  description: MyString
+  file: MyString
+  is_required_signature: false

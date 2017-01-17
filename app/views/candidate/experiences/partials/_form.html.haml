@@ -1,0 +1,36 @@
+
+#experience.modal.fade.in{"aria-hidden" => "true", "aria-labelledby" => "myModalLabel", :role => "dialog", :style => "display: none;", :tabindex => "-1"}
+  .modal-dialog
+    .modal-content
+      .modal-header
+        %button.close{"aria-hidden" => "true", "data-dismiss" => "modal", :type => "button"}
+          ×
+        %h4#experience.modal-title Add New Experience
+      .modal-body
+        = form_for :experience,url: candidate_experiences_path do |experience|
+          .row
+            .col-md-12
+              .form-group
+                = experience.text_field :experience_title,placeholder: "Experience Title",class: 'form-control'
+          .row
+            .col-md-12
+              .form-group
+                = experience.text_field :institute,placeholder: "Institute Name",class: 'form-control'
+          .row
+            .col-md-6
+              .form-group
+                = experience.text_field :start_date,placeholder: "Start Date",class: 'form-control '
+            .col-md-6
+              .form-group
+                = experience.text_field :end_date,placeholder:"End Date",class: 'form-control '
+          .row
+            .col-md-12
+              .form-group
+                = experience.text_area :description,placeholder: "Description",class: 'form-control', row: '5'
+
+
+          .modal-footer
+            %button.btn.btn-default{"data-dismiss" => "modal", :type => "button"}
+              Cancel
+            %button.btn.btn-primary{:type => "submit"}
+              Create

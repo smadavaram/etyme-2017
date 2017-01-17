@@ -8,11 +8,15 @@
     %meta{:content => "", :name => "author"}/
     %meta{:content => "width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no", :name => "viewport"}/
     = stylesheet_link_tag 'company', media: 'screen'
+
     / FAVICONS
     = favicon_link_tag 'favicon/favicon.ico'
     = favicon_link_tag 'favicon/favicon.ico', rel: 'icon'
+
     / GOOGLE FONT
     = stylesheet_link_tag 'https://fonts.googleapis.com/css?family=Open+Sans:400italic,700italic,300,400,700'
+    / PACE LOADER - turn this on if you want ajax loading to show (caution: uses lots of memory on iDevices)
+    -#= javascript_include_tag 'plugin/pace/pace.min', 'data-pace-options' => '{ "restartOnRequestAfter": true }'
     /
     = favicon_link_tag 'splash/sptouch-icon-iphone.png', type: 'image/png', rel: 'apple-touch-icon'
     = favicon_link_tag 'splash/touch-icon-ipad.png', type: 'image/png', sizes: '76x76', rel: 'apple-touch-icon'
@@ -27,34 +31,21 @@
     = favicon_link_tag 'splash/iphone.png', type: 'image/png', rel: 'apple-touch-startup-image', media: 'screen and (max-device-width: 320px)'
     = yield :head
 
-  %body{:class => "#{yield :body_class}"}
+  %body.smart-style-6{class: "#{yield :body_class}"}
     = render partial: 'company/shared/header'
     = render partial: 'company/shared/left_panel'
     #main{:role => "main"}
-      = yield :ribbon
-      = render partial: 'shared/flash_messages'
+      #ribbon
+        %ol.breadcrumb
+          = render_breadcrumbs tag: :li, separator: ""
+      -#= yield :ribbon
       = yield
+    = yield :modals
     = render partial: 'company/shared/footer'
     = render partial: 'company/shared/tiles'
-    / END SHORTCUT AREA
-    / ==================================================
-    / PACE LOADER - turn this on if you want ajax loading to show (caution: uses lots of memory on iDevices)
-    = javascript_include_tag 'plugin/pace/pace.min', 'data-pace-options' => '{ "restartOnRequestAfter": true }'
     = javascript_include_tag 'company'
-    /[if IE 8]
-  -#= yield(:scripts).present? ? yield(:scripts) : render(partial: 'company/shared/scripts')
-  -#  / Your GOOGLE ANALYTICS CODE Below
-  -#  :javascript
-  -#    var _gaq = _gaq || [];
-  -#    _gaq.push(['_setAccount', 'UA-XXXXXXXX-X']);
-  -#    _gaq.push(['_trackPageview']);
-  -#
-  -#    (function() {
-  -#      var ga = document.createElement('script');
-  -#      ga.type = 'text/javascript';
-  -#      ga.async = true;
-  -#      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
-  -#      var s = document.getElementsByTagName('script')[0];
-  -#      s.parentNode.insertBefore(ga, s);
-  -#    })();
-  -#
+    = filepicker_js_include_tag
+
+  /[if IE 8]
+  = yield(:scripts).present? ? yield(:scripts) : render(partial: 'shared/scripts')
+  = render 'shared/flash_messages'

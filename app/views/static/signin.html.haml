@@ -1,0 +1,28 @@
+- content_for :html_id, "extr-page"
+- content_for :body_class, "animated fadeInDown"
+- content_for :top_right do
+  %span#extr-page-header-space
+#main{:role => "main"}
+  / MAIN CONTENT
+  -#= form_for :domain , url: signin_path , method: 'post' , class: 'lockscreen animated flipInY' do |f|
+%form.lockscreen.animated.flipInY{method: 'post' , url: signin_path}
+  .logo
+    %h1.semi-bold
+      -#%img{:alt => "", :src => "img/logo-o.png"}/
+      Etyme
+  %div
+    -#%img{:alt => "", :height => "120", :src => image_path('etyme-logo-dark.png'), :width => "120"}/
+    %div
+      %h1
+        %i.fa-3x.text-muted.air.air-top-right.hidden-mobile>
+        Sign in to your team
+      .input-group
+        %input{name:"authenticity_token" , value: "#{form_authenticity_token}" ,type: "hidden"}
+        %input.form-control{placeholder: "teamdomain" , name: "domain"}/
+        .input-group-btn
+          %button.btn.btn-primary{:type => "submit"}
+            = ".etyme.com"
+      %p.no-margin.margin-top-5
+        Enter your team's Etyme domain.
+  %p.font-xs.margin-top-5
+    Copyright Etyme 2016

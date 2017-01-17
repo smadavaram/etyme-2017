@@ -1,0 +1,31 @@
+.table-responsive{:style => "width:100"}
+  %table#resultTable.table.table-striped.table-bordered.table-hover
+    %thead
+      %tr
+        %th Title
+        %th Billing
+        %th Frequency
+        %th Start Cycle
+        %th End Cycle
+        %th Status
+        %th
+    %tbody
+      - data.each_with_index do |timesheet , index|
+        - content_for :modals do
+          = render 'company/timesheets/partials/histroy_modal' , timesheet: timesheet
+        %tr
+          %td= timesheet.contract.title
+          %td= timesheet.contract.billing_frequency.humanize
+          %td= timesheet.contract.time_sheet_frequency.humanize
+          %td= timesheet.start_date
+          %td= timesheet.end_date
+          %td= timesheet.status.titleize
+          %td
+            = link_to 'View Details' ,timesheet_timesheet_log_path(timesheet, timesheet.timesheet_logs.last) ,  target: '_blank' ,class: 'btn btn-xs btn-default btn-primary'
+            = link_to 'Histroy' ,'#' , "data-target" => "#timesheet-#{timesheet.id}", "data-toggle" => "modal"  ,class: 'btn btn-xs btn-default btn-primary'
+            - if timesheet.open? && !timesheet.is_already_submitted?(current_user)
+              = link_to 'Submit' ,timesheet_submit_path(timesheet) ,class: 'btn btn-xs btn-default btn-success' , data: {confirm: "Once submitted! you will not be able to add or modify any logs in this timesheet. It can only be Approve or Reject.", verify: 'Submit', verify_text: "Type 'Submit' to confirm"}
+            - elsif timesheet.submitted?  && !timesheet.is_already_approved_or_rejected?(current_user)
+              = link_to 'Approve' ,timesheet_approve_path(timesheet) ,class: 'btn btn-xs btn-default btn-success' , data: {confirm: "Are you sure?", verify: 'Approve', verify_text: "Type 'Approve' to confirm"}
+              = link_to 'Reject' ,timesheet_reject_path(timesheet) ,class: 'btn btn-xs btn-default btn-danger' , data: {confirm: "Are you sure?", verify: 'Reject', verify_text: "Type 'Reject' to confirm"}
+    = digg_pagination(data)

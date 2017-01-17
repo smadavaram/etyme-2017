@@ -68,6 +68,15 @@ Rails.application.configure do
   # the I18n.default_locale when a translation cannot be found).
   config.i18n.fallbacks = true
 
+
+
+  config.action_mailer.delivery_method = :mailgun
+  config.action_mailer.mailgun_settings = {
+      api_key: ENV["mailgun_api_key"],
+      domain: ENV["mailgun_domain"]
+  }
+
+
   # Send deprecation notices to registered listeners.
   config.active_support.deprecation = :notify
 
@@ -76,4 +85,7 @@ Rails.application.configure do
 
   # Do not dump schema after migrations.
   config.active_record.dump_schema_after_migration = false
+
+  HOSTNAME='http://demoetyme.com'
+  COMPANY_URL = 'demoetyme.com'
 end

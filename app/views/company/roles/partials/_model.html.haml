@@ -1,0 +1,11 @@
+/ Modal
+#myModal.modal.fade{:role => "dialog", :tabindex => "-1"}
+  .modal-dialog
+    .modal-content
+      .modal-header
+        %button.close{"aria-hidden" => "true", "data-dismiss" => "modal", :type => "button"}
+          ×
+        %h4.modal-title
+          New Role
+      .modal-body.no-padding
+        = render 'company/roles/partials/form'

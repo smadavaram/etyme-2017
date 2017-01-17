@@ -1,0 +1,30 @@
+.table-responsive
+  %table#resultTable.table.table-striped.table-bordered.table-hover
+    %thead
+      %tr
+        %th{:style => "width:30px"} Pic
+        %th Recipient Name
+        %th Company
+        %th Job
+        %th Email / Username
+        %th Created By
+        %th Phone
+        %th Expiry
+        %th Status
+    %tbody
+      - data.each do |invitation|
+        %tr{class: "#{set_background_status_color(invitation.status)}"}
+          %td= image_tag invitation.recipient.photo, alt: '', width: '20'
+          %td= link_to invitation.recipient.full_name , '#'
+          %td= link_to invitation.recipient.company.name , '#' if invitation.recipient_type != "Candidate"
+          %td= link_to invitation.job.title , '#'
+          %td
+            = invitation.recipient.email
+            %a.pull-right{:href => "javascript:void(0);"}
+              %i.fa.fa-key
+          %td= link_to invitation.created_by.full_name , '#'
+          %td= invitation.recipient.phone
+          %td= invitation.expiry
+          %td
+            %span.label.label-success= invitation.status.humanize
+  = digg_pagination(data)

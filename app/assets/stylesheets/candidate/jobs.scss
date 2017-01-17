@@ -1,0 +1,67 @@
+// Place all the styles related to the candidate/jobs controller here.
+// They will automatically be included in application.css.
+// You can use Sass (SCSS) here: http://sass-lang.com/
+.job-panel
+{
+  display: table;
+  width: 100%;
+  text-align: left;
+  border-bottom:1px solid #e4e4e4;
+
+}
+.cjob-span
+{
+  vertical-align: middle;
+  text-align: left;
+  font-weight:300;
+}
+.cjob-list-li
+{
+  text-align:justify;
+  font-size:14px;
+}
+.p-bt
+{
+  font-size:16px;
+  padding-top:5px;
+  padding-bottom:5px;
+}
+.mt-20
+{
+   margin-top: -20px;
+}
+
+.fs-13
+{
+  font-size: 13px;
+  display: block
+}
+
+.list-p-15
+{
+  padding:15px
+}
+.ul-s
+{
+  list-style: none outside none;
+  text-align:justify;
+  padding:20px;
+  overflow: auto;
+}
+.mt-12
+{
+  margin-top:12px;
+}
+.mt-20s
+{
+  margin-top:20px ;
+  border: border-light;
+}
+.c-color
+{
+  background-color: aliceblue;
+}
+.mr-5
+{
+  margin-right: 5px;
+}
