@@ -1,7 +1,8 @@
 #content
   .row
-    .col-xs-12.col-sm-3.col-md-3.col-lg-3.pull-right
-      = link_to 'NEW' , new_consultant_path , class: 'btn btn-success btn-lg pull-right header-btn hidden-mobile'
+    - if has_permission("manage_consultants")
+      .col-xs-12.col-sm-3.col-md-3.col-lg-3.pull-right
+        = link_to 'NEW' , new_consultant_path , class: 'btn btn-success btn-lg pull-right header-btn hidden-mobile'
   %section{style: 'margin-top: 10px;'}
     .row
       %article.col-xs-12.col-sm-12.col-md-12.col-lg-12
@@ -20,8 +21,9 @@
                     %th{"data-hide" => "phone"} Name
                     %th Email
                     %th Roles
-                    %th{"data-hide" => "phone,tablet"}
-                      Actions
+                    -if has_permission("manage_consultants")
+                      %th{"data-hide" => "phone,tablet"}
+                        Actions
                 %tbody
                   - @consultants.each_with_index do |admin , index|
                     %tr
@@ -29,9 +31,10 @@
                       %td= link_to admin.full_name , '#' , target: '_blank'
                       %td= admin.email
                       %td= admin.roles.map(&:name).join(", ").gsub("_"," ").upcase
-                      %td
-                        = link_to raw("<i class='fa fa-pencil '></i>") , '#' , class: 'btn btn-xs btn-default btn-primary'
-                        = link_to raw("<i class='fa fa-times '></i>") , '#' , method: :delete ,  class: 'btn btn-xs btn-default btn-danger'
+                      -if has_permission("manage_consultants")
+                        %td
+                          = link_to raw("<i class='fa fa-pencil '></i>") , '#' , class: 'btn btn-xs btn-default btn-primary'
+                          = link_to raw("<i class='fa fa-times '></i>") , '#' , method: :delete ,  class: 'btn btn-xs btn-default btn-danger'
 
 - content_for :scripts do
   :javascript

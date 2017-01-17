@@ -2,6 +2,7 @@ class Company::LeavesController <Company::BaseController
 
   before_action :find_consultant
   before_action :find_leave ,only: [:show,:edit,:update,:destroy,:accept,:reject]
+  before_action :authorized_user , only: [:accept,:reject,:show]
 
   def index
     add_breadcrumb "Leaves", consultant_leaves_path(current_user)
@@ -78,6 +79,10 @@ class Company::LeavesController <Company::BaseController
         format.js{ flash[:errors] =  ["Request Not Completed."]}
       end
     end
+  end
+
+  def authorized_user
+    has_access?("manage_leaves")
   end
 
   private

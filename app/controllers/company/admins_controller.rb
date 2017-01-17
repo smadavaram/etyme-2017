@@ -1,6 +1,7 @@
 class Company::AdminsController < Company::BaseController
 
   add_breadcrumb "Admins", :admins_path, options: { title: "Admins" }
+  before_action :authorized_user ,only:  [:new ,:index]
 
   #CallBacks
   before_action :set_new_admin , only: [:new]
@@ -26,6 +27,12 @@ class Company::AdminsController < Company::BaseController
       return render 'new'
     end
   end
+
+  def authorized_user
+    has_access?("manage_company")
+  end
+
+
 
   private
 

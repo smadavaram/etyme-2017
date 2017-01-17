@@ -152,6 +152,7 @@ module ApplicationHelper
                     title: 'All Jobs',
                     content: "<span class='menu-item-parent'> All Posted Job(s) </span>"
                 },
+
                 {
                     href: job_invitations_path,
                     title: 'Job Invitations',
@@ -253,4 +254,7 @@ module ApplicationHelper
     raw(digg)
   end
 
+  def has_permission(permission)
+    current_user.has_permission(permission) || current_user.is_owner?
+  end
 end
