@@ -1,6 +1,7 @@
 class Company::CompaniesController < Company::BaseController
 
   before_action :find_admin, only: :change_owner
+  before_action :authorized_user , only: [:show]
 
   respond_to :html,:json
 
@@ -57,6 +58,12 @@ class Company::CompaniesController < Company::BaseController
       flash[:success]="Owner Changed"
     end
   end
+
+  def authorized_user
+    has_access?("manage_company")
+  end
+
+
 
   private
 

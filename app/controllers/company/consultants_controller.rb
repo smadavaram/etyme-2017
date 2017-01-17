@@ -1,6 +1,7 @@
 class Company::ConsultantsController < Company::BaseController
 
   add_breadcrumb "CONSULTANT", :consultants_path, options: { title: "CONSULTANT" }
+  before_action :authorized_user ,only:  [:new , :show]
 
   #CallBacks
   before_action :set_new_consultant , only: [:new]
@@ -25,6 +26,11 @@ class Company::ConsultantsController < Company::BaseController
       return render 'new'
     end
   end
+
+  def authorized_user
+    has_access?("manage_consultants")
+  end
+
 
 
 

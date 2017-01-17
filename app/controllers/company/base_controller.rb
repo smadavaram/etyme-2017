@@ -4,6 +4,15 @@ class Company::BaseController < ApplicationController
   layout 'company'
 
 
+  def has_access?(permission)
+    if current_user.has_permission(permission) || current_user.is_owner?
+      true
+    else
+      flash[:notice] = "You are not Authorized to Acess this Page"
+      redirect_to dashboard_path
+    end
+  end
+
 
   private
   def verify_company
