@@ -16,7 +16,7 @@
           .tab-content
             #tab-r1.tab-pane.active
               #hb2.tab-pane.active
-                %ul#internal-tab-1.nav.nav-tabs.tabs-pull-right
+                %ul#internal-tab-1.nav.nav-tabs.tabs-pull-right.sub-tab
                   %br
                   .input-group.input-group-lg.hidden-mobile
                     .input-group-btn
@@ -51,7 +51,7 @@
 
             #tab-r2.tab-pane
               #hb22.tab-pane.active
-              %ul#internal-tab-2.nav.nav-tabs.tabs-pull-right
+              %ul#internal-tab-2.nav.nav-tabs.tabs-pull-right.sub-tab
                 %br
                 .input-group.input-group-lg.hidden-mobile
                   .input-group-btn
@@ -90,6 +90,18 @@
     // DO NOT REMOVE : GLOBAL FUNCTIONS!
 
     $(document).ready(function() {
-      pageSetUp();
+
+    $('#myTab1 a[href="' + localStorage.getItem('mainActiveTab') + '"]').tab('show');
+
+    $('.sub-tab a[href="' + localStorage.getItem('subActiveTab') + '"]').tab('show');
+    pageSetUp();
+
+    });
+    $('#myTab1').on('show.bs.tab', function(e) {
+      localStorage.setItem('mainActiveTab', $(e.target).attr('href'));
+    });
+
+    $('.sub-tab').on('show.bs.tab', function(e) {
+      localStorage.setItem('subActiveTab', $(e.target).attr('href'));
     });
 
