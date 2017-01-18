@@ -23,7 +23,7 @@ class Invoice < ActiveRecord::Base
   after_create      :update_timesheet_status_to_invoiced , if: Proc.new{|invoice| !invoice.contract.has_child?}
   after_create      :notify_contract_responder
   after_update      :create_invoice_for_parent, if: Proc.new{|invoice| invoice.status_changed? && invoice.submitted? && invoice.contract.parent_contract?}
-  after_update      :notify_contract_creator , if: Proc.new{ |invoice| nvoice.status_changed?  && invoice.submitted?}
+  after_update      :notify_contract_creator , if: Proc.new{ |invoice| invoice.status_changed?  && invoice.submitted?}
 
   validate :start_date_cannot_be_less_than_end_date
   validate :contract_validation , if: Proc.new{|invoice| !invoice.contract.in_progress?}
