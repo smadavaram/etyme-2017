@@ -31,12 +31,9 @@
                           %a{:href => "javascript:void(0)"}
                             All
                         %li.divider
-                        %li
-                          %a{:href => "javascript:void(0)"} Rejected
-                        %li
-                          %a{:href => "javascript:void(0)"} Accepted
-                        %li
-                          %a{:href => "javascript:void(0)"} Pending
+                        - Contract.statuses.reverse_each do |value , key|
+                          %li
+                            %a{:href => "javascript:void(0)"} #{value.titleize}
                     %input#search-project.form-control.input-lg{:placeholder => "Search Contract...", :type => "text"}/
                     .input-group-btn
                       %button.btn.btn-default{:type => "submit"}
@@ -44,23 +41,17 @@
                         %i.fa.fa-fw.fa-search.fa-lg>
                         \  
                   %br 
-                  %li
-                    %a{"aria-expanded" => "false", "data-toggle" => "tab", :href => "#is4"} Rejected
-                  %li
-                    %a{"aria-expanded" => "false", "data-toggle" => "tab", :href => "#is1"} Accepted
-                  %li
-                    %a{"aria-expanded" => "false", "data-toggle" => "tab", :href => "#is2"} Pending
+                  - Contract.statuses.reverse_each do |value , key|
+                    %li
+                      %a{"aria-expanded" => "false", "data-toggle" => "tab", :href => "#is#{key}"} #{value.titleize}
                   %li.active
-                    %a{"aria-expanded" => "true", "data-toggle" => "tab", :href => "#is3"} All
+                    %a{"aria-expanded" => "true", "data-toggle" => "tab", :href => "#isall"} All
                 .tab-content.padding-10
-                  #is4.tab-pane
-                    = render partial: 'company/contracts/partials/contract_table' , locals: {data: @sent_contracts.rejected}
-                  #is1.tab-pane
-                    = render partial: 'company/contracts/partials/contract_table' , locals: {data: @sent_contracts.accepted}
-                  #is2.tab-pane.fade
-                    = render partial: 'company/contracts/partials/contract_table' , locals: {data: @sent_contracts.pending}
-                  #is3.tab-pane.fade.active.in
-                    = render partial: 'company/contracts/partials/contract_table' , locals: {data: @sent_contracts}
+                  - Contract.statuses.reverse_each do |value , key|
+                    .tab-pane{id: "is#{key}"}
+                      = render 'company/contracts/partials/receive_contract_table'  , data: @sent_contracts.where(status: key)
+                  #isall.tab-pane.fade.active.in
+                    = render 'company/contracts/partials/contract_table' , data: @sent_contracts
 
             #tab-r2.tab-pane
               #hb22.tab-pane.active
@@ -76,36 +67,27 @@
                         %a{:href => "javascript:void(0)"}
                           All
                       %li.divider
-                      %li
-                        %a{:href => "javascript:void(0)"} Rejected
-                      %li
-                        %a{:href => "javascript:void(0)"} Accepted
-                      %li
-                        %a{:href => "javascript:void(0)"} Pending
+                      - Contract.statuses.reverse_each do |value , key|
+                        %li
+                          %a{:href => "javascript:void(0)"} #{value.titleize}
                   %input#search-project.form-control.input-lg{:placeholder => "Search Contract...", :type => "text"}/
                   .input-group-btn
                     %button.btn.btn-default{:type => "submit"}
                       \   
                       %i.fa.fa-fw.fa-search.fa-lg>
                       \  
-                %br 
-                %li
-                  %a{"aria-expanded" => "false", "data-toggle" => "tab", :href => "#is-4"} Rejected
-                %li
-                  %a{"aria-expanded" => "false", "data-toggle" => "tab", :href => "#is-1"} Accepted
-                %li
-                  %a{"aria-expanded" => "false", "data-toggle" => "tab", :href => "#is-2"} Pending
+                %br
+                - Contract.statuses.reverse_each do |value , key|
+                  %li
+                    %a{"aria-expanded" => "false", "data-toggle" => "tab", :href => "#is-#{key}"} #{value.titleize}
                 %li.active
-                  %a{"aria-expanded" => "true", "data-toggle" => "tab", :href => "#is-3"} All
+                  %a{"aria-expanded" => "true", "data-toggle" => "tab", :href => "#is-all"} All
               .tab-content.padding-10
-                #is-4.tab-pane
-                  = render partial: 'company/contracts/partials/receive_contract_table'  , locals: {data: @received_contracts.rejected}
-                #is-1.tab-pane
-                  = render partial: 'company/contracts/partials/receive_contract_table'  , locals: {data: @received_contracts.accepted}
-                #is-2.tab-pane.fade
-                  = render partial: 'company/contracts/partials/receive_contract_table' , locals: {data: @received_contracts.pending}
-                #is-3.tab-pane.fade.active.in
-                  = render partial: 'company/contracts/partials/receive_contract_table' , locals: {data: @received_contracts}
+                - Contract.statuses.reverse_each do |value , key|
+                  .tab-pane{id: "is-#{key}"}
+                    = render 'company/contracts/partials/receive_contract_table'  , data: @received_contracts.where(status: key)
+                #is-all.tab-pane.fade.active.in
+                  = render 'company/contracts/partials/receive_contract_table' , data: @received_contracts
 - content_for :modals do
   #ajax-modal
 - content_for :scripts do
