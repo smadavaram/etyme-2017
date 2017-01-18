@@ -117,12 +117,12 @@
               Effect
             / LAYER NR. 3
             .tp-caption.black_heavy_70.skewfromleftshort.fadeout.tp-resizeme.rs-parallaxlevel-10{"data-easing" => "Power3.easeInOut", "data-elementdelay" => "0.1", "data-endelementdelay" => "0.1", "data-endspeed" => "300", "data-speed" => "500", "data-splitin" => "chars", "data-splitout" => "none", "data-start" => "2400", "data-x" => "717", "data-y" => "143", :style => "z-index: 4; max-width: auto; max-height: auto; white-space: nowrap;"}
-              Rendering
+              Jobs
             / LAYER NR. 4
             .tp-caption.black_bold_40.skewfromrightshort.fadeout.tp-resizeme.rs-parallaxlevel-10{"data-easing" => "Power3.easeInOut", "data-elementdelay" => "0.1", "data-endelementdelay" => "0.1", "data-endspeed" => "300", "data-speed" => "500", "data-splitin" => "chars", "data-splitout" => "none", "data-start" => "3200", "data-x" => "937", "data-y" => "282", :style => "z-index: 5; max-width: auto; max-height: auto; white-space: nowrap;"}
-              Improved!
+              Candidates
             .tp-caption.black_bold_bg_20.sfr.fadeout.tp-resizeme.rs-parallaxlevel-10{"data-easing" => "Power3.easeInOut", "data-elementdelay" => "0.1", "data-endelementdelay" => "0.1", "data-endspeed" => "300", "data-speed" => "300", "data-splitin" => "none", "data-splitout" => "none", "data-start" => "4000", "data-x" => "970", "data-y" => "367", :style => "z-index: 6; max-width: auto; max-height: auto; white-space: nowrap;"}
-              FASTER
+              Companies
             / LAYER NR. 6
             .tp-caption.greenbox30.customin.fadeout.tp-resizeme.rs-parallaxlevel-10{"data-customin" => "x:0;y:0;z:0;rotationX:0;rotationY:0;rotationZ:0;scaleX:0;scaleY:0;skewX:0;skewY:0;opacity:0;transformPerspective:600;transformOrigin:50% 50%;", "data-easing" => "Power3.easeInOut", "data-elementdelay" => "0.1", "data-endelementdelay" => "0.1", "data-endspeed" => "300", "data-speed" => "300", "data-splitin" => "none", "data-splitout" => "none", "data-start" => "4000", "data-x" => "939", "data-y" => "367", :style => "z-index: 7; max-width: auto; max-height: auto; white-space: nowrap;"}
                
@@ -131,7 +131,7 @@
               %img{:alt => "", "data-hh" => "17", "data-lazyload" => "#{image_path('slider/check.png')}", "data-ww" => "17", :src => "#{image_path('slider/dummy.png')}"}/
             / LAYER NR. 8
             .tp-caption.black_bold_bg_20.sfr.fadeout.tp-resizeme.rs-parallaxlevel-10{"data-easing" => "Power3.easeInOut", "data-elementdelay" => "0.1", "data-endelementdelay" => "0.1", "data-endspeed" => "300", "data-speed" => "300", "data-splitin" => "none", "data-splitout" => "none", "data-start" => "4500", "data-x" => "970", "data-y" => "407", :style => "z-index: 9; max-width: auto; max-height: auto; white-space: nowrap;"}
-              SMOOTHER
+              Company Signup
             / LAYER NR. 9
             .tp-caption.greenbox30.customin.fadeout.tp-resizeme.rs-parallaxlevel-10{"data-customin" => "x:0;y:0;z:0;rotationX:0;rotationY:0;rotationZ:0;scaleX:0;scaleY:0;skewX:0;skewY:0;opacity:0;transformPerspective:600;transformOrigin:50% 50%;", "data-easing" => "Power3.easeInOut", "data-elementdelay" => "0.1", "data-endelementdelay" => "0.1", "data-endspeed" => "300", "data-speed" => "300", "data-splitin" => "none", "data-splitout" => "none", "data-start" => "4500", "data-x" => "939", "data-y" => "407", :style => "z-index: 10; max-width: auto; max-height: auto; white-space: nowrap;"}
                
@@ -185,18 +185,22 @@
           .section-heading
             %h2 Find Jobs
             %p
-              We have many jobs like that you can apply for after sign in.
+              We have many jobs like that. you can apply for after sign in or sign up.
       .row
         .col-sm-12.col-md-12
-          - @jobs.each do |category,jobs|
-            .col-sm-3.col-xs-6
-              %h1
-                = category
-              %p{style: "font-size: 13px ; align: left"}
-                - jobs.each_with_index  do |job, index|
-                  %span
-                    = index>0 ? "," :""
-                    = link_to job.try(:title),static_job_path(job)
+          - if @jobs.present?
+            - @jobs.each do |category,jobs|
+              .col-sm-3.col-xs-6
+                %h1
+                  = category
+                %p{style: "font-size: 13px ; align: left"}
+                  - jobs.each_with_index  do |job, index|
+                    %span
+                      = index>0 ? "," :""
+                      = link_to job.try(:title),static_job_path(job)
+          - else
+            %h4
+              No Jobs Now!
 
           -#.panel
           -#  .panel.b-light.text-center{style:"border-color:thistle height: 100%"}
@@ -554,34 +558,34 @@
 / /Section: UPDATES
 / Section: #QUOTES
 -#%section#quotes.home-section.text-center.bg-gray
--#  .container
--#    .row
--#      .col-md-8.col-md-offset-2
--#        .quote
--#          %i.fa.fa-quote-left.fa-4x
--#        #fade-quote-carousel.carousel.slide{"data-interval" => "3000", "data-ride" => "carousel"}
--#          / Carousel indicators
--#          %ol.carousel-indicators
--#            %li.active{"data-slide-to" => "0", "data-target" => "#fade-quote-carousel"}
--#            %li{"data-slide-to" => "1", "data-target" => "#fade-quote-carousel"}
--#            %li{"data-slide-to" => "2", "data-target" => "#fade-quote-carousel"}
--#          / Carousel items
--#          .carousel-inner
--#            .active.item
--#              %blockquote
--#                %p Lorem ipsum dolor sit amet, consectetur adipisicing elit. Quidem, veritatis nulla eum laudantium totam tempore optio doloremque laboriosam quas.
--#              .profile-circle{:style => "background-color: rgba(0,0,0,.2);"}
--#            .item
--#              %blockquote
--#                %p Lorem ipsum dolor sit amet, eaque molestias odio aut eius animi. Impedit temporibus nisi accusamus.
--#              .profile-circle{:style => "background-color: rgba(77,5,51,.2);"}
--#            .item
--#              %blockquote
--#                %p Consectetur adipisicing elit. Quidem, veritatis  aut eius animi. Impedit temporibus nisi accusamus.
--#              .profile-circle{:style => "background-color: rgba(145,169,216,.2);"}
+  .container
+    .row
+      .col-md-8.col-md-offset-2
+        .quote
+          %i.fa.fa-quote-left.fa-4x
+        #fade-quote-carousel.carousel.slide{"data-interval" => "3000", "data-ride" => "carousel"}
+          / Carousel indicators
+          %ol.carousel-indicators
+            %li.active{"data-slide-to" => "0", "data-target" => "#fade-quote-carousel"}
+            %li{"data-slide-to" => "1", "data-target" => "#fade-quote-carousel"}
+            %li{"data-slide-to" => "2", "data-target" => "#fade-quote-carousel"}
+          / Carousel items
+          .carousel-inner
+            .active.item
+              %blockquote
+                %p Lorem ipsum dolor sit amet, consectetur adipisicing elit. Quidem, veritatis nulla eum laudantium totam tempore optio doloremque laboriosam quas.
+              .profile-circle{:style => "background-color: rgba(0,0,0,.2);"}
+            .item
+              %blockquote
+                %p Lorem ipsum dolor sit amet, eaque molestias odio aut eius animi. Impedit temporibus nisi accusamus.
+              .profile-circle{:style => "background-color: rgba(77,5,51,.2);"}
+            .item
+              %blockquote
+                %p Consectetur adipisicing elit. Quidem, veritatis  aut eius animi. Impedit temporibus nisi accusamus.
+              .profile-circle{:style => "background-color: rgba(145,169,216,.2);"}
 / /Section: QUOTES
 / Section: #CONTACT
-%section#contact.home-section.text-center
+%section#contact.home-section.text-center.bg-gray
   .heading-contact.marginbot-50
     .container
       .row
@@ -623,7 +627,7 @@
         .widget-contact.row
           .col-lg-6
             %address
-              %strong SMARTADMIN Ltd.
+              %strong Etyme Ltd.
               %br/
               Big Villa 334 Awesome, Beautiful Suite 1200
               %br/
@@ -644,9 +648,9 @@
   .container.custom-container.text-center
     %h2 We Always Try to Create a Difference
     %p
-      Thank you for buying this template :)
+      Thank you for visiting Etyme :)
     / Provides extra visual weight and identifies the primary action in a set of buttons
-    %a.btn.btn-default.btn-lg.purchase{:href => "https://bootstraphunter.com"} Purchase SmartAdmin
+    -#%a.btn.btn-default.btn-lg.purchase{:href => "https://bootstraphunter.com"} Purchase SmartAdmin
 -content_for :scripts do
 
   :javascript
