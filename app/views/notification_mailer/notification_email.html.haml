@@ -20,7 +20,7 @@
               %tr
                 %td
                   %h3 Hi, #{@notifiable.full_name}
-                  %p.lead #{@notification.message}
+                  %p.lead #{raw(@notification.message)}
                   = render 'user_mailer/partials/social_contact'
         %td
     / FOOTER

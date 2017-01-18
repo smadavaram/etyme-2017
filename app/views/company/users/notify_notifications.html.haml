@@ -10,4 +10,4 @@
           %time
             =time_ago_in_words(n.created_at)+' ago'
           %span.msg-body
-            = n.message
+            = raw(n.message)

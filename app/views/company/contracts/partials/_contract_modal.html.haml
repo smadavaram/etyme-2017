@@ -35,18 +35,12 @@
                 Start Date
                 %sup.text-danger *
               .col-md-4
-                -if contract.parent_contract?
-                  %input.edit_start_date.datepicker.form-control{:readonly => "readonly", :placeholder => "MM/DD/YY", :type => "text", name: "start_date", :required => true, :value => f.object.try(:start_date).try(:strftime,'%m/%d/%Y')}
-                -else
-                  = f.text_field :start_date ,class: "form-control" , required: 'required', placeholder: "Contract Start Date"
+                = f.text_field :start_date ,class: "form-control" , required: 'required', placeholder: "Contract Start Date"
               %label.col-md-2.control-label
                 End Date
                 %sup.text-danger *
               .col-md-4
-                -if contract.parent_contract?
-                  %input.edit_start_date.datepicker.form-control{:readonly => "readonly", :placeholder => "MM/DD/YY", :type => "text", name: "end_date", :required => true, :value => f.object.try(:end_date).try(:strftime,'%m/%d/%Y')}
-                -else
-                  = f.text_field :end_date ,class: "form-control" , required: 'required', placeholder: "Contract End Date"
+                = f.text_field :end_date ,class: "form-control" , required: 'required', placeholder: "Contract End Date"
 
             .form-group
               %label.col-md-2.control-label
@@ -56,17 +50,11 @@
             .form-group
               %label.col-md-2.control-label Invoicing Frequency
               .col-md-4.select
-                -if contract.parent_contract?
-                  %input.form-control{:readonly => "readonly", :type => "text",:required => true,name: "billing_frequency", :value => f.object.try(:billing_frequency)}
-                -else
-                  = f.select :billing_frequency , Contract.billing_frequencies.map { |key, value| [key.humanize, key] }, {} , {class: "form-control" }
+                = f.select :billing_frequency , Contract.billing_frequencies.map { |key, value| [key.humanize, key] }, {} , {class: "form-control" }
 
               %label.col-md-2.control-label Time Sheet Frequency
               .col-md-4.select
-                -if contract.parent_contract?
-                  %input.form-control{:readonly => "readonly", :type => "text",:required => true,name: "time_sheet_frequency", :value => f.object.try(:time_sheet_frequency)}
-                -else
-                  = f.select :time_sheet_frequency , Contract.time_sheet_frequencies.map { |key, value| [key.humanize, key] }, {},{class: "form-control" }
+                = f.select :time_sheet_frequency , Contract.time_sheet_frequencies.map { |key, value| [key.humanize, key] }, {},{class: "form-control" }
 
             - if is_applicant_is_consultant?(job_application)
               = render 'company/contracts/partials/commission' , f: f

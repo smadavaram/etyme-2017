@@ -1,14 +1,17 @@
 class Invoice < ActiveRecord::Base
 
+  include Rails.application.routes.url_helpers
+
   enum status: [:pending_submission,:submitted, :paid , :partially_paid , :cancelled ]
 
   belongs_to  :contract
+  belongs_to  :submitted_by   , class_name:"Admin", foreign_key: :submitted_by
+  belongs_to  :parent_invoice , class_name: "Invoice" , foreign_key: :parent_id
+  has_one     :child_invoice  , class_name: "Invoice", foreign_key: :parent_id
+  has_one     :company        , through: :company
   has_many    :timesheets
   has_many    :timesheet_logs , through: :timesheets
-  has_one     :company        , through: :company
-  belongs_to  :submitted_by   , class_name:"Admin", foreign_key: :submitted_by
-  belongs_to :parent_invoice , class_name: "Invoice" , foreign_key: :parent_id
-  has_one    :child_invoice, class_name: "Invoice", foreign_key: :parent_id
+
 
   before_validation :set_rate , on: :create
   before_validation :set_consultant_and_total_amount, on: :create , if: Proc.new{|invoice| !invoice.contract.has_child?}
@@ -18,7 +21,9 @@ class Invoice < ActiveRecord::Base
 
   after_create      :set_next_invoice_date , if: Proc.new{|invoice| !invoice.contract.has_child?}
   after_create      :update_timesheet_status_to_invoiced , if: Proc.new{|invoice| !invoice.contract.has_child?}
+  after_create      :notify_contract_responder
   after_update      :create_invoice_for_parent, if: Proc.new{|invoice| invoice.status_changed? && invoice.submitted? && invoice.contract.parent_contract?}
+  after_update      :notify_contract_creator , if: Proc.new{ |invoice| nvoice.status_changed?  && invoice.submitted?}
 
   validate :start_date_cannot_be_less_than_end_date
   validate :contract_validation , if: Proc.new{|invoice| !invoice.contract.in_progress?}
@@ -99,6 +104,14 @@ class Invoice < ActiveRecord::Base
     invoice.billing_amount     = invoice.total_amount - invoice.consultant_amount
     invoice.parent_id          = self.id
     invoice.save
+  end
+
+  def notify_contract_responder
+    self.contract.respond_by.notifications.create(message: "Your <a href='http://#{self.contract.respond_by.company.etyme_url + contract_invoice_path(self.contract , self)}'>Invoice</a> for <a href='http://#{self.contract.created_by.company.etyme_url + contract_path(self.contract)}'>contract</a>",title: "Invoice# #{self.id}")
+  end
+
+  def notify_contract_creator
+    self.contract.created_by.notifications.create(message: "Your <a href='http://#{self.contract.created_by.company.etyme_url + contract_invoice_path(self.contract , self)}'>Invoice</a> for <a href='http://#{self.contract.created_by.company.etyme_url + contract_path(self.contract)}'>contract</a>",title: "Invoice# #{self.id}")
   end
 
 end
