@@ -24,8 +24,9 @@
               %a.gn-icon.gn-icon-archive{:href => "#contact"} Contact
     / /gn-scroller
     %li.hidden-xs
-      %a{:href => "index.html"}
-        %img{:alt => "logo", :src => "#{image_path('etyme-logo-dark')}", :style => "width: 90px; margin-top: -4px;"}/
+      %a{:href => "/"}
+        = image_tag asset_path('etyme-logo-dark'),style: "width: 90px; margin-top: -4px;"
+        -#%img{:alt => "logo", :src => "#{image_path('etyme-logo-dark')}", :style => "width: 90px; margin-top: -4px;"}/
     %span#extr-page-header-space{style: 'margin-top: -8px; margin-right: 10px;'}
       %span.hidden-mobile.hiddex-xs= link_to  'Need an account?',new_candidate_registration_path
       = link_to 'Sign In', new_candidate_session_path, class: 'btn btn-danger' , style: 'color: #fff'
