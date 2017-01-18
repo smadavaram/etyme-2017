@@ -4,82 +4,52 @@
       .jarviswidget-editbox
       .widget-body
         %ul#myTab1.nav.nav-tabs.bordered
-          %li.active
-            %a{"data-toggle" => "tab", :href => "#tab-r1"}
-              %span.badge.bg-color-blue.txt-color-white= @received_job_applications.vendor.count
-              Vendors
-          %li
-            %a{"data-toggle" => "tab", :href => "#tab-r2"}
-              %span.badge.bg-color-blueDark.txt-color-white= @received_job_applications.candidate.count
-              Candidate
-          %li
-            %a{"data-toggle" => "tab", :href => "#tab-r3"}
-              %span.badge.bg-color-blueDark.txt-color-white= @received_job_applications.direct.count
-              Directly Applied
-          %li
-            %a{"data-toggle" => "tab", :href => "#tab-r4"}
-              %span.badge.bg-color-blueDark.txt-color-white= @received_job_applications.by_email.count
-              By Email
+          -JobApplication.application_types.each do |app_type_value , app_type_key|
+            %li{class: app_type_key == 0 ? 'active' : ''}
+              %a{"data-toggle" => "tab", :href => "#tab-r#{app_type_key}"}
+                %span.badge.bg-color-blue.txt-color-white= @received_job_applications.where(application_type: app_type_key).count
+                = app_type_value.titleize
         .col-md-12
           .tab-content
-            #tab-r1.tab-pane.active
-              #hb2.tab-pane.active
-                %ul#internal-tab-1.nav.nav-tabs.tabs-pull-right.sub-tab
-                  %br
-                  .input-group.input-group-lg.hidden-mobile
-                    .input-group-btn
-                      %button.btn.btn-default.dropdown-toggle.textbtn{"data-toggle" => "dropdown", :type => "button"}
-                        All
-                        %span.caret
-                      %ul.dropdown-menu
-                        %li.active
-                          %a{:href => "javascript:void(0)"}
-                            %i.fa.fa-check
-                            All
-                        %li.divider
-                        %li
-                          %a{:href => "javascript:void(0)"} Hired
-                        %li
-                          %a{:href => "javascript:void(0)"} Interviewing
-                        %li
-                          %a{:href => "javascript:void(0)"} Short Listed
-                        %li
-                          %a{:href => "javascript:void(0)"} Rejected
-                        %li
-                          %a{:href => "javascript:void(0)"} Pending Review
-                    %input#search-project.form-control.input-lg.textbtn{:placeholder => "Search Job Application...", :type => "text"}/
-                    .input-group-btn
-                      %button.btn.btn-default{:type => "submit"}
-                        \   
-                        %i.fa.fa-fw.fa-search.fa-lg>
-                        \
-                  %br  
-                  %li
-                    %a{"aria-expanded" => "false", "data-toggle" => "tab", :href => "#is6"} Hired
-                  %li
-                    %a{"aria-expanded" => "false", "data-toggle" => "tab", :href => "#is5"} Interviewing
-                  %li
-                    %a{"aria-expanded" => "false", "data-toggle" => "tab", :href => "#is4"} Short Listed
-                  %li
-                    %a{"aria-expanded" => "false", "data-toggle" => "tab", :href => "#is3"} Rejected
-                  %li
-                    %a{"aria-expanded" => "false", "data-toggle" => "tab", :href => "#is2"} Pending Review
-                  %li.active
-                    %a{"aria-expanded" => "true", "data-toggle" => "tab", :href => "#is1"} All
-                .tab-content.padding-10
-                  #is6.tab-pane
-                    = render  'company/job_applications/partials/application_table' ,data: @received_job_applications.vendor.hired
-                  #is5.tab-pane
-                    = render  'company/job_applications/partials/application_table' ,data: @received_job_applications.vendor.interviewing
-                  #is4.tab-pane
-                    = render  'company/job_applications/partials/application_table' ,data: @received_job_applications.vendor.short_listed
-                  #is3.tab-pane
-                    = render  'company/job_applications/partials/application_table' ,data: @received_job_applications.vendor.rejected
-                  #is2.tab-pane.fade
-                    = render  'company/job_applications/partials/application_table' ,data: @received_job_applications.vendor.pending_review
-                  #is1.tab-pane.fade.active.in
-                    = render  'company/job_applications/partials/application_table' ,data: @received_job_applications.vendor
+            -JobApplication.application_types.each do |app_type_value , app_type_key|
+              .tab-pane{id: "tab-r#{app_type_key}" , class: app_type_key == 0 ? 'active' : ''}
+                .tab-pane{id: "hb#{app_type_value}" , class: app_type_key == 0 ? 'active' : ''}
+                  %ul.nav.nav-tabs.tabs-pull-right.sub-tab{id: "internal-tab-#{app_type_value}"}
+                    %br
+                    .input-group.input-group-lg.hidden-mobile
+                      .input-group-btn
+                        %button.btn.btn-default.dropdown-toggle.textbtn{"data-toggle" => "dropdown", :type => "button"}
+                          All
+                          %span.caret
+                        %ul.dropdown-menu
+                          %li.active
+                            %a{:href => "javascript:void(0)"}
+                              %i.fa.fa-check
+                              All
+                          %li.divider
+                          - JobApplication.statuses.reverse_each do |value , key|
+                            %li
+                              %a{:href => "javascript:void(0)"} #{value.titleize}
+                      %input#search-project.form-control.input-lg.textbtn{:placeholder => "Search Job Application...", :type => "text"}/
+                      .input-group-btn
+                        %button.btn.btn-default{:type => "submit"}
+                          \   
+                          %i.fa.fa-fw.fa-search.fa-lg>
+                          \
+                    %br
+                    - JobApplication.statuses.reverse_each do |value , key|
+                      %li
+                        %a{"aria-expanded" => "false", "data-toggle" => "tab", :href => "#is#{key}-#{app_type_value}"} #{value.titleize} 
+                    %li.active
+                      %a{"aria-expanded" => "true", "data-toggle" => "tab", :href => "#is#{app_type_value}-all"} All
+                  .tab-content.padding-10
+                    - JobApplication.statuses.reverse_each do |value , key|
+                      .tab-pane.fade{id: "is#{key}-#{app_type_value}"}
+                        = render  'company/job_applications/partials/application_table' ,data: @received_job_applications.where(application_type: app_type_key , status: key)
+                    .tab-pane.fade.active.in{id: "is#{app_type_value}-all"}
+                      = render  'company/job_applications/partials/application_table' ,data: @received_job_applications.where(application_type: app_type_key)
 
+          -#%div
             #tab-r2.tab-pane
               #hb22.tab-pane.active
               %ul#internal-tab-2.nav.nav-tabs.tabs-pull-right.sub-tab

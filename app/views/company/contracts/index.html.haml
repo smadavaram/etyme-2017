@@ -49,7 +49,7 @@
                 .tab-content.padding-10
                   - Contract.statuses.reverse_each do |value , key|
                     .tab-pane{id: "is#{key}"}
-                      = render 'company/contracts/partials/receive_contract_table'  , data: @sent_contracts.where(status: key)
+                      = render 'company/contracts/partials/contract_table'  , data: @sent_contracts.where(status: key)
                   #isall.tab-pane.fade.active.in
                     = render 'company/contracts/partials/contract_table' , data: @sent_contracts
 
