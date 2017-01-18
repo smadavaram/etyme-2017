@@ -26,6 +26,7 @@ class StaticController < ApplicationController
   private
 
   def set_jobs
-    @jobs = Job.is_public.active.take(4)
+    @jobs = Job.is_public.active.group_by(&:job_category)
+    # puts @jobs.map(& :job_category)
   end
 end
