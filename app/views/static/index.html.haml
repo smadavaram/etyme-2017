@@ -1,0 +1,659 @@
+.container
+  / Section: #MENU
+  %ul#gn-menu.gn-menu-main
+    %li.gn-trigger
+      %a.gn-icon.gn-icon-menu
+        %span Menu
+      %nav.gn-menu-wrapper
+        .gn-scroller
+          %ul.gn-menu
+            %li.gn-search-item
+              %input.gn-search{:placeholder => "Search", :type => "search"}/
+              %a.gn-icon.gn-icon-search
+                %span Search
+            %li
+              %a.gn-icon.gn-icon-download{:href => "#pricing"} Jobs
+            -#%li
+            -#  %a.gn-icon.gn-icon-article{:href => "#team"} Team
+            -#%li
+            -#  %a.gn-icon.gn-icon-help{:href => "#features"} Features
+            -#%li
+            -#  %a.gn-icon.gn-icon-pictures{:href => "#screenshots"} Screenshots
+            -#%li
+            %li
+              %a.gn-icon.gn-icon-archive{:href => "#contact"} Contact
+    / /gn-scroller
+    %li.hidden-xs
+      %a{:href => "index.html"}
+        %img{:alt => "logo", :src => "#{image_path('etyme-logo-dark')}", :style => "width: 90px; margin-top: -4px;"}/
+    %li
+      %ul.company-social
+        %li.social-facebook
+          %a{:href => "javascript:void(0);", :target => "_blank"}
+            %i.fa.fa-facebook
+        %li.social-twitter
+          %a{:href => "javascript:void(0);", :target => "_blank"}
+            %i.fa.fa-twitter
+        %li.social-dribble
+          %a{:href => "javascript:void(0);", :target => "_blank"}
+            %i.fa.fa-dribbble
+        %li.social-google
+          %a{:href => "javascript:void(0);", :target => "_blank"}
+            %i.fa.fa-google-plus
+  / Section: #MENU
+/ Section: #INTRO
+%section.intro
+  .slogan
+    /
+      \#################################
+      \- THEMEPUNCH BANNER -
+      \#################################
+    .tp-banner-container
+      .tp-banner
+        %ul
+          / SLIDE
+          %li{"data-masterspeed" => "500", "data-saveperformance" => "on", "data-slotamount" => "7", "data-thumb" => "#{image_path('slider/homeslider_thumb1.jpg')}", "data-title" => "Intro Slide", "data-transition" => "fade"}
+            / MAIN IMAGE
+            %img{:alt => "slidebg1", "data-bgfit" => "cover", "data-bgposition" => "center top", "data-bgrepeat" => "no-repeat", "data-lazyload" => "#{image_path('slider/slidebg1.jpg')}", :src => "#{image_path('slider/dummy.png')}"}/
+            / LAYERS
+            / LAYER NR. 1
+            .tp-caption.lft.customout.rs-parallaxlevel-0{"data-customout" => "x:0;y:0;z:0;rotationX:0;rotationY:0;rotationZ:0;scaleX:0.75;scaleY:0.75;skewX:0;skewY:0;opacity:0;transformPerspective:600;transformOrigin:50% 50%;", "data-easing" => "Power3.easeInOut", "data-elementdelay" => "0.1", "data-endelementdelay" => "0.1", "data-speed" => "700", "data-start" => "1550", "data-x" => "695", "data-y" => "83", :style => "z-index: 2;"}
+              %img{:alt => "", "data-lazyload" => "#{image_path('slider/plate2.png')}", :src => "#{image_path('slider/dummy.png')}"}/
+            / LAYER NR. 2
+            .tp-caption.lft.customout.rs-parallaxlevel-0{"data-customout" => "x:0;y:0;z:0;rotationX:0;rotationY:0;rotationZ:0;scaleX:0.75;scaleY:0.75;skewX:0;skewY:0;opacity:0;transformPerspective:600;transformOrigin:50% 50%;", "data-easing" => "Power3.easeInOut", "data-elementdelay" => "0.1", "data-endelementdelay" => "0.1", "data-speed" => "700", "data-start" => "1400", "data-x" => "564", "data-y" => "96", :style => "z-index: 3;"}
+              %img{:alt => "", "data-lazyload" => "#{image_path('slider/plate1.png')}", :src => "#{image_path('slider/dummy.png')}"}/
+            / LAYER NR. 3
+            .tp-caption.lft.customout.rs-parallaxlevel-0{"data-customout" => "x:0;y:0;z:0;rotationX:0;rotationY:0;rotationZ:0;scaleX:0.75;scaleY:0.75;skewX:0;skewY:0;opacity:0;transformPerspective:600;transformOrigin:50% 50%;", "data-easing" => "Power3.easeInOut", "data-elementdelay" => "0.1", "data-endelementdelay" => "0.1", "data-speed" => "700", "data-start" => "1100", "data-x" => "480", "data-y" => "99", :style => "z-index: 4;"}
+              %img{:alt => "", "data-lazyload" => "#{image_path('slider/woman1.png')}", :src => "#{image_path('slider/dummy.png')}"}/
+            / LAYER NR. 4
+            .tp-caption.grey_heavy_72.skewfromrightshort.tp-resizeme.rs-parallaxlevel-0{"data-easing" => "Power3.easeInOut", "data-elementdelay" => "0.1", "data-endelementdelay" => "0.1", "data-speed" => "500", "data-splitin" => "chars", "data-splitout" => "none", "data-start" => "2250", "data-x" => "197", "data-y" => "154", :style => "z-index: 5; max-width: auto; max-height: auto; white-space: nowrap;"}
+              Better!
+            / LAYER NR. 5
+            .tp-caption.customin.rs-parallaxlevel-0{"data-customin" => "x:0;y:0;z:0;rotationX:0;rotationY:0;rotationZ:0;scaleX:0;scaleY:0;skewX:0;skewY:0;opacity:0;transformPerspective:600;transformOrigin:50% 50%;", "data-easing" => "Power3.easeInOut", "data-elementdelay" => "0.1", "data-endelementdelay" => "0.1", "data-speed" => "500", "data-start" => "2000", "data-x" => "86", "data-y" => "184", :style => "z-index: 6;"}
+              %img{:alt => "", "data-lazyload" => "#{image_path('slider/redbg.png')}", :src => "#{image_path('slider/dummy.png')}"}/
+            / LAYER NR. 6
+            .tp-caption.black_heavy_60.skewfromleftshort.tp-resizeme.rs-parallaxlevel-0{"data-easing" => "Power3.easeInOut", "data-elementdelay" => "0.1", "data-endelementdelay" => "0.1", "data-speed" => "500", "data-splitin" => "chars", "data-splitout" => "none", "data-start" => "1850", "data-x" => "-2", "data-y" => "133", :style => "z-index: 7; max-width: auto; max-height: auto; white-space: nowrap;"}
+              Now
+            / LAYER NR. 7
+            .tp-caption.white_heavy_40.customin.tp-resizeme.rs-parallaxlevel-0{"data-customin" => "x:0;y:0;z:0;rotationX:0;rotationY:0;rotationZ:0;scaleX:0;scaleY:0;skewX:0;skewY:0;opacity:0;transformPerspective:600;transformOrigin:50% 50%;", "data-easing" => "Power3.easeInOut", "data-elementdelay" => "0.1", "data-endelementdelay" => "0.1", "data-speed" => "500", "data-splitin" => "none", "data-splitout" => "none", "data-start" => "2050", "data-x" => "98", "data-y" => "187", :style => "z-index: 8; max-width: auto; max-height: auto; white-space: nowrap;"}
+              Even
+            / LAYER NR. 8
+            .tp-caption.grey_regular_18.customin.tp-resizeme.rs-parallaxlevel-0{"data-customin" => "x:0;y:0;z:0;rotationX:0;rotationY:0;rotationZ:0;scaleX:0;scaleY:0;skewX:0;skewY:0;opacity:0;transformPerspective:600;transformOrigin:50% 50%;", "data-easing" => "Power3.easeInOut", "data-elementdelay" => "0.05", "data-endelementdelay" => "0.1", "data-speed" => "500", "data-splitin" => "none", "data-splitout" => "none", "data-start" => "2600", "data-x" => "78", "data-y" => "318", :style => "z-index: 9; max-width: auto; max-height: auto; white-space: nowrap;"}
+              %div{:style => "text-align:center;"}
+                Etyme is highly acclaimed
+                %br/
+                WebApp hydra template with
+                %br/
+                multiple versions has been the
+                %br/
+                solution for many businesses
+                %br/
+                and have greatly been appricated
+                %br/
+                by developers world wide.
+            / LAYER NR. 9
+            .tp-caption.black_thin_34.customin.tp-resizeme.rs-parallaxlevel-0{"data-customin" => "x:0;y:0;z:0;rotationX:90;rotationY:0;rotationZ:0;scaleX:1;scaleY:1;skewX:0;skewY:0;opacity:0;transformPerspective:200;transformOrigin:50% 0%;", "data-easing" => "Back.easeOut", "data-elementdelay" => "0.1", "data-endelementdelay" => "0.1", "data-speed" => "500", "data-splitin" => "none", "data-splitout" => "none", "data-start" => "2350", "data-x" => "58", "data-y" => "238", :style => "z-index: 10; max-width: auto; max-height: auto; white-space: nowrap;"}
+              Packed with features!
+            / LAYER NR. 10
+            .tp-caption.customin.rs-parallaxlevel-0{"data-customin" => "x:0;y:0;z:0;rotationX:0;rotationY:0;rotationZ:0;scaleX:0;scaleY:0;skewX:0;skewY:0;opacity:0;transformPerspective:600;transformOrigin:50% 50%;", "data-easing" => "Power3.easeInOut", "data-elementdelay" => "0.1", "data-endelementdelay" => "0.1", "data-speed" => "300", "data-start" => "2500", "data-x" => "6", "data-y" => "290", :style => "z-index: 11;"}
+              %img{:alt => "", "data-lazyload" => "#{image_path('slider/greyline.png')}", :src => "#{image_path('slider/dummy.png')}"}/
+            / LAYER NR. 11
+            .tp-caption.customin.tp-resizeme.rs-parallaxlevel-0{"data-customin" => "x:0;y:0;z:0;rotationX:0;rotationY:0;rotationZ:0;scaleX:0;scaleY:0;skewX:0;skewY:0;opacity:0;transformPerspective:600;transformOrigin:50% 50%;", "data-easing" => "Power3.easeInOut", "data-elementdelay" => "0.1", "data-endelementdelay" => "0.1", "data-linktoslide" => "next", "data-speed" => "500", "data-splitin" => "none", "data-splitout" => "none", "data-start" => "2900", "data-x" => "73", "data-y" => "502", :style => "z-index: 12; max-width: auto; max-height: auto; white-space: nowrap;"}
+              %a.largeredbtn{:href => "#"} CONTINUE THE TOUR
+            / LAYER NR. 12
+            .tp-caption.arrowicon.customin.rs-parallaxlevel-0{"data-customin" => "x:0;y:0;z:0;rotationX:0;rotationY:0;rotationZ:0;scaleX:0;scaleY:0;skewX:0;skewY:0;opacity:0;transformPerspective:600;transformOrigin:50% 50%;", "data-easing" => "Power3.easeInOut", "data-elementdelay" => "0.1", "data-endelementdelay" => "0.1", "data-linktoslide" => "next", "data-speed" => "300", "data-start" => "3200", "data-x" => "303", "data-y" => "526", :style => "z-index: 13;"}
+              .rs-slideloop{"data-easing" => "Power3.easeInOut", "data-speed" => "0.5", "data-xe" => "5", "data-xs" => "-5", "data-ye" => "0", "data-ys" => "0"}
+                %img{:alt => "", "data-hh" => "11", "data-lazyload" => "#{image_path('slider/doublearrow2.png')}", "data-ww" => "18", :src => "#{image_path('slider/dummy.png')}"}/
+          / SLIDE
+          %li{"data-delay" => "10000", "data-masterspeed" => "2000", "data-saveperformance" => "on", "data-slotamount" => "7", "data-thumb" => "#{image_path('slider/homeslider_thumb2.jpg')}", "data-title" => "Slide", "data-transition" => "slideleft"}
+            / MAIN IMAGE
+            %img{:alt => "laptopmockup_sliderdy", "data-bgfit" => "115", "data-bgfitend" => "100", "data-bgposition" => "right top", "data-bgpositionend" => "center bottom", "data-duration" => "12000", "data-ease" => "Power0.easeInOut", "data-kenburns" => "on", "data-lazyload" => "#{image_path('slider/laptopmockup_sliderdy.jpg')}", :src => "#{image_path('slider/dummy.png')}"}/
+            / LAYERS
+            / LAYER NR. 1
+            .tp-caption.customin.fadeout.rs-parallaxlevel-10{"data-customin" => "x:0;y:0;z:0;rotationX:0;rotationY:0;rotationZ:0;scaleX:0;scaleY:0;skewX:0;skewY:0;opacity:0;transformPerspective:600;transformOrigin:50% 50%;", "data-easing" => "Power3.easeInOut", "data-elementdelay" => "0.1", "data-endelementdelay" => "0.1", "data-endspeed" => "300", "data-speed" => "300", "data-start" => "2700", "data-x" => "848", "data-y" => "196", :style => "z-index: 2;"}
+              %img{:alt => "", "data-lazyload" => "#{image_path('slider/redbg_big.png')}", :src => "#{image_path('slider/dummy.png')}"}/
+            / LAYER NR. 2
+            .tp-caption.light_heavy_70.customin.fadeout.tp-resizeme.rs-parallaxlevel-10{"data-customin" => "x:0;y:0;z:0;rotationX:0;rotationY:0;rotationZ:0;scaleX:0;scaleY:0;skewX:0;skewY:0;opacity:0;transformPerspective:600;transformOrigin:50% 50%;", "data-easing" => "Power3.easeInOut", "data-elementdelay" => "0.1", "data-endelementdelay" => "0.1", "data-endspeed" => "300", "data-speed" => "300", "data-splitin" => "none", "data-splitout" => "none", "data-start" => "2850", "data-x" => "862", "data-y" => "204", :style => "z-index: 3; max-width: auto; max-height: auto; white-space: nowrap;"}
+              Effect
+            / LAYER NR. 3
+            .tp-caption.black_heavy_70.skewfromleftshort.fadeout.tp-resizeme.rs-parallaxlevel-10{"data-easing" => "Power3.easeInOut", "data-elementdelay" => "0.1", "data-endelementdelay" => "0.1", "data-endspeed" => "300", "data-speed" => "500", "data-splitin" => "chars", "data-splitout" => "none", "data-start" => "2400", "data-x" => "717", "data-y" => "143", :style => "z-index: 4; max-width: auto; max-height: auto; white-space: nowrap;"}
+              Jobs
+            / LAYER NR. 4
+            .tp-caption.black_bold_40.skewfromrightshort.fadeout.tp-resizeme.rs-parallaxlevel-10{"data-easing" => "Power3.easeInOut", "data-elementdelay" => "0.1", "data-endelementdelay" => "0.1", "data-endspeed" => "300", "data-speed" => "500", "data-splitin" => "chars", "data-splitout" => "none", "data-start" => "3200", "data-x" => "937", "data-y" => "282", :style => "z-index: 5; max-width: auto; max-height: auto; white-space: nowrap;"}
+              Candidates
+            .tp-caption.black_bold_bg_20.sfr.fadeout.tp-resizeme.rs-parallaxlevel-10{"data-easing" => "Power3.easeInOut", "data-elementdelay" => "0.1", "data-endelementdelay" => "0.1", "data-endspeed" => "300", "data-speed" => "300", "data-splitin" => "none", "data-splitout" => "none", "data-start" => "4000", "data-x" => "970", "data-y" => "367", :style => "z-index: 6; max-width: auto; max-height: auto; white-space: nowrap;"}
+              Companies
+            / LAYER NR. 6
+            .tp-caption.greenbox30.customin.fadeout.tp-resizeme.rs-parallaxlevel-10{"data-customin" => "x:0;y:0;z:0;rotationX:0;rotationY:0;rotationZ:0;scaleX:0;scaleY:0;skewX:0;skewY:0;opacity:0;transformPerspective:600;transformOrigin:50% 50%;", "data-easing" => "Power3.easeInOut", "data-elementdelay" => "0.1", "data-endelementdelay" => "0.1", "data-endspeed" => "300", "data-speed" => "300", "data-splitin" => "none", "data-splitout" => "none", "data-start" => "4000", "data-x" => "939", "data-y" => "367", :style => "z-index: 7; max-width: auto; max-height: auto; white-space: nowrap;"}
+               
+            / LAYER NR. 7
+            .tp-caption.arrowicon.customin.fadeout.rs-parallaxlevel-10{"data-customin" => "x:0;y:0;z:0;rotationX:0;rotationY:0;rotationZ:0;scaleX:0;scaleY:0;skewX:0;skewY:0;opacity:0;transformPerspective:600;transformOrigin:50% 50%;", "data-easing" => "Power3.easeInOut", "data-elementdelay" => "0.1", "data-endelementdelay" => "0.1", "data-endspeed" => "300", "data-speed" => "300", "data-start" => "4200", "data-x" => "948", "data-y" => "374", :style => "z-index: 8;"}
+              %img{:alt => "", "data-hh" => "17", "data-lazyload" => "#{image_path('slider/check.png')}", "data-ww" => "17", :src => "#{image_path('slider/dummy.png')}"}/
+            / LAYER NR. 8
+            .tp-caption.black_bold_bg_20.sfr.fadeout.tp-resizeme.rs-parallaxlevel-10{"data-easing" => "Power3.easeInOut", "data-elementdelay" => "0.1", "data-endelementdelay" => "0.1", "data-endspeed" => "300", "data-speed" => "300", "data-splitin" => "none", "data-splitout" => "none", "data-start" => "4500", "data-x" => "970", "data-y" => "407", :style => "z-index: 9; max-width: auto; max-height: auto; white-space: nowrap;"}
+              Company Signup
+            / LAYER NR. 9
+            .tp-caption.greenbox30.customin.fadeout.tp-resizeme.rs-parallaxlevel-10{"data-customin" => "x:0;y:0;z:0;rotationX:0;rotationY:0;rotationZ:0;scaleX:0;scaleY:0;skewX:0;skewY:0;opacity:0;transformPerspective:600;transformOrigin:50% 50%;", "data-easing" => "Power3.easeInOut", "data-elementdelay" => "0.1", "data-endelementdelay" => "0.1", "data-endspeed" => "300", "data-speed" => "300", "data-splitin" => "none", "data-splitout" => "none", "data-start" => "4500", "data-x" => "939", "data-y" => "407", :style => "z-index: 10; max-width: auto; max-height: auto; white-space: nowrap;"}
+               
+            / LAYER NR. 10
+            .tp-caption.arrowicon.customin.fadeout.rs-parallaxlevel-10{"data-customin" => "x:0;y:0;z:0;rotationX:0;rotationY:0;rotationZ:0;scaleX:0;scaleY:0;skewX:0;skewY:0;opacity:0;transformPerspective:600;transformOrigin:50% 50%;", "data-easing" => "Power3.easeInOut", "data-elementdelay" => "0.1", "data-endelementdelay" => "0.1", "data-endspeed" => "300", "data-speed" => "300", "data-start" => "4700", "data-x" => "948", "data-y" => "414", :style => "z-index: 11;"}
+              %img{:alt => "", "data-hh" => "17", "data-lazyload" => "#{image_path('slider/check.png')}", "data-ww" => "17", :src => "#{image_path('slider/dummy.png')}"}/
+            / LAYER NR. 11
+            .tp-caption.black_bold_bg_20.sfr.fadeout.tp-resizeme.rs-parallaxlevel-10{"data-easing" => "Power3.easeInOut", "data-elementdelay" => "0.1", "data-endelementdelay" => "0.1", "data-endspeed" => "300", "data-speed" => "300", "data-splitin" => "none", "data-splitout" => "none", "data-start" => "5000", "data-x" => "970", "data-y" => "447", :style => "z-index: 12; max-width: auto; max-height: auto; white-space: nowrap;"}
+              EASY TO USE
+            / LAYER NR. 12
+            .tp-caption.greenbox30.customin.fadeout.tp-resizeme.rs-parallaxlevel-10{"data-customin" => "x:0;y:0;z:0;rotationX:0;rotationY:0;rotationZ:0;scaleX:0;scaleY:0;skewX:0;skewY:0;opacity:0;transformPerspective:600;transformOrigin:50% 50%;", "data-easing" => "Power3.easeInOut", "data-elementdelay" => "0.1", "data-endelementdelay" => "0.1", "data-endspeed" => "300", "data-speed" => "300", "data-splitin" => "none", "data-splitout" => "none", "data-start" => "5000", "data-x" => "939", "data-y" => "447", :style => "z-index: 13; max-width: auto; max-height: auto; white-space: nowrap;"}
+               
+            / LAYER NR. 13
+            .tp-caption.arrowicon.customin.fadeout.rs-parallaxlevel-10{"data-customin" => "x:0;y:0;z:0;rotationX:0;rotationY:0;rotationZ:0;scaleX:0;scaleY:0;skewX:0;skewY:0;opacity:0;transformPerspective:600;transformOrigin:50% 50%;", "data-easing" => "Power3.easeInOut", "data-elementdelay" => "0.1", "data-endelementdelay" => "0.1", "data-endspeed" => "300", "data-speed" => "300", "data-start" => "5200", "data-x" => "948", "data-y" => "454", :style => "z-index: 14;"}
+              %img{:alt => "", "data-hh" => "17", "data-lazyload" => "#{image_path('slider/check.png')}", "data-ww" => "17", :src => "#{image_path('slider/dummy.png')}"}/
+          / SLIDE
+          %li{"data-masterspeed" => "1500", "data-saveperformance" => "on", "data-slotamount" => "7", "data-thumb" => "#{image_path('slider/homeslider_thumb4.jpg')}", "data-title" => "Mobile Interaction", "data-transition" => "zoomin"}
+            / MAIN IMAGE
+            %img{:alt => "slidebg1", "data-bgfit" => "cover", "data-bgposition" => "center top", "data-bgrepeat" => "no-repeat", "data-lazyload" => "#{image_path('slider/slidebg1.jpg')}", :src => "#{image_path('slider/dummy.png')}"}/
+            / LAYERS
+            / LAYER NR. 1
+            .tp-caption.lfb.rs-parallaxlevel-9{"data-easing" => "Power4.easeInOut", "data-elementdelay" => "0.1", "data-endelementdelay" => "0.1", "data-endspeed" => "300", "data-hoffset" => "-40", "data-speed" => "1500", "data-start" => "2400", "data-voffset" => "-10", "data-x" => "center", "data-y" => "bottom", :style => "z-index: 2;"}
+              %img{:alt => "", "data-lazyload" => "#{image_path('slider/ipad2.png')}", :src => "#{image_path('slider/dummy.png')}"}/
+            / LAYER NR. 2
+            .tp-caption.customin.rs-parallaxlevel-1{"data-customin" => "x:0;y:0;z:0;rotationX:0;rotationY:0;rotationZ:0;scaleX:0;scaleY:0;skewX:0;skewY:0;opacity:0;transformPerspective:600;transformOrigin:50% 50%;", "data-easing" => "Power4.easeInOut", "data-elementdelay" => "0.1", "data-endelementdelay" => "0.1", "data-endspeed" => "300", "data-speed" => "500", "data-start" => "4400", "data-x" => "515", "data-y" => "331", :style => "z-index: 3;"}
+              .rs-pulse{"data-easing" => "Power4.easeInOut", "data-speed" => "0.5", "data-zoomend" => "1", "data-zoomstart" => "0.75"}
+                %img{:alt => "", "data-lazyload" => "#{image_path('slider/pulse1.png')}", :src => "#{image_path('slider/dummy.png')}"}/
+            / LAYER NR. 4
+            .tp-caption.lfb.rs-parallaxlevel-9{"data-easing" => "Power4.easeInOut", "data-elementdelay" => "0.1", "data-endelementdelay" => "0.1", "data-endspeed" => "300", "data-speed" => "1500", "data-start" => "2900", "data-x" => "693", "data-y" => "191", :style => "z-index: 5;"}
+              %img{:alt => "", "data-lazyload" => "#{image_path('slider/iphone.png')}", :src => "#{image_path('slider/dummy.png')}"}/
+            / LAYER NR. 5
+            .tp-caption.black_heavy_70.customin.randomrotateout.tp-resizeme.rs-parallaxlevel-5{"data-customin" => "x:0;y:100;z:0;rotationX:0;rotationY:0;rotationZ:0;scaleX:1;scaleY:3;skewX:0;skewY:0;opacity:0;transformPerspective:600;transformOrigin:0% 0%;", "data-easing" => "Power3.easeInOut", "data-elementdelay" => "0.1", "data-endelementdelay" => "0.1", "data-endspeed" => "600", "data-speed" => "500", "data-splitin" => "chars", "data-splitout" => "none", "data-start" => "1400", "data-x" => "315", "data-y" => "40", :style => "z-index: 6; max-width: auto; max-height: auto; white-space: nowrap;"}
+              Mobile
+            / LAYER NR. 6
+            .tp-caption.customin.randomrotateout.rs-parallaxlevel-7{"data-customin" => "x:0;y:0;z:0;rotationX:0;rotationY:0;rotationZ:0;scaleX:0;scaleY:0;skewX:0;skewY:0;opacity:0;transformPerspective:600;transformOrigin:50% 50%;", "data-easing" => "Power3.easeInOut", "data-elementdelay" => "0.1", "data-endelementdelay" => "0.1", "data-endspeed" => "600", "data-speed" => "300", "data-start" => "1900", "data-x" => "434", "data-y" => "98", :style => "z-index: 7;"}
+              %img{:alt => "", "data-lazyload" => "#{image_path('slider/largegreen.png')}", :src => "#{image_path('slider/dummy.png')}"}/
+            / LAYER NR. 7
+            .tp-caption.light_heavy_70.customin.randomrotateout.tp-resizeme.rs-parallaxlevel-7{"data-customin" => "x:0;y:0;z:0;rotationX:0;rotationY:0;rotationZ:0;scaleX:0;scaleY:0;skewX:0;skewY:0;opacity:0;transformPerspective:600;transformOrigin:50% 50%;", "data-easing" => "Power3.easeInOut", "data-elementdelay" => "0.1", "data-endelementdelay" => "0.1", "data-endspeed" => "600", "data-speed" => "300", "data-splitin" => "none", "data-splitout" => "none", "data-start" => "2200", "data-x" => "448", "data-y" => "106", :style => "z-index: 8; max-width: auto; max-height: auto; white-space: nowrap;"}
+              Device
+            / LAYER NR. 8
+            .tp-caption.black_bold_40.skewfromrightshort.randomrotateout.tp-resizeme.rs-parallaxlevel-6{"data-easing" => "Power3.easeInOut", "data-elementdelay" => "0.1", "data-endelementdelay" => "0.1", "data-endspeed" => "600", "data-speed" => "500", "data-splitin" => "chars", "data-splitout" => "none", "data-start" => "2500", "data-x" => "619", "data-y" => "177", :style => "z-index: 9; max-width: auto; max-height: auto; white-space: nowrap;"}
+              Friendly
+        .tp-bannertimer
+/ /Section: INTRO
+/ Section: #PRICING
+%section#pricing.home-section.text-center
+  .heading-about.marginbot-50
+    .container
+      .row
+        .col-lg-8.col-lg-offset-2
+          .section-heading
+            %h2 Find Jobs
+            %p
+              We have many jobs like that. you can apply for after sign in or sign up.
+      .row
+        .col-sm-12.col-md-12
+          - if @jobs.present?
+            - @jobs.each do |category,jobs|
+              .col-sm-3.col-xs-6
+                %h1
+                  = category
+                %p{style: "font-size: 13px ; align: left"}
+                  - jobs.each_with_index  do |job, index|
+                    %span
+                      = index>0 ? "," :""
+                      = link_to job.try(:title),static_job_path(job)
+          - else
+            %h4
+              No Jobs Now!
+
+          -#.panel
+          -#  .panel.b-light.text-center{style:"border-color:thistle height: 100%"}
+          -#    %header.panel-heading.bg-color-white{:style => "display: table; width: 100%; height: 100%;"}
+          -#      %h3.equal-height
+          -#        = category
+                -#  %br
+                -#  %span.h4.text-muted
+                -#    = job.job_category
+                -#%ul.list-group
+                -#  %li.list-group-item
+                -#    %p.h4
+                -#      = job.company.name.titleize
+                -#  %li.list-group-item.text-muted.text-center{:style => "text-align: justify; font-size: 14px; height: 140px;"}
+                -#    = truncate(strip_tags(job.description),length: 200)
+                -#.pannel-footer.b-light.links{:style => ""}
+                -#  = link_to 'Apply',candidate_signed_in? ? static_job_apply_path(job,status:true)  : static_job_apply_path(job,status: false) ,method: :post,remote: true ,class: "btn btn-primary size #{current_candidate.present? ?  (current_candidate.is_already_applied?(job.id) ? 'disabled' : " ") :''  } "
+                -#  = link_to 'View Detail',static_job_path(job), class: 'btn btn-primary size'
+      -#.col-xs-12.col-sm-6.col-md-3
+      -#  .panel.panel-success.pricing-big
+      -#    .panel-heading
+      -#      %h3.panel-title
+      -#        Personal Project
+      -#    .panel-body.no-padding.text-align-center
+      -#      .the-price
+      -#        %h1
+      -#          $99
+      -#          %span.subscript / mo
+      -#      .price-features
+      -#        %ul.list-unstyled.text-left
+      -#          %li
+      -#            %i.fa.fa-check.text-success
+      -#            2 years access
+      -#            %strong to all storage locations
+      -#          %li
+      -#            %i.fa.fa-check.text-success
+      -#            %strong Unlimited
+      -#            storage
+      -#          %li
+      -#            %i.fa.fa-check.text-success
+      -#            Superbig
+      -#            %strong download quota
+      -#          %li
+      -#            %i.fa.fa-check.text-success
+      -#            %strong Smart File Storage
+      -#          %li
+      -#            %i.fa.fa-check.text-success
+      -#            All time
+      -#            %strong updates
+      -#          %li
+      -#            %i.fa.fa-check.text-success
+      -#            %strong Unlimited
+      -#            access to all files
+      -#          %li
+      -#            %i.fa.fa-check.text-success
+      -#            %strong Allowed
+      -#            to be exclusing per sale
+      -#    .panel-footer.text-align-center
+      -#      %a.btn.btn-primary.btn-block{:href => "javascript:void(0);", :role => "button"}
+      -#        Purchase
+      -#        %span via Paypal
+      -#      %div
+      -#        %a{:href => "javascript:void(0);"}
+      -#          %i We accept all major credit cards
+      -#.col-xs-12.col-sm-6.col-md-3
+      -#  .panel.panel-primary.pricing-big
+      -#    %img.ribbon{:alt => "ribbon", :src => "#{image_path('ribbon.png')}"}/
+      -#    .panel-heading
+      -#      %h3.panel-title
+      -#        Developer Bundle
+      -#    .panel-body.no-padding.text-align-center
+      -#      .the-price
+      -#        %h1
+      -#          $350
+      -#          %span.subscript / mo
+      -#      .price-features
+      -#        %ul.list-unstyled.text-left
+      -#          %li
+      -#            %i.fa.fa-check.text-success
+      -#            2 years access
+      -#            %strong to all storage locations
+      -#          %li
+      -#            %i.fa.fa-check.text-success
+      -#            %strong Unlimited
+      -#            storage
+      -#          %li
+      -#            %i.fa.fa-check.text-success
+      -#            Superbig
+      -#            %strong download quota
+      -#          %li
+      -#            %i.fa.fa-check.text-success
+      -#            %strong Smart File Storage
+      -#          %li
+      -#            %i.fa.fa-check.text-success
+      -#            All time
+      -#            %strong updates
+      -#          %li
+      -#            %i.fa.fa-check.text-success
+      -#            %strong Unlimited
+      -#            access to all files
+      -#          %li
+      -#            %i.fa.fa-check.text-success
+      -#            %strong Allowed
+      -#            to be exclusing per sale
+      -#    .panel-footer.text-align-center
+      -#      %a.btn.btn-primary.btn-block{:href => "javascript:void(0);", :role => "button"}
+      -#        Purchase
+      -#        %span via Paypal
+      -#      %div
+      -#        %a{:href => "javascript:void(0);"}
+      -#          %i We accept all major credit cards
+      -#.col-xs-12.col-sm-6.col-md-3
+      -#  .panel.panel-danger.pricing-big
+      -#    .panel-heading
+      -#      %h3.panel-title
+      -#        Premium Package
+      -#    .panel-body.no-padding.text-align-center
+      -#      .the-price
+      -#        %h1
+      -#          $999
+      -#          %span.subscript / mo
+      -#      .price-features
+      -#        %ul.list-unstyled.text-left
+      -#          %li
+      -#            %i.fa.fa-check.text-success
+      -#            Lifetime access
+      -#            %strong to all storage locations
+      -#          %li
+      -#            %i.fa.fa-check.text-success
+      -#            %strong Unlimited
+      -#            storage
+      -#          %li
+      -#            %i.fa.fa-check.text-success
+      -#            Superbig
+      -#            %strong download quota
+      -#          %li
+      -#            %i.fa.fa-check.text-success
+      -#            %strong Smart File Storage
+      -#          %li
+      -#            %i.fa.fa-check.text-success
+      -#            All time
+      -#            %strong updates
+      -#          %li
+      -#            %i.fa.fa-check.text-success
+      -#            %strong Unlimited
+      -#            access to all files
+      -#          %li
+      -#            %i.fa.fa-check.text-success
+      -#            %strong Allowed
+      -#            to be exclusing per sale
+      -#    .panel-footer.text-align-center
+      -#      %a.btn.btn-primary.btn-block{:href => "javascript:void(0);", :role => "button"}
+      -#        Purchase
+      -#        %span via Paypal
+      -#      %div
+      -#        %a{:href => "javascript:void(0);"}
+      -#          %i We accept all major credit cards
+/ /Section: PRICING
+/ Section: #TEAM
+-#%section#team.home-section.text-center.bg-gray
+-#  .heading-about.marginbot-50
+-#    .container
+-#      .row
+-#        .col-lg-8.col-lg-offset-2
+-#          .section-heading
+-#            %h2 SmartAdmin Team
+-#            %p
+-#              Lorem ipsum dolor sit amet, no nisl mentitum recusabo per, vim at blandit qualisque dissentiunt. Diam efficiantur conclusionemque ut has
+-#  .container
+-#    .row
+-#      .col-xs-12.col-sm-3.col-md-3
+-#        .team.boxed-grey
+-#          .inner
+-#            %h5 John Doe
+-#            %p.subtitle
+-#              CEO
+-#            .avatar
+-#              %img.img-responsive{:alt => "", :src => "#{image_path('team/1.jpg')}"}/
+-#      .col-xs-12.col-sm-3.col-md-3
+-#        .team.boxed-grey
+-#          .inner
+-#            %h5 Barley Kazurkth
+-#            %p.subtitle
+-#              Marketing Director
+-#            .avatar
+-#              %img.img-responsive{:alt => "", :src => "#{image_path('team/2.jpg')}"}/
+-#      .col-xs-12.col-sm-3.col-md-3
+-#        .team.boxed-grey
+-#          .inner
+-#            %h5 Sadi Orlaf
+-#            %p.subtitle
+-#              Marketing Executive
+-#            .avatar
+-#              %img.img-responsive{:alt => "", :src => "#{image_path('team/3.jpg')}"}/
+-#      .col-xs-12.col-sm-3.col-md-3
+-#        .team.boxed-grey
+-#          .inner
+-#            %h5 Tony Shark
+-#            %p.subtitle
+-#              Programmer
+-#            .avatar
+-#              %img.img-responsive{:alt => "", :src => "#{image_path('team/4.jpg')}"}/
+/ /Section: TEAM
+/ Section: #FEATURES
+-#%section#features.home-section.text-center
+-#  .heading-about.marginbot-50
+-#    .container
+-#      .row
+-#        .col-lg-8.col-lg-offset-2
+-#          .section-heading
+-#            %h2 The Power of SmartAdmin
+-#            %p
+-#              Lorem ipsum dolor sit amet, no nisl mentitum recusabo per, vim at blandit qualisque dissentiunt. Diam efficiantur conclusionemque ut has
+-#  .container
+-#    .row
+-#      .col-sm-3.col-md-3
+-#        .service-box
+-#          .service-icon
+-#            %i.fa.fa-code.fa-3x
+-#          .service-desc
+-#            %h5 Localization
+-#            %p
+-#              Vestibulum tincidunt enim in pharetra malesuada. Duis semper magna metus electram accommodare.
+-#      .col-sm-3.col-md-3
+-#        .service-box
+-#          .service-icon
+-#            %i.fa.fa-suitcase.fa-3x
+-#          .service-desc
+-#            %h5 Compact
+-#            %p
+-#              Vestibulum tincidunt enim in pharetra malesuada. Duis semper magna metus electram accommodare.
+-#      .col-sm-3.col-md-3
+-#        .service-box
+-#          .service-icon
+-#            %i.fa.fa-cog.fa-3x
+-#          .service-desc
+-#            %h5 State of the Art
+-#            %p
+-#              Vestibulum tincidunt enim in pharetra malesuada. Duis semper magna metus electram accommodare.
+-#      .col-sm-3.col-md-3
+-#        .service-box
+-#          .service-icon
+-#            %i.fa.fa-rocket.fa-3x
+-#          .service-desc
+-#            %h5 Cloud System
+-#            %p
+-#              Vestibulum tincidunt enim in pharetra malesuada. Duis semper magna metus electram accommodare.
+/ /Section: FEATURES
+/ Section: #SCREENSHOT
+-#%section#screenshots.home-section.text-center.bg-gray
+-#  .heading-works.marginbot-50
+-#    .container
+-#      .row
+-#        .col-lg-8.col-lg-offset-2
+-#          .section-heading
+-#            %h2 Screenshots
+-#            %p
+-#              Lorem ipsum dolor sit amet, no nisl mentitum recusabo per, vim at blandit qualisque dissentiunt. Diam efficiantur conclusionemque ut has
+-#  .container
+-#    .row
+-#      .col-sm-12.col-md-12.col-lg-12
+-#        .row.gallery-item
+-#          .col-md-3
+-#            %a{"data-lightbox-gallery" => "gallery1", "data-lightbox-hidpi" => "#{image_path('works/1@2x.jpg')}", :href => "#{image_path('works/1.jpg')}", :title => "This is an image title"}
+-#              %img.img-responsive{:alt => "img", :src => "#{image_path('works/1.jpg')}"}/
+-#          .col-md-3
+-#            %a{"data-lightbox-gallery" => "gallery1", "data-lightbox-hidpi" => "#{image_path('works/1@2x.jpg')}", :href => "#{image_path('works/2.jpg')}", :title => "This is an image title"}
+-#              %img.img-responsive{:alt => "img", :src => "#{image_path('works/2.jpg')}"}/
+-#          .col-md-3
+-#            %a{"data-lightbox-gallery" => "gallery1", "data-lightbox-hidpi" => "#{image_path('works/1@2x.jpg')}", :href => "#{image_path('works/3.jpg')}", :title => "This is an image title"}
+-#              %img.img-responsive{:alt => "img", :src => "#{image_path('works/3.jpg')}"}/
+-#          .col-md-3
+-#            %a{"data-lightbox-gallery" => "gallery1", "data-lightbox-hidpi" => "#{image_path('works/1@2x.jpg')}", :href => "#{image_path('works/4.jpg')}", :title => "This is an image title"}
+-#              %img.img-responsive{:alt => "img", :src => "#{image_path('works/4.jpg')}"}/
+-#          .col-md-3
+-#            %a{"data-lightbox-gallery" => "gallery1", "data-lightbox-hidpi" => "#{image_path('works/1@2x.jpg')}", :href => "#{image_path('works/5.jpg')}", :title => "This is an image title"}
+-#              %img.img-responsive{:alt => "img", :src => "#{image_path('works/5.jpg')}"}/
+-#          .col-md-3
+-#            %a{"data-lightbox-gallery" => "gallery1", "data-lightbox-hidpi" => "#{image_path('works/1@2x.jpg')}", :href => "#{image_path('works/6.jpg')}", :title => "This is an image title"}
+-#              %img.img-responsive{:alt => "img", :src => "#{image_path('works/6.jpg')}"}/
+-#          .col-md-3
+-#            %a{"data-lightbox-gallery" => "gallery1", "data-lightbox-hidpi" => "#{image_path('works/1@2x.jpg')}", :href => "#{image_path('works/7.jpg')}", :title => "This is an image title"}
+-#              %img.img-responsive{:alt => "img", :src => "#{image_path('works/7.jpg')}"}/
+-#          .col-md-3
+-#            %a{"data-lightbox-gallery" => "gallery1", "data-lightbox-hidpi" => "#{image_path('works/1@2x.jpg')}", :href => "#{image_path('works/8.jpg')}", :title => "This is an image title"}
+-#              %img.img-responsive{:alt => "img", :src => "#{image_path('works/8.jpg')}"}/
+/ /Section: SCREENSHOT
+/ Section: #UPDATES
+-#%section#updates.home-section.text-center
+-#  .heading-contact.marginbot-50
+-#    .container
+-#      .row
+-#        .col-lg-8.col-lg-offset-2
+-#          .section-heading
+-#            %h2 Updates
+-#            %p
+-#              Lorem ipsum dolor sit amet, no nisl mentitum recusabo per, vim at blandit qualisque dissentiunt. Diam efficiantur conclusionemque ut has
+-#  .container
+-#    .row
+-#      .timeline-centered
+-#        %article.timeline-entry
+-#          .timeline-entry-inner
+-#            %time.timeline-time{:datetime => "2014-01-10T03:45"}
+-#              %span 03:45 AM
+-#              %span Today
+-#            .timeline-icon.bg-success
+-#              %i.entypo-feather
+-#            .timeline-label
+-#              %h2
+-#                %a{:href => "#"} SmartAdmin:
+-#                %span Patch was released today
+-#              %p Tolerably earnestly middleton extremely distrusts she boy now not. Add and offered prepare how cordial two promise. Greatly who affixed suppose but enquire compact prepare all put. Added forth chief trees but rooms think may.
+-#        %article.timeline-entry.left-aligned
+-#          .timeline-entry-inner
+-#            %time.timeline-time{:datetime => "2014-01-10T03:45"}
+-#              %span 03:45 AM
+-#              %span 4 weeks ago
+-#            .timeline-icon.bg-secondary
+-#              %i.entypo-suitcase
+-#            .timeline-label
+-#              %h2
+-#                %a{:href => "#"} SmartAdmin goes public!
+-#              %p
+-#                Yahoo buys a share in
+-#                %strong SmartAdmin
+-#        %article.timeline-entry
+-#          .timeline-entry-inner
+-#            %time.timeline-time{:datetime => "2014-01-09T13:22"}
+-#              %span 03:45 AM
+-#              %span 3 months ago
+-#            .timeline-icon.bg-info
+-#              %i.entypo-location
+-#            .timeline-label
+-#              %h2
+-#                %a{:href => "#"} SmartAdmin Convention
+-#                %span checked in at
+-#                %a{:href => "#"} Laborator
+-#              %blockquote Place was booked till 3am!
+-#              %img.img-responsive{:alt => "map", :src => "#{image_path('map.png')}"}/
+-#        %article.timeline-entry.left-aligned
+-#          .timeline-entry-inner
+-#            %time.timeline-time{:datetime => "2014-01-10T03:45"}
+-#              %span 03:45 AM
+-#              %span 8 months ago
+-#            .timeline-icon.bg-warning
+-#              %i.entypo-camera
+-#            .timeline-label
+-#              %h2
+-#                %a{:href => "#"} We have lift off!
+-#              %blockquote SmartAdmin Launched with grace and beauty
+-#        %article.timeline-entry.begin
+-#          .timeline-entry-inner
+-#            .timeline-icon{:style => "-webkit-transform: rotate(-90deg); -moz-transform: rotate(-90deg);"}
+-#              %i.entypo-flight
+/ /Section: UPDATES
+/ Section: #QUOTES
+-#%section#quotes.home-section.text-center.bg-gray
+  .container
+    .row
+      .col-md-8.col-md-offset-2
+        .quote
+          %i.fa.fa-quote-left.fa-4x
+        #fade-quote-carousel.carousel.slide{"data-interval" => "3000", "data-ride" => "carousel"}
+          / Carousel indicators
+          %ol.carousel-indicators
+            %li.active{"data-slide-to" => "0", "data-target" => "#fade-quote-carousel"}
+            %li{"data-slide-to" => "1", "data-target" => "#fade-quote-carousel"}
+            %li{"data-slide-to" => "2", "data-target" => "#fade-quote-carousel"}
+          / Carousel items
+          .carousel-inner
+            .active.item
+              %blockquote
+                %p Lorem ipsum dolor sit amet, consectetur adipisicing elit. Quidem, veritatis nulla eum laudantium totam tempore optio doloremque laboriosam quas.
+              .profile-circle{:style => "background-color: rgba(0,0,0,.2);"}
+            .item
+              %blockquote
+                %p Lorem ipsum dolor sit amet, eaque molestias odio aut eius animi. Impedit temporibus nisi accusamus.
+              .profile-circle{:style => "background-color: rgba(77,5,51,.2);"}
+            .item
+              %blockquote
+                %p Consectetur adipisicing elit. Quidem, veritatis  aut eius animi. Impedit temporibus nisi accusamus.
+              .profile-circle{:style => "background-color: rgba(145,169,216,.2);"}
+/ /Section: QUOTES
+/ Section: #CONTACT
+%section#contact.home-section.text-center.bg-gray
+  .heading-contact.marginbot-50
+    .container
+      .row
+        .col-lg-8.col-lg-offset-2
+          .section-heading
+            %h2 Get in touch
+            %p
+              Lorem ipsum dolor sit amet, no nisl mentitum recusabo per, vim at blandit qualisque dissentiunt. Diam efficiantur conclusionemque ut has
+  .container
+    .row
+      .col-lg-8.col-md-offset-2
+        .boxed-grey
+          %form#contact-form
+            .row
+              .col-md-6
+                .form-group
+                  %label{:for => "name"} Name
+                  %input#name.form-control{:placeholder => "Enter name", :required => "required", :type => "text"}/
+                .form-group
+                  %label{:for => "email"} Email Address
+                  .input-group
+                    %span.input-group-addon
+                      %span.glyphicon.glyphicon-envelope
+                    %input#email.form-control{:placeholder => "Enter email", :required => "required", :type => "email"}/
+                .form-group
+                  %label{:for => "subject"} Subject
+                  %select#subject.form-control{:name => "subject", :required => "required"}
+                    %option{:value => ""} Choose One:
+                    %option{:value => "service"} General Customer Service
+                    %option{:value => "suggestions"} Suggestions
+                    %option{:value => "product"} Product Support
+              .col-md-6
+                .form-group
+                  %label{:for => "name"} Message
+                  %textarea#message.form-control{:cols => "25", :name => "message", :placeholder => "Message", :required => "required", :rows => "9"}
+              .col-md-12
+                %button#btnContactUs.btn.btn-skin.pull-right{:type => "submit"}
+                  Send Message
+        .widget-contact.row
+          .col-lg-6
+            %address
+              %strong Etyme Ltd.
+              %br/
+              Big Villa 334 Awesome, Beautiful Suite 1200
+              %br/
+              San Francisco, CA 94107
+              %br/
+              %abbr{:title => "Phone"} P:
+              (123) 456-7890
+          .col-lg-6
+            %address
+              %strong Email
+              %br/
+              %a{:href => "mailto:#"} email.name@example.com
+              %br/
+              %a{:href => "mailto:#"} name.name@example.com
+/ /Section: CONTACT
+/ #BOTTOM CONTENT
+.bottom-content
+  .container.custom-container.text-center
+    %h2 We Always Try to Create a Difference
+    %p
+      Thank you for visiting Etyme :)
+    / Provides extra visual weight and identifies the primary action in a set of buttons
+    -#%a.btn.btn-default.btn-lg.purchase{:href => "https://bootstraphunter.com"} Purchase SmartAdmin
+-content_for :scripts do
+
+  :javascript
+    $(document).ready(function() {
+        $('.equal-height').equalHeights();
+    });

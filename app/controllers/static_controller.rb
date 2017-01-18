@@ -1,6 +1,9 @@
 class StaticController < ApplicationController
 
   skip_before_action :authenticate_user!
+  before_action      :set_jobs ,only: :index
+
+  layout 'landing'
 
   def index
   end
@@ -18,5 +21,12 @@ class StaticController < ApplicationController
       end
     end
 
+  end
+
+  private
+
+  def set_jobs
+    @jobs = Job.is_public.active.group_by(&:job_category)
+    # puts @jobs.map(& :job_category)
   end
 end
