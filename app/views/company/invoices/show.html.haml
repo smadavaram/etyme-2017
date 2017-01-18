@@ -17,15 +17,6 @@
               .jarviswidget-editbox
               .widget-body.no-padding
                 .widget-body-toolbar
-                  .row
-                    .col-sm-12
-                      .btn-group.pull-left
-                        =link_to raw("Download") , download_contract_invoice_path(@contract,@invoice) , class: 'btn btn-sm btn-success'
-                      .btn-group.pull-right
-                      -#-if @contract.is_received?(current_company) && @invoice.pending_submission? && current_user.is_admin?
-                      =link_to raw("Accept")  ,accept_invoice_contract_invoice_path(@contract,@invoice), method: :post ,class: 'btn btn-success pull-right  ', data: {confirm: "Are you sure you want to Submit this invoice ?", verify: 'Submit', verify_text: "Type 'Submit' to confirm"}
-                      =link_to raw("Reject")  ,reject_invoice_contract_invoice_path(@contract,@invoice),method: :post, class: 'btn btn-default pull-right  ', data: {confirm: "Are you sure you want to Cancelled this invoice ?", verify: 'Cancel', verify_text: "Type 'Cancel' to confirm"}
-                  %br/
                   .text-center
                     %h1.font-400
                       = @contract.title
@@ -139,6 +130,15 @@
                               %strong
                                 Total:
                                 %span.text-success $#{@invoice.total_amount }
+                    .row
+                      .col-sm-12
+                        .btn-group.pull-left
+                          =link_to raw("Download") , download_contract_invoice_path(@contract,@invoice) , class: 'btn btn-sm btn-success'
+                        .btn-group.pull-right
+                        -#-if @contract.is_received?(current_company) && @invoice.pending_submission? && current_user.is_admin?
+                        =link_to raw("Submit")  ,accept_invoice_contract_invoice_path(@contract,@invoice), method: :post ,class: 'btn btn-success pull-right  ', data: {confirm: "Are you sure you want to Submit this invoice ?", verify: 'Submit', verify_text: "Type 'Submit' to confirm"}
+                        =link_to raw("Cancelled")  ,reject_invoice_contract_invoice_path(@contract,@invoice),method: :post, class: 'btn btn-default pull-right  ', data: {confirm: "Are you sure you want to Cancelled this invoice ?", verify: 'Cancel', verify_text: "Type 'Cancel' to confirm"}
+
 
 
                     .row

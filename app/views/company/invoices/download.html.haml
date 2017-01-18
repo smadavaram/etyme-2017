@@ -8,116 +8,131 @@
     = stylesheet_link_tag wicked_pdf_asset_base64("company.css")
     = javascript_include_tag wicked_pdf_asset_base64("company.js")
 :css
-  .page-break { display:block; clear:both; page-break-after:always; }
-  table, body { background-color: white }
-  tr, td,th, table { border: 0px }
-
+  body{
+    margin: 0;
+    padding: 0;
+    background-color: #FFF;
+    width: 210mm;
+    height: 297mm;}
 %body
-  #main{:role => "main"}
-    #content
-      %section#widget-grid
+  .row
+    %article.col-xs-12.col-sm-12.col-md-12.col-lg-12
+      %br/
+      .text-center
+        %h1.font-400
+          = @contract.title
+        %h2
+          %label Invoice#
+          = @invoice.id
+        %h2
+          = @invoice.start_date.to_s(:short)+" -- " + @invoice.end_date.to_s(:short)
+      .clearfix
+      %br/
+      %br/
+      .row
+        .col-sm-3.pull-left{style:"margin-left: 22px;"}
+          %br/
+          %strong.font-xl From
+          %h4.semi-bold= @contract.company.name.titleize
+          %address
+            %strong= @contract.job.company.name.titleize
+            %br/
+            = @contract.job.location
+            %br/
+            = @contract.job.company.phone
+        .col-sm-3.pull-right{style:"margin-right: -50px;"}
+          %br/
+          %strong.font-xl To
+          %h4.semi-bold= @contract.respond_by.company.name.titleize
+          %address
+            %strong= @contract.respond_by.full_name.titleize
+            %br/
+            =show_address(@contract.assignee.try(:primary_address_id)).address_1
+            =show_address(@contract.assignee.try(:primary_address_id)).city
+            =show_address(@contract.assignee.try(:primary_address_id)).zip_code
+            =show_address(@contract.assignee.try(:primary_address_id)).country
+            %br/
+            = @contract.assignee.company.phone
+        .col-sm-3
+          %div
+            %div
+          -#%strong INVOICE NO :
+          -#%span.pull-right.text-center # #{@invoice.id}
+          -#%div
+          -#  .font-md
+          -#    %strong START DATE :
+          -#    %span.pull-right
+          -#      %i.fa.fa-calendar
+          -#      = @invoice.start_date.strftime('%m/%d/%y')
+          -#%div
+          -#  .font-md
+          -#    %strong END DATE :
+          -#    %span.pull-right
+          -#      %i.fa.fa-calendar
+          -#      = @invoice.end_date.strftime('%m/%d/%y')
+          -#%br/
+          -#.well.well-sm.bg-color-darken.txt-color-white.no-border
+          -#  .fa-lg
+          -#    Total Due :
+          -#    %span.pull-right 4,972 USD**
+          -#%br/
+          %br/
+      %table.table.table-hover
+        %thead
+          %tr
+            %th.text-center #
+            %th
+            %th DATE
+            %th PRICE
+            %th HOURS
+            %th SUBTOTAL
+        %tbody
+          - total_amount = 0.0
+          - @invoice.timesheet_logs.order(transaction_day: :desc).each_with_index do |timesheet_log , index|
+            - total_amount = total_amount + (@invoice.rate * timesheet_log.accepted_hours)
+            %tr
+              %td.text-center
+                %strong= index +1
+              %td
+              %td
+                = link_to timesheet_log.transaction_day.strftime('%B %d, %Y') , timesheet_timesheet_log_path(timesheet_log.timesheet, timesheet_log) ,  target: '_blank'
+              -#%a{:href => "javascript:void(0);"} #{}
+              -#-#%td Perspiciatis unde omnis iste natus error sit voluptatem accusantium doloremque laudantium totam rem aperiam xplicabo.
+              %td $#{@invoice.rate}
+              %td= timesheet_log.accepted_hours
+              %td $#{@invoice.rate * timesheet_log.accepted_hours}
+          %tr
+            %td{:colspan => "5"} Total
+            %td
+              %strong $#{total_amount}
+          -if @contract.is_received?(current_company)
+            %tr
+              %td{:colspan => "5"} Consultant Amount
+              %td
+                %strong $#{@invoice.consultant_amount}
+            - if  @invoice.contract.is_commission
+              %tr
+                %td{:colspan => "5"} Commission
+                %td
+                  %strong $#{@invoice.commission_amount}
+      .invoice-footer
         .row
-          %article.col-xs-12.col-sm-12.col-md-12.col-lg-12
-            #wid-id-0.jarviswidget.well.jarviswidget-color-darken{"data-widget-colorbutton" => "false", "data-widget-deletebutton" => "false", "data-widget-editbutton" => "false", "data-widget-sortable" => "false"}
-              %header
-                %span.widget-icon
-              %div
-                .jarviswidget-editbox
-                .widget-body.no-padding
-                  .padding-10
-                    %br/
-                    .pull-left
-                      = wicked_pdf_image_tag 'etyme-logo-dark.png', alt: 'Etyme', style: 'width: 80px;'
-                      %address
-                        %br/
-                        %strong= @contract.job.company.name.titleize
-                        %br/
-                        =@contract.job.location
-                        %br/
-                        %abbr{:title => "Phone"} P:
-                        = @contract.job.company.phone
-                    .pull-right.margin-right-5
-                      %h3.font-md
-                        = @contract.title
-                    .clearfix
-                    %br/
-                    %br/
-                    .row
-                      .col-sm-9
-                        %h4.semi-bold= @contract.assignee.company.name.titleize
-                        %address
-                          %strong= @contract.assignee.full_name
-                          %br/
-                          =show_address(@contract.assignee.try(:primary_address_id)).address_1
-                          =show_address(@contract.assignee.try(:primary_address_id)).city
-                          =show_address(@contract.assignee.try(:primary_address_id)).zip_code
-                          =show_address(@contract.assignee.try(:primary_address_id)).country
+          .col-sm-7
+            .payment-methods
+          .col-sm-5
+            .invoice-sum-total.pull-right
+              -if @contract.is_received?(current_company)
+                %h3
+                  %strong
+                    Gross Profit:
+                    %span.text-success #{@invoice.billing_amount > 0 ? '$'+ @invoice.billing_amount.to_s : '- $'+@invoice.billing_amount.to_s }
+              -else
+                %h3
+                  %strong
+                    Total:
+                    %span.text-success $#{@invoice.total_amount }
 
-                          %br/
-                          %abbr{:title => "Phone"} P:
-                          = @contract.assignee.company.phone
-                      .col-sm-3
-                        %div
-                          %div
-                            %strong INVOICE NO :
-                            %span.pull-right.text-center # #{@invoice.id}
-                        %div
-                          .font-md
-                            %strong START DATE :
-                            %span.pull-right
-                              %i.fa.fa-calendar
-                              = @invoice.start_date.strftime('%m/%d/%y')
-                        %div
-                          .font-md
-                            %strong END DATE :
-                            %span.pull-right
-                              %i.fa.fa-calendar
-                              = @invoice.end_date.strftime('%m/%d/%y')
-                        %br/
-                        %br/
-                    %table.table.table-hover
-                      %thead
-                        %tr
-                          %th.text-center #
-                          %th
-                          %th DATE
-                          %th PRICE
-                          %th HOURS
-                          %th SUBTOTAL
-                      %tbody
-                        - total_amount = 0.0
-                        - @invoice.timesheet_logs.order(transaction_day: :desc).each_with_index do |timesheet_log , index|
-                          - total_amount = total_amount + timesheet_log.total_amount
-                          %tr
-                            %td.text-center
-                              %strong= index +1
-                            %td
-                            %td
-                              = timesheet_log.transaction_day.strftime('%B %d, %Y')
-                            -#%a{:href => "javascript:void(0);"} #{}
-                            -#-#%td Perspiciatis unde omnis iste natus error sit voluptatem accusantium doloremque laudantium totam rem aperiam xplicabo.
-                            %td $#{timesheet_log.rate}
-                            %td= timesheet_log.accepted_hours
-                            %td $#{timesheet_log.total_amount}
-                        %tr
-                          %td{:colspan => "5"} Consultant Amount
-                          %td
-                            %strong $#{@invoice.consultant_amount}
-                        %tr
-                          %td{:colspan => "5"} Total
-                          %td
-                            %strong $#{total_amount}
-                    .invoice-footer
-                      .row
-                        .col-sm-7
-                          .payment-methods
-                        .col-sm-5
-                          .invoice-sum-total.pull-right
-                            %h3
-                              %strong
-                                Total:
-                                %span.text-success $#{total_amount}
-                      .row
-                        .col-sm-12
-                          %p.note **To avoid any excess penalty charges, please make payments within 30 days of the due date. There will be a 2% interest charge per month on all late invoices.
+        .row
+          .col-sm-12
+            %p.note **To avoid any excess penalty charges, please make payments within 30 days of the due date. There will be a 2% interest charge per month on all late invoices.
 
