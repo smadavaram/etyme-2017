@@ -18,34 +18,34 @@
                   %ul.steps
                     %li.active{"data-target" => "#step1"}
                       %span.badge.badge-info> 1
-                      Step 1
+                      Set Password
                       %span.chevron
                     %li{"data-target" => "#step2"}
                       %span.badge> 2
-                      Step 2
+                      Basic Info
                       %span.chevron
                     %li{"data-target" => "#step3"}
                       %span.badge> 3
-                      Step 3
+                      Address
                       %span.chevron
                     - if resource.company_docs.present?
                       %li{"data-target" => "#step4"}
                         %span.badge> 4
-                        Step 4
+                        Documents
                         %span.chevron
                     - if resource.custom_fields.present?
                       %li{"data-target" => "#step5"}
                         %span.badge> 5
-                        Step 5
+                        Custom Fields
                         %span.chevron
                     %li{"data-target" => "#step6"}
                       %span.badge> 6
-                      Step 6
+                      Signature
                       %span.chevron
-                    %li{"data-target" => "#step7"}
-                      %span.badge> 7
-                      Step 7
-                      %span.chevron
+                    -#%li{"data-target" => "#step7"}
+                    -#  %span.badge> 7
+                    -#  Step 7
+                    -#  %span.chevron
                   .actions
                     %button.btn.btn-sm.btn-primary.btn-prev{:type => "button"}
                       %i.fa.fa-arrow-left>
@@ -91,21 +91,21 @@
                           %strong Step 6
                           \- Signature
                         = render partial: 'company/invitations/partials/signature_pad' , locals: {f: e}
-                      #step7.step-pane
-                        %h3
-                          %strong Step 7
-                          \- Finished!
-                        %br/
-                        %br/
-                        %h1.text-center.text-success
-                          %i.fa.fa-check
-                          Congratulations!
-                          %br/
-                          %small Click finish to end wizard
-                        %br/
-                        %br/
-                        %br/
-                        %br/
+                      -##step7.step-pane
+                      -#  %h3
+                      -#    %strong Step 7
+                      -#    \- Finished!
+                      -#  %br/
+                      -#  %br/
+                      -#  %h1.text-center.text-success
+                      -#    %i.fa.fa-check
+                      -#    Congratulations!
+                      -#    %br/
+                      -#    %small Click finish to end wizard
+                      -#  %br/
+                      -#  %br/
+                      -#  %br/
+                      -#  %br/
   - content_for :scripts do
     :javascript
       // DO NOT REMOVE : GLOBAL FUNCTIONS!

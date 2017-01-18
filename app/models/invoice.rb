@@ -7,25 +7,31 @@ class Invoice < ActiveRecord::Base
   has_many    :timesheet_logs , through: :timesheets
   has_one     :company        , through: :company
   belongs_to  :submitted_by   , class_name:"Admin", foreign_key: :submitted_by
+  belongs_to :parent_invoice , class_name: "Invoice" , foreign_key: :parent_id
+  has_one    :child_invoice, class_name: "Invoice", foreign_key: :parent_id
 
-  before_validation :set_consultant_amount, on: :create
-  before_validation :set_total_amount , on: :create
-  before_validation :set_commissions , on: :create
-  before_validation :set_start_date_and_end_date , on: :creat
-  after_create      :set_next_invoice_date
-  after_create      :update_timesheet_status_to_invoiced
+  before_validation :set_rate , on: :create
+  before_validation :set_consultant_and_total_amount, on: :create , if: Proc.new{|invoice| !invoice.contract.has_child?}
+  # before_validation :set_total_amount , on: :create , if: Proc.new{|invoice| !invoice.contract.has_child?}
+  before_validation :set_commissions , on: :create , if: Proc.new{|invoice| !invoice.contract.has_child?}
+  before_validation :set_start_date_and_end_date , on: :create , if: Proc.new{|invoice| !invoice.contract.has_child?}
+
+  after_create      :set_next_invoice_date , if: Proc.new{|invoice| !invoice.contract.has_child?}
+  after_create      :update_timesheet_status_to_invoiced , if: Proc.new{|invoice| !invoice.contract.has_child?}
+  after_update      :create_invoice_for_parent, if: Proc.new{|invoice| invoice.status_changed? && invoice.submitted? && invoice.contract.parent_contract?}
 
   validate :start_date_cannot_be_less_than_end_date
   validate :contract_validation , if: Proc.new{|invoice| !invoice.contract.in_progress?}
-  validates_numericality_of :total_amount , :billing_amount , presence: true, greater_than_or_equal_to: 1
+  validates_numericality_of :total_amount , :billing_amount , :rate , presence: true, greater_than_or_equal_to: 1
 
 
 
-  def set_consultant_amount
-    rate = self.contract.assignee.hourly_rate
-    hours = 0.0
-    self.contract.timesheets.approved.not_invoiced.each{ |t| hours += t.approved_total_hours }
-    self.consultant_amount = rate * hours
+  def set_consultant_and_total_amount
+    rate    = self.contract.assignee.hourly_rate
+    self.total_approve_time = 0.0
+    self.contract.timesheets.approved.not_invoiced.each{ |t| self.total_approve_time += t.approved_total_time }
+    self.consultant_amount = rate * (self.total_approve_time/3600.0)
+    self.total_amount = (self.total_approve_time / 3600.0) * self.rate
   end
 
   # private
@@ -38,12 +44,14 @@ class Invoice < ActiveRecord::Base
       errors.add(:base , "Contract is #{self.contract.status.humanize}" )
   end
 
-  def set_total_amount
-    timesheets      = self.contract.timesheets.approved.not_invoiced || []
-    timesheets.each do |t|
-      self.total_amount += t.total_amount
-    end
-  end
+  # def set_total_amount
+    # timesheets      = self.contract.timesheets.approved.not_invoiced || []
+    # timesheets.each do |t|
+    #   # self.total_amount += t.total_amount
+    #   self.total_amount += t.approved_total_time
+    # end
+    # self.total_amount = (self.total_approve_time / 3600.0) * self.rate
+  # end
 
   def set_commissions
     commission = 0.0
@@ -73,8 +81,24 @@ class Invoice < ActiveRecord::Base
   end
 
   def set_start_date_and_end_date
-    self.start_date   = self.contract.invoices.empty? ? self.contract.start_date : self.contract.invoices.last.end_date + 1
+    self.start_date   = self.contract.invoices.empty? ? self.contract.start_date : (self.contract.invoices.last.end_date + 1)
     self.end_date     = self.contract.next_invoice_date
+  end
+
+  def set_rate
+    self.rate = self.contract.rate
+  end
+
+  def create_invoice_for_parent
+    invoice = self.contract.parent_contract.invoices.new
+    invoice.start_date         = self.start_date
+    invoice.end_date           = self.end_date
+    invoice.total_approve_time = self.total_approve_time
+    invoice.total_amount       = invoice.contract.rate * (self.total_approve_time / 3600.0)
+    invoice.consultant_amount  = self.total_amount
+    invoice.billing_amount     = invoice.total_amount - invoice.consultant_amount
+    invoice.parent_id          = self.id
+    invoice.save
   end
 
 end

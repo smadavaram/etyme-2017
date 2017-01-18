@@ -15,8 +15,8 @@
           = render 'company/timesheets/partials/histroy_modal' , timesheet: timesheet
         %tr
           %td= timesheet.contract.title
-          %td= timesheet.contract.billing_frequency.humanize
-          %td= timesheet.contract.time_sheet_frequency.humanize
+          %td= timesheet.contract.try(:billing_frequency).try(:humanize)
+          %td= timesheet.contract.try(:time_sheet_frequency).try(:humanize)
           %td= timesheet.start_date
           %td= timesheet.end_date
           %td= timesheet.status.titleize

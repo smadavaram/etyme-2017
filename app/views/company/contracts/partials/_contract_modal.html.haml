@@ -5,19 +5,32 @@
         %button.close{"aria-hidden" => "true", "data-dismiss" => "modal", :type => "button"}
           ×
         %h1
-          %span.semi-bold Creating New Contract
+          %span.semi-bold Creating #{job.is_child? ? 'Sub' : 'New' } Contract
           -#%i.ultra-light #{job_application.company.try(:name)}
           %br/
           %small.text-muted
-            %strong #{link_to job_application.try(:user).full_name ,  '#' , target: '_blank'} - #{job.title}
+            -if job_application.present?
+              %strong #{link_to job_application.try(:user).full_name ,  '#' , target: '_blank'} - #{job.title}
+            -else
+              %strong #{link_to job.title , job_path(job), target: '_blank'}
         -#%p
           = raw job.description
       .modal-body
         = form_for [job,contract] , html: {class: 'form-horizontal'} , remote: false do |f|
-          = f.hidden_field :job_application_id , value: job_application.id
-          -  if is_applicant_is_consultant?(job_application)
-            = f.hidden_field :assignee_id , value: current_company.consultants.where(candidate_id: job_application.applicationable_id).first.id
+          -if job_application.present?
+            = f.hidden_field :job_application_id , value: job_application.id
+            -  if is_applicant_is_consultant?(job_application)
+              = f.hidden_field :assignee_id , value: current_company.consultants.where(candidate_id: job_application.applicationable_id).first.id
           %fieldset
+            - if job.is_child?
+              = f.hidden_field :contractable_type , value: 'Company'
+              = f.hidden_field :parent_contract_id
+              .form-group
+                %label.col-md-2.control-label
+                  Company
+                .col-md-10.select
+                  = select_tag 'contract[contractable_id]', options_for_select(current_company.invited_companies.collect { |c|[c.invited_company.name, c.invited_company.id] })  , class: "form-control"
+
             .form-group
               %label.col-md-2.control-label
                 Start Date

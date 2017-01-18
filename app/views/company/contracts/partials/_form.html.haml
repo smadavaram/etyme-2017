@@ -1,5 +1,7 @@
 = form_for  @contract ,html: {id: 'wizard-1' , class: 'form-horizontal new_contract' ,novalidate: "novalidate" } do |contract|
   =contract.hidden_field :contractable_type , value: "Company"
+  - if params.has_key?('contract_id')
+    =contract.hidden_field :parent_contract_id , value: params[:contract_id]
   -#= e.fields_for :consultant_profile do |p|
   #bootstrap-wizard-1.col-sm-12
     .form-bootstrapWizard

@@ -77,6 +77,7 @@ class User < ActiveRecord::Base
   has_many :timesheets          , dependent: :destroy
   has_many :timesheet_approvers , dependent: :destroy
   has_and_belongs_to_many :roles
+  has_many :permissions , through: :roles
 
   accepts_nested_attributes_for :attachable_docs , reject_if: :all_blank
   accepts_nested_attributes_for :custom_fields   , reject_if: :all_blank
@@ -95,6 +96,10 @@ class User < ActiveRecord::Base
 
   def has_submission_permission?(user)
     self == user
+  end
+
+  def has_permission (permission)
+    self.permissions.where(name:permission).exists?
   end
 
   def is_admin?

@@ -1,10 +1,14 @@
 class Company::ContractsController < Company::BaseController
 
   before_action :find_job              , only: [:create]
-  before_action :find_receive_contract , only: [:open_contract , :update_contract_response]
+  before_action :find_receive_contract , only: [:open_contract , :update_contract_response , :create_sub_contract]
   before_action :find_contract         , only: [:show , :update_attachable_doc , :change_invoice_date]
   before_action :set_contracts         , only: [:index]
   before_action :find_attachable_doc   , only: [:update_attachable_doc]
+  before_action :authorize_user_for_new_contract  , only: :new
+  before_action :authorize_user_for_edit_contract  , only: :edit
+  before_action :authorized_user  , only: :show
+  before_action :create_sub_job        , only: [:create_sub_contract]
 
   add_breadcrumb "CONTRACTS", :contracts_path, options: { title: "CONTRACTS" }
 
@@ -16,7 +20,6 @@ class Company::ContractsController < Company::BaseController
 
   def new
     @contract = current_company.sent_contracts.new
-    # @contract.build_job
     @contract.contract_terms.new
     @new_company = Company.new
     @new_company.build_owner
@@ -67,6 +70,7 @@ class Company::ContractsController < Company::BaseController
       end
     end
   end
+
   def change_invoice_date
     if @contract.update_attributes(next_invoice_date: params[:contract][:next_invoice_date])
       flash[:success] = "Next invoice date changed"
@@ -74,6 +78,21 @@ class Company::ContractsController < Company::BaseController
       flash[:errors]  = @contract.errors.full_messages
     end
     redirect_to :back
+  end
+
+  def authorize_user_for_new_contract
+    has_access?("create_new_contracts")
+  end
+
+  def authorize_user_for_edit_contract
+    has_access?("edit_contracts_terms")
+  end
+
+  def authorized_user
+    has_access?("show_contracts_details")
+  end
+  def create_sub_contract
+
   end
 
   private
@@ -94,17 +113,23 @@ class Company::ContractsController < Company::BaseController
     @job = current_company.jobs.find_by_id(params[:job_id])
   end
 
+  def create_sub_job
+      @job = Job.find_or_create_sub_job(current_company, current_user , @contract.job)
+      @sub_contract      = current_company.sent_contracts.new(parent_contract_id: @contract.id , billing_frequency: @contract.billing_frequency , time_sheet_frequency: @contract.time_sheet_frequency, job_id: @job.id , start_date: @contract.start_date , end_date: @contract.end_date)
+      @sub_contract.contract_terms.new(rate: @contract.rate , terms_condition: @contract.terms_and_conditions )
+  end
+
   def set_contracts
-    @received_contracts   = current_company.received_contracts.paginate(page: params[:page], per_page: 30) || []
-    @sent_contracts       = current_company.sent_contracts.paginate(page: params[:page], per_page: 30) || []
+    @received_contracts   = current_company.received_contracts.includes(job: [:company , :created_by]).paginate(page: params[:page], per_page: 30) || []
+    @sent_contracts       = current_company.sent_contracts.includes(job: [:created_by]).paginate(page: params[:page], per_page: 30) || []
   end
 
   def contract_params
       params.require(:contract).permit([:job_id  , :is_commission ,
                                         :received_by_signature,:received_by_name,:sent_by_signature,:sent_by_name,
                                         :commission_type,:commission_amount , :max_commission , :commission_for_id ,
-                                        :billing_frequency, :time_sheet_frequency, :assignee_id ,
-                                        :job_application_id , :start_date , :end_date  , :message_from_hiring  ,:status ,company_doc_ids: [] ,
+                                        :billing_frequency, :time_sheet_frequency, :assignee_id , :contractable_id , :contractable_type ,
+                                        :job_application_id , :parent_contract_id ,:start_date , :end_date  , :message_from_hiring  ,:status ,company_doc_ids: [] ,
                                         contract_terms_attributes: [:id, :created_by, :contract_id , :status , :terms_condition ,:rate , :note , :_destroy],
                                        attachments_attributes:[:id,:file,:file_name,:file_size, :company_id ,:file_type,:attachable_type,:attachable_id,:_destroy]
                                        ])

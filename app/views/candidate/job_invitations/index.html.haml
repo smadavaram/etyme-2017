@@ -7,7 +7,7 @@
           .tab-content
             #tab-r1.tab-pane.active
               #hb2.tab-pane.active
-                %ul#internal-tab-1.nav.nav-tabs.tabs-pull-right
+                %ul#internal-tab-1.nav.nav-tabs.tabs-pull-right.sub-tab
                   %br
                   .input-group.input-group-lg.hidden-mobile
                     .input-group-btn
@@ -51,3 +51,16 @@
                     = render partial: 'candidate/job_invitations/partials/invitations_table' , locals: {data: @job_invitations}
 
 #job_invitation
+- content_for :scripts do
+  :javascript
+    // DO NOT REMOVE : GLOBAL FUNCTIONS!
+
+    $(document).ready(function() {
+    $('.sub-tab a[href="' + localStorage.getItem('subActiveTab') + '"]').tab('show');
+
+
+    });
+
+    $('.sub-tab').on('show.bs.tab', function(e) {
+      localStorage.setItem('subActiveTab', $(e.target).attr('href'));
+    });

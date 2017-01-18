@@ -20,13 +20,13 @@ class TimesheetLog < ActiveRecord::Base
     self.transactions.sum(:total_time)
   end
 
-  def total_amount
-    self.approved? ? self.accepted_hours * self.contract_term.rate : 0.0
-  end
+  # def total_amount
+  #   self.approved? ? self.accepted_hours * self.contract_term.rate : 0.0
+  # end
 
-  def rate
-    self.contract_term.rate
-  end
+  # def rate
+  #   self.contract_term.rate
+  # end
 
   def accepted_total_time
     self.transactions.accepted.sum(:total_time)

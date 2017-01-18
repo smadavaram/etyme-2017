@@ -9,7 +9,7 @@
   .form-group
     %label.col-md-2.control-label  Jobs
     .col-md-10
-      = select_tag 'contract[job_id]', options_for_select(current_company.jobs.active.collect { |c|[c.title, c.id] })  , class: "form-control"
+      = select_tag 'contract[job_id]', options_for_select(current_company.jobs.collect { |c|[c.title, c.id] })  , class: "form-control"
 
   .form-group
     %label.col-md-2.control-label  Company

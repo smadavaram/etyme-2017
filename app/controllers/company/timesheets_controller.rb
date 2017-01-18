@@ -4,6 +4,8 @@ class Company::TimesheetsController < Company::BaseController
   # before_action :received_timesheet , only: [:approve]
   before_action :set_timesheets , only: [:index]
 
+  before_action :authorized_user , only: [:show,:approve]
+
   add_breadcrumb "TIMESHEETS", :timesheets_path, options: { title: "TIMESHEETS" }
 
   def index
@@ -40,6 +42,10 @@ class Company::TimesheetsController < Company::BaseController
       flash[:errors] = @timesheet.errors.full_messages
     end
     redirect_to :back
+  end
+
+  def authorized_user
+    has_access?("manage_timesheets")
   end
 
   private

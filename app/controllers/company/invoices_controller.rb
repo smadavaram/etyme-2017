@@ -38,6 +38,7 @@ class Company::InvoicesController < Company::BaseController
   end
 
   def show
+    @timesheet_logs = find_child_invoice_timesheet_logs(@invoice)
     respond_to do |format|
       format.html
       format.pdf do
@@ -75,6 +76,10 @@ class Company::InvoicesController < Company::BaseController
 
   def set_invoices
     @invoices  = @contract.invoices || []
+  end
+
+  def find_child_invoice_timesheet_logs invoice
+    return invoice.parent_invoice.present? ?  find_child_invoice_timesheet_logs(invoice.parent_invoice) : invoice.timesheet_logs
   end
 
 end

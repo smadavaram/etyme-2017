@@ -49,15 +49,15 @@ class Timesheet < ActiveRecord::Base
     total_time
   end
 
-  def approved_total_hours
-    approved_total_time / 3600.0
-  end
+  # def approved_total_hours
+  #   approved_total_time / 3600.0
+  # end
 
-  def total_amount
-    amount = 0
-    self.timesheet_logs.approved.each do |t| amount = amount + t.total_amount end
-    amount
-  end
+  # def total_amount
+  #   amount = 0
+  #   self.timesheet_logs.approved.each do |t| amount = amount + t.total_amount end
+  #   amount
+  # end
 
 
   def approvers

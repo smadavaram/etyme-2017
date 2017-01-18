@@ -22,9 +22,9 @@
                       .btn-group.pull-left
                         =link_to raw("Download") , download_contract_invoice_path(@contract,@invoice) , class: 'btn btn-sm btn-success'
                       .btn-group.pull-right
-                        -if @contract.is_received?(current_company) && @invoice.pending_submission? && current_user.is_admin?
-                          =link_to raw("Accept")  ,accept_invoice_contract_invoice_path(@contract,@invoice), method: :post ,class: 'btn btn-success pull-right  ', data: {confirm: "Are you sure you want to Submit this invoice ?", verify: 'Submit', verify_text: "Type 'Submit' to confirm"}
-                          =link_to raw("Reject")  ,reject_invoice_contract_invoice_path(@contract,@invoice),method: :post, class: 'btn btn-default pull-right  ', data: {confirm: "Are you sure you want to Cancelled this invoice ?", verify: 'Cancel', verify_text: "Type 'Cancel' to confirm"}
+                      -#-if @contract.is_received?(current_company) && @invoice.pending_submission? && current_user.is_admin?
+                      =link_to raw("Accept")  ,accept_invoice_contract_invoice_path(@contract,@invoice), method: :post ,class: 'btn btn-success pull-right  ', data: {confirm: "Are you sure you want to Submit this invoice ?", verify: 'Submit', verify_text: "Type 'Submit' to confirm"}
+                      =link_to raw("Reject")  ,reject_invoice_contract_invoice_path(@contract,@invoice),method: :post, class: 'btn btn-default pull-right  ', data: {confirm: "Are you sure you want to Cancelled this invoice ?", verify: 'Cancel', verify_text: "Type 'Cancel' to confirm"}
                   %br/
                   .text-center
                     %h1.font-400
@@ -96,8 +96,8 @@
                         %th SUBTOTAL
                     %tbody
                       - total_amount = 0.0
-                      - @invoice.timesheet_logs.order(transaction_day: :desc).each_with_index do |timesheet_log , index|
-                        - total_amount = total_amount + timesheet_log.total_amount
+                      - @timesheet_logs.order(transaction_day: :desc).each_with_index do |timesheet_log , index|
+                        - total_amount = total_amount + (@invoice.rate * timesheet_log.accepted_hours)
                         %tr
                           %td.text-center
                             %strong= index +1
@@ -106,9 +106,9 @@
                             = link_to timesheet_log.transaction_day.strftime('%B %d, %Y') , timesheet_timesheet_log_path(timesheet_log.timesheet, timesheet_log) ,  target: '_blank'
                             -#%a{:href => "javascript:void(0);"} #{}
                           -#-#%td Perspiciatis unde omnis iste natus error sit voluptatem accusantium doloremque laudantium totam rem aperiam xplicabo.
-                          %td $#{timesheet_log.rate}
+                          %td $#{@invoice.rate}
                           %td= timesheet_log.accepted_hours
-                          %td $#{timesheet_log.total_amount}
+                          %td $#{@invoice.rate * timesheet_log.accepted_hours}
                       %tr
                         %td{:colspan => "5"} Total
                         %td
