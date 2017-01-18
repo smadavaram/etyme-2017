@@ -169,6 +169,9 @@ Rails.application.routes.draw do
       end # End of member
     end
     resources :contracts        , only: [:index ,:show , :new , :create] do
+
+      resources :contracts
+
       collection do
         post :nested_create
       end
@@ -190,6 +193,7 @@ Rails.application.routes.draw do
         member do
           post :open_contract , as: :open_contract
           post :update_contract_response        , as: :update_contract_response
+          post :create_sub_contract             , as: :create_sub_contract
         end
       end # End of :contracts
 

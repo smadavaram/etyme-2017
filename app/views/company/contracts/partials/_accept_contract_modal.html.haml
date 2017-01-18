@@ -5,12 +5,14 @@
         %button.close{"aria-hidden" => "true", "data-dismiss" => "modal", :type => "button"}
           ×
         %h1
-          - job_application = contract.job_application
+
           %span.semi-bold Contract -
-          %i.ultra-light #{job_application.company.try(:name)}
-          - if job_application.job_invitation.present?
-            (#{link_to job_application.job_invitation.try(:recipient).full_name ,  '#' , target: '_blank'})
-          -#%sup.badge.bg-color-red.bounceIn.animated v 2.0
+          %i.ultra-light #{contract.contractable.try(:name)}
+          - if contract.job_application.present?
+            - job_application = contract.job_application
+            - if job_application.job_invitation.present?
+              (#{link_to job_application.job_invitation.try(:recipient).full_name ,  '#' , target: '_blank'})
+            -#%sup.badge.bg-color-red.bounceIn.animated v 2.0
           %br/
           %small.text-danger.slideInRight.fast.animated
             %strong Job - #{contract.job.title}

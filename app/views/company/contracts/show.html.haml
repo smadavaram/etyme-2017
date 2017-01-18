@@ -8,8 +8,8 @@
               .btn-group.pull-right
                 = button_tag 'Accept' , class: 'btn btn-success btn-default margin-right-5' , disabled: @contract.signature_required_docs? , onclick: 'openAccept();'
                 = button_tag 'Reject' ,  class: 'btn btn-default' , "data-toggle": "modal" , "data-target":"#contract-reject-#{@contract.id}"
-            - if @contract.status == "accepted"  && @contract.is_received?(current_company)
-              = link_to 'Create Sub Contracts','#',class: 'btn btn-primary pull-right',target: '_blank', style: 'margin-top: 20px;margin-right: 10px;'
+            - if @contract.accepted?  && @contract.is_received?(current_company)
+              = link_to 'Create Sub Contract',create_sub_contract_job_contract_path(@contract.job , @contract), method: :post ,remote: true , class: 'btn btn-primary pull-right', style: 'margin-top: 20px;margin-right: 10px;'
 
             %h2.name
               = @contract.title
@@ -152,16 +152,12 @@
                             %td= invoice.end_date
                             %td
                               = link_to 'View Detail' , contract_invoice_path(@contract , invoice) , target: '_blank' ,class: 'btn btn-xs btn-default btn-primary'
-            -#%hr/
-            -#.row
-            -#  .col-sm-12.col-md-12.col-lg-12
-                .btn-group.pull-right
-                  %button.btn.btn-success.btn-default.margin-right-5
-                    Accept
-                  %button.btn.btn-danger.btn-default
-                    Reject
+- if @contract.accepted? && @contract.is_received?(current_company)
+  - content_for :modals do
+    #ajax-modal
 - if @contract.pending? && !@contract.is_sent?(current_company)
   - content_for :modals do
+    #ajax-modal
     = render 'company/contracts/partials/accept_contract_modal' , contract: @contract , status: 'accept'
     = render 'company/contracts/partials/accept_contract_modal' , contract: @contract , status: 'reject'
   - content_for :scripts do

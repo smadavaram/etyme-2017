@@ -17,7 +17,9 @@ class Contract < ActiveRecord::Base
   belongs_to :location
   belongs_to :user
   belongs_to :company
+  belongs_to :parent_contract , class_name: "Contract" , foreign_key: :parent_contract_id
   belongs_to :contractable, polymorphic: true
+  has_one    :child_contract, class_name: "Contract", foreign_key: :parent_contract_id
   has_one    :job_invitation , through: :job_application
   has_many   :contract_terms , dependent: :destroy
   has_many   :timesheets     , dependent: :destroy
@@ -32,7 +34,7 @@ class Contract < ActiveRecord::Base
   after_create :notify_recipient , if: Proc.new{ |contract| contract.not_system_generated? }
   after_update :notify_on_status_change, if: Proc.new{|contract| contract.status_changed? && contract.respond_by.present? && contract.not_system_generated?}
   # after_create :update_contract_application_status
-  after_save   :create_timesheet, if: Proc.new{|contract| contract.status_changed? && contract.is_not_ended? && !contract.timesheets.present? && contract.in_progress? && contract.next_invoice_date.nil?}
+  after_save   :create_timesheet, if: Proc.new{|contract| !contract.has_child? && contract.status_changed? && contract.is_not_ended? && !contract.timesheets.present? && contract.in_progress? && contract.next_invoice_date.nil?}
   before_create :set_contractable , if: Proc.new{ |contract| contract.not_system_generated? }
 
   validate  :start_date_cannot_be_less_than_end_date , on: :create
@@ -66,6 +68,14 @@ class Contract < ActiveRecord::Base
     self.invoices.present?
   end
 
+  def parent_contract?
+    self.parent_contract.present?
+  end
+
+  def has_child?
+    self.child_contract.present?
+  end
+
   def is_system_generated?
     self.job_application.present? && self.job.is_system_generated
   end
@@ -94,6 +104,12 @@ class Contract < ActiveRecord::Base
     assignee.present?
   end
 
+
+
+  def is_child?
+    self.parent_contract.present?
+  end
+
   def title
     self.job.title + " Job - Contract # " + self.id.to_s
   end
@@ -110,11 +126,11 @@ class Contract < ActiveRecord::Base
     self.contract_terms.active.first.terms_condition
   end
 
-  # private
+  private
 
   def set_contractable
     self.contractable = self.job_application.company  if not self.job_application.is_candidate_applicant?
-    if self.job_application.is_candidate_applicant? && self.assignee.present?
+    if self.job_application.present? && self.job_application.is_candidate_applicant? && self.assignee.present?
       self.contractable = self.company
       self.status       = Contract.statuses["accepted"]
     end
@@ -133,7 +149,7 @@ class Contract < ActiveRecord::Base
   end
 
   def notify_on_status_change
-    self.created_by.notifications.create(message: self.respond_by.full_name+" has "+ self.status+" your contract request for "+self.job.title ,title:"Contract- #{self.job.title}")
+    self.created_by.notifications.create(message: self.respond_by.full_name+" has "+ self.status.titleize+" your contract request for "+self.job.title ,title:"Contract- #{self.job.title}")
   end
 
   def next_invoice_date_should_be_in_future
@@ -170,8 +186,8 @@ class Contract < ActiveRecord::Base
   end
 
   def self.invoiced_timesheets
-    self.in_progress.where(next_invoice_date: Date.today).each do |contract|
-      contract.invoices.create!
+    self.in_progress.where({next_invoice_date: Date.today}).each do |contract|
+      contract.invoices.create! if !contract.has_child?
     end
   end
 
