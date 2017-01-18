@@ -7,16 +7,21 @@
     %meta{:content => "", :name => "author"}/
     %title Etyme
 
-    = stylesheet_link_tag    'application', media: 'all', 'data-turbolinks-track' => true
+    = stylesheet_link_tag    'landing', media: 'all', 'data-turbolinks-track' => true
     / #FAVICONS
-    %link{:href => "img/favicon/favicon.ico", :rel => "shortcut icon", :type => "image/x-icon"}/
-    %link{:href => "img/favicon/favicon.ico", :rel => "icon", :type => "image/x-icon"}/
+    = favicon_link_tag 'favicon/favicon.ico'
+    = favicon_link_tag 'favicon/favicon.ico', rel: 'icon'
     / #GOOGLE FONT
-    %link{:href => "http://fonts.googleapis.com/css?family=Open+Sans:400italic,700italic,300,400,700", :rel => "stylesheet"}/
+    = stylesheet_link_tag 'https://fonts.googleapis.com/css?family=Open+Sans:400italic,700italic,300,400,700'
   %body
     = yield
+    .modals
     = render 'static/footer'
-    = javascript_include_tag 'application', 'data-turbolinks-track' => true
+    = javascript_include_tag 'application'
+    = javascript_include_tag 'landing', 'data-turbolinks-track' => true
+
+    = yield(:scripts).present? ? yield(:scripts) : render(partial: 'shared/scripts')
+
     :javascript
       jQuery(document).ready(function() {
         jQuery('.tp-banner').show().revolution({

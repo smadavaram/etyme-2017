@@ -28,6 +28,8 @@
 / #SMARTADMIN LANDING CSS
 *= require main.css
 *= require color/default.css
+*= require Job
+*= require custom
 
 
 */
