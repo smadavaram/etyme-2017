@@ -317,7 +317,7 @@ Rails.application.routes.draw do
 
   # Route set when subdomain is not present
   constraints(NakedEtymeDomain) do
-    match '/'  => "static/jobs#index", via: [:get, :post]
+    match '/'  => "static#index", via: [:get, :post]
   end
 
 
