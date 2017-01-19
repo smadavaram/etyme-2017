@@ -5,6 +5,7 @@ class Company::JobApplicationsController < Company::BaseController
   before_action :find_received_job_invitation , only: [:create]
   before_action :set_job_applications , only: [:index]
   before_action :find_received_job_application , only: [:accept , :reject ,:interview,:hire, :short_list,:show]
+  before_action :authorized_user,only: [:accept , :reject ,:interview,:hire, :short_list,:show]
 
   add_breadcrumb "JOB APPLICATIONS", :job_applications_path, options: { title: "JOBS APPLICATION" }
 
@@ -98,6 +99,10 @@ class Company::JobApplicationsController < Company::BaseController
     redirect_to :back
   end
 
+  def authorized_user
+    has_access?("manage_job_applications")
+  end
+
   def show
 
   end
@@ -123,7 +128,7 @@ class Company::JobApplicationsController < Company::BaseController
   end
 
   def find_received_job_application
-    @job_application = current_company.received_job_applications.where(id: params[:id]).first || []
+    @job_application = current_company.received_job_applications.where(id: params[:id]).first ||  current_company.sent_job_applications.where(id: params[:id]).first  || []
   end
 
   def job_application_params

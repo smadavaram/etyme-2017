@@ -38,7 +38,7 @@ class Candidate < ActiveRecord::Base
 
 
   def etyme_url
-    ENV['domain']
+    Rails.env.development? ? "#{ENV['domain']}:3000" : "#{ENV['domain']}"
   end
 
 

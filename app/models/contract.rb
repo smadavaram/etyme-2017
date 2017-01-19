@@ -1,5 +1,7 @@
 class Contract < ActiveRecord::Base
 
+  include Rails.application.routes.url_helpers
+
   enum status:           [ :pending, :accepted , :rejected , :is_ended  , :cancelled , :paused , :in_progress]
   enum billing_frequency:     [ :weekly_invoice, :monthly_invoice  ]
   enum time_sheet_frequency:[:daily,:weekly,:monthly]
@@ -32,7 +34,8 @@ class Contract < ActiveRecord::Base
 
   after_create :insert_attachable_docs
   after_create :notify_recipient , if: Proc.new{ |contract| contract.not_system_generated? }
-  after_update :notify_on_status_change, if: Proc.new{|contract| contract.status_changed? && contract.respond_by.present? && contract.not_system_generated?}
+  after_update :notify_on_status_change , if: Proc.new{ |contract| contract.status_changed? && contract.not_system_generated? && contract.assignee? && contract.respond_by.present?  && contract.accepted? }
+  after_update :notify_companies_admins_on_status_change, if: Proc.new{|contract| contract.status_changed? && contract.respond_by.present? && contract.not_system_generated?}
   # after_create :update_contract_application_status
   after_save   :create_timesheet, if: Proc.new{|contract| !contract.has_child? && contract.status_changed? && contract.is_not_ended? && !contract.timesheets.present? && contract.in_progress? && contract.next_invoice_date.nil?}
   before_create :set_contractable , if: Proc.new{ |contract| contract.not_system_generated? }
@@ -104,8 +107,6 @@ class Contract < ActiveRecord::Base
     assignee.present?
   end
 
-
-
   def is_child?
     self.parent_contract.present?
   end
@@ -126,7 +127,7 @@ class Contract < ActiveRecord::Base
     self.contract_terms.active.first.terms_condition
   end
 
-  private
+  # private
 
   def set_contractable
     self.contractable = self.job_application.company  if not self.job_application.is_candidate_applicant?
@@ -145,11 +146,24 @@ class Contract < ActiveRecord::Base
   end
 
   def notify_recipient
-    self.job_application.user.notifications.create(message: self.company.name+" sent a contract offer for "+self.job.title ,title: self.title) if self.job_application.present?
+    self.job_application.user.notifications.create(message: self.company.name+" has send you Contract <a href='http://#{self.contractable.etyme_url + contract_path(self)}'>#{self.job.title}</a>" ,title: self.title) if self.job_application.present?
   end
 
-  def notify_on_status_change
+  def notify_assignee_on_status_change
+    if self.accepted?
+      self.assignee.notifications.create(message: self.respond_by.full_name+" assigned you a contract for <a href='http://#{self.respond_by.etyme_url + contract_path(self)}'>#{self.job.title}</a>" ,title: self.title)
+    else
+      self.assignee.notifications.create(message: "Your contract for <a href='http://#{self.respond_by.etyme_url + contract_path(self)}'>#{self.job.title}</a> now #{self.status.titleize}" ,title: self.title)
+    end
+  end
+
+  def notify_companies_admins_on_status_change
     self.created_by.notifications.create(message: self.respond_by.full_name+" has "+ self.status.titleize+" your contract request for "+self.job.title ,title:"Contract- #{self.job.title}")
+
+    # admins.each  do |admin|
+    #     admin.notifications.create(message: self.applicationable.company.name + " has <a href='http://#{admin.etyme_url + contract_path(self)}'>apply</a> your Job Application - #{self.job.title}",title:"Job Application")
+    #   end
+    # self.company.all_admins_has_permission?('manage_job_applications') || []
   end
 
   def next_invoice_date_should_be_in_future

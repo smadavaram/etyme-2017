@@ -81,7 +81,7 @@ class Company::ContractsController < Company::BaseController
   end
 
   def authorize_user_for_new_contract
-    has_access?("create_new_contracts")
+    has_access?("create_new_contracts") || has_access?("manage_job_applications")
   end
 
   def authorize_user_for_edit_contract

@@ -254,7 +254,7 @@ module ApplicationHelper
     raw(digg)
   end
 
-  def has_permission(permission)
+  def has_permission?(permission)
     current_user.has_permission(permission) || current_user.is_owner?
   end
 end
