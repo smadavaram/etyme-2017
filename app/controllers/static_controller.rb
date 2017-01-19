@@ -20,6 +20,7 @@ class StaticController < ApplicationController
         flash.now[:error] = 'Please enter your email or domain'
       end
     end
+    render layout: 'application'
 
   end
 
