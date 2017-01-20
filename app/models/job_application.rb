@@ -21,7 +21,7 @@ class JobApplication < ActiveRecord::Base
   after_create :update_job_invitation_status ,     if: Proc.new{|application| application.job_invitation.present?}
   after_create :notify_job_owner_or_admins
   after_update :notify_recipient_on_status_change, if: Proc.new{|application| application.status_changed? }
-  after_create :set_application_type,              if: Proc.new{|application| application.job_invitation.present?}
+  before_create :set_application_type
 
   accepts_nested_attributes_for :custom_fields , reject_if: :all_blank
 
@@ -51,7 +51,13 @@ class JobApplication < ActiveRecord::Base
     end
 
     def set_application_type
-      self.invitation!
+      if self.job_invitation.present?
+        self.status = 'invitation'
+      elsif self.applicationable.class.name == "Candidate"
+        self.status = 'candidate_direct'
+      else
+        self.status =  'vendor_direct'
+      end
     end
 
     def notify_job_owner_or_admins
