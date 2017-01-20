@@ -1,4 +1,556 @@
-.container
+#fb-root
+.jumbotron.home-search{:style => ""}
+  .container
+    .row
+      .col-sm-12
+        %br/
+        %p.main_description Search thousands of jobs
+        %br/
+        %br/
+        .row
+          .col-sm-8.col-sm-offset-2{:style => "text-align: center"}
+            .row
+              .col-sm-10.col-sm-offset-1
+                .input-group
+                  %span.input-group-addon.input-group-addon-text Find job
+                  %input.form-control.col-sm-3{:placeholder => "e.g. development, QA, Testing ", :type => "text"}
+                    .input-group-addon.hidden-xs
+                      .btn-group
+                        %button.btn.dropdown-toggle{"data-toggle" => "dropdown", :type => "button"}
+                          All categories
+                          %span.caret
+                        %ul.dropdown-menu{:role => "menu"}
+                          - WORK_CATEGORIES.take(2).each do |category,subcategories|
+                            - subcategories.each do |sub|
+                              %li
+                                = link_to sub, "#"
+                          -#%li
+                          -#  %a{:href => "#"} Cars, Vans  Motorbikes
+                          -#%li
+                          -#  %a{:href => "#"} Community
+                          -#%li
+                          -#  %a{:href => "#"} Flats  Houses
+                          -#%li
+                          -#  %a{:href => "#"} For Sale
+                          -#%li
+                          -#  %a{:href => "#"} Jobs
+                          -#%li
+                          -#  %a{:href => "#"} Pets
+                          -#%li
+                          -#  %a{:href => "#"} Services
+          %br/
+          %br/
+          .row
+            .col-sm-12{:style => "text-align: center"}
+              %a.btn.btn-primary.search-btn{:href => "listings.html", style:"margin-top:35px"} Search
+          %br/
+          %br/
+          .row
+            .col-sm-12{:style => "text-align: center"}
+              #quotes
+                .text-item{:style => "display: none;"}
+                  Boom!
+                  %strong Vince
+                  just sold a
+                  %strong Washing Machine
+                  in
+                  %strong Sheffield
+                .text-item{:style => "display: none;"}
+                  %strong Julia
+                  is availiable for
+                  %strong home cleaning
+                  in
+                  %strong Manchester
+                .text-item{:style => "display: none;"}
+                  Success!
+                  %strong Paul
+                  has just sold a
+                  %strong Mercedes-Benz E-class
+                  in
+                  %strong Liverpool
+                .text-item{:style => "display: none;"}
+                  Hey,
+                  %strong Uber
+                  has a
+                  %strong job opening
+                  in
+                  %strong London
+  .container
+    .row
+      .col-sm-12.col-md-8
+        .row.directory
+          .col-sm-12
+            %h2
+              %span Jobs Categories
+        .row.directory
+          .col-xs-12
+            - @jobs.each do |category,jobs|
+              .directory-block.col-sm-4.col-xs-6
+                .row
+                  .col-sm-3
+                    %i.fa.fa-home
+                  .col-sm-9
+                    %h4= category
+                    %p
+                    - jobs.each_with_index  do |job,index|
+                      = index>0 ? "," :""
+                      = link_to job.title ,static_job_path(job)
+
+        -#.row.directory-counties.hidden-xs
+        -#  .col-sm-12
+        -#    %ul#myTab.nav.nav-tabs
+        -#      %li
+        -#        %a{"data-toggle" => "tab", :href => "#popular"} Popular cities
+        -#      %li
+        -#        %a{"data-toggle" => "tab", :href => "#EN"} England
+        -#      %li
+        -#        %a{"data-toggle" => "tab", :href => "#WA"} Wales
+        -#      %li
+        -#        %a{"data-toggle" => "tab", :href => "#SC"} Scotland
+        -#      %li.hidden-md
+        -#        %a{"data-toggle" => "tab", :href => "#NI"} Northern Ireland
+        -#      %li.dropdown
+        -#        %a#myTabDrop1.dropdown-toggle{"data-toggle" => "dropdown", :href => "#"}
+        -#          Other countries
+        -#          %b.caret
+        -#        %ul.dropdown-menu{"aria-labelledby" => "myTabDrop1", :role => "menu"}
+        -#          %li
+        -#            %a{:href => "listings.html"} USA
+        -#          %li
+        -#            %a{:href => "listings.html"} France
+        -#          %li
+        -#            %a{:href => "listings.html"} Germany
+        -#          %li
+        -#            %a{:href => "listings.html"} Spain and Portugal
+        -#          %li
+        -#            %a{:href => "listings.html"} Switzerland
+        -#          %li
+        -#            %a{:href => "listings.html"} Other Europe
+        -#    #myTabContent.tab-content
+        -#      #popular.tab-pane.fade.counties-pane.active
+        -#        .col-sm-3
+        -#          .row.directory-block
+        -#            .col-sm-12
+        -#              %a{:href => "listings.html"} London
+        -#              %br/
+        -#              %a{:href => "listings.html"} Edinburgh
+        -#              %br/
+        -#              %a{:href => "listings.html"} Manchester
+        -#              %br/
+        -#              %a{:href => "listings.html"} Birmingham
+        -#              %br/
+        -#              %a{:href => "listings.html"} Glasgow
+        -#              %br/
+        -#        .col-sm-3
+        -#          .row.directory-block
+        -#            .col-sm-12
+        -#              %a{:href => "listings.html"} Liverpool
+        -#              %br/
+        -#              %a{:href => "listings.html"} Bristol
+        -#              %br/
+        -#              %a{:href => "listings.html"} Oxford
+        -#              %br/
+        -#              %a{:href => "listings.html"} Cambridge
+        -#              %br/
+        -#              %a{:href => "listings.html"} Cardiff
+        -#              %br/
+        -#        .col-sm-3
+        -#          .row.directory-block
+        -#            .col-sm-12
+        -#              %a{:href => "listings.html"} Brighton
+        -#              %br/
+        -#              %a{:href => "listings.html"} Newcastle-upon-Tyne
+        -#              %br/
+        -#              %a{:href => "listings.html"} Leeds
+        -#              %br/
+        -#              %a{:href => "listings.html"} York
+        -#              %br/
+        -#              %a{:href => "listings.html"} Inverness
+        -#              %br/
+        -#        .col-sm-3
+        -#          .row.directory-block
+        -#            .col-sm-12
+        -#              %a{:href => "listings.html"} Bath
+        -#              %br/
+        -#              %a{:href => "listings.html"} Nottingham
+        -#              %br/
+        -#              %a{:href => "listings.html"} Reading
+        -#              %br/
+        -#              %a{:href => "listings.html"} Aberdeen
+        -#              %br/
+        -#              %a{:href => "listings.html"} Chester
+        -#              %br/
+        -#      #EN.tab-pane.counties-pane
+        -#        .col-sm-3
+        -#          .row.directory-block
+        -#            .col-sm-12
+        -#              %a{:href => "listings.html"} Avon
+        -#              %br/
+        -#              %a{:href => "listings.html"} Bedfordshire
+        -#              %br/
+        -#              %a{:href => "listings.html"} Berkshire
+        -#              %br/
+        -#              %a{:href => "listings.html"} Buckinghamshire
+        -#              %br/
+        -#              %a{:href => "listings.html"} Cambridgeshire
+        -#              %br/
+        -#              %a{:href => "listings.html"} Cheshire
+        -#              %br/
+        -#              %a{:href => "listings.html"} Cleveland
+        -#              %br/
+        -#              %a{:href => "listings.html"} Cornwall
+        -#              %br/
+        -#              %a{:href => "listings.html"} Cumbria
+        -#              %br/
+        -#              %a{:href => "listings.html"} Derbyshire
+        -#              %br/
+        -#              %a{:href => "listings.html"} Devon
+        -#              %br/
+        -#              %a{:href => "listings.html"} Dorset
+        -#              %br/
+        -#        .col-sm-3
+        -#          .row.directory-block
+        -#            .col-sm-12
+        -#              %a{:href => "listings.html"} Durham
+        -#              %br/
+        -#              %a{:href => "listings.html"} East Sussex
+        -#              %br/
+        -#              %a{:href => "listings.html"} Essex
+        -#              %br/
+        -#              %a{:href => "listings.html"} Gloucestershire
+        -#              %br/
+        -#              %a{:href => "listings.html"} Hampshire
+        -#              %br/
+        -#              %a{:href => "listings.html"} Herefordshire
+        -#              %br/
+        -#              %a{:href => "listings.html"} Hertfordshire
+        -#              %br/
+        -#              %a{:href => "listings.html"} Isle of Wight
+        -#              %br/
+        -#              %a{:href => "listings.html"} Kent
+        -#              %br/
+        -#              %a{:href => "listings.html"} Lancashire
+        -#              %br/
+        -#              %a{:href => "listings.html"} Leicestershire
+        -#              %br/
+        -#              %a{:href => "listings.html"} Lincolnshire
+        -#              %br/
+        -#        .col-sm-3
+        -#          .row.directory-block
+        -#            .col-sm-12
+        -#              %a{:href => "listings.html"} London
+        -#              %br/
+        -#              %a{:href => "listings.html"} Merseyside
+        -#              %br/
+        -#              %a{:href => "listings.html"} Middlesex
+        -#              %br/
+        -#              %a{:href => "listings.html"} Norfolk
+        -#              %br/
+        -#              %a{:href => "listings.html"} Northamptonshire
+        -#              %br/
+        -#              %a{:href => "listings.html"} Northumberland
+        -#              %br/
+        -#              %a{:href => "listings.html"} North Humberside
+        -#              %br/
+        -#              %a{:href => "listings.html"} North Yorkshire
+        -#              %br/
+        -#              %a{:href => "listings.html"} Nottinghamshire
+        -#              %br/
+        -#              %a{:href => "listings.html"} Oxfordshire
+        -#              %br/
+        -#              %a{:href => "listings.html"} Rutland
+        -#              %br/
+        -#              %a{:href => "listings.html"} Shropshire
+        -#              %br/
+        -#        .col-sm-3
+        -#          .row.directory-block
+        -#            .col-sm-12
+        -#              %a{:href => "listings.html"} Somerset
+        -#              %br/
+        -#              %a{:href => "listings.html"} South Humberside
+        -#              %br/
+        -#              %a{:href => "listings.html"} South Yorkshire
+        -#              %br/
+        -#              %a{:href => "listings.html"} Staffordshire
+        -#              %br/
+        -#              %a{:href => "listings.html"} Suffolk
+        -#              %br/
+        -#              %a{:href => "listings.html"} Surrey
+        -#              %br/
+        -#              %a{:href => "listings.html"} Tyne and Wear
+        -#              %br/
+        -#              %a{:href => "listings.html"} Warwickshire
+        -#              %br/
+        -#              %a{:href => "listings.html"} West Midlands
+        -#              %br/
+        -#              %a{:href => "listings.html"} West Sussex
+        -#              %br/
+        -#              %a{:href => "listings.html"} West Yorkshire
+        -#              %br/
+        -#              %a{:href => "listings.html"} Worcestershire
+        -#              %br/
+        -#      #WA.tab-pane.counties-pane
+        -#        .col-sm-3
+        -#          .row.directory-block
+        -#            .col-sm-12
+        -#              %a{:href => "listings.html"} Clwyd
+        -#              %br/
+        -#              %a{:href => "listings.html"} Dyfed
+        -#              %br/
+        -#        .col-sm-3
+        -#          .row.directory-block
+        -#            .col-sm-12
+        -#              %a{:href => "listings.html"} Gwent
+        -#              %br/
+        -#              %a{:href => "listings.html"} Gwynedd
+        -#              %br/
+        -#        .col-sm-3
+        -#          .row.directory-block
+        -#            .col-sm-12
+        -#              %a{:href => "listings.html"} Mid Glamorgan
+        -#              %br/
+        -#              %a{:href => "listings.html"} Powys
+        -#              %br/
+        -#        .col-sm-3
+        -#          .row.directory-block
+        -#            .col-sm-12
+        -#              %a{:href => "listings.html"} South Glamorgan
+        -#              %br/
+        -#              %a{:href => "listings.html"} West Glamorgan
+        -#              %br/
+        -#      #SC.tab-pane.counties-pane
+        -#        .col-sm-3
+        -#          .row.directory-block
+        -#            .col-sm-12
+        -#              %a{:href => "listings.html"} Aberdeenshire
+        -#              %br/
+        -#              %a{:href => "listings.html"} Angus
+        -#              %br/
+        -#              %a{:href => "listings.html"} Argyll
+        -#              %br/
+        -#              %a{:href => "listings.html"} Ayrshire
+        -#              %br/
+        -#              %a{:href => "listings.html"} Banffshire
+        -#              %br/
+        -#              %a{:href => "listings.html"} Berwickshire
+        -#              %br/
+        -#              %a{:href => "listings.html"} Bute
+        -#              %br/
+        -#              %a{:href => "listings.html"} Caithness
+        -#              %br/
+        -#        .col-sm-3
+        -#          .row.directory-block
+        -#            .col-sm-12
+        -#              %a{:href => "listings.html"} Clackmannanshire
+        -#              %br/
+        -#              %a{:href => "listings.html"} Dumfriesshire
+        -#              %br/
+        -#              %a{:href => "listings.html"} Dunbartonshire
+        -#              %br/
+        -#              %a{:href => "listings.html"} East Lothian
+        -#              %br/
+        -#              %a{:href => "listings.html"} Fife
+        -#              %br/
+        -#              %a{:href => "listings.html"} Inverness-shire
+        -#              %br/
+        -#              %a{:href => "listings.html"} Kincardineshire
+        -#              %br/
+        -#              %a{:href => "listings.html"} Kinross-shire
+        -#              %br/
+        -#        .col-sm-3
+        -#          .row.directory-block
+        -#            .col-sm-12
+        -#              %a{:href => "listings.html"} Kirkcudbrightshire
+        -#              %br/
+        -#              %a{:href => "listings.html"} Lanarkshire
+        -#              %br/
+        -#              %a{:href => "listings.html"} Midlothian
+        -#              %br/
+        -#              %a{:href => "listings.html"} Moray
+        -#              %br/
+        -#              %a{:href => "listings.html"} Nairnshire
+        -#              %br/
+        -#              %a{:href => "listings.html"} Orkney
+        -#              %br/
+        -#              %a{:href => "listings.html"} Peeblesshire
+        -#              %br/
+        -#              %a{:href => "listings.html"} Perthshire
+        -#              %br/
+        -#        .col-sm-3
+        -#          .row.directory-block
+        -#            .col-sm-12
+        -#              %a{:href => "listings.html"} Renfrewshire
+        -#              %br/
+        -#              %a{:href => "listings.html"} Ross-shire
+        -#              %br/
+        -#              %a{:href => "listings.html"} Roxburghshire
+        -#              %br/
+        -#              %a{:href => "listings.html"} Selkirkshire
+        -#              %br/
+        -#              %a{:href => "listings.html"} Shetland
+        -#              %br/
+        -#              %a{:href => "listings.html"} Stirlingshire
+        -#              %br/
+        -#              %a{:href => "listings.html"} Sutherland
+        -#              %br/
+        -#              %a{:href => "listings.html"} West Lothian
+        -#              %br/
+        -#        .col-sm-3
+        -#          .row.directory-block
+        -#            .col-sm-12
+        -#              %a{:href => "listings.html"} Wigtownshire
+        -#              %br/
+        -#      #NI.tab-pane.counties-pane
+        -#        .col-sm-3
+        -#          .row.directory-block
+        -#            .col-sm-12
+        -#              %a{:href => "listings.html"} Antrim
+        -#              %br/
+        -#        .col-sm-3
+        -#          .row.directory-block
+        -#            .col-sm-12
+        -#              %a{:href => "listings.html"} Armagh
+        -#              %br/
+        -#        .col-sm-3
+        -#          .row.directory-block
+        -#            .col-sm-12
+        -#              %a{:href => "listings.html"} Down
+        -#              %br/
+        -#        .col-sm-3
+        -#          .row.directory-block
+        -#            .col-sm-12
+        -#              %a{:href => "listings.html"} Fermanagh
+        -#              %br/
+        -#        .col-sm-3
+        -#          .row.directory-block
+        -#            .col-sm-12
+        -#              %a{:href => "listings.html"} Londonderry
+        -#              %br/
+        -#        .col-sm-3
+        -#          .row.directory-block
+        -#            .col-sm-12
+        -#              %a{:href => "listings.html"} Tyrone
+        -#              %br/
+      .col-xs-12.col-md-4
+        .row
+          .col-xs-12.col-sm-3.col-md-12.col-lg-11.pull-right
+            %br.hidden-sm.hidden-xs/
+            %br.hidden-sm.hidden-xs/
+            %br.hidden-sm.hidden-xs/
+            .panel.panel-default
+              .panel-heading Quick guide
+              %ul.list-group
+                %li.list-group-item
+                  %a{:href => "typography.html"} Our tips to stay safe
+                %li.list-group-item
+                  %a{:href => "typography.html"} How to buy guide
+                %li.list-group-item
+                  %a{:href => "typography.html"} How to sell guide
+                %li.list-group-item
+                  %a{:href => "typography.html"} Help and contact us
+                %li.list-group-item
+                  %a{:href => "typography.html"} Frequently asked questions
+          -#.col-xs-12.col-sm-5.col-md-12.col-lg-11.pull-right
+          -#  .panel.panel-default
+          -#    .panel-body{:style => "height: 102px; display: block;"}
+          -#      .fb-like{"data-action" => "like", "data-href" => "https://developers.facebook.com/docs/plugins/", "data-layout" => "standard", "data-share" => "false", "data-show-faces" => "false", "data-width" => "265", :style => "display: block; height: 30px;"}
+          -#      %br/
+          -#      / Place this tag where you want the +1 button to render.
+          -#      .g-plusone{"data-annotation" => "inline", "data-width" => "300", :style => "display: block; height: 30px;"}
+          -#      / Place this tag after the last +1 button tag.
+          -#    .panel-footer
+          -#      %a.twitter-follow-button{"data-dnt" => "true", :href => "https://twitter.com/twitterapi"} Follow @twitterapi
+          -#      :javascript
+          -#        !function(d,s,id){var js,fjs=d.getElementsByTagName(s)[0];if(!d.getElementById(id)){js=d.createElement(s);js.id=id;js.src="//platform.twitter.com/widgets.js";fjs.parentNode.insertBefore(js,fjs);}}(document,"script","twitter-wjs");
+          -#  %p.main_slogan{:style => "margin: 28px 0"} Currently listing 355,785 classified ads in the United Kingdom.
+          -#.col-xs-12.col-sm-4.col-md-12.col-lg-11.pull-right
+          -#  .panel.panel-default
+          -#    .panel-heading Premium listings
+              .panel-body
+                .featured-gallery
+                  .row
+                    .col-sm-6.col-xs-4.featured-thumbnail{"data-placement" => "top", "data-toggle" => "tooltip", :title => "Programmer job availiable at Uber in London"}
+                      %a{:href => "details.html"}
+                        = image_tag asset_path('home/images/logos/uberlogo_large_verge_medium_landscape.png')
+                        -#%img{:alt => "", :src => "css/images/logos/uberlogo_large_verge_medium_landscape.png", :style => "width: 100%"}
+                      .col-sm-6.col-xs-4.featured-thumbnail{"data-placement" => "top", "data-toggle" => "tooltip", :title => "Porsche Boxster S, 2.9 2dr reg Apr 2007 "}
+                        %a{:href => "details.html"}
+                          = image_tag asset_path('home/images/logos/car-78738_150.jpg')
+                          -#%img{:alt => "", :src => "css/images/logos/car-78738_150.jpg"}/
+                      .col-sm-6.col-xs-4.featured-thumbnail{"data-placement" => "top", "data-toggle" => "tooltip", :title => "Please find my lost cat"}
+                        %a{:href => "details.html"}
+                          = image_tag asset_path('home/images/logos/cats-q-c-120-80-4.jpg')
+                          -#%img{:alt => "", :src => "css/images/logos/cats-q-c-120-80-4.jpg"}/
+                      .col-sm-6.col-xs-4.featured-thumbnail{"data-placement" => "top", "data-toggle" => "tooltip", :title => "Mini copper looking for a quick sell !! - London - £2,485"}
+                        %a{:href => "details.html"}
+                          = image_tag asset_path('home/images/logos/transport-q-c-120-80-8.jpg')
+                          -#%img{:alt => "", :src => "css/images/logos/transport-q-c-120-80-8.jpg"}/
+                      .col-sm-6.col-xs-4.featured-thumbnail{"data-placement" => "top", "data-toggle" => "tooltip", :title => "Old MP3 player for sale"}
+                        %a{:href => "details.html"}
+                          = image_tag asset_path('home/images/logos/technics-q-c-120-80-10.jpg')
+                          -#%img{:alt => "", :src => "css/images/logos/technics-q-c-120-80-10.jpg"}/
+                      .col-sm-6.col-xs-4.featured-thumbnail{"data-placement" => "top", "data-toggle" => "tooltip", :title => "Designer job availiable at Uber in London"}
+                        %a{:href => "details.html"}
+                          = image_tag asset_path('home/images/logos/uberlogo_large_verge_medium_landscape.png')
+                          -#%img{:alt => "", :src => "css/images/logos/uberlogo_large_verge_medium_landscape.png"}/
+    / /.container
+    / Modal
+    -##modalLogin.modal.fade{"aria-hidden" => "true", "aria-labelledby" => "modalLogin", :role => "dialog", :tabindex => "-1"}
+    -#  .modal-dialog.modal-md
+    -#    .modal-content
+    -#      .modal-header
+    -#        %button.close{"aria-hidden" => "true", "data-dismiss" => "modal", :type => "button"}
+    -#        %h4.modal-title Sign in to your account
+    -#      .modal-body
+    -#        %p If you have an account with us, please enter your details below.
+    -#        %form#user-login-form.form.ajax{"accept-charset" => "UTF-8", :action => "account_dashboard.html", "data-replace" => ".error-message p", :method => "POST"}
+    -#          .form-group
+    -#            %input.form-control{:name => "email", :placeholder => "Your username/email", :type => "text"}
+    -#            .form-group
+    -#              %input.form-control{:name => "password", :placeholder => "Your password", :type => "password", :value => ""}
+    -#              .row
+    -#                .col-md-6
+    -#                .col-md-6
+    -#                  %button.btn.btn-primary.pull-right{:type => "submit"} Login
+    -#              .row
+    -#                .col-md-12
+    -#                  %a{"data-toggle" => "modal", :href => "#modalForgot"} Forgot your password?
+    -#          .modal-footer{:style => "text-align: center"}
+    -#            .error-message
+    -#              %p{:style => "color: #000; font-weight: normal;"}
+    -#                Don't have an account?
+    -#                %a.link-info{:href => "register.html"} Register now
+    -#    / /.modal-content
+    -#    / /.modal-dialog
+    -#    / /.modal
+    -#    / Modal
+    -#    #modalForgot.modal.fade{"aria-hidden" => "true", "aria-labelledby" => "modalForgot", :role => "dialog", :tabindex => "-1"}
+    -#      .modal-dialog
+    -#        .modal-content
+    -#          .modal-header
+    -#            %button.close{"aria-hidden" => "true", "data-dismiss" => "modal", :type => "button"}
+    -#            %h4.modal-title Forgot your password?
+    -#          .modal-body
+    -#            %p Enter your email to continue
+    -#            %form{:role => "form"}
+    -#              .form-group
+    -#                %input.form-control{:placeholder => "Your email address", :type => "email"}
+    -#                .row
+    -#                  .col-md-6
+    -#                  .col-md-6
+    -#                    %a.btn.btn-primary.pull-right{:href => "my_account.html"} Continue
+    -#      / /.modal-content
+    -#      / /.modal-dialog
+    -#      / /.modal
+
+
+
+
+
+
+
+
+-#.container
   / Section: #MENU
   %ul#gn-menu.gn-menu-main
     %li.gn-trigger
@@ -33,609 +585,609 @@
 
 
 / Section: #INTRO
-%section.intro
-  .slogan
-    /
-      \#################################
-      \- THEMEPUNCH BANNER -
-      \#################################
-    .tp-banner-container
-      .tp-banner
-        %ul
-          / SLIDE
-          %li{"data-masterspeed" => "500", "data-saveperformance" => "on", "data-slotamount" => "7", "data-thumb" => "#{image_path('slider/homeslider_thumb1.jpg')}", "data-title" => "Intro Slide", "data-transition" => "fade"}
-            / MAIN IMAGE
-            %img{:alt => "slidebg1", "data-bgfit" => "cover", "data-bgposition" => "center top", "data-bgrepeat" => "no-repeat", "data-lazyload" => "#{image_path('slider/slidebg1.jpg')}", :src => "#{image_path('slider/dummy.png')}"}/
-            / LAYERS
-            / LAYER NR. 1
-            .tp-caption.lft.customout.rs-parallaxlevel-0{"data-customout" => "x:0;y:0;z:0;rotationX:0;rotationY:0;rotationZ:0;scaleX:0.75;scaleY:0.75;skewX:0;skewY:0;opacity:0;transformPerspective:600;transformOrigin:50% 50%;", "data-easing" => "Power3.easeInOut", "data-elementdelay" => "0.1", "data-endelementdelay" => "0.1", "data-speed" => "700", "data-start" => "1550", "data-x" => "695", "data-y" => "83", :style => "z-index: 2;"}
-              %img{:alt => "", "data-lazyload" => "#{image_path('slider/plate2.png')}", :src => "#{image_path('slider/dummy.png')}"}/
-            / LAYER NR. 2
-            .tp-caption.lft.customout.rs-parallaxlevel-0{"data-customout" => "x:0;y:0;z:0;rotationX:0;rotationY:0;rotationZ:0;scaleX:0.75;scaleY:0.75;skewX:0;skewY:0;opacity:0;transformPerspective:600;transformOrigin:50% 50%;", "data-easing" => "Power3.easeInOut", "data-elementdelay" => "0.1", "data-endelementdelay" => "0.1", "data-speed" => "700", "data-start" => "1400", "data-x" => "564", "data-y" => "96", :style => "z-index: 3;"}
-              %img{:alt => "", "data-lazyload" => "#{image_path('slider/plate1.png')}", :src => "#{image_path('slider/dummy.png')}"}/
-            / LAYER NR. 3
-            .tp-caption.lft.customout.rs-parallaxlevel-0{"data-customout" => "x:0;y:0;z:0;rotationX:0;rotationY:0;rotationZ:0;scaleX:0.75;scaleY:0.75;skewX:0;skewY:0;opacity:0;transformPerspective:600;transformOrigin:50% 50%;", "data-easing" => "Power3.easeInOut", "data-elementdelay" => "0.1", "data-endelementdelay" => "0.1", "data-speed" => "700", "data-start" => "1100", "data-x" => "480", "data-y" => "99", :style => "z-index: 4;"}
-              %img{:alt => "", "data-lazyload" => "#{image_path('slider/woman1.png')}", :src => "#{image_path('slider/dummy.png')}"}/
-            / LAYER NR. 4
-            .tp-caption.grey_heavy_72.skewfromrightshort.tp-resizeme.rs-parallaxlevel-0{"data-easing" => "Power3.easeInOut", "data-elementdelay" => "0.1", "data-endelementdelay" => "0.1", "data-speed" => "500", "data-splitin" => "chars", "data-splitout" => "none", "data-start" => "2250", "data-x" => "197", "data-y" => "154", :style => "z-index: 5; max-width: auto; max-height: auto; white-space: nowrap;"}
-              Better!
-            / LAYER NR. 5
-            .tp-caption.customin.rs-parallaxlevel-0{"data-customin" => "x:0;y:0;z:0;rotationX:0;rotationY:0;rotationZ:0;scaleX:0;scaleY:0;skewX:0;skewY:0;opacity:0;transformPerspective:600;transformOrigin:50% 50%;", "data-easing" => "Power3.easeInOut", "data-elementdelay" => "0.1", "data-endelementdelay" => "0.1", "data-speed" => "500", "data-start" => "2000", "data-x" => "86", "data-y" => "184", :style => "z-index: 6;"}
-              %img{:alt => "", "data-lazyload" => "#{image_path('slider/redbg.png')}", :src => "#{image_path('slider/dummy.png')}"}/
-            / LAYER NR. 6
-            .tp-caption.black_heavy_60.skewfromleftshort.tp-resizeme.rs-parallaxlevel-0{"data-easing" => "Power3.easeInOut", "data-elementdelay" => "0.1", "data-endelementdelay" => "0.1", "data-speed" => "500", "data-splitin" => "chars", "data-splitout" => "none", "data-start" => "1850", "data-x" => "-2", "data-y" => "133", :style => "z-index: 7; max-width: auto; max-height: auto; white-space: nowrap;"}
-              Now
-            / LAYER NR. 7
-            .tp-caption.white_heavy_40.customin.tp-resizeme.rs-parallaxlevel-0{"data-customin" => "x:0;y:0;z:0;rotationX:0;rotationY:0;rotationZ:0;scaleX:0;scaleY:0;skewX:0;skewY:0;opacity:0;transformPerspective:600;transformOrigin:50% 50%;", "data-easing" => "Power3.easeInOut", "data-elementdelay" => "0.1", "data-endelementdelay" => "0.1", "data-speed" => "500", "data-splitin" => "none", "data-splitout" => "none", "data-start" => "2050", "data-x" => "98", "data-y" => "187", :style => "z-index: 8; max-width: auto; max-height: auto; white-space: nowrap;"}
-              Even
-            / LAYER NR. 8
-            .tp-caption.grey_regular_18.customin.tp-resizeme.rs-parallaxlevel-0{"data-customin" => "x:0;y:0;z:0;rotationX:0;rotationY:0;rotationZ:0;scaleX:0;scaleY:0;skewX:0;skewY:0;opacity:0;transformPerspective:600;transformOrigin:50% 50%;", "data-easing" => "Power3.easeInOut", "data-elementdelay" => "0.05", "data-endelementdelay" => "0.1", "data-speed" => "500", "data-splitin" => "none", "data-splitout" => "none", "data-start" => "2600", "data-x" => "78", "data-y" => "318", :style => "z-index: 9; max-width: auto; max-height: auto; white-space: nowrap;"}
-              %div{:style => "text-align:center;"}
-                Etyme is highly acclaimed
-                %br/
-                WebApp hydra template with
-                %br/
-                multiple versions has been the
-                %br/
-                solution for many businesses
-                %br/
-                and have greatly been appricated
-                %br/
-                by developers world wide.
-            / LAYER NR. 9
-            .tp-caption.black_thin_34.customin.tp-resizeme.rs-parallaxlevel-0{"data-customin" => "x:0;y:0;z:0;rotationX:90;rotationY:0;rotationZ:0;scaleX:1;scaleY:1;skewX:0;skewY:0;opacity:0;transformPerspective:200;transformOrigin:50% 0%;", "data-easing" => "Back.easeOut", "data-elementdelay" => "0.1", "data-endelementdelay" => "0.1", "data-speed" => "500", "data-splitin" => "none", "data-splitout" => "none", "data-start" => "2350", "data-x" => "58", "data-y" => "238", :style => "z-index: 10; max-width: auto; max-height: auto; white-space: nowrap;"}
-              Packed with features!
-            / LAYER NR. 10
-            .tp-caption.customin.rs-parallaxlevel-0{"data-customin" => "x:0;y:0;z:0;rotationX:0;rotationY:0;rotationZ:0;scaleX:0;scaleY:0;skewX:0;skewY:0;opacity:0;transformPerspective:600;transformOrigin:50% 50%;", "data-easing" => "Power3.easeInOut", "data-elementdelay" => "0.1", "data-endelementdelay" => "0.1", "data-speed" => "300", "data-start" => "2500", "data-x" => "6", "data-y" => "290", :style => "z-index: 11;"}
-              %img{:alt => "", "data-lazyload" => "#{image_path('slider/greyline.png')}", :src => "#{image_path('slider/dummy.png')}"}/
-            / LAYER NR. 11
-            .tp-caption.customin.tp-resizeme.rs-parallaxlevel-0{"data-customin" => "x:0;y:0;z:0;rotationX:0;rotationY:0;rotationZ:0;scaleX:0;scaleY:0;skewX:0;skewY:0;opacity:0;transformPerspective:600;transformOrigin:50% 50%;", "data-easing" => "Power3.easeInOut", "data-elementdelay" => "0.1", "data-endelementdelay" => "0.1", "data-linktoslide" => "next", "data-speed" => "500", "data-splitin" => "none", "data-splitout" => "none", "data-start" => "2900", "data-x" => "73", "data-y" => "502", :style => "z-index: 12; max-width: auto; max-height: auto; white-space: nowrap;"}
-              %a.largeredbtn{:href => "#"} CONTINUE THE TOUR
-            / LAYER NR. 12
-            .tp-caption.arrowicon.customin.rs-parallaxlevel-0{"data-customin" => "x:0;y:0;z:0;rotationX:0;rotationY:0;rotationZ:0;scaleX:0;scaleY:0;skewX:0;skewY:0;opacity:0;transformPerspective:600;transformOrigin:50% 50%;", "data-easing" => "Power3.easeInOut", "data-elementdelay" => "0.1", "data-endelementdelay" => "0.1", "data-linktoslide" => "next", "data-speed" => "300", "data-start" => "3200", "data-x" => "303", "data-y" => "526", :style => "z-index: 13;"}
-              .rs-slideloop{"data-easing" => "Power3.easeInOut", "data-speed" => "0.5", "data-xe" => "5", "data-xs" => "-5", "data-ye" => "0", "data-ys" => "0"}
-                %img{:alt => "", "data-hh" => "11", "data-lazyload" => "#{image_path('slider/doublearrow2.png')}", "data-ww" => "18", :src => "#{image_path('slider/dummy.png')}"}/
-          / SLIDE
-          %li{"data-delay" => "10000", "data-masterspeed" => "2000", "data-saveperformance" => "on", "data-slotamount" => "7", "data-thumb" => "#{image_path('slider/homeslider_thumb2.jpg')}", "data-title" => "Slide", "data-transition" => "slideleft"}
-            / MAIN IMAGE
-            %img{:alt => "laptopmockup_sliderdy", "data-bgfit" => "115", "data-bgfitend" => "100", "data-bgposition" => "right top", "data-bgpositionend" => "center bottom", "data-duration" => "12000", "data-ease" => "Power0.easeInOut", "data-kenburns" => "on", "data-lazyload" => "#{image_path('slider/laptopmockup_sliderdy.jpg')}", :src => "#{image_path('slider/dummy.png')}"}/
-            / LAYERS
-            / LAYER NR. 1
-            .tp-caption.customin.fadeout.rs-parallaxlevel-10{"data-customin" => "x:0;y:0;z:0;rotationX:0;rotationY:0;rotationZ:0;scaleX:0;scaleY:0;skewX:0;skewY:0;opacity:0;transformPerspective:600;transformOrigin:50% 50%;", "data-easing" => "Power3.easeInOut", "data-elementdelay" => "0.1", "data-endelementdelay" => "0.1", "data-endspeed" => "300", "data-speed" => "300", "data-start" => "2700", "data-x" => "848", "data-y" => "196", :style => "z-index: 2;"}
-              %img{:alt => "", "data-lazyload" => "#{image_path('slider/redbg_big.png')}", :src => "#{image_path('slider/dummy.png')}"}/
-            / LAYER NR. 2
-            .tp-caption.light_heavy_70.customin.fadeout.tp-resizeme.rs-parallaxlevel-10{"data-customin" => "x:0;y:0;z:0;rotationX:0;rotationY:0;rotationZ:0;scaleX:0;scaleY:0;skewX:0;skewY:0;opacity:0;transformPerspective:600;transformOrigin:50% 50%;", "data-easing" => "Power3.easeInOut", "data-elementdelay" => "0.1", "data-endelementdelay" => "0.1", "data-endspeed" => "300", "data-speed" => "300", "data-splitin" => "none", "data-splitout" => "none", "data-start" => "2850", "data-x" => "862", "data-y" => "204", :style => "z-index: 3; max-width: auto; max-height: auto; white-space: nowrap;"}
-              Effect
-            / LAYER NR. 3
-            .tp-caption.black_heavy_70.skewfromleftshort.fadeout.tp-resizeme.rs-parallaxlevel-10{"data-easing" => "Power3.easeInOut", "data-elementdelay" => "0.1", "data-endelementdelay" => "0.1", "data-endspeed" => "300", "data-speed" => "500", "data-splitin" => "chars", "data-splitout" => "none", "data-start" => "2400", "data-x" => "717", "data-y" => "143", :style => "z-index: 4; max-width: auto; max-height: auto; white-space: nowrap;"}
-              Jobs
-            / LAYER NR. 4
-            .tp-caption.black_bold_40.skewfromrightshort.fadeout.tp-resizeme.rs-parallaxlevel-10{"data-easing" => "Power3.easeInOut", "data-elementdelay" => "0.1", "data-endelementdelay" => "0.1", "data-endspeed" => "300", "data-speed" => "500", "data-splitin" => "chars", "data-splitout" => "none", "data-start" => "3200", "data-x" => "937", "data-y" => "282", :style => "z-index: 5; max-width: auto; max-height: auto; white-space: nowrap;"}
-              Candidates
-            .tp-caption.black_bold_bg_20.sfr.fadeout.tp-resizeme.rs-parallaxlevel-10{"data-easing" => "Power3.easeInOut", "data-elementdelay" => "0.1", "data-endelementdelay" => "0.1", "data-endspeed" => "300", "data-speed" => "300", "data-splitin" => "none", "data-splitout" => "none", "data-start" => "4000", "data-x" => "970", "data-y" => "367", :style => "z-index: 6; max-width: auto; max-height: auto; white-space: nowrap;"}
-              Companies
-            / LAYER NR. 6
-            .tp-caption.greenbox30.customin.fadeout.tp-resizeme.rs-parallaxlevel-10{"data-customin" => "x:0;y:0;z:0;rotationX:0;rotationY:0;rotationZ:0;scaleX:0;scaleY:0;skewX:0;skewY:0;opacity:0;transformPerspective:600;transformOrigin:50% 50%;", "data-easing" => "Power3.easeInOut", "data-elementdelay" => "0.1", "data-endelementdelay" => "0.1", "data-endspeed" => "300", "data-speed" => "300", "data-splitin" => "none", "data-splitout" => "none", "data-start" => "4000", "data-x" => "939", "data-y" => "367", :style => "z-index: 7; max-width: auto; max-height: auto; white-space: nowrap;"}
-               
-            / LAYER NR. 7
-            .tp-caption.arrowicon.customin.fadeout.rs-parallaxlevel-10{"data-customin" => "x:0;y:0;z:0;rotationX:0;rotationY:0;rotationZ:0;scaleX:0;scaleY:0;skewX:0;skewY:0;opacity:0;transformPerspective:600;transformOrigin:50% 50%;", "data-easing" => "Power3.easeInOut", "data-elementdelay" => "0.1", "data-endelementdelay" => "0.1", "data-endspeed" => "300", "data-speed" => "300", "data-start" => "4200", "data-x" => "948", "data-y" => "374", :style => "z-index: 8;"}
-              %img{:alt => "", "data-hh" => "17", "data-lazyload" => "#{image_path('slider/check.png')}", "data-ww" => "17", :src => "#{image_path('slider/dummy.png')}"}/
-            / LAYER NR. 8
-            .tp-caption.black_bold_bg_20.sfr.fadeout.tp-resizeme.rs-parallaxlevel-10{"data-easing" => "Power3.easeInOut", "data-elementdelay" => "0.1", "data-endelementdelay" => "0.1", "data-endspeed" => "300", "data-speed" => "300", "data-splitin" => "none", "data-splitout" => "none", "data-start" => "4500", "data-x" => "970", "data-y" => "407", :style => "z-index: 9; max-width: auto; max-height: auto; white-space: nowrap;"}
-              Company Signup
-            / LAYER NR. 9
-            .tp-caption.greenbox30.customin.fadeout.tp-resizeme.rs-parallaxlevel-10{"data-customin" => "x:0;y:0;z:0;rotationX:0;rotationY:0;rotationZ:0;scaleX:0;scaleY:0;skewX:0;skewY:0;opacity:0;transformPerspective:600;transformOrigin:50% 50%;", "data-easing" => "Power3.easeInOut", "data-elementdelay" => "0.1", "data-endelementdelay" => "0.1", "data-endspeed" => "300", "data-speed" => "300", "data-splitin" => "none", "data-splitout" => "none", "data-start" => "4500", "data-x" => "939", "data-y" => "407", :style => "z-index: 10; max-width: auto; max-height: auto; white-space: nowrap;"}
-               
-            / LAYER NR. 10
-            .tp-caption.arrowicon.customin.fadeout.rs-parallaxlevel-10{"data-customin" => "x:0;y:0;z:0;rotationX:0;rotationY:0;rotationZ:0;scaleX:0;scaleY:0;skewX:0;skewY:0;opacity:0;transformPerspective:600;transformOrigin:50% 50%;", "data-easing" => "Power3.easeInOut", "data-elementdelay" => "0.1", "data-endelementdelay" => "0.1", "data-endspeed" => "300", "data-speed" => "300", "data-start" => "4700", "data-x" => "948", "data-y" => "414", :style => "z-index: 11;"}
-              %img{:alt => "", "data-hh" => "17", "data-lazyload" => "#{image_path('slider/check.png')}", "data-ww" => "17", :src => "#{image_path('slider/dummy.png')}"}/
-            / LAYER NR. 11
-            .tp-caption.black_bold_bg_20.sfr.fadeout.tp-resizeme.rs-parallaxlevel-10{"data-easing" => "Power3.easeInOut", "data-elementdelay" => "0.1", "data-endelementdelay" => "0.1", "data-endspeed" => "300", "data-speed" => "300", "data-splitin" => "none", "data-splitout" => "none", "data-start" => "5000", "data-x" => "970", "data-y" => "447", :style => "z-index: 12; max-width: auto; max-height: auto; white-space: nowrap;"}
-              EASY TO USE
-            / LAYER NR. 12
-            .tp-caption.greenbox30.customin.fadeout.tp-resizeme.rs-parallaxlevel-10{"data-customin" => "x:0;y:0;z:0;rotationX:0;rotationY:0;rotationZ:0;scaleX:0;scaleY:0;skewX:0;skewY:0;opacity:0;transformPerspective:600;transformOrigin:50% 50%;", "data-easing" => "Power3.easeInOut", "data-elementdelay" => "0.1", "data-endelementdelay" => "0.1", "data-endspeed" => "300", "data-speed" => "300", "data-splitin" => "none", "data-splitout" => "none", "data-start" => "5000", "data-x" => "939", "data-y" => "447", :style => "z-index: 13; max-width: auto; max-height: auto; white-space: nowrap;"}
-               
-            / LAYER NR. 13
-            .tp-caption.arrowicon.customin.fadeout.rs-parallaxlevel-10{"data-customin" => "x:0;y:0;z:0;rotationX:0;rotationY:0;rotationZ:0;scaleX:0;scaleY:0;skewX:0;skewY:0;opacity:0;transformPerspective:600;transformOrigin:50% 50%;", "data-easing" => "Power3.easeInOut", "data-elementdelay" => "0.1", "data-endelementdelay" => "0.1", "data-endspeed" => "300", "data-speed" => "300", "data-start" => "5200", "data-x" => "948", "data-y" => "454", :style => "z-index: 14;"}
-              %img{:alt => "", "data-hh" => "17", "data-lazyload" => "#{image_path('slider/check.png')}", "data-ww" => "17", :src => "#{image_path('slider/dummy.png')}"}/
-          / SLIDE
-          %li{"data-masterspeed" => "1500", "data-saveperformance" => "on", "data-slotamount" => "7", "data-thumb" => "#{image_path('slider/homeslider_thumb4.jpg')}", "data-title" => "Mobile Interaction", "data-transition" => "zoomin"}
-            / MAIN IMAGE
-            %img{:alt => "slidebg1", "data-bgfit" => "cover", "data-bgposition" => "center top", "data-bgrepeat" => "no-repeat", "data-lazyload" => "#{image_path('slider/slidebg1.jpg')}", :src => "#{image_path('slider/dummy.png')}"}/
-            / LAYERS
-            / LAYER NR. 1
-            .tp-caption.lfb.rs-parallaxlevel-9{"data-easing" => "Power4.easeInOut", "data-elementdelay" => "0.1", "data-endelementdelay" => "0.1", "data-endspeed" => "300", "data-hoffset" => "-40", "data-speed" => "1500", "data-start" => "2400", "data-voffset" => "-10", "data-x" => "center", "data-y" => "bottom", :style => "z-index: 2;"}
-              %img{:alt => "", "data-lazyload" => "#{image_path('slider/ipad2.png')}", :src => "#{image_path('slider/dummy.png')}"}/
-            / LAYER NR. 2
-            .tp-caption.customin.rs-parallaxlevel-1{"data-customin" => "x:0;y:0;z:0;rotationX:0;rotationY:0;rotationZ:0;scaleX:0;scaleY:0;skewX:0;skewY:0;opacity:0;transformPerspective:600;transformOrigin:50% 50%;", "data-easing" => "Power4.easeInOut", "data-elementdelay" => "0.1", "data-endelementdelay" => "0.1", "data-endspeed" => "300", "data-speed" => "500", "data-start" => "4400", "data-x" => "515", "data-y" => "331", :style => "z-index: 3;"}
-              .rs-pulse{"data-easing" => "Power4.easeInOut", "data-speed" => "0.5", "data-zoomend" => "1", "data-zoomstart" => "0.75"}
-                %img{:alt => "", "data-lazyload" => "#{image_path('slider/pulse1.png')}", :src => "#{image_path('slider/dummy.png')}"}/
-            / LAYER NR. 4
-            .tp-caption.lfb.rs-parallaxlevel-9{"data-easing" => "Power4.easeInOut", "data-elementdelay" => "0.1", "data-endelementdelay" => "0.1", "data-endspeed" => "300", "data-speed" => "1500", "data-start" => "2900", "data-x" => "693", "data-y" => "191", :style => "z-index: 5;"}
-              %img{:alt => "", "data-lazyload" => "#{image_path('slider/iphone.png')}", :src => "#{image_path('slider/dummy.png')}"}/
-            / LAYER NR. 5
-            .tp-caption.black_heavy_70.customin.randomrotateout.tp-resizeme.rs-parallaxlevel-5{"data-customin" => "x:0;y:100;z:0;rotationX:0;rotationY:0;rotationZ:0;scaleX:1;scaleY:3;skewX:0;skewY:0;opacity:0;transformPerspective:600;transformOrigin:0% 0%;", "data-easing" => "Power3.easeInOut", "data-elementdelay" => "0.1", "data-endelementdelay" => "0.1", "data-endspeed" => "600", "data-speed" => "500", "data-splitin" => "chars", "data-splitout" => "none", "data-start" => "1400", "data-x" => "315", "data-y" => "40", :style => "z-index: 6; max-width: auto; max-height: auto; white-space: nowrap;"}
-              Mobile
-            / LAYER NR. 6
-            .tp-caption.customin.randomrotateout.rs-parallaxlevel-7{"data-customin" => "x:0;y:0;z:0;rotationX:0;rotationY:0;rotationZ:0;scaleX:0;scaleY:0;skewX:0;skewY:0;opacity:0;transformPerspective:600;transformOrigin:50% 50%;", "data-easing" => "Power3.easeInOut", "data-elementdelay" => "0.1", "data-endelementdelay" => "0.1", "data-endspeed" => "600", "data-speed" => "300", "data-start" => "1900", "data-x" => "434", "data-y" => "98", :style => "z-index: 7;"}
-              %img{:alt => "", "data-lazyload" => "#{image_path('slider/largegreen.png')}", :src => "#{image_path('slider/dummy.png')}"}/
-            / LAYER NR. 7
-            .tp-caption.light_heavy_70.customin.randomrotateout.tp-resizeme.rs-parallaxlevel-7{"data-customin" => "x:0;y:0;z:0;rotationX:0;rotationY:0;rotationZ:0;scaleX:0;scaleY:0;skewX:0;skewY:0;opacity:0;transformPerspective:600;transformOrigin:50% 50%;", "data-easing" => "Power3.easeInOut", "data-elementdelay" => "0.1", "data-endelementdelay" => "0.1", "data-endspeed" => "600", "data-speed" => "300", "data-splitin" => "none", "data-splitout" => "none", "data-start" => "2200", "data-x" => "448", "data-y" => "106", :style => "z-index: 8; max-width: auto; max-height: auto; white-space: nowrap;"}
-              Device
-            / LAYER NR. 8
-            .tp-caption.black_bold_40.skewfromrightshort.randomrotateout.tp-resizeme.rs-parallaxlevel-6{"data-easing" => "Power3.easeInOut", "data-elementdelay" => "0.1", "data-endelementdelay" => "0.1", "data-endspeed" => "600", "data-speed" => "500", "data-splitin" => "chars", "data-splitout" => "none", "data-start" => "2500", "data-x" => "619", "data-y" => "177", :style => "z-index: 9; max-width: auto; max-height: auto; white-space: nowrap;"}
-              Friendly
-        .tp-bannertimer
+-#%section.intro
+-#  .slogan
+-#    /
+-#      \#################################
+-#      \- THEMEPUNCH BANNER -
+-#      \#################################
+-#    .tp-banner-container
+-#      .tp-banner
+-#        %ul
+-#          / SLIDE
+-#          %li{"data-masterspeed" => "500", "data-saveperformance" => "on", "data-slotamount" => "7", "data-thumb" => "#{image_path('slider/homeslider_thumb1.jpg')}", "data-title" => "Intro Slide", "data-transition" => "fade"}
+-#            / MAIN IMAGE
+-#            %img{:alt => "slidebg1", "data-bgfit" => "cover", "data-bgposition" => "center top", "data-bgrepeat" => "no-repeat", "data-lazyload" => "#{image_path('slider/slidebg1.jpg')}", :src => "#{image_path('slider/dummy.png')}"}/
+-#            / LAYERS
+-#            / LAYER NR. 1
+-#            .tp-caption.lft.customout.rs-parallaxlevel-0{"data-customout" => "x:0;y:0;z:0;rotationX:0;rotationY:0;rotationZ:0;scaleX:0.75;scaleY:0.75;skewX:0;skewY:0;opacity:0;transformPerspective:600;transformOrigin:50% 50%;", "data-easing" => "Power3.easeInOut", "data-elementdelay" => "0.1", "data-endelementdelay" => "0.1", "data-speed" => "700", "data-start" => "1550", "data-x" => "695", "data-y" => "83", :style => "z-index: 2;"}
+-#              %img{:alt => "", "data-lazyload" => "#{image_path('slider/plate2.png')}", :src => "#{image_path('slider/dummy.png')}"}/
+-#            / LAYER NR. 2
+-#            .tp-caption.lft.customout.rs-parallaxlevel-0{"data-customout" => "x:0;y:0;z:0;rotationX:0;rotationY:0;rotationZ:0;scaleX:0.75;scaleY:0.75;skewX:0;skewY:0;opacity:0;transformPerspective:600;transformOrigin:50% 50%;", "data-easing" => "Power3.easeInOut", "data-elementdelay" => "0.1", "data-endelementdelay" => "0.1", "data-speed" => "700", "data-start" => "1400", "data-x" => "564", "data-y" => "96", :style => "z-index: 3;"}
+-#              %img{:alt => "", "data-lazyload" => "#{image_path('slider/plate1.png')}", :src => "#{image_path('slider/dummy.png')}"}/
+-#            / LAYER NR. 3
+-#            .tp-caption.lft.customout.rs-parallaxlevel-0{"data-customout" => "x:0;y:0;z:0;rotationX:0;rotationY:0;rotationZ:0;scaleX:0.75;scaleY:0.75;skewX:0;skewY:0;opacity:0;transformPerspective:600;transformOrigin:50% 50%;", "data-easing" => "Power3.easeInOut", "data-elementdelay" => "0.1", "data-endelementdelay" => "0.1", "data-speed" => "700", "data-start" => "1100", "data-x" => "480", "data-y" => "99", :style => "z-index: 4;"}
+-#              %img{:alt => "", "data-lazyload" => "#{image_path('slider/woman1.png')}", :src => "#{image_path('slider/dummy.png')}"}/
+-#            / LAYER NR. 4
+-#            .tp-caption.grey_heavy_72.skewfromrightshort.tp-resizeme.rs-parallaxlevel-0{"data-easing" => "Power3.easeInOut", "data-elementdelay" => "0.1", "data-endelementdelay" => "0.1", "data-speed" => "500", "data-splitin" => "chars", "data-splitout" => "none", "data-start" => "2250", "data-x" => "197", "data-y" => "154", :style => "z-index: 5; max-width: auto; max-height: auto; white-space: nowrap;"}
+-#              Better!
+-#            / LAYER NR. 5
+-#            .tp-caption.customin.rs-parallaxlevel-0{"data-customin" => "x:0;y:0;z:0;rotationX:0;rotationY:0;rotationZ:0;scaleX:0;scaleY:0;skewX:0;skewY:0;opacity:0;transformPerspective:600;transformOrigin:50% 50%;", "data-easing" => "Power3.easeInOut", "data-elementdelay" => "0.1", "data-endelementdelay" => "0.1", "data-speed" => "500", "data-start" => "2000", "data-x" => "86", "data-y" => "184", :style => "z-index: 6;"}
+-#              %img{:alt => "", "data-lazyload" => "#{image_path('slider/redbg.png')}", :src => "#{image_path('slider/dummy.png')}"}/
+-#            / LAYER NR. 6
+-#            .tp-caption.black_heavy_60.skewfromleftshort.tp-resizeme.rs-parallaxlevel-0{"data-easing" => "Power3.easeInOut", "data-elementdelay" => "0.1", "data-endelementdelay" => "0.1", "data-speed" => "500", "data-splitin" => "chars", "data-splitout" => "none", "data-start" => "1850", "data-x" => "-2", "data-y" => "133", :style => "z-index: 7; max-width: auto; max-height: auto; white-space: nowrap;"}
+-#              Now
+-#            / LAYER NR. 7
+-#            .tp-caption.white_heavy_40.customin.tp-resizeme.rs-parallaxlevel-0{"data-customin" => "x:0;y:0;z:0;rotationX:0;rotationY:0;rotationZ:0;scaleX:0;scaleY:0;skewX:0;skewY:0;opacity:0;transformPerspective:600;transformOrigin:50% 50%;", "data-easing" => "Power3.easeInOut", "data-elementdelay" => "0.1", "data-endelementdelay" => "0.1", "data-speed" => "500", "data-splitin" => "none", "data-splitout" => "none", "data-start" => "2050", "data-x" => "98", "data-y" => "187", :style => "z-index: 8; max-width: auto; max-height: auto; white-space: nowrap;"}
+-#              Even
+-#            / LAYER NR. 8
+-#            .tp-caption.grey_regular_18.customin.tp-resizeme.rs-parallaxlevel-0{"data-customin" => "x:0;y:0;z:0;rotationX:0;rotationY:0;rotationZ:0;scaleX:0;scaleY:0;skewX:0;skewY:0;opacity:0;transformPerspective:600;transformOrigin:50% 50%;", "data-easing" => "Power3.easeInOut", "data-elementdelay" => "0.05", "data-endelementdelay" => "0.1", "data-speed" => "500", "data-splitin" => "none", "data-splitout" => "none", "data-start" => "2600", "data-x" => "78", "data-y" => "318", :style => "z-index: 9; max-width: auto; max-height: auto; white-space: nowrap;"}
+-#              %div{:style => "text-align:center;"}
+-#                Etyme is highly acclaimed
+-#                %br/
+-#                WebApp hydra template with
+-#                %br/
+-#                multiple versions has been the
+-#                %br/
+-#                solution for many businesses
+-#                %br/
+-#                and have greatly been appricated
+-#                %br/
+-#                by developers world wide.
+-#            / LAYER NR. 9
+-#            .tp-caption.black_thin_34.customin.tp-resizeme.rs-parallaxlevel-0{"data-customin" => "x:0;y:0;z:0;rotationX:90;rotationY:0;rotationZ:0;scaleX:1;scaleY:1;skewX:0;skewY:0;opacity:0;transformPerspective:200;transformOrigin:50% 0%;", "data-easing" => "Back.easeOut", "data-elementdelay" => "0.1", "data-endelementdelay" => "0.1", "data-speed" => "500", "data-splitin" => "none", "data-splitout" => "none", "data-start" => "2350", "data-x" => "58", "data-y" => "238", :style => "z-index: 10; max-width: auto; max-height: auto; white-space: nowrap;"}
+-#              Packed with features!
+-#            / LAYER NR. 10
+-#            .tp-caption.customin.rs-parallaxlevel-0{"data-customin" => "x:0;y:0;z:0;rotationX:0;rotationY:0;rotationZ:0;scaleX:0;scaleY:0;skewX:0;skewY:0;opacity:0;transformPerspective:600;transformOrigin:50% 50%;", "data-easing" => "Power3.easeInOut", "data-elementdelay" => "0.1", "data-endelementdelay" => "0.1", "data-speed" => "300", "data-start" => "2500", "data-x" => "6", "data-y" => "290", :style => "z-index: 11;"}
+-#              %img{:alt => "", "data-lazyload" => "#{image_path('slider/greyline.png')}", :src => "#{image_path('slider/dummy.png')}"}/
+-#            / LAYER NR. 11
+-#            .tp-caption.customin.tp-resizeme.rs-parallaxlevel-0{"data-customin" => "x:0;y:0;z:0;rotationX:0;rotationY:0;rotationZ:0;scaleX:0;scaleY:0;skewX:0;skewY:0;opacity:0;transformPerspective:600;transformOrigin:50% 50%;", "data-easing" => "Power3.easeInOut", "data-elementdelay" => "0.1", "data-endelementdelay" => "0.1", "data-linktoslide" => "next", "data-speed" => "500", "data-splitin" => "none", "data-splitout" => "none", "data-start" => "2900", "data-x" => "73", "data-y" => "502", :style => "z-index: 12; max-width: auto; max-height: auto; white-space: nowrap;"}
+-#              %a.largeredbtn{:href => "#"} CONTINUE THE TOUR
+-#            / LAYER NR. 12
+-#            .tp-caption.arrowicon.customin.rs-parallaxlevel-0{"data-customin" => "x:0;y:0;z:0;rotationX:0;rotationY:0;rotationZ:0;scaleX:0;scaleY:0;skewX:0;skewY:0;opacity:0;transformPerspective:600;transformOrigin:50% 50%;", "data-easing" => "Power3.easeInOut", "data-elementdelay" => "0.1", "data-endelementdelay" => "0.1", "data-linktoslide" => "next", "data-speed" => "300", "data-start" => "3200", "data-x" => "303", "data-y" => "526", :style => "z-index: 13;"}
+-#              .rs-slideloop{"data-easing" => "Power3.easeInOut", "data-speed" => "0.5", "data-xe" => "5", "data-xs" => "-5", "data-ye" => "0", "data-ys" => "0"}
+-#                %img{:alt => "", "data-hh" => "11", "data-lazyload" => "#{image_path('slider/doublearrow2.png')}", "data-ww" => "18", :src => "#{image_path('slider/dummy.png')}"}/
+-#          / SLIDE
+-#          %li{"data-delay" => "10000", "data-masterspeed" => "2000", "data-saveperformance" => "on", "data-slotamount" => "7", "data-thumb" => "#{image_path('slider/homeslider_thumb2.jpg')}", "data-title" => "Slide", "data-transition" => "slideleft"}
+-#            / MAIN IMAGE
+-#            %img{:alt => "laptopmockup_sliderdy", "data-bgfit" => "115", "data-bgfitend" => "100", "data-bgposition" => "right top", "data-bgpositionend" => "center bottom", "data-duration" => "12000", "data-ease" => "Power0.easeInOut", "data-kenburns" => "on", "data-lazyload" => "#{image_path('slider/laptopmockup_sliderdy.jpg')}", :src => "#{image_path('slider/dummy.png')}"}/
+-#            / LAYERS
+-#            / LAYER NR. 1
+-#            .tp-caption.customin.fadeout.rs-parallaxlevel-10{"data-customin" => "x:0;y:0;z:0;rotationX:0;rotationY:0;rotationZ:0;scaleX:0;scaleY:0;skewX:0;skewY:0;opacity:0;transformPerspective:600;transformOrigin:50% 50%;", "data-easing" => "Power3.easeInOut", "data-elementdelay" => "0.1", "data-endelementdelay" => "0.1", "data-endspeed" => "300", "data-speed" => "300", "data-start" => "2700", "data-x" => "848", "data-y" => "196", :style => "z-index: 2;"}
+-#              %img{:alt => "", "data-lazyload" => "#{image_path('slider/redbg_big.png')}", :src => "#{image_path('slider/dummy.png')}"}/
+-#            / LAYER NR. 2
+-#            .tp-caption.light_heavy_70.customin.fadeout.tp-resizeme.rs-parallaxlevel-10{"data-customin" => "x:0;y:0;z:0;rotationX:0;rotationY:0;rotationZ:0;scaleX:0;scaleY:0;skewX:0;skewY:0;opacity:0;transformPerspective:600;transformOrigin:50% 50%;", "data-easing" => "Power3.easeInOut", "data-elementdelay" => "0.1", "data-endelementdelay" => "0.1", "data-endspeed" => "300", "data-speed" => "300", "data-splitin" => "none", "data-splitout" => "none", "data-start" => "2850", "data-x" => "862", "data-y" => "204", :style => "z-index: 3; max-width: auto; max-height: auto; white-space: nowrap;"}
+-#              Effect
+-#            / LAYER NR. 3
+-#            .tp-caption.black_heavy_70.skewfromleftshort.fadeout.tp-resizeme.rs-parallaxlevel-10{"data-easing" => "Power3.easeInOut", "data-elementdelay" => "0.1", "data-endelementdelay" => "0.1", "data-endspeed" => "300", "data-speed" => "500", "data-splitin" => "chars", "data-splitout" => "none", "data-start" => "2400", "data-x" => "717", "data-y" => "143", :style => "z-index: 4; max-width: auto; max-height: auto; white-space: nowrap;"}
+-#              Jobs
+-#            / LAYER NR. 4
+-#            .tp-caption.black_bold_40.skewfromrightshort.fadeout.tp-resizeme.rs-parallaxlevel-10{"data-easing" => "Power3.easeInOut", "data-elementdelay" => "0.1", "data-endelementdelay" => "0.1", "data-endspeed" => "300", "data-speed" => "500", "data-splitin" => "chars", "data-splitout" => "none", "data-start" => "3200", "data-x" => "937", "data-y" => "282", :style => "z-index: 5; max-width: auto; max-height: auto; white-space: nowrap;"}
+-#              Candidates
+-#            .tp-caption.black_bold_bg_20.sfr.fadeout.tp-resizeme.rs-parallaxlevel-10{"data-easing" => "Power3.easeInOut", "data-elementdelay" => "0.1", "data-endelementdelay" => "0.1", "data-endspeed" => "300", "data-speed" => "300", "data-splitin" => "none", "data-splitout" => "none", "data-start" => "4000", "data-x" => "970", "data-y" => "367", :style => "z-index: 6; max-width: auto; max-height: auto; white-space: nowrap;"}
+-#              Companies
+-#            / LAYER NR. 6
+-#            .tp-caption.greenbox30.customin.fadeout.tp-resizeme.rs-parallaxlevel-10{"data-customin" => "x:0;y:0;z:0;rotationX:0;rotationY:0;rotationZ:0;scaleX:0;scaleY:0;skewX:0;skewY:0;opacity:0;transformPerspective:600;transformOrigin:50% 50%;", "data-easing" => "Power3.easeInOut", "data-elementdelay" => "0.1", "data-endelementdelay" => "0.1", "data-endspeed" => "300", "data-speed" => "300", "data-splitin" => "none", "data-splitout" => "none", "data-start" => "4000", "data-x" => "939", "data-y" => "367", :style => "z-index: 7; max-width: auto; max-height: auto; white-space: nowrap;"}
+-#               
+-#            / LAYER NR. 7
+-#            .tp-caption.arrowicon.customin.fadeout.rs-parallaxlevel-10{"data-customin" => "x:0;y:0;z:0;rotationX:0;rotationY:0;rotationZ:0;scaleX:0;scaleY:0;skewX:0;skewY:0;opacity:0;transformPerspective:600;transformOrigin:50% 50%;", "data-easing" => "Power3.easeInOut", "data-elementdelay" => "0.1", "data-endelementdelay" => "0.1", "data-endspeed" => "300", "data-speed" => "300", "data-start" => "4200", "data-x" => "948", "data-y" => "374", :style => "z-index: 8;"}
+-#              %img{:alt => "", "data-hh" => "17", "data-lazyload" => "#{image_path('slider/check.png')}", "data-ww" => "17", :src => "#{image_path('slider/dummy.png')}"}/
+-#            / LAYER NR. 8
+-#            .tp-caption.black_bold_bg_20.sfr.fadeout.tp-resizeme.rs-parallaxlevel-10{"data-easing" => "Power3.easeInOut", "data-elementdelay" => "0.1", "data-endelementdelay" => "0.1", "data-endspeed" => "300", "data-speed" => "300", "data-splitin" => "none", "data-splitout" => "none", "data-start" => "4500", "data-x" => "970", "data-y" => "407", :style => "z-index: 9; max-width: auto; max-height: auto; white-space: nowrap;"}
+-#              Company Signup
+-#            / LAYER NR. 9
+-#            .tp-caption.greenbox30.customin.fadeout.tp-resizeme.rs-parallaxlevel-10{"data-customin" => "x:0;y:0;z:0;rotationX:0;rotationY:0;rotationZ:0;scaleX:0;scaleY:0;skewX:0;skewY:0;opacity:0;transformPerspective:600;transformOrigin:50% 50%;", "data-easing" => "Power3.easeInOut", "data-elementdelay" => "0.1", "data-endelementdelay" => "0.1", "data-endspeed" => "300", "data-speed" => "300", "data-splitin" => "none", "data-splitout" => "none", "data-start" => "4500", "data-x" => "939", "data-y" => "407", :style => "z-index: 10; max-width: auto; max-height: auto; white-space: nowrap;"}
+-#               
+-#            / LAYER NR. 10
+-#            .tp-caption.arrowicon.customin.fadeout.rs-parallaxlevel-10{"data-customin" => "x:0;y:0;z:0;rotationX:0;rotationY:0;rotationZ:0;scaleX:0;scaleY:0;skewX:0;skewY:0;opacity:0;transformPerspective:600;transformOrigin:50% 50%;", "data-easing" => "Power3.easeInOut", "data-elementdelay" => "0.1", "data-endelementdelay" => "0.1", "data-endspeed" => "300", "data-speed" => "300", "data-start" => "4700", "data-x" => "948", "data-y" => "414", :style => "z-index: 11;"}
+-#              %img{:alt => "", "data-hh" => "17", "data-lazyload" => "#{image_path('slider/check.png')}", "data-ww" => "17", :src => "#{image_path('slider/dummy.png')}"}/
+-#            / LAYER NR. 11
+-#            .tp-caption.black_bold_bg_20.sfr.fadeout.tp-resizeme.rs-parallaxlevel-10{"data-easing" => "Power3.easeInOut", "data-elementdelay" => "0.1", "data-endelementdelay" => "0.1", "data-endspeed" => "300", "data-speed" => "300", "data-splitin" => "none", "data-splitout" => "none", "data-start" => "5000", "data-x" => "970", "data-y" => "447", :style => "z-index: 12; max-width: auto; max-height: auto; white-space: nowrap;"}
+-#              EASY TO USE
+-#            / LAYER NR. 12
+-#            .tp-caption.greenbox30.customin.fadeout.tp-resizeme.rs-parallaxlevel-10{"data-customin" => "x:0;y:0;z:0;rotationX:0;rotationY:0;rotationZ:0;scaleX:0;scaleY:0;skewX:0;skewY:0;opacity:0;transformPerspective:600;transformOrigin:50% 50%;", "data-easing" => "Power3.easeInOut", "data-elementdelay" => "0.1", "data-endelementdelay" => "0.1", "data-endspeed" => "300", "data-speed" => "300", "data-splitin" => "none", "data-splitout" => "none", "data-start" => "5000", "data-x" => "939", "data-y" => "447", :style => "z-index: 13; max-width: auto; max-height: auto; white-space: nowrap;"}
+-#               
+-#            / LAYER NR. 13
+-#            .tp-caption.arrowicon.customin.fadeout.rs-parallaxlevel-10{"data-customin" => "x:0;y:0;z:0;rotationX:0;rotationY:0;rotationZ:0;scaleX:0;scaleY:0;skewX:0;skewY:0;opacity:0;transformPerspective:600;transformOrigin:50% 50%;", "data-easing" => "Power3.easeInOut", "data-elementdelay" => "0.1", "data-endelementdelay" => "0.1", "data-endspeed" => "300", "data-speed" => "300", "data-start" => "5200", "data-x" => "948", "data-y" => "454", :style => "z-index: 14;"}
+-#              %img{:alt => "", "data-hh" => "17", "data-lazyload" => "#{image_path('slider/check.png')}", "data-ww" => "17", :src => "#{image_path('slider/dummy.png')}"}/
+-#          / SLIDE
+-#          %li{"data-masterspeed" => "1500", "data-saveperformance" => "on", "data-slotamount" => "7", "data-thumb" => "#{image_path('slider/homeslider_thumb4.jpg')}", "data-title" => "Mobile Interaction", "data-transition" => "zoomin"}
+-#            / MAIN IMAGE
+-#            %img{:alt => "slidebg1", "data-bgfit" => "cover", "data-bgposition" => "center top", "data-bgrepeat" => "no-repeat", "data-lazyload" => "#{image_path('slider/slidebg1.jpg')}", :src => "#{image_path('slider/dummy.png')}"}/
+-#            / LAYERS
+-#            / LAYER NR. 1
+-#            .tp-caption.lfb.rs-parallaxlevel-9{"data-easing" => "Power4.easeInOut", "data-elementdelay" => "0.1", "data-endelementdelay" => "0.1", "data-endspeed" => "300", "data-hoffset" => "-40", "data-speed" => "1500", "data-start" => "2400", "data-voffset" => "-10", "data-x" => "center", "data-y" => "bottom", :style => "z-index: 2;"}
+-#              %img{:alt => "", "data-lazyload" => "#{image_path('slider/ipad2.png')}", :src => "#{image_path('slider/dummy.png')}"}/
+-#            / LAYER NR. 2
+-#            .tp-caption.customin.rs-parallaxlevel-1{"data-customin" => "x:0;y:0;z:0;rotationX:0;rotationY:0;rotationZ:0;scaleX:0;scaleY:0;skewX:0;skewY:0;opacity:0;transformPerspective:600;transformOrigin:50% 50%;", "data-easing" => "Power4.easeInOut", "data-elementdelay" => "0.1", "data-endelementdelay" => "0.1", "data-endspeed" => "300", "data-speed" => "500", "data-start" => "4400", "data-x" => "515", "data-y" => "331", :style => "z-index: 3;"}
+-#              .rs-pulse{"data-easing" => "Power4.easeInOut", "data-speed" => "0.5", "data-zoomend" => "1", "data-zoomstart" => "0.75"}
+-#                %img{:alt => "", "data-lazyload" => "#{image_path('slider/pulse1.png')}", :src => "#{image_path('slider/dummy.png')}"}/
+-#            / LAYER NR. 4
+-#            .tp-caption.lfb.rs-parallaxlevel-9{"data-easing" => "Power4.easeInOut", "data-elementdelay" => "0.1", "data-endelementdelay" => "0.1", "data-endspeed" => "300", "data-speed" => "1500", "data-start" => "2900", "data-x" => "693", "data-y" => "191", :style => "z-index: 5;"}
+-#              %img{:alt => "", "data-lazyload" => "#{image_path('slider/iphone.png')}", :src => "#{image_path('slider/dummy.png')}"}/
+-#            / LAYER NR. 5
+-#            .tp-caption.black_heavy_70.customin.randomrotateout.tp-resizeme.rs-parallaxlevel-5{"data-customin" => "x:0;y:100;z:0;rotationX:0;rotationY:0;rotationZ:0;scaleX:1;scaleY:3;skewX:0;skewY:0;opacity:0;transformPerspective:600;transformOrigin:0% 0%;", "data-easing" => "Power3.easeInOut", "data-elementdelay" => "0.1", "data-endelementdelay" => "0.1", "data-endspeed" => "600", "data-speed" => "500", "data-splitin" => "chars", "data-splitout" => "none", "data-start" => "1400", "data-x" => "315", "data-y" => "40", :style => "z-index: 6; max-width: auto; max-height: auto; white-space: nowrap;"}
+-#              Mobile
+-#            / LAYER NR. 6
+-#            .tp-caption.customin.randomrotateout.rs-parallaxlevel-7{"data-customin" => "x:0;y:0;z:0;rotationX:0;rotationY:0;rotationZ:0;scaleX:0;scaleY:0;skewX:0;skewY:0;opacity:0;transformPerspective:600;transformOrigin:50% 50%;", "data-easing" => "Power3.easeInOut", "data-elementdelay" => "0.1", "data-endelementdelay" => "0.1", "data-endspeed" => "600", "data-speed" => "300", "data-start" => "1900", "data-x" => "434", "data-y" => "98", :style => "z-index: 7;"}
+-#              %img{:alt => "", "data-lazyload" => "#{image_path('slider/largegreen.png')}", :src => "#{image_path('slider/dummy.png')}"}/
+-#            / LAYER NR. 7
+-#            .tp-caption.light_heavy_70.customin.randomrotateout.tp-resizeme.rs-parallaxlevel-7{"data-customin" => "x:0;y:0;z:0;rotationX:0;rotationY:0;rotationZ:0;scaleX:0;scaleY:0;skewX:0;skewY:0;opacity:0;transformPerspective:600;transformOrigin:50% 50%;", "data-easing" => "Power3.easeInOut", "data-elementdelay" => "0.1", "data-endelementdelay" => "0.1", "data-endspeed" => "600", "data-speed" => "300", "data-splitin" => "none", "data-splitout" => "none", "data-start" => "2200", "data-x" => "448", "data-y" => "106", :style => "z-index: 8; max-width: auto; max-height: auto; white-space: nowrap;"}
+-#              Device
+-#            / LAYER NR. 8
+-#            .tp-caption.black_bold_40.skewfromrightshort.randomrotateout.tp-resizeme.rs-parallaxlevel-6{"data-easing" => "Power3.easeInOut", "data-elementdelay" => "0.1", "data-endelementdelay" => "0.1", "data-endspeed" => "600", "data-speed" => "500", "data-splitin" => "chars", "data-splitout" => "none", "data-start" => "2500", "data-x" => "619", "data-y" => "177", :style => "z-index: 9; max-width: auto; max-height: auto; white-space: nowrap;"}
+-#              Friendly
+-#        .tp-bannertimer
 / /Section: INTRO
 / Section: #PRICING
-%section#pricing.home-section.text-center
-  .heading-about.marginbot-50
-    .container
-      .row
-        .col-lg-8.col-lg-offset-2
-          .section-heading
-            %h2 Find Jobs
-            %p
-              We have many jobs like that. you can apply for after sign in or sign up.
-      .row
-        .col-sm-12.col-md-12
-          - if @jobs.present?
-            - @jobs.each do |category,jobs|
-              .col-sm-3.col-xs-6
-                %h1
-                  = category
-                %p{style: "font-size: 13px ; align: left"}
-                  - jobs.each_with_index  do |job, index|
-                    %span
-                      = index>0 ? "," :""
-                      = link_to job.try(:title),static_job_path(job)
-          - else
-            %h4
-              No Jobs Now!
-
-          -#.panel
-          -#  .panel.b-light.text-center{style:"border-color:thistle height: 100%"}
-          -#    %header.panel-heading.bg-color-white{:style => "display: table; width: 100%; height: 100%;"}
-          -#      %h3.equal-height
-          -#        = category
-                -#  %br
-                -#  %span.h4.text-muted
-                -#    = job.job_category
-                -#%ul.list-group
-                -#  %li.list-group-item
-                -#    %p.h4
-                -#      = job.company.name.titleize
-                -#  %li.list-group-item.text-muted.text-center{:style => "text-align: justify; font-size: 14px; height: 140px;"}
-                -#    = truncate(strip_tags(job.description),length: 200)
-                -#.pannel-footer.b-light.links{:style => ""}
-                -#  = link_to 'Apply',candidate_signed_in? ? static_job_apply_path(job,status:true)  : static_job_apply_path(job,status: false) ,method: :post,remote: true ,class: "btn btn-primary size #{current_candidate.present? ?  (current_candidate.is_already_applied?(job.id) ? 'disabled' : " ") :''  } "
-                -#  = link_to 'View Detail',static_job_path(job), class: 'btn btn-primary size'
-      -#.col-xs-12.col-sm-6.col-md-3
-      -#  .panel.panel-success.pricing-big
-      -#    .panel-heading
-      -#      %h3.panel-title
-      -#        Personal Project
-      -#    .panel-body.no-padding.text-align-center
-      -#      .the-price
-      -#        %h1
-      -#          $99
-      -#          %span.subscript / mo
-      -#      .price-features
-      -#        %ul.list-unstyled.text-left
-      -#          %li
-      -#            %i.fa.fa-check.text-success
-      -#            2 years access
-      -#            %strong to all storage locations
-      -#          %li
-      -#            %i.fa.fa-check.text-success
-      -#            %strong Unlimited
-      -#            storage
-      -#          %li
-      -#            %i.fa.fa-check.text-success
-      -#            Superbig
-      -#            %strong download quota
-      -#          %li
-      -#            %i.fa.fa-check.text-success
-      -#            %strong Smart File Storage
-      -#          %li
-      -#            %i.fa.fa-check.text-success
-      -#            All time
-      -#            %strong updates
-      -#          %li
-      -#            %i.fa.fa-check.text-success
-      -#            %strong Unlimited
-      -#            access to all files
-      -#          %li
-      -#            %i.fa.fa-check.text-success
-      -#            %strong Allowed
-      -#            to be exclusing per sale
-      -#    .panel-footer.text-align-center
-      -#      %a.btn.btn-primary.btn-block{:href => "javascript:void(0);", :role => "button"}
-      -#        Purchase
-      -#        %span via Paypal
-      -#      %div
-      -#        %a{:href => "javascript:void(0);"}
-      -#          %i We accept all major credit cards
-      -#.col-xs-12.col-sm-6.col-md-3
-      -#  .panel.panel-primary.pricing-big
-      -#    %img.ribbon{:alt => "ribbon", :src => "#{image_path('ribbon.png')}"}/
-      -#    .panel-heading
-      -#      %h3.panel-title
-      -#        Developer Bundle
-      -#    .panel-body.no-padding.text-align-center
-      -#      .the-price
-      -#        %h1
-      -#          $350
-      -#          %span.subscript / mo
-      -#      .price-features
-      -#        %ul.list-unstyled.text-left
-      -#          %li
-      -#            %i.fa.fa-check.text-success
-      -#            2 years access
-      -#            %strong to all storage locations
-      -#          %li
-      -#            %i.fa.fa-check.text-success
-      -#            %strong Unlimited
-      -#            storage
-      -#          %li
-      -#            %i.fa.fa-check.text-success
-      -#            Superbig
-      -#            %strong download quota
-      -#          %li
-      -#            %i.fa.fa-check.text-success
-      -#            %strong Smart File Storage
-      -#          %li
-      -#            %i.fa.fa-check.text-success
-      -#            All time
-      -#            %strong updates
-      -#          %li
-      -#            %i.fa.fa-check.text-success
-      -#            %strong Unlimited
-      -#            access to all files
-      -#          %li
-      -#            %i.fa.fa-check.text-success
-      -#            %strong Allowed
-      -#            to be exclusing per sale
-      -#    .panel-footer.text-align-center
-      -#      %a.btn.btn-primary.btn-block{:href => "javascript:void(0);", :role => "button"}
-      -#        Purchase
-      -#        %span via Paypal
-      -#      %div
-      -#        %a{:href => "javascript:void(0);"}
-      -#          %i We accept all major credit cards
-      -#.col-xs-12.col-sm-6.col-md-3
-      -#  .panel.panel-danger.pricing-big
-      -#    .panel-heading
-      -#      %h3.panel-title
-      -#        Premium Package
-      -#    .panel-body.no-padding.text-align-center
-      -#      .the-price
-      -#        %h1
-      -#          $999
-      -#          %span.subscript / mo
-      -#      .price-features
-      -#        %ul.list-unstyled.text-left
-      -#          %li
-      -#            %i.fa.fa-check.text-success
-      -#            Lifetime access
-      -#            %strong to all storage locations
-      -#          %li
-      -#            %i.fa.fa-check.text-success
-      -#            %strong Unlimited
-      -#            storage
-      -#          %li
-      -#            %i.fa.fa-check.text-success
-      -#            Superbig
-      -#            %strong download quota
-      -#          %li
-      -#            %i.fa.fa-check.text-success
-      -#            %strong Smart File Storage
-      -#          %li
-      -#            %i.fa.fa-check.text-success
-      -#            All time
-      -#            %strong updates
-      -#          %li
-      -#            %i.fa.fa-check.text-success
-      -#            %strong Unlimited
-      -#            access to all files
-      -#          %li
-      -#            %i.fa.fa-check.text-success
-      -#            %strong Allowed
-      -#            to be exclusing per sale
-      -#    .panel-footer.text-align-center
-      -#      %a.btn.btn-primary.btn-block{:href => "javascript:void(0);", :role => "button"}
-      -#        Purchase
-      -#        %span via Paypal
-      -#      %div
-      -#        %a{:href => "javascript:void(0);"}
-      -#          %i We accept all major credit cards
-/ /Section: PRICING
-/ Section: #TEAM
--#%section#team.home-section.text-center.bg-gray
+-#%section#pricing.home-section.text-center
 -#  .heading-about.marginbot-50
 -#    .container
 -#      .row
 -#        .col-lg-8.col-lg-offset-2
 -#          .section-heading
--#            %h2 SmartAdmin Team
+-#            %h2 Find Jobs
 -#            %p
--#              Lorem ipsum dolor sit amet, no nisl mentitum recusabo per, vim at blandit qualisque dissentiunt. Diam efficiantur conclusionemque ut has
--#  .container
--#    .row
--#      .col-xs-12.col-sm-3.col-md-3
--#        .team.boxed-grey
--#          .inner
--#            %h5 John Doe
--#            %p.subtitle
--#              CEO
--#            .avatar
--#              %img.img-responsive{:alt => "", :src => "#{image_path('team/1.jpg')}"}/
--#      .col-xs-12.col-sm-3.col-md-3
--#        .team.boxed-grey
--#          .inner
--#            %h5 Barley Kazurkth
--#            %p.subtitle
--#              Marketing Director
--#            .avatar
--#              %img.img-responsive{:alt => "", :src => "#{image_path('team/2.jpg')}"}/
--#      .col-xs-12.col-sm-3.col-md-3
--#        .team.boxed-grey
--#          .inner
--#            %h5 Sadi Orlaf
--#            %p.subtitle
--#              Marketing Executive
--#            .avatar
--#              %img.img-responsive{:alt => "", :src => "#{image_path('team/3.jpg')}"}/
--#      .col-xs-12.col-sm-3.col-md-3
--#        .team.boxed-grey
--#          .inner
--#            %h5 Tony Shark
--#            %p.subtitle
--#              Programmer
--#            .avatar
--#              %img.img-responsive{:alt => "", :src => "#{image_path('team/4.jpg')}"}/
-/ /Section: TEAM
-/ Section: #FEATURES
--#%section#features.home-section.text-center
--#  .heading-about.marginbot-50
--#    .container
+-#              We have many jobs like that. you can apply for after sign in or sign up.
 -#      .row
--#        .col-lg-8.col-lg-offset-2
--#          .section-heading
--#            %h2 The Power of SmartAdmin
--#            %p
--#              Lorem ipsum dolor sit amet, no nisl mentitum recusabo per, vim at blandit qualisque dissentiunt. Diam efficiantur conclusionemque ut has
+-#        .col-sm-12.col-md-12
+-#          - if @jobs.present?
+-#            - @jobs.each do |category,jobs|
+-#              .col-sm-3.col-xs-6
+-#                %h1
+-#                  = category
+-#                %p{style: "font-size: 13px ; align: left"}
+-#                  - jobs.each_with_index  do |job, index|
+-#                    %span
+-#                      = index>0 ? "," :""
+-#                      = link_to job.try(:title),static_job_path(job)
+-#          - else
+-#            %h4
+-#              No Jobs Now!
+-#
+-#          -#.panel
+-#          -#  .panel.b-light.text-center{style:"border-color:thistle height: 100%"}
+-#          -#    %header.panel-heading.bg-color-white{:style => "display: table; width: 100%; height: 100%;"}
+-#          -#      %h3.equal-height
+-#          -#        = category
+-#                -#  %br
+-#                -#  %span.h4.text-muted
+-#                -#    = job.job_category
+-#                -#%ul.list-group
+-#                -#  %li.list-group-item
+-#                -#    %p.h4
+-#                -#      = job.company.name.titleize
+-#                -#  %li.list-group-item.text-muted.text-center{:style => "text-align: justify; font-size: 14px; height: 140px;"}
+-#                -#    = truncate(strip_tags(job.description),length: 200)
+-#                -#.pannel-footer.b-light.links{:style => ""}
+-#                -#  = link_to 'Apply',candidate_signed_in? ? static_job_apply_path(job,status:true)  : static_job_apply_path(job,status: false) ,method: :post,remote: true ,class: "btn btn-primary size #{current_candidate.present? ?  (current_candidate.is_already_applied?(job.id) ? 'disabled' : " ") :''  } "
+-#                -#  = link_to 'View Detail',static_job_path(job), class: 'btn btn-primary size'
+-#      -#.col-xs-12.col-sm-6.col-md-3
+-#      -#  .panel.panel-success.pricing-big
+-#      -#    .panel-heading
+-#      -#      %h3.panel-title
+-#      -#        Personal Project
+-#      -#    .panel-body.no-padding.text-align-center
+-#      -#      .the-price
+-#      -#        %h1
+-#      -#          $99
+-#      -#          %span.subscript / mo
+-#      -#      .price-features
+-#      -#        %ul.list-unstyled.text-left
+-#      -#          %li
+-#      -#            %i.fa.fa-check.text-success
+-#      -#            2 years access
+-#      -#            %strong to all storage locations
+-#      -#          %li
+-#      -#            %i.fa.fa-check.text-success
+-#      -#            %strong Unlimited
+-#      -#            storage
+-#      -#          %li
+-#      -#            %i.fa.fa-check.text-success
+-#      -#            Superbig
+-#      -#            %strong download quota
+-#      -#          %li
+-#      -#            %i.fa.fa-check.text-success
+-#      -#            %strong Smart File Storage
+-#      -#          %li
+-#      -#            %i.fa.fa-check.text-success
+-#      -#            All time
+-#      -#            %strong updates
+-#      -#          %li
+-#      -#            %i.fa.fa-check.text-success
+-#      -#            %strong Unlimited
+-#      -#            access to all files
+-#      -#          %li
+-#      -#            %i.fa.fa-check.text-success
+-#      -#            %strong Allowed
+-#      -#            to be exclusing per sale
+-#      -#    .panel-footer.text-align-center
+-#      -#      %a.btn.btn-primary.btn-block{:href => "javascript:void(0);", :role => "button"}
+-#      -#        Purchase
+-#      -#        %span via Paypal
+-#      -#      %div
+-#      -#        %a{:href => "javascript:void(0);"}
+-#      -#          %i We accept all major credit cards
+-#      -#.col-xs-12.col-sm-6.col-md-3
+-#      -#  .panel.panel-primary.pricing-big
+-#      -#    %img.ribbon{:alt => "ribbon", :src => "#{image_path('ribbon.png')}"}/
+-#      -#    .panel-heading
+-#      -#      %h3.panel-title
+-#      -#        Developer Bundle
+-#      -#    .panel-body.no-padding.text-align-center
+-#      -#      .the-price
+-#      -#        %h1
+-#      -#          $350
+-#      -#          %span.subscript / mo
+-#      -#      .price-features
+-#      -#        %ul.list-unstyled.text-left
+-#      -#          %li
+-#      -#            %i.fa.fa-check.text-success
+-#      -#            2 years access
+-#      -#            %strong to all storage locations
+-#      -#          %li
+-#      -#            %i.fa.fa-check.text-success
+-#      -#            %strong Unlimited
+-#      -#            storage
+-#      -#          %li
+-#      -#            %i.fa.fa-check.text-success
+-#      -#            Superbig
+-#      -#            %strong download quota
+-#      -#          %li
+-#      -#            %i.fa.fa-check.text-success
+-#      -#            %strong Smart File Storage
+-#      -#          %li
+-#      -#            %i.fa.fa-check.text-success
+-#      -#            All time
+-#      -#            %strong updates
+-#      -#          %li
+-#      -#            %i.fa.fa-check.text-success
+-#      -#            %strong Unlimited
+-#      -#            access to all files
+-#      -#          %li
+-#      -#            %i.fa.fa-check.text-success
+-#      -#            %strong Allowed
+-#      -#            to be exclusing per sale
+-#      -#    .panel-footer.text-align-center
+-#      -#      %a.btn.btn-primary.btn-block{:href => "javascript:void(0);", :role => "button"}
+-#      -#        Purchase
+-#      -#        %span via Paypal
+-#      -#      %div
+-#      -#        %a{:href => "javascript:void(0);"}
+-#      -#          %i We accept all major credit cards
+-#      -#.col-xs-12.col-sm-6.col-md-3
+-#      -#  .panel.panel-danger.pricing-big
+-#      -#    .panel-heading
+-#      -#      %h3.panel-title
+-#      -#        Premium Package
+-#      -#    .panel-body.no-padding.text-align-center
+-#      -#      .the-price
+-#      -#        %h1
+-#      -#          $999
+-#      -#          %span.subscript / mo
+-#      -#      .price-features
+-#      -#        %ul.list-unstyled.text-left
+-#      -#          %li
+-#      -#            %i.fa.fa-check.text-success
+-#      -#            Lifetime access
+-#      -#            %strong to all storage locations
+-#      -#          %li
+-#      -#            %i.fa.fa-check.text-success
+-#      -#            %strong Unlimited
+-#      -#            storage
+-#      -#          %li
+-#      -#            %i.fa.fa-check.text-success
+-#      -#            Superbig
+-#      -#            %strong download quota
+-#      -#          %li
+-#      -#            %i.fa.fa-check.text-success
+-#      -#            %strong Smart File Storage
+-#      -#          %li
+-#      -#            %i.fa.fa-check.text-success
+-#      -#            All time
+-#      -#            %strong updates
+-#      -#          %li
+-#      -#            %i.fa.fa-check.text-success
+-#      -#            %strong Unlimited
+-#      -#            access to all files
+-#      -#          %li
+-#      -#            %i.fa.fa-check.text-success
+-#      -#            %strong Allowed
+-#      -#            to be exclusing per sale
+-#      -#    .panel-footer.text-align-center
+-#      -#      %a.btn.btn-primary.btn-block{:href => "javascript:void(0);", :role => "button"}
+-#      -#        Purchase
+-#      -#        %span via Paypal
+-#      -#      %div
+-#      -#        %a{:href => "javascript:void(0);"}
+-#      -#          %i We accept all major credit cards
+-#/ /Section: PRICING
+-#/ Section: #TEAM
+-#-#%section#team.home-section.text-center.bg-gray
+-#-#  .heading-about.marginbot-50
+-#-#    .container
+-#-#      .row
+-#-#        .col-lg-8.col-lg-offset-2
+-#-#          .section-heading
+-#-#            %h2 SmartAdmin Team
+-#-#            %p
+-#-#              Lorem ipsum dolor sit amet, no nisl mentitum recusabo per, vim at blandit qualisque dissentiunt. Diam efficiantur conclusionemque ut has
+-#-#  .container
+-#-#    .row
+-#-#      .col-xs-12.col-sm-3.col-md-3
+-#-#        .team.boxed-grey
+-#-#          .inner
+-#-#            %h5 John Doe
+-#-#            %p.subtitle
+-#-#              CEO
+-#-#            .avatar
+-#-#              %img.img-responsive{:alt => "", :src => "#{image_path('team/1.jpg')}"}/
+-#-#      .col-xs-12.col-sm-3.col-md-3
+-#-#        .team.boxed-grey
+-#-#          .inner
+-#-#            %h5 Barley Kazurkth
+-#-#            %p.subtitle
+-#-#              Marketing Director
+-#-#            .avatar
+-#-#              %img.img-responsive{:alt => "", :src => "#{image_path('team/2.jpg')}"}/
+-#-#      .col-xs-12.col-sm-3.col-md-3
+-#-#        .team.boxed-grey
+-#-#          .inner
+-#-#            %h5 Sadi Orlaf
+-#-#            %p.subtitle
+-#-#              Marketing Executive
+-#-#            .avatar
+-#-#              %img.img-responsive{:alt => "", :src => "#{image_path('team/3.jpg')}"}/
+-#-#      .col-xs-12.col-sm-3.col-md-3
+-#-#        .team.boxed-grey
+-#-#          .inner
+-#-#            %h5 Tony Shark
+-#-#            %p.subtitle
+-#-#              Programmer
+-#-#            .avatar
+-#-#              %img.img-responsive{:alt => "", :src => "#{image_path('team/4.jpg')}"}/
+-#/ /Section: TEAM
+-#/ Section: #FEATURES
+-#-#%section#features.home-section.text-center
+-#-#  .heading-about.marginbot-50
+-#-#    .container
+-#-#      .row
+-#-#        .col-lg-8.col-lg-offset-2
+-#-#          .section-heading
+-#-#            %h2 The Power of SmartAdmin
+-#-#            %p
+-#-#              Lorem ipsum dolor sit amet, no nisl mentitum recusabo per, vim at blandit qualisque dissentiunt. Diam efficiantur conclusionemque ut has
+-#-#  .container
+-#-#    .row
+-#-#      .col-sm-3.col-md-3
+-#-#        .service-box
+-#-#          .service-icon
+-#-#            %i.fa.fa-code.fa-3x
+-#-#          .service-desc
+-#-#            %h5 Localization
+-#-#            %p
+-#-#              Vestibulum tincidunt enim in pharetra malesuada. Duis semper magna metus electram accommodare.
+-#-#      .col-sm-3.col-md-3
+-#-#        .service-box
+-#-#          .service-icon
+-#-#            %i.fa.fa-suitcase.fa-3x
+-#-#          .service-desc
+-#-#            %h5 Compact
+-#-#            %p
+-#-#              Vestibulum tincidunt enim in pharetra malesuada. Duis semper magna metus electram accommodare.
+-#-#      .col-sm-3.col-md-3
+-#-#        .service-box
+-#-#          .service-icon
+-#-#            %i.fa.fa-cog.fa-3x
+-#-#          .service-desc
+-#-#            %h5 State of the Art
+-#-#            %p
+-#-#              Vestibulum tincidunt enim in pharetra malesuada. Duis semper magna metus electram accommodare.
+-#-#      .col-sm-3.col-md-3
+-#-#        .service-box
+-#-#          .service-icon
+-#-#            %i.fa.fa-rocket.fa-3x
+-#-#          .service-desc
+-#-#            %h5 Cloud System
+-#-#            %p
+-#-#              Vestibulum tincidunt enim in pharetra malesuada. Duis semper magna metus electram accommodare.
+-#/ /Section: FEATURES
+-#/ Section: #SCREENSHOT
+-#-#%section#screenshots.home-section.text-center.bg-gray
+-#-#  .heading-works.marginbot-50
+-#-#    .container
+-#-#      .row
+-#-#        .col-lg-8.col-lg-offset-2
+-#-#          .section-heading
+-#-#            %h2 Screenshots
+-#-#            %p
+-#-#              Lorem ipsum dolor sit amet, no nisl mentitum recusabo per, vim at blandit qualisque dissentiunt. Diam efficiantur conclusionemque ut has
+-#-#  .container
+-#-#    .row
+-#-#      .col-sm-12.col-md-12.col-lg-12
+-#-#        .row.gallery-item
+-#-#          .col-md-3
+-#-#            %a{"data-lightbox-gallery" => "gallery1", "data-lightbox-hidpi" => "#{image_path('works/1@2x.jpg')}", :href => "#{image_path('works/1.jpg')}", :title => "This is an image title"}
+-#-#              %img.img-responsive{:alt => "img", :src => "#{image_path('works/1.jpg')}"}/
+-#-#          .col-md-3
+-#-#            %a{"data-lightbox-gallery" => "gallery1", "data-lightbox-hidpi" => "#{image_path('works/1@2x.jpg')}", :href => "#{image_path('works/2.jpg')}", :title => "This is an image title"}
+-#-#              %img.img-responsive{:alt => "img", :src => "#{image_path('works/2.jpg')}"}/
+-#-#          .col-md-3
+-#-#            %a{"data-lightbox-gallery" => "gallery1", "data-lightbox-hidpi" => "#{image_path('works/1@2x.jpg')}", :href => "#{image_path('works/3.jpg')}", :title => "This is an image title"}
+-#-#              %img.img-responsive{:alt => "img", :src => "#{image_path('works/3.jpg')}"}/
+-#-#          .col-md-3
+-#-#            %a{"data-lightbox-gallery" => "gallery1", "data-lightbox-hidpi" => "#{image_path('works/1@2x.jpg')}", :href => "#{image_path('works/4.jpg')}", :title => "This is an image title"}
+-#-#              %img.img-responsive{:alt => "img", :src => "#{image_path('works/4.jpg')}"}/
+-#-#          .col-md-3
+-#-#            %a{"data-lightbox-gallery" => "gallery1", "data-lightbox-hidpi" => "#{image_path('works/1@2x.jpg')}", :href => "#{image_path('works/5.jpg')}", :title => "This is an image title"}
+-#-#              %img.img-responsive{:alt => "img", :src => "#{image_path('works/5.jpg')}"}/
+-#-#          .col-md-3
+-#-#            %a{"data-lightbox-gallery" => "gallery1", "data-lightbox-hidpi" => "#{image_path('works/1@2x.jpg')}", :href => "#{image_path('works/6.jpg')}", :title => "This is an image title"}
+-#-#              %img.img-responsive{:alt => "img", :src => "#{image_path('works/6.jpg')}"}/
+-#-#          .col-md-3
+-#-#            %a{"data-lightbox-gallery" => "gallery1", "data-lightbox-hidpi" => "#{image_path('works/1@2x.jpg')}", :href => "#{image_path('works/7.jpg')}", :title => "This is an image title"}
+-#-#              %img.img-responsive{:alt => "img", :src => "#{image_path('works/7.jpg')}"}/
+-#-#          .col-md-3
+-#-#            %a{"data-lightbox-gallery" => "gallery1", "data-lightbox-hidpi" => "#{image_path('works/1@2x.jpg')}", :href => "#{image_path('works/8.jpg')}", :title => "This is an image title"}
+-#-#              %img.img-responsive{:alt => "img", :src => "#{image_path('works/8.jpg')}"}/
+-#/ /Section: SCREENSHOT
+-#/ Section: #UPDATES
+-#-#%section#updates.home-section.text-center
+-#-#  .heading-contact.marginbot-50
+-#-#    .container
+-#-#      .row
+-#-#        .col-lg-8.col-lg-offset-2
+-#-#          .section-heading
+-#-#            %h2 Updates
+-#-#            %p
+-#-#              Lorem ipsum dolor sit amet, no nisl mentitum recusabo per, vim at blandit qualisque dissentiunt. Diam efficiantur conclusionemque ut has
+-#-#  .container
+-#-#    .row
+-#-#      .timeline-centered
+-#-#        %article.timeline-entry
+-#-#          .timeline-entry-inner
+-#-#            %time.timeline-time{:datetime => "2014-01-10T03:45"}
+-#-#              %span 03:45 AM
+-#-#              %span Today
+-#-#            .timeline-icon.bg-success
+-#-#              %i.entypo-feather
+-#-#            .timeline-label
+-#-#              %h2
+-#-#                %a{:href => "#"} SmartAdmin:
+-#-#                %span Patch was released today
+-#-#              %p Tolerably earnestly middleton extremely distrusts she boy now not. Add and offered prepare how cordial two promise. Greatly who affixed suppose but enquire compact prepare all put. Added forth chief trees but rooms think may.
+-#-#        %article.timeline-entry.left-aligned
+-#-#          .timeline-entry-inner
+-#-#            %time.timeline-time{:datetime => "2014-01-10T03:45"}
+-#-#              %span 03:45 AM
+-#-#              %span 4 weeks ago
+-#-#            .timeline-icon.bg-secondary
+-#-#              %i.entypo-suitcase
+-#-#            .timeline-label
+-#-#              %h2
+-#-#                %a{:href => "#"} SmartAdmin goes public!
+-#-#              %p
+-#-#                Yahoo buys a share in
+-#-#                %strong SmartAdmin
+-#-#        %article.timeline-entry
+-#-#          .timeline-entry-inner
+-#-#            %time.timeline-time{:datetime => "2014-01-09T13:22"}
+-#-#              %span 03:45 AM
+-#-#              %span 3 months ago
+-#-#            .timeline-icon.bg-info
+-#-#              %i.entypo-location
+-#-#            .timeline-label
+-#-#              %h2
+-#-#                %a{:href => "#"} SmartAdmin Convention
+-#-#                %span checked in at
+-#-#                %a{:href => "#"} Laborator
+-#-#              %blockquote Place was booked till 3am!
+-#-#              %img.img-responsive{:alt => "map", :src => "#{image_path('map.png')}"}/
+-#-#        %article.timeline-entry.left-aligned
+-#-#          .timeline-entry-inner
+-#-#            %time.timeline-time{:datetime => "2014-01-10T03:45"}
+-#-#              %span 03:45 AM
+-#-#              %span 8 months ago
+-#-#            .timeline-icon.bg-warning
+-#-#              %i.entypo-camera
+-#-#            .timeline-label
+-#-#              %h2
+-#-#                %a{:href => "#"} We have lift off!
+-#-#              %blockquote SmartAdmin Launched with grace and beauty
+-#-#        %article.timeline-entry.begin
+-#-#          .timeline-entry-inner
+-#-#            .timeline-icon{:style => "-webkit-transform: rotate(-90deg); -moz-transform: rotate(-90deg);"}
+-#-#              %i.entypo-flight
+-#/ /Section: UPDATES
+-#/ Section: #QUOTES
+-#-#%section#quotes.home-section.text-center.bg-gray
 -#  .container
 -#    .row
--#      .col-sm-3.col-md-3
--#        .service-box
--#          .service-icon
--#            %i.fa.fa-code.fa-3x
--#          .service-desc
--#            %h5 Localization
--#            %p
--#              Vestibulum tincidunt enim in pharetra malesuada. Duis semper magna metus electram accommodare.
--#      .col-sm-3.col-md-3
--#        .service-box
--#          .service-icon
--#            %i.fa.fa-suitcase.fa-3x
--#          .service-desc
--#            %h5 Compact
--#            %p
--#              Vestibulum tincidunt enim in pharetra malesuada. Duis semper magna metus electram accommodare.
--#      .col-sm-3.col-md-3
--#        .service-box
--#          .service-icon
--#            %i.fa.fa-cog.fa-3x
--#          .service-desc
--#            %h5 State of the Art
--#            %p
--#              Vestibulum tincidunt enim in pharetra malesuada. Duis semper magna metus electram accommodare.
--#      .col-sm-3.col-md-3
--#        .service-box
--#          .service-icon
--#            %i.fa.fa-rocket.fa-3x
--#          .service-desc
--#            %h5 Cloud System
--#            %p
--#              Vestibulum tincidunt enim in pharetra malesuada. Duis semper magna metus electram accommodare.
-/ /Section: FEATURES
-/ Section: #SCREENSHOT
--#%section#screenshots.home-section.text-center.bg-gray
--#  .heading-works.marginbot-50
--#    .container
--#      .row
--#        .col-lg-8.col-lg-offset-2
--#          .section-heading
--#            %h2 Screenshots
--#            %p
--#              Lorem ipsum dolor sit amet, no nisl mentitum recusabo per, vim at blandit qualisque dissentiunt. Diam efficiantur conclusionemque ut has
--#  .container
--#    .row
--#      .col-sm-12.col-md-12.col-lg-12
--#        .row.gallery-item
--#          .col-md-3
--#            %a{"data-lightbox-gallery" => "gallery1", "data-lightbox-hidpi" => "#{image_path('works/1@2x.jpg')}", :href => "#{image_path('works/1.jpg')}", :title => "This is an image title"}
--#              %img.img-responsive{:alt => "img", :src => "#{image_path('works/1.jpg')}"}/
--#          .col-md-3
--#            %a{"data-lightbox-gallery" => "gallery1", "data-lightbox-hidpi" => "#{image_path('works/1@2x.jpg')}", :href => "#{image_path('works/2.jpg')}", :title => "This is an image title"}
--#              %img.img-responsive{:alt => "img", :src => "#{image_path('works/2.jpg')}"}/
--#          .col-md-3
--#            %a{"data-lightbox-gallery" => "gallery1", "data-lightbox-hidpi" => "#{image_path('works/1@2x.jpg')}", :href => "#{image_path('works/3.jpg')}", :title => "This is an image title"}
--#              %img.img-responsive{:alt => "img", :src => "#{image_path('works/3.jpg')}"}/
--#          .col-md-3
--#            %a{"data-lightbox-gallery" => "gallery1", "data-lightbox-hidpi" => "#{image_path('works/1@2x.jpg')}", :href => "#{image_path('works/4.jpg')}", :title => "This is an image title"}
--#              %img.img-responsive{:alt => "img", :src => "#{image_path('works/4.jpg')}"}/
--#          .col-md-3
--#            %a{"data-lightbox-gallery" => "gallery1", "data-lightbox-hidpi" => "#{image_path('works/1@2x.jpg')}", :href => "#{image_path('works/5.jpg')}", :title => "This is an image title"}
--#              %img.img-responsive{:alt => "img", :src => "#{image_path('works/5.jpg')}"}/
--#          .col-md-3
--#            %a{"data-lightbox-gallery" => "gallery1", "data-lightbox-hidpi" => "#{image_path('works/1@2x.jpg')}", :href => "#{image_path('works/6.jpg')}", :title => "This is an image title"}
--#              %img.img-responsive{:alt => "img", :src => "#{image_path('works/6.jpg')}"}/
--#          .col-md-3
--#            %a{"data-lightbox-gallery" => "gallery1", "data-lightbox-hidpi" => "#{image_path('works/1@2x.jpg')}", :href => "#{image_path('works/7.jpg')}", :title => "This is an image title"}
--#              %img.img-responsive{:alt => "img", :src => "#{image_path('works/7.jpg')}"}/
--#          .col-md-3
--#            %a{"data-lightbox-gallery" => "gallery1", "data-lightbox-hidpi" => "#{image_path('works/1@2x.jpg')}", :href => "#{image_path('works/8.jpg')}", :title => "This is an image title"}
--#              %img.img-responsive{:alt => "img", :src => "#{image_path('works/8.jpg')}"}/
-/ /Section: SCREENSHOT
-/ Section: #UPDATES
--#%section#updates.home-section.text-center
+-#      .col-md-8.col-md-offset-2
+-#        .quote
+-#          %i.fa.fa-quote-left.fa-4x
+-#        #fade-quote-carousel.carousel.slide{"data-interval" => "3000", "data-ride" => "carousel"}
+-#          / Carousel indicators
+-#          %ol.carousel-indicators
+-#            %li.active{"data-slide-to" => "0", "data-target" => "#fade-quote-carousel"}
+-#            %li{"data-slide-to" => "1", "data-target" => "#fade-quote-carousel"}
+-#            %li{"data-slide-to" => "2", "data-target" => "#fade-quote-carousel"}
+-#          / Carousel items
+-#          .carousel-inner
+-#            .active.item
+-#              %blockquote
+-#                %p Lorem ipsum dolor sit amet, consectetur adipisicing elit. Quidem, veritatis nulla eum laudantium totam tempore optio doloremque laboriosam quas.
+-#              .profile-circle{:style => "background-color: rgba(0,0,0,.2);"}
+-#            .item
+-#              %blockquote
+-#                %p Lorem ipsum dolor sit amet, eaque molestias odio aut eius animi. Impedit temporibus nisi accusamus.
+-#              .profile-circle{:style => "background-color: rgba(77,5,51,.2);"}
+-#            .item
+-#              %blockquote
+-#                %p Consectetur adipisicing elit. Quidem, veritatis  aut eius animi. Impedit temporibus nisi accusamus.
+-#              .profile-circle{:style => "background-color: rgba(145,169,216,.2);"}
+-#/ /Section: QUOTES
+-#/ Section: #CONTACT
+-#%section#contact.home-section.text-center.bg-gray
 -#  .heading-contact.marginbot-50
 -#    .container
 -#      .row
 -#        .col-lg-8.col-lg-offset-2
 -#          .section-heading
--#            %h2 Updates
+-#            %h2 Get in touch
 -#            %p
 -#              Lorem ipsum dolor sit amet, no nisl mentitum recusabo per, vim at blandit qualisque dissentiunt. Diam efficiantur conclusionemque ut has
 -#  .container
 -#    .row
--#      .timeline-centered
--#        %article.timeline-entry
--#          .timeline-entry-inner
--#            %time.timeline-time{:datetime => "2014-01-10T03:45"}
--#              %span 03:45 AM
--#              %span Today
--#            .timeline-icon.bg-success
--#              %i.entypo-feather
--#            .timeline-label
--#              %h2
--#                %a{:href => "#"} SmartAdmin:
--#                %span Patch was released today
--#              %p Tolerably earnestly middleton extremely distrusts she boy now not. Add and offered prepare how cordial two promise. Greatly who affixed suppose but enquire compact prepare all put. Added forth chief trees but rooms think may.
--#        %article.timeline-entry.left-aligned
--#          .timeline-entry-inner
--#            %time.timeline-time{:datetime => "2014-01-10T03:45"}
--#              %span 03:45 AM
--#              %span 4 weeks ago
--#            .timeline-icon.bg-secondary
--#              %i.entypo-suitcase
--#            .timeline-label
--#              %h2
--#                %a{:href => "#"} SmartAdmin goes public!
--#              %p
--#                Yahoo buys a share in
--#                %strong SmartAdmin
--#        %article.timeline-entry
--#          .timeline-entry-inner
--#            %time.timeline-time{:datetime => "2014-01-09T13:22"}
--#              %span 03:45 AM
--#              %span 3 months ago
--#            .timeline-icon.bg-info
--#              %i.entypo-location
--#            .timeline-label
--#              %h2
--#                %a{:href => "#"} SmartAdmin Convention
--#                %span checked in at
--#                %a{:href => "#"} Laborator
--#              %blockquote Place was booked till 3am!
--#              %img.img-responsive{:alt => "map", :src => "#{image_path('map.png')}"}/
--#        %article.timeline-entry.left-aligned
--#          .timeline-entry-inner
--#            %time.timeline-time{:datetime => "2014-01-10T03:45"}
--#              %span 03:45 AM
--#              %span 8 months ago
--#            .timeline-icon.bg-warning
--#              %i.entypo-camera
--#            .timeline-label
--#              %h2
--#                %a{:href => "#"} We have lift off!
--#              %blockquote SmartAdmin Launched with grace and beauty
--#        %article.timeline-entry.begin
--#          .timeline-entry-inner
--#            .timeline-icon{:style => "-webkit-transform: rotate(-90deg); -moz-transform: rotate(-90deg);"}
--#              %i.entypo-flight
-/ /Section: UPDATES
-/ Section: #QUOTES
--#%section#quotes.home-section.text-center.bg-gray
-  .container
-    .row
-      .col-md-8.col-md-offset-2
-        .quote
-          %i.fa.fa-quote-left.fa-4x
-        #fade-quote-carousel.carousel.slide{"data-interval" => "3000", "data-ride" => "carousel"}
-          / Carousel indicators
-          %ol.carousel-indicators
-            %li.active{"data-slide-to" => "0", "data-target" => "#fade-quote-carousel"}
-            %li{"data-slide-to" => "1", "data-target" => "#fade-quote-carousel"}
-            %li{"data-slide-to" => "2", "data-target" => "#fade-quote-carousel"}
-          / Carousel items
-          .carousel-inner
-            .active.item
-              %blockquote
-                %p Lorem ipsum dolor sit amet, consectetur adipisicing elit. Quidem, veritatis nulla eum laudantium totam tempore optio doloremque laboriosam quas.
-              .profile-circle{:style => "background-color: rgba(0,0,0,.2);"}
-            .item
-              %blockquote
-                %p Lorem ipsum dolor sit amet, eaque molestias odio aut eius animi. Impedit temporibus nisi accusamus.
-              .profile-circle{:style => "background-color: rgba(77,5,51,.2);"}
-            .item
-              %blockquote
-                %p Consectetur adipisicing elit. Quidem, veritatis  aut eius animi. Impedit temporibus nisi accusamus.
-              .profile-circle{:style => "background-color: rgba(145,169,216,.2);"}
-/ /Section: QUOTES
-/ Section: #CONTACT
-%section#contact.home-section.text-center.bg-gray
-  .heading-contact.marginbot-50
-    .container
-      .row
-        .col-lg-8.col-lg-offset-2
-          .section-heading
-            %h2 Get in touch
-            %p
-              Lorem ipsum dolor sit amet, no nisl mentitum recusabo per, vim at blandit qualisque dissentiunt. Diam efficiantur conclusionemque ut has
-  .container
-    .row
-      .col-lg-8.col-md-offset-2
-        .boxed-grey
-          %form#contact-form
-            .row
-              .col-md-6
-                .form-group
-                  %label{:for => "name"} Name
-                  %input#name.form-control{:placeholder => "Enter name", :required => "required", :type => "text"}/
-                .form-group
-                  %label{:for => "email"} Email Address
-                  .input-group
-                    %span.input-group-addon
-                      %span.glyphicon.glyphicon-envelope
-                    %input#email.form-control{:placeholder => "Enter email", :required => "required", :type => "email"}/
-                .form-group
-                  %label{:for => "subject"} Subject
-                  %select#subject.form-control{:name => "subject", :required => "required"}
-                    %option{:value => ""} Choose One:
-                    %option{:value => "service"} General Customer Service
-                    %option{:value => "suggestions"} Suggestions
-                    %option{:value => "product"} Product Support
-              .col-md-6
-                .form-group
-                  %label{:for => "name"} Message
-                  %textarea#message.form-control{:cols => "25", :name => "message", :placeholder => "Message", :required => "required", :rows => "9"}
-              .col-md-12
-                %button#btnContactUs.btn.btn-skin.pull-right{:type => "submit"}
-                  Send Message
-        .widget-contact.row
-          .col-lg-6
-            %address
-              %strong Etyme Ltd.
-              %br/
-              Big Villa 334 Awesome, Beautiful Suite 1200
-              %br/
-              San Francisco, CA 94107
-              %br/
-              %abbr{:title => "Phone"} P:
-              (123) 456-7890
-          .col-lg-6
-            %address
-              %strong Email
-              %br/
-              %a{:href => "mailto:#"} email.name@example.com
-              %br/
-              %a{:href => "mailto:#"} name.name@example.com
+-#      .col-lg-8.col-md-offset-2
+-#        .boxed-grey
+-#          %form#contact-form
+-#            .row
+-#              .col-md-6
+-#                .form-group
+-#                  %label{:for => "name"} Name
+-#                  %input#name.form-control{:placeholder => "Enter name", :required => "required", :type => "text"}/
+-#                .form-group
+-#                  %label{:for => "email"} Email Address
+-#                  .input-group
+-#                    %span.input-group-addon
+-#                      %span.glyphicon.glyphicon-envelope
+-#                    %input#email.form-control{:placeholder => "Enter email", :required => "required", :type => "email"}/
+-#                .form-group
+-#                  %label{:for => "subject"} Subject
+-#                  %select#subject.form-control{:name => "subject", :required => "required"}
+-#                    %option{:value => ""} Choose One:
+-#                    %option{:value => "service"} General Customer Service
+-#                    %option{:value => "suggestions"} Suggestions
+-#                    %option{:value => "product"} Product Support
+-#              .col-md-6
+-#                .form-group
+-#                  %label{:for => "name"} Message
+-#                  %textarea#message.form-control{:cols => "25", :name => "message", :placeholder => "Message", :required => "required", :rows => "9"}
+-#              .col-md-12
+-#                %button#btnContactUs.btn.btn-skin.pull-right{:type => "submit"}
+-#                  Send Message
+-#        .widget-contact.row
+-#          .col-lg-6
+-#            %address
+-#              %strong Etyme Ltd.
+-#              %br/
+-#              Big Villa 334 Awesome, Beautiful Suite 1200
+-#              %br/
+-#              San Francisco, CA 94107
+-#              %br/
+-#              %abbr{:title => "Phone"} P:
+-#              (123) 456-7890
+-#          .col-lg-6
+-#            %address
+-#              %strong Email
+-#              %br/
+-#              %a{:href => "mailto:#"} email.name@example.com
+-#              %br/
+-#              %a{:href => "mailto:#"} name.name@example.com
 / /Section: CONTACT
 / #BOTTOM CONTENT
-.bottom-content
+-#.bottom-content
   .container.custom-container.text-center
     %h2 We Always Try to Create a Difference
     %p
@@ -647,4 +1199,5 @@
   :javascript
     $(document).ready(function() {
         $('.equal-height').equalHeights();
+
     });

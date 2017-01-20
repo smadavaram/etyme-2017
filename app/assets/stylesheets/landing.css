@@ -1,35 +1,12 @@
 /*
  * Basic Styles
- *= require bootstrap
+ *= require home/css/bootstrap
+ * Home Page
  *= require font-awesome
- *
- * SmartAdmin Styles : Caution! DO NOT change the order
- *= require smartadmin-production
- *= require smartadmin-skins
- *
- * We recommend you use "your_style.scss" to override SmartAdmin
- * specific styles this will also ensure you retrain your customization with
- * each SmartAdmin update.
- *= require your_style
- *
- *= require_self
- *
- * Invoice related styles
- *= require invoice
- *
- * Lock screen related styles
- *= require lockscreen
- / #SLIDER REVOLUTION 4.x CSS SETTINGS
-*= require extralayers
-*= require settings
-*= require nivo-lightbox
-*= require nivo-lightbox-theme/default/default
-*= require animate.css
-/ #SMARTADMIN LANDING CSS
-*= require main.css
-*= require color/default.css
-*= require Job
-*= require custom
+ *= require home/css/theme
+ *= require home/css/dropzone
+ *= require home/js/fancybox/jquery.fancybox
+ *= require home/js/fancybox/helpers/jquery.fancybox-buttons
 
 
 */
