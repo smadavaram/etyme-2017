@@ -1,6 +1,6 @@
 #content
   .row
-    - if has_permission("manage_job")
+    - if has_permission?("manage_job")
       .col-xs-12.col-sm-3.col-md-3.col-lg-3.pull-right
         = button_tag 'NEW' ,class: 'btn btn-success btn-lg pull-right header-btn hidden-mobile' , "data-toggle": "modal" , "data-target":"#new-job"
   %section{style: 'margin-top: 10px;'}
@@ -46,16 +46,16 @@
                       %tbody
                         - @company_jobs.each_with_index do |job , index|
                           %tr
-                            %td= link_to_if(has_permission("manage_job"), job.title , job_path(job) , target: '_blank')
+                            %td= link_to_if(has_permission?("manage_job"), job.title , job_path(job) , target: '_blank')
                             %td= job.end_date
                             %td= job.location
                             %td= job.created_by.full_name  rescue "  --"
                             %td
-                              - if has_permission("manage_job")
+                              - if has_permission?("manage_job")
                                 = link_to raw("<i class='fa fa-pencil '></i>") , edit_job_path(job) , class: 'btn btn-xs btn-default btn-primary'
                                 = link_to raw("<i class='fa fa-times '></i>") , job_path(job) , method: :delete ,  class: 'btn btn-xs btn-default btn-danger'
                               - if(job.is_active?)
-                                -if has_permission("send_job_invitations")
+                                -if has_permission?("send_job_invitations")
                                   = link_to 'Send Invitation' ,send_invitation_job_path(job) , method: :post ,remote: true,  class: 'btn btn-xs btn-default btn-success'
 - content_for :modals do
   #job_invitation

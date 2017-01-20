@@ -27,7 +27,7 @@
           %td= invitation.expiry
           %td
             - if invitation.pending?
-              -if has_permission("manage_job_invitations")
+              -if has_permission?("manage_job_invitations")
                 = link_to 'Accept' , accept_job_job_invitation_path(invitation.job , invitation) , method: :post , remote: true , class: 'btn btn-xs btn-default'
                 = link_to 'Reject' , reject_job_job_invitation_path(invitation.job , invitation) , method: :post , remote: true ,  class: 'btn btn-xs btn-default'
             -else

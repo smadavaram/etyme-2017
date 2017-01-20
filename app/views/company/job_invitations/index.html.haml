@@ -89,7 +89,6 @@
                   = render 'company/job_invitations/partials/receive_invitation_table' , data: @received_job_invitations
 
 
-
 - content_for :scripts do
   #job_invitation
 - content_for :scripts do
@@ -101,6 +100,11 @@
       $('#myTab1 a[href="' + localStorage.getItem('mainActiveTab') + '"]').tab('show');
 
       $('.sub-tab a[href="' + localStorage.getItem('subActiveTab') + '"]').tab('show');
+
+      $( ".file-pick" ).on('click',function() {
+
+       $('.fp__overlay').css({'z-index':'99999'})});
+
 
     });
 
