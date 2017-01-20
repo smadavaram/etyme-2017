@@ -32,11 +32,13 @@ class Invoice < ActiveRecord::Base
 
 
   def set_consultant_and_total_amount
-    rate    = self.contract.assignee.hourly_rate
-    self.total_approve_time = 0.0
-    self.contract.timesheets.approved.not_invoiced.each{ |t| self.total_approve_time += t.approved_total_time }
-    self.consultant_amount = rate * (self.total_approve_time/3600.0)
-    self.total_amount = (self.total_approve_time / 3600.0) * self.rate
+    assignee_rate    = self.contract.assignee.hourly_rate
+    contract_rate    = self.contract.rate
+    total_time_in_sec = 0.0
+    self.contract.timesheets.approved.not_invoiced.each{ |t| total_time_in_sec += t.approved_total_time }
+    self.total_approve_time = total_time_in_sec
+    self.consultant_amount = assignee_rate * (total_time_in_sec/3600.0)
+    self.total_amount = (total_time_in_sec / 3600.0) * contract_rate
   end
 
   # private
