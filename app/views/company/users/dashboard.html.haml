@@ -19,36 +19,8 @@
             = link_to 'clicking here ' , roles_path , target: '_blank'
             %br
 .col-xs-12
-  .col-xs-8
+  .col-xs-12
     = render 'company/users/partials/timesheet_graph'
-  .col-xs-4
-    #wid-id-18.jarviswidget.jarviswidget-color-greenDark{"data-widget-colorbutton" => "false", "data-widget-editbutton" => "false"}
-      %header
-        %h2
-          %strong Prefered
-          %i Vendors
-      / widget div
-      %div
-        / widget edit box
-        .jarviswidget-editbox
-          / This area used as dropdown edit box
-        / end widget edit box
-        / widget content
-
-        .custom-scroll.table-responsive
-          %table.table.table-bordered
-            %thead
-              %tr
-                %th{width:'40%;'}
-                  Picture
-                %th{width:'60%;'}
-                  Company Name
-            %tbody
-              -current_company.invited_companies.each do |d|
-                %tr
-                  %td= image_tag show_recipient_picture(d.invited_company.logo) , alt: '', width: '40'
-                  %td= d.invited_company.name
-
   - content_for :scripts do
     :javascript
       // DO NOT REMOVE : GLOBAL FUNCTIONS!

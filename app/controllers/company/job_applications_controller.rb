@@ -4,8 +4,10 @@ class Company::JobApplicationsController < Company::BaseController
   before_action :find_job , only: [:create]
   before_action :find_received_job_invitation , only: [:create]
   before_action :set_job_applications , only: [:index]
-  before_action :find_received_job_application , only: [:accept , :reject ,:interview,:hire, :short_list,:show]
+  before_action :find_received_job_application , only: [:accept , :reject ,:interview,:hire, :short_list,:show , :share_application_with_companies]
   before_action :authorized_user,only: [:accept , :reject ,:interview,:hire, :short_list,:show]
+  skip_before_filter :authenticate_user! , :authorized_user,only: [:share]
+
 
   add_breadcrumb "JOB APPLICATIONS", :job_applications_path, options: { title: "JOBS APPLICATION" }
 
@@ -49,23 +51,20 @@ class Company::JobApplicationsController < Company::BaseController
       else
         format.html{ flash[:errors] =  ["Request Not Completed."]}
       end
-
     end
     redirect_to :back
   end
 
   def short_list
-
-      if @job_application.pending_review?
-        if @job_application.short_listed!
-           flash[:success] = "Successfully ShortListed."
-        else
-           flash[:errors] =  @job_application.errors.full_messages
-        end
+    if @job_application.pending_review?
+      if @job_application.short_listed!
+         flash[:success] = "Successfully ShortListed."
       else
-        flash[:errors] =  ["Request Not Completed."]
+         flash[:errors] =  @job_application.errors.full_messages
       end
-
+    else
+      flash[:errors] =  ["Request Not Completed."]
+    end
     redirect_to :back
   end
   def interview
@@ -105,6 +104,20 @@ class Company::JobApplicationsController < Company::BaseController
 
   def show
 
+  end
+
+  def share
+    @job_application = JobApplication.where(share_key: params[:id]).first
+    render layout: 'share'
+  end
+
+  def share_application_with_companies
+    if params.has_key?("vendor_company")
+      Company.all.where(id: params[:vendor_company]).each do |c|
+        c.owner.notifications.create(message: current_company.name + " share a <a href='http://#{current_company.etyme_url + share_job_application_path(@job_application.share_key)}' target='_blank'>job application - #{@job_application.job.title}</a> with you.",title:"Job Application")
+      end
+    end
+    redirect_to :back , notice: "job application - #{@job_application.job.title} Successfully Shared."
   end
 
   private

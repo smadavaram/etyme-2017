@@ -18,10 +18,11 @@ class JobApplication < ActiveRecord::Base
   validates :status ,             inclusion: {in: statuses.keys}
   validates_uniqueness_of :applicationable_id,scope: [:job_id,:applicationable_type] ,on: :create
 
+  before_create :generate_share_key
+  before_create :set_application_type
   after_create :update_job_invitation_status ,     if: Proc.new{|application| application.job_invitation.present?}
   after_create :notify_job_owner_or_admins
   after_update :notify_recipient_on_status_change, if: Proc.new{|application| application.status_changed? }
-  before_create :set_application_type
 
   accepts_nested_attributes_for :custom_fields , reject_if: :all_blank
 
@@ -40,6 +41,12 @@ class JobApplication < ActiveRecord::Base
   end
 
   # private
+
+    def generate_share_key
+      begin
+        self.share_key = Digest::MD5.hexdigest(self.id.to_s + Time.now.to_i.to_s + rand(0..9999).to_s)
+      end while JobApplication.exists?(share_key: self.share_key)
+    end
 
     def update_job_invitation_status
       self.job_invitation.accepted!

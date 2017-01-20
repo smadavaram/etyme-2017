@@ -138,9 +138,14 @@ module ApplicationHelper
             content: "<i class='fa fa-lg fa-fw fa-home'></i> <span class='menu-item-parent'>" + 'HOME' + "</span>",
         },
         {
-            href: consultants_path,
-            title: 'CONSULTANTS',
-            content: "<i class='fa fa-lg fa-fw fa-users'></i> <span class='menu-item-parent'>" + 'CONSULTANTS' + "</span>",
+            href: companies_path,
+            title: 'My Companies',
+            content: "<i class='fa fa-lg fa-fw fa-black-tie'></i> <span class='menu-item-parent'>" + 'My Companies' + "</span>",
+        },
+        {
+          href: consultants_path,
+          title: 'CONSULTANTS',
+          content: "<i class='fa fa-lg fa-fw fa-users'></i> <span class='menu-item-parent'>" + 'CONSULTANTS' + "</span>",
         },
         {
             href: '#',

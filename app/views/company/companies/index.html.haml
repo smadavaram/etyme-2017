@@ -1,0 +1,52 @@
+#content
+  .row
+    .col-xs-12.col-sm-3.col-md-3.col-lg-3.pull-right
+      = button_tag 'NEW' ,class: 'btn btn-success btn-lg pull-right header-btn hidden-mobile' , "data-toggle": "modal" , "data-target":"#new-contract-company"
+  %section.margin-top-10
+    / row
+    .row
+      #wid-id-5.no-border.jarviswidget{"data-widget-colorbutton" => "false", "data-widget-custombutton" => "false", "data-widget-editbutton" => "false", "data-widget-fullscreenbutton" => "false", "data-widget-sortable" => "false"}
+        %div
+          .jarviswidget-editbox
+          .widget-body
+            .col-md-12
+              .tab-content
+                #tab-r1.tab-pane.active
+                  #hb2.tab-pane.active
+                    %ul#internal-tab-1.nav.nav-tabs.tabs-pull-right
+                      %br
+                      .input-group.input-group-lg.hidden-mobile
+                        .input-group-btn
+                          %button.btn.btn-default.dropdown-toggle.textbtn{"data-toggle" => "dropdown", :type => "button"}
+                            All
+                            %span.caret
+                          %ul.dropdown-menu
+                            %li.active
+                              %a{:href => "javascript:void(0)"}
+                                All
+                        %input#search-project.form-control.input-lg{:placeholder => "Search Companies...", :type => "text"}/
+                        .input-group-btn
+                          %button.btn.btn-default{:type => "submit"}
+                            \   
+                            %i.fa.fa-fw.fa-search.fa-lg>
+                            \  
+                    %br 
+                    %table#dt_basic.table.table-striped.table-bordered.table-hover{:width => "100%"}
+                      %thead
+                        %tr
+                          %th{"data-hide" => "phone"} Pic
+                          %th Name
+                          %th Owner
+                          %th Owner Email
+                      %tbody
+                        -@invited_companies.each do |d|
+                          %tr
+                            %td= image_tag show_recipient_picture(d.invited_company.logo) , alt: '', width: '40'
+                            %td= link_to d.invited_company.name , 'javascript:void(0);'
+                            %td= d.invited_company.owner.full_name  rescue "  --"
+                            %td= d.invited_company.owner.email
+            = digg_pagination(@invited_companies)
+
+- content_for :modals do
+  #job_invitation
+  = render 'company/companies/partials/new_company'

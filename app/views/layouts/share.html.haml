@@ -1,0 +1,38 @@
+!!!
+%html{:id => "#{yield :html_id}"}
+  %head
+    %meta{:charset => "utf-8"}/
+    %title Etyme
+    = csrf_meta_tags
+    %meta{:content => "", :name => "description"}/
+    %meta{:content => "", :name => "author"}/
+    %meta{:content => "width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no", :name => "viewport"}/
+    = stylesheet_link_tag 'company', media: 'screen'
+
+    / FAVICONS
+    = favicon_link_tag 'favicon/favicon.ico'
+    = favicon_link_tag 'favicon/favicon.ico', rel: 'icon'
+
+    / GOOGLE FONT
+    = stylesheet_link_tag 'https://fonts.googleapis.com/css?family=Open+Sans:400italic,700italic,300,400,700'
+    / PACE LOADER - turn this on if you want ajax loading to show (caution: uses lots of memory on iDevices)
+    -#= javascript_include_tag 'plugin/pace/pace.min', 'data-pace-options' => '{ "restartOnRequestAfter": true }'
+    /
+    = favicon_link_tag 'splash/sptouch-icon-iphone.png', type: 'image/png', rel: 'apple-touch-icon'
+    = favicon_link_tag 'splash/touch-icon-ipad.png', type: 'image/png', sizes: '76x76', rel: 'apple-touch-icon'
+    = favicon_link_tag 'splash/touch-icon-iphone-retina.png', type: 'image/png', sizes: '120x120', rel: 'apple-touch-icon'
+    = favicon_link_tag 'splash/touch-icon-ipad-retina.png', type: 'image/png', sizes: '152x152', rel: 'apple-touch-icon'
+    / iOS web-app metas : hides Safari UI Components and Changes Status Bar Appearance
+    %meta{:content => "yes", :name => "apple-mobile-web-app-capable"}/
+    %meta{:content => "black", :name => "apple-mobile-web-app-status-bar-style"}/
+    / Startup image for web apps
+    = favicon_link_tag 'splash/ipad-landscape.png', type: 'image/png', rel: 'apple-touch-startup-image', media: 'screen and (min-device-width: 481px) and (max-device-width: 1024px) and (orientation:landscape)'
+    = favicon_link_tag 'splash/ipad-portrait.png', type: 'image/png', rel: 'apple-touch-startup-image', media: 'screen and (min-device-width: 481px) and (max-device-width: 1024px) and (orientation:portrait)'
+    = favicon_link_tag 'splash/iphone.png', type: 'image/png', rel: 'apple-touch-startup-image', media: 'screen and (max-device-width: 320px)'
+    = yield :head
+
+  %body.smart-style-6{class: "#{yield :body_class}"}
+    = render partial: 'shared/share_header'
+    -##main{:role => "main"}
+    = yield
+    = javascript_include_tag 'company'

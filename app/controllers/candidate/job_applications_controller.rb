@@ -15,10 +15,17 @@ class Candidate::JobApplicationsController < Candidate::BaseController
       end
     end
   end
+
   def index
   end
+
   def show
     add_breadcrumb @job_application.job.title, :candidate_job_application_path
+  end
+
+  def share
+    @job_application = JobApplication.where(share_key: params[:id]).first
+    # render layout: 'share'
   end
 
   private

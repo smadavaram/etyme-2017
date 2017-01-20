@@ -136,7 +136,7 @@ Rails.application.routes.draw do
         get :notify_notifications
       end
     end
-    resources :companies ,only: :create
+    resources :companies ,only: [:create]
     resources :candidates , only: [:create]
   end
   scope module: :company do
@@ -161,6 +161,8 @@ Rails.application.routes.draw do
     resources :job_applications , only: [:index,:show] do
       resources :consultants , only: [:new , :create]
       member do
+        get :share
+        post :share_application_with_companies
         post :accept
         post :reject
         post :short_list
@@ -233,7 +235,7 @@ Rails.application.routes.draw do
 
     end
     # get 'configuration' ,   to: 'companies#edit' ,              as: :configuration
-    resources :companies , only: [:update,:show] do
+    resources :companies , only: [:update,:show , :index] do
       collection do
         post :change_owner
         post :get_admins_list , as: :get_admins_list

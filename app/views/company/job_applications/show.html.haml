@@ -1,6 +1,9 @@
 .containers.c-colors
   -if @job_application.applicationable_type == 'Candidate'
     = link_to 'eTyme Resume',static_candidate_resume_path(@job_application.applicationable),class: 'btn btn-primary pull-right',target: '_blank', style: 'margin-top: 20px;margin-right: 10px;'
+  - if @job_application.share_key
+    = button_tag 'Share Application' ,class: 'btn btn-primary pull-right margin-top-20 margin-right-10' , "data-toggle": "modal" , "data-target":"#share_application_#{@job_application.id}"
+
   .col-sm-12.animated.fadeInRightBig
     %section.panel.mt-20s
       %header.panel-heading
@@ -44,8 +47,8 @@
               = cf.name
             %br
             = cf.value
+- if @job_application.share_key
+  = render 'company/job_applications/partials/share_application' , job_application: @job_application
 - content_for :modals do
   #ajax-modal
 
--content_for :scripts do
-  :javascript
