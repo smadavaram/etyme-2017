@@ -51,7 +51,7 @@ class JobApplication < ActiveRecord::Base
     end
 
     def set_application_type
-      self.status = self.job_invitation.present? ? 3 : self.applicationable.class.name == "Candidate" ? 1 : 2
+      self.application_type = self.job_invitation.present? ? 3 : self.applicationable.class.name == "Candidate" ? 1 : 2
     end
 
     def notify_job_owner_or_admins
