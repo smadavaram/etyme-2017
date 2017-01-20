@@ -4,6 +4,7 @@
     -#%meta{:content => "text/html; charset=UTF-8", "http-equiv" => "Content-Type"}/
     %title Etyme
     = stylesheet_link_tag    'application'
+
     = csrf_meta_tags
     = yield :head
   %body{:class => "#{yield :body_class}"}
@@ -23,9 +24,9 @@
           %i.fa-fw.fa.fa-warning
           = alert
       = yield
-    = javascript_include_tag 'application'
-    = filepicker_js_include_tag
+      = javascript_include_tag 'application'
+    .modals
     = tinymce_assets
     = yield(:scripts).present? ? yield(:scripts) : render(partial: 'shared/scripts')
-    .modals
+
 

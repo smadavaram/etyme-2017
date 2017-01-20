@@ -132,7 +132,7 @@ class Company::JobApplicationsController < Company::BaseController
   end
 
   def job_application_params
-    params.require(:job_application).permit([ :message , :cover_letter , :status, custom_fields_attributes:
+    params.require(:job_application).permit([ :message , :cover_letter , :status,:resume ,custom_fields_attributes:
                                                         [
                                                             :id,
                                                             :name,

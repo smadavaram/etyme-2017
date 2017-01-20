@@ -22,7 +22,11 @@
               %label.col-md-2.control-label Message (optional)
               .col-md-10
                 = f.text_area :message, class: "form-control", rows: "2" ,placeholder: 'Write tour message'
-            -#= job.custom_fields.each do |c|
+            .form-group
+              %label.col-md-2.control-label Upload Resume
+              = filepicker_js_include_tag
+              .col-md-10
+                = f.filepicker_field :resume ,button_text:'Upload Resume',button_class:"btn btn-primary file-pick"
             .nested-fields
               = f.fields_for :custom_fields do |custom|
                 .form-group
@@ -34,6 +38,16 @@
             %button.btn.btn-default{"data-dismiss" => "modal", :type => "button"}
               Cancel
             = f.button "Save".html_safe , class: 'btn btn-primary' , data: {disable_with: disable_spinning('Saving...')}
+-content_for :scripts do
+  -#:javascript
+  -#  $(document).ready(function() {
+  -#  alert('fb');
+  -#  $( ".file-pick" ).on('click',function() {
+  -#    alert('fb');
+  -#    $('.fp__overlay').css({'z-index':'99999'});
+  -#  });
+  -#});
+
 
 
 
