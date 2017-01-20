@@ -8,7 +8,7 @@
       .modal-body
         %section.panel-default
           .col-sm-12
-            .col-sm-5
+            .col-sm-5{style: "width: 45.666667%"}
               %legend Login
               = form_for(resource, as: resource_name, url: session_path(resource_name,status: true), html: {id: 'login-form', class: 'smart-form client-form'}) do |f|
                 %fieldset
@@ -36,24 +36,14 @@
                         = f.check_box :remember_me
                         = succeed "Stay" do
                           %i
-                  %footer
-                    %button.btn.btn-primary{:type => "submit"}
-                      Sign in
-              / <div class="line line-dashed"></div>
-              -#%div{:style => "margin-top: 70px"}
-              -#  %p If you have already used ActiveApplicant before for applying to a job, Then just use the link below to activate and login to your account.
-              -#  %form.simple_form{"accept-charset" => "UTF-8", :action => "/applicant/resend_invitation", :method => "post", :novalidate => "novalidate"}
-              -#    %input{:name => "utf8", :type => "hidden", :value => "✓"}/
-              -#    %input{:name => "authenticity_token", :type => "hidden", :value => "X1KSaZOcC+IRPYIqLboBilI+f2bTienHlbrMMDvsWqp/bP3Lha5lrwkTbFvtuIcbg4NKOZw2emu2+f/obqe76w=="}/
-              -#    .input.email.optional
-              -#      %input.string.email.optional.form-control.input-lg{:name => "applicant[email]", :placeholder => "Email", :type => "email"}/
-              -#    .line.line-dashed
-              -#    %input.btn.btn-primary{:name => "commit", :type => "submit", :value => "Send Activation Email"}/
-            / <input type="text" class="form-control input-lg" placeholder="Email"/>
-            / <div class="line line-dashed"></div>
-            / <a href='/applicant/new/resend_invitation' class="btn btn-primary btn-lg">Send Activation Email</a>
-            %div{:style => " height:350px; border-right: 1px solid gainsboro;float: left; position: relative;top: 70px;left: 30px "}
-            .col-sm-6{:style => "margin-left: 25px"}
+                %br/
+                %br/
+                %br/
+                .line.line-dashed
+                  .btn.btn-lg.btn-primary.pull-right{:type => "submit"}
+                    Sign in
+            %div.hidden-sm.hidden-xs{:style => " height:300px; border-right: 1px solid gainsboro;float: left; position: relative;top: 70px;left: 30px "}
+            .col-sm-5{:style => "margin-left: 43px;width: 45.666667%"}
               %legend Sign Up
               = simple_form_for(resource, as: resource_name, url: registration_path(resource_name), html: {id: 'smart-form-register' , class: 'smart-form client-form' }) do |f|
                 %fieldset
@@ -87,6 +77,6 @@
                         %b.tooltip.tooltip-bottom-right Please confirm the password
                 %br/
                 .line.line-dashed
-                %input.btn.btn-primary.btn-lg.pull-right{:name => "commit", :onclick => "if ($('#terms').is(':checked')){$('#new_applicant').submit();}", :type => "submit", :value => "Sign Up"}/
+                %input.btn.btn-primary.btn-lg.pull-right.margin-top-10{:name => "commit", :onclick => "if ($('#terms').is(':checked')){$('#new_applicant').submit();}", :type => "submit", :value => "Sign Up"}/
         %section.panel-default
       .modal-footer{:style => "border-top:0px;"}
