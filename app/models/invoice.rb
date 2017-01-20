@@ -27,7 +27,8 @@ class Invoice < ActiveRecord::Base
 
   validate :start_date_cannot_be_less_than_end_date
   validate :contract_validation , if: Proc.new{|invoice| !invoice.contract.in_progress?}
-  validates_numericality_of :total_amount , :billing_amount , :rate , presence: true, greater_than_or_equal_to: 1
+  validates_numericality_of :total_amount , :rate , presence: true, greater_than_or_equal_to: 1
+  validates_numericality_of :billing_amount
 
 
 
