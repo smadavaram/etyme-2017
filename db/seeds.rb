@@ -8,6 +8,7 @@
 
 Permission.create(name: "manage_jobs")
 Permission.create(name: "manage_consultants")
+Permission.create(name: "manage_contracts")
 Permission.create(name: "manage_company")
 Permission.create(name: "manage_vendors")
 Permission.create(name: "manage_company_docs")

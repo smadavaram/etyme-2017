@@ -1,5 +1,7 @@
 class JobApplication < ActiveRecord::Base
 
+  include Rails.application.routes.url_helpers
+
   enum status: [ :pending_review ,:rejected , :short_listed,:interviewing,:hired ]
   enum application_type: [:direct , :candidate_direct , :vendor_direct , :invitation]
 
@@ -17,11 +19,11 @@ class JobApplication < ActiveRecord::Base
   validates_uniqueness_of :applicationable_id,scope: [:job_id,:applicationable_type] ,on: :create
 
   after_create :update_job_invitation_status ,     if: Proc.new{|application| application.job_invitation.present?}
+  after_create :notify_job_owner_or_admins
   after_update :notify_recipient_on_status_change, if: Proc.new{|application| application.status_changed? }
   after_create :set_application_type,              if: Proc.new{|application| application.job_invitation.present?}
 
   accepts_nested_attributes_for :custom_fields , reject_if: :all_blank
-
 
   default_scope                { order(created_at: :desc) }
   scope :direct , -> {where(job_invitation_id: nil)}
@@ -37,7 +39,7 @@ class JobApplication < ActiveRecord::Base
     self.applicationable
   end
 
-  private
+  # private
 
     def update_job_invitation_status
       self.job_invitation.accepted!
@@ -45,11 +47,21 @@ class JobApplication < ActiveRecord::Base
 
     # Call after update
     def notify_recipient_on_status_change
-      self.user.notifications.create(message: self.job.company.name + " has #{self.status.humanize} your Job Application - #{self.job.title}",title:"Job Application")
+        self.applicationable.notifications.create(message: self.job.company.name + " has #{self.status.humanize} <a href='http://#{self.applicationable.etyme_url + job_application_path(self)}'> Job Application </a> #{self.job.title}",title:"Job Application")
     end
 
     def set_application_type
       self.invitation!
+    end
+
+    def notify_job_owner_or_admins
+      if self.applicationable.class.name == "Candidate"
+        self.job.created_by.notifications.create(message: self.applicationable.full_name + " has <a href='http://#{self.job.created_by.company.etyme_url + job_application_path(self)}'>apply</a> to your Job Application - #{self.job.title}",title:"Job Application")
+      else
+        self.job.company.all_admins_has_permission?('manage_job_applications').each  do |admin|
+          admin.notifications.create(message: self.applicationable.company.name + " has <a href='http://#{self.job.created_by.company.etyme_url + job_application_path(self)}'>apply</a> your Job Application - #{self.job.title}",title:"Job Application")
+        end
+      end
     end
 
 

@@ -90,6 +90,10 @@ class User < ActiveRecord::Base
     self.time_zone.present? ? Time.now.in_time_zone(self.time_zone) : Time.now
   end
 
+  def etyme_url
+    self.company.etyme_url
+  end
+
   def send_confirmation_to_company_about_onboarding
       self.notifications.create!(title: "#{self.full_name} On-Boarding" , message:  "#{self.full_name} has successfully completed on-boarding on Etyme.")
   end

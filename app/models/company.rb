@@ -89,12 +89,12 @@ class Company < ActiveRecord::Base
 
   scope :vendors, -> {where(company_type: 1)}
 
-  # def job_invitations
-  #   super + JobInvitation.where(recipient_id: self.admins.ids) || []
-  # end
+  def all_admins_has_permission? permission
+    self.admins.joins(:permissions).where('permissions.name = ?' , permission).group('users.id') + self.owner
+  end
 
   def etyme_url
-    "#{self.slug}.#{ENV['domain']}"
+    Rails.env.development? ? "#{self.slug}.#{ENV['domain']}:3000" : "#{self.slug}.#{ENV['domain']}"
   end
 
   private
