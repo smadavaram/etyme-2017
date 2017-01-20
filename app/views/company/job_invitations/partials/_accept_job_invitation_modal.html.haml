@@ -16,7 +16,12 @@
               %label.col-md-2.control-label Cover Letter
               .col-md-10
                 =  f.text_area :cover_letter , class: "form-control tinymces", rows: 8, cols: 30, placeholder: 'Cover Letter'  , required: true
-                -#=  tinymce :alternate
+            .form-group
+              %label.col-md-2.control-label Resume
+              .col-md-10
+                = f.filepicker_field :applicant_resume, :button_text => "Pick File", disable: true ,class: 'btn btn-primary file-pick'
+
+            -#=  tinymce :alternate
             - job.custom_fields.each do |c|
               = f.fields_for :custom_fields do |custom|
                 .form-group
@@ -34,3 +39,16 @@
               Cancel
             = f.button 'Save'.html_safe , class: 'btn btn-primary' , data: {disable_with: disable_spinning('Saving...')}
 
+  = filepicker_js_include_tag
+- content_for :scripts do
+  :javascript
+
+    $(document).ready(function() {
+
+     // filepicker.constructWidget('file-pick');
+
+      $( ".file-pick" ).on('click',function() {
+
+       $('.fp__overlay').css({'z-index':'99999'})});
+
+    });

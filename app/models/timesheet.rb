@@ -1,5 +1,7 @@
 class Timesheet < ActiveRecord::Base
 
+  include Rails.application.routes.url_helpers
+
   enum status: [:open,:pending_review, :approved , :partially_approved , :rejected , :submitted , :invoiced]
 
   belongs_to :company
@@ -13,6 +15,7 @@ class Timesheet < ActiveRecord::Base
 
   before_validation :set_recurring_timesheet_cycle
   after_create  :create_timesheet_logs
+  after_create  :notify_timesheet_created
   after_update :update_pending_timesheet_logs, if: Proc.new{|t| t.status_changed? && t.approved?}
 
   validates           :start_date,  presence:   true
@@ -47,6 +50,10 @@ class Timesheet < ActiveRecord::Base
     total_time = 0
     self.timesheet_logs.approved.each do |t| total_time = total_time + t.accepted_total_time end
     total_time
+  end
+
+  def notify_timesheet_created
+    self.contract.assignee.notifications.create(message: self.contract.assignee.full_name+" your timesheet for the <a href='http://#{self.contract.assignee.etyme_url + contract_path(self.contract)}'>#{self.contract.job.title}</a> has been created <a href='http://#{self.contract.assignee.etyme_url + timesheet_timesheet_log_path(self , self.timesheet_logs.last)}'>  Click here </a> to start logging time accordingly " ,title: "Timesheet")
   end
 
   # def approved_total_hours
