@@ -120,8 +120,10 @@ class Company::ContractsController < Company::BaseController
   end
 
   def set_contracts
-    @received_contracts   = current_company.received_contracts.includes(job: [:company , :created_by]).paginate(page: params[:page], per_page: 30) || []
-    @sent_contracts       = current_company.sent_contracts.includes(job: [:created_by]).paginate(page: params[:page], per_page: 30) || []
+    @received_search   = current_company.received_contracts.includes(job: [:company , :created_by]).search(params[:q]) || []
+    @received_contracts= @received_search.result.paginate(page: params[:page], per_page: 30) || []
+    @sent_search       = current_company.sent_contracts.includes(job: [:created_by]).search(params[:q]) || []
+    @sent_contracts    = @sent_search.result.paginate(page: params[:page], per_page: 30) || []
   end
 
   def contract_params

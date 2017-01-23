@@ -59,7 +59,9 @@ class Company::TimesheetsController < Company::BaseController
   end
 
   def set_timesheets
-    @timesheets       = current_company.timesheets.paginate(page: params[:page], per_page: 30) || []
-    @received_timesheets   = current_company.received_timesheets.paginate(page: params[:page], per_page: 30) || []
+    @search = current_company.timesheets.search(params[:q])
+    @timesheets       = @search.result(distinct: true).paginate(page: params[:page], per_page: 10) || []
+    @rec_search = current_company.received_timesheets.search(params[:q])
+    @received_timesheets   = @rec_search.result(distinct: true).paginate(page: params[:page], per_page: 10) || []
   end
 end

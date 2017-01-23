@@ -17,7 +17,7 @@ gem 'mina-multistage', require: false
 #****************************
 gem 'coffee-rails', '~> 4.1.0'
 gem 'jquery-rails'
-gem "jquery-ui-rails"
+gem 'jquery-ui-rails'
 
 #****************************
 # Layout & Rendering
@@ -29,13 +29,14 @@ gem 'jbuilder', '~> 2.0'
 gem 'sdoc', '~> 0.4.0', group: :doc
 gem 'simple_form'
 gem "haml-rails", "~> 0.9"
-gem "font-awesome-rails"
-gem "cocoon"
+gem 'font-awesome-rails'
+gem 'cocoon'
 gem 'city-state'
 gem 'tinymce-rails'
 gem 'data-confirm-modal'
 gem 'wicked_pdf'
 gem 'wkhtmltopdf-binary'
+gem 'breadcrumbs_on_rails'
 
 
 #****************************
@@ -74,26 +75,31 @@ gem 'ruby-duration', '~> 3.2', '>= 3.2.1'
 #****************************
 gem 'whenever', :require => false
 gem 'delayed_job_active_record', '4.0.3'
+gem 'daemons'
 
-
+#****************************
+# Searching
+#****************************
+gem 'ransack', '~> 1.7'
+gem 'has_scope'
 
 # gem 'therubyracer', platforms: :ruby
 
 # gem 'paperclip'
-gem 'has_scope'
+
 gem 'figaro'
-gem "breadcrumbs_on_rails"
+
 
 #****************************
 # Multimedia Files
 #****************************
 gem 'filepicker-rails'
 gem 'carrierwave'
-gem "mini_magick"
+gem 'mini_magick'
 gem 'roo'
 # gem 'fog'
 
-gem 'daemons'
+
 # Use ActiveModel has_secure_password
 # gem 'bcrypt', '~> 3.1.7'
 
@@ -104,11 +110,11 @@ gem 'daemons'
 # gem 'capistrano-rails', group: :development
 
 group :development, :test do
-  gem "better_errors", '~> 1.1.0'
-  gem "binding_of_caller"
-  gem "rails-erd"
+  gem 'better_errors', '~> 1.1.0'
+  gem 'binding_of_caller'
+  gem 'rails-erd'
   gem 'test-unit'
-  gem "letter_opener"
+  gem 'letter_opener'
   gem 'byebug'
   gem 'hirb', '~> 0.7.3'
   gem 'annotate', '~> 2.7'

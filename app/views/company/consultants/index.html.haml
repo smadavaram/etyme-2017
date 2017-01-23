@@ -2,52 +2,41 @@
   .row
     .col-xs-12.col-sm-3.col-md-3.col-lg-3.pull-right
       = link_to 'NEW' , new_consultant_path , class: 'btn btn-success btn-lg pull-right header-btn hidden-mobile'
-  #wid-id-5.no-border.jarviswidget{"data-widget-colorbutton" => "false", "data-widget-custombutton" => "false", "data-widget-editbutton" => "false", "data-widget-fullscreenbutton" => "false", "data-widget-sortable" => "false"}
-    %div
-      .jarviswidget-editbox
-      .widget-body
-        .col-md-12
-          .tab-content
-            #tab-r1.tab-pane.active
-              #hb2.tab-pane.active
-                %ul#internal-tab-1.nav.nav-tabs.tabs-pull-right.sub-tab
+  %section.margin-top-10.padding-10
+    .row
+      #wid-id-5.no-border
+        %div
+          .widget-body
+            .col-md-12
+              = search_form_for @search , url: search_consultants_path , method: :get do |f|
+                %ul#internal-tab-1.nav.nav-tabs.tabs-pull-right
                   %br
                   .input-group.input-group-lg.hidden-mobile
+                    = f.text_field :first_name_or_last_name_or_email_cont, class: "form-control input-lg", placeholder: "Search Consultant..."
                     .input-group-btn
-                      %button.btn.btn-default.dropdown-toggle.textbtn{"data-toggle" => "dropdown", :type => "button"}
-                        All
-                        %span.caret
-                      %ul.dropdown-menu
-                        %li.active
-                          %a{:href => "javascript:void(0)"}
-                            All
-                    %input#search-project.form-control.input-lg{:placeholder => "Search Consultant...", :type => "text"}/
-                    .input-group-btn
-                      %button.btn.btn-default{:type => "submit"}
-                        \   
-                        %i.fa.fa-fw.fa-search.fa-lg>
-                        \  
-          %br/
-          %br/
-          .table{:style => "width:100"}
-            %table#resultTable.table.table-striped.table-bordered.table-hover
-              %thead
-                %tr
-                  %th Pic
-                  %th{"data-hide" => "phone"} Name
-                  %th Email
-                  %th Roles
-                  %th{"data-hide" => "phone,tablet"}
-                    Actions
-              %tbody
-              - @consultants.each_with_index do |admin , index|
-                %tr
-                  %td= image_tag admin.photo, alt: '', width: '20'
-                  %td= link_to admin.full_name , '#' , target: '_blank'
-                  %td= admin.email
-                  %td= admin.roles.map(&:name).join(", ").gsub("_"," ").upcase
-                  %td
-                    = link_to raw("<i class='fa fa-pencil '></i>") , '#' , class: 'btn btn-xs btn-default btn-primary'
-                    = link_to raw("<i class='fa fa-times '></i>") , '#' , method: :delete ,  class: 'btn btn-xs btn-default btn-danger'
+                      = f.button raw("<i class='fa fa-fw fa-search fa-lg'></i>") , class: 'btn btn-default'
+              %br/
+              %br/
+              .table{:style => "width:100"}
+                %table#resultTable.table.table-striped.table-bordered.table-hover
+                  %thead
+                    %tr
+                      %th Pic
+                      %th{"data-hide" => "phone"} Name
+                      %th Email
+                      %th Roles
+                      %th{"data-hide" => "phone,tablet"}
+                        Actions
+                  %tbody
+                    - @consultants.each_with_index do |admin , index|
+                      %tr
+                        %td= image_tag admin.photo, alt: '', width: '20'
+                        %td= link_to admin.full_name , '#' , target: '_blank'
+                        %td= admin.email
+                        %td= admin.roles.map(&:name).join(", ").gsub("_"," ").upcase
+                        %td
+                          = link_to raw("<i class='fa fa-pencil '></i>") , '#' , class: 'btn btn-xs btn-default btn-primary'
+                          = link_to raw("<i class='fa fa-times '></i>") , '#' , method: :delete ,  class: 'btn btn-xs btn-default btn-danger'
+          = digg_pagination(@consultants)
 
 

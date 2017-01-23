@@ -142,6 +142,7 @@ Rails.application.routes.draw do
   scope module: :company do
 
     resources :consultants do
+      match :search, to: 'consultants#index', via: :get, on: :collection
       resources :leaves do
         member do
           post :accept
@@ -171,9 +172,9 @@ Rails.application.routes.draw do
       end # End of member
     end
     resources :contracts        , only: [:index ,:show , :new , :create] do
-
+      match :search, to: 'contracts#index', via: :get, on: :collection
+      match :search, to: 'contracts#index', via: :post, on: :collection
       resources :contracts
-
       collection do
         post :nested_create
       end
@@ -191,6 +192,7 @@ Rails.application.routes.draw do
     end
 
     resources :jobs  do
+      match :search, to: 'jobs#index', via: :post, on: :collection
       resources :contracts , except: [:index , :show] do
         member do
           post :open_contract , as: :open_contract
@@ -222,6 +224,7 @@ Rails.application.routes.draw do
     get 'dashboard' ,       to: 'users#dashboard' ,             as: :dashboard
     post 'update_photo',    to: 'users#update_photo'
     resources :timesheets,only: [:show , :index] do
+      match :search, to: 'timesheets#index', via: :get, on: :collection
       get 'approve'
       get 'submit'
       get 'reject'
@@ -236,6 +239,7 @@ Rails.application.routes.draw do
     end
     # get 'configuration' ,   to: 'companies#edit' ,              as: :configuration
     resources :companies , only: [:update,:show , :index] do
+      match :search, to: 'companies#index', via: :post, on: :collection
       collection do
         post :change_owner
         post :get_admins_list , as: :get_admins_list
