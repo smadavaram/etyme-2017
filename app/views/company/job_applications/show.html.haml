@@ -1,6 +1,8 @@
 .containers.c-colors
   -if @job_application.applicationable_type == 'Candidate'
     = link_to 'eTyme Resume',static_candidate_resume_path(@job_application.applicationable),class: 'btn btn-primary pull-right',target: '_blank', style: 'margin-top: 20px;margin-right: 10px;'
+  - if @job_application.applicant_resume
+    = link_to 'Download Resume',"#{@job_application.applicant_resume}", class: 'btn btn-primary pull-right',style: 'margin-top: 20px;margin-right: 10px;',download:true
   - if @job_application.share_key
     = button_tag 'Share Application' ,class: 'btn btn-primary pull-right margin-top-20 margin-right-10' , "data-toggle": "modal" , "data-target":"#share_application_#{@job_application.id}"
 

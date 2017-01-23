@@ -1,6 +1,10 @@
 .container.margin-top-20
   .col-sm-12.animated.fadeInRightBig
     %section.panel
+
+      - if @job_application.applicant_resume
+        = link_to 'Download Resume',"#{@job_application.applicant_resume}", class: 'btn btn-primary pull-right',style: 'margin-top: 20px;margin-right: 10px;',download:true
+
       %header.panel-heading
         %h1
           = link_to @job_application.job.title,static_job_path(@job_application.job)

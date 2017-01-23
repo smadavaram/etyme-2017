@@ -19,7 +19,7 @@
             .form-group
               %label.col-md-2.control-label Resume
               .col-md-10
-                = f.filepicker_field :applicant_resume, :button_text => "Pick File", disable: true ,class: 'btn btn-primary file-pick'
+                = f.filepicker_field :applicant_resume , class: 'btn btn-primary file-pick'  , required: true, id: 'accept-filepiker'
 
             -#=  tinymce :alternate
             - job.custom_fields.each do |c|
@@ -38,17 +38,3 @@
             %button.btn.btn-default{"data-dismiss" => "modal", :type => "button"}
               Cancel
             = f.button 'Save'.html_safe , class: 'btn btn-primary' , data: {disable_with: disable_spinning('Saving...')}
-
-  = filepicker_js_include_tag
-- content_for :scripts do
-  :javascript
-
-    $(document).ready(function() {
-
-     // filepicker.constructWidget('file-pick');
-
-      $( ".file-pick" ).on('click',function() {
-
-       $('.fp__overlay').css({'z-index':'99999'})});
-
-    });

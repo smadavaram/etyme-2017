@@ -90,7 +90,8 @@ class Company < ActiveRecord::Base
   scope :vendors, -> {where(company_type: 1)}
 
   def all_admins_has_permission? permission
-    self.admins.joins(:permissions).where('permissions.name = ?' , permission).group('users.id') + self.owner
+    self.admins.joins(:permissions).where('permissions.name = ?' , permission).group('users.id') || []
+
   end
 
   def etyme_url
