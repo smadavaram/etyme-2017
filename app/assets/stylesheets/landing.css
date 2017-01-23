@@ -1,5 +1,6 @@
 /*
  * Basic Styles
+*= require smartadmin-production
  *= require home/css/bootstrap
  * Home Page
  *= require font-awesome
@@ -7,6 +8,11 @@
  *= require home/css/dropzone
  *= require home/js/fancybox/jquery.fancybox
  *= require home/js/fancybox/helpers/jquery.fancybox-buttons
+ *= require Job
+ *= require custom
+
+
+ * SmartAdmin Styles : Caution! DO NOT change the order
 
 
 */

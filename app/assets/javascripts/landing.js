@@ -9,6 +9,8 @@
 //= require home/js/fancybox/helpers/jquery.fancybox-media
 //= require home/js/global
 //= require global
+//= require jquery.amaran
+//= require plugin/select2/select2.min
 
 
 

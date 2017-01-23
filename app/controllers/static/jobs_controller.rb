@@ -3,6 +3,7 @@ class Static::JobsController < ApplicationController
   before_action :set_jobs,only: [:index]
   before_action :find_job,only: [:show,:apply]
   skip_before_filter :verify_authenticity_token
+  layout 'landing'
 
   def index
     session[:previous_url] = request.url

@@ -14,15 +14,20 @@
       %ul.nav.navbar-nav.navbar-right.visible-xs
         %li.active
           %a{:href => "#"} Home
-
-        -#        = link_to "Login"
-        -#  %a{:href => "register.html"} Register
-        -#%li
-        -#  %a{:href => "listings.html"} Listings
-        -#%li
-        -#  %a{:href => "account_dashboard.html"} My account
-        -#%li
-        -#  %a{:href => "account_ad_create.html"} Post an ad
+        - if candidate_signed_in?
+          %li
+            = link_to  current_candidate.full_name.titleize,candidate_candidate_dashboard_path
+          %li
+            = link_to 'Log out', destroy_candidate_session_path, method: :delete, class: ''
+        -else
+          %li
+            = link_to 'Candidate Login',new_candidate_session_path
+          %li
+            = link_to 'Candidate Sign Up', new_candidate_registration_path
+          %li
+            = link_to 'Company Sign Up', register_path
+          %li
+            = link_to 'Company Login', request.subdomain.present? ? new_user_session_path : signin_path
       .nav.navbar-nav.navbar-right.hidden-xs
         .row
           .pull-right
@@ -52,12 +57,3 @@
                         = link_to 'Candidate Sign Up', new_candidate_registration_path
                       %li
                         = link_to 'Company Sign Up', register_path
-
-            -#%a{"data-target" => "#modalLogin", "data-toggle" => "modal", :href => "#"} Login
-            -#|
-            -#%a{:href => "register.html"} Register
-            -#|
-            -#%a{:href => "listings.html"} Listings
-            -#|
-            -#%a{:href => "account_dashboard.html"} My account
-            -#%a.btn.btn-warning.post-ad-btn{:href => "account_ad_create.html"}

@@ -52,7 +52,7 @@
             / <input type="text" class="form-control input-lg" placeholder="Email"/>
             / <div class="line line-dashed"></div>
             / <a href='/applicant/new/resend_invitation' class="btn btn-primary btn-lg">Send Activation Email</a>
-            %div{:style => " height:350px; border-right: 1px solid gainsboro;float: left; position: relative;top: 70px;left: 30px "}
+            %div{:style => " height:300px; border-right: 1px solid gainsboro;float: left; position: relative;top: 70px;left: 30px "}
             .col-sm-6{:style => "margin-left: 25px"}
               %legend Sign Up
               = simple_form_for(resource, as: resource_name, url: registration_path(resource_name), html: {id: 'smart-form-register' , class: 'smart-form client-form' }) do |f|
