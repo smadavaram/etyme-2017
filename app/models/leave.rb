@@ -3,6 +3,7 @@ class Leave < ActiveRecord::Base
 
   validates :status ,             inclusion: {in: statuses.keys}
   validates :from_date ,:till_date,presence: true
+  validates :leave_type ,presence:  true
   # validates :from_date, date: { after_or_equal_to: Proc.new{Date.today}, message: 'Start date can not be before today'}
   validates :till_date, date: { after_or_equal_to: :from_date, message: 'End date should be greater then start date'}
   validate  :date_overlap , on: :create

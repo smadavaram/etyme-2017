@@ -5,7 +5,7 @@
         %label.label.col.col-2 Name
         .col.col-10
           %label.input
-            =f.text_field :name , required: true
+            =f.text_field :name , required: true ,id: 'rolename'
     %section
       %legend Permissions
     %section
@@ -19,6 +19,48 @@
               = succeed "#{p.name.titleize}" do
                 %i
     %footer
-      = f.submit 'Submit' , class: 'btn btn-primary'
+      = f.button "submit".html_safe , class: 'btn btn-primary btn-sm' , data: {disable_with: ("Submitting...")} ,id: 'form_id'
       %button.btn.btn-default{"data-dismiss" => "modal", :type => "button"}
         Cancel
+
+- content_for :scripts do
+  :javascript
+    $(document).ready(function() {
+     var $validator = $("#login-form").validate({
+
+          rules: {
+            rolename: {
+              required: true
+            }
+          },
+
+          messages: {
+            rolename: "Please specify role name"
+          },
+
+          highlight: function (element) {
+            $(element).closest('.form-group').removeClass('has-success').addClass('has-error');
+          },
+          unhighlight: function (element) {
+            $(element).closest('.form-group').removeClass('has-error').addClass('has-success');
+          },
+          errorElement: 'span',
+          errorClass: 'help-block',
+          errorPlacement: function (error, element) {
+            if (element.parent('.input-group').length) {
+              error.insertAfter(element.parent());
+            } else {
+              error.insertAfter(element);
+            }
+          }
+        });
+
+
+         $('.form_id').click(function(){
+            if ($("#login-form").valid()) {
+              $('#login-form').submit();
+
+            }
+            return false;
+        });
+    });

@@ -2,27 +2,32 @@
   .row
     .col-xs-12.col-sm-3.col-md-3.col-lg-3.pull-right
       = button_tag 'NEW' ,class: 'btn btn-success btn-lg pull-right header-btn hidden-mobile' , "data-toggle": "modal" , "data-target":"#new-admin"
-  %section{style: 'margin-top: 10px;'}
+  %section.margin-top-10.padding-10
     .row
-      %article.col-xs-12.col-sm-12.col-md-12.col-lg-12
-        #wid-id-0.jarviswidget
-          %header.text-muted
-            %span.widget-icon
-              %i.fa.fa-table.text-muted
-            %h2.text-muted ALL ADMINS
-          %div
-            .jarviswidget-editbox
-            .widget-body.no-paddingN
-              %table#dt_basic.table.table-striped.table-bordered.table-hover{:width => "100%"}
-                %thead
-                  %tr
-                    %th Pic
-                    %th{"data-hide" => "phone"} Name
-                    %th Email
-                    %th Roles
-                    %th{"data-hide" => "phone,tablet"}
-                      Actions
-                %tbody
+      #wid-id-5.no-border
+        %div
+          .widget-body
+            .col-md-12
+              = search_form_for @search , url: search_admins_path , method: :post do |f|
+                %ul#internal-tab-1.nav.nav-tabs.tabs-pull-right
+                  %br
+                  .input-group.input-group-lg.hidden-mobile
+                    = f.text_field :first_name_or_last_name_or_email_cont, class: "form-control input-lg", placeholder: "Search Admins..."
+                    .input-group-btn
+                      = f.button raw("<i class='fa fa-fw fa-search fa-lg'></i>") , class: 'btn btn-default'
+              %br/
+              %br/
+              .table{:style => "width:100"}
+                %table#resultTable.table.table-striped.table-bordered.table-hover
+                  %thead
+                    %tr
+                      %th Pic
+                      %th{"data-hide" => "phone"} Name
+                      %th Email
+                      %th Roles
+                      %th{"data-hide" => "phone,tablet"}
+                        Actions
+                  %tbody
                   - @admins.each_with_index do |admin , index|
                     %tr
                       %td= image_tag admin.photo, alt: '', width: '20'
@@ -32,95 +37,9 @@
                       %td
                         = link_to raw("<i class='fa fa-pencil '></i>") , '#' , class: 'btn btn-xs btn-default btn-primary'
                         = link_to raw("<i class='fa fa-times '></i>") , '#' , method: :delete ,  class: 'btn btn-xs btn-default btn-danger'
+          = digg_pagination(@consultants)
+
 - content_for :modals do
   = render 'company/admins/partials/new_modal'
 
-- content_for :scripts do
-  :javascript
-    // DO NOT REMOVE : GLOBAL FUNCTIONS!
 
-    $(document).ready(function() {
-
-      pageSetUp();
-
-      /* // DOM Position key index //
-
-       l - Length changing (dropdown)
-       f - Filtering input (search)
-       t - The Table! (datatable)
-       i - Information (records)
-       p - Pagination (paging)
-       r - pRocessing
-       < and > - div elements
-       <"#id" and > - div with an id
-       <"class" and > - div with a class
-       <"#id.class" and > - div with an id and class
-
-       Also see: http://legacy.datatables.net/usage/features
-       */
-
-      /* BASIC ;*/
-      var responsiveHelper_dt_basic = undefined;
-      var responsiveHelper_datatable_fixed_column = undefined;
-      var responsiveHelper_datatable_col_reorder = undefined;
-      var responsiveHelper_datatable_tabletools = undefined;
-
-      var breakpointDefinition = {
-        tablet : 1024,
-        phone : 480
-      };
-
-      $('#dt_basic').dataTable({
-        "sDom": "<'dt-toolbar'<'col-xs-12 col-sm-6'f><'col-sm-6 col-xs-12 hidden-xs'l>r>"+
-        "t"+
-        "<'dt-toolbar-footer'<'col-sm-6 col-xs-12 hidden-xs'i><'col-xs-12 col-sm-6'p>>",
-        "autoWidth" : true,
-        "oLanguage": {
-          "sSearch": '<span class="input-group-addon"><i class="glyphicon glyphicon-search"></i></span>'
-        },
-        "preDrawCallback" : function() {
-          // Initialize the responsive datatables helper once.
-          if (!responsiveHelper_dt_basic) {
-            responsiveHelper_dt_basic = new ResponsiveDatatablesHelper($('#dt_basic'), breakpointDefinition);
-          }
-        },
-        "rowCallback" : function(nRow) {
-          responsiveHelper_dt_basic.createExpandIcon(nRow);
-        },
-        "drawCallback" : function(oSettings) {
-          responsiveHelper_dt_basic.respond();
-        }
-      });
-
-      /* END BASIC */
-
-      /* COLUMN FILTER  */
-      var otable = $('#datatable_fixed_column').DataTable({
-        //"bFilter": false,
-        //"bInfo": false,
-        //"bLengthChange": false
-        //"bAutoWidth": false,
-        //"bPaginate": false,
-        //"bStateSave": true // saves sort state using localStorage
-        "sDom": "<'dt-toolbar'<'col-xs-12 col-sm-6 hidden-xs'f><'col-sm-6 col-xs-12 hidden-xs'<'toolbar'>>r>"+
-        "t"+
-        "<'dt-toolbar-footer'<'col-sm-6 col-xs-12 hidden-xs'i><'col-xs-12 col-sm-6'p>>",
-        "autoWidth" : true,
-        "oLanguage": {
-          "sSearch": '<span class="input-group-addon"><i class="glyphicon glyphicon-search"></i></span>'
-        },
-        "preDrawCallback" : function() {
-          // Initialize the responsive datatables helper once.
-          if (!responsiveHelper_datatable_fixed_column) {
-            responsiveHelper_datatable_fixed_column = new ResponsiveDatatablesHelper($('#datatable_fixed_column'), breakpointDefinition);
-          }
-        },
-        "rowCallback" : function(nRow) {
-          responsiveHelper_datatable_fixed_column.createExpandIcon(nRow);
-        },
-        "drawCallback" : function(oSettings) {
-          responsiveHelper_datatable_fixed_column.respond();
-        }
-
-      });
-    });

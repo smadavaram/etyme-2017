@@ -12,12 +12,20 @@
             .col-sm-12
               .row
                 .col-sm-12
+                  -#.form-group
+                  -#  %label Start Time
+                  -#  .input-group
+                  -#    = f.text_field :start_time ,class: "form-control" , required: 'required', placeholder: "Start  Time"
+                  -#    %span.input-group-addon
+                  -#      %i.fa.fa-clock-o
                   .form-group
-                    %label Start Time
+                    %label Start TIme:
                     .input-group
-                      = f.text_field :start_time ,class: "form-control" , required: 'required', placeholder: "Strat  Time"
+                      -#%input#clockpicker.form-control{"data-autoclose" => "true", :placeholder => "Select time", :type => "text"}/
+                      = f.text_field :start_time ,class: "form-control clockpicker" ,"data-autoclose" => "true", required: 'required', placeholder: "Start  Time"
                       %span.input-group-addon
                         %i.fa.fa-clock-o
+
           .row
             .col-sm-12
               .row
@@ -25,7 +33,7 @@
                   .form-group
                     %label End Time
                     .input-group
-                      = f.text_field :end_time ,class: "form-control" , required: 'required', placeholder: "Strat  Time"
+                      = f.text_field :end_time ,class: "form-control clockpicker" ,"data-autoclose" => "true", required: 'required', placeholder: "End  Time"
                       %span.input-group-addon
                         %i.fa.fa-clock-o
           .row
@@ -47,12 +55,19 @@
             %button.btn.btn-default{"data-dismiss" => "modal", :type => "button"}
               Cancel
             = f.submit 'Send' , class: 'btn btn-primary'
+:css
+  .popover.clockpicker-popover {
+    z-index: 1050;
+    }
 - content_for :scripts do
   :javascript
-    $(document).ready(
-    function() {
-
-        $(".file").on('click',function() {
-        $('.fp__overlay').css({'z-index':'99999'})
-    });
+    $(document).ready(function() {
+    $(".file").on('click',function() {
+        $('.fp__overlay').css({'z-index':'99999'});
+         });
+      $('.clockpicker').clockpicker({
+          placement: 'bottom',
+          align: 'left',
+          donetext: 'Done'
+         });
     });

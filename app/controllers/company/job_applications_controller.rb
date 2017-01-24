@@ -123,8 +123,10 @@ class Company::JobApplicationsController < Company::BaseController
   private
 
   def set_job_applications
-    @received_job_applications = current_company.received_job_applications.order(created_at: :desc).includes(:job ,:applicationable).paginate(page: params[:page], per_page: 10) || []
-    @sent_job_applications     = current_company.sent_job_applications.order(created_at: :desc).includes(:job,:applicationable).paginate(page: params[:page], per_page: 10) || []
+    @search           = current_company.received_job_applications.includes(:job ,:applicationable).search(params[:q])
+    @received_job_applications = @search.result.order(created_at: :desc).paginate(page: params[:page], per_page: 10) || []
+    @sent_search               = current_company.sent_job_applications.order(created_at: :desc).includes(:job,:applicationable).search(params[:q])
+    @sent_job_applications     = @sent_search.result(distinct: true).paginate(page: params[:page], per_page: 10) || []
   end
 
   def find_job

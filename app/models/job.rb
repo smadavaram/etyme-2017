@@ -45,6 +45,18 @@ class Job < ActiveRecord::Base
    scope :is_public, -> { where(is_public: true)}
    scope :not_system_generated , -> {where(is_system_generated: false)}
 
+  # def self.ransackable_attributes(auth_object = nil)
+  #   if auth_object == :admin
+  #     # whitelist all attributes for admin
+  #     super
+  #   else
+  #     # whitelist only the title and body attributes for other users
+  #     super & %w(title id)
+  #   end
+  # end
+
+  # private_class_method :ransackable_attributes
+
   def is_active?
     self.end_date >= Date.today
   end

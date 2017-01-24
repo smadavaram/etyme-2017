@@ -19,6 +19,11 @@
                 =  f.text_area :cover_letter , class: "form-control tinymce", rows: 8, cols: 25, placeholder: 'Cover Letter'
                 =  tinymce :default
             .form-group
+              %label.col-md-2.control-label Resume
+              .col-md-10
+                = f.filepicker_field :applicant_resume , class: 'btn btn-primary file-pick'  , required: true, id: 'accept-filepiker'
+
+            .form-group
               %label.col-md-2.control-label Message (optional)
               .col-md-10
                 = f.text_area :message, class: "form-control", rows: "2" ,placeholder: 'Write tour message'
@@ -34,4 +39,12 @@
             %button.btn.btn-default{"data-dismiss" => "modal", :type => "button"}
               Cancel
             = f.button "Save" , class: 'btn btn-primary' , data: {disable_with: "<i class='fa fa-spin'></i>Submiting..."}
+- content_for :scripts do
+:javascript
+      var element = $('#accept-filepiker')
+      filepicker.constructWidget(element)
 
+      $( ".file-pick" ).on('click',function() {
+
+      $('.fp__overlay').css({'z-index':'99999'});
+       });

@@ -54,6 +54,11 @@ Rails.application.routes.draw do
   get '/states/:country', to: 'application#states'
   get '/cities/:state/:country', to: 'application#cities'
 
+  concern :paginatable do
+    get '(page/:page)', action: :index, on: :collection, as: ''
+    match :search, action: :index, via: [:get , :post], on: :collection
+  end
+
   namespace :static do
     resources :jobs ,only: [:index,:show] do
       post :apply
@@ -139,10 +144,10 @@ Rails.application.routes.draw do
     resources :companies ,only: [:create]
     resources :candidates , only: [:create]
   end
+
   scope module: :company do
 
-    resources :consultants do
-      match :search, to: 'consultants#index', via: :get, on: :collection
+    resources :consultants , concerns: :paginatable do
       resources :leaves do
         member do
           post :accept
@@ -153,13 +158,13 @@ Rails.application.routes.draw do
     resources :locations
     resources :company_docs
     resources :roles
-    resources :admins
+    resources :admins           , concerns: :paginatable , only: [:index]
     resources :addresses
     resources :comments         , only: [:create]
-    resources :attachments      , only: [:index]
-    resources :invoices         , only: [:index]
-    resources :job_invitations  , only: [:index]
-    resources :job_applications , only: [:index,:show] do
+    resources :attachments      ,concerns: :paginatable , only: [:index]
+    resources :invoices         ,concerns: :paginatable , only: [:index]
+    resources :job_invitations  ,concerns: :paginatable , only: [:index]
+    resources :job_applications ,concerns: :paginatable , only: [:index,:show] do
       resources :consultants , only: [:new , :create]
       member do
         get :share
@@ -171,9 +176,7 @@ Rails.application.routes.draw do
         post :hire
       end # End of member
     end
-    resources :contracts        , only: [:index ,:show , :new , :create] do
-      match :search, to: 'contracts#index', via: :get, on: :collection
-      match :search, to: 'contracts#index', via: :post, on: :collection
+    resources :contracts        ,concerns: :paginatable , only: [:index ,:show , :new , :create] do
       resources :contracts
       collection do
         post :nested_create
@@ -191,8 +194,7 @@ Rails.application.routes.draw do
       end
     end
 
-    resources :jobs  do
-      match :search, to: 'jobs#index', via: :post, on: :collection
+    resources :jobs , concerns: :paginatable do
       resources :contracts , except: [:index , :show] do
         member do
           post :open_contract , as: :open_contract
@@ -223,8 +225,7 @@ Rails.application.routes.draw do
     get 'attachment/documents_list',to: 'attachments#document_list'
     get 'dashboard' ,       to: 'users#dashboard' ,             as: :dashboard
     post 'update_photo',    to: 'users#update_photo'
-    resources :timesheets,only: [:show , :index] do
-      match :search, to: 'timesheets#index', via: :get, on: :collection
+    resources :timesheets ,concerns: :paginatable , only: [:show , :index] do
       get 'approve'
       get 'submit'
       get 'reject'
@@ -238,8 +239,7 @@ Rails.application.routes.draw do
 
     end
     # get 'configuration' ,   to: 'companies#edit' ,              as: :configuration
-    resources :companies , only: [:update,:show , :index] do
-      match :search, to: 'companies#index', via: :post, on: :collection
+    resources :companies , concerns: :paginatable ,only: [:update,:show , :index] do
       collection do
         post :change_owner
         post :get_admins_list , as: :get_admins_list

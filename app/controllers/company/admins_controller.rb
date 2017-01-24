@@ -9,7 +9,8 @@ class Company::AdminsController < Company::BaseController
   before_action :set_locations , only: [:new , :index]
 
   def index
-    @admins = current_company.admins.order(created_at: :desc).includes(:roles) || []
+    @search      = current_company.admins.search(params[:q])
+    @admins = @search.result.order(created_at: :desc).includes(:roles).paginate(page: params[:page], per_page: 30) || []
   end
 
   def new
