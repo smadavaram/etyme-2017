@@ -15,7 +15,6 @@
                 .form-group
                   %label Email address
                   = f.email_field :email, autofocus: true,class:'form-control',placeholder:"Enter Email"
-                  -#%input.form-control{:placeholder => "Enter email", :type => "email"}/
                 .form-group
                   %label Password
                   = f.password_field :password, autocomplete: "off",class:'form-control',placeholder:"Enter password"
@@ -27,7 +26,6 @@
                 %br/
                 = f.submit 'Sign In',class:'btn btn-primary'
                 -#%a.btn.btn-primary{type: 'submit"} Sign in
-
 
 - content_for :scripts do
   :javascript

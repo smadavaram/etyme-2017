@@ -4,7 +4,7 @@ class StaticController < ApplicationController
   before_action      :set_jobs ,only: :index
 
   layout 'landing'
-
+  add_breadcrumb "Home",'/'
   def index
   end
   def signin

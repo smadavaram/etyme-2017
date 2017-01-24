@@ -1,0 +1,60 @@
+
+#new-candidate.modal.fade.in{"aria-hidden" => "false", :style => "display: block;"}
+  .modal-dialog.modal-admin
+    .modal-content
+      .modal-header
+        %button.close{"aria-hidden" => "true", "data-dismiss" => "modal", :type => "button"} ×
+        %h4.modal-title Sign-up or Login.
+      .modal-body
+        %section.panel-default
+          .col-sm-12
+            .col-sm-5
+              %legend Login
+              = form_for(resource, as: resource_name, url: session_path(resource_name,status: true), html: {id: 'login-form', class: 'smart-form client-form'}) do |f|
+                %fieldset
+                  .form-group
+                    %label E-mail
+                    = f.email_field :email, autofocus: true,class:'form-control'
+
+                    .form-group
+                      %label Password
+                      = f.password_field :password, autocomplete: "off",class:'form-control'
+                      .note
+                        = link_to 'Forgot password?', new_candidate_password_path
+                    .form-group
+                      %label.checkbox
+                        = f.check_box :remember_me
+                        = succeed "Stay" do
+                          %i
+                  %footer
+                    %button.btn.btn-primary{:type => "submit"}
+                      Sign in
+            %div{:style => " height:450px; border-right: 1px solid gainsboro;float: left; position: relative;top: 70px;left: 30px "}
+            .col-sm-6{:style => "margin-left: 25px"}
+              %legend Sign Up
+              = simple_form_for(resource, as: resource_name, url: registration_path(resource_name), html: {id: 'smart-form-register' , class: 'smart-form client-form' }) do |f|
+                %fieldset
+                  .form-group
+                    %label{:for => ""} First Name
+                    = f.text_field :first_name, :placeholder => "First name", required: true,class:'form-control'
+                  .form-group
+                    %label{:for => ""} Last Name
+                    = f.text_field :last_name, :placeholder => "Last name", required: true,class:'form-control'
+                  .form-group
+                    %label{:for => ""} Email
+                    = f.email_field :email, :placeholder => "Your Email", required: true, email: true,class:'form-control'
+                  .form-group
+                    %label{:for => ""} Password
+                    = f.password_field :password, :placeholder => "Password", required: true,minlength: "6",class:'form-control'
+                  .form-group
+                    %label{:for => ""} Confirm Password
+                    = f.password_field :password_confirmation, :placeholder => "Confirm password", "data-rule-equalTo": "#company_owner_attributes_password",class:'form-control'
+                  .form-group
+                    %label.checkbox
+                    %input#terms{:name => "terms", :type => "checkbox"}/
+                    = succeed "I agree with the " do
+                      %i
+                    %a{"data-target" => "#myModal", "data-toggle" => "modal", :href => "#"} Terms and Conditions
+                  %input.btn.btn-primary.pull-right{:name => "commit", :onclick => "if ($('#terms').is(':checked')){$('#new_applicant').submit();}", :type => "submit", :value => "Sign Up"}/
+        %section.panel-default
+      .modal-footer{:style => "border-top:0px;"}

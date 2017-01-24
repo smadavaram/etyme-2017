@@ -14,11 +14,12 @@
                       %label{:for => "exampleInputEmail1"} Company name
                       = f.text_field :name  ,:placeholder => "Company Name", required: true,minlength: "3",class:'form-control'
                     .form-group
-                      %label{:for => "exampleInputEmail1"} Full name
                       .row
                         .col-sm-6
+                          %label{:for => "exampleInputEmail1"} First name
                           = u.text_field :first_name, :placeholder => "First name", required: true,class: 'form-control'
                         .col-sm-6
+                          %label{:for => "exampleInputEmail1"} Last name
                           = u.text_field :last_name, :placeholder => "Last name", required: true,class: 'form-control'
                     .form-group
                       %label{:for => "exampleInputEmail1"} Email address
@@ -41,12 +42,10 @@
 
                     %br/
                     = f.submit 'Register',class:'btn btn-primary'
-      -#%a.btn.btn-primary{:href => "account_dashboard.html"} Register
       .col-md-6.col-sm-12.account-sidebar.hidden-sm
         .row
           .col-sm-3{:style => "text-align: center;"}
-            = image_tag asset_path('css/images/icons/Crest.png')
-          -#%img{:src => "css/images/icons/Crest.png", :width => "50"}/
+            = image_tag asset_path('home/images/icons/Crest.png'),width: 50
           .col-sm-8
             %h3 Why us?
             %p We're one of the most recognisable brands, attracting thousands of buyers every month.
@@ -54,25 +53,28 @@
         %br/
         .row
           .col-sm-3{:style => "text-align: center;"}
-            %img{:src => "css/images/icons/Pie-Chart.png", :width => "40"}/
+            = image_tag asset_path('home/images/icons/Pie-Chart.png'),width: 40
           .col-sm-8
             %h3 Magnet for buyers
             %p We make sure your listings receive maximum exposure and is presented in an engaging way
         %br/
         .row
           .col-sm-3{:style => "text-align: center;"}
-            %img{:src => "css/images/icons/Search.png", :width => "40"}/
+            = image_tag asset_path('home/images/icons/Search.png'),width: 40
           .col-sm-8
             %h3 Focused searches
             %p Our technology and algorithm matches potential buyers directly to your listings
         %br/
         .row
           .col-sm-3{:style => "text-align: center;"}
-            %img{:src => "css/images/icons/Telephone.png", :width => "40"}/
+            = image_tag asset_path('home/images/icons/Telephone.png'),width: 40
           .col-sm-8
             %h3 Mobile web
             %p Your listings will always be accessible to everyone, even when they are on the move, via our responsive mobile website
     %br/
+
+
+
 
 -#- content_for :html_id, "extr-page"
 -#- content_for :body_class, "animated fadeInDown"
