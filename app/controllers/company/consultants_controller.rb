@@ -13,7 +13,8 @@ class Company::ConsultantsController < Company::BaseController
   end
 
   def index
-    @consultants = current_company.consultants.order(created_at: :desc).includes(:roles) || []
+    @search      = current_company.consultants.search(params[:q])
+    @consultants = @search.result.order(created_at: :desc).includes(:roles).paginate(page: params[:page], per_page: 30) || []
   end
 
   def create

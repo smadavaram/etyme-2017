@@ -10,7 +10,8 @@ class Company::JobsController < Company::BaseController
 
 
   def index
-    @company_jobs = current_company.jobs.not_system_generated.includes(:created_by).order(created_at: :desc) || []
+    @search =  current_company.jobs.not_system_generated.includes(:created_by).order(created_at: :desc).search(params[:q])
+    @company_jobs = @search.result
   end
 
   def show

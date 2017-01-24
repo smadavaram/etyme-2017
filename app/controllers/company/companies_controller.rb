@@ -8,7 +8,8 @@ class Company::CompaniesController < Company::BaseController
   add_breadcrumb 'Companies', "#", :title => ""
 
   def index
-    @invited_companies = current_company.invited_companies.paginate(page: params[:page], per_page: 10)
+    @search = current_company.invited_companies.includes(:invited_company).search(params[:q])
+    @invited_companies = @search.result.paginate(page: params[:page], per_page: 10)
     @new_company = Company.new
     @new_company.build_owner
     @new_company.build_invited_by

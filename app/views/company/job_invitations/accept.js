@@ -8,4 +8,11 @@ tinymce.init({
     insert_toolbar: 'quicktable',
     selection_toolbar: 'bold italic | quicklink h2 h3 blockquote'
 });
+var element = $('#accept-filepiker')
+filepicker.constructWidget(element)
+
+$( ".file-pick" ).on('click',function() {
+
+    $('.fp__overlay').css({'z-index':'99999'});
+});
 $('#job-invite-<%= @job_invitation.id %>').modal();
