@@ -1,12 +1,6 @@
 class Users::RegistrationsController < Devise::RegistrationsController
 # before_action :configure_sign_up_params, only: [:create]
 # before_action :configure_account_update_params, only: [:update]
- layout 'company'
-
-
-  def dashboard
-
-  end
 
   # GET /resource/sign_up
   # def new
@@ -14,9 +8,9 @@ class Users::RegistrationsController < Devise::RegistrationsController
   # end
 
   # POST /resource
-  def create
-    super
-  end
+  # def create
+  #   super
+  # end
 
   # GET /resource/edit
   # def edit

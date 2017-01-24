@@ -312,7 +312,7 @@ Rails.application.routes.draw do
   resources :static , only: [:index]
 
   # Devise Routes
-   devise_for :users, controllers: { invitations: 'company/invitations' } , path_names: { sign_in: 'login', sign_out: 'logout'}
+   devise_for :users, controllers: { invitations: 'company/invitations', passwords: 'users/passwords',sessions: 'users/sessions' } , path_names: { sign_in: 'login', sign_out: 'logout'}
 
   # Route set when subdomain present?
   constraints(Subdomain) do
