@@ -12,6 +12,7 @@ class Company::JobsController < Company::BaseController
   def index
     @search =  current_company.jobs.not_system_generated.includes(:created_by).order(created_at: :desc).search(params[:q])
     @company_jobs = @search.result
+    @company_job = current_company.jobs.new
   end
 
   def show
@@ -54,11 +55,11 @@ class Company::JobsController < Company::BaseController
   end
   
   def destroy
-    # @company_job.destroy
-    # respond_to do |format|
-    #   format.html { redirect_to jobs_url, notice: 'Job was successfully destroyed.' }
-    #   format.json { head :no_content }
-    # end
+    @company_job.destroy
+    respond_to do |format|
+      format.html { redirect_to jobs_url, notice: 'Job was successfully destroyed.' }
+      format.json { head :no_content }
+    end
   end
 
   def send_invitation

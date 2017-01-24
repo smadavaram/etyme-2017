@@ -1,4 +1,4 @@
-= form_for current_company.jobs.new ,html:{ class:'form-horizontal'} do |f|
+= form_for @company_job ,html:{ class:'form-horizontal'} do |f|
   %fieldset
     .form-group
       %label.col-md-2.control-label
@@ -35,7 +35,7 @@
         Tags
         %sup.text-danger
       .col-md-10
-        = f.text_field :tag_list , class: 'form-control tagsinput','data-role'=>'tagsinput' , placeholder: 'Tags are separated with comma'
+        = f.text_field :tag_list , class: 'form-control tagsinput','data-role'=>'tagsinput' , placeholder: 'Tags are separated with comma' , value: @company_job.tag_list.join(", ")
         %p.note
           %strong Note:
           Tags are separated with comma
