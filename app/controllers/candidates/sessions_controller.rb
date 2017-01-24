@@ -1,7 +1,7 @@
 class Candidates::SessionsController < Devise::SessionsController
   # before_action :configure_sign_in_params, only: [:create]
 
-   layout 'login'
+   layout 'landing'
 
   # GET /resource/sign_in
    def new

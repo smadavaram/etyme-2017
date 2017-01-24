@@ -16,7 +16,7 @@ class ApplicationController < ActionController::Base
   end
 
   def set_devise_layout
-    'login' if devise_controller?
+    'landing' if devise_controller?
   end
 
   def after_sign_in_path_for(resource)

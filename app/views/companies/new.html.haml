@@ -1,110 +1,186 @@
-- content_for :html_id, "extr-page"
-- content_for :body_class, "animated fadeInDown"
-- content_for :top_right do
-  %span#extr-page-header-space
-    %span.hidden-mobile.hiddex-xs Already registered?
-    = link_to 'Sign In', request.subdomain.present? ? new_user_session_path : signin_path , class: 'btn btn-primary'
-#main{:role => "main"}
-  / MAIN CONTENT
-  #content.container
+.row
+  .col-sm-12
+    %h1 Create an account
+    %hr/
     .row
-      .col-xs-12.col-sm-12.col-md-7.col-lg-7.hidden-xs.hidden-sm
-        %h1.txt-color-red.login-header-big #{SITE_NAME}
-        .hero
-          .pull-left.login-desc-box-l
-            %h4.paragraph-header Sign-up to get access to 1000's of vendors and jobs on a single tap. Sed ut perspiciatis unde omnis iste natus error sit voluptatem accusantium doloremque laudantium, totam rem aperiam, eaque ipsa.
-            .login-app-icons
-              %a.btn.btn-danger.btn-sm{:href => "javascript:void(0);"} Find Jobs
-              %a.btn.btn-danger.btn-sm{:href => "javascript:void(0);"} Find Vendors
-          %img.pull-right.display-image{:alt => "", :src => "#{image_path('demo/iphoneview.png')}", :style => "width:210px"}/
-        .row
-          .col-xs-12.col-sm-12.col-md-6.col-lg-6
-            %h5.about-heading About Etyme - Are you up to date?
-            %p
-              Sed ut perspiciatis unde omnis iste natus error sit voluptatem accusantium doloremque laudantium, totam rem aperiam, eaque ipsa.
-          .col-xs-12.col-sm-12.col-md-6.col-lg-6
-            %h5.about-heading Not just your average job site!
-            %p
-              Et harum quidem rerum facilis est et expedita distinctio. Nam libero tempore, cum soluta nobis est eligendi voluptatem accusantium!
-      .col-xs-12.col-sm-12.col-md-5.col-lg-5
-        .well.no-padding
-          =form_for @company , html: {id: 'smart-form-register' , class: 'smart-form client-form' }  do |f|
-            %header
-              Free Sign-Up on Etyme
+      .col-sm-12.col-md-6
+        = form_for @company , html: {id: 'smart-form-register' , class: 'vertical-form client-form' }  do |f|
+          = f.fields_for :owner do |u|
             %fieldset
-              %section
-                %label.input
-                  %i.icon-append.fa.fa-building-o
-                  = f.text_field :name  ,:placeholder => "Company Name", required: true,minlength: "3"
-                  %b.tooltip.tooltip-bottom-right Company Name
-              = f.fields_for :owner do |u|
-                %section
-                  %label.input
-                    %i.icon-append.fa.fa-user
-                    = u.text_field :first_name, :placeholder => "First name", required: true
-                    %b.tooltip.tooltip-bottom-right Your First Name
-                %section
-                  %label.input
-                    %i.icon-append.fa.fa-user
-                    = u.text_field :last_name, :placeholder => "Last name", required: true
-                    %b.tooltip.tooltip-bottom-right Your Last Name
-                %section
-                  %label.input
-                    %i.icon-append.fa.fa-envelope
-                    = u.email_field :email, :placeholder => "Your Email", required: true, email: true
-                    %b.tooltip.tooltip-bottom-right Your Company Email
-                %section
-                  %label.input
-                    %i.icon-append.fa.fa-lock
-                    = u.password_field :password, :placeholder => "Password", required: true,minlength: "6"
-                    %b.tooltip.tooltip-bottom-right Please enter a password of minimum 6 characters
-                %section
-                  %label.input
-                    %i.icon-append.fa.fa-lock
-                    = u.password_field :password_confirmation, :placeholder => "Confirm password", "data-rule-equalTo": "#company_owner_attributes_password"
-                    %b.tooltip.tooltip-bottom-right Please confirm the password
-                %section
-                  %label.select
-                    = f.select :company_type , Company.company_types.map { |key, value| [key.humanize, key] }
-                    %i
-                %section
-                  -#%label.checkbox
-                    %input#subscription{:name => "subscription", :type => "checkbox"}/
-                    = succeed "I want to receive news and special offers" do
-                      %i
-                  %label.checkbox
-                    %input#terms{:name => "terms", :type => "checkbox"}/
-                    = succeed "I agree with the " do
-                      %i
-                    %a{"data-target" => "#myModal", "data-toggle" => "modal", :href => "#"} Terms and Conditions
-              %footer
-                .row
-                  .col-md-4{style: 'margin-top: 16px; margin-left: 20px;'}
-                    = link_to ' Candidate Signup?',new_candidate_registration_path
-                  .col-md-6
-                    %button.btn.btn-primary{:type => "submit"}
-                      Register
+              .row
+                .col-sm-12
+                  .well
+                    .form-group
+                      %label{:for => "exampleInputEmail1"} Company name
+                      = f.text_field :name  ,:placeholder => "Company Name", required: true,minlength: "3",class:'form-control'
+                    .form-group
+                      %label{:for => "exampleInputEmail1"} Full name
+                      .row
+                        .col-sm-6
+                          = u.text_field :first_name, :placeholder => "First name", required: true,class: 'form-control'
+                        .col-sm-6
+                          = u.text_field :last_name, :placeholder => "Last name", required: true,class: 'form-control'
+                    .form-group
+                      %label{:for => "exampleInputEmail1"} Email address
+                      = u.email_field :email, :placeholder => "Your Email", required: true, email: true,class: 'form-control'
+                    .form-group
+                      %label{:for => "exampleInputPassword1"} Password
+                      = u.password_field :password, :placeholder => "Password", required: true,minlength: "6",class: 'form-control'
+                    .form-group
+                      %label{:for => "exampleInputPassword1"} Confirm password
+                      = u.password_field :password_confirmation, :placeholder => "Confirm password", "data-rule-equalTo": "#company_owner_attributes_password",class: 'form-control'
+                    .form-group
+                      %label{:for => "exampleInputPassword1"} Company Type
+                      = f.select :company_type , Company.company_types.map { |key, value| [key.humanize, key] },{}, { :class => 'form-control' }
+                    .form-group
+                      %label.checkbox
+                      %input#terms{:name => "terms", :type => "checkbox"}/
+                      = succeed "I agree with the " do
+                        %i
+                      %a{"data-target" => "#myModal", "data-toggle" => "modal", :href => "#"} Terms and Conditions
 
-            -#%fieldset
-              %section
-                %label.input
-                  %i.icon-append.fa.fa-user
-                  = f.text_field :name  ,:placeholder => "Company name", required: true,minlength: "3"
-                  %b.tooltip.tooltip-bottom-right Company Name
+                    %br/
+                    = f.submit 'Register',class:'btn btn-primary'
+      -#%a.btn.btn-primary{:href => "account_dashboard.html"} Register
+      .col-md-6.col-sm-12.account-sidebar.hidden-sm
+        .row
+          .col-sm-3{:style => "text-align: center;"}
+            = image_tag asset_path('css/images/icons/Crest.png')
+          -#%img{:src => "css/images/icons/Crest.png", :width => "50"}/
+          .col-sm-8
+            %h3 Why us?
+            %p We're one of the most recognisable brands, attracting thousands of buyers every month.
+            %p
+        %br/
+        .row
+          .col-sm-3{:style => "text-align: center;"}
+            %img{:src => "css/images/icons/Pie-Chart.png", :width => "40"}/
+          .col-sm-8
+            %h3 Magnet for buyers
+            %p We make sure your listings receive maximum exposure and is presented in an engaging way
+        %br/
+        .row
+          .col-sm-3{:style => "text-align: center;"}
+            %img{:src => "css/images/icons/Search.png", :width => "40"}/
+          .col-sm-8
+            %h3 Focused searches
+            %p Our technology and algorithm matches potential buyers directly to your listings
+        %br/
+        .row
+          .col-sm-3{:style => "text-align: center;"}
+            %img{:src => "css/images/icons/Telephone.png", :width => "40"}/
+          .col-sm-8
+            %h3 Mobile web
+            %p Your listings will always be accessible to everyone, even when they are on the move, via our responsive mobile website
+    %br/
 
-
-        %h5.text-center - Or sign in using -
-        %ul.list-inline.text-center
-          %li
-            %a.btn.btn-primary.btn-circle{:href => "javascript:void(0);"}
-              %i.fa.fa-facebook
-          %li
-            %a.btn.btn-info.btn-circle{:href => "javascript:void(0);"}
-              %i.fa.fa-twitter
-          %li
-            %a.btn.btn-warning.btn-circle{:href => "javascript:void(0);"}
-              %i.fa.fa-linkedin
-/ Modal
+-#- content_for :html_id, "extr-page"
+-#- content_for :body_class, "animated fadeInDown"
+-#- content_for :top_right do
+-#  %span#extr-page-header-space
+-#    %span.hidden-mobile.hiddex-xs Already registered?
+-#    = link_to 'Sign In', request.subdomain.present? ? new_user_session_path : signin_path , class: 'btn btn-primary'
+-##main{:role => "main"}
+-#  / MAIN CONTENT
+-#  #content.container
+-#    .row
+-#      .col-xs-12.col-sm-12.col-md-7.col-lg-7.hidden-xs.hidden-sm
+-#        %h1.txt-color-red.login-header-big #{SITE_NAME}
+-#        .hero
+-#          .pull-left.login-desc-box-l
+-#            %h4.paragraph-header Sign-up to get access to 1000's of vendors and jobs on a single tap. Sed ut perspiciatis unde omnis iste natus error sit voluptatem accusantium doloremque laudantium, totam rem aperiam, eaque ipsa.
+-#            .login-app-icons
+-#              %a.btn.btn-danger.btn-sm{:href => "javascript:void(0);"} Find Jobs
+-#              %a.btn.btn-danger.btn-sm{:href => "javascript:void(0);"} Find Vendors
+-#          %img.pull-right.display-image{:alt => "", :src => "#{image_path('demo/iphoneview.png')}", :style => "width:210px"}/
+-#        .row
+-#          .col-xs-12.col-sm-12.col-md-6.col-lg-6
+-#            %h5.about-heading About Etyme - Are you up to date?
+-#            %p
+-#              Sed ut perspiciatis unde omnis iste natus error sit voluptatem accusantium doloremque laudantium, totam rem aperiam, eaque ipsa.
+-#          .col-xs-12.col-sm-12.col-md-6.col-lg-6
+-#            %h5.about-heading Not just your average job site!
+-#            %p
+-#              Et harum quidem rerum facilis est et expedita distinctio. Nam libero tempore, cum soluta nobis est eligendi voluptatem accusantium!
+-#      .col-xs-12.col-sm-12.col-md-5.col-lg-5
+-#        .well.no-padding
+-#          =form_for @company , html: {id: 'smart-form-register' , class: 'smart-form client-form' }  do |f|
+-#            %header
+-#              Free Sign-Up on Etyme
+-#            %fieldset
+-#              %section
+-#                %label.input
+-#                  %i.icon-append.fa.fa-building-o
+-#                  = f.text_field :name  ,:placeholder => "Company Name", required: true,minlength: "3"
+-#                  %b.tooltip.tooltip-bottom-right Company Name
+-#              = f.fields_for :owner do |u|
+-#                %section
+-#                  %label.input
+-#                    %i.icon-append.fa.fa-user
+-#                    = u.text_field :first_name, :placeholder => "First name", required: true
+-#                    %b.tooltip.tooltip-bottom-right Your First Name
+-#                %section
+-#                  %label.input
+-#                    %i.icon-append.fa.fa-user
+-#                    = u.text_field :last_name, :placeholder => "Last name", required: true
+-#                    %b.tooltip.tooltip-bottom-right Your Last Name
+-#                %section
+-#                  %label.input
+-#                    %i.icon-append.fa.fa-envelope
+-#                    = u.email_field :email, :placeholder => "Your Email", required: true, email: true
+-#                    %b.tooltip.tooltip-bottom-right Your Company Email
+-#                %section
+-#                  %label.input
+-#                    %i.icon-append.fa.fa-lock
+-#                    = u.password_field :password, :placeholder => "Password", required: true,minlength: "6"
+-#                    %b.tooltip.tooltip-bottom-right Please enter a password of minimum 6 characters
+-#                %section
+-#                  %label.input
+-#                    %i.icon-append.fa.fa-lock
+-#                    = u.password_field :password_confirmation, :placeholder => "Confirm password", "data-rule-equalTo": "#company_owner_attributes_password"
+-#                    %b.tooltip.tooltip-bottom-right Please confirm the password
+-#                %section
+-#                  %label.select
+-#                    = f.select :company_type , Company.company_types.map { |key, value| [key.humanize, key] }
+-#                    %i
+-#                %section
+-#                  -#%label.checkbox
+-#                    %input#subscription{:name => "subscription", :type => "checkbox"}/
+-#                    = succeed "I want to receive news and special offers" do
+-#                      %i
+-#                  %label.checkbox
+-#                    %input#terms{:name => "terms", :type => "checkbox"}/
+-#                    = succeed "I agree with the " do
+-#                      %i
+-#                    %a{"data-target" => "#myModal", "data-toggle" => "modal", :href => "#"} Terms and Conditions
+-#              %footer
+-#                .row
+-#                  .col-md-4{style: 'margin-top: 16px; margin-left: 20px;'}
+-#                    = link_to ' Candidate Signup?',new_candidate_registration_path
+-#                  .col-md-6
+-#                    %button.btn.btn-primary{:type => "submit"}
+-#                      Register
+-#
+-#            -#%fieldset
+-#              %section
+-#                %label.input
+-#                  %i.icon-append.fa.fa-user
+-#                  = f.text_field :name  ,:placeholder => "Company name", required: true,minlength: "3"
+-#                  %b.tooltip.tooltip-bottom-right Company Name
+-#
+-#
+-#        %h5.text-center - Or sign in using -
+-#        %ul.list-inline.text-center
+-#          %li
+-#            %a.btn.btn-primary.btn-circle{:href => "javascript:void(0);"}
+-#              %i.fa.fa-facebook
+-#          %li
+-#            %a.btn.btn-info.btn-circle{:href => "javascript:void(0);"}
+-#              %i.fa.fa-twitter
+-#          %li
+-#            %a.btn.btn-warning.btn-circle{:href => "javascript:void(0);"}
+-#              %i.fa.fa-linkedin
+-#/ Modal
 #myModal.modal.fade{"aria-hidden" => "true", "aria-labelledby" => "myModalLabel", :role => "dialog", :tabindex => "-1"}
   .modal-dialog
     .modal-content

@@ -4,7 +4,7 @@ class CompaniesController < ApplicationController
 
   respond_to :html,:json
 
-  layout 'login'
+  layout 'landing'
 
 
   def new
