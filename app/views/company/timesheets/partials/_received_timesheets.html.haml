@@ -1,5 +1,5 @@
-.table-responsive{:style => "width:100"}
-  %table#resultTable.table.table-striped.table-bordered.table-hover
+.table
+  %table.table.table-striped.table-bordered.table-hover
     %thead
       %tr
         %th Title
@@ -29,4 +29,4 @@
               - if has_permission?("manage_timesheets")
                 = link_to 'Approve' ,timesheet_approve_path(timesheet) ,class: 'btn btn-xs btn-default btn-success' , data: {confirm: "Are you sure?", verify: 'Approve', verify_text: "Type 'Approve' to confirm"}
                 = link_to 'Reject' ,timesheet_reject_path(timesheet) ,class: 'btn btn-xs btn-default btn-danger' , data: {confirm: "Are you sure?", verify: 'Reject', verify_text: "Type 'Reject' to confirm"}
-      = digg_pagination(data)
+  = digg_pagination(data)

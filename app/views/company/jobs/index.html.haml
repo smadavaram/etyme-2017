@@ -14,28 +14,28 @@
               .tab-content
                 #tab-r1.tab-pane.active
                   #hb2.tab-pane.active
-                    %ul#internal-tab-1.nav.nav-tabs.tabs-pull-right
-                      %br
-                      .input-group.input-group-lg.hidden-mobile
-                        .input-group-btn
-                          %button.btn.btn-default.dropdown-toggle.textbtn{"data-toggle" => "dropdown", :type => "button"}
-                            All
-                            %span.caret
-                          %ul.dropdown-menu
-                            %li.active
-                              %a{:href => "javascript:void(0)"}
-                                All
-                        %input#search-project.form-control.input-lg{:placeholder => "Search Jobs...", :type => "text"}/
-                        .input-group-btn
-                          %button.btn.btn-default{:type => "submit"}
-                            \   
-                            %i.fa.fa-fw.fa-search.fa-lg>
-                            \  
+                    = search_form_for @search , url: search_jobs_path , method: :post do |f|
+                      %ul#internal-tab-1.nav.nav-tabs.tabs-pull-right
+                        %br
+                        .input-group.input-group-lg.hidden-mobile
+                          -#.input-group-btn
+                          -#  %button.btn.btn-default.dropdown-toggle.textbtn{"data-toggle" => "dropdown", :type => "button"}
+                          -#    All
+                          -#    %span.caret
+                          -#  %ul.dropdown-menu
+                          -#    %li.active
+                          -#      %a{:href => "javascript:void(0)"}
+                          -#        All
+                          = f.text_field :title_or_location_or_job_category_cont, class: "form-control input-lg", placeholder: "Search Jobs..."
+                          .input-group-btn
+                            = f.button raw("<i class='fa fa-fw fa-search fa-lg'></i>") , class: 'btn btn-default' do
+                              %i.fa.fa-fw.fa-search.fa-lg
                     %br 
                     %table#dt_basic.table.table-striped.table-bordered.table-hover{:width => "100%"}
                       %thead
                         %tr
-                          %th{"data-hide" => "phone"} Title
+                          = content_tag :th, sort_link(@search, :title)
+                          %th{"data-hide" => "phone"} Category
                           %th{"data-class" => "expand"}
                             %i.fa.fa-fw.fa-calendar.txt-color-blue.hidden-md.hidden-sm.hidden-xs
                             Last-Date
@@ -47,6 +47,7 @@
                         - @company_jobs.each_with_index do |job , index|
                           %tr
                             %td= link_to_if(has_permission?("manage_job"), job.title , job_path(job) , target: '_blank')
+                            %td= job.job_category
                             %td= job.end_date
                             %td= job.location
                             %td= job.created_by.full_name  rescue "  --"
