@@ -5,8 +5,10 @@ class StaticController < ApplicationController
 
   layout 'landing'
   add_breadcrumb "Home",'/'
+
   def index
   end
+
   def signin
     if request.post?
       if params[:domain].present?
@@ -27,7 +29,8 @@ class StaticController < ApplicationController
   private
 
   def set_jobs
-    @jobs = Job.is_public.active.group_by(&:job_category)
+    @search = Job.is_public.active.search(params[:q])
+    @jobs = @search.result.group_by(&:job_category)
     # puts @jobs.map(& :job_category)
   end
 end

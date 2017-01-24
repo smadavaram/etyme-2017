@@ -60,7 +60,9 @@ Rails.application.routes.draw do
   end
 
   namespace :static do
-    resources :jobs ,only: [:index,:show] do
+    resources :jobs ,  only: [:index,:show] do
+      get '(page/:page)', action: :index, on: :collection, as: ''
+      match :search, action: :index, via: [:get , :post], on: :collection
       post :apply
       resources :job_applications ,only:[:create]
     end

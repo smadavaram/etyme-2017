@@ -2,65 +2,66 @@
 %jumbotron.home-search
   .container
     .row
-      .col-sm-12
-        %br/
-        %p.main_description{style:'    font-size: 20px;font-weight: 200;'} Search thousands of jobs
-        %br/
-        %br/
-        .row
-          .col-sm-8.col-sm-offset-2{:style => "text-align: center"}
-            .row
-              .col-sm-10.col-sm-offset-1
-                .input-group
-                  %span.input-group-addon.input-group-addon-text Find job
-                  %input.form-control.col-sm-3{:placeholder => "e.g. development, QA, Testing ", :type => "text"}
-                    .input-group-addon.hidden-xs
-                      .btn-group
+      = search_form_for @search , url: search_static_jobs_path , method: :get do |f|
+        .col-sm-12
+          %br/
+          %p.main_description{style:'    font-size: 20px;font-weight: 200;'} Search thousands of jobs
+          %br/
+          %br/
+          .row
+            .col-sm-8.col-sm-offset-2{:style => "text-align: center"}
+              .row
+                .col-sm-10.col-sm-offset-1
+                  %ul#internal-tab-1.nav.nav-tabs.tabs-pull-right
+                    %br
+                    .input-group.input-group-md.hidden-mobile
+                      = f.text_field :title_or_job_category_cont, class: "form-control input-md col-sm-3", placeholder: "Search Jobs..."
+                      .input-group-btn
                         %button.btn.dropdown-toggle{"data-toggle" => "dropdown", :type => "button"}
                           All categories
                           %span.caret
-                        %ul.dropdown-menu{:role => "menu"}
-                          - WORK_CATEGORIES.take(2).each do |category,subcategories|
+                        %ul.dropdown-menu{:role => "menu" ,style:"height: 250px; overflow: auto;"}
+                          - WORK_CATEGORIES.each do |category,subcategories|
                             - subcategories.each do |sub|
                               %li
                                 = link_to sub, "#"
-          %br/
-          %br/
-          .row
-            .col-sm-12{:style => "text-align: center"}
-              %a.btn.btn-primary.search-btn{:href => "listings.html", style:"margin-top:35px"} Search
-          %br/
-          %br/
-          .row
-            .col-sm-12{:style => "text-align: center"}
-              #quotes
-                .text-item{:style => "display: none;"}
-                  Boom!
-                  %strong Vince
-                  just sold a
-                  %strong Washing Machine
-                  in
-                  %strong Sheffield
-                .text-item{:style => "display: none;"}
-                  %strong Julia
-                  is availiable for
-                  %strong home cleaning
-                  in
-                  %strong Manchester
-                .text-item{:style => "display: none;"}
-                  Success!
-                  %strong Paul
-                  has just sold a
-                  %strong Mercedes-Benz E-class
-                  in
-                  %strong Liverpool
-                .text-item{:style => "display: none;"}
-                  Hey,
-                  %strong Uber
-                  has a
-                  %strong job opening
-                  in
-                  %strong London
+              %br/
+              %br/
+            .row
+              .col-sm-12{:style => "text-align: center"}
+                = f.submit 'Search',class: 'btn btn-primary search-btn'
+            %br/
+            %br/
+            .row
+              .col-sm-12{:style => "text-align: center"}
+                #quotes
+                  .text-item{:style => "display: none;"}
+                    Boom!
+                    %strong Vince
+                    just sold a
+                    %strong Washing Machine
+                    in
+                    %strong Sheffield
+                  .text-item{:style => "display: none;"}
+                    %strong Julia
+                    is availiable for
+                    %strong home cleaning
+                    in
+                    %strong Manchester
+                  .text-item{:style => "display: none;"}
+                    Success!
+                    %strong Paul
+                    has just sold a
+                    %strong Mercedes-Benz E-class
+                    in
+                    %strong Liverpool
+                  .text-item{:style => "display: none;"}
+                    Hey,
+                    %strong Uber
+                    has a
+                    %strong job opening
+                    in
+                    %strong London
 .row
   .col-sm-12.col-md-8
     .row.directory
