@@ -1,22 +1,25 @@
 class Users::SessionsController < Devise::SessionsController
 # before_action :configure_sign_in_params, only: [:create]
 
-  layout 'login'
+  layout 'landing'
+  add_breadcrumb "Home",'/'
+  add_breadcrumb "Company",""
+  add_breadcrumb "Sign In",''
 
   # GET /resource/sign_in
-   def new
+  def new
      super
-  end
+   end
 
   # POST /resource/sign_in
-  # def create
-  #   super
-  # end
+   def create
+     super
+   end
 
   # DELETE /resource/sign_out
-  # def destroy
-  #   super
-  # end
+   def destroy
+     super
+   end
 
   # protected
 

@@ -66,7 +66,7 @@
     .row.directory
       .col-sm-12
         %h2
-          %span Jobs Categories
+          %span= link_to 'Jobs',static_jobs_path
     .row.directory
       .col-xs-12
         - @jobs.each do |category,jobs|
@@ -75,7 +75,7 @@
               .col-sm-3
                 %i.fa.fa-home
               .col-sm-9
-                %h4= category
+                %h4=link_to category,static_jobs_path(category: category)
                 %p
                 - jobs.each_with_index  do |job,index|
                   = index>0 ? "," :""

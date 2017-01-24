@@ -6,7 +6,9 @@ class CompaniesController < ApplicationController
 
   layout 'landing'
 
-
+  add_breadcrumb "Home",'/'
+  add_breadcrumb "Company",""
+  add_breadcrumb "Sign Up",''
   def new
     @company = Company.new
     @company.build_owner(type: 'Admin')

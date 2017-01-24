@@ -4,6 +4,9 @@ class Candidates::RegistrationsController < Devise::RegistrationsController
    before_filter :configure_permitted_parameters
 
   layout 'landing'
+   add_breadcrumb "Home",'/'
+   add_breadcrumb "Candidate",""
+   add_breadcrumb "Sign Up",''
   # GET /resource/sign_up
    def new
      super

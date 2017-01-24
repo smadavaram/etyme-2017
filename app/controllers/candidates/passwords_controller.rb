@@ -1,6 +1,6 @@
 class Candidates::PasswordsController < Devise::PasswordsController
 
-  layout 'login'
+  layout 'landing'
 
   # GET /resource/password/new
    def new
@@ -9,7 +9,14 @@ class Candidates::PasswordsController < Devise::PasswordsController
 
   # POST /resource/password
    def create
-     super
+     self.resource = resource_class.send_reset_password_instructions(params[resource_name])
+     if !resource.errors.empty?
+       redirect_to :back
+     end
+     yield resource if block_given?
+     if successfully_sent?(resource)
+       respond_with({}, location: after_sending_reset_password_instructions_path_for(resource_name))
+     end
    end
 
   # GET /resource/password/edit?reset_password_token=abcdef

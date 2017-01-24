@@ -2,6 +2,9 @@ class Candidates::SessionsController < Devise::SessionsController
   # before_action :configure_sign_in_params, only: [:create]
 
    layout 'landing'
+   add_breadcrumb "Home",'/'
+   add_breadcrumb "Candidate",""
+   add_breadcrumb "Sign In",''
 
   # GET /resource/sign_in
    def new

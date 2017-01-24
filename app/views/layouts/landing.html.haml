@@ -15,6 +15,7 @@
     -#= stylesheet_link_tag 'https://fonts.googleapis.com/css?family=Open+Sans:400italic,700italic,300,400,700'
   %body
     = render 'static/shared/header'
+    -#= yield :top_bar
     .container
       - if notice
         .alert.alert-success.fade.in
@@ -28,6 +29,11 @@
               ×
             %i.fa-fw.fa.fa-warning
             = alert
+      .row
+        .col-sm-12.funky-text
+          %ol.breadcrumb
+            = render_breadcrumbs :tag => :li, :separator => ""
+
       = yield
 
 
