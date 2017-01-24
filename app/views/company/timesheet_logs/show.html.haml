@@ -87,10 +87,8 @@
                           = link_to t.status.humanize ,'#', disabled: true , class: 'btn btn-xs btn-default'
 - content_for :scripts do
   :javascript
-    $('#transaction_start_time').timepicker();
-    $('#transaction_end_time').timepicker();
     $('#contract_next_invoice_date').datepicker(
-    {
-      dateFormat : 'dd/mm/yy'
-    }
+      {
+        dateFormat : 'dd/mm/yy'
+      }
     );

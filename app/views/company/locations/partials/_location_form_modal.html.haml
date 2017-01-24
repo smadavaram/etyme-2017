@@ -4,38 +4,59 @@
       .modal-header
         %button.close{"aria-hidden" => "true", "data-dismiss" => "modal", :type => "button"}
           ×
-        %h4#myModalLabel.modal-title Add New Location
+        %h4#myModalLabel.modal-title
+          %strong Add New Location
       .modal-body
-        =form_for @location do |location|
+        =form_for @location, html:{ class:'form-horizontal',id: 'location'} do |location|
           =location.fields_for :address do |address|
-            .row
-              .col-md-12
-                .form-group
-                  =location.text_field :name,:placeholder => "Name",class: "form-control",:required => 'required'
-                .form-group
-                  =address.text_field :address_1,:placeholder => "Address 1",class: "form-control"
-                .form-group
-                  =address.text_field :address_2,:placeholder => "Address 2",class: "form-control"
-                .form-group
+            %fieldset
+              .form-group
+                %label.col-md-2.control-label
+                  Location
+                  %sup.text-danger *
+                .col-md-10
+                  =location.text_field :name,:placeholder => "Name",class: "form-control",:required => 'required' ,id:'loc'
+              .form-group
+                %label.col-md-2.control-label
+                  Address 1
+                  %sup.text-danger *
+                .col-md-10
+                  =address.text_field :address_1,:placeholder => "Address 1",class: "form-control",id:'ad1'
+              .form-group
+                %label.col-md-2.control-label
+                  Address 2
+                  %sup.text-danger *
+                .col-md-10
+                  =address.text_field :address_2,:placeholder => "Address 2",class: "form-control",id:'id2'
+              .form-group
+                %label.col-md-2.control-label
+                  Country
+                  %sup.text-danger *
+                .col-md-10
                   = address.select :country ,CS.countries.sort.map{|k,v| [v,k] } ,{prompt:"Select Country"},:class=>"form-control" , :required =>'required',id:"country"
-            .row
-              .col-md-4
-                .form-group
-                  %label State
+              .form-group
+                %label.col-md-2.control-label
+                  State
+                  %sup.text-danger *
+                .col-md-10
                   = address.select :state ,CS.states(:us).sort.map {|k,v| [v,k] },{prompt:"Select State"},class:"form-control", selected: address.object.state,id:"state"
-              .col-md-4
-                .form-group
-                  %label City
+              .form-group
+                %label.col-md-2.control-label
+                  City
+                  %sup.text-danger *
+                .col-md-10
                   = address.select :city,CS.cities(address.object.state,:us).sort.map {|k,v| [v,k] },{prompt:"Select City"},class:"form-control",id:"city"
-              .col-md-4
-                .form-group
-                  %label Zip Code
+              .form-group
+                %label.col-md-2.control-label
+                  Zip Code
+                  %sup.text-danger *
+                .col-md-10
                   =address.text_field :zip_code,:placeholder => "Zip Code",class:"form-control"
 
           .modal-footer
             %button.btn.btn-default{"data-dismiss" => "modal", :type => "button"}
               Cancel
-            %button.btn.btn-primary{:type => "submit"}
+            %button.btn.btn-primary{:type => "submit" ,id:'form_id'}
               Create Location
 - content_for :scripts do
   :javascript
@@ -72,5 +93,50 @@
            });//End OF json
 
          }); //End OF State Change
+          var $validator = $("#location").validate({
+
+          rules: {
+            loc: {
+              required: true
+            },
+            ad1: {
+              required: true
+            },
+             ad2: {
+              required: true
+            }
+          },
+
+          messages: {
+            loc: "Please specify location',
+            ad1: "Please specify address",
+            ad2:"please specify address"
+          },
+
+          highlight: function (element) {
+            $(element).closest('.form-group').removeClass('has-success').addClass('has-error');
+          },
+          unhighlight: function (element) {
+            $(element).closest('.form-group').removeClass('has-error').addClass('has-success');
+          },
+          errorElement: 'span',
+          errorClass: 'help-block',
+          errorPlacement: function (error, element) {
+            if (element.parent('.input-group').length) {
+              error.insertAfter(element.parent());
+            } else {
+              error.insertAfter(element);
+            }
+          }
+        });
+
+
+         $('.form_id').click(function(){
+            if ($("#location").valid()) {
+              $('#location').submit();
+
+            }
+            return false;
+        });
 
       }); // End of document ready

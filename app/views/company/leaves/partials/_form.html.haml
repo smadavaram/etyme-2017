@@ -7,7 +7,7 @@
         %h2#myModalLabel.modal-title
           %strong New Leave
       .modal-body
-        = simple_form_for [current_user , leave ] ,html:{ class:'form-horizontal'} do |f|
+        = simple_form_for [current_user , leave ] ,html:{ class:'form-horizontal',id:'leaveform'} do |f|
           %fieldset
 
             .form-group
@@ -15,19 +15,19 @@
                 Leave Type
                 %sup.text-danger *
               .col-md-10
-                = f.input :leave_type ,collection: [ 'Sick','Casual','personal','other'],label: false,include_blank: 'Select Type...'  ,input_html:{class: 'form-control', required: true}
+                = f.input :leave_type ,collection: [ 'Sick','Casual','Personal','Other'],label: false,include_blank: 'Select Type...'  ,input_html:{class: 'form-control' ,id:'type' , required: true}
             .form-group
               %label.col-md-2.control-label
                 Start Date
                 %sup.text-danger *
               .col-md-10
-                = f.input :from_date ,as: :string, input_html:{class: 'form-control datepick'} , placeholder: 'From' , required: true,label: false
+                = f.input :from_date ,as: :string, input_html:{class: 'form-control datepick' ,id: "start_date"} , placeholder: 'From' , required: true,label: false
             .form-group
               %label.col-md-2.control-label
                 Till Date
                 %sup.text-danger *
               .col-md-10
-                = f.input :till_date ,as: :string, input_html:{class: 'form-control datepick'} , placeholder: 'Till Date' , required: true ,label: false
+                = f.input :till_date ,as: :string, input_html:{class: 'form-control datepick ',id:"end_date"} , placeholder: 'Till Date' , required: true ,label: false
             .form-group
               %label.col-md-2.control-label
                 Reason
@@ -39,7 +39,7 @@
               .col-md-12
                 %button.btn.btn-default{"data-dismiss" => "modal", :type => "button"}
                   Cancel
-                = f.button "submit".html_safe , class: 'btn btn-primary btn-sm' , data: {disable_with: ("Submitting...")}
+                = f.button "submit".html_safe , class: 'btn btn-primary btn-sm' , data: {disable_with: ("Submitting...")} ,id:'form_id'
 
 - content_for :scripts do
   :javascript
@@ -50,4 +50,49 @@
       $('.datepick').datepicker({
         dateFormat: 'yy-mm-dd'
       });
+      var $validator = $("#leaveform").validate({
+
+          rules: {
+            end_date: {
+              required: true
+            },
+            start_date: {
+              required: true
+            },
+             type: {
+              required: true
+            }
+          },
+
+          messages: {
+            start_date: "Please specify start date",
+            end_date: "Please specify end date",
+            type:"please specify leave type"
+          },
+
+          highlight: function (element) {
+            $(element).closest('.form-group').removeClass('has-success').addClass('has-error');
+          },
+          unhighlight: function (element) {
+            $(element).closest('.form-group').removeClass('has-error').addClass('has-success');
+          },
+          errorElement: 'span',
+          errorClass: 'help-block',
+          errorPlacement: function (error, element) {
+            if (element.parent('.input-group').length) {
+              error.insertAfter(element.parent());
+            } else {
+              error.insertAfter(element);
+            }
+          }
+        });
+
+
+         $('.form_id').click(function(){
+            if ($("#leaveform").valid()) {
+              $('#leaveform').submit();
+
+            }
+            return false;
+        });
     });
