@@ -1,9 +1,18 @@
 #content.no-border
-  #wid-id-5.no-border.jarviswidget{"data-widget-colorbutton" => "false", "data-widget-custombutton" => "false", "data-widget-editbutton" => "false", "data-widget-fullscreenbutton" => "false", "data-widget-sortable" => "false"}
+  #wid-id-5.no-border.jarviswidget
+    .col-xs-12.col-sm-9.col-md-9.col-lg-9.pull-left{style: 'border-bottom-color: #fff !important;'}
+      = search_form_for @rec_search , url: search_job_invitations_path , method: :post do |f|
+        %ul#internal-tab-1.nav.nav-tabs.tabs-pull-right.sub-tab
+          %br
+          .input-group.input-group-lg.hidden-mobile
+            .input-group-btn.select
+              = f.select :status_eq , JobInvitation.statuses.map { |key, value| [key.humanize, value] }.push(['All', '']).reverse.to_h, {} , {class: "btn btn-default dropdown-toggle" ,  onChange: "this.form.submit();"}
+            = f.text_field :recipient_of_User_type_email_or_recipient_of_User_type_first_name_or_created_by_first_name_or_created_by_last_name_or_email_or_job_title_cont, class: "form-control input-lg bg-white", placeholder: "Search Job Invitations..."
+            .input-group-btn
+              = f.button raw("<i class='fa fa-fw fa-search fa-lg'></i>") , class: 'btn btn-default'
     %div
-      .jarviswidget-editbox
       .widget-body
-        %ul#myTab1.nav.nav-tabs.bordered
+        %ul#myTab1.nav.nav-tabs
           %li.active
             %a{"data-toggle" => "tab", :href => "#tab-r1"}
               %span.badge.bg-color-blue.txt-color-white= @sent_job_invitations.count
@@ -15,76 +24,11 @@
         .col-md-12
           .tab-content
             #tab-r1.tab-pane.active
-              #hb2.tab-pane.active
-                %ul#internal-tab-1.nav.nav-tabs.tabs-pull-right.sub-tab
-                  %br
-                  .input-group.input-group-lg.hidden-mobile
-                    .input-group-btn
-                      %button.btn.btn-default.dropdown-toggle.textbtn{"data-toggle" => "dropdown", :type => "button"}
-                        All
-                        %span.caret
-                      %ul.dropdown-menu
-                        %li.active
-                          %a{:href => "javascript:void(0)"}
-                            %i.fa.fa-check
-                            All
-                        %li.divider
-                        - JobInvitation.statuses.reverse_each do |value , key|
-                          %li
-                            %a{:href => "javascript:void(0)"} #{value.titleize}
-                    %input#search-project.form-control.input-lg{:placeholder => "Search Job Invitation...", :type => "text"}/
-                    .input-group-btn
-                      %button.btn.btn-default{:type => "submit"}
-                        \   
-                        %i.fa.fa-fw.fa-search.fa-lg>
-                        \  
-                  %br
-                  - JobInvitation.statuses.reverse_each do |value , key|
-                    %li
-                      %a{"aria-expanded" => "false", "data-toggle" => "tab", :href => "#is#{key}"} #{value.titleize} 
-                  %li.active
-                    %a{"aria-expanded" => "true", "data-toggle" => "tab", :href => "#is-all"} All
-                .tab-content.padding-10
-                  - JobInvitation.statuses.reverse_each do |value , key|
-                    .tab-pane.fade.in{id: "is#{key}"}
-                      = render 'company/job_invitations/partials/invitation_table' , data: @sent_job_invitations.where(status: key)
-                  #is-all.tab-pane.fade.active.in
-                    = render partial: 'company/job_invitations/partials/invitation_table' , locals: {data: @sent_job_invitations}
-
-            #tab-r2.tab-pane
-              #hb22.tab-pane.active
-              %ul#internal-tab-2.nav.nav-tabs.tabs-pull-right.sub-tab
-                %br
-                .input-group.input-group-lg.hidden-mobile
-                  .input-group-btn
-                    %button.btn.btn-default.dropdown-toggle.textbtn{"data-toggle" => "dropdown", :type => "button"}
-                      All
-                      %span.caret
-                    %ul.dropdown-menu
-                      %li.active
-                        %a{:href => "javascript:void(0)"}
-                          %i.fa.fa-check
-                          All
-                      %li.divider
-                      - JobInvitation.statuses.reverse_each do |value , key|
-                        %li
-                          %a{:href => "javascript:void(0)"} #{value.titleize}
-                  %input#search-project.form-control.input-lg.textbtn{:placeholder => "Search Job Invitation...", :type => "text"}/
-                  .input-group-btn
-                    %button.btn.btn-default{:type => "submit"}
-                      \   
-                      %i.fa.fa-fw.fa-search.fa-lg>
-                      \  
-                %br 
-                - JobInvitation.statuses.reverse_each do |value , key|
-                  %li
-                    %a{"aria-expanded" => "false", "data-toggle" => "tab", :href => "#is-#{key}"} #{value.titleize} 
-                %li.active
-                  %a{"aria-expanded" => "true", "data-toggle" => "tab", :href => "#isall"} All
               .tab-content.padding-10
-                - JobInvitation.statuses.reverse_each do |value , key|
-                  .tab-pane.fade.in{id: "is-#{key}"}
-                    = render 'company/job_invitations/partials/receive_invitation_table' , data: @received_job_invitations.where(status: key)
+                #is-all.tab-pane.fade.active.in
+                  = render 'company/job_invitations/partials/invitation_table' , data: @sent_job_invitations
+            #tab-r2.tab-pane
+              .tab-content.padding-10
                 #isall.tab-pane.fade.active.in
                   = render 'company/job_invitations/partials/receive_invitation_table' , data: @received_job_invitations
 
@@ -93,25 +37,7 @@
   #job_invitation
 - content_for :scripts do
   :javascript
-    // DO NOT REMOVE : GLOBAL FUNCTIONS!
-
     $(document).ready(function() {
-
-      $('#myTab1 a[href="' + localStorage.getItem('mainActiveTab') + '"]').tab('show');
-
-      $('.sub-tab a[href="' + localStorage.getItem('subActiveTab') + '"]').tab('show');
-
       $( ".file-pick" ).on('click',function() {
-
-       $('.fp__overlay').css({'z-index':'99999'})});
-
-
-    });
-
-    $('#myTab1').on('show.bs.tab', function(e) {
-      localStorage.setItem('mainActiveTab', $(e.target).attr('href'));
-    });
-
-    $('.sub-tab').on('show.bs.tab', function(e) {
-      localStorage.setItem('subActiveTab', $(e.target).attr('href'));
+      $('.fp__overlay').css({'z-index':'99999'})});
     });

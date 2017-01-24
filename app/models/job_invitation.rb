@@ -18,6 +18,8 @@ class JobInvitation < ActiveRecord::Base
   enum status: { pending: 0, accepted: 1 , rejected: 2 }
   enum invitation_type: [:vendor,:candidate,:by_email]
 
+
+
   validates :status ,             inclusion: {in: statuses.keys}
   validate :is_active?
   # validates :expiry , presence: true,date: { after_or_equal_to: Proc.new { Date.today }, message: "Date must be at least #{(Date.today ).to_s}" }
@@ -35,6 +37,9 @@ class JobInvitation < ActiveRecord::Base
   after_update :notify_on_status_change, if: Proc.new{|invitation| invitation.status_changed?}
 
   attr_accessor :email , :first_name , :last_name
+
+  # ransack_alias(:recipient, :recipient_of_User_type_email_or_recipient_of_User_type_first_name)
+  # ransack_alias(:created_by , :created_by_first_name_or_created_by_last_name)
 
 
   def is_active?

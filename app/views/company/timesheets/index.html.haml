@@ -1,6 +1,50 @@
+:css
+  .chardin_box {
+    display: inline-block;
+    padding: 0 3px;
+  }
+  .span3 {
+    width: 220px;
+  }
+  [class*="span"]{
+    float: left;
+    min-height: 1px;
+    margin-left: 20px;
+  }
 #content
   #wid-id-5.no-border.jarviswidget
     .col-xs-12.col-sm-9.col-md-9.col-lg-9.pull-left{style: 'border-bottom-color: #fff !important;'}
+      -#.well
+      -#  %form#filterrific_filter.new_filterrific{"accept-charset" => "UTF-8", :action => "/students", :method => "get"}
+      -#    %div{:style => "margin:0;padding:0;display:inline"}
+      -#      %input{:name => "utf8", :type => "hidden", :value => "✓"}/
+      -#    .row
+      -#      .span3.chardin_box{"data-intro" => "Search by first name, last name, or email.", "data-position" => "top"}
+      -#        %label Search
+      -#        %input#filterrific_search_query.filterrific-periodically-observed{:name => "filterrific[search_query]", :size => "30", :type => "text"}/
+      -#      .span3.chardin_box{"data-intro" => "Filter by country.", "data-position" => "top"}
+      -#        %label Country
+      -#        %select#filterrific_with_country_id{:name => "filterrific[with_country_id]"}
+      -#          %option{:value => ""} - Any -
+      -#          %option{:value => "19"} Australia
+      -#          %option{:value => "18"} Canada
+      -#          %option{:value => "23"} Ireland
+      -#          %option{:value => "21"} New Zealand
+      -#          %option{:value => "22"} Puerto Rico
+      -#          %option{:value => "20"} South Africa
+      -#          %option{:value => "24"} United Kingdom
+      -#          %option{:value => "17"} United States
+      -#      .span2.chardin_box{"data-intro" => "Filter by registration date.", "data-position" => "top"}
+      -#        %label Registered after
+      -#        %input#filterrific_with_created_at_gte.js-datepicker.span2{:name => "filterrific[with_created_at_gte]", :size => "30", :type => "text"}/
+      -#      .span3.chardin_box{"data-intro" => "Change the sorting.", "data-position" => "top"}
+      -#        %label Sorted by
+      -#        %select#filterrific_sorted_by{:name => "filterrific[sorted_by]"}
+      -#          %option{:value => "name_asc"} Name (a-z)
+      -#          %option{:value => "created_at_desc"} Registration date (newest first)
+      -#          %option{:value => "created_at_asc"} Registration date (oldest first)
+      -#          %option{:selected => "selected", :value => "country_name_asc"} Country (a-z)
+
       = search_form_for @search , url: search_timesheets_path , method: :get do |f|
         %ul#internal-tab-1.nav.nav-tabs.tabs-pull-right.sub-tab
           %br

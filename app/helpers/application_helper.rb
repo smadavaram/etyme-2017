@@ -252,9 +252,10 @@ module ApplicationHelper
   end
 
   def digg_pagination data
+    # will_paginate @collection, {link_options: {'data-remote': true}, params: {action: 'other_action'}}
     digg = ""
     digg = "<div class='text-center'><div class='digg_pagination'><hr/>"
-    digg += will_paginate(data).to_s
+    digg += will_paginate(data , {params: params }).to_s
     digg += "</div></div>"
     raw(digg)
   end

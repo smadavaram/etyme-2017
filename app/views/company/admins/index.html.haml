@@ -8,11 +8,11 @@
         %div
           .widget-body
             .col-md-12
-              -#= search_form_for @search , url: '#' , method: :get do |f|
+              = search_form_for @search , url: search_admins_path , method: :post do |f|
                 %ul#internal-tab-1.nav.nav-tabs.tabs-pull-right
                   %br
                   .input-group.input-group-lg.hidden-mobile
-                    = f.text_field :first_name_or_last_name_or_email_cont, class: "form-control input-lg", placeholder: "Search Consultant..."
+                    = f.text_field :first_name_or_last_name_or_email_cont, class: "form-control input-lg", placeholder: "Search Admins..."
                     .input-group-btn
                       = f.button raw("<i class='fa fa-fw fa-search fa-lg'></i>") , class: 'btn btn-default'
               %br/
