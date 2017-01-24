@@ -13,7 +13,7 @@
     %br
     %b.text-danger{style: 'margin-left: 20px;'}
       = "Due: #{(@timesheet.end_date + 2.day).strftime("%A, %d %b %Y")}"
-  - if @timesheet.contract.next_invoice_date > (@timesheet.end_date)
+  - if @timesheet.contract.next_invoice_date.present?  && @timesheet.contract.next_invoice_date > (@timesheet.end_date)
     .row
       .col-md-3{style: 'margin-left: 3px;'}
         %b.text-muted{style: 'margin-left: 3px;'}
