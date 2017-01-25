@@ -1,7 +1,7 @@
 .col-sm-12.animated.fadeInRightBig
   %section.panel.margin-top-20
     %header.panel-heading
-      - if @job_application.present? && @job_invitation.present? && @job_invitation.pending?
+      - if @job_invitation.present? && @job_invitation.pending? && !@job_invitation.is_sent?(current_company) && @job_invitation.is_active?
         -if has_permission?("manage_job_invitations")
           = button_tag 'Reject' ,  class: 'btn btn-default pull-right mt-12 margin-right-5' , "data-toggle": "modal" , "data-target":"#reject-job-invite-#{@job_invitation.id}"
           = button_tag 'Accept' ,  class: 'btn btn-primary pull-right mt-12 margin-right-5' , "data-toggle": "modal" , "data-target":"#job-invite-#{@job_invitation.id}"
@@ -39,7 +39,7 @@
             %b
               = link_to @company_job.company.name , '#'
 
-- if @job_application.present?  && @job_invitation.present? && @job_invitation.pending? && !@job_invitation.is_sent?(current_company) && @job_invitation.is_active?
-  = render('company/job_invitations/partials/accept_job_invitation_modal' , job: @job_invitation.job , job_application: @job_application , accept_state: true , job_invitation: @job_invitation)
+- if @job_invitation.present? && @job_invitation.pending? && !@job_invitation.is_sent?(current_company) && @job_invitation.is_active?
+  = render('company/job_invitations/partials/accept_job_invitation_modal' , job: @job_invitation.job  , accept_state: true , job_invitation: @job_invitation)
   = render('company/job_invitations/partials/reject_job_invitation_modal' , job: @job_invitation.job , job_invitation: @job_invitation)
 
