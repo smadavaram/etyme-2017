@@ -16,7 +16,7 @@ class JobApplication < ActiveRecord::Base
   validates :cover_letter , :applicant_resume ,presence: true
   # validates :application_type, inclusion: { in: application_types.keys }
   validates :status ,             inclusion: {in: statuses.keys}
-  # validates_uniqueness_of :applicationable_id,scope: [:job_id,:applicationable_type] ,on: :create
+  validates_uniqueness_of :applicationable_id,scope: [:job_id,:applicationable_type] ,on: :create
 
   before_create :generate_share_key
   before_create :set_application_type
