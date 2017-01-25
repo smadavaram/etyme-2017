@@ -44,3 +44,7 @@
     height: 1%; }
 *:first-child + html .digg_pagination {
     overflow: hidden; }
+
+.custom-height-modal {
+    height: 400px;
+}

@@ -13,10 +13,10 @@ class JobApplication < ActiveRecord::Base
   has_many   :custom_fields ,as: :customizable
   has_many   :comments ,as: :commentable
 
-  validates :cover_letter , presence: true
+  validates :cover_letter , :applicant_resume ,presence: true
   # validates :application_type, inclusion: { in: application_types.keys }
   validates :status ,             inclusion: {in: statuses.keys}
-  validates_uniqueness_of :applicationable_id,scope: [:job_id,:applicationable_type] ,on: :create
+  # validates_uniqueness_of :applicationable_id,scope: [:job_id,:applicationable_type] ,on: :create
 
   before_create :generate_share_key
   before_create :set_application_type
@@ -50,6 +50,7 @@ class JobApplication < ActiveRecord::Base
 
     def update_job_invitation_status
       self.job_invitation.accepted!
+      self.job.created_by.notifications.create(message: self.applicationable.full_name+" has #{self.job_invitation.status.humanize} <a href='http://#{self.job.created_by.company.etyme_url + job_application_path(self)}'> on your Job </a>#{self.job.title}",title:"Job Invitation")
     end
 
     # Call after update
