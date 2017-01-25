@@ -11,7 +11,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema.define(version: 20170109132950) do
+ActiveRecord::Schema.define(version: 20170124133511) do
 
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
@@ -49,6 +49,7 @@ ActiveRecord::Schema.define(version: 20170109132950) do
     t.integer  "attachable_id"
     t.datetime "created_at",      null: false
     t.datetime "updated_at",      null: false
+    t.integer  "company_id"
   end
 
   create_table "candidates", force: :cascade do |t|
@@ -86,6 +87,9 @@ ActiveRecord::Schema.define(version: 20170109132950) do
     t.integer  "invited_by_id"
     t.string   "invited_by_type"
     t.integer  "invitations_count",      default: 0
+    t.string   "resume"
+    t.string   "skills"
+    t.string   "description"
   end
 
   add_index "candidates", ["email"], name: "index_candidates_on_email", unique: true, using: :btree
@@ -102,8 +106,6 @@ ActiveRecord::Schema.define(version: 20170109132950) do
     t.datetime "created_at",       null: false
     t.datetime "updated_at",       null: false
   end
-
-  add_index "comments", ["created_by_id"], name: "index_comments_on_created_by_id", using: :btree
 
   create_table "companies", force: :cascade do |t|
     t.integer  "owner_id"
@@ -202,6 +204,7 @@ ActiveRecord::Schema.define(version: 20170109132950) do
     t.string   "sent_by_name"
     t.integer  "contractable_id"
     t.string   "contractable_type"
+    t.integer  "parent_contract_id"
   end
 
   create_table "custom_fields", force: :cascade do |t|
@@ -271,15 +274,18 @@ ActiveRecord::Schema.define(version: 20170109132950) do
     t.integer  "contract_id"
     t.date     "start_date"
     t.date     "end_date"
-    t.datetime "created_at",                      null: false
-    t.datetime "updated_at",                      null: false
-    t.decimal  "total_amount",      default: 0.0
-    t.decimal  "commission_amount", default: 0.0
-    t.decimal  "billing_amount",    default: 0.0
-    t.float    "consultant_amount", default: 0.0
+    t.datetime "created_at",                       null: false
+    t.datetime "updated_at",                       null: false
+    t.decimal  "total_amount",       default: 0.0
+    t.decimal  "commission_amount",  default: 0.0
+    t.decimal  "billing_amount",     default: 0.0
+    t.float    "consultant_amount",  default: 0.0
     t.integer  "submitted_by"
     t.datetime "submitted_on"
-    t.integer  "status",            default: 0
+    t.integer  "status",             default: 0
+    t.integer  "total_approve_time", default: 0
+    t.integer  "parent_id"
+    t.decimal  "rate",               default: 0.0
   end
 
   create_table "job_applications", force: :cascade do |t|
@@ -294,6 +300,8 @@ ActiveRecord::Schema.define(version: 20170109132950) do
     t.integer  "company_id"
     t.integer  "applicationable_id"
     t.string   "applicationable_type"
+    t.string   "share_key"
+    t.string   "applicant_resume"
   end
 
   create_table "job_invitations", force: :cascade do |t|
@@ -326,7 +334,10 @@ ActiveRecord::Schema.define(version: 20170109132950) do
     t.boolean  "is_public",           default: true
     t.string   "job_category"
     t.boolean  "is_system_generated", default: false
+    t.datetime "deleted_at"
   end
+
+  add_index "jobs", ["deleted_at"], name: "index_jobs_on_deleted_at", using: :btree
 
   create_table "leaves", force: :cascade do |t|
     t.date     "from_date"
@@ -482,6 +493,15 @@ ActiveRecord::Schema.define(version: 20170109132950) do
   end
 
   add_index "transactions", ["timesheet_log_id"], name: "index_transactions_on_timesheet_log_id", using: :btree
+
+  create_table "user_docs", force: :cascade do |t|
+    t.integer  "company_doc_id"
+    t.integer  "user_id"
+    t.string   "description"
+    t.string   "file"
+    t.datetime "created_at",     null: false
+    t.datetime "updated_at",     null: false
+  end
 
   create_table "users", force: :cascade do |t|
     t.integer  "company_id"

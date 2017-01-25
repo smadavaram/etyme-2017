@@ -39,6 +39,7 @@ class Job < ActiveRecord::Base
   accepts_nested_attributes_for :custom_fields , reject_if: :all_blank
 
   acts_as_taggable
+  acts_as_paranoid
 
    scope :active ,   -> { where('end_date>=?',Date.today) }
    scope :expired,   -> { where('end_date<?',Date.today) }
