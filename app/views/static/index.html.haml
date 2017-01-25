@@ -12,19 +12,21 @@
             .col-sm-8.col-sm-offset-2{:style => "text-align: center"}
               .row
                 .col-sm-10.col-sm-offset-1
-                  %ul#internal-tab-1.nav.nav-tabs.tabs-pull-right
+                  %ul.nav.tabs-pull-right
                     %br
                     .input-group.input-group-md.hidden-mobile
+                      %span.input-group-addon.input-group-addon-text Search Job
                       = f.text_field :title_or_job_category_cont, class: "form-control input-md col-sm-3", placeholder: "Search Jobs..."
                       .input-group-btn
-                        %button.btn.dropdown-toggle{"data-toggle" => "dropdown", :type => "button"}
-                          All categories
-                          %span.caret
-                        %ul.dropdown-menu{:role => "menu" ,style:"height: 250px; overflow: auto;"}
-                          - WORK_CATEGORIES.each do |category,subcategories|
-                            - subcategories.each do |sub|
-                              %li
-                                = link_to sub, "#"
+                        = f.select :job_category_eq , WORK_CATEGORIES.each { |key, value| [key.humanize, value] }, {} , {class: "btn btn-default dropdown-toggle" , style:'width: 140px', onChange: "this.form.submit();"}
+                        -#%button.btn.dropdown-toggle{"data-toggle" => "dropdown", :type => "button"}
+                        -#  All categories
+                        -#  %span.caret
+                        -#%ul.dropdown-menu{:role => "menu" ,style:"height: 250px; overflow: auto;"}
+                        -#  - WORK_CATEGORIES.each do |category,subcategories|
+                        -#    - subcategories.each do |sub|
+                        -#      %li
+                        -#        = link_to sub, "#"
               %br/
               %br/
             .row
