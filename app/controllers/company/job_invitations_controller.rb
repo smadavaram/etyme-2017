@@ -25,7 +25,8 @@ class Company::JobInvitationsController < Company::BaseController
   end
 
   def show
-    
+    @job_invitation = JobInvitation.find(params[:id])
+    @company_job = @job_invitation.job
   end
 
   def update

@@ -1,0 +1,35 @@
+.col-sm-12.animated.fadeInRightBig
+  %section.panel.mt-20s
+    %header.panel-heading
+      -#%a.pull-right.btn.btn-primary.right.mt-12{href:"#",}  Apply Now
+      %h1= @company_job.title
+      - @company_job.tags.each do |tag|
+        %span.h4.badge
+          =tag.name
+    %ul.ul-s
+      %li.list-group-item.list-p-15
+        %span.text-muted Detail
+        =raw(@company_job.description)
+        .row
+          .col-lg-3.col-md-3
+            %span.text-muted.fs-13 Location
+            %b
+              = @company_job.location.titleize if @company_job.location.present?
+          .col-lg-3.col-md-3
+            %span.text-muted.fs-13 Category
+            %b
+              = @company_job.job_category
+          .col-lg-3.col-md-3
+            %span.text-muted.fs-13 Date / End
+            %b
+              = @company_job.start_date.to_s + "   /   "
+              = @company_job.end_date.to_s
+          .col-lg-3.col-md-3
+            %span.text-muted.fs-13 Company
+            %b
+              = @company_job.company.name
+
+
+
+
+

@@ -1,14 +1,13 @@
 class Company::ContractsController < Company::BaseController
 
   before_action :find_job              , only: [:create]
-  before_action :find_receive_contract , only: [:open_contract , :update_contract_response , :create_sub_contract]
+  before_action :find_receive_contract , only: [:open_contract , :update_contract_response , :create_sub_contract ]
   before_action :find_contract         , only: [:show , :update_attachable_doc , :change_invoice_date]
   before_action :set_contracts         , only: [:index]
   before_action :find_attachable_doc   , only: [:update_attachable_doc]
   before_action :authorize_user_for_new_contract  , only: :new
   before_action :authorize_user_for_edit_contract  , only: :edit
   before_action :authorized_user  , only: :show
-  before_action :create_sub_job        , only: [:create_sub_contract]
 
   add_breadcrumb "CONTRACTS", :contracts_path, options: { title: "CONTRACTS" }
 
@@ -92,7 +91,9 @@ class Company::ContractsController < Company::BaseController
     has_access?("show_contracts_details")
   end
   def create_sub_contract
-
+    @job = Job.find_or_create_sub_job(current_company, current_user , @contract.job)
+    @sub_contract      = current_company.sent_contracts.new(parent_contract_id: @contract.id , billing_frequency: @contract.billing_frequency , time_sheet_frequency: @contract.time_sheet_frequency, job_id: @job.id , start_date: @contract.start_date , end_date: @contract.end_date)
+    @sub_contract.contract_terms.new(rate: @contract.rate , terms_condition: @contract.terms_and_conditions )
   end
 
   private
@@ -111,12 +112,6 @@ class Company::ContractsController < Company::BaseController
 
   def find_job
     @job = current_company.jobs.find_by_id(params[:job_id])
-  end
-
-  def create_sub_job
-      @job = Job.find_or_create_sub_job(current_company, current_user , @contract.job)
-      @sub_contract      = current_company.sent_contracts.new(parent_contract_id: @contract.id , billing_frequency: @contract.billing_frequency , time_sheet_frequency: @contract.time_sheet_frequency, job_id: @job.id , start_date: @contract.start_date , end_date: @contract.end_date)
-      @sub_contract.contract_terms.new(rate: @contract.rate , terms_condition: @contract.terms_and_conditions )
   end
 
   def set_contracts

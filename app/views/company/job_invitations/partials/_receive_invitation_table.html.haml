@@ -11,6 +11,7 @@
         %th Phone
         %th Expiry
         %th Status
+        %th
     %tbody
       - data.each do |invitation|
         %tr{class: "#{set_background_status_color(invitation.status)}"}
@@ -26,10 +27,12 @@
           %td= invitation.recipient.phone
           %td= invitation.expiry
           %td
-            - if invitation.pending?
-              -if has_permission?("manage_job_invitations")
-                = link_to 'Accept' , accept_job_job_invitation_path(invitation.job , invitation) , method: :post , remote: true , class: 'btn btn-xs btn-default'
-                = link_to 'Reject' , reject_job_job_invitation_path(invitation.job , invitation) , method: :post , remote: true ,  class: 'btn btn-xs btn-default'
-            -else
-              %span.label.label-success= invitation.status
+            -#- if invitation.pending?
+            -#  -if has_permission?("manage_job_invitations")
+            -#    = link_to 'Accept' , accept_job_job_invitation_path(invitation.job , invitation) , method: :post , remote: true , class: 'btn btn-xs btn-default'
+            -#    = link_to 'Reject' , reject_job_job_invitation_path(invitation.job , invitation) , method: :post , remote: true ,  class: 'btn btn-xs btn-default'
+            -#-else
+            %span.label.label-success= invitation.status
+          %th
+            = link_to 'View Detail' , job_invitation_path(invitation)
   = digg_pagination(data)

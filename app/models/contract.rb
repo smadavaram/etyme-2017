@@ -39,6 +39,7 @@ class Contract < ActiveRecord::Base
   # after_create :update_contract_application_status
   after_save   :create_timesheet, if: Proc.new{|contract| !contract.has_child? && contract.status_changed? && contract.is_not_ended? && !contract.timesheets.present? && contract.in_progress? && contract.next_invoice_date.nil?}
   before_create :set_contractable , if: Proc.new{ |contract| contract.not_system_generated? }
+  before_create :set_sub_contract_attributes , if: Proc.new{ |contract| contract.parent_contract? }
 
   validate  :start_date_cannot_be_less_than_end_date , on: :create
   validate  :start_date_cannot_be_in_the_past , :next_invoice_date_should_be_in_future
@@ -135,7 +136,12 @@ class Contract < ActiveRecord::Base
       self.contractable = self.company
       self.status       = Contract.statuses["accepted"]
     end
+  end
 
+  def set_sub_contract_attributes
+    self.start_date = self.parent_contract.start_date
+    self.end_date   = self.parent_contract.end_date
+    self.parent_contract.accepted!
   end
 
   def insert_attachable_docs
