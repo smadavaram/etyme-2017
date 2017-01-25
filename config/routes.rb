@@ -66,7 +66,7 @@ Rails.application.routes.draw do
     resources :addresses,only: [:update]
 
     resources :job_applications , only: [:index,:show]
-    resources :job_invitations , only: [:index] do
+    resources :job_invitations , only: [:index , :show] do
       post :reject
       get  :show_invitation
     end
@@ -134,7 +134,7 @@ Rails.application.routes.draw do
     resources :comments         , only: [:create]
     resources :attachments      ,concerns: :paginatable , only: [:index]
     resources :invoices         ,concerns: :paginatable , only: [:index]
-    resources :job_invitations  ,concerns: :paginatable , only: [:index]
+    resources :job_invitations  ,concerns: :paginatable , only: [:index , :show]
     resources :job_applications ,concerns: :paginatable , only: [:index,:show] do
       resources :consultants , only: [:new , :create]
       member do

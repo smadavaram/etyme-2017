@@ -1,18 +1,25 @@
-= form_for [job,job.job_invitations.new] , url: create_multiple_job_job_invitations_path(job) do |f|
+= form_for [job,job.job_invitations.new] , url: create_multiple_job_job_invitations_path(job), html:{ class:'form-horizontal',id: 'candidate-val'} do |f|
   = f.hidden_field :job_id , value: job.id
   = f.hidden_field :recipient_type , value: 'Candidate'
-  .row
-    .col-md-12
-      .form-group
-        = select_tag 'temp_candidates', options_for_select(candidates.collect { |c| [c.full_name,c.id] }),prompt: "Select Candidate" ,class: 'form-control' , required: true ,:multiple => true
-  .row
-    .col-md-12
-      .form-group
-        = f.text_field :expiry ,class: "form-control" , required: 'required', placeholder: "Invitation Expire Date",id:"vendor_expiry"
-  .row
-    .col-md-12
-      .form-group
-        = f.text_area :message ,class: "form-control" ,row: '3' , required: 'required', placeholder: "Enter Description"
+  %br
+  .form-group
+    %label.col-md-2.control-label
+      Select Candidate
+      %sup.text-danger *
+    .col-md-10
+      = select_tag 'temp_candidates', options_for_select(candidates.collect { |c| [c.full_name,c.id] }),prompt: "Select Candidate" ,class: 'form-control' , required: true ,:multiple => true
+  .form-group
+    %label.col-md-2.control-label
+      Expiry Date
+      %sup.text-danger *
+    .col-md-10
+      = f.text_field :expiry ,class: "form-control" , required: 'required', placeholder: "Invitation Expire Date",id:"vendor_expiry"
+  .form-group
+    %label.col-md-2.control-label
+      Message
+      %sup.text-danger
+    .col-md-10
+      = f.text_area :message ,class: "form-control" ,row: '3' , placeholder: "Enter Description"
   .modal-footer
     -#= button_tag 'Cancel' , class: 'btn btn-default' , data: {"dismiss": "modal"}
     %button.btn.btn-default{"data-dismiss" => "modal", :type => "button"}

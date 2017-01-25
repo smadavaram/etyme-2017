@@ -1,2 +1,0 @@
-$('#job_invitation').html("<%= j render(partial: 'company/job_invitations/partials/reject_job_invitation_modal' , locals: {job: @job_invitation.job , job_invitation: @job_invitation})%>");
-$('#job-invite-<%= @job_invitation.id %>').modal('show');

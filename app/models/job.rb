@@ -72,7 +72,7 @@ class Job < ActiveRecord::Base
       job.parent_job_id=  j.id
       job.created_by_id=  user.id
       job.is_public    =  false
-      job.is_system_generated =  true
+      job.is_system_generated =  false
     end
   end
 

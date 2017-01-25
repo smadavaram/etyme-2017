@@ -6,9 +6,6 @@
           ×
         %h2#myModalLabel.modal-title
           %strong Job Application - #{job.title}
-        .modal-title
-          = raw job.description
-
       .modal-body
         = form_for [job,job_invitation,job_application] , html: {class: 'form-horizontal'} , remote: true do |f|
           %fieldset
@@ -19,7 +16,7 @@
             .form-group
               %label.col-md-2.control-label Resume
               .col-md-10
-                = f.filepicker_field :applicant_resume , class: 'btn btn-primary file-pick'  , required: true, id: 'accept-filepiker'
+                = f.filepicker_field :applicant_resume , class: 'btn btn-primary file-pick'  , id: 'accept-filepiker',"data-fp-extensions" => ".pdf,.doc,.docx,.txt"
 
             -#=  tinymce :alternate
             - job.custom_fields.each do |c|
