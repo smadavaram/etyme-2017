@@ -7,12 +7,13 @@
         %h2#myModalLabel.modal-title
           %strong Job Application - #{job.title}
       .modal-body
-        = form_for [job,job_invitation,job_application] , html: {class: 'form-horizontal'} , remote: true do |f|
+        = form_for [job,job_invitation,job_invitation.build_job_application] , html: {class: 'form-horizontal'} , remote: true do |f|
           %fieldset
             .form-group
               %label.col-md-2.control-label Cover Letter
               .col-md-10
-                =  f.text_area :cover_letter , class: "form-control tinymces", rows: 8, cols: 30, placeholder: 'Cover Letter'  , required: true
+                =  f.text_area :cover_letter , class: 'form-control tinymce', :rows => 8, :cols => 60, placeholder: 'Cover Lette'
+                = tinymce :default
             .form-group
               %label.col-md-2.control-label Resume
               .col-md-10
@@ -20,7 +21,7 @@
 
             -#=  tinymce :alternate
             - job.custom_fields.each do |c|
-              = f.fields_for :custom_fields do |custom|
+              = f.fields_for :custom_fields , job_invitation.job_application.custom_fields.build do |custom|
                 .form-group
                   %label.col-md-2.control-label #{c.name}
                   .col-md-10
