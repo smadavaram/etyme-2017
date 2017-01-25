@@ -2,6 +2,6 @@
   - flash[:errors].each do |e|
     flash_error("#{e}");
 - if flash[:success].present?
-  $('#job-invite-#{@job_invitation.id}').modal('toggle');
+  $('#reject-job-invite-#{@job_invitation.id}').modal('toggle');
   flash_success("#{flash[:success]}");
   window.location.reload();
