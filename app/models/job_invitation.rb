@@ -49,6 +49,11 @@ class JobInvitation < ActiveRecord::Base
     self.expiry >= Date.today
   end
 
+  def is_sent? company
+    self.company == company
+  end
+
+
 
   private
 

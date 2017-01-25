@@ -32,9 +32,6 @@
                 #isall.tab-pane.fade.active.in
                   = render 'company/job_invitations/partials/receive_invitation_table' , data: @received_job_invitations
 
-
-- content_for :scripts do
-  #job_invitation
 - content_for :scripts do
   :javascript
     $(document).ready(function() {

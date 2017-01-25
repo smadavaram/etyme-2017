@@ -25,8 +25,12 @@ class Company::JobInvitationsController < Company::BaseController
   end
 
   def show
-    @job_invitation = JobInvitation.find(params[:id])
+    @job_invitation = current_company.find_send_or_received_invitation(params[:id]).first
     @company_job = @job_invitation.job
+    if @job_invitation.pending? && !@job_invitation.is_sent?(current_company)
+      @job_application = @job_invitation.build_job_application
+      @job_application.custom_fields.build
+    end
   end
 
   def update

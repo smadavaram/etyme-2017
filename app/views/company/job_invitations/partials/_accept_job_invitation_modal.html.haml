@@ -6,9 +6,6 @@
           ×
         %h2#myModalLabel.modal-title
           %strong Job Application - #{job.title}
-        .modal-title
-          = raw job.description
-
       .modal-body
         = form_for [job,job_invitation,job_application] , html: {class: 'form-horizontal'} , remote: true do |f|
           %fieldset

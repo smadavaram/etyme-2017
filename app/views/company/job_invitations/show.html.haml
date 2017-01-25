@@ -1,5 +1,14 @@
 .col-sm-12.animated.fadeInRightBig
-  %section.panel.mt-20s
+
+  %section.panel.margin-top-20
+    - if @job_invitation.pending? && !@job_invitation.is_sent?(current_company) && @job_invitation.is_active?
+      .btn-group.pull-right
+        =# button_tag 'Reject' , class: 'btn btn-success btn-default margin-right-5' , disabled: @contract.signature_required_docs? , onclick: 'openAccept();'
+    - if @job_invitation.pending?
+      -if has_permission?("manage_job_invitations")
+        = button_tag 'Accept' ,  class: 'btn btn-default margin-right-5' , "data-toggle": "modal" , "data-target":"#job-invite-#{@job_invitation.id}"
+        = link_to 'Accept' , accept_job_job_invitation_path(@job_invitation.job , @job_invitation) , method: :post , remote: true , class: 'btn btn-xs btn-default pull-right'
+        = link_to 'Reject' , reject_job_job_invitation_path(@job_invitation.job , @job_invitation) , method: :post , remote: true ,  class: 'btn btn-xs btn-default pull-right'
     %header.panel-heading
       -#%a.pull-right.btn.btn-primary.right.mt-12{href:"#",}  Apply Now
       %h1= @company_job.title
@@ -28,8 +37,9 @@
             %span.text-muted.fs-13 Company
             %b
               = @company_job.company.name
-
-
-
+- content_for :scripts do
+  #job_invitation
+- if @job_invitation.pending? && !@job_invitation.is_sent?(current_company) && @job_invitation.is_active?
+  = render('company/job_invitations/partials/accept_job_invitation_modal' , job: @job_invitation.job , job_application: @job_application , accept_state: true , job_invitation: @job_invitation)
 
 

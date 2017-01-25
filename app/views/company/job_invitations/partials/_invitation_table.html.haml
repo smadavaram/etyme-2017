@@ -11,6 +11,7 @@
         %th Phone
         %th Expiry
         %th Status
+        %th
     %tbody
       - data.each do |invitation|
         %tr{class: "#{set_background_status_color(invitation.status)}"}
@@ -26,5 +27,6 @@
           %td= invitation.recipient.phone
           %td= invitation.expiry
           %td= invitation_status_color(invitation.status)
-
+          %th
+          = link_to 'View Detail' , job_invitation_path(invitation)
   = digg_pagination(data)
