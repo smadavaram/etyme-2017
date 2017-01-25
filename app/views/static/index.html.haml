@@ -17,8 +17,8 @@
                     .input-group.input-group-md.hidden-mobile
                       %span.input-group-addon.input-group-addon-text Search Job
                       = f.text_field :title_or_job_category_cont, class: "form-control input-md col-sm-3", placeholder: "Search Jobs..."
-                      .input-group-btn
-                        = f.select :job_category_eq , WORK_CATEGORIES.each { |key, value| [key.humanize, value] }, {} , {class: "btn btn-default dropdown-toggle" , style:'width: 140px', onChange: "this.form.submit();"}
+                      -#.input-group-btn
+                      -#  = f.select :job_category_eq , WORK_CATEGORIES.each { |key, value| [key.humanize, value] }, {} , {class: "btn btn-default dropdown-toggle" , style:'width: 140px', onChange: "this.form.submit();"}
                         -#%button.btn.dropdown-toggle{"data-toggle" => "dropdown", :type => "button"}
                         -#  All categories
                         -#  %span.caret
