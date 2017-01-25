@@ -40,8 +40,8 @@
               Cancel
             = f.button "Save" , class: 'btn btn-primary' , data: {disable_with: "<i class='fa fa-spin'></i>Submiting..."}
 - content_for :scripts do
-:javascript
-      var element = $('#accept-filepiker')
+  :javascript
+      var element = $('#accept-filepiker');
       filepicker.constructWidget(element)
 
       $( ".file-pick" ).on('click',function() {

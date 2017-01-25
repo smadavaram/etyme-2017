@@ -19,14 +19,7 @@
                       = f.text_field :title_or_job_category_cont, class: "form-control input-md col-sm-3", placeholder: "Search Jobs..."
                       -#.input-group-btn
                       -#  = f.select :job_category_eq , WORK_CATEGORIES.each { |key, value| [key.humanize, value] }, {} , {class: "btn btn-default dropdown-toggle" , style:'width: 140px', onChange: "this.form.submit();"}
-                        -#%button.btn.dropdown-toggle{"data-toggle" => "dropdown", :type => "button"}
-                        -#  All categories
-                        -#  %span.caret
-                        -#%ul.dropdown-menu{:role => "menu" ,style:"height: 250px; overflow: auto;"}
-                        -#  - WORK_CATEGORIES.each do |category,subcategories|
-                        -#    - subcategories.each do |sub|
-                        -#      %li
-                        -#        = link_to sub, "#"
+
               %br/
               %br/
             .row
@@ -38,8 +31,8 @@
               .col-sm-12{:style => "text-align: center"}
                 #quotes
                   .text-item{:style => "display: none;"}
-                    Boom!
-                    %strong Vince
+                    Etyme!
+                    %strong is
                     just sold a
                     %strong Washing Machine
                     in
@@ -80,7 +73,7 @@
               .col-sm-9
                 %h4=link_to category,static_jobs_path(category: category)
                 %p
-                - jobs.each_with_index  do |job,index|
+                - jobs.take(5).each_with_index  do |job,index|
                   = index>0 ? "," :""
                   = link_to job.title ,static_job_path(job)
 
