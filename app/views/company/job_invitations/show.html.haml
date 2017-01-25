@@ -11,7 +11,7 @@
         %small
           Created by
           = link_to @company_job.created_by.full_name , '#'
-          %span.badge= @job_invitation.status.humanize
+          %span.badge.bg-color-blue= @job_invitation.is_active? ? @job_invitation.status.humanize : 'Expired'
         %br/
         - @company_job.tags.each do |tag|
           %span.h4.badge
