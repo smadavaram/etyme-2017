@@ -98,9 +98,8 @@ class Company < ActiveRecord::Base
     Rails.env.development? ? "#{self.slug}.#{ENV['domain']}:3000" : "#{self.slug}.#{ENV['domain']}"
   end
 
-  def find_send_or_received_invitation(invitation_id)
-    JobInvitation.where("job_invitations.id = :i_id and (job_invitations.company_id = :c_id or (job_invitations.recipient_id in (:admins_id) and job_invitations.recipient_type = :obj_type))" , {c_id: self.id, admins_id: self.admins.ids , obj_type: 'User' , i_id: invitation_id}  )
-
+  def find_sent_or_received_invitation(invitation_id)
+    JobInvitation.where("job_invitations.id = :i_id and (job_invitations.company_id = :c_id or (job_invitations.recipient_id in (:admins_id) and job_invitations.recipient_type = :obj_type))" , {c_id: self.id, admins_id: self.admins.ids , obj_type: 'User' , i_id: invitation_id}).limit(1)
   end
 
   private

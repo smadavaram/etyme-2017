@@ -25,7 +25,7 @@ class Company::JobInvitationsController < Company::BaseController
   end
 
   def show
-    @job_invitation = current_company.find_send_or_received_invitation(params[:id]).first
+    @job_invitation = current_company.find_sent_or_received_invitation(params[:id]).first
     @company_job = @job_invitation.job
   end
 
