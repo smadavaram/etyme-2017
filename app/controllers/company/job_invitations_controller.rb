@@ -3,7 +3,7 @@ class Company::JobInvitationsController < Company::BaseController
   before_action :find_job            , only: [:create , :update , :create_multiple , :import]
   before_action :find_job_invitation , only: [ :update]
   before_action :set_job_invitations , only: [:index]
-  before_action :find_received_job_invitations , only: [:accept , :reject]
+  before_action :find_received_job_invitations , only: [:reject]
   before_action :authorize_user ,only: [:accept ,:reject]
 
 
@@ -27,9 +27,11 @@ class Company::JobInvitationsController < Company::BaseController
   def show
     @job_invitation = current_company.find_send_or_received_invitation(params[:id]).first
     @company_job = @job_invitation.job
-    if @job_invitation.pending? && !@job_invitation.is_sent?(current_company)
+    if !@job_invitation.job_application.present? && @job_invitation.present? && @job_invitation.pending? && !@job_invitation.is_sent?(current_company)
       @job_application = @job_invitation.build_job_application
       @job_application.custom_fields.build
+    else
+      @job_application = []
     end
   end
 
@@ -44,13 +46,21 @@ class Company::JobInvitationsController < Company::BaseController
     end
   end
 
-  def accept
-    @job_application = @job_invitation.build_job_application
-    @job_application.custom_fields.build
-    # render layout: 'company'
-  end
-
+  # def accept
+  #   @job_application = @job_invitation.build_job_application
+  #   @job_application.custom_fields.build
+  #   # render layout: 'company'
+  # end
+  #
   def reject
+    respond_to do |format|
+      if @job_invitation.rejected!
+        format.html { redirect_to @job_invitation, notice: "Successfully #{@job_invitation.status}." }
+        format.js { flash.now[:success] = "Job Invitation successfully #{@job_invitation.status}." }
+      else
+        format.js{ flash.now[:errors] =   @job_invitation.errors.full_messages }
+      end
+    end
   end
 
   def authorize_user
