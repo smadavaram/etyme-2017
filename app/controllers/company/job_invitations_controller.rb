@@ -24,6 +24,10 @@ class Company::JobInvitationsController < Company::BaseController
     end
   end
 
+  def show
+    
+  end
+
   def update
     respond_to do |format|
       if @job_invitation.update(job_invitation_params)

@@ -92,7 +92,7 @@ Rails.application.routes.draw do
     resources :addresses,only: [:update]
 
     resources :job_applications , only: [:index,:show]
-    resources :job_invitations , only: [:index] do
+    resources :job_invitations , only: [:index , :show] do
       post :reject
       get  :show_invitation
     end
