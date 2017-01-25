@@ -9,11 +9,6 @@
 
     = stylesheet_link_tag    'landing', media: 'all', 'data-turbolinks-track' => true
     = csrf_meta_tags
-    / #FAVICONS
-    -#= favicon_link_tag 'favicon/favicon.ico'
-    -#= favicon_link_tag 'favicon/favicon.ico', rel: 'icon'
-    -#/ #GOOGLE FONT
-    -#= stylesheet_link_tag 'https://fonts.googleapis.com/css?family=Open+Sans:400italic,700italic,300,400,700'
   %body
     = render 'static/shared/header'
     -#= yield :top_bar
