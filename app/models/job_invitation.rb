@@ -15,6 +15,9 @@
 class JobInvitation < ActiveRecord::Base
 
 
+  include Rails.application.routes.url_helpers
+
+  
   enum status: { pending: 0, accepted: 1 , rejected: 2 }
   enum invitation_type: [:vendor,:candidate,:by_email]
 
@@ -51,12 +54,12 @@ class JobInvitation < ActiveRecord::Base
 
     # Call after create
     def notify_recipient
-      self.recipient.notifications.create(message: self.company.name+" has invited you for "+self.job.title ,title:"Job Invitation")
+      self.recipient.notifications.create(message: self.company.name+" has invited you for <a href='http://#{self.recipient.company.etyme_url + job_invitation_path(self)}'>#{self.job.title}</a>",title:"Job Invitation")
     end
 
     # Call after update
     def notify_on_status_change
-      self.created_by.notifications.create(message: self.recipient.full_name+" has "+ self.status+" your request for "+self.job.title ,title:"Job Invitation")
+      self.created_by.notifications.create(message: self.created_by.full_name+" has "+ self.status+" your request for <a href='http://#{self.recipient.company.etyme_url + job_invitation_path(self)}'>#{self.job.title}</a>",title:"Job Invitation") if self.status != "accepted"
     end
 
   def associate_invitation_with_candidate

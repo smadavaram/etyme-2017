@@ -1,5 +1,5 @@
 .modal.fade.in{ id: "job-invite-#{job.id}","aria-hidden": "true", "aria-labelledby": "myModalLabel", :role => "dialog", :style => "display: none;", :tabindex => "-1"}
-  .modal-dialog
+  .modal-dialog.modal-lg
     .modal-content
       .modal-header
         %button.close{"aria-hidden" => "true", "data-dismiss" => "modal", :type => "button"}
@@ -48,7 +48,9 @@
      $("#vendor_company").select2({
           placeholder: "Select Companies"
       });
-     $("#temp_candidates").select2({placeholder: "Select Candidate"});
+     $("#temp_candidates").select2({
+     placeholder: "Select Candidate"
+     });
      $('#job_invitation_expiry,#candidate_expiry,#vendor_expiry').datepicker({
         dateFormat : 'dd/mm/yy'
      });

@@ -1,23 +1,30 @@
-= form_for [job,job.job_invitations.new] , url: create_multiple_job_job_invitations_path(job) do |f|
+= form_for [job,job.job_invitations.new] , url: create_multiple_job_job_invitations_path(job),html:{ class:'form-horizontal',id: 'vendor-val'} do |f|
   = f.hidden_field :job_id , value: job.id
   -#= f.hidden_field :recipient_type , value: 'User'
   -#= f.hidden_field :invitation_type , value: 'vendor'
-  .row
-    .col-md-12
-      .form-group.select
-        = select_tag 'vendor_company', options_for_select(companies.collect { |company|[company.name.titleize, company.id] }) ,class: 'form-control' , required: true ,:multiple => true
+  %br
+  .form-group
+    %label.col-md-2.control-label
+      Select Vendor
+      %sup.text-danger *
+    .col-md-10
+      = select_tag 'vendor_company', options_for_select(companies.collect { |company|[company.name.titleize, company.id] }) ,class: 'form-control' , required: true ,:multiple => true
   -#.row
   -#  .col-md-12
   -#    .form-group
   -#      = f.select :recipient_id,{} ,{include_blank: 'Select a Employee'},id: 'user_select' , class: "form-control" , required: 'required', placeholder: "Select something"
-  .row
-    .col-md-12
-      .form-group
-        = f.text_field :expiry ,class: "form-control" , required: 'required', placeholder: "Invitation Expire Date"
-  .row
-    .col-md-12
-      .form-group
-        = f.text_area :message ,class: "form-control" ,row: '3' , required: 'required', placeholder: "Enter Description"
+  .form-group
+    %label.col-md-2.control-label
+      Expiray Date
+      %sup.text-danger *
+    .col-md-10
+      = f.text_field :expiry ,class: "form-control" , required: 'required', placeholder: "Invitation Expire Date"
+  .form-group
+    %label.col-md-2.control-label
+      Description
+      %sup.text-danger
+    .col-md-10
+      = f.text_area :message ,class: "form-control" ,row: '3' , placeholder: "Enter Description"
   .modal-footer
     -#= button_tag 'Cancel' , class: 'btn btn-default' , data: {"dismiss": "modal"}
     %button.btn.btn-default{"data-dismiss" => "modal", :type => "button"}
