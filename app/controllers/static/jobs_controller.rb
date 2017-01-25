@@ -33,7 +33,8 @@ class Static::JobsController < ApplicationController
   private
 
   def set_jobs
-    @jobs = params[:category].present? ? Job.active.is_public.where('job_category =?',params[:category]): Job.active.is_public
+    @search = params[:category].present? ? Job.active.is_public.where('job_category =?',params[:category]).search(params[:q]): Job.active.is_public.search(params[:q])
+    @jobs = @search.result(distinct: true)
   end
 
 

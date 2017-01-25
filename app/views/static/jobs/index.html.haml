@@ -21,9 +21,6 @@
                 = link_to 'Apply',candidate_signed_in? ? static_job_apply_path(job,status:true)  : static_job_apply_path(job,status: false) ,method: :post,remote: true ,class: "btn btn-primary size #{current_candidate.present? ?  (current_candidate.is_already_applied?(job.id) ? 'disabled' : " ") :''  } "
                 = link_to 'View Detail',static_job_path(job),class: 'btn btn-primary size'
 
--content_for :top_bar do
-  %hr.topbar
-
 -content_for :scripts do
 
   :javascript
