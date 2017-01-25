@@ -32,7 +32,7 @@
             -#    = link_to 'Accept' , accept_job_job_invitation_path(invitation.job , invitation) , method: :post , remote: true , class: 'btn btn-xs btn-default'
             -#    = link_to 'Reject' , reject_job_job_invitation_path(invitation.job , invitation) , method: :post , remote: true ,  class: 'btn btn-xs btn-default'
             -#-else
-            %span.label.label-success= invitation.status
+            = invitation_status_color( invitation.status )
           %th
             = link_to 'View Detail' , job_invitation_path(invitation)
   = digg_pagination(data)

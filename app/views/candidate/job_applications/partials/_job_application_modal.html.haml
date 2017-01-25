@@ -21,7 +21,8 @@
             .form-group
               %label.col-md-2.control-label Resume
               .col-md-10
-                = f.filepicker_field :applicant_resume , class: 'btn btn-primary file-pick'  , required: true, id: 'accept-filepiker'
+                = f.filepicker_field :applicant_resume , class: 'btn btn-primary file-pick'  , id: 'accept-filepiker' ,"data-fp-extensions" => ".pdf,.doc,.docx,.txt"
+
 
             .form-group
               %label.col-md-2.control-label Message (optional)
@@ -39,12 +40,3 @@
             %button.btn.btn-default{"data-dismiss" => "modal", :type => "button"}
               Cancel
             = f.button "Save" , class: 'btn btn-primary' , data: {disable_with: "<i class='fa fa-spin'></i>Submiting..."}
-- content_for :scripts do
-:javascript
-      var element = $('#accept-filepiker')
-      filepicker.constructWidget(element)
-
-      $( ".file-pick" ).on('click',function() {
-
-      $('.fp__overlay').css({'z-index':'99999'});
-       });

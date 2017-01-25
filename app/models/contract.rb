@@ -34,6 +34,7 @@ class Contract < ActiveRecord::Base
 
   after_create :insert_attachable_docs
   after_create :notify_recipient , if: Proc.new{ |contract| contract.not_system_generated? }
+  after_create :notify_company_about_contract, if: Proc.new{|contract|contract.parent_contract?}
   after_update :notify_assignee_on_status_change , if: Proc.new{ |contract| contract.status_changed? && contract.not_system_generated? && contract.assignee? && contract.respond_by.present?  && contract.accepted? }
   after_update :notify_companies_admins_on_status_change, if: Proc.new{|contract| contract.status_changed? && contract.respond_by.present? && contract.not_system_generated?}
   # after_create :update_contract_application_status
@@ -155,6 +156,10 @@ class Contract < ActiveRecord::Base
     self.job_application.user.notifications.create(message: self.company.name+" has send you Contract <a href='http://#{self.contractable.etyme_url + contract_path(self)}'>#{self.job.title}</a>" ,title: self.title) if self.job_application.present?
   end
 
+  def notify_company_about_contract
+    self.contractable.owner.notifications.create(message: self.company.name+" has send you Contract <a href='http://#{self.contractable.etyme_url + contract_path(self)}'>#{self.job.title}</a>" ,title: self.title)
+  end
+
   def notify_assignee_on_status_change
     if self.accepted?
       self.assignee.notifications.create(message: self.respond_by.full_name+" assigned you a contract for <a href='http://#{self.respond_by.etyme_url + contract_path(self)}'>#{self.job.title}</a>" ,title: self.title)
@@ -164,7 +169,7 @@ class Contract < ActiveRecord::Base
   end
 
   def notify_companies_admins_on_status_change
-    self.created_by.notifications.create(message: self.respond_by.full_name+" has "+ self.status.titleize+" your contract request for "+self.job.title ,title:"Contract- #{self.job.title}")
+    self.created_by.notifications.create(message: self.respond_by.full_name+" has "+ self.status.titleize+" your contract request for <a href='http://#{self.created_by.etyme_url + contract_path(self)}'>#{self.job.title}</a>",title: self.title)
 
     # admins.each  do |admin|
     #     admin.notifications.create(message: self.applicationable.company.name + " has <a href='http://#{admin.etyme_url + contract_path(self)}'>apply</a> your Job Application - #{self.job.title}",title:"Job Application")

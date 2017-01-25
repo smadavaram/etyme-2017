@@ -1,5 +1,12 @@
 $('#job_application').html("<%= j render('candidate/job_applications/partials/job_application_modal' , job: @job , job_application: @job_application , accept_state: true) %>");
 $('#job-apply-<%=@job.id %>').modal('show');
+var element = $('#accept-filepiker');
+filepicker.constructWidget(element);
+
+$( ".file-pick" ).on('click',function() {
+
+    $('.fp__overlay').css({'z-index':'99999'});
+});
 //tinymce.init({
 //    selector: '.r#{@job.id}',
 //    menubar: false ,

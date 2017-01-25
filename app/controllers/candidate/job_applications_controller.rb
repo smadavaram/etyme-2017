@@ -42,11 +42,12 @@ class Candidate::JobApplicationsController < Candidate::BaseController
   end
 
   def job_application_params
-    params.require(:job_application).permit([ :message , :cover_letter ,:job_invitation_id ,:status, custom_fields_attributes:
+    params.require(:job_application).permit([ :message , :cover_letter ,:applicant_resume,:job_invitation_id ,:status, custom_fields_attributes:
                                                            [
                                                                :id,
                                                                :name,
                                                                :value
+
                                                            ]])
   end
 end
