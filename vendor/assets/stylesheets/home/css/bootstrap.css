@@ -3,12 +3,7 @@
 @import url('http://fonts.googleapis.com/css?family=Varela+Round');
 @import url('http://fonts.googleapis.com/css?family=Open+Sans:400,700,300&amp;subset=latin,cyrillic,greek');
 @import url(http://fonts.googleapis.com/css?family=Pacifico);
-/*!
- * SwatchClassifieds - Bootstrap v3.1.1 (http://getbootstrap.com)
- * Copyright 2011-2014 Twitter, Inc.
- * Licensed under MIT (https://github.com/twbs/bootstrap/blob/master/LICENSE)
- */
-/*! normalize.css v3.0.0 | MIT License | git.io/normalize */
+
 html {
   font-family: sans-serif;
   -ms-text-size-adjust: 100%;
@@ -6476,4 +6471,11 @@ hr {
 }
 a.navbar-brand span {
   color: #000;
+}
+.padding-top-10{
+  padding-top: 10px !important;
+}
+
+.padding-bottom-10{
+  padding-bottom: 10px !important;
 }

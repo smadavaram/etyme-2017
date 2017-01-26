@@ -1,0 +1,18 @@
+= form_for [contract.job,contract] , url: update_contract_response_job_contract_path(contract.job,contract , status: status) ,  method: :post , html: {class: 'form-horizontal'} , remote: true do |f|
+  - if status == 'accept'
+    .form-group
+      %label.col-md-2.control-label Assign To
+      .col-md-10
+        = select_tag 'contract[assignee_id]', options_for_select(current_company.consultants.collect { |c|[c.full_name, c.id] })  , class: "form-control"
+    = render 'company/contracts/partials/commission' , f: f
+  .form-group
+    %label.col-md-2.control-label Message (optional)
+    .col-md-10
+      = f.text_area :response_from_vendor, value: '' , class: "form-control", rows: "2" ,placeholder: 'Write tour message'
+  - if status == 'accept'
+    .form-group
+      = render partial: 'company/contracts/partials/received_by_signarture_pad',locals: {f: f}
+  .modal-footer
+    %button.btn.btn-default{"data-dismiss" => "modal", :type => "button"}
+      Cancel
+    = f.submit status.titleize , class: 'btn btn-primary' , data: {confirm: 'Are you sure?', verify: status.titleize, verify_text: "Type '#{status.titleize}' to confirm"}
