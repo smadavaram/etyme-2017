@@ -2,5 +2,4 @@
   - flash[:errors].each do |e|
     flash_error("#{e}");
 - else
-  $('#ajax-modal').html("#{ j render(partial: 'company/contracts/partials/contract_modal' , locals: {job: @job , contract: @sub_contract ,  job_application: []})}");
-  $("#contract-#{@job.id}").modal('show');
+  $('#sub_contract_toggle').html("#{ j render 'company/contracts/partials/create_form' ,  contract: @sub_contract , job: @job , job_application: []})");

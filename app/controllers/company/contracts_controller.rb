@@ -90,6 +90,7 @@ class Company::ContractsController < Company::BaseController
   def authorized_user
     has_access?("show_contracts_details")
   end
+
   def create_sub_contract
     @job = Job.find_or_create_sub_job(current_company, current_user , @contract.job)
     @sub_contract      = current_company.sent_contracts.new(parent_contract_id: @contract.id , billing_frequency: @contract.billing_frequency , time_sheet_frequency: @contract.time_sheet_frequency, job_id: @job.id , start_date: @contract.start_date , end_date: @contract.end_date)

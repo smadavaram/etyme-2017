@@ -6,7 +6,7 @@
   .form-group
     %label.col-md-2.control-label Commission Type
     .col-md-4.select
-      = f.select :commission_type , Contract.commission_types.map { |key, value| [key.humanize, key] }, {} , {class: "form-control" }
+      = f.select :commission_type , Contract.commission_types.map { |key, value| [key.humanize, key] }, {include_blank: '-- Select Commission Type --'} , {class: "form-control" }
     %label.col-md-2.control-label Commission For
     .col-md-4.select
       = f.select :commission_for_id , options_for_select(current_company.admins.collect { |admin|[admin.full_name.titleize, admin.id] }) ,{},prompt: "Select Admin" ,class: "form-control"

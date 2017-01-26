@@ -48,7 +48,7 @@ class Contract < ActiveRecord::Base
   validates :status ,             inclusion: {in: statuses.keys}
   validates :billing_frequency ,  inclusion: {in: billing_frequencies.keys}
   validates :time_sheet_frequency,inclusion: {in: time_sheet_frequencies.keys}
-  validates :commission_type ,    inclusion: {in: commission_types.keys}
+  validates :commission_type ,    inclusion: {in: commission_types.keys} , on: :update , if: Proc.new{|contract| contract.is_commission}
   validates :contract_type ,      inclusion: {in: contract_types.keys}
   validates :is_commission,       inclusion: {in: [ true, false ] }
   validates :start_date, :end_date , presence:   true
@@ -57,7 +57,7 @@ class Contract < ActiveRecord::Base
   validates_uniqueness_of :job_id , scope: :job_application_id , message: "You have already applied for this Job." , if: Proc.new{|contract| contract.job_application.present?}
 
   accepts_nested_attributes_for :contract_terms, allow_destroy: true ,reject_if: :all_blank
-  accepts_nested_attributes_for :attachments ,allow_destroy: true,reject_if: :all_blank
+  accepts_nested_attributes_for :attachments ,   allow_destroy: true, reject_if: :all_blank
   accepts_nested_attributes_for :attachable_docs , reject_if: :all_blank
   accepts_nested_attributes_for :job    , allow_destroy: true
 

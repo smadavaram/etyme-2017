@@ -6,10 +6,8 @@
           .col-md-12.col-sm-12.col-xs-12
             - if @contract.pending? && !@contract.is_sent?(current_company)
               .btn-group.pull-right
-                = button_tag 'Accept' , class: 'btn btn-success btn-default margin-right-5' , disabled: @contract.signature_required_docs? , onclick: 'openAccept();'
+                = button_tag 'Accept' , class: 'btn btn-primary btn-default margin-right-5' , disabled: @contract.signature_required_docs? , onclick: 'openAccept();'
                 = button_tag 'Reject' ,  class: 'btn btn-default margin-right-5' , "data-toggle": "modal" , "data-target":"#contract-reject-#{@contract.id}"
-                = link_to 'Create Sub Contract',create_sub_contract_job_contract_path(@contract.job , @contract), method: :post ,remote: true , class: 'btn btn-primary margin-right-5 pull-right'
-
             %h2.name
               = @contract.title
               %small
