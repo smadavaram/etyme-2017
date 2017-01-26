@@ -62,10 +62,10 @@
               = c.hidden_field :created_by , value: current_user.id.to_i
               .form-group
                 %label.col-md-2.control-label
-                  Rate
+                  Rate $
                   %sup.text-danger *
                 .col-md-10
-                  = c.text_field :rate ,class: "form-control" , placeholder: ""
+                  = c.text_field :rate ,class: "form-control" , placeholder: "Rate $"
               .form-group
                 %label.col-md-2.control-label Terms & Conditions
                 .col-md-10
@@ -98,7 +98,6 @@
       $("#contract_is_commission , #contract_commission_type").change(function () {
          toggleFields();
       });
-     //$(".multi-select2-company-docs").select2({placeholder: "Select a Doc(s)"});
      $('#contract_start_date').datepicker({
         dateFormat : 'dd/mm/yy'
       });
@@ -106,6 +105,7 @@
       dateFormat : 'dd/mm/yy'
      });
   });
+   // $(".multi-select2").select2({placeholder: "Select Doc's"});
   $('#contract-attachment').on('cocoon:after-insert', function(e, insertedItem) {
         insertedItem.find('.filepicker-attachment').each(function(i,e){
           filepicker.constructWidget(e);
@@ -120,3 +120,4 @@
 
         });
     });
+
