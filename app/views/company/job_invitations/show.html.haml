@@ -1,6 +1,6 @@
 #content
   .col-sm-12.animated.fadeInRightBig
-    %section.panel.margin-top-20
+    %section.panel
       %header.panel-heading
         - if @job_invitation.present? && @job_invitation.pending? && !@job_invitation.is_sent?(current_company) && @job_invitation.is_active?
           -if has_permission?("manage_job_invitations")
