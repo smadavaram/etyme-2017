@@ -36,3 +36,10 @@
             %button.btn.btn-default{"data-dismiss" => "modal", :type => "button"}
               Cancel
             = f.button 'Save'.html_safe , class: 'btn btn-primary' , data: {disable_with: disable_spinning('Saving...')}
+
+- content_for :scripts do
+  :javascript
+    $(document).ready(function() {
+      $( ".file-pick" ).on('click',function() {
+      $('.fp__overlay').css({'z-index':'99999'})});
+    });

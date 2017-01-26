@@ -19,7 +19,12 @@
         %li.message
           = image_tag current_user.photo , class: 'online'
           %span.message-text
-            = simple_form_for Comment.new do |c|
-              = c.text_field :body , class: 'form-control' , placeholder: "Post your comment..."
-              = c.hidden_field :commentable_type , value: 'JobApplication'
-              = c.hidden_field :commentable_id , value: application.id
+            = form_for Comment.new do |c|
+              .col-md-10
+                = c.text_field :body , class: 'form-control' , placeholder: "Post your comment..."
+                = c.hidden_field :commentable_type , value: 'JobApplication'
+                = c.hidden_field :commentable_id , value: application.id
+              .col-md-2
+                = c.button "Comment".html_safe, data: {disable_with: disable_spinning("Comment...")} , class: 'btn btn-primary btn-sm'
+              %br/
+              %br/

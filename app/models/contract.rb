@@ -2,10 +2,11 @@ class Contract < ActiveRecord::Base
 
   include Rails.application.routes.url_helpers
 
-  enum status:           [ :pending, :accepted , :rejected , :is_ended  , :cancelled , :paused , :in_progress]
+  enum status:                [ :pending, :accepted , :rejected , :is_ended  , :cancelled , :paused , :in_progress]
   enum billing_frequency:     [ :weekly_invoice, :monthly_invoice  ]
-  enum time_sheet_frequency:[:daily,:weekly,:monthly]
-  enum commission_type:  [:percentage, :fixed]
+  enum time_sheet_frequency:  [:daily,:weekly,:monthly]
+  enum commission_type:       [:percentage, :fixed]
+  enum contract_type:         [:contract_independent, :contract_w2 , :contract_C2H_independent , :contract_C2H_w2 , :third_party_crop_to_crop , :third_party_C2H_crop_to_crop]
 
   CONTRACTABLE = [:company, :candidate]
 
@@ -48,6 +49,7 @@ class Contract < ActiveRecord::Base
   validates :billing_frequency ,  inclusion: {in: billing_frequencies.keys}
   validates :time_sheet_frequency,inclusion: {in: time_sheet_frequencies.keys}
   validates :commission_type ,    inclusion: {in: commission_types.keys}
+  validates :contract_type ,      inclusion: {in: contract_types.keys}
   validates :is_commission,       inclusion: {in: [ true, false ] }
   validates :start_date, :end_date , presence:   true
   validates :commission_amount  , numericality: true  , presence: true , if: Proc.new{|contract| contract.is_commission}
