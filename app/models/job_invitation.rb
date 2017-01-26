@@ -64,7 +64,7 @@ class JobInvitation < ActiveRecord::Base
 
     # Call after update
     def notify_on_status_change
-      self.created_by.notifications.create(message: self.created_by.full_name+" has "+ self.status+" your request for <a href='http://#{self.recipient.company.etyme_url + job_invitation_path(self)}'>#{self.job.title}</a>",title:"Job Invitation") if self.status != "accepted"
+      self.created_by.notifications.create(message: self.recipient.full_name+" has "+ self.status+" your request for <a href='http://#{self.created_by.company.etyme_url + job_invitation_path(self)}'>#{self.job.title}</a>",title:"Job Invitation") if self.status != "accepted"
     end
 
   def associate_invitation_with_candidate

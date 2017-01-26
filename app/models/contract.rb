@@ -169,7 +169,11 @@ class Contract < ActiveRecord::Base
   end
 
   def notify_companies_admins_on_status_change
-    self.created_by.notifications.create(message: self.respond_by.full_name+" has "+ self.status.titleize+" your contract request for <a href='http://#{self.created_by.etyme_url + contract_path(self)}'>#{self.job.title}</a>",title: self.title)
+    if self.status == "in_progress" || self.status == "is_ended" || self.status == "cancelled" || self.status == "paused"
+      self.assignee.notifications.create(message: "Your contract for <a href='http://#{self.respond_by.etyme_url + contract_path(self)}'>#{self.job.title}</a> now #{self.status.titleize}" ,title: self.title)
+      self.respond_by.notifications.create(message: "Your contract for <a href='http://#{self.respond_by.etyme_url + contract_path(self)}'>#{self.job.title}</a> now #{self.status.titleize}" ,title: self.title)
+      self.created_by.notifications.create(message: "Your contract for <a href='http://#{self.created_by.etyme_url + contract_path(self)}'>#{self.job.title}</a> now #{self.status.titleize}" ,title: self.title)
+    end
 
     # admins.each  do |admin|
     #     admin.notifications.create(message: self.applicationable.company.name + " has <a href='http://#{admin.etyme_url + contract_path(self)}'>apply</a> your Job Application - #{self.job.title}",title:"Job Application")
