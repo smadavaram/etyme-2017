@@ -42,7 +42,7 @@ class Company::JobApplicationsController < Company::BaseController
 
   def reject
     respond_to do |format|
-      if @job_application.pending_review?
+      if !@job_application.hired?
         if @job_application.rejected!
           format.html{ flash[:success] = "Successfully Rejected." }
         else
