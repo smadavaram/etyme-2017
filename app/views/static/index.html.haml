@@ -22,7 +22,7 @@
                         .help-block.pull-left job title, category
                       -#.input-group-btn
                       -#  = f.select :job_category_eq , WORK_CATEGORIES.each { |key, value| [key.humanize, value] }, {} , {class: "btn btn-default dropdown-toggle" , style:'width: 140px', onChange: "this.form.submit();"}
-                      .col-sm-4
+                      .col-sm-4{style: "padding-left: 0px"}
                         .form-group
                           = f.text_field :location_cont , class: "form-control input-md",placeholder: "Search by location"
                           .help-block.pull-left county,state,city
@@ -39,31 +39,30 @@
                 #quotes
                   .text-item{:style => "display: none;"}
                     Etyme!
-                    %strong is
-                    just sold a
-                    %strong Washing Machine
-                    in
-                    %strong Sheffield
+                    %strong has
+                    Removed
+                    %strong the frustration of hosting
+                    and
+                    %strong  creating web sites.
                   .text-item{:style => "display: none;"}
-                    %strong Julia
-                    is availiable for
-                    %strong home cleaning
-                    in
-                    %strong Manchester
+                    %strong Newsfeed,
+                    Chatter,
+                    %strong Bulk Email,
+                    Activity feed
+                    %strong & HR Networking.
                   .text-item{:style => "display: none;"}
                     Success!
-                    %strong Paul
-                    has just sold a
-                    %strong Mercedes-Benz E-class
+                    %strong Setup Automation,
+                    Notifications,  RSS feeds.
+                    %strong tasks, messaging,
                     in
-                    %strong Liverpool
+                    %strong Etyme
                   .text-item{:style => "display: none;"}
                     Hey,
-                    %strong Uber
-                    has a
-                    %strong job opening
-                    in
-                    %strong London
+                    %strong Etyme
+                    has
+                    %strong Employees Timesheets,
+                    %strong Leave & expense management.
 .row
   .col-sm-12.col-md-8
     .row.directory
