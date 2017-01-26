@@ -122,7 +122,7 @@ class Company::ContractsController < Company::BaseController
   end
 
   def contract_params
-      params.require(:contract).permit([:job_id  , :is_commission ,
+      params.require(:contract).permit([:job_id  , :is_commission , :contract_type ,
                                         :received_by_signature,:received_by_name,:sent_by_signature,:sent_by_name,
                                         :commission_type,:commission_amount , :max_commission , :commission_for_id ,
                                         :billing_frequency, :time_sheet_frequency, :assignee_id , :contractable_id ,

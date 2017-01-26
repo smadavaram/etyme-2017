@@ -19,10 +19,14 @@
                 =  f.text_area :cover_letter , class: "form-control tinymce", rows: 8, cols: 25, placeholder: 'Cover Letter'
                 =  tinymce :default
             .form-group
+              %label.col-md-2.control-label Resume
+              .col-md-10
+                = f.filepicker_field :applicant_resume , class: 'btn btn-primary file-pick'  , id: 'accept-filepiker' ,"data-fp-extensions" => ".pdf,.doc,.docx,.txt"
+            .form-group
               %label.col-md-2.control-label Message (optional)
               .col-md-10
                 = f.text_area :message, class: "form-control", rows: "2" ,placeholder: 'Write tour message'
-            -#= job.custom_fields.each do |c|
+
             .nested-fields
               = f.fields_for :custom_fields do |custom|
                 .form-group

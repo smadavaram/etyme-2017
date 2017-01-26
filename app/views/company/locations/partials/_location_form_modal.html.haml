@@ -93,50 +93,50 @@
            });//End OF json
 
          }); //End OF State Change
-          var $validator = $("#location").validate({
-
-          rules: {
-            loc: {
-              required: true
-            },
-            ad1: {
-              required: true
-            },
-             ad2: {
-              required: true
-            }
-          },
-
-          messages: {
-            loc: "Please specify location',
-            ad1: "Please specify address",
-            ad2:"please specify address"
-          },
-
-          highlight: function (element) {
-            $(element).closest('.form-group').removeClass('has-success').addClass('has-error');
-          },
-          unhighlight: function (element) {
-            $(element).closest('.form-group').removeClass('has-error').addClass('has-success');
-          },
-          errorElement: 'span',
-          errorClass: 'help-block',
-          errorPlacement: function (error, element) {
-            if (element.parent('.input-group').length) {
-              error.insertAfter(element.parent());
-            } else {
-              error.insertAfter(element);
-            }
-          }
-        });
-
-
-         $('.form_id').click(function(){
-            if ($("#location").valid()) {
-              $('#location').submit();
-
-            }
-            return false;
-        });
+        //   var $validator = $("#location").validate({
+        //
+        //   rules: {
+        //     loc: {
+        //       required: true;
+        //     },
+        //     ad1: {
+        //       required: true;
+        //     },
+        //      ad2: {
+        //       required: true;
+        //     }
+        //   },
+        //
+        //   messages: {
+        //     loc: "Please specify location',
+        //     ad1: "Please specify address",
+        //     ad2:"please specify address"
+        //   },
+        //
+        //   highlight: function (element) {
+        //     $(element).closest('.form-group').removeClass('has-success').addClass('has-error');
+        //   },
+        //   unhighlight: function (element) {
+        //     $(element).closest('.form-group').removeClass('has-error').addClass('has-success');
+        //   },
+        //   errorElement: 'span',
+        //   errorClass: 'help-block',
+        //   errorPlacement: function (error, element) {
+        //     if (element.parent('.input-group').length) {
+        //       error.insertAfter(element.parent());
+        //     } else {
+        //       error.insertAfter(element);
+        //     }
+        //   }
+        // });
+        //
+        //
+        //  $('.form_id').click(function(){
+        //     if ($("#location").valid()) {
+        //       $('#location').submit();
+        //
+        //     }
+        //     return false;
+        // });
 
       }); // End of document ready

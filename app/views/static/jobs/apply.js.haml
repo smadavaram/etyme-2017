@@ -6,7 +6,13 @@
   $('.modals').empty().append(("#{ j render('static/candidates/partials/form')}"));
   $('#new-candidate').modal('toggle')
 
+var element = $('#accept-filepiker');
+filepicker.constructWidget(element);
 
+$( ".file-pick" ).on('click',function() {
+
+$('.fp__overlay').css({'z-index':'99999'});
+});
 
 
 

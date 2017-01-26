@@ -19,8 +19,8 @@
                     .form-group
                       %label Password
                       = f.password_field :password, autocomplete: "off",class:'form-control'
-                      .note
-                        = link_to 'Forgot password?', new_candidate_password_path
+                      -#.note
+                      -#  = link_to 'Forgot password?', new_candidate_password_path
                     .form-group
                       %label.checkbox
                         = f.check_box :remember_me
