@@ -1,35 +1,3 @@
-# == Schema Information
-#
-# Table name: companies
-#
-#  id               :integer          not null, primary key
-#  owner_id         :integer
-#  company_type_id  :string
-#  name             :string
-#  website          :string
-#  logo             :string
-#  description      :text
-#  phone            :string
-#  email            :string
-#  slug             :string
-#  tag_line         :string
-#  linkedin_url     :string
-#  facebook_url     :string
-#  twitter_url      :string
-#  google_url       :string
-#  time_zone        :string
-#  is_activated     :boolean          default(FALSE)
-#  dba              :string
-#  status           :boolean
-#  established_date :date
-#  entity_type      :integer
-#  created_at       :datetime         not null
-#  updated_at       :datetime         not null
-#
-# Indexes
-#
-#  index_companies_on_owner_id  (owner_id)
-#
 
 class Company < ActiveRecord::Base
 
@@ -70,10 +38,11 @@ class Company < ActiveRecord::Base
 
   # validates           :company_type, inclusion: { in: [0, 1] } , presence: true
   # validates           :company_type, inclusion: {in: %w(0 , 1)}
-  validates           :name,  presence:   true, uniqueness:{case_sensitive: false}
+  validates           :name,  presence:   true
+  validates_uniqueness_of   :name, message: "This company is already registered on etyme. You can connect with its Admin and he can allow you to be added into the company"
   validates_length_of :name,  minimum:    3   , message: "must be atleat 3 characters"
   validates_length_of :name,  maximum:    50  , message: "can have maximum of 50 characters"
-  validates           :slug,  uniqueness: true
+  validates_uniqueness_of    :slug,  message: "This slug is already registered on etyme. You can connect with its Admin and he can allow you to be added into the company"
   validates_exclusion_of :slug, in: EXCLUDED_SUBDOMAINS, message: "is not allowed. Please choose another subdomain"
   validates_format_of :slug, with: /\A[\w\-]+\Z/i, allow_blank: true, message: "is not allowed. Please choose another subdomain."
 

@@ -14,11 +14,18 @@
                 .col-sm-10.col-sm-offset-1
                   %ul.nav.tabs-pull-right
                     %br
-                    .input-group.input-group-md.hidden-mobile
-                      %span.input-group-addon.input-group-addon-text Search Job
-                      = f.text_field :title_or_job_category_cont, class: "form-control input-md col-sm-3", placeholder: "Search Jobs..."
+                    .input-group-md.hidden-mobile
+                      .col-sm-2
+                        %span.input-group-addon-text Search Job
+                      .col-sm-6
+                        = f.text_field :title_or_job_category_cont, class: "form-control input-md ", placeholder: "Search Jobs..."
+                        .help-block.pull-left job title, category
                       -#.input-group-btn
                       -#  = f.select :job_category_eq , WORK_CATEGORIES.each { |key, value| [key.humanize, value] }, {} , {class: "btn btn-default dropdown-toggle" , style:'width: 140px', onChange: "this.form.submit();"}
+                      .col-sm-4
+                        .form-group
+                          = f.text_field :location_cont , class: "form-control input-md",placeholder: "Search by location"
+                          .help-block.pull-left county,state,city
 
               %br/
               %br/
@@ -88,11 +95,11 @@
           .panel-heading Quick guide
           %ul.list-group
             %li.list-group-item
-              %a{:href => "#"} Our tips to stay safe
+              %a{:href => "#"} Our tips to Etyme
             %li.list-group-item
-              %a{:href => "#"} How to buy guide
+              %a{:href => "#"} How to Apply for Job
             %li.list-group-item
-              %a{:href => "#"} How to sell guide
+              %a{:href => "#"} How to Manage Contracts , Timesheets and other
             %li.list-group-item
               %a{:href => "#"} Help and contact us
             %li.list-group-item

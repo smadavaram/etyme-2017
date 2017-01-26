@@ -34,11 +34,11 @@
               %legend Sign Up
               = simple_form_for(resource, as: resource_name, url: registration_path(resource_name), html: {id: 'smart-form-register' , class: 'smart-form client-form' }) do |f|
                 %fieldset
-                  .form-group
-                    %label{:for => ""} First Name
-                    = f.text_field :first_name, :placeholder => "First name", required: true,class:'form-control'
-                  .form-group
-                    %label{:for => ""} Last Name
+                  -#.form-group
+                  -#  %label{:for => ""} First Name
+                  -#  = f.text_field :first_name, :placeholder => "First name", required: true,class:'form-control'
+                  -#.form-group
+                  -#  %label{:for => ""} Last Name
                     = f.text_field :last_name, :placeholder => "Last name", required: true,class:'form-control'
                   .form-group
                     %label{:for => ""} Email

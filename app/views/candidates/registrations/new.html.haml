@@ -10,14 +10,14 @@
             .row
               .col-sm-12
                 .well
-                  .form-group
-                    .row
-                      .col-sm-6
-                        %label First name
-                        = f.text_field :first_name, :placeholder => "First name", required: true,class: 'form-control'
-                      .col-sm-6
-                        %label Last name
-                        = f.text_field :last_name, :placeholder => "Last name", required: true,class: 'form-control'
+                  -#.form-group
+                  -#  .row
+                  -#    .col-sm-6
+                  -#      %label First name
+                  -#      = f.text_field :first_name, :placeholder => "First name", required: true,class: 'form-control'
+                  -#    .col-sm-6
+                  -#      %label Last name
+                  -#      = f.text_field :last_name, :placeholder => "Last name", required: true,class: 'form-control'
                   .form-group
                     %label Email address
                     = f.email_field :email, :placeholder => "Your Email", required: true, email: true,class: 'form-control'

@@ -13,7 +13,7 @@
                     .form-group
                       %label{:for => "exampleInputEmail1"} Company name
                       = f.text_field :name  ,:placeholder => "Company Name", required: true,minlength: "3",class:'form-control'
-                    .form-group
+                    -#.form-group
                       .row
                         .col-sm-6
                           %label{:for => "exampleInputEmail1"} First name
@@ -32,7 +32,7 @@
                       = u.password_field :password_confirmation, :placeholder => "Confirm password", "data-rule-equalTo": "#company_owner_attributes_password",class: 'form-control'
                     .form-group
                       %label{:for => "exampleInputPassword1"} Company Type
-                      = f.select :company_type , Company.company_types.map { |key, value| [key.humanize, key] },{}, { :class => 'form-control' }
+                      = f.select :company_type , Company.company_types.map { |key, value| [key.humanize, key]},{include_blank: '-- Select Type --'} ,:class => 'form-control'
                     .form-group
                       %label.checkbox
                       %input#terms{:name => "terms", :type => "checkbox"}/
@@ -48,29 +48,30 @@
             = image_tag asset_path('home/images/icons/Crest.png'),width: 50
           .col-sm-8
             %h3 Why us?
-            %p We're one of the most recognisable brands, attracting thousands of buyers every month.
+            %p An on time & on demand solution - easy and quick.One stop shop from Job publish to hire, contract to billing, recruit to pay, and reporting. Blogs, Notifications, Task Management, Bulk email, Activity Log, RSS feeds and Networking.
             %p
         %br/
         .row
           .col-sm-3{:style => "text-align: center;"}
             = image_tag asset_path('home/images/icons/Pie-Chart.png'),width: 40
           .col-sm-8
-            %h3 Magnet for buyers
-            %p We make sure your listings receive maximum exposure and is presented in an engaging way
+            %h3 Magnet for company
+            %p App To Manage Hiring, Contracts, Timesheets & Payments
         %br/
         .row
           .col-sm-3{:style => "text-align: center;"}
             = image_tag asset_path('home/images/icons/Search.png'),width: 40
           .col-sm-8
             %h3 Focused searches
-            %p Our technology and algorithm matches potential buyers directly to your listings
+            %p Our technology and algorithm matches potential candidates directly to jobs
         %br/
         .row
           .col-sm-3{:style => "text-align: center;"}
             = image_tag asset_path('home/images/icons/Telephone.png'),width: 40
           .col-sm-8
-            %h3 Mobile web
-            %p Your listings will always be accessible to everyone, even when they are on the move, via our responsive mobile website
+            %h3 Self learning
+            %p  Self learning - like how you learnt gmail, Uber, AirBnB.Grow your small business by sign up.
+
     %br/
 
 
