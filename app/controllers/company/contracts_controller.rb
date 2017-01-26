@@ -6,8 +6,8 @@ class Company::ContractsController < Company::BaseController
   before_action :set_contracts         , only: [:index]
   before_action :find_attachable_doc   , only: [:update_attachable_doc]
   before_action :authorize_user_for_new_contract  , only: :new
-  before_action :authorize_user_for_edit_contract  , only: :edit
-  before_action :authorized_user  , only: :show
+  # before_action :authorize_user_for_edit_contract  , only: :edit
+  # before_action :authorized_user  , only: :show
 
   add_breadcrumb "CONTRACTS", :contracts_path, options: { title: "CONTRACTS" }
 

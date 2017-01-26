@@ -20,11 +20,12 @@ class ApplicationController < ActionController::Base
   end
 
   def after_sign_in_path_for(resource)
+    class_name = resource.class.name
     if session[:previous_url]
       return session[:previous_url]
-    elsif resource.class.name == 'Admin'
+    elsif class_name == 'Admin' || class_name=='Consultant' || class_name=='User'
       return dashboard_path
-    elsif resource.class.name=='Candidate'
+    elsif class_name=='Candidate'
       return '/candidate'
     else
       super

@@ -1,4 +1,4 @@
-$('#job_application').html("<%= j render('candidate/job_applications/partials/job_application_modal' , job: @job , job_application: @job_application , accept_state: true) %>");
+$('#job_application').html("<%= j render('partials/job_application_modal' , job: @job , job_application: @job_application , accept_state: true) %>");
 $('#job-apply-<%=@job.id %>').modal('show');
 var element = $('#accept-filepiker');
 filepicker.constructWidget(element);

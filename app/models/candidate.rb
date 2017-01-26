@@ -13,6 +13,11 @@ class Candidate < ActiveRecord::Base
   after_create :create_address
 
 
+  validates :email,presence: :true
+  validates_uniqueness_of :email , message: "Candidate with same email already exist!"
+  validates_numericality_of :phone
+  validates :dob, date: { before_or_equal_to: Proc.new { Date.today }, message: " Date Of Birth Can not be in future." }
+
   has_many   :consultants
   has_many   :notifications       , as: :notifiable             ,dependent: :destroy
   has_many   :custom_fields       , as: :customizable           ,dependent: :destroy

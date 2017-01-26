@@ -6,12 +6,9 @@
           ×
         %h2#myModalLabel.modal-title
           %strong Job Application - #{job.title}
-        %hr
-        .modal-title
-          = raw job.description
 
       .modal-body
-        = form_for [:candidate , job,job_application], html: {class: 'form-horizontal'} ,remote: true do |f|
+        = form_for [:static , job,job_application], html: {class: 'form-horizontal'} do |f|
           %fieldset
             .form-group
               %label.col-md-2.control-label Cover Letter
@@ -22,13 +19,11 @@
               %label.col-md-2.control-label Resume
               .col-md-10
                 = f.filepicker_field :applicant_resume , class: 'btn btn-primary file-pick'  , id: 'accept-filepiker' ,"data-fp-extensions" => ".pdf,.doc,.docx,.txt"
-
-
             .form-group
               %label.col-md-2.control-label Message (optional)
               .col-md-10
                 = f.text_area :message, class: "form-control", rows: "2" ,placeholder: 'Write tour message'
-            -#= job.custom_fields.each do |c|
+
             .nested-fields
               = f.fields_for :custom_fields do |custom|
                 .form-group
@@ -39,4 +34,7 @@
           .modal-footer
             %button.btn.btn-default{"data-dismiss" => "modal", :type => "button"}
               Cancel
-            = f.button "Save" , class: 'btn btn-primary' , data: {disable_with: "<i class='fa fa-spin'></i>Submiting..."}
+            = f.button "Save".html_safe , class: 'btn btn-primary' , data: {disable_with: disable_spinning('Saving...')}
+
+
+
