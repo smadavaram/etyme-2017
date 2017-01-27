@@ -12,50 +12,50 @@ class Company::JobsController < Company::BaseController
   def index
     @search =  current_company.jobs.not_system_generated.includes(:created_by).order(created_at: :desc).search(params[:q])
     @company_jobs = @search.result
-    @company_job = current_company.jobs.new
+    @job = current_company.jobs.new
   end
 
   def show
-    add_breadcrumb @company_job.title.titleize, :job_path, options: { title: "Job Invitation" }
+    add_breadcrumb @job.try(:title).try(:titleize), :job_path, options: { title: "Job Invitation" }
   end
 
   def new
     add_breadcrumb "NEW", :new_job_path, options: { title: "NEW JOB" }
-    @company_job = current_company.jobs.new
+    @job = current_company.jobs.new
   end
 
   def edit
-    add_breadcrumb "EDIT", edit_job_path(@company_job), options: { title: "NEW EDIT" }
+    add_breadcrumb "EDIT", edit_job_path(@job), options: { title: "NEW EDIT" }
   end
 
   def create
-    @company_job = current_company.jobs.new(company_job_params.merge!(created_by_id: current_user.id))
+    @job = current_company.jobs.new(company_job_params.merge!(created_by_id: current_user.id))
 
     respond_to do |format|
-      if @company_job.save
-        format.html { redirect_to @company_job, success: 'Job was successfully created.' }
-        format.json { render :show, status: :created, location: @company_job }
+      if @job.save
+        format.html { redirect_to @job, success: 'Job was successfully created.' }
+        format.json { render :show, status: :created, location: @job }
       else
-        format.html { redirect_to :back , errors:  @company_job.errors.full_message}
-        format.json { render json: @company_job.errors, status: :unprocessable_entity }
+        format.html { redirect_to :back , errors:  @job.errors.full_message}
+        format.json { render json: @job.errors, status: :unprocessable_entity }
       end
     end
   end
 
   def update
     respond_to do |format|
-      if @company_job.update(company_job_params)
-        format.html { redirect_to @company_job, notice: 'Job was successfully updated.' }
-        format.json { render :show, status: :ok, location: @company_job }
+      if @job.update(company_job_params)
+        format.html { redirect_to @job, notice: 'Job was successfully updated.' }
+        format.json { render :show, status: :ok, location: @job }
       else
         format.html { render :edit }
-        format.json { render json: @company_job.errors, status: :unprocessable_entity }
+        format.json { render json: @job.errors, status: :unprocessable_entity }
       end
     end
   end
   
   def destroy
-    @company_job.destroy
+    @job.destroy
     respond_to do |format|
       format.html { redirect_to jobs_url, notice: 'Job was successfully destroyed.' }
       format.json { head :no_content }
@@ -77,7 +77,7 @@ class Company::JobsController < Company::BaseController
       @candidates = Candidate.all
     end
     def set_company_job
-      @company_job = current_company.jobs.find_by_id(params[:id]) || []
+      @job = current_company.jobs.find_by_id(params[:id]) || []
     end
 
     # def set_locations

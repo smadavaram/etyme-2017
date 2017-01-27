@@ -13,7 +13,7 @@
         %tr{class: "#{set_background_status_color(application.status)}"}
           %td= image_tag application.user.photo, alt: '', width: '20'
           %td= link_to application.user.full_name , '#'
-          %td= link_to application.job.title , '#'
+          %td= link_to application.job.title ,job_path(application.job)
           %td
             = application.user.email
             %a.pull-right{:href => "javascript:void(0);"}
