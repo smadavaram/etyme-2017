@@ -5,31 +5,7 @@
         -#%a.pull-right.btn.btn-primary.right.mt-12{href:"#",}  Apply Now
         - if @job.is_active?
           = link_to 'Apply Now' , apply_candidate_job_path(@job) , method: :post , remote: true ,  class: "btn btn-md  btn-success pull-right #{current_candidate.is_already_applied?(@job.id) ? "disabled " : ""} "
-        %h1= @job.title
-        - @job.tags.each do |tag|
-          %span.h4.badge
-            =tag.name
-      %ul.ul-s
-        %li.list-group-item.list-p-15
-          %span.text-muted Detail
-          = raw(@job.description)
-          .row
-            .col-lg-3.col-md-3
-              %span.text-muted.fs-13 Location
-              = @job.try(:location).try(:name).titleize if @job.location.present?
-              = @job.location.titleize if @job.location.present?
-            .col-lg-3.col-md-3
-              %span.text-muted.fs-13 Catagory
-              - @job.tags.each do |tag|
-                %span.h4.badge
-                  =tag.name
-            .col-lg-3.col-md-3
-              %span.text-muted.fs-13 Date
-              = @job.start_date.to_s + " - "
-              = @job.end_date.to_s
-            .col-lg-3.col-md-3
-              %span.text-muted.fs-13 Company
-              = @job.company.name.titleize
+        = render partial: 'partials/job_show',locals: {job: @job}
 
 
 - content_for :modals do

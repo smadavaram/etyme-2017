@@ -1,54 +1,11 @@
-.containers
+= render partial: 'partials/job_application_show' ,locals: {job_application: @job_application}
+- content_for :links do
   -if @job_application.applicationable_type == 'Candidate'
     = link_to 'eTyme Resume',static_candidate_resume_path(@job_application.applicationable),class: 'btn btn-primary pull-right',target: '_blank', style: 'margin-top: 20px;margin-right: 10px;'
   - if @job_application.applicant_resume
     = link_to 'Download Resume',"#{@job_application.applicant_resume}", class: 'btn btn-primary pull-right',style: 'margin-top: 20px;margin-right: 10px;',download:true
   - if @job_application.share_key
     = button_tag 'Share Application' ,class: 'btn btn-primary pull-right margin-top-20 margin-right-10' , "data-toggle": "modal" , "data-target":"#share_application_#{@job_application.id}"
-
-  .col-sm-12.animated.fadeInRightBig
-    %section.panel.mt-20s
-      %header.panel-heading
-        %h1
-          = @job_application.user.full_name.titleize
-          .pull-right
-            = raw job_application_top_links(@job_application)
-        %h3.highlighted.margin-top-0
-          = link_to @job_application.job.title,job_path(@job_application.job)
-        .row
-          .col-lg-3.col-md-3
-            %span.text-muted.fs-13 Current Status
-            %b
-              = @job_application.status.titleize
-          .col-lg-3.col-md-3
-            %span.text-muted.fs-13 Job Category
-            %b
-              = @job_application.job.job_category || 'Not Mentioned'
-          .col-lg-3.col-md-3
-            %span.text-muted.fs-13 Date
-            %b
-              = @job_application.created_at.to_date
-          .col-lg-3.col-md-3
-            %span.text-muted.fs-13 Vendor Company
-            %b
-              = @job_application.user.class.name == 'Candidate' ? 'Candidate' : @job_application.user.company.name.titleize
-      %ul.ul-s.margin-top-10
-        %li
-          %span.text-muted Cover Letter
-          %br
-          = raw(@job_application.cover_letter)
-        %hr
-        %li
-          %span.text-muted Message
-          %br
-          = raw(@job_application.message)
-        - @job_application.custom_fields.each do |cf|
-          %hr
-          %li
-            %span.text-muted
-              = cf.name
-            %br
-            = cf.value
 - if @job_application.share_key
   = render 'company/job_applications/partials/share_application' , job_application: @job_application
 - content_for :modals do
