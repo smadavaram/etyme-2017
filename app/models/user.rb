@@ -56,7 +56,7 @@ class User < ActiveRecord::Base
   end
 
   def send_confirmation_to_company_about_onboarding
-      self.notifications.create!(title: "#{self.full_name} On-Boarding" , message:  "#{self.full_name} has successfully completed on-boarding on Etyme.")
+      self.invited_by.notifications.create!(title: "#{self.full_name} On-Boarding" , message:  "#{self.full_name} has successfully completed on-boarding on Etyme.")
   end
 
   def has_submission_permission?(user)

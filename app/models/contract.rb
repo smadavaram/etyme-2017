@@ -48,7 +48,7 @@ class Contract < ActiveRecord::Base
   validates :status ,             inclusion: {in: statuses.keys}
   validates :billing_frequency ,  inclusion: {in: billing_frequencies.keys}
   validates :time_sheet_frequency,inclusion: {in: time_sheet_frequencies.keys}
-  validates :commission_type ,    inclusion: {in: commission_types.keys}
+  validates :commission_type ,    inclusion: {in: commission_types.keys} , on: :update , if: Proc.new{|contract| contract.is_commission}
   validates :contract_type ,      inclusion: {in: contract_types.keys}
   validates :is_commission,       inclusion: {in: [ true, false ] }
   validates :start_date, :end_date , presence:   true
@@ -57,7 +57,7 @@ class Contract < ActiveRecord::Base
   validates_uniqueness_of :job_id , scope: :job_application_id , message: "You have already applied for this Job." , if: Proc.new{|contract| contract.job_application.present?}
 
   accepts_nested_attributes_for :contract_terms, allow_destroy: true ,reject_if: :all_blank
-  accepts_nested_attributes_for :attachments ,allow_destroy: true,reject_if: :all_blank
+  accepts_nested_attributes_for :attachments ,   allow_destroy: true, reject_if: :all_blank
   accepts_nested_attributes_for :attachable_docs , reject_if: :all_blank
   accepts_nested_attributes_for :job    , allow_destroy: true
 
@@ -171,7 +171,11 @@ class Contract < ActiveRecord::Base
   end
 
   def notify_companies_admins_on_status_change
-    self.created_by.notifications.create(message: self.respond_by.full_name+" has "+ self.status.titleize+" your contract request for <a href='http://#{self.created_by.etyme_url + contract_path(self)}'>#{self.job.title}</a>",title: self.title)
+    if self.status == "in_progress" || self.status == "is_ended" || self.status == "cancelled" || self.status == "paused"
+      self.assignee.notifications.create(message: "Your contract for <a href='http://#{self.respond_by.etyme_url + contract_path(self)}'>#{self.job.title}</a> now #{self.status.titleize}" ,title: self.title)
+      self.respond_by.notifications.create(message: "Your contract for <a href='http://#{self.respond_by.etyme_url + contract_path(self)}'>#{self.job.title}</a> now #{self.status.titleize}" ,title: self.title)
+      self.created_by.notifications.create(message: "Your contract for <a href='http://#{self.created_by.etyme_url + contract_path(self)}'>#{self.job.title}</a> now #{self.status.titleize}" ,title: self.title)
+    end
 
     # admins.each  do |admin|
     #     admin.notifications.create(message: self.applicationable.company.name + " has <a href='http://#{admin.etyme_url + contract_path(self)}'>apply</a> your Job Application - #{self.job.title}",title:"Job Application")

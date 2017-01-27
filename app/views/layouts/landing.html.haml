@@ -13,18 +13,37 @@
     = render 'static/shared/header'
     -#= yield :top_bar
     .container
-      - if notice
-        .alert.alert-success.fade.in
+      - flash.each do |key, value|
+        .alert.fade.in{:class => "alert alert-#{key}"}
           %button.close{"data-dismiss" => "alert"}
             ×
           %i.fa-fw.fa.fa-check
-          = notice
-        - if alert
-          .alert.alert-warning.fade.in
-            %button.close{"data-dismiss" => "alert"}
-              ×
-            %i.fa-fw.fa.fa-warning
-            = alert
+          = value
+
+      -#- if notice
+      -#  .alert.alert-success.fade.in
+      -#    %button.close{"data-dismiss" => "alert"}
+      -#      ×
+      -#    %i.fa-fw.fa.fa-check
+      -#    = notice
+      -#- if success
+      -#  .alert.alert-success.fade.in
+      -#    %button.close{"data-dismiss" => "alert"}
+      -#      ×
+      -#    %i.fa-fw.fa.fa-check
+      -#    = success
+      -#- if info
+      -#  .alert.alert-info.fade.in
+      -#    %button.close{"data-dismiss" => "alert"}
+      -#      ×
+      -#    %i.fa-fw.fa.fa-check
+      -#    = info
+      -#- if alert || warning
+      -#  .alert.alert-warning.fade.in
+      -#    %button.close{"data-dismiss" => "alert"}
+      -#      ×
+      -#    %i.fa-fw.fa.fa-warning
+      -#    = alert || warning
       .row
         .col-sm-12.funky-text
           %ol.breadcrumb
@@ -40,3 +59,21 @@
     = yield(:scripts).present? ? yield(:scripts) : render(partial: 'shared/scripts')
 
 
+:css
+  .alert-alert {
+    background-image: -webkit-linear-gradient(top, #ff7518 0%, #f16100 100%);
+    background-image: linear-gradient(to bottom, #ff7518 0%, #f16100 100%);
+    background-repeat: repeat-x;
+    filter: progid:DXImageTransform.Microsoft.gradient(startColorstr='#ffff7518', endColorstr='#fff16100', GradientType=0);
+    border-color: #cb5200;
+    background: #ff7518;
+  }
+  .alert-error {
+    background-image: -webkit-linear-gradient(top, #D2160A 0%, #D2160A 100%);
+    background-image: linear-gradient(to bottom,#D2160A 0%, #D2160A 100%);
+    background-repeat: repeat-x;
+    filter: progid:DXImageTransform.Microsoft.gradient(startColorstr='#ffff7518', endColorstr='#fff16100', GradientType=0);
+    border-color: #cb5200;
+    background: #D2160A;
+    color: #fff;
+  }

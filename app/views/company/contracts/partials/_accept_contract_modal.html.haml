@@ -17,31 +17,21 @@
           %small.text-danger.slideInRight.fast.animated
             %strong Job - #{contract.job.title}
       .modal-body
-        = form_for [contract.job,contract] , url: update_contract_response_job_contract_path(contract.job,contract , status: status) ,  method: :post , html: {class: 'form-horizontal'} , remote: true do |f|
-          %fieldset
-            - if status == 'accept'
-              .form-group
-                %label.col-md-2.control-label Assign To
-                .col-md-10
-                  = select_tag 'contract[assignee_id]', options_for_select(current_company.consultants.collect { |c|[c.full_name, c.id] })  , class: "form-control"
-              = render 'company/contracts/partials/commission' , f: f
-              -#- if contract.attachable_docs?
-                .nested-fields
-                  = f.fields_for :attachable_docs do |ed|
-                    - if ed.object.company_doc.is_required_signature?
-                      = ed.hidden_field :file,  class: "attachment-file-upload-field-#{ed.object.id}"
-                      = ed.hidden_field :id
+        %fieldset
+          - if status == 'accept'
             .form-group
-              %label.col-md-2.control-label Message (optional)
+              %label.col-md-2.control-label Do you want to create Sub Contract?
               .col-md-10
-                = f.text_area :response_from_vendor, value: '' , class: "form-control", rows: "2" ,placeholder: 'Write tour message'
-            - if status == 'accept'
-              .form-group
-                = render partial: 'company/contracts/partials/received_by_signarture_pad',locals: {f: f}
-          .modal-footer
-            %button.btn.btn-default{"data-dismiss" => "modal", :type => "button"}
-              Cancel
-            = f.submit status.titleize , class: 'btn btn-primary' , data: {confirm: 'Are you sure?', verify: status.titleize, verify_text: "Type '#{status.titleize}' to confirm"}
+                = select :contract_toggle_modal, :contract_toggle_modal , options_for_select([["-- Please Select --", ""], ["Yes", true], ["No", false]])
+                = hidden_field_tag :toggle_contract_parent_job_id , contract.job.id
+                = hidden_field_tag :toggle_contract_parent_contract_id , contract.id
+            .clearfix
+            %hr
+          #contract-assign
+            = render 'company/contracts/partials/assign_contract_form' , contract: contract , status: status
+          #sub_contract_toggle
+
+
 - if status == 'accept'
   - content_for :scripts do
     :javascript

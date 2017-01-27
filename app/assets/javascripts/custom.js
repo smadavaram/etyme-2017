@@ -98,10 +98,35 @@ function toggleFields() {
         $(".max-commission").show();
 
 }
+function contractToggleModel(){
+    if($('#contract_toggle_modal_contract_toggle_modal').val() == "true") {
+        job_id = $('#toggle_contract_parent_job_id').val();
+        contract_id = $('#toggle_contract_parent_contract_id').val();
+        url = "/jobs/"+job_id+"/contracts/"+contract_id+"/create_sub_contract"
+        console.log(job_id);
+        console.log(contract_id);
+        $.post(url);
+        $("#contract-assign").hide();
+        $("#sub_contract_toggle").show();
+    }
+    else if($('#contract_toggle_modal_contract_toggle_modal').val() == "false") {
+        $("#contract-assign").show();
+        $("#sub_contract_toggle").hide();
+    }
+    else {
+        $("#contract-assign").hide();
+        $("#sub_contract_toggle").hide();
+    }
+}
 $(document).ready(function(){
     toggleFields();
+    contractToggleModel();
     $("#contract_is_commission , #contract_commission_type").change(function () {
         toggleFields();
     });
+    $("#contract_toggle_modal_contract_toggle_modal").change(function () {
+        contractToggleModel();
+    });
+    $("#contract_toggle_modal_contract_toggle_modal").addClass('form-control');
 });
 
