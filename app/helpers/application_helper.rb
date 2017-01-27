@@ -156,7 +156,7 @@ module ApplicationHelper
                 {
                   href: contracts_path,
                   title: 'Contracts',
-                  content: "<span class='menu-item-parent'> Contract((s) </span>",
+                  content: "<span class='menu-item-parent'> Contract(s) </span>",
                   }
 
 
