@@ -1,7 +1,7 @@
 #content
   .row
     .col-xs-12.col-sm-3.col-md-3.col-lg-3.pull-right
-      = button_tag 'NEW' ,class: 'btn btn-success btn-lg pull-right header-btn hidden-mobile' , "data-toggle": "modal" , "data-target":"#new-admin"
+      = link_to 'NEW' , new_admin_path , remote: true , class: 'btn btn-success btn-lg pull-right header-btn hidden-mobile'
   %section.margin-top-10.padding-10
     .row
       #wid-id-5.no-border
@@ -39,7 +39,6 @@
                         = link_to raw("<i class='fa fa-times '></i>") , '#' , method: :delete ,  class: 'btn btn-xs btn-default btn-danger'
           = digg_pagination(@consultants)
 
-- content_for :modals do
-  = render 'company/admins/partials/new_modal'
+
 
 

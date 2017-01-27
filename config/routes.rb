@@ -129,7 +129,7 @@ Rails.application.routes.draw do
     resources :locations
     resources :company_docs
     resources :roles
-    resources :admins           , concerns: :paginatable , only: [:index]
+    resources :admins           , concerns: :paginatable , only: [:index , :create , :new]
     resources :addresses
     resources :comments         , only: [:create]
     resources :attachments      ,concerns: :paginatable , only: [:index]

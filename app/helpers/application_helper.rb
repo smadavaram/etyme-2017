@@ -104,7 +104,7 @@ module ApplicationHelper
                   link_text += entry[:content].html_safe
                   if entry[:children]
                     if children_selected
-                      link_text += '<b class="collapse-sign"><em class="fa fa-minus-square-o"></em></b>'
+                      # link_text += '<b class="collapse-sign"><em class="fa fa-minus-square-o"></em></b>'
                     else
                       link_text += '<b class="collapse-sign"><em class="fa fa-plus-square-o"></em></b>'
                     end
@@ -138,14 +138,33 @@ module ApplicationHelper
             content: "<i class='fa fa-lg fa-fw fa-home'></i> <span class='menu-item-parent'>" + 'HOME' + "</span>",
         },
         {
-            href: companies_path,
+            href: "#",
             title: 'My Companies',
             content: "<i class='fa fa-lg fa-fw fa-black-tie'></i> <span class='menu-item-parent'>" + 'My Companies' + "</span>",
-        },
-        {
-          href: consultants_path,
-          title: 'CONSULTANTS',
-          content: "<i class='fa fa-lg fa-fw fa-users'></i> <span class='menu-item-parent'>" + 'CONSULTANTS' + "</span>",
+            children: [
+                {
+                    href: companies_path,
+                    title: 'Perfered Vendors',
+                    content: "</i><span class='menu-item-parent'> Prefered Vendor(s) </span>"
+                },
+                {
+                    href: "#",
+                    title: 'Contracts',
+                    content: "<i class='fa fa-lg fa-fw fa-file'></i><span class='menu-item-parent'> Contracts </span>",
+                    children:[
+                        {
+                        href: contracts_path,
+                        title: 'Contracts',
+                        content: "<span class='menu-item-parent'> Contracts </span>",
+                        },
+                        {
+                            href: consultants_path,
+                            title: 'CONSULTANTS',
+                            content: "<span class='menu-item-parent'>" + 'CONSULTANTS' + "</span>",
+                        },
+                  ]
+                }
+            ]
         },
         {
             href: '#',
@@ -170,21 +189,21 @@ module ApplicationHelper
                 },
             ]
         },
-        {
-            href: contracts_path,
-            title: 'Contracts',
-            content: "<i class='fa fa-lg fa-fw fa-file'></i> <span class='menu-item-parent'> Contracts </span>"
-         },
+        # {
+        #     href: contracts_path,
+        #     title: 'Contracts',
+        #     content: "<i class='fa fa-lg fa-fw fa-file'></i> <span class='menu-item-parent'> Contracts </span>"
+        #  },
         {
             href: timesheets_path,
             title: 'Timesheets',
             content: "<i class='fa fa-lg fa-fw fa-clock-o'></i> <span class='menu-item-parent'>" + 'TIMESHEETS' + "</span>",
         },
-        # {
-        #     href: new_company_doc_path,
-        #     title: 'Company Docs',
-        #     content: "<i class='fa fa-lg fa-fw fa-black-tie'></i> <span class='menu-item-parent'>" + 'Company Docs' + "</span>",
-        # },
+        {
+            href: "#",
+            title: 'Invoices',
+            content: "<i class='fa fa-lg fa-fw fa-black-tie'></i> <span class='menu-item-parent'>" + 'Invoices' + "</span>",
+        },
           {
               href:  current_user.is_owner? ? employees_leaves_path : (current_user.is_consultant? ? consultant_leaves_path(current_user) : '#'),
               title: 'Leaves',

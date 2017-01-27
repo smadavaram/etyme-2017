@@ -4,7 +4,7 @@
     %hr/
     .row
       .col-sm-12.col-md-6
-        = form_for @company , html: {id: 'smart-form-register' , class: 'vertical-form client-form' }  do |f|
+        = form_for @company , html: {id: 'smart-form-register' , class: 'vertical-form client-form',id:'form_id' }  do |f|
           = f.fields_for :owner do |u|
             %fieldset
               .row
@@ -23,7 +23,7 @@
                           = u.text_field :last_name, :placeholder => "Last name", required: true,class: 'form-control'
                     .form-group
                       %label{:for => "exampleInputEmail1"} Email address
-                      = u.email_field :email, :placeholder => "Your Email", required: true, email: true,class: 'form-control'
+                      = u.email_field :email, :placeholder => "Your Email", required: true, email: true,class: 'form-control',onblur: 'validate_email();'
                     .form-group
                       %label{:for => "exampleInputPassword1"} Password
                       = u.password_field :password, :placeholder => "Password", required: true,minlength: "6",class: 'form-control'
@@ -41,7 +41,7 @@
                       %a{"data-target" => "#myModal", "data-toggle" => "modal", :href => "#"} Terms and Conditions
 
                     %br/
-                    = f.submit 'Register',class:'btn btn-primary'
+                    = f.submit 'Register',class:'btn btn-primary' ,id:'register_button'
       .col-md-6.col-sm-12.account-sidebar.hidden-sm
         .row
           .col-sm-3{:style => "text-align: center;"}
@@ -305,4 +305,24 @@
         %button#print.btn.btn-danger.pull-left{:type => "button"}
           %i.fa.fa-print
           Print
+:javascript
+
+    function validate_email() {
+      var non_valid_emails = ["gmail.com" ,"yahoo.com" ,"hotmail.com"]
+      var email = $('#company_owner_attributes_email').val();
+      var split_email = email.split("@");
+      var result = non_valid_emails.includes(split_email[1]);
+      if (result == true){
+        $('#company_owner_attributes_email').css("border-color","#d2160a");
+        $("#company_owner_attributes_email").parent().next('.validation').remove();
+        $("#company_owner_attributes_email").parent().after("<div class='validation' style='color:#d2160a;margin-bottom: 10px;'>Use only email that is provided by eTyme</div>");
+        $('#register_button').prop('disabled',true);
+        }
+      else{
+       $('#company_owner_attributes_email').css("border-color","green");
+       $("#company_owner_attributes_email").parent().next('.validation').remove();
+        $('#register_button').prop('disabled',false);
+        }
+     }
+
 

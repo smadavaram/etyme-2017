@@ -15,6 +15,10 @@ class Company::AdminsController < Company::BaseController
 
   def new
     add_breadcrumb "NEW", :new_admin_path
+    respond_to do |format|
+      format.js
+      format.html
+    end
   end
 
   def create

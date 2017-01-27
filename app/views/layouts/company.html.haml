@@ -40,6 +40,7 @@
           = render_breadcrumbs tag: :li, separator: ""
       -#= yield :ribbon
       = yield
+    .remote_container
     = yield :modals
     = render partial: 'company/shared/footer'
     = render partial: 'company/shared/tiles'
