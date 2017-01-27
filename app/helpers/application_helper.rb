@@ -148,22 +148,18 @@ module ApplicationHelper
                     content: "</i><span class='menu-item-parent'> Prefered Vendor(s) </span>"
                 },
                 {
-                    href: "#",
-                    title: 'Contracts',
-                    content: "<i class='fa fa-lg fa-fw fa-file'></i><span class='menu-item-parent'> Contracts </span>",
-                    children:[
-                        {
-                        href: contracts_path,
-                        title: 'Contracts',
-                        content: "<span class='menu-item-parent'> Contracts </span>",
-                        },
-                        {
-                            href: consultants_path,
-                            title: 'CONSULTANTS',
-                            content: "<span class='menu-item-parent'>" + 'CONSULTANTS' + "</span>",
-                        },
-                  ]
-                }
+                    href: consultants_path,
+                    title: 'Consultants',
+                    content: "<span class='menu-item-parent'>" + 'Consultant(s)' + "</span>",
+                },
+
+                {
+                  href: contracts_path,
+                  title: 'Contracts',
+                  content: "<span class='menu-item-parent'> Contract((s) </span>",
+                  }
+
+
             ]
         },
         {
