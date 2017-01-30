@@ -11,6 +11,10 @@
                 .col-sm-12
                   .well
                     .form-group
+                      %label{:for => "exampleInputPassword1"} Company Type
+                      = f.select :company_type , Company.company_types.map { |key, value| [key.humanize, key]},{include_blank: '-- Select Type --'} ,:class => 'form-control company_type', required: true ,onchange: "showNote();"
+                      .note.text-info
+                    .form-group
                       %label{:for => "exampleInputEmail1"} Company name
                       = f.text_field :name  ,:placeholder => "Company Name", required: true,minlength: "3",class:'form-control'
                     .form-group
@@ -22,10 +26,7 @@
                     .form-group
                       %label{:for => "exampleInputPassword1"} Confirm password
                       = u.password_field :password_confirmation, :placeholder => "Confirm password", "data-rule-equalTo": "#company_owner_attributes_password",class: 'form-control'
-                    .form-group
-                      %label{:for => "exampleInputPassword1"} Company Type
-                      = f.select :company_type , Company.company_types.map { |key, value| [key.humanize, key]},{include_blank: '-- Select Type --'} ,:class => 'form-control company_type', required: true ,onchange: "showNote();"
-                      .note.text-info
+
                     .form-group
                       %label.checkbox
                       %input#terms{:name => "terms", :type => "checkbox"}/
