@@ -1,7 +1,7 @@
 #****************************
 # Configuration
 #****************************
-# ruby '2.3.1'
+ruby '2.3.1'
 source 'https://rubygems.org'
 gem 'rails', '4.2.0'
 gem 'best_in_place'
@@ -9,7 +9,7 @@ gem 'signature-pad-rails'
 gem 'mina' ,'~> 0.2.1'
 gem 'mina-multistage', '<= 1.0.1', require: false
 # gem 'mina-puma', :require => false
-
+gem 'puma'
 #****************************
 # Javascript Configuration
 #****************************
