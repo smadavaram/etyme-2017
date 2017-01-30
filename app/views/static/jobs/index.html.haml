@@ -33,32 +33,6 @@
             .panel-body
               %form.form-inline.mini{:style => "margin-bottom: 0px;"}
                 %fieldset
-                  -#.row.filter-row
-                  -#  .col-sm-6
-                  -#    %label Fuel type
-                  -#  .col-sm-6
-                  -#    %select.col-sm-10.form-control
-                  -#      %option Any
-                  -#      %option Alfa romeo
-                  -#      %option Houses
-                  -#      %option Flats/ Apartments
-                  -#      %option Bungalows
-                  -#      %option Land
-                  -#      %option Commercial property
-                  -#      %option Other
-                  -#.row.filter-row
-                  -#  .col-sm-6
-                  -#    %label Age
-                  -#  .col-sm-6
-                  -#    %select.col-sm-10.form-control
-                  -#      %option Any
-                  -#      %option Alfa romeo
-                  -#      %option Houses
-                  -#      %option Flats/ Apartments
-                  -#      %option Bungalows
-                  -#      %option Land
-                  -#      %option Commercial property
-                  -#      %option Other
                   = search_form_for @search , url: search_static_jobs_path , method: :get do |f|
                     .row.filter-row
                       .col-sm-12
@@ -68,66 +42,14 @@
                       .col-md-12
                         .input-group
                           = f.text_field :title_or_job_category_cont, class: "form-control input-md ", placeholder: "Search Jobs...", style: "width: 115%;padding:17px"
-                      -#.col-sm-6
-                      -#  .input-group
-                      -#    %span.input-group-addon $
-                      -#    %input.form-control.price-input{:placeholder => "max", :type => "email"}/
-                    -#.row.filter-row
-                    -#  .col-sm-12
-                    -#    %label Search only:
-                    -#  .col-sm-12
-                    -#    .radio
-                    -#      %label
-                    -#        %input{:checked => "checked", :name => "optionsRadios", :type => "radio", :value => "option1"}/
-                    -#        Urgent ads
-                    -#    %br/
-                    -#    .radio
-                    -#      %label
-                    -#        %input{:name => "optionsRadios", :type => "radio", :value => "option2"}/
-                    -#        Featured ads
-                    -#    %br/
-                    -#    .radio
-                    -#      %label
-                    -#        %input{:name => "optionsRadios", :type => "radio", :value => "option2"}/
-                    -#        Only ads with pictures
                     .row.filter-row
                       .col-sm-2.pull-right{:style => "margin-top: 10px;"}
                         = f.submit "Search",class: "button btn btn-primary pull-right"
-                        -#%button.btn.btn-primary.pull-right{:type => "submit"} Update results
-      -#.row
-      -#  .col-sm-11
-      -#    .panel.panel-default
-      -#      .panel-heading Refine category
-      -#      .panel-body
-      -#        %ul.nav.nav-category
-      -#          %li
-      -#            %a.active{:href => "category.html"} All categories
-      -#            %ul
-      -#              %li
-      -#                %a{:href => "listings.html"} Cars, Vans &amp; Motorbikes
-      -#                %ul
-      -#                  %li
-      -#                    %a.active{:href => "listings.html"} Cars
-      -#                    %ul
-      -#                      %li
-      -#                        %a.active{:href => "listings.html"}
-      -#                          %strong Porsche
-      -#                        (66)
-      -#                        %a.remove-category{:href => "#"}
-      -#                          %i.fa.fa-times
 
   .col-sm-8.pull-right.listings
     .row.listing-row{:style => "margin-top: -10px;"}
       .pull-left
         %strong= Date.today.strftime("Today , %d  %B ,%Y ")
-      -#.pull-right
-        %span{:style => ""} Sort by:   
-        %a{"data-placement" => "top", "data-toggle" => "tooltip", :href => "#", :title => "Sort from newest to oldest"}
-          Date
-          %i.fa.fa-chevron-up
-        %a{"data-placement" => "top", "data-toggle" => "tooltip", :href => "#", :title => "Sort from lowest price to highest price"}
-          Price
-          %i.fa.fa-chevron-down
     - @jobs.each do |job|
       .row.premium.listing-row
         .col-sm-12
