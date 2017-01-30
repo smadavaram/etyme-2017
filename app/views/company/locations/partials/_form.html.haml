@@ -1,0 +1,52 @@
+.modal-body
+  = form_for location , html:{ class:'form-horizontal',id: 'location'} do |location|
+    = location.fields_for :address do |address|
+      %fieldset
+        .form-group
+          %label.col-md-2.control-label
+            Location
+            %sup.text-danger *
+          .col-md-10
+            = location.text_field :name,:placeholder => "Name",class: "form-control",:required => 'required' ,id:'loc'
+        .form-group
+          %label.col-md-2.control-label
+            Address 1
+            %sup.text-danger *
+          .col-md-10
+            = address.text_field :address_1,:placeholder => "Address 1",class: "form-control",id:'ad1'
+        .form-group
+          %label.col-md-2.control-label
+            Address 2
+            %sup.text-danger *
+          .col-md-10
+            = address.text_field :address_2,:placeholder => "Address 2",class: "form-control",id:'id2'
+        .form-group
+          %label.col-md-2.control-label
+            Country
+            %sup.text-danger *
+          .col-md-10
+            = address.select :country , CS.countries.sort.map{|k,v| [v,k] } ,{prompt:"Select Country"} , :class=>"form-control " , :required =>'required'  , onchange: " onSelectCountry();",id: 'country'
+        .form-group
+          %label.col-md-2.control-label
+            State
+            %sup.text-danger *
+          .col-md-10
+            = address.select :state , CS.states(address.object.country).sort.map {|k,v| [v,k] } , {prompt:"Select State"} , class:"form-control" ,id:"state" , onchange: " onSelectState();"
+        .form-group
+          %label.col-md-2.control-label
+            City
+            %sup.text-danger *
+          .col-md-10
+            = address.select :city , CS.cities(address.object.state , address.object.country).sort.map {|k,v| [k,k] },{prompt:"Select City"} , class:"form-control", id:"city"
+        .form-group
+          %label.col-md-2.control-label
+            Zip Code
+            %sup.text-danger *
+          .col-md-10
+            = address.text_field :zip_code  , :placeholder => "Zip Code" , class:"form-control"
+
+    .modal-footer
+      %button.btn.btn-default{"data-dismiss" => "modal", :type => "button"}
+        Cancel
+      %button.btn.btn-primary{:type => "submit" ,id:'form_id'}
+        Create Location

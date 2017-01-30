@@ -12,7 +12,7 @@ class ApplicationController < ActionController::Base
   end
 
   def cities
-    render json: CS.cities(params[:state].to_sym, params[:country].to_sym).to_json
+    render json: CS.cities(params[:state].to_sym, params[:country].to_sym).map{ |k| [k.downcase.tr(" " , "_") , k] }.to_h.to_json
   end
 
   def set_devise_layout

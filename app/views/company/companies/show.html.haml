@@ -60,15 +60,16 @@
               -## Company form TAB
               #hr1.tab-pane.active
                 .tabbable.tabs-below
-                =render partial: 'company/companies/partials/company_form_html'
+                = render partial: 'company/companies/partials/company_form_html'
 
               -# Locations form TAB
               #hr2.tab-pane
-                %button.btn.btn-primary.pull-right.margin-bottom-5.margin-right-10{"data-target" => "#myModal", "data-toggle" => "modal"}
-                  New
+                = link_to 'New' , new_location_path, remote: true , class: 'button btn btn-primary pull-right margin-bottom-5 margin-right-10'
+                -#%button.btn.btn-primary.pull-right.margin-bottom-5.margin-right-10{"data-target" => "#new_location", "data-toggle" => "modal"}
+                -#  New
                 .tabbable.tabs-below
-                  =render partial: 'company/companies/partials/location_show_form'
-                =render 'company/locations/partials/location_form_modal'
+                  = render partial: 'company/companies/partials/location_show_form'
+                -#= render 'company/locations/partials/location_form_modal'
 
               -# Owner And Admin TAB
               #hr3.tab-pane
@@ -81,9 +82,9 @@
                   New
                 -#= will_paginate @company_docs
                 .tabbable.tabs-below
-                  =render partial: 'company/companies/partials/company_doc_form'
+                  = render partial: 'company/companies/partials/company_doc_form'
 
-                =render 'company/company_docs/partials/attachment_form_modal'
+                = render 'company/company_docs/partials/attachment_form_modal'
 
 - content_for :scripts do
   :javascript
@@ -123,4 +124,6 @@
     $('td').on('mouseover mouseout',function(){
     $(this).find('.editprofile-pic_in_line').toggle();
     });
+
+
 

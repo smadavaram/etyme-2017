@@ -12,6 +12,3 @@
 //= require jquery.amaran
 //= require plugin/select2/select2.min
 //= require tinymce-jquery
-
-
-

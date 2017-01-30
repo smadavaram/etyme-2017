@@ -12,58 +12,91 @@
           City
         %th{style:'width:20%'}
           Zipcode
+        %th{style:'width:20%'}
+          Action
     - current_company.locations.each do |location|
       - next if location.new_record?
       %tbody
         %tr
           %td
-            = best_in_place location, :name, :as => :input, :place_holder => "Click me to add content!"
+            = location.name
           %td
-            = best_in_place location.address, :country, :as => :select, :collection => CS.countries.sort.map{|k,v|[k,v]},:classes => "country"
+            = CS.get[location.address.country.to_sym]
           %td
-            = best_in_place location.address,:state, :as => :select, :collection => CS.states(location.address.country).sort.map{|k,v|[k,v]},:classes => "state"
+            = CS.states(location.address.country.to_sym)[location.address.state.to_sym]
           %td
-            = best_in_place location.address,:city, :as => :select, :collection => CS.cities(location.address.state,location.address.country).sort.map{|k,v|[k,k]}
+            = location.address.city.humanize
 
           %td
-            = best_in_place location.address,:zip_code, :as => :input, :place_holder => "Click me to add content!"
-
-
-
-
-
-
-
+            = location.address.zip_code
+          %td
+            = link_to 'Edit',edit_location_path(location), method: :get , remote: true
 - content_for :scripts do
   :javascript
-    $(document).ready(function() {
-      // $('.country').bind("ajax:success", function(){alert('sc');});
+    function onSelectCountry()
+    {
+        var country = $('#country').val();
+        var states_of_country=$('#state')
+              $.getJSON('/states/'+country,function(data) {
+              states_of_country.empty();
+              states_of_country.append('<option value="">Select State ...</option>');
+              $.each(data,function(key,value) {
+              var opt = '<option value=' + key + '>' + value + '</option>';
+              states_of_country.append(opt);
+              });
 
-        $('.country').change(
-         function() {
-          window.location.reload();
-        // var activeTab = localStorage.getItem('activeTab');
-        // if(activeTab){
-        //     $('#myTab a[href="' + activeTab + '"]').tab('show');
-        // }
-     }); //End OF Country Change
+           });//End OF json
 
 
-      $('.state').change(
-         function() {
-         window.location.reload();
-         // var country=$('.country').val();
-         // var cities_of_sate=$('.city')
-         // $.getJSON('/cities/'+$(this).val()+"/"+country,function(data) {
-         //      cities_of_sate.empty();
-         //      cities_of_sate.append('<option value="">Select City ...</option>');
-         //      $.each(data,function(key,value) {
-         //      var opt = '<option value=' + key + '>' + value + '</option>';
-         //      cities_of_sate.append(opt);
-         //      });
-         //
-         //   });//End OF json
+    }
+    function onSelectState() {
 
-         }); //End OF State Change
+        var country=$('#country').val();
+        var state = $('#state').val();
+         var cities_of_sate=$('#city')
+         $.getJSON('/cities/'+state+"/"+country,function(data) {
+              cities_of_sate.empty();
+              cities_of_sate.append('<option value="">Select City ...</option>');
+              $.each(data,function(key,value) {
+              var opt = '<option value=' + key + '>' + value + '</option>';
+              cities_of_sate.append(opt);
+              });
 
-      }); // End of document ready
+           });//End OF json
+    }
+    // $(document).ready(function() {
+    //     alert("ready");
+    //    $('#country').change(
+    //       function() {
+    //           alert("country");
+    //           var states_of_country=$('#state')
+    //           $.getJSON('/states/'+country,function(data) {
+    //           states_of_country.empty();
+    //           states_of_country.append('<option value="">Select State ...</option>');
+    //           $.each(data,function(key,value) {
+    //           var opt = '<option value=' + key + '>' + value + '</option>';
+    //           states_of_country.append(opt);
+    //           });
+    //
+    //        });//End OF json
+    //
+    //      }); //End OF Country Change
+    //
+    //
+    //   $('#state').change(
+    //      function() {
+    //      var country=$('#country').val();
+    //      var cities_of_sate=$('#city')
+    //      $.getJSON('/cities/'+$(this).val()+"/"+country,function(data) {
+    //           cities_of_sate.empty();
+    //           cities_of_sate.append('<option value="">Select City ...</option>');
+    //           $.each(data,function(key,value) {
+    //           var opt = '<option value=' + key + '>' + value + '</option>';
+    //           cities_of_sate.append(opt);
+    //           });
+    //
+    //        });//End OF json
+    //
+    //      }); //End OF State Change
+    //
+    // });
