@@ -1,7 +1,7 @@
 #****************************
 # Configuration
 #****************************
-ruby '2.3.1'
+# ruby '2.3.1'
 source 'https://rubygems.org'
 gem 'rails', '4.2.0'
 gem 'best_in_place'
