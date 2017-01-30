@@ -109,6 +109,12 @@
                       = link_to 'Download' , attachment.file , download: true
                       |
                       = link_to 'View' , attachment.file , target: '_blank'
+            - if @contract.message_from_hiring.present?
+              %br
+                %b
+                  Message:
+                %br
+                = raw(@contract.message_from_hiring)
             %hr/
             .description.description-tabs
               %ul#myTab.nav.nav-pills

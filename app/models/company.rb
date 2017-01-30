@@ -31,6 +31,8 @@ class Company < ActiveRecord::Base
   has_many :leaves                    , through:   :users
   has_many :timesheet_logs            , through:   :timesheets
   has_many :timesheet_approvers       , through:   :timesheets
+  has_many :sent_invoices             , through:   :received_contracts ,source:  :invoices
+  has_many :received_invoices         , through:   :sent_contracts ,source:  :invoices
   # has_many :invoices                  , through:   :timesheets
   has_one  :subscription              , dependent: :destroy
   has_one  :package                   , through:   :subscription

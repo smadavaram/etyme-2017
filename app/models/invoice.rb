@@ -110,7 +110,7 @@ class Invoice < ActiveRecord::Base
   end
 
   def notify_contract_responder
-    self.contract.respond_by.notifications.create(message: "Your <a href='http://#{self.contract.respond_by.company.etyme_url + contract_invoice_path(self.contract , self)}'>Invoice</a> for <a href='http://#{self.contract.created_by.company.etyme_url + contract_path(self.contract)}'>contract</a>",title: "Invoice# #{self.id}")
+    self.contract.respond_by.notifications.create(message: "Your <a href='http://#{self.contract.respond_by.company.etyme_url + contract_invoice_path(self.contract , self)}'>Invoice</a> for <a href='http://#{self.contract.respond_by.company.etyme_url + contract_path(self.contract)}'>contract</a>",title: "Invoice# #{self.id}")
   end
 
   def notify_contract_creator

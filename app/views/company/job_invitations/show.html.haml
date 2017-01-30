@@ -21,6 +21,12 @@
         %li.list-group-item.list-p-15
           %span.text-muted Detail
           =raw(@company_job.description)
+        %br
+        %li
+          %span.text-muted Message
+          %br
+          = raw(@job_invitation.message)
+        %hr
           .row
             .col-lg-3.col-md-3
               %span.text-muted.fs-13 Location
