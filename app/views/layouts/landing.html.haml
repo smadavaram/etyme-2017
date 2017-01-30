@@ -11,7 +11,7 @@
     = csrf_meta_tags
   %body
     = render 'static/shared/header'
-    -#= yield :top_bar
+    = yield :search_bar
     .container
       - flash.each do |key, value|
         .alert.fade.in{:class => "alert alert-#{key}"}

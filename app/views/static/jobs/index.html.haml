@@ -1,26 +1,160 @@
+- content_for :search_bar do
+  .jumbotron.home-tron-search.well
+    .container
+      = search_form_for @search , url: search_static_jobs_path , method: :get do |f|
+        .row
+          .col-sm-12
+            .home-tron-search-inner
+              .row
+                .col-sm-8.col-xs-9{:style => "text-align: center"}
+                  .row
+                    .col-sm-12.col-sm-offset-1
+                      .input-group
+                        %span.input-group-addon.input-group-addon-text.hidden-xs Search Jobs
+                        = f.text_field :title_or_job_category_cont, class: "form-control input-md ", placeholder: "Search Jobs..."
+                        .input-group-addon.hidden-xs
+                          .btn-group
+                            = f.select :job_category_eq , WORK_CATEGORIES.each { |key, value| [key.humanize, value] }, {} , {class: "btn btn-default btn-md dropdown-toggle" , style:'width: 140px;height:45px ', onChange: "this.form.submit(); "}
 
+                .col-sm-4.col-xs-3{:style => "text-align: center"}
+                  .row
+                    .col-sm-11.pull-right
+                      %button.btn.btn-primary.search-btn
+                        %i.icon-search>
+                            Search
 .row
-  .col-lg-12
+  .col-sm-4.hidden-xs
+    .sidebar
+      %br/
+      .row
+        .col-sm-11
+          .panel.panel-default
+            .panel-heading Filters
+            .panel-body
+              %form.form-inline.mini{:style => "margin-bottom: 0px;"}
+                %fieldset
+                  -#.row.filter-row
+                  -#  .col-sm-6
+                  -#    %label Fuel type
+                  -#  .col-sm-6
+                  -#    %select.col-sm-10.form-control
+                  -#      %option Any
+                  -#      %option Alfa romeo
+                  -#      %option Houses
+                  -#      %option Flats/ Apartments
+                  -#      %option Bungalows
+                  -#      %option Land
+                  -#      %option Commercial property
+                  -#      %option Other
+                  -#.row.filter-row
+                  -#  .col-sm-6
+                  -#    %label Age
+                  -#  .col-sm-6
+                  -#    %select.col-sm-10.form-control
+                  -#      %option Any
+                  -#      %option Alfa romeo
+                  -#      %option Houses
+                  -#      %option Flats/ Apartments
+                  -#      %option Bungalows
+                  -#      %option Land
+                  -#      %option Commercial property
+                  -#      %option Other
+                  = search_form_for @search , url: search_static_jobs_path , method: :get do |f|
+                    .row.filter-row
+                      .col-sm-12
+                        %label Search jobs by title , category
+                        %br/
+
+                      .col-md-12
+                        .input-group
+                          = f.text_field :title_or_job_category_cont, class: "form-control input-md ", placeholder: "Search Jobs...", style: "width: 115%;padding:17px"
+                      -#.col-sm-6
+                      -#  .input-group
+                      -#    %span.input-group-addon $
+                      -#    %input.form-control.price-input{:placeholder => "max", :type => "email"}/
+                    -#.row.filter-row
+                    -#  .col-sm-12
+                    -#    %label Search only:
+                    -#  .col-sm-12
+                    -#    .radio
+                    -#      %label
+                    -#        %input{:checked => "checked", :name => "optionsRadios", :type => "radio", :value => "option1"}/
+                    -#        Urgent ads
+                    -#    %br/
+                    -#    .radio
+                    -#      %label
+                    -#        %input{:name => "optionsRadios", :type => "radio", :value => "option2"}/
+                    -#        Featured ads
+                    -#    %br/
+                    -#    .radio
+                    -#      %label
+                    -#        %input{:name => "optionsRadios", :type => "radio", :value => "option2"}/
+                    -#        Only ads with pictures
+                    .row.filter-row
+                      .col-sm-2.pull-right{:style => "margin-top: 10px;"}
+                        = f.submit "Search",class: "button btn btn-primary pull-right"
+                        -#%button.btn.btn-primary.pull-right{:type => "submit"} Update results
+      -#.row
+      -#  .col-sm-11
+      -#    .panel.panel-default
+      -#      .panel-heading Refine category
+      -#      .panel-body
+      -#        %ul.nav.nav-category
+      -#          %li
+      -#            %a.active{:href => "category.html"} All categories
+      -#            %ul
+      -#              %li
+      -#                %a{:href => "listings.html"} Cars, Vans &amp; Motorbikes
+      -#                %ul
+      -#                  %li
+      -#                    %a.active{:href => "listings.html"} Cars
+      -#                    %ul
+      -#                      %li
+      -#                        %a.active{:href => "listings.html"}
+      -#                          %strong Porsche
+      -#                        (66)
+      -#                        %a.remove-category{:href => "#"}
+      -#                          %i.fa.fa-times
+
+  .col-sm-8.pull-right.listings
+    .row.listing-row{:style => "margin-top: -10px;"}
+      .pull-left
+        %strong= Date.today.strftime("Today , %d  %B ,%Y ")
+      -#.pull-right
+        %span{:style => ""} Sort by:   
+        %a{"data-placement" => "top", "data-toggle" => "tooltip", :href => "#", :title => "Sort from newest to oldest"}
+          Date
+          %i.fa.fa-chevron-up
+        %a{"data-placement" => "top", "data-toggle" => "tooltip", :href => "#", :title => "Sort from lowest price to highest price"}
+          Price
+          %i.fa.fa-chevron-down
     - @jobs.each do |job|
-      .col-sm-4.animated.fadeInLeftBig
-        .panel
-          %section.panel.b-light.text-center{style:"border-color:thistle height: 100%"}
-            %header.panel-heading.bg-color-white{:style => "display: table; width: 100%; height: 100%;"}
-              %h3.equal-height.margin-bottom-20
-                = job.title
-                %br
-                %span.h4.text-muted
-                  = job.job_category
-              %ul.list-group
-                %li.list-group-item
-                  %p.h4
-                    = job.company.name.titleize
-                %li.list-group-item.text-muted.text-center{:style => "text-align: justify; font-size: 14px; height: 140px;"}
-                  = truncate(strip_tags(job.description),length: 170)
-              .pannel-footer.b-light.links{:style => ""}
-                = link_to 'Apply',candidate_signed_in? ? static_job_apply_path(job,status:true)  : static_job_apply_path(job,status: false) ,method: :post,remote: true ,class: "btn btn-primary size #{current_candidate.present? ?  (current_candidate.is_already_applied?(job.id) ? 'disabled' : " ") :''  } "
-                = link_to 'View Detail',static_job_path(job),class: 'btn btn-primary size'
-= will_paginate @posts ,class:'pull-right ',style: ''
+      .row.premium.listing-row
+        .col-sm-12
+          %h3
+            %a{:href => static_job_path(job)}
+              = job.title+"-"
+              %strong= job.company.name.humanize
+          %p.muted
+            Located in
+            %strong= job.location
+          %p.muted
+            = job.start_date.strftime("Posted on %B %d ,%Y") + " to"
+            %a.underline{:href => "#"}= job.job_category
+          %p= truncate(strip_tags(job.description),length: 200)
+          %p.ad-description
+            %strong= "Last date to apply  " + job.end_date.to_s
+            -#|
+            -#%strong 98,000 mil
+          %p
+            %span.classified_links.pull-right
+              = link_to 'Details' , static_job_path(job) , class: "underline link-info"
+               
+              -#%a.link-info.underline{:href => "#"} Contact
+
+      %div
+        = will_paginate @posts ,class:'pagination pull-right '
+
 
 -content_for :scripts do
 
