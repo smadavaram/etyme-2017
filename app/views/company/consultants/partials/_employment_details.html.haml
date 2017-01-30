@@ -33,7 +33,7 @@
       = p.select :salary_type, [['Salaried','salaried'],['Hourly','hourly']], {}, {:class=>"form-control"}
   .form-group
     %label.col-md-2.control-label
-      Salary
+      Salary $
       %sup.text-danger *
     .col-md-10
-      = p.text_field :salary , class: 'form-control ' , placeholder: "Enter Salary" , required: true
+      = p.number_field :salary , class: 'form-control ' , placeholder: "Enter Salary" , required: true

@@ -44,7 +44,7 @@ class User < ActiveRecord::Base
   accepts_nested_attributes_for :custom_fields   , reject_if: :all_blank
   accepts_nested_attributes_for :address   , reject_if: :all_blank, update_only: true
 
-  validates_uniqueness_of :email, scope: :company_id
+  validates_uniqueness_of :email
   # validates_inclusion_of :time_zone, in: ActiveSupport::TimeZone.all.map { |tz| tz.tzinfo.name }
 
   def time_zone_now

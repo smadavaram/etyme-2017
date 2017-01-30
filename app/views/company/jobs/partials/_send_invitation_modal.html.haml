@@ -39,9 +39,9 @@
                   .tab-content.padding-10
                     %section#widget-grid{style: 'margin-top: 10px;'}
                       .col-sm-12
-                        = form_for :consultant ,url: import_job_job_invitations_path(job), multipart: true do |f|
+                        -#= form_for :consultant ,url: import_job_job_invitations_path(job), multipart: true do |f|
                           -#= f.file_field :file
-                          = f.button "Bulk Import".html_safe, data: {disable_with: disable_spinning("Importing...")} , class: 'btn btn-primary btn-sm pull-right margin-bottom-10'
+                          -#= f.button "Bulk Import".html_safe, data: {disable_with: disable_spinning("Importing...")} , class: 'btn btn-primary btn-sm pull-right margin-bottom-10'
                       = render partial: 'candidate/candidates/partials/form',locals:{job: job}
 :javascript
   $(document).ready(function () {
@@ -51,7 +51,10 @@
      $("#temp_candidates").select2({
      placeholder: "Select Candidate"
      });
-     $('#job_invitation_expiry,#candidate_expiry,#vendor_expiry').datepicker({
+     $('#job_invitation_expiry,#direct_email,#vendor_expiry').datepicker({
+        dateFormat : 'dd/mm/yy'
+     });
+     $('#direct_email_canidate').datepicker({
         dateFormat : 'dd/mm/yy'
      });
   });

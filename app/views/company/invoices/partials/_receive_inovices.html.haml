@@ -1,0 +1,20 @@
+.table{:style => "width:100"}
+  %table#resultTable.table.table-striped.table-bordered.table-hover
+    %thead
+      %tr
+        %th id
+        %th Start Date
+        %th End Date
+        %th Status
+        %th Detail
+    %tbody
+      - data.each do |contract|
+        %tr{class: "#{set_background_status_color(contract.status)}"}
+          %td= contract.id
+          %td= contract.start_date
+          %td= contract.end_date
+          %td= contract.status.humanize
+          %td
+            = link_to 'View Detail' , contract_invoice_path(contract.contract , contract) , target: '_blank' ,class: 'btn btn-xs btn-default btn-primary'
+
+  -#= digg_pagination(data)

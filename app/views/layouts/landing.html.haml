@@ -18,7 +18,7 @@
           %button.close{"data-dismiss" => "alert"}
             ×
           %i.fa-fw.fa.fa-check
-          = value
+          = [value].join(',')
 
       -#- if notice
       -#  .alert.alert-success.fade.in
@@ -69,6 +69,15 @@
     background: #ff7518;
   }
   .alert-error {
+    background-image: -webkit-linear-gradient(top, #D2160A 0%, #D2160A 100%);
+    background-image: linear-gradient(to bottom,#D2160A 0%, #D2160A 100%);
+    background-repeat: repeat-x;
+    filter: progid:DXImageTransform.Microsoft.gradient(startColorstr='#ffff7518', endColorstr='#fff16100', GradientType=0);
+    border-color: #cb5200;
+    background: #D2160A;
+    color: #fff;
+  }
+  .alert-errors {
     background-image: -webkit-linear-gradient(top, #D2160A 0%, #D2160A 100%);
     background-image: linear-gradient(to bottom,#D2160A 0%, #D2160A 100%);
     background-repeat: repeat-x;

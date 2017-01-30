@@ -2,7 +2,8 @@ class Company::InvoicesController < Company::BaseController
 
   before_action :find_contract , only: [:show, :download , :index,:accept_invoice,:reject_invoice ]
   before_action :find_invoice , only: [:show, :download,:accept_invoice,:reject_invoice]
-  before_action :set_invoices , only: [:index,:accept_invoice,:reject_invoice]
+  before_action :set_invoices , only: [:accept_invoice,:reject_invoice]
+  before_action :set_company_contract_invoices , only: [:index]
 
   add_breadcrumb "INVOICES", '#', options: { title: "INVOICES" }
 
@@ -69,13 +70,22 @@ class Company::InvoicesController < Company::BaseController
     @invoice  = @contract.invoices.includes(timesheets: [timesheet_logs: [:transactions , :contract_term]]).find(params[:id])
     if  !@contract.is_sent?(current_company)
 
-    elsif  not @invoice.submitted? && @contract.is_sent?(current_company)
+    elsif  not (@invoice.submitted? && @contract.is_sent?(current_company))
+      flash[:errors] = "Invoice is not submitted by Responde"
       redirect_to contract_invoices_path(@contract)
     end
   end
 
   def set_invoices
-    @invoices  = @contract.invoices || []
+    @invoices  =  @contract.invoices || []
+  end
+
+  def set_company_contract_invoices
+    if params['contract_id'].present?
+     @invoices  =  @contract.invoices || []
+    end
+    @send_contract_invoices = current_company.sent_invoices
+    @rec_contract_invoices = current_company.received_invoices
   end
 
   def find_child_invoice_timesheet_logs invoice

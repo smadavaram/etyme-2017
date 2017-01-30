@@ -2,16 +2,16 @@
   .row
     .col-sm-12.col-md-12.col-lg-3
       .panel-body.status.profile-margin{style: 'background: #FFF!important;border: 1px solid #ccc;'}
-        .text
+        .text{style:"height: 200px;"}
           %div.profile-hover
             //= f.label :filepicker_url, "Upload Your Avatar:"
             %p.imgDescription.col-sm-offset-4  Change Logo
-            %div.pictureContainer.col-md-offset-2
+            %div.pictureContainer.col-md-offset-2{style:"margin-left:15px"}
               = filepicker_field_tag "" ,class: "hidden file", onchange:"employeeLogoUpload(event)","data-fp-crop-ratio" => "2/2",mimetypes: "image/*"
               -if(current_company.logo.present?)
                 = image_tag current_company.logo,  style:"width:100px;height:100px", fit: 'clip',:class =>"profile-pic image-setting"
               -else
-                = image_tag image_path('default_user.png'),  style: "width:100px;height:100px", fit: 'clip',:class =>"profile-pic image-setting"
+                = image_tag image_path('default-lcom-ogo.png'),  style: "width:100px;height:100px", fit: 'clip',:class =>"profile-pic image-setting"
 
         %ul.links{style: 'background: #FFF!important'}
           %li.col-sm-4.padding-bottom-10

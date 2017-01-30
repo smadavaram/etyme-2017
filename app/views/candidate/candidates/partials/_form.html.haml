@@ -27,7 +27,7 @@
       Expiry
       %sup.text-danger *
     .col-md-10
-      = f.text_field :expiry ,class: "form-control" , required: 'required', placeholder: "Invitation Expire Date"
+      = f.text_field :expiry ,class: "form-control" , required: 'required', placeholder: "Invitation Expire Date" ,id:"direct_email_canidate"
   .form-group
     %label.col-md-2.control-label
       Message
@@ -40,62 +40,10 @@
       Cancel
     = f.button "Send".html_safe, data: {disable_with: disable_spinning("Sending...")} , class: 'btn btn-primary btn-sm'
 
-
-
-
-
-
-
-
-
-
--#
--#= simple_form_for :candidate ,html:{ class:'form-horizontal'} do |f|
--#  %fieldset
--#    -#%legend Company Jobs
--#    .form-group
--#      %label.col-md-2.control-label
--#        First Name
--#        %sup.text-danger *
--#      .col-md-10
--#        = f.text_field :first_name , class: 'form-control' , placeholder: 'Enter First Name' , required: true
--#    .form-group
--#      %label.col-md-2.control-label
--#        Last Name
--#        %sup.text-danger *
--#      .col-md-10
--#        = f.text_field :last_name , class: 'form-control' , placeholder: 'Enter Last Name' , required: true
--#    .form-group
--#      %label.col-md-2.control-label
--#        Email
--#        %sup.text-danger *
--#      .col-md-10
--#        = f.email_field :email , class: 'form-control' , placeholder: 'Enter Email Address' , required: true
--#    -#.form-group
--#    -#  %label.col-md-2.control-label
--#    -#    Job Location
--#    -#    %sup.text-danger *
--#    -#  .col-md-10
--#    -#    = select_tag "admin[location_id]", options_from_collection_for_select(@locations, "id", "name") , class: 'form-control'  , required: true
--#    -#.form-group
--#    -#  %label.col-md-2.control-label
--#    -#    Job Location
--#    -#    %sup.text-danger *
--#    -#  .col-md-10
--#    -#    = f.collection_select :role_ids, @roles, :id, :name, {}, {:class=>"form-control input-lg multi-select2-role",:multiple => true,required: true}
--#  .form-actions
--#    .row
--#      .col-md-12
--#        = button_tag 'Cancel' , class: 'btn btn-default'
--#        -#%button.btn.btn-default{:type => "submit"}
--#        -#  Cancel
--#        = f.submit "Submit", class: 'btn btn-primary'
-
 - content_for :scripts do
   :javascript
     // DO NOT REMOVE : GLOBAL FUNCTIONS!
     $(document).ready(function() {
-      pageSetUp();
       // Job End Date
 
     });

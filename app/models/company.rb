@@ -31,6 +31,8 @@ class Company < ActiveRecord::Base
   has_many :leaves                    , through:   :users
   has_many :timesheet_logs            , through:   :timesheets
   has_many :timesheet_approvers       , through:   :timesheets
+  has_many :sent_invoices             , through:   :received_contracts ,source:  :invoices
+  has_many :received_invoices         , through:   :sent_contracts ,source:  :invoices
   # has_many :invoices                  , through:   :timesheets
   has_one  :subscription              , dependent: :destroy
   has_one  :package                   , through:   :subscription
@@ -42,7 +44,7 @@ class Company < ActiveRecord::Base
   validates_uniqueness_of   :name, message: "This company is already registered on etyme. You can connect with its Admin and he can allow you to be added into the company"
   validates_length_of :name,  minimum:    3   , message: "must be atleat 3 characters"
   validates_length_of :name,  maximum:    50  , message: "can have maximum of 50 characters"
-  validates_uniqueness_of    :slug,  message: "This slug is already registered on etyme. You can connect with its Admin and he can allow you to be added into the company"
+  validates_uniqueness_of    :slug,  message: "This company is already registered on etyme. In order to invited to the company; Please talk to the admin / owner of the company.  Or you can register a new company with a different name"
   validates_exclusion_of :slug, in: EXCLUDED_SUBDOMAINS, message: "is not allowed. Please choose another subdomain"
   validates_format_of :slug, with: /\A[\w\-]+\Z/i, allow_blank: true, message: "is not allowed. Please choose another subdomain."
 
