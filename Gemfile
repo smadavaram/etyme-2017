@@ -6,12 +6,10 @@ source 'https://rubygems.org'
 gem 'rails', '4.2.0'
 gem 'best_in_place'
 gem 'signature-pad-rails'
-gem 'mina' , github: 'nadarei/mina'
-gem 'mina-multistage', require: false
-
-
-
-
+gem 'mina' ,'~> 0.2.1'
+gem 'mina-multistage', '<= 1.0.1', require: false
+# gem 'mina-puma', :require => false
+gem 'puma'
 #****************************
 # Javascript Configuration
 #****************************

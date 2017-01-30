@@ -18,16 +18,15 @@
                       .col-sm-2
                         %span.input-group-addon-text Search Job
                       .col-sm-6
-                        = f.text_field :title_or_job_category_cont, class: "form-control input-md ", placeholder: "Search Jobs..."
+                        = f.text_field :title_or_job_category_cont, class: "form-control input-md ", placeholder: "By Job..."
                         .help-block.pull-left job title, category
                       -#.input-group-btn
                       -#  = f.select :job_category_eq , WORK_CATEGORIES.each { |key, value| [key.humanize, value] }, {} , {class: "btn btn-default dropdown-toggle" , style:'width: 140px', onChange: "this.form.submit();"}
                       .col-sm-4{style: "padding-left: 0px"}
                         .form-group
-                          = f.text_field :location_cont , class: "form-control input-md",placeholder: "Search by location"
+                          = f.text_field :location_cont , class: "form-control input-md",placeholder: "By location"
                           .help-block.pull-left county,state,city
 
-              %br/
               %br/
             .row
               .col-sm-12{:style => "text-align: center"}
@@ -46,7 +45,6 @@
                     %strong  creating web sites.
                   .text-item{:style => "display: none;"}
                     %strong Newsfeed,
-                    Chatter,
                     %strong Bulk Email,
                     Activity feed
                     %strong & HR Networking.

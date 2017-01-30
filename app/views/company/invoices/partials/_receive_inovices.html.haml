@@ -3,6 +3,7 @@
     %thead
       %tr
         %th id
+        %th Contract
         %th Start Date
         %th End Date
         %th Status
@@ -11,6 +12,7 @@
       - data.each do |contract|
         %tr{class: "#{set_background_status_color(contract.status)}"}
           %td= contract.id
+          %td= contract.contract.title.humanize
           %td= contract.start_date
           %td= contract.end_date
           %td= contract.status.humanize

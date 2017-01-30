@@ -20,7 +20,9 @@
 
       $(document).ready(function() {
 
-
+         // $.validator.setDefaults({
+         //    ignore: []
+         //  });
 
         pageSetUp();
 
@@ -39,7 +41,6 @@
         //Bootstrap Wizard Validations
 
         var $validator = $("#wizard-1").validate({
-
           rules: {
             email: {
               required: true,
@@ -68,6 +69,9 @@
             hphone: {
               required: true,
               minlength: 10
+            },
+            roles: {
+            required: true
             }
           },
 
