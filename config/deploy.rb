@@ -35,7 +35,7 @@ end
 
 desc "Deploys the current version to the server."
 task :environment do
-  # invoke :'rvm:use[2.3.1@etyme]'
+  invoke :'rvm:use[2.3.1@etyme]'
 end
 task :deploy => :environment do
   deploy do
