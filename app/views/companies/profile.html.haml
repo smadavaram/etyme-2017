@@ -4,12 +4,14 @@
       .row
         .col-sm-3
           %a
-            = image_tag @company.logo.present? ? @company.logo : image_path("default-Icom-ogo.png"),style: "width:100px;height:100px;"
+            = image_tag @company.logo.present? ? @company.logo : asset_path('default-lcom-ogo.png'), style: "width:100px;height:100px;"
+            %h2
+              = @company.name.titleize
         .col-sm-4.col-sm-offset-5
-          %b
-            = @company.name.titleize
-          %br/
-          %br/
+          -#%b
+          -#  = @company.name.titleize
+          -#%br/
+          -#%br/
           = "Telephone:  #{@company.phone}"
           %br/
           Email:
