@@ -11,8 +11,7 @@ class Admin < User
 
   accepts_nested_attributes_for :address , reject_if: :all_blank
 
-  private
-
+    # it should be public method
     def send_invitation
       invite! do |u|
         u.skip_invitation = true
