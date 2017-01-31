@@ -57,6 +57,7 @@ class Company < ActiveRecord::Base
   after_create      :set_owner_company_id
   after_create      :welcome_email_to_owner
   after_create      :assign_free_subscription
+  after_create      :create_defult_roles
 
   scope :vendors, -> {where(company_type: 1)}
 
@@ -95,6 +96,14 @@ class Company < ActiveRecord::Base
 
   def assign_free_subscription
     self.build_subscription(package: Package.free).save
+  end
+
+  def create_defult_roles
+    self.roles.create(name:'Recruit',permissions: Permission.where(name:["manage_consultants","manage_jobs","manage_vendors"]))
+    self.roles.create(name:'Sales',permissions:Permission.where(name:["show_invoices"]))
+    self.roles.create(name:'HR Admin',permissions:Permission.where(name:["manage_consultants","manage_jobs","manage_vendors","send_job_invitations","manage_job_invitations","manage_job_applications","create_new_contracts","show_contracts_details","edit_contracts_terms","manage_leaves"]))
+    self.roles.create(name:'Book keeping',permissions:Permission.where(name:[]))
+    self.roles.create(name:'Consultant',permissions:Permission.where(name:["manage_timesheets","show_invoices"]))
   end
 
 

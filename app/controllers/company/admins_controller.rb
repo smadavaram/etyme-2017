@@ -52,6 +52,7 @@ class Company::AdminsController < Company::BaseController
   def set_locations
     @locations = current_company.locations || []
   end
+
   def admin_params
     params.require(:admin).permit(:first_name,
                                        :last_name ,
