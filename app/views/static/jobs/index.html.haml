@@ -14,7 +14,7 @@
                         = f.text_field :title_or_job_category_cont, class: "form-control input-md ", placeholder: "Search Jobs..."
                         .input-group-addon.hidden-xs
                           .btn-group
-                            = f.select :job_category_eq , WORK_CATEGORIES.each { |key, value| [key.humanize, value] }, {} , {class: "btn btn-default btn-md dropdown-toggle" , style:'width: 140px;height:45px ', onChange: "this.form.submit(); "}
+                            = f.select :job_category_eq , WORK_CATEGORIES.each { |key, value| [key.humanize, value] }, {include_blank: "All"} , {class: "btn btn-default btn-md dropdown-toggle" , style:'width: 140px;height:45px ', onChange: "this.form.submit(); "}
 
                 .col-sm-4.col-xs-3{:style => "text-align: center"}
                   .row
@@ -70,7 +70,7 @@
             -#%strong 98,000 mil
           %p
             %span.classified_links.pull-right
-              = link_to 'Details' , static_job_path(job) , class: "underline link-info"
+              = link_to 'Details' , static_job_path(job),class: "underline link-info"
                
               -#%a.link-info.underline{:href => "#"} Contact
 
