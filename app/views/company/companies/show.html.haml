@@ -65,8 +65,6 @@
               -# Locations form TAB
               #hr2.tab-pane
                 = link_to 'New' , new_location_path, remote: true , class: 'button btn btn-primary pull-right margin-bottom-5 margin-right-10'
-                -#%button.btn.btn-primary.pull-right.margin-bottom-5.margin-right-10{"data-target" => "#new_location", "data-toggle" => "modal"}
-                -#  New
                 .tabbable.tabs-below
                   = render partial: 'company/companies/partials/location_show_form'
 
