@@ -2,14 +2,16 @@ class CompaniesController < ApplicationController
 
   skip_before_action :authenticate_user! , only:[:new , :create , :signup_success]
 
+  before_action :find_company,only: :profile
+
   respond_to :html,:json
 
   layout 'landing'
 
   add_breadcrumb "Home",'/'
-  add_breadcrumb "Company",""
-  add_breadcrumb "Sign Up",''
   def new
+    add_breadcrumb "Company",""
+    add_breadcrumb "Sign Up",''
     @company = Company.new
     @company.build_owner(type: 'Admin')
   end
@@ -26,7 +28,14 @@ class CompaniesController < ApplicationController
     end
   end
 
+  def profile
+    add_breadcrumb @company.name.titleize,"#"
+  end
+
   private
+  def find_company
+    @company = Company.find(params[:id]);
+  end
 
   def company_params
     params.require(:company).permit(:name ,:company_type, :website,:logo,:description,:phone,:email,:linkedin_url,:facebook_url,:twitter_url,:google_url,:is_activated,:status,:tag_line,

@@ -1,0 +1,39 @@
+.panel
+  .panel-heading
+    %strong
+      .row
+        .col-sm-3
+          %a
+            = image_tag @company.logo.present? ? @company.logo : image_path("default-Icom-ogo.png"),style: "width:100px;height:100px;"
+        .col-sm-4.col-sm-offset-5
+          %b
+            = @company.name.titleize
+          %br/
+          %br/
+          = "Telephone:  #{@company.phone}"
+          %br/
+          Email:
+          %a= @company.email
+          %br/
+          %a= @company.google_url
+    %hr
+    %ul{:style => "list-style: none outside none;text-align:justify;padding:10px;overflow: auto;line-height:25px;"}
+      %b About
+      %li
+        = @company.description
+      %br
+      %b Locations
+      .row
+        .col-sm-12
+          - @company.locations.each do |location|
+            .col-sm-4
+              %br
+              %b= "#{location.name}"
+              %br
+              = location.address.address_1
+              %br
+              = "#{location.address.zip_code}   #{location.address.city.try(:titleize)}   #{CS.get(location.address.country)[location.address.state.to_sym]}"
+              %br
+              = CS.countries()[location.address.country.to_sym]
+      %br/
+      %br/
