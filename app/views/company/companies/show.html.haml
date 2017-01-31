@@ -2,11 +2,11 @@
   .row
     .col-sm-12.col-md-12.col-lg-3
       .panel-body.status.profile-margin{style: 'background: #FFF!important;border: 1px solid #ccc;'}
-        .text{style:"height: 200px;"}
+        .text
           %div.profile-hover
             //= f.label :filepicker_url, "Upload Your Avatar:"
             %p.imgDescription.col-sm-offset-4  Change Logo
-            %div.pictureContainer.col-md-offset-2{style:"margin-left:15px"}
+            %div.pictureContainer.col-md-offset-2
               = filepicker_field_tag "" ,class: "hidden file", onchange:"employeeLogoUpload(event)","data-fp-crop-ratio" => "2/2",mimetypes: "image/*"
               -if(current_company.logo.present?)
                 = image_tag current_company.logo,  style:"width:100px;height:100px", fit: 'clip',:class =>"profile-pic image-setting"
@@ -69,7 +69,6 @@
                 -#  New
                 .tabbable.tabs-below
                   = render partial: 'company/companies/partials/location_show_form'
-                -#= render 'company/locations/partials/location_form_modal'
 
               -# Owner And Admin TAB
               #hr3.tab-pane
