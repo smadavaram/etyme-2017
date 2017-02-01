@@ -1,5 +1,5 @@
-.modal.fade.in{ id: "job-apply-#{job.id}"}
-  .modal-dialog.modal-lg
+.modal.fade.in{ id: "job-invitation-multiple-#{job.id}"}
+  .modal-dialog.modal-md
     .modal-content
       .modal-header
         %button.close{"aria-hidden" => "true", "data-dismiss" => "modal", :type => "button"}
@@ -22,16 +22,20 @@
             .form-group
               %label.col-md-2.control-label Select Candidates
               .col-md-10
-                = select_tag 'temp_candidates', options_for_select(current_company.candidates.collect { |c| [c.full_name,c.id] }),prompt: "Select Candidate" ,class: 'form-control' , required: true ,:multiple => true
+                = select_tag 'temp_candidates', options_for_select(current_company.candidates.collect { |c| [c.full_name,c.id] }),class: 'form-control select2' , required: true ,:multiple => true
 
-            .nested-fields
-              = f.fields_for :custom_fields do |custom|
-                .form-group
-                  %label.col-md-2.control-label #{custom.object.name}
-                  .col-md-10
-                    = custom.hidden_field  :name , value: custom.object.name
-                    = custom.text_field  :value, class: "form-control", placeholder: custom.object.name
+            -#.nested-fields
+            -#  = f.fields_for :custom_fields do |custom|
+            -#    .form-group
+            -#      %label.col-md-2.control-label #{custom.object.name}
+            -#      .col-md-10
+            -#        = custom.hidden_field  :name , value: custom.object.name
+            -#        = custom.text_field  :value, class: "form-control", placeholder: custom.object.name
           .modal-footer
             %button.btn.btn-default{"data-dismiss" => "modal", :type => "button"}
               Cancel
             = f.button "Save".html_safe , class: 'btn btn-primary' , data: {disable_with: disable_spinning('Saving...')}
+:css
+  .select2{
+    width: 370px;
+    }
