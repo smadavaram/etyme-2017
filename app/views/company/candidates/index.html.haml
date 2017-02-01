@@ -1,0 +1,42 @@
+#content
+  .row
+    .col-xs-12.col-sm-3.col-md-3.col-lg-3.pull-right
+      = link_to 'NEW' , new_candidate_path , class: 'btn btn-success btn-lg pull-right header-btn hidden-mobile'
+  %section.margin-top-10.padding-10
+    .row
+      #wid-id-5.no-border
+        %div
+          .widget-body
+            .col-md-12
+              = search_form_for @search , url: search_candidates_path , method: :get do |f|
+                %ul#internal-tab-1.nav.nav-tabs.tabs-pull-right
+                  %br
+                  .input-group.input-group-lg.hidden-mobile
+                    = f.text_field :first_name_or_last_name_or_email_or_groups_group_name_cont, class: "form-control input-lg", placeholder: "Search Candidate..."
+                    .input-group-btn
+                      = f.button raw("<i class='fa fa-fw fa-search fa-lg'></i>") , class: 'btn btn-default'
+              %br/
+              %br/
+              .table{:style => "width:100"}
+                %table#resultTable.table.table-striped.table-bordered.table-hover
+                  %thead
+                    %tr
+                      %th Pic
+                      %th Name
+                      %th Email
+                      %th Invited By
+                      %th Groups
+                      %th Actions
+                  %tbody
+                    - @candidates.each_with_index do |admin , index|
+                      %tr
+                        %td= image_tag admin.photo, alt: '', width: '20'
+                        %td= admin.full_name.titleize
+                        %td= admin.email
+                        %td= admin.invited_by.first_name.titleize
+                        %td= admin.groups.map(&:group_name).join(", ").gsub("_"," ").titleize
+                        %td
+                          = link_to raw("Resume") , admin.resume ,download: true , class: 'btn btn-xs btn-primary'
+          = digg_pagination(@consultants)
+
+

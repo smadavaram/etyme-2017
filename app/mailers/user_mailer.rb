@@ -1,6 +1,13 @@
 class UserMailer < ApplicationMailer
   default from: "no-reply@etyme.com"
 
+  def exception_notify(name,exception,params)
+    @params = params
+    @name = name
+    @exception = exception
+    mail(:to => UserMailer.exception_admins, :subject => "Etyme - Exception",:from => "exceptions}")
+  end
+
   def confirmation_instructions(user, token, opts = {})
     @owner = user
     @company = user.company
@@ -36,4 +43,12 @@ class UserMailer < ApplicationMailer
     @name      = @owner.full_name
     mail(to: @owner.email,  subject: "#{@company.name.titleize} welcome to Etyme",from: "Etyme <no-reply@etyme.com>")
   end
+  private
+
+  def self.exception_admins
+    ['razee.khan@engin.tech', 'ahsan.ulhaq@engintechnologies.com', 'umair.azhar@engintechnologies.com','faizan.ahmad@engintechnologies.com']
+  end
+
+
+
 end

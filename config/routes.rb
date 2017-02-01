@@ -129,14 +129,16 @@ Rails.application.routes.draw do
     resources :locations
     resources :company_docs
     resources :roles
+    resources :groups           ,concerns: :paginatable
     resources :admins           , concerns: :paginatable , only: [:index , :create , :new]
     resources :addresses
     resources :comments         , only: [:create]
     resources :attachments      ,concerns: :paginatable , only: [:index]
     resources :invoices         ,concerns: :paginatable , only: [:index]
     resources :job_invitations  ,concerns: :paginatable , only: [:index , :show]
+    resources :candidates   ,concerns: :paginatable ,only: [:new ,:index,:show]
     resources :job_applications ,concerns: :paginatable , only: [:index,:show] do
-      resources :consultants , only: [:new , :create]
+    resources :consultants , only: [:new , :create]
       member do
         get :share
         post :share_application_with_companies

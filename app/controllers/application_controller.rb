@@ -4,6 +4,16 @@ class ApplicationController < ActionController::Base
 
   layout :set_devise_layout
 
+
+  rescue_from Exception, with: :render_generic_exception if Rails.env.production?
+  rescue_from ActionController::RoutingError, with: :render_not_found if Rails.env.production?
+  rescue_from ActionController::UnknownController, with: :render_not_found if Rails.env.production?
+  rescue_from AbstractController::ActionNotFound, with: :render_not_found if Rails.env.production?
+  rescue_from ActiveRecord::RecordNotFound, with: :render_not_found if Rails.env.production?
+  rescue_from StandardError,with: :render_not_found if Rails.env.production?
+
+
+
   # before_filter :authenticate_user!
 
 
@@ -32,6 +42,21 @@ class ApplicationController < ActionController::Base
     end
   end
 
+  def render_exception(status = 500, message = 'An Error Occurred', exception)
+    @status = status
+    @message = message
+    UserMailer.exception_notify(exception,exception.backtrace[0..25].join('\n'),params).deliver if Rails.env.production?
+    render template: "shared/404", formats: [:html], layout: false
+  end
+
+  def render_generic_exception(exception)
+    render_exception(500, exception.message, exception)
+  end
+
+
+  def render_not_found(exception = nil)
+    render_exception(404, 'Not Found', exception)
+  end
 
   def current_company
     @company ||= Company.where(slug: request.subdomain).first if request.subdomain.present?

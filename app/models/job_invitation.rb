@@ -81,11 +81,14 @@ class JobInvitation < ActiveRecord::Base
           u.skip_invitation = true
         end
     else
-      self.recipient = Candidate.invite!({first_name: first_name, last_name: last_name, email: email} , self.created_by) do |u|
+      self.recipient = Candidate.invite!({first_name: first_name, last_name: last_name, email: email  } , self.created_by) do |u|
         u.skip_invitation = true
+28/02/2017
       end
       # self.recipient.sent_invitation_mail
+      # self.recipient = Candidate.new({first_name: first_name, last_name: last_name, email: email , invited_by_id: self.created_by.id , invited_by_type: 'User'})
     end
     self.save
+    # self.recipient.save
   end
 end

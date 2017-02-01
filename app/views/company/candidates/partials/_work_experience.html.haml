@@ -1,0 +1,33 @@
+= f.fields_for :experiences do |c|
+  %fieldset
+    .form-group
+      %label.col-md-2.control-label
+        Experience Title
+        %sup.text-danger *
+      .col-md-10
+        = c.text_field :experience_title,placeholder: "Experience Title",class: 'form-control'
+    .form-group
+      %label.col-md-2.control-label
+        Institute Name
+        %sup.text-danger *
+      .col-md-10
+        = c.text_field :institute,placeholder: "Institute Name",class: 'form-control'
+    .form-group
+      %label.col-md-2.control-label
+        Start Date
+        %sup.text-danger *
+      .col-md-10
+        = c.text_field :start_date,placeholder: "Start Date",class: 'form-control education_start_year'
+    .form-group
+      %label.col-md-2.control-label
+        End Date
+        %sup.text-danger *
+      .col-md-10
+        = c.text_field :end_date,placeholder:"End Date",class: 'form-control education_completion_year '
+    .form-group
+      %label.col-md-2.control-label
+        Description
+        %sup.text-danger *
+      .col-md-10
+        = c.text_area :description,placeholder: "Description",class: 'form-control', row: '5'
+  `
