@@ -168,6 +168,9 @@ Rails.application.routes.draw do
     end
 
     resources :jobs , concerns: :paginatable do
+
+      match 'create_multiple_for_candidate',    to: 'job_applications#create_multiple_For_candidate', via: [:get, :post]
+
       resources :contracts , except: [:index , :show] do
         member do
           post :open_contract , as: :open_contract
