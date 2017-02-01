@@ -78,7 +78,13 @@ class Company < ActiveRecord::Base
   private
 
   def create_slug
-    self.slug = self.name.parameterize("").gsub("_","-").to_s.downcase
+    get_host_from_domain()
+  end
+
+  def get_host_from_domain
+    url = "http://#{domain}" if URI.parse(domain).scheme.nil?
+    host = URI.parse(url).host.downcase
+    self.slug = host.start_with?('www.') ? host[4..-1].split(".").first : host.split(".").first
   end
 
   def set_owner_company_id
