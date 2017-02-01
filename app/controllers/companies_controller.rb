@@ -18,8 +18,7 @@ class CompaniesController < ApplicationController
 
   def create
     @company = Company.new(company_params)
-    if @company.valid?
-      @company.save
+    if @company.save
       flash[:success] =  "Registration Successfull."
       render 'companies/signup_success' , layout: 'login'
     else
