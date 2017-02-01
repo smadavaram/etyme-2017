@@ -15,7 +15,7 @@
           - if ed.object.company_doc.is_required_signature?
             %span.text-danger{:style => "font-size: 12px;"} (Signature Required Document)
       .col-sm-4
-        = link_to raw("<i class='fa fa-download'></i>"),'',target:'_blank', class: 'btn btn-info pull-right download-doc-button'
+        = link_to raw("<i class='fa fa-download'></i>"),'',target:'_blank', class: 'btn btn-info pull-right download-doc-button',download: true
         - if ed.object.company_doc.is_required_signature?
           = ed.filepicker_field :file,  class: 'btn btn-info btn-custom-file pull-right'
           = ed.hidden_field :id

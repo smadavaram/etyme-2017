@@ -11,6 +11,12 @@
     .col-md-4
       = f.text_field :end_date ,class: "form-control" , required: 'required', placeholder: "Contract End Date"
   .form-group
+    %label.col-md-2.control-label
+      Type
+      %sup.text-danger *
+    .col-md-10.select
+      = f.select :contract_type , Contract.contract_types.map { |key, value| [key.titleize, key] }, {include_blank: '-- Select Contract Type --'} , {class: "form-control" , required: true}
+  .form-group
     %label.col-md-2.control-label Invoicing Frequency
     .col-md-4.select
       = f.select :billing_frequency , Contract.billing_frequencies.map { |key, value| [key.humanize, key] }, {} , {class: "form-control" }
