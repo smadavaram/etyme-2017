@@ -55,6 +55,8 @@
                               - if has_permission?("manage_job")
                                 = link_to raw("<i class='fa fa-pencil '></i>") , edit_job_path(job) , class: 'btn btn-xs btn-default btn-primary'
                                 = link_to raw("<i class='fa fa-times '></i>") , job_path(job) , method: :delete ,  class: 'btn btn-xs btn-default btn-danger'
+                                = link_to "Candidate", job_create_multiple_for_candidate_path(job),remote: true ,method: :get ,class: 'btn btn-xs btn-default btn-success'
+
                               - if(job.is_active?)
                                 -if has_permission?("send_job_invitations")
                                   = link_to 'Send Invitation' ,send_invitation_job_path(job) , method: :post ,remote: true,  class: 'btn btn-xs btn-default btn-success'
