@@ -15,12 +15,13 @@
             %span.label.pull-right.bg-color-darken
               = current_company.invited_companies.count
     %li
-    -#  = link_to '#', class: 'jarvismetro-tile big-cubes bg-color-blueDark' do
-    -#    %span.iconbox
-    -#      %i.fa.fa-wechat.fa-4x
-    -#      %span Messages
-    -#      %span.label.pull-right.bg-color-darken 99
-    -#-#%li
+      = link_to groups_path, class: 'jarvismetro-tile big-cubes bg-color-blueDark' do
+        %span.iconbox
+          %i.fa.fa-wechat.fa-4x
+          %span Groups
+          %span.label.pull-right.bg-color-darken
+            = current_company.groups.count
+    -#%li
     -#  = link_to '/', class: 'jarvismetro-tile big-cubes bg-color-blueDark' do
     -#    %span.iconbox
     -#      %i.fa.fa-money.fa-4x

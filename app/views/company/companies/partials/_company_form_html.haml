@@ -51,4 +51,4 @@
         %th
           Currency
         %td
-          = best_in_place current_company , :currency_id , as: :select , collection: Currency.all , place_holder: "Click me to add content"
+          = best_in_place current_company , :currency_id , as: :select , collection: Currency.all.map(&:name) , place_holder: "Click me to add content"

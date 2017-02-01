@@ -1,0 +1,10 @@
+.modal.fade{id: group.new_record? ? "new_group" : "group-#{group.id}"}
+  .modal-dialog
+    .modal-content
+      .modal-header
+        %button.close{"aria-hidden" => "true", "data-dismiss" => "modal", :type => "button"}
+          ×
+        %h4.modal-title
+          %strong= group.new_record? ? "Add New Group" : "Edit #{group.group_name}"
+      .modal-body.no-padding
+        = render 'company/groups/partial/form' , group: group

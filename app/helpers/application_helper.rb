@@ -153,6 +153,11 @@ module ApplicationHelper
                     title: 'Consultants',
                     content: "<span class='menu-item-parent'>" + 'Consultant(s)' + "</span>",
                 },
+                {
+                    href: candidates_path,
+                    title: 'Candidates',
+                    content: "<span class='menu-item-parent'>" + 'Candidate(s)' + "</span>",
+                },
 
                 {
                   href: contracts_path,

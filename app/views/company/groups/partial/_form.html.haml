@@ -1,0 +1,23 @@
+= form_for group,html:{ class:'form-horizontal',id: 'group-val'} do |f|
+  %br/
+  .form-group
+    %label.col-md-3.control-label
+      Group Name
+      %sup.text-danger *
+    .col-md-8
+      =f.text_field :group_name , required: true ,class:'form-control'
+  .form-group
+    %label.col-md-3.control-label
+      Select Candidate
+      %sup.text-danger *
+    .col-md-8
+      = f.select :candidate_ids, current_company.candidates.collect { |c| [c.first_name,c.id] },{},class: 'form-control select2',:multiple => true
+  .modal-footer
+    = f.button "submit".html_safe , class: 'btn btn-primary btn-sm' , data: {disable_with: ("Submitting...")} ,id: 'form_id'
+    %button.btn.btn-default{"data-dismiss" => "modal", :type => "button"}
+      Cancel
+:css
+  .select2{
+    width: 389px;
+    }
+

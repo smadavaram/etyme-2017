@@ -34,9 +34,11 @@ class Company < ActiveRecord::Base
   has_many :timesheet_approvers       , through:   :timesheets
   has_many :sent_invoices             , through:   :received_contracts ,source:  :invoices
   has_many :received_invoices         , through:   :sent_contracts ,source:  :invoices
+  has_many :groups
   # has_many :invoices                  , through:   :timesheets
   has_one  :subscription              , dependent: :destroy
   has_one  :package                   , through:   :subscription
+  has_and_belongs_to_many :candidates , dependent: :destroy
 
 
   # validates           :company_type, inclusion: { in: [0, 1] } , presence: true

@@ -1,0 +1,41 @@
+#content
+  .row
+    .col-xs-12.col-sm-3.col-md-3.col-lg-3.pull-right
+      = link_to 'NEW',new_group_path , remote: true , class: 'btn btn-success btn-lg pull-right header-btn hidden-mobile'
+  %section.margin-top-10
+    / row
+    .row
+      / NEW WIDGET START
+      %article.col-xs-12.col-sm-12.col-md-12.col-lg-12
+        #wid-id-0.jarviswidget
+          %header
+            %span.widget-icon
+              %i.fa.fa-table
+            %h2 Groups
+          %div
+            .widget-body.no-padding
+              %table#dt_basic.table.table-striped.table-bordered.table-hover
+                %thead
+                  %tr
+                    %th{"data-hide" => "phone",:width => "3%"} ID
+                    %th{"data-class" => "expand",:width => "10%"}
+                      %i.fa.fa-fw.fa-user.text-muted.hidden-md.hidden-sm.hidden-xs
+                      Name
+                    %th{"data-hide" => "phone,tablet",:width => "20%"}Candidates
+                    %th{"data-hide" => "phone,tablet",:width => "5%"}
+                      %i.fa.fa-fw.fa-calendar.txt-color-blue.hidden-md.hidden-sm.hidden-xs
+                      Date
+                    %th{"data-hide" => "phone,tablet",:width => "10%"}Actions
+                %tbody
+                  - @groups.each_with_index do |r , index|
+                    %tr
+                      %td= index+1
+                      %td= r.group_name.titleize
+                      %td= r.candidates.map(&:first_name).join(", ").gsub("_"," ").titleize
+                      %td= r.created_at.try(:strftime,'%B %d, %Y')
+                      %td
+                        = link_to 'Edit',edit_group_path(r) ,remote:true
+
+  - content_for :scripts do
+    :javascript
+
