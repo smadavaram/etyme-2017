@@ -11,7 +11,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema.define(version: 20170125075746) do
+ActiveRecord::Schema.define(version: 20170201072640) do
 
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
@@ -98,6 +98,21 @@ ActiveRecord::Schema.define(version: 20170125075746) do
   add_index "candidates", ["invited_by_id"], name: "index_candidates_on_invited_by_id", using: :btree
   add_index "candidates", ["reset_password_token"], name: "index_candidates_on_reset_password_token", unique: true, using: :btree
 
+  create_table "candidates_companies", id: false, force: :cascade do |t|
+    t.integer "candidate_id"
+    t.integer "company_id"
+  end
+
+  add_index "candidates_companies", ["candidate_id", "company_id"], name: "index_candidates_companies_on_candidate_id_and_company_id", unique: true, using: :btree
+
+  create_table "candidates_groups", id: false, force: :cascade do |t|
+    t.integer "group_id"
+    t.integer "candidate_id"
+  end
+
+  add_index "candidates_groups", ["candidate_id"], name: "index_candidates_groups_on_candidate_id", using: :btree
+  add_index "candidates_groups", ["group_id"], name: "index_candidates_groups_on_group_id", using: :btree
+
   create_table "comments", force: :cascade do |t|
     t.string   "body"
     t.integer  "commentable_id"
@@ -106,6 +121,8 @@ ActiveRecord::Schema.define(version: 20170125075746) do
     t.datetime "created_at",       null: false
     t.datetime "updated_at",       null: false
   end
+
+  add_index "comments", ["created_by_id"], name: "index_comments_on_created_by_id", using: :btree
 
   create_table "companies", force: :cascade do |t|
     t.integer  "owner_id"
@@ -132,7 +149,8 @@ ActiveRecord::Schema.define(version: 20170125075746) do
     t.string   "accountant_contact_email"
     t.datetime "created_at",                               null: false
     t.datetime "updated_at",                               null: false
-    t.integer  "company_type",             default: 0
+    t.integer  "company_type"
+    t.integer  "currency_id"
   end
 
   add_index "companies", ["owner_id"], name: "index_companies_on_owner_id", using: :btree
@@ -189,12 +207,12 @@ ActiveRecord::Schema.define(version: 20170125075746) do
     t.integer  "assignee_id"
     t.datetime "created_at",                            null: false
     t.datetime "updated_at",                            null: false
-    t.integer  "billing_frequency",     default: 0
-    t.integer  "time_sheet_frequency",  default: 0
+    t.integer  "billing_frequency"
+    t.integer  "time_sheet_frequency"
     t.integer  "company_id"
     t.date     "next_invoice_date"
     t.boolean  "is_commission",         default: false
-    t.integer  "commission_type",       default: 0
+    t.integer  "commission_type"
     t.float    "commission_amount",     default: 0.0
     t.float    "max_commission"
     t.integer  "commission_for_id"
@@ -205,6 +223,13 @@ ActiveRecord::Schema.define(version: 20170125075746) do
     t.integer  "contractable_id"
     t.string   "contractable_type"
     t.integer  "parent_contract_id"
+    t.integer  "contract_type"
+  end
+
+  create_table "currencies", force: :cascade do |t|
+    t.string   "name"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
   end
 
   create_table "custom_fields", force: :cascade do |t|
@@ -258,6 +283,15 @@ ActiveRecord::Schema.define(version: 20170125075746) do
     t.datetime "updated_at",       null: false
   end
 
+  create_table "groups", force: :cascade do |t|
+    t.string   "group_name"
+    t.integer  "company_id"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+  end
+
+  add_index "groups", ["company_id"], name: "index_groups_on_company_id", using: :btree
+
   create_table "invited_companies", force: :cascade do |t|
     t.integer  "user_id"
     t.integer  "invited_company_id"
@@ -300,8 +334,8 @@ ActiveRecord::Schema.define(version: 20170125075746) do
     t.integer  "company_id"
     t.integer  "applicationable_id"
     t.string   "applicationable_type"
-    t.string   "share_key"
     t.string   "applicant_resume"
+    t.string   "share_key"
   end
 
   create_table "job_invitations", force: :cascade do |t|
@@ -494,15 +528,6 @@ ActiveRecord::Schema.define(version: 20170125075746) do
 
   add_index "transactions", ["timesheet_log_id"], name: "index_transactions_on_timesheet_log_id", using: :btree
 
-  create_table "user_docs", force: :cascade do |t|
-    t.integer  "company_doc_id"
-    t.integer  "user_id"
-    t.string   "description"
-    t.string   "file"
-    t.datetime "created_at",     null: false
-    t.datetime "updated_at",     null: false
-  end
-
   create_table "users", force: :cascade do |t|
     t.integer  "company_id"
     t.string   "first_name",             default: ""
@@ -548,7 +573,7 @@ ActiveRecord::Schema.define(version: 20170125075746) do
   end
 
   add_index "users", ["deleted_at"], name: "index_users_on_deleted_at", using: :btree
-  add_index "users", ["email", "company_id"], name: "index_users_on_email_and_company_id", unique: true, using: :btree
+  add_index "users", ["email"], name: "index_users_on_email", unique: true, using: :btree
   add_index "users", ["invitation_token"], name: "index_users_on_invitation_token", unique: true, using: :btree
   add_index "users", ["invitations_count"], name: "index_users_on_invitations_count", using: :btree
   add_index "users", ["invited_by_id"], name: "index_users_on_invited_by_id", using: :btree
