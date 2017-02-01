@@ -5,5 +5,5 @@
         %button.close{"aria-hidden" => "true", "data-dismiss" => "modal", :type => "button"}
           ×
         %h4#myModalLabel.modal-title
-          %strong Add New Location
+          %strong= location.new_record? ? "Add New Location" : "Edit #{location.name}"
       = render 'company/locations/partials/form',location: location

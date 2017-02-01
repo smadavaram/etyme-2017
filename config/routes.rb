@@ -220,7 +220,11 @@ Rails.application.routes.draw do
 
   end # End of module company
 
-  resources :companies , only: [:new , :create,:update]
+  resources :companies , only: [:new , :create,:update] do
+    member do
+      get :profile
+    end
+  end
   resources :static , only: [:index]
 
   # Devise Routes

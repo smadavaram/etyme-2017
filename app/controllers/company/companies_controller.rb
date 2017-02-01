@@ -76,7 +76,7 @@ class Company::CompaniesController < Company::BaseController
   private
 
   def find_admin
-    @admin=current_company.admins.find_by_id(params[:admin_id])
+    @admin = current_company.admins.find_by_id(params[:admin_id])
   end
 
     def company_params
@@ -84,6 +84,6 @@ class Company::CompaniesController < Company::BaseController
     end
 
     def create_params
-      params.require(:company).permit([:name ,owner_attributes:[:id, :type  , :first_name, :last_name ,:email] , invited_by_attributes: [:invited_by_company_id , :user_id]])
+      params.require(:company).permit([:name  ,:currency_id,owner_attributes:[:id, :type  , :first_name, :last_name ,:email] , invited_by_attributes: [:invited_by_company_id , :user_id]])
     end
 end

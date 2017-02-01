@@ -9,6 +9,7 @@ class Company < ActiveRecord::Base
 
   #Note: Do not change the through association order.
   belongs_to :owner                   , class_name: 'Admin'         , foreign_key: "owner_id"
+  belongs_to :currency
   has_many :locations                 , dependent: :destroy
   has_many :jobs                      , dependent: :destroy
   has_many :users                     , dependent: :destroy
