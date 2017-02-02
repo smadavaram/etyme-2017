@@ -1,7 +1,7 @@
 class Company::JobApplicationsController < Company::BaseController
 
   #CallBacks
-  before_action :find_job , only: [:create]
+  before_action :find_job , only: [:create,:create_multiple_For_candidate]
   before_action :find_received_job_invitation , only: [:create]
   before_action :set_job_applications , only: [:index]
   before_action :find_received_job_application , only: [:accept , :reject ,:interview,:hire, :short_list,:show , :share_application_with_companies]
@@ -25,6 +25,16 @@ class Company::JobApplicationsController < Company::BaseController
       end
 
     end
+  end
+
+  def create_multiple_For_candidate
+    if request.post?
+      Candidate.where(id: params[:temp_candidates]).each do |c|
+        c.job_applications.create!({applicant_resume: c.resume ,cover_letter:"Application created by owner",job_id: @job.id })
+      end
+      redirect_to :back
+    end
+
   end
 
   def accept

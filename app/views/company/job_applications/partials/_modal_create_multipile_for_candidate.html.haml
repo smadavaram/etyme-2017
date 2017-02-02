@@ -1,0 +1,42 @@
+.modal.fade.in{ id: "job-invitation-multiple-#{job.id}"}
+  .modal-dialog.modal-md
+    .modal-content
+      .modal-header
+        %button.close{"aria-hidden" => "true", "data-dismiss" => "modal", :type => "button"}
+          ×
+        %h2#myModalLabel.modal-title
+          %strong Job Application - #{job.title}
+
+      .modal-body
+        = form_for [JobApplication.new],url: job_create_multiple_for_candidate_path(job), html: {class: 'form-horizontal'},method: :post do |f|
+          %fieldset
+            -#.form-group
+            -#  %label.col-md-2.control-label Cover Letter
+            -#  .col-md-10
+            -#    =  f.text_area :cover_letter , class: "form-control tinymce", rows: 8, cols: 25, placeholder: 'Cover Letter'
+            -#    =  tinymce :default
+            -#.form-group
+            -#  %label.col-md-2.control-label Resume
+            -#  .col-md-10
+            -#    = f.filepicker_field :applicant_resume , class: 'btn btn-primary file-pick'  , id: 'accept-filepiker' ,"data-fp-extensions" => ".pdf,.doc,.docx,.txt"
+            .form-group
+              %label.col-md-2.control-label Select Candidates
+              .col-md-10
+                = select_tag 'temp_candidates', options_for_select(current_company.candidates.collect { |c| [c.full_name,c.id] if c.resume.present? && !c.is_already_applied?(job) }),class: 'form-control select2' , required: true ,:multiple => true
+
+            .nested-fields
+              = f.fields_for :custom_fields do |custom|
+                .form-group
+                  %label.col-md-2.control-label #{custom.object.name}
+                  .col-md-10
+                    = custom.hidden_field  :name , value: custom.object.name
+                    = custom.text_field  :value, class: "form-control", placeholder: custom.object.name
+          .modal-footer
+            %button.btn.btn-default{"data-dismiss" => "modal", :type => "button"}
+              Cancel
+            = f.button "Save".html_safe , class: 'btn btn-primary' , data: {disable_with: disable_spinning('Saving...')}
+
+:css
+  .select2{
+    width: 470px;
+    }

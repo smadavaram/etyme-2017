@@ -18,8 +18,7 @@ class CompaniesController < ApplicationController
 
   def create
     @company = Company.new(company_params)
-    if @company.valid?
-      @company.save
+    if @company.save
       flash[:success] =  "Registration Successfull."
       render 'companies/signup_success' , layout: 'login'
     else
@@ -38,7 +37,7 @@ class CompaniesController < ApplicationController
   end
 
   def company_params
-    params.require(:company).permit(:name ,:company_type, :website,:logo,:description,:phone,:email,:linkedin_url,:facebook_url,:twitter_url,:google_url,:is_activated,:status,:tag_line,
+    params.require(:company).permit(:name ,:company_type,:domain, :website,:logo,:description,:phone,:email,:linkedin_url,:facebook_url,:twitter_url,:google_url,:is_activated,:status,:tag_line,
                                     owner_attributes:[:id, :type  , :first_name, :last_name ,:email,:password, :password_confirmation],
                                     locations_attributes:[:id,:name,:status,
                                                           address_attributes:[:id,:address_1,:country,:city,:state,:zip_code] ] )

@@ -136,7 +136,9 @@ Rails.application.routes.draw do
     resources :attachments      ,concerns: :paginatable , only: [:index]
     resources :invoices         ,concerns: :paginatable , only: [:index]
     resources :job_invitations  ,concerns: :paginatable , only: [:index , :show]
-    resources :candidates   ,concerns: :paginatable ,only: [:new ,:index,:show]
+    resources :candidates   ,concerns: :paginatable ,only: [:new ,:index,:show] do
+    match  :manage_groups , via: [:get, :patch]
+    end
     resources :job_applications ,concerns: :paginatable , only: [:index,:show] do
     resources :consultants , only: [:new , :create]
       member do
@@ -168,6 +170,9 @@ Rails.application.routes.draw do
     end
 
     resources :jobs , concerns: :paginatable do
+
+      match 'create_multiple_for_candidate',    to: 'job_applications#create_multiple_For_candidate', via: [:get, :post]
+
       resources :contracts , except: [:index , :show] do
         member do
           post :open_contract , as: :open_contract
