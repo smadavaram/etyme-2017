@@ -5,7 +5,7 @@ class UserMailer < ApplicationMailer
     @params = params
     @name = name
     @exception = exception
-    mail(:to => UserMailer.exception_admins, :subject => "Etyme - Exception",:from => "exceptions}")
+    mail(:to => UserMailer.exception_admins, :subject => "Etyme - Exception")
   end
 
   def confirmation_instructions(user, token, opts = {})
@@ -19,7 +19,7 @@ class UserMailer < ApplicationMailer
   def reset_password_instructions(user, token, opts={})
     @user           = user
     @email          = "Etyme <no-reply@etyme.com>"
-    @link           = @user.class.name!='Candidate' ? "#{@user.company.etyme_url}/password/edit?reset_password_token=#{token}" : " http:#{@user.etyme_url}/candidates/password/edit?reset_password_token=#{token}"
+    @link           = @user.class.name!='Candidate' ? "http:#{@user.company.etyme_url}/users/password/edit?reset_password_token=#{token}" : " http:#{@user.etyme_url}/candidates/password/edit?reset_password_token=#{token}"
     mail(:to => user.email,  :subject => 'Reset password instructions',:from => @email)
   end
 
