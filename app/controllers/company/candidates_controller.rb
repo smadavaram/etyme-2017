@@ -13,6 +13,18 @@ class Company::CandidatesController < Company::BaseController
   end
 
 
+  def manage_groups
+  @manage_candidate = current_company.candidates.find(params[:candidate_id])
+    if request.patch?
+      @manage_candidate.update_attributes(group_ids:params[:candidate][:group_ids])
+      if @manage_candidate.save
+        flash[:success] = "Groups has been Updated"
+      else
+        flash[:errors] = @manage_candidate.errors.full_messages
+      end
+        redirect_to :back
+    end
+  end
 
  def create
    @candidate = current_company.candidates.new(create_candidate_params.merge(send_welcome_email_to_candidate: false,invited_by_id: current_user.id ,invited_by_type: 'User' ,))

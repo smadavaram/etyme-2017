@@ -10,14 +10,6 @@
             .row
               .col-sm-12
                 .well
-                  -#.form-group
-                  -#  .row
-                  -#    .col-sm-6
-                  -#      %label First name
-                  -#      = f.text_field :first_name, :placeholder => "First name", required: true,class: 'form-control'
-                  -#    .col-sm-6
-                  -#      %label Last name
-                  -#      = f.text_field :last_name, :placeholder => "Last name", required: true,class: 'form-control'
                   .form-group
                     %label Email address
                     = f.email_field :email, :placeholder => "Your Email", required: true, email: true,class: 'form-control'
@@ -68,100 +60,6 @@
     %br/
 
 
-
-
-
-
-
-
-
-
-
-
-
-
--#- content_for :html_id, "extr-page"
--#- content_for :body_class, "animated fadeInDown"
--#- content_for :top_right do
--#  %span#extr-page-header-space
--#    %span.hidden-mobile.hiddex-xs Already registered?
--#    = link_to 'Sign In' ,new_candidate_session_path  , class: 'btn btn-primary'
--##main{:role => "main"}
--#  / MAIN CONTENT
--#  #content.container
--#    .row
--#      .col-xs-12.col-sm-12.col-md-7.col-lg-7.hidden-xs.hidden-sm
--#        %h1.txt-color-red.login-header-big #{SITE_NAME}
--#        .hero
--#          .pull-left.login-desc-box-l
--#            %h4.paragraph-header Sign-up to get access to 1000's of vendors and jobs on a single tap. Sed ut perspiciatis unde omnis iste natus error sit voluptatem accusantium doloremque laudantium, totam rem aperiam, eaque ipsa.
--#            .login-app-icons
--#              %a.btn.btn-danger.btn-sm{:href => "javascript:void(0);"} Find Jobs
--#              %a.btn.btn-danger.btn-sm{:href => "javascript:void(0);"} Find Vendors
--#          %img.pull-right.display-image{:alt => "", :src => "#{image_path('demo/iphoneview.png')}", :style => "width:210px"}/
--#        .row
--#          .col-xs-12.col-sm-12.col-md-6.col-lg-6
--#            %h5.about-heading About Etyme - Are you up to date?
--#            %p
--#              Sed ut perspiciatis unde omnis iste natus error sit voluptatem accusantium doloremque laudantium, totam rem aperiam, eaque ipsa.
--#          .col-xs-12.col-sm-12.col-md-6.col-lg-6
--#            %h5.about-heading Not just your average job site!
--#            %p
--#              Et harum quidem rerum facilis est et expedita distinctio. Nam libero tempore, cum soluta nobis est eligendi voluptatem accusantium!
--#      .col-xs-12.col-sm-12.col-md-5.col-lg-5
--#        .well.no-padding
--#          = simple_form_for(resource, as: resource_name, url: registration_path(resource_name), html: {id: 'smart-form-register' , class: 'smart-form client-form' }) do |f|
--#            = devise_error_messages!
--#            %header
--#              Free Sign-Up on Etyme
--#            %fieldset
--#              %section
--#                %label.input
--#                  %i.icon-append.fa.fa-building-o
--#                %section
--#                  %label.input
--#                    %i.icon-append.fa.fa-user
--#                    = f.text_field :first_name, :placeholder => "First name", required: true
--#                    %b.tooltip.tooltip-bottom-right Your First Name
--#                %section
--#                  %label.input
--#                    %i.icon-append.fa.fa-user
--#                    = f.text_field :last_name, :placeholder => "Last name", required: true
--#                    %b.tooltip.tooltip-bottom-right Your Last Name
--#                %section
--#                  %label.input
--#                    %i.icon-append.fa.fa-envelope
--#                    = f.email_field :email, :placeholder => "Your Email", required: true, email: true
--#                    %b.tooltip.tooltip-bottom-right Your Company Email
--#                %section
--#                  %label.input
--#                    %i.icon-append.fa.fa-lock
--#                    = f.password_field :password, :placeholder => "Password", required: true,minlength: "6"
--#                    %b.tooltip.tooltip-bottom-right Please enter a password of minimum 6 characters
--#                %section
--#                  %label.input
--#                    %i.icon-append.fa.fa-lock
--#                    = f.password_field :password_confirmation, :placeholder => "Confirm password", "data-rule-equalTo": "#company_owner_attributes_password"
--#                    %b.tooltip.tooltip-bottom-right Please confirm the password
--#              %footer
--#                .row
--#                  .col-md-4{style: 'margin-top: 16px; margin-left: 20px;'}
--#                    = link_to ' Company Signup?', register_path
--#                  .col-md-6
--#                    %button.btn.btn-primary{:type => "submit"}
--#                      Register
--#        %h5.text-center - Or sign in using -
--#        %ul.list-inline.text-center
--#          %li
--#            %a.btn.btn-primary.btn-circle{:href => "javascript:void(0);"}
--#              %i.fa.fa-facebook
--#          %li
--#            %a.btn.btn-info.btn-circle{:href => "javascript:void(0);"}
--#              %i.fa.fa-twitter
--#          %li
--#            %a.btn.btn-warning.btn-circle{:href => "javascript:void(0);"}
--#              %i.fa.fa-linkedin
--#/ Modal
 #myModal.modal.fade{"aria-hidden" => "true", "aria-labelledby" => "myModalLabel", :role => "dialog", :tabindex => "-1"}
   .modal-dialog
     .modal-content
@@ -283,29 +181,4 @@
         %button#print.btn.btn-danger.pull-left{:type => "button"}
           %i.fa.fa-print
           Print
--#
--#
--#
--#
--#
--#
--#
--#
--#-#
--#-#<h2>Sign up</h2>
--#-#
--#-#<%= simple_form_for(resource, as: resource_name, url: registration_path(resource_name)) do |f| %>
--#-#  <%= f.error_notification %>
--#-#
--#-#  <div class="form-inputs">
--#-#    <%= f.input :email, required: true, autofocus: true %>
--#-#    <%= f.input :password, required: true, hint: ("#{@minimum_password_length} characters minimum" if @minimum_password_length) %>
--#-#    <%= f.input :password_confirmation, required: true %>
--#-#  </div>
--#-#
--#-#  <div class="form-actions">
--#-#    <%= f.button :submit, "Sign up" %>
--#-#  </div>
--#-#<% end %>
--#-#
--#-#<%= render "candidates/shared/links" %>
+
