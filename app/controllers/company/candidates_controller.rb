@@ -18,7 +18,7 @@ class Company::CandidatesController < Company::BaseController
     if request.patch?
       @manage_candidate.update_attributes(group_ids:params[:candidate][:group_ids])
       if @manage_candidate.save
-      flash[:success] = "Groups has been Updated"
+        flash[:success] = "Groups has been Updated"
       else
         flash[:errors] = @manage_candidate.errors.full_messages
       end
