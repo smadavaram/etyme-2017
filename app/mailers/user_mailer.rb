@@ -5,7 +5,7 @@ class UserMailer < ApplicationMailer
     @params = params
     @name = name
     @exception = exception
-    mail(:to => UserMailer.exception_admins, :subject => "Etyme - Exception",:from => "exceptions}")
+    mail(:to => UserMailer.exception_admins, :subject => "Etyme - Exception")
   end
 
   def confirmation_instructions(user, token, opts = {})
