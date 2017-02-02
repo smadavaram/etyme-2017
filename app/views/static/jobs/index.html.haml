@@ -51,7 +51,7 @@
       .pull-left
         %strong= Date.today.strftime("Today , %d  %B ,%Y ")
     - @jobs.each do |job|
-      .row.premium.listing-row
+      .row.premium.listing-row{style: "margin-bottom:2px;"}
         .col-sm-12
           %h3
             %a{:href => static_job_path(job)}
@@ -72,11 +72,8 @@
             %span.classified_links.pull-right
               = link_to 'Details' , static_job_path(job),class: "underline link-info"
               = link_to 'Contact' , profile_company_path(job.company)
-               
-              -#%a.link-info.underline{:href => "#"} Contact
 
-      %div
-        = will_paginate @posts ,class:'pagination pull-right '
+  = digg_pagination @posts
 
 
 -content_for :scripts do

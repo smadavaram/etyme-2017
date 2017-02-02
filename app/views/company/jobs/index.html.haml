@@ -18,14 +18,6 @@
                       %ul#internal-tab-1.nav.nav-tabs.tabs-pull-right
                         %br
                         .input-group.input-group-lg.hidden-mobile
-                          -#.input-group-btn
-                          -#  %button.btn.btn-default.dropdown-toggle.textbtn{"data-toggle" => "dropdown", :type => "button"}
-                          -#    All
-                          -#    %span.caret
-                          -#  %ul.dropdown-menu
-                          -#    %li.active
-                          -#      %a{:href => "javascript:void(0)"}
-                          -#        All
                           = f.text_field :title_or_location_or_job_category_cont, class: "form-control input-lg", placeholder: "Search Jobs..."
                           .input-group-btn
                             = f.button raw("<i class='fa fa-fw fa-search fa-lg'></i>") , class: 'btn btn-default' do
