@@ -34,8 +34,8 @@
                       %td= d.invited_company.owner.email
                       %td= d.invited_company.domain
                       %td
-                        = link_to raw("<i class='fa fa-pencil '></i>") , edit_company_path(d.invited_company) , class: 'btn btn-xs btn-default btn-primary',remote: :true
-                        = link_to raw("<i class='fa fa-times '></i>") , company_path(d.invited_company) ,method: :delete, class: 'btn btn-xs btn-default btn-danger'
+                        = link_to raw("<i class='fa fa-pencil '></i>") , edit_company_path(d.invited_company) , class: 'btn btn-xs btn-default btn-primary',remote: :true ,title:"Edit #{d.invited_company.name}"
+                        = link_to raw("<i class='fa fa-times '></i>") , company_path(d.invited_company) ,method: :delete, class: 'btn btn-xs btn-default btn-danger' ,title:"Delete #{d.invited_company.name}"
             = digg_pagination(@invited_companies)
 
 - content_for :modals do
