@@ -2,6 +2,7 @@ class Company::CompaniesController < Company::BaseController
 
   before_action :find_admin, only: :change_owner
   before_action :authorized_user , only: [:show]
+  before_action :find_company , only: [:edit,:update,:destroy]
 
   respond_to :html,:json
 
@@ -34,9 +35,21 @@ class Company::CompaniesController < Company::BaseController
   end
 
   def update
-    current_company.update_attributes(company_params)
-    flash[:success]="Company Updated Successfully"
-    respond_with current_company
+    respond_to do |format|
+      format.json{current_company.update_attributes(company_params)
+      flash[:success] = "Company Updated Successfully"
+      respond_with current_company
+      }
+      format.html{
+        if @company.update(company_params)
+          flash[:success] = "Company Updated Successfully"
+        else
+          flash[:errors] = @company.errors.full_messages
+        end
+        redirect_to :back
+      }
+    end
+
   end
 
   def show
@@ -48,6 +61,14 @@ class Company::CompaniesController < Company::BaseController
 
     #pagination
     # @company_docs = current_company.company_docs.paginate(:page => params[:page], :per_page => 15)
+  end
+  def destroy
+    if @company.destroy
+      flash[:success] = "Company deleted successfully."
+    else
+      flash[:errors] = @company.errors.full_messages
+    end
+    redirect_to :back
   end
   def update_logo
     render json: current_company.update_attribute(:logo, params[:photo])
@@ -74,6 +95,9 @@ class Company::CompaniesController < Company::BaseController
 
 
   private
+  def find_company
+    @company = Company.find(params[:id])
+  end
 
   def find_admin
     @admin = current_company.admins.find_by_id(params[:admin_id])

@@ -23,13 +23,19 @@
                     %th Name
                     %th Owner
                     %th Owner Email
+                    %th Domain
+                    %th Actions
                 %tbody
                   -@invited_companies.each do |d|
                     %tr
                       %td= image_tag show_recipient_picture(d.invited_company.logo) , alt: '', width: '40'
-                      %td= link_to d.invited_company.name , 'javascript:void(0);'
+                      %td= link_to d.invited_company.name ,profile_company_path(d.invited_company)
                       %td= d.invited_company.owner.full_name  rescue "  --"
                       %td= d.invited_company.owner.email
+                      %td= d.invited_company.domain
+                      %td
+                        = link_to raw("<i class='fa fa-pencil '></i>") , edit_company_path(d.invited_company) , class: 'btn btn-xs btn-default btn-primary',remote: :true
+                        = link_to raw("<i class='fa fa-times '></i>") , company_path(d.invited_company) ,method: :delete, class: 'btn btn-xs btn-default btn-danger'
             = digg_pagination(@invited_companies)
 
 - content_for :modals do

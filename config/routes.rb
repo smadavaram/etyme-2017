@@ -217,7 +217,7 @@ Rails.application.routes.draw do
 
     end
     # get 'configuration' ,   to: 'companies#edit' ,              as: :configuration
-    resources :companies , concerns: :paginatable ,only: [:update,:show , :index] do
+    resources :companies , concerns: :paginatable ,only: [:update,:show , :index,:edit,:destroy] do
       collection do
         post :change_owner
         post :get_admins_list , as: :get_admins_list

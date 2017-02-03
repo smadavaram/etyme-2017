@@ -56,7 +56,7 @@ class Company < ActiveRecord::Base
   accepts_nested_attributes_for :invited_by    , allow_destroy: true
 
 
-  before_validation :create_slug
+  before_create :create_slug
   after_create      :set_owner_company_id
   after_create      :welcome_email_to_owner
   after_create      :assign_free_subscription

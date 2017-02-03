@@ -9,6 +9,7 @@ class JobApplication < ActiveRecord::Base
   belongs_to :applicationable, polymorphic: true
   belongs_to :job
   belongs_to :company
+  belongs_to :user , class_name: "User",foreign_key: "applicationable_id"
   has_one    :contract
   has_many   :custom_fields ,as: :customizable
   has_many   :comments ,as: :commentable

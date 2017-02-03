@@ -34,7 +34,7 @@ class User < ActiveRecord::Base
   has_many :custom_fields       , as: :customizable,dependent: :destroy
   has_many :attachable_docs     , as: :documentable , dependent: :destroy
   has_many :company_docs        , through: :attachable_docs
-  has_many :job_applications    , dependent: :destroy
+  has_many :job_applications    , foreign_key: "applicationable_id", dependent: :destroy
   has_many :timesheets          , dependent: :destroy
   has_many :timesheet_approvers , dependent: :destroy
   has_and_belongs_to_many :roles
