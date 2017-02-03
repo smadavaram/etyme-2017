@@ -6,6 +6,7 @@ class Company::ConsultantsController < Company::BaseController
   #CallBacks
   before_action :set_new_consultant , only: [:new]
   before_action :find_job_application , only: [:new]
+  before_action :find_consulant       , only: [:edit,:update,:destroy]
 
   def new
     add_breadcrumb "NEW", :new_consultant_path
@@ -28,6 +29,29 @@ class Company::ConsultantsController < Company::BaseController
     end
   end
 
+  def edit
+
+  end
+
+  def update
+    if @consultant.update(consultant_params)
+      flash[:success] = "#{@consultant.full_name} updated."
+    else
+      flash[:errors] = @consultant.errors.full_messages
+    end
+    redirect_to :back
+  end
+
+  def destroy
+    name = @consultant.full_name
+    if @consultant.destroy
+      flash[:success] = "#{name} Deleted!"
+    else
+      flash[:errors ] = @consultant.errors.full_messages
+    end
+    redirect_to :back
+  end
+
   def authorized_user
     has_access?("manage_consultants")
   end
@@ -36,7 +60,9 @@ class Company::ConsultantsController < Company::BaseController
 
 
   private
-
+  def find_consulant
+    @consultant = current_company.consultants.find(params[:id])
+  end
   def set_new_consultant
     @consultant = current_company.consultants.new
     @consultant.build_consultant_profile
@@ -73,7 +99,8 @@ class Company::ConsultantsController < Company::BaseController
                                            [
                                                :id,
                                                :name,
-                                               :value
+                                               :value,
+                                               :_destroy
                                            ],
                                        company_doc_ids:[]
     )

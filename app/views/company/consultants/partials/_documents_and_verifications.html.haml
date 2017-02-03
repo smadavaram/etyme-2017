@@ -4,7 +4,7 @@
       Documents
       %sup.text-danger *
     .col-md-10
-      = e.collection_select :company_doc_ids, current_company.company_docs, :id, :name, {}, {class:"form-control multi-select2", plachholder: 'Select Document(s)',multiple: true, style:"width: 100%;"}
+      = e.select :company_doc_ids, current_company.company_docs.collect { |doc| [doc.name,doc.id,] }, {}, {class:"form-control multi-select2", plachholder: 'Select Document(s)',multiple: true, style:"width: 100%;"}
       %span.help-block.m-b-none
         Attach company documents like Contracts, Company Letter, Hiring Manifesto, W4, W9 Forms and etc.
 -#-#- content_for :scripts do

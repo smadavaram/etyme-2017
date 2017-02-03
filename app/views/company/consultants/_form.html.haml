@@ -1,4 +1,4 @@
-= form_for @consultant , url: params.has_key?(:job_application_id) ? job_application_consultants_path(@job_application) : consultants_path ,html: {id: 'wizard-1',class:"form-horizontal new_consultant"} do |e|
+= form_for @consultant , url: params[:edit].present? ? consultant_path : params.has_key?(:job_application_id) ? job_application_consultants_path(@job_application) : consultants_path ,html: {id: 'wizard-1',class:"form-horizontal new_consultant"} do |e|
   = e.fields_for :consultant_profile do |p|
     #bootstrap-wizard-1.col-sm-12
       .form-bootstrapWizard
