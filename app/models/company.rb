@@ -84,6 +84,7 @@ class Company < ActiveRecord::Base
   end
 
   def get_host_from_domain
+    domain = self.domain.gsub(/[^0-9A-Za-z.]/, '')
     url = URI.parse(domain).scheme.nil? ? "http://#{domain}" : domain
     host = URI.parse(url).host.downcase
     self.slug = host.start_with?('www.') ? host[4..-1].split(".").first : host.split(".").first

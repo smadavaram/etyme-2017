@@ -51,7 +51,7 @@
 
       = yield
     = filepicker_js_include_tag
-    = render 'static/shared/footer'
+    = render 'static/shared/footer' unless request.path == signin_path
     .modals
 
 

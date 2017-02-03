@@ -19,7 +19,7 @@ class Company::ConsultantsController < Company::BaseController
   end
 
   def create
-    @consultant = current_company.consultants.new(create_consultant_params)
+    @consultant = current_company.consultants.new(create_consultant_params.merge( invited_by_id: current_user.id , invited_by_type: 'User'))
     if @consultant.valid? && @consultant.save
       flash[:success] =  "Successfull Added."
       redirect_to dashboard_path
@@ -39,7 +39,7 @@ class Company::ConsultantsController < Company::BaseController
     else
       flash[:errors] = @consultant.errors.full_messages
     end
-    redirect_to :back
+    redirect_to  consultants_path
   end
 
   def destroy
@@ -112,7 +112,7 @@ class Company::ConsultantsController < Company::BaseController
       @job_application = current_company.received_job_applications.find_by_id(params[:job_application_id])
       if @job_application.is_candidate_applicant?
         candidate = @job_application.user
-        params_hash = params_hash.merge!(candidate_id: candidate.id , gender: candidate.gender , photo: candidate.photo , phone: candidate.phone , dob: candidate.dob , invited_by_id: current_user.id , invited_by_type: 'User')
+        params_hash = params_hash.merge!(candidate_id: candidate.id , gender: candidate.gender , photo: candidate.photo , phone: candidate.phone , dob: candidate.dob )
       end
     end
     params_hash

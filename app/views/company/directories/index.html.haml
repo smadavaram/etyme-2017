@@ -1,0 +1,32 @@
+.text-center
+  %h2.font-300
+    Office Directory
+#wid-id-5.no-border.jarviswidget
+  .col-xs-12.col-sm-9.col-md-9.col-lg-9.pull-left{style: 'border-bottom-color: #fff !important;'}
+  .row
+    #wid-id-5.no-border
+      %div
+        .widget-body
+          .col-md-12
+            %br 
+            - current_company.consultants.where.not(invited_by_id: nil).group_by(&:invited_by_id).each do |key , consultants|
+              - admin = current_company.admins.find_by_id(key)
+              %h2.font-xl
+                = admin.first_name.titleize+" "+ ('(Team Admin)' )
+              %h2.font-lg
+                = admin.email
+              %table#dt_basic.table.table-striped.table-bordered.table-hover{:width => "100%"}
+                %thead
+                  %tr
+                    %th Name
+                    %th Phone
+                    %th Email
+                    %th Address
+                %tbody
+                  -consultants.each do |d|
+                    %tr
+                      %td= d.first_name
+                      %td=d.phone
+                      %td= d.email
+                      %td= d.address.address_1
+

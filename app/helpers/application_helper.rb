@@ -213,6 +213,24 @@ module ApplicationHelper
               title: 'Leaves',
               content: "<i class='fa fa-lg fa-fw fa-calendar'></i> <span class='menu-item-parent'>" + 'Leaves' + "</span>",
           },
+          {
+              href:  "#",
+              title: 'Directory',
+              content: "<i class='fa fa-lg fa-fw fa-folder'></i> <span class='menu-item-parent'>" + 'Directory' + "</span>",
+              children: [
+                  {
+                  href:  directories_path,
+                  title: 'Directory',
+                  content: "<span class='menu-item-parent'>" + 'Directory' + "</span>",
+                  },
+                  {
+                      href: "#",
+                      title: 'Emergency Contact(s)',
+                      content: "<span class='menu-item-parent'> Emergency Contact(s) </span>",
+                  }
+
+              ]
+          },
         {
             href: '#',
             title: 'CONFIGURATION',

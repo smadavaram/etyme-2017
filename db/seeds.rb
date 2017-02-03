@@ -23,6 +23,8 @@ Permission.create(name: "manage_timesheets")
 Permission.create(name: "manage_leaves")
 
 
+
+Currency.create(name:"USD")
 #
 # Package.create(id: 1, name: "Free",     price: 0.0,   duration: 10000)
 # Package.create(id: 2, name: "Basic",    price: 15.0,  duration: 30)
