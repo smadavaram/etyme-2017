@@ -36,7 +36,7 @@
                         %td= consultant.roles.map(&:name).join(", ").gsub("_"," ").upcase
                         %td
                           = link_to raw("<i class='fa fa-pencil '></i>") , edit_consultant_path(consultant,edit: true) , class: 'btn btn-xs btn-default btn-primary', title: "Edit #{consultant.full_name}"
-                          = link_to raw("<i class='fa fa-times '></i>") , consultant_path(consultant) , method: :delete ,  class: 'btn btn-xs btn-default btn-danger' , title: "Delete #{consultant.full_name}"
+                          = link_to raw("<i class='fa fa-times '></i>") , consultant_path(consultant) , method: :delete ,  class: 'btn btn-xs btn-default btn-danger' , title: "Delete #{consultant.full_name}",data: {confirm: "Are you sure you want to Delete this Consultants ?", verify: 'Confirm', verify_text: "Type 'Confirm' to Continue"}
           = digg_pagination(@consultants)
 
 
