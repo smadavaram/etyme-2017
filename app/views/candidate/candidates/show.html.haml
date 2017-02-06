@@ -13,7 +13,7 @@
               -else
                 = image_tag image_path('default_user.png'),  style: "width:100px;height:100px", fit: 'clip',:class =>"profile-pic image-setting"
 
-        %ul.links
+        %ul.links.hidden-sm.hidden-xs
           %li
             = filepicker_field_tag "" ,class: "hidden resume_file", onchange:"uploadResume(event)"
             - if !current_candidate.resume.present?
