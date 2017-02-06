@@ -23,7 +23,7 @@
                 Domain
                 %sup.text-danger *
               .col-md-10
-                = f.url_field :domain  ,:placeholder => "Domain", required: true,minlength: "3",class:'form-control'
+                = f.text_field :domain  ,:placeholder => "Domain", required: true,minlength: "3",class:'form-control'
                 .note.text-muted
                   Please Enter Domain like https://address
             = f.fields_for :owner do |u|
