@@ -34,7 +34,10 @@
                         %td= admin.full_name.titleize
                         %td= admin.email
                         %td= admin.invited_by.first_name.titleize
-                        %td= admin.groups.map(&:group_name).join(", ").gsub("_"," ").titleize
+                        %td
+                          - admin.groups.each do |group|
+                            %span.badge.bg-color-blue
+                              = group.group_name.titleize
                         %td
                           = link_to raw("Resume") , admin.resume ,download: true , class: 'btn btn-xs btn-primary'
                           = link_to raw("Manage Groups"), candidate_manage_groups_path(admin) , remote:true,class: 'btn btn-xs btn-success'
