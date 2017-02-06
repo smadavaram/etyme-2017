@@ -222,12 +222,12 @@ module ApplicationHelper
                   href:  directories_path,
                   title: 'Directory',
                   content: "<span class='menu-item-parent'>" + 'Directory' + "</span>",
-                  },
-                  {
-                      href: "#",
-                      title: 'Emergency Contact(s)',
-                      content: "<span class='menu-item-parent'> Emergency Contact(s) </span>",
                   }
+                  # {
+                  #     href: "#",
+                  #     title: 'Emergency Contact(s)',
+                  #     content: "<span class='menu-item-parent'> Emergency Contact(s) </span>",
+                  # }
 
               ]
           },
