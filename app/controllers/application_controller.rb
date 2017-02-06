@@ -11,6 +11,7 @@ class ApplicationController < ActionController::Base
   rescue_from AbstractController::ActionNotFound, with: :render_not_found if Rails.env.production?
   rescue_from ActiveRecord::RecordNotFound, with: :render_not_found if Rails.env.production?
   rescue_from StandardError,with: :render_not_found if Rails.env.production?
+  rescue_from Exception::NoMethodError,with: :render_not_found if Rails.env.production?
 
 
 
