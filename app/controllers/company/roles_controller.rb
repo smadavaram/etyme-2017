@@ -1,8 +1,8 @@
 class Company::RolesController < Company::BaseController
   add_breadcrumb "ROLES", :roles_path, options: { title: "ROLES" }
 
-  before_action :set_new_role , only: [:index]
-  before_action :set_role , only: [:destroy]
+  before_action :set_new_role , only: [:new]
+  before_action :set_role , only: [:destroy,:edit,:update]
 
 
   def new
@@ -11,6 +11,14 @@ class Company::RolesController < Company::BaseController
 
   def edit
 
+  end
+  def update
+    if @role.update(role_params)
+      flash[:success] = "#{@role.name} updated successfully."
+    else
+      flash[:errors] = @role.errors.full_messages
+    end
+    redirect_to :back
   end
 
   def index

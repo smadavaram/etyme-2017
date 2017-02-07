@@ -1,32 +1,26 @@
-=simple_form_for @role , html: {class: 'smart-form' , id: 'login-form' } do |f|
-  %fieldset
-    %section
-      .row
-        %label.label.col.col-2 Name
-        .col.col-10
-          %label.input
-            =f.text_field :name , required: true ,id: 'rolename'
-    %section
-      %legend Permissions
-    %section
-    %section
-      - Permission.all.each  do |p|
-        .row
-          .col.col-2
-          .col.col-10
-            %label.checkbox
-              = check_box_tag "role[permission_ids][]", p.id
-              = succeed "#{p.name.titleize}" do
-                %i
-    %footer
-      = f.button "submit".html_safe , class: 'btn btn-primary btn-sm' , data: {disable_with: ("Submitting...")} ,id: 'form_id'
-      %button.btn.btn-default{"data-dismiss" => "modal", :type => "button"}
-        Cancel
+= form_for role , html: {class: 'form-horizontal' , id: 'role-form' } do |f|
+  %br
+  .form-group
+    %label.col-md-3.control-label
+      Role Name
+      %sup.text-danger *
+    .col-md-8
+      =f.text_field :name , required: true ,class:'form-control',placeholder: "Role Name"
+  .form-group
+    %label.col-md-3.control-label
+      Select Permissions
+      %sup.text-danger *
+    .col-md-8
+      = f.select :permission_ids, Permission.all.collect { |c| [c.name,c.id] },{},class: 'form-control select2',:multiple => true,style:"width: 100%"
+  .modal-footer
+    = f.button "submit".html_safe , class: 'btn btn-primary btn-sm' , data: {disable_with: ("Submitting...")} ,id: 'form_id'
+    %button.btn.btn-default{"data-dismiss" => "modal", :type => "button"}
+      Cancel
 
 - content_for :scripts do
   :javascript
     $(document).ready(function() {
-     var $validator = $("#login-form").validate({
+     var $validator = $("#role-form").validate({
 
           rules: {
             rolename: {
