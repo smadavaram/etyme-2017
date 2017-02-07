@@ -1,5 +1,6 @@
 class Company::CandidatesController < Company::BaseController
  # add_breadcrumb "CANDIDATE", :candidate_path, options: { title: "CANDIDATE" }
+  before_action :find_candidate , only: [:edit, :update]
 
  def index
    @search      = current_company.candidates.search(params[:q])
@@ -26,23 +27,42 @@ class Company::CandidatesController < Company::BaseController
     end
   end
 
- def create
-   @candidate = current_company.candidates.new(create_candidate_params.merge(send_welcome_email_to_candidate: false,invited_by_id: current_user.id ,invited_by_type: 'User' ,))
-   if @candidate.valid? && @candidate.save
-     current_company.candidates <<  @candidate
-     flash[:success] =  "Successfull Added."
-     redirect_to candidates_path
-   else
-     flash[:errors] = @candidate.errors.full_messages
-     return render 'new'
+   def create
+     @candidate = current_company.candidates.new(create_candidate_params.merge(send_welcome_email_to_candidate: false,invited_by_id: current_user.id ,invited_by_type: 'User' ,))
+     if @candidate.valid? && @candidate.save
+       current_company.candidates <<  @candidate
+       flash[:success] =  "Successfull Added."
+       redirect_to candidates_path
+     else
+       flash[:errors] = @candidate.errors.full_messages
+       return render 'new'
+     end
    end
- end
+
+  def edit
+
+  end
+
+  def update
+    if @candidate.update(create_candidate_params)
+      flash[:success] = "#{@candidate.full_name} updated successfully."
+      redirect_to company_candidates_path
+    else
+      flash[:errors] = @admin.errors.full_messages
+      redirect_to :back
+    end
+
+  end
 
   private
 
+ def find_candidate
+   @candidate = current_company.candidates.find(params[:id])
+ end
+
     def create_candidate_params
       params.require(:candidate).permit(:first_name,:invited_by_id ,:invited_by_type,
-                                        :resume ,:description, :last_name,:dob,
+                                        :resume ,:description, :last_name,:dob,:phone,
                                         :email,
                                         experiences_attributes:[:id,
                                             :experience_title,:end_date,
