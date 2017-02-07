@@ -44,7 +44,7 @@ class Contract < ActiveRecord::Base
   before_create :set_sub_contract_attributes , if: Proc.new{ |contract| contract.parent_contract? }
 
   validate  :start_date_cannot_be_less_than_end_date , on: :create
-  validate  :start_date_cannot_be_in_the_past , :next_invoice_date_should_be_in_future
+  validate  :start_date_cannot_be_in_the_past , :next_invoice_date_should_be_in_future ,on: :create
   validates :status ,             inclusion: {in: statuses.keys}
   validates :billing_frequency ,  inclusion: {in: billing_frequencies.keys}
   validates :time_sheet_frequency,inclusion: {in: time_sheet_frequencies.keys}

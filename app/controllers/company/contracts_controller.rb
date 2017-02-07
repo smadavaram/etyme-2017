@@ -2,7 +2,7 @@ class Company::ContractsController < Company::BaseController
 
   before_action :find_job              , only: [:create]
   before_action :find_receive_contract , only: [:open_contract , :update_contract_response , :create_sub_contract ]
-  before_action :find_contract         , only: [:show , :update_attachable_doc , :change_invoice_date]
+  before_action :find_contract         , only: [:show , :update_attachable_doc , :change_invoice_date,:update,:edit]
   before_action :set_contracts         , only: [:index]
   before_action :find_attachable_doc   , only: [:update_attachable_doc]
   before_action :authorize_user_for_new_contract  , only: :new
@@ -23,6 +23,18 @@ class Company::ContractsController < Company::BaseController
     @new_company = Company.new
     @new_company.build_owner
     @new_company.build_invited_by
+  end
+  def edit
+
+  end
+
+  def update
+    if @contract.update(contract_params)
+      flash[:success] = "#{@contract.title.titleize} updated successfully"
+    else
+      flash[:errors] = @contract.errors.full_messages
+    end
+    redirect_to :back
   end
 
   def create

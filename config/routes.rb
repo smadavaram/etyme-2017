@@ -152,7 +152,7 @@ Rails.application.routes.draw do
         post :hire
       end # End of member
     end
-    resources :contracts        ,concerns: :paginatable , only: [:index ,:show , :new , :create] do
+    resources :contracts        ,concerns: :paginatable , except:[:destroy] do
       resources :contracts
       collection do
         post :nested_create

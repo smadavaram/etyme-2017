@@ -108,6 +108,6 @@ class Company::CompaniesController < Company::BaseController
     end
 
     def create_params
-      params.require(:company).permit([:name  ,:domain,:currency_id,owner_attributes:[:id, :type  , :first_name, :last_name ,:email] , invited_by_attributes: [:invited_by_company_id , :user_id]])
+      params.require(:company).permit([:name  ,:domain,:currency_id,:phone ,:send_email ,owner_attributes:[:id, :type  , :first_name, :last_name ,:email,:invited_by_id,:invited_by_type] , invited_by_attributes: [:invited_by_company_id , :user_id]])
     end
 end

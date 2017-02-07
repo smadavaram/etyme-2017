@@ -71,8 +71,9 @@
                     %span= @contract.start_date.to_s + "   /   " + @contract.end_date.to_s
 
             - if @contract.is_sent?(current_company)
-              %button.pull-right.btn.btn-white.btn-default.margin-right-5
-                Change Terms
+              -#%button.pull-right.btn.btn-white.btn-default.margin-right-5
+              -#  Change Terms
+              = link_to 'Change Terms', edit_contract_path(@contract), remote: true , class:"pull-right btn btn-white btn-default margin-right-5"
             %p
               %b
                 Current Terms:

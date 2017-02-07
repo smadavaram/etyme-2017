@@ -21,7 +21,7 @@
                     %th{"data-class" => "expand",:width => "10%"}
                       %i.fa.fa-fw.fa-user.text-muted.hidden-md.hidden-sm.hidden-xs
                       Name
-                    %th{"data-hide" => "phone,tablet",:width => "25%"}Permisions
+                    %th{"data-hide" => "phone,tablet",:width => "40%"}Permisions
                     %th{"data-hide" => "phone,tablet",:width => "10%"}
                       %i.fa.fa-fw.fa-calendar.txt-color-blue.hidden-md.hidden-sm.hidden-xs
                       Date
@@ -32,7 +32,10 @@
                     %tr
                       %td= index+1
                       %td= r.name
-                      %td= r.permissions.map(&:name).join(", ").gsub("_"," ").upcase
+                      %td
+                        - r.permissions.each do |p|
+                          %span.badge.bg-color-blue.margin-bottom-5
+                            = p.name.titleize
                       %td= r.created_at.try(:strftime,'%B %d, %Y')
                       %td
                         = link_to raw("<i class='fa fa-pencil '></i>") , edit_role_path(r) , class: 'btn btn-xs btn-default btn-primary' , remote: true

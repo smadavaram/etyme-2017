@@ -1,0 +1,10 @@
+.modal.fade{id:"contract-#{contract.id}"}
+  .modal-dialog
+    .modal-content
+      .modal-header
+        %button.close{"aria-hidden" => "true", "data-dismiss" => "modal", :type => "button"}
+          ×
+        %h4.modal-title
+          %strong= "Edit Contract Terms"
+      .modal-body.no-padding
+        = render 'company/contracts/partials/form_modal' , contract: contract

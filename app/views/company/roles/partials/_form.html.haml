@@ -11,7 +11,7 @@
       Select Permissions
       %sup.text-danger *
     .col-md-8
-      = f.select :permission_ids, Permission.all.collect { |c| [c.name,c.id] },{},class: 'form-control select2',:multiple => true,style:"width: 100%"
+      = f.select :permission_ids, Permission.all.collect { |c| [c.name.titleize,c.id] },{},class: 'form-control select2',:multiple => true,style:"width: 100%"
   .modal-footer
     = f.button "submit".html_safe , class: 'btn btn-primary btn-sm' , data: {disable_with: ("Submitting...")} ,id: 'form_id'
     %button.btn.btn-default{"data-dismiss" => "modal", :type => "button"}

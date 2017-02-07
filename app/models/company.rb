@@ -64,6 +64,9 @@ class Company < ActiveRecord::Base
 
   scope :vendors, -> {where(company_type: 1)}
 
+  attr_accessor :send_email
+
+
   def all_admins_has_permission? permission
     self.admins.joins(:permissions).where('permissions.name = ?' , permission).group('users.id') || []
 
@@ -100,7 +103,7 @@ class Company < ActiveRecord::Base
     if self.owner.password.present?
       UserMailer.welcome_email_to_owner(self).deliver_now
     else
-      self.owner.send_invitation
+      self.owner.send_invitation if self.send_email == '1'
     end
   end
 

@@ -23,6 +23,13 @@
             -#    = f.url_field :domain  ,:placeholder => "Domain", required: true,minlength: "3",class:'form-control'
                 .note.text-muted
                   Please Enter Domain like https://address
+            .form-group
+              %label.col-md-2.control-label
+                Phone
+                %sup.text-danger *
+              .col-md-10
+                = f.phone_field :phone , class: 'form-control' , placeholder: 'Phone' , required: true
+
             = f.fields_for :owner do |u|
               .form-group
                 %label.col-md-2.control-label
@@ -35,12 +42,12 @@
                   %sup.text-danger *
                 .col-md-4
                   = u.text_field :last_name ,class: "form-control" , required: 'required', placeholder: "Last Name"
-              -#.form-group
-              -#  %label.col-md-2.control-label
-              -#    Email
-              -#    %sup.text-danger *
-              -#  .col-md-10
-              -#    = u.text_field :email , class: 'form-control' , placeholder: 'Email' , required: true
+              .form-group
+                %label.col-md-2.control-label
+                  Email
+                  %sup.text-danger *
+                .col-md-10
+                  = u.text_field :email , class: 'form-control' , placeholder: 'Email' , required: true
               %br/
           .form-actions
             .row
