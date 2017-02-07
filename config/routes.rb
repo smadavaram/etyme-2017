@@ -113,7 +113,7 @@ Rails.application.routes.draw do
       end
     end
     resources :companies ,only: [:create]
-    resources :candidates , only: [:create]
+    resources :candidates
   end
 
   scope module: :company do
@@ -137,8 +137,8 @@ Rails.application.routes.draw do
     resources :attachments      ,concerns: :paginatable , only: [:index]
     resources :invoices         ,concerns: :paginatable , only: [:index]
     resources :job_invitations  ,concerns: :paginatable , only: [:index , :show]
-    resources :candidates   ,concerns: :paginatable ,only: [:new ,:index,:show] do
-    match  :manage_groups , via: [:get, :patch]
+    resources :candidates   ,concerns: :paginatable,only: :index do
+      match  :manage_groups , via: [:get, :patch]
     end
     resources :job_applications ,concerns: :paginatable , only: [:index,:show] do
     resources :consultants , only: [:new , :create]

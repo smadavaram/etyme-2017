@@ -1,4 +1,4 @@
-= form_for @candidate , url: company_candidates_path , html: {id: 'wizard-1',class:"form-horizontal new_consultant"} do |f|
+= form_for [:company,@candidate ], html: {id: 'wizard-1',class:"form-horizontal new_consultant"} do |f|
   #bootstrap-wizard-1.col-sm-12
     .form-bootstrapWizard{style:"padding-left: 143px;"}
       %ul.bootstrapWizard.form-wizard

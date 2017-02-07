@@ -1,7 +1,7 @@
 #content
   .row
     .col-xs-12.col-sm-3.col-md-3.col-lg-3.pull-right
-      = link_to 'NEW' , new_candidate_path , class: 'btn btn-success btn-lg pull-right header-btn hidden-mobile'
+      = link_to 'NEW' , new_company_candidate_path , class: 'btn btn-success btn-lg pull-right header-btn hidden-mobile'
   %section.margin-top-10.padding-10
     .row
       #wid-id-5.no-border
@@ -28,19 +28,20 @@
                       %th Groups
                       %th Actions
                   %tbody
-                    - @candidates.each_with_index do |admin , index|
+                    - @candidates.each_with_index do |candidate , index|
                       %tr
-                        %td= image_tag admin.photo, alt: '', width: '20'
-                        %td= admin.full_name.titleize
-                        %td= admin.email
-                        %td= admin.invited_by.first_name.titleize
+                        %td= image_tag candidate.photo, alt: '', width: '20'
+                        %td= candidate.full_name.titleize
+                        %td= candidate.email
+                        %td= candidate.invited_by.first_name.titleize
                         %td
-                          - admin.groups.each do |group|
+                          - candidate.groups.each do |group|
                             %span.badge.bg-color-blue
                               = group.group_name.titleize
                         %td
-                          = link_to raw("Resume") , admin.resume ,download: true , class: 'btn btn-xs btn-primary'
-                          = link_to raw("Manage Groups"), candidate_manage_groups_path(admin) , remote:true,class: 'btn btn-xs btn-success'
+                          = link_to raw("Resume") , candidate.resume ,download: true , class: 'btn btn-xs btn-primary'
+                          = link_to raw("Manage Groups"), candidate_manage_groups_path(candidate) , remote:true,class: 'btn btn-xs btn-success'
+                          = link_to raw("<i class='fa fa-pencil '></i>") , edit_company_candidate_path(candidate) , class: 'btn btn-xs btn-default btn-primary', title: "Edit #{candidate.full_name}"
           = digg_pagination(@consultants)
 
 
