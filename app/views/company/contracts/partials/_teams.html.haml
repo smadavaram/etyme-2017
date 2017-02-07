@@ -1,0 +1,19 @@
+%h5.price-container.margin-bottom-10
+  Team(s)
+  .certified.teams
+    %ul
+      %li
+        %a{:href => "javascript:void(0);"}
+          Contracting Company
+          %span #{@contract.created_by.try(:full_name)}
+      - if @contract.assignee?
+        %li
+          %a{:href => "javascript:void(0);"}
+            Contract Assignee
+            %span= @contract.assignee.full_name
+      - if @contract.respond_by.present?
+        %li
+          %a{:href => "javascript:void(0);"}
+            Responded by Company
+            %span= @contract.respond_by.try(:full_name)
+

@@ -15,7 +15,7 @@
                   Select Companies
                   %sup.text-danger *
                 .col-md-9
-                  = select_tag 'vendor_company', options_for_select(Company.vendor.collect { |company|[company.name.titleize, company.id] if company!= job_application.company }) ,class: 'form-control' , required: true ,:multiple => true ,id:'vendor'
+                  = select_tag 'vendor_company', options_for_select(current_company.invited_companies.collect { |company|[company.invited_company.name.titleize, company.invited_company.id] if company!= job_application.company }) ,class: 'form-control' , required: true ,:multiple => true ,id:'vendor'
               %br/
               .modal-footer
                 -#= button_tag 'Cancel' , class: 'btn btn-default' , data: {"dismiss": "modal"}

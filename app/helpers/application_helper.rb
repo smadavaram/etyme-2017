@@ -145,8 +145,8 @@ module ApplicationHelper
             children: [
                 {
                     href: companies_path,
-                    title: 'Perfered Vendors',
-                    content: "</i><span class='menu-item-parent'> Prefered Vendor(s) </span>"
+                    title: 'Contacts',
+                    content: "</i><span class='menu-item-parent'> Contact(s) </span>"
                 },
                 {
                     href: consultants_path,

@@ -129,6 +129,7 @@
                   = link_to 'Comments' , '#comments' , {"aria-expanded" => "true", "data-toggle" => "tab"}
               #myTabContent.tab-content
                 #teams.tab-pane.fade.in
+                  = render 'company/contracts/partials/teams', application: @contract.job_application
                 #application.tab-pane.fade.active.in
                   = render 'company/contracts/partials/application' , application: @contract.job_application
                 - if not @contract.job_application_id.nil?
