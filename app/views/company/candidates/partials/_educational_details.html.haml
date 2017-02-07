@@ -1,32 +1,6 @@
-= f.fields_for :educations do |c|
-  %fieldset
-    .form-group
-      %label.col-md-2.control-label
-        Degree Title
-        %sup.text-danger *
-      .col-md-10
-        = c.text_field :degree_title,placeholder: "Degree Title",class: 'form-control'
-    .form-group
-      %label.col-md-2.control-label
-        Institute Name
-        %sup.text-danger *
-      .col-md-10
-        = c.text_field :institute,placeholder: "Institute Name",class: 'form-control'
-    .form-group
-      %label.col-md-2.control-label
-        Start Year
-        %sup.text-danger *
-      .col-md-10
-        = c.text_field :start_year,placeholder: "Start Year",class: 'form-control education_start_year'
-      .form-group
-      %label.col-md-2.control-label
-        Completion Year
-        %sup.text-danger *
-      .col-md-10
-        = c.text_field :completion_year,placeholder:"Completion Year",class: 'form-control education_completion_year'
-    .form-group
-      %label.col-md-2.control-label
-        Description
-        %sup.text-danger *
-      .col-md-10
-        = c.text_area :description,placeholder: "Description",class: 'form-control'
+= f.fields_for :educations do |edu|
+  = render 'company/candidates/partials/education_fields', f: edu
+
+.col-sm-12
+  = link_to_add_association 'Add', f, :educations , partial: 'company/candidates/partials/education_fields',class:'btn btn-primary pull-right'
+%br

@@ -44,15 +44,15 @@ class Company::CandidatesController < Company::BaseController
       params.require(:candidate).permit(:first_name,:invited_by_id ,:invited_by_type,
                                         :resume ,:description, :last_name,:dob,
                                         :email,
-                                        experiences_attributes:[
+                                        experiences_attributes:[:id,
                                             :experience_title,:end_date,
                                             :start_date,:institute,
-                                            :description
+                                            :description,:_destroy
                                         ],
-                                        educations_attributes:[
+                                        educations_attributes:[:id,
                                           :degree_title,:grade,
                                           :completion_year,:start_year,
-                                          :institute,:description
+                                          :institute,:description,:_destroy
                                          ])
     end
 
