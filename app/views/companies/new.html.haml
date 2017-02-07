@@ -33,7 +33,7 @@
                         Please Enter Domain like https://address
                     .form-group
                       %label.checkbox
-                      %input#terms{:name => "terms", :type => "checkbox"}/
+                      %input#terms{:name => "terms", :type => "checkbox" ,required: true}/
                       = succeed "I agree with the " do
                         %i
                       %a{"data-target" => "#myModal", "data-toggle" => "modal", :href => "#"} Terms and Conditions

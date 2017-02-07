@@ -4,8 +4,8 @@
     %hr/
     .row
       .col-sm-12.col-md-6
-        = simple_form_for(resource, as: resource_name, url: registration_path(resource_name), html: {id: 'smart-form-register' , class: 'form-vertical client-form' }) do |f|
-          = devise_error_messages!
+        = simple_form_for(resource, as: resource_name, url: registration_path(resource_name), html: {id: 'candidateRegister' , class: 'form-vertical client-form' }) do |f|
+          -#= devise_error_messages!
           %fieldset
             .row
               .col-sm-12
@@ -15,13 +15,13 @@
                     = f.email_field :email, :placeholder => "Your Email", required: true, email: true,class: 'form-control'
                   .form-group
                     %label Password
-                    = f.password_field :password, :placeholder => "Password", required: true,minlength: "6",class: 'form-control'
+                    = f.password_field :password, :placeholder => "Password", required: true,minlength: "6",class: 'form-control',id: "password"
                   .form-group
                     %label Confirm password
-                    = f.password_field :password_confirmation, :placeholder => "Confirm password", "data-rule-equalTo": "#company_owner_attributes_password",class: 'form-control'
+                    = f.password_field :password_confirmation, :placeholder => "Confirm password", "data-rule-equalTo": "#password",class: 'form-control'
                   .form-group
                     %label.checkbox
-                    %input#terms{:name => "terms", :type => "checkbox"}/
+                    %input#terms{:name => "terms", :type => "checkbox" ,required: true}/
                     = succeed "I agree with the " do
                       %i
                     %a{"data-target" => "#myModal", "data-toggle" => "modal", :href => "#"} Terms and Conditions
@@ -181,4 +181,7 @@
         %button#print.btn.btn-danger.pull-left{:type => "button"}
           %i.fa.fa-print
           Print
-
+- content_for :scripts do
+  :javascript
+    $( "#candidateRegister" ).validate(
+    );

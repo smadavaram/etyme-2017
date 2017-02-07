@@ -1,4 +1,4 @@
-= simple_form_for current_company.admins.new ,html:{ class:'form-horizontal', id:'companyform'} do |f|
+= form_for admin ,html:{ class:'form-horizontal', id:'companyform'} do |f|
   %fieldset
     .form-group
       %label.col-md-2.control-label
@@ -18,18 +18,18 @@
         %sup.text-danger *
       .col-md-10
         = f.email_field :email , class: 'form-control' , placeholder: 'Enter Email Address' , required: true ,id: 'email'
-    .form-group
-      %label.col-md-2.control-label
-        Job Location
-        %sup.text-danger *
-      .col-md-10
-        = select_tag "admin[location_id]", options_from_collection_for_select(@locations, "id", "name") , class: 'form-control'  , required: true
+    -#.form-group
+    -#  %label.col-md-2.control-label
+    -#    Job Location
+    -#    %sup.text-danger *
+    -#  .col-md-10
+    -#    = f.select :primary_address_id, current_company.locations.collect { |location|[location.id,location.name] }  , {},class: 'form-control'  , required: true
     .form-group
       %label.col-md-2.control-label
         Roles
         %sup.text-danger *
       .col-md-10
-        = f.collection_select :role_ids, @roles, :id, :name, {}, {:class=>"form-control input-lg multi-select2-role",:multiple => true,required: true}
+        = f.select :role_ids, current_company.roles.collect {|role|[ role.name,role.id]}, {}, {:class=>"form-control input-lg multi-select2-role",:multiple => true,required: true}
   .form-actions
     .row
       .col-md-12

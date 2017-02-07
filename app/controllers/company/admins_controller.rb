@@ -2,6 +2,7 @@ class Company::AdminsController < Company::BaseController
 
   add_breadcrumb "Admins", :admins_path, options: { title: "Admins" }
   before_action :authorized_user ,only:  [:new ,:index]
+  before_action :find_admin ,only: [:edit,:update,:destroy]
 
   #CallBacks
   before_action :set_new_admin , only: [:new]
@@ -23,14 +24,35 @@ class Company::AdminsController < Company::BaseController
 
   def create
     @admin = current_company.admins.new(admin_params)
-    if @admin.valid?
-      @admin.save
+    if @admin.save
       flash[:success] =  "Successfull Added."
-      redirect_to admins_path
     else
       flash.now[:errors] = @admin.errors.full_messages
-      return render 'new'
     end
+    redirect_to :back
+
+  end
+
+  def edit
+  end
+
+  def update
+    admin_name = @admin.full_name
+    if @admin.update(admin_params)
+      flash[:success] = "#{admin_name} updated successfully."
+    else
+      flash[:errors] = @admin.errors.full_messages
+    end
+    redirect_to :back
+  end
+  def destroy
+    name = @admin.full_name
+    if @admin.destroy
+      flash[:success] = "#{name} deleted successfully."
+    else
+      flash[:errors] = @admin.errors.full_messages
+    end
+    redirect_to :back
   end
 
   def authorized_user
@@ -40,6 +62,9 @@ class Company::AdminsController < Company::BaseController
 
 
   private
+  def find_admin
+    @admin = current_company.admins.find(params[:id])
+  end
 
   def set_new_admin
     @admin = current_company.admins.new
@@ -57,8 +82,10 @@ class Company::AdminsController < Company::BaseController
     params.require(:admin).permit(:first_name,
                                        :last_name ,
                                        :email ,
+                                  :primary_address_id,
                                        role_ids: [],
-                                       company_doc_ids: []
+                                       company_doc_ids: [],
+
     )
   end
 end

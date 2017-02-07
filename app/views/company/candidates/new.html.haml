@@ -19,14 +19,24 @@
       // DO NOT REMOVE : GLOBAL FUNCTIONS!
 
       $(document).ready(function() {
+      $('.datepicker').datepicker();
+          $('.new_consultant').on('cocoon:after-insert', function(e, insertedItem) {
+            $('.education_start_year').datepicker({
+            dateFormat : 'dd/mm/yy'
+              });
+              $('.education_completion_year').datepicker({
+              dateFormat : 'dd/mm/yy'
+              });
+        });
 
-         $('.education_start_year').datepicker({
-        dateFormat : 'dd/mm/yy'
-          });
-         $('.education_completion_year').datepicker({
-          dateFormat : 'dd/mm/yy'
-         });
-        pageSetUp();
+        $('.education_start_year').datepicker({
+            dateFormat : 'dd/mm/yy'
+        });
+        $('.education_completion_year').datepicker({
+            dateFormat : 'dd/mm/yy'
+        });
+
+      pageSetUp();
 
 
         // Joining Date
@@ -142,7 +152,7 @@
         function wizard_set_finish_button(current , total )
         {
               if(current >= total) {
-                  $('#bootstrap-wizard-1').find('.pager .next').hide();
+                  // $('#bootstrap-wizard-1').find('.pager .next').hide();
                   $('#bootstrap-wizard-1').find('.pager .finish').show();
                   $('#bootstrap-wizard-1').find('.pager .finish').removeClass('disabled');
                 } else {

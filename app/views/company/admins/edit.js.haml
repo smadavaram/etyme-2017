@@ -1,2 +1,2 @@
 $('.remote_container').html("#{ j render 'company/admins/partials/new_modal' , admin: @admin}");
-$('#new-admin').modal('toggle');
+$('#admin-edit-#{@admin.id}').modal('toggle');
