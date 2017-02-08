@@ -27,17 +27,30 @@ class Company::CandidatesController < Company::BaseController
     end
   end
 
+
+
    def create
-     @candidate = current_company.candidates.new(create_candidate_params.merge(send_welcome_email_to_candidate: false,invited_by_id: current_user.id ,invited_by_type: 'User' ,))
-     if @candidate.valid? && @candidate.save
-       current_company.candidates <<  @candidate
-       flash[:success] =  "Successfull Added."
-       redirect_to candidates_path
-     else
-       flash[:errors] = @candidate.errors.full_messages
-       return render 'new'
+
+      if Candidate.signup.where(email:params[:candidate][:email]).present? && !current_company.candidates.find_by(email:params[:candidate][:email]).present?
+       flash[:already_exist] = true
+       flash[:email] = params[:candidate][:email]
+       redirect_to company_candidates_path
+      elsif Candidate.signup.where(email:params[:candidate][:email]).present? && current_company.candidates.find_by(email:params[:candidate][:email]).present?
+        flash[:notice] = "Candidate Already Present in Your Network!"
+        redirect_to company_candidates_path
+      else
+       @candidate = current_company.candidates.new(create_candidate_params.merge(send_welcome_email_to_candidate: false,invited_by_id: current_user.id ,invited_by_type: 'User', status:"campany_candidate"))
+       if @candidate.save
+         current_company.candidates <<  @candidate
+         flash[:success] =  "Successfull Added."
+         redirect_to candidates_path
+       else
+         flash[:errors] = @candidate.errors.full_messages
+         redirect_to :back
+       end
      end
    end
+
 
   def edit
 
@@ -48,7 +61,7 @@ class Company::CandidatesController < Company::BaseController
       flash[:success] = "#{@candidate.full_name} updated successfully."
       redirect_to company_candidates_path
     else
-      flash[:errors] = @admin.errors.full_messages
+      flash[:errors] = @candidate.errors.full_messages
       redirect_to :back
     end
 

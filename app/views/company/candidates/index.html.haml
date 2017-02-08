@@ -24,7 +24,7 @@
                       %th Pic
                       %th Name
                       %th Email
-                      %th Invited By
+                      %th Status
                       %th Groups
                       %th Actions
                   %tbody
@@ -33,7 +33,7 @@
                         %td= image_tag candidate.photo, alt: '', width: '20'
                         %td= candidate.full_name.titleize
                         %td= candidate.email
-                        %td= candidate.invited_by.first_name.titleize
+                        %td= candidate.status.titleize
                         %td
                           - candidate.groups.each do |group|
                             %span.badge.bg-color-blue
@@ -41,7 +41,17 @@
                         %td
                           = link_to raw("Resume") , candidate.resume ,download: true , class: 'btn btn-xs btn-primary'
                           = link_to raw("Manage Groups"), candidate_manage_groups_path(candidate) , remote:true,class: 'btn btn-xs btn-success'
-                          = link_to raw("<i class='fa fa-pencil '></i>") , edit_company_candidate_path(candidate) , class: 'btn btn-xs btn-default btn-primary', title: "Edit #{candidate.full_name}"
+                          - if candidate.campany_candidate?
+                            = link_to raw("<i class='fa fa-pencil '></i>") , edit_company_candidate_path(candidate) , class: 'btn btn-xs btn-default btn-primary', title: "Edit #{candidate.full_name}"
           = digg_pagination(@consultants)
+
+- content_for :modals do
+  = render 'company/candidates/partials/add_to_my_network'
+
+- content_for :scripts do
+  :javascript
+    if ("#{flash[:already_exist]}"){
+        $('#add-network').modal('toggle');
+    }
 
 

@@ -8,9 +8,9 @@ class Company::AttachmentsController < Company::BaseController
     add_breadcrumb "Company Documents", attachments_path(current_company), :title => ""
   end
 
-  def document_list
-    render layout: false
-  end
+  # def document_list
+  #   render layout: false
+  # end
 
   private
 

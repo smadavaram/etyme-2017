@@ -112,7 +112,9 @@ Rails.application.routes.draw do
         get :notify_notifications
       end
     end
-    resources :companies ,only: [:create]
+    resources :companies ,only: [:create] do
+      post   :add_to_network
+    end
     resources :candidates
   end
 
@@ -201,7 +203,7 @@ Rails.application.routes.draw do
 
     #leaves path for owner of company
     get 'leaves',            to: 'leaves#employees_leaves'      , as: :employees_leaves
-    get 'attachment/documents_list',to: 'attachments#document_list'
+    # get 'attachment/documents_list',to: 'attachments#document_list'
     get 'dashboard' ,       to: 'users#dashboard' ,             as: :dashboard
     post 'update_photo',    to: 'users#update_photo'
     resources :timesheets ,concerns: :paginatable , only: [:show , :index] do

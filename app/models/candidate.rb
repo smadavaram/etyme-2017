@@ -4,18 +4,22 @@ class Candidate < ActiveRecord::Base
   devise :invitable, :database_authenticatable, :registerable,
          :recoverable, :rememberable, :trackable
 
+  enum status: [:signup, :campany_candidate]
+
   # validates :password,presence: true,if: Proc.new { |candidate| !candidate.password.nil? }
   # validates :password_confirmation,presence: true,if: Proc.new { |candidate| !candidate.password.nil? }
 
   after_create  :send_invitation_email  , if: Proc.new{|candidate|candidate.invited_by.present? && candidate.send_welcome_email_to_candidate.nil?}
 
   # after_create :send_job_invitation, if: Proc.new{ |candidate| candidate.invited_by.present?}
-  after_create :create_address
+  after_create  :create_address
   after_create  :send_welcome_email, if: Proc.new{|candidate| candidate.send_welcome_email_to_candidate.nil?}
+  after_create  :normalize_candidate_entries,if: Proc.new{|candidate| candidate.signup?}
 
 
   validates :email,presence: :true
-  validates_uniqueness_of :email , message: "Candidate with same email already exist!"
+  validates_uniqueness_of :email ,scope: [:status], message: "Candidate with same email already exist on the Eytme!" ,if: Proc.new{|candidate| candidate.signup?}
+  validate :email_uniquenes ,if: Proc.new{|candidate| candidate.status == "campany_candidate"}
   # validates_numericality_of :phone , on: :update
   # validates :dob, date: { before_or_equal_to: Proc.new { Date.today }, message: " Date Of Birth Can not be in future." } , on: :update
 
@@ -93,6 +97,22 @@ class Candidate < ActiveRecord::Base
     #
 
   #
+  def normalize_candidate_entries
+    a = Candidate.campany_candidate.where(email: self.email)
+    a.each do |candidate|
+      cp = CandidatesCompany.where(candidate_id: candidate.id)
+      cp.update_all(candidate_id: self.id)
+      candidate.delete
+    end
+  end
+
+  def email_uniquenes
+    if self.status == "campany_candidate"
+      if self.invited_by.company.candidates.where(email:self.email).present?
+        errors.add(:base,"Candidate with same email exist's in your Company")
+      end
+    end
+  end
 
 
 end

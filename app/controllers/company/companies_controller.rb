@@ -92,6 +92,21 @@ class Company::CompaniesController < Company::BaseController
     has_access?("manage_company")
   end
 
+  def add_to_network
+    @add_to_network = Candidate.signup.find_by(email: params[:email])
+    @candidate = CandidatesCompany.new(company_id: current_company.id, candidate_id: @add_to_network.id)
+    if @candidate.save
+      flash[:success] = "Added To Your Company Network"
+      respond_to do |format|
+        format.js {render inline: "location.reload();" }
+      end
+    else
+      flash[:notice] = @candidate.errors.full_messages
+      respond_to do |format|
+        format.js {render inline: "location.reload();" }
+      end
+    end
+  end
 
 
   private
