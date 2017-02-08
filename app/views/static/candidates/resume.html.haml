@@ -8,13 +8,13 @@
           -#%img{:alt => "avatar", :src => "img/avatar.jpg"}/
           = image_tag  @candidate.photo
         #text-header
-          %h1
-            Hello,
-            %br/
-            my name is
-            %span= @candidate.full_name
-            -#%sup= (@candidate.dob-Time.now).to_i
-            and this is my resume
+          %h2
+            %span{style: "color:#F0563D"}= @candidate.full_name
+            -#%br/
+            -#my name is
+            -#%span= @candidate.full_name
+            -#-#%sup= (@candidate.dob-Time.now).to_i
+            -#and this is my resume
   .row
     .col-xs-12.col-sm-7
       / ABOUT ME

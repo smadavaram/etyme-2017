@@ -1,12 +1,12 @@
 !!!
-%html{:id => "#{yield :html_id}"}
+%html{:id => "#{yield :html_id}",style: "background: #ededed !important"}
   %head
     %meta{:content => "text/html; charset=UTF-8", "http-equiv" => "Content-Type"}/
     %title Etyme
     = stylesheet_link_tag    'application'
     = csrf_meta_tags
     = yield :head
-  %body{:class => "#{yield :body_class}"}
+  %body
     = yield
     -##main{:role => "main"}
     -#  = yield :ribbon
@@ -23,9 +23,9 @@
     -#      %i.fa-fw.fa.fa-warning
     -#      = alert
 
-    = javascript_include_tag 'application'
-    = filepicker_js_include_tag
-    = tinymce_assets
+    -#= javascript_include_tag 'application'
+    -#= filepicker_js_include_tag
+    -#= tinymce_assets
     = yield(:scripts).present? ? yield(:scripts) : render(partial: 'shared/scripts')
     .modals
 
