@@ -1,0 +1,21 @@
+.modal.fade{id: 'add-network'}
+  .modal-dialog.modal-sm
+    .modal-content
+      .modal-header
+        %button.close{"aria-hidden" => "true", "data-dismiss" => "modal", :type => "button"}
+          ×
+        %h4.modal-title
+          %strong Add to My Network
+      .modal-body.no-padding
+        #content
+          #wid-id-5.no-border
+            %div
+              .h4
+                This Candidate with "#{flash[:email]}" already present in the eTyme.
+        #content
+          .font-sm
+            Would You Like to add this to Your Network?
+          %hr
+          = link_to "Yes i would like to ", company_company_add_to_network_path(current_company,email: flash[:email]), class: 'btn btn-success btn-md',remote: true, method: :post
+          %button.btn.btn-danger{"data-dismiss" => "modal", :type => "button"}
+            No
