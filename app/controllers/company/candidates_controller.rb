@@ -46,7 +46,7 @@ class Company::CandidatesController < Company::BaseController
          redirect_to candidates_path
        else
          flash[:errors] = @candidate.errors.full_messages
-         return :back
+         redirect_to :back
        end
      end
    end
