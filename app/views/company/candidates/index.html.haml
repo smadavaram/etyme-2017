@@ -31,9 +31,9 @@
                     - @candidates.each_with_index do |candidate , index|
                       %tr
                         %td= image_tag candidate.photo, alt: '', width: '20'
-                        %td= candidate.full_name.titleize
+                        %td= candidate.try(:full_name).try(:titleize)
                         %td= candidate.email
-                        %td= candidate.status.titleize
+                        %td= candidate.try(:status).try(:titleize)
                         %td
                           - candidate.groups.each do |group|
                             %span.badge.bg-color-blue
