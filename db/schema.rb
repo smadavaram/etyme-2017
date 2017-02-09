@@ -11,7 +11,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema.define(version: 20170208084200) do
+ActiveRecord::Schema.define(version: 20170209063700) do
 
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
@@ -100,6 +100,7 @@ ActiveRecord::Schema.define(version: 20170208084200) do
   create_table "candidates_companies", id: false, force: :cascade do |t|
     t.integer "candidate_id"
     t.integer "company_id"
+    t.integer "status",       default: 0
   end
 
   add_index "candidates_companies", ["candidate_id", "company_id"], name: "index_candidates_companies_on_candidate_id_and_company_id", unique: true, using: :btree
