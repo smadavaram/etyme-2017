@@ -76,7 +76,7 @@ PHOTO (AVATAR)
 #text-header:after{
     width: 100%;
     height: 3px;
-    background: url(../img/line.png);
+    /*background: url(../img/line.png);*/
     margin-top: 15px;
     content: '';
     display: block;

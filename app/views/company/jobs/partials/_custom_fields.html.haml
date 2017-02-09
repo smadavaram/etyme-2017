@@ -3,16 +3,13 @@
     %label.col-md-2.control-label
       Field Name
       %sup.text-danger *
-    .col-md-8
+    .col-md-5
       = f.text_field :name , class: 'form-control' , placeholder: 'Enter Field Name' , required: true
+    .col-md-3
+      %label Required ?
+      = f.check_box :required , {}, true, false
+
+
+      -#= f.check_box :required , class: 'form-control'
     .col-md-1
       = link_to_remove_association "Remove", f, class: "btn btn-danger pull-right"
-  -#.col-md-12
-  -#  .form-group.col-sm-5
-  -#    %label.control-label Field Name
-  -#    %div
-  -#      = f.text_field :name , class:"form-control  input-lg", required: true
-  -#  -#.form-group.col-sm-5
-  -#  -#  %label.control-label Field Value
-  -#  -#  %div
-  -#  -#    = f.text_field :value, class: "form-control input-lg"

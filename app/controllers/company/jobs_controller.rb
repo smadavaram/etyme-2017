@@ -95,6 +95,7 @@ class Company::JobsController < Company::BaseController
               :id,
               :name,
               :value,
+              :required,
               :_destroy
           ]])
     end
