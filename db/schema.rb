@@ -239,8 +239,9 @@ ActiveRecord::Schema.define(version: 20170209063700) do
     t.integer  "status"
     t.integer  "customizable_id"
     t.string   "customizable_type"
-    t.datetime "created_at",        null: false
-    t.datetime "updated_at",        null: false
+    t.datetime "created_at",                        null: false
+    t.datetime "updated_at",                        null: false
+    t.boolean  "required",          default: false
   end
 
   create_table "delayed_jobs", force: :cascade do |t|
