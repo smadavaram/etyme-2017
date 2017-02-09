@@ -1,6 +1,6 @@
 class Company::CandidatesController < Company::BaseController
  # add_breadcrumb "CANDIDATE", :candidate_path, options: { title: "CANDIDATE" }
-  before_action :find_candidate , only: [:edit, :update]
+  before_action :find_candidate , only: [:edit, :update ]
 
  def index
    @search      = current_company.candidates.search(params[:q])
@@ -17,7 +17,10 @@ class Company::CandidatesController < Company::BaseController
   def manage_groups
   @manage_candidate = current_company.candidates.find(params[:candidate_id])
     if request.patch?
-      @manage_candidate.update_attributes(group_ids:params[:candidate][:group_ids])
+      groups = params[:candidate][:group_ids]
+      groups = groups.reject { |t| t.empty? }
+      groups_id = groups.map(&:to_i)
+      @manage_candidate.update_attribute(:group_ids, groups_id)
       if @manage_candidate.save
         flash[:success] = "Groups has been Updated"
       else
@@ -50,6 +53,38 @@ class Company::CandidatesController < Company::BaseController
        end
      end
    end
+
+  def make_hot
+    @company_candidate = CandidatesCompany.normal.where(candidate_id: params[:candidate_id],company_id:current_company.id)
+      if @company_candidate.update_all(status:1)
+        flash[:success] = "Candidate is now Hot Candidate."
+        respond_to do |format|
+          format.js {render inline: "location.reload();" }
+        end
+      else
+        flash[:errors] =  @company_candidate.errors.full_messages
+        respond_to do |format|
+          format.js {render inline: "location.reload();" }
+        end
+      end
+
+  end
+
+  def make_normal
+    @company_candidate = CandidatesCompany.hot_candidate.where(candidate_id: params[:candidate_id],company_id:current_company.id)
+    if @company_candidate.update_all(status:0)
+      flash[:success] = "Candidate is now Normal Candidate."
+      respond_to do |format|
+        format.js {render inline: "location.reload();" }
+      end
+    else
+      flash[:errors] =  @company_candidate.errors.full_messages
+      respond_to do |format|
+        format.js {render inline: "location.reload();" }
+      end
+    end
+
+  end
 
 
   def edit

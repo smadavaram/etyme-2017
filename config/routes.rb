@@ -141,6 +141,8 @@ Rails.application.routes.draw do
     resources :job_invitations  ,concerns: :paginatable , only: [:index , :show]
     resources :candidates   ,concerns: :paginatable,only: :index do
       match  :manage_groups , via: [:get, :patch]
+      post   :make_hot
+      post   :make_normal
     end
     resources :job_applications ,concerns: :paginatable , only: [:index,:show] do
     resources :consultants , only: [:new , :create]

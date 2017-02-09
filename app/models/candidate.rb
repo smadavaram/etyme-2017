@@ -14,12 +14,12 @@ class Candidate < ActiveRecord::Base
   # after_create :send_job_invitation, if: Proc.new{ |candidate| candidate.invited_by.present?}
   after_create  :create_address
   after_create  :send_welcome_email, if: Proc.new{|candidate| candidate.send_welcome_email_to_candidate.nil?}
-  after_create  :normalize_candidate_entries,if: Proc.new{|candidate| candidate.signup?}
+  after_create  :normalize_candidate_entries, if: Proc.new{|candidate| candidate.signup?}
 
 
   validates :email,presence: :true
   validates_uniqueness_of :email ,scope: [:status], message: "Candidate with same email already exist on the Eytme!" ,if: Proc.new{|candidate| candidate.signup?}
-  validate :email_uniquenes ,if: Proc.new{|candidate| candidate.status == "campany_candidate"}
+  validate :email_uniquenes ,on: :create,if: Proc.new{|candidate| candidate.status == "campany_candidate"}
   # validates_numericality_of :phone , on: :update
   # validates :dob, date: { before_or_equal_to: Proc.new { Date.today }, message: " Date Of Birth Can not be in future." } , on: :update
 
@@ -32,10 +32,10 @@ class Candidate < ActiveRecord::Base
   has_many   :job_invitations     , as: :recipient
   has_many   :educations          , dependent: :destroy          ,foreign_key: 'user_id'
   has_many   :experiences         , dependent: :destroy          ,foreign_key: 'user_id'
+  has_many :candidates_companies  ,dependent: :destroy
+  has_many :companies , through: :candidates_companies ,dependent: :destroy
   belongs_to :address             , foreign_key: :primary_address_id
-  has_and_belongs_to_many :companies
-  has_and_belongs_to_many :groups
-
+  has_and_belongs_to_many :groups ,through: :company
 
   attr_accessor :job_id , :expiry , :message , :invitation_type
   attr_accessor :send_welcome_email_to_candidate
@@ -102,6 +102,8 @@ class Candidate < ActiveRecord::Base
     a.each do |candidate|
       cp = CandidatesCompany.where(candidate_id: candidate.id)
       cp.update_all(candidate_id: self.id)
+      # group_ids= candidate.groups.map{|g| g.id}
+      # self.update_attribute(:group_ids, group_ids)
       candidate.delete
     end
   end

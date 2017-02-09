@@ -38,7 +38,8 @@ class Company < ActiveRecord::Base
   # has_many :invoices                  , through:   :timesheets
   has_one  :subscription              , dependent: :destroy
   has_one  :package                   , through:   :subscription
-  has_and_belongs_to_many :candidates , dependent: :destroy
+  has_many :candidates_companies  ,dependent: :destroy
+  has_many :candidates , through: :candidates_companies
 
 
   # validates           :company_type, inclusion: { in: [0, 1] } , presence: true

@@ -31,16 +31,20 @@
                     - @candidates.each_with_index do |candidate , index|
                       %tr
                         %td= image_tag candidate.photo, alt: '', width: '20'
-                        %td= candidate.full_name.titleize
+                        %td= candidate.try(:full_name).try(:titleize)
                         %td= candidate.email
-                        %td= candidate.status.titleize
+                        %td= candidate.try(:status).try(:titleize)
                         %td
-                          - candidate.groups.each do |group|
+                          - candidate.groups.where(company_id: current_company.id).each do |group|
                             %span.badge.bg-color-blue
                               = group.group_name.titleize
                         %td
                           = link_to raw("Resume") , candidate.resume ,download: true , class: 'btn btn-xs btn-primary'
                           = link_to raw("Manage Groups"), candidate_manage_groups_path(candidate) , remote:true,class: 'btn btn-xs btn-success'
+                          - if is_hot?(candidate)
+                            = link_to raw("Make Hot"), candidate_make_hot_path(candidate) , remote:true,method: :post,class: 'btn btn-xs btn-danger'
+                          - if !is_hot?(candidate)
+                            = link_to raw("Make Normal"), candidate_make_normal_path(candidate) , remote:true,method: :post,class: 'btn btn-xs btn-primary'
                           - if candidate.campany_candidate?
                             = link_to raw("<i class='fa fa-pencil '></i>") , edit_company_candidate_path(candidate) , class: 'btn btn-xs btn-default btn-primary', title: "Edit #{candidate.full_name}"
           = digg_pagination(@consultants)
