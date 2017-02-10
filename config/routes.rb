@@ -114,11 +114,17 @@ Rails.application.routes.draw do
     end
     resources :companies ,only: [:create] do
       post   :add_to_network
+      get    :hot_candidates
     end
     resources :candidates
   end
 
   scope module: :company do
+
+    post 'reject_vendor' ,to: 'prefer_vendors#reject'
+    post 'accept_vendor' ,to: 'prefer_vendors#accept'
+    get  'network',       to:   'prefer_vendors#show_network'
+    # get  'hot_candidate', to: 'companies#hot_candidate'
 
     resources :consultants , concerns: :paginatable do
       resources :leaves do
@@ -138,6 +144,9 @@ Rails.application.routes.draw do
     resources :comments         , only: [:create]
     resources :attachments      ,concerns: :paginatable , only: [:index]
     resources :invoices         ,concerns: :paginatable , only: [:index]
+    resources :prefer_vendors   ,concerns: :paginatable  do
+      # end
+    end
     resources :job_invitations  ,concerns: :paginatable , only: [:index , :show]
     resources :candidates   ,concerns: :paginatable,only: :index do
       match  :manage_groups , via: [:get, :patch]

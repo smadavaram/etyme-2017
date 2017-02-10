@@ -35,7 +35,7 @@
                       %td= link_to admin.full_name , '#' , target: '_blank'
                       %td= admin.email
                       %td= admin.roles.map(&:name).join(", ").gsub("_"," ").upcase
-                      %td= admin.last_sign_in_at.localtime.strftime("%A, %d %b %Y %l:%M %p")
+                      %td= admin.try(:last_sign_in_at).try(:localtime).try(:strftime,"%A, %d %b %Y %l:%M %p")
                       %td
                         = link_to raw("<i class='fa fa-pencil '>""</i>") , edit_admin_path(admin) , class: 'btn btn-xs btn-default btn-primary' ,remote: true,title: "Edit #{admin.full_name}"
                         -#= link_to raw("<i class='fa fa-times '></i>") , admin_path(admin) , method: :delete ,  class: 'btn btn-xs btn-default btn-danger' ,title: "Delete #{admin.full_name}" ,data: {confirm: 'Are you sure?', verify: 'Confirm', verify_text: 'Type "Confirm" to confirm'}

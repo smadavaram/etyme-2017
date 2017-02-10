@@ -1,0 +1,56 @@
+#content
+  .row
+    -#.col-xs-12.col-sm-3.col-md-3.col-lg-3.pull-right
+      -#= button_tag 'NEW' ,class: 'btn btn-success btn-lg pull-right header-btn hidden-mobile' , "data-toggle": "modal" , "data-target":"#new-contract-company"
+  -##wid-id-5.no-border.jarviswidget
+  -#  .col-xs-12.col-sm-9.col-md-9.col-lg-9.pull-left{style: 'border-bottom-color: #fff !important;'}
+  %section.margin-top-10
+    .row
+      #wid-id-5.no-border.jarviswidget
+        %div
+          .widget-body
+            .col-md-12
+              -#= search_form_for @search , url: search_companies_path , method: :get do |f|
+                %ul#internal-tab-1.nav.nav-tabs.tabs-pull-right
+                  %br
+                  .input-group.input-group-lg.hidden-mobile
+                    = f.text_field :invited_company_name_cont, class: "form-control input-lg", placeholder: "Search Company..."
+                    .input-group-btn
+                      = f.button raw("<i class='fa fa-fw fa-search fa-lg'></i>") , class: 'btn btn-default'
+              %br 
+              %table#dt_basic.table.table-bordered.table-hover{:width => "100%"}
+                %thead
+                  %tr
+                    %th{"data-hide" => "phone"} Pic
+                    %th Name
+                    %th Owner
+                    %th Owner Email
+                    %th Domain
+                    %th Phone
+                    %th Actions
+                %tbody
+                  -@network.each do |d|
+                    %tr
+                      - if d.prefer_vendor ==current_company
+                        %td= image_tag show_recipient_picture(d.company.logo) , alt: '', width: '40'
+                        %td= link_to d.company.name ,profile_company_path(d.company)
+                        %td= d.company.owner.full_name  rescue "  --"
+                        %td= d.company.owner.try(:email)
+                        %td= d.company.domain
+                        %td= d.company.phone
+                        %td= link_to 'HOT Candidates', company_company_hot_candidates_path(d.company) , class: 'btn btn-xs btn-danger btn-Danger' ,title:"Show Hot Candidates of  #{d.company.name}"
+                      -elsif d.company == current_company
+                        %td= image_tag show_recipient_picture(d.prefer_vendor.logo) , alt: '', width: '40'
+                        %td= link_to d.prefer_vendor.name ,profile_company_path(d.prefer_vendor)
+                        %td= d.prefer_vendor.owner.full_name  rescue "  --"
+                        %td= d.prefer_vendor.owner.try(:email)
+                        %td= d.prefer_vendor.domain
+                        %td= d.prefer_vendor.phone
+                        %td
+                          = link_to 'HOT Candidates', company_company_hot_candidates_path(d.prefer_vendor) , class: 'btn btn-xs btn-danger btn-Danger' ,title:"Show Hot Candidates of  #{d.prefer_vendor.name}"
+                      -#  = link_to raw("<i class='fa fa-times '></i>") , company_path(d.invited_company) ,method: :delete, class: 'btn btn-xs btn-default btn-danger' ,title:"Delete #{d.invited_company.name}",data: {confirm: "Are you sure you want to Delete this Company ?", verify: 'Confirm', verify_text: "Type 'Confirm' to Continue"}
+            -#= digg_pagination(@invited_companies)
+
+- content_for :modals do
+  #job_invitation
+  -#= render 'company/companies/partials/new_company'

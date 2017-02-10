@@ -1,0 +1,2 @@
+module Company::PreferVendorsHelper
+end

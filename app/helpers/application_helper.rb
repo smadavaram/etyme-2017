@@ -139,6 +139,29 @@ module ApplicationHelper
             content: "<i class='fa fa-lg fa-fw fa-home'></i> <span class='menu-item-parent'>" + 'HOME' + "</span>",
         },
         {
+            href: '#',
+            title: 'My Network ',
+            content: "<i class='fa fa-lg fa-fw fa-globe'></i> <span class='menu-item-parent'>" + 'My Network' + "</span>",
+            children: [
+                {
+                    href: prefer_vendors_path,
+                    title: 'Network Request',
+                    content: "<span class='menu-item-parent'> Network Request(s) </span>"
+                },
+
+                {
+                    href: network_path,
+                    title: 'Network',
+                    content: "<span class='menu-item-parent'> Network(s) </span>"
+                },
+                {
+                    href:  directories_path,
+                    title: 'Directory',
+                    content: "<span class='menu-item-parent'>" + 'Directory' + "</span>",
+                }
+            ]
+        },
+        {
             href: "#",
             title: 'My Companies',
             content: "<i class='fa fa-lg fa-fw fa-black-tie'></i> <span class='menu-item-parent'>" + 'My Companies' + "</span>",
@@ -213,41 +236,41 @@ module ApplicationHelper
               title: 'Leaves',
               content: "<i class='fa fa-lg fa-fw fa-calendar'></i> <span class='menu-item-parent'>" + 'Leaves' + "</span>",
           },
-          {
-              href:  "#",
-              title: 'Directory',
-              content: "<i class='fa fa-lg fa-fw fa-folder'></i> <span class='menu-item-parent'>" + 'Directory' + "</span>",
-              children: [
-                  {
-                  href:  directories_path,
-                  title: 'Directory',
-                  content: "<span class='menu-item-parent'>" + 'Directory' + "</span>",
-                  }
-                  # {
-                  #     href: "#",
-                  #     title: 'Emergency Contact(s)',
-                  #     content: "<span class='menu-item-parent'> Emergency Contact(s) </span>",
-                  # }
-
-              ]
-          },
-        {
-            href: '#',
-            title: 'CONFIGURATION',
-            content: "<i class='fa fa-lg fa-fw fa-gear'></i> <span class='menu-item-parent'>" + 'CONFIGURATION' + "</span>",
-            children: [
-                {
-                    href: admins_path,
-                    title: 'Admin(s)',
-                    content: "<span class='menu-item-parent'> Admin(s) </span>"
-                },
-                {
-                    href: attachments_path,
-                    title: 'Company Documents',
-                    content: "<span class='menu-item-parent'>Documents </span>"
-                }
-            ]
-        }
+          # {
+          #     href:  "#",
+          #     title: 'Directory',
+          #     content: "<i class='fa fa-lg fa-fw fa-folder'></i> <span class='menu-item-parent'>" + 'Directory' + "</span>",
+          #     children: [
+          #         {
+          #         href:  directories_path,
+          #         title: 'Directory',
+          #         content: "<span class='menu-item-parent'>" + 'Directory' + "</span>",
+          #         }
+          #         # {
+          #         #     href: "#",
+          #         #     title: 'Emergency Contact(s)',
+          #         #     content: "<span class='menu-item-parent'> Emergency Contact(s) </span>",
+          #         # }
+          #
+          #     ]
+          # },
+        # {
+        #     href: '#',
+        #     title: 'CONFIGURATION',
+        #     content: "<i class='fa fa-lg fa-fw fa-gear'></i> <span class='menu-item-parent'>" + 'CONFIGURATION' + "</span>",
+        #     children: [
+        #         {
+        #             href: admins_path,
+        #             title: 'Admin(s)',
+        #             content: "<span class='menu-item-parent'> Admin(s) </span>"
+        #         },
+        #         {
+        #             href: attachments_path,
+        #             title: 'Company Documents',
+        #             content: "<span class='menu-item-parent'>Documents </span>"
+        #         }
+        #     ]
+        # }
     ]
   end
 

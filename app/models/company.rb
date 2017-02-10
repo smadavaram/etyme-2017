@@ -40,7 +40,8 @@ class Company < ActiveRecord::Base
   has_one  :package                   , through:   :subscription
   has_many :candidates_companies  ,dependent: :destroy
   has_many :candidates , through: :candidates_companies
-
+  has_many :prefer_vendors
+  has_many :perfer_vendor_companies ,class_name: "PreferVendor" , foreign_key: 'vendor_id'
 
   # validates           :company_type, inclusion: { in: [0, 1] } , presence: true
   # validates           :company_type, inclusion: {in: %w(0 , 1)}
@@ -65,6 +66,9 @@ class Company < ActiveRecord::Base
   after_create      :create_defult_roles
 
   scope :vendors, -> {where(company_type: 1)}
+  scope :signup_companies,->{ Company.where.not(:id=>InvitedCompany.select(:invited_company_id))}
+
+
 
   attr_accessor :send_email
 
@@ -82,8 +86,17 @@ class Company < ActiveRecord::Base
     JobInvitation.where("job_invitations.id = :i_id and (job_invitations.company_id = :c_id or (job_invitations.recipient_id in (:admins_id) and job_invitations.recipient_type = :obj_type))" , {c_id: self.id, admins_id: self.admins.ids , obj_type: 'User' , i_id: invitation_id}).limit(1)
   end
 
-  private
+  def send_or_received_network
+   PreferVendor.where('(prefer_vendors.vendor_id= :c_id OR prefer_vendors.company_id= :c_id) AND prefer_vendors.status = 1',{c_id: self.id})
+  end
+  def not_invited
+    PreferVendor.where('(prefer_vendors.vendor_id= :c_id OR prefer_vendors.company_id= :c_id) AND prefer_vendors.status = 0',{c_id: self.id})
+  end
 
+  # def already_prefered(c)
+  #   Company.where.not(:id=>PreferVendor.select(:vendor_id).where(company_id=c.id))
+  # end
+  private
   def create_slug
     get_host_from_domain()
   end

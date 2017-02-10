@@ -1,0 +1,37 @@
+#content
+  .row
+    .col-xs-12.col-sm-.col-md-3.col-lg-3.pull-right
+      = button_tag 'NEW' ,class: 'btn btn-success btn-lg pull-right header-btn hidden-mobile' , "data-toggle": "modal" , "data-target":"#send-invitation"
+
+  #wid-id-5.no-border.jarviswidget
+    .col-xs-12.col-sm-9.col-md-9.col-lg-9.pull-left{style: 'border-bottom-color: #fff !important;'}
+      -#= search_form_for @sent_search , url: search_contracts_path , method: :get do |f|
+        %ul#internal-tab-1.nav.nav-tabs.tabs-pull-right.sub-tab
+          %br
+          .input-group.input-group-lg.hidden-mobile
+            .input-group-btn.select
+              = f.select :status_eq , Contract.statuses.map { |key, value| [key.humanize, value] }.push(['All', '']).reverse.to_h, {} , {class: "btn btn-default dropdown-toggle" ,  onChange: "this.form.submit();"}
+            = f.text_field :job_title_cont, class: "form-control input-lg bg-white", placeholder: "Search Contracts..."
+            .input-group-btn
+              = f.button raw("<i class='fa fa-fw fa-search fa-lg'></i>") , class: 'btn btn-default'
+    %div
+      .widget-body
+        %ul#myTab1.nav.nav-tabs.no-border
+          %li.active
+            %a{"data-toggle" => "tab", :href => "#tab-r1"}
+              %span.badge.bg-color-blue.txt-color-white= @vendors.count
+              Sent Invitation(s)
+          %li
+            %a{"data-toggle" => "tab", :href => "#tab-r2"}
+              %span.badge.bg-color-blueDark.txt-color-white= @recived_vendors.count
+              Received Invitation(s)
+        .col-md-12
+          .tab-content
+            #tab-r1.tab-pane.padding-top-15.active.in
+              = render 'company/prefer_vendors/partials/send_request' , data: @vendors
+            #tab-r2.tab-pane.padding-top-15
+              = render 'company/prefer_vendors/partials/received_request' , data: @recived_vendors
+
+- content_for :modals do
+  #job_invitation
+  = render 'company/prefer_vendors/partials/new_vendor'
