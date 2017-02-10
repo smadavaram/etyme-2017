@@ -4,19 +4,19 @@ module Company::ContractsHelper
     if contractable.class.name == "Candidate"
       contractable.full_name
     else
-      contractable.name.titleize
+      contractable.try(:name)
     end
   end
 
   def show_recipient_picture contractable
     return "default_user.png" if contractable.nil?
     if contractable.class.name == "Candidate"
-      contractable.photo
+      contractable.try(:photo)
     else
-      if contractable.logo.nil?
+      if contractable.try(:logo).nil?
         return "default_user.png"
       else
-        contractable.logo
+        contractable.try(:logo)
       end
     end
   end
