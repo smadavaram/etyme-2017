@@ -11,10 +11,10 @@
   %tbody
     -data.each do |d|
       %tr
-        %td= image_tag show_recipient_picture(d.prefer_vendor.logo) , alt: '', width: '40'
+        %td= image_tag show_recipient_picture(d.prefer_vendor.try(:logo)) , alt: '', width: '40'
         %td= link_to d.prefer_vendor.name ,profile_company_path(d.prefer_vendor)
         %td= d.prefer_vendor.owner.full_name  rescue "  --"
         %td= d.prefer_vendor.owner.try(:email)
-        %td= d.prefer_vendor.domain
-        %td= d.status.titleize
-        %td= d.prefer_vendor.phone
+        %td= d.prefer_vendor.domain  rescue "  --"
+        %td= d.status.titleize rescue "  --"
+        %td= d.prefer_vendor.phone rescue "  --"

@@ -32,20 +32,20 @@
                   -@network.each do |d|
                     %tr
                       - if d.prefer_vendor ==current_company
-                        %td= image_tag show_recipient_picture(d.company.logo) , alt: '', width: '40'
+                        %td= image_tag show_recipient_picture(d.company.try(:logo)) , alt: '', width: '40'
                         %td= link_to d.company.name ,profile_company_path(d.company)
                         %td= d.company.owner.full_name  rescue "  --"
-                        %td= d.company.owner.try(:email)
-                        %td= d.company.domain
-                        %td= d.company.phone
+                        %td= d.company.owner.try(:email) rescue "  --"
+                        %td= d.company.domain rescue "  --"
+                        %td= d.company.phone rescue "  --"
                         %td= link_to 'HOT Candidates', company_company_hot_candidates_path(d.company) , class: 'btn btn-xs btn-danger btn-Danger' ,title:"Show Hot Candidates of  #{d.company.name}"
                       -elsif d.company == current_company
-                        %td= image_tag show_recipient_picture(d.prefer_vendor.logo) , alt: '', width: '40'
+                        %td= image_tag show_recipient_picture(d.prefer_vendor.try(:logo)) , alt: '', width: '40'
                         %td= link_to d.prefer_vendor.name ,profile_company_path(d.prefer_vendor)
                         %td= d.prefer_vendor.owner.full_name  rescue "  --"
-                        %td= d.prefer_vendor.owner.try(:email)
-                        %td= d.prefer_vendor.domain
-                        %td= d.prefer_vendor.phone
+                        %td= d.prefer_vendor.owner.try(:email) rescue "  --"
+                        %td= d.prefer_vendor.domain rescue "  --"
+                        %td= d.prefer_vendor.phone rescue "  --"
                         %td
                           = link_to 'HOT Candidates', company_company_hot_candidates_path(d.prefer_vendor) , class: 'btn btn-xs btn-danger btn-Danger' ,title:"Show Hot Candidates of  #{d.prefer_vendor.name}"
                       -#  = link_to raw("<i class='fa fa-times '></i>") , company_path(d.invited_company) ,method: :delete, class: 'btn btn-xs btn-default btn-danger' ,title:"Delete #{d.invited_company.name}",data: {confirm: "Are you sure you want to Delete this Company ?", verify: 'Confirm', verify_text: "Type 'Confirm' to Continue"}

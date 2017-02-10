@@ -11,19 +11,19 @@
             .panel-body.no-padding.text-align-center{style:"height:190px;"}
               .the-price
                 %h1
-                  = c.candidate.full_name
+                  = c.candidate.try(:full_name)
                   %span.subscript
               .price-features
                 %ul.list-unstyled.text-left
                   %li
                     Company Name:
                     %strong
-                      =c.company.name.titleize.humanize
+                      =c.company.try(:name).titleize.humanize
                   %li
                     Email:
                     %strong
-                      = c.candidate.email
+                      = c.candidate.try(:email)
             .panel-footer.text-align-center
               %a.btn.btn-primary.btn-block{:href => static_candidate_resume_path(c.candidate), :role => "button"}
-                #{c.candidate.first_name}  Resume
+                #{c.candidate.try(:first_name)}  Resume
     = digg_pagination(@candidates)
