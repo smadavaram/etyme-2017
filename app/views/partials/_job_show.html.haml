@@ -1,6 +1,6 @@
 %h1= job.try(:title)
 - job.tags.each do |tag|
-  %span.h4.badge
+  %span.h4.badge.btn-primary
     =tag.name
 %div.sharethis-inline-share-buttons
 %ul.ul-s
@@ -14,7 +14,7 @@
       .col-lg-3.col-md-3
         %span.text-muted.fs-13 Catagory
         - job.tags.each do |tag|
-          %span.h4.badge
+          %span.h4.badge.btn-primary
             =tag.name
       .col-lg-3.col-md-3
         %span.text-muted.fs-13 Date

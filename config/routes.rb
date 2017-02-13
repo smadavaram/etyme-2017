@@ -9,28 +9,21 @@ Rails.application.routes.draw do
   end
 
   resources :messages, concerns: :commentable
-
   resources :articles, concerns: [:commentable, :image_attachable]
-
-
-
-  # devise_for :candidates
-  devise_for :candidates , controllers: {
-      sessions: 'candidates/sessions',
-      registrations: 'candidates/registrations',
-      passwords:'candidates/passwords',
-      invitations: 'candidate/invitations'
-  }
 
 
   get '/states/:country', to: 'application#states'
   get '/cities/:state/:country', to: 'application#cities'
+  get 'register' => 'companies#new'
+  get  'signin' ,to: 'static#signin'
+  post 'signin' ,to: 'static#signin'
 
   concern :paginatable do
     get '(page/:page)', action: :index, on: :collection, as: ''
     match :search, action: :index, via: [:get , :post], on: :collection
   end
 
+  resources :static , only: [:index]
   namespace :static do
     resources :jobs ,  only: [:index,:show] do
       get '(page/:page)', action: :index, on: :collection, as: ''
@@ -99,10 +92,6 @@ Rails.application.routes.draw do
       request.subdomain.present? && request.subdomain != 'www' && request.subdomain != 'app-etyme'
     end
   end
-
-  get 'register' => 'companies#new'
-  get  'signin' ,to: 'static#signin'
-  post 'signin' ,to: 'static#signin'
 
   # COMPANY ROUTES
   namespace  :company do
@@ -246,11 +235,18 @@ Rails.application.routes.draw do
       get :profile
     end
   end
-  resources :static , only: [:index]
+
 
   # Devise Routes
-   devise_for :users, controllers: { invitations: 'company/invitations', passwords: 'users/passwords',sessions: 'users/sessions' } , path_names: { sign_in: 'login', sign_out: 'logout'}
+  devise_for :users, controllers: { invitations: 'company/invitations', passwords: 'users/passwords',sessions: 'users/sessions' } , path_names: { sign_in: 'login', sign_out: 'logout'}
 
+  # devise_for :candidates
+  devise_for :candidates , controllers: {
+      sessions: 'candidates/sessions',
+      registrations: 'candidates/registrations',
+      passwords:'candidates/passwords',
+      invitations: 'candidate/invitations'
+  }
   # Route set when subdomain present?
   constraints(Subdomain) do
     devise_scope :user do
