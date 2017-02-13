@@ -34,7 +34,7 @@
   %body.smart-style-6{class: "#{yield :body_class}"}
     = render partial: 'company/shared/header'
     = render partial: 'company/shared/left_panel'
-    #main{:role => "main",style:"height:800px"}
+    #main{:role => "main"}
       #ribbon
         %ol.breadcrumb
           = render_breadcrumbs tag: :li, separator: ""

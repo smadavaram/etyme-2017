@@ -158,28 +158,30 @@ module ApplicationHelper
                     href:  directories_path,
                     title: 'Directory',
                     content: "<span class='menu-item-parent'>" + 'Directory' + "</span>",
-                }
-            ]
-        },
-        {
-            href: "#",
-            title: 'My Companies',
-            content: "<i class='fa fa-lg fa-fw fa-black-tie'></i> <span class='menu-item-parent'>" + 'My Companies' + "</span>",
-            children: [
-                {
-                    href: companies_path,
-                    title: 'Contacts',
-                    content: "</i><span class='menu-item-parent'> Contact(s) </span>"
-                },
-                {
-                    href: consultants_path,
-                    title: 'Consultants',
-                    content: "<span class='menu-item-parent'>" + 'Consultant(s)' + "</span>",
                 },
                 {
                     href: candidates_path,
                     title: 'Candidates',
                     content: "<span class='menu-item-parent'>" + 'Candidate(s)' + "</span>",
+                },
+                {
+                    href: companies_path,
+                    title: 'Contacts',
+                    content: "</i><span class='menu-item-parent'> Contact(s) </span>"
+                },
+
+
+             ]
+        },
+        {
+            href: "#",
+            title: 'HR',
+            content: "<i class='fa fa-lg fa-fw fa-black-tie'></i> <span class='menu-item-parent'>" + 'HR' + "</span>",
+            children: [
+                {
+                    href: consultants_path,
+                    title: 'Consultants',
+                    content: "<span class='menu-item-parent'>" + 'Consultant(s)' + "</span>",
                 },
 
                 {

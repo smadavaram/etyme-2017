@@ -3,28 +3,30 @@
     %label.col-md-2.control-label
       First Name
       %sup.text-danger *
-    .col-md-10
+    .col-md-4
       = f.text_field :first_name , class: 'form-control ' , id: 'fname' , placeholder: "First Name" , required: true
-  .form-group
     %label.col-md-2.control-label
       Last Name
       %sup.text-danger *
-    .col-md-10
+    .col-md-4
       = f.text_field :last_name , class: 'form-control ' , id: 'lname' , placeholder: "Last Name" , required: true
   .form-group
     %label.col-md-2.control-label
       Email
       %sup.text-danger *
-    .col-md-10
+    .col-md-4
       = f.email_field :email , class: 'form-control ' , id: 'email' , placeholder: "email@address.com" , required: true
-  .form-group
     %label.col-md-2.control-label
       Phone
-      %sup.text-danger
-    .col-md-10
+      %sup.text-danger *
+    .col-md-4
       = f.text_field :phone , class: 'form-control ' , id: 'phone' , placeholder: "Phone Number"
   .form-group
     %label.col-md-2.control-label Resume
     .col-md-10
       = f.filepicker_field :resume , class: 'btn btn-primary file-pick'  , id: 'accept-filepiker',"data-fp-extensions" => ".pdf,.doc,.docx,.txt"
-
+  - if @candidate.new_record?
+    .form-group
+      %label.col-md-2.control-label Want to send invitation?
+      .col-md-10
+        = f.check_box :send_invitation , {}, true, false

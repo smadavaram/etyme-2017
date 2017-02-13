@@ -54,12 +54,14 @@ class Company::PreferVendorsController < Company::BaseController
   private
   #
   def set_prefer_vendors
-  @network = current_company.send_or_received_network
+    @network = current_company.send_or_received_network
   end
 
   def set_prefer_vendors_request
-    @vendors = current_company.prefer_vendors || []
-    @recived_vendors = current_company.perfer_vendor_companies || []
+    @sent_vendors = current_company.prefer_vendors.search(params[:q]) || []
+    @vendors = @sent_vendors.result.paginate(page: params[:page], per_page: 30) || []
+    @recived_vendors_search = current_company.perfer_vendor_companies.search(params[:q]) || []
+    @recived_vendors =  @recived_vendors_search.result.paginate(page: params[:page], per_page: 30) || []
   end
 
   def vendor_params

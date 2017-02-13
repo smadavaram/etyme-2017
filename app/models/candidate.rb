@@ -8,8 +8,9 @@ class Candidate < ActiveRecord::Base
 
   # validates :password,presence: true,if: Proc.new { |candidate| !candidate.password.nil? }
   # validates :password_confirmation,presence: true,if: Proc.new { |candidate| !candidate.password.nil? }
+  # after_create  :send_invitation_email , if: Proc.new{|candidate|candidate.send_invitation}
 
-  after_create  :send_invitation_email  , if: Proc.new{|candidate|candidate.invited_by.present? && candidate.send_welcome_email_to_candidate.nil?}
+  after_create  :send_invitation_email  , if: Proc.new{|candidate|(candidate.invited_by.present? && candidate.send_welcome_email_to_candidate.nil?) || candidate.send_invitation}
 
   # after_create :send_job_invitation, if: Proc.new{ |candidate| candidate.invited_by.present?}
   after_create  :create_address
@@ -39,6 +40,7 @@ class Candidate < ActiveRecord::Base
 
   attr_accessor :job_id , :expiry , :message , :invitation_type
   attr_accessor :send_welcome_email_to_candidate
+  attr_accessor :send_invitation
 
 
 
@@ -72,6 +74,9 @@ class Candidate < ActiveRecord::Base
 
 
   def send_invitation_email
+    invite! do |u|
+      u.skip_invitation = true
+    end
     CandidateMailer.invite_user(self,self.invited_by).deliver_now
   end
 

@@ -14,10 +14,6 @@
           %a{"data-toggle" => "tab", :href => "#tab3"}
             %span.step 3
             %span.title Work Experience
-        -#%li{"data-target" => "#step4"}
-        -#  %a{"data-toggle" => "tab", :href => "#tab4"}
-        -#    %span.step 4
-        -#    %span.title Save Form
       .clearfix
     .tab-content
       #tab1.tab-pane.active
@@ -38,35 +34,7 @@
           %strong Step 3
           \- Work Experience
         = render  'company/candidates/partials/work_experience' ,  f: f
-      -##tab4.tab-pane
-      -#  %br/
-      -#  %h3
-      -#    %strong Step 4
-      -#    \- Save Form
-      -#  %br/
-      -#  %h1.text-center.text-success
-      -#    %strong
-      -#      %i.fa.fa-check.fa-lg
-      -#      Complete
-      -#  %h4.text-center Click next to finish
-      -#  %br/
-      -#  %br/
-      -##tab4.tab-pane
-        %br/
-        %h3
-          %strong Step 4
-          \- Custom Fields
-        .row
-          .col-sm-12
-            .form-group
-              #custom_fields
-                .col-sm-12
-                  = e.fields_for :custom_fields do |lt|
-                    = render 'shared/custom_fields', f: lt
-              %strong
-                .links.col-sm-12
-                  = link_to_add_association '+ Add Custom Field', f, :custom_fields, class: 'text-info pull-right', partial: 'shared/custom_fields'
-                  %br/
+
       .form-actions
         .row
           .col-sm-12
@@ -77,12 +45,5 @@
                 %a.btn.btn-lg.txt-color-darken{:href => "javascript:void(0);"} Next
               %li.pull-right.finish{:style=>"di"}
                 %a.btn.btn-lg.btn-default{:href => "javascript:;"} Finish
-                -#:javascript
-                -#  $( document ).ready(function() {
-                -#    $(".multi-select2-role").select2({
-                -#    placeholder: "Select a Role(s)",
-                -#    tokenSeparators: [',', ' ']
-                -#    });
-                -#     // $(".multi-select2-company-docs").select2({placeholder: "Select Document(s)"});
-                -#  })
+
 

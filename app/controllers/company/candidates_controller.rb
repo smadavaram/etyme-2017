@@ -109,7 +109,7 @@ class Company::CandidatesController < Company::BaseController
  end
 
     def create_candidate_params
-      params.require(:candidate).permit(:first_name,:invited_by_id ,:invited_by_type,
+      params.require(:candidate).permit(:first_name,:invited_by_id ,:send_invitation,:invited_by_type,
                                         :resume ,:description, :last_name,:dob,:phone,
                                         :email,
                                         experiences_attributes:[:id,
