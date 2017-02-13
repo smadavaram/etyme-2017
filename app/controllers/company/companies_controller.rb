@@ -3,6 +3,7 @@ class Company::CompaniesController < Company::BaseController
   before_action :find_admin, only: :change_owner
   before_action :authorized_user , only: [:show]
   before_action :find_company , only: [:edit,:update,:destroy]
+  before_action :set_hot_candidates ,only: [:hot_candidates]
 
   respond_to :html,:json
 
@@ -19,6 +20,9 @@ class Company::CompaniesController < Company::BaseController
   def edit
   end
 
+  def hot_candidates
+
+  end
 
   def create
     @company = Company.new(create_params)
@@ -110,6 +114,9 @@ class Company::CompaniesController < Company::BaseController
 
 
   private
+  def set_hot_candidates
+    @candidates = CandidatesCompany.hot_candidate.where(company_id: params[:company_id]).paginate(:page => params[:page], :per_page => 8)
+  end
   def find_company
     @company = Company.find(params[:id])
   end

@@ -21,17 +21,17 @@
           %span Groups
           %span.label.pull-right.bg-color-darken
             = current_company.groups.count
-    -#%li
-    -#  = link_to '/', class: 'jarvismetro-tile big-cubes bg-color-blueDark' do
-    -#    %span.iconbox
-    -#      %i.fa.fa-money.fa-4x
-    -#      %span Invoices
-    -#%li
-    -#  = link_to '#', class: 'jarvismetro-tile big-cubes bg-color-blueDark' do
-    -#    %span.iconbox
-    -#      %i.fa.fa-dollar.fa-4x
-    -#      %span
-    -#        Billing
+    %li
+      = link_to admins_path, class: 'jarvismetro-tile big-cubes bg-color-blueDark' do
+        %span.iconbox
+          %i.fa.fa-money.fa-4x
+          %span Admins
+    %li
+      = link_to attachments_path, class: 'jarvismetro-tile big-cubes bg-color-blueDark' do
+        %span.iconbox
+          %i.fa.fa-dollar.fa-4x
+          %span
+            Documents
     -#%li
     -#  = link_to company_path(current_company), class: 'jarvismetro-tile big-cubes bg-color-blueDark' do
     -#    %span.iconbox

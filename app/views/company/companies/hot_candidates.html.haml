@@ -1,0 +1,29 @@
+.col-lg-12
+  .well.well-light
+    .row
+      -@candidates.each do |c|
+        .col-xs-12.col-sm-6.col-md-3
+          .panel.panel-primary.pricing-big
+            -#%img.ribbon{:alt => "", :src => "img/ribbon.png"}/
+            .panel-heading
+              %h3.panel-title
+                = image_tag c.candidate.try(:photo), alt: '', width: '90',style: "border-radius:3em;"
+            .panel-body.no-padding.text-align-center{style:"height:190px;"}
+              .the-price
+                %h1
+                  = c.candidate.try(:full_name)
+                  %span.subscript
+              .price-features
+                %ul.list-unstyled.text-left
+                  %li
+                    Company Name:
+                    %strong
+                      =c.company.try(:name).titleize.humanize
+                  %li
+                    Email:
+                    %strong
+                      = c.candidate.try(:email)
+            .panel-footer.text-align-center
+              %a.btn.btn-primary.btn-block{:href => static_candidate_resume_path(c.candidate), :role => "button"}
+                #{c.candidate.try(:first_name)}  Resume
+    = digg_pagination(@candidates)

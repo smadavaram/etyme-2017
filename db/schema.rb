@@ -11,7 +11,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema.define(version: 20170209063700) do
+ActiveRecord::Schema.define(version: 20170210071501) do
 
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
@@ -239,8 +239,9 @@ ActiveRecord::Schema.define(version: 20170209063700) do
     t.integer  "status"
     t.integer  "customizable_id"
     t.string   "customizable_type"
-    t.datetime "created_at",        null: false
-    t.datetime "updated_at",        null: false
+    t.datetime "created_at",                        null: false
+    t.datetime "updated_at",                        null: false
+    t.boolean  "required",          default: false
   end
 
   create_table "delayed_jobs", force: :cascade do |t|
@@ -425,6 +426,14 @@ ActiveRecord::Schema.define(version: 20170209063700) do
   create_table "permissions_roles", id: false, force: :cascade do |t|
     t.integer "role_id"
     t.integer "permission_id"
+  end
+
+  create_table "prefer_vendors", force: :cascade do |t|
+    t.integer  "company_id"
+    t.integer  "vendor_id"
+    t.integer  "status",     default: 0
+    t.datetime "created_at",             null: false
+    t.datetime "updated_at",             null: false
   end
 
   create_table "roles", force: :cascade do |t|
