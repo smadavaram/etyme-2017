@@ -1,6 +1,0 @@
-= f.fields_for :experiences do |exp|
-  = render 'company/candidates/partials/experience_fields', f: exp
-
-.col-sm-12
-  = link_to_add_association 'Add', f, :experiences , partial: 'company/candidates/partials/experience_fields',class:'btn btn-primary pull-right'
-%br

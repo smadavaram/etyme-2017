@@ -1,6 +1,8 @@
 class Company::CandidatesController < Company::BaseController
  # add_breadcrumb "CANDIDATE", :candidate_path, options: { title: "CANDIDATE" }
   before_action :find_candidate , only: [:edit, :update ]
+  add_breadcrumb "Company", :dashboard_path
+  add_breadcrumb "Candidates", :company_candidates_path
 
  def index
    @search      = current_company.candidates.search(params[:q])
@@ -8,9 +10,8 @@ class Company::CandidatesController < Company::BaseController
  end
 
   def new
+    add_breadcrumb "New", "#"
     @candidate = Candidate.new
-    @candidate.educations.build
-    @candidate.experiences.build
   end
 
 
@@ -88,7 +89,7 @@ class Company::CandidatesController < Company::BaseController
 
 
   def edit
-
+    add_breadcrumb @candidate.full_name, "#"
   end
 
   def update

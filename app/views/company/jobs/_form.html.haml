@@ -17,7 +17,7 @@
         Category
         %sup.text-danger *
       .col-md-10
-        =f.select :job_category, WORK_CATEGORIES,{include_blank: true},{class: "form-control" }
+        =f.select :job_category, WORK_CATEGORIES,{include_blank: true},{class: "form-control", required: true }
     .form-group
       %label.col-md-2.control-label
         Start Date

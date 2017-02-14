@@ -7,7 +7,7 @@ class Company::CompaniesController < Company::BaseController
 
   respond_to :html,:json
 
-  add_breadcrumb 'Companies', "#", :title => ""
+  add_breadcrumb 'Companies', :company_companies_path, :title => ""
 
   def index
     @search = current_company.invited_companies.includes(:invited_company).search(params[:q])

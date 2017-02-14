@@ -1,6 +1,0 @@
-= f.fields_for :educations do |edu|
-  = render 'company/candidates/partials/education_fields', f: edu
-
-.col-sm-12
-  = link_to_add_association 'Add', f, :educations , partial: 'company/candidates/partials/education_fields',class:'btn btn-primary pull-right'
-%br
