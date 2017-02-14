@@ -37,7 +37,7 @@
               = link_to 'Log out', destroy_candidate_session_path, method: :delete, class: ' btn btn-warning post-ad-btn'
             -else
               .row
-                .input-group-addon.hidden-xs.col-sm-6{style: 'background-color: #fff ; border: none;'}
+                .input-group-addon.hidden-xs.col-sm-6.pdr-24.wid-33{style: 'background-color: #fff ; border: none;'}
                   .btn-group
                     %button.btn.btn-sm.dropdown-toggle{"data-toggle" => "dropdown", :type => "button" , style: 'color: black;'}
                       Login
@@ -47,7 +47,7 @@
                         = link_to 'Candidate Login',new_candidate_session_path ,  class: 'padding-top-10 padding-bottom-10'
                       %li
                         = link_to 'Company Login', request.subdomain.present? ? new_user_session_path : signin_path , class: 'padding-top-10 padding-bottom-10'
-                .input-group-addon.hidden-xs.col-sm-6{style: 'background-color: #fff ; border: none; margin-left: 45px;'}
+                .input-group-addon.hidden-xs.col-sm-6.pdr-24.wid-33{style: 'background-color: #fff ; border: none; !important;'}
                   .btn-group
                     %button.btn.btn-sm.dropdown-toggle{"data-toggle" => "dropdown", :type => "button" , style: 'color: black;'}
                       Get Started
@@ -57,5 +57,14 @@
                         = link_to 'Candidate Sign Up', new_candidate_registration_path , class: 'padding-top-10 padding-bottom-10'
                       %li
                         = link_to 'Company Sign Up', register_path , class: 'padding-top-10 padding-bottom-10'
+                .input-group-addon.hidden-xs.col-sm-6.pdr-24.wid-33{style: 'background-color: #fff ; border: none;padding-left: 35px !important;'}
+                  .btn-group
+                    %button.btn.btn-sm.dropdown-toggle{"data-toggle" => "dropdown", :type => "button" , style: 'color: black'}
+                      Help
+                      %span.caret
+                    %ul.dropdown-menu{:role => "menu"}
+                      %li
+                        = link_to 'etymehelp', "#" , class: 'padding-top-10 padding-bottom-10'
+
 
 %hr.topbar

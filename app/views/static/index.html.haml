@@ -11,15 +11,15 @@
           .row
             .col-sm-8.col-sm-offset-2{:style => "text-align: center"}
               .row
-                .col-sm-10.col-sm-offset-1
+                .col-sm-12.col-sm-offset-1
                   %ul.nav.tabs-pull-right
                     %br
                     .input-group-md.hidden-mobile
                       -#.col-sm-2
                         %span.input-group-addon-text Search Job
-                      .col-sm-6.visible-xs
-                        = f.text_field :title_or_job_category_or_location_cont, class: "form-control input-md ", placeholder: "By Job..."
-                      .col-sm-6.hidden-xs
+                      .col-sm-8.visible-xs
+                        = f.text_field :title_or_job_category_or_location_cont, class: "form-control input-md ", placeholder: "By Job and location..."
+                      .col-sm-8.hidden-xs
                         = f.text_field :title_or_job_category_cont, class: "form-control input-md ", placeholder: "By Job..."
                         .help-block.pull-left job title, category
                       -#.input-group-btn
