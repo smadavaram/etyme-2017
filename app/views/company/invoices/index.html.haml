@@ -26,6 +26,61 @@
                   %td
                     = link_to 'View Detail' , contract_invoice_path(@contract , invoice) , target: '_blank' ,class: 'btn btn-xs btn-default btn-primary'
 
+-elsif params[:sent_invoice]
+  #content
+  %section.margin-top-10.padding-10
+    #wid-id-5.no-border
+      %div
+        %br/
+        %br/
+        .table{:style => "width:100"}
+          %table#resultTable.table.table-striped.table-bordered.table-hover
+            %thead
+              %tr
+                %th id
+                %th Contract
+                %th Start Date
+                %th End Date
+                %th Status
+                %th Detail
+            %tbody
+              - @send_contract_invoices.each_with_index do |invoice , index|
+                %tr
+                  %td= index+1
+                  %td= invoice.contract.title.humanize
+                  %td= invoice.start_date
+                  %td= invoice.end_date
+                  %td= invoice.status.humanize
+                  %td
+                    = link_to 'View Detail' , contract_invoice_path(@contract , invoice) , target: '_blank' ,class: 'btn btn-xs btn-default btn-primary'
+-elsif params[:received_invoice]
+  #content
+  %section.margin-top-10.padding-10
+    #wid-id-5.no-border
+      %div
+        %br/
+        %br/
+        .table{:style => "width:100"}
+          %table#resultTable.table.table-striped.table-bordered.table-hover
+            %thead
+              %tr
+                %th id
+                %th Contract
+                %th Start Date
+                %th End Date
+                %th Status
+                %th Detail
+            %tbody
+              - @send_contract_invoices.each_with_index do |invoice , index|
+                %tr
+                  %td= index+1
+                  %td= invoice.contract.title.humanize
+                  %td= invoice.start_date
+                  %td= invoice.end_date
+                  %td= invoice.status.humanize
+                  %td
+                    = link_to 'View Detail' , contract_invoice_path(@contract , invoice) , target: '_blank' ,class: 'btn btn-xs btn-default btn-primary'
+
 -else
   #content
     #wid-id-5.no-border.jarviswidget
@@ -47,6 +102,8 @@
                 = render 'company/invoices/partials/sent_invoices' , data: @send_contract_invoices
               #tab-r2.tab-pane.padding-top-15
                 = render 'company/invoices/partials/receive_inovices' , data: @rec_contract_invoices
+
+
 
 
 

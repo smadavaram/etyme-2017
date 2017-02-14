@@ -1,2 +1,2 @@
-$('#job_invitation').html("<%= j render(partial: 'company/jobs/partials/send_invitation_modal' , locals: {companies: @preferred_vendors_companies ,job: @job,candidates: @candidates})%>");
+$('.remote_container').html("<%= j render(partial: 'company/jobs/partials/send_invitation_modal' , locals: {companies: @preferred_vendors_companies ,job: @job,candidates: @candidates})%>");
 $('#job-invite-<%= @job.id %>').modal('show');

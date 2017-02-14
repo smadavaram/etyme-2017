@@ -216,63 +216,53 @@ module ApplicationHelper
                 },
             ]
         },
-        # {
-        #     href: contracts_path,
-        #     title: 'Contracts',
-        #     content: "<i class='fa fa-lg fa-fw fa-file'></i> <span class='menu-item-parent'> Contracts </span>"
-        #  },
+        {
+            href: '#',
+            title: 'Accounting ',
+            content: "<i class='fa fa-lg fa-fw fa-money'></i> <span class='menu-item-parent'>" + 'Accounting' + "</span>",
+            children: [
+                if has_permission?('show_invoices') || has_permission?('manage_contracts')
+                {
+                    href: invoices_path(sent_invoice:true),
+                    title: 'Sent Invoices',
+                    content: "<span class='menu-item-parent'>Sent Invoices </span>"
+                }end,
+                if has_permission?('show_invoices') || has_permission?('manage_contracts')
+                {
+                    href: invoices_path(received_invoice: true),
+                    title: 'Received Invoices',
+                    content: "<span class='menu-item-parent'> Received Invoices </span>"
+                }end,
+                {
+                    href: consultants_path,
+                    title: 'Salaries',
+                    content: "<span class='menu-item-parent'> Salaries </span>"
+                },
+                {
+                    href: "#",
+                    title: ' Payments',
+                    content: "<span class='menu-item-parent'>  Payments </span>"
+                },
+            ]
+        },
         {
             href: timesheets_path,
             title: 'Timesheets',
             content: "<i class='fa fa-lg fa-fw fa-clock-o'></i> <span class='menu-item-parent'>" + 'TIMESHEETS' + "</span>",
         },
-        if has_permission?('show_invoices') || has_permission?('manage_contracts')
-          {
-              href: invoices_path,
-              title: 'Invoices',
-              content: "<i class='fa fa-lg fa-fw fa-clock-o'></i> <span class='menu-item-parent'>" + 'Invoices' + "</span>",
-          }
-        end,
+        # if has_permission?('show_invoices') || has_permission?('manage_contracts')
+        #   {
+        #       href: invoices_path,
+        #       title: 'Invoices',
+        #       content: "<i class='fa fa-lg fa-fw fa-clock-o'></i> <span class='menu-item-parent'>" + 'Invoices' + "</span>",
+        #   }
+        # end,
           {
               href:  current_user.is_owner? ? employees_leaves_path : (current_user.is_consultant? ? consultant_leaves_path(current_user) : '#'),
               title: 'Leaves',
               content: "<i class='fa fa-lg fa-fw fa-calendar'></i> <span class='menu-item-parent'>" + 'Leaves' + "</span>",
           },
-          # {
-          #     href:  "#",
-          #     title: 'Directory',
-          #     content: "<i class='fa fa-lg fa-fw fa-folder'></i> <span class='menu-item-parent'>" + 'Directory' + "</span>",
-          #     children: [
-          #         {
-          #         href:  directories_path,
-          #         title: 'Directory',
-          #         content: "<span class='menu-item-parent'>" + 'Directory' + "</span>",
-          #         }
-          #         # {
-          #         #     href: "#",
-          #         #     title: 'Emergency Contact(s)',
-          #         #     content: "<span class='menu-item-parent'> Emergency Contact(s) </span>",
-          #         # }
-          #
-          #     ]
-          # },
-        # {
-        #     href: '#',
-        #     title: 'CONFIGURATION',
-        #     content: "<i class='fa fa-lg fa-fw fa-gear'></i> <span class='menu-item-parent'>" + 'CONFIGURATION' + "</span>",
-        #     children: [
-        #         {
-        #             href: admins_path,
-        #             title: 'Admin(s)',
-        #             content: "<span class='menu-item-parent'> Admin(s) </span>"
-        #         },
-        #         {
-        #             href: attachments_path,
-        #             title: 'Company Documents',
-        #             content: "<span class='menu-item-parent'>Documents </span>"
-        #         }
-        #     ]
-        # }
+
     ]
   end
 

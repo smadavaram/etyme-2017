@@ -26,6 +26,7 @@
                       %th Email
                       %th Roles
                       %th Last Login
+                      %th Salary
                       %th{"data-hide" => "phone,tablet"}
                         Actions
                   %tbody
@@ -35,7 +36,8 @@
                         %td= link_to consultant.full_name , '#' , target: '_blank'
                         %td= consultant.email
                         %td= consultant.roles.map(&:name).join(", ").gsub("_"," ").upcase
-                        %td= consultant.last_sign_in_at.localtime.strftime("%A, %d %b %Y %l:%M %p")
+                        %td= consultant.try(:last_sign_in_at).try(:localtime).try(:strftime,"%A, %d %b %Y %l:%M %p")
+                        %td= consultant.consultant_profile.salary
                         %td
                           = link_to raw("<i class='fa fa-pencil '></i>") , edit_consultant_path(consultant,edit: true) , class: 'btn btn-xs btn-default btn-primary', title: "Edit #{consultant.full_name}"
                           -#= link_to raw("<i class='fa fa-times '></i>") , consultant_path(consultant) , method: :delete ,  class: 'btn btn-xs btn-default btn-danger' , title: "Delete #{consultant.full_name}",data: {confirm: "Are you sure you want to Delete this Consultants ?", verify: 'Confirm', verify_text: "Type 'Confirm' to Continue"}
