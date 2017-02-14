@@ -89,6 +89,9 @@ class Company::CompaniesController < Company::BaseController
   def change_owner
     if current_company.update_column(:owner_id , @admin.id)
       flash[:success]="Owner Changed"
+      respond_to do |format|
+        format.js {render inline: "location.reload();" }
+      end
     end
   end
 

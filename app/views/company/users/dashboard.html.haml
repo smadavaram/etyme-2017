@@ -1,7 +1,5 @@
 .col-xs-12.col-sm-7.col-md-7.col-lg-4
   %h1.page-title.txt-color-blueDark
-    %i.fa-fw.fa.fa-home
-    = "Welcome #{current_user.full_name.titleize} ,"
 - if !current_company.locations.present? || !current_company.roles.present?
   .col-xs-12.col-sm-7.col-md-12.col-lg-12.m-t-lg{style: 'margin-top: 20px;'}
     .alert.alert-success.alert-block
@@ -18,16 +16,101 @@
             Please setup some roles & permissions by
             = link_to 'clicking here ' , roles_path , target: '_blank'
             %br
-.col-xs-12
-  .col-xs-12
-    = render 'company/users/partials/timesheet_graph'
-  - content_for :scripts do
-    :javascript
-      // DO NOT REMOVE : GLOBAL FUNCTIONS!
+#content
+  %section#widget-grid
+    .row
+      %hr
+      .col-sm-12.col-md-5
+        .panel.panel-default{style:'height:229px;'}
+          .panel-body.status
+            .who.clearfix
+              %h4 Company Consultant(s)
+            .row
+              -if current_company.consultants.present?
+                .text
+                  - current_company.consultants.take(3).each do |d|
+                    .col-sm-12.col-md-6.col-lg-4
+                      .well.text-center.connect
+                        -#%img.margin-bottom-5.margin-top-5{:alt => "img", :src => "img/avatars/female.png"}/
+                        = image_tag d.photo ,class:"margin-bottom-5 margin-top-5",alt:'img',width: '20px;',height: '20px;'
+                        %br/
+                        %span.font-xs
+                          %b
+                            = d.first_name
+              -else
+                .text
+                  .font-md.text-center
+                    No Consultant in  Company Right now.
+            -#%ul.links.text-right
+            -#  %li
+            -#    = link_to 'Show All Consultant(s)',consultants_path
+            -#    %i.fa.fa-arrow-right
 
-      $(document).ready(function() {
+      .col-sm-12.col-md-5
+        .panel.panel-default
+          .panel-body.status
+            .who.clearfix
+              %h4 Latest Job Opening
+            - if current_company.jobs.present?
+              - current_company.jobs.take(3).each do |j|
+                .who.clearfix
+                  = image_tag 'jobs.png',class:'',alt: "job"
+                  -#%img.busy{:alt => "img", :src => "img/avatars/2.png"}/
+                  %span.name.font-sm
+                    %span.text-muted Posted by
+                    %b
+                      =j.company.owner.first_name
+                      %br/
+                      %span.pull-right.font-xs.text-muted
+                        %i
+                          = time_ago_in_words(j.try(:created_at).try(:localtime))
+                    .font-md
+                      = link_to "#{j.title}",job_path(j)
+                    -#=j.title
+            -else
+              .who.clearfix
+                .text
+                  .font-md.text-center
+                    No Jobs in  Company Right now.
+      %hr
+      .col-sm-12.col-md-5
+        .panel.panel-default
+          .panel-body.status
+            .who.clearfix
+              %h4 Company Candidates
+            - if current_company.candidates.present?
+              - current_company.candidates.last(3).each do |j|
+                .who.clearfix
+                  = image_tag 'can.png',class:'',alt: "job"
+                  -#%img.busy{:alt => "img", :src => "img/avatars/2.png"}/
+                  %span.name.font-sm
+                    %span.text-muted Invited By
+                    %b
+                      =j.invited_by.first_name  rescue ' Admin '
+                      %br/
+                      %span.pull-right.font-xs.text-muted
+                        %i
+                          = time_ago_in_words(j.try(:created_at).try(:localtime))
+                    .font-md
+                      = link_to "#{j.first_name}",static_candidate_resume_path(j)
+            -else
+              .who.clearfix
+                .text
+                  .font-md.text-center
+                    No Candidates in  Company Right now.
+          -#%ul.links.text-right
+          -#  %ul
+          -#    = link_to 'Show All Job(s)',jobs_path
+          -#    %i.fa.fa-arrow-right
 
-        pageSetUp();
 
-        // PAGE RELATED SCRIPTS
-      });
+- content_for :scripts do
+  :javascript
+    // DO NOT REMOVE : GLOBAL FUNCTIONS!
+
+    $(document).ready(function() {
+
+      pageSetUp();
+
+      // PAGE RELATED SCRIPTS
+    });
