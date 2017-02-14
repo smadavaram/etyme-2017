@@ -176,7 +176,7 @@ module ApplicationHelper
         {
             href: "#",
             title: 'HR',
-            content: "<i class='fa fa-lg fa-fw fa-black-tie'></i> <span class='menu-item-parent'>" + 'HR' + "</span>",
+            content: "<i class='fa fa-lg fa-fw fa-building-o'></i> <span class='menu-item-parent'>" + 'HR' + "</span>",
             children: [
                 {
                     href: consultants_path,
@@ -248,7 +248,7 @@ module ApplicationHelper
         {
             href: timesheets_path,
             title: 'Timesheets',
-            content: "<i class='fa fa-lg fa-fw fa-clock-o'></i> <span class='menu-item-parent'>" + 'TIMESHEETS' + "</span>",
+            content: "<i class='fa fa-lg fa-fw fa-calendar'></i> <span class='menu-item-parent'>" + 'TIMESHEETS' + "</span>",
         },
         # if has_permission?('show_invoices') || has_permission?('manage_contracts')
         #   {
@@ -260,7 +260,7 @@ module ApplicationHelper
           {
               href:  current_user.is_owner? ? employees_leaves_path : (current_user.is_consultant? ? consultant_leaves_path(current_user) : '#'),
               title: 'Leaves',
-              content: "<i class='fa fa-lg fa-fw fa-calendar'></i> <span class='menu-item-parent'>" + 'Leaves' + "</span>",
+              content: "<i class='fa fa-lg fa-fw fa-calendar-times-o'></i> <span class='menu-item-parent'>" + 'Leaves' + "</span>",
           },
 
     ]
