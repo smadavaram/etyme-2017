@@ -40,4 +40,4 @@
       Visa Status
       %sup.text-danger *
     .col-md-10
-      = e.select :visa_status, Consultant.visa_statuses.collect{|v,k| [v,v]}, {include_blank:"Select Visa Type"}, :class=>"form-control"
+      = e.select :visa_status, Consultant.visa_statuses.keys, {include_blank:"Select Visa Type"}, :class=>"form-control"
