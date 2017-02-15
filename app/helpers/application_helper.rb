@@ -105,7 +105,7 @@ module ApplicationHelper
                   link_text += entry[:content].html_safe
                   if entry[:children]
                     if children_selected
-                      # link_text += '<b class="collapse-sign"><em class="fa fa-minus-square-o"></em></b>'
+                      link_text += '<b class="collapse-sign"><em class="fa fa-minus-square-o"></em></b>'
                     else
                       link_text += '<b class="collapse-sign"><em class="fa fa-plus-square-o"></em></b>'
                     end
@@ -144,6 +144,11 @@ module ApplicationHelper
             content: "<i class='fa fa-lg fa-fw fa-globe'></i> <span class='menu-item-parent'>" + 'My Network' + "</span>",
             children: [
                 {
+                    href: activities_path(index:true),
+                    title: 'Network Activities',
+                    content: "<span class='menu-item-parent'> Network Activities(s) </span>"
+                },
+                {
                     href: prefer_vendors_path,
                     title: 'Network Request',
                     content: "<span class='menu-item-parent'> Network Request(s) </span>"
@@ -174,26 +179,6 @@ module ApplicationHelper
              ]
         },
         {
-            href: "#",
-            title: 'HR',
-            content: "<i class='fa fa-lg fa-fw fa-building-o'></i> <span class='menu-item-parent'>" + 'HR' + "</span>",
-            children: [
-                {
-                    href: consultants_path,
-                    title: 'Consultants',
-                    content: "<span class='menu-item-parent'>" + 'Consultant(s)' + "</span>",
-                },
-
-                {
-                  href: contracts_path,
-                  title: 'Contracts',
-                  content: "<span class='menu-item-parent'> Contract(s) </span>",
-                  }
-
-
-            ]
-        },
-        {
             href: '#',
             title: 'JOBS',
             content: "<i class='fa fa-lg fa-fw fa-briefcase'></i> <span class='menu-item-parent'>" + 'JOBS' + "</span>",
@@ -216,6 +201,33 @@ module ApplicationHelper
                 },
             ]
         },
+
+        {
+            href: "#",
+            title: 'HR',
+            content: "<i class='fa fa-lg fa-fw fa-building-o'></i> <span class='menu-item-parent'>" + 'HR' + "</span>",
+            children: [
+                {
+                    href: consultants_path,
+                    title: 'Consultants',
+                    content: "<span class='menu-item-parent'>" + 'Consultant(s)' + "</span>",
+                },
+
+                {
+                  href: contracts_path,
+                  title: 'Contracts',
+                  content: "<span class='menu-item-parent'> Contract(s) </span>",
+                  }
+
+
+            ]
+        },
+        {
+            href: timesheets_path,
+            title: 'Timesheets',
+            content: "<i class='fa fa-lg fa-fw fa-calendar'></i> <span class='menu-item-parent'>" + 'TIMESHEETS' + "</span>",
+        },
+
         {
             href: '#',
             title: 'Accounting ',
@@ -245,11 +257,7 @@ module ApplicationHelper
                 },
             ]
         },
-        {
-            href: timesheets_path,
-            title: 'Timesheets',
-            content: "<i class='fa fa-lg fa-fw fa-calendar'></i> <span class='menu-item-parent'>" + 'TIMESHEETS' + "</span>",
-        },
+
         # if has_permission?('show_invoices') || has_permission?('manage_contracts')
         #   {
         #       href: invoices_path,

@@ -4,6 +4,7 @@ class Company::InvoicesController < Company::BaseController
   before_action :find_invoice , only: [:show, :download,:accept_invoice,:reject_invoice]
   before_action :set_invoices , only: [:accept_invoice,:reject_invoice]
   before_action :set_company_contract_invoices , only: [:index]
+  before_action :authorized_user ,only: [:index,:accept_invoice,:reject_invoice,:show]
 
   add_breadcrumb "INVOICES", '#', options: { title: "INVOICES" }
 
@@ -59,6 +60,9 @@ class Company::InvoicesController < Company::BaseController
     send_data(pdf, :filename    => "#{@contract.title}.pdf", :type => "application/pdf", :disposition => 'attachment')
   end
 
+  def authorized_user
+    has_access?("manage_invoices")
+  end
   private
 
   def find_contract

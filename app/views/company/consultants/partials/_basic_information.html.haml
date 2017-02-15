@@ -22,9 +22,3 @@
       %sup.text-danger *
     .col-md-10
       = e.collection_select :role_ids, current_company.roles, :id, :name, {}, {:class=>"form-control input-lg multi-select2",placeholder: 'Select role(s)' ,:multiple => true, required: true,id:'roles'}
-  .form-group
-    %label.col-md-2.control-label
-      Roles
-      %sup.text-danger *
-    .col-md-10
-      = e.collection_select :tag_list, current_company.roles, :id, :name, {}, {:class=>"form-control input-lg multi-select2",placeholder: 'Select role(s)' ,:multiple => true, required: true,id:'roles'}

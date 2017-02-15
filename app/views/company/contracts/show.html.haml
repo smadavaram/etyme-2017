@@ -9,7 +9,7 @@
                 = button_tag 'Accept' , class: 'btn btn-primary btn-default margin-right-5' , disabled: @contract.signature_required_docs? , onclick: 'openAccept();'
                 = button_tag 'Reject' ,  class: 'btn btn-default margin-right-5' , "data-toggle": "modal" , "data-target":"#contract-reject-#{@contract.id}"
             %h2.name
-              = @contract.title
+              = @contract.try(:title)
               %small
                 Created by
                 = link_to @contract.created_by.full_name , '#'

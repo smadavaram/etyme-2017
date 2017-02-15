@@ -4,7 +4,7 @@ class Company::JobsController < Company::BaseController
   # before_action :set_locations  , only: [:new , :index, :edit , :create,:show]
   before_action :set_preferred_vendors , only: [:send_invitation]
   before_action :set_candidates,only: :send_invitation
-  before_action :authorize_user, only: [:show, :edit, :update, :destroy , :send_invitation]
+  before_action :authorize_user, only: [:show, :edit, :update, :destroy ]
 
   add_breadcrumb "JOBS", :jobs_path, options: { title: "JOBS" }
 

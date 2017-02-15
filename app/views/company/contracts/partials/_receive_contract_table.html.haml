@@ -13,7 +13,7 @@
       - data.each do |contract|
         %tr{class: "#{set_background_status_color(contract.status)}"}
           %td=image_tag show_recipient_picture(contract.contractable), alt: '', width: '20'
-          %td=link_to contract.title ,contract_path(contract)
+          %td=link_to contract.try(:title) ,contract_path(contract)
           %td= link_to show_recipient_name(contract.contractable)
           %td= link_to contract.created_by.full_name , '#'
           %td= (contract.end_date)

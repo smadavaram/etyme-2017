@@ -4,6 +4,8 @@ class Company::CandidatesController < Company::BaseController
   add_breadcrumb "Company", :dashboard_path
   add_breadcrumb "Candidates", :company_candidates_path
 
+  before_action :authorized_user ,only:  [:new , :index,:update,:make_hot,:make_normal]
+
  def index
    @search      = current_company.candidates.search(params[:q])
    @candidates = @search.result.order(created_at: :desc).paginate(page: params[:page], per_page: 30) || []
@@ -102,6 +104,13 @@ class Company::CandidatesController < Company::BaseController
     end
 
   end
+
+
+  def authorized_user
+    has_access?("manage_consultants")
+  end
+
+
 
   private
 

@@ -192,7 +192,7 @@ class Contract < ActiveRecord::Base
   end
 
   def start_date_cannot_be_in_the_past
-      errors.add(:start_date, "can't be in the past") if start_date.nil? || start_date < Date.today
+      # errors.add(:start_date, "can't be in the past") if start_date.nil? || start_date < Date.today
   end
 
   def schedule_timesheet
@@ -211,7 +211,7 @@ class Contract < ActiveRecord::Base
   end
 
   def self.start_contracts
-    Contract.where("start_date = '#{Date.today.to_s}'").accepted.each do |contract|
+    Contract.where(" start_date <='#{Date.today.to_s}' ").accepted.each do |contract|
       contract.in_progress!
     end
   end

@@ -5,6 +5,7 @@ class Company::JobInvitationsController < Company::BaseController
   before_action :set_job_invitations , only: [:index]
   before_action :find_received_job_invitations , only: [:reject]
   before_action :authorize_user ,only: [:accept ,:reject]
+  before_action :authorize_send_user ,only: [:create ,:create_multiple]
 
 
   add_breadcrumb "JOB INVITATIONS", :job_invitations_path, options: { title: "JOBS INVITATIONS" }
@@ -59,6 +60,10 @@ class Company::JobInvitationsController < Company::BaseController
 
   def authorize_user
     has_access?("manage_job_invitations")
+  end
+
+  def authorize_send_user
+    has_access?("send_job_invitations")
   end
 
   def create_multiple

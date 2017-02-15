@@ -36,6 +36,7 @@ class Candidate < ActiveRecord::Base
   has_many :companies , through: :candidates_companies ,dependent: :destroy
   belongs_to :address             , foreign_key: :primary_address_id
   has_and_belongs_to_many :groups ,through: :company
+  has_many   :comments ,as: :commentable
 
   attr_accessor :job_id , :expiry , :message , :invitation_type
   attr_accessor :send_welcome_email_to_candidate

@@ -1,7 +1,7 @@
 class Company::CompaniesController < Company::BaseController
 
   before_action :find_admin, only: :change_owner
-  before_action :authorized_user , only: [:show]
+  before_action :authorized_user , only: [:show,:create ,:hot_candidates,:index, :new]
   before_action :find_company , only: [:edit,:update,:destroy]
   before_action :set_hot_candidates ,only: [:hot_candidates]
 

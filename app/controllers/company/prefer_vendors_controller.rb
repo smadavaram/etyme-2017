@@ -2,6 +2,8 @@ class Company::PreferVendorsController < Company::BaseController
   before_action :set_prefer_vendors_request ,only: [:index]
   before_action :set_prefer_vendors ,only: [:show_network]
   # add_breadcrumb "Prefer vendors", , options: { title: "Prefer vendors" }
+  before_action :authorized_user ,only:  [:create , :show_network , :index,:accept ,:reject]
+
   def index
   end
 
@@ -9,6 +11,7 @@ class Company::PreferVendorsController < Company::BaseController
     @prefer_vendor =  current_company.perfer_vendor_companies.find_by(company_id: params[:company_id])
     if @prefer_vendor.pending?
       @prefer_vendor.accepted!
+      @prefer_vendor.create_activity :update, owner: @prefer_vendor.prefer_vendor,recipient: @prefer_vendor.company
       flash[:success] = "Successfully Accepted "
       respond_to do |format|
         format.js {render inline: "location.reload();" }
@@ -29,6 +32,7 @@ class Company::PreferVendorsController < Company::BaseController
     @prefer_vendor =  current_company.perfer_vendor_companies.find_by(company_id: params[:company_id])
     if @prefer_vendor.pending?
       @prefer_vendor.rejected!
+      @prefer_vendor.create_activity :update, owner: @prefer_vendor.prefer_vendor,recipient: @prefer_vendor.company
       flash[:success] = "Successfully Rejected "
       respond_to do |format|
         format.js {render inline: "location.reload();" }
@@ -46,10 +50,17 @@ class Company::PreferVendorsController < Company::BaseController
     companies = companies.reject { |t| t.empty? }
     companies_ids = companies.map(&:to_i)
     companies_ids.each do |c|
-      current_company.prefer_vendors.create(vendor_id: c,status:0)
+      vendor = current_company.prefer_vendors.create(vendor_id: c,status:0)
+      vendor.create_activity :create, owner: vendor.company,recipient: vendor.prefer_vendor
     end
     redirect_to :back
   end
+
+
+  def authorized_user
+    has_access?("manage_vendors")
+  end
+
 
   private
   #

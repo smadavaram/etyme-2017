@@ -4,6 +4,7 @@ class Company::UsersController < Company::BaseController
 
   def dashboard
     add_breadcrumb "HOME", :dashboard_path
+    @activities = PublicActivity::Activity.order("created_at desc")
   end # End of dashboard
 
   def update_photo

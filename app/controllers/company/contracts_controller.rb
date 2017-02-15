@@ -6,8 +6,10 @@ class Company::ContractsController < Company::BaseController
   before_action :set_contracts         , only: [:index]
   before_action :find_attachable_doc   , only: [:update_attachable_doc]
   before_action :authorize_user_for_new_contract  , only: :new
-  # before_action :authorize_user_for_edit_contract  , only: :edit
-  # before_action :authorized_user  , only: :show
+  before_action :authorize_user_for_edit_contract  , only: :edit
+  before_action :authorized_user  , only: :show
+  before_action :main_authorized_user  , only: :show
+
 
   add_breadcrumb "CONTRACTS", :contracts_path, options: { title: "CONTRACTS" }
 
@@ -101,6 +103,10 @@ class Company::ContractsController < Company::BaseController
 
   def authorized_user
     has_access?("show_contracts_details")
+    end
+
+  def main_authorized_user
+    has_access?("manage_contracts")
   end
 
   def create_sub_contract

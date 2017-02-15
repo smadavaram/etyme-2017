@@ -1,13 +1,35 @@
-%img.busy{:alt => "img", :src => "#{a.owner.try(:photo)}"}/
-%span.name.font-sm
-  %span.text-muted
-  %b
-    #{link_to a.owner.full_name, a.owner if a.owner}
-    %span.pull-right.font-xs.text-muted
-      %i= time_ago_in_words(a.try(:created_at).try(:localtime))+" ago"
-    %span.name.font-sm
-      %b
-        = link_to  a.trackable.company.name, profile_company_path( a.trackable.company.name), class: 'font-md'
-  %br/
-  invited Company
-  = link_to  a.trackable.prefer_vendor.name, profile_company_path( a.trackable.prefer_vendor.name), class: 'font-md'
+- if params[:index]
+  %li
+    .smart-timeline-icon
+      - if a. owner.logo.present?
+        = image_tag a.owner.logo,class:'',alt: "Company"
+      -else
+        = image_tag 'can.png',class:'',alt: "Company"
+    .smart-timeline-time
+      %small
+      =  time_ago_in_words(a.try(:created_at).try(:localtime))+" ago"
+    .smart-timeline-content
+      %p
+        %a{:href => "javascript:void(0);"}
+          %strong Sent Invitation to
+      %p
+        = link_to   a.trackable.try(:prefer_vendor).try(:name).try(:titleize),  a.trackable.try(:company).present? ?  profile_company_path( a.trackable.try(:prefer_vendor).try(:id)):'', class: 'font-md'
+-else
+  - if a. owner.logo.present?
+    = image_tag a.owner.logo,class:'',alt: "Company"
+  -else
+    = image_tag 'can.png',class:'',alt: "Company"
+
+  %span.name.font-sm
+    %span.text-muted
+      = link_to a.trackable.try(:company).try(:name) , a.trackable.try(:company).present? ?  profile_company_path( a.trackable.try(:company).try(:id)): '', class: 'font-md'
+    %b
+      %span.pull-right.font-xs.text-muted
+        %i= time_ago_in_words(a.try(:created_at).try(:localtime))+" ago"
+      %span.name.font-sm
+        %b
+    %br/
+    send invitation to
+    = link_to   a.trackable.try(:prefer_vendor).try(:name).try(:titleize),  a.trackable.try(:company).present? ?  profile_company_path( a.trackable.try(:prefer_vendor).try(:id)):'', class: 'font-md'
+
+

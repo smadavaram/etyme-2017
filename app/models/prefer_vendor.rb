@@ -1,7 +1,6 @@
 class PreferVendor < ActiveRecord::Base
-  include PublicActivity::Model
-  tracked owner: ->(controller, model) { controller && controller.current_user }
 
+  include PublicActivity::Model
   enum status: [:pending, :accepted ,:rejected]
 
   belongs_to :company

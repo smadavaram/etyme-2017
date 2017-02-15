@@ -128,11 +128,11 @@ class Company < ActiveRecord::Base
   end
 
   def create_defult_roles
-    self.roles.create(name:'Recruiter',permissions: Permission.where(name:["manage_consultants","manage_jobs","manage_vendors","send_job_invitations","manage_job_invitations","manage_job_applications"]))
+    self.roles.create(name:'Recruiter',permissions: Permission.where(name:["manage_consultants","manage_jobs","manage_vendors","send_job_invitations","manage_job_invitations","manage_job_applications","create_new_contracts","show_contracts_details","edit_contracts_terms"]))
     self.roles.create(name:'Sales - client requirement',permissions:Permission.where(name:["show_invoices"]))
-    self.roles.create(name:'Sales - bench marketing',permissions:Permission.where(name:["manage_consultants","manage_jobs","manage_vendors","send_job_invitations","manage_job_invitations","manage_job_applications","create_new_contracts","show_contracts_details","edit_contracts_terms","manage_leaves"]))
+    self.roles.create(name:'HR admin',permissions:Permission.where(name:["manage_consultants","manage_jobs","manage_vendors","send_job_invitations","manage_job_invitations","manage_job_applications","create_new_contracts","show_contracts_details","edit_contracts_terms","manage_leaves"]))
     self.roles.create(name:'Accountant',permissions:Permission.where(name:['show_invoices']))
-    self.roles.create(name:'HR admin',permissions:Permission.where(name:["manage_timesheets","show_invoices"]))
+    self.roles.create(name:'Sales - bench marketing',permissions:Permission.where(name:["manage_timesheets","show_invoices"]))
     self.roles.create(name:'Timesheet admin',permissions:Permission.where(name:["manage_timesheets","show_invoices"]))
   end
 

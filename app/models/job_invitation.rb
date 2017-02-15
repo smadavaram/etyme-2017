@@ -60,7 +60,7 @@ class JobInvitation < ActiveRecord::Base
     # Call after create
     def notify_recipient
       if self.recipient_type == "Candidate"
-        self.recipient.notifications.create(message: self.company.name+" has invited you for <a href='http://#{self.recipient.etyme_url + job_invitation_path(self)}'>#{self.job.title}</a>",title:"Job Invitation")
+        self.recipient.notifications.create(message: self.company.name+" has invited you for <a href='http://#{self.recipient.etyme_url + job_invitation_path(self)}'>#{self.job.title}</a> <br/> <p> #{self.message} </p>" ,title:"Job Invitation")
       else
         self.recipient.notifications.create(message: self.company.name+" has invited you for <a href='http://#{self.recipient.company.etyme_url + job_invitation_path(self)}'>#{self.job.title}</a>",title:"Job Invitation")
       end

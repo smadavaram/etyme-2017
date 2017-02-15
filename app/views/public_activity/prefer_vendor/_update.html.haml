@@ -1,10 +1,28 @@
-%img.busy{:alt => "img", :src => "#{a.owner.try(:photo)}"}/
-%span.name.font-sm
-  %span.text-muted
-  %b
-    #{link_to a.owner.full_name, a.owner if a.owner}
-    %span.pull-right.font-xs.text-muted
-      %i= time_ago_in_words(a.try(:created_at).try(:localtime))+" ago"
-  %br/
-  Updated
-  = link_to a.trackable.company.name, profile_company_path(a.trackable.company), class: 'font-md'
+- if params[:index]
+  %li
+    .smart-timeline-icon
+      - if a. owner.logo.present?
+        = image_tag a.owner.logo,class:'',alt: "Company"
+      -else
+        = image_tag 'can.png',class:'',alt: "Company"
+      -#%img{:alt => "user", :height => "32", :src => "img/avatars/sunny.png", :width => "32"}/
+    .smart-timeline-time
+      %small
+      =  time_ago_in_words(a.try(:created_at).try(:localtime))+" ago"
+    .smart-timeline-content
+      %p
+        %a{:href => "javascript:void(0);"}
+          %strong #{a.trackable.status.titleize} your vendor request
+-else
+
+  - if a. owner.logo.present?
+    = image_tag a.owner.logo,class:'',alt: "Company"
+  -else
+    = image_tag 'can.png',class:'',alt: "Company"
+  %span.name.font-sm
+    %span.text-muted #{link_to a.owner.name.titleize, a.owner if a.owner}
+    %b
+      %span.pull-right.font-xs.text-muted
+        %i= time_ago_in_words(a.try(:created_at).try(:localtime))+" ago"
+    %br/
+    has #{a.trackable.status.titleize} your vendor request

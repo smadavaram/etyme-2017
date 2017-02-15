@@ -1,34 +1,33 @@
-.col-xs-12.col-sm-7.col-md-7.col-lg-4
-  %h1.page-title.txt-color-blueDark
-- if !current_company.locations.present? || !current_company.roles.present?
-  .col-xs-12.col-sm-7.col-md-12.col-lg-12.m-t-lg{style: 'margin-top: 20px;'}
-    .alert.alert-success.alert-block
-      %h4.alert-heading Info!
-      %p.margin-top-5
-        In order to take full advantage of Etyme, Please take a moment to complete your profile setup.
-      %ul.margin-top-5
-        -if !current_company.locations.present?
-          %li
-            Please setup your company locations by
-            = link_to 'clicking here ' , company_path(current_company) , target: '_blank'
-        -if !current_company.roles.present?
-          %li
-            Please setup some roles & permissions by
-            = link_to 'clicking here ' , roles_path , target: '_blank'
-            %br
+-#.col-xs-12.col-sm-7.col-md-7.col-lg-4
+-#  %h1.page-title.txt-color-blueDark
+-#- if !current_company.locations.present? || !current_company.roles.present?
+-#  .col-xs-12.col-sm-7.col-md-12.col-lg-12.m-t-lg{style: 'margin-top: 20px;'}
+-#    .alert.alert-success.alert-block
+-#      %h4.alert-heading Info!
+-#      %p.margin-top-5
+-#        In order to take full advantage of Etyme, Please take a moment to complete your profile setup.
+-#      %ul.margin-top-5
+-#        -if !current_company.locations.present?
+-#          %li
+-#            Please setup your company locations by
+-#            = link_to 'clicking here ' , company_path(current_company) , target: '_blank'
+-#        -if !current_company.roles.present?
+-#          %li
+-#            Please setup some roles & permissions by
+-#            = link_to 'clicking here ' , roles_path , target: '_blank'
+-#            %br
 #content
   %section#widget-grid
     .row
-      %hr
-      .col-sm-12.col-md-5
-        .panel.panel-default{style:'height:229px;'}
+      .col-sm-12.col-md-6
+        .panel.panel-default
           .panel-body.status
             .who.clearfix
               %h4 Company Consultant(s)
             .row
               -if current_company.consultants.present?
                 .text
-                  - current_company.consultants.take(3).each do |d|
+                  - current_company.consultants.last(3).each do |d|
                     .col-sm-12.col-md-6.col-lg-4
                       .well.text-center.connect
                         -#%img.margin-bottom-5.margin-top-5{:alt => "img", :src => "img/avatars/female.png"}/
@@ -45,14 +44,13 @@
             -#  %li
             -#    = link_to 'Show All Consultant(s)',consultants_path
             -#    %i.fa.fa-arrow-right
-
-      .col-sm-12.col-md-5
+      .col-sm-12.col-md-6
         .panel.panel-default
           .panel-body.status
             .who.clearfix
               %h4 Latest Job Opening
             - if current_company.jobs.present?
-              - current_company.jobs.take(3).each do |j|
+              - current_company.jobs.last(3).each do |j|
                 .who.clearfix
                   = image_tag 'jobs.png',class:'',alt: "job"
                   -#%img.busy{:alt => "img", :src => "img/avatars/2.png"}/
@@ -73,7 +71,8 @@
                   .font-md.text-center
                     No Jobs in  Company Right now.
       %hr
-      .col-sm-12.col-md-5
+    .row
+      .col-sm-12.col-md-6
         .panel.panel-default
           .panel-body.status
             .who.clearfix
@@ -98,10 +97,20 @@
                 .text
                   .font-md.text-center
                     No Candidates in  Company Right now.
-          -#%ul.links.text-right
-          -#  %ul
-          -#    = link_to 'Show All Job(s)',jobs_path
-          -#    %i.fa.fa-arrow-right
+      .col-sm-12.col-md-6
+        .panel.panel-default
+          .panel-body.status
+            .who.clearfix
+              %h4 Latest Activities
+            -if company_activities.present?
+              -company_activities.take(4).each do |activity|
+                .who.clearfix
+                  = render_activity activity
+            -else
+              .who.clearfix
+                .text
+                  .font-md.text-center
+                    No Activities in  Company Right now.
 
 
 - content_for :scripts do

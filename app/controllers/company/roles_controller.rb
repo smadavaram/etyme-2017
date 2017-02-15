@@ -3,6 +3,7 @@ class Company::RolesController < Company::BaseController
 
   before_action :set_new_role , only: [:new]
   before_action :set_role , only: [:destroy,:edit,:update]
+  before_action :authorized_user , only: [:new,:edit,:index]
 
 
   def new
@@ -34,6 +35,10 @@ class Company::RolesController < Company::BaseController
       flash[:errors] = @role.errors.full_messages
       redirect_to roles_path
     end
+  end
+
+  def authorized_user
+    has_access?("manage_roles")
   end
 
   private

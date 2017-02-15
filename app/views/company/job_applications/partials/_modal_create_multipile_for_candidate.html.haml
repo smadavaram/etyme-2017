@@ -23,6 +23,12 @@
               %label.col-md-2.control-label Select Candidates
               .col-md-10
                 = select_tag 'temp_candidates', options_for_select(current_company.candidates.collect { |c| [c.full_name,c.id] if c.resume.present? && !c.is_already_applied?(job) }),class: 'form-control select2' , required: true ,:multiple => true
+            .form-group
+              %label.col-md-2.control-label
+                Memo
+                %sup.text-danger
+              .col-md-10
+                = f.text_area :message ,class: "form-control" ,row: '3' , placeholder: "Enter Description"
 
             .nested-fields
               = f.fields_for :custom_fields do |custom|

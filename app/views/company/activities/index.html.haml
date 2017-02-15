@@ -1,42 +1,8 @@
-.panel.panel-default
-  .panel-body.status
-    .who.clearfix
-      %h4 Latest Activities
-    - @activities.each do |activity|
-      .who.clearfix
-        .col-sm-4
-          = render_activity activity
--#%img.busy{:alt => "img", :src => "img/avatars/2.png"}/
--#%span.name.font-sm
--#  %span.text-muted= activity.action
--#  %b
--#    Karrigan Mean
--#    %span.pull-right.font-xs.text-muted
--#      %i 3 minutes ago
--#  %br/
--#  %a.font-md{:href => "javascript:void(0);"} Business Requirement Docs
-    -#.who.clearfix
-    -#  %img.offline{:alt => "img", :src => "img/avatars/3.png"}/
-    -#  %span.name.font-sm
-    -#    %span.text-muted Posted by
-    -#    %b
-    -#      Alliz Yaen
-    -#      %span.pull-right.font-xs.text-muted
-    -#        %i 2 days ago
-    -#    %br/
-    -#    %a.font-md{:href => "javascript:void(0);"} Maecenas nec odio et ante tincidun
-    -#.who.clearfix
-    -#  %img.away{:alt => "img", :src => "img/avatars/4.png"}/
-    -#  %span.name.font-sm
-    -#    %span.text-muted Posted by
-    -#    %b
-    -#      Barley Kartzukh
-    -#      %span.pull-right.font-xs.text-muted
-    -#        %i 1 month ago
-    -#    %br/
-    -#    %a.font-md{:href => "javascript:void(0);"} Tincidun nec Gasket Mask
-
--#- @activities.each do |activity|
--#  .activity
--#    = link_to activity.owner.name, activity.owner if activity.owner
--#    = render_activity activity
+#content
+  .row
+    .col-xs-12.col-sm-12.col-md-12.col-lg-12
+      .well.well-sm
+        .smart-timeline
+          %ul.smart-timeline-list
+            - @activities.where("activities.owner_id = #{current_company.id} or activities.recipient_id = #{current_company.id} ").each do |activity|
+              = render_activity activity ,index: params[:index]
