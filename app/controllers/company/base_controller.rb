@@ -13,6 +13,7 @@ class Company::BaseController < ApplicationController
     end
   end
 
+  helper_method :current_user
 
   private
   def verify_company
