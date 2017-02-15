@@ -75,15 +75,13 @@
         %h2 Skills
         -if @candidate.skills.present?
           .skills
-            .row
-              - @candidate.try(:skills).each do |skill|
-                .col-lg-4
-                  %ul.list-unstyled
-                    %a
-                      %li
-                        %span
-                          .label-info.badge
-                            = skill.name
+            - @candidate.try(:skills).each do |skill|
+              %ul.list-unstyled
+                %a
+                  %li
+                    %span
+                      .label-info.badge
+                        = skill.name
 
           -#.item-skills{"data-percent" => "1.00", :style => "width: 458px;"} HTML
           -#.item-skills{"data-percent" => "0.90", :style => "width: 412.2px;"} CSS
