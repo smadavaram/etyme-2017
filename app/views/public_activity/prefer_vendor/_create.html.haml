@@ -1,0 +1,13 @@
+%img.busy{:alt => "img", :src => "#{adsasd.owner.try(:photo)}"}/
+%span.name.font-sm
+  %span.text-muted
+  %b
+    #{link_to a.owner.full_name, a.owner if a.owner}
+    %span.pull-right.font-xs.text-muted
+      %i= time_ago_in_words(a.try(:created_at).try(:localtime))+" ago"
+    %span.name.font-sm
+      %b
+        = link_to  a.trackable.company.name, profile_company_path( a.trackable.company.name), class: 'font-md'
+  %br/
+  invited Company
+  = link_to  a.trackable.prefer_vendor.name, profile_company_path( a.trackable.prefer_vendor.name), class: 'font-md'

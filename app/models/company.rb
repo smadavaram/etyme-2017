@@ -1,6 +1,7 @@
 
 class Company < ActiveRecord::Base
-
+  include PublicActivity::Model
+  tracked owner: ->(controller, model) { controller && controller.current_user }
   EXCLUDED_SUBDOMAINS = %w(admin www administrator admins owner etyme mail ftp)
 
   acts_as_taggable_on :skills

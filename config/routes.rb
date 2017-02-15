@@ -1,5 +1,9 @@
 Rails.application.routes.draw do
 
+  namespace :company do
+  get 'activities/index'
+  end
+
   concern :commentable do
     resources :comments
   end
@@ -109,6 +113,7 @@ Rails.application.routes.draw do
   end
 
   scope module: :company do
+    resources :activities ,only: [:index]
 
     post 'reject_vendor' ,to: 'prefer_vendors#reject'
     post 'accept_vendor' ,to: 'prefer_vendors#accept'

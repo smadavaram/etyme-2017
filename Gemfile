@@ -35,7 +35,7 @@ gem 'data-confirm-modal'
 gem 'wicked_pdf'
 gem 'wkhtmltopdf-binary'
 gem 'breadcrumbs_on_rails'
-
+gem 'public_activity'
 
 #****************************
 # DataBase
