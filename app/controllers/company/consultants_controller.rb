@@ -84,7 +84,7 @@ class Company::ConsultantsController < Company::BaseController
     params.require(:consultant).permit(:first_name,
                                        :last_name ,
                                        :email ,
-                                       :temp_working_hours,
+                                       :temp_working_hours, :tag_list,:visa_status,:availability,:relocation,
                                        role_ids: [],
                                        consultant_profile_attributes:
                                            [
