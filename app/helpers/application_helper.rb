@@ -85,8 +85,9 @@ module ApplicationHelper
   def left_menu_entries(entries = [])
     output = ''
     entries.each do |entry|
+      next if entry.nil?
       children_selected = entry[:children] &&
-          entry[:children].any? {|child| current_page?(child[:href]) }
+          (entry[:children] - [nil]).any? {|child| current_page?(child[:href]) }
       entry_selected =  current_page?(entry[:href])
       li_class =
           case
