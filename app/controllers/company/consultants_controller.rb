@@ -22,7 +22,7 @@ class Company::ConsultantsController < Company::BaseController
     @consultant = current_company.consultants.new(create_consultant_params.merge( invited_by_id: current_user.id , invited_by_type: 'User'))
     if @consultant.valid? && @consultant.save
       flash[:success] =  "Successfull Added."
-      redirect_to dashboard_path
+      redirect_to consultants_path
     else
       flash[:errors] = @consultant.errors.full_messages
       return render 'new'

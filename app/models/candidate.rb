@@ -8,7 +8,6 @@ class Candidate < ActiveRecord::Base
 
   # validates :password,presence: true,if: Proc.new { |candidate| !candidate.password.nil? }
   # validates :password_confirmation,presence: true,if: Proc.new { |candidate| !candidate.password.nil? }
-  # after_create  :send_invitation_email , if: Proc.new{|candidate|candidate.send_invitation}
 
   after_create  :send_invitation_email  , if: Proc.new{|candidate|(candidate.invited_by.present? && candidate.send_welcome_email_to_candidate.nil?) || candidate.send_invitation}
 
