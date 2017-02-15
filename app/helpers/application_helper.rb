@@ -85,7 +85,6 @@ module ApplicationHelper
   def left_menu_entries(entries = [])
     output = ''
     entries.each do |entry|
-        next if entry.nil?
       children_selected = entry[:children] &&
           entry[:children].any? {|child| current_page?(child[:href]) }
       entry_selected =  current_page?(entry[:href])
@@ -258,13 +257,6 @@ module ApplicationHelper
             ]
         },
 
-        # if has_permission?('show_invoices') || has_permission?('manage_contracts')
-        #   {
-        #       href: invoices_path,
-        #       title: 'Invoices',
-        #       content: "<i class='fa fa-lg fa-fw fa-clock-o'></i> <span class='menu-item-parent'>" + 'Invoices' + "</span>",
-        #   }
-        # end,
           {
               href:  current_user.is_owner? ? employees_leaves_path : (current_user.is_consultant? ? consultant_leaves_path(current_user) : '#'),
               title: 'Leaves',
