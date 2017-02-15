@@ -2,6 +2,9 @@
 class Consultant < User
 
   attr_accessor :company_doc_ids
+  enum visa_status: [:USC, :GC, :H1B, :EAD]
+  enum relocation:  [:not_set,:open,:not_open]
+  acts_as_taggable
 
   belongs_to :candidate
   has_one    :consultant_profile , dependent: :destroy
