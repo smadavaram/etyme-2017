@@ -9,7 +9,12 @@ class Users::SessionsController < Devise::SessionsController
 
   # GET /resource/sign_in
   def new
+    if request.subdomain.present?
      super
+    else
+      flash[:error] = "You can't sign in without your company Domain"
+      redirect_to '/'
+    end
    end
 
   # POST /resource/sign_in
