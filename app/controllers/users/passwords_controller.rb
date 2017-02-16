@@ -8,6 +8,7 @@ class Users::PasswordsController < Devise::PasswordsController
 
   # POST /resource/password
   def create
+    if check_company_user
     self.resource = resource_class.send_reset_password_instructions(params[resource_name])
     if !resource.errors.empty?
       flash[:errors] = resource.errors.full_messages
@@ -18,7 +19,12 @@ class Users::PasswordsController < Devise::PasswordsController
     if successfully_sent?(resource)
       respond_with({}, location: after_sending_reset_password_instructions_path_for(resource_name))
     end
+    else
+      flash[:error] = "User is not registerd on this domain"
+      redirect_to :back
+    end
   end
+  
 
   # GET /resource/password/edit?reset_password_token=abcdef
   def edit
@@ -57,4 +63,9 @@ class Users::PasswordsController < Devise::PasswordsController
    def after_sending_reset_password_instructions_path_for(resource_name)
      super(resource_name)
    end
+
+  def check_company_user
+    current_company.users.find_by(email: (params[:user][:email]).downcase).present?
+  end
+
 end

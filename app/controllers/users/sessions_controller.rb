@@ -43,6 +43,6 @@ class Users::SessionsController < Devise::SessionsController
   private
 
   def check_company_user
-   current_company.users.find_by(email: params[:user][:email]).present?
+   current_company.users.find_by(email: (params[:user][:email]).downcase).present?
   end
 end

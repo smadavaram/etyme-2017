@@ -60,7 +60,7 @@ class ApplicationController < ActionController::Base
   end
 
   def current_company
-    @company ||= Company.where(slug: request.subdomain).first if request.subdomain.present?
+    @company ||= Company.signup_companies.where(slug: request.subdomain).first if request.subdomain.present?
   end
   helper_method :current_company
 
