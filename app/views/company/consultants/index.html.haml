@@ -36,7 +36,7 @@
                         %td= link_to consultant.full_name , '#' , target: '_blank'
                         %td= consultant.email
                         %td= consultant.roles.map(&:name).join(", ").gsub("_"," ").upcase
-                        %td= consultant.try(:last_sign_in_at).try(:localtime).try(:strftime,"%A, %d %b %Y %l:%M %p")
+                        %td= consultant.try(:last_sign_in_at).try(:strftime,"%A, %d %b %Y %l:%M %p")
                         %td= consultant.consultant_profile.salaried? ? "$#{consultant.consultant_profile.salary} / month"  : "$#{consultant.consultant_profile.salary} / hour"
                         %td
                           = link_to raw("<i class='fa fa-pencil '></i>") , edit_consultant_path(consultant,edit: true) , class: 'btn btn-xs btn-default btn-primary', title: "Edit #{consultant.full_name}"
