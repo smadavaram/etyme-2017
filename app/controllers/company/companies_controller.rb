@@ -13,7 +13,7 @@ class Company::CompaniesController < Company::BaseController
     @search = current_company.invited_companies.includes(:invited_company).search(params[:q])
     @invited_companies = @search.result.paginate(page: params[:page], per_page: 10)
     @new_company = Company.new
-    @new_company.build_owner
+    @new_company.build_company_contact
     @new_company.build_invited_by
   end
 
@@ -129,10 +129,10 @@ class Company::CompaniesController < Company::BaseController
   end
 
     def company_params
-      params.require(:company).permit(:name ,:company_type,:domain, :skill_list , :website,:logo,:description,:phone,:email,:linkedin_url,:facebook_url,:twitter_url,:google_url,:is_activated,:status,:time_zone,:tag_line, owner_attributes:[:id, :type ,:first_name, :last_name ,:email,:password, :password_confirmation],locations_attributes:[:id,:name,:status,  address_attributes:[:id,:address_1,:country,:city,:state,:zip_code] ] )
+      params.require(:company).permit(:name ,:company_type,:domain, :skill_list , :website,:logo,:description,:phone,:email,:linkedin_url,:facebook_url,:twitter_url,:google_url,:is_activated,:status,:time_zone,:tag_line, owner_attributes:[:id, :type ,:first_name, :last_name ,:email,:password, :password_confirmation],locations_attributes:[:id,:name,:status,  address_attributes:[:id,:address_1,:country,:city,:state,:zip_code] ,company_contact_attributes:[:id, :type  , :first_name, :last_name ,:email]] )
     end
 
     def create_params
-      params.require(:company).permit([:name  ,:domain,:currency_id,:phone ,:send_email ,owner_attributes:[:id, :type  , :first_name, :last_name ,:email,:invited_by_id,:invited_by_type] , invited_by_attributes: [:invited_by_company_id , :user_id]])
+      params.require(:company).permit([:name  ,:domain,:currency_id,:phone ,:send_email ,company_contact_attributes:[:id, :type  , :first_name, :last_name ,:email] , invited_by_attributes: [:invited_by_company_id , :user_id]])
     end
 end

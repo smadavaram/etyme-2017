@@ -32,9 +32,7 @@
                 %sup.text-danger *
               .col-md-10
                 = f.phone_field :phone , class: 'form-control' , placeholder: 'Phone' , required: true
-            = f.fields_for :owner do |u|
-              = u.hidden_field :invited_by_id ,value: current_user.id
-              = u.hidden_field :invited_by_type ,value: "User"
+            = f.fields_for :company_contact do |u|
               .form-group
                 %label.col-md-2.control-label
                   First Name
@@ -52,11 +50,11 @@
                   %sup.text-danger *
                 .col-md-10
                   = u.text_field :email , class: 'form-control' , placeholder: 'Email' , required: true
-              .form-group
-                %label.col-md-4.control-label
-                  Send Email for On-Boarding
-                .col-md-8
-                  = f.check_box :send_email
+              -#.form-group
+              -#  %label.col-md-4.control-label
+              -#    Send Email for On-Boarding
+              -#  .col-md-8
+              -#    = f.check_box :send_email
               %br/
           .form-actions
             .row

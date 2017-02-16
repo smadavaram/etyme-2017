@@ -43,6 +43,7 @@ class Company < ActiveRecord::Base
   has_many :candidates , through: :candidates_companies
   has_many :prefer_vendors
   has_many :perfer_vendor_companies ,class_name: "PreferVendor" , foreign_key: 'vendor_id'
+  has_one  :company_contact            ,dependent:  :destroy
 
   # validates           :company_type, inclusion: { in: [0, 1] } , presence: true
   # validates           :company_type, inclusion: {in: %w(0 , 1)}
@@ -51,18 +52,19 @@ class Company < ActiveRecord::Base
   validates_length_of :name,  minimum:    3   , message: "must be atleat 3 characters"
   validates_length_of :name,  maximum:    50  , message: "can have maximum of 50 characters"
   validates_uniqueness_of    :slug,  message: "This company is already registered on etyme. In order to invited to the company; Please talk to the admin / owner of the company.  Or you can register a new company with a different name"
-  validates_uniqueness_of    :domain,  message: "This company is already registered on etyme. In order to invited to the company; Please talk to the admin / owner of the company.  Or you can register a new company with a different name"
+  # validates_uniqueness_of    :domain,  message: "This company is already registered on etyme. In order to invited to the company; Please talk to the admin / owner of the company.  Or you can register a new company with a different name"
   validates_exclusion_of :slug, in: EXCLUDED_SUBDOMAINS, message: "is not allowed. Please choose another subdomain"
   validates_format_of :slug, with: /\A[\w\-]+\Z/i, allow_blank: true, message: "is not allowed. Please choose another subdomain."
 
   accepts_nested_attributes_for :owner    , allow_destroy: true
+  accepts_nested_attributes_for :company_contact    , allow_destroy: true
   accepts_nested_attributes_for :locations, allow_destroy: true,reject_if: :all_blank
   accepts_nested_attributes_for :invited_by    , allow_destroy: true
 
 
-  before_create :create_slug
+  before_validation :create_slug
   after_create      :set_owner_company_id
-  after_create      :welcome_email_to_owner
+  after_create      :welcome_email_to_owner, if: Proc.new{|comp| !comp.invited_by.present?}
   after_create      :assign_free_subscription
   after_create      :create_defult_roles
 
@@ -103,24 +105,29 @@ class Company < ActiveRecord::Base
   end
 
   def get_host_from_domain
+
     domain = self.domain.gsub(/[^0-9A-Za-z.]/, '')
     url = URI.parse(domain).scheme.nil? ? "http://#{domain}" : domain
     host = URI.parse(url).host.downcase
-    self.slug = host.start_with?('www.') ? host[4..-1].split(".").first : host.split(".").first
+    if (!self.invited_by.present?)
+       self.slug = host.start_with?('www.') ? host[4..-1].split(".").first : host.split(".").first
+    else
+        self.slug = host.start_with?('www.') ? host[4..-1].split(".").first : host.split(".").first + "#{Time.now.to_s.parameterize("_")}"
+    end
   end
 
   def set_owner_company_id
-    self.owner.update_column(:company_id, id)
+    if self.invited_by.present?
+      self.company_contact.update_column(:company_id,id)
+    else
+      self.owner.update_column(:company_id, id)
     # self.owner.accept_invitation!
+    end
   end
 
   # Call after create
   def welcome_email_to_owner
-    if self.owner.password.present?
       UserMailer.welcome_email_to_owner(self).deliver_now
-    else
-      self.owner.send_invitation if self.send_email == '1'
-    end
   end
 
   def assign_free_subscription

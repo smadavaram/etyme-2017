@@ -31,8 +31,8 @@
                     %tr
                       %td= image_tag show_recipient_picture(d.invited_company.logo) , alt: '', width: '40'
                       %td= link_to d.invited_company.name ,profile_company_path(d.invited_company)
-                      %td= d.invited_company.owner.full_name  rescue "  --"
-                      %td= d.invited_company.owner.try(:email)
+                      %td= d.invited_company.try(:company_contact).try(:full_name)  rescue "  --"
+                      %td= d.invited_company.company_contact.try(:email)
                       %td= d.invited_company.domain
                       %td= d.invited_company.phone
                       %td
