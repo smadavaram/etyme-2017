@@ -39,8 +39,8 @@ task :environment do
 end
 task :deploy => :environment do
   deploy do
-    # invoke :'cron:clear'
-    # invoke :'delayed_job:stop'
+    invoke :'cron:clear'
+    invoke :'delayed_job:stop'
     invoke :'git:clone'
     invoke :'deploy:link_shared_paths'
     invoke :'bundle:install'
@@ -49,8 +49,8 @@ task :deploy => :environment do
 
     to :launch do
       invoke :'puma:restart'
-      # invoke :'cron:update'
-      # invoke :'delayed_job:start'
+      invoke :'cron:update'
+      invoke :'delayed_job:start'
     end
   end
 end
