@@ -7,11 +7,26 @@
       = e.select :company_doc_ids, current_company.company_docs.collect { |doc| [doc.name,doc.id,] }, {}, {class:"form-control multi-select2", plachholder: 'Select Document(s)',multiple: true, style:"width: 100%;"}
       %span.help-block.m-b-none
         Attach company documents like Contracts, Company Letter, Hiring Manifesto, W4, W9 Forms and etc.
--#-#- content_for :scripts do
--#:javascript
--#  $( document ).ready(function() {
--#     $(".multi-select2-company-docs").select2({
--#      placeholder: "Select a Doc(s)",
--#      tokenSeparators: [',', ' ']
--#     });
--#  });
+  %hr
+  .form-group#contract-attachment
+    .col-md-12
+      = e.fields_for :attachments do |attachment|
+        = render 'company/contracts/attachment_fields', f: attachment
+      .links
+        = link_to_add_association 'Add Attachment', e, :attachments,partial:'company/contracts/attachment_fields',class:"btn btn-primary pull-right"
+- content_for :scripts do
+  :javascript
+     $('#contract-attachment').on('cocoon:after-insert', function(e, insertedItem) {
+        insertedItem.find('.filepicker-attachment').each(function(i,e){
+          filepicker.constructWidget(e);
+
+        $(".filepicker-attachment").on('click',function() {
+        $('.fp__overlay').css({'z-index':'99999'})
+        });
+
+        $('.filepicker-attachment').on('click',function() {
+          $(this).hide();
+         });
+
+        });
+    });

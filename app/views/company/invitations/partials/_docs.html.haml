@@ -15,14 +15,25 @@
           - if ed.object.company_doc.is_required_signature?
             %span.text-danger{:style => "font-size: 12px;"} (Signature Required Document)
       .col-sm-4
-        = link_to raw("<i class='fa fa-download'></i>"),'',target:'_blank', class: 'btn btn-info pull-right download-doc-button',download: true
+        = link_to raw("<i class='fa fa-download'></i>"),ed.object.orignal_file,target:'_blank', class: 'btn btn-info pull-right download-doc-button',download: true
         - if ed.object.company_doc.is_required_signature?
           = ed.filepicker_field :file,  class: 'btn btn-info btn-custom-file pull-right'
           = ed.hidden_field :id
-    -#.col-sm-12
-    -#  - if  ed.object.company_doc.description
-    -#    %span.text-info
-    -#      ( #{strip_tags ed.object.company_doc.description} )
+
+  = f.fields_for :attachments do |ed|
+    %div{class: "employee-doc-#{ed.object.id}"}
+      .col-sm-8
+        %h4
+          %i.fa.fa-icon.fa-check-square-o.text-success.fa-2x.hidden{:style => "margin-top: -7px;"}
+          = ed.object.file_name.titleize
+          -#- if ed.object.company_doc.is_required_signature?
+          -#  %span.text-danger{:style => "font-size: 12px;"} (Signature Required Document)
+      .col-sm-4
+        = link_to raw("<i class='fa fa-download'></i>"),ed.object.file,target:'_blank', class: 'btn btn-info pull-right download-doc-button',download: true
+        -#- if ed.object.company_doc.is_required_signature?
+        -#  = ed.filepicker_field :file,  class: 'btn btn-info btn-custom-file pull-right'
+        -#  = ed.hidden_field :id
+
     %br/
     %br/
 %legend

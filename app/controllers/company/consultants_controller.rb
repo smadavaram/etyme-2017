@@ -101,7 +101,15 @@ class Company::ConsultantsController < Company::BaseController
                                                :name,
                                                :value,
                                                :_destroy
-                                           ],
+                                           ],attachments_attributes:
+                                           [:id,:file,
+                                            :file_name,
+                                            :file_size,
+                                            :company_id ,
+                                            :file_type,
+                                            :attachable_type,
+                                            :attachable_id,
+                                            :_destroy],
                                        company_doc_ids:[]
     )
   end

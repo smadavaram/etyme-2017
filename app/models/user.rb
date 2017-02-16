@@ -37,12 +37,14 @@ class User < ActiveRecord::Base
   has_many :job_applications    , foreign_key: "applicationable_id", dependent: :destroy
   has_many :timesheets          , dependent: :destroy
   has_many :timesheet_approvers , dependent: :destroy
+  has_many   :attachments , as: :attachable
   has_and_belongs_to_many :roles
   has_many :permissions , through: :roles
 
   accepts_nested_attributes_for :attachable_docs , reject_if: :all_blank
   accepts_nested_attributes_for :custom_fields   , reject_if: :all_blank
   accepts_nested_attributes_for :address   , reject_if: :all_blank, update_only: true
+  accepts_nested_attributes_for :attachments ,   allow_destroy: true, reject_if: :all_blank
 
   validates_uniqueness_of :email
   # validates_inclusion_of :time_zone, in: ActiveSupport::TimeZone.all.map { |tz| tz.tzinfo.name }

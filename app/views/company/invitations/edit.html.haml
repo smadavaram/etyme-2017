@@ -74,7 +74,7 @@
                           \- Address
                         = e.fields_for :address do |a|
                           = render partial: 'company/invitations/partials/address' , locals: {a: a}
-                      - if resource.company_docs.present?
+                      - if resource.company_docs.present? || resource.try(:attachments).present?
                         #step4.step-pane
                           %h3
                             %strong Step 4
