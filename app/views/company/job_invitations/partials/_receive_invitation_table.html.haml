@@ -18,7 +18,7 @@
           %td= image_tag invitation.created_by.photo, alt: '', width: '20'
           %td= link_to invitation.created_by.full_name , '#'
           %td= link_to invitation.created_by.company.name , '#' if invitation.created_by.type!="Candidate"
-          %td= link_to invitation.job.title , job_path(invitation.job)
+          %td= link_to invitation.job.title ,invitation.job.is_public ? job_path(invitation.job) : "#"
           %td
             = invitation.created_by.email
             %a.pull-right{:href => "javascript:void(0);"}
