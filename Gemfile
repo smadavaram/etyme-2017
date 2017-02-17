@@ -10,6 +10,7 @@ gem 'mina' ,'~> 0.2.1'
 gem 'mina-multistage', '<= 1.0.1', require: false
 # gem 'mina-puma', :require => false
 gem 'puma'
+gem 'browser-timezone-rails'
 #****************************
 # Javascript Configuration
 #****************************
