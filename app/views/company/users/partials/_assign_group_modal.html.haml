@@ -1,4 +1,4 @@
-.modal.fade{id:"candidate-#{assignee.id}"}
+.modal.fade{id:"user-#{assignee.id}"}
   .modal-dialog
     .modal-content
       .modal-header
@@ -7,4 +7,4 @@
         %h4.modal-title
           %strong= "Manage Groups"
       .modal-body.no-padding
-        = render 'company/candidates/partials/manage_group_form' , candidate: assignee
+        = render 'company/users/partials/assign_groups_form' , assignee: assignee

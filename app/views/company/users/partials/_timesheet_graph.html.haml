@@ -1,0 +1,10 @@
+- current_company.sent_contracts.each do |c|
+  <div id=#{c.id} style="min-width: 310px; height: 250px; margin: 0 auto" class="highchart-graph"></div>
+
+  = render 'company/users/graph',contract: c, timesheet_logs_dates: c.timesheet_logs.map(&:transaction_day),timesheet_logs_total_time_array:c.timesheet_logs_total_time_array
+
+
+
+
+
+

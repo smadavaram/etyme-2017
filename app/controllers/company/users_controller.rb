@@ -11,8 +11,24 @@ class Company::UsersController < Company::BaseController
     render json: current_user.update_attribute(:photo, params[:photo])
     flash.now[:success] = "Photo Successfully Updated"
   end
+  def assign_groups
+    @user = current_company.users.find(params[:user_id])
+    if request.post?
+      groups = params[:user][:group_ids]
+      groups = groups.reject { |t| t.empty? }
+      groups_id = groups.map(&:to_i)
+      @user.update_attribute(:group_ids, groups_id)
+      if @user.save
+        flash[:success] = "Groups has been assigned"
+      else
+        flash[:errors] = @user.errors.full_messages
+      end
+      redirect_to :back
+    end
+  end
   def show
   end
+
   def update
     if current_user.update_attributes!(user_params)
       flash[:success] = "User Updated"
@@ -30,8 +46,9 @@ class Company::UsersController < Company::BaseController
 
   private
   def user_params
-    params.require(:user).permit(:first_name, :last_name,:dob,:email,:phone,:skills, :primary_address_id,:tag_list,
+    params.require(:user).permit(:first_name, :last_name,:dob,:email,:phone,:skills, :primary_address_id,:tag_list,group_ids: [],
      address_attributes: [:id,:address1,:address2,:country,:city,:state,:zip_code]
+
     )
   end
 

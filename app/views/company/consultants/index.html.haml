@@ -26,6 +26,7 @@
                       %th Email
                       %th Roles
                       %th Last Login
+                      %th Groups
                       %th Salary
                       %th{"data-hide" => "phone,tablet"}
                         Actions
@@ -39,7 +40,12 @@
                         %td= consultant.try(:last_sign_in_at).try(:localtime).try(:strftime,"%A, %d %b %Y %l:%M %p")
                         %td= consultant.consultant_profile.salaried? ? "$#{consultant.consultant_profile.salary} / month"  : "$#{consultant.consultant_profile.salary} / hour"
                         %td
+                          - consultant.groups.each do |group|
+                            %span.badge.bg-color-blue
+                              = group.try(:group_name).try(:titleize)
+                        %td
                           = link_to raw("<i class='fa fa-pencil '></i>") , edit_consultant_path(consultant,edit: true) , class: 'btn btn-xs btn-default btn-primary', title: "Edit #{consultant.full_name}"
+                          = link_to raw("Assign Groups"), company_user_assign_groups_path(consultant) , remote:true,class: 'btn btn-xs btn-success'
                           -#= link_to raw("<i class='fa fa-times '></i>") , consultant_path(consultant) , method: :delete ,  class: 'btn btn-xs btn-default btn-danger' , title: "Delete #{consultant.full_name}",data: {confirm: "Are you sure you want to Delete this Consultants ?", verify: 'Confirm', verify_text: "Type 'Confirm' to Continue"}
           = digg_pagination(@consultants)
 

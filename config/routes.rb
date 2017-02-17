@@ -101,11 +101,13 @@ Rails.application.routes.draw do
   namespace  :company do
     get 'companies/edit'
     resources :users, only: [:show,:update] do
+      match  :assign_groups , via: [:get , :post]
       collection do
         get :notify_notifications
       end
     end
     resources :companies ,only: [:create] do
+      match  :assign_groups , via: [:get , :post]
       post   :add_to_network
       get    :hot_candidates
     end

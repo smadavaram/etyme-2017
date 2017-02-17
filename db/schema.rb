@@ -11,7 +11,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema.define(version: 20170216113648) do
+ActiveRecord::Schema.define(version: 20170217075156) do
 
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
@@ -312,6 +312,16 @@ ActiveRecord::Schema.define(version: 20170216113648) do
     t.datetime "created_at",       null: false
     t.datetime "updated_at",       null: false
   end
+
+  create_table "groupables", force: :cascade do |t|
+    t.integer  "group_id"
+    t.integer  "groupable_id"
+    t.string   "groupable_type"
+    t.datetime "created_at",     null: false
+    t.datetime "updated_at",     null: false
+  end
+
+  add_index "groupables", ["groupable_type", "groupable_id"], name: "index_groupables_on_groupable_type_and_groupable_id", using: :btree
 
   create_table "groups", force: :cascade do |t|
     t.string   "group_name"

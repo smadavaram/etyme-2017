@@ -1,4 +1,7 @@
 class Group < ActiveRecord::Base
   belongs_to :company
-  has_and_belongs_to_many :candidates
+  has_many :groupables ,dependent:  :destroy
+  has_many :candidates  , through: :groupables, source: "groupable"  ,source_type: "Candidate"
+  has_many :companies   , through: :groupables, source: "groupable"  ,source_type: "Company"
+  has_many :users       , through: :groupables, source: "groupable"  ,source_type: "User"
 end

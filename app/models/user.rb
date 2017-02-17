@@ -41,6 +41,9 @@ class User < ActiveRecord::Base
   has_and_belongs_to_many :roles
   has_many :permissions , through: :roles
 
+  has_many :groupables          , as:  :groupable
+  has_many :groups              ,through:  :groupables
+
   accepts_nested_attributes_for :attachable_docs , reject_if: :all_blank
   accepts_nested_attributes_for :custom_fields   , reject_if: :all_blank
   accepts_nested_attributes_for :address   , reject_if: :all_blank, update_only: true

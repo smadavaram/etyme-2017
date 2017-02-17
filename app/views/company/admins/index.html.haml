@@ -26,6 +26,7 @@
                       %th Email
                       %th Roles
                       %th Last Login
+                      %th Groups
                       %th{"data-hide" => "phone,tablet"}
                         Actions
                   %tbody
@@ -37,7 +38,12 @@
                       %td= admin.roles.map(&:name).join(", ").gsub("_"," ").upcase
                       %td= admin.try(:last_sign_in_at).try(:localtime).try(:strftime,"%A, %d %b %Y %l:%M %p")
                       %td
+                        - admin.groups.each do |group|
+                          %span.badge.bg-color-blue
+                            = group.try(:group_name).try(:titleize)
+                      %td
                         = link_to raw("<i class='fa fa-pencil '>""</i>") , edit_admin_path(admin) , class: 'btn btn-xs btn-default btn-primary' ,remote: true,title: "Edit #{admin.full_name}"
+                        = link_to raw("Assign Groups"), company_user_assign_groups_path(admin) , remote:true,class: 'btn btn-xs btn-success'
                         -#= link_to raw("<i class='fa fa-times '></i>") , admin_path(admin) , method: :delete ,  class: 'btn btn-xs btn-default btn-danger' ,title: "Delete #{admin.full_name}" ,data: {confirm: 'Are you sure?', verify: 'Confirm', verify_text: 'Type "Confirm" to confirm'}
           = digg_pagination(@consultants)
 

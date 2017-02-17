@@ -95,6 +95,22 @@ class Company::CompaniesController < Company::BaseController
     end
   end
 
+  def assign_groups
+    @invited_company = current_company.invited_companies.find_by(invited_company_id: params[:company_id])
+    if request.post?
+      groups = params[:invited_company][:group_ids]
+      groups = groups.reject { |t| t.empty? }
+      groups_id = groups.map(&:to_i)
+      @invited_company.update_attribute(:group_ids, groups_id)
+      if @invited_company.save
+        flash[:success] = "Groups has been assigned"
+      else
+        flash[:errors] = @invited_company.errors.full_messages
+      end
+      redirect_to :back
+    end
+  end
+
   def authorized_user
     has_access?("manage_company")
   end
@@ -129,10 +145,10 @@ class Company::CompaniesController < Company::BaseController
   end
 
     def company_params
-      params.require(:company).permit(:name ,:company_type,:domain, :skill_list , :website,:logo,:description,:phone,:email,:linkedin_url,:facebook_url,:twitter_url,:google_url,:is_activated,:status,:time_zone,:tag_line, owner_attributes:[:id, :type ,:first_name, :last_name ,:email,:password, :password_confirmation],locations_attributes:[:id,:name,:status,  address_attributes:[:id,:address_1,:country,:city,:state,:zip_code] ,company_contact_attributes:[:id, :type  , :first_name, :last_name ,:email]] )
+      params.require(:company).permit(:name ,:company_type,:domain, :skill_list , :website,:logo,:description,:phone,:email,:linkedin_url,:facebook_url,:twitter_url,:google_url,:is_activated,:status,:time_zone,:tag_line,group_ids:[], owner_attributes:[:id, :type ,:first_name, :last_name ,:email,:password, :password_confirmation],locations_attributes:[:id,:name,:status,  address_attributes:[:id,:address_1,:country,:city,:state,:zip_code] ,company_contact_attributes:[:id, :type  , :first_name, :last_name ,:email]] )
     end
 
     def create_params
-      params.require(:company).permit([:name  ,:domain,:currency_id,:phone ,:send_email ,company_contact_attributes:[:id, :type  , :first_name, :last_name ,:email] , invited_by_attributes: [:invited_by_company_id , :user_id]])
+      params.require(:company).permit([:name  ,:domain,:currency_id,:phone ,:send_email ,group_ids:[],company_contact_attributes:[:id, :type  , :first_name, :last_name ,:email] , invited_by_attributes: [:invited_by_company_id , :user_id]])
     end
 end

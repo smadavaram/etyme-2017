@@ -35,9 +35,9 @@
                         %td= candidate.email
                         %td= candidate.try(:status).try(:titleize)
                         %td
-                          - candidate.groups.where(company_id: current_company.id).each do |group|
+                          - candidate.groups.each do |group|
                             %span.badge.bg-color-blue
-                              = group.group_name.titleize
+                              = group.try(:group_name).try(:titleize)
                         %td
                           = link_to raw("Resume") , candidate.resume ,download: true , class: 'btn btn-xs btn-primary'
                           = link_to "show" , static_candidate_resume_path(candidate) , class: 'btn btn-xs btn-primary'

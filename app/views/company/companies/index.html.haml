@@ -25,6 +25,7 @@
                     %th Owner Email
                     %th Domain
                     %th Phone
+                    %th Groups
                     %th Actions
                 %tbody
                   -@invited_companies.each do |d|
@@ -36,8 +37,13 @@
                       %td= d.invited_company.domain
                       %td= d.invited_company.phone
                       %td
+                        - d.groups.each do |group|
+                          %span.badge.bg-color-blue
+                            = group.try(:group_name).try(:titleize)
+                      %td
                         = link_to raw("<i class='fa fa-pencil '></i>") , edit_company_path(d.invited_company) , class: 'btn btn-xs btn-default btn-primary',remote: :true ,title:"Edit #{d.invited_company.name}"
-                        = link_to raw("<i class='fa fa-times '></i>") , company_path(d.invited_company) ,method: :delete, class: 'btn btn-xs btn-default btn-danger' ,title:"Delete #{d.invited_company.name}",data: {confirm: "Are you sure you want to Delete this Company ?", verify: 'Confirm', verify_text: "Type 'Confirm' to Continue"}
+                        = link_to raw("Assign Groups"), company_company_assign_groups_path(d.invited_company) , remote:true,class: 'btn btn-xs btn-success'
+                        -#= link_to raw("<i class='fa fa-times '></i>") , company_path(d.invited_company) ,method: :delete, class: 'btn btn-xs btn-default btn-danger' ,title:"Delete #{d.invited_company.name}",data: {confirm: "Are you sure you want to Delete this Company ?", verify: 'Confirm', verify_text: "Type 'Confirm' to Continue"}
             = digg_pagination(@invited_companies)
 
 - content_for :modals do
