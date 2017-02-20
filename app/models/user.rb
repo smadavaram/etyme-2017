@@ -37,12 +37,13 @@ class User < ActiveRecord::Base
   has_many :job_applications    , foreign_key: "applicationable_id", dependent: :destroy
   has_many :timesheets          , dependent: :destroy
   has_many :timesheet_approvers , dependent: :destroy
-  has_many   :attachments , as: :attachable
-  has_and_belongs_to_many :roles
-  has_many :permissions , through: :roles
-
+  has_many   :attachments       , as: :attachable
   has_many :groupables          , as:  :groupable
   has_many :groups              ,through:  :groupables
+  has_many :permissions         , through: :roles
+  has_and_belongs_to_many :roles
+
+
 
   accepts_nested_attributes_for :attachable_docs , reject_if: :all_blank
   accepts_nested_attributes_for :custom_fields   , reject_if: :all_blank

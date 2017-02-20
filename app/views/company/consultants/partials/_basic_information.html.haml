@@ -22,3 +22,9 @@
       %sup.text-danger *
     .col-md-10
       = e.collection_select :role_ids, current_company.roles, :id, :name, {}, {:class=>"form-control input-lg multi-select2",placeholder: 'Select role(s)' ,:multiple => true, required: true,id:'roles'}
+  - if !@consultant.accepted_or_not_invited? && !@consultant.new_record?
+    .form-group
+      %label.col-md-2.control-label
+        Resend Invitation
+      .col-md-10
+        = e.check_box :resend_invitation , {}, true, false

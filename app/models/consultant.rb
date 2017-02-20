@@ -2,6 +2,8 @@
 class Consultant < User
 
   attr_accessor :company_doc_ids
+  attr_accessor :resend_invitation
+
   enum visa_status: [:USC, :GC, :H1B, :EAD]
   enum relocation:  [:not_set,:open,:not_open]
   acts_as_taggable
@@ -22,6 +24,7 @@ class Consultant < User
 
   after_create :insert_attachable_docs
   after_create :send_invitation
+  # before_save :resend_invitation_method ,if: Proc.new{|consultant| consultant.resend_invitation}
   before_validation  :convert_max_working_hours_to_seconds
   before_validation :hourly_rate , if: Proc.new { |consultant| consultant.consultant_profile.present? }
 
@@ -57,7 +60,9 @@ class Consultant < User
       else raise "Unknown file type: #{file.original_filename}"
     end
   end
-
+  def resend_invitation_method
+    UserMailer.invite_user(self).deliver
+  end
   def send_invitation
     invite! { |u| u.skip_invitation = true }
     UserMailer.invite_user(self).deliver

@@ -34,7 +34,12 @@ class Company::ConsultantsController < Company::BaseController
   end
 
   def update
+
     if @consultant.update(consultant_params)
+      if params[:consultant][:resend_invitation]
+        @consultant.invite! { |u| u.skip_invitation = true }
+        UserMailer.invite_user(@consultant).deliver
+      end
       flash[:success] = "#{@consultant.full_name} updated."
     else
       flash[:errors] = @consultant.errors.full_messages
@@ -82,7 +87,7 @@ class Company::ConsultantsController < Company::BaseController
 
   def consultant_params
     params.require(:consultant).permit(:first_name,
-                                       :last_name ,
+                                       :last_name ,:resend_invitation,
                                        :email ,
                                        :temp_working_hours, :tag_list,:visa_status,:availability,:relocation,
                                        role_ids: [],
