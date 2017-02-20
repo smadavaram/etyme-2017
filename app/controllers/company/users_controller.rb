@@ -1,12 +1,15 @@
 class Company::UsersController < Company::BaseController
 
   respond_to :js, :json, :html
+  add_breadcrumb "HOME", :dashboard_path
 
   def dashboard
-    add_breadcrumb "HOME", :dashboard_path
     @activities = PublicActivity::Activity.order("created_at desc")
   end # End of dashboard
-
+  def profile
+    @user = current_company.users.find(params[:user_id]) || []
+    add_breadcrumb @user.try(:full_name), "#"
+  end
   def update_photo
     render json: current_user.update_attribute(:photo, params[:photo])
     flash.now[:success] = "Photo Successfully Updated"

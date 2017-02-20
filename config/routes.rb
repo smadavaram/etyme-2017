@@ -102,8 +102,10 @@ Rails.application.routes.draw do
     get 'companies/edit'
     resources :users, only: [:show,:update] do
       match  :assign_groups , via: [:get , :post]
+      get :profile
       collection do
         get :notify_notifications
+
       end
     end
     resources :companies ,only: [:create] do

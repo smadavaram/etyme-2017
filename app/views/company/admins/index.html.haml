@@ -33,7 +33,7 @@
                   - @admins.each_with_index do |admin , index|
                     %tr
                       %td= image_tag admin.photo, alt: '', width: '20'
-                      %td= link_to admin.full_name , '#' , target: '_blank'
+                      %td= link_to admin.full_name , company_user_profile_path(admin)  , target: '_blank'
                       %td= admin.email
                       %td= admin.roles.map(&:name).join(", ").gsub("_"," ").upcase
                       %td= admin.try(:last_sign_in_at).try(:localtime).try(:strftime,"%A, %d %b %Y %l:%M %p")

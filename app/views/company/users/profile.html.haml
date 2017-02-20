@@ -1,0 +1,269 @@
+#content
+  .row
+    .col-sm-12
+      .well.well-lg
+        .row
+          .col-sm-12.col-md-12.col-lg-10.col-md-offset-1
+            .well.well-light.well-sm.no-margin.no-padding
+              .row
+                .col-md-12.col-lg-12
+                  #myCarousel.carousel.fade.profile-carousel
+                    -#.air.air-bottom-right.padding-10
+                    -#  %a.btn.txt-color-white.bg-color-teal.btn-sm{:href => "javascript:void(0);"}>
+                    -#    %i.fa.fa-check
+                    -#    Follow
+                    -#   
+                    -#  %a.btn.txt-color-white.bg-color-pinkDark.btn-sm{:href => "javascript:void(0);"}
+                    -#    %i.fa.fa-link
+                    -#    Connect
+                    -#.air.air-top-left.padding-10
+                    -#  %h4.txt-color-white.font-md= @user.created_at
+                    %ol.carousel-indicators
+                      %li.active{"data-slide-to" => "0", "data-target" => "#myCarousel"}
+                      %li{"data-slide-to" => "1", "data-target" => "#myCarousel"}
+                      %li{"data-slide-to" => "2", "data-target" => "#myCarousel"}
+                    .carousel-inner
+                      / Slide 1
+                      .item.active
+                        = image_tag asset_path('demo/s1.jpg') , class: "ca-width"
+
+                      .item
+                        = image_tag asset_path('demo//s2.jpg'), class: "ca-width"
+                      / Slide 3
+                      .item
+                        = image_tag asset_path('demo/s3.jpg'), class: "ca-width"
+                .col-sm-12
+                  .row
+                    .col-sm-3.profile-pic
+                      = image_tag @user.photo,alt: asset_path('avatars/male.png') ,style: "width:100px;hieght:100px"
+                      -#%img{:alt => "demo user", :src => "img/avatars/sunny-big.png"}/
+                    -#  .padding-10
+                    -#    %h4.font-md
+                    -#      %strong 1,543
+                    -#      %br/
+                    -#      %small Followers
+                    -#    %br/
+                    -#    %h4.font-md
+                    -#      %strong 419
+                    -#      %br/
+                    -#      %small Connections
+                    .col-sm-6
+                      %h1
+                        = @user.try(:first_name)
+                        %span.semi-bold= @user.try(:last_name)
+                        %br/
+                        %small= @user.try(:class).try(:name) + ' , '+ @user.try(:company).try(:name)
+                      %ul.list-unstyled
+                        %li
+                          %p.text-muted
+                            %i.fa.fa-phone>
+                            %span.txt-color-darken= @user.try(:phone)
+                            -#%span.txt-color-darken 464
+                            -#\-
+                            -#%span.txt-color-darken 6473
+                        %li
+                          %p.text-muted
+                            %i.fa.fa-envelope>  
+                            %a{:href => "#"}= @user.email
+                        -#%li
+                        -#  %p.text-muted
+                        -#    %i.fa.fa-skype>
+                        -#      
+                        -#    %span.txt-color-darken john12
+                        %li
+                          %p.text-muted
+                            %i.fa.fa-calendar>
+                              
+                            %span.txt-color-darken
+                              Available At
+                              %a{"data-original-title" => "Create an Appointment", "data-placement" => "top", :href => "javascript:void(0);", :rel => "tooltip", :title => ""}= @user.availability
+                      %br/
+                      -#%p.font-md
+                      -#  %i A little about me...
+                      -#%p
+                      -#  Et harum quidem rerum facilis est et expedita distinctio. Nam libero tempore, cum soluta nobis est eligendi optio
+                      -#  cumque nihil impedit quo minus id quod maxime placeat facere
+                      -#%br/
+                      -#%a.btn.btn-default.btn-xs{:href => "javascript:void(0);"}
+                      -#  %i.fa.fa-envelope-o
+                      -#  Send Message
+                      -#%br/
+                      -#%br/
+                    -#.col-sm-3
+                      %h1
+                        %small Connections
+                      %ul.list-inline.friends-list
+                        %li
+                          %img{:alt => "friend-1", :src => "img/avatars/1.png"}/
+                        %li
+                          %img{:alt => "friend-2", :src => "img/avatars/2.png"}/
+                        %li
+                          %img{:alt => "friend-3", :src => "img/avatars/3.png"}/
+                        %li
+                          %img{:alt => "friend-4", :src => "img/avatars/4.png"}/
+                        %li
+                          %img{:alt => "friend-5", :src => "img/avatars/5.png"}/
+                        %li
+                          %img{:alt => "friend-6", :src => "img/avatars/male.png"}/
+                        %li
+                          %a{:href => "javascript:void(0);"} 413 more
+                      %h1
+                        %small Recent visitors
+                      %ul.list-inline.friends-list
+                        %li
+                          %img{:alt => "friend-1", :src => "img/avatars/male.png"}/
+                        %li
+                          %img{:alt => "friend-2", :src => "img/avatars/female.png"}/
+                        %li
+                          %img{:alt => "friend-3", :src => "img/avatars/female.png"}/
+              .row
+                .col-sm-12
+                  %hr/
+                  .padding-10
+                    %ul.nav.nav-tabs.tabs-pull-right
+                      %li.active
+                        %a{"data-toggle" => "tab", :href => "#a1"} Comments
+                      -#%li
+                      -#  %a{"data-toggle" => "tab", :href => "#a2"} New Members
+                      -#%li.pull-left
+                      -#  %span.margin-top-10.display-inline
+                      -#    %i.fa.fa-rss.text-success
+                      -#    Activity
+                    .tab-content.padding-top-10
+                      #a1.tab-pane.fade.in.active
+                        .row
+                          .col-sm-12.col-lg-12
+                            / your contents here
+                            .panel.panel-default
+                              .panel-body.status
+                                -#.who.clearfix
+                                -#  %img.online{:alt => "img", :src => "img/avatars/5.png"}/
+                                -#  %span.name
+                                -#    %b Karrigan Mean
+                                -#    shared a photo
+                                -#  %span.from
+                                -#    %b 1 days ago
+                                -#    via Mobile, Sydney, Australia
+                                -#.image
+                                -#  %img{:alt => "img", :src => "img/realestate/6.png"}/
+                                %ul.links
+                                %ul.comments
+                                  - @user.comments.each do |comment|
+                                    = render 'company/comments/partials/comment_li' , comment: comment
+                                  %li.message
+                                    = image_tag current_user.photo , class: 'online'
+                                    %span.message-text
+                                      = form_for Comment.new do |c|
+                                        .col-md-10
+                                          = c.text_field :body , class: 'form-control' , placeholder: "Post your comment..."
+                                          = c.hidden_field :commentable_type , value: 'User'
+                                          = c.hidden_field :commentable_id , value: @user.id
+                                        .col-md-2
+                                          = c.button "Comment".html_safe, data: {disable_with: disable_spinning("Comment...")} , class: 'btn btn-primary btn-sm'
+                                        %br/
+                                        %br/
+                          -#.col-xs-2.col-sm-1
+                          -#  %time.icon{:datetime => "2014-09-20"}
+                          -#    %strong Jan
+                          -#    %span 10
+                          -#.col-xs-10.col-sm-11
+                          -#  %h6.no-margin
+                          -#    %a{:href => "javascript:void(0);"} Allice in Wonderland
+                          -#  %p
+                          -#    Etiam ultricies nisi vel augue. Curabitur ullamcorper ultricies nisi Nam eget dui.
+                          -#    Etiam rhoncus. Maecenas tempus, tellus eget condimentum rhoncus, sem quam semper libero,
+                          -#    sit amet adipiscing sem neque sed ipsum. Nam quam nunc, blandit vel.
+                          -#.col-sm-12
+                          -#  %hr/
+                          -#.col-xs-2.col-sm-1
+                          -#  %time.icon{:datetime => "2014-09-20"}
+                          -#    %strong Jan
+                          -#    %span 10
+                          -#.col-xs-10.col-sm-11
+                          -#  %h6.no-margin
+                          -#    %a{:href => "javascript:void(0);"} World Report
+                          -#  %p
+                          -#    Morning our be dry. Life also third land after first beginning to evening cattle created let subdue you'll winged don't Face firmament.
+                          -#    You winged you're was Fruit divided signs lights i living cattle yielding over light life life sea, so deep.
+                          -#    Abundantly given years bring were after. Greater you're meat beast creeping behold he unto She'd doesn't. Replenish brought kind gathering Meat.
+                          -#.col-sm-12
+                          -#  %br/
+                      -##a2.tab-pane.fade
+                        .alert.alert-info.fade.in
+                          %button.close{"data-dismiss" => "alert"}
+                            ×
+                          %i.fa-fw.fa.fa-info
+                          = succeed "joined" do
+                            %strong 51 new members
+                        .user{:title => "email@company.com"}
+                          %img{:alt => "demo user", :src => "img/avatars/female.png"}/
+                          %a{:href => "javascript:void(0);"} Jenn Wilson
+                          .email
+                            travis@company.com
+                        .user{:title => "email@company.com"}
+                          %img{:alt => "demo user", :src => "img/avatars/male.png"}/
+                          %a{:href => "javascript:void(0);"} Marshall Hitt
+                          .email
+                            marshall@company.com
+                        .user{:title => "email@company.com"}
+                          %img{:alt => "demo user", :src => "img/avatars/male.png"}/
+                          %a{:href => "javascript:void(0);"} Joe Cadena
+                          .email
+                            joe@company.com
+                        .user{:title => "email@company.com"}
+                          %img{:alt => "demo user", :src => "img/avatars/male.png"}/
+                          %a{:href => "javascript:void(0);"} Mike McBride
+                          .email
+                            mike@company.com
+                        .user{:title => "email@company.com"}
+                          %img{:alt => "demo user", :src => "img/avatars/male.png"}/
+                          %a{:href => "javascript:void(0);"} Travis Wilson
+                          .email
+                            travis@company.com
+                        .user{:title => "email@company.com"}
+                          %img{:alt => "demo user", :src => "img/avatars/male.png"}/
+                          %a{:href => "javascript:void(0);"} Marshall Hitt
+                          .email
+                            marshall@company.com
+                        .user{:title => "Joe Cadena joe@company.com"}
+                          %img{:alt => "demo user", :src => "img/avatars/male.png"}/
+                          %a{:href => "javascript:void(0);"} Joe Cadena
+                          .email
+                            joe@company.com
+                        .user{:title => "email@company.com"}
+                          %img{:alt => "demo user", :src => "img/avatars/male.png"}/
+                          %a{:href => "javascript:void(0);"} Mike McBride
+                          .email
+                            mike@company.com
+                        .user{:title => "email@company.com"}
+                          %img{:alt => "demo user", :src => "img/avatars/male.png"}/
+                          %a{:href => "javascript:void(0);"} Marshall Hitt
+                          .email
+                            marshall@company.com
+                        .user{:title => "email@company.com"}
+                          %img{:alt => "demo user", :src => "img/avatars/male.png"}/
+                          %a{:href => "javascript:void(0);"} Joe Cadena
+                          .email
+                            joe@company.com
+                        .user{:title => "email@company.com"}
+                          %img{:alt => "demo user", :src => "img/avatars/male.png"}/
+                          %a{:href => "javascript:void(0);"} Mike McBride
+                          .email
+                            mike@company.com
+                        .text-center
+                          %ul.pagination.pagination-sm
+                            %li.disabled
+                              %a{:href => "javascript:void(0);"} Prev
+                            %li.active
+                              %a{:href => "javascript:void(0);"} 1
+                            %li
+                              %a{:href => "javascript:void(0);"} 2
+                            %li
+                              %a{:href => "javascript:void(0);"} 3
+                            %li
+                              %a{:href => "javascript:void(0);"} ...
+                            %li
+                              %a{:href => "javascript:void(0);"} 99
+                            %li
+                              %a{:href => "javascript:void(0);"} Next
+
