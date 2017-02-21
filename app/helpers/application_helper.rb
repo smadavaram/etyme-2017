@@ -145,8 +145,8 @@ module ApplicationHelper
             children: [
                 {
                     href: activities_path(index:true),
-                    title: 'Network Activities',
-                    content: "<span class='menu-item-parent'> Network Activities(s) </span>"
+                    title: 'Activity Log',
+                    content: "<span class='menu-item-parent'> Activity Log </span>"
                 },
                 {
                     href: prefer_vendors_path,
@@ -156,8 +156,8 @@ module ApplicationHelper
 
                 {
                     href: network_path,
-                    title: 'Network',
-                    content: "<span class='menu-item-parent'> Network(s) </span>"
+                    title: 'Clients / Vendors',
+                    content: "<span class='menu-item-parent'> Clients / Vendors </span>"
                 },
                 {
                     href:  directories_path,
