@@ -22,28 +22,42 @@
                   %thead
                     %tr
                       %th Pic
-                      %th{"data-hide" => "phone"} Name
-                      %th Email
-                      %th Roles
-                      %th Last Login
-                      %th Groups
-                      %th Salary
-                      %th{"data-hide" => "phone,tablet"}
+                      %th{style: "width:10%"} Name
+                      %th{style: "width:10%"} Email
+                      %th{style: "width:10%"} Phone
+                      %th{style: "width:5%"} Visa
+                      %th{style: "width:20%"} Roles
+                      %th{style: "width:20%"} Skills
+                      %th{style: "width:5%"}  Last Login
+                      -#%th Groups
+                      -#%th Salary
+                      %th{style: "width:20%"}
                         Actions
                   %tbody
                     - @consultants.each_with_index do |consultant , index|
                       %tr
                         %td= image_tag consultant.photo, alt: '', width: '20'
-                        %td= link_to consultant.full_name , company_user_profile_path(consultant) , target: '_blank'
-                        %td= consultant.email
-                        %td= consultant.roles.map(&:name).join(", ").gsub("_"," ").upcase
-                        %td= consultant.try(:last_sign_in_at).try(:strftime,"%A, %d %b %Y %l:%M %p")
-                        %td= consultant.consultant_profile.salaried? ? "$#{consultant.consultant_profile.salary} / month"  : "$#{consultant.consultant_profile.salary} / hour"
+                        %td= link_to consultant.try(:full_name) , company_user_profile_path(consultant) , target: '_blank'
+                        %td= consultant.try(:email)
+                        %td= consultant.try(:phone)
+                        %td= consultant.try(:visa_status)
                         %td
+                          - consultant.roles.each do |role|
+                            %span.badge.bg-color-blue.margin-bottom-5
+                              = role.try(:name).try(:titleize)
+                        %td
+                          - consultant.skills.each do |skill|
+                            %span
+                              .label-info.badge
+                                = skill.name
+                        %td= consultant.try(:last_sign_in_at).try(:strftime,"%A, %d %b %Y %l:%M %p")
+                        -#%td= consultant.consultant_profile.salaried? ? "$#{consultant.consultant_profile.salary} / month"  : "$#{consultant.consultant_profile.salary} / hour"
+                        -#%td
                           - consultant.groups.each do |group|
                             %span.badge.bg-color-blue
                               = group.try(:group_name).try(:titleize)
                         %td
+                          = link_to 'Activity'     ,company_activities_index_path(index: true), class: 'btn btn-xs btn-primary'
                           = link_to raw("<i class='fa fa-pencil '></i>") , edit_consultant_path(consultant,edit: true) , class: 'btn btn-xs btn-default btn-primary', title: "Edit #{consultant.full_name}"
                           = link_to raw("Assign Groups"), company_user_assign_groups_path(consultant) , remote:true,class: 'btn btn-xs btn-success'
                           -#= link_to raw("<i class='fa fa-times '></i>") , consultant_path(consultant) , method: :delete ,  class: 'btn btn-xs btn-default btn-danger' , title: "Delete #{consultant.full_name}",data: {confirm: "Are you sure you want to Delete this Consultants ?", verify: 'Confirm', verify_text: "Type 'Confirm' to Continue"}

@@ -112,6 +112,7 @@ Rails.application.routes.draw do
       match  :assign_groups , via: [:get , :post]
       post   :add_to_network
       get    :hot_candidates
+      get    :hot_index
     end
     resources :candidates
   end

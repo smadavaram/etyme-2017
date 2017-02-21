@@ -7,6 +7,7 @@
     #wid-id-5.no-border
       %div
         .widget-body
+          Actions (assign task, reminder, IM
           .col-md-12
             %br 
             - current_company.admins.each do |key |
@@ -14,14 +15,24 @@
               %table#dt_basic.table.table-striped.table-bordered.table-hover{:width => "100%"}
                 %thead
                   %tr
-                    %th Name
-                    %th Phone
-                    %th Email
-                    %th Address
+                    %th{style: "width: 20%"} Name
+                    %th{style: "width: 10%"} Email
+                    %th{style: "width: 10%"} Phone/Ext
+                    %th{style: "width: 30%"} Role
+                    %th{{style: "width: 30%"}} actions
                 %tbody
                   %tr
-                    %td= key.first_name
-                    %td= key.phone
-                    %td= key.email
-                    %td= key.address.address_1
+                    %td= key.try(:full_name)
+                    %td= key.try(:email)
+                    %td= key.try(:phone)
+                    %td
+                      - key.try(:roles).each do |role|
+                        %span
+                          .label-info.badge
+                            = role.try(:name)
+                    %td
+                      = link_to "Assign task" , "#",class: 'btn btn-primary btn-sm'
+                      = link_to "reminder" , "#",class: 'btn btn-primary btn-sm'
+                      = link_to "IM" , "#",class: 'btn btn-primary btn-sm'
+
 

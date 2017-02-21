@@ -21,9 +21,10 @@
                   %tr
                     %th{"data-hide" => "phone"} Pic
                     %th Name
-                    %th Owner
-                    %th Owner Email
-                    %th Domain
+                    %th Company
+                    -#%th Owner
+                    -#%th Owner Email
+                    %th Email
                     %th Phone
                     %th Groups
                     %th Actions
@@ -32,10 +33,11 @@
                     %tr
                       %td= image_tag show_recipient_picture(d.invited_company.logo) , alt: '', width: '40'
                       %td= link_to d.invited_company.name ,profile_company_path(d.invited_company)
-                      %td= d.invited_company.try(:company_contact).try(:full_name)  rescue "  --"
-                      %td= d.invited_company.company_contact.try(:email)
-                      %td= d.invited_company.domain
-                      %td= d.invited_company.phone
+                      -#%td= d.invited_company.try(:company_contact).try(:full_name)  rescue "  --"
+                      -#%td= d.invited_company.company_contact.try(:email)
+                      %td= link_to d.try(:invited_by).try(:name) ,profile_company_path(d.try(:invited_by))
+                      %td= d.try(:invited_company).try(:email)
+                      %td= d.try(:invited_company).try(:phone)
                       %td
                         - d.groups.each do |group|
                           %span.badge.bg-color-blue

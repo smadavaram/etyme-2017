@@ -170,6 +170,11 @@ module ApplicationHelper
                     content: "<span class='menu-item-parent'>" + 'Candidate(s)' + "</span>",
                 },
                 {
+                    href: company_company_hot_index_path(current_company),
+                    title: 'Hot Candidates',
+                    content: "<span class='menu-item-parent'>" + 'Hot Candidate(s)' + "</span>",
+                },
+                {
                     href: companies_path,
                     title: 'Contacts',
                     content: "</i><span class='menu-item-parent'> Contact(s) </span>"

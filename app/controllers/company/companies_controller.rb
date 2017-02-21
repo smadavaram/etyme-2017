@@ -23,6 +23,9 @@ class Company::CompaniesController < Company::BaseController
   def hot_candidates
 
   end
+  def hot_index
+    @candidates = CandidatesCompany.hot_candidate.where(company_id: current_company.id ).paginate(:page => params[:page], :per_page => 8)
+  end
 
   def create
     @company = Company.new(create_params)
