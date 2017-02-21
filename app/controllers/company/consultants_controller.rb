@@ -20,7 +20,8 @@ class Company::ConsultantsController < Company::BaseController
 
   def create
     @consultant = current_company.consultants.new(create_consultant_params.merge( invited_by_id: current_user.id , invited_by_type: 'User'))
-    if @consultant.valid? && @consultant.save
+    if @consultant.save
+      @consultant.create_activity :create, owner:current_company,recipient: current_company
       flash[:success] =  "Successfull Added."
       redirect_to consultants_path
     else
@@ -87,7 +88,7 @@ class Company::ConsultantsController < Company::BaseController
 
   def consultant_params
     params.require(:consultant).permit(:first_name,
-                                       :last_name ,:resend_invitation,
+                                       :last_name ,:resend_invitation,:skill_list,
                                        :email ,
                                        :temp_working_hours, :tag_list,:visa_status,:availability,:relocation,
                                        role_ids: [],

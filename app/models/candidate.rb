@@ -4,6 +4,8 @@ class Candidate < ActiveRecord::Base
   devise :invitable, :database_authenticatable, :registerable,
          :recoverable, :rememberable, :trackable
 
+  include PublicActivity::Model
+
   enum status: [:signup, :campany_candidate]
 
   # validates :password,presence: true,if: Proc.new { |candidate| !candidate.password.nil? }
@@ -24,21 +26,22 @@ class Candidate < ActiveRecord::Base
   # validates :dob, date: { before_or_equal_to: Proc.new { Date.today }, message: " Date Of Birth Can not be in future." } , on: :update
 
   has_many   :consultants
-  has_many   :notifications       , as: :notifiable             ,dependent: :destroy
-  has_many   :custom_fields       , as: :customizable           ,dependent: :destroy
-  has_many   :job_applications    , as: :applicationable
-  has_many   :job_invitations     , as: :recipient
-  has_many   :contracts           , through: :job_applications   ,dependent: :destroy
-  has_many   :job_invitations     , as: :recipient
-  has_many   :educations          , dependent: :destroy          ,foreign_key: 'user_id'
-  has_many   :experiences         , dependent: :destroy          ,foreign_key: 'user_id'
-  has_many :candidates_companies  ,dependent: :destroy
-  has_many :companies , through: :candidates_companies ,dependent: :destroy
-  belongs_to :address             , foreign_key: :primary_address_id
+  has_many   :notifications        , as: :notifiable             ,dependent: :destroy
+  has_many   :custom_fields        , as: :customizable           ,dependent: :destroy
+  has_many   :job_applications     , as: :applicationable
+  has_many   :job_invitations      , as: :recipient
+  has_many   :contracts            , through: :job_applications   ,dependent: :destroy
+  has_many   :job_invitations      , as: :recipient
+  has_many   :educations           , dependent: :destroy          ,foreign_key: 'user_id'
+  has_many   :experiences          , dependent: :destroy          ,foreign_key: 'user_id'
+  has_many   :candidates_companies ,dependent: :destroy
+  has_many   :companies , through: :candidates_companies ,dependent: :destroy
+  belongs_to :address              , foreign_key: :primary_address_id
   # has_and_belongs_to_many :groups ,through: :company
-  has_many   :groupables          ,as:  :groupable
-  has_many   :groups              , through: :groupables
-  has_many   :comments            ,as: :commentable
+  has_many   :groupables           ,as:  :groupable
+  has_many   :groups               , through: :groupables
+  has_many   :comments             ,as: :commentable
+
 
   attr_accessor :job_id , :expiry , :message , :invitation_type
   attr_accessor :send_welcome_email_to_candidate

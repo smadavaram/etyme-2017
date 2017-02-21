@@ -1,0 +1,34 @@
+- if params[:index]
+  %li
+    .smart-timeline-icon
+      - if a.owner.logo.present?
+        = image_tag a.owner.logo,class:'',alt: "Company"
+      -else
+        = image_tag 'can.png',class:'',alt: "Company"
+    .smart-timeline-time
+      %small
+      =  time_ago_in_words(a.try(:created_at).try(:localtime))+" ago"
+    .smart-timeline-content
+      %p
+        %a{:href => "javascript:void(0);"}
+          %strong= a.owner.name.titleize + "  created Consultant"
+      %p
+        = link_to a.trackable.try(:full_name).try(:titleize), company_user_profile_path( a.trackable), class: 'font-md'
+-else
+  - if a.owner.logo.present?
+    = image_tag a.owner.logo,class:'',alt: "Company"
+  -else
+    = image_tag 'can.png',class:'',alt: "Company"
+
+  %span.name.font-sm
+    %span.text-muted
+      = link_to a.owner.try(:name).try(:titleize) , class: 'font-md'
+    %b
+      %span.pull-right.font-xs.text-muted
+        %i= time_ago_in_words(a.try(:created_at).try(:localtime))+" ago"
+      %span.name.font-sm
+        %b
+    %br/
+    Created Consultant
+    = link_to a.trackable.try(:full_name).try(:titleize), company_user_profile_path( a.trackable), class: 'font-md'
+

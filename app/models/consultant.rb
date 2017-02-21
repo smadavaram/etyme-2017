@@ -1,5 +1,6 @@
 
 class Consultant < User
+  include PublicActivity::Model
 
   attr_accessor :company_doc_ids
   attr_accessor :resend_invitation

@@ -48,6 +48,7 @@ class Company::CandidatesController < Company::BaseController
        @candidate = current_company.candidates.new(create_candidate_params.merge(send_welcome_email_to_candidate: false,invited_by_id: current_user.id ,invited_by_type: 'User', status:"campany_candidate"))
        if @candidate.save
          current_company.candidates <<  @candidate
+         @candidate.create_activity :create, owner:current_company,recipient: current_company
          flash[:success] =  "Successfull Added."
          redirect_to candidates_path
        else
