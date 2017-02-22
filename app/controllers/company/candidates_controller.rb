@@ -132,7 +132,12 @@ class Company::CandidatesController < Company::BaseController
                                           :degree_title,:grade,
                                           :completion_year,:start_year,
                                           :institute,:description,:_destroy
-                                         ])
+                                         ],custom_fields_attributes: [
+                                              :id,
+                                              :name,
+                                              :value,
+                                              :_destroy]
+          )
     end
 
 

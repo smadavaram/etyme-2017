@@ -26,21 +26,21 @@ class Candidate < ActiveRecord::Base
   # validates :dob, date: { before_or_equal_to: Proc.new { Date.today }, message: " Date Of Birth Can not be in future." } , on: :update
 
   has_many   :consultants
-  has_many   :notifications        , as: :notifiable             ,dependent: :destroy
-  has_many   :custom_fields        , as: :customizable           ,dependent: :destroy
+  has_many   :notifications        , as: :notifiable               ,dependent: :destroy
+  has_many   :custom_fields        , as: :customizable             ,dependent: :destroy
   has_many   :job_applications     , as: :applicationable
   has_many   :job_invitations      , as: :recipient
-  has_many   :contracts            , through: :job_applications   ,dependent: :destroy
+  has_many   :contracts            , through: :job_applications    ,dependent: :destroy
   has_many   :job_invitations      , as: :recipient
-  has_many   :educations           , dependent: :destroy          ,foreign_key: 'user_id'
-  has_many   :experiences          , dependent: :destroy          ,foreign_key: 'user_id'
-  has_many   :candidates_companies ,dependent: :destroy
-  has_many   :companies , through: :candidates_companies ,dependent: :destroy
+  has_many   :educations           , dependent: :destroy           ,foreign_key: 'user_id'
+  has_many   :experiences          , dependent: :destroy           ,foreign_key: 'user_id'
+  has_many   :candidates_companies , dependent: :destroy
+  has_many   :companies            , through: :candidates_companies ,dependent: :destroy
   belongs_to :address              , foreign_key: :primary_address_id
   # has_and_belongs_to_many :groups ,through: :company
-  has_many   :groupables           ,as:  :groupable
+  has_many   :groupables           , as:  :groupable
   has_many   :groups               , through: :groupables
-  has_many   :comments             ,as: :commentable
+  has_many   :comments             , as: :commentable
 
 
   attr_accessor :job_id , :expiry , :message , :invitation_type
@@ -52,6 +52,7 @@ class Candidate < ActiveRecord::Base
   accepts_nested_attributes_for :experiences ,reject_if: :all_blank, allow_destroy: true
   accepts_nested_attributes_for :educations  ,reject_if: :all_blank, allow_destroy: true
   accepts_nested_attributes_for :address   , reject_if: :all_blank, update_only: true
+  accepts_nested_attributes_for :custom_fields  , allow_destroy: true , reject_if: :all_blank
 
   #Tags Input
   acts_as_taggable_on :skills

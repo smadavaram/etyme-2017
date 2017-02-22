@@ -26,6 +26,14 @@
       %label.col-md-2.control-label Resume
       .col-md-10
         = f.filepicker_field :resume , class: 'btn btn-primary file-pick'  , id: 'accept-filepiker',"data-fp-extensions" => ".pdf,.doc,.docx,.txt"
+
+    .form-group
+      = f.fields_for :custom_fields do |lt|
+        = render 'shared/custom_fields', f: lt
+      %strong
+        .links.col-sm-12
+          = link_to_add_association '+ Add Custom Field', f, :custom_fields, class: 'text-info pull-right', partial: 'shared/custom_fields'
+        %br/
     - if @candidate.new_record?
       .form-group
         %label.col-md-2.control-label Want to send invitation?
