@@ -39,11 +39,12 @@ class Company < ActiveRecord::Base
   # has_many :invoices                  , through:   :timesheets
   has_one  :subscription              , dependent: :destroy
   has_one  :package                   , through:   :subscription
-  has_many :candidates_companies  ,dependent: :destroy
-  has_many :candidates , through: :candidates_companies
+  has_many :candidates_companies      ,dependent: :destroy
+  has_many :candidates                , through: :candidates_companies
   has_many :prefer_vendors
-  has_many :perfer_vendor_companies ,class_name: "PreferVendor" , foreign_key: 'vendor_id'
-  has_one  :company_contact            ,dependent:  :destroy
+  has_many :perfer_vendor_companies   ,class_name: "PreferVendor" , foreign_key: 'vendor_id'
+  has_many  :company_contacts         ,dependent:  :destroy
+  has_many   :comments                ,as: :commentable
   # validates           :company_type, inclusion: { in: [0, 1] } , presence: true
   # validates           :company_type, inclusion: {in: %w(0 , 1)}
   validates           :name,  presence:   true
@@ -56,13 +57,14 @@ class Company < ActiveRecord::Base
   validates_format_of :slug, with: /\A[\w\-]+\Z/i, allow_blank: true, message: "is not allowed. Please choose another subdomain."
 
   accepts_nested_attributes_for :owner    , allow_destroy: true
-  accepts_nested_attributes_for :company_contact    , allow_destroy: true
+  accepts_nested_attributes_for :company_contacts    , allow_destroy: true
   accepts_nested_attributes_for :locations, allow_destroy: true,reject_if: :all_blank
+  accepts_nested_attributes_for :company_contacts, allow_destroy: true,reject_if: :all_blank
   accepts_nested_attributes_for :invited_by    , allow_destroy: true
 
 
   before_validation :create_slug
-  after_create      :set_owner_company_id
+  after_create      :set_owner_company_id  , if: Proc.new{|com| !com.invited_by.present?}
   after_create      :welcome_email_to_owner, if: Proc.new{|comp| !comp.invited_by.present?}
   after_create      :assign_free_subscription
   after_create      :create_defult_roles
@@ -99,6 +101,7 @@ class Company < ActiveRecord::Base
   #   Company.where.not(:id=>PreferVendor.select(:vendor_id).where(company_id=c.id))
   # end
   private
+
   def create_slug
     get_host_from_domain()
   end
@@ -116,12 +119,7 @@ class Company < ActiveRecord::Base
   end
 
   def set_owner_company_id
-    if self.invited_by.present?
-      self.company_contact.update_column(:company_id,id)
-    else
-      self.owner.update_column(:company_id, id)
-    # self.owner.accept_invitation!
-    end
+    self.owner.update_column(:company_id, id)
   end
 
   # Call after create

@@ -4,6 +4,7 @@ class Company::CompaniesController < Company::BaseController
   before_action :authorized_user , only: [:show,:create ,:hot_candidates,:index, :new]
   before_action :find_company , only: [:edit,:update,:destroy]
   before_action :set_hot_candidates ,only: [:hot_candidates]
+  before_action :set_company_contacts , only:  [:contacts]
 
   respond_to :html,:json
 
@@ -13,7 +14,6 @@ class Company::CompaniesController < Company::BaseController
     @search = current_company.invited_companies.includes(:invited_company).search(params[:q])
     @invited_companies = @search.result.paginate(page: params[:page], per_page: 10)
     @new_company = Company.new
-    @new_company.build_company_contact
     @new_company.build_invited_by
   end
 
@@ -30,9 +30,9 @@ class Company::CompaniesController < Company::BaseController
   def create
     @company = Company.new(create_params)
     respond_to do |format|
-      if @company.save
-        format.html {flash[:success] = "successfully Send."}
-        format.js{ flash.now[:success] = "successfully Send." }
+      if @company.valid? && @company.save
+        format.html {flash[:success] = "successfully Created."}
+        format.js{ flash.now[:success] = "successfully Created." }
       else
         format.js{ flash.now[:errors] =  @company.errors.full_messages }
         format.html{ flash[:errors] =  @company.errors.full_messages }
@@ -47,15 +47,18 @@ class Company::CompaniesController < Company::BaseController
       flash[:success] = "Company Updated Successfully"
       respond_with current_company
       }
-      format.html{
-        if @company.update(company_params)
+      format.html do
+        if @company.update(create_params)
           flash[:success] = "Company Updated Successfully"
         else
           flash[:errors] = @company.errors.full_messages
         end
         redirect_to :back
-      }
+      end
     end
+
+  end
+  def contacts
 
   end
 
@@ -136,6 +139,10 @@ class Company::CompaniesController < Company::BaseController
 
 
   private
+
+  def set_company_contacts
+    @company_contacts = current_company.invited_companies.find_by(invited_company_id: params[:company_id]).invited_company.company_contacts.paginate(:page => params[:page], :per_page => 20) || []
+  end
   def set_hot_candidates
     @candidates = CandidatesCompany.hot_candidate.where(company_id: params[:company_id]).paginate(:page => params[:page], :per_page => 8)
   end
@@ -148,10 +155,10 @@ class Company::CompaniesController < Company::BaseController
   end
 
     def company_params
-      params.require(:company).permit(:name ,:company_type,:domain, :skill_list , :website,:logo,:description,:phone,:email,:linkedin_url,:facebook_url,:twitter_url,:google_url,:is_activated,:status,:time_zone,:tag_line,group_ids:[], owner_attributes:[:id, :type ,:first_name, :last_name ,:email,:password, :password_confirmation],locations_attributes:[:id,:name,:status,  address_attributes:[:id,:address_1,:country,:city,:state,:zip_code] ,company_contact_attributes:[:id, :type  , :first_name, :last_name ,:email]] )
+      params.require(:company).permit(:name ,:company_type,:domain, :skill_list , :website,:logo,:description,:phone,:email,:linkedin_url,:facebook_url,:twitter_url,:google_url,:is_activated,:status,:time_zone,:tag_line,group_ids:[], owner_attributes:[:id, :type ,:first_name, :last_name ,:email,:password, :password_confirmation],locations_attributes:[:id,:name,:status,  address_attributes:[:id,:address_1,:country,:city,:state,:zip_code] ] )
     end
 
     def create_params
-      params.require(:company).permit([:name  ,:domain,:currency_id,:phone ,:send_email ,group_ids:[],company_contact_attributes:[:id, :type  , :first_name, :last_name ,:email] , invited_by_attributes: [:invited_by_company_id , :user_id]])
+      params.require(:company).permit([:name  ,:domain,:currency_id,:phone ,:send_email ,group_ids:[],company_contacts_attributes:[:id, :type  , :first_name, :last_name ,:email,:company_id,:phone, :title ,:_destroy] , invited_by_attributes: [:invited_by_company_id , :user_id]])
     end
 end

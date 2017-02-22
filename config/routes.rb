@@ -108,7 +108,7 @@ Rails.application.routes.draw do
 
       end
     end
-    resources :companies ,only: [:create] do
+    resources :companies ,only: [:create , :update] do
       match  :assign_groups , via: [:get , :post]
       post   :add_to_network
       get    :hot_candidates
@@ -231,6 +231,7 @@ Rails.application.routes.draw do
     end
     # get 'configuration' ,   to: 'companies#edit' ,              as: :configuration
     resources :companies , concerns: :paginatable ,only: [:update,:show , :index,:edit,:destroy] do
+      get  :contacts
       collection do
         post :change_owner
         post :get_admins_list , as: :get_admins_list
