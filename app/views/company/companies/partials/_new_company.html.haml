@@ -34,12 +34,19 @@
                   %sup.text-danger *
                 .col-md-10
                   = f.phone_field :phone , class: 'form-control' , placeholder: 'Phone' , required: true
+              .form-group
+                = f.fields_for :custom_fields do |lt|
+                  = render 'shared/custom_fields', f: lt
+                %strong
+                  .links.col-sm-12
+                    = link_to_add_association '+ Add Custom Field', f, :custom_fields, class: 'text-info pull-right', partial: 'shared/custom_fields'
+                  %br/
             = f.fields_for :company_contacts do |contact|
               = render 'company/companies/partials/company_contact_fields', f: contact
 
             .col-md-12{style: "margin-left:15px"}
               = link_to_add_association 'Add Contact', f, :company_contacts , partial: 'company/companies/partials/company_contact_fields',class:'btn btn-primary pull-right'
-            = f.fields_for :company_contact do |u|
+
 
               -#.form-group
               -#  %label.col-md-4.control-label

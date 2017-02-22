@@ -45,6 +45,7 @@ class Company < ActiveRecord::Base
   has_many :perfer_vendor_companies   ,class_name: "PreferVendor" , foreign_key: 'vendor_id'
   has_many  :company_contacts         ,dependent:  :destroy
   has_many   :comments                ,as: :commentable
+  has_many   :custom_fields        , as: :customizable             ,dependent: :destroy
   # validates           :company_type, inclusion: { in: [0, 1] } , presence: true
   # validates           :company_type, inclusion: {in: %w(0 , 1)}
   validates           :name,  presence:   true
@@ -61,6 +62,7 @@ class Company < ActiveRecord::Base
   accepts_nested_attributes_for :locations, allow_destroy: true,reject_if: :all_blank
   accepts_nested_attributes_for :company_contacts, allow_destroy: true,reject_if: :all_blank
   accepts_nested_attributes_for :invited_by    , allow_destroy: true
+  accepts_nested_attributes_for :custom_fields  , allow_destroy: true , reject_if: :all_blank
 
 
   before_validation :create_slug
