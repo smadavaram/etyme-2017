@@ -2,12 +2,12 @@ class Company::UsersController < Company::BaseController
 
   respond_to :js, :json, :html
   add_breadcrumb "HOME", :dashboard_path
+  before_action :find_user  , only: [:add_reminder, :profile]
 
   def dashboard
     @activities = PublicActivity::Activity.order("created_at desc")
   end # End of dashboard
   def profile
-    @user = current_company.users.find(params[:user_id]) || []
     add_breadcrumb @user.try(:full_name), "#"
   end
   def update_photo
@@ -41,6 +41,9 @@ class Company::UsersController < Company::BaseController
       redirect_to :back
     end
   end
+  def add_reminder
+
+  end
 
   def notify_notifications
     @notifications = current_user.notifications || []
@@ -48,6 +51,9 @@ class Company::UsersController < Company::BaseController
   end
 
   private
+  def find_user
+    @user = current_company.users.find(params[:user_id] || params[:user_id]) || []
+  end
   def user_params
     params.require(:user).permit(:first_name, :last_name,:dob,:email,:phone,:skills, :primary_address_id,:tag_list,group_ids: [],
      address_attributes: [:id,:address1,:address2,:country,:city,:state,:zip_code]

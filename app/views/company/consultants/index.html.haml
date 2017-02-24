@@ -57,6 +57,7 @@
                             %span.badge.bg-color-blue
                               = group.try(:group_name).try(:titleize)
                         %td
+                          = link_to 'reminder'     ,company_user_add_reminder_path(consultant)  ,class: 'btn btn-primary btn-xs', remote: :true
                           = link_to 'Activity'     ,company_activities_index_path(index: true), class: 'btn btn-xs btn-primary'
                           = link_to raw("<i class='fa fa-pencil '></i>") , edit_consultant_path(consultant,edit: true) , class: 'btn btn-xs btn-default btn-primary', title: "Edit #{consultant.full_name}"
                           = link_to raw("Assign Groups"), company_user_assign_groups_path(consultant) , remote:true,class: 'btn btn-xs btn-success'

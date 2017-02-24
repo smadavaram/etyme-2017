@@ -1,6 +1,6 @@
 class Company::CandidatesController < Company::BaseController
  # add_breadcrumb "CANDIDATE", :candidate_path, options: { title: "CANDIDATE" }
-  before_action :find_candidate , only: [:edit, :update ]
+  before_action :find_candidate , only: [:edit, :update , :add_reminder]
   add_breadcrumb "Company", :dashboard_path
   add_breadcrumb "Candidates", :company_candidates_path
 
@@ -111,12 +111,15 @@ class Company::CandidatesController < Company::BaseController
     has_access?("manage_consultants")
   end
 
+  def add_reminder
+
+  end
 
 
   private
 
  def find_candidate
-   @candidate = current_company.candidates.find(params[:id])
+   @candidate = current_company.candidates.find(params[:id] || params[:candidate_id])
  end
 
     def create_candidate_params

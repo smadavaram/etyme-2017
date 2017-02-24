@@ -42,6 +42,7 @@
                           %span.badge.bg-color-blue
                             = group.try(:group_name).try(:titleize)
                       %td
+                        = link_to 'reminder'     ,company_user_add_reminder_path(admin)  ,class: 'btn btn-primary btn-xs', remote: :true
                         = link_to raw("<i class='fa fa-pencil '>""</i>") , edit_admin_path(admin) , class: 'btn btn-xs btn-default btn-primary' ,remote: true,title: "Edit #{admin.full_name}"
                         = link_to raw("Assign Groups"), company_user_assign_groups_path(admin) , remote:true,class: 'btn btn-xs btn-success'
                         -#= link_to raw("<i class='fa fa-times '></i>") , admin_path(admin) , method: :delete ,  class: 'btn btn-xs btn-default btn-danger' ,title: "Delete #{admin.full_name}" ,data: {confirm: 'Are you sure?', verify: 'Confirm', verify_text: 'Type "Confirm" to confirm'}

@@ -11,7 +11,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema.define(version: 20170222133642) do
+ActiveRecord::Schema.define(version: 20170223072306) do
 
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
@@ -476,6 +476,19 @@ ActiveRecord::Schema.define(version: 20170222133642) do
     t.datetime "created_at",             null: false
     t.datetime "updated_at",             null: false
   end
+
+  create_table "reminders", force: :cascade do |t|
+    t.string   "title"
+    t.datetime "remind_at"
+    t.integer  "status",            default: 0
+    t.integer  "user_id"
+    t.integer  "reminderable_id"
+    t.string   "reminderable_type"
+    t.datetime "created_at",                    null: false
+    t.datetime "updated_at",                    null: false
+  end
+
+  add_index "reminders", ["reminderable_type", "reminderable_id"], name: "index_reminders_on_reminderable_type_and_reminderable_id", using: :btree
 
   create_table "roles", force: :cascade do |t|
     t.string   "name"

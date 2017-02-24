@@ -43,6 +43,7 @@
                           %span.badge.bg-color-blue
                             = group.try(:group_name).try(:titleize)
                       %td
+                        = link_to 'reminder'    ,company_company_add_reminder_path(d.invited_company)   ,class: 'btn btn-primary btn-xs', remote: :true
                         -#= link_to "Contacts" ,company_contacts_path(d.try(:invited_company)), class: 'btn btn-xs btn-default btn-primary'
                         = link_to raw("<i class='fa fa-pencil '></i>") , edit_company_path(d.invited_company) , class: 'btn btn-xs btn-default btn-primary',remote: :true ,title:"Edit #{d.invited_company.name}"
                         = link_to raw("Assign Groups"), company_company_assign_groups_path(d.invited_company) , remote:true,class: 'btn btn-xs btn-success'
@@ -52,3 +53,5 @@
 - content_for :modals do
   #job_invitation
   = render 'company/companies/partials/new_company'
+
+

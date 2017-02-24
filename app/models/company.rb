@@ -43,9 +43,10 @@ class Company < ActiveRecord::Base
   has_many :candidates                , through: :candidates_companies
   has_many :prefer_vendors
   has_many :perfer_vendor_companies   ,class_name: "PreferVendor" , foreign_key: 'vendor_id'
-  has_many  :company_contacts         ,dependent:  :destroy
-  has_many   :comments                ,as: :commentable
-  has_many   :custom_fields        , as: :customizable             ,dependent: :destroy
+  has_many :company_contacts          ,dependent:  :destroy
+  has_many :comments                  ,as: :commentable
+  has_many :custom_fields             , as: :customizable             ,dependent: :destroy
+  has_many :reminders                 ,as:  :reminderable
   # validates           :company_type, inclusion: { in: [0, 1] } , presence: true
   # validates           :company_type, inclusion: {in: %w(0 , 1)}
   validates           :name,  presence:   true

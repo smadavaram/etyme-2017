@@ -2,6 +2,9 @@
   .row
     .col-xs-12.col-sm-3.col-md-3.col-lg-3.pull-right
       = link_to 'NEW' , new_company_candidate_path , class: 'btn btn-success btn-lg pull-right header-btn hidden-mobile'
+      -#= link_to "Add Reminder" ,"#", class: 'btn btn-success btn-lg pull-right header-btn hidden-mobile',"data-target" => "#new_reminder", "data-toggle" => "modal"
+    .col-xs-12.col-sm-3.col-md-3.col-lg-3.pull-right
+
   %section.margin-top-10.padding-10
     .row
       #wid-id-5.no-border
@@ -57,6 +60,7 @@
                             %span.badge.bg-color-blue
                               = group.try(:group_name).try(:titleize)
                         %td
+                          = link_to 'reminder'     ,candidate_add_reminder_path(candidate)               ,class: 'btn btn-primary btn-xs', remote: :true
                           = link_to 'Activity'     ,company_activities_index_path(index: true), class: 'btn btn-xs btn-primary'
                           = link_to raw("Resume") , candidate.resume ,download: true , class: 'btn btn-xs btn-primary'
                           = link_to "show" , static_candidate_resume_path(candidate) , class: 'btn btn-xs btn-primary'
@@ -71,11 +75,11 @@
 
 - content_for :modals do
   = render 'company/candidates/partials/add_to_my_network'
+  -#= render 'company/reminders/partials/form'
 
 - content_for :scripts do
   :javascript
     if ("#{flash[:already_exist]}"){
         $('#add-network').modal('toggle');
     }
-
 

@@ -101,6 +101,7 @@ Rails.application.routes.draw do
   namespace  :company do
     get 'companies/edit'
     resources :users, only: [:show,:update] do
+      get  :add_reminder
       match  :assign_groups , via: [:get , :post]
       get :profile
       collection do
@@ -109,6 +110,7 @@ Rails.application.routes.draw do
       end
     end
     resources :companies ,only: [:create , :update] do
+      get    :add_reminder
       match  :assign_groups , via: [:get , :post]
       post   :add_to_network
       get    :hot_candidates
@@ -143,6 +145,7 @@ Rails.application.routes.draw do
     resources :comments         , only: [:create]
     resources :attachments      ,concerns: :paginatable , only: [:index]
     resources :invoices         ,concerns: :paginatable , only: [:index]
+    resources :reminders        ,only: :create
     resources :prefer_vendors   ,concerns: :paginatable  do
       # end
     end
@@ -151,6 +154,7 @@ Rails.application.routes.draw do
       match  :manage_groups , via: [:get, :patch]
       post   :make_hot
       post   :make_normal
+      get    :add_reminder
     end
     resources :job_applications ,concerns: :paginatable , only: [:index,:show] do
     resources :consultants , only: [:new , :create]

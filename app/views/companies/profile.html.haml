@@ -64,7 +64,7 @@
                             - @company.comments.each do |comment|
                               = render 'company/comments/partials/comment_li' , comment: comment
                             %li.message
-                              = image_tag current_user.photo , class: 'online'
+                              = image_tag current_user.try(:photo) , class: 'online'
                               %span.message-text
                                 = form_for Comment.new do |c|
                                   .col-md-10

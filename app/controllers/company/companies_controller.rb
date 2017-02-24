@@ -2,7 +2,7 @@ class Company::CompaniesController < Company::BaseController
 
   before_action :find_admin, only: :change_owner
   before_action :authorized_user , only: [:show,:create ,:hot_candidates,:index, :new]
-  before_action :find_company , only: [:edit,:update,:destroy]
+  before_action :find_company , only: [:edit,:update,:destroy ,:add_reminder]
   before_action :set_hot_candidates ,only: [:hot_candidates]
   before_action :set_company_contacts , only:  [:contacts]
 
@@ -137,6 +137,10 @@ class Company::CompaniesController < Company::BaseController
     end
   end
 
+  def add_reminder
+
+  end
+
 
   private
 
@@ -147,7 +151,7 @@ class Company::CompaniesController < Company::BaseController
     @candidates = CandidatesCompany.hot_candidate.where(company_id: params[:company_id]).paginate(:page => params[:page], :per_page => 8)
   end
   def find_company
-    @company = Company.find(params[:id])
+    @company = Company.find(params[:id] || params[:company_id])
   end
 
   def find_admin
