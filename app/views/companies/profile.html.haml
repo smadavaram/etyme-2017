@@ -75,7 +75,7 @@
                                     = c.button "Comment".html_safe, data: {disable_with: disable_spinning("Comment...")} , class: 'btn btn-primary btn-sm'
                                   %br/
                                   %br/
-                - if @company.invited_by.present?
+                - if @company.try(:invited_by).present?
                   #a2.tab-pane.fade.in
                     .row
                       .col-sm-12.col-lg-12

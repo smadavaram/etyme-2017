@@ -1,8 +1,8 @@
 #content
-  .row
+  .row.margin-bottom-0
     .col-xs-12.col-sm-3.col-md-3.col-lg-3.pull-right
       = link_to 'NEW' , new_consultant_path , class: 'btn btn-success btn-lg pull-right header-btn hidden-mobile'
-  %section.margin-top-10.padding-10
+  %section.padding-10
     .row
       #wid-id-5.no-border
         %div
@@ -26,9 +26,10 @@
                       %th{style: "width:10%"} Email
                       %th{style: "width:10%"} Phone
                       %th{style: "width:5%"} Visa
-                      %th{style: "width:20%"} Roles
+                      %th{style: "width:15%"} Roles
                       %th{style: "width:20%"} Skills
                       %th{style: "width:5%"}  Last Login
+                      %th{style: "width:5%"} Last Reminder
                       -#%th Groups
                       -#%th Salary
                       %th{style: "width:20%"}
@@ -51,13 +52,16 @@
                               .label-info.badge
                                 = skill.name
                         %td= consultant.try(:last_sign_in_at).try(:strftime,"%A, %d %b %Y %l:%M %p")
+                        %td
+                          - reminder = find_reminderable_last_reminder(consultant)
+                          = reminder.present? ? reminder.try(:title).try(:titleize) : ''
                         -#%td= consultant.consultant_profile.salaried? ? "$#{consultant.consultant_profile.salary} / month"  : "$#{consultant.consultant_profile.salary} / hour"
                         -#%td
                           - consultant.groups.each do |group|
                             %span.badge.bg-color-blue
                               = group.try(:group_name).try(:titleize)
                         %td
-                          = link_to 'reminder'     ,company_user_add_reminder_path(consultant)  ,class: 'btn btn-primary btn-xs', remote: :true
+                          = link_to 'Remind Me'     ,company_user_add_reminder_path(consultant)  ,class: 'btn btn-primary btn-xs', remote: :true
                           = link_to 'Activity'     ,company_activities_index_path(index: true), class: 'btn btn-xs btn-primary'
                           = link_to raw("<i class='fa fa-pencil '></i>") , edit_consultant_path(consultant,edit: true) , class: 'btn btn-xs btn-default btn-primary', title: "Edit #{consultant.full_name}"
                           = link_to raw("Assign Groups"), company_user_assign_groups_path(consultant) , remote:true,class: 'btn btn-xs btn-success'

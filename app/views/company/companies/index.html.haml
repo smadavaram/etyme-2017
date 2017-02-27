@@ -1,8 +1,8 @@
 #content
-  .row
+  .row.margin-bottom-0
     .col-xs-12.col-sm-3.col-md-3.col-lg-3.pull-right
       = button_tag 'NEW' ,class: 'btn btn-success btn-lg pull-right header-btn hidden-mobile' , "data-toggle": "modal" , "data-target":"#new-contract-company"
-  %section.margin-top-10
+  %section.padding-10
     .row
       #wid-id-5.no-border
         %div
@@ -27,6 +27,7 @@
                     %th Email
                     %th Phone
                     %th Groups
+                    %th Last Reminder
                     %th Actions
                 %tbody
                   -@invited_companies.each do |d|
@@ -43,7 +44,10 @@
                           %span.badge.bg-color-blue
                             = group.try(:group_name).try(:titleize)
                       %td
-                        = link_to 'reminder'    ,company_company_add_reminder_path(d.invited_company)   ,class: 'btn btn-primary btn-xs', remote: :true
+                        - reminder = find_reminderable_last_reminder( d.try(:invited_company))
+                        = reminder.present? ? reminder.try(:title).try(:titleize) : ''
+                      %td
+                        = link_to 'Remind Me'    ,company_company_add_reminder_path(d.invited_company)   ,class: 'btn btn-primary btn-xs', remote: :true
                         -#= link_to "Contacts" ,company_contacts_path(d.try(:invited_company)), class: 'btn btn-xs btn-default btn-primary'
                         = link_to raw("<i class='fa fa-pencil '></i>") , edit_company_path(d.invited_company) , class: 'btn btn-xs btn-default btn-primary',remote: :true ,title:"Edit #{d.invited_company.name}"
                         = link_to raw("Assign Groups"), company_company_assign_groups_path(d.invited_company) , remote:true,class: 'btn btn-xs btn-success'

@@ -1,8 +1,8 @@
 #content
-  .row
+  .row.margin-bottom-0
     .col-xs-12.col-sm-3.col-md-3.col-lg-3.pull-right
       = link_to 'NEW' , new_admin_path , remote: true , class: 'btn btn-success btn-lg pull-right header-btn hidden-mobile'
-  %section.margin-top-10.padding-10
+  %section.padding-10
     .row
       #wid-id-5.no-border
         %div
@@ -27,6 +27,7 @@
                       %th Roles
                       %th Last Login
                       %th Groups
+                      %th Last Reminder
                       %th{"data-hide" => "phone,tablet"}
                         Actions
                   %tbody
@@ -42,7 +43,10 @@
                           %span.badge.bg-color-blue
                             = group.try(:group_name).try(:titleize)
                       %td
-                        = link_to 'reminder'     ,company_user_add_reminder_path(admin)  ,class: 'btn btn-primary btn-xs', remote: :true
+                        - reminder = find_reminderable_last_reminder(admin)
+                        = reminder.present? ? reminder.try(:title).try(:titleize) : ''
+                      %td
+                        = link_to 'Remind Me'     ,company_user_add_reminder_path(admin)  ,class: 'btn btn-primary btn-xs', remote: :true
                         = link_to raw("<i class='fa fa-pencil '>""</i>") , edit_admin_path(admin) , class: 'btn btn-xs btn-default btn-primary' ,remote: true,title: "Edit #{admin.full_name}"
                         = link_to raw("Assign Groups"), company_user_assign_groups_path(admin) , remote:true,class: 'btn btn-xs btn-success'
                         -#= link_to raw("<i class='fa fa-times '></i>") , admin_path(admin) , method: :delete ,  class: 'btn btn-xs btn-default btn-danger' ,title: "Delete #{admin.full_name}" ,data: {confirm: 'Are you sure?', verify: 'Confirm', verify_text: 'Type "Confirm" to confirm'}
