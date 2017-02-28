@@ -1,37 +1,37 @@
-.text-center
-  %h2.font-300
-    Office Directory
-#wid-id-5.no-border.jarviswidget
-  .col-xs-12.col-sm-9.col-md-9.col-lg-9.pull-left{style: 'border-bottom-color: #fff !important;'}
-  .row
-    #wid-id-5.no-border
-      %div
-        .widget-body
-          .col-md-12
-            %br 
-            - current_company.admins.each do |key |
-              -#- admin = current_company.admins.find_by_id(key)
-              %table#dt_basic.table.table-striped.table-bordered.table-hover{:width => "100%"}
-                %thead
-                  %tr
-                    %th{style: "width: 20%"} Name
-                    %th{style: "width: 10%"} Email
-                    %th{style: "width: 10%"} Phone/Ext
-                    %th{style: "width: 30%"} Role
-                    %th{{style: "width: 30%"}} actions
-                %tbody
-                  %tr
-                    %td= key.try(:full_name)
-                    %td= key.try(:email)
-                    %td= key.try(:phone)
-                    %td
-                      - key.try(:roles).each do |role|
-                        %span
-                          .label-info.badge
-                            = role.try(:name)
-                    %td
-                      = link_to "Assign task" , "#",class: 'btn btn-primary btn-sm'
-                      = link_to "reminder" , "#",class: 'btn btn-primary btn-sm'
-                      = link_to "IM" , "#",class: 'btn btn-primary btn-sm'
+#content.margin-top-0
+  .text-center
+    %h2.font-300
+      Office Directory
+  #wid-id-5.no-border.jarviswidget
+    .col-xs-12.col-sm-9.col-md-9.col-lg-9.pull-left{style: 'border-bottom-color: #fff !important;'}
+    .row
+      #wid-id-5.no-border
+        %div
+          .widget-body
+            .col-md-12
+              %br 
+              - current_company.admins.each do |key |
+                -#- admin = current_company.admins.find_by_id(key)
+                %table#dt_basic.table.table-striped.table-bordered.table-hover{:width => "100%"}
+                  %thead
+                    %tr
+                      %th{style: "width: 20%"} Name
+                      %th{style: "width: 10%"} Email
+                      %th{style: "width: 10%"} Phone/Ext
+                      %th{style: "width: 30%"} Role
+                      %th{{style: "width: 30%"}} actions
+                  %tbody
+                    %tr
+                      %td= key.try(:full_name)
+                      %td= key.try(:email)
+                      %td= key.try(:phone)
+                      %td
+                        - key.try(:roles).each do |role|
+                          %span
+                            .label-info.badge
+                              = role.try(:name)
+                      %td
+                        = link_to "Assign task" , "#",class: 'btn btn-primary btn-sm'
+                        = link_to "IM" , "#",class: 'btn btn-primary btn-sm'
 
 

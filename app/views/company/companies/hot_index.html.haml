@@ -1,5 +1,5 @@
-#content
-  .row
+#content.margin-top-0
+  -#.row
     .col-xs-12.col-sm-3.col-md-3.col-lg-3.pull-right
       = link_to 'NEW' , new_company_candidate_path , class: 'btn btn-success btn-lg pull-right header-btn hidden-mobile'
   %section.margin-top-10.padding-10
@@ -16,55 +16,56 @@
                     .input-group-btn
                       = f.button raw("<i class='fa fa-fw fa-search fa-lg'></i>") , class: 'btn btn-default'
               %br/
-              %br/
-              .table{:style => "width:100"}
-                %table#resultTable.table.table-striped.table-bordered.table-hover
-                  %thead
+              %table#resultTable.table.table-striped.table-bordered.table-hover.margin-top-5
+                .row.margin-bottom-5
+                  .col-xs-12.col-sm-3.col-md-3.col-lg-3.pull-right
+                    = link_to 'NEW' , new_company_candidate_path , class: 'btn btn-success btn-lg pull-right header-btn hidden-mobile'
+                %thead
+                  %tr
+                    -#%th Pic
+                    %th Name
+                    -#%th Email
+                    -#%th Phone
+                    -#%th Role  candidate availability (system generated - active, fishing, looking for better opportunity)
+                    %th Skills
+                    %th Location
+                    %th Groups
+                    %th Actions
+                %tbody
+                  - @candidates.each_with_index do |c , index|
                     %tr
-                      -#%th Pic
-                      %th Name
-                      -#%th Email
-                      -#%th Phone
-                      -#%th Role  candidate availability (system generated - active, fishing, looking for better opportunity)
-                      %th Skills
-                      %th Location
-                      %th Groups
-                      %th Actions
-                  %tbody
-                    - @candidates.each_with_index do |c , index|
-                      %tr
-                        -#%td= image_tag candidate.photo, alt: '', width: '20'
-                        %td= c.candidate.try(:full_name).try(:titleize)
-                        -#%td= c.candidate.try(:email)
-                        -#%td= c.candidate.try(:phone)
-                        -#%td
-                          - candidate.try(:roles).each do |role|
-                            %span
-                              .label-info.badge
-                                = role.try(:name)
-                        -#%td= candidate.try(:status).try(:titleize)
-                        %td
-                          - c.candidate.skills.each do |skill|
-                            %span
-                              .label-info.badge
-                                = skill.name
-                        %td
-                          - if c.candidate.address.nil?
-                            = c.candidate.try(:address).try(:city) + ' , '+ c.candidate.try(:address).try(:state) + ' , '+ c.candidate.try(:address).try(:country)
+                      -#%td= image_tag candidate.photo, alt: '', width: '20'
+                      %td= c.candidate.try(:full_name).try(:titleize)
+                      -#%td= c.candidate.try(:email)
+                      -#%td= c.candidate.try(:phone)
+                      -#%td
+                        - candidate.try(:roles).each do |role|
+                          %span
+                            .label-info.badge
+                              = role.try(:name)
+                      -#%td= candidate.try(:status).try(:titleize)
+                      %td
+                        - c.candidate.skills.each do |skill|
+                          %span
+                            .label-info.badge.margin-bottom-5
+                              = skill.name
+                      %td
+                        - if c.candidate.address.nil?
+                          = c.candidate.try(:address).try(:city) + ' , '+ c.candidate.try(:address).try(:state) + ' , '+ c.candidate.try(:address).try(:country)
 
-                        %td
-                          - c.candidate.groups.each do |group|
-                            %span.badge.bg-color-blue
-                              = group.try(:group_name).try(:titleize)
-                        %td
-                          = link_to 'Activity'     ,company_activities_index_path(index: true), class: 'btn btn-xs btn-primary'
-                          = link_to raw("Resume") , c.candidate.resume ,download: true , class: 'btn btn-xs btn-primary'
-                          = link_to "show" , static_candidate_resume_path(c.candidate) , class: 'btn btn-xs btn-primary'
-                          = link_to raw("Manage Groups"), candidate_manage_groups_path(c.candidate) , remote:true,class: 'btn btn-xs btn-success'
-                          = link_to raw("Make Normal"), candidate_make_normal_path(c.candidate) , remote:true,method: :post,class: 'btn btn-xs btn-primary'
-                          -#- if c.candidate.campany_candidate?
-                            = link_to raw("<i class='fa fa-pencil '></i>") , edit_company_candidate_path(c.candidate) , class: 'btn btn-xs btn-default btn-primary', title: "Edit #{candidate.full_name}"
-          = digg_pagination(@candidates)
+                      %td
+                        - c.candidate.groups.each do |group|
+                          %span.badge.bg-color-blue.margin-bottom-5
+                            = group.try(:group_name).try(:titleize)
+                      %td
+                        = link_to 'Activity'     ,company_activities_index_path(index: true), class: 'btn btn-xs btn-primary margin-bottom-5'
+                        = link_to raw("Resume") , c.candidate.resume ,download: true , class: 'btn btn-xs btn-primary margin-bottom-5'
+                        = link_to "show" , static_candidate_resume_path(c.candidate) , class: 'btn btn-xs btn-primary margin-bottom-5'
+                        = link_to raw("Manage Groups"), candidate_manage_groups_path(c.candidate) , remote:true,class: 'btn btn-xs btn-success margin-bottom-5'
+                        = link_to raw("Make Normal"), candidate_make_normal_path(c.candidate) , remote:true,method: :post,class: 'btn btn-xs btn-primary margin-bottom-5'
+                        -#- if c.candidate.campany_candidate?
+                          = link_to raw("<i class='fa fa-pencil '></i>") , edit_company_candidate_path(c.candidate) , class: 'btn btn-xs btn-default btn-primary', title: "Edit #{candidate.full_name}"
+      = digg_pagination(@candidates)
 
 - content_for :modals do
   = render 'company/candidates/partials/add_to_my_network'
