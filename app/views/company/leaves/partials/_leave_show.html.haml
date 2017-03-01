@@ -15,7 +15,7 @@
       %tbody
         - leaves.each_with_index do |leave , index|
           %tr{class: "#{set_background_status_color(leave.status)}"}
-            %td= link_to leave.user.full_name ,"#"
+            %td= link_to leave.user.full_name ,company_user_profile_path(leave.user) ,target: "_blank"
             %td= leave.from_date
             %td= leave.till_date
             %td= leave.leave_type

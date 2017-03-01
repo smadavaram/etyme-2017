@@ -3,8 +3,9 @@ class Company::PreferVendorsController < Company::BaseController
   before_action :set_prefer_vendors ,only: [:show_network]
   # add_breadcrumb "Prefer vendors", , options: { title: "Prefer vendors" }
   before_action :authorized_user ,only:  [:create , :show_network , :index,:accept ,:reject]
-
+  add_breadcrumb "Home", :dashboard_path, :title => "Home"
   def index
+    add_breadcrumb "Prefer Vendors Requests".humanize, :prefer_vendors_path, :title => "Prefer Vendors"
   end
 
   def accept
@@ -25,7 +26,7 @@ class Company::PreferVendorsController < Company::BaseController
   end
 
   def show_network
-
+    add_breadcrumb "Prefer Vendors".humanize, :network_path, :title => "Prefer Vendors"
   end
 
   def reject

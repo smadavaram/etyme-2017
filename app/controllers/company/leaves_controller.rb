@@ -36,6 +36,8 @@ class Company::LeavesController <Company::BaseController
   end
 
   def employees_leaves
+    add_breadcrumb current_company.try(:name).try(:humanize), :dashboard_path
+    add_breadcrumb "Emplyees Leaves".humanize, :employees_leaves_path
     @employee_leaves = current_company.leaves
   end
 

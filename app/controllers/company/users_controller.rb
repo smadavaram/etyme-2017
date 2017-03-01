@@ -30,6 +30,7 @@ class Company::UsersController < Company::BaseController
     end
   end
   def show
+    add_breadcrumb current_user.try(:full_name), :company_user_path
   end
 
   def update

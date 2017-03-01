@@ -1,5 +1,5 @@
 class Company::ActivitiesController < Company::BaseController
-  add_breadcrumb "Activities", "#", :title => "Company Activities"
+  add_breadcrumb "Activities", :activities_path, :title => "Company Activities"
   def index
     @activities = PublicActivity::Activity.order("created_at desc")
 

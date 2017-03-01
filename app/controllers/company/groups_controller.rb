@@ -1,7 +1,7 @@
 class Company::GroupsController < Company::BaseController
 
   before_action :set_and_find_group ,only: [:update,:edit]
-
+  add_breadcrumb "Groups", :groups_path, options: { title: "COMPANY Groups" }
 
   def new
     @group = current_company.groups.new

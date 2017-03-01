@@ -8,7 +8,7 @@ class Company::CompaniesController < Company::BaseController
 
   respond_to :html,:json
 
-  add_breadcrumb 'Companies', "#", :title => ""
+  add_breadcrumb 'Companies', :companies_path, :title => ""
 
   def index
     @search = current_company.invited_companies.includes(:invited_company).search(params[:q])
@@ -24,6 +24,7 @@ class Company::CompaniesController < Company::BaseController
 
   end
   def hot_index
+    add_breadcrumb 'Hot Companies'.humanize, :company_company_hot_index_path, :title => ""
     @candidates = CandidatesCompany.hot_candidate.where(company_id: current_company.id ).paginate(:page => params[:page], :per_page => 8)
   end
 
