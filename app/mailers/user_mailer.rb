@@ -35,15 +35,6 @@ class UserMailer < ApplicationMailer
     mail(to: user.email,  subject: "#{@user.company.name.titleize} Invited You to Etyme",from: "Etyme <no-reply@etyme.com>")
   end
 
-  def send_remind_email(reminder)
-    @reminder = reminder
-    @user = reminder.user
-    @name = @user.full_name
-    mail(to: @user , subject: "Reminder about #{reminder.reminder_able_type} #{@reminder.reminder_able_id.full_name}",from: "Etyme <no-reply@etyme.com>")
-  end
-
-
-
   def welcome_email_to_owner(company)
     @company   = company
     @owner     = company.owner.present? ? company.owner : company.company_contact

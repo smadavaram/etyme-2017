@@ -13,11 +13,11 @@ class Reminder < ActiveRecord::Base
 
 
   def add_reminder_in_delayed_job
-    self.delay(run_at: self.remind_at ).send_reminder_email
+    self.delay(run_at: self.remind_at).send_reminder_email
   end
 
   def send_reminder_email
-    UserMailer.send_remind_email(self)
+    self.user.notifications.create(message: "<p>You have Reminder about #{self.reminderable.class},  #{ self.reminderable_type == 'Company' ? self.reminderable.try(:name) : self.reminderable.try(:full_name)}</p> <br> <p> Title for reminder: #{self.title}   ",title: "Reminder");
   end
 
 end
