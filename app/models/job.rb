@@ -18,6 +18,7 @@ class Job < ActiveRecord::Base
   has_many     :custom_fields    ,as: :customizable
   # has_many     :job_applications ,through: :job_invitations
   has_many     :timesheet_approvers,through: :timesheets
+  has_many     :chats
 
   accepts_nested_attributes_for :custom_fields , reject_if: :all_blank
 

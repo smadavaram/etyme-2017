@@ -41,6 +41,9 @@ class User < ActiveRecord::Base
   has_many :groupables          , as:  :groupable
   has_many :groups              ,through:  :groupables
   has_many :permissions         , through: :roles
+  has_many :messages            ,as: :messageable ,dependent: :destroy
+  has_many :chat_users          ,as: :userable
+  has_many :chats               ,through: :chat_users
   has_many :reminders
   has_and_belongs_to_many :roles
 

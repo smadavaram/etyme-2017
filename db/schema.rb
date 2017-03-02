@@ -11,7 +11,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema.define(version: 20170223072306) do
+ActiveRecord::Schema.define(version: 20170302091632) do
 
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
@@ -129,6 +129,28 @@ ActiveRecord::Schema.define(version: 20170223072306) do
 
   add_index "candidates_groups", ["candidate_id"], name: "index_candidates_groups_on_candidate_id", using: :btree
   add_index "candidates_groups", ["group_id"], name: "index_candidates_groups_on_group_id", using: :btree
+
+  create_table "chat_users", force: :cascade do |t|
+    t.integer  "chat_id"
+    t.integer  "status"
+    t.integer  "userable_id"
+    t.string   "userable_type"
+    t.datetime "created_at",    null: false
+    t.datetime "updated_at",    null: false
+  end
+
+  add_index "chat_users", ["chat_id", "userable_id", "userable_type"], name: "index_chat_users_on_chat_id_and_userable_id_and_userable_type", unique: true, using: :btree
+  add_index "chat_users", ["userable_type", "userable_id"], name: "index_chat_users_on_userable_type_and_userable_id", using: :btree
+
+  create_table "chats", force: :cascade do |t|
+    t.string   "slug"
+    t.integer  "chatable_id"
+    t.string   "chatable_type"
+    t.datetime "created_at",    null: false
+    t.datetime "updated_at",    null: false
+  end
+
+  add_index "chats", ["chatable_type", "chatable_id"], name: "index_chats_on_chatable_type_and_chatable_id", using: :btree
 
   create_table "comments", force: :cascade do |t|
     t.string   "body"
@@ -436,6 +458,17 @@ ActiveRecord::Schema.define(version: 20170223072306) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
   end
+
+  create_table "messages", force: :cascade do |t|
+    t.string   "body"
+    t.integer  "chat_id"
+    t.integer  "messageable_id"
+    t.string   "messageable_type"
+    t.datetime "created_at",       null: false
+    t.datetime "updated_at",       null: false
+  end
+
+  add_index "messages", ["messageable_type", "messageable_id"], name: "index_messages_on_messageable_type_and_messageable_id", using: :btree
 
   create_table "notifications", force: :cascade do |t|
     t.integer  "notifiable_id"
