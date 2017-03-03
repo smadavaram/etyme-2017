@@ -18,12 +18,15 @@ class Job < ActiveRecord::Base
   has_many     :custom_fields    ,as: :customizable
   # has_many     :job_applications ,through: :job_invitations
   has_many     :timesheet_approvers,through: :timesheets
-  has_many     :chats
+  # has_many     :applicants , through: :job_applications , source: :applicationable ,source_type: "Candidate"
+  has_one      :chat              ,as: :chatable
 
   accepts_nested_attributes_for :custom_fields , reject_if: :all_blank
 
   acts_as_taggable
   acts_as_paranoid
+
+  after_create :create_job_chat
 
    scope :active ,   -> { where('end_date>=?',Date.today) }
    scope :expired,   -> { where('end_date<?',Date.today) }
@@ -62,6 +65,14 @@ class Job < ActiveRecord::Base
 
   def is_child?
     self.parent_job_id.present?
+  end
+
+  private
+
+  def create_job_chat
+    self.create_chat()
+    self.try(:chat).try(:chat_users).create(userable: self.try(:created_by))
+    self.try(:chat).try(:messages).create(messageable: self.try(:created_by) ,body:"#{self.created_by.full_name} created Job #{self.title.humanize}")
   end
 
 end

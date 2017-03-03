@@ -117,11 +117,14 @@ Rails.application.routes.draw do
       get    :hot_index
     end
     resources :candidates
+    resources :chats  , only: [:show]
+    resources :messages  ,only: [:create]
   end
 
   scope module: :company do
     resources :activities ,only: [:index]
 
+    post '/file_message' ,to: 'messages#file_message'
     post 'reject_vendor' ,to: 'prefer_vendors#reject'
     post 'accept_vendor' ,to: 'prefer_vendors#accept'
     get  'network',       to:   'prefer_vendors#show_network'

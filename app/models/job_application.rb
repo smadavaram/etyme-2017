@@ -13,6 +13,7 @@ class JobApplication < ActiveRecord::Base
   has_one    :contract
   has_many   :custom_fields ,as: :customizable
   has_many   :comments ,as: :commentable
+  has_many     :chats             ,as: :chatable
 
   validates :cover_letter , :applicant_resume ,presence: true
   # validates :application_type, inclusion: { in: application_types.keys }
@@ -21,10 +22,10 @@ class JobApplication < ActiveRecord::Base
 
   before_create :generate_share_key
   before_create :set_application_type
-  after_create :update_job_invitation_status ,     if: Proc.new{|application| application.job_invitation.present?}
-  after_create :notify_job_owner_or_admins
-  after_update :notify_recipient_on_status_change, if: Proc.new{|application| application.status_changed? }
-
+  after_create  :update_job_invitation_status ,     if: Proc.new{|application| application.job_invitation.present?}
+  after_create  :notify_job_owner_or_admins
+  after_update  :notify_recipient_on_status_change, if: Proc.new{|application| application.status_changed? }
+  after_create  :send_message
   accepts_nested_attributes_for :custom_fields , reject_if: :all_blank
 
   default_scope                { order(created_at: :desc) }
@@ -72,6 +73,13 @@ class JobApplication < ActiveRecord::Base
         end
       end
     end
+
+  private
+
+  def send_message
+    chat = self.job.chat.chat_users.create(userable: self.try(:applicationable))
+    self.job.chat.messages.create(messageable: self.try(:applicationable) , body: "#{self.try(:applicationable).try(:full_name)} has applied for your job with title #{self.job.title}")
+  end
 
 
 end

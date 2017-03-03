@@ -1,0 +1,137 @@
+#content
+  %section#widget-grid
+    / row
+    .row
+      .col-sm-6.col-lg-12
+        .panel.panel-default
+          .panel-body.status
+            .who.clearfix
+              %h4= @chat.try(:chatable).try(:title).try(:titleize)
+            .row
+              .text
+                .col-sm-4.col-md-4.col-lg-2
+                  .well.text-center.connect
+                    %img.margin-bottom-5.margin-top-5{:alt => "img", :height => "20px;", :src => "/assets/avatars/male-6fdb3297a97307d20273866196068e696682f523355db573e7d5bd8581ab763e.png", :width => "20px;"}/
+                    %br/
+                    %span.font-xs
+                      %b
+                        %span.badge.bg-color-blueDark.txt-color-white
+                          = @chat.try(:chatable).try(:job_applications).try(:pending_review).try(:count)
+                        %br
+                        Pending
+                .col-sm-4.col-md-4.col-lg-2
+                  .well.text-center.connect
+                    %img.margin-bottom-5.margin-top-5{:alt => "img", :height => "20px;", :src => "/assets/avatars/male-6fdb3297a97307d20273866196068e696682f523355db573e7d5bd8581ab763e.png", :width => "20px;"}/
+                    %br/
+                    %span.font-xs
+                      %b
+                        %span.badge.bg-color-blueDark.txt-color-white
+                          = @chat.try(:chatable).try(:job_applications).try(:rejected ).try(:count)
+                        %br
+                        Rejected
+                .col-sm-4.col-md-4.col-lg-2
+                  .well.text-center.connect
+                    %img.margin-bottom-5.margin-top-5{:alt => "img", :height => "20px;", :src => "/assets/avatars/male-6fdb3297a97307d20273866196068e696682f523355db573e7d5bd8581ab763e.png", :width => "20px;"}/
+                    %br/
+                    %span.font-xs
+                      %b
+                        %span.badge.bg-color-blueDark.txt-color-white
+                          = @chat.try(:chatable).try(:job_applications).try(:short_listed).try(:count)
+                        %br
+                        Shortlisted
+                .col-sm-4.col-md-4.col-lg-2
+                  .well.text-center.connect
+                    %img.margin-bottom-5.margin-top-5{:alt => "img", :height => "20px;", :src => "/assets/avatars/male-6fdb3297a97307d20273866196068e696682f523355db573e7d5bd8581ab763e.png", :width => "20px;"}/
+                    %br/
+                    %span.font-xs
+                      %b
+                        %span.badge.bg-color-blueDark.txt-color-white
+                          = @chat.try(:chatable).try(:job_applications).try(:interviewing).try(:count)
+                        %br
+                        Interviewed
+                .col-sm-4.col-md-4.col-lg-2
+                  .well.text-center.connect
+                    %img.margin-bottom-5.margin-top-5{:alt => "img", :height => "20px;", :src => "/assets/avatars/male-6fdb3297a97307d20273866196068e696682f523355db573e7d5bd8581ab763e.png", :width => "20px;"}/
+                    %br/
+                    %span.font-xs
+                      %b
+                        %span.badge.bg-color-blueDark.txt-color-white
+                          = @chat.try(:chatable).try(:job_applications).try(:hired).try(:count)
+                        %br
+                        Hired
+                .col-sm-4.col-md-4.col-lg-2
+                  .well.text-center.connect
+                    %img.margin-bottom-5.margin-top-5{:alt => "img", :height => "20px;", :src => "/assets/avatars/male-6fdb3297a97307d20273866196068e696682f523355db573e7d5bd8581ab763e.png", :width => "20px;"}/
+                    %br/
+                    %span.font-xs
+                      %b
+                        %span.badge.bg-color-blueDark.txt-color-white
+                          = @chat.try(:chatable).try(:job_applications).try(:count)
+                        %br
+                        Total
+            #chat-body.chat-body.custom-scroll{style: "height: 500px !important"}
+              .widget-body
+                .row
+                  .col-md-3.center
+                    .who.clearfix.right
+                      %h4 Your Chats
+                    %br
+                    - @chats.take(10).each do |c|
+                      .margin-bottom-10.padding-10.bg-color-white.fa-border
+                        = link_to  c.try(:chatable).try(:title).try(:titleize) , company_chat_path(c)
+                  .col-md-9
+                    %ul
+                    - @messages.each do |m|
+                      .who.clearfix
+                        %li.message.margin-bottom-10
+                          = image_tag m.messageable.photo , alt: asset_path('can.png') , class: 'online' , style: "width:50px !important ; height: 50px !important"
+                          -#%img.online{:alt => asset_path('can.png'), :src => "#{m.messageable.photo}"}/
+                          .message-text
+                            %time
+                              #{time_ago_in_words(m.try(:created_at)) } ago
+                            %a.username{:href => "#"}= m.try(:messageable).try(:full_name).try(:humanize)
+                            = raw(m.try(:body))
+
+            .chat-footer
+              / CHAT TEXTAREA
+              = form_for [:company ,Message.new] do |f|
+                = f.hidden_field :chat_id , value: @chat.id
+                .textarea-div
+                  .typearea
+                    = f.text_area :body ,class: "textarea-div custom-scroll" , id:"textarea-expand" , :placeholder => "Write a reply..."
+                %span.textarea-controls
+                  = f.submit "Reply" , class: "button btn btn-sm btn-primary pull-right"
+                  -#%span.pull-right.smart-form{:style => "margin-top: 3px; margin-right: 10px;"}
+                    %label.checkbox.pull-right
+                      %input#subscription{:name => "subscription", :type => "checkbox"}/
+                      = succeed "Press" do
+                        %i
+                      %strong ENTER
+                      to send
+                  = filepicker_field_tag "" ,class: "hidden file", onchange:"uploadFile(event)"
+                  %a.pull-left.resume{:href => "javascript:void(0);"}
+                    %i.fa.fa-file.fa-fw.fa-lg
+
+-content_for :scripts do
+  :javascript
+  $(document).ready(function() {
+    $('.resume').on("click",function(){
+      $(".file").trigger("click");
+    });
+
+    function uploadFile(event){
+      file_url = event.fpfile.url
+      file_name = event.fpfile.filename;
+      $.ajax({
+        type: 'POST',
+        dataType: 'json',
+        url: "#{file_message_path}",
+        data: { file_url: file_url,file_name: file_name,file_url: file_url ,chat_id: "#{@chat.id}",authenticity_token: window._token },
+        success: function (data) {
+          window.location.reload() ;
+        }
+      });
+    }
+  });
+
+
