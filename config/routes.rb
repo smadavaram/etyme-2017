@@ -117,8 +117,14 @@ Rails.application.routes.draw do
       get    :hot_index
     end
     resources :candidates
-    resources :chats  , only: [:show]
-    resources :messages  ,only: [:create]
+    resources :chats  , only: [:show] do
+      post :add_users
+    end
+    resources :messages  ,only: [:create] do
+      collection do
+        post :render_message
+      end
+    end
   end
 
   scope module: :company do

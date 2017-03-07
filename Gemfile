@@ -17,6 +17,7 @@ gem 'browser-timezone-rails'
 gem 'coffee-rails', '~> 4.1.0'
 gem 'jquery-rails'
 gem 'jquery-ui-rails'
+gem 'pusher'
 
 #****************************
 # Layout & Rendering

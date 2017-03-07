@@ -40,15 +40,15 @@
                       %td= admin.try(:last_sign_in_at).try(:localtime).try(:strftime,"%A, %d %b %Y %l:%M %p")
                       %td
                         - admin.groups.each do |group|
-                          %span.badge.bg-color-blue
+                          %span.badge.bg-color-blue.margin-bottom-5
                             = group.try(:group_name).try(:titleize)
                       %td
                         - reminder = find_reminderable_last_reminder(admin)
                         = reminder.present? ? reminder.try(:title).try(:titleize) : ''
                       %td
-                        = link_to 'Remind Me'     ,company_user_add_reminder_path(admin)  ,class: 'btn btn-primary btn-xs', remote: :true
-                        = link_to raw("<i class='fa fa-pencil '>""</i>") , edit_admin_path(admin) , class: 'btn btn-xs btn-default btn-primary' ,remote: true,title: "Edit #{admin.full_name}"
-                        = link_to raw("Assign Groups"), company_user_assign_groups_path(admin) , remote:true,class: 'btn btn-xs btn-success'
+                        = link_to 'Remind Me'     ,company_user_add_reminder_path(admin)  ,class: 'btn btn-primary btn-xs margin-bottom-5', remote: :true
+                        = link_to raw("<i class='fa fa-pencil '>""</i>") , edit_admin_path(admin) , class: 'btn btn-xs btn-default btn-primary margin-bottom-5' ,remote: true,title: "Edit #{admin.full_name}"
+                        = link_to raw("Assign Groups"), company_user_assign_groups_path(admin) , remote:true,class: 'btn btn-xs btn-success margin-bottom-5'
                         -#= link_to raw("<i class='fa fa-times '></i>") , admin_path(admin) , method: :delete ,  class: 'btn btn-xs btn-default btn-danger' ,title: "Delete #{admin.full_name}" ,data: {confirm: 'Are you sure?', verify: 'Confirm', verify_text: 'Type "Confirm" to confirm'}
           = digg_pagination(@consultants)
 

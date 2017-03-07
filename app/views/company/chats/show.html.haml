@@ -6,7 +6,12 @@
         .panel.panel-default
           .panel-body.status
             .who.clearfix
-              %h4= @chat.try(:chatable).try(:title).try(:titleize)
+              .row
+                .col-xs-6.col-sm-3.col-md-3.col-lg-3.pull-left
+                  %h4= @chat.try(:chatable).try(:title).try(:titleize)
+                .col-xs-6.col-sm-3.col-md-3.col-lg-3.pull-right
+                  -if @chat.try(:chatable).try(:created_by) == current_user
+                    = link_to "Add Users" ,"#", class: 'btn btn-success btn-md pull-right header-btn',"data-target" => "#add_users", "data-toggle" => "modal"
             .row
               .text
                 .col-sm-4.col-md-4.col-lg-2
@@ -80,21 +85,13 @@
                       .margin-bottom-10.padding-10.bg-color-white.fa-border
                         = link_to  c.try(:chatable).try(:title).try(:titleize) , company_chat_path(c)
                   .col-md-9
-                    %ul
-                    - @messages.each do |m|
-                      .who.clearfix
-                        %li.message.margin-bottom-10
-                          = image_tag m.messageable.photo , alt: asset_path('can.png') , class: 'online' , style: "width:50px !important ; height: 50px !important"
-                          -#%img.online{:alt => asset_path('can.png'), :src => "#{m.messageable.photo}"}/
-                          .message-text
-                            %time
-                              #{time_ago_in_words(m.try(:created_at)) } ago
-                            %a.username{:href => "#"}= m.try(:messageable).try(:full_name).try(:humanize)
-                            = raw(m.try(:body))
+                    %ul{id: "chat-#{@chat.channel_name}"}
+                      - @messages.each do |m|
+                        = render 'company/messages/partials/message' ,m: m
 
             .chat-footer
               / CHAT TEXTAREA
-              = form_for [:company ,Message.new] do |f|
+              = form_for [:company ,Message.new] , remote: true do |f|
                 = f.hidden_field :chat_id , value: @chat.id
                 .textarea-div
                   .typearea
@@ -109,29 +106,36 @@
                       %strong ENTER
                       to send
                   = filepicker_field_tag "" ,class: "hidden file", onchange:"uploadFile(event)"
-                  %a.pull-left.resume{:href => "javascript:void(0);"}
+                  %a.pull-left.fileUpload{:href => "javascript:void(0);"}
                     %i.fa.fa-file.fa-fw.fa-lg
+%script{:src => "https://js.pusher.com/4.0/pusher.min.js"}
+
+-content_for :modals do
+  = render 'company/chats/partials/add_users' , chat: @chat
+
+
 
 -content_for :scripts do
   :javascript
-  $(document).ready(function() {
-    $('.resume').on("click",function(){
-      $(".file").trigger("click");
+    $(document).ready(function() {
+      $(".select2").select2({placeholder: "Select a User(s)"});
+      $('.fileUpload').on("click",function(){
+        $(".file").trigger("click");
+      });
+      var chatBody = $('#chat-body') ;
+      chatBody.scrollTop(8500);
     });
+    var pusher = new Pusher("#{ENV['pusher_key']}");
+    var channel = pusher.subscribe("#{@chat.channel_name}");
+    channel.bind('send-message', function(data) {
 
+      $.post("#{render_message_company_messages_path}" , {id: data.message , chat_id: #{@chat.id} , authenticity_token: window._token});
+    });
     function uploadFile(event){
       file_url = event.fpfile.url
       file_name = event.fpfile.filename;
-      $.ajax({
-        type: 'POST',
-        dataType: 'json',
-        url: "#{file_message_path}",
-        data: { file_url: file_url,file_name: file_name,file_url: file_url ,chat_id: "#{@chat.id}",authenticity_token: window._token },
-        success: function (data) {
-          window.location.reload() ;
-        }
-      });
+      $.post("#{file_message_path}",{ file_url: file_url,file_name: file_name,file_url: file_url ,chat_id: "#{@chat.id}",authenticity_token: window._token })
+
     }
-  });
 
 

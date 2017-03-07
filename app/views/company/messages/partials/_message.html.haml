@@ -1,0 +1,9 @@
+.who.clearfix
+  %li.message.margin-bottom-10
+    = image_tag m.messageable.photo , alt: asset_path('can.png') , class: 'online' , style: "width:50px !important ; height: 50px !important"
+    -#%img.online{:alt => asset_path('can.png'), :src => "#{m.messageable.photo}"}/
+    .message-text
+      %time
+        #{time_ago_in_words(m.try(:created_at)) } ago
+      %a.username{:href => "#"}= m.try(:messageable).try(:full_name).try(:humanize)
+      = raw(m.try(:body))

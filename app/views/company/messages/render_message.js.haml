@@ -1,0 +1,4 @@
+$("#chat-#{@chat.channel_name}").append("#{ j render 'company/messages/partials/message' , m: @message}");
+var chatBody = $('#chat-body') ;
+chatBody.scrollTop(8500);
+$('#textarea-expand').val("");
