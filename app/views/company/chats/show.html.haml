@@ -123,7 +123,7 @@
         $(".file").trigger("click");
       });
       var chatBody = $('#chat-body') ;
-      chatBody.scrollTop(8500);
+      chatBody.scrollTop(5000000000);
     });
     var pusher = new Pusher("#{ENV['pusher_key']}");
     var channel = pusher.subscribe("#{@chat.channel_name}");
