@@ -85,7 +85,10 @@
                       .margin-bottom-10.padding-10.bg-color-white.fa-border
                         = link_to  c.try(:chatable).try(:title).try(:titleize) , company_chat_path(c)
                   .col-md-9
-                    %ul{id: "chat-#{@chat.channel_name}"}
+                    %ol.discussion{id: "chat-#{@chat.channel_name}"}
+                      - @messages.each do |m|
+                        = render 'company/messages/partials/message' ,m: m
+                    -#%ul
                       - @messages.each do |m|
                         = render 'company/messages/partials/message' ,m: m
 
@@ -112,6 +115,9 @@
 
 -content_for :modals do
   = render 'company/chats/partials/add_users' , chat: @chat
+-content_for :head do
+  = stylesheet_link_tag 'chats'
+
 
 
 

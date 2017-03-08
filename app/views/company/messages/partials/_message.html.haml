@@ -1,4 +1,4 @@
-.who.clearfix
+-#.who.clearfix
   %li.message.margin-bottom-10
     = image_tag m.messageable.photo , alt: asset_path('can.png') , class: 'online' , style: "width:50px !important ; height: 50px !important"
     -#%img.online{:alt => asset_path('can.png'), :src => "#{m.messageable.photo}"}/
@@ -7,3 +7,23 @@
         #{time_ago_in_words(m.try(:created_at)) } ago
       %a.username{:href => "#"}= m.try(:messageable).try(:full_name).try(:humanize)
       = raw(m.try(:body))
+
+- if m.messageable == current_user
+  %li.other.who
+    .avatar
+      = image_tag m.messageable.photo , alt: asset_path('can.png')
+    .messages{style: "width:100% !important ;"}
+      %a.username{:href => "#"}= m.try(:messageable).try(:full_name).try(:humanize)
+      %p= raw(m.try(:body))
+      -#%p Cras fringilla gravida tempor.
+      %time.timeago #{time_ago_in_words(m.try(:created_at)) } ago
+
+-else
+  %li.self.who
+    .avatar
+      = image_tag m.messageable.photo , alt: asset_path('can.png'), style: "width:40px !important"
+    .messages{style: "width:100% !important ;"}
+      %a.username{:href => "#" , style: "color: aliceblue ;"}= m.try(:messageable).try(:full_name).try(:humanize)
+      %p= raw(m.try(:body))
+      -#%p Integer congue egestas nulla, ac euismod est elementum sed.
+      %time.timeago #{time_ago_in_words(m.try(:created_at)) } ago

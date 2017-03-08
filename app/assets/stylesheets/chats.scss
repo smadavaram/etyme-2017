@@ -1,0 +1,95 @@
+body {
+  margin: 0;
+}
+.discussion {
+  list-style: none;
+  background: none;
+  margin: 0;
+  padding: 0 0 50px 0; // finality
+  li {
+    padding: 0.5rem;
+    overflow: hidden;
+    display: flex;
+  }
+  .avatar {
+    width: 40px; // stronger than %
+    // could set height, but gonna bottom-align instead
+    position: relative; // for triangle
+    overflow: hidden;
+    img {
+      display: block; // triangle position
+      width: 100%;
+    }
+  }
+}
+
+.other {
+  .messages {
+    border-top-left-radius: 0;
+  }
+  .avatar {
+    &:after {
+      content: "";
+      position: absolute;
+      top: 0;
+      right: 0;
+      width: 0;
+      height: 0;
+      border: 8px solid white;
+      border-left-color: transparent;
+      border-bottom-color: transparent;
+    }
+  }
+}
+
+.self {
+  justify-content: flex-end;
+  align-items: flex-end;
+  .messages {
+    order: 1;
+    border-bottom-right-radius: 0; // weird shadow fix
+    background-size: 10px 234px;
+    background-image: -o-linear-gradient(top, #87DFFD 0%, #0684D8 100%);
+    background-image: -moz-linear-gradient(top, #87DFFD 0%, #0684D8 100%);
+    background-image: -webkit-linear-gradient(top, #87DFFD 0%, #0684D8 100%);
+    background-image: -ms-linear-gradient(top, #87DFFD 0%, #0684D8 100%);
+    background-image: linear-gradient(to top, #87DFFD 0%, #0684D8 100%);
+  }
+  .avatar {
+    order: 2;
+    &:after {
+      content: "";
+      position: absolute;
+      bottom: -16px;
+      left: -12px;
+      width: 60px;
+      height: 60px;
+      border: 12px solid #0684D8;
+      border-right-color: transparent;
+      border-top-color: transparent;
+      border-radius: 50%;
+      box-shadow: 1px 1px 2px rgba(black, 0.2); // not quite perfect but close
+    }
+  }
+}
+
+.messages {
+  background: white;
+  padding: 10px;
+  border-radius: 5px;
+  box-shadow: 0 1px 2px rgba(black, 0.2);
+  p {
+    font-size: -0.2rem;
+    margin: 0 0 0.2rem 0;
+  }
+  time {
+    font-size: 10px;
+    color: #ccc;
+  }
+}
+.os-animation{
+  opacity: 0;
+  &.animated {
+    opacity: 1;
+  }
+}
