@@ -30,6 +30,7 @@
                       -#%th Role
                       %th Skills
                       %th Last Reminder
+                      %th Note
                       -#%th Location
                       -#%th Groups
                       %th Actions
@@ -54,6 +55,13 @@
                         %td
                           - reminder = find_reminderable_last_reminder(candidate)
                           = reminder.present? ? reminder.try(:title).try(:titleize) : ''
+                        %td
+                          - if candidate.try(:statuses).present?
+                            %span
+                              .label-info.badge
+                                = candidate.try(:statuses).try(:last).try(:status_type)
+                            %br
+                              = candidate.try(:statuses).try(:last).try(:note)
                         -#%td
                         -#  - if candidate.address.nil?
                         -#    = candidate.address.city + ' , '+ candidate.address.state + ' , '+ candidate.address.country + ' , '+ candidate.address.zip_code
