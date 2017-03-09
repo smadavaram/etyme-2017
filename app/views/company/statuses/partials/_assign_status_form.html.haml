@@ -1,0 +1,33 @@
+.modal.fade{class:"status-#{assignee.id} "}
+  .modal-dialog
+    .modal-content
+      .modal-header
+        %button.close{"aria-hidden" => "true", "data-dismiss" => "modal", :type => "button"}
+          ×
+        %h4.modal-title
+          %strong Assign Status to  #{assignee.class.name} #{assignee.class.name=='Candidate' ?  assignee.try(:full_name) :assignee.try(:name) }
+      .modal-body.no-padding
+        = form_for [:company,Status.new],html:{ class:'form-horizontal',id: 'group-val'} do |f|
+          = f.hidden_field :statusable_id , value: assignee.id
+          = f.hidden_field :statusable_type , value: assignee.class.name
+          %br/
+          .form-group
+            %label.col-md-3.control-label
+              Note
+              %sup.text-danger *
+            .col-md-8
+              =f.text_field :note , required: true ,class: 'form-control'
+          .form-group
+            %label.col-md-3.control-label
+              Select Status
+              %sup.text-danger *
+            .col-md-8
+              = f.select :status_type,Status.status_types.map{|key,value| [key.humanize ,key] } ,{},class: 'form-control select2'
+          .modal-footer
+            = f.button "submit".html_safe , class: 'btn btn-primary btn-sm' , data: {disable_with: ("Submitting...")} ,id: 'form_id'
+            %button.btn.btn-default{"data-dismiss" => "modal", :type => "button"}
+              Cancel
+:css
+  .select2{
+    width: 389px;
+    }

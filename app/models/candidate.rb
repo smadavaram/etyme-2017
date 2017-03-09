@@ -41,7 +41,8 @@ class Candidate < ActiveRecord::Base
   has_many   :groupables           , as:  :groupable
   has_many   :groups               , through: :groupables
   has_many   :comments             , as: :commentable
-  has_many :reminders              ,as:  :reminderable
+  has_many   :reminders            ,as:  :reminderable
+  has_many   :statuses             ,as:  :statusable
 
 
   attr_accessor :job_id , :expiry , :message , :invitation_type

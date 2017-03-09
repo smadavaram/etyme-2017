@@ -48,7 +48,8 @@
                         - reminder = find_reminderable_last_reminder( d.try(:invited_company))
                         = reminder.present? ? reminder.try(:title).try(:titleize) : ''
                       %td
-                        = link_to 'Remind Me'    ,company_company_add_reminder_path(d.invited_company)   ,class: 'btn btn-primary btn-xs margin-bottom-5', remote: :true
+                        = link_to 'Remind Me'    ,company_company_add_reminder_path(d.invited_company) ,class: 'btn btn-primary btn-xs margin-bottom-5', remote: :true
+                        = link_to 'Assign Status'    ,company_assign_status_path(d.invited_company) ,class: 'btn btn-primary btn-xs margin-bottom-5', remote: :true
                         -#= link_to "Contacts" ,company_contacts_path(d.try(:invited_company)), class: 'btn btn-xs btn-default btn-primary'
                         = link_to raw("<i class='fa fa-pencil '></i>") , edit_company_path(d.invited_company) , class: 'btn btn-xs btn-default btn-primary margin-bottom-5',remote: :true ,title:"Edit #{d.invited_company.name}"
                         = link_to raw("Assign Groups"), company_company_assign_groups_path(d.invited_company) , remote:true,class: 'btn btn-xs btn-success margin-bottom-5'

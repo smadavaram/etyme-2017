@@ -63,7 +63,8 @@
                             %span.badge.bg-color-blue
                               = group.try(:group_name).try(:titleize)
                         %td
-                          = link_to 'Remind Me'     ,candidate_add_reminder_path(candidate)               ,class: 'btn btn-primary btn-xs', remote: :true
+                          = link_to 'Assign Status'     ,candidate_assign_status_path(candidate)   ,class: 'btn btn-primary btn-xs', remote: :true
+                          = link_to 'Remind Me'     ,candidate_add_reminder_path(candidate)   ,class: 'btn btn-primary btn-xs', remote: :true
                           = link_to 'Activity'     ,company_activities_index_path(index: true), class: 'btn btn-xs btn-primary'
                           = link_to raw("Resume") , candidate.resume ,download: true , class: 'btn btn-xs btn-primary'
                           = link_to "show" , static_candidate_resume_path(candidate) , class: 'btn btn-xs btn-primary'

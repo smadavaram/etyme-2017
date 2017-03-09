@@ -1,0 +1,3 @@
+$('.remote_container').html("#{ j render 'company/statuses/partials/assign_status_form' , assignee: @candidate}");
+$('.status-#{@candidate.id}').modal('toggle');
+$(".select2").select2({placeholder: "Select Status(s)"});
