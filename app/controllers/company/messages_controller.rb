@@ -23,15 +23,27 @@ class Company::MessagesController < Company::BaseController
   end
 
   def file_message
-    @message = @chat.messages.new(messageable_id: current_user.id, messageable_type: current_user.type ,body:"#{current_user.try(:full_name)} uploaded a file with name <a href=#{params[:file_url]} download>#{params[:file_name]}</a>")
     respond_to do |format|
       format.js  do
+        @message = @chat.messages.new(messageable_id: current_user.id, messageable_type: current_user.type ,body:"#{current_user.try(:full_name)} uploaded a file with name <a href=#{params[:file_url]} download>#{params[:file_name]}</a>")
         if @message.save()
           flash[:success] = "Message sent successfully"
 
         else
           flash[:errors] = @message.errors.full_messages
         end
+      end
+      format.html do
+        @company_doc =  current_company.company_docs.find(params[:company_doc_id])
+        @attachment = @company_doc.attachment
+        @message = @chat.messages.new(messageable_id: current_user.id, messageable_type: current_user.type ,body:"#{current_user.try(:full_name)} uploaded a file with name <a href=#{@attachment.file} download>#{@company_doc.name}</a>")
+        if @message.save()
+          flash[:success] = "Message sent successfully"
+
+        else
+          flash[:errors] = @message.errors.full_messages
+        end
+        redirect_to :back
       end
     end
   end

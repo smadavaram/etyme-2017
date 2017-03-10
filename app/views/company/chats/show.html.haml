@@ -108,13 +108,14 @@
                         %i
                       %strong ENTER
                       to send
-                  = filepicker_field_tag "" ,class: "hidden file", onchange:"uploadFile(event)"
-                  %a.pull-left.fileUpload{:href => "javascript:void(0);"}
-                    %i.fa.fa-file.fa-fw.fa-lg
+                  = filepicker_field_tag "" ,class: "hidden  file", onchange:"uploadFile(event)"
+                  = link_to raw("<i class='fa fa-file fa-fw fa-lg '></i>") ,"#", class: 'btn btn-success pull-left btn-sm',"data-target" => "#upload_document", "data-toggle" => "modal"
+
 %script{:src => "https://js.pusher.com/4.0/pusher.min.js"}
 
 -content_for :modals do
   = render 'company/chats/partials/add_users' , chat: @chat
+  = render "company/messages/partials/upload_document" ,chat: @chat
 -content_for :head do
   = stylesheet_link_tag 'chats'
 
@@ -125,8 +126,10 @@
   :javascript
     $(document).ready(function() {
       $(".select2").select2({placeholder: "Select a User(s)"});
+      $(".file_select").select2({placeholder: "Select Company Document"});
       $('.fileUpload').on("click",function(){
         $(".file").trigger("click");
+        $('.fp__overlay').css({'z-index':'99999'});
       });
       var chatBody = $('#chat-body') ;
       chatBody.scrollTop(5000000000);
