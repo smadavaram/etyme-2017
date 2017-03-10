@@ -41,6 +41,12 @@ class UserMailer < ApplicationMailer
     @name      = @owner.full_name
     mail(to: @owner.email,  subject: "#{@company.name.titleize} welcome to Etyme",from: "Etyme <no-reply@etyme.com>")
   end
+
+  def share_message_email(message,to_email , note)
+    @message = message
+    @note = note
+    mail(to: to_email ,subject: "Etyme Share Message With You" ,from: "Etyme <no-reply@etyme.com>")
+  end
   private
 
   def self.exception_admins

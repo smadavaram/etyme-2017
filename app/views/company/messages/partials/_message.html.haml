@@ -18,7 +18,8 @@
 
       -#%p Cras fringilla gravida tempor.
       %time.timeago #{time_ago_in_words(m.try(:created_at)) } ago
-      .btn.btn-xs.btn-primary.pull-right{"data-target" => "#myModal", "data-toggle" => "modal"} Share
+      = link_to 'share' , chat_message_share_message_path(m.chat,m) ,class: "btn btn-xs btn-primary pull-right", remote: :true
+
 
 -else
   %li.self.who
@@ -29,4 +30,4 @@
       %p= raw(m.try(:body))
       -#%p Integer congue egestas nulla, ac euismod est elementum sed.
       %time.timeago #{time_ago_in_words(m.try(:created_at)) } ago
-      .btn.btn-xs.btn-success.pull-right{"data-target" => "#myModal", "data-toggle" => "modal"} Share
+      = link_to 'share' ,chat_message_share_message_path(m.chat,m) ,class: "btn btn-xs btn-success pull-right", remote: :true

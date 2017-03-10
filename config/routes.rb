@@ -128,7 +128,14 @@ Rails.application.routes.draw do
   end
 
   scope module: :company do
+
     resources :activities ,only: [:index]
+    resources :chats do
+      resources :messages ,only: [:index] do
+        match :share_message ,via: [:get , :post]
+      end
+    end
+
 
     post '/file_message' ,to: 'messages#file_message'
     post 'reject_vendor' ,to: 'prefer_vendors#reject'

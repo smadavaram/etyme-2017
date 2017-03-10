@@ -98,7 +98,7 @@
                 = f.hidden_field :chat_id , value: @chat.id
                 .textarea-div
                   .typearea
-                    = f.text_area :body ,class: "textarea-div custom-scroll" , id:"textarea-expand" , :placeholder => "Write a reply..."
+                    = f.text_area :body ,class: "textarea-div custom-scroll" , id:"textarea-expand" , :placeholder => "Write a reply..." ,required: true
                 %span.textarea-controls
                   = f.submit "Reply" , class: "button btn btn-sm btn-primary pull-right"
                   -#%span.pull-right.smart-form{:style => "margin-top: 3px; margin-right: 10px;"}

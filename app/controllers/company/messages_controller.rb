@@ -1,6 +1,6 @@
 class Company::MessagesController < Company::BaseController
-  before_action :find_chat , only:  [:create,:file_message , :render_message]
-  before_action :find_message  ,only:  [:render_message]
+  before_action :find_chat , only:  [:create,:file_message , :render_message,:share_message]
+  before_action :find_message  ,only:  [:render_message, :share_message]
 
   def create
     @message = @chat.messages.new(message_params.merge(messageable_id: current_user.id, messageable_type:current_user.type))
@@ -35,6 +35,13 @@ class Company::MessagesController < Company::BaseController
       end
     end
   end
+  def share_message
+    if request.post?
+      UserMailer.share_message_email(@message, params[:email] ,params[:note]).deliver
+      flash[:success] = "Message Shared Successfully."
+      redirect_to :back
+    end
+  end
 
   private
 
@@ -47,7 +54,7 @@ class Company::MessagesController < Company::BaseController
   end
 
   def find_message
-    @message = @chat.messages.find(params[:id]) || []
+    @message = @chat.messages.find(params[:id] || params[:message_id]) || []
   end
 
 end
