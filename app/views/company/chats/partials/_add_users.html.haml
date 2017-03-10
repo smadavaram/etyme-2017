@@ -5,7 +5,7 @@
         %button.close{"aria-hidden" => "true", "data-dismiss" => "modal", :type => "button"}
           ×
         %h2#myModalLabel.modal-title
-          %strong Add users
+          %strong Invite Users
       .modal-body
         = form_for chat, url:  company_chat_add_users_path(chat) , method: :post,  html:{ class:'form-horizontal',id: 'group-val'} do |f|
           .form-group
@@ -13,7 +13,7 @@
               Select Admins
               %sup.text-danger *
             .col-md-8
-              = f.select :user_ids, current_company.admins.map {|c| [c.first_name,c.id]  if chat.chat_users.where(userable_id: c.id , userable_type: c.class.name).blank? && c!=current_user },{},class: 'form-control select2',:multiple => true
+              = f.select :user_ids, current_company.admins.map {|c| [c.first_name,c.id]  if chat.chat_users.where(userable: c).blank? && c!=current_user },{},class: 'form-control select2',:multiple => true
           .modal-footer
             = f.button "submit".html_safe , class: 'btn btn-primary btn-sm' , data: {disable_with: ("Submitting...")} ,id: 'form_id'
             %button.btn.btn-default{"data-dismiss" => "modal", :type => "button"}

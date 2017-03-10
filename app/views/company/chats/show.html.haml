@@ -11,7 +11,7 @@
                   %h4= @chat.try(:chatable).try(:title).try(:titleize)
                 .col-xs-6.col-sm-3.col-md-3.col-lg-3.pull-right
                   -if @chat.try(:chatable).try(:created_by) == current_user
-                    = link_to "Add Users" ,"#", class: 'btn btn-success btn-md pull-right header-btn',"data-target" => "#add_users", "data-toggle" => "modal"
+                    = link_to "Invite Users" ,"#", class: 'btn btn-success btn-md pull-right header-btn',"data-target" => "#add_users", "data-toggle" => "modal"
             .row
               .text
                 .col-sm-4.col-md-4.col-lg-2

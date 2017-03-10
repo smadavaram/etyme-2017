@@ -9,5 +9,9 @@ class Chat < ActiveRecord::Base
     "message-"+self.id.to_s
   end
 
+  def is_chat_user?(user)
+    self.chat_users.find_by(userable: user).present?
+  end
+
   # validates :chat_id ,uniqueness: {scope: [:chatable_id, :chatable_type] }
 end
