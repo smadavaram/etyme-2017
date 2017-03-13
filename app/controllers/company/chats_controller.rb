@@ -12,7 +12,7 @@ class Company::ChatsController < Company::BaseController
     user_ids.each do |user_id|
       user = current_company.try(:users).find(user_id)
       @chat.chat_users.create(userable: user)
-      user.notifications.create(message: "<p>  #{current_user.full_name} Added You To Chat <a href= 'http://#{current_user.company.etyme_url}/#{company_chat_path(@chat) }' > #{@chat.try(:chatable).try(:title)} </a> </p> <br> ",title: "Chat Invitation");
+      user.notifications.create(message: "<p>  #{current_user.full_name} Invited You To Chat <a href= 'http://#{current_user.company.etyme_url}/#{company_chat_path(@chat) }' > #{@chat.try(:chatable).try(:title)} </a> </p> <br> ",title: "Chat Invitation");
     end
     flash[:success] = "User Added In Chat #{@chat.try(:chatable).try(:title)}"
     redirect_to :back

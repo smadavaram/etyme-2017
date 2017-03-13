@@ -7,6 +7,7 @@ class CompanyDoc < ActiveRecord::Base
   belongs_to :user, foreign_key: :created_by
   has_many :attachable_docs, dependent: :destroy
   has_many :users, through: :attachable_docs, source: :documentable, source_type: 'User'
+  has_one  :message
   # has_and_belongs_to_many :users,join_table: :attachable_docs
 
   validates_presence_of :name,:company,:created_by, on: :create

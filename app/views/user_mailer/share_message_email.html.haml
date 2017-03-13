@@ -21,7 +21,7 @@
                 %td
                   %h3 Hi, Etyme has shared following message with you.
                   %p
-                    Message: #{@message.body}
+                    " #{raw(@message.body)} "
                   %p
                     note: #{@note}
                   / Callout Panel

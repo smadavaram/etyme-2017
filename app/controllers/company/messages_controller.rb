@@ -25,7 +25,15 @@ class Company::MessagesController < Company::BaseController
   def file_message
     respond_to do |format|
       format.js  do
-        @message = @chat.messages.new(messageable_id: current_user.id, messageable_type: current_user.type ,body:"#{current_user.try(:full_name)} uploaded a file with name <a href=#{params[:file_url]} download>#{params[:file_name]}</a>")
+        if(params[:message_id].present?)
+          @parent_message = Message.find(params[:message_id])
+          @parent_message.signed_uploaded!
+          @attachment = @parent_message.try(:company_doc).try(:attachment)
+          body = "#{current_user.try(:full_name)} uploaded signed copy of file <a href=#{@attachment.try(:file) } download>#{@parent_message.try(:company_doc).try(:name)}</a> with signed file <a href=#{params[:file_url]} download>#{params[:file_name]}</a>"
+        else
+          body = "#{current_user.try(:full_name)} uploaded a file with name <a href=#{params[:file_url]} download>#{params[:file_name]}</a>"
+        end
+        @message = @chat.messages.new(messageable_id: current_user.id, messageable_type: current_user.type ,body: body)
         if @message.save()
           flash[:success] = "Message sent successfully"
 
@@ -36,7 +44,8 @@ class Company::MessagesController < Company::BaseController
       format.html do
         @company_doc =  current_company.company_docs.find(params[:company_doc_id])
         @attachment = @company_doc.attachment
-        @message = @chat.messages.new(messageable_id: current_user.id, messageable_type: current_user.type ,body:"#{current_user.try(:full_name)} uploaded a file with name <a href=#{@attachment.file} download>#{@company_doc.name}</a>")
+        @message = @chat.messages.new(messageable_id: current_user.id, messageable_type: current_user.type ,body:"#{current_user.try(:full_name)} uploaded a file with name <a href=#{@attachment.file} #{@company_doc.is_required_signature? ?
+        ' ' : 'download' } >#{@company_doc.name}</a>",company_doc_id: params[:company_doc_id])
         if @message.save()
           flash[:success] = "Message sent successfully"
 

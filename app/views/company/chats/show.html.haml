@@ -134,6 +134,23 @@
       var chatBody = $('#chat-body') ;
       chatBody.scrollTop(5000000000);
     });
+
+    function replyUpload(id) {
+        filepicker.pick({
+            mimetype: 'image/*',
+            container: 'window',
+            services: ['COMPUTER', 'FACEBOOK', 'CLOUDAPP']
+          },
+          function(Blob){
+            file_url = Blob.url
+            file_name = Blob.filename;
+            $.post("#{file_message_path}",{ file_url: file_url,file_name: file_name,file_url: file_url ,message_id: id ,chat_id: "#{@chat.id}",authenticity_token: window._token })
+          },
+          function(FPError){
+          //  console.log(FPError.toString()); - print errors to console
+        }
+      );
+    }
     var pusher = new Pusher("#{ENV['pusher_key']}");
     var channel = pusher.subscribe("#{@chat.channel_name}");
     channel.bind('send-message', function(data) {
@@ -143,7 +160,7 @@
     function uploadFile(event){
       file_url = event.fpfile.url
       file_name = event.fpfile.filename;
-      $.post("#{file_message_path}",{ file_url: file_url,file_name: file_name,file_url: file_url ,chat_id: "#{@chat.id}",authenticity_token: window._token })
+      $.post("#{file_message_path}",{ file_url: file_url,file_name: file_name,file_url: file_url  ,chat_id: "#{@chat.id}",authenticity_token: window._token })
 
     }
 
