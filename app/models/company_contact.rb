@@ -5,5 +5,8 @@ class CompanyContact < ActiveRecord::Base
   def full_name
     self.first_name + " " + self.last_name
   end
+  def photo
+    super.present? ? super : 'avatars/male.png'
+  end
 
 end

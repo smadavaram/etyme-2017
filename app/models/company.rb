@@ -79,6 +79,10 @@ class Company < ActiveRecord::Base
 
   attr_accessor :send_email
 
+  def invited_companies_contacts
+    CompanyContact.where(company_id: self.invited_companies.ids)
+  end
+
 
   def all_admins_has_permission? permission
     self.admins.joins(:permissions).where('permissions.name = ?' , permission).group('users.id') || []
