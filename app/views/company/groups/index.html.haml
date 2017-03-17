@@ -1,41 +1,105 @@
 #content
-  .row
-    .col-xs-12.col-sm-3.col-md-3.col-lg-3.pull-right
-      = link_to 'NEW',new_group_path , remote: true , class: 'btn btn-success btn-lg pull-right header-btn hidden-mobile'
-  %section.margin-top-10
-    / row
-    .row
-      / NEW WIDGET START
-      %article.col-xs-12.col-sm-12.col-md-12.col-lg-12
-        #wid-id-0.jarviswidget
-          %header
-            %span.widget-icon
-              %i.fa.fa-table
-            %h2 Groups
-          %div
-            .widget-body.no-padding
-              %table#dt_basic.table.table-striped.table-bordered.table-hover
-                %thead
-                  %tr
-                    %th{"data-hide" => "phone",:width => "3%"} ID
-                    %th{"data-class" => "expand",:width => "10%"}
-                      %i.fa.fa-fw.fa-user.text-muted.hidden-md.hidden-sm.hidden-xs
-                      Name
-                    %th{"data-hide" => "phone,tablet",:width => "20%"}Candidates
-                    %th{"data-hide" => "phone,tablet",:width => "5%"}
-                      %i.fa.fa-fw.fa-calendar.txt-color-blue.hidden-md.hidden-sm.hidden-xs
-                      Date
-                    %th{"data-hide" => "phone,tablet",:width => "10%"}Actions
-                %tbody
-                  - @groups.each_with_index do |r , index|
-                    %tr
-                      %td= index+1
-                      %td= r.group_name.titleize
-                      %td= r.candidates.map(&:first_name).join(", ").gsub("_"," ").titleize
-                      %td= r.created_at.try(:strftime,'%B %d, %Y')
-                      %td
-                        = link_to 'Edit',edit_group_path(r) ,remote:true
+  %body
+    %section#widget-grid
+      .row
+        %article.col-xs-12.col-sm-12.col-md-12.col-lg-12.sortable-grid.ui-sortable
+          #wid-id-1.jarviswidget.jarviswidget-color-blueDark.jarviswidget-sortable{"data-widget-editbutton" => "false", :role => "widget"}
+            %header{:role => "heading"}
+              %span.widget-icon
+                %i.fa.fa-table
+              %h2 Groups
+              %span.jarviswidget-loader
+                %i.fa.fa-refresh.fa-spin
+            / widget div
+            %div{:role => "content"}
+              .jarviswidget-editbox
+              .widget-body.no-padding
+                #datatable_fixed_column_wrapper.dataTables_wrapper.form-inline.dt-bootstrap.no-footer
+                  -#.dt-toolbar
+                    .col-xs-12.col-sm-6.hidden-xs
+                      #datatable_fixed_column_filter.dataTables_filter
+                        %label
+                          %span.input-group-addon{style: "background-color:#eee;"}
+                            %i.glyphicon.glyphicon-search
+                          %input.form-control{"aria-controls" => "datatable_fixed_column", :placeholder => "", :type => "search"}/
+                    .col-sm-6.col-xs-12.hidden-xs
+                      .toolbar
+                        .text-right
+                          = link_to 'NEW',new_group_path , remote: true , class: 'btn btn-success btn-md pull-right header-btn'
+                  %table#datatable_fixed_column.table.table-striped.table-bordered.dataTable.no-footer{"aria-describedby" => "datatable_fixed_column_info", :role => "grid", :style => "width: 100%;", :width => "100%"}
+                    %thead
+                      %tr{:role => "row"}
+                        %th.hasinput{ :style => "width:5%"}
+                          %input.form-control{:placeholder => "ID", :type => "text"}/
+                        %th.hasinput{:colspan => "1", :rowspan => "1", :style => "width:18%"}
+                          %input.form-control{:placeholder => "Name", :type => "text"}/
+                        %th.hasinput{:colspan => "1", :rowspan => "1", :style => "width:16%"}
+                          %input.form-control{:placeholder => "Candidates", :type => ""}/
+                        %th.hasinput{:colspan => "1", :rowspan => "1", :style => "width:17%"}
+                          %input.form-control{:placeholder => "Date", :type => ""}/
+                        %th.hasinput{:colspan => "1", :rowspan => "1", :style => "width:16%"}
+                          %input.form-control{:placeholder => "Filter Actions", :type => ""}/
+                      %tr
+                        %th{"data-hide" => "phone",:width => "3%"} ID
+                        %th{"data-class" => "expand",:width => "10%"}
+                          %i.fa.fa-fw.fa-user.text-muted.hidden-md.hidden-sm.hidden-xs
+                          Name
+                        %th{"data-hide" => "phone,tablet",:width => "20%"}Candidates
+                        %th{"data-hide" => "phone,tablet",:width => "5%"}
+                          %i.fa.fa-fw.fa-calendar.txt-color-blue.hidden-md.hidden-sm.hidden-xs
+                          Date
+                        %th{"data-hide" => "phone,tablet",:width => "10%"}Actions
+                    %tbody
+                      - @groups.each_with_index do |group , index|
+                        %tr
+                          %td= index+1
+                          %td= group.group_name.titleize
+                          %td= group.candidates.map(&:first_name).join(", ").gsub("_"," ").titleize
+                          %td= group.created_at.try(:strftime,'%B %d, %Y')
+                          %td
+                            = link_to 'Edit',edit_group_path(group) ,remote:true
+                  - if @groups.count >15
+                    .dt-toolbar-footer
+                      = digg_pagination(@groups)
+:css
+  .form-control
+  {
+    background-color: white !important;
+  }
+  .digg_pagination
+  {
+    background-color: #fafafa !important;
+  }
 
-  - content_for :scripts do
-    :javascript
+-content_for :scripts do
+  :javascript
+    $(document).ready(function() {
+     pageSetUp();
+      var responsiveHelper_dt_basic = undefined;
+      var responsiveHelper_datatable_fixed_column = undefined;
+      var responsiveHelper_datatable_col_reorder = undefined;
+      var responsiveHelper_datatable_tabletools = undefined;
+      var otable = $('#datatable_fixed_column').DataTable({
+            "sDom": "<'dt-toolbar'<'col-xs-12 col-sm-6 hidden-xs'f><'col-sm-6 col-xs-12 hidden-xs'<'toolbar'>>r>"+
+                    "t"+
+                    "<'dt-toolbar-footer'<'col-sm-6 col-xs-12 hidden-xs'i><'col-xs-12 col-sm-6'p>>",
+            "autoWidth" : true,
+            "oLanguage": {
+                "sSearch": '<span class="input-group-addon"><i class="glyphicon glyphicon-search"></i></span>'
+            }
+        });
+
+      $("div.toolbar").html('<div class="text-right">#{ link_to 'NEW',new_group_path , remote: true , class: 'btn btn-success btn-md pull-right header-btn'}</div>');
+
+      // Apply the filter
+      $("#datatable_fixed_column thead th input[type=text]").on( 'keyup change', function () {
+        otable
+            .column( $(this).parent().index()+':visible' )
+            .search( this.value )
+            .draw();
+
+      } );
+
+    });
+
 

@@ -1,9 +1,4 @@
-#content.no-border
-  .row
-    .col-lg-11.col-md-offset-1
-      - if current_user.is_consultant?
-        = link_to 'New' ,'#' ,class: 'btn btn-success btn-lg pull-right header-btn hidden-mobile', "data-toggle": "modal" , "data-target":"#newLeave"
-        = render 'company/leaves/partials/form', leave: current_user.leaves.new
+#content
   #wid-id-5.no-border.jarviswidget{"data-widget-colorbutton" => "false", "data-widget-custombutton" => "false", "data-widget-editbutton" => "false", "data-widget-fullscreenbutton" => "false", "data-widget-sortable" => "false"}
     %div
       .jarviswidget-editbox

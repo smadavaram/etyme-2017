@@ -1,37 +1,95 @@
-#content.margin-top-0
-  .text-center
-    %h2.font-300
-      Office Directory
-  #wid-id-5.no-border.jarviswidget
-    .col-xs-12.col-sm-9.col-md-9.col-lg-9.pull-left{style: 'border-bottom-color: #fff !important;'}
+#content
+  %section#widget-grid
     .row
-      #wid-id-5.no-border
-        %div
-          .widget-body
-            .col-md-12
-              %br 
-              - current_company.admins.each do |key |
-                -#- admin = current_company.admins.find_by_id(key)
-                %table#dt_basic.table.table-striped.table-bordered.table-hover{:width => "100%"}
+      %article.col-xs-12.col-sm-12.col-md-12.col-lg-12.sortable-grid.ui-sortable
+        #wid-id-1.jarviswidget.jarviswidget-color-blueDark.jarviswidget-sortable{"data-widget-editbutton" => "false", :role => "widget"}
+          %header{:role => "heading"}
+            %span.widget-icon
+              %i.fa.fa-table
+            %h2 Office Directory
+          / widget div
+          %div{:role => "content"}
+            .jarviswidget-editbox
+            .widget-body.no-padding
+              #datatable_fixed_column_wrapper.dataTables_wrapper.form-inline.dt-bootstrap.no-footer
+                -#.dt-toolbar
+                  .col-xs-12.col-sm-6.hidden-xs
+                    #datatable_fixed_column_filter.dataTables_filter
+                      %label
+                        %span.input-group-addon{style: "background-color:#eee;"}
+                          %i.glyphicon.glyphicon-search
+                        %input.form-control{"aria-controls" => "datatable_fixed_column", :placeholder => "", :type => "search"}/
+                  .col-sm-6.col-xs-12.hidden-xs
+                    .toolbar
+                      .text-right
+                -#= button_tag 'NEW' ,class: 'btn btn-success btn-md pull-right header-btn margin-top-5' , "data-toggle": "modal" , "data-target":"#new-job"
+                %table#datatable_fixed_column.table.table-striped.table-bordered.dataTable.no-footer{"aria-describedby" => "datatable_fixed_column_info", :role => "grid", :style => "width: 100%;", :width => "100%"}
                   %thead
-                    %tr
-                      %th{style: "width: 20%"} Name
-                      %th{style: "width: 10%"} Email
-                      %th{style: "width: 10%"} Phone/Ext
-                      %th{style: "width: 30%"} Role
-                      %th{{style: "width: 30%"}} actions
+                    %tr{:role => "row"}
+                      %th.hasinput{ :style => "width:10%"}
+                        %input.form-control{:placeholder => "Name", :type => "text"}/
+                      %th.hasinput{ :style => "width:10%"}
+                        %input.form-control{:placeholder => "Email", :type => "text"}/
+                      %th.hasinput{ :style => "width:10%"}
+                        %input.form-control{:placeholder => "Phone/Ext", :type => "text"}/
+                      %th.hasinput{ :style => "width:10%"}
+                        %input.form-control{:placeholder => " Role", :type => "text"}/
+                      %th.hasinput{ :style => "width:10%"}
+                        %input.form-control{:placeholder => "Actions", :type => "text"}/
+                    %tr{:role => "row"}
+                      %th.sorting{} Name
+                      %th.sorting{} Email
+                      %th.sorting{} Phone/Ext
+                      %th.sorting{} Role
+                      %th.sorting{} Actions
+
                   %tbody
-                    %tr
-                      %td= key.try(:full_name)
-                      %td= key.try(:email)
-                      %td= key.try(:phone)
-                      %td
-                        - key.try(:roles).each do |role|
-                          %span
-                            .label-info.badge
-                              = role.try(:name)
-                      %td
-                        = link_to "Assign task" , "#",class: 'btn btn-primary btn-sm'
-                        = link_to "IM" , "#",class: 'btn btn-primary btn-sm'
+                    - current_company.admins.each_with_index   do |key,index|
+                      %tr.even{:role => "row"}
+                        %td= key.try(:full_name)
+                        %td= key.try(:email)
+                        %td= key.try(:phone)
+                        %td
+                          - key.try(:roles).each do |role|
+                            %span
+                              .label-info.badge
+                                = role.try(:name)
+                        %td
+                          = link_to "Assign task" , "#",class: 'btn btn-primary btn-sm '
+                          = link_to "IM" , "#",class: 'btn btn-primary btn-sm'
+  -#= digg_pagination(data)
 
+:css
+  .form-control
+  {
+    background-color: white !important;
+  }
+-content_for :scripts do
+  :javascript
+    $(document).ready(function() {
+     pageSetUp();
+      var responsiveHelper_dt_basic = undefined;
+      var responsiveHelper_datatable_fixed_column = undefined;
+      var responsiveHelper_datatable_col_reorder = undefined;
+      var responsiveHelper_datatable_tabletools = undefined;
+      var table = $('#example').DataTable();
+      var otable = $('#datatable_fixed_column').DataTable({
+            "sDom": "<'dt-toolbar'<'col-xs-12 col-sm-6 hidden-xs'f><'col-sm-6 col-xs-12 hidden-xs'<'toolbar'>>r>"+
+                    "t"+
+                    "<'dt-toolbar-footer'<'col-sm-6 col-xs-12 hidden-xs'i><'col-xs-12 col-sm-6'p>>",
+            "autoWidth" : true,
+            "oLanguage": {
+                "sSearch": '<span class="input-group-addon"><i class="glyphicon glyphicon-search"></i></span>'
+            }
 
+        });
+      // Apply the filter
+      $("#datatable_fixed_column thead th input[type=text]").on( 'keyup change', function () {
+        otable
+            .column( $(this).parent().index()+':visible' )
+            .search( this.value )
+            .draw();
+
+      } );
+
+    });
