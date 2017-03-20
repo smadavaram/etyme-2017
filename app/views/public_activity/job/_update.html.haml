@@ -1,13 +1,14 @@
 %img.busy{:alt => "img", :src => "#{a.owner.try(:photo)}"}/
-%span.name.font-sm
+%span.name.font-sm.well.margin-bottom-10.text-center
   %span.text-muted
   %b
     #{link_to a.owner.full_name, a.owner if a.owner}
     %span.pull-right.font-xs.text-muted
       %i= a.created_at.strftime('%H:%M:%S %-d %B %Y  ago')
   %br/
-  updated Job
-  = link_to a.trackable.title, job_path(a.trackable),class: 'font-md'
+  %p.font-md
+    updated Job
+    = link_to a.trackable.title, job_path(a.trackable),class: 'font-md'
 -#%a.font-md{:href => "javascript:void(0);"} Business Requirement Docs
 -#%li.list-group-item
 -#  %span.glyphicon.glyphicon-plus

@@ -1,5 +1,5 @@
 - if params[:index]
-  %li
+  %li.well.margin-bottom-10
     .smart-timeline-icon
       - if a.owner.logo.present?
         = image_tag a.owner.logo,class:'',alt: "Company"
@@ -9,10 +9,8 @@
       %small
       =  time_ago_in_words(a.try(:created_at).try(:localtime))+" ago"
     .smart-timeline-content
-      %p
-        %a{:href => "javascript:void(0);"}
-          %strong= a.owner.name.titleize + "  created Candidate"
-      %p
+      %p.font-md.strong
+        #{a.owner.name.titleize}   created candidate
         = link_to a.trackable.try(:full_name).try(:titleize), static_candidate_resume_path( a.trackable), class: 'font-md'
 -else
   - if a.owner.logo.present?
@@ -20,7 +18,7 @@
   -else
     = image_tag 'can.png',class:'',alt: "Company"
 
-  %span.name.font-sm
+  %span.name.font-sm.well.margin-bottom-10
     %span.text-muted
       = link_to a.owner.try(:name).try(:titleize) , class: 'font-md'
     %b

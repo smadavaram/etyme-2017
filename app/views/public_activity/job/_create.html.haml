@@ -1,10 +1,10 @@
 %img.busy{:alt => "img", :src => "#{a.owner.try(:photo)}"}/
-%span.name.font-sm
+%span.name.font-sm.well.margin-bottom-10.text-center
   %span.text-muted
   %b
     #{link_to a.owner.full_name, a.owner if a.owner}
-    %span.pull-right.font-xs.text-muted
+    %span.pull-right.text-muted
       %i= a.created_at.strftime('%H:%M:%S %-d %B %Y  ago')
-  %br/
-  created Job
-  = link_to a.trackable.title, job_path(a.trackable), class: 'font-md'
+    %p.font-md
+      created job
+      = link_to a.trackable.title, job_path(a.trackable), class: 'font-md'
