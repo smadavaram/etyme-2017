@@ -8,7 +8,7 @@
               .who.clearfix
                 .row
                   .col-xs-6.col-sm-3.col-md-3.col-lg-3.pull-left
-                    %h4= @chat.try(:chatable).try(:title).try(:titleize)
+                    %h4= @chat.try(:company).try(:name).try(:titleize)
               #chat-body.chat-body.custom-scroll{style: "height: 500px !important"}
                 .widget-body
                   .row
