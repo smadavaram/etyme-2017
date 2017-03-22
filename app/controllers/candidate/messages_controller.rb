@@ -54,7 +54,7 @@ class Candidate::MessagesController < Candidate::BaseController
   private
 
   def message_params
-    params.require(:message).permit(:body ,:messageable_id ,:messageable_type)
+    params.require(:message).permit(:body ,:messageable_id ,:messageable_type,:chat_id)
   end
 
   def find_chat

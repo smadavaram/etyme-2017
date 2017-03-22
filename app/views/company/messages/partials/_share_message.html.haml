@@ -7,7 +7,7 @@
         %h2#myModalLabel.modal-title
           %strong Share Message
       .modal-body
-        = form_for message, url:  chat_message_share_message_path(message.chat,message) , method: :post,  html:{ class:'form-horizontal',id: 'group-val'} do |f|
+        = form_for message, url:  company_chat_message_share_message_path(message.chat,message) , method: :post,  html:{ class:'form-horizontal',id: 'group-val'} do |f|
           .form-group
             %label.col-md-3.control-label
               Email

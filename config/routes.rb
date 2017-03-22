@@ -48,15 +48,14 @@ Rails.application.routes.draw do
         post :upload_resume
       end
     end
-    resources :messages , only: :index do
-      collection do
-        post :render_message
-        post :file_message
-      end
-    end
 
     resources :chats , only:[:show] do
       resources :messages ,only: [:create] do
+        collection do
+          post :file_message ,as: :candidate_file
+          post :render_message
+        end
+
         # match :share_message ,via: [:get , :post]
 
       end
@@ -129,27 +128,24 @@ Rails.application.routes.draw do
       get    :hot_index
     end
     resources :candidates
+
     resources :chats  , only: [:show] do
       post :add_users
-    end
-    resources :messages  ,only: [:create] do
-      collection do
-        post :render_message
+      resources :messages  ,only: [:create] do
+        collection do
+          post :render_message
+          post :file_message
+        end
+        match :share_message ,via: [:get , :post]
       end
     end
+
   end
 
   scope module: :company do
 
     resources :activities ,only: [:index]
-    resources :chats do
-      resources :messages ,only: [:index] do
-        match :share_message ,via: [:get , :post]
-      end
-    end
 
-
-    post '/file_message' ,to: 'messages#file_message'
     post 'reject_vendor' ,to: 'prefer_vendors#reject'
     post 'accept_vendor' ,to: 'prefer_vendors#accept'
     get  'network',       to:   'prefer_vendors#show_network'

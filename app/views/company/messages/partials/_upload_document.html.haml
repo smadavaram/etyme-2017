@@ -8,7 +8,7 @@
           %strong Upload Document
       .modal-body
 
-        = form_for [:comapny,Message.new] ,url: file_message_path(chat_id: chat.id), method: :post,  html:{ class:'form-horizontal',id: 'group-val'} do |f|
+        = form_for [:comapny,Message.new] ,url: file_message_company_chat_messages_path(chat), method: :post,  html:{ class:'form-horizontal',id: 'group-val'} do |f|
           .form-group
             %label.col-md-3.control-label
               Select Company Document

@@ -98,7 +98,7 @@
 
             .chat-footer
               / CHAT TEXTAREA
-              = form_for [:company ,Message.new] , remote: true do |f|
+              = form_for Message.new ,url: company_chat_messages_path(@chat.id) ,method: :post, remote: true do |f|
                 = f.hidden_field :chat_id , value: @chat.id
                 .textarea-div
                   .typearea
@@ -148,7 +148,7 @@
           function(Blob){
             file_url = Blob.url
             file_name = Blob.filename;
-            $.post("#{file_message_path}",{ file_url: file_url,file_name: file_name,file_url: file_url ,message_id: id ,chat_id: "#{@chat.id}",authenticity_token: window._token })
+            $.post("#{file_message_company_chat_messages_path(@chat.try(:id) )}",{ file_url: file_url,file_name: file_name,file_url: file_url ,message_id: id ,authenticity_token: window._token })
           },
           function(FPError){
           //  console.log(FPError.toString()); - print errors to console
@@ -159,12 +159,12 @@
     var channel = pusher.subscribe("#{@chat.channel_name}");
     channel.bind('send-message', function(data) {
 
-      $.post("#{render_message_company_messages_path}" , {id: data.message , chat_id: #{@chat.id} , authenticity_token: window._token});
+      $.post("#{render_message_company_chat_messages_path(@chat.try(:id) )}" , {id: data.message , authenticity_token: window._token});
     });
     function uploadFile(event){
       file_url = event.fpfile.url
       file_name = event.fpfile.filename;
-      $.post("#{file_message_path}",{ file_url: file_url,file_name: file_name,file_url: file_url  ,chat_id: "#{@chat.id}",authenticity_token: window._token })
+      $.post("#{file_message_company_chat_messages_path(@chat.try(:id) )}",{ file_url: file_url,file_name: file_name,file_url: file_url  ,authenticity_token: window._token })
 
     }
 

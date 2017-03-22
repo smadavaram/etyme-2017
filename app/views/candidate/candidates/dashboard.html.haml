@@ -23,7 +23,7 @@
                       %br
                       - @chats.take(10).each do |c|
                         .margin-bottom-10.padding-10.bg-color-white.fa-border
-                          = c.try(:company).try(:name)
+                          = link_to  c.try(:company).try(:name).try(:titleize) , chat_path(c)
                     .col-md-9
                       %ol.discussion{id: "chat-#{@chat.try(:channel_name)}"}
                         - @messages.each do |m|
@@ -80,7 +80,7 @@
           function(Blob){
             file_url = Blob.url
             file_name = Blob.filename;
-            $.post("#{file_message_messages_path}",{ file_url: file_url,file_name: file_name,file_url: file_url ,message_id: id ,chat_id: "#{@chat.try(:id)}",authenticity_token: window._token })
+            $.post("#{candidate_file_chat_messages_path(@chat.try(:id))}",{ file_url: file_url,file_name: file_name,file_url: file_url ,message_id: id ,authenticity_token: window._token })
           },
           function(FPError){
           //  console.log(FPError.toString()); - print errors to console
@@ -91,12 +91,12 @@
     var channel = pusher.subscribe("#{@chat.try(:channel_name)}");
     channel.bind('send-message', function(data) {
 
-      $.post("#{render_message_messages_path}" , {id: data.message , chat_id: #{@chat.try(:id)} , authenticity_token: window._token});
+      $.post("#{render_message_chat_messages_path(@chat.try(:id))}" , {id: data.message  , authenticity_token: window._token});
     });
     function uploadFile(event){
       file_url = event.fpfile.url
       file_name = event.fpfile.filename;
-      $.post("#{file_message_messages_path}",{ file_url: file_url,file_name: file_name,file_url: file_url  ,chat_id: "#{@chat.try(:id)}",authenticity_token: window._token })
+      $.post("#{candidate_file_chat_messages_path(@chat.try(:id))}",{ file_url: file_url,file_name: file_name,file_url: file_url  ,authenticity_token: window._token })
 
     }
 

@@ -1,2 +1,98 @@
-%h1 Candidate::Chats#show
-%p Find me in app/views/candidate/chats/show.html.haml
+#content
+  -if @chat.present?
+    %section#widget-grid
+      .row
+        .col-sm-6.col-lg-12
+          .panel.panel-default
+            .panel-body.status
+              .who.clearfix
+                .row
+                  .col-xs-6.col-sm-3.col-md-3.col-lg-3.pull-left
+                    %h4= @chat.try(:chatable).try(:title).try(:titleize)
+              #chat-body.chat-body.custom-scroll{style: "height: 500px !important"}
+                .widget-body
+                  .row
+                    .col-md-3.center
+                      .who.clearfix.right
+                        %h4 Your Chats
+                      %br
+                      - @chats.take(10).each do |c|
+                        .margin-bottom-10.padding-10.bg-color-white.fa-border
+                          = link_to  c.try(:company).try(:name).try(:titleize) , chat_path(c)
+                    .col-md-9
+                      %ol.discussion{id: "chat-#{@chat.try(:channel_name)}"}
+                        - @messages.each do |m|
+                          = render 'company/messages/partials/message' ,m: m
+              .chat-footer
+                / CHAT TEXTAREA
+                = form_for Message.new ,url:chat_messages_path(@chat),method: :post, remote: true do |f|
+                  = f.hidden_field :chat_id , value: @chat.id
+                  .textarea-div
+                    .typearea
+                      = f.text_area :body ,class: "textarea-div custom-scroll" , id:"textarea-expand" , :placeholder => "Write a reply..." ,required: true
+                  %span.textarea-controls
+                    = f.submit "Reply" , class: "button btn btn-sm btn-primary pull-right"
+                    -#%span.pull-right.smart-form{:style => "margin-top: 3px; margin-right: 10px;"}
+                      %label.checkbox.pull-right
+                        %input#subscription{:name => "subscription", :type => "checkbox"}/
+                        = succeed "Press" do
+                          %i
+                        %strong ENTER
+                        to send
+                    = filepicker_field_tag "" ,class: "hidden  file", onchange:"uploadFile(event)"
+
+                    = link_to raw("<i class='fa fa-file fa-fw fa-lg '></i>") ,"#", class: 'btn btn-success fileUpload pull-left btn-sm'
+
+%script{:src => "https://js.pusher.com/4.0/pusher.min.js"}
+
+-content_for :modals do
+  -#= render "company/messages/partials/upload_document" ,chat: @chat
+-content_for :head do
+  = stylesheet_link_tag 'chats'
+
+
+
+
+-content_for :scripts do
+  :javascript
+    $(document).ready(function() {
+      $(".select2").select2({placeholder: "Select a User(s)"});
+      $(".file_select").select2({placeholder: "Select Company Document"});
+      $('.fileUpload').on("click",function(){
+        $(".file").trigger("click");
+        $('.fp__overlay').css({'z-index':'99999'});
+      });
+      var chatBody = $('#chat-body') ;
+      chatBody.scrollTop(5000000000);
+    });
+
+    function replyUpload(id) {
+        filepicker.pick({
+            mimetype: 'image/*',
+            container: 'window',
+            services: ['COMPUTER', 'FACEBOOK', 'CLOUDAPP']
+          },
+          function(Blob){
+            file_url = Blob.url
+            file_name = Blob.filename;
+            $.post("#{candidate_file_chat_messages_path(@chat.try(:id))}",{ file_url: file_url,file_name: file_name,file_url: file_url ,message_id: id ,authenticity_token: window._token })
+          },
+          function(FPError){
+          //  console.log(FPError.toString()); - print errors to console
+        }
+      );
+    }
+    var pusher = new Pusher("#{ENV['pusher_key']}");
+    var channel = pusher.subscribe("#{@chat.try(:channel_name)}");
+    channel.bind('send-message', function(data) {
+
+      $.post("#{render_message_chat_messages_path(@chat.try(:id))}" , {id: data.message  , authenticity_token: window._token});
+    });
+    function uploadFile(event){
+      file_url = event.fpfile.url
+      file_name = event.fpfile.filename;
+      $.post("#{candidate_file_chat_messages_path(@chat.try(:id))}",{ file_url: file_url,file_name: file_name,file_url: file_url  ,authenticity_token: window._token })
+
+    }
+
+
