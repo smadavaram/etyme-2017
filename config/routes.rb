@@ -1,5 +1,4 @@
 Rails.application.routes.draw do
-
   namespace :company do
   get 'activities/index'
   end
@@ -47,6 +46,19 @@ Rails.application.routes.draw do
       collection do
         get :notify_notifications
         post :upload_resume
+      end
+    end
+    resources :messages , only: :index do
+      collection do
+        post :render_message
+        post :file_message
+      end
+    end
+
+    resources :chats , only:[:show] do
+      resources :messages ,only: [:create] do
+        # match :share_message ,via: [:get , :post]
+
       end
     end
     get '/profile',to:'candidates#show'
@@ -171,6 +183,7 @@ Rails.application.routes.draw do
       post   :make_hot
       post   :make_normal
       get    :add_reminder
+      post   :create_chat
     end
     resources :job_applications ,concerns: :paginatable , only: [:index,:show] do
     resources :consultants , only: [:new , :create]

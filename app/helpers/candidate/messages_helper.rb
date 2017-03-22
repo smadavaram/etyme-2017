@@ -1,0 +1,2 @@
+module Candidate::MessagesHelper
+end

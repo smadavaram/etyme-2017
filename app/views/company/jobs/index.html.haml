@@ -47,9 +47,9 @@
                           %td= job.created_by.full_name  rescue "  --"
                           %td
                             - if job.try(:chat).is_chat_user?(current_user)
-                              = link_to 'chat' , company_chat_path(job.try(:chat) ) ,target: '_blank' , class: 'btn btn-xs btn-default btn-primary margin-bottom-5'
+                              = link_to raw("<i class='fa fa-comment '></i>") , company_chat_path(job.try(:chat) ) ,target: '_blank' , class: 'btn btn-xs btn-default btn-primary margin-bottom-5'
                             - if has_permission?("manage_job")
-                              = link_to raw("<i class='fa fa-pencil '></i>") , edit_job_path(job) , class: 'btn btn-xs btn-default btn-primary margin-bottom-5'
+                              = link_to raw("<i class='fa fa-edit '></i>") , edit_job_path(job) , class: 'btn btn-xs btn-default btn-primary margin-bottom-5'
                               = link_to raw("<i class='fa fa-times '></i>") , job_path(job) , method: :delete ,  class: 'btn btn-xs btn-default btn-danger margin-bottom-5'
                               = link_to "Company Candidates", job_create_multiple_for_candidate_path(job),remote: true ,method: :get ,class: "btn btn-xs btn-default margin-bottom-5 btn-success #{job.is_active? ? "" : "disabled" }"
 

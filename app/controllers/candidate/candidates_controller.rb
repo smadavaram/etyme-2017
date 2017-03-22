@@ -3,10 +3,13 @@ class Candidate::CandidatesController < Candidate::BaseController
   respond_to :html,:json,:js
 
   before_action :set_candidate ,only: [:show,:update]
+  before_action :set_chats     ,only: [:dashboard]
 
   add_breadcrumb 'Candidates', "#", :title => ""
 
   def dashboard
+    @chat = @chats.try(:last)
+    @messages = @chat.try(:messages)
   end
 
   def show
@@ -51,6 +54,10 @@ class Candidate::CandidatesController < Candidate::BaseController
 
 
   private
+
+   def set_chats
+     @chats = current_candidate.chats
+   end
 
     def set_candidate
       @candidate=Candidate.find_by_id(params[:id])

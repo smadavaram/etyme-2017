@@ -59,16 +59,7 @@
                             %span.label.label-success= application.status.humanize
                           %td
                             = link_to "View Detail",job_application_path(application)
-                      -else
-                        %tr.odd{:role => "row"}
-                          %td= image_tag application.user.photo, alt: '', width: '20'
-                          %td= link_to application.user.full_name , '#'
-                          %td= link_to application.job.title ,job_path(application.job)
-                          %td= application.user.email
-                          %td
-                            %span.label.label-success= application.status.humanize
-                          %td
-                            = link_to "View Detail",job_application_path(application)
+                            = link_to raw("<i class='fa fa-comment '></i>")     ,candidate_create_chat_path(application.user) ,class: 'btn btn-primary btn-xs margin-bottom-5',method: :post
 = digg_pagination(data)
 
 :css

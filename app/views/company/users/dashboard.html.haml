@@ -41,7 +41,7 @@
                 .row
                   .col-md-3.margin-top-5
                     = link_to raw("<i class='fa fa-share '></i>") ,send_invitation_job_path(j) , method: :post ,remote: true,  class: 'btn btn-md btn-primary'
-                    = link_to raw("<i class='fa fa-comments '></i>") ,chat_path(j.chat),class: "btn btn-sm btn-primary"
+                    = link_to raw("<i class='fa fa-comments '></i>") ,company_chat_path(j.chat),class: "btn btn-sm btn-primary"
         - current_company.invited_companies_contacts.take(10).each do |contact|
           .panel.panel-default
             .panel-body.status
