@@ -116,13 +116,6 @@
                     = f.text_area :body ,class: "textarea-div custom-scroll" , id:"textarea-expand" , :placeholder => "Write a reply..." ,required: true
                 %span.textarea-controls
                   = f.submit "Reply" , class: "button btn btn-sm btn-primary pull-right"
-                  -#%span.pull-right.smart-form{:style => "margin-top: 3px; margin-right: 10px;"}
-                    %label.checkbox.pull-right
-                      %input#subscription{:name => "subscription", :type => "checkbox"}/
-                      = succeed "Press" do
-                        %i
-                      %strong ENTER
-                      to send
                   = filepicker_field_tag "" ,class: "hidden  file", onchange:"uploadFile(event)"
                   = link_to raw("<i class='fa fa-file fa-fw fa-lg '></i>") ,"#", class: 'btn btn-success pull-left btn-sm',"data-target" => "#upload_document", "data-toggle" => "modal"
 
