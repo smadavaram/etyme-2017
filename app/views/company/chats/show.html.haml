@@ -13,7 +13,7 @@
                   -else
                     %h4= @chat.try(:chatable).try(:full_name).try(:titleize)
                 .col-xs-6.col-sm-3.col-md-3.col-lg-3.pull-right
-                  -if @chat.try(:chatable).try(:created_by) == current_user
+                  -if @chat.try(:chatable).try(:created_by) == current_user || @chat.try(:chatable_type)=="Candidate"
                     = link_to raw("<i class='fa-user-plus fa fa-fw fa-lg'></i>") ,"#", class: 'btn btn-success btn-lg pull-right header-btn',"data-target" => "#add_users", "data-toggle" => "modal"
             .row
               .text
