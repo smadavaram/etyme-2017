@@ -71,15 +71,15 @@
                               %span.badge.bg-color-blue
                                 = group.try(:group_name).try(:titleize)
                           %td
-                            = link_to raw("<i class='fa fa-bell '></i>")     ,candidate_add_reminder_path(candidate)               ,class: 'btn btn-primary btn-xs margin-bottom-5', remote: :true
-                            = link_to 'Activity'     ,company_activities_index_path(index: true), class: 'btn btn-xs btn-primary  margin-bottom-5'
-                            = link_to raw("Resume") , candidate.resume ,download: true , class: 'btn btn-xs btn-primary  margin-bottom-5'
-                            = link_to "show" , static_candidate_resume_path(candidate) , class: 'btn btn-xs btn-primary  margin-bottom-5'
-                            = link_to raw("<i class='fa fa-users '></i>"), candidate_manage_groups_path(candidate) , remote:true,class: 'btn btn-xs btn-success  margin-bottom-5'
+                            = link_to raw("<i class='fa fa-bell '></i>")     ,candidate_add_reminder_path(candidate) ,class: 'btn btn-primary btn-xs margin-bottom-5', remote: :true,title:"Remind Me"
+                            = link_to 'Activity'     ,company_activities_index_path(index: true), class: 'btn btn-xs btn-primary  margin-bottom-5',title:"Activity Log"
+                            = link_to raw("Resume") , candidate.resume ,download: true , class: 'btn btn-xs btn-primary  margin-bottom-5',title:"Resume"
+                            = link_to "show" , static_candidate_resume_path(candidate) , class: 'btn btn-xs btn-primary  margin-bottom-5',title:"Detail Show"
+                            = link_to raw("<i class='fa fa-users '></i>"), candidate_manage_groups_path(candidate) , remote:true,class: 'btn btn-xs btn-success  margin-bottom-5',title:"Assign Groups"
                             - if is_hot?(candidate)
-                              = link_to raw("<i class='fa fa-fire '></i>"), candidate_make_hot_path(candidate) , remote:true,method: :post,class: 'btn btn-xs btn-danger  margin-bottom-5'
+                              = link_to raw("<i class='fa fa-fire '></i>"), candidate_make_hot_path(candidate) , remote:true,method: :post,class: 'btn btn-xs btn-danger  margin-bottom-5',title:"Make Hot"
                             - if !is_hot?(candidate)
-                              = link_to raw("<i class='fa fa-fire '></i>"), candidate_make_normal_path(candidate) , remote:true,method: :post,class: 'btn btn-xs btn-primary  margin-bottom-5'
+                              = link_to raw("<i class='fa fa-fire '></i>"), candidate_make_normal_path(candidate) , remote:true,method: :post,class: 'btn btn-xs btn-primary  margin-bottom-5',title:"Make Normal"
                             - if candidate.campany_candidate?
                               = link_to raw("<i class='fa fa-edit '></i>") , edit_company_candidate_path(candidate) , class: 'btn btn-xs btn-default btn-primary  margin-bottom-5', title: "Edit #{candidate.full_name}"
                     - if @candidates.count >30

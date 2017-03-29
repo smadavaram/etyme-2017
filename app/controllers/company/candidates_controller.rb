@@ -112,8 +112,17 @@ class Company::CandidatesController < Company::BaseController
     has_access?("manage_consultants")
   end
 
+  # for assigning  of Reminder To Candidates
   def add_reminder
 
+  end
+
+  # for sharing of hot candidates
+  def share_candidates
+    c_ids = params[:candidates_ids].split(",").map { |s| s.to_i }
+    UserMailer.share_hot_candidates(params[:email],c_ids,current_company,params[:message]).deliver
+    flash[:success] = "Candidates shared successfully."
+    redirect_to :back
   end
 
   def create_chat

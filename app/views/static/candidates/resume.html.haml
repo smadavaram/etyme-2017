@@ -1,121 +1,69 @@
-
-.container
+#container
   .row
-    .col-xs-12
-      #photo-header.text-center
-        / PHOTO (AVATAR)
-        #photo
-          -#%img{:alt => "avatar", :src => "img/avatar.jpg"}/
-          = image_tag  @candidate.photo
-        #text-header
-          %h2
-            %span{style: "color:#F0563D"}= @candidate.full_name
-            -#%br/
-            -#my name is
-            -#%span= @candidate.full_name
-            -#-#%sup= (@candidate.dob-Time.now).to_i
-            -#and this is my resume
-  .row
-    .col-xs-12.col-sm-7
-      / ABOUT ME
-      .box
-        %h2 About Me
-        %p= @candidate.try(:description)
-      / EDUCATION
-      .box
-        %h2 Education
-        - @candidate.educations.each do |edu|
-          %ul#education.clearfix
-            %li
-              .year.pull-left= edu.start_year.strftime("%Y")
-              .description.pull-right
-                %h3= edu.degree_title
-                %p= raw(edu.description)
+    .col-sm-12
+      #cv.instaFade
+        .mainDetails
+          #headshot.quickFade
+            = image_tag @candidate.photo
+          #name
+            %h1.quickFade.delayTwo= @candidate.try(:full_name).try(:titleize)
+            -#%h2.quickFade.delayThree Job Title
+          #contactDetails.quickFade.delayFour
+            %ul
+              %li
+                Email:
+                %a{:href => "mailto:joe@bloggs.com", :target => "_blank"}= @candidate.email
+              %li Phone: #{ @candidate.phone}
 
-      / EXPERIENCES
-      .box
-        %h2 Experiences
-        - @candidate.experiences.each do |experience|
-          .job.clearfix
-            .col-xs-3
-              .where= experience.institute
-              .year= experience.start_date.to_s + "-" + experience.end_date.to_s
-            .col-xs-9
-              .profession= experience.experience_title
-              .description= raw(experience.description)
-    .col-xs-12.col-sm-5
-      / CONTACT
-      .box.clearfix
-        %h2 Contact
-        .contact-item
-          .icon.pull-left.text-center
-            %span.fa.fa-phone.fa-fw
-          .title.only.pull-right= @candidate.try(:phone)
-        .contact-item
-          .icon.pull-left.text-center
-            %span.fa.fa-envelope.fa-fw
-          .title.only.pull-right= @candidate.try(:email)
-        -#.contact-item
-        -#  .icon.pull-left.text-center
-        -#    %span.fa.fa-twitter.fa-fw
-        -#  .title.pull-right Twitter
-        -#  .description.pull-right= @candidate.try(:twitter_url)
-        -#.contact-item
-        -#  .icon.pull-left.text-center
-        -#    %span.fa.fa-facebook.fa-fw
-        -#  .title.pull-right Facebook
-        -#  .description.pull-right= @candidate.try(:facebook_url)
-        -#.contact-item
-        -#  .icon.pull-left.text-center
-        -#    %span.fa.fa-google.fa-fw
-        -#  .title.pull-right Google
-        -#  .description.pull-right= @candidate.try(:google_url)
-      / SKILLS
-      .box
-        %h2 Skills
-        -if @candidate.skills.present?
-          .skills
-            - @candidate.try(:skills).each do |skill|
-              %ul.list-unstyled
-                %a
-                  %li
-                    %span
-                      .label-info.badge
-                        = skill.name
+          .clear
+        #mainArea.quickFade.delayFive
+          %section
+            %article
+              .sectionTitle
+                %h1 Personal Profile
+              .sectionContent
+                %p= @candidate.description
+            .clear
+          -if @candidate.experiences.present?
+            %section
+              .sectionTitle
+                %h1 Work Experience
+              .sectionContent
+                - @candidate.experiences.each do |experience|
+                  %article
+                    %h2= experience.experience_title
+                    %p.subDetails= experience.start_date.to_s + "-" + experience.end_date.to_s
+                    %p= raw(experience.description)
+              .clear
+          -if @candidate.skills.present?
+            %section
+              .sectionTitle
+                %h1 Skills
+              .sectionContent
+                %ul.keySkills
+                  - @candidate.try(:skills).each do |skill|
+                    %li
+                      %span
+                        .label-info.badge
+                          = skill.name
+              .clear
+          -if @candidate.educations.present?
+            %section
+              .sectionTitle
+                %h1 Education
+              .sectionContent
+                - @candidate.educations.each do |edu|
+                  %article
+                    %h2= edu.institute.titleize
+                    %p.subDetails= edu.degree_title
+                    %p= raw(edu.description)
+              .clear
+-content_for :scripts do
+  :javascript
 
-          -#.item-skills{"data-percent" => "1.00", :style => "width: 458px;"} HTML
-          -#.item-skills{"data-percent" => "0.90", :style => "width: 412.2px;"} CSS
-          -#.item-skills{"data-percent" => "0.80", :style => "width: 366.4px;"} jQuery
-          -#.item-skills{"data-percent" => "0.75", :style => "width: 343.5px;"} PHP
-          -#.item-skills{"data-percent" => "0.25", :style => "width: 114.5px;"} Laravel 2 (framework)
-          -#.skills-legend.clearfix
-          -#  .legend-left.legend Beginner
-          -#  .legend-left.legend
-          -#    %span Proficient
-          -#  .legend-right.legend
-          -#    %span Expert
-          -#  .legend-right.legend Master
-      -#/ LANGUAGES
-      -#.box
-      -#  %h2 Languages
-      -#  #language-skills
-      -#    .skill
-      -#      Polish
-      -#      .icons.pull-right
-      -#        .icons-red{:style => "width: 80%; height: 14px;"}
-      -#    .skill
-      -#      English
-      -#      .icons.pull-right
-      -#        .icons-red{:style => "width: 60%; height: 14px;"}
-      -#/ HOBBIES
-      -#.box
-      -#  %h2 Hobbies
-      -#  .hobby Photography
-      -#  .hobby Fitness
-      -#  .hobby Programming
+
 
 
 -content_for :head do
   = stylesheet_link_tag 'static/resume'
--content_for :scripts do
-  = javascript_include_tag 'static/resume'
+  %link{:href => "http://fonts.googleapis.com/css?family=Rokkitt:400,700|Lato:400,300", :rel => "stylesheet", :type => "text/css"}/

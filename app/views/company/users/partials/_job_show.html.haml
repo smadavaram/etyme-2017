@@ -1,0 +1,21 @@
+.panel.panel-default
+  .panel-body.status
+    .who.clearfix
+      %span.pull-right.font-xs.text-muted
+        %ul.list-inline.friends-list
+          %li
+            = image_tag data.created_by.photo,class:'',alt: "job"
+      = image_tag 'jobs.png',class:'',alt: "job"
+      %h4 Title-#{data.title.humanize}
+      %span.name.font-sm.text-muted
+        Location: #{data.location.humanize}
+      %p= raw(data.description)
+      %i.fa.fa-tags
+      - data.tags.each do |tag|
+        %span
+          .label-info.badge
+            = tag.name
+      .row
+        .col-md-3.margin-top-5
+          = link_to raw("<i class='fa fa-share '></i>") ,send_invitation_job_path(data) , method: :post ,remote: true,  class: 'btn btn-md btn-primary'
+          = link_to raw("<i class='fa fa-comments '></i>") ,company_chat_path(data.chat),class: "btn btn-sm btn-primary"

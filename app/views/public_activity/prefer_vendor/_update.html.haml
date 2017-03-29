@@ -13,11 +13,6 @@
       %p.font-md
         #{a.owner.try(:name).try(:titleize) } #{a.trackable.status.titleize} vendor request of company #{a.trackable.prefer_vendor.try(:name) }
 -else
-
-  - if a. owner.logo.present?
-    = image_tag a.owner.logo,class:'',alt: "Company"
-  -else
-    = image_tag 'can.png',class:'',alt: "Company"
   %span.name.font-sm.well.margin-bottom-10
     %span.text-muted #{link_to a.owner.name.titleize, a.owner if a.owner}
     %b

@@ -13,11 +13,6 @@
         company #{a.owner.try(:name).try(:humanize)} sent invitation to
         = link_to   a.trackable.try(:prefer_vendor).try(:name).try(:titleize),  a.trackable.try(:company).present? ?  profile_company_path( a.trackable.try(:prefer_vendor).try(:id)):'', class: 'font-md'
 -else
-  - if a. owner.logo.present?
-    = image_tag a.owner.logo,class:'',alt: "Company"
-  -else
-    = image_tag 'can.png',class:'',alt: "Company"
-
   %span.name.font-sm.well.margin-bottom-10
     %span.text-muted
       = link_to a.trackable.try(:company).try(:name) , a.trackable.try(:company).present? ?  profile_company_path( a.trackable.try(:company).try(:id)): '', class: 'font-md'
@@ -26,7 +21,6 @@
         %i= time_ago_in_words(a.try(:created_at).try(:localtime))+" ago"
       %span.name.font-sm
         %b
-    %br/
     send invitation to
     = link_to   a.trackable.try(:prefer_vendor).try(:name).try(:titleize),  a.trackable.try(:company).present? ?  profile_company_path( a.trackable.try(:prefer_vendor).try(:id)):'', class: 'font-md'
 

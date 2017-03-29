@@ -5,6 +5,13 @@ class Company::UsersController < Company::BaseController
   before_action :find_user  , only: [:add_reminder, :profile]
 
   def dashboard
+    if current_company.vendor?
+      @data = []
+      @data += current_company.jobs
+      @data += current_company.invited_companies_contacts
+      @data += current_company.candidates
+      @data = @data.sort{|y,z| z.created_at <=> y.created_at}
+    end
     @activities = PublicActivity::Activity.order("created_at desc")
   end # End of dashboard
   def profile

@@ -13,11 +13,6 @@
         #{a.owner.name.titleize}   created candidate
         = link_to a.trackable.try(:full_name).try(:titleize), static_candidate_resume_path( a.trackable), class: 'font-md'
 -else
-  - if a.owner.logo.present?
-    = image_tag a.owner.logo,class:'',alt: "Company"
-  -else
-    = image_tag 'can.png',class:'',alt: "Company"
-
   %span.name.font-sm.well.margin-bottom-10
     %span.text-muted
       = link_to a.owner.try(:name).try(:titleize) , class: 'font-md'
@@ -26,7 +21,6 @@
         %i= time_ago_in_words(a.try(:created_at).try(:localtime))+" ago"
       %span.name.font-sm
         %b
-    %br/
     Created Candidate
     = link_to a.trackable.try(:full_name).try(:titleize), static_candidate_resume_path( a.trackable), class: 'font-md'
 

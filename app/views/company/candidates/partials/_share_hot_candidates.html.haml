@@ -1,0 +1,39 @@
+.modal.fade.in#share-candidates
+  .modal-dialog.modal-md
+    .modal-content
+      .modal-header
+        %button.close{"aria-hidden" => "true", "data-dismiss" => "modal", :type => "button"}
+          ×
+        %h2#myModalLabel.modal-title
+          %strong Share Hot Candidates
+
+      .modal-body
+        = form_for Candidate.new, url: share_hot_candidates_candidates_path(), html: {class: 'form-horizontal'},method: :get do |f|
+          = hidden_field_tag 'candidates_ids'
+          %fieldset
+            -#.form-group
+              %label.col-md-2.control-label Select Candidates
+              .col-md-10
+                = select_tag 'candidates_ids', options_for_select(current_company.hot_candidates.collect { |c| [c.candidate.full_name,c.candidate.id] }),class: 'form-control select2' , required: true ,:multiple => true
+            .form-group
+              %label.col-md-2.control-label
+                Email
+                %sup.text-danger
+              .col-md-10
+                = email_field_tag "email" ,nil ,class: "form-control" , placeholder: "Enter Email To Share with" , required: true
+            .form-group
+              %label.col-md-2.control-label
+                Message
+                %sup.text-danger
+              .col-md-10
+                = text_field_tag "message" ,nil ,class: "form-control" , placeholder: "Message " , required: true
+
+          .modal-footer
+            %button.btn.btn-default{"data-dismiss" => "modal", :type => "button"}
+              Cancel
+            = f.button "Save".html_safe , class: 'btn btn-primary' , data: {disable_with: disable_spinning('Saving...')}
+
+:css
+  .select2{
+    width: 470px;
+    }

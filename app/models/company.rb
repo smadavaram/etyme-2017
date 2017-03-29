@@ -105,6 +105,11 @@ class Company < ActiveRecord::Base
     PreferVendor.where('(prefer_vendors.vendor_id= :c_id OR prefer_vendors.company_id= :c_id) AND prefer_vendors.status = 0',{c_id: self.id})
   end
 
+  def hot_candidates
+    CandidatesCompany.hot_candidate.where(company_id: self.id)
+  end
+
+
   # def already_prefered(c)
   #   Company.where.not(:id=>PreferVendor.select(:vendor_id).where(company_id=c.id))
   # end

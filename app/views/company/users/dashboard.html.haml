@@ -18,191 +18,183 @@
 -#            %br
 #content
   %section#widget-grid
-    .row
-      .col-sm-12.col-md-8
-        - current_company.jobs.last(10).each do |j|
+    - if current_company.vendor?
+      .row
+        .col-sm-12.col-md-8
+          - @data.each do |d|
+            = render "company/users/partials/#{d.class.name.downcase}_show" ,data: d
+        .col-sm-12.col-md-4
+
           .panel.panel-default
             .panel-body.status
               .who.clearfix
-                %span.pull-right.font-xs.text-muted
+                %h4 Company Candidates (#{current_company.candidates.count})
+              -if current_company.candidates.present?
+                .col-sm-12
                   %ul.list-inline.friends-list
-                    %li
-                      = image_tag j.created_by.photo,class:'',alt: "job"
-                = image_tag 'jobs.png',class:'',alt: "job"
-                %h4 Title-#{j.title.humanize}
-                %span.name.font-sm.text-muted
-                  Location: #{j.location.humanize}
-                %p= raw(j.description)
-                %i.fa.fa-tags
-                - j.tags.each do |tag|
-                  %span
-                    .label-info.badge
-                      = tag.name
-                .row
-                  .col-md-3.margin-top-5
-                    = link_to raw("<i class='fa fa-share '></i>") ,send_invitation_job_path(j) , method: :post ,remote: true,  class: 'btn btn-md btn-primary'
-                    = link_to raw("<i class='fa fa-comments '></i>") ,company_chat_path(j.chat),class: "btn btn-sm btn-primary"
-        - current_company.invited_companies_contacts.take(10).each do |contact|
+                    %br
+                    - current_company.candidates.take(30).each do |candidate|
+                      %li
+                        = link_to image_tag( candidate.try(:photo) ,class:"margin-bottom-5 margin-top-5",alt:image_path('avatars/male.png')) , static_candidate_resume_path(candidate),target: "_blank" , title: candidate.full_name,"data-content" => "Email : #{candidate.email}", "data-placement" => "top",:rel => "hover"
+
+              -else
+                .text
+                  .font-md.text-center
+                    No Candidate in  Company Right now.
           .panel.panel-default
             .panel-body.status
-              %h4.padding-5 Contact
               .who.clearfix
-                %span.pull-right.font-xs.text-muted
+                %h4 Company Contacts (#{current_company.invited_companies_contacts.count})
+              -if current_company.invited_companies_contacts.present?
+                .col-sm-12
                   %ul.list-inline.friends-list
-                    %li
-                      = image_tag 'https://cdn1.iconfinder.com/data/icons/business-237/65/icons-08-128.png',class:'',alt: "job"
-                = image_tag contact.photo,class:'',alt: "job",width:"100px !important",hieght:"100px !important"
-                %h4 Name-#{contact.full_name.humanize}
-                %h4 Company-#{contact.company.name.humanize}
-                %span.name.font-sm.text-muted.margin-top-10
-                  Email: #{contact.email}
-                .row
-                  .col-md-3.margin-top-5
-                    = link_to raw("<i class='fa fa-share '></i>") ,"#" , method: :post ,remote: true,  class: 'btn btn-md btn-primary'
-                    = link_to raw("<i class='fa fa-comments '></i>") ,"#",class: "btn btn-sm btn-primary"
-        - current_company.candidates.take(10).each do |candidate|
+                    %br
+                    - current_company.invited_companies_contacts.take(30).each do |contact|
+                      %li
+                        = link_to (image_tag contact.try(:photo) ,class:"margin-bottom-5 margin-top-5",alt: image_path('avatars/male.png') ), profile_company_path(contact) ,title: contact.full_name ,"data-content" => "Email : #{contact.email}", "data-placement" => "top",:rel => "hover"
+              -else
+                .text
+                  .font-md.text-center
+                    No Contact in Company Right now.
           .panel.panel-default
             .panel-body.status
-              %h4.padding-5 Candidate
               .who.clearfix
-                %span.pull-right.font-xs.text-muted
+                %h4 Company Consultants (#{current_company.consultants.count})
+              -if current_company.consultants.present?
+                .col-sm-12
                   %ul.list-inline.friends-list
-                    %li
-                      = image_tag 'https://cdn1.iconfinder.com/data/icons/business-237/65/icons-08-128.png',class:'',alt: "job"
-                = image_tag candidate.photo,class:'',alt: "job",width:"100px !important",hieght:"100px !important"
-                %h4 Name-#{candidate.full_name.humanize}
-                %h4 Company-#{candidate.invited_by.company.name.humanize}
-                %span.name.font-sm.text-muted.margin-top-10
-                  Email: #{candidate.email}
-                .row
-                  .col-md-3.margin-top-5
-                    = link_to raw("<i class='fa fa-share '></i>") ,"#" , method: :post ,remote: true,  class: 'btn btn-md btn-primary'
-                    = link_to raw("<i class='fa fa-comments '></i>") ,"#",class: "btn btn-sm btn-primary"
-      .col-sm-12.col-md-4
-
-        .panel.panel-default
-          .panel-body.status
-            .who.clearfix
-              %h4 Company Candidates (#{current_company.candidates.count})
-            -if current_company.candidates.present?
-              .col-sm-12
-                %ul.list-inline.friends-list
-                  %br
-                  - current_company.candidates.take(30).each do |candidate|
-                    %li
-                      = link_to image_tag( candidate.try(:photo) ,class:"margin-bottom-5 margin-top-5",alt:image_path('avatars/male.png')) , static_candidate_resume_path(candidate),target: "_blank" , title: candidate.full_name
-                      -#= image_tag candidate.try(:photo) ,class:"margin-bottom-5 margin-top-5",alt:image_path('avatars/male.png')
-
-            -else
-              .text
-                .font-md.text-center
-                  No Candidate in  Company Right now.
-        .panel.panel-default
-          .panel-body.status
-            .who.clearfix
-              %h4 Company Contacts (#{current_company.invited_companies_contacts.count})
-            -if current_company.invited_companies_contacts.present?
-              .col-sm-12
-                %ul.list-inline.friends-list
-                  %br
-                  - current_company.invited_companies_contacts.take(30).each do |contact|
-                    %li
-                      = image_tag contact.try(:photo) ,class:"margin-bottom-5 margin-top-5",alt: image_path('avatars/male.png')
-            -else
-              .text
-                .font-md.text-center
-                  No Contact in Company Right now.
-        .panel.panel-default
-          .panel-body.status
-            .who.clearfix
-              %h4 Company Consultants (#{current_company.consultants.count})
-            -if current_company.consultants.present?
-              .col-sm-12
-                %ul.list-inline.friends-list
-                  %br
-                  - current_company.consultants.take(30).each do |consultant|
-                    %li
-                      = link_to image_tag( consultant.try(:photo) ,class:"margin-bottom-5 margin-top-5",alt: image_path('avatars/male.png') ), company_user_profile_path(consultant),target: "_blank" , title: consultant.full_name
-                      -#= image_tag consultant.try(:photo) ,class:"margin-bottom-5 margin-top-5",alt: image_path('avatars/male.png')
-            -else
-              .text
-                .font-md.text-center
-                  No Consultant in Company Right now.
-        .panel.panel-default
-          .panel-body.status
-            .who.clearfix
-              %h4 My Vendors (#{current_company.send_or_received_network.count})
-            -if current_company.send_or_received_network.present?
-              .col-sm-12
-                %ul.list-inline.friends-list
-                  %br
-                  - current_company.send_or_received_network.take(30).each do |vendor|
-                    %li
-                      = link_to image_tag( 'https://cdn1.iconfinder.com/data/icons/business-237/65/icons-08-128.png' ,class:"margin-bottom-5 margin-top-5",alt: image_path('avatars/male.png') ), profile_company_path(vendor.prefer_vendor),target: "_blank" , title: vendor.prefer_vendor.name
-                      -#= image_tag 'https://cdn1.iconfinder.com/data/icons/business-237/65/icons-08-128.png' ,class:"margin-bottom-5 margin-top-5",alt: image_path('avatars/male.png')
-            -else
-              .text
-                .font-md.text-center
-                  No Vendor Right now.
-        .panel.panel-default
-          .panel-body.status
-            .who.clearfix
-              %h4 Companies 3rd Party (#{current_company.invited_companies.count})
-            -if current_company.invited_companies.present?
-              .col-sm-12
-                %ul.list-inline.friends-list
-                  %br
-                  - current_company.invited_companies.take(30).each do |company|
-                    %li
-                      = link_to image_tag( 'https://cdn1.iconfinder.com/data/icons/business-237/65/icons-08-128.png' ,class:"margin-bottom-5 margin-top-5",alt: image_path('avatars/male.png') ), profile_company_path(company.invited_company),target: "_blank", title:company.invited_company.name
-            -else
-              .text
-                .font-md.text-center
-                  No Company Right now.
+                    %br
+                    - current_company.consultants.take(30).each do |consultant|
+                      %li
+                        = link_to image_tag( consultant.try(:photo) ,class:"margin-bottom-5 margin-top-5",alt: image_path('avatars/male.png') ), company_user_profile_path(consultant),target: "_blank" , title: consultant.full_name,"data-content" => "Email: #{consultant.email}", "data-placement" => "top","data-img"=>"#{consultant.photo}" ,:rel => "hover"
+              -else
+                .text
+                  .font-md.text-center
+                    No Consultant in Company Right now.
+          .panel.panel-default
+            .panel-body.status
+              .who.clearfix
+                %h4 My Vendors (#{current_company.send_or_received_network.count})
+              -if current_company.send_or_received_network.present?
+                .col-sm-12
+                  %ul.list-inline.friends-list
+                    %br
+                    - current_company.send_or_received_network.take(30).each do |vendor|
+                      %li
+                        = link_to image_tag( 'https://cdn1.iconfinder.com/data/icons/business-237/65/icons-08-128.png' ,class:"margin-bottom-5 margin-top-5",alt: image_path('avatars/male.png') ), profile_company_path(vendor.prefer_vendor),target: "_blank" , title: vendor.prefer_vendor.name,"data-content" => "Email : #{vendor.try(:prefer_vendor).try(:email)}", "data-placement" => "top",:rel => "hover"
+                        -#= image_tag 'https://cdn1.iconfinder.com/data/icons/business-237/65/icons-08-128.png' ,class:"margin-bottom-5 margin-top-5",alt: image_path('avatars/male.png')
+              -else
+                .text
+                  .font-md.text-center
+                    No Vendor Right now.
+          .panel.panel-default
+            .panel-body.status
+              .who.clearfix
+                %h4 Companies 3rd Party (#{current_company.invited_companies.count})
+              -if current_company.invited_companies.present?
+                .col-sm-12
+                  %ul.list-inline.friends-list
+                    %br
+                    - current_company.invited_companies.take(30).each do |company|
+                      %li
+                        = link_to image_tag( 'https://cdn1.iconfinder.com/data/icons/business-237/65/icons-08-128.png' ,class:"margin-bottom-5 margin-top-5",alt: image_path('avatars/male.png') ), profile_company_path(company.invited_company),target: "_blank", title:company.invited_company.name,"data-content" => "Email : #{company.invited_company.email}", "data-placement" => "top",:rel => "hover"
+              -else
+                .text
+                  .font-md.text-center
+                    No Company Right now.
 
 
 
-      %hr
-    -#.row
+        %hr
+    - if current_company.hiring_manager?
       .col-sm-12.col-md-6
         .panel.panel-default
           .panel-body.status
             .who.clearfix
-              %h4 Company Candidates
-            - if current_company.candidates.present?
-              - current_company.candidates.last(3).each do |j|
+              %h4 Company Consultant(s)
+            .row
+              -if current_company.consultants.present?
+                .text
+                  - current_company.consultants.last(3).each do |d|
+                    .col-sm-12.col-md-6.col-lg-4
+                      .well.text-center.connect
+                        -#%img.margin-bottom-5.margin-top-5{:alt => "img", :src => "img/avatars/female.png"}/
+                        = image_tag d.photo ,class:"margin-bottom-5 margin-top-5",alt:'img',width: '20px;',height: '20px;'
+                        %br/
+                        %span.font-xs
+                          %b
+                            = d.first_name
+              -else
+                .text
+                  .font-md.text-center
+                    No Consultant in  Company Right now.
+      .col-sm-12.col-md-6
+        .panel.panel-default
+          .panel-body.status
+            .who.clearfix
+              %h4 Latest Job Opening
+            - if current_company.jobs.present?
+              - current_company.jobs.last(3).each do |j|
                 .who.clearfix
-                  = image_tag 'can.png',class:'',alt: "job"
+                  = image_tag 'jobs.png',class:'',alt: "job"
                   -#%img.busy{:alt => "img", :src => "img/avatars/2.png"}/
                   %span.name.font-sm
-                    %span.text-muted Invited By
+                    %span.text-muted Posted by
                     %b
-                      =j.invited_by.first_name  rescue ' Admin '
+                      =j.company.owner.first_name
                       %br/
                       %span.pull-right.font-xs.text-muted
                         %i
                           = time_ago_in_words(j.try(:created_at).try(:localtime))
                     .font-md
-                      = link_to "#{j.first_name}",static_candidate_resume_path(j)
+                      = link_to "#{j.title}",job_path(j)
             -else
               .who.clearfix
                 .text
                   .font-md.text-center
-                    No Candidates in  Company Right now.
-      .col-sm-12.col-md-6
-        .panel.panel-default
-          .panel-body.status
-            .who.clearfix
-              %h4 Latest Activities
-            -if company_activities.present?
-              -company_activities.take(4).each do |activity|
+                    No Jobs in  Company Right now.
+      %hr
+      .row
+        .col-sm-12.col-md-6
+          .panel.panel-default
+            .panel-body.status
+              .who.clearfix
+                %h4 Company Candidates
+              - if current_company.candidates.present?
+                - current_company.candidates.last(3).each do |j|
+                  .who.clearfix
+                    = image_tag 'can.png',class:'',alt: "job"
+                    -#%img.busy{:alt => "img", :src => "img/avatars/2.png"}/
+                    %span.name.font-sm
+                      %span.text-muted Invited By
+                      %b
+                        =j.invited_by.first_name  rescue ' Admin '
+                        %br/
+                        %span.pull-right.font-xs.text-muted
+                          %i
+                            = time_ago_in_words(j.try(:created_at).try(:localtime))
+                      .font-md
+                        = link_to "#{j.first_name}",static_candidate_resume_path(j)
+              -else
                 .who.clearfix
-                  = render_activity activity
-            -else
+                  .text
+                    .font-md.text-center
+                      No Candidates in  Company Right now.
+        .col-sm-12.col-md-6
+          .panel.panel-default
+            .panel-body.status
               .who.clearfix
-                .text
-                  .font-md.text-center
-                    No Activities in  Company Right now.
+                %h4 Latest Activities
+              -if company_activities.present?
+                -company_activities.take(4).each do |activity|
+                  .who.clearfix
+                    = render_activity activity
+              -else
+                .who.clearfix
+                  .text
+                    .font-md.text-center
+                      No Activities in  Company Right now.
+
 
 
 - content_for :scripts do
@@ -210,5 +202,11 @@
 
     $(document).ready(function() {
       pageSetUp();
+      $('a[rel=hover]').popover({
+      html: true,
+      trigger: 'hover',
+      placement: 'top',
+      content: function(){return '<img src="'+$(this).data('img') + '" />';}
+    });
 
     });

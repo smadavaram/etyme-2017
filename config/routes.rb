@@ -180,6 +180,10 @@ Rails.application.routes.draw do
       post   :make_normal
       get    :add_reminder
       post   :create_chat
+      collection do
+        get    :share_candidates ,as: :share_hot_candidates
+      end
+
     end
     resources :job_applications ,concerns: :paginatable , only: [:index,:show] do
     resources :consultants , only: [:new , :create]

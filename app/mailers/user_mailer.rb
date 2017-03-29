@@ -42,10 +42,23 @@ class UserMailer < ApplicationMailer
     mail(to: @owner.email,  subject: "#{@company.name.titleize} welcome to Etyme",from: "Etyme <no-reply@etyme.com>")
   end
 
+  # method for sharing of message
   def share_message_email(message,to_email , note)
     @message = message
     @note = note
     mail(to: to_email ,subject: "Etyme Share Message With You" ,from: "Etyme <no-reply@etyme.com>")
+  end
+
+  # method for sharing of Hot Candidates
+  def share_hot_candidates(to_email,candidates_ids ,current_company,message)
+    @link_list = []
+    @message = message
+    candidates_ids.each do |cid|
+      @link_list.push({name: current_company.candidates.find(cid).full_name ,url: "http://#{current_company.etyme_url}/static/candidates/#{cid}/resume"})
+    end
+    @candidates_ids = candidates_ids
+    @company = current_company
+    mail(to: to_email,subject: "#{current_company.name.titleize} Shared Hot Candidates Link",from: "Etyme <no-reply@etyme.com>")
   end
   private
 
