@@ -2,7 +2,7 @@ class Company::CompaniesController < Company::BaseController
 
   before_action :find_admin, only: :change_owner
   before_action :authorized_user , only: [:show,:create ,:hot_candidates,:index, :new]
-  before_action :find_company , only: [:edit,:update,:destroy ,:add_reminder]
+  before_action :find_company , only: [:edit,:update,:destroy ,:add_reminder ,:assign_status]
   before_action :set_hot_candidates ,only: [:hot_candidates]
   before_action :set_company_contacts , only:  [:contacts]
 
@@ -139,6 +139,9 @@ class Company::CompaniesController < Company::BaseController
   end
 
   def add_reminder
+
+  end
+  def assign_status
 
   end
 

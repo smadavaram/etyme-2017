@@ -1,6 +1,6 @@
 class Company::CandidatesController < Company::BaseController
  # add_breadcrumb "CANDIDATE", :candidate_path, options: { title: "CANDIDATE" }
-  before_action :find_candidate , only: [:edit, :update , :add_reminder]
+  before_action :find_candidate , only: [:edit, :update , :add_reminder,:assign_status]
   before_action :find_signup_candidate ,only: [:create_chat]
   add_breadcrumb "Company", :dashboard_path
   add_breadcrumb "Candidates", :company_candidates_path
@@ -135,6 +135,10 @@ class Company::CandidatesController < Company::BaseController
       @chat.chat_users.find_or_create_by(userable:current_user)
     end
     redirect_to company_chat_path(@chat)
+  end
+
+  def assign_status
+
   end
 
   private

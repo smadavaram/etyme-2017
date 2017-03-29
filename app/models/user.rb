@@ -45,6 +45,7 @@ class User < ActiveRecord::Base
   has_many :chat_users          ,as: :userable
   has_many :chats               ,through: :chat_users
   has_many :reminders
+  has_many :statuses
   has_and_belongs_to_many :roles
 
 

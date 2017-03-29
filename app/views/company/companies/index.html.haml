@@ -30,6 +30,8 @@
                           %input.form-control{:placeholder => "Groups", :type => "text"}/
                         %th.hasinput{:style => "width:10%"}
                           %input.form-control{:placeholder => "Last Reminder", :type => "text"}/
+                        %th.hasinput
+                          %input.form-control{ :placeholder => "Note ", :type => "text"}/
                         %th.hasinput{:style => "width:10%"}
                           %input.form-control{:placeholder => "Actions", :type => "text"}/
                       %tr{:role => "row"}
@@ -42,6 +44,7 @@
                         %th Phone
                         %th Groups
                         %th Last Reminder
+                        %th Note
                         %th Actions
                     %tbody
                       -@invited_companies.each do |d|
@@ -61,6 +64,14 @@
                             - reminder = find_reminderable_last_reminder( d.try(:invited_company))
                             = reminder.present? ? reminder.try(:title).try(:titleize) : ''
                           %td
+                            - if d.try(:invited_company).try(:statuses).present?
+                              %span
+                                .label-info.badge
+                                  = d.try(:invited_company).try(:statuses).try(:last).try(:status_type)
+                              %br
+                                = d.try(:invited_company).try(:statuses).try(:last).try(:note)
+                          %td
+                            = link_to 'Assign Status'    ,company_assign_status_path(d.invited_company) ,class: 'btn btn-primary btn-xs margin-bottom-5', remote: :true
                             = link_to raw("<i class='fa fa-bell '></i>")    ,company_company_add_reminder_path(d.invited_company)   ,class: 'btn btn-primary btn-xs margin-bottom-5', remote: :true ,title:"Remind Me"
                             -#= link_to "Contacts" ,company_contacts_path(d.try(:invited_company)), class: 'btn btn-xs btn-default btn-primary'
                             = link_to raw("<i class='fa fa-edit '></i>") , edit_company_path(d.invited_company) , class: 'btn btn-xs btn-default btn-primary margin-bottom-5',remote: :true ,title:"Edit #{d.invited_company.name}"

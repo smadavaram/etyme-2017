@@ -44,6 +44,8 @@ class Candidate < ActiveRecord::Base
   has_many   :reminders            ,as:  :reminderable
   has_many   :messages             ,as: :messageable  ,dependent: :destroy
   has_many   :chats                ,as: :chatable
+  has_many   :statuses             ,as:  :statusable
+
 
 
   attr_accessor :job_id , :expiry , :message , :invitation_type

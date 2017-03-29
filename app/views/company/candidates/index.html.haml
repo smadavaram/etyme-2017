@@ -25,9 +25,10 @@
                           %input.form-control{:placeholder => "Phone ", :type => "text"}/
                         %th.hasinput{ :style => "width:17%"}
                           %input.form-control{:placeholder => "Skills ", :type => "text"}/
-                        %th.hasinput.icon-addon
-                          %input#dateselect_filter.form-control.datepicker.hasDatepicker{"data-dateformat" => "yy/mm/dd", :placeholder => "Last Reminder", :type => "text"}/
-                          %label.glyphicon.glyphicon-calendar.no-margin.padding-top-15{"data-original-title" => "Filter Posted by", :for => "dateselect_filter", :rel => "tooltip", :title => ""}
+                        %th.hasinput
+                          %input.form-control{ :placeholder => "Last Reminder", :type => "text"}/
+                        %th.hasinput
+                          %input.form-control{ :placeholder => "Note ", :type => "text"}/
                         %th.hasinput{ :style => "width:16%"}
                           %input.form-control{:placeholder => "Actions", :type => "text"}/
                       %tr{:role => "row"}
@@ -38,6 +39,7 @@
                         -#%th Role
                         %th Skills
                         %th Last Reminder
+                        %th Note
                         -#%th Location
                         -#%th Groups
                         %th Actions
@@ -62,6 +64,13 @@
                           %td
                             - reminder = find_reminderable_last_reminder(candidate)
                             = reminder.present? ? reminder.try(:title).try(:titleize) : ''
+                          %td
+                            - if candidate.try(:statuses).present?
+                              %span
+                                .label-info.badge
+                                  = candidate.try(:statuses).try(:last).try(:status_type)
+                              %br
+                                = candidate.try(:statuses).try(:last).try(:note)
                           -#%td
                           -#  - if candidate.address.nil?
                           -#    = candidate.address.city + ' , '+ candidate.address.state + ' , '+ candidate.address.country + ' , '+ candidate.address.zip_code
@@ -71,6 +80,7 @@
                               %span.badge.bg-color-blue
                                 = group.try(:group_name).try(:titleize)
                           %td
+                            = link_to 'Assign Status'     ,candidate_assign_status_path(candidate)   ,class: 'btn btn-primary btn-xs', remote: :true
                             = link_to raw("<i class='fa fa-bell '></i>")     ,candidate_add_reminder_path(candidate) ,class: 'btn btn-primary btn-xs margin-bottom-5', remote: :true,title:"Remind Me"
                             -#= link_to 'Activity'     ,company_activities_index_path(index: true), class: 'btn btn-xs btn-primary  margin-bottom-5',title:"Activity Log"
                             = link_to raw("<i class='fa fa-file-text '></i>") , candidate.resume ,download: true , class: 'btn btn-xs btn-primary  margin-bottom-5',title:"Resume"

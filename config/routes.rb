@@ -1,4 +1,5 @@
 Rails.application.routes.draw do
+
   namespace :company do
   get 'activities/index'
   end
@@ -110,6 +111,8 @@ Rails.application.routes.draw do
 
   # COMPANY ROUTES
   namespace  :company do
+
+    resources :statuses , only: [:create]
     get 'companies/edit'
     resources :users, only: [:show,:update] do
       get  :add_reminder
@@ -179,6 +182,7 @@ Rails.application.routes.draw do
       post   :make_hot
       post   :make_normal
       get    :add_reminder
+      get    :assign_status
       post   :create_chat
       collection do
         get    :share_candidates ,as: :share_hot_candidates
@@ -265,6 +269,7 @@ Rails.application.routes.draw do
     # get 'configuration' ,   to: 'companies#edit' ,              as: :configuration
     resources :companies , concerns: :paginatable ,only: [:update,:show , :index,:edit,:destroy] do
       get  :contacts
+      get  :assign_status
       collection do
         post :change_owner
         post :get_admins_list , as: :get_admins_list

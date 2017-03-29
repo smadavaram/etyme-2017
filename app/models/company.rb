@@ -48,6 +48,8 @@ class Company < ActiveRecord::Base
   has_many :custom_fields             , as: :customizable             ,dependent: :destroy
   has_many :reminders                 ,as:  :reminderable
   has_many :chats                     ,dependent: :destroy
+  has_many :statuses                  ,as:  :statusable
+
   # validates           :company_type, inclusion: { in: [0, 1] } , presence: true
   # validates           :company_type, inclusion: {in: %w(0 , 1)}
   validates           :name,  presence:   true
