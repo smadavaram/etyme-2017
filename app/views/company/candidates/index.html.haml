@@ -80,7 +80,7 @@
                               %span.badge.bg-color-blue
                                 = group.try(:group_name).try(:titleize)
                           %td
-                            = link_to 'Assign Status'     ,candidate_assign_status_path(candidate)   ,class: 'btn btn-primary btn-xs', remote: :true
+                            = link_to raw("<i class='fa fa-sticky-note '></i>")  ,candidate_assign_status_path(candidate)   ,class: 'btn btn-primary btn-xs', remote: :true,title:"Assign Status"
                             = link_to raw("<i class='fa fa-bell '></i>")     ,candidate_add_reminder_path(candidate) ,class: 'btn btn-primary btn-xs margin-bottom-5', remote: :true,title:"Remind Me"
                             -#= link_to 'Activity'     ,company_activities_index_path(index: true), class: 'btn btn-xs btn-primary  margin-bottom-5',title:"Activity Log"
                             = link_to raw("<i class='fa fa-file-text '></i>") , candidate.resume ,download: true , class: 'btn btn-xs btn-primary  margin-bottom-5',title:"Resume"
