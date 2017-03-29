@@ -11,10 +11,6 @@
         = form_for Candidate.new, url: share_hot_candidates_candidates_path(), html: {class: 'form-horizontal'},method: :get do |f|
           = hidden_field_tag 'candidates_ids'
           %fieldset
-            -#.form-group
-              %label.col-md-2.control-label Select Candidates
-              .col-md-10
-                = select_tag 'candidates_ids', options_for_select(current_company.hot_candidates.collect { |c| [c.candidate.full_name,c.candidate.id] }),class: 'form-control select2' , required: true ,:multiple => true
             .form-group
               %label.col-md-2.control-label
                 Email
@@ -26,7 +22,7 @@
                 Message
                 %sup.text-danger
               .col-md-10
-                = text_field_tag "message" ,nil ,class: "form-control" , placeholder: "Message " , required: true
+                = text_area_tag "message" ,nil ,class: "form-control" , placeholder: "Message " , required: true
 
           .modal-footer
             %button.btn.btn-default{"data-dismiss" => "modal", :type => "button"}

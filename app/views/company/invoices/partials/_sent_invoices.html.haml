@@ -55,7 +55,7 @@
                         %td= contract.end_date
                         %td= contract.status.humanize
                         %td
-                          = link_to 'View Detail' , contract_invoice_path(contract.contract , contract) , target: '_blank' ,class: 'btn btn-xs btn-default btn-primary'
+                          = link_to raw("<i class='fa fa-eye '></i>") , contract_invoice_path(contract.contract , contract) , target: '_blank' ,class: 'btn btn-md btn-default btn-primary',title: "View Detail"
 
 -#= digg_pagination(data)
 

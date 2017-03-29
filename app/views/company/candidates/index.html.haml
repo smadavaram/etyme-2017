@@ -72,9 +72,9 @@
                                 = group.try(:group_name).try(:titleize)
                           %td
                             = link_to raw("<i class='fa fa-bell '></i>")     ,candidate_add_reminder_path(candidate) ,class: 'btn btn-primary btn-xs margin-bottom-5', remote: :true,title:"Remind Me"
-                            = link_to 'Activity'     ,company_activities_index_path(index: true), class: 'btn btn-xs btn-primary  margin-bottom-5',title:"Activity Log"
-                            = link_to raw("Resume") , candidate.resume ,download: true , class: 'btn btn-xs btn-primary  margin-bottom-5',title:"Resume"
-                            = link_to "show" , static_candidate_resume_path(candidate) , class: 'btn btn-xs btn-primary  margin-bottom-5',title:"Detail Show"
+                            -#= link_to 'Activity'     ,company_activities_index_path(index: true), class: 'btn btn-xs btn-primary  margin-bottom-5',title:"Activity Log"
+                            = link_to raw("<i class='fa fa-file-text '></i>") , candidate.resume ,download: true , class: 'btn btn-xs btn-primary  margin-bottom-5',title:"Resume"
+                            = link_to raw("<i class='fa fa-eye '></i>") , static_candidate_resume_path(candidate) , class: 'btn btn-xs btn-primary  margin-bottom-5',title:"Detail Show",target: '_blank'
                             = link_to raw("<i class='fa fa-users '></i>"), candidate_manage_groups_path(candidate) , remote:true,class: 'btn btn-xs btn-success  margin-bottom-5',title:"Assign Groups"
                             - if is_hot?(candidate)
                               = link_to raw("<i class='fa fa-fire '></i>"), candidate_make_hot_path(candidate) , remote:true,method: :post,class: 'btn btn-xs btn-danger  margin-bottom-5',title:"Make Hot"
@@ -119,7 +119,7 @@
             }
 
         });
-      $("div.toolbar").html('<div class="text-right">#{ link_to 'NEW' , new_company_candidate_path , class: 'btn btn-success btn-md pull-right header-btn margin-top-5 '}</div>');
+      $("div.toolbar").html("<div class='text-right'><a href=#{new_company_candidate_path} class = 'btn btn-success btn-md pull-right header-btn margin-top-5 '><i class='fa fa-user-plus'> NEW </i></a></div>");
       // Apply the filter
       $("#datatable_fixed_column thead th input[type=text]").on( 'keyup change', function () {
         otable

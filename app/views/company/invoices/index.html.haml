@@ -24,7 +24,7 @@
                   %td= invoice.end_date
                   %td= invoice.status.humanize
                   %td
-                    = link_to 'View Detail' , contract_invoice_path(@contract , invoice) , target: '_blank' ,class: 'btn btn-xs btn-default btn-primary'
+                    = link_to raw("<i class='fa fa-eye '></i>") , contract_invoice_path(@contract , invoice) , target: '_blank' ,class: 'btn btn-md btn-default btn-primary',title: "View Detail"
 
 -elsif params[:sent_invoice]
   #content
@@ -84,7 +84,7 @@
                             %td= invoice.end_date
                             %td= invoice.status.humanize
                             %td
-                              = link_to 'View Detail' , contract_invoice_path(@contract , invoice) , target: '_blank' ,class: 'btn btn-xs btn-default btn-primary'
+                              = link_to raw("<i class='fa fa-eye '></i>") , contract_invoice_path(@contract , invoice) , target: '_blank' ,class: 'btn btn-xs btn-default btn-primary',title: "View Detail"
 -elsif params[:received_invoice]
   #content
     %body
@@ -143,7 +143,7 @@
                             %td= invoice.end_date
                             %td= invoice.status.humanize
                             %td
-                              = link_to 'View Detail' , contract_invoice_path(@contract , invoice) , target: '_blank' ,class: 'btn btn-xs btn-default btn-primary'
+                              = link_to raw("<i class='fa fa-eye '></i>") , contract_invoice_path(@contract , invoice) , target: '_blank' ,class: 'btn btn-md btn-default btn-primary',title: "View Detail"
 
 -else
   #content

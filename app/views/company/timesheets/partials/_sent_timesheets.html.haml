@@ -64,13 +64,13 @@
                         %td= timesheet.end_date
                         %td= timesheet.status.titleize
                         %td
-                          = link_to 'View Details' ,timesheet_timesheet_log_path(timesheet, timesheet.timesheet_logs.last) ,  target: '_blank' ,class: 'btn btn-xs btn-default btn-primary'
-                          = link_to 'Histroy' ,'#' , "data-target" => "#timesheet-#{timesheet.id}", "data-toggle" => "modal"  ,class: 'btn btn-xs btn-default btn-primary'
+                          = link_to raw("<i class='fa fa-eye '></i>")  ,timesheet_timesheet_log_path(timesheet, timesheet.timesheet_logs.last) ,  target: '_blank' ,class: 'btn btn-xs btn-default btn-primary',title:'View Details'
+                          = link_to raw("<i class='fa fa-history '></i>") ,'#' , "data-target" => "#timesheet-#{timesheet.id}", "data-toggle" => "modal"  ,class: 'btn btn-xs btn-default btn-primary',title:'View History'
                           - if timesheet.open? && !timesheet.is_already_submitted?(current_user)
-                            = link_to 'Submit' ,timesheet_submit_path(timesheet) ,class: 'btn btn-xs btn-default btn-success' , data: {confirm: "Once submitted! you will not be able to add or modify any logs in this timesheet. It can only be Approve or Reject.", verify: 'Submit', verify_text: "Type 'Submit' to confirm"}
+                            = link_to raw("<i class='fa fa-check-circle '></i>") ,timesheet_submit_path(timesheet) ,class: 'btn btn-xs btn-default btn-success' , data: {confirm: "Once submitted! you will not be able to add or modify any logs in this timesheet. It can only be Approve or Reject.", verify: 'Submit', verify_text: "Type 'Submit' to confirm"},title:"Submit"
                           - elsif timesheet.submitted?  && !timesheet.is_already_approved_or_rejected?(current_user)
-                            = link_to 'Approve' ,timesheet_approve_path(timesheet) ,class: 'btn btn-xs btn-default btn-success' , data: {confirm: "Are you sure?", verify: 'Approve', verify_text: "Type 'Approve' to confirm"}
-                            = link_to 'Reject' ,timesheet_reject_path(timesheet) ,class: 'btn btn-xs btn-default btn-danger' , data: {confirm: "Are you sure?", verify: 'Reject', verify_text: "Type 'Reject' to confirm"}
+                            = link_to raw("<i class='fa fa-check '></i>") ,timesheet_approve_path(timesheet) ,class: 'btn btn-xs btn-default btn-success' , data: {confirm: "Are you sure?", verify: 'Approve', verify_text: "Type 'Approve' to confirm"},title:"Approve"
+                            = link_to raw("<i class='fa fa-times '></i>") ,timesheet_reject_path(timesheet) ,class: 'btn btn-xs btn-default btn-danger' , data: {confirm: "Are you sure?", verify: 'Reject', verify_text: "Type 'Reject' to confirm"},title:"Reject"
 = digg_pagination(data)
 
 :css

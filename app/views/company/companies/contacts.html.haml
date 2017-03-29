@@ -1,20 +1,10 @@
 #content
-  -#.row
-    .col-xs-12.col-sm-3.col-md-3.col-lg-3.pull-right
-      = link_to 'NEW' , new_consultant_path , class: 'btn btn-success btn-lg pull-right header-btn hidden-mobile'
   %section.margin-top-10.padding-10
     .row
       #wid-id-5.no-border
         %div
           .widget-body
             .col-md-12
-              -#= search_form_for @search , url: search_consultants_path , method: :get do |f|
-                %ul#internal-tab-1.nav.nav-tabs.tabs-pull-right
-                  %br
-                  .input-group.input-group-lg.hidden-mobile
-                    = f.text_field :first_name_or_last_name_or_email_cont, class: "form-control input-lg", placeholder: "Search Consultant..."
-                    .input-group-btn
-                      = f.button raw("<i class='fa fa-fw fa-search fa-lg'></i>") , class: 'btn btn-default'
               %br/
               %br/
               .table{:style => "width:100"}
