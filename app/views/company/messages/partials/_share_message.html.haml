@@ -16,10 +16,10 @@
               = email_field_tag :email, nil,class: 'form-control',placeholder: " Email " ,required: true
           .form-group
             %label.col-md-3.control-label
-              Message
+              Note 
               %sup.text-danger *
             .col-md-8
-              = text_field_tag :note, nil,class: 'form-control',placeholder: " Note ",required: true
+              = text_area_tag :note, nil,class: 'form-control',placeholder: " Note ",required: true
 
           .modal-footer
             = f.button "submit".html_safe , class: 'btn btn-primary btn-sm' , data: {disable_with: ("Submitting...")} ,id: 'form_id'
