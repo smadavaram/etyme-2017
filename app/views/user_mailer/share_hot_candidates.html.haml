@@ -15,29 +15,29 @@
       %tr
         %td
         %td.container{:bgcolor => "#FFFFFF"}
-          %h3 Hi, #{@company.name.titleize} has shared following Hot Candidates link  with you.
+          %h4 Hi, #{@company.name.titleize} has shared following Hot Candidates link  with you.
           %table
             %thead
               %tr
-                %th
+                %th.padding-20{style:"width:55% ;text-align: left;"}
                   Name
-                %th
+                %th.padding-20{style:"width:25% ;text-align: left;"}
                   Designation
-                %th
+                %th.padding-20{style:"width:20% ;text-align: left;"}
                   Link
             %tbody
               - company_url = @company.etyme_url
               - @link_list.each do |link|
                 %tr
-                  %td
+                  %td{style:"width:55% "}
                     = link_to  link[:name] ,link[:url],target: '_blank'
-                  %td
+                  %td{style:"width:55% "}
                     Candidate
-                  %td
-                    = link_to  link[:url] ,link[:url],target: '_blank'
+                  %td{style:"width:55%"}
+                    = link_to  'Show' ,link[:url],target: '_blank'
           %br
           %br
-          %p
+          %p{style: "font-size:20px"}
             Message : " #{@message} "
           = render 'user_mailer/partials/social_contact'
         %td

@@ -6,6 +6,9 @@
           ×
         %h2#myModalLabel.modal-title
           %strong Share Hot Candidates
+          %hr
+          %p.muted Share your hot candidates with external users
+          and you can also attach a custom message along with.
 
       .modal-body
         = form_for Candidate.new, url: share_hot_candidates_candidates_path(), html: {class: 'form-horizontal'},method: :get do |f|

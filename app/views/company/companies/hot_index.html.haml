@@ -76,7 +76,7 @@
                             = link_to raw("<i class='fa fa-file-text'></i>") , c.candidate.resume ,download: true , class: 'btn btn-xs btn-primary margin-bottom-5',title: "#{c.candidate.full_name} Resume"
                             = link_to raw("<i class='fa fa-eye'></i>") , static_candidate_resume_path(c.candidate) , class: 'btn btn-xs btn-primary margin-bottom-5',title: "Detail Show" ,target: "_blank"
                             = link_to raw("<i class='fa fa-users'></i>"), candidate_manage_groups_path(c.candidate) , remote:true,class: 'btn btn-xs btn-success margin-bottom-5',title: "Assign Groups"
-                            = link_to raw("<i class='fa fa-fire'></i>"), candidate_make_normal_path(c.candidate) , remote:true,method: :post,class: 'btn btn-xs btn-primary margin-bottom-5',title: "Make Normal"
+                            = link_to raw("<i class='fa fa-fire'></i>"), candidate_make_normal_path(c.candidate) , remote:true,method: :post,class: 'btn btn-xs btn-primary margin-bottom-5',title: "Make Normal", data: {confirm: " Do you want to make #{c.candidate.full_name} Normal?", verify: 'Yes', verify_text: 'Type "Yes" to confirm'}
                             -#= link_to raw("<i class='fa fa-pencil '></i>") , edit_company_candidate_path(c.candidate) , class: 'btn btn-xs btn-default btn-primary', title: "Edit #{candidate.full_name}"
                     - if @candidates.count >30
                       .dt-toolbar-footer

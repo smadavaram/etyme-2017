@@ -7,11 +7,11 @@
           %li
             = image_tag 'https://cdn1.iconfinder.com/data/icons/business-237/65/icons-08-128.png',class:'',alt: "job"
       = image_tag data.photo,class:'',alt: "job",width:"100px !important",hieght:"100px !important"
-      %h4 Name-#{data.full_name.humanize}
-      %h4 Company-#{data.invited_by.company.name.humanize}
+      %h4 #{data.full_name.humanize}
+      %h4 #{data.invited_by.company.name.humanize}
       %span.name.font-sm.text-muted.margin-top-10
         Email: #{data.email}
-      .row
+      -#.row
         .col-md-3.margin-top-5
           = link_to raw("<i class='fa fa-share '></i>") ,"#" , method: :post ,remote: true,  class: 'btn btn-md btn-primary'
           = link_to raw("<i class='fa fa-comments '></i>") ,"#",class: "btn btn-sm btn-primary"

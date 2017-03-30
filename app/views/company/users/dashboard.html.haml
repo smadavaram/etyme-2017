@@ -18,7 +18,7 @@
 -#            %br
 #content
   %section#widget-grid
-    - if current_company.vendor?
+    - if !current_company.vendor?
       .row
         .col-sm-12.col-md-8
           - @data.each do |d|

@@ -83,7 +83,7 @@ class Company < ActiveRecord::Base
   attr_accessor :send_email
 
   def invited_companies_contacts
-    CompanyContact.where(company_id: self.invited_companies.ids)
+    CompanyContact.where(company_id: self.invited_companies.map(&:invited_company_id))
   end
 
 
