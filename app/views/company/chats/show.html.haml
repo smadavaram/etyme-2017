@@ -86,10 +86,10 @@
                           %br
                           Total
 
-            #chat-body.chat-body.custom-scroll{style: "height: 500px !important"}
+            #chat-body.chat-body{style: "height: 500px !important"}
               .widget-body
                 .row
-                  .col-md-3.center
+                  .col-md-3.col-sm-12.hidden-sm.hidden-xs.center{style: "position: absolute !important"}
                     .who.clearfix.right
                       %h4 Your Chats
                     %br
@@ -99,8 +99,8 @@
                           = link_to  c.try(:chatable).try(:title).try(:titleize) , company_chat_path(c)
                         - if c.try(:chatable_type)== 'Candidate'
                           = link_to  c.try(:chatable).try(:full_name).try(:titleize) , company_chat_path(c)
-                  .col-md-9
-                    %ol.discussion{id: "chat-#{@chat.channel_name}"}
+                  .col-md-8{style: "float: right !important"}
+                    %ol.well.well-sm.discussion{id: "chat-#{@chat.channel_name}"}
                       - @messages.each do |m|
                         = render 'company/messages/partials/message' ,m: m
                     -#%ul
