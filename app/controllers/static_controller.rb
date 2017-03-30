@@ -7,6 +7,7 @@ class StaticController < ApplicationController
   add_breadcrumb "Home",'/'
 
   def index
+    render layout: 'landing2'
   end
 
   def signin
