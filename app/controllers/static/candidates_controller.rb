@@ -4,6 +4,7 @@ class Static::CandidatesController < ApplicationController
   before_action :find_candidate ,only: [:resume]
 
   def resume
+    render layout: 'resume'
   end
 
   private

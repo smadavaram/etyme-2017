@@ -1,7 +1,7 @@
-//= require landing2/js/jquery.1.11.1.js
-//= require landing2/js/bootstrap.js
+//= require libs/jquery-2.1.1.min.js
+//= require bootstrap/bootstrap.js
 //= require landing2/js/SmoothScroll.js
-//= require landing2/js/nivo-lightbox.js
+//= require landing/plugins/nivo-lightbox.min.js
 //= require landing2/js/jquery.isotope.js
 //= require landing2/js/jqBootstrapValidation.js
 //= require landing2/js/contact_me.js

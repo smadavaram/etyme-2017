@@ -1,0 +1,38 @@
+!!!
+%html{:id => "#{yield :html_id}"}
+  %head
+    %meta{:content => "text/html; charset=UTF-8", "http-equiv" => "Content-Type"}/
+    %title Etyme
+    = stylesheet_link_tag    'resume'
+    %link{:href => "http://fonts.googleapis.com/css?family=Roboto:400,300,500,700", :rel => "stylesheet", :type => "text/css"}/
+
+    = csrf_meta_tags
+    = yield :head
+  %body
+    = render partial: 'static/shared/resume/header'
+    = yield
+    = render partial: 'static/shared/resume/footer'
+    -##main{:role => "main"}
+    -#  = yield :ribbon
+    -#  - if notice
+    -#    .alert.alert-success.fade.in
+    -#      %button.close{"data-dismiss" => "alert"}
+    -#        ×
+    -#      %i.fa-fw.fa.fa-check
+    -#      = notice
+    -#  - if alert
+    -#    .alert.alert-warning.fade.in
+    -#      %button.close{"data-dismiss" => "alert"}
+    -#        ×
+    -#      %i.fa-fw.fa.fa-warning
+    -#      = alert
+
+    %script{:src => "http://a.vimeocdn.com/js/froogaloop2.min.js"}
+    %script{:src => "https://maps.googleapis.com/maps/api/js?key=AIzaSyD_faX-g1fbUqz_ecgZ0nXuw_Z6T1rBuSU"}
+    = javascript_include_tag 'resume'
+
+    -#= filepicker_js_include_tag
+    -#= tinymce_assets
+    = yield(:scripts).present? ? yield(:scripts) : render(partial: 'shared/scripts')
+    .modals
+

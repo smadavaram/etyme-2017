@@ -1,6 +1,6 @@
 /*
  * Basic Styles
- *= require landing2/css/bootstrap.css
+ *= require bootstrap.min.css
  *= require landing2/fonts/font-awesome/css/font-awesome.css
  * Home Page
  *= require landing2/css/style.css
