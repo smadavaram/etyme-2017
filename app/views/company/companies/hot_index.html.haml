@@ -123,7 +123,20 @@
           .draw();
     } );
 
-    // for share of checked rows
+
+    // share hide and show on base of checked checkboxes
+    $('.share').hide();
+    $( "input[type=checkbox]" ).on( "click", function() {
+       if($( "input:checked" ).length> 0)
+        {
+          $('.share').show();
+        }else
+        {
+          $('.share').hide();
+        }
+     });
+
+     // for share of checked rows
     var checkedRows = new Array();
       $(".share" ).on( "click", function() {
         $('input:checkbox:checked').each(function(){
@@ -133,6 +146,7 @@
         {
           $('#candidates_ids').val(checkedRows);
           $('#share-candidates').modal('toggle');
+
         }
 
       });
