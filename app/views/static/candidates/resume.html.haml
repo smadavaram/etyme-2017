@@ -201,7 +201,7 @@
 / End Skills Section
 %section#blog.latest-blog-section.section-padding
   .container
-    %h2.section-title.wow.fadeInUp Latest Post
+    %h2.section-title.wow.fadeInUp Portfolio
     .row
       .col-sm-4
         %article.blog-post-wrapper
@@ -319,20 +319,20 @@
       .col-md-6
         .contact-form
           %strong Send me a message
-          %form#contactForm{:action => "sendemail.php", :method => "POST", :name => "contact-form"}
+          = form_for @candidate ,url: static_candidate_send_message_path(@candidate),method: :post, id:"contactForm" do |f|
             .form-group
               %label{:for => "name"} Name
-              %input#name.form-control{:name => "name", :required => "", :type => "text"}/
+              = text_field_tag "name",nil,class: "form-control",id:"name",required: :true
             .form-group
               %label{:for => "email"} Email
-              %input#email.form-control{:name => "email", :required => "", :type => "email"}/
+              = email_field_tag "email",nil,class: "form-control",id:"email",required: :true
             .form-group
               %label{:for => "subject"} Subject
-              %input#subject.form-control{:name => "subject", :type => "text"}/
+              = text_field_tag "subject",nil,class: "form-control",id:"subject",required: :true
             .form-group
               %label{:for => "message"} Message
-              %textarea#message.form-control{:name => "message", :required => "", :rows => "5"}
-            %button.btn.btn-primary{:name => "submit", :type => "submit"} Send Message
+              = text_area_tag "message",nil,class: "form-control",id:"message",required: :true
+            = f.submit "Send Message" , class:"btn btn-primary"
       / /.contact-form
       / /.col-md-6
       .col-md-6
