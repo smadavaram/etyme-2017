@@ -173,7 +173,12 @@ Rails.application.routes.draw do
     resources :comments         , only: [:create]
     resources :attachments      ,concerns: :paginatable , only: [:index]
     resources :invoices         ,concerns: :paginatable , only: [:index]
-    resources :reminders        ,only: :create
+    resources :reminders        ,only: :create do
+      collection do
+        post :create_bulk_candidates
+        post :create_bulk_companies
+      end
+    end
     resources :prefer_vendors   ,concerns: :paginatable  do
       # end
     end

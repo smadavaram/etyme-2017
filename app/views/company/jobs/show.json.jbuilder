@@ -1,1 +1,0 @@
-json.partial! "company_jobs/company_job", company_job: @job

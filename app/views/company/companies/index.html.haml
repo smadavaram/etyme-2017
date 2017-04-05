@@ -85,6 +85,7 @@
 - content_for :modals do
   #job_invitation
   = render 'company/companies/partials/new_company'
+  = render 'company/reminders/partials/bulk_reminder_companies_form'
 :css
   .form-control
   {
@@ -96,6 +97,7 @@
     }
 -content_for :scripts do
   :javascript
+    $("#remind").datepicker({dateFormat: "yy-mm-dd"  });
     $(document).ready(function() {
      pageSetUp();
       var responsiveHelper_dt_basic = undefined;
@@ -114,7 +116,7 @@
 
         });
 
-      $("div.toolbar").html('<div class="text-right">#{ button_tag 'NEW' ,class: 'btn btn-success btn-md pull-right header-btn ' , "data-toggle": "modal" , "data-target":"#new-contract-company"}</div>');
+      $("div.toolbar").html('<div class="text-right">#{ button_tag 'NEW' ,class: 'btn btn-success btn-md pull-right header-btn ' , "data-toggle": "modal" , "data-target":"#new-contract-company"} <a href="#"  data-toggle= "modal"  data-target= "#add-reminder-companies" class = "btn btn-success btn-md pull-right margin-right-5 header-btn margin-top-5 "><i class="fa fa-bell"> Bulk </i></a></div>');
       // $("div.toolbar").html(#{ button_tag 'NEW' ,class: 'btn btn-success btn-md pull-right header-btn margin-top-5' , "data-toggle": "modal" , "data-target":"#new-job"}'</div>');
 
       // Apply the filter
