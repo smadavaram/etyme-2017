@@ -7,8 +7,21 @@ class Message < ActiveRecord::Base
 
   validates :body , presence:  :true
 
+  def timeout_and_retry
+    retries = 0
+    begin
+      Timeout::timeout(10) { yield }
+    rescue Timeout::Error
+      raise if (self.retries += 1) > 3
+      retry
+    end
+  end
+
   def trigger_pusher
-    Pusher.trigger(self.chat.channel_name, 'send-message', {message: self.id })
+    timeout_and_retry do
+      Pusher.trigger(self.chat.channel_name, 'send-message', {message: self.id })
+    end
+
   end
 
 

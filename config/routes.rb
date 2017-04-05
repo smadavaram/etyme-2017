@@ -113,7 +113,12 @@ Rails.application.routes.draw do
   # COMPANY ROUTES
   namespace  :company do
 
-    resources :statuses , only: [:create]
+    resources :statuses , only: [:create] do
+      collection do
+        post :create_bulk_candidates
+        post :create_bulk_companies
+      end
+    end
     get 'companies/edit'
     resources :users, only: [:show,:update] do
       get  :add_reminder
