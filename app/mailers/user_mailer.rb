@@ -50,7 +50,7 @@ class UserMailer < ApplicationMailer
   end
 
   # method for sharing of Hot Candidates
-  def share_hot_candidates(to_email,candidates_ids ,current_company,message)
+  def share_hot_candidates(to_emails,candidates_ids ,current_company,message)
     @link_list = []
     @message = message
     candidates_ids.each do |cid|
@@ -58,7 +58,7 @@ class UserMailer < ApplicationMailer
     end
     @candidates_ids = candidates_ids
     @company = current_company
-    mail(to: to_email,subject: "#{current_company.name.titleize} Shared Hot Candidates Link",from: "Etyme <no-reply@etyme.com>")
+    mail(bcc: to_emails,subject: "#{current_company.name.titleize} Shared Hot Candidates Link",from: "Etyme <no-reply@etyme.com>")
   end
 
   def send_message_to_candidate(name,subject,message,candidate ,sender_email)

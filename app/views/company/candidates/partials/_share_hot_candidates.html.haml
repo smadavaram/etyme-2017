@@ -19,7 +19,7 @@
                 Email
                 %sup.text-danger
               .col-md-10
-                = email_field_tag "email" ,nil ,class: "form-control" , placeholder: "Enter Email To Share with" , required: true
+                = text_field_tag "emails" ,nil ,class: "tagsinput form-control" ,"data-role" => "tagsinput", placeholder: "Enter Emails To Share with comma seperated" , required: true ,"data-role" => "tagsinput"
             .form-group
               %label.col-md-2.control-label
                 Message
