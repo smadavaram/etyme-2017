@@ -23,7 +23,7 @@ module Etyme
     # Do not swallow errors in after_commit/after_rollback callbacks.
     config.active_record.raise_in_transactional_callbacks = true
     config.active_job.queue_adapter = :delayed_job
-    config.filepicker_rails.api_key =ENV['filepicker_api_key'] # "AR0LrQ7ZBRbaL4HN6BMTDz"
+    config.filepicker_rails.api_key = ENV['filepicker_api_key'] # "AR0LrQ7ZBRbaL4HN6BMTDz"
 
   end
 end
