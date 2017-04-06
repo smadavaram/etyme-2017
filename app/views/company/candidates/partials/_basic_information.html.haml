@@ -51,5 +51,11 @@
     .col-md-12{style: "margin-left:15px"}
       = link_to_add_association 'Add Experience', f, :experiences , partial: 'company/candidates/partials/experience_fields',class:'btn btn-primary pull-right'
   %br
+    = f.fields_for :portfolios do |work|
+      = render 'company/candidates/partials/portfolio_fields', f: work
+
+    .col-md-12{style: "margin-left:15px"}
+      = link_to_add_association 'Add Portfolio', f, :portfolios , partial: 'company/candidates/partials/portfolio_fields',class:'btn btn-primary pull-right'
+  %br
   .form-actions
     = f.submit "Submit" ,class: "btn btn-primary btn-md"

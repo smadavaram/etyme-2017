@@ -38,13 +38,14 @@ class Candidate < ActiveRecord::Base
   has_many   :companies            , through: :candidates_companies ,dependent: :destroy
   belongs_to :address              , foreign_key: :primary_address_id
   # has_and_belongs_to_many :groups ,through: :company
-  has_many   :groupables           , as:  :groupable
+  has_many   :groupables           , as:  :groupable     ,dependent: :destroy
   has_many   :groups               , through: :groupables
   has_many   :comments             , as: :commentable
   has_many   :reminders            ,as:  :reminderable
-  has_many   :messages             ,as: :messageable  ,dependent: :destroy
+  has_many   :messages             ,as: :messageable     ,dependent: :destroy
   has_many   :chats                ,as: :chatable
-  has_many   :statuses             ,as:  :statusable
+  has_many   :statuses             ,as:  :statusable     ,dependent: :destroy
+  has_many   :portfolios           ,as: :portfolioable   ,dependent: :destroy
 
 
 
@@ -53,10 +54,10 @@ class Candidate < ActiveRecord::Base
   attr_accessor :send_invitation
 
 
-
-  accepts_nested_attributes_for :experiences ,reject_if: :all_blank, allow_destroy: true
-  accepts_nested_attributes_for :educations  ,reject_if: :all_blank, allow_destroy: true
-  accepts_nested_attributes_for :address   , reject_if: :all_blank, update_only: true
+  accepts_nested_attributes_for :portfolios     ,reject_if: :all_blank, allow_destroy: true
+  accepts_nested_attributes_for :experiences    ,reject_if: :all_blank, allow_destroy: true
+  accepts_nested_attributes_for :educations     ,reject_if: :all_blank, allow_destroy: true
+  accepts_nested_attributes_for :address        , reject_if: :all_blank, update_only: true
   accepts_nested_attributes_for :custom_fields  , allow_destroy: true , reject_if: :all_blank
 
   #Tags Input

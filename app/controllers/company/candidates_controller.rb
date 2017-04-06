@@ -168,7 +168,9 @@ class Company::CandidatesController < Company::BaseController
                                               :id,
                                               :name,
                                               :value,
-                                              :_destroy]
+                                              :_destroy],
+                                        portfolios_attributes:
+                                            [:name,:cover_photo,:description,:_destroy]
           )
     end
 

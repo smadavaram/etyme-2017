@@ -24,7 +24,11 @@
             $('.education_completion_year').datepicker({
             dateFormat : 'dd/mm/yy'
             });
+          insertedItem.find('.cover-photo').each(function(i,e){
+            filepicker.constructWidget(e);
+          });
       });
+
 
       $('.education_start_year').datepicker({
           dateFormat : 'dd/mm/yy'
