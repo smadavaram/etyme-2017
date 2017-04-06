@@ -50,7 +50,7 @@ Rails.application.routes.draw do
         post :upload_resume
       end
     end
-
+    resources  :portfolios ,only: [:create,:update]
     resources :chats , only:[:show] do
       resources :messages ,only: [:create] do
         collection do

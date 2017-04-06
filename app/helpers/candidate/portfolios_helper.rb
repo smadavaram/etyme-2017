@@ -1,0 +1,2 @@
+module Candidate::PortfoliosHelper
+end

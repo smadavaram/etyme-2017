@@ -52,6 +52,11 @@
                 %i.fa.fa-black-tie.fa-lg
                 %span.hidden-mobile.hidden-tablet
                   Experience
+            %li
+              %a{"aria-expanded" => "false", "data-toggle" => "tab", :href => "#hr5"}
+                %i.fa.fa-black-tie.fa-lg
+                %span.hidden-mobile.hidden-tablet
+                  Portfolio
           %span.jarviswidget-loader
             %i.fa.fa-refresh.fa-spin
         / widget div
@@ -85,7 +90,12 @@
                 .tabbable.tabs-below
                   = render partial: 'candidate/experiences/partials/experience_detail',locals: {user: current_candidate}
                 = render partial: 'candidate/experiences/partials/form' ,locals: {user: current_candidate}
-
+              #hr5.tab-pane
+                %button.btn.btn-primary.pull-right.margin-bottom-5.margin-right-10{"data-target" => "#add-portfolio", "data-toggle" => "modal"}
+                  New
+                .tabbable.tabs-below
+                  = render partial: 'candidate/portfolios/partials/portfolio',locals: {user: current_candidate}
+                = render partial: 'candidate/portfolios/partials/form_modal'
 
 
 - content_for :scripts do
@@ -170,4 +180,7 @@
     $('td').on('mouseover mouseout',function(){
     $(this).find('.editprofile-pic_in_line').toggle();
 
+    });
+    $( ".file-portfolio" ).on('click',function() {
+        $('.fp__overlay').css({'z-index':'99999'});
     });
