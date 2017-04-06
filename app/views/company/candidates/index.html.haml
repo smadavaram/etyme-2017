@@ -87,9 +87,9 @@
                             = link_to raw("<i class='fa fa-eye '></i>") , static_candidate_resume_path(candidate) , class: 'btn btn-xs btn-primary  margin-bottom-5',title:"Detail Show",target: '_blank'
                             = link_to raw("<i class='fa fa-users '></i>"), candidate_manage_groups_path(candidate) , remote:true,class: 'btn btn-xs btn-success  margin-bottom-5',title:"Assign Groups"
                             - if is_hot?(candidate)
-                              = link_to raw("<i class='fa fa-fire '></i>"), candidate_make_hot_path(candidate) , remote:true,method: :post,class: 'btn btn-xs btn-danger  margin-bottom-5',title:"Make Hot", data: {confirm: " Do you want to make #{candidate.full_name} Hot?", verify: 'Yes', verify_text: 'Type "Yes" to confirm'}
+                              = link_to raw("<i class='fa fa-fire '></i>"), candidate_make_hot_path(candidate) , remote:true,method: :post,class: 'btn btn-xs btn-danger  margin-bottom-5',title:"Make Hot", data: {confirm: " Do you want to make #{candidate.full_name} Hot?",commit: 'Continue', cancel: 'Cancel'}
                             - if !is_hot?(candidate)
-                              = link_to raw("<i class='fa fa-fire '></i>"), candidate_make_normal_path(candidate) , remote:true,method: :post,class: 'btn btn-xs btn-primary  margin-bottom-5',title:"Make Normal", data: {confirm: " Do you want to make #{candidate.full_name} Normal?", verify: 'Yes', verify_text: 'Type "Yes" to confirm'}
+                              = link_to raw("<i class='fa fa-fire '></i>"), candidate_make_normal_path(candidate) , remote:true,method: :post,class: 'btn btn-xs btn-primary  margin-bottom-5',title:"Make Normal", data: {confirm: " Do you want to make #{candidate.full_name} Normal?",commit: 'Continue', cancel: 'Cancel'}
                             - if candidate.campany_candidate?
                               = link_to raw("<i class='fa fa-edit '></i>") , edit_company_candidate_path(candidate) , class: 'btn btn-xs btn-default btn-primary  margin-bottom-5', title: "Edit #{candidate.full_name}"
                     - if @candidates.count >30
