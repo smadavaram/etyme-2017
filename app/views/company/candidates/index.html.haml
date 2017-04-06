@@ -106,6 +106,8 @@
   = render 'company/candidates/partials/add_to_my_network'
   = render 'company/reminders/partials/bulk_form_for_candidates'
   = render 'company/statuses/partials/assign_bulk_candidates'
+  = render 'company/groups/partial/assign_bulk_candidates'
+
 - content_for :scripts do
   :javascript
     $("#remind").datepicker({dateFormat: "yy-mm-dd"  });
@@ -130,7 +132,7 @@
             }
 
         });
-      $("div.toolbar").html("<div class='text-right'><a href=#{new_company_candidate_path} class = 'btn btn-success btn-md pull-right header-btn margin-top-5 '><i class='fa fa-user-plus'> NEW </i></a><a href='#'  data-toggle= 'modal'  data-target= '#add-reminder-candidates' class = 'btn btn-success btn-md pull-right margin-right-5 header-btn margin-top-5 '><i class='fa fa-bell'> Bulk </i></a> <a href='#'  data-toggle= 'modal'  data-target= '#assign-status-candidates' class = 'btn btn-success btn-md pull-right margin-right-5 header-btn margin-top-5 '><i class='fa fa-sticky-note'> Bulk </i></a></div>");
+      $("div.toolbar").html("<div class='text-right'><a href=#{new_company_candidate_path} class = 'btn btn-success btn-md pull-right header-btn margin-top-5 '><i class='fa fa-user-plus'> NEW </i></a><a href='#'  data-toggle= 'modal'  data-target= '#add-reminder-candidates' class = 'btn btn-success btn-md pull-right margin-right-5 header-btn margin-top-5 '><i class='fa fa-bell'> Bulk </i></a> <a href='#'  data-toggle= 'modal'  data-target= '#assign-status-candidates' class = 'btn btn-success btn-md pull-right margin-right-5 header-btn margin-top-5 '><i class='fa fa-sticky-note'> Bulk </i></a><a href='#'  data-toggle= 'modal'  data-target= '#assign-bulk-group-candidates' class = 'btn btn-success btn-md pull-right margin-right-5 header-btn margin-top-5 '><i class='fa fa-users'> Bulk </i></a></div>");
       // Apply the filter
       $("#datatable_fixed_column thead th input[type=text]").on( 'keyup change', function () {
         otable

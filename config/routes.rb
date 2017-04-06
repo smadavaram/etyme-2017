@@ -171,7 +171,12 @@ Rails.application.routes.draw do
     resources :locations
     resources :company_docs
     resources :roles
-    resources :groups           ,concerns: :paginatable
+    resources :groups           ,concerns: :paginatable do
+      collection do
+        post :create_bulk_candidates
+        post :create_bulk_companies
+      end
+    end
     resources :admins           ,concerns: :paginatable
     resources :addresses
     resources :directories      ,only: [:index]

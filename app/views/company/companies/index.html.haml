@@ -87,6 +87,7 @@
   = render 'company/companies/partials/new_company'
   = render 'company/reminders/partials/bulk_reminder_companies_form'
   = render 'company/statuses/partials/assign_bulk_companies'
+  = render 'company/groups/partial/assign_bulk_companies'
 :css
   .form-control
   {
@@ -117,7 +118,7 @@
 
         });
 
-      $("div.toolbar").html('<div class="text-right">#{ button_tag 'NEW' ,class: 'btn btn-success btn-md pull-right header-btn ' , "data-toggle": "modal" , "data-target":"#new-contract-company"} <a href="#"  data-toggle= "modal"  data-target= "#add-reminder-companies" class = "btn btn-success btn-md pull-right margin-right-5 header-btn margin-top-5 "><i class="fa fa-bell"> Bulk </i></a> <a href="#"  data-toggle= "modal"  data-target= "#assign-status-companies" class = "btn btn-success btn-md pull-right margin-right-5 header-btn margin-top-5 "><i class="fa fa-sticky-note"> Bulk </i></a></div>');
+      $("div.toolbar").html('<div class="text-right">#{ button_tag 'NEW' ,class: 'btn btn-success btn-md pull-right header-btn ' , "data-toggle": "modal" , "data-target":"#new-contract-company"} <a href="#"  data-toggle= "modal"  data-target= "#add-reminder-companies" class = "btn btn-success btn-md pull-right margin-right-5 header-btn margin-top-5 "><i class="fa fa-bell"> Bulk </i></a> <a href="#"  data-toggle= "modal"  data-target= "#assign-status-companies" class = "btn btn-success btn-md pull-right margin-right-5 header-btn margin-top-5 "><i class="fa fa-sticky-note"> Bulk </i></a><a href="#"  data-toggle= "modal"  data-target= "#assign-bulk-group-companies" class = "btn btn-success btn-md pull-right margin-right-5 header-btn margin-top-5 "><i class="fa fa-users"> Bulk </i></a></div>');
       // $("div.toolbar").html(#{ button_tag 'NEW' ,class: 'btn btn-success btn-md pull-right header-btn margin-top-5' , "data-toggle": "modal" , "data-target":"#new-job"}'</div>');
 
       // Apply the filter
