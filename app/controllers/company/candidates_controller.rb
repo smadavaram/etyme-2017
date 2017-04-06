@@ -170,7 +170,7 @@ class Company::CandidatesController < Company::BaseController
                                               :value,
                                               :_destroy],
                                         portfolios_attributes:
-                                            [:name,:cover_photo,:description,:_destroy]
+                                            [:id,:name,:cover_photo,:description,:_destroy]
           )
     end
 
