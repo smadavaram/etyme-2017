@@ -11,7 +11,17 @@
       %h4 #{data.invited_by.company.name.humanize}
       %span.name.font-sm.text-muted.margin-top-10
         Email: #{data.email}
-      -#.row
+      .row
         .col-md-3.margin-top-5
-          = link_to raw("<i class='fa fa-share '></i>") ,"#" , method: :post ,remote: true,  class: 'btn btn-md btn-primary'
-          = link_to raw("<i class='fa fa-comments '></i>") ,"#",class: "btn btn-sm btn-primary"
+          = link_to raw("<i class='fa fa-sticky-note '></i>")  ,candidate_assign_status_path(data)   ,class: 'btn btn-primary btn-xs margin-bottom-5 ', remote: :true,title: "Assign Status"
+          = link_to raw("<i class='fa fa-bell '></i>")     ,candidate_add_reminder_path(data) ,class: 'btn btn-primary btn-xs margin-bottom-5', remote: :true,title:"Remind Me"
+          -#= link_to 'Activity'     ,company_activities_index_path(index: true), class: 'btn btn-xs btn-primary  margin-bottom-5',title:"Activity Log"
+          = link_to raw("<i class='fa fa-file-text '></i>") , data.resume ,download: true , class: 'btn btn-xs btn-primary  margin-bottom-5',title:"Resume"
+          = link_to raw("<i class='fa fa-eye '></i>") , static_candidate_resume_path(data) , class: 'btn btn-xs btn-primary  margin-bottom-5',title:"Detail Show",target: '_blank'
+          = link_to raw("<i class='fa fa-users '></i>"), candidate_manage_groups_path(data) , remote:true,class: 'btn btn-xs btn-success  margin-bottom-5',title:"Assign Groups"
+          - if is_hot?(data)
+            = link_to raw("<i class='fa fa-fire '></i>"), candidate_make_hot_path(data) , remote:true,method: :post,class: 'btn btn-xs btn-danger  margin-bottom-5',title:"Make Hot", data: {confirm: " Do you want to make #{data.full_name} Hot?", verify: 'Yes', verify_text: 'Type "Yes" to confirm'}
+          - if !is_hot?(data)
+            = link_to raw("<i class='fa fa-fire '></i>"), candidate_make_normal_path(data) , remote:true,method: :post,class: 'btn btn-xs btn-primary  margin-bottom-5',title:"Make Normal", data: {confirm: " Do you want to make #{data.full_name} Normal?", verify: 'Yes', verify_text: 'Type "Yes" to confirm'}
+          - if data.campany_candidate?
+            = link_to raw("<i class='fa fa-edit '></i>") , edit_company_candidate_path(data) , class: 'btn btn-xs btn-default btn-primary  margin-bottom-5', title: "Edit #{data.full_name}"
