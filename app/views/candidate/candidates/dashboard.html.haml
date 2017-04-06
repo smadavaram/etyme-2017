@@ -47,6 +47,35 @@
                     = filepicker_field_tag "" ,class: "hidden  file", onchange:"uploadFile(event)"
 
                     = link_to raw("<i class='fa fa-file fa-fw fa-lg '></i>") ,"#", class: 'btn btn-success fileUpload pull-left btn-sm'
+                - content_for :scripts do
+                  :javascript
+                     function replyUpload(id) {
+                          filepicker.pick({
+                            mimetype: 'image/*',
+                            container: 'window',
+                            services: ['COMPUTER', 'FACEBOOK', 'CLOUDAPP']
+                            },
+                            function(Blob){
+                              file_url = Blob.url
+                              file_name = Blob.filename;
+                              $.post("#{candidate_file_chat_messages_path(@chat.try(:id))}",{ file_url: file_url,file_name: file_name,file_url: file_url ,message_id: id ,authenticity_token: window._token })
+                            },
+                            function(FPError){
+                            //  console.log(FPError.toString()); - print errors to console
+                          }
+                        );
+                      }
+                    var pusher = new Pusher("#{ENV['pusher_key']}");
+                    var channel = pusher.subscribe("#{@chat.try(:channel_name)}");
+                    channel.bind('send-message', function(data) {
+                      $.post("#{render_message_chat_messages_path(@chat.try(:id))}" , {id: data.message  , authenticity_token: window._token});
+                    });
+                    function uploadFile(event){
+                      file_url = event.fpfile.url
+                      file_name = event.fpfile.filename;
+                      $.post("#{candidate_file_chat_messages_path(@chat.try(:id))}",{ file_url: file_url,file_name: file_name,file_url: file_url  ,authenticity_token: window._token })
+                    }
+
 
 %script{:src => "https://js.pusher.com/4.0/pusher.min.js"}
 
@@ -70,34 +99,5 @@
       var chatBody = $('#chat-body') ;
       chatBody.scrollTop(5000000000);
     });
-
-    function replyUpload(id) {
-        filepicker.pick({
-            mimetype: 'image/*',
-            container: 'window',
-            services: ['COMPUTER', 'FACEBOOK', 'CLOUDAPP']
-          },
-          function(Blob){
-            file_url = Blob.url
-            file_name = Blob.filename;
-            $.post("#{candidate_file_chat_messages_path(@chat.try(:id))}",{ file_url: file_url,file_name: file_name,file_url: file_url ,message_id: id ,authenticity_token: window._token })
-          },
-          function(FPError){
-          //  console.log(FPError.toString()); - print errors to console
-        }
-      );
-    }
-    var pusher = new Pusher("#{ENV['pusher_key']}");
-    var channel = pusher.subscribe("#{@chat.try(:channel_name)}");
-    channel.bind('send-message', function(data) {
-
-      $.post("#{render_message_chat_messages_path(@chat.try(:id))}" , {id: data.message  , authenticity_token: window._token});
-    });
-    function uploadFile(event){
-      file_url = event.fpfile.url
-      file_name = event.fpfile.filename;
-      $.post("#{candidate_file_chat_messages_path(@chat.try(:id))}",{ file_url: file_url,file_name: file_name,file_url: file_url  ,authenticity_token: window._token })
-
-    }
 
 
