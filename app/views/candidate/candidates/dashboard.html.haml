@@ -17,14 +17,14 @@
               #chat-body.chat-body.custom-scroll{style: "height: 500px !important"}
                 .widget-body
                   .row
-                    .col-md-3.center
+                    .col-md-3.center.hidden-sm.hidden-xs{style: "position: absolute !important"}
                       .who.clearfix.right
                         %h4 Your Chats
                       %br
                       - @chats.take(10).each do |c|
                         .margin-bottom-10.padding-10.bg-color-white.fa-border
                           = link_to  c.try(:company).try(:name).try(:titleize) , chat_path(c)
-                    .col-md-9
+                    .col-md-8{style: "float: right !important"}
                       %ol.discussion{id: "chat-#{@chat.try(:channel_name)}"}
                         - @messages.each do |m|
                           = render 'company/messages/partials/message' ,m: m

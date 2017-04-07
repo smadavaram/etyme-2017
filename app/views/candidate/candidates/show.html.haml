@@ -54,7 +54,7 @@
                   Experience
             %li
               %a{"aria-expanded" => "false", "data-toggle" => "tab", :href => "#hr5"}
-                %i.fa.fa-black-tie.fa-lg
+                %i.fa.fa-briefcase.fa-lg
                 %span.hidden-mobile.hidden-tablet
                   Portfolio
           %span.jarviswidget-loader
@@ -95,8 +95,8 @@
                   New
                 .tabbable.tabs-below
                   = render partial: 'candidate/portfolios/partials/portfolio',locals: {user: current_candidate}
-                = render partial: 'candidate/portfolios/partials/form_modal'
-
+- content_for :modals do
+  = render partial: 'candidate/portfolios/partials/form_modal'
 
 - content_for :scripts do
   :javascript
@@ -121,6 +121,10 @@
           $(".resume_file").trigger("click");
 
       });
+      $( '.file-portfolio' ).on('click',function() {
+        $('.fp__overlay').css({'z-index':'99999'});
+
+     });
 
 
        $(".best_in_place").best_in_place();
@@ -181,6 +185,4 @@
     $(this).find('.editprofile-pic_in_line').toggle();
 
     });
-    $( ".file-portfolio" ).on('click',function() {
-        $('.fp__overlay').css({'z-index':'99999'});
-    });
+
