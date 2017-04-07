@@ -1,5 +1,8 @@
 class Company::StatusesController < Company::BaseController
 
+  before_action :set_statuses , only: [:index]
+  add_breadcrumb "HOME", :dashboard_path
+
   def create
     @status = current_user.statuses.new(status_params)
     if @status.save
@@ -8,6 +11,10 @@ class Company::StatusesController < Company::BaseController
       flash[:errors] = @status.errors.full_messages
     end
     redirect_to :back
+  end
+
+  #index for a company and  candidate status log
+  def index
   end
 
   def create_bulk_candidates
@@ -26,6 +33,17 @@ class Company::StatusesController < Company::BaseController
   end
 
   private
+
+    def set_statuses
+      if(params[:type]=='Candidate')
+        @candidate = current_company.candidates.find(params[:id])
+        @statuses = @candidate.statuses
+      elsif params[:type]=='Company'
+        @company = current_company.invited_companies.find_by(invited_company: params[:id]).invited_company
+        @statuses = @company.statuses
+      end
+    end
+
    def status_params
      params.require(:status).permit(:status_type,:note,:statusable_type,:statusable_id,:user_id)
    end

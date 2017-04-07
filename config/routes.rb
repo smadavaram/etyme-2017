@@ -113,7 +113,7 @@ Rails.application.routes.draw do
   # COMPANY ROUTES
   namespace  :company do
 
-    resources :statuses , only: [:create] do
+    resources :statuses , only: [:create,:index] do
       collection do
         post :create_bulk_candidates
         post :create_bulk_companies

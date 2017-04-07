@@ -1,0 +1,28 @@
+#content
+  .row
+    .col-xs-12.col-sm-12.col-md-12.col-lg-12
+      .smart-timeline
+        - if @statuses.present?
+          %ul.smart-timeline-list
+            -@statuses.each do |status|
+              %li.well.margin-bottom-10
+                .smart-timeline-icon
+                  = image_tag status.user.photo,class:'',alt: "Company"
+                .smart-timeline-time
+                  %small
+                  =  time_ago_in_words(status.try(:created_at).try(:localtime))+" ago"
+                .smart-timeline-content
+                  %p.font-md.strong
+                    #{status.user.class.name.titleize}
+                    = link_to  status.user.full_name.titleize.to_s ,company_user_profile_path(status.user) ,target: "_blank"
+                    assigned status #{status.status_type.humanize} to
+                    - if params[:type]=="Candidate"
+                      = link_to status.statusable.try(:full_name).try(:titleize), static_candidate_resume_path( status.statusable), class: 'font-md',target: "_blank"
+                    -elsif params[:type]=='Company'
+                      = link_to status.statusable.try(:name).try(:titleize), profile_company_path( status.statusable), class: 'font-md',target: "_blank"
+
+        -else
+          .well.margin-bottom-10
+            .text
+              .font-md.text-center
+                No Status log Right now.
