@@ -54,7 +54,7 @@ class UserMailer < ApplicationMailer
     @link_list = []
     @message = message
     candidates_ids.each do |cid|
-      @link_list.push({name: current_company.candidates.find(cid).full_name ,url: "http://#{current_company.etyme_url}/static/candidates/#{cid}/resume"})
+      @link_list.push({name: current_company.candidates.find(cid).full_name ,url: "http://#{current_company.etyme_url}/static/companies/#{current_company.id}/candidates/#{cid}/resume"})
     end
     @candidates_ids = candidates_ids
     @company = current_company

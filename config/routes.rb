@@ -35,6 +35,11 @@ Rails.application.routes.draw do
       post :apply
       resources :job_applications ,only:[:create]
     end
+    resources :companies , only: [] do
+      resources :candidates  do
+        get :resume
+      end
+    end
     resources :candidates  do
       post :send_message
       get :resume

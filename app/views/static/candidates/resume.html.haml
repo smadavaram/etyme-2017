@@ -33,11 +33,19 @@
             %li
               %strong Nationality:
               #{@candidate.try(:address).try(:country)}
-            %li
-              %strong Phone:
-              #{@candidate.try(:phone)}
-            %li
-              %strong Email:
+            - if params.has_key?(:company_id)
+              %li
+                %strong Company Phone:
+                #{@candidate.invited_by.try(:company).phone}
+              %li
+                %strong Company Email:
+                #{@candidate.invited_by.company.try(:email)}
+            -else
+              %li
+                %strong Phone:
+                #{@candidate.try(:phone)}
+              %li
+                %strong Email:
               #{@candidate.try(:email)}
       / col-md-4
       .col-md-8.col-md-pull-4
@@ -277,7 +285,7 @@
             %i.fa.fa-mobile
             .contact-number
               %strong Phone Number
-              #{@candidate.phone}
+              = params.has_key?(:company_id) ? "#{@candidate.invited_by.company.try(:phone)}": "#{@candidate.phone}"
         .row
           .col-sm-12
             .location-map
