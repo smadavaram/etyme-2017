@@ -1,5 +1,111 @@
--#= render  'static/jobs/partials/header'
-.row
+%body
+  %header.header-jobpost
+    .container
+      .content
+        .row
+          .col-lg-4.col-lg-offset-8.col-md-4.col-md-offset-8.col-sm-6.col-xs-12
+            = link_to raw("<i class= 'fa fa-align-left'> Send Proposal</i>") ,static_job_apply_path(@job,status: candidate_signed_in?)   , method: :post , remote: true  ,class: " kafe-btn kafe-btn-mint full-width revealOnScroll   #{current_candidate.present? ? (current_candidate.is_already_applied?(@job.id) ? "disabled " : "" ) : "" } "
+  %section.jobpost
+    .container
+      .row
+        .col-lg-8.white
+          .row
+            .col-lg-12
+              %h6
+                %a{:href => "#"} Categories / #{@job.job_category}
+              %h4= @job.title.humanize
+              %hr.small-hr/
+          .row.post-top-sec
+            .col-lg-3
+              %h5 Posted
+              %p #{time_ago_in_words(@job.created_at)} ago
+            .col-lg-3
+              %h5 Location
+              %p
+                %i.fa.fa-map-marker
+                #{@job.location}
+            / /.col-lg-3
+            .col-lg-3
+              %h5 Company
+              %p= @job.company.name.humanize
+            / /.col-lg-3
+            -#.col-lg-3
+              %h5 Applicants
+              %p 15
+            / /.col-lg-3
+            .col-lg-12
+              %hr.small-hr/
+            / /.col-lg-12
+          / /.row
+          .post-bottom-sec
+            %h4 Job Description
+            %p= raw(@job.description)
+            %h4 Skills
+            -@job.tags.each do |tag|
+              %span.label.label-success= tag.name
+          %br/
+        .col-lg-4
+          .panel.user.revealOnScroll{"data-animation" => "slideInUp", "data-timeout" => "200"}
+            .row.text-center
+              %a{:href => "#"}
+                = image_tag image_path("static/img/bg/2.jpg") ,class: "img-responsive panel-img"
+                .col-xs-12.user-avatar
+                  %img.img-thumbnail.img-responsive{:alt => "Logo", :src => @job.created_by.photo}/
+                  %h4= @job.company.name.humanize
+                  %p= @job.company.email
+                / /.col-xs-12
+            / /.row
+            -#.list-group
+              .list-group-item
+                   Paid
+                %span.badge $10K
+              / /.list-group-item
+              .list-group-item
+                   Feedback (4)
+                %span.badge
+                  %i.fa.fa-star
+                  %i.fa.fa-star
+                  %i.fa.fa-star
+                  %i.fa.fa-star
+                  %i.fa.fa-star
+              / /.list-group-item
+              .list-group-item
+                   Unpaid Invoices
+                %span.badge 1
+              / /.list-group-item
+              .list-group-item
+                   Paid Job
+                %span.badge 5
+              / /.list-group-item
+              .list-group-item
+                   Amount Paid Job
+                %span.badge $10K
+          -#.list
+            .list-group
+              %span.list-group-item.active.cat-top
+                %em.fa.fa-fw.fa-coffee>
+                   Share This Job
+              %a.list-group-item.cat-list{:href => "#"}
+                %em.fa.fa-fw.fa-facebook>
+                   Facebook
+                %span.badge 300
+              %a.list-group-item.cat-list{:href => "#"}
+                %em.fa.fa-fw.fa-twitter>
+                   Twitter
+                %span.badge 100
+              %a.list-group-item.cat-list{:href => "#"}
+                %em.fa.fa-fw.fa-google-plus>
+                   Google +
+                %span.badge 100
+
+-content_for :body_class, 'greybg'
+
+
+
+
+
+
+-#.row
   .col-sm-12.animated.fadeInRightBig
     %section.panel.mt-20s
       %header.panel-heading

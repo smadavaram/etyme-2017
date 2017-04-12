@@ -22,22 +22,8 @@
                   %em.fa.fa-fw.fa-code.text-muted
                    #{truncate(category,length: 20)}
                   %span.badge.text-red-bg= jobs.count
-          -#.list
-            .list-group
-              %span.list-group-item.active.cat-top
-                %em.fa.fa-fw.fa-coffee.text-white>
-                   Job Type
-              %a.list-group-item.cat-list{:href => "jobs.html"}
-                %em.fa.fa-fw.fa-check-circle.text-muted>
-                   Hourly
-                %span.badge.text-red-bg 300
-              %a.list-group-item.cat-list{:href => "jobs.html"}
-                %em.fa.fa-fw.fa-check-circle.text-muted>
-                   Fixed
-                %span.badge.text-red-bg 100
         .col-lg-8.white
           = search_form_for @search , url: search_static_jobs_path , method: :get,class:"list-search revealOnScroll " ,"data-animation" => "fadeInDown", "data-timeout" => "200" do |f|
-            -#%form.list-search.revealOnScroll{:action => "#", "data-animation" => "fadeInDown", "data-timeout" => "200", :method => "get"}
             %button
               %i.fa.fa-search
             = f.text_field :title_or_job_category_cont, class: "form-control", placeholder: "Search Jobs..."
@@ -94,6 +80,3 @@
 -content_for :scripts do
 
   :javascript
-    $(document).ready(function() {
-        $('.equal-height').equalHeights();
-    });
