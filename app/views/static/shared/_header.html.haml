@@ -1,4 +1,50 @@
-.navbar.navbar-default{:role => "navigation"}
+
+%nav.navbar.navbar-default.navbar-fixed-top
+  .container
+    / Brand and toggle get grouped for better mobile display
+    %a.navbar-brand
+      %i.fa.fa-coffee
+      Etyme
+    %input#toggle{:type => "checkbox"}/
+    %label.toggle{:for => "toggle"}
+    / Collect the nav links, forms, and other content for toggling
+    %ul.menu
+      %li
+        %a{ :href => static_index_path}
+          Home
+      %li.dropdown
+        %a.dropdown-toggle{"data-toggle" => "dropdown", :href => "#"}
+          Jobs
+          %b.caret
+        %ul.dropdown-menu
+          %li
+            = link_to 'Jobs' ,static_jobs_path
+      %li.dropdown
+        %a.dropdown-toggle{"data-toggle" => "dropdown", :href => "#"}
+          Login
+          %b.caret
+        %ul.dropdown-menu
+          -if candidate_signed_in?
+            %li
+              = link_to  current_candidate.full_name.present?  ? current_candidate.full_name : 'Dashboard',candidate_candidate_dashboard_path
+          -else
+            %li
+              %a{:href => new_candidate_session_path} Candidate
+          %li
+            = link_to 'Company Login', request.subdomain.present? ? new_user_session_path : signin_path , class: ''
+      %li.dropdown
+        %a.dropdown-toggle{"data-toggle" => "dropdown", :href => "#"}
+          Register
+          %b.caret
+        %ul.dropdown-menu
+          %li
+            %a{:href => register_path} Company
+          %li
+            %a{:href => new_candidate_registration_path} Candidate
+
+
+
+-#.navbar.navbar-default{:role => "navigation"}
   .container
     .navbar-header
       %button.navbar-toggle{"data-target" => ".navbar-collapse", "data-toggle" => "collapse", :type => "button"}
@@ -67,4 +113,4 @@
                         = link_to 'etymehelp', "#" , class: 'padding-top-10 padding-bottom-10'
 
 
-%hr.topbar
+-#%hr.topbar

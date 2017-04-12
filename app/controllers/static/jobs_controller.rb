@@ -3,7 +3,7 @@ class Static::JobsController < ApplicationController
   before_action :set_jobs,only: [:index]
   before_action :find_job,only: [:show,:apply]
 
-  layout 'landing'
+  layout 'static'
   add_breadcrumb "Home",'/'
   add_breadcrumb "Jobs",:static_jobs_path
   def index
@@ -26,7 +26,9 @@ class Static::JobsController < ApplicationController
 
   def set_jobs
     @search = params[:category].present? ? Job.active.is_public.where('job_category =?',params[:category]).search(params[:q]): Job.active.is_public.search(params[:q])
-    @jobs = @search.result(distinct: true).paginate(:page => params[:page], :per_page => 12)
+    @jobs = @search.result(distinct: true).paginate(:page => params[:page], :per_page => 4)
+    @search_q = Job.is_public.active.search(params[:q])
+    @jobs_groups = @search_q.result.group_by(&:job_category)
   end
 
   def find_job

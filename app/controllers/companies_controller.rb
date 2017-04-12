@@ -5,7 +5,7 @@ class CompaniesController < ApplicationController
 
   respond_to :html,:json
 
-  layout 'landing'
+  layout 'static'
 
   add_breadcrumb "Home",'/'
   def new

@@ -3,11 +3,14 @@
   %head
     %meta{:content => "text/html; charset=UTF-8", "http-equiv" => "Content-Type"}/
     %title Etyme
-    = stylesheet_link_tag    'application'
+    = stylesheet_link_tag    'static'
     = csrf_meta_tags
     = yield :head
-  %body
+  %body{class: "#{yield :body_class}"}
+
+    = render 'static/shared/header'
     = yield
+    = render 'static/shared/footer'
     -##main{:role => "main"}
     -#  = yield :ribbon
     -#  - if notice
@@ -23,8 +26,8 @@
     -#      %i.fa-fw.fa.fa-warning
     -#      = alert
 
-    -#= javascript_include_tag 'application'
-    -#= filepicker_js_include_tag
+    = javascript_include_tag 'static'
+    = filepicker_js_include_tag
     -#= tinymce_assets
     = yield(:scripts).present? ? yield(:scripts) : render(partial: 'shared/scripts')
     .modals

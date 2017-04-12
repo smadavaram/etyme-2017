@@ -3,13 +3,14 @@ class StaticController < ApplicationController
   skip_before_action :authenticate_user!
   before_action      :set_jobs ,only: :index
 
-  layout 'landing'
+  layout 'static'
   add_breadcrumb "Home",'/'
 
   def index
-    render layout: 'landing2'
   end
 
+  def signup
+  end
   def signin
     if request.post?
       if params[:domain].present?
@@ -23,7 +24,6 @@ class StaticController < ApplicationController
         flash.now[:error] = 'Please enter your email or domain'
       end
     end
-    render layout: 'landing'
 
   end
 
@@ -31,6 +31,7 @@ class StaticController < ApplicationController
 
   def set_jobs
     @search = Job.is_public.active.search(params[:q])
+    @count = @search.result(distinct: true).count
     @jobs = @search.result.group_by(&:job_category)
     # puts @jobs.map(& :job_category)
   end

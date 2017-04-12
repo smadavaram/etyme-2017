@@ -1,63 +1,44 @@
-.row
-  .col-sm-12
-    %h1 Create an account
-    %hr/
+%body
+  %header.header-login
+    .container
+      .content
+        .row
+          %h1.revealOnScroll{"data-animation" => "fadeInDown"}
+            %i.fa.fa-coffee
+            Register
+          %p New Here? Create Account.
+
+%section.banner-login
+  .container
     .row
-      .col-sm-12.col-md-6
-        = simple_form_for(resource, as: resource_name, url: registration_path(resource_name), html: {id: 'candidateRegister' , class: 'form-vertical client-form' }) do |f|
-          -#= devise_error_messages!
-          %fieldset
-            .row
-              .col-sm-12
-                .well
-                  .form-group
-                    %label Email address
-                    = f.email_field :email, :placeholder => "Your Email", required: true, email: true,class: 'form-control'
-                  .form-group
-                    %label Password
-                    = f.password_field :password, :placeholder => "Password", required: true,minlength: "6",class: 'form-control',id: "password"
-                  .form-group
-                    %label Confirm password
-                    = f.password_field :password_confirmation, :placeholder => "Confirm password", "data-rule-equalTo": "#password",class: 'form-control'
-                  .form-group
-                    %label.checkbox
-                    %input#terms{:name => "terms", :type => "checkbox" ,required: true}/
+      %main.main.main-signup.col-lg-12
+        .col-lg-6.col-lg-offset-3.text-center
+          .form-sign
+            = simple_form_for(resource, as: resource_name, url: registration_path(resource_name), html: {id: 'candidateRegister' , class: 'form-vertical client-form' }) do |f|
+              .form-head
+                %h3 Register
+              .form-body
+                .form-row
+                  .form-controls
+                    = f.email_field :email, :placeholder => "Your Email", required: true, email: true,class: 'field',onblur: 'validate_email();'
+                .form-row
+                  .form-controls
+                    = f.password_field :password, :placeholder => "Password", required: true,minlength: "6",class: 'field',id: "password"
+                .form-row
+                  .form-controls
+                    = f.password_field :password_confirmation, :placeholder => "Confirm password", "data-rule-equalTo": "#password",class: 'field'
+                -#.form-row
+                  .form-controls
+                    %input#terms{:name => "terms",class:"field", :type => "checkbox" ,required: true}/
                     = succeed "I agree with the " do
                       %i
                     %a{"data-target" => "#myModal", "data-toggle" => "modal", :href => "#"} Terms and Conditions
+              .form-foot
+                .form-actions
+                  %input.form-btn{:type => "submit", :value => "Register"}/
+                .form-head
+                  = link_to "Already have Account?",new_candidate_session_path ,class: "more-link"
 
-                  %br/
-                  = f.submit 'Register',class:'btn btn-primary'
-      .col-md-6.col-sm-12.account-sidebar.hidden-sm
-        .row
-          .col-sm-3{:style => "text-align: center;"}
-            = image_tag asset_path('home/images/icons/Crest.png'),width: 50
-          .col-sm-8
-            %h3 Why us?
-            %p We're one of the most recognisable brands, attracting thousands of buyers every month.
-            %p
-        %br/
-        .row
-          .col-sm-3{:style => "text-align: center;"}
-            = image_tag asset_path('home/images/icons/Pie-Chart.png'),width: 40
-          .col-sm-8
-            %h3 Magnet for buyers
-            %p We make sure your listings receive maximum exposure and is presented in an engaging way
-        %br/
-        .row
-          .col-sm-3{:style => "text-align: center;"}
-            = image_tag asset_path('home/images/icons/Search.png'),width: 40
-          .col-sm-8
-            %h3 Focused searches
-            %p Our technology and algorithm matches potential buyers directly to your listings
-        %br/
-        .row
-          .col-sm-3{:style => "text-align: center;"}
-            = image_tag asset_path('home/images/icons/Telephone.png'),width: 40
-          .col-sm-8
-            %h3 Mobile web
-            %p Your listings will always be accessible to everyone, even when they are on the move, via our responsive mobile website
-    %br/
 
 
 #myModal.modal.fade{"aria-hidden" => "true", "aria-labelledby" => "myModalLabel", :role => "dialog", :tabindex => "-1"}

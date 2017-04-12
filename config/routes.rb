@@ -21,6 +21,7 @@ Rails.application.routes.draw do
   get 'register' => 'companies#new'
   get  'signin' ,to: 'static#signin'
   post 'signin' ,to: 'static#signin'
+  get 'signup' ,to: 'static#signup'
 
   concern :paginatable do
     get '(page/:page)', action: :index, on: :collection, as: ''
@@ -300,7 +301,7 @@ Rails.application.routes.draw do
 
   end # End of module company
 
-  resources :companies , only: [:new , :create,:update] do
+  resources :companies , only: [:create,:update] do
     member do
       get :profile
     end

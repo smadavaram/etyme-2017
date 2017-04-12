@@ -1,45 +1,34 @@
-
-.row
-  .col-sm-12
-    %br/
-    %br/
-    %br/
-    %br/
-    .row
-      .col-md-6.col-sm-12
+%body
+  %header.header-login
+    .container
+      .content
         .row
-          .col-md-11.col-sm-12
-            .well
-              %h2 Sign in
-              %p If you have an account with us, please log in.
+          %h1.revealOnScroll{"data-animation" => "fadeInDown"}
+            %i.fa.fa-coffee
+            Login
+          %p Log in and get to work.
+  %section.banner-login
+    .container
+      .row
+        %main.main.main-signup.col-lg-12
+          .col-lg-6.col-lg-offset-3.text-center
+            .form-sign
               = form_for(resource, as: resource_name, url: session_path(resource_name), html: {id: 'login-form', class: 'client-form',role:'form'}) do |f|
-                .form-group
-                  %label Email address
-                  = f.email_field :email, autofocus: true,class:'form-control',placeholder:"Enter Email"
-                -#%input.form-control{:placeholder => "Enter email", :type => "email"}/
-                .form-group
-                  %label Password
-                  = f.password_field :password, autocomplete: "off",class:'form-control',placeholder:"Enter password"
-                .checkbox
-                  %label Remember me
-                  = f.check_box :remember_me
-                -#.form-group
-                -#  = link_to 'Forgot password?', new_candidate_password_path
-                %br/
-                = f.submit 'Sign In',class:'btn btn-primary'
-      .col-md-6.col-sm-12
-        .well
-          %h2 Forgot Password?
-          = form_for(resource, as: resource_name, url: password_path(resource_name), html: {id: 'password-reset', class: 'smart-form client-form',method: :post }) do |f|
-            %fieldset
-              .form-group
-                %label Enter your email address
-                = f.email_field :email, autofocus: true,class: 'form-control',palceholder: "Email Address",required:true
-                %br
-            %footer
-              %button.btn.btn-primary{:type => "submit"}
-                %i.fa.fa-refresh
-                Reset Password
+                .form-head
+                  %h3 Login
+                / /.form-head
+                .form-body
+                  .form-row
+                    .form-controls
+                      = f.email_field :email, autofocus: true,class:' field',placeholder:"Enter Email"
+                  .form-row
+                    .form-controls
+                      = f.password_field :password, autocomplete: "off",class:'field',placeholder:"Enter password"
+                .form-foot
+                  .form-actions
+                    = f.submit 'Login',class:'form-btn'
+                  .form-head
+                    = link_to 'Forgot password?', new_candidate_password_path ,class: "more-link"
 
 - content_for :scripts do
   :javascript

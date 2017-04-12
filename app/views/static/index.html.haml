@@ -1,223 +1,106 @@
-%link{:href => "https://fonts.googleapis.com/css?family=Raleway:300,400,500,600,700", :rel => "stylesheet"}/
-%link{:href => "https://fonts.googleapis.com/css?family=Open+Sans:300,400,600,700", :rel => "stylesheet"}/
-%link{:href => "https://fonts.googleapis.com/css?family=Dancing+Script:400,700", :rel => "stylesheet"}/
+%link{:href => "img/favicons/favicon.ico", :rel => "shortcut icon"}/
+%link{:href => "img/favicons/apple-touch-icon.png", :rel => "apple-touch-icon"}/
+%link{:href => "img/favicons/apple-touch-icon-72x72.png", :rel => "apple-touch-icon", :sizes => "72x72"}/
+%link{:href => "img/favicons/apple-touch-icon-114x114.png", :rel => "apple-touch-icon", :sizes => "114x114"}/
 
-%header#header
-  .intro
-    .overlay
-      .container
-        .row
-          .intro-text
-            %h1 Etyme
-            %p Employees Timesheets / Job & Contract management
-            %a.btn.btn-custom.btn-lg.page-scroll{:href => "#about"} Start
-/ About Section
-#about
+%header.header-one
+  .container
+    .content
+      .row
+        %h1.name.revealOnScroll{"data-animation" => "fadeInDown"}
+          %i.fa.fa-coffee
+          The Etyme.
+        %p.temp The plateform for manage jobs ,contracts and timesheets.
+        %h1.hire.revealOnScroll{"data-animation" => "fadeInUp", "data-timeout" => "400"} Hire the best freelancers for your work.
+        .form-row
+          .radio.radio-left
+            %a{:href => "signup.html"} HIRE
+          .radio.radio-right
+            %a{:href => "signup.html"} WORK
+      .row
+        .col-lg-10.col-lg-offset-1.hidden-xs
+          .logos
+            %img.img-responsive{:alt => "", :src => image_path("static/img/featured-logos.png")}/
+
+%section#services.services
+  .container.text-center
+    .row
+      .col-lg-12
+        %h3 Browse Freelance Services
+        %hr.mint/
+        %p.top-p View over #{@count} available services by category.
+    .row
+      .col-lg-12
+        - @jobs.each do |category,jobs|
+          .col-lg-4.col-md-4.col-sm-6
+            %a{:href => static_jobs_path(category: category)}
+              .features.four
+                %span.fa-stack.fa-3x
+                  %i.fa.fa-circle.fa-stack-2x
+                  %i.fa.fa-cogs.fa-stack-1x.fa-inverse
+                / /span
+                %h4 #{truncate(category,length: 20)}
+              / /.features
+              .spacer
+                %p Data Entry, English, Excel, Customer Service, Admin Support, Research, Email.
+                %p
+                  %b Over  #{jobs.count} jobs
+
+%section.banner-comment
+  .container
+    %h1 Best way to help world society is to develop a concrete framework for high paying jobs and individual skills enhancements.
+
+%section#stats.stats
+  .container.text-center
+    .row
+      .col-lg-3.col-sm-6.pro
+        %h5 Clients
+        %h1
+          %span.number-animator{"data-animation-duration" => "800", "data-value" => "505"} 0
+        .progress.transparent.progress-small.no-radius
+          .progress-bar.progress-bar-black.animated-progress-bar{"data-percentage" => "45%"}
+        / /.progress
+      / /.col-lg-3
+      .col-lg-3.col-sm-6.pro
+        %h5 Freelancers
+        %h1
+          %span.number-animator{"data-animation-duration" => "800", "data-value" => "4500"} 0
+        .progress.transparent.progress-small.no-radius
+          .progress-bar.progress-bar-black.animated-progress-bar{"data-percentage" => "79%"}
+        / /.progress
+      / /.col-lg-3
+      .col-lg-3.col-sm-6.pro
+        %h5 Jobs Completed
+        %h1
+          %span.number-animator{"data-animation-duration" => "800", "data-value" => "14000"} 0
+        .progress.transparent.progress-small.no-radius
+          .progress-bar.progress-bar-black.animated-progress-bar{"data-percentage" => "85%"}
+        / /.progress
+      / /.col-lg-3
+      .col-lg-3.col-sm-6.pro
+        %h5 Payed To Freelancers
+        %h1
+          %i.fa.fa-usd
+          %span.number-animator{"data-animation-duration" => "800", "data-value" => "500K"} 0
+        .progress.transparent.progress-small.no-radius
+          .progress-bar.progress-bar-black.animated-progress-bar{"data-percentage" => "85%"}
+
+#testimonials
   .container
     .row
-      .col-xs-12.col-md-6
-        .about-img
-          %img.img-responsive{:alt => "", :src => image_url("landing2/hr.jpg")}/
-      .col-xs-12.col-md-6
-        .about-text
-          %h2 Our Story
-          %hr/
-          %p Lorem ipsum dolor sit amet, consectetur adipiscing elit. Duis sed dapibus leo nec ornare diam. Sed commodo nibh ante facilisis bibendum dolor feugiat at. Duis sed dapibus leo nec ornare diam commodo nibh.
-          %h3 Awarded Candidates
-          %p Lorem ipsum dolor sit amet, consectetur adipiscing elit. Duis sed dapibus leo nec ornare diam. Sed commodo nibh ante facilisis bibendum dolor feugiat at. Duis sed dapibus leo nec ornare.
-/ Restaurant Menu Section
-#restaurant-menu
-  .section-title.text-center.center
-    .overlay
-      %h2 Jobs
-      %hr/
-  .container
-    .row
-      - @jobs.each do |category,jobs|
-        .col-xs-12.col-sm-6
-          .menu-section
-            %h2.menu-section-title
-              = link_to truncate(category,length: 20),static_jobs_path(category: category)
-            %hr/
-            - jobs.take(5).each_with_index  do |job,index|
-              .menu-item
-                .menu-item-name= link_to job.title.titleize ,static_job_path(job)
-                .menu-item-price= job.end_date
-                .menu-item-description= truncate(strip_tags(job.description),length: 100)
-
-/ Team Section
-#team.text-center
-  .overlay
-    .container
-      .col-md-10.col-md-offset-1.section-title
-        %h2 Meet Our
-        %hr/
-        %p Lorem ipsum dolor sit amet, consectetur adipiscing elit duis sed dapibus leonec.
-      #row
-        .col-md-4.team
-          .thumbnail
-            .team-img
-              %img{:alt => "...", :src => image_url("landing2/img/team/01.jpg")}/
-            .caption
-              %h3 Mike Doe
-              %p Lorem ipsum dolor sit amet, consectetur adipiscing elit. Duis sed dapibus leo nec ornare diam.
-        .col-md-4.team
-          .thumbnail
-            .team-img
-              %img{:alt => "...", :src => image_url("landing2/img/team/02.jpg")}/
-            .caption
-              %h3 Chris Doe
-              %p Lorem ipsum dolor sit amet, consectetur adipiscing elit. Duis sed dapibus leo nec ornare diam.
-        .col-md-4.team
-          .thumbnail
-            .team-img
-              %img{:alt => "...", :src => image_url("landing2/img/team/03.jpg")}/
-            .caption
-              %h3 Ethan Doe
-              %p Lorem ipsum dolor sit amet, consectetur adipiscing elit. Duis sed dapibus leo nec ornare diam.
-/ Call Reservation Section
-#call-reservation.text-center
-  .container
-    %h2
-      Want to make a reservation? Call
-      %strong 1-887-654-3210
-/ Contact Section
-#contact.text-center
-  .container
-    .section-title.text-center
-      %h2 Contact Form
-      %hr/
-      %p Lorem ipsum dolor sit amet, consectetur adipiscing elit duis sed.
-    .col-md-10.col-md-offset-1
-      %form#contactForm{:name => "sentMessage", :novalidate => ""}
-        .row
-          .col-md-6
-            .form-group
-              %input#name.form-control{:placeholder => "Name", :required => "required", :type => "text"}/
-              %p.help-block.text-danger
-          .col-md-6
-            .form-group
-              %input#email.form-control{:placeholder => "Email", :required => "required", :type => "email"}/
-              %p.help-block.text-danger
-        .form-group
-          %textarea#message.form-control{:name => "message", :placeholder => "Message", :required => "", :rows => "4"}
-          %p.help-block.text-danger
-        #success
-        %button.btn.btn-custom.btn-lg{:type => "submit"} Send Message
-
-
-
-  -#
-  -#%jumbotron.home-search
-  -#  .container
-  -#    .row
-  -#      = search_form_for @search , url: search_static_jobs_path , method: :get do |f|
-  -#        .col-sm-12
-  -#          %br/
-  -#          %p.main_description{style:'    font-size: 20px;font-weight: 200;'}  Temp staffing made easy for IT
-  -#          %br/
-  -#          %br/
-  -#          .row
-  -#            .col-sm-8.col-sm-offset-2{:style => "text-align: center"}
-  -#              .row
-  -#                .col-sm-12.col-sm-offset-1
-  -#                  %ul.nav.tabs-pull-right
-  -#                    %br
-  -#                    .input-group-md.hidden-mobile
-  -#                      -#.col-sm-2
-  -#                        %span.input-group-addon-text Search Job
-  -#                      .col-sm-8.visible-xs
-  -#                        = f.text_field :title_or_job_category_or_location_cont, class: "form-control input-md ", placeholder: "By Job and location..."
-  -#                      .col-sm-8.hidden-xs
-  -#                        = f.text_field :title_or_job_category_cont, class: "form-control input-md ", placeholder: "By Job..."
-  -#                        .help-block.pull-left job title, category
-  -#                      -#.input-group-btn
-  -#                      -#  = f.select :job_category_eq , WORK_CATEGORIES.each { |key, value| [key.humanize, value] }, {} , {class: "btn btn-default dropdown-toggle" , style:'width: 140px', onChange: "this.form.submit();"}
-  -#                      .col-sm-4.hidden-xs{style: "padding-left: 0px"}
-  -#                        .form-group
-  -#                          = f.text_field :location_cont , class: "form-control input-md",placeholder: "By location"
-  -#                          .help-block.pull-left country,state,city
-  -#
-  -#              %br/
-  -#            .row
-  -#              .col-sm-12{:style => "text-align: center"}
-  -#                = f.submit 'Search',class: 'btn btn-primary search-btn'
-  -#            %br/
-  -#            %br/
-  -#            .row
-  -#              .col-sm-12{:style => "text-align: center"}
-  -#                #quotes
-  -#                  .text-item{:style => "display: none;"}
-  -#                    Etyme!
-  -#                    %strong has
-  -#                    Removed
-  -#                    %strong the frustration of hosting
-  -#                    and
-  -#                    %strong  creating web sites.
-  -#                  .text-item{:style => "display: none;"}
-  -#                    %strong Newsfeed,
-  -#                    %strong Bulk Email,
-  -#                    Activity feed
-  -#                    %strong & HR Networking.
-  -#                  .text-item{:style => "display: none;"}
-  -#                    Success!
-  -#                    %strong Setup Automation,
-  -#                    Notifications,  RSS feeds.
-  -#                    %strong tasks, messaging,
-  -#                    in
-  -#                    %strong Etyme
-  -#                  .text-item{:style => "display: none;"}
-  -#                    Hey,
-  -#                    %strong Etyme
-  -#                    has
-  -#                    %strong Employees Timesheets,
-  -#                    %strong Leave & expense management.
-  -#.row
-  -#  .col-sm-12.col-md-8
-  -#    .row.directory
-  -#      .col-sm-12
-  -#        %h2
-  -#          %span= link_to 'Jobs',static_jobs_path
-  -#    .row.directory
-  -#      .col-xs-12
-  -#        - @jobs.each do |category,jobs|
-  -#          .directory-block.col-sm-4.col-xs-6
-  -#            .row
-  -#              .col-sm-3
-  -#                %i.fa.fa-home
-  -#              .col-sm-9
-  -#                %h4=link_to category,static_jobs_path(category: category)
-  -#                %p
-  -#                - jobs.take(5).each_with_index  do |job,index|
-  -#                  = index>0 ? "," :""
-  -#                  = link_to job.title ,static_job_path(job)
-  -#
-  -#
-  -#  .col-xs-12.col-md-4
-  -#    .row
-  -#      .col-xs-12.col-sm-3.col-md-12.col-lg-11.pull-right
-  -#        %br.hidden-sm.hidden-xs/
-  -#        %br.hidden-sm.hidden-xs/
-  -#        %br.hidden-sm.hidden-xs/
-  -#        .panel.panel-default
-  -#          .panel-heading Quick guide
-  -#          %ul.list-group
-  -#            %li.list-group-item
-  -#              %a{:href => "#"} Our tips to Etyme
-  -#            %li.list-group-item
-  -#              %a{:href => "#"} How to Apply for Job
-  -#            %li.list-group-item
-  -#              %a{:href => "#"} How to Manage Contracts , Timesheets and other
-  -#            %li.list-group-item
-  -#              %a{:href => "#"} Help and contact us
-  -#            %li.list-group-item
-  -#              %a{:href => "#"} Frequently asked questions
-  -#
-  -#
-  -#
-  -#-content_for :scripts do
-  -#  :javascript
-  -#    $(document).ready(function() {
-  -#        $('.equal-height').equalHeights();
-  -#
-  -#    });
+      %h3 Testimonials
+      %hr.mint/
+      .testimonials-slider
+        %ul.slides
+          %li
+            %p
+              The etyme is best plateform for manage jobs ,contracts and timesheets
+              %span John Doe
+          %li
+            %p
+              I m wondering why I never contacted these guys sooner! Seriously, they all have commendable talent in their respective field and knocked my concept out of the ballpark. Thanks for an amazing experience!
+              %span Segero, NoranicMeds
+          %li
+            %p
+              I m wondering why I never contacted these guys sooner! Seriously, they all have commendable talent in their respective field and knocked my concept out of the ballpark. Thanks for an amazing experience!
+              %span Jane Doe

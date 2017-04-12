@@ -3,7 +3,7 @@ class Candidates::RegistrationsController < Devise::RegistrationsController
 # before_action :configure_account_update_params, only: [:update]
    before_filter :configure_permitted_parameters
 
-  layout 'landing'
+  layout 'static'
    add_breadcrumb "Home",'/'
    add_breadcrumb "Candidate",""
    add_breadcrumb "Sign Up",''

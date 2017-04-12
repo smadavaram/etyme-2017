@@ -1,21 +1,37 @@
-#main{:role => "main"}
-  / MAIN CONTENT
-  -#= form_for :domain , url: signin_path , method: 'post' , class: 'lockscreen animated flipInY' do |f|
-%form.lockscreen.animated.flipInY{method: 'post' , url: signin_path}
-  %div
-    %h1
-      %i.fa-3x.text-muted.air.air-top-right.hidden-mobile>
-      Sign in to your team
-    .input-group{style:"width: 63%;"}
-      %input{name:"authenticity_token" , value: "#{form_authenticity_token}" ,type: "hidden"}
-      %input.form-control{placeholder: "teamdomain" , name: "domain"}/
-      .input-group-btn
-        %button.btn.btn-primary{:type => "submit"}
-          = ".etyme.com"
-    %p.no-margin.margin-top-5
-      Enter your team's Etyme domain.
-- content_for :script do
-  :javascript
-    $(document).ready(function() {
-      $('.container').css('margin-right','22px;');
-        })
+%body
+  %header.header-login
+    .container
+      .content
+        .row
+          %h1.revealOnScroll{"data-animation" => "fadeInDown"}
+            %i.fa.fa-coffee
+            Login
+          %p Log in and get to work.
+        / /.row
+      / /.content
+    / /.container
+  / /header
+  /
+    \==============================================
+    Banner Login Section
+    \===============================================
+  %section.banner-login
+    .container
+      .row
+        %main.main.main-signup.col-lg-12
+          .col-lg-6.col-lg-offset-3.text-center
+            .form-sign
+              %form.lockscreen.animated.flipInY{method: 'post' , url: signin_path}
+                .form-head
+                  %h3 Sign in to your team
+                / /.form-head
+                .form-body
+                  .form-row
+                    .form-controls
+                      %input.field{:name => "domain", :placeholder => "Enter Your Doamin", :type => "text"}/
+                .form-foot
+                  .form-actions
+                    %input.form-btn{:type => "submit", :value => "Continue"}/
+                  / /.form-actions
+                  .form-head
+                    = link_to 'Are Already Signup there?', new_candidate_password_path ,class: "more-link"

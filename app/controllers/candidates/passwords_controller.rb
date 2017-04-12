@@ -1,6 +1,6 @@
 class Candidates::PasswordsController < Devise::PasswordsController
 
-  layout 'landing'
+  layout 'static'
 
   # GET /resource/password/new
    def new

@@ -27,7 +27,7 @@ class ApplicationController < ActionController::Base
   end
 
   def set_devise_layout
-    'landing' if devise_controller?
+    'static' if devise_controller?
   end
 
   def after_sign_in_path_for(resource)
