@@ -13,7 +13,7 @@
         %main.main.main-signup.col-lg-12
           .col-lg-6.col-lg-offset-3.text-center
             .form-sign
-              = form_for(resource, as: resource_name, url: password_path(resource_name), html: {id: 'forgot-password-form', class: 'smart-form client-form',method: :post }) do |f|
+              = form_for(resource, as: resource_name, url: password_path(resource_name), html: {id: 'forgot-password-form', class: 'lockscreen animated flipInY',method: :post }) do |f|
                 = devise_error_messages!
                 .form-head
                   %h3 Forgot Password

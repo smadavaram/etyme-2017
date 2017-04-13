@@ -13,7 +13,7 @@
       %main.main.main-signup.col-lg-12
         .col-lg-6.col-lg-offset-3.text-center
           .form-sign
-            = form_for @company , html: {id: 'smart-form-register' , class: 'vertical-form client-form',id: 'myform' }  do |f|
+            = form_for @company , html: {id: 'smart-form-register' , class: 'vertical-form lockscreen animated flipInY',id: 'myform' }  do |f|
               = f.fields_for :owner do |u|
                 .form-head
                   %h3 Register
