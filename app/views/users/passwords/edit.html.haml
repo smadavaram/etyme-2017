@@ -1,53 +1,16 @@
-%body
-  %header.header-login
-    .container
-      .content
-        .row
-          %h1.revealOnScroll{"data-animation" => "fadeInDown"}
-            %i.fa.fa-coffee
-            Login
-          %p Log in and get to work.
-        / /.row
-      / /.content
-    / /.container
-  / /header
-  /
-    \==============================================
-    Banner Login Section
-    \===============================================
-  %section.banner-login
-    .container
-      .row
-        %main.main.main-signup.col-lg-12
-          .col-lg-6.col-lg-offset-3.text-center
-            .form-sign
-              = form_for(resource, as: resource_name, url: password_path(resource_name), html: { method: :put,id: 'login-form', class: 'smart-form client-form' }) do |f|
-                = f.hidden_field :reset_password_token
-                .form-head
-                  %h3  Change Your Password
-                / /.form-head
-                .form-body
-                  .form-row
-                    .form-controls
-                      = f.password_field :password, autofocus: true, autocomplete: "off",class:'form-control' ,id:"password", required: true ,minlength:6,placeholder: "Enter Password"
-                    / /.form-controls
-                  / /.form-row
-                  .form-row
-                    .form-controls
-                      = f.password_field :password_confirmation, autocomplete: "off",class:'form-control',id:"cPassword",required: true, "data-rule-equalTo": "#password",minlength:6,placeholder: "Confirm Password"
-                    / /.form-controls
-                  / /.form-row
-                / /.form-body
-                .form-foot
-                  .form-actions
-                    = f.submit 'Change my password',class:'form-btn'
-                  / /.form-actions
-                  .form-head
-                    = link_to 'Forgot password?', new_candidate_password_path ,class: "more-link"
-                    -#%a.more-link{:href => "#"} Forgot Password?
-                / /.form-foot
-            / /.form-sign
-          / /.col-lg-6
-      / /.row
-    / /.container
-  / /section
+= render 'partials/password_edit'
+
+-content_for :scripts do
+  :javascript
+    $('#new-password-form').validate(
+      {
+         rules: {
+          password:{
+          required: true
+          },
+          cPassword:{
+          required: true,
+          equalTo: "#password"
+          }
+       }
+     } );

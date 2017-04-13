@@ -1,7 +1,4 @@
-/
-  \==============================================
-  Footer Section
-  \===============================================
+
 .footer
   .container
     .row
@@ -15,12 +12,12 @@
         %h4.heading.no-margin Company
         %hr.mint/
         .no-padding
-          %a{:href => "index.html"} Home
-          %a{:href => "about.html"} About
-          %a{:href => "jobs.html"} Jobs
-          %a{:href => "services.html"} Freelancers
-          %a{:href => "how-1.html"} How it works
-          %a{:href => "contact.html"} Contact
+          %a{:href => static_index_path} Home
+          %a{:href => "#"} About
+          %a{:href => static_jobs_path} Jobs
+          %a{:href => "#"} Freelancers
+          %a{:href => "#"} How it works
+          %a{:href => "#"} Contact
       / /.col-md-2
       .col-md-3.col-sm-6.text-left
         %h4.heading.no-margin Other Services
@@ -28,46 +25,31 @@
         .no-padding
           %a{:href => "#"} Privacy Policy
           %a{:href => "#"} Terms of Use
-          %a{:href => "faq.html"} FAQ
+          %a{:href => "#"} FAQ
       / /.col-md-3
       .col-md-3.col-sm-6.text-left
         %h4.heading.no-margin Browse
         %hr.mint/
         .no-padding
-          %a{:href => "services.html"} Top Freelancers this Month of June
-          %a{:href => "services.html"} Top Freelancers by Skill
-          %a{:href => "services.html"} Top Freelancers in USA
-          %a{:href => "services.html"} Top Freelancers in UK
-          %a{:href => "services.html"} Top Freelancers in Australia
-          %a{:href => "services.html"} Top Freelancers in Kenya
-      / /.col-md-3
-    / /.row
+          %a{:href => "#"} Top Freelancers this Month of June
+          %a{:href => "#"} Top Freelancers by Skill
+          %a{:href => "#"} Top Freelancers in USA
+          %a{:href => "#"} Top Freelancers in UK
+          %a{:href => "#"} Top Freelancers in Australia
+          %a{:href => "#"} Top Freelancers in Kenya
     .clearfix
-  / /.container
-/ /.footer
-/
-  \==============================================
-  Made Section
-  \===============================================
+
 %section.made
   .container
     .row
       .col-lg-10.col-lg-offset-1.text-center
-        %h4.made-with-love The Kafe. Template
+        %h4.made-with-love The Etyme
         %p.made-with-love-1
           Handcrafted with
           %i.fa.fa-heart
           \&amp; Much
           %i.fa.fa-coffee
           In Nairobi, Kenya.
-      / /.col-lg-10
-    / /.row
-  / /.container
-/ /.made
-/
-  \==============================================
-  Bottom Footer Section
-  \===============================================
 %footer#main-footer.main-footer
   .container
     .row
@@ -92,31 +74,8 @@
       .col-lg-4.col-md-4.col-sm-6.col-xs-12.revealOnScroll{"data-animation" => "bounceIn", "data-timeout" => "200"}
         .img-responsive.text-center
           %i.fa.fa-coffee.logo
-        / End image
-      / /.col-sm-4
       .col-lg-4.col-md-4.col-sm-6.col-xs-12.text-right.revealOnScroll{"data-animation" => "slideInRight", "data-timeout" => "200"}
         %p
-          ©2016 The Kafe. Template by
-          %a{:href => "http://www.themashabrand.com/templates/Kafe/", :target => "_blank"} The Masha Brand
-      / /.col-sm-4
-    / /.row
-  / /.container
-/ /.footer
+          ©#{Date.today().strftime("%Y")} The Etyme.
+          %a{:href => "http://www.themashabrand.com/templates/Kafe/", :target => "_blank"} The Etyme
 %a#scrollup Scroll
-
-
-
-
-
--#.footer
-  .container
-    .row
-      .col-sm-4.col-xs-12
-        %p
-          %strong= Time.now.strftime("Etyme %Y")
-        %p All rights reserved
-      .col-sm-8.col-xs-12
-        %p.footer-links
-          %a.active{:href => "#"} Home
-          %a{:href => "#"} Terms and Conditions
-          %a{:href => "#"} Contact Us

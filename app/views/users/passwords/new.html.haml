@@ -5,23 +5,15 @@
         .row
           %h1.revealOnScroll{"data-animation" => "fadeInDown"}
             %i.fa.fa-coffee
-            Login
+            Forgot Password
           %p Log in and get to work.
-        / /.row
-      / /.content
-    / /.container
-  / /header
-  /
-    \==============================================
-    Banner Login Section
-    \===============================================
   %section.banner-login
     .container
       .row
         %main.main.main-signup.col-lg-12
           .col-lg-6.col-lg-offset-3.text-center
             .form-sign
-              = form_for(resource, as: resource_name, url: password_path(resource_name), html: {id: 'login-form', class: 'smart-form client-form',method: :post }) do |f|
+              = form_for(resource, as: resource_name, url: password_path(resource_name), html: {id: 'forgot-password-form', class: 'smart-form client-form',method: :post }) do |f|
                 = devise_error_messages!
                 .form-head
                   %h3 Forgot Password
@@ -29,10 +21,14 @@
                 .form-body
                   .form-row
                     .form-controls
-                      = f.email_field :email, autofocus: true,class:' field',placeholder:"Enter Email"
+                      = f.email_field :email, autofocus: true,class:' field',placeholder:"Enter Email",required: true
                 .form-foot
                   .form-actions
                     = f.submit 'Reset Password',class:'form-btn'
                   / /.form-actions
                   .form-head
-                    = link_to 'Forgot password?', new_candidate_password_path ,class: "more-link"
+                    = link_to 'Remember password?', new_user_session_path ,class: "more-link"
+
+-content_for :scripts do
+  :javascript
+    $('#forgot-password-form').validate();

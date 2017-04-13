@@ -1,1 +1,69 @@
-= render 'partials/new_session_form'
+%body
+  %header.header-login
+    .container
+      .content
+        .row
+          %h1.revealOnScroll{"data-animation" => "fadeInDown"}
+            %i.fa.fa-coffee
+            Login
+          %p Log in and get to work.
+  %section.banner-login
+    .container
+      .row
+        %main.main.main-signup.col-lg-12
+          .col-lg-6.col-lg-offset-3.text-center
+            .form-sign
+              = form_for(resource, as: resource_name, url: session_path(resource_name), html: {id: 'login-form', class: 'client-form',role:'form'}) do |f|
+                .form-head
+                  %h3 Login
+                / /.form-head
+                .form-body
+                  .form-row
+                    .form-controls
+                      = f.email_field :email, autofocus: true,class:' field',placeholder:"Enter Email" ,required: true
+                  .form-row
+                    .form-controls
+                      = f.password_field :password, autocomplete: "off",class:'field',placeholder:"Enter password" ,required: true
+                .form-foot
+                  .form-actions
+                    = f.submit 'Login',class:'form-btn'
+                  .form-head
+                    = link_to 'Forgot password?', new_user_password_path ,class: "more-link"
+
+- content_for :scripts do
+  :javascript
+    // runAllForms();
+    $(function() {
+      // Validation
+      $("#login-form").validate({
+        // Rules for form validation
+        rules : {
+          email : {
+            required : true,
+            email : true
+          },
+          password : {
+            required : true,
+            minlength : 3,
+            maxlength : 20
+          }
+        },
+
+        // Messages for form validation
+        messages : {
+          email : {
+            required : 'Please enter your email address',
+            email : 'Please enter a VALID email address'
+          },
+          password : {
+            required : 'Please enter your password'
+          }
+        },
+
+        // Do not change code below
+        errorPlacement : function(error, element) {
+          error.insertAfter(element.parent());
+        }
+      });
+      $('#password-reset').validate();
+    });

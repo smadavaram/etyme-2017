@@ -28,15 +28,11 @@
             .col-lg-3
               %h5 Company
               %p= @job.company.name.humanize
-            / /.col-lg-3
             -#.col-lg-3
               %h5 Applicants
               %p 15
-            / /.col-lg-3
             .col-lg-12
               %hr.small-hr/
-            / /.col-lg-12
-          / /.row
           .post-bottom-sec
             %h4 Job Description
             %p= raw(@job.description)
@@ -99,20 +95,5 @@
                 %span.badge 100
 
 -content_for :body_class, 'greybg'
-
-
-
-
-
-
--#.row
-  .col-sm-12.animated.fadeInRightBig
-    %section.panel.mt-20s
-      %header.panel-heading
-        -#%a.pull-right.btn.btn-primary.right.mt-12{href:"#",}  Apply Now
-        - if @job.is_active?
-          = link_to 'Apply Now' ,candidate_signed_in? ? static_job_apply_path(@job,status:true)  : static_job_apply_path(@job,status: false) , method: :post , remote: true ,  class: "btn btn-primary btn-sm pull-right   #{current_candidate.present? ? (current_candidate.is_already_applied?(@job.id) ? "disabled " : "" ) : "" } "
-
-        = render 'partials/job_show' , job: @job
 - content_for :modals do
   #job_application
