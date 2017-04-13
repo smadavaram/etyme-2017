@@ -1,13 +1,10 @@
 
 %nav.navbar.navbar-default.navbar-fixed-top
   .container
-    / Brand and toggle get grouped for better mobile display
     %a.navbar-brand
-      %i.fa.fa-coffee
-      Etyme
+      = image_tag image_path('etyme-logo.png'),  style:"width:125px ;height:50px"
     %input#toggle{:type => "checkbox"}/
     %label.toggle{:for => "toggle"}
-    / Collect the nav links, forms, and other content for toggling
     %ul.menu
       %li
         %a{ :href => static_index_path}
@@ -41,76 +38,3 @@
             %a{:href => register_path} Company
           %li
             %a{:href => new_candidate_registration_path} Candidate
-
-
-
--#.navbar.navbar-default{:role => "navigation"}
-  .container
-    .navbar-header
-      %button.navbar-toggle{"data-target" => ".navbar-collapse", "data-toggle" => "collapse", :type => "button"}
-        %span.icon-bar
-        %span.icon-bar
-        %span.icon-bar
-      %a.navbar-brand{:href => "/"}
-        %span.logo{style: 'margin-top: -9px'}
-          = image_tag 'etyme-logo-dark.png', alt: SITE_NAME, style: 'width: 100px;'
-          %br/
-          %small  Platform for contracts
-    .collapse.navbar-collapse
-      %ul.nav.navbar-nav.navbar-right.visible-xs
-        %li.active
-          %a{:href => "#"} Home
-        - if candidate_signed_in?
-          %li
-            = link_to  current_candidate.full_name.titleize,candidate_candidate_dashboard_path
-          %li
-            = link_to 'Log out', destroy_candidate_session_path, method: :delete, class: ''
-        -else
-          %li
-            = link_to 'Candidate Login',new_candidate_session_path
-          %li
-            = link_to 'Candidate Sign Up', new_candidate_registration_path
-          %li
-            = link_to 'Company Sign Up', register_path
-          %li
-            = link_to 'Company Login', request.subdomain.present? ? new_user_session_path : signin_path
-      .nav.navbar-nav.navbar-right.hidden-xs
-        .row
-          .pull-right
-            - if candidate_signed_in?
-              = current_candidate.full_name.present? ? (link_to  current_candidate.full_name.titleize,candidate_candidate_dashboard_path) : (link_to  "Dashboard",candidate_candidate_dashboard_path)
-              |
-              = link_to 'Log out', destroy_candidate_session_path, method: :delete, class: ' btn btn-warning post-ad-btn'
-            -else
-              .row
-                .input-group-addon.hidden-xs.col-sm-6.pdr-24.wid-33{style: 'background-color: #fff ; border: none;'}
-                  .btn-group
-                    %button.btn.btn-sm.dropdown-toggle{"data-toggle" => "dropdown", :type => "button" , style: 'color: black;'}
-                      Login
-                      %span.caret
-                    %ul.dropdown-menu{:role => "menu"}
-                      %li
-                        = link_to 'Candidate Login',new_candidate_session_path ,  class: 'padding-top-10 padding-bottom-10'
-                      %li
-                        = link_to 'Company Login', request.subdomain.present? ? new_user_session_path : signin_path , class: 'padding-top-10 padding-bottom-10'
-                .input-group-addon.hidden-xs.col-sm-6.pdr-24.wid-33{style: 'background-color: #fff ; border: none; !important;'}
-                  .btn-group
-                    %button.btn.btn-sm.dropdown-toggle{"data-toggle" => "dropdown", :type => "button" , style: 'color: black;'}
-                      Get Started
-                      %span.caret
-                    %ul.dropdown-menu{:role => "menu"}
-                      %li
-                        = link_to 'Candidate Sign Up', new_candidate_registration_path , class: 'padding-top-10 padding-bottom-10'
-                      %li
-                        = link_to 'Company Sign Up', register_path , class: 'padding-top-10 padding-bottom-10'
-                .input-group-addon.hidden-xs.col-sm-6.pdr-24.wid-33{style: 'background-color: #fff ; border: none;padding-left: 35px !important;'}
-                  .btn-group
-                    %button.btn.btn-sm.dropdown-toggle{"data-toggle" => "dropdown", :type => "button" , style: 'color: black'}
-                      Help
-                      %span.caret
-                    %ul.dropdown-menu{:role => "menu"}
-                      %li
-                        = link_to 'etymehelp', "#" , class: 'padding-top-10 padding-bottom-10'
-
-
--#%hr.topbar
