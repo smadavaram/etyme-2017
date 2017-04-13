@@ -9,13 +9,9 @@
       %li
         %a{ :href => static_index_path}
           Home
-      %li.dropdown
-        %a.dropdown-toggle{"data-toggle" => "dropdown", :href => "#"}
+      %li
+        %a{:href => static_jobs_path}
           Jobs
-          %b.caret
-        %ul.dropdown-menu
-          %li
-            = link_to 'Jobs' ,static_jobs_path
       %li.dropdown
         %a.dropdown-toggle{"data-toggle" => "dropdown", :href => "#"}
           Login

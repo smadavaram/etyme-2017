@@ -37,12 +37,12 @@
               .features.four
                 %span.fa-stack.fa-3x
                   %i.fa.fa-circle.fa-stack-2x
-                  %i.fa.fa-cogs.fa-stack-1x.fa-inverse
+                  %i.fa.fa-briefcase.fa-stack-1x.fa-inverse
                 / /span
                 %h4 #{truncate(category,length: 20)}
               / /.features
               .spacer
-                %p Data Entry, English, Excel, Customer Service, Admin Support, Research, Email.
+                %p= truncate(jobs.map{|j| j.title.humanize}.join(", "),length: 100)
                 %p
                   %b Over  #{jobs.count} jobs
 
