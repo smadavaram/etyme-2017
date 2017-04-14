@@ -18,6 +18,9 @@
                 .form-head
                   %h3 Register
                 .form-body
+                  - flash.each do |key, value|
+                    %div{class: " #{flash_class(key.to_sym) }"}
+                      = value.is_a?(String) ? value : value.first
                   .form-row
                     .form-controls
                       = f.select :company_type , Company.company_types.map { |key, value| [key.humanize, key]},{include_blank: '-- Select Type --'} ,:class => 'form-control company_type', required: true ,onchange: "showNote();"

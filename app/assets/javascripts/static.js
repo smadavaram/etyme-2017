@@ -18,3 +18,4 @@
 //= require plugin/select2/select2.min
 //= require tinymce-jquery
 //= require plugin/jquery-validate/jquery.validate.min
+//= require notification/SmartNotification.min.js
