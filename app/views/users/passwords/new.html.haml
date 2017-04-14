@@ -20,8 +20,7 @@
                 / /.form-head
                 .form-body
                   - flash.each do |key, value|
-                    %div{class: " #{flash_class(key.to_sym) }"}
-                      = value
+                    = flash_message(key,value)
                   .form-row
                     .form-controls
                       = f.email_field :email, autofocus: true,class:' field',placeholder:"Enter Email",required: true

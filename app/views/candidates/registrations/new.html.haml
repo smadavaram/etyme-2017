@@ -19,8 +19,7 @@
                 %h3 Register
               .form-body
                 - flash.each do |key, value|
-                  %div{class: " #{flash_class(key.to_sym) }"}
-                    = value
+                  = flash_message(key,value)
                 .form-row
                   .form-controls
                     = f.email_field :email, :placeholder => "Your Email", required: true, email: true,class: 'field',onblur: 'validate_email();'
