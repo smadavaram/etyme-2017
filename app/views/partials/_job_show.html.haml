@@ -1,4 +1,4 @@
-%h1= job.try(:title)
+%h1= truncate(job.try(:title),length: 100)
 - job.tags.each do |tag|
   %span.h4.badge.btn-primary
     =tag.name

@@ -15,7 +15,7 @@ class Company::JobsController < Company::BaseController
     @job = current_company.jobs.new
   end
   def show
-    add_breadcrumb @job.try(:title).try(:titleize), :job_path, options: { title: "Job Invitation" }
+    add_breadcrumb @job.try(:title).try(:titleize)[0..30], :job_path, options: { title: "Job Invitation" }
   end
 
   def new
