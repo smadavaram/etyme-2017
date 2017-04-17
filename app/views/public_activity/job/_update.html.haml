@@ -8,14 +8,4 @@
   %br/
   %p.font-md
     updated Job
-    = link_to a.trackable.title, job_path(a.trackable),class: 'font-md'
--#%a.font-md{:href => "javascript:void(0);"} Business Requirement Docs
--#%li.list-group-item
--#  %span.glyphicon.glyphicon-plus
--#  %small.text-muted= a.created_at.strftime('%H:%M:%S %-d %B %Y')
--#  %br/
--#  - if a.trackable
--#    = link_to a.trackable.title, job_path(a.trackable)
--#    was added.
--#  - else
--#    An Job that is currently deleted was added.
+    = link_to truncate(a.trackable.title), job_path(a.trackable),class: 'font-md'

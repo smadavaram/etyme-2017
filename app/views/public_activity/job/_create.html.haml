@@ -7,4 +7,4 @@
       %i= a.created_at.strftime('%H:%M:%S %-d %B %Y  ago')
     %p.font-md
       created job
-      = link_to a.trackable.title, job_path(a.trackable), class: 'font-md'
+      = link_to truncate(a.trackable.title), job_path(a.trackable), class: 'font-md'

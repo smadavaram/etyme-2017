@@ -147,7 +147,7 @@
                         %i
                           = time_ago_in_words(j.try(:created_at).try(:localtime))
                     .font-md
-                      = link_to "#{j.title}",job_path(j)
+                      = link_to "#{truncate(j.title)}",job_path(j)
             -else
               .who.clearfix
                 .text
