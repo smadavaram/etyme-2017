@@ -74,27 +74,7 @@
           .page.text-center
             %ul.pagination
               = will_paginate(@posts,class: "pagination ")
-:css
-  .modal-dialog {
-  width: 40% !important;
-  height: 50%;
-  margin: 0;
-  padding: 0;
-  float: left;
-  position: relative;
-  left: 30%;
-  }
-  .modal-header
-  {
-    padding: 7px !important;
-  }
 
-  .modal-content {
-    height: auto;
-    min-height: 100%;
-    border-radius: 0;
-    padding: 5px !important;
-  }
 - content_for :body_class, "greybg"
 
 -content_for :scripts do

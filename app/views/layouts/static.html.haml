@@ -4,6 +4,8 @@
     %meta{:content => "text/html; charset=UTF-8", "http-equiv" => "Content-Type"}/
     %title Etyme
     = stylesheet_link_tag    'static'
+    = javascript_include_tag 'http://platform-api.sharethis.com/js/sharethis.js#property=5899b27937570f0011ac3636&product=inline-share-buttons'
+
     = csrf_meta_tags
     = yield :head
   %body{class: "#{yield :body_class}"}
@@ -25,6 +27,26 @@
     color: #1D2026;
     background-color: #F76523;
     border-color: #bce8f1;
+  }
+  .modal-dialog {
+  width: 40% !important;
+  height: 50%;
+  margin: 0;
+  padding: 0;
+  float: left;
+  position: relative;
+  left: 30%;
+  }
+  .modal-header
+  {
+    padding: 7px !important;
+  }
+
+  .modal-content {
+    height: auto;
+    min-height: 100%;
+    border-radius: 0;
+    padding: 5px !important;
   }
 
 :javascript

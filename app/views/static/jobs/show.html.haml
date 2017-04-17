@@ -76,24 +76,12 @@
               .list-group-item
                    Amount Paid Job
                 %span.badge $10K
-          -#.list
+          .list
             .list-group
-              %span.list-group-item.active.cat-top
-                %em.fa.fa-fw.fa-coffee>
-                   Share This Job
-              %a.list-group-item.cat-list{:href => "#"}
-                %em.fa.fa-fw.fa-facebook>
-                   Facebook
-                %span.badge 300
-              %a.list-group-item.cat-list{:href => "#"}
-                %em.fa.fa-fw.fa-twitter>
-                   Twitter
-                %span.badge 100
-              %a.list-group-item.cat-list{:href => "#"}
-                %em.fa.fa-fw.fa-google-plus>
-                   Google +
-                %span.badge 100
+              %div.sharethis-inline-share-buttons
 
 -content_for :body_class, 'greybg'
 - content_for :modals do
   #job_application
+-content_for :scripts do
+  :javascript
