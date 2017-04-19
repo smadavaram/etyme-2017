@@ -84,7 +84,7 @@
                             %td= invoice.end_date
                             %td= invoice.status.humanize
                             %td
-                              = link_to raw("<i class='fa fa-eye '></i>") , contract_invoice_path(@contract , invoice) , target: '_blank' ,class: 'btn btn-xs btn-default btn-primary',title: "View Detail"
+                              = link_to raw("<i class='fa fa-eye '></i>") , contract_invoice_path(@contract , invoice) , target: '_blank' ,class: 'btn btn-xs btn-default ',title: "View Detail"
 -elsif params[:received_invoice]
   #content
     %body

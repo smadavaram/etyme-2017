@@ -54,8 +54,8 @@
                         %td=invitation_status_color( d.status) rescue "  --"
                         %td
                           -if d.pending?
-                            = link_to raw("<i class='fa fa-check '></i>") , accept_vendor_path(company_id: d.company) ,method: :post,class: 'btn btn-xs btn-default btn-primary',remote: :true ,title:"Accept #{d.company.name} Request",data: {confirm: "Are you sure you want to Accept this Request ?", verify: 'Accept', verify_text: "Type 'Accept' to Continue"}
-                            = link_to raw("<i class='fa fa-times '></i>") , reject_vendor_path(company_id: d.company) ,method: :post, class: 'btn btn-xs btn-default btn-danger' ,remote: :true,title:"Reject #{d.company.name} Request",data: {confirm: "Are you sure you want to Reject this Request ?", verify: 'Reject', verify_text: "Type 'Reject' to Continue"}
+                            = link_to raw("<i class='fa fa-check '></i>") , accept_vendor_path(company_id: d.company) ,method: :post,class: 'btn btn-xs btn-default ',remote: :true ,title:"Accept #{d.company.name} Request",data: {confirm: "Are you sure you want to Accept this Request ?", verify: 'Accept', verify_text: "Type 'Accept' to Continue"}
+                            = link_to raw("<i class='fa fa-times '></i>") , reject_vendor_path(company_id: d.company) ,method: :post, class: 'btn btn-xs btn-default ' ,remote: :true,title:"Reject #{d.company.name} Request",data: {confirm: "Are you sure you want to Reject this Request ?", verify: 'Reject', verify_text: "Type 'Reject' to Continue"}
 
 = digg_pagination(data)
 

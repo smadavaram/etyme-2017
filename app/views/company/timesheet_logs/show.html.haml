@@ -79,8 +79,8 @@
                       %td
                         - if @timesheet.open?
                           - if t.pending?
-                            = link_to 'Accept' , timesheet_timesheet_log_transaction_accept_path(@timesheet , @timesheet_log , t ) , method: :post , class: 'btn btn-xs btn-default btn-primary'
-                            = link_to 'Reject' , timesheet_timesheet_log_transaction_reject_path(@timesheet , @timesheet_log , t ) , method: :post , class: 'btn btn-xs btn-default btn-danger'
+                            = link_to 'Accept' , timesheet_timesheet_log_transaction_accept_path(@timesheet , @timesheet_log , t ) , method: :post , class: 'btn btn-xs btn-default '
+                            = link_to 'Reject' , timesheet_timesheet_log_transaction_reject_path(@timesheet , @timesheet_log , t ) , method: :post , class: 'btn btn-xs btn-default '
                           - else
                             = t.status.humanize
                         - else

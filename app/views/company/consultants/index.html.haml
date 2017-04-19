@@ -80,10 +80,10 @@
                               %span.badge.bg-color-blue
                                 = group.try(:group_name).try(:titleize)
                           %td
-                            = link_to raw("<i class='fa fa-bell '></i>")     ,company_user_add_reminder_path(consultant)  ,class: 'btn btn-primary btn-xs margin-bottom-5', remote: :true, title: "Remind Me"
-                            = link_to raw("<i class='fa fa-tasks '></i>")     ,company_activities_index_path(index: true), class: 'btn btn-xs btn-primary margin-bottom-5', title: "Activity Log"
-                            = link_to raw("<i class='fa fa-pencil '></i>") , edit_consultant_path(consultant,edit: true) , class: 'btn btn-xs btn-default btn-primary margin-bottom-5', title: "Edit #{consultant.full_name}"
-                            = link_to raw("<i class='fa fa-group '></i>"), company_user_assign_groups_path(consultant) , remote:true,class: 'btn btn-xs btn-success margin-bottom-5', title: "Manage Groups"
+                            = link_to raw("<i class='fa fa-bell '></i>")     ,company_user_add_reminder_path(consultant)  ,class: 'btn  btn-default btn-xs margin-bottom-5', remote: :true, title: "Remind Me"
+                            = link_to raw("<i class='fa fa-tasks '></i>")     ,company_activities_index_path(index: true), class: 'btn btn-xs  btn-default margin-bottom-5', title: "Activity Log"
+                            = link_to raw("<i class='fa fa-pencil '></i>") , edit_consultant_path(consultant,edit: true) , class: 'btn btn-xs btn-default  margin-bottom-5', title: "Edit #{consultant.full_name}"
+                            = link_to raw("<i class='fa fa-group '></i>"), company_user_assign_groups_path(consultant) , remote:true,class: 'btn btn-xs btn-default margin-bottom-5', title: "Manage Groups"
                           -#= link_to raw("<i class='fa fa-times '></i>") , consultant_path(consultant) , method: :delete ,  class: 'btn btn-xs btn-default btn-danger' , title: "Delete #{consultant.full_name}",data: {confirm: "Are you sure you want to Delete this Consultants ?", verify: 'Confirm', verify_text: "Type 'Confirm' to Continue"}
                   - if @consultants.count >30
                     .dt-toolbar-footer

@@ -73,10 +73,10 @@
                                 = group.try(:group_name).try(:titleize)
                           %td
                             -#= link_to 'Activity'     ,company_activities_index_path(index: true), class: 'btn btn-xs btn-primary margin-bottom-5',title: "Assign Groups"
-                            = link_to raw("<i class='fa fa-file-text'></i>") , c.candidate.resume ,download: true , class: 'btn btn-xs btn-primary margin-bottom-5',title: "#{c.candidate.full_name} Resume"
-                            = link_to raw("<i class='fa fa-eye'></i>") , static_candidate_resume_path(c.candidate) , class: 'btn btn-xs btn-primary margin-bottom-5',title: "Detail Show" ,target: "_blank"
-                            = link_to raw("<i class='fa fa-users'></i>"), candidate_manage_groups_path(c.candidate) , remote:true,class: 'btn btn-xs btn-success margin-bottom-5',title: "Assign Groups"
-                            = link_to raw("<i class='fa fa-fire'></i>"), candidate_make_normal_path(c.candidate) , remote:true,method: :post,class: 'btn btn-xs btn-primary margin-bottom-5',title: "Make Normal", data: {confirm: " Do you want to make #{c.candidate.full_name} Normal?", commit: 'Continue', cancell: 'Cancell'}
+                            = link_to raw("<i class='fa fa-file-text'></i>") , c.candidate.resume ,download: true , class: 'btn btn-xs btn-default  margin-bottom-5',title: "#{c.candidate.full_name} Resume"
+                            = link_to raw("<i class='fa fa-eye'></i>") , static_candidate_resume_path(c.candidate) , class: 'btn btn-xs btn-default margin-bottom-5',title: "Detail Show" ,target: "_blank"
+                            = link_to raw("<i class='fa fa-users'></i>"), candidate_manage_groups_path(c.candidate) , remote:true,class: 'btn btn-xs btn-default  margin-bottom-5',title: "Assign Groups"
+                            = link_to raw("<i class='fa fa-fire'></i>"), candidate_make_normal_path(c.candidate) , remote:true,method: :post,class: 'btn btn-xs btn-default  margin-bottom-5',title: "Make Normal", data: {confirm: " Do you want to make #{c.candidate.full_name} Normal?", commit: 'Continue', cancell: 'Cancell'}
                             -#= link_to raw("<i class='fa fa-pencil '></i>") , edit_company_candidate_path(c.candidate) , class: 'btn btn-xs btn-default btn-primary', title: "Edit #{candidate.full_name}"
                     - if @candidates.count >30
                       .dt-toolbar-footer
@@ -115,7 +115,7 @@
 
         });
 
-    $("div.toolbar").html("<div class='text-right'><a href='#' class= 'btn btn-success share btn-md pull-right header-btn margin-top-5'><i class='fa fa-share'></i> Share</a></div>");
+    $("div.toolbar").html("<div class='text-right'><a href='#' class= 'btn btn-success share btn-md pull-right header-btn margin-top-5'><i class='fa fa-share-alt'></i> Share</a></div>");
       $("#datatable_fixed_column thead th input[type=text]").on( 'keyup change', function () {
         otable
           .column( $(this).parent().index()+':visible' )

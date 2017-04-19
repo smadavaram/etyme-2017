@@ -50,7 +50,7 @@
                                 = p.name.titleize
                           %td= r.created_at.try(:strftime,'%B %d, %Y')
                           %td
-                            = link_to raw("<i class='fa fa-pencil '></i>") , edit_role_path(r) , class: 'btn btn-xs btn-default btn-primary' , remote: true,title: "Edit #{r.name}"
+                            = link_to raw("<i class='fa fa-pencil '></i>") , edit_role_path(r) , class: 'btn btn-xs btn-default ' , remote: true,title: "Edit #{r.name}"
 :css
   .form-control
   {

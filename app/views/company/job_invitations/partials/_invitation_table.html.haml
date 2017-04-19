@@ -62,7 +62,7 @@
                         %td= invitation.recipient.phone
                         %td= invitation.expiry
                         %td= invitation_status_color(invitation.status)
-                        %td= link_to raw("<i class='fa fa-eye '></i>") , job_invitation_path(invitation),title:"Detail of #{invitation.job.title}",class:"btn btn-md btn-primary"
+                        %td= link_to raw("<i class='fa fa-eye '></i>") , job_invitation_path(invitation),title:"Detail of #{invitation.job.title}",class:"btn btn-md btn-default"
 = digg_pagination(data)
 
 :css

@@ -58,8 +58,8 @@
                           %td
                             %span.label.label-success= application.status.humanize
                           %td
-                            = link_to raw("<i class='fa fa-eye '></i>"),job_application_path(application) ,class: 'btn btn-primary btn-xs margin-bottom-5',title: "View Detail"
-                            = link_to raw("<i class='fa fa-comment '></i>")     ,candidate_create_chat_path(application.user) ,class: 'btn btn-primary btn-xs margin-bottom-5',method: :post,title: "Chat With Applicant"
+                            = link_to raw("<i class='fa fa-eye '></i>"),job_application_path(application) ,class: 'btn btn-default btn-xs margin-bottom-5',title: "View Detail"
+                            = link_to raw("<i class='fa fa-comment '></i>")     ,candidate_create_chat_path(application.user) ,class: 'btn btn-default btn-xs margin-bottom-5',method: :post,title: "Chat With Applicant"
 = digg_pagination(data)
 
 :css
