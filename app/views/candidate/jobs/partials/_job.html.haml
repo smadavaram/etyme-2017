@@ -4,8 +4,8 @@
       %section.panel.text-center
         %header.panel-heading.equal-height.job-panel
           %span.h3.cjob-span
-            = link_to job.title,candidate_job_path(job)
-            = link_to  "Apply",apply_candidate_job_path(job), method: :post , remote: true ,  class: " btn pull-right #{current_candidate.is_already_applied?(job.id)  ? "disabled" : ""} "
+            = link_to truncate(job.title,length:50),candidate_job_path(job)
+            = link_to  "Apply",apply_candidate_job_path(job), method: :post , remote: true ,  class: " btn btn-default btn-primary btn-md pull-right #{current_candidate.is_already_applied?(job.id)  ? "disabled" : ""} "
           %h4
             = link_to job.company.name.titleize,"#"
 
