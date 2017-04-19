@@ -70,7 +70,7 @@ class Job < ActiveRecord::Base
   private
 
   def create_job_chat
-    self.create_chat()
+    self.create_chat(company: self.company)
     self.try(:chat).try(:chat_users).create(userable: self.try(:created_by))
     self.try(:chat).try(:messages).create(messageable: self.try(:created_by) ,body:"#{self.created_by.full_name} created Job #{self.title.humanize}")
   end

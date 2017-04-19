@@ -135,19 +135,37 @@ module ApplicationHelper
     [
         {
             href: '/dashboard',
-            title: 'HOME',
+            title: "HOME ( #{current_company.jobs.count + current_company.candidates.count+current_company.invited_companies.count}(candidates,contacts,jobs) )",
             content: "<i class='fa fa-lg fa-fw fa-home'></i> <span class='menu-item-parent'>" + 'HOME' + "</span>",
         },
         {
             href: '#',
-            title: 'My Network ',
-            content: "<i class='fa fa-lg fa-fw fa-globe'></i> <span class='menu-item-parent'>" + 'My Network' + "</span>",
+            title: 'Activity',
+            content: "<i class='fa fa-lg fa-fw fa-history'></i> <span class='menu-item-parent'>" + 'Activity' + "</span>",
             children: [
                 {
-                    href: activities_path(index:true),
-                    title: 'Activity Log',
-                    content: "<span class='menu-item-parent'> Activity Log </span>"
+                    href: '#',
+                    title: 'Dashboard (My Company,My)',
+                    content: "<span class='menu-item-parent'> Dashboard </span>"
                 },
+
+                {
+                    href: activities_path(index:true),
+                    title: 'Log',
+                    content: "<span class='menu-item-parent'> Log </span>"
+                },
+                {
+                    href: company_chat_path(current_company.chats.last),
+                    title: 'IM',
+                    content: "<span class='menu-item-parent'> IM </span>"
+                },
+            ]
+        },
+        {
+            href: '#',
+            title: 'Network ',
+            content: "<i class='fa fa-lg fa-fw fa-globe'></i> <span class='menu-item-parent'>" + 'Network' + "</span>",
+            children: [
                 {
                     href: prefer_vendors_path,
                     title: 'Network Request',
@@ -161,18 +179,18 @@ module ApplicationHelper
                 },
                 {
                     href:  directories_path,
-                    title: 'Directory',
-                    content: "<span class='menu-item-parent'>" + 'Directory' + "</span>",
+                    title: 'My Directory',
+                    content: "<span class='menu-item-parent'>" + 'My Directory' + "</span>",
                 },
                 {
                     href: candidates_path,
-                    title: 'Candidates',
+                    title: 'Candidates( My Candidates(W2), Hot Candidates, Vendor )',
                     content: "<span class='menu-item-parent'>" + 'Candidate(s)' + "</span>",
                 },
                 {
                     href: company_company_hot_index_path(current_company),
-                    title: 'Hot Candidates',
-                    content: "<span class='menu-item-parent'>" + 'Hot Candidate(s)' + "</span>",
+                    title: 'My Bench (Hot Candidates, Third Party)',
+                    content: "<span class='menu-item-parent'>" + 'My Bench' + "</span>",
                 },
                 {
                     href: companies_path,
@@ -201,8 +219,8 @@ module ApplicationHelper
                 },
                 {
                     href: job_applications_path,
-                    title: 'Job Applications',
-                    content: "<span class='menu-item-parent'> Application(s)/Candidate(s) </span>"
+                    title: 'Applicants',
+                    content: "<span class='menu-item-parent'> Applicants </span>"
                 },
             ]
         },
