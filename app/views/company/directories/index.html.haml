@@ -44,8 +44,8 @@
                               .label-info.badge.margin-bottom-5
                                 = role.try(:name)
                         %td
-                          = link_to raw("<i class='fa fa-tasks '></i>") , "#",class: 'btn  btn-default btn-sm ',title: "Assign task"
-                          = link_to raw("<i class='fa fa-comment '></i>") , "#",class: 'btn btn-default btn-sm',title: "Chat"
+                          = link_to raw("<i class='fa fa-tasks '></i>") , "#",class: 'btn  btn-default btn-sm ',title: "Assign task",'data-toggle'=>"tooltip" ,'data-placement'=>"top"
+                          = link_to raw("<i class='fa fa-comment '></i>") , "#",class: 'btn btn-default btn-sm',title: "Chat",'data-toggle'=>"tooltip" ,'data-placement'=>"top"
   -#= digg_pagination(data)
 
 :css

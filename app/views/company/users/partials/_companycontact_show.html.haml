@@ -13,7 +13,7 @@
         Email: #{data.email}
       .row
         .col-md-3.margin-top-5
-          = link_to raw("<i class='fa fa-sticky-note '></i>")    ,company_assign_status_path(data.company) ,class: 'btn  btn-xs margin-bottom-5', remote: :true,title:"Assign Status"
-          = link_to raw("<i class='fa fa-bell '></i>")    ,company_company_add_reminder_path(data.company)   ,class: 'btn  btn-xs margin-bottom-5', remote: :true ,title:"Remind Me"
+          = link_to raw("<i class='fa fa-sticky-note '></i>")    ,company_assign_status_path(data.company) ,class: 'btn btn-default btn-xs margin-bottom-5', remote: :true,title:"Assign Status",'data-toggle'=>"tooltip" ,'data-placement'=>"top"
+          = link_to raw("<i class='fa fa-bell '></i>")    ,company_company_add_reminder_path(data.company)   ,class: 'btn btn-default btn-xs margin-bottom-5', remote: :true ,title:"Remind Me",'data-toggle'=>"tooltip" ,'data-placement'=>"top"
           -#= link_to "Contacts" ,company_contacts_path(data.try(:company)), class: 'btn btn-xs btn-default btn-primary'
-          = link_to raw("<i class='fa fa-edit '></i>") , edit_company_path(data.company) , class: 'btn btn-xs btn-default  margin-bottom-5',remote: :true ,title:"Edit #{data.company.name}"
+          = link_to raw("<i class='fa fa-edit '></i>") , edit_company_path(data.company) , class: 'btn btn-xs btn-default  margin-bottom-5',remote: :true ,title:"Edit #{data.company.name}",'data-toggle'=>"tooltip" ,'data-placement'=>"top"

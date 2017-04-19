@@ -46,7 +46,7 @@
                           %td= group.candidates.map(&:first_name).join(", ").gsub("_"," ").titleize
                           %td= group.created_at.try(:strftime,'%B %d, %Y')
                           %td
-                            = link_to raw("<i class='fa fa-edit'></i>"),edit_group_path(group) ,remote:true,class: "btn btn-default btn-md" ,title: "Edit #{group.group_name.titleize}"
+                            = link_to raw("<i class='fa fa-edit'></i>"),edit_group_path(group) ,remote:true,class: "btn btn-default btn-xs" ,title: "Edit #{group.group_name.titleize}",'data-toggle'=>"tooltip" ,'data-placement'=>"top"
                   - if @groups.count >15
                     .dt-toolbar-footer
                       = digg_pagination(@groups)

@@ -128,5 +128,6 @@ $(document).ready(function(){
         contractToggleModel();
     });
     $("#contract_toggle_modal_contract_toggle_modal").addClass('form-control');
+    $('[data-toggle="tooltip"]').tooltip();
 });
 

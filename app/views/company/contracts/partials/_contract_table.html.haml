@@ -59,9 +59,9 @@
                         %td= link_to contract.created_by.full_name , '#'
                         %td= (contract.end_date)
                         %td
-                          = label_status_color(contract.status)
-                        %td
                           =link_to "Invoice",contract_invoices_path(contract)
+                        %td
+                          = label_status_color(contract.status)
 
 = digg_pagination(data)
 

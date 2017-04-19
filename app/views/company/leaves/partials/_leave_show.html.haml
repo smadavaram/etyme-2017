@@ -63,8 +63,8 @@
                         -if leave.user != current_user
                           %td
                             - if leave.pending? && current_user.is_owner?
-                              = link_to  raw("<i class='fa fa-check'></i>") , accept_consultant_leave_path(leave.user,leave) , method: :post , remote: true , class: 'btn btn-xs btn-default',title: "Accept Leave"
-                              = link_to raw("<i class='fa fa-times'></i>") , reject_consultant_leave_path(leave.user , leave) , method: :post , remote: true ,  class: 'btn btn-xs btn-default',title: "Reject Leave"
+                              = link_to  raw("<i class='fa fa-check'></i>") , accept_consultant_leave_path(leave.user,leave) , method: :post , remote: true , class: 'btn btn-xs btn-default',title: "Accept Leave",'data-toggle'=>"tooltip" ,'data-placement'=>"top"
+                              = link_to raw("<i class='fa fa-times'></i>") , reject_consultant_leave_path(leave.user , leave) , method: :post , remote: true ,  class: 'btn btn-xs btn-default',title: "Reject Leave",'data-toggle'=>"tooltip" ,'data-placement'=>"top"
                             -elsif leave.pending? && leave.user == current_user
                               = link_to raw("<i class='fa fa-pencil'></i>"),"#" , class: 'btn btn-xs btn-default', "data-toggle"=> "modal" , "data-target"=>"#edit-#{leave.id}",title: "Edit Leave"
                               = render 'company/leaves/partials/form', leave: leave

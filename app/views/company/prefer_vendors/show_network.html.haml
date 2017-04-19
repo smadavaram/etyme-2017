@@ -48,7 +48,7 @@
                           %td= d.company.owner.try(:email) rescue "  --"
                           %td= d.company.domain rescue "  --"
                           %td= d.company.phone rescue "  --"
-                          %td= link_to raw("<i class='fa fa-fire '></i> <i class='fa fa-users '></i> "), company_company_hot_candidates_path(d.company) , class: 'btn btn-md btn-default' ,title:"Show Hot Candidates of  #{d.company.name}"
+                          %td= link_to raw("<i class='fa fa-fire '></i> <i class='fa fa-users '></i> "), company_company_hot_candidates_path(d.company) , class: 'btn btn-md btn-default' ,title:"Show Hot Candidates of  #{d.company.name}",'data-toggle'=>"tooltip" ,'data-placement'=>"top"
                         -#= link_to raw("<i class='fa fa-times '></i>") , company_path(d.invited_company) ,method: :delete, class: 'btn btn-xs btn-default btn-danger' ,title:"Delete #{d.invited_company.name}",data: {confirm: "Are you sure you want to Delete this Company ?", verify: 'Confirm', verify_text: "Type 'Confirm' to Continue"}
 
 
