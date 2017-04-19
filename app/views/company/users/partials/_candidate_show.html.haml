@@ -8,7 +8,7 @@
             = image_tag 'https://cdn1.iconfinder.com/data/icons/business-237/65/icons-08-128.png',class:'',alt: "job"
       = image_tag data.photo,class:'',alt: "job",width:"100px !important",hieght:"100px !important"
       %h4 #{data.full_name.humanize}
-      %h4 #{data.invited_by.company.name.humanize}
+      %h4 #{data.try(:invited_by).present? ? data.try(:invited_by).try(:company).try(:name).try(:humanize) : "Direct Candidate"}
       %span.name.font-sm.text-muted.margin-top-10
         Email: #{data.email}
       .row
