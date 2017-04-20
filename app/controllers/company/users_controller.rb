@@ -14,6 +14,8 @@ class Company::UsersController < Company::BaseController
             @data += current_company.jobs
           elsif(params[:value] == 'Candidates')
             @data += current_company.candidates
+          elsif params[:value]== 'Contacts'
+            @data += current_company.invited_companies_contacts
           else
             @data += current_company.jobs
             @data += current_company.invited_companies_contacts
