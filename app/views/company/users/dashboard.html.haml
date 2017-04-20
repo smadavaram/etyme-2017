@@ -20,6 +20,10 @@
   %section#widget-grid
     - if current_company.vendor?
       .row
+        .col-sm-12.col-md-8{style: 'margin-left: 15px;'}
+          %input.form-control{placeholder: 'Search by Keywords ...',style: 'width: 96%;margin-bottom: 20px;'}
+        %br
+        %br
         .col-sm-12.col-md-8
           - if @data.present?
             = select_tag "Select Type", options_for_select([ "Candidates", "Jobs" , "Contacts" ]), include_blank: "All",class: 'form-control' ,id: "show_type",style:'width:90%;background-color:white;margin-left:15px; width:96%'
