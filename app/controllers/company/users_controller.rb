@@ -5,12 +5,30 @@ class Company::UsersController < Company::BaseController
   before_action :find_user  , only: [:add_reminder, :profile]
 
   def dashboard
+
     if current_company.vendor?
       @data = []
-      @data += current_company.jobs
-      @data += current_company.invited_companies_contacts
-      @data += current_company.candidates
-      @data = @data.sort{|y,z| z.created_at <=> y.created_at}
+      respond_to do |format|
+        format.js{
+          if params[:value] == 'Jobs'
+            @data += current_company.jobs
+          elsif(params[:value] == 'Candidates')
+            @data += current_company.candidates
+          else
+            @data += current_company.jobs
+            @data += current_company.invited_companies_contacts
+            @data += current_company.candidates
+          end
+          @data = @data.sort{|y,z| z.created_at <=> y.created_at}
+
+        }
+        format.html{
+          @data += current_company.jobs
+          @data += current_company.invited_companies_contacts
+          @data += current_company.candidates
+          @data = @data.sort{|y,z| z.created_at <=> y.created_at}
+        }
+      end
     end
     @activities = PublicActivity::Activity.order("created_at desc")
   end # End of dashboard

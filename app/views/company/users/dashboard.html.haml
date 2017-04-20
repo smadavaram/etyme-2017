@@ -21,8 +21,12 @@
     - if current_company.vendor?
       .row
         .col-sm-12.col-md-8
-          - @data.each do |d|
-            = render "company/users/partials/#{d.class.name.downcase}_show" ,data: d
+          - if @data.present?
+            = select_tag "Select Type", options_for_select([ "Candidates", "Jobs" , "Contacts" ]), include_blank: "All",class: 'form-control' ,id: "show_type",style:'width:90%;background-color:white;margin-left:15px; width:96%'
+          %br
+          .col-sm-12.col-md-8#dynamic-content{style: "width: 100%;"}
+            - @data.each do |d|
+              = render "company/users/partials/#{d.class.name.downcase}_show" ,data: d
         .col-sm-12.col-md-4
 
           .panel.panel-default
@@ -199,6 +203,13 @@
 
 - content_for :scripts do
   :javascript
+    $('#show_type').change(function(){
+      $.ajax({
+        url: "dashboard",
+        type: "GET",
+        data: {value: $('#show_type option:selected').text()},
+      })
+    });
 
     $(document).ready(function() {
       pageSetUp();
