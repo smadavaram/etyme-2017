@@ -38,8 +38,8 @@ class Company::GroupsController < Company::BaseController
   end
 
   def create_bulk_candidates
-    params[:candidate_ids].each do |c_id|
-      @candidate = current_company.candidates.find(c_id)
+    params[:candidates_ids].split(',').each do |c_id|
+      @candidate = current_company.candidates.find(c_id.to_i)
       @candidate.update_attribute(:group_ids, params[:group_ids])
     end
     flash[:success] = "Groups Assigned"

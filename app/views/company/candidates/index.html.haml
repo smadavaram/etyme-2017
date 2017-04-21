@@ -140,7 +140,7 @@
             }
 
         });
-      $("div.toolbar").html("<div class='text-right'><a href=#{new_company_candidate_path} class = 'btn btn-success btn-md pull-right header-btn margin-top-5 '><i class='fa fa-user-plus'> NEW </i></a><a href='#'  data-toggle= 'modal'  data-target= '#add-reminder-candidates' class = 'btn btn-success btn-md pull-right margin-right-5 header-btn margin-top-5 '><i class='fa fa-bell'> Bulk </i></a> <a href='#'  data-toggle= 'modal'  data-target= '#assign-status-candidates' class = 'btn btn-success btn-md pull-right margin-right-5 header-btn margin-top-5 '><i class='fa fa-sticky-note'> Bulk </i></a><a href='#'  data-toggle= 'modal'  data-target= '#assign-bulk-group-candidates' class = 'btn btn-success btn-md pull-right margin-right-5 header-btn margin-top-5 '><i class='fa fa-users'> Bulk </i></a><a href='#' class= 'btn btn-success share btn-md pull-right margin-right-5 header-btn margin-top-5'><i class='fa fa-share-alt'></i> Share</a></div>");
+      $("div.toolbar").html("<div class='text-right'><a href=#{new_company_candidate_path} class = 'btn btn-success btn-md pull-right header-btn margin-top-5 '><i class='fa fa-user-plus'> NEW </i></a><a href='#'  data-toggle= 'modal'  data-target= '#add-reminder-candidates' class = 'btn btn-success bulk btn-md pull-right margin-right-5 header-btn margin-top-5 '><i class='fa fa-bell'>  </i></a> <a href='#'  data-toggle= 'modal'  data-target= '#assign-status-candidates' class = 'btn btn-success bulk btn-md pull-right margin-right-5 header-btn margin-top-5 '><i class='fa fa-sticky-note'>  </i></a><a href='#'  data-toggle= 'modal'  data-target= '#assign-bulk-group-candidates' class = 'btn btn-success bulk btn-md pull-right margin-right-5 header-btn margin-top-5 '><i class='fa fa-users'>  </i></a><a href='#' data-toggle= 'modal'  data-target= '#share-candidates' class= 'btn btn-success bulk share btn-md pull-right margin-right-5 header-btn margin-top-5'><i class='fa fa-share-alt'></i> Share</a></div>");
       // Apply the filter
       $("#datatable_fixed_column thead th input[type=text]").on( 'keyup change', function () {
         otable
@@ -150,29 +150,28 @@
 
       } );
        // share hide and show on base of checked checkboxes
-        $('.share').hide();
+        $('.bulk').hide();
         $( "input[type=checkbox]" ).on( "click", function() {
            if($( "input:checked" ).length> 0)
             {
-              $('.share').show();
+              $('.bulk').show();
             }else
             {
-              $('.share').hide();
+              $('.bulk').hide();
             }
          });
-       // for share of checked rows
-      var checkedRows = new Array();
-          $(".share" ).on( "click", function() {
+        // for share of checked rows
+        var checkedRows = new Array();
+          $(".bulk" ).on( "click", function() {
             $('input:checkbox:checked').each(function(){
             checkedRows.push($(this).val());
             });
             if(checkedRows.length>0)
             {
-              alert("abc");
-              $('#candidates_ids').val(checkedRows);
-              $('#share-candidates').modal('toggle');
+              alert('abc');
+              $('.candidates_ids').val(checkedRows);
 
-          }
+            }
         });
 
     });

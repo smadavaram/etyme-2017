@@ -18,8 +18,8 @@ class Company::StatusesController < Company::BaseController
   end
 
   def create_bulk_candidates
-    params[:candidate_ids].each do |c_id|
-      current_company.candidates.find(c_id).statuses.create(note: params[:status][:note] ,status_type: params[:status][:status_type],user_id: current_user.id)
+    params[:candidates_ids].split(",").each do |c_id|
+      current_company.candidates.find(c_id.to_i).statuses.create(note: params[:status][:note] ,status_type: params[:status][:status_type],user_id: current_user.id)
     end
     flash[:success] = "Status Assigned."
     redirect_to :back
