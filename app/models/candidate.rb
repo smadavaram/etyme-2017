@@ -7,6 +7,7 @@ class Candidate < ActiveRecord::Base
   include PublicActivity::Model
 
   enum status: [:signup, :campany_candidate]
+  enum visa: [:Us_citizen, :GC, :OPT, :OPT_third_party, :H1B, :H1B_third_party]
 
   # validates :password,presence: true,if: Proc.new { |candidate| !candidate.password.nil? }
   # validates :password_confirmation,presence: true,if: Proc.new { |candidate| !candidate.password.nil? }

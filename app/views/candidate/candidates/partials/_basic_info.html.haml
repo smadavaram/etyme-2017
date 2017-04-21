@@ -41,6 +41,12 @@
             %span
               .label-info.badge
                 = skill.name
+      %tr
+        %th
+          Visa
+        %td
+          = best_in_place candidate, :visa, :as => :select, collection: Candidate.visas.keys.map { |w| [w, w.humanize] }
+
 
 
       -#%tr

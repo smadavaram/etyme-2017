@@ -9,9 +9,6 @@
   #pre-status
     .preload-placeholder
 
-
-/ End Navigation
-/ About Section
 %section#about.about-section.section-padding
   .container
     %h2.section-title.wow.fadeInUp= @candidate.full_name.titleize
@@ -31,8 +28,8 @@
               %strong Address:
               #{@candidate.try(:address).try(:zip_code)} #{@candidate.try(:address).try(:city)},#{@candidate.try(:address).try(:country)}
             %li
-              %strong Nationality:
-              #{@candidate.try(:address).try(:country)}
+              %strong Visa:
+              #{@candidate.try(:visa).try(:humanize)}
             - if params.has_key?(:company_id)
               %li
                 %strong Company Phone:
@@ -59,9 +56,6 @@
           %a.btn.btn-primary.btn-lg{:download => "",:href => @candidate.resume}
             %i.fa.fa-download>
             My CV
-
-/ End About Section
-/ Resume Section
 - if @candidate.educations.present? || @candidate.experiences.present?
   %section#resume.resume-section.section-padding
     .container
@@ -103,8 +97,6 @@
                         .timeline-body
                           %p= exp.description
 
--#/ End Resume Section
--#/ Skills Section
 %section#skills.skills-section.section-padding
   .container
     %h2.section-title.wow.fadeInUp Skills
@@ -116,24 +108,18 @@
           .progress
             .progress-bar.six-sec-ease-in-out{"aria-valuemax" => "100", "aria-valuemin" => "0", "aria-valuenow" => "95", :role => "progressbar"}
               %span 95%
-        / /.progress
-        / /.skill-progress
         .skill-progress
           .skill-title
             %h3 Visual Design
           .progress
             .progress-bar.six-sec-ease-in-out{"aria-valuemax" => "100", "aria-valuemin" => "0", "aria-valuenow" => "80", :role => "progressbar"}
               %span 80%
-        / /.progress
-        / /.skill-progress
         .skill-progress
           .skill-title
             %h3 Business Design
           .progress
             .progress-bar.six-sec-ease-in-out{"aria-valuemax" => "100", "aria-valuemin" => "0", "aria-valuenow" => "75", :role => "progressbar"}
               %span 75%
-      / /.progress
-      / /.skill-progress
       .col-md-6
         .skill-progress
           .skill-title
@@ -141,24 +127,18 @@
           .progress
             .progress-bar.six-sec-ease-in-out{"aria-valuemax" => "100", "aria-valuemin" => "0", "aria-valuenow" => "95", :role => "progressbar"}
               %span 95%
-        / /.progress
-        / /.skill-progress
         .skill-progress
           .skill-title
             %h3 Motion Graphic
           .progress
             .progress-bar.six-sec-ease-in-out{"aria-valuemax" => "100", "aria-valuemin" => "0", "aria-valuenow" => "80", :role => "progressbar"}
               %span 80%
-        / /.progress
-        / /.skill-progress
         .skill-progress
           .skill-title
             %h3 Flyers Designing
           .progress
             .progress-bar.six-sec-ease-in-out{"aria-valuemax" => "100", "aria-valuemin" => "0", "aria-valuenow" => "75", :role => "progressbar"}
               %span 75%
-    / /.progress
-    / /.skill-progress
 
     .skill-chart.text-center
       %h3 More skills
@@ -193,8 +173,6 @@
           %span.percent
           .chart-text
             %span Motivation
-/ /.container
-/ End Skills Section
 - if @candidate.portfolios.present?
   %section#portfolio#blog.latest-blog-section.section-padding
     .container
@@ -244,10 +222,6 @@
         .col-md-12
           %h2 I'm available for freelance project
           %a.btn.btn-default{:href => "#"} Get Hired
-
-/ End Hire Section
-
-/ Contact Section
 %section#contact.contact-section.section-padding
   .container
     %h2.section-title.wow.fadeInUp Get in touch
@@ -269,8 +243,6 @@
               %label{:for => "message"} Message
               = text_area_tag "message",nil,class: "form-control",id:"message",required: :true
             = f.submit "Send Message" , class:"btn btn-primary"
-      / /.contact-form
-      / /.col-md-6
       .col-md-6
         .row.center-xs
           .col-sm-6
@@ -291,10 +263,6 @@
             .location-map
               #mapCanvas.map-canvas
 
-/ End Contact Section
-
-
-/ Scroll-up
 .scroll-up
   %a{:href => "#home"}
     %i.fa.fa-angle-up
