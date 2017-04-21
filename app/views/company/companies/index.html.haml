@@ -15,6 +15,8 @@
                   %table#datatable_fixed_column.table.table-striped.table-bordered.dataTable.no-footer{"aria-describedby" => "datatable_fixed_column_info", :role => "grid", :style => "width: 100%;", :width => "100%"}
                     %thead
                       %tr{:role => "row"}
+                        %th.hasinput{ :style => "width:2%"}
+                          %input.form-control{:placeholder => "Select", :type => ""}/
                         %th.hasinput{ :style => "width:10%"}
                           %input.form-control{:placeholder => "Pic", :type => "text"}/
                         %th.hasinput{:style => "width:10%"}
@@ -35,7 +37,8 @@
                         %th.hasinput{:style => "width:10%"}
                           %input.form-control{:placeholder => "Actions", :type => "text"}/
                       %tr{:role => "row"}
-                        %th{"data-hide" => "phone"} Pic
+                        %th Select
+                        %th Pic
                         %th Name
                         %th Company
                         -#%th Owner
@@ -49,6 +52,8 @@
                     %tbody
                       -@invited_companies.each do |d|
                         %tr
+                          %td
+                            = check_box_tag "ids[]", d.invited_company.id
                           %td= image_tag show_recipient_picture(d.invited_company.logo) , alt: '', width: '40'
                           %td= link_to d.invited_company.try(:company_contacts).try(:first).try(:full_name) ,"#"
                           -#%td= d.invited_company.try(:company_contact).try(:full_name)  rescue "  --"
@@ -120,7 +125,7 @@
 
         });
 
-      $("div.toolbar").html('<div class="text-right">#{ button_tag 'NEW' ,class: 'btn btn-success btn-md pull-right header-btn ' , "data-toggle": "modal" , "data-target":"#new-contract-company"} <a href="#"  data-toggle= "modal"  data-target= "#add-reminder-companies" class = "btn btn-success btn-md pull-right margin-right-5 header-btn margin-top-5 "><i class="fa fa-bell"> Bulk </i></a> <a href="#"  data-toggle= "modal"  data-target= "#assign-status-companies" class = "btn btn-success btn-md pull-right margin-right-5 header-btn margin-top-5 "><i class="fa fa-sticky-note"> Bulk </i></a><a href="#"  data-toggle= "modal"  data-target= "#assign-bulk-group-companies" class = "btn btn-success btn-md pull-right margin-right-5 header-btn margin-top-5 "><i class="fa fa-users"> Bulk </i></a></div>');
+      $("div.toolbar").html('<div class="text-right">#{ button_tag 'NEW' ,class: 'btn btn-success btn-md pull-right header-btn ' , "data-toggle": "modal" , "data-target":"#new-contract-company"} <a href="#"  data-toggle= "modal"  data-target= "#add-reminder-companies" class = "btn btn-success bulk btn-md pull-right margin-right-5 header-btn margin-top-5 "><i class="fa fa-bell">  </i></a> <a href="#"  data-toggle= "modal"  data-target= "#assign-status-companies" class = "btn btn-success bulk btn-md pull-right margin-right-5 header-btn margin-top-5 "><i class="fa fa-sticky-note">  </i></a><a href="#"  data-toggle= "modal"  data-target= "#assign-bulk-group-companies" class = "btn bulk btn-success btn-md pull-right margin-right-5 header-btn margin-top-5 "><i class="fa fa-users"> </i></a></div>');
       // $("div.toolbar").html(#{ button_tag 'NEW' ,class: 'btn btn-success btn-md pull-right header-btn margin-top-5' , "data-toggle": "modal" , "data-target":"#new-job"}'</div>');
 
       // Apply the filter
@@ -131,6 +136,29 @@
             .draw();
 
       } );
+     // share hide and show on base of checked checkboxes
+      $('.bulk').hide();
+      $( "input[type=checkbox]" ).on( "click", function() {
+         if($( "input:checked" ).length> 0)
+          {
+            $('.bulk').show();
+          }else
+          {
+            $('.bulk').hide();
+          }
+       });
+      // for share of checked rows
+      var checkedRows = new Array();
+        $(".bulk" ).on( "click", function() {
+          $('input:checkbox:checked').each(function(){
+          checkedRows.push($(this).val());
+          });
+          if(checkedRows.length>0)
+          {
+            $('.company_ids').val(checkedRows);
+
+          }
+      });
 
     });
 

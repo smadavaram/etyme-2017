@@ -46,8 +46,8 @@ class Company::GroupsController < Company::BaseController
     redirect_to :back
   end
   def create_bulk_companies
-    params[:company_ids].each do |c_id|
-      @invited_company = current_company.invited_companies.find_by(invited_company_id: c_id)
+    params[:company_ids].split(',').each do |c_id|
+      @invited_company = current_company.invited_companies.find_by(invited_company_id: c_id.to_i)
       @invited_company.update_attribute(:group_ids, params[:group_ids])
     end
     flash[:success] = "Groups Assigned"
