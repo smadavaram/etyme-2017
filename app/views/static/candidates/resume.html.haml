@@ -33,10 +33,10 @@
             - if params.has_key?(:company_id)
               %li
                 %strong Company Phone:
-                #{@candidate.invited_by.try(:company).phone}
+                #{@candidate.invited_by.try(:company).try(:phone)}
               %li
                 %strong Company Email:
-                #{@candidate.invited_by.company.try(:email)}
+                #{@candidate.invited_by.try(:company).try(:email)}
             -else
               %li
                 %strong Phone:
