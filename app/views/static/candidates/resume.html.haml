@@ -229,7 +229,7 @@
       .col-md-6
         .contact-form
           %strong Send me a message
-          = form_for @candidate ,url: static_candidate_send_message_path(@candidate),method: :post, id:"contactForm" do |f|
+          = form_for @candidate ,url: static_candidate_send_message_path(@candidate, company_id: params[:company_id]),method: :post, id:"contactForm" do |f|
             .form-group
               %label{:for => "name"} Name
               = text_field_tag "name",nil,class: "form-control",id:"name",required: :true

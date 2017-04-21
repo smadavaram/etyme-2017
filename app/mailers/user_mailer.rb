@@ -61,11 +61,11 @@ class UserMailer < ApplicationMailer
     mail(bcc: to_emails,subject: "#{current_company.name.titleize} Shared Hot Candidates Link",from: "Etyme <no-reply@etyme.com>")
   end
 
-  def send_message_to_candidate(name,subject,message,candidate ,sender_email)
+  def send_message_to_candidate(name,subject,message,to ,sender_email)
     @message = message
     @name = name
-    @candidate = candidate
-    mail(to:@candidate.email ,subject: subject ,from: sender_email)
+    @to = to
+    mail(to:@to.email ,subject: subject ,from: sender_email)
   end
 
   private
