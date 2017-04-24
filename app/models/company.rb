@@ -48,7 +48,7 @@ class Company < ActiveRecord::Base
   has_many :custom_fields             , as: :customizable             ,dependent: :destroy
   has_many :reminders                 ,as:  :reminderable
   has_many :chats                     ,dependent: :destroy
-  has_many :prefer_vendors_chats, -> { where chatable_type: "PreferVendor"}, class_name: Chat, foreign_key: :chatable_id, foreign_type: :chatable_type, dependent: :destroy
+  has_many :prefer_vendors_chats, -> { where chatable_type: "Company"}, class_name: Chat, foreign_key: :chatable_id, foreign_type: :chatable_type, dependent: :destroy
   has_many :statuses                  ,as:  :statusable
 
   # validates           :company_type, inclusion: { in: [0, 1] } , presence: true

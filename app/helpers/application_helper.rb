@@ -155,7 +155,7 @@ module ApplicationHelper
                     content: "<span class='menu-item-parent'> Log </span>"
                 },
                 {
-                    href: current_company.chats.exists? ? company_chat_path(current_company.chats.last) :  '#',
+                    href: current_company.chats.exists? ? company_chat_path(current_company.chats.last) : ( current_company.prefer_vendors_chats.exists?  ? company_chat_path(current_company.prefer_vendors_chats.last) : '#'),
                     title: 'IM',
                     content: "<span class='menu-item-parent'> IM </span>"
                 },
