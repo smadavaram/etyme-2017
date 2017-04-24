@@ -48,6 +48,7 @@ class Company < ActiveRecord::Base
   has_many :custom_fields             , as: :customizable             ,dependent: :destroy
   has_many :reminders                 ,as:  :reminderable
   has_many :chats                     ,dependent: :destroy
+  has_many :prefer_vendors_chats, -> { where chatable_type: "PreferVendor"}, class_name: Chat, foreign_key: :chatable_id, foreign_type: :chatable_type, dependent: :destroy
   has_many :statuses                  ,as:  :statusable
 
   # validates           :company_type, inclusion: { in: [0, 1] } , presence: true
@@ -110,16 +111,21 @@ class Company < ActiveRecord::Base
   def hot_candidates
     CandidatesCompany.hot_candidate.where(company_id: self.id)
   end
-
+  def prefer_vendor_companies
+    Company.find( (self.send_or_received_network.map(&:vendor_id) + self.send_or_received_network.map(&:company_id)).uniq )
+  end
 
   # def already_prefered(c)
   #   Company.where.not(:id=>PreferVendor.select(:vendor_id).where(company_id=c.id))
   # end
+
   private
 
   def create_slug
     get_host_from_domain()
   end
+
+
 
   def get_host_from_domain
 

@@ -2,10 +2,10 @@ class Company::CompaniesController < Company::BaseController
 
   before_action :find_admin, only: :change_owner
   before_action :authorized_user , only: [:show,:create ,:hot_candidates,:index, :new]
-  before_action :find_company , only: [:edit,:update,:destroy ,:add_reminder ,:assign_status]
+  before_action :find_company , only: [:edit,:update,:destroy ,:add_reminder ,:assign_status ,:create_chat]
   before_action :set_hot_candidates ,only: [:hot_candidates]
   before_action :set_company_contacts , only:  [:contacts]
-
+  before_action :find_user , only: [:create_chat]
   respond_to :html,:json
 
   add_breadcrumb 'Companies', :companies_path, :title => ""
@@ -144,9 +144,33 @@ class Company::CompaniesController < Company::BaseController
   def assign_status
 
   end
+  def create_chat
+    if request.post?
+      @chat = @company.chats.find_by(chatable: current_company)
+      if !@chat.present?
+        @chat = current_company.chats.find_or_initialize_by(chatable: @company)
+      end  
+      if @chat.new_record?
+        @chat.save
+        @chat.chat_users.create(userable: current_user)
+        @chat.chat_users.create(userable: @user)
+      else
+        @chat.chat_users.find_or_create_by(userable:current_user)
+        @chat.chat_users.find_or_create_by(userable: @user)
+      end
+      redirect_to company_chat_path(@chat)
+    end
+
+  end
 
 
   private
+
+  def find_user
+    if request.post?
+      @user = @company.users.find(params[:user_id])
+    end
+  end
 
   def set_company_contacts
     @company_contacts = current_company.invited_companies.find_by(invited_company_id: params[:company_id]).invited_company.company_contacts.paginate(:page => params[:page], :per_page => 20) || []

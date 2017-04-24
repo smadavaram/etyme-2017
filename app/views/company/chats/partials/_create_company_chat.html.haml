@@ -1,0 +1,25 @@
+.modal.fade.in{ id: "prefer_vendor_chat-#{company.id}","aria-hidden": "true", "aria-labelledby": "myModalLabel", :role => "dialog", :style => "display: none;", :tabindex => "-1"}
+  .modal-dialog.modal-md
+    .modal-content
+      .modal-header
+        %button.close{"aria-hidden" => "true", "data-dismiss" => "modal", :type => "button"}
+          ×
+        %h2#myModalLabel.modal-title
+          %strong New Chat
+      .modal-body
+        = form_for :invited_company , url: company_company_create_chat_path(company.id),method: :post ,html:{ class:'form-horizontal',id: ''} do |f|
+          %br/
+          .form-group
+            %label.col-md-3.control-label
+              Select User
+              %sup.text-danger *
+            .col-md-8
+              = select_tag "user_id", options_from_collection_for_select(company.users, "id", 'first_name'), include_blank: 'Select User To Chat With',class: 'form-control'
+          .modal-footer
+            = f.button "Start Chat".html_safe , class: 'btn btn-primary btn-sm' , data: {disable_with: ("Updating...")} ,id: 'form_id'
+            %button.btn.btn-default{"data-dismiss" => "modal", :type => "button"}
+              Cancel
+:css
+  .select2{
+    width: 389px;
+    }

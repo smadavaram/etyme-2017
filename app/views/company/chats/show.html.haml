@@ -10,10 +10,12 @@
                 .col-xs-6.col-sm-3.col-md-3.col-lg-3.pull-left
                   - if @chat.try(:chatable_type)=="Job"
                     %h4= truncate(@chat.try(:chatable).try(:title).try(:titleize),length: 50)
+                  -elsif @chat.try(:chatable_type)=="Company"
+                    %h4= truncate(@chat.try(:chatable)==current_company ?  @chat.try(:company).try(:name).try(:titleize): @chat.try(:chatable).try(:name),length: 50)
                   -else
                     %h4= truncate(@chat.try(:chatable).try(:full_name).try(:titleize),length: 50)
                 .col-xs-6.col-sm-3.col-md-3.col-lg-3.pull-right
-                  -if @chat.try(:chatable).try(:created_by) == current_user || @chat.try(:chatable_type)=="Candidate"
+                  -if @chat.try(:chatable).try(:created_by) == current_user || @chat.try(:chatable_type)=="Candidate" || @chat.try(:chatable_type)=='Company'
                     = link_to raw("<i class='fa-user-plus fa fa-fw fa-lg'></i>") ,"#", class: 'btn btn-success btn-lg pull-right header-btn',"data-target" => "#add_users", "data-toggle" => "modal"
             .row
               .text
@@ -95,15 +97,14 @@
                     %br
                     - @chats.take(10).each do |c|
                       .margin-bottom-10.padding-10.bg-color-white.fa-border
+                        - if c.try(:chatable_type)=='Company'
+                          = link_to  truncate(c.try(:chatable)==current_company ?  c.try(:company).try(:name).try(:titleize): c.try(:chatable).try(:name),length: 30) , company_chat_path(c)
                         - if c.try(:chatable_type)== 'Job'
                           = link_to  truncate(c.try(:chatable).try(:title).try(:titleize),length: 30) , company_chat_path(c)
                         - if c.try(:chatable_type)== 'Candidate'
                           = link_to  truncate(c.try(:chatable).try(:full_name).try(:titleize),length:30) , company_chat_path(c)
                   .col-md-8{style: "float: right !important"}
                     %ol.well.well-sm.discussion{id: "chat-#{@chat.channel_name}"}
-                      - @messages.each do |m|
-                        = render 'company/messages/partials/message' ,m: m
-                    -#%ul
                       - @messages.each do |m|
                         = render 'company/messages/partials/message' ,m: m
 
