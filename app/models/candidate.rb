@@ -61,6 +61,8 @@ class Candidate < ActiveRecord::Base
   accepts_nested_attributes_for :address        , reject_if: :all_blank, update_only: true
   accepts_nested_attributes_for :custom_fields  , allow_destroy: true , reject_if: :all_blank
 
+  scope :search_by ,->(term) { Candidate.where('lower(first_name) like :term or lower(last_name) like :term ' ,{term: "%#{term.downcase}%" })}
+
   #Tags Input
   acts_as_taggable_on :skills
 

@@ -21,7 +21,8 @@
     - if current_company.vendor?
       .row
         .col-sm-12.col-md-8{style: 'margin-left: 15px;'}
-          %input.form-control{placeholder: 'Search by Keywords ...',style: 'width: 96%;margin-bottom: 20px;'}
+          - if @data.present?
+            %input.form-control#search-term{placeholder: 'Search by Keywords ...',style: 'width: 96%;margin-bottom: 20px; background-color: white'}
         %br
         %br
         .col-sm-12.col-md-8
@@ -209,7 +210,7 @@
   :javascript
     $('#show_type').change(function(){
       $.ajax({
-        url: "dashboard",
+        url: "dashboard?search_by="+$('#search-term').val(),
         type: "GET",
         data: {value: $('#show_type option:selected').text()},
       })
@@ -225,4 +226,10 @@
     });
     $('[data-toggle="tooltip"]').tooltip()
 
+    });
+    $("#search-term").on("keypress", function (e) {
+        if (e.keyCode == 13) {
+           var sval = $('#search-term').val();
+           $.get('/dashboard?search_by='+sval);
+        }
     });

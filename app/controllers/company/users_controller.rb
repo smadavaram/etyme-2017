@@ -4,6 +4,8 @@ class Company::UsersController < Company::BaseController
   add_breadcrumb "HOME", :dashboard_path
   before_action :find_user  , only: [:add_reminder, :profile]
 
+  has_scope :search_by , only: :dashboard
+
   def dashboard
 
     if current_company.vendor?
@@ -11,29 +13,30 @@ class Company::UsersController < Company::BaseController
       respond_to do |format|
         format.js{
           if params[:value] == 'Jobs'
-            @data += current_company.jobs
+            @data += apply_scopes(current_company.jobs)
           elsif(params[:value] == 'Candidates')
-            @data += current_company.candidates
+            @data += apply_scopes(current_company.candidates)
           elsif params[:value]== 'Contacts'
-            @data += current_company.invited_companies_contacts
+            @data += apply_scopes(current_company.invited_companies_contacts)
           else
-            @data += current_company.jobs
-            @data += current_company.invited_companies_contacts
-            @data += current_company.candidates
+            @data += apply_scopes(current_company.jobs)
+            @data += apply_scopes(current_company.invited_companies_contacts)
+            @data += apply_scopes(current_company.candidates)
           end
           @data = @data.sort{|y,z| z.created_at <=> y.created_at}
 
         }
         format.html{
-          @data += current_company.jobs
-          @data += current_company.invited_companies_contacts
-          @data += current_company.candidates
+          @data += apply_scopes(current_company.jobs)
+          @data += apply_scopes(current_company.invited_companies_contacts)
+          @data += apply_scopes(current_company.candidates)
           @data = @data.sort{|y,z| z.created_at <=> y.created_at}
         }
       end
     end
     @activities = PublicActivity::Activity.order("created_at desc")
   end # End of dashboard
+
   def profile
     add_breadcrumb @user.try(:full_name), "#"
   end
