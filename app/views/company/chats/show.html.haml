@@ -22,7 +22,7 @@
                 .super-box.col-sm-12.well
                   - @chat.chat_users.each do |user|
                     .superbox-list.text-center{style: "display: initial !important;"}
-                      =link_to (image_tag user.userable.photo ,class: 'superbox-img',style: 'border-radius: 50%;width:40px !important;height:40px !important'),"#",title: user.userable.full_name
+                      =link_to (image_tag user.userable.photo ,class: 'superbox-img',style: 'border-radius: 50%;width:40px !important;height:40px !important'),"#",title: user.userable.full_name,'data-toggle'=>"tooltip" ,'data-placement'=>"top"
 
             - if @chat.try(:chatable_type)== 'Job'
               .row.hidden-sm.hidden-xs
