@@ -343,4 +343,14 @@ module ApplicationHelper
   def has_permission?(permission)
     current_user.has_permission(permission) || current_user.is_owner?
   end
+
+  def assign_fa_icon(group)
+    if group =="Job"
+      "fa-briefcase"
+    elsif group=='Candidate'
+      'fa-users'
+    elsif group=='Company'
+       'fa-building'
+    end
+  end
 end
