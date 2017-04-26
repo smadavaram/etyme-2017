@@ -20,13 +20,15 @@
   %section#widget-grid
     - if current_company.vendor?
       .row
-        .col-sm-12.col-md-8{style: 'margin-left: 15px;'}
-          %input.form-control{placeholder: 'Search by Keywords ...',style: 'width: 96%;margin-bottom: 20px;'}
-        %br
-        %br
+        -#.col-sm-12.col-md-8{style: 'margin-left: 15px;'}
+          - if @data.present?
+            %input.form-control#search-term{placeholder: 'Search by Keywords ...',style: 'width: 96%;margin-bottom: 20px; background-color: white'}
         .col-sm-12.col-md-8
           - if @data.present?
-            = select_tag "Select Type", options_for_select([ "Candidates", "Jobs" , "Contacts" ]), include_blank: "All",class: 'form-control' ,id: "show_type",style:'width:90%;background-color:white;margin-left:15px; width:96%'
+            .col-sm-8.margin-bottom-20
+              %input.form-control#search-term.bg-color-white{placeholder: 'Search by Keywords ...',style: ''}
+            .col-sm-4.margin-bottom-20
+              = select_tag "Select Type", options_for_select([ "Candidates", "Jobs" , "Contacts" ]), include_blank: "All",class: 'form-control bg-color-white' ,id: "show_type",style:''
           %br
           .col-sm-12.col-md-8#dynamic-content{style: "width: 100%;"}
             - @data.each do |d|
@@ -209,7 +211,7 @@
   :javascript
     $('#show_type').change(function(){
       $.ajax({
-        url: "dashboard",
+        url: "dashboard?search_by="+$('#search-term').val(),
         type: "GET",
         data: {value: $('#show_type option:selected').text()},
       })
@@ -225,4 +227,10 @@
     });
     $('[data-toggle="tooltip"]').tooltip()
 
+    });
+    $("#search-term").on("keypress", function (e) {
+        if (e.keyCode == 13) {
+           var sval = $('#search-term').val();
+           $.get('/dashboard?search_by='+sval);
+        }
     });

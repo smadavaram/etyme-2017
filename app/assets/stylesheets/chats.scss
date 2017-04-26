@@ -35,7 +35,7 @@ body {
       right: 0;
       width: 0;
       height: 0;
-      border: 8px solid white;
+      border: 8px solid paleturquoise;
       border-left-color: transparent;
       border-bottom-color: transparent;
     }
@@ -49,11 +49,7 @@ body {
     order: 1;
     border-bottom-right-radius: 0; // weird shadow fix
     background-size: 10px 234px;
-    background-image: -o-linear-gradient(top, #87DFFD 0%, #0684D8 100%);
-    background-image: -moz-linear-gradient(top, #87DFFD 0%, #0684D8 100%);
-    background-image: -webkit-linear-gradient(top, #87DFFD 0%, #0684D8 100%);
-    background-image: -ms-linear-gradient(top, #87DFFD 0%, #0684D8 100%);
-    background-image: linear-gradient(to top, #87DFFD 0%, #0684D8 100%);
+    background-color: mediumslateblue;
   }
   .avatar {
     order: 2;
@@ -64,7 +60,7 @@ body {
       left: -12px;
       width: 60px;
       height: 60px;
-      border: 12px solid #0684D8;
+      border: 12px solid mediumslateblue;
       border-right-color: transparent;
       border-top-color: transparent;
       border-radius: 50%;
@@ -74,7 +70,7 @@ body {
 }
 
 .messages {
-  background: white;
+  background: paleturquoise;
   padding: 10px;
   border-radius: 5px;
   box-shadow: 0 1px 2px rgba(black, 0.2);
@@ -92,4 +88,11 @@ body {
   &.animated {
     opacity: 1;
   }
+}
+.bg-selected
+{
+  background-color: paleturquoise !important;
+}
+.hover-bg:hover{
+  background-color: paleturquoise !important;
 }

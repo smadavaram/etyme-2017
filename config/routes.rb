@@ -141,6 +141,7 @@ Rails.application.routes.draw do
       post   :add_to_network
       get    :hot_candidates
       get    :hot_index
+      match :create_chat ,via: [:get, :post]
     end
     resources :candidates
 

@@ -11,15 +11,16 @@ class Company::RemindersController < Company::BaseController
   end
 
   def create_bulk_candidates
-    params[:candidate_ids].each do |c_id|
-      current_company.candidates.find(c_id).reminders.create(title: params[:reminder][:title] ,remind_at:params[:reminder][:remind_at],user_id: current_user.id)
+
+    params[:candidates_ids].split(",").each do |c_id|
+      current_company.candidates.find(c_id.to_i).reminders.create(title: params[:reminder][:title] ,remind_at:params[:reminder][:remind_at],user_id: current_user.id)
     end
     flash[:success] = "Reminder Created."
     redirect_to :back
   end
   def create_bulk_companies
-    params[:company_ids].each do |c_id|
-      current_company.invited_companies.find_by(invited_company: c_id).invited_company.reminders.create(title: params[:reminder][:title] ,remind_at:params[:reminder][:remind_at],user_id: current_user.id)
+    params[:company_ids].split(',').each do |c_id|
+      current_company.invited_companies.find_by(invited_company: c_id.to_i).invited_company.reminders.create(title: params[:reminder][:title] ,remind_at:params[:reminder][:remind_at],user_id: current_user.id)
     end
     flash[:success] = "Reminder Created."
     redirect_to :back

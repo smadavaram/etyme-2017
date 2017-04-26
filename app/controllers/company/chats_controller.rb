@@ -22,6 +22,7 @@ class Company::ChatsController < Company::BaseController
 
   def find_chat
     @chats  = current_user.try(:chats)
+    @chat_groups = @chats.group_by(&:chatable_type)
     @chat = current_user.chats.find(params[:id] || params[:chat_id]) || []
   end
 

@@ -9,13 +9,14 @@
       .modal-body.no-padding
         = form_for Group.new, url: create_bulk_companies_groups_path, method: :post ,html:{ class:'form-horizontal',id: 'group-val'} do |f|
           %br/
+          = hidden_field_tag 'company_ids',value ='',{class: "company_ids"}
           .form-group
             %label.col-md-3.control-label
               Select Groups
               %sup.text-danger *
             .col-md-8
               = select_tag 'group_ids[]', options_for_select(current_company.groups.collect { |g| [g.group_name,g.id] }),class: 'form-control select2',:multiple => true
-          .form-group
+          -#.form-group
             %label.col-md-3.control-label
               Select Companies
               %sup.text-danger *

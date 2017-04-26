@@ -7,6 +7,7 @@ class Candidate < ActiveRecord::Base
   include PublicActivity::Model
 
   enum status: [:signup, :campany_candidate]
+  enum visa: [:Us_citizen, :GC, :OPT, :OPT_third_party, :H1B, :H1B_third_party]
 
   # validates :password,presence: true,if: Proc.new { |candidate| !candidate.password.nil? }
   # validates :password_confirmation,presence: true,if: Proc.new { |candidate| !candidate.password.nil? }
@@ -59,6 +60,8 @@ class Candidate < ActiveRecord::Base
   accepts_nested_attributes_for :educations     ,reject_if: :all_blank, allow_destroy: true
   accepts_nested_attributes_for :address        , reject_if: :all_blank, update_only: true
   accepts_nested_attributes_for :custom_fields  , allow_destroy: true , reject_if: :all_blank
+
+  scope :search_by ,->(term) { Candidate.where('lower(first_name) like :term or lower(last_name) like :term ' ,{term: "%#{term.downcase}%" })}
 
   #Tags Input
   acts_as_taggable_on :skills

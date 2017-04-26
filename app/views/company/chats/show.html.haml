@@ -10,17 +10,19 @@
                 .col-xs-6.col-sm-3.col-md-3.col-lg-3.pull-left
                   - if @chat.try(:chatable_type)=="Job"
                     %h4= truncate(@chat.try(:chatable).try(:title).try(:titleize),length: 50)
+                  -elsif @chat.try(:chatable_type)=="Company"
+                    %h4= truncate(@chat.try(:chatable)==current_company ?  @chat.try(:company).try(:name).try(:titleize): @chat.try(:chatable).try(:name),length: 50)
                   -else
                     %h4= truncate(@chat.try(:chatable).try(:full_name).try(:titleize),length: 50)
                 .col-xs-6.col-sm-3.col-md-3.col-lg-3.pull-right
-                  -if @chat.try(:chatable).try(:created_by) == current_user || @chat.try(:chatable_type)=="Candidate"
+                  -if @chat.try(:chatable).try(:created_by) == current_user || @chat.try(:chatable_type)=="Candidate" || @chat.try(:chatable_type)=='Company'
                     = link_to raw("<i class='fa-user-plus fa fa-fw fa-lg'></i>") ,"#", class: 'btn btn-success btn-lg pull-right header-btn',"data-target" => "#add_users", "data-toggle" => "modal"
             .row
               .text
                 .super-box.col-sm-12.well
                   - @chat.chat_users.each do |user|
                     .superbox-list.text-center{style: "display: initial !important;"}
-                      =link_to (image_tag user.userable.photo ,class: 'superbox-img',style: 'border-radius: 50%;width:40px !important;height:40px !important'),"#",title: user.userable.full_name
+                      =link_to (image_tag user.userable.photo ,class: 'superbox-img',style: 'border-radius: 50%;width:40px !important;height:40px !important'),"#",title: user.userable.full_name,'data-toggle'=>"tooltip" ,'data-placement'=>"top"
 
             - if @chat.try(:chatable_type)== 'Job'
               .row.hidden-sm.hidden-xs
@@ -89,21 +91,49 @@
             #chat-body.chat-body{style: "height: 500px !important"}
               .widget-body
                 .row
-                  .col-md-3.col-sm-12.hidden-sm.hidden-xs.center{style: "position: absolute !important"}
+                  .col-md-4.col-sm-12.hidden-sm.hidden-xs.center{style: "position: absolute !important"}
                     .who.clearfix.right
                       %h4 Your Chats
                     %br
-                    - @chats.take(10).each do |c|
-                      .margin-bottom-10.padding-10.bg-color-white.fa-border
-                        - if c.try(:chatable_type)== 'Job'
-                          = link_to  truncate(c.try(:chatable).try(:title).try(:titleize),length: 30) , company_chat_path(c)
-                        - if c.try(:chatable_type)== 'Candidate'
-                          = link_to  truncate(c.try(:chatable).try(:full_name).try(:titleize),length:30) , company_chat_path(c)
+
+                    %ul.nav.nav-tabs
+                      - @chat_groups.each_with_index  do |(group,chats),index|
+                        - if chats.include?(@chat)
+                          %li.active.margin-top-0.make-tab-active
+                            %a{"data-toggle" => "tab", :href => "#tab-r#{index}",title:"#{group.pluralize} Chats",'rel'=>"tooltip" ,'data-placement'=>"top" }
+                              %i.fa.fa-lg{class: "#{assign_fa_icon(group)}"}
+                              %span.badge.bg-color-blue.txt-color-white= chats.count
+
+                        -else
+                          %li.margin-top-0.make-tab-active
+                            %a{"data-toggle" => "tab", :href => "#tab-r#{index}",title:"#{group.pluralize} Chats" ,title:"#{group.pluralize} Chats",'rel'=>"tooltip" ,'data-placement'=>"top" }
+                              %i.fa.fa-lg{class: "#{assign_fa_icon(group)}"}
+                              %span.badge.bg-color-blue.txt-color-white= chats.count
+                    .tab-content
+                      - @chat_groups.each_with_index  do |(group,chats),index|
+                        - if chats.include?(@chat)
+                          .tab-pane.active.padding-top-15.in{id: "tab-r#{index}"}
+                            - chats.take(10).each do |c|
+                              .margin-bottom-10.padding-10.fa-border.hover-bg.bg-color-white{class: "chat-#{c.id}"}
+                                - if c.try(:chatable_type)=='Company'
+                                  = link_to  truncate(c.try(:chatable)==current_company ?  c.try(:company).try(:name).try(:titleize): c.try(:chatable).try(:name),length: 30) , company_chat_path(c),class: "left-side "
+                                - if c.try(:chatable_type)== 'Job'
+                                  = link_to  truncate(c.try(:chatable).try(:title).try(:titleize),length: 30) , company_chat_path(c),class: "left-side"
+                                - if c.try(:chatable_type)== 'Candidate'
+                                  = link_to  truncate(c.try(:chatable).try(:full_name).try(:titleize),length:30) , company_chat_path(c),class: "left-side"
+                        -else
+                          .tab-pane.padding-top-15.in{id: "tab-r#{index}"}
+                            - chats.take(10).each do |c|
+                              .margin-bottom-10.padding-10.fa-border.hover-bg.bg-color-white{class: "chat-#{c.id}"}
+                                - if c.try(:chatable_type)=='Company'
+                                  = link_to  truncate(c.try(:chatable)==current_company ?  c.try(:company).try(:name).try(:titleize): c.try(:chatable).try(:name),length: 30) , company_chat_path(c),class: "left-side "
+                                - if c.try(:chatable_type)== 'Job'
+                                  = link_to  truncate(c.try(:chatable).try(:title).try(:titleize),length: 30) , company_chat_path(c),class: "left-side"
+                                - if c.try(:chatable_type)== 'Candidate'
+                                  = link_to  truncate(c.try(:chatable).try(:full_name).try(:titleize),length:30) , company_chat_path(c),class: "left-side"
+
                   .col-md-8{style: "float: right !important"}
                     %ol.well.well-sm.discussion{id: "chat-#{@chat.channel_name}"}
-                      - @messages.each do |m|
-                        = render 'company/messages/partials/message' ,m: m
-                    -#%ul
                       - @messages.each do |m|
                         = render 'company/messages/partials/message' ,m: m
 
@@ -115,9 +145,9 @@
                   .typearea
                     = f.text_area :body ,class: "textarea-div custom-scroll" , id:"textarea-expand" , :placeholder => "Write a reply..." ,required: true
                 %span.textarea-controls
-                  = f.submit "Reply" , class: "button btn btn-sm btn-primary pull-right"
+                  = f.submit "Send" , class: "button btn btn-sm btn-primary pull-right"
                   = filepicker_field_tag "" ,class: "hidden  file", onchange:"uploadFile(event)"
-                  = link_to raw("<i class='fa fa-file fa-fw fa-lg '></i>") ,"#", class: 'btn btn-success pull-left btn-sm',"data-target" => "#upload_document", "data-toggle" => "modal"
+                  = link_to raw("<i class='fa fa-file fa-fw fa-lg '></i>") ,"#", class: 'btn btn-default pull-left btn-sm',"data-target" => "#upload_document", "data-toggle" => "modal"
 
 %script{:src => "https://js.pusher.com/4.0/pusher.min.js"}
 
@@ -141,6 +171,8 @@
       });
       var chatBody = $('#chat-body') ;
       chatBody.scrollTop(5000000000);
+      $(".chat-#{@chat.try(:id)}").addClass('bg-selected');
+      $('[rel="tooltip"]').tooltip();
     });
 
     function replyUpload(id) {

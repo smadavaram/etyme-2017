@@ -8,7 +8,8 @@ class Static::CandidatesController < ApplicationController
   end
 
   def send_message
-    UserMailer.send_message_to_candidate(params[:name] ,params[:subject],params[:message],@candidate,params[:email]).deliver()
+    @to = params.has_key?(:company_id) ? (@candidate.invited_by.present?  ? @candidate.invited_by : Company.find(params[:company_id]).owner ) : @candidate
+    UserMailer.send_message_to_candidate(params[:name] ,params[:subject],params[:message],@to,params[:email]).deliver()
     flash[:success] = "Message sent successfully."
     redirect_to :back
   end

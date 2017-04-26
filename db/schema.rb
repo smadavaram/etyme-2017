@@ -11,29 +11,10 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema.define(version: 20170406104051) do
+ActiveRecord::Schema.define(version: 20170421083622) do
 
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
-
-  create_table "account", id: :bigserial, force: :cascade do |t|
-    t.text    "email",                                         null: false
-    t.string  "email_hash",         limit: 16,                 null: false
-    t.text    "password_hash",                                 null: false
-    t.boolean "is_superuser",                  default: false, null: false
-    t.boolean "is_real_user",                  default: false, null: false
-    t.boolean "member_connections",            default: true,  null: false
-  end
-
-  add_index "account", ["email_hash"], name: "account_email_hash", using: :btree
-
-  create_table "account_properties", id: :bigserial, force: :cascade do |t|
-    t.integer "account_id", limit: 8,                null: false
-    t.text    "name",                                null: false
-    t.boolean "value",                default: true, null: false
-  end
-
-  add_index "account_properties", ["account_id", "name"], name: "account_properties_account_id_name_key", unique: true, using: :btree
 
   create_table "activities", force: :cascade do |t|
     t.integer  "trackable_id"
@@ -126,6 +107,7 @@ ActiveRecord::Schema.define(version: 20170406104051) do
     t.string   "resume"
     t.string   "skills"
     t.string   "description"
+    t.integer  "visa"
   end
 
   add_index "candidates", ["invitation_token"], name: "index_candidates_on_invitation_token", unique: true, using: :btree
@@ -215,12 +197,6 @@ ActiveRecord::Schema.define(version: 20170406104051) do
 
   add_index "companies", ["owner_id"], name: "index_companies_on_owner_id", using: :btree
 
-  create_table "company", id: :bigserial, force: :cascade do |t|
-    t.text "name", null: false
-  end
-
-  add_index "company", ["name"], name: "company_name_key", unique: true, using: :btree
-
   create_table "company_contacts", force: :cascade do |t|
     t.integer  "company_id"
     t.string   "first_name"
@@ -245,16 +221,6 @@ ActiveRecord::Schema.define(version: 20170406104051) do
     t.boolean  "is_required_signature"
     t.datetime "created_at",            null: false
     t.datetime "updated_at",            null: false
-  end
-
-  create_table "connection", primary_key: "left_id", force: :cascade do |t|
-    t.integer "right_id", limit: 8, null: false
-  end
-
-  create_table "connection_request", primary_key: "requestor_id", force: :cascade do |t|
-    t.integer  "requestee_id", limit: 8,                   null: false
-    t.boolean  "rejected",               default: false,   null: false
-    t.datetime "request_time",           default: "now()", null: false
   end
 
   create_table "consultant_profiles", force: :cascade do |t|
@@ -317,11 +283,6 @@ ActiveRecord::Schema.define(version: 20170406104051) do
     t.integer  "contract_type"
   end
 
-  create_table "credit_verification", primary_key: "user_id", force: :cascade do |t|
-    t.integer "credit_id",   limit: 8, null: false
-    t.boolean "is_positive",           null: false
-  end
-
   create_table "currencies", force: :cascade do |t|
     t.string   "name"
     t.datetime "created_at", null: false
@@ -368,15 +329,6 @@ ActiveRecord::Schema.define(version: 20170406104051) do
     t.datetime "updated_at",      null: false
   end
 
-  create_table "event", id: :bigserial, force: :cascade do |t|
-    t.text     "subject",                       null: false
-    t.text     "verb",                          null: false
-    t.text     "object",                        null: false
-    t.datetime "happened_at", default: "now()", null: false
-  end
-
-  add_index "event", ["happened_at"], name: "event_happened_at", using: :btree
-
   create_table "experiences", force: :cascade do |t|
     t.string   "experience_title"
     t.date     "start_date"
@@ -387,45 +339,6 @@ ActiveRecord::Schema.define(version: 20170406104051) do
     t.integer  "user_id"
     t.datetime "created_at",       null: false
     t.datetime "updated_at",       null: false
-  end
-
-  create_table "game", id: :bigserial, force: :cascade do |t|
-    t.text    "name",                          null: false
-    t.text    "publisher"
-    t.integer "publication_year"
-    t.integer "maker_ids",        default: [], null: false, array: true
-    t.integer "maker_ids_count",  default: 0,  null: false
-  end
-
-  create_table "game_credit", id: :bigserial, force: :cascade do |t|
-    t.integer "maker_id",    limit: 8,              null: false
-    t.integer "game_id",     limit: 8,              null: false
-    t.integer "company_id",  limit: 8
-    t.integer "role_id",     limit: 8
-    t.integer "start_year"
-    t.integer "start_month"
-    t.integer "end_year"
-    t.integer "end_month"
-    t.integer "platforms",             default: [], null: false, array: true
-    t.text    "location"
-  end
-
-  create_table "game_image", id: :bigserial, force: :cascade do |t|
-    t.integer  "game_id",       limit: 8, null: false
-    t.text     "format",                  null: false
-    t.text     "url",                     null: false
-    t.datetime "expiring_time"
-  end
-
-  create_table "game_maker", id: :bigserial, force: :cascade do |t|
-    t.integer "account_id",      limit: 8
-    t.text    "curr_role"
-    t.text    "curr_company"
-    t.text    "curr_game"
-    t.text    "skills"
-    t.text    "accomplishments"
-    t.integer "times_verified",            default: 0, null: false
-    t.date    "available_at"
   end
 
   create_table "groupables", force: :cascade do |t|
@@ -477,10 +390,6 @@ ActiveRecord::Schema.define(version: 20170406104051) do
     t.decimal  "rate",               default: 0.0
   end
 
-  create_table "job_application", primary_key: "job_id", force: :cascade do |t|
-    t.integer "applicant_id", limit: 8, null: false
-  end
-
   create_table "job_applications", force: :cascade do |t|
     t.integer  "job_invitation_id"
     t.text     "cover_letter"
@@ -495,17 +404,6 @@ ActiveRecord::Schema.define(version: 20170406104051) do
     t.string   "applicationable_type"
     t.string   "applicant_resume"
     t.string   "share_key"
-  end
-
-  create_table "job_card", id: :bigserial, force: :cascade do |t|
-    t.integer "owner_id",     limit: 8,                   null: false
-    t.integer "role_id",      limit: 8,                   null: false
-    t.integer "company_id",   limit: 8,                   null: false
-    t.text    "location",                                 null: false
-    t.text    "description",                              null: false
-    t.string  "img_url",      limit: 512
-    t.date    "start_date"
-    t.boolean "has_job_logo",             default: false, null: false
   end
 
   create_table "job_invitations", force: :cascade do |t|
@@ -542,21 +440,6 @@ ActiveRecord::Schema.define(version: 20170406104051) do
   end
 
   add_index "jobs", ["deleted_at"], name: "index_jobs_on_deleted_at", using: :btree
-
-  create_table "join_request", id: :bigserial, force: :cascade do |t|
-    t.text     "first_name",                                   null: false
-    t.text     "last_name",                                    null: false
-    t.text     "email",                                        null: false
-    t.text     "curr_company",                                 null: false
-    t.text     "curr_role",                                    null: false
-    t.text     "curr_game",                                    null: false
-    t.datetime "request_time",               default: "now()", null: false
-    t.string   "social_provider", limit: 64
-    t.string   "social_key",      limit: 64
-    t.text     "password"
-  end
-
-  add_index "join_request", ["email"], name: "join_request_email_key", unique: true, using: :btree
 
   create_table "leaves", force: :cascade do |t|
     t.date     "from_date"
@@ -624,18 +507,6 @@ ActiveRecord::Schema.define(version: 20170406104051) do
     t.integer "permission_id"
   end
 
-  create_table "play_evolutions", force: :cascade do |t|
-    t.string   "hash",          limit: 255, null: false
-    t.datetime "applied_at",                null: false
-    t.text     "apply_script"
-    t.text     "revert_script"
-    t.string   "state",         limit: 255
-    t.text     "last_problem"
-  end
-
-  create_table "play_evolutions_lock", primary_key: "lock", force: :cascade do |t|
-  end
-
   create_table "portfolios", force: :cascade do |t|
     t.string   "name"
     t.text     "description"
@@ -654,27 +525,6 @@ ActiveRecord::Schema.define(version: 20170406104051) do
     t.datetime "updated_at",             null: false
   end
 
-  create_table "profile", id: :bigserial, force: :cascade do |t|
-    t.text    "first_name",                                                  null: false
-    t.text    "last_name",                                                   null: false
-    t.text    "location",                                    default: "",    null: false
-    t.string  "img_url",                         limit: 512
-    t.text    "bio"
-    t.text    "phone_number"
-    t.boolean "phone_number_validated",                      default: false, null: false
-    t.integer "phone_pin"
-    t.integer "phone_validation_attempts_count",             default: 0,     null: false
-    t.text    "status"
-    t.text    "availability"
-  end
-
-  create_table "recruiter", id: :bigserial, force: :cascade do |t|
-    t.integer "account_id",   limit: 8,                 null: false
-    t.text    "curr_company",                           null: false
-    t.boolean "has_logo",               default: false, null: false
-    t.date    "added_on"
-  end
-
   create_table "reminders", force: :cascade do |t|
     t.string   "title"
     t.datetime "remind_at"
@@ -688,12 +538,6 @@ ActiveRecord::Schema.define(version: 20170406104051) do
 
   add_index "reminders", ["reminderable_type", "reminderable_id"], name: "index_reminders_on_reminderable_type_and_reminderable_id", using: :btree
 
-  create_table "role", id: :bigserial, force: :cascade do |t|
-    t.text "name", null: false
-  end
-
-  add_index "role", ["name"], name: "role_name_key", unique: true, using: :btree
-
   create_table "roles", force: :cascade do |t|
     t.string   "name"
     t.integer  "company_id"
@@ -704,18 +548,6 @@ ActiveRecord::Schema.define(version: 20170406104051) do
   create_table "roles_users", id: false, force: :cascade do |t|
     t.integer "role_id"
     t.integer "user_id"
-  end
-
-  create_table "search_index_updates", id: :bigserial, force: :cascade do |t|
-    t.integer  "maker_id",     limit: 8
-    t.integer  "job_id",       limit: 8
-    t.datetime "request_time",           default: "now()", null: false
-  end
-
-  create_table "sent_message", id: :bigserial, force: :cascade do |t|
-    t.integer  "sender_id",   limit: 8,                   null: false
-    t.integer  "receiver_id", limit: 8,                   null: false
-    t.datetime "sent_at",               default: "now()", null: false
   end
 
   create_table "statuses", force: :cascade do |t|
@@ -818,25 +650,6 @@ ActiveRecord::Schema.define(version: 20170406104051) do
 
   add_index "transactions", ["timesheet_log_id"], name: "index_transactions_on_timesheet_log_id", using: :btree
 
-  create_table "user_social_profile", id: false, force: :cascade do |t|
-    t.string   "provider",     limit: 64,  null: false
-    t.text     "key",                      null: false
-    t.string   "email",        limit: 256
-    t.string   "first_name",   limit: 512
-    t.string   "last_name",    limit: 512
-    t.string   "full_name",    limit: 512
-    t.string   "avatar_url",   limit: 512
-    t.string   "curr_company", limit: 512
-    t.string   "curr_title",   limit: 512
-    t.integer  "account_id",   limit: 8
-    t.datetime "created",                  null: false
-    t.text     "bio"
-    t.text     "location"
-  end
-
-  add_index "user_social_profile", ["email"], name: "user_social_profile_email_idx", using: :btree
-  add_index "user_social_profile", ["provider", "key"], name: "user_social_profile_provider_key_idx", unique: true, using: :btree
-
   create_table "users", force: :cascade do |t|
     t.integer  "company_id"
     t.string   "first_name",             default: ""
@@ -891,30 +704,4 @@ ActiveRecord::Schema.define(version: 20170406104051) do
   add_index "users", ["invited_by_id"], name: "index_users_on_invited_by_id", using: :btree
   add_index "users", ["reset_password_token"], name: "index_users_on_reset_password_token", unique: true, using: :btree
 
-  add_foreign_key "account_properties", "account", name: "account_properties_account_id_fkey"
-  add_foreign_key "connection", "account", column: "left_id", name: "connection_left_id_fkey", on_delete: :cascade
-  add_foreign_key "connection", "account", column: "right_id", name: "connection_right_id_fkey", on_delete: :cascade
-  add_foreign_key "connection_request", "account", column: "requestee_id", name: "connection_request_requestee_id_fkey", on_delete: :cascade
-  add_foreign_key "connection_request", "account", column: "requestor_id", name: "connection_request_requestor_id_fkey", on_delete: :cascade
-  add_foreign_key "credit_verification", "account", column: "user_id", name: "credit_verification_user_id_fkey", on_delete: :cascade
-  add_foreign_key "credit_verification", "game_credit", column: "credit_id", name: "credit_verification_credit_id_fkey", on_delete: :cascade
-  add_foreign_key "game_credit", "company", name: "game_credit_company_id_fkey"
-  add_foreign_key "game_credit", "game", name: "game_credit_game_id_fkey"
-  add_foreign_key "game_credit", "game_maker", column: "maker_id", name: "game_credit_maker_id_fkey", on_delete: :cascade
-  add_foreign_key "game_credit", "role", name: "game_credit_role_id_fkey"
-  add_foreign_key "game_image", "game", name: "game_image_game_id_fkey"
-  add_foreign_key "game_maker", "account", name: "game_maker_account_id_fkey", on_delete: :cascade
-  add_foreign_key "game_maker", "profile", column: "id", name: "game_maker_id_fkey", on_delete: :cascade
-  add_foreign_key "job_application", "game_maker", column: "applicant_id", name: "job_application_applicant_id_fkey", on_delete: :cascade
-  add_foreign_key "job_application", "job_card", column: "job_id", name: "job_application_job_id_fkey", on_delete: :cascade
-  add_foreign_key "job_card", "company", name: "job_card_company_id_fkey"
-  add_foreign_key "job_card", "recruiter", column: "owner_id", name: "job_card_owner_id_fkey", on_delete: :cascade
-  add_foreign_key "job_card", "role", name: "job_card_role_id_fkey"
-  add_foreign_key "recruiter", "account", name: "recruiter_account_id_fkey", on_delete: :cascade
-  add_foreign_key "recruiter", "profile", column: "id", name: "recruiter_id_fkey", on_delete: :cascade
-  add_foreign_key "search_index_updates", "game_maker", column: "maker_id", name: "search_index_updates_maker_id_fkey", on_delete: :cascade
-  add_foreign_key "search_index_updates", "job_card", column: "job_id", name: "search_index_updates_job_id_fkey", on_delete: :cascade
-  add_foreign_key "sent_message", "account", column: "receiver_id", name: "sent_message_receiver_id_fkey", on_delete: :cascade
-  add_foreign_key "sent_message", "account", column: "sender_id", name: "sent_message_sender_id_fkey", on_delete: :cascade
-  add_foreign_key "user_social_profile", "account", name: "user_social_profile_account_id_fkey"
 end

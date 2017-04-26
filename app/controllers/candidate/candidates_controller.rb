@@ -64,7 +64,7 @@ class Candidate::CandidatesController < Candidate::BaseController
     end
 
     def candidate_params
-      params.require(:candidate).permit(:first_name,:invited_by ,:job_id,:description, :last_name,:dob,:email,:phone, :skill_list, :primary_address_id,address_attributes: [:id,:country,:city,:state,:zip_code])
+      params.require(:candidate).permit(:first_name,:invited_by ,:job_id,:description, :last_name,:dob,:email,:phone,:visa, :skill_list, :primary_address_id,address_attributes: [:id,:country,:city,:state,:zip_code])
     end
 
 
