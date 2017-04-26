@@ -47,7 +47,7 @@
                           %td= job.created_by.full_name  rescue "  --"
                           %td
                             - if job.try(:chat).is_chat_user?(current_user)
-                              = link_to raw("<i class='fa fa-comment '></i>") , company_chat_path(job.try(:chat) ) ,target: '_blank' , class: 'btn btn-xs btn-default  margin-bottom-5',title: "Chat of  #{job.title.titleize}",'data-toggle'=>"tooltip" ,'data-placement'=>"top"
+                              = link_to raw("<i class='fa fa-comment '></i>") , company_chat_path(job.try(:chat) ) ,target: '_blank' , class: 'btn btn-xs btn-default  margin-bottom-5',title: "Chat of  #{truncate(job.title.titleize,length:50)}",'data-toggle'=>"tooltip" ,'data-placement'=>"top"
                             - if has_permission?("manage_job")
                               = link_to raw("<i class='fa fa-edit '></i>") , edit_job_path(job) , class: 'btn btn-xs btn-default  margin-bottom-5',title: "Edit  #{job.title.titleize}",'data-toggle'=>"tooltip" ,'data-placement'=>"top"
                               = link_to raw("<i class='fa fa-times '></i>") , job_path(job) , method: :delete ,  class: 'btn btn-xs btn-default  margin-bottom-5',title: "Delete  #{job.title.titleize}",'data-toggle'=>"tooltip" ,'data-placement'=>"top"
