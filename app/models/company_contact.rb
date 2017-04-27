@@ -1,6 +1,8 @@
 class CompanyContact < ActiveRecord::Base
   belongs_to :company
   validates_uniqueness_of :email,  scope: :company_id
+  has_many :notifications       , as: :notifiable,dependent: :destroy
+
 
   scope :search_by ,->(term) { CompanyContact.where('lower(first_name) like :term or lower(last_name) like :term or title like :term ' ,{term: "%#{term.downcase}%" })}
 

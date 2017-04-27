@@ -4,7 +4,7 @@ class Company::TimesheetsController < Company::BaseController
   # before_action :received_timesheet , only: [:approve]
   before_action :set_timesheets , only: [:index]
 
-  before_action :authorized_user , only: [:show,:approve]
+  # before_action :authorized_user , only: [:show,:approve]
 
   add_breadcrumb "TIMESHEETS", :timesheets_path, options: { title: "TIMESHEETS" }
 

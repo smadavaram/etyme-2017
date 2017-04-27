@@ -124,7 +124,13 @@ class Company::JobApplicationsController < Company::BaseController
   def share_application_with_companies
     if params.has_key?("vendor_company")
       Company.all.where(id: params[:vendor_company]).each do |c|
-        c.owner.notifications.create(message: current_company.name + " share a <a href='http://#{current_company.etyme_url + share_job_application_path(@job_application.share_key)}' target='_blank'>job application - #{@job_application.job.title}</a> with you.",title:"Job Application")
+        if (c.invited_by.present?)
+          next if !c.company_contacts.first.present?
+          c.company_contacts.first.notifications.create(message: current_company.name + " share a <a href='http://#{current_company.etyme_url + share_job_application_path(@job_application.share_key)}' target='_blank'>job application - #{@job_application.job.title}</a> with you.",title:"Job Application")
+        else
+          c.owner.notifications.create(message: current_company.name + " share a <a href='http://#{current_company.etyme_url + share_job_application_path(@job_application.share_key)}' target='_blank'>job application - #{@job_application.job.title}</a> with you.",title:"Job Application")
+
+        end
       end
     end
     redirect_to :back , notice: "job application - #{@job_application.job.title} Successfully Shared."
