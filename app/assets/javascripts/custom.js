@@ -129,5 +129,6 @@ $(document).ready(function(){
     });
     $("#contract_toggle_modal_contract_toggle_modal").addClass('form-control');
     $('[data-toggle="tooltip"]').tooltip();
+    $('[rel="tooltip"]').tooltip();
 });
 
