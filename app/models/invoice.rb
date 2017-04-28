@@ -21,13 +21,13 @@ class Invoice < ActiveRecord::Base
 
   after_create      :set_next_invoice_date , if: Proc.new{|invoice| !invoice.contract.has_child?}
   after_create      :update_timesheet_status_to_invoiced , if: Proc.new{|invoice| !invoice.contract.has_child?}
-  after_create      :notify_contract_responder
+  after_create      :notify_contract_responder ,  if: Proc.new{|invoice| invoice.contract.respond_by.present?}
   after_update      :create_invoice_for_parent, if: Proc.new{|invoice| invoice.status_changed? && invoice.submitted? && invoice.contract.parent_contract?}
   after_update      :notify_contract_creator , if: Proc.new{ |invoice| invoice.status_changed?  && invoice.submitted?}
 
   validate :start_date_cannot_be_less_than_end_date
   validate :contract_validation , if: Proc.new{|invoice| !invoice.contract.in_progress?}
-  validates_numericality_of :total_amount , :rate , presence: true, greater_than_or_equal_to: 1
+  # validates_numericality_of :total_amount , :rate , presence: true, greater_than_or_equal_to: 1
   validates_numericality_of :billing_amount
 
 
