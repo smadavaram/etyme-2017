@@ -54,7 +54,7 @@
                         %td=invitation_status_color( d.status) rescue "  --"
                         %td
                           -if d.pending?
-                            = link_to raw("<i class='fa fa-check '></i>") , accept_vendor_path(company_id: d.company) ,method: :post,class: 'btn btn-xs btn-default ',remote: :true ,title:"Accept #{d.company.name} Request",data: {confirm: "Are you sure you want to Accept this Request ?", verify: 'Accept', verify_text: "Type 'Accept' to Continue"},'data-toggle'=>"tooltip" ,'data-placement'=>"top"
+                            = link_to raw("<i class='fa fa-check '></i>") , accept_vendor_path(company_id: d.company) ,method: :post,class: 'btn btn-xs btn-default ',remote: :true ,title:"Accept #{d.company.name} Request",data: {confirm: "Are you sure you want to Accept this Request ? Once Accepted the company will be able to see your company contacts and in return you will be able to access theirs.", verify: 'Accept', verify_text: "Type 'Accept' to Continue"},'data-toggle'=>"tooltip" ,'data-placement'=>"top"
                             = link_to raw("<i class='fa fa-times '></i>") , reject_vendor_path(company_id: d.company) ,method: :post, class: 'btn btn-xs btn-default ' ,remote: :true,title:"Reject #{d.company.name} Request",data: {confirm: "Are you sure you want to Reject this Request ?", verify: 'Reject', verify_text: "Type 'Reject' to Continue"},'data-toggle'=>"tooltip" ,'data-placement'=>"top"
 
 = digg_pagination(data)
