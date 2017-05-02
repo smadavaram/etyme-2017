@@ -9,10 +9,6 @@
 /* ------------------------------------------------------------------- */
 /* Import Section
 ---------------------------------------------------------------------- */
-@import url("base.css");				/* Default Reset, Typography, Forms, etc. */
-@import url("bootstrap.min.css");			/* Bootstrap 3.3.6 */
-@import url("font-awesome.min.css");		/* Font-awesome 4.5.0 */
-@import url("animate.min.css");		/* Scrolling Animations */
 @import url("http://fonts.googleapis.com/css?family=Montserrat:400,700");
 @import url("https://fonts.googleapis.com/css?family=Varela+Round");
 
@@ -533,7 +529,7 @@
 }
 
 #scrollup {
-  background: url("../img/arrow.png") no-repeat 0px 0px;
+  background: image_url("static/img/arrow.png") no-repeat 0px 0px;
   display: none;
   text-decoration: none;
   position: fixed;
@@ -568,7 +564,7 @@
 ---------------------------------------------------------------------- */
    
 .header-one{
-  background: url('../img/slider/1.jpg') no-repeat center center fixed;
+  background: image_url('static/img/slider/1.jpg') no-repeat center center fixed;
   background-size: cover;
   background-position: center center;
   -webkit-background-size: cover;
@@ -742,7 +738,7 @@ header .logos {
   background: linear-gradient(
       rgba(34,34,34,0.55), 
       rgba(34,34,34,0.55)
-    ), url('../img/services/1.jpg') no-repeat center center;
+    ), image_url('static/img/services/1.jpg') no-repeat center center;
   width: 100%;
   padding: 20px 15px;
   margin-top: 20px;
@@ -753,7 +749,7 @@ header .logos {
   background: linear-gradient(
       rgba(34,34,34,0.55), 
       rgba(34,34,34,0.55)
-    ), url('../img/services/2.jpg') no-repeat center center;
+    ), image_url('static/img/services/2.jpg') no-repeat center center;
   padding: 20px 15px;
   margin-top: 20px;
   color: #fff;
@@ -763,7 +759,7 @@ header .logos {
   background: linear-gradient(
       rgba(34,34,34,0.55), 
       rgba(34,34,34,0.55)
-    ), url('../img/services/3.jpg') no-repeat center center;
+    ), image_url('static/img/services/3.jpg') no-repeat center center;
   padding: 20px 15px;
   margin-top: 20px;
   color: #fff;
@@ -773,7 +769,7 @@ header .logos {
   background: linear-gradient(
       rgba(34,34,34,0.55), 
       rgba(34,34,34,0.55)
-    ), url('../img/services/4.jpg') no-repeat center center;
+    ), image_url('static/img/services/4.jpg') no-repeat center center;
   padding: 20px 15px;
   margin-top: 20px;
   color: #fff;
@@ -783,7 +779,7 @@ header .logos {
   background: linear-gradient(
       rgba(34,34,34,0.55), 
       rgba(34,34,34,0.55)
-    ), url('../img/services/5.jpg') no-repeat center center;
+    ), image_url('static/img/services/5.jpg') no-repeat center center;
   padding: 20px 15px;
   margin-top: 20px;
   color: #fff;
@@ -793,7 +789,7 @@ header .logos {
   background: linear-gradient(
       rgba(34,34,34,0.55), 
       rgba(34,34,34,0.55)
-    ), url('../img/services/6.jpg') no-repeat center center;
+    ), image_url('static/img/services/6.jpg') no-repeat center center;
   padding: 20px 15px;
   margin-top: 20px;
   color: #fff;
@@ -803,7 +799,7 @@ header .logos {
   background: linear-gradient(
       rgba(34,34,34,0.55), 
       rgba(34,34,34,0.55)
-    ), url('../img/services/7.jpg') no-repeat center center;
+    ), image_url('static/img/services/7.jpg') no-repeat center center;
   padding: 20px 15px;
   margin-top: 20px;
   color: #fff;
@@ -813,7 +809,7 @@ header .logos {
   background: linear-gradient(
       rgba(34,34,34,0.55), 
       rgba(34,34,34,0.55)
-    ), url('../img/services/8.jpg') no-repeat center center;
+    ),image_url('static/img/services/8.jpg') no-repeat center center;
   padding: 20px 15px;
   margin-top: 20px;
   color: #fff;
@@ -871,7 +867,7 @@ header .logos {
 .banner-comment {
   width: 100%;
   height: 50vh;
-  background: url('../img/bg/1.jpg') no-repeat center center fixed;
+  background: image_url('static/img/bg/1.jpg') no-repeat center center fixed;
   background-size: cover;
   background-position: center;
   -webkit-background-size: cover;
@@ -1163,7 +1159,7 @@ html[xmlns] .flexslider .slides {
 ---------------------------------------------------------------------- */
 
 .header-about {
-  background: url('../img/slider/4.jpg') no-repeat center center fixed;
+  background: image_url('static/img/slider/4.jpg') no-repeat center center fixed;
   background-size: cover;
   background-position: center center;
   -webkit-background-size: cover;
@@ -1970,7 +1966,7 @@ html[xmlns] .flexslider .slides {
   background: linear-gradient(
       rgba(34,34,34,0.7), 
       rgba(34,34,34,0.7)
-    ), url('../img/bg/2.jpg') no-repeat center center fixed;
+    ), image_url('static/img/bg/2.jpg') no-repeat center center fixed;
   background-size: cover;
   background-position: center center;
   -webkit-background-size: cover;
@@ -2468,7 +2464,7 @@ html[xmlns] .flexslider .slides {
 ---------------------------------------------------------------------- */   
 
 .header-how {
-  background: url('../img/slider/8.jpg') no-repeat center center fixed;
+  background: image_url('static/img/slider/8.jpg') no-repeat center center fixed;
   background-size: cover;
   background-position: center center;
   -webkit-background-size: cover;
@@ -2561,7 +2557,7 @@ html[xmlns] .flexslider .slides {
 /* Video Section
 ---------------------------------------------------------------------- */ 
 .video{
-	background:url('../img/bg/video-bg.png') no-repeat 0px 0px;
+	background:image_url('static/img/bg/video-bg.png') no-repeat 0px 0px;
 	min-height:400px;
 	background-size:cover;
 	text-align:center;
@@ -2571,7 +2567,7 @@ a.play span{
 	width:64px;
 	height:64px;
 	display:inline-block;
-	background:url('../img/bg/paly-icon.png') no-repeat 0px 0px;
+	background: image_url('static/img/bg/paly-icon.png') no-repeat 0px 0px;
 	position:absolute;
 	top:43%;
 	left:48%;
@@ -2589,7 +2585,7 @@ a.play span:hover{
 ---------------------------------------------------------------------- */    
 
 .header-how-2 {
-  background: url('../img/slider/6.jpg') no-repeat center center fixed;
+  background: image_url('static/img/slider/6.jpg') no-repeat center center fixed;
   background-size: cover;
   background-position: center center;
   -webkit-background-size: cover;
@@ -2678,31 +2674,31 @@ a.play span:hover{
   background: linear-gradient(
       rgba(34,34,34,0.7), 
       rgba(34,34,34,0.7)
-    ), url('../img/how/1.jpg') no-repeat center center fixed;
+    ), image_url('static/img/how/1.jpg') no-repeat center center fixed;
 }
 .banner-how.two{
   background: linear-gradient(
       rgba(34,34,34,0.7), 
       rgba(34,34,34,0.7)
-    ), url('../img/how/2.jpg') no-repeat center center fixed;
+    ), image_url('static/img/how/2.jpg') no-repeat center center fixed;
 }
 .banner-how.three{
   background: linear-gradient(
       rgba(34,34,34,0.7), 
       rgba(34,34,34,0.7)
-    ), url('../img/how/3.jpg') no-repeat center center fixed;
+    ), image_url('static/img/how/3.jpg') no-repeat center center fixed;
 }
 .banner-how.four{
   background: linear-gradient(
       rgba(34,34,34,0.7), 
       rgba(34,34,34,0.7)
-    ), url('../img/how/4.jpg') no-repeat center center fixed;
+    ), image_url('static/img/how/4.jpg') no-repeat center center fixed;
 }
 .banner-how.five{
   background: linear-gradient(
       rgba(34,34,34,0.7), 
       rgba(34,34,34,0.7)
-    ), url('../img/how/5.jpg') no-repeat center center fixed;
+    ), image_url('static/img/how/5.jpg') no-repeat center center fixed;
 }
 
 @media only screen and (max-width: 420px){
@@ -2726,7 +2722,7 @@ a.play span:hover{
   background: linear-gradient(
       rgba(34,34,34,0.7), 
       rgba(34,34,34,0.7)
-    ), url('../img/bg/3.jpg') no-repeat center center fixed;
+    ), image_url('static/img/bg/3.jpg') no-repeat center center fixed;
   background-size: cover;
   background-position: center center;
   -webkit-background-size: cover;
@@ -2889,7 +2885,7 @@ a.play span:hover{
   background: linear-gradient(
       rgba(34,34,34,0.8), 
       rgba(34,34,34,0.8)
-    ), url('../img/bg/4.jpg') no-repeat center center fixed;
+    ), image_url('static/img/bg/4.jpg') no-repeat center center fixed;
   background-size: cover;
   background-position: center center;
   -webkit-background-size: cover;
@@ -3087,7 +3083,7 @@ a.play span:hover{
   background: linear-gradient(
       rgba(34,34,34,0.6), 
       rgba(34,34,34,0.6)
-    ), url('../img/bg/5.jpg') no-repeat center center fixed;
+    ), image_url('static/img/bg/5.jpg') no-repeat center center fixed;
   background-size: cover;
   background-position: center center;
   -webkit-background-size: cover;
@@ -3562,7 +3558,7 @@ a.a-body:hover{
 ---------------------------------------------------------------------- */   
 
 .header-blogpage {
-  background: url('../img/blog/1.jpg') no-repeat center center fixed;
+  background: image_url('static/img/blog/1.jpg') no-repeat center center fixed;
   background-size: cover;
   background-position: center center;
   -webkit-background-size: cover;
@@ -3921,7 +3917,7 @@ a.a-body:hover{
   background: linear-gradient(
       rgba(34,34,34,0.6), 
       rgba(34,34,34,0.6)
-    ), url('../img/bg/6.jpg') no-repeat center center fixed;
+    ), image_url('static/img/bg/6.jpg') no-repeat center center fixed;
   background-size: cover;
   background-position: center center;
   -webkit-background-size: cover;
