@@ -167,6 +167,11 @@ module ApplicationHelper
             content: "<i class='fa fa-lg fa-fw fa-globe'></i> <span class='menu-item-parent'>" + 'Network' + "</span>",
             children: [
                 {
+                    href: companies_path(status: 'all'),
+                    title: 'All Signed Up Companies on Etyme',
+                    content: "<span class='menu-item-parent'> All Companies </span>"
+                },
+                {
                     href: prefer_vendors_path,
                     title: 'Network Request',
                     content: "<span class='menu-item-parent'> Network Request(s) </span>"

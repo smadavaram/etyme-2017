@@ -78,6 +78,7 @@ class Company < ActiveRecord::Base
 
   scope :vendors, -> {where(company_type: 1)}
   scope :signup_companies,->{ Company.where.not(:id=>InvitedCompany.select(:invited_company_id))}
+  scope :search_by ,->(term) { Company.where('lower(name) like :term' ,{term: "#{term.downcase}%" })}
 
 
 

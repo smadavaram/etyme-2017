@@ -47,14 +47,12 @@ class Company::PreferVendorsController < Company::BaseController
   end
 
   def create
-    companies = params[:prefer_vendor][:company_ids]
-    companies = companies.reject { |t| t.empty? }
-    companies_ids = companies.map(&:to_i)
-    companies_ids.each do |c|
-      vendor = current_company.prefer_vendors.create(vendor_id: c,status:0)
-      vendor.create_activity :create, owner: vendor.company,recipient: vendor.prefer_vendor
+    vendor = current_company.prefer_vendors.create(vendor_id: params[:id],status:0)
+    vendor.create_activity :create, owner: vendor.company,recipient: vendor.prefer_vendor
+    flash[:success] = 'Vendor Request Successfully Sent.'
+    respond_to do |format|
+      format.js {render inline: "location.reload();" }
     end
-    redirect_to :back
   end
 
 

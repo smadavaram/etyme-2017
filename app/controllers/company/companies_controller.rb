@@ -6,15 +6,28 @@ class Company::CompaniesController < Company::BaseController
   before_action :set_hot_candidates ,only: [:hot_candidates]
   before_action :set_company_contacts , only:  [:contacts]
   before_action :find_user , only: [:create_chat]
+  has_scope :search_by , only: :index
   respond_to :html,:json
 
   add_breadcrumb 'Companies', :companies_path, :title => ""
 
   def index
-    @search = current_company.invited_companies.includes(:invited_company).search(params[:q])
-    @invited_companies = @search.result.paginate(page: params[:page], per_page: 10)
-    @new_company = Company.new
-    @new_company.build_invited_by
+    if params[:status]=='all'
+      respond_to do |format|
+        format.js{
+          @data = apply_scopes( Company.signup_companies)
+        }
+        format.html{
+          @data = apply_scopes( Company.signup_companies)
+        }
+      end
+    else
+      @search = current_company.invited_companies.includes(:invited_company).search(params[:q])
+      @invited_companies = @search.result.paginate(page: params[:page], per_page: 10)
+      @new_company = Company.new
+      @new_company.build_invited_by
+    end
+
   end
 
   def edit

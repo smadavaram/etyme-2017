@@ -21,8 +21,5 @@ class PreferVendor < ActiveRecord::Base
   end
 
 
-  def already_invited(c)
-    PreferVendor.where(company_id: c.id)
-  end
 
 end
