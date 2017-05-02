@@ -145,9 +145,9 @@
                   .typearea
                     = f.text_area :body ,class: "textarea-div custom-scroll" , id:"textarea-expand" , :placeholder => "Write a reply..." ,required: true
                 %span.textarea-controls
-                  = f.submit "Send" , class: "button btn btn-sm btn-primary pull-right"
+                  = f.submit "Send" , class: "btn btn-md btn-primary pull-right"
                   = filepicker_field_tag "" ,class: "hidden  file", onchange:"uploadFile(event)"
-                  = link_to raw("<i class='fa fa-file fa-fw fa-lg '></i>") ,"#", class: 'btn btn-default pull-left btn-sm',"data-target" => "#upload_document", "data-toggle" => "modal"
+                  = link_to raw("<i class='fa fa-file fa-fw fa-lg '></i>") ,"#", class: 'btn btn-default margin-right-5 pull-right btn-sm',"data-target" => "#upload_document", "data-toggle" => "modal"
 
 %script{:src => "https://js.pusher.com/4.0/pusher.min.js"}
 

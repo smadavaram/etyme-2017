@@ -18,7 +18,7 @@
 -#            %br
 #content
   %section#widget-grid
-    - if current_company.vendor?
+    - if current_company.vendor? && !current_user.is_consultant?
       .row
         -#.col-sm-12.col-md-8{style: 'margin-left: 15px;'}
           - if @data.present?
@@ -116,7 +116,7 @@
 
 
         %hr
-    - if current_company.hiring_manager?
+    - if current_company.hiring_manager? && !current_user.is_consultant?
       .col-sm-12.col-md-6
         .panel.panel-default
           .panel-body.status
@@ -205,7 +205,8 @@
                     .font-md.text-center
                       No Activities in  Company Right now.
 
-
+- if current_user.is_consultant?
+  = render 'company/users/partials/consultant_dashboard'
 
 - content_for :scripts do
   :javascript

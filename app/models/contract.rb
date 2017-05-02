@@ -71,6 +71,10 @@ class Contract < ActiveRecord::Base
     where("contracts.id = :c_id and (contracts.company_id = :obj_id or (contracts.contractable_id = :obj_id and contracts.contractable_type = :obj_type))" , {obj_id: obj.id , obj_type: obj.class.name , c_id: contract_id}  )
   end
 
+  def timesheet_logs_total_time_array
+    self.timesheet_logs.map(&:total_time)
+  end
+
   def invoices?
     self.invoices.present?
   end
