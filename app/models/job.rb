@@ -19,7 +19,7 @@ class Job < ActiveRecord::Base
   # has_many     :job_applications ,through: :job_invitations
   has_many     :timesheet_approvers,through: :timesheets
   # has_many     :applicants , through: :job_applications , source: :applicationable ,source_type: "Candidate"
-  has_one      :chat              ,as: :chatable
+  has_one      :chat              ,as: :chatable ,dependent: :destroy
 
   accepts_nested_attributes_for :custom_fields , reject_if: :all_blank
 
