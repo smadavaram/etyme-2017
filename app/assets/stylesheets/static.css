@@ -1,7 +1,7 @@
 /*
  * Basic Styles
  *= require static/css/bootstrap.min.css
- *= require static/css/font-awesome.min
+ *= require static/css/font-awesome.css.scss
  * Home Page
  *= require static/css/animate.min
  *= require static/css/popuo-box
