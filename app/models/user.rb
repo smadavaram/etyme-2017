@@ -107,4 +107,8 @@ class User < ActiveRecord::Base
     self.save
   end
 
+  def self.share_candidates(to,to_emails,c_ids,current_company,message)
+    UserMailer.share_hot_candidates(to,to_emails,c_ids,current_company,message).deliver
+  end
+
 end
