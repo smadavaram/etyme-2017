@@ -58,7 +58,7 @@ class UserMailer < ApplicationMailer
     end
     @candidates_ids = candidates_ids
     @company = current_company
-    mail(bcc: to_emails,subject: "#{current_company.name.titleize} Shared Hot Candidates Link",from: "Etyme <no-reply@etyme.com>")
+    mail(to: to_emails,subject: "#{current_company.name.titleize} Shared Hot Candidates Link",from: "Etyme <no-reply@etyme.com>")
   end
 
   def send_message_to_candidate(name,subject,message,to ,sender_email)
