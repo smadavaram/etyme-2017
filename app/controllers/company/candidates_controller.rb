@@ -122,7 +122,7 @@ class Company::CandidatesController < Company::BaseController
     c_ids = params[:candidates_ids].split(",").map { |s| s.to_i }
     UserMailer.share_hot_candidates(params[:emails].split(","),c_ids,current_company,params[:message]).deliver_now
     flash[:success] = "Candidates shared successfully."
-    redirect_to :back
+    redirect_to :candidates
   end
 
   def create_chat
