@@ -304,7 +304,7 @@ ul.list-check li::before {
 
 .section-title::after {
     content: "";
-    background: image-url("resume/images/section-divider.png") no-repeat 0 0;
+    background: image_url("resume/images/section-divider.png") no-repeat 0 0;
     height: 15px;
     width: 113px;
     position: absolute;
@@ -325,7 +325,7 @@ ul.list-check li::before {
 
 
 #home {
-	background:image_url('resume/home2.jpg') no-repeat center center;
+	background:image_url('resume/images/home2.jpg') no-repeat center center;
 	-webkit-background-attachment: fixed;
     background-attachment: fixed;
 	background-color: #222;
@@ -629,7 +629,7 @@ SOCIAL ICON
 /* === Video Section === */
 
 .video-section {
-    background: image_url('resume/video-bg.jpg') no-repeat center center;
+    background: image_url('resume/images/video-bg.jpg') no-repeat center center;
     background-size: cover;
     position: relative;
     min-height: 500px;
@@ -1625,7 +1625,7 @@ Icon for all respective meta
 
 #pre-status,
 .preload-placeholder {
-	background-image: image_url('resume/preloader.gif');
+	background-image: image_url('resume/images/preloader.gif');
 	background-position: center;
 	background-repeat: no-repeat;
 	height: 200px;
@@ -1651,7 +1651,7 @@ Icon for all respective meta
 /* === Home Page Two === */
 
 #homeTwo {
-    background: image_url('resume/home-2.jpg') no-repeat center center;
+    background: image_url('resume/images/home-2.jpg') no-repeat center center;
     background-color: #222;
     background-size: cover;
     padding: 0;
@@ -1691,7 +1691,7 @@ Icon for all respective meta
 
 /*SERVICE SECTION*/
 .service-section {
-    background: image_url('resume/service-bg.jpg') no-repeat center center;
+    background: image_url('resume/images/service-bg.jpg') no-repeat center center;
     background-size: cover;
     padding:120px 0;
 }
@@ -1804,7 +1804,7 @@ Icon for all respective meta
 }
 
 .video-introducing{
-    background: image_url('resume/video-bg.jpg') no-repeat center center;
+    background: image_url('resume/images/video-bg.jpg') no-repeat center center;
     -webkit-background-size: cover;
     background-size: cover;
     min-height: 390px;
