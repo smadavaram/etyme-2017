@@ -325,7 +325,7 @@ ul.list-check li::before {
 
 
 #home {
-	background: url(../images/home2.jpg) no-repeat center center;
+	background:image_url('resume/home2.jpg') no-repeat center center;
 	-webkit-background-attachment: fixed;
     background-attachment: fixed;
 	background-color: #222;
@@ -601,7 +601,7 @@ SOCIAL ICON
 
 .myphoto{
     position: relative;
-    background: image-url("resume/images/photo-frame.png") bottom center no-repeat;
+    background: image_url("resume/images/photo-frame.png") bottom center no-repeat;
     background-size: contain;
 }
 
@@ -629,7 +629,7 @@ SOCIAL ICON
 /* === Video Section === */
 
 .video-section {
-    background: url(../images/video-bg.jpg) no-repeat center center;
+    background: image_url('resume/video-bg.jpg') no-repeat center center;
     background-size: cover;
     position: relative;
     min-height: 500px;
@@ -1272,7 +1272,7 @@ Resume Timeline
 
 /* === Facts Section === */
 .facts-section {
-    background: url(resume/images/counter-bg.jpg) no-repeat center center;
+    background: image_url('resume/images/counter-bg.jpg') no-repeat center center;
     background-attachment: fixed;
     background-size: cover;
     color: #fff;  
@@ -1625,7 +1625,7 @@ Icon for all respective meta
 
 #pre-status,
 .preload-placeholder {
-	background-image: url(../images/preloader.gif);
+	background-image: image_url('resume/preloader.gif');
 	background-position: center;
 	background-repeat: no-repeat;
 	height: 200px;
@@ -1651,7 +1651,7 @@ Icon for all respective meta
 /* === Home Page Two === */
 
 #homeTwo {
-    background: url(../images/home-2.jpg) no-repeat center center;
+    background: image_url('resume/home-2.jpg') no-repeat center center;
     background-color: #222;
     background-size: cover;
     padding: 0;
@@ -1691,7 +1691,7 @@ Icon for all respective meta
 
 /*SERVICE SECTION*/
 .service-section {
-    background: url(../../assets/images/service-bg.jpg) no-repeat center center;
+    background: image_url('resume/service-bg.jpg') no-repeat center center;
     background-size: cover;
     padding:120px 0;
 }
@@ -1804,7 +1804,7 @@ Icon for all respective meta
 }
 
 .video-introducing{
-    background: url(../images/video-bg.jpg) no-repeat center center;
+    background: image_url('resume/video-bg.jpg') no-repeat center center;
     -webkit-background-size: cover;
     background-size: cover;
     min-height: 390px;
