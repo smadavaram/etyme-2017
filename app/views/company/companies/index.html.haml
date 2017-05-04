@@ -16,6 +16,7 @@
                 - @data.each do |d|
                   -if current_company!=d
                     = render "company/prefer_vendors/partials/show" ,data: d
+                = digg_pagination(@data)
             -else
               .who.clearfix.bg-color-white
                 .text
