@@ -5,8 +5,8 @@
       %span.pull-right.font-xs.text-muted
         %ul.list-inline.friends-list
           %li
-            = image_tag 'https://cdn1.iconfinder.com/data/icons/business-237/65/icons-08-128.png',class:'',alt: "job"
-      = image_tag data.photo,class:'',alt: "job",width:"100px !important",hieght:"100px !important"
+            = link_to (image_tag data.company.logo ,class:'',alt: "Logo" ,style: "width: 60px !important; height: 60px !important;") ,profile_company_path(data.company),title: "#{data.try(:company).try(:name) } Profile",'data-toggle'=>"tooltip" ,'data-placement'=>"top"
+      = image_tag data.photo,class:'',alt: "job",style:"width: 60px !important ; height: 60px !important; "
       %h4 #{data.full_name.humanize}
       %h4 #{data.company.name.humanize}
       %span.name.font-sm.text-muted.margin-top-10
