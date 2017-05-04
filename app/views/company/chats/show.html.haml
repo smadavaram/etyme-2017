@@ -190,7 +190,7 @@
         }
       );
     }
-    var pusher = new Pusher("#{ENV['pusher_key']}");
+    var pusher = new Pusher('e5aefe0d463e73afe6bc');
     var channel = pusher.subscribe("#{@chat.channel_name}");
     channel.bind('send-message', function(data) {
 
