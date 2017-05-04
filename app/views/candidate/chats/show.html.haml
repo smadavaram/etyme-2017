@@ -82,7 +82,7 @@
         }
       );
     }
-    var pusher = new Pusher("#{ENV['pusher_key']}");
+    var pusher = new Pusher("#{PUSHER_KEY}");
     var channel = pusher.subscribe("#{@chat.try(:channel_name)}");
     channel.bind('send-message', function(data) {
 
