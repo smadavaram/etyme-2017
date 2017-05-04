@@ -116,6 +116,9 @@ class Company < ActiveRecord::Base
     Company.find( (self.send_or_received_network.map(&:vendor_id) + self.send_or_received_network.map(&:company_id)).uniq )
   end
 
+  def logo
+    super.present? ? super : 'default_logo.png'
+  end
   # def already_prefered(c)
   #   Company.where.not(:id=>PreferVendor.select(:vendor_id).where(company_id=c.id))
   # end

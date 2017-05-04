@@ -91,7 +91,7 @@
                     %br
                     - current_company.send_or_received_network.take(30).each do |vendor|
                       %li
-                        = link_to image_tag( 'https://cdn1.iconfinder.com/data/icons/business-237/65/icons-08-128.png' ,class:"margin-bottom-5 margin-top-5",alt: image_path('avatars/male.png') ), profile_company_path(vendor.prefer_vendor),target: "_blank" , title: vendor.prefer_vendor.name,"data-content" => "Email : #{vendor.try(:prefer_vendor).try(:email)}", "data-placement" => "top",:rel => "hover"
+                        = link_to image_tag( vendor.prefer_vendor.logo ,class:"margin-bottom-5 margin-top-5",alt: ' LOGO ' ), profile_company_path(vendor.prefer_vendor),target: "_blank" , title: vendor.prefer_vendor.name,"data-content" => "Email : #{vendor.try(:prefer_vendor).try(:email)}", "data-placement" => "top",:rel => "hover"
                         -#= image_tag 'https://cdn1.iconfinder.com/data/icons/business-237/65/icons-08-128.png' ,class:"margin-bottom-5 margin-top-5",alt: image_path('avatars/male.png')
               -else
                 .text
@@ -107,7 +107,7 @@
                     %br
                     - current_company.invited_companies.take(30).each do |company|
                       %li
-                        = link_to image_tag( 'https://cdn1.iconfinder.com/data/icons/business-237/65/icons-08-128.png' ,class:"margin-bottom-5 margin-top-5",alt: image_path('avatars/male.png') ), profile_company_path(company.invited_company),target: "_blank", title:company.invited_company.name,"data-content" => "Email : #{company.invited_company.email}", "data-placement" => "top",:rel => "hover"
+                        = link_to image_tag( company.invited_company.logo ,class:"margin-bottom-5 margin-top-5",alt: 'Logo' ), profile_company_path(company.invited_company),target: "_blank", title:company.invited_company.name,"data-content" => "Email : #{company.invited_company.email}", "data-placement" => "top",:rel => "hover"
               -else
                 .text
                   .font-md.text-center

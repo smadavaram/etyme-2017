@@ -3,7 +3,7 @@
     %section#widget-grid
       .row
         - if params[:status]=='all'
-          .col-sm-12.col-md-9.col-md-offset-2{style: "margin-left: 14.666667% !important;"}
+          .col-sm-12.col-md-12
             - if @data.present?
               .col-md-12.margin-bottom-20.col-sm-12
                 %input.form-control#search-term.bg-color-white{placeholder: 'Search by Keywords ...',style: ''}

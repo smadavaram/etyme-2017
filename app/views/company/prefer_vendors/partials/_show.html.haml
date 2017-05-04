@@ -1,18 +1,19 @@
 .panel.panel-default
   .panel-body.status
-    %h4.padding-5 Company
+    -#%h4.padding-5 Company
     .who.clearfix
       -#%span.pull-right.font-xs.text-muted
         %ul.list-inline.friends-list
           %li
             = image_tag 'https://cdn1.iconfinder.com/data/icons/business-237/65/icons-08-128.png',class:'',alt: "job"
-      = image_tag data.logo,class:'',alt: "   Logo",width:"100px !important",hieght:"100px !important"
-      %h4 #{data.name.humanize}
+      = image_tag data.logo,class:'',alt: "Logo",style: "width: 100px !important; height: 100px !important"
+      %h3{style: "color: blueviolet !important; margin-top: 0px !important"} #{data.name.humanize}
       %h4 #{data.owner.full_name.humanize}
-      %span.name.font-sm.text-muted.margin-top-10
-        Email: #{data.email}
+      - if data.email.present?
+        %span.name.font-sm.margin-top-10
+          Email: #{data.email}
       .row
         .col-md-12.margin-top-5
-          = link_to raw("<i class='fa fa-eye '></i>"),profile_company_path(data),class: 'btn btn-default btn-xs',title:"Profile of #{data.name}",'data-toggle'=>"tooltip" ,'data-placement'=>"top"
+          = link_to 'Profile',profile_company_path(data),class: 'btn btn-success btn-md pull-right ',title:"Profile of #{data.name}",'data-toggle'=>"tooltip" ,'data-placement'=>"top"
           - if !already_prefered?(current_company.id, data.id)
-            = link_to raw("<i class='fa fa-envelope-o '></i>"), "/prefer_vendors/?id=#{data.id}",remote: true, method: :post,class: 'btn btn-default btn-xs',title:" Make Company  #{data.name} Prefer Vendor",'data-toggle'=>"tooltip" ,'data-placement'=>"top"
+            = link_to "Send Invitation", "/prefer_vendors/?id=#{data.id}",remote: true, method: :post,class: 'btn btn-success btn-md pull-right margin-right-5',title:" Send #{data.name} Prefer Vendor Invitation",'data-toggle'=>"tooltip" ,'data-placement'=>"top"
