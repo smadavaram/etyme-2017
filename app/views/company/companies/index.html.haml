@@ -90,7 +90,7 @@
                             %td
                               - reminder = find_reminderable_last_reminder( d.try(:invited_company))
                               = reminder.present? ? reminder.try(:title).try(:titleize) : ''
-                            %td
+                            %td{style: "max-width: 250px;word-wrap: break-word;"}
                               - if d.try(:invited_company).try(:statuses).present?
                                 %span
                                   .label-info.badge

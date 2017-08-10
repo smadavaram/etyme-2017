@@ -195,7 +195,7 @@ module ApplicationHelper
                 {
                     href: company_company_hot_index_path(current_company),
                     title: 'My Bench (Hot Candidates, Third Party)',
-                    content: "<span class='menu-item-parent'>" + 'My Bench' + "</span>",
+                    content: "<span class='menu-item-parent'>" + 'My Hotlist' + "</span>",
                 },
                 {
                     href: companies_path,
