@@ -20,7 +20,7 @@
                 %sup.text-danger
               .col-md-10
                 =# text_field_tag "emails" ,nil ,class: "tagsinput form-control" ,"data-role" => "tagsinput", placeholder: "Groups/Customers/Emails" , required: true ,"data-role" => "tagsinput"
-                = select_tag "emails",options_for_select(Group.all.map { |c| [c.group_name,c.candidates.map{|e| e.email}] }),{class: 'form-control select2',required: true ,:multiple => true}
+                = select_tag "emails",options_for_select(Group.all.map{|c| [c.group_name,c.candidates.map{|e| e.email}] }),{class: 'form-control select2',required: true ,:multiple => true}
             .form-group
               %label.col-md-2.control-label
                 Message

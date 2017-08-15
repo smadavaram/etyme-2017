@@ -98,6 +98,13 @@
         $('#add-network').modal('toggle');
     }
 
+    $('#share-candidates').on('shown.bs.modal', function() {
+      $(".select2").select2({
+        placeholder: "Groups/Contact/Email",
+        tags: true
+      }); 
+    });
+
     $(document).ready(function() {
      pageSetUp();
       var responsiveHelper_dt_basic = undefined;

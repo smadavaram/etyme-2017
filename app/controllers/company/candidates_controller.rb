@@ -119,8 +119,14 @@ class Company::CandidatesController < Company::BaseController
 
   # for sharing of hot candidates
   def share_candidates
+    
     c_ids = params[:candidates_ids].split(",").map { |s| s.to_i }
-    User.share_candidates(current_user.email ,params[:emails].split(","),c_ids,current_company,params[:message])
+    emails = []
+    params[:emails].each do |e| 
+      email = e.include?('[') ? JSON.parse(e) : e
+      emails << email
+    end
+    User.share_candidates(current_user.email ,emails.flatten.uniq.split(","),c_ids,current_company,params[:message])
     # CandidateMailer.share_hot_candidates(params[:emails].split(","),c_ids,current_company,params[:message]).deliver
     flash[:success] = "Candidates shared successfully."
     redirect_to :back
