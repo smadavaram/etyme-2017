@@ -6,6 +6,7 @@ class Job < ActiveRecord::Base
   # validates :start_date, presence: true, date: { after_or_equal_to: Proc.new { Date.today }, message: "must be at least #{(Date.today + 1).to_s}" }, on: :create
   # validates :end_date, presence: true, date: { after_or_equal_to: :start_date, message: "must be at least #{(Date.today + 1).to_s}" }, on: :create
   # validates :start_date,:end_date, date: { allow_blank: false, message:"Date must be present" }
+  validate :file_size
 
   belongs_to   :created_by , class_name: "User" ,foreign_key: :created_by_id
   belongs_to   :company
@@ -25,6 +26,8 @@ class Job < ActiveRecord::Base
 
   acts_as_taggable
   acts_as_paranoid
+
+  mount_uploader :video_file, JobvideoUploader
 
   after_create :create_job_chat
 
@@ -47,6 +50,12 @@ class Job < ActiveRecord::Base
   # end
 
   # private_class_method :ransackable_attributes
+
+  def file_size
+    if video_file.file.size.to_f/(1000*1000) > 2
+      errors.add(:video_file, "You cannot upload a file greater than 2MB")
+    end
+  end
 
   def is_active?
     self.end_date >= Date.today

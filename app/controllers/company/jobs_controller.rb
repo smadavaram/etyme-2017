@@ -35,7 +35,7 @@ class Company::JobsController < Company::BaseController
         format.html { redirect_to @job, success: 'Job was successfully created.' }
         format.json { render :show, status: :created, location: @job }
       else
-        format.html { redirect_to :back , errors:  @job.errors.full_message}
+        format.html { flash[:errors] = @job.errors.full_messages; render :new}
         format.json { render json: @job.errors, status: :unprocessable_entity }
       end
     end
@@ -89,7 +89,7 @@ class Company::JobsController < Company::BaseController
     end
 
     def company_job_params
-      params.require(:job).permit([:title,:description,:location,:job_category, :is_public , :start_date , :end_date , :tag_list ,custom_fields_attributes:
+      params.require(:job).permit([:title,:description,:location,:job_category, :is_public , :start_date , :end_date , :tag_list, :video_file, custom_fields_attributes:
           [
               :id,
               :name,

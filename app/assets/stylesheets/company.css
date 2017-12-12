@@ -41,4 +41,5 @@
  *= require Job
  *= require company_override
  *= require global
+  *= require style
  */
