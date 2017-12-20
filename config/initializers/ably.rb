@@ -1,0 +1,1 @@
+$client = Ably::Realtime.new(key: ENV['ably_key'])
