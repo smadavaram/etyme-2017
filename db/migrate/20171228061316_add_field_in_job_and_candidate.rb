@@ -1,0 +1,9 @@
+class AddFieldInJobAndCandidate < ActiveRecord::Migration
+  def change
+    add_column :jobs, :industry, :string
+    add_column :jobs, :department, :string
+
+    add_column :candidates, :industry, :string
+    add_column :candidates, :department, :string
+  end
+end

@@ -157,6 +157,7 @@ Rails.application.routes.draw do
     end
 
     resources :job_receives, only: [:index, :destroy]
+    resources :public_jobs, only: [:index, :destroy]
   end
 
   scope module: :company do

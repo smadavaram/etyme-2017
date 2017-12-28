@@ -224,7 +224,7 @@ module ApplicationHelper
                     content: "<span class='menu-item-parent'> Received </span>"
                 },
                 {
-                    href: "#",
+                    href: company_public_jobs_path,
                     title: 'Public',
                     content: "<span class='menu-item-parent'> Public </span>"
                 },
@@ -388,4 +388,35 @@ module ApplicationHelper
        'fa-building'
     end
   end
+
+  def industry_list
+    [
+      "Banking, Investment Services & Insurance",
+      "Education",
+      "Energy & Utilities",
+      "Government & Public Sector",
+      "Pharmaceutical",
+      "Healthcare/Medical",
+      "Insurance",
+      "High Tech & Telecom Providers",
+      "Real Estate",
+      "Construction & Labour",
+      "Manufacturing"
+    ]
+  end
+
+  def department_list
+    [
+      "IT - Services & Product Development",
+      "Marketing Department",
+      "Sales",
+      "Human resourcesNon-IT - Research and Development",
+      "Engineering",
+      "Production",
+      "Quality Assurance",
+      "Logistics/Supply chain",
+      "Doctors & Nurses"
+    ]
+  end
+
 end

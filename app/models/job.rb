@@ -52,7 +52,7 @@ class Job < ActiveRecord::Base
   # private_class_method :ransackable_attributes
 
   def file_size
-    if video_file.file.size.to_f/(1000*1000) > 2
+    if video_file.present? && video_file.file.size.to_f/(1000*1000) > 2
       errors.add(:video_file, "You cannot upload a file greater than 2MB")
     end
   end

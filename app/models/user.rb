@@ -59,6 +59,11 @@ class User < ActiveRecord::Base
   validates_uniqueness_of :email
   # validates_inclusion_of :time_zone, in: ActiveSupport::TimeZone.all.map { |tz| tz.tzinfo.name }
 
+  validate :max_skill_size
+  def max_skill_size
+    errors[:skill_list] << "8 skills maximum" if skill_list.count > 8
+  end
+
   def time_zone_now
     self.time_zone.present? ? Time.now.in_time_zone(self.time_zone) : Time.now
   end
