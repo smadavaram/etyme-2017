@@ -156,6 +156,7 @@ Rails.application.routes.draw do
       end
     end
 
+    resources :job_receives, only: [:index, :destroy]
   end
 
   scope module: :company do

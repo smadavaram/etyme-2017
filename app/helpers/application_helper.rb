@@ -206,6 +206,36 @@ module ApplicationHelper
 
              ]
         },
+
+        {
+            href: '#',
+            title: 'BENCH',
+            content: "<i class='fa fa-lg fa-fw fa-briefcase'></i> <span class='menu-item-parent'>" + 'BENCH' + "</span>",
+            children: [
+                {
+                    href: company_company_hot_index_path(current_company),
+                    title: 'My Bench (Hot Candidates, Third Party)',
+                    content: "<span class='menu-item-parent'> My Bench </span>",
+                },
+
+                {
+                    href: company_job_receives_path,
+                    title: 'Received',
+                    content: "<span class='menu-item-parent'> Received </span>"
+                },
+                {
+                    href: "#",
+                    title: 'Public',
+                    content: "<span class='menu-item-parent'> Public </span>"
+                },
+                {
+                    href: "#",
+                    title: 'My Job',
+                    content: "<span class='menu-item-parent'> My Job </span>"
+                }
+            ]
+        },
+
         {
             href: '#',
             title: 'JOBS',
@@ -226,7 +256,7 @@ module ApplicationHelper
                     href: job_applications_path,
                     title: 'Applicants',
                     content: "<span class='menu-item-parent'> Applicants </span>"
-                },
+                }
             ]
         },
 

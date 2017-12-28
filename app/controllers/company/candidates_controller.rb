@@ -122,7 +122,14 @@ class Company::CandidatesController < Company::BaseController
     
     c_ids = params[:candidates_ids].split(",").map { |s| s.to_i }
     emails = []
-    params[:emails].each do |e| 
+    params[:emails].each do |e|
+      company = User.where(email: e).first
+      if company.present?
+        c_ids.each do |id|
+          current_company.active_relationships.create(candidate_id: id, shared_to_id: company.company_id)
+        end
+      end
+
       email = e.include?('[') ? JSON.parse(e) : e
       emails << email
     end
