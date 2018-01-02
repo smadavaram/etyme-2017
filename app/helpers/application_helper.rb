@@ -213,7 +213,7 @@ module ApplicationHelper
             content: "<i class='fa fa-lg fa-fw fa-briefcase'></i> <span class='menu-item-parent'>" + 'BENCH' + "</span>",
             children: [
                 {
-                    href: company_company_hot_index_path(current_company),
+                    href: company_bench_jobs_path,
                     title: 'My Bench (Hot Candidates, Third Party)',
                     content: "<span class='menu-item-parent'> My Bench </span>",
                 },

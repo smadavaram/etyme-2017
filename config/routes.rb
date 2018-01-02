@@ -156,8 +156,11 @@ Rails.application.routes.draw do
       end
     end
 
+    resources :bench_jobs, only: [:index, :destroy]
     resources :job_receives, only: [:index, :destroy]
-    resources :public_jobs, only: [:index, :destroy]
+    resources :public_jobs, only: [:index, :destroy] do
+      get :job, on: :member
+    end
   end
 
   scope module: :company do
