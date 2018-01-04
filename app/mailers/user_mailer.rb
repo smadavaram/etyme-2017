@@ -10,9 +10,9 @@ class UserMailer < ApplicationMailer
 
   def confirmation_instructions(user, token, opts = {})
     @owner = user
-    @company = user.company
+    @company = user.company rescue nil
     @email =  "Etyme <no-reply@etyme.com>"
-    @link  = @company.present? ? "#{@company.etyme_url}/confirmation?confirmation_token=#{token}" : " #{etyme_url}/confirmation?confirmation_token=#{token}"
+    @link  = @company.present? ? "#{@company.etyme_url}/users/confirmation?confirmation_token=#{token}" : " #{@owner.etyme_url}/candidates/confirmation?confirmation_token=#{token}"
     mail(:to => @owner.email, :subject => "Welcome to Etyme",:from => @email)
   end
 

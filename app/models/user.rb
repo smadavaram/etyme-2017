@@ -4,7 +4,7 @@ class User < ActiveRecord::Base
   # Include default devise modules. Others available are:
   # :confirmable, :lockable, :timeoutable and :omniauthable
   devise :invitable, :database_authenticatable, :registerable,
-         :recoverable, :rememberable, :trackable
+         :recoverable, :rememberable, :trackable, :confirmable
 
   #Serializers
   # serialize :signature, JSON
@@ -48,7 +48,6 @@ class User < ActiveRecord::Base
   has_many :statuses
   has_and_belongs_to_many :roles
 
-
   accepts_nested_attributes_for :attachable_docs , reject_if: :all_blank
   accepts_nested_attributes_for :custom_fields   , reject_if: :all_blank
   accepts_nested_attributes_for :address   , reject_if: :all_blank, update_only: true
@@ -59,6 +58,11 @@ class User < ActiveRecord::Base
 
   validates_uniqueness_of :email
   # validates_inclusion_of :time_zone, in: ActiveSupport::TimeZone.all.map { |tz| tz.tzinfo.name }
+
+  validate :max_skill_size
+  def max_skill_size
+    errors[:skill_list] << "8 skills maximum" if skill_list.count > 8
+  end
 
   def time_zone_now
     self.time_zone.present? ? Time.now.in_time_zone(self.time_zone) : Time.now

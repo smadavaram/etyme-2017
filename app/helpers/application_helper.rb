@@ -206,6 +206,36 @@ module ApplicationHelper
 
              ]
         },
+
+        {
+            href: '#',
+            title: 'BENCH',
+            content: "<i class='fa fa-lg fa-fw fa-briefcase'></i> <span class='menu-item-parent'>" + 'BENCH' + "</span>",
+            children: [
+                {
+                    href: company_bench_jobs_path,
+                    title: 'My Bench (Hot Candidates, Third Party)',
+                    content: "<span class='menu-item-parent'> My Bench </span>",
+                },
+
+                {
+                    href: company_job_receives_path,
+                    title: 'Received',
+                    content: "<span class='menu-item-parent'> Received </span>"
+                },
+                {
+                    href: company_public_jobs_path,
+                    title: 'Public',
+                    content: "<span class='menu-item-parent'> Public </span>"
+                },
+                {
+                    href: "#",
+                    title: 'My Job',
+                    content: "<span class='menu-item-parent'> My Job </span>"
+                }
+            ]
+        },
+
         {
             href: '#',
             title: 'JOBS',
@@ -226,7 +256,7 @@ module ApplicationHelper
                     href: job_applications_path,
                     title: 'Applicants',
                     content: "<span class='menu-item-parent'> Applicants </span>"
-                },
+                }
             ]
         },
 
@@ -358,4 +388,35 @@ module ApplicationHelper
        'fa-building'
     end
   end
+
+  def industry_list
+    [
+      "Banking, Investment Services & Insurance",
+      "Education",
+      "Energy & Utilities",
+      "Government & Public Sector",
+      "Pharmaceutical",
+      "Healthcare/Medical",
+      "Insurance",
+      "High Tech & Telecom Providers",
+      "Real Estate",
+      "Construction & Labour",
+      "Manufacturing"
+    ]
+  end
+
+  def department_list
+    [
+      "IT - Services & Product Development",
+      "Marketing Department",
+      "Sales",
+      "Human resourcesNon-IT - Research and Development",
+      "Engineering",
+      "Production",
+      "Quality Assurance",
+      "Logistics/Supply chain",
+      "Doctors & Nurses"
+    ]
+  end
+
 end

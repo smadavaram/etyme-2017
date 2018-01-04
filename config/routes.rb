@@ -156,6 +156,11 @@ Rails.application.routes.draw do
       end
     end
 
+    resources :bench_jobs, only: [:index, :destroy]
+    resources :job_receives, only: [:index, :destroy]
+    resources :public_jobs, only: [:index, :destroy] do
+      get :job, on: :member
+    end
   end
 
   scope module: :company do
@@ -310,13 +315,14 @@ Rails.application.routes.draw do
 
 
   # Devise Routes
-  devise_for :users, controllers: { invitations: 'company/invitations', passwords: 'users/passwords',sessions: 'users/sessions' } , path_names: { sign_in: 'login', sign_out: 'logout'}
+  devise_for :users, controllers: { invitations: 'company/invitations', passwords: 'users/passwords', sessions: 'users/sessions', confirmations: 'users/confirmations' } , path_names: { sign_in: 'login', sign_out: 'logout'}
 
   # devise_for :candidates
   devise_for :candidates , controllers: {
       sessions: 'candidates/sessions',
       registrations: 'candidates/registrations',
       passwords:'candidates/passwords',
+      confirmations: 'candidates/confirmations',
       invitations: 'candidate/invitations'
   }
   # Route set when subdomain present?

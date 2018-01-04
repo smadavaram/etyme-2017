@@ -24,6 +24,17 @@
         = f.text_field :phone , class: 'form-control ' , id: 'phone' , placeholder: "Phone Number"
     .form-group
       %label.col-md-2.control-label
+        Industry
+        %sup.text-danger *
+      .col-md-4
+        =f.select :industry, industry_list, {include_blank: true},{class: "form-control", required: true }
+      %label.col-md-2.control-label
+        Department
+        %sup.text-danger *
+      .col-md-4
+        =f.select :department, department_list, {include_blank: true},{class: "form-control", required: true }
+    .form-group
+      %label.col-md-2.control-label
         Location
         %sup.text-danger *
       .col-md-4
@@ -32,8 +43,7 @@
         Skills
         %sup.text-danger *
       .col-md-4
-        = f.text_field :skill_list,placeholder: "Add Skills Comma seperated",class: 'form-control', 'data-role'=>'tagsinput',value: @candidate.skill_list.present? ? @candidate.skill_list.join(", ") : ""
-            
+        = f.text_field :skill_list,placeholder: "Add Skills Comma seperated",class: 'form-control', 'data-role'=>'tagsinput',value: (@candidate.skill_list.present? ? @candidate.skill_list.join(", ") : "")
     .form-group
       %label.col-md-2.control-label Resume
       .col-md-10

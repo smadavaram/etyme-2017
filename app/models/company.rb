@@ -51,6 +51,14 @@ class Company < ActiveRecord::Base
   has_many :prefer_vendors_chats, -> { where chatable_type: "Company"}, class_name: Chat, foreign_key: :chatable_id, foreign_type: :chatable_type, dependent: :destroy
   has_many :statuses                  ,as:  :statusable
 
+  has_many :active_relationships, class_name: "SharedCandidate",
+           foreign_key: "shared_by_id", dependent: :destroy
+  has_many :passive_relationships, class_name: "SharedCandidate",
+           foreign_key: "shared_to_id", dependent: :destroy
+
+  has_many :share_by, through: :active_relationships, source: :shared_by
+  has_many :share_to, through: :passive_relationships, source: :shared_to
+
   # validates           :company_type, inclusion: { in: [0, 1] } , presence: true
   # validates           :company_type, inclusion: {in: %w(0 , 1)}
   validates           :name,  presence:   true

@@ -1,0 +1,13 @@
+#content.newsfeed
+  %body
+    %section#widget-grid.clearfix
+      .newsfeed-left
+        %ul
+          - @jobs.each do |job|
+            %li
+              = link_to truncate(job.title,length: 50), job_company_public_job_path(job), remote: true
+        = digg_pagination(@jobs)
+      .newsfeed-right
+        %div#public-job-description
+
+

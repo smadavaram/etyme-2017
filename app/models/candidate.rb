@@ -2,7 +2,7 @@ class Candidate < ActiveRecord::Base
   # Include default devise modules. Others available are:
   # :confirmable, :lockable, :timeoutable and :omniauthable
   devise :invitable, :database_authenticatable, :registerable,
-         :recoverable, :rememberable, :trackable
+         :recoverable, :rememberable, :trackable, :confirmable
 
   include PublicActivity::Model
 
@@ -66,12 +66,14 @@ class Candidate < ActiveRecord::Base
   #Tags Input
   acts_as_taggable_on :skills
 
+  validate :max_skill_size
+  def max_skill_size
+    errors[:skill_list] << "8 skills maximum" if skill_list.count > 8
+  end
 
   def etyme_url
     Rails.env.development? ? "#{ENV['domain']}:3000" : "#{ENV['domain']}"
   end
-
-
 
   def photo
     super.present? ? super : 'avatars/male.png'

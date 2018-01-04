@@ -1,0 +1,21 @@
+%h2
+  Job
+.job-title
+  %strong
+    Title:-
+  %span
+    = @job.title
+.job-location
+  %strong
+    Location:-
+  %span
+    = @job.location
+.job-description
+  %strong
+    Description:-
+  %span
+    = @job.description.html_safe
+.job-match-candidates
+  %strong
+    Match Candidates:-
+  = find_match_candidates(@job)

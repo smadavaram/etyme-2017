@@ -122,7 +122,14 @@ class Company::CandidatesController < Company::BaseController
     
     c_ids = params[:candidates_ids].split(",").map { |s| s.to_i }
     emails = []
-    params[:emails].each do |e| 
+    params[:emails].each do |e|
+      company = User.where(email: e).first
+      if company.present?
+        c_ids.each do |id|
+          current_company.active_relationships.create(candidate_id: id, shared_to_id: company.company_id)
+        end
+      end
+
       email = e.include?('[') ? JSON.parse(e) : e
       emails << email
     end
@@ -161,7 +168,7 @@ class Company::CandidatesController < Company::BaseController
     def create_candidate_params
       params.require(:candidate).permit(:first_name,:invited_by_id ,:send_invitation,:invited_by_type,
                                         :resume ,:description, :last_name,:dob,:phone,
-                                        :email, :skill_list, :location,
+                                        :email, :skill_list, :location, :industry, :department,
                                         experiences_attributes:[:id,
                                             :experience_title,:end_date,
                                             :start_date,:institute,
