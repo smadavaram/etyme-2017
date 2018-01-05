@@ -1,8 +1,10 @@
 Rails.application.routes.draw do
 
   namespace :company do
-  get 'activities/index'
+    get 'activities/index'
   end
+
+  mount ActionCable.server => '/cable'
 
   concern :commentable do
     resources :comments

@@ -1,0 +1,22 @@
+development:
+  adapter: async
+
+test:
+  adapter: async
+
+production:
+  adapter: redis
+  url: redis://rediscloud:rSdsa41vJMyd9yvw@redis-17366.c11.us-east-1-2.ec2.cloud.redislabs.com:17366
+  channel_prefix: clyver_production
+
+
+# Action Cable uses Redis by default to administer connections, channels, and sending/receiving messages over the WebSocket.
+#production:
+#  adapter: redis
+#  url: redis://:9eieUr7xreO2oB2z@pub-redis-12692.us-east-1-3.4.ec2.garantiadata.com:12692
+#
+#development:
+#  adapter: async
+#
+#test:
+#  adapter: async

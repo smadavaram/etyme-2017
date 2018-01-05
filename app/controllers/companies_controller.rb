@@ -1,6 +1,6 @@
 class CompaniesController < ApplicationController
 
-  skip_before_action :authenticate_user!  ,          only:[:new , :create , :signup_success]
+  skip_before_action :authenticate_user!  ,          only:[:new , :create , :signup_success], raise: false
   before_action :find_company             ,          only: :profile
 
   respond_to :html,:json

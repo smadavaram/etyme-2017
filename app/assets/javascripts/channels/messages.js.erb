@@ -1,0 +1,20 @@
+App.messages = App.cable.subscriptions.create('MessagesChannel', {
+  connected: function() {},
+
+  disconnected: function() {},
+
+  received: function(data) {
+    alert(JSON.stringify(data));
+    return ""
+  },
+
+  notify: function(message) {
+    return alert(message);
+  },
+
+  speak: function(massage) {
+    return this.perform('speak', {
+      massage: massage
+    });
+  }
+});

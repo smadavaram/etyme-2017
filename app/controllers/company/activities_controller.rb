@@ -5,5 +5,5 @@ class Company::ActivitiesController < Company::BaseController
 
   end
   helper_method :current_user
-  hide_action :current_user
+  # hide_action :current_user
 end

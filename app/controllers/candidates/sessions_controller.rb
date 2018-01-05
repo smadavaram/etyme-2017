@@ -13,6 +13,7 @@ class Candidates::SessionsController < Devise::SessionsController
 
   # POST /resource/sign_in
    def create
+     cookies.permanent.signed[:candidateid] = resource.id if resource.present?
      super
    end
 
