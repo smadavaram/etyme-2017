@@ -1,6 +1,6 @@
-class Status < ActiveRecord::Base
+class Status < ApplicationRecord
   belongs_to :statusable ,polymorphic: :true
-  belongs_to :user
+  belongs_to :user, optional: true
   validates :status_type ,presence: :true
   validates :note ,presence: :true
   alias_attribute :created_by, :user

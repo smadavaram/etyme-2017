@@ -19,7 +19,7 @@ class Company::RolesController < Company::BaseController
     else
       flash[:errors] = @role.errors.full_messages
     end
-    redirect_to :back
+    redirect_back fallback_location: root_path
   end
 
   def index

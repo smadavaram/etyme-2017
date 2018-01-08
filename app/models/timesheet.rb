@@ -1,14 +1,14 @@
-class Timesheet < ActiveRecord::Base
+class Timesheet < ApplicationRecord
 
   include Rails.application.routes.url_helpers
 
   enum status: [:open,:pending_review, :approved , :partially_approved , :rejected , :submitted , :invoiced]
 
-  belongs_to :company
-  belongs_to :contract
-  belongs_to :user
-  belongs_to :job
-  belongs_to :invoice
+  belongs_to :company, optional: true
+  belongs_to :contract, optional: true
+  belongs_to :user, optional: true
+  belongs_to :job, optional: true
+  belongs_to :invoice, optional: true
   has_many   :timesheet_logs , dependent: :destroy
   has_many   :timesheet_approvers  , dependent: :destroy
   has_many   :transactions  , through: :timesheet_logs

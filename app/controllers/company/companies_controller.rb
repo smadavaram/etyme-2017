@@ -52,7 +52,7 @@ class Company::CompaniesController < Company::BaseController
         format.html{ flash[:errors] =  @company.errors.full_messages }
       end
     end
-    redirect_to :back
+    redirect_back fallback_location: root_path
   end
 
   def update
@@ -67,7 +67,7 @@ class Company::CompaniesController < Company::BaseController
         else
           flash[:errors] = @company.errors.full_messages
         end
-        redirect_to :back
+        redirect_back fallback_location: root_path
       end
     end
 
@@ -92,7 +92,7 @@ class Company::CompaniesController < Company::BaseController
     else
       flash[:errors] = @company.errors.full_messages
     end
-    redirect_to :back
+    redirect_back fallback_location: root_path
   end
   def update_logo
     render json: current_company.update_attribute(:logo, params[:photo])
@@ -127,7 +127,7 @@ class Company::CompaniesController < Company::BaseController
       else
         flash[:errors] = @invited_company.errors.full_messages
       end
-      redirect_to :back
+      redirect_back fallback_location: root_path
     end
   end
 

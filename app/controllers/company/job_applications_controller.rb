@@ -32,7 +32,7 @@ class Company::JobApplicationsController < Company::BaseController
       Candidate.where(id: params[:temp_candidates]).each do |c|
         c.job_applications.create!({applicant_resume: c.resume ,cover_letter:"Application created by owner",job_id: @job.id })
       end
-      redirect_to :back
+      redirect_back fallback_location: root_path
     end
 
   end
@@ -62,7 +62,7 @@ class Company::JobApplicationsController < Company::BaseController
         format.html{ flash[:errors] =  ["Request Not Completed."]}
       end
     end
-    redirect_to :back
+    redirect_back fallback_location: root_path
   end
 
   def short_list
@@ -75,7 +75,7 @@ class Company::JobApplicationsController < Company::BaseController
     else
       flash[:errors] =  ["Request Not Completed."]
     end
-    redirect_to :back
+    redirect_back fallback_location: root_path
   end
   def interview
     respond_to do |format|
@@ -90,7 +90,7 @@ class Company::JobApplicationsController < Company::BaseController
       end
 
     end
-    redirect_to :back
+    redirect_back fallback_location: root_path
   end
   def hire
     respond_to do |format|
@@ -105,7 +105,7 @@ class Company::JobApplicationsController < Company::BaseController
       end
 
     end
-    redirect_to :back
+    redirect_back fallback_location: root_path
   end
 
   def authorized_user
@@ -133,7 +133,7 @@ class Company::JobApplicationsController < Company::BaseController
         end
       end
     end
-    redirect_to :back , notice: "job application - #{@job_application.job.title} Successfully Shared."
+    redirect_back fallback_location: root_path , notice: "job application - #{@job_application.job.title} Successfully Shared."
   end
 
   private

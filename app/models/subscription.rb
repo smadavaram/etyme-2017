@@ -1,6 +1,6 @@
-class Subscription < ActiveRecord::Base
+class Subscription < ApplicationRecord
 
-  belongs_to :package
-  belongs_to :company
+  belongs_to :package, optional: true
+  belongs_to :company, optional: true
 
 end

@@ -1,10 +1,10 @@
-class CompanyDoc < ActiveRecord::Base
+class CompanyDoc < ApplicationRecord
 
   self.per_page = 15
 
   has_one :attachment , as: :attachable
-  belongs_to :company
-  belongs_to :user, foreign_key: :created_by
+  belongs_to :company, optional: true
+  belongs_to :user, foreign_key: :created_by, optional: true
   has_many :attachable_docs, dependent: :destroy
   has_many :users, through: :attachable_docs, source: :documentable, source_type: 'User'
   has_one  :message

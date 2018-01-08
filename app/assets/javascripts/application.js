@@ -46,3 +46,5 @@
 //= require signature-pad/json2.min
 
 //= require global
+
+// require cable

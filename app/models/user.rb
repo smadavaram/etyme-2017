@@ -1,10 +1,10 @@
 
 
-class User < ActiveRecord::Base
+class User < ApplicationRecord
   # Include default devise modules. Others available are:
   # :confirmable, :lockable, :timeoutable and :omniauthable
   devise :invitable, :database_authenticatable, :registerable,
-         :recoverable, :rememberable, :trackable, :confirmable
+         :recoverable, :rememberable, :trackable
 
   #Serializers
   # serialize :signature, JSON
@@ -22,8 +22,8 @@ class User < ActiveRecord::Base
 
   attr_accessor :temp_working_hours
 
-  belongs_to :company
-  belongs_to :address           , foreign_key: :primary_address_id
+  belongs_to :company, optional: true
+  belongs_to :address           , foreign_key: :primary_address_id, optional: true
   has_many :created_contracts   , class_name: 'Contract' , foreign_key: :created_by_id
   has_many :comments            , class_name: 'Comment' , foreign_key: :created_by_id
   has_many :contract_terms      , class_name: 'ContractTerm' , foreign_key: 'created_by'

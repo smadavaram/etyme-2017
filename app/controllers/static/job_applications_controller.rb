@@ -9,7 +9,7 @@ class Static::JobApplicationsController < ApplicationController
     else
       flash[:errors] = @job_application.errors.full_messages
     end
-    redirect_to :back
+    redirect_back fallback_location: root_path
   end
 
 

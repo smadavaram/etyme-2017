@@ -29,7 +29,7 @@ class Company::AdminsController < Company::BaseController
     else
       flash.now[:errors] = @admin.errors.full_messages
     end
-    redirect_to :back
+    redirect_back fallback_location: root_path
 
   end
 
@@ -43,7 +43,7 @@ class Company::AdminsController < Company::BaseController
     else
       flash[:errors] = @admin.errors.full_messages
     end
-    redirect_to :back
+    redirect_back fallback_location: root_path
   end
   def destroy
     name = @admin.full_name
@@ -52,7 +52,7 @@ class Company::AdminsController < Company::BaseController
     else
       flash[:errors] = @admin.errors.full_messages
     end
-    redirect_to :back
+    redirect_back fallback_location: root_path
   end
 
   def authorized_user

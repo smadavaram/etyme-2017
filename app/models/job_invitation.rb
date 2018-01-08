@@ -12,7 +12,7 @@
 #  updated_at     :datetime         not null
 #
 
-class JobInvitation < ActiveRecord::Base
+class JobInvitation < ApplicationRecord
 
 
   include Rails.application.routes.url_helpers
@@ -27,10 +27,10 @@ class JobInvitation < ActiveRecord::Base
   validate :is_active?
   # validates :expiry , presence: true,date: { after_or_equal_to: Proc.new { Date.today }, message: "Date must be at least #{(Date.today ).to_s}" }
 
-  belongs_to :created_by , class_name: "User" ,foreign_key: :created_by_id
-  belongs_to :recipient , polymorphic: true
-  belongs_to :company
-  belongs_to :job
+  belongs_to :created_by , class_name: "User" ,foreign_key: :created_by_id, optional: true
+  belongs_to :recipient , polymorphic: true, optional: true
+  belongs_to :company, optional: true
+  belongs_to :job, optional: true
   has_one    :job_application
   has_one    :contract  , through: :job_application
 

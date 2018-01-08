@@ -11,7 +11,7 @@ class Candidates::PasswordsController < Devise::PasswordsController
    def create
      self.resource = resource_class.send_reset_password_instructions(params[resource_name])
      if !resource.errors.empty?
-       redirect_to :back
+       redirect_back fallback_location: root_path
      end
      yield resource if block_given?
      if successfully_sent?(resource)

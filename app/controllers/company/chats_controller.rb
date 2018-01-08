@@ -15,7 +15,7 @@ class Company::ChatsController < Company::BaseController
       user.notifications.create(message: "<p>  #{current_user.full_name} Invited You To Chat <a href= 'http://#{current_user.company.etyme_url}/#{company_chat_path(@chat) }' > #{@chat.try(:chatable).try(:title)} </a> </p> <br> ",title: "Chat Invitation");
     end
     flash[:success] = "User Added In Chat #{@chat.try(:chatable).try(:title)}"
-    redirect_to :back
+    redirect_back fallback_location: root_path
   end
 
   private

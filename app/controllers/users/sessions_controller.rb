@@ -24,7 +24,7 @@ class Users::SessionsController < Devise::SessionsController
       cookies.permanent.signed[:userid] = resource.id if resource.present?
      else
        flash[:error] = "User is not registerd on this domain"
-       redirect_to :back
+       redirect_back fallback_location: root_path
      end
 
    end

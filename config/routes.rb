@@ -339,5 +339,6 @@ Rails.application.routes.draw do
     match '/'  => "static#index", via: [:get, :post]
   end
 
+  root 'static#index'
 
 end

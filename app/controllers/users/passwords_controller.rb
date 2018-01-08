@@ -12,7 +12,7 @@ class Users::PasswordsController < Devise::PasswordsController
     self.resource = resource_class.send_reset_password_instructions(params[resource_name])
     if !resource.errors.empty?
       flash[:errors] = resource.errors.full_messages
-      redirect_to :back
+      redirect_back fallback_location: root_path
     end
     yield resource if block_given?
 
@@ -21,7 +21,7 @@ class Users::PasswordsController < Devise::PasswordsController
     end
     else
       flash[:error] = "User is not registerd on this domain"
-      redirect_to :back
+      redirect_back fallback_location: root_path
     end
   end
   

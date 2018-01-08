@@ -34,8 +34,8 @@ $(selector).on('click', function(){
             // document.getElementById('contents').style.visibility="hidden";
         } else if (state == 'complete') {
             setTimeout(function(){
-                document.getElementById('interactive');
-                document.getElementById('load').style.visibility="hidden";
+                //document.getElementById('interactive');
+                $('#load').css("visibility", "hidden");
                 // document.getElementById('contents').style.visibility="visible";
             },1000);
         }

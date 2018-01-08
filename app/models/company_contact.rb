@@ -1,5 +1,5 @@
-class CompanyContact < ActiveRecord::Base
-  belongs_to :company
+class CompanyContact < ApplicationRecord
+  belongs_to :company, optional: true
   validates_uniqueness_of :email,  scope: :company_id
   has_many :notifications       , as: :notifiable,dependent: :destroy
 

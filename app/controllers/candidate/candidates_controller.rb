@@ -23,12 +23,12 @@ class Candidate::CandidatesController < Candidate::BaseController
       format.json {respond_with current_candidate}
       format.html {
         flash[:success] = "Candidate Updated"
-        redirect_to :back
+        redirect_back fallback_location: root_path
       }
 
     else
-      format.html{redirect_to :back}
-      format.json{redirect_to :back }
+      format.html{redirect_back fallback_location: root_path}
+      format.json{redirect_back fallback_location: root_path}
     end
     end
   end
@@ -39,7 +39,7 @@ class Candidate::CandidatesController < Candidate::BaseController
     else
       flash[:errors] = 'Resume not updated'
     end
-    redirect_to :back
+    redirect_back fallback_location: root_path
   end
 
   def update_photo

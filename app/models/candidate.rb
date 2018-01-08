@@ -1,4 +1,4 @@
-class Candidate < ActiveRecord::Base
+class Candidate < ApplicationRecord
   # Include default devise modules. Others available are:
   # :confirmable, :lockable, :timeoutable and :omniauthable
   devise :invitable, :database_authenticatable, :registerable,
@@ -37,7 +37,7 @@ class Candidate < ActiveRecord::Base
   has_many   :experiences          , dependent: :destroy           ,foreign_key: 'user_id'
   has_many   :candidates_companies , dependent: :destroy
   has_many   :companies            , through: :candidates_companies ,dependent: :destroy
-  belongs_to :address              , foreign_key: :primary_address_id
+  belongs_to :address              , foreign_key: :primary_address_id, optional: true
   # has_and_belongs_to_many :groups ,through: :company
   has_many   :groupables           , as:  :groupable     ,dependent: :destroy
   has_many   :groups               , through: :groupables

@@ -1,8 +1,8 @@
-class Message < ActiveRecord::Base
+class Message < ApplicationRecord
   enum file_status: [:pending,:signed_uploaded]
   belongs_to :messageable, polymorphic: true
-  belongs_to :chat
-  belongs_to :company_doc
+  belongs_to :chat, optional: true
+  belongs_to :company_doc, optional: true
   after_create :trigger_pusher
 
   validates :body , presence:  :true

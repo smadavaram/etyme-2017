@@ -1,4 +1,4 @@
-class Reminder < ActiveRecord::Base
+class Reminder < ApplicationRecord
 
   enum status: [:done, :not_done]
 
@@ -6,7 +6,7 @@ class Reminder < ActiveRecord::Base
   validates :remind_at        ,presence: :true
   validates :remind_at, date: { after_or_equal_to: Time.now, message: ' can not be  in Past .'}
 
-  belongs_to     :user
+  belongs_to     :user, optional: true
   belongs_to     :reminderable ,polymorphic:  :true
 
   after_create   :add_reminder_in_delayed_job

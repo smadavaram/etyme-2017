@@ -1,11 +1,11 @@
-class Experience < ActiveRecord::Base
+class Experience < ApplicationRecord
 
   validates :experience_title , presence: true
   validates :start_date ,  presence: true
   validates :end_date , presence: true
   validate  :end_date_is_greater_than_start_date
 
-  belongs_to :candidate  , class_name:  "Candidate" ,foreign_key: 'user_id'
+  belongs_to :candidate  , class_name:  "Candidate" ,foreign_key: 'user_id', optional: true
 
   private
 

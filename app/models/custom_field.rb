@@ -1,4 +1,4 @@
-class CustomField < ActiveRecord::Base
+class CustomField < ApplicationRecord
 
   belongs_to :customizable, polymorphic: true
   validates  :value , presence: true,on: :create  , if: Proc.new{ |cf| cf.required && cf.customizable_type=="JobApplication"}

@@ -1,12 +1,12 @@
-class TimesheetApprover < ActiveRecord::Base
+class TimesheetApprover < ApplicationRecord
 
   include Rails.application.routes.url_helpers
 
 
   enum status: [:open,:pending_review, :approved , :partially_approved , :rejected , :submitted]
 
-  belongs_to :user
-  belongs_to :timesheet
+  belongs_to :user, optional: true
+  belongs_to :timesheet, optional: true
   has_one    :job , through: :timesheet
   has_one    :contract , through: :timesheet
   after_create :approve_timesheet , if: Proc.new{|t| t.is_master_user? && t.approved?}

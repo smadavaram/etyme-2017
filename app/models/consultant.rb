@@ -9,7 +9,7 @@ class Consultant < User
   enum relocation:  [:not_set,:open,:not_open]
   acts_as_taggable
 
-  belongs_to :candidate
+  belongs_to :candidate, optional: true
   has_one    :consultant_profile , dependent: :destroy
   has_many   :leaves , class_name: 'Leave' , foreign_key: :user_id ,dependent: :destroy
   has_many   :comments ,as: :commentable

@@ -1,5 +1,5 @@
 
-class Company < ActiveRecord::Base
+class Company < ApplicationRecord
   include PublicActivity::Model
   tracked owner: ->(controller, model) { controller && controller.current_user }
   EXCLUDED_SUBDOMAINS = %w(admin www administrator admins owner etyme mail ftp)
@@ -9,8 +9,8 @@ class Company < ActiveRecord::Base
   enum company_type: [:hiring_manager, :vendor]
 
   #Note: Do not change the through association order.
-  belongs_to :owner                   , class_name: 'Admin'         , foreign_key: "owner_id"
-  belongs_to :currency
+  belongs_to :owner                   , class_name: 'Admin'         , foreign_key: "owner_id", optional: true
+  belongs_to :currency, optional: true
   has_many :locations                 , dependent: :destroy
   has_many :jobs                      , dependent: :destroy
   has_many :users                     , dependent: :destroy
@@ -48,7 +48,7 @@ class Company < ActiveRecord::Base
   has_many :custom_fields             , as: :customizable             ,dependent: :destroy
   has_many :reminders                 ,as:  :reminderable
   has_many :chats                     ,dependent: :destroy
-  has_many :prefer_vendors_chats, -> { where chatable_type: "Company"}, class_name: Chat, foreign_key: :chatable_id, foreign_type: :chatable_type, dependent: :destroy
+  has_many :prefer_vendors_chats, -> { where chatable_type: "Company"}, class_name: "Chat", foreign_key: :chatable_id, foreign_type: :chatable_type, dependent: :destroy
   has_many :statuses                  ,as:  :statusable
 
   has_many :active_relationships, class_name: "SharedCandidate",

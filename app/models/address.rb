@@ -1,4 +1,4 @@
-class Address < ActiveRecord::Base
+class Address < ApplicationRecord
 
   has_many            :locations
   has_one             :user, foreign_key: :primary_address_id

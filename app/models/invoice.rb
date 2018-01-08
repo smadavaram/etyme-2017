@@ -1,12 +1,12 @@
-class Invoice < ActiveRecord::Base
+class Invoice < ApplicationRecord
 
   include Rails.application.routes.url_helpers
 
   enum status: [:pending_submission,:submitted, :paid , :partially_paid , :cancelled ]
 
-  belongs_to  :contract
-  belongs_to  :submitted_by   , class_name:"Admin", foreign_key: :submitted_by
-  belongs_to  :parent_invoice , class_name: "Invoice" , foreign_key: :parent_id
+  belongs_to  :contract, optional: true
+  belongs_to  :submitted_by   , class_name:"Admin", foreign_key: :submitted_by, optional: true
+  belongs_to  :parent_invoice , class_name: "Invoice" , foreign_key: :parent_id, optional: true
   has_one     :child_invoice  , class_name: "Invoice", foreign_key: :parent_id
   has_one     :company        , through: :company
   has_many    :timesheets

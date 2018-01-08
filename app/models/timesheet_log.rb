@@ -1,10 +1,10 @@
-class TimesheetLog < ActiveRecord::Base
+class TimesheetLog < ApplicationRecord
 
   enum status: [:pending , :approved , :partially_approved , :rejected]
 
-  belongs_to :timesheet
+  belongs_to :timesheet, optional: true
   has_many   :transactions  , dependent: :destroy
-  belongs_to :contract_term
+  belongs_to :contract_term, optional: true
   has_one    :company , through: :timesheet
   has_one    :contract, through: :timesheet
   has_one    :invoice , through: :timesheet

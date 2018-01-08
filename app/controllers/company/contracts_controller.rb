@@ -36,7 +36,7 @@ class Company::ContractsController < Company::BaseController
     else
       flash[:errors] = @contract.errors.full_messages
     end
-    redirect_to :back
+    redirect_back fallback_location: root_path
   end
 
   def create
@@ -51,7 +51,7 @@ class Company::ContractsController < Company::BaseController
       else
         format.js{ flash.now[:errors] =  @contract.errors.full_messages }
         format.html{ flash[:errors] =  @contract.errors.full_messages
-          redirect_to :back
+        redirect_back fallback_location: root_path
         }
       end
     end
@@ -66,7 +66,7 @@ class Company::ContractsController < Company::BaseController
     else
       flash[:errors] = @attachable_doc.errors.full_messages
     end
-    redirect_to :back
+    redirect_back fallback_location: root_path
   end
 
   def update_contract_response
@@ -90,7 +90,7 @@ class Company::ContractsController < Company::BaseController
     else
       flash[:errors]  = @contract.errors.full_messages
     end
-    redirect_to :back
+    redirect_back fallback_location: root_path
   end
 
   def authorize_user_for_new_contract

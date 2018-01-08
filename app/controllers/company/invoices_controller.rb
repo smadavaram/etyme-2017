@@ -22,7 +22,7 @@ class Company::InvoicesController < Company::BaseController
       flash[:errors] = "You are Not authorized to Submitt this Invoice. "
       end
     end
-    redirect_to :back
+    redirect_back fallback_location: root_path
   end
 
   def reject_invoice
@@ -36,7 +36,7 @@ class Company::InvoicesController < Company::BaseController
         flash[:errors] = "You are Not authorized to Cancel this Invoice. "
       end
     end
-    redirect_to :back
+    redirect_back fallback_location: root_path
   end
 
   def show

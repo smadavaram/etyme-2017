@@ -30,7 +30,7 @@ class Company::CandidatesController < Company::BaseController
       else
         flash[:errors] = @manage_candidate.errors.full_messages
       end
-        redirect_to :back
+      redirect_back fallback_location: root_path
     end
   end
 
@@ -54,7 +54,7 @@ class Company::CandidatesController < Company::BaseController
          redirect_to candidates_path
        else
          flash[:errors] = @candidate.errors.full_messages
-         redirect_to :back
+         redirect_back fallback_location: root_path
        end
      end
    end
@@ -102,7 +102,7 @@ class Company::CandidatesController < Company::BaseController
       redirect_to company_candidates_path
     else
       flash[:errors] = @candidate.errors.full_messages
-      redirect_to :back
+      redirect_back fallback_location: root_path
     end
 
   end
@@ -136,7 +136,7 @@ class Company::CandidatesController < Company::BaseController
     User.share_candidates(current_user.email ,emails.flatten.uniq.split(","),c_ids,current_company,params[:message])
     # CandidateMailer.share_hot_candidates(params[:emails].split(","),c_ids,current_company,params[:message]).deliver
     flash[:success] = "Candidates shared successfully."
-    redirect_to :back
+    redirect_back fallback_location: root_path
   end
 
   def create_chat

@@ -1,7 +1,7 @@
-class Attachment < ActiveRecord::Base
+class Attachment < ApplicationRecord
 
   belongs_to :attachable, polymorphic: true
-  belongs_to :company
+  belongs_to :company, optional: true
 
   validates :file, presence: {message: ' cannot be blank.'}
 

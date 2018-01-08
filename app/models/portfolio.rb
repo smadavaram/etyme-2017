@@ -1,4 +1,4 @@
-class Portfolio < ActiveRecord::Base
+class Portfolio < ApplicationRecord
   belongs_to :portfolioable ,polymorphic: :true
 
   validates :cover_photo   ,presence: :true

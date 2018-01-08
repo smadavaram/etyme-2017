@@ -1,6 +1,6 @@
-class AttachableDoc < ActiveRecord::Base
+class AttachableDoc < ApplicationRecord
 
-  belongs_to :company_doc
+  belongs_to :company_doc, optional: true
   belongs_to :documentable, polymorphic: true
 
   def is_file?

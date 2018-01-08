@@ -55,7 +55,7 @@ class Company::ConsultantsController < Company::BaseController
     else
       flash[:errors ] = @consultant.errors.full_messages
     end
-    redirect_to :back
+    redirect_back fallback_location: root_path
   end
 
   def authorized_user

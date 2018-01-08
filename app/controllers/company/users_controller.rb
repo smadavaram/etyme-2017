@@ -56,7 +56,7 @@ class Company::UsersController < Company::BaseController
       else
         flash[:errors] = @user.errors.full_messages
       end
-      redirect_to :back
+      redirect_back fallback_location: root_path
     end
   end
   def show
@@ -69,7 +69,7 @@ class Company::UsersController < Company::BaseController
       respond_with current_user
     else
       flash[:errors] = current_user.errors.full_messages
-      redirect_to :back
+      redirect_back fallback_location: root_path
     end
   end
   def add_reminder

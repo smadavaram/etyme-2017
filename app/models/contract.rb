@@ -1,4 +1,4 @@
-class Contract < ActiveRecord::Base
+class Contract < ApplicationRecord
 
   include Rails.application.routes.url_helpers
 
@@ -12,16 +12,16 @@ class Contract < ActiveRecord::Base
 
   attr_accessor :company_doc_ids
 
-  belongs_to :created_by , class_name: 'User' , foreign_key: :created_by_id
-  belongs_to :respond_by , class_name: 'User' , foreign_key: :respond_by_id
-  belongs_to :assignee   , class_name: 'User' , foreign_key: :assignee_id
-  belongs_to :job_application
-  belongs_to :job
-  belongs_to :location
-  belongs_to :user
-  belongs_to :company
-  belongs_to :parent_contract , class_name: "Contract" , foreign_key: :parent_contract_id
-  belongs_to :contractable, polymorphic: true
+  belongs_to :created_by , class_name: 'User' , foreign_key: :created_by_id, optional: true
+  belongs_to :respond_by , class_name: 'User' , foreign_key: :respond_by_id, optional: true
+  belongs_to :assignee   , class_name: 'User' , foreign_key: :assignee_id, optional: true
+  belongs_to :job_application, optional: true
+  belongs_to :job, optional: true
+  belongs_to :location, optional: true
+  belongs_to :user, optional: true
+  belongs_to :company, optional: true
+  belongs_to :parent_contract , class_name: "Contract" , foreign_key: :parent_contract_id, optional: true
+  belongs_to :contractable, polymorphic: true, optional: true
   has_one    :child_contract, class_name: "Contract", foreign_key: :parent_contract_id
   has_one    :job_invitation , through: :job_application
   has_many   :contract_terms , dependent: :destroy

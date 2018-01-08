@@ -22,7 +22,7 @@ class Company::TimesheetsController < Company::BaseController
       else
         flash[:errors] = @timesheet_approver.errors.full_messages
       end
-    redirect_to :back
+      redirect_back fallback_location: root_path
   end
 
   def reject
@@ -32,7 +32,7 @@ class Company::TimesheetsController < Company::BaseController
     else
       flash[:errors] = @timesheet.errors.full_messages
     end
-    redirect_to :back
+    redirect_back fallback_location: root_path
   end
 
   def approve
@@ -41,7 +41,7 @@ class Company::TimesheetsController < Company::BaseController
     else
       flash[:errors] = @timesheet.errors.full_messages
     end
-    redirect_to :back
+    redirect_back fallback_location: root_path
   end
 
   def authorized_user

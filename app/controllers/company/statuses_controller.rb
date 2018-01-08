@@ -10,7 +10,7 @@ class Company::StatusesController < Company::BaseController
       else
       flash[:errors] = @status.errors.full_messages
     end
-    redirect_to :back
+    redirect_back fallback_location: root_path
   end
 
   #index for a company and  candidate status log
@@ -22,14 +22,14 @@ class Company::StatusesController < Company::BaseController
       current_company.candidates.find(c_id.to_i).statuses.create(note: params[:status][:note] ,status_type: params[:status][:status_type],user_id: current_user.id)
     end
     flash[:success] = "Status Assigned."
-    redirect_to :back
+    redirect_back fallback_location: root_path
   end
   def create_bulk_companies
     params[:company_ids].split(',').each do |c_id|
       current_company.invited_companies.find_by(invited_company: c_id.to_i).invited_company.statuses.create(status_type: params[:status][:status_type] ,note:params[:status][:note],user_id: current_user.id)
     end
     flash[:success] = "Status Assigned."
-    redirect_to :back
+    redirect_back fallback_location: root_path
   end
 
   private
