@@ -48,6 +48,8 @@ class User < ApplicationRecord
   has_many :reminders
   has_many :statuses
 
+  has_many :conversation_messages ,as: :userable
+
   accepts_nested_attributes_for :attachable_docs , reject_if: :all_blank
   accepts_nested_attributes_for :custom_fields   , reject_if: :all_blank
   accepts_nested_attributes_for :address   , reject_if: :all_blank, update_only: true
@@ -101,7 +103,11 @@ class User < ApplicationRecord
   end
 
   def full_name
-    self.first_name + " " + self.last_name
+    if first_name.present? || first_name.present?
+      self.first_name + " " + self.last_name
+    else
+      company.name
+    end
   end
 
   def create_address

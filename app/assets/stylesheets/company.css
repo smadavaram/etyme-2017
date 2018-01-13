@@ -42,4 +42,5 @@
  *= require company_override
  *= require global
   *= require style
+  *= require chat_box
  */

@@ -103,6 +103,11 @@ Rails.application.routes.draw do
         post :apply
       end #end of member
     end # End of jobs
+
+    resources :conversations do
+      get :search, on: :collection
+      resources :conversation_messages
+    end
   end
 
 
@@ -163,6 +168,14 @@ Rails.application.routes.draw do
     resources :public_jobs, only: [:index, :destroy] do
       get :job, on: :member
     end
+
+    resources :conversations do
+      get :search, on: :collection
+      resources :conversation_messages do
+        get :mark_as_read, on: :member
+      end
+    end
+
   end
 
   scope module: :company do

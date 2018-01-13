@@ -41,4 +41,5 @@
  *= require candidate/jobs
  *= require company_override
  *= require global
+ *= require chat_box
  */

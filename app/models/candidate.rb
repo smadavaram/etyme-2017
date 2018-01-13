@@ -47,7 +47,7 @@ class Candidate < ApplicationRecord
   has_many   :chats                ,as: :chatable
   has_many   :statuses             ,as:  :statusable     ,dependent: :destroy
   has_many   :portfolios           ,as: :portfolioable   ,dependent: :destroy
-
+  has_many :conversation_messages  ,as: :userable
 
 
   attr_accessor :job_id , :expiry , :message , :invitation_type
@@ -81,6 +81,13 @@ class Candidate < ApplicationRecord
 
   def full_name
     self.first_name + " " + self.last_name
+  end
+
+  def self.like_any(fields, values)
+    conditions = fields.product(values).map do |(field, value)|
+      [arel_table[field].matches("#{value}%"), arel_table[field].matches("% #{value}%")]
+    end
+    where conditions.flatten.inject(:or)
   end
 
   # protected

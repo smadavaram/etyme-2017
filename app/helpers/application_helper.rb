@@ -159,6 +159,11 @@ module ApplicationHelper
                     title: 'IM',
                     content: "<span class='menu-item-parent'> IM </span>"
                 },
+                {
+                    href: company_conversations_path,
+                    title: 'NEW IM',
+                    content: "<span class='menu-item-parent'> New IM </span>"
+                }
             ]
         },
         {
@@ -332,6 +337,11 @@ module ApplicationHelper
             href: '/candidate',
             title: 'HOME',
             content: "<i class='fa fa-lg fa-fw fa-home'></i> <span class='menu-item-parent'>" + 'HOME' + "</span>",
+        },
+        {
+            href: candidate_conversations_path,
+            title: 'IM',
+            content: "<i class='fa fa-lg fa-fw fa-home'></i> <span class='menu-item-parent'>" + 'IM' + "</span>",
         },
         {
             href: '#',

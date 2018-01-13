@@ -1,0 +1,29 @@
+<div class="chat_box" data-conversation-id="<%= @conversation.id if @conversation.present?%>" id="conversation-chat-box">
+  <div class="key_mgs_box">
+    <div class="keys_head">
+      <h5><%= @conversation.senderable == current_user ? @conversation.recipientable.full_name : @conversation.senderable.full_name if @conversation.present? %></h5>
+    </div>
+  </div>
+  <div class="tab-content">
+    <div class="tab-pane active" id="home" role="tabpanel">
+      <div class="keystroke_msgs_box" id="conversation_<%= @conversation.id if @conversation.present? %>">
+        <% @messages.each do |msg| %>
+          <div class="<%= msg.userable == current_user ? 'send_message' : 'receive_message' %>">
+            <span><%= msg.body %></span>
+          </div>
+        <% end if @messages.present? %>
+      </div>
+    </div>
+  </div>
+  <div class="panel-footer">
+    <%= form_tag company_conversation_conversation_messages_path(@conversation||=0), remote: true ,method: :post do %>
+      <div class="input-group">
+        <%= text_field_tag 'conversation_message[body]', nil, class: 'form-control input-sm chat_input ',autocomplete: "off",
+                           placeholder: 'Type your message here...', required: true, id: "conversation_#{@conversation.id}_#{current_user.class.to_s}_#{current_user.id}" %>
+        <span class="input-group-btn">
+          <%= submit_tag "Send", class: 'btn btn-primary btn-sm', id: "btn-chat" %>
+        </span>
+      </div>
+    <% end if @conversation.present?  %>
+  </div>
+</div>

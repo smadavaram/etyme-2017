@@ -1,7 +1,7 @@
 class MessagesChannel < ApplicationCable::Channel
 
   def subscribed
-    stream_from "messages_#{current_user.class.to_s.downcase == 'candidate' ? 'candidate' : 'user'}_#{current_user.id}"
+    stream_from "Message_#{current_user.class.to_s}_#{current_user.id}"
 
     # current_user.update_column(:is_online, true)
     # puts "web_notifications_#{current_user.id}"

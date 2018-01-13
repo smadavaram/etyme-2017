@@ -130,5 +130,18 @@ $(document).ready(function(){
     $("#contract_toggle_modal_contract_toggle_modal").addClass('form-control');
     $('[data-toggle="tooltip"]').tooltip();
     $('[rel="tooltip"]').tooltip();
+
+    $("#conversation-users-search").on("keyup", function(){
+        callAjaxSearch('/company/conversations/search', "GET", { keyword: $("#conversation-users-search").val() })
+    });
 });
 
+function callAjaxSearch(ajax_url, ajax_method, params_data){
+    $.ajax({
+        type: ajax_method,
+        dataType: "script",
+        url: ajax_url,
+        data: params_data,
+        success: function(data){}
+    });
+}

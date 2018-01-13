@@ -7,6 +7,8 @@
     = csrf_meta_tags
     %meta{:content => "", :name => "description"}/
     %meta{:content => "", :name => "author"}/
+    %meta{:content => "#{user_signed_in? ? current_user.id : ''}", :name => "user-id"}
+    %meta{:content => "#{user_signed_in? ? current_user.class.to_s : ''}", :name => "user-type"}
     %meta{:content => "width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no", :name => "viewport"}/
     = stylesheet_link_tag 'company', media: 'screen'
     / FAVICONS
