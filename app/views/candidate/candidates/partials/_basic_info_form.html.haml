@@ -1,0 +1,31 @@
+.row{style: "padding: 15px;"}
+  = form_for @user,url: candidate_candidate_path(@user.id, tab: "basic_info"),method: :put do |f|
+    .row
+      .col-md-6
+        .form-group
+          = f.text_field :first_name  ,:placeholder => "Enter First Name", required: true,class:'form-control'
+      .col-lg-6
+        .form-group
+          = f.text_field :last_name  ,:placeholder => "Enter last Name", required: true,class:'form-control'
+    .row
+      .col-lg-12
+        .form-group{ style: "margin: 0"}
+        = filepicker_field_tag "" ,class: "hidden resume_file", onchange:"uploadResume(event)"
+        = link_to "Upload CV" ,"#",class: 'col-lg-12 resume btn btn-md btn-primary', style: "margin-bottom: 10px"
+    = f.fields_for :address do |a|
+      .row
+        .col-lg-12
+          .form-group
+            = a.text_field :address_1  ,:placeholder => "Current Address", required: true,class:'form-control'
+      .row
+        .col-lg-12
+          .form-group
+            = a.text_field :address_2  ,:placeholder => "Line 2",class:'form-control'
+      .row
+        .col-lg-12
+          %button.btn.pull-left{:type => "button"}
+            Back
+          %button.btn.btn-primary.pull-right{:type => "button", style: "margin-left: 20px"}
+            Next
+          %button.btn.btn-primary.pull-right{:type => "submit"}
+            Saved

@@ -49,7 +49,9 @@ class Company < ActiveRecord::Base
   has_many :reminders                 ,as:  :reminderable
   has_many :chats                     ,dependent: :destroy
   has_many :prefer_vendors_chats, -> { where chatable_type: "Company"}, class_name: Chat, foreign_key: :chatable_id, foreign_type: :chatable_type, dependent: :destroy
-  has_many :statuses                  ,as:  :statusable
+  has_many :branches
+  has_many :billing_infos
+  has_many :company_departments
 
   has_many :active_relationships, class_name: "SharedCandidate",
            foreign_key: "shared_by_id", dependent: :destroy
@@ -76,6 +78,9 @@ class Company < ActiveRecord::Base
   accepts_nested_attributes_for :company_contacts, allow_destroy: true,reject_if: :all_blank
   accepts_nested_attributes_for :invited_by    , allow_destroy: true
   accepts_nested_attributes_for :custom_fields  , allow_destroy: true , reject_if: :all_blank
+  accepts_nested_attributes_for :billing_infos ,   allow_destroy: true, reject_if: :all_blank
+  accepts_nested_attributes_for :branches ,   allow_destroy: true, reject_if: :all_blank
+  accepts_nested_attributes_for :company_departments ,   allow_destroy: true, reject_if: :all_blank
 
 
   before_validation :create_slug

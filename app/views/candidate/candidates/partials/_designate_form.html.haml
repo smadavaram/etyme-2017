@@ -1,0 +1,44 @@
+.row{style: "padding: 15px;"}
+  = form_for @user,url: candidate_candidate_path(@user.id, tab: "des"),method: :put do |f|
+    %h2{style: "margin: 15px 0"}
+      %b Designate
+    .row
+      .col-md-12
+        .form-group
+          = f.text_field :designate_list,placeholder: "Add Skills Comma seperated",class: 'form-control', 'data-role'=>'tagsinput',value: current_candidate.designate_list.join(", ")
+    %hr
+    = f.fields_for :designations do |b|
+      .row
+        .col-md-5
+          %h4
+            %b What is your current status ?
+        .col-md-3
+          .form-group
+            = b.radio_button :status, "Self Employee", checked: true
+            = b.label :status, 'Self Employed'
+        .col-md-3
+          .form-group
+            = b.radio_button :status, "Employee"
+            = b.label :status, 'Employee'
+      .row
+        .col-md-12
+          .form-group
+            = b.text_field :comp_name, placeholder: "Subcategory",class: 'form-control'
+      .row
+        .col-md-4
+          .form-group
+            = b.text_field :recruiter_name, placeholder: "Subcategory",class: 'form-control'
+        .col-md-4
+          .form-group
+            = b.text_field :recruiter_phone, placeholder: "Subcategory",class: 'form-control'
+        .col-md-4
+          .form-group
+            = b.text_field :recruiter_email, placeholder: "Subcategory",class: 'form-control'
+    .row
+    .col-lg-12
+      %button.btn.pull-left{:type => "button"}
+        Back
+      %button.btn.btn-primary.pull-right{:type => "button", style: "margin-left: 20px"}
+        Next
+      %button.btn.btn-primary.pull-right{:type => "submit"}
+        Saved

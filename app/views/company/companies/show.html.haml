@@ -102,6 +102,14 @@
       $(".best_in_place").on('change', function(event) {
           flash_success('Change Saved!');
       });
+      $('input:radio[name="same_billing_addr"]').change(function() {
+        if ($(this).val() == "true") {
+           $(".billing_info").hide();
+          }
+        else {
+           $(".billing_info").show();
+          }
+      });
     });
     function employeeLogoUpload(event){
       photo_url = event.fpfile.url

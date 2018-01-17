@@ -84,6 +84,22 @@ $( document ).ready(function() {
             }]
         })
     }
+    $('[data-form-prepend]').click( function(e) {
+        var obj = $( $(this).attr('data-form-prepend') );
+        var time_stamp = (new Date()).getTime() ;
+        obj.find('input, select, textarea').each( function() {
+            $(this).attr( 'name', function() {
+                return $(this).attr('name').replace( 'new_record', time_stamp);
+            });
+        });
+        obj.insertBefore( this );
+        $('.education_start_year, .education_completion_year, .start_date, .end_date').datepicker({
+            autoclose: true,
+            todayHighlight: true,
+            format: "mm-dd-yy"
+        });
+        return false;
+    });
 });
 
 function toggleFields() {
@@ -130,5 +146,12 @@ $(document).ready(function(){
     $("#contract_toggle_modal_contract_toggle_modal").addClass('form-control');
     $('[data-toggle="tooltip"]').tooltip();
     $('[rel="tooltip"]').tooltip();
+});
+$(document).on("click",".remove-multi-fields", function(){
+    if ($(this).closest('div.multi-fields').find('div.multi-field-container').length > 1) {
+        $(this).closest('div.multi-field-container').remove();
+    } else {
+        alert("You have to at least one.")
+    }
 });
 

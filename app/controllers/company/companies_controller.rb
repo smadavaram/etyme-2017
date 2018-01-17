@@ -62,7 +62,7 @@ class Company::CompaniesController < Company::BaseController
       respond_with current_company
       }
       format.html do
-        if @company.update(create_params)
+        if @company.update_attributes(create_params)
           flash[:success] = "Company Updated Successfully"
         else
           flash[:errors] = @company.errors.full_messages
@@ -77,6 +77,9 @@ class Company::CompaniesController < Company::BaseController
   end
 
   def show
+    @company = Company.find(params[:id] || params[:company_id])
+    @company.billing_infos.build unless @company.billing_infos.present?
+    @company.branches.build unless @company.branches.present?
     add_breadcrumb current_company.name.titleize, company_path, :title => ""
     @company_doc = current_company.company_docs.new
     @company_doc.build_attachment
@@ -209,7 +212,11 @@ class Company::CompaniesController < Company::BaseController
           :id,
           :name,
           :value,
-          :_destroy]
-        ])
+          :_destroy]],
+         address_attributes:[:id,:address_1,:address_2,:country,:city,:state,:zip_code],
+         billing_infos_attributes: [:id,:address,:country,:city,:zip],
+         branches_attributes: [:id,:branch_name,:address,:country,:city,:zip],
+         departments_attributes: [:id,:name]
+        )
     end
 end

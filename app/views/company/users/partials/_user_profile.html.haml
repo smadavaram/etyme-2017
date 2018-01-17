@@ -13,57 +13,34 @@
               -else
                 = image_tag image_path('default_user.png'),  style: "width:100px;height:100px", fit: 'clip',:class =>"profile-pic image-setting"
 
-        %ul.links.hidden-sm.hidden-xs
-          %li
+        .panel-body.status.profile-margin
+          .text
+            %div.profile-hover
+              %p.imgDescription.col-sm-offset-4 Upload Video
+              %div.pictureContainer.col-md-offset-2
+                = filepicker_field_tag "" ,class: "hidden file", onchange:"employeevideoUpload(event)","data-fp-crop-ratio" => "2/2",mimetypes: "video/*"
+                -if(user.video.present?)
+                  %video{:controls => "", :width => "200", :height=> "200"}
+                    %source{:src => user.video, :type => "video/mp4"}
 
-          %li
-            %a{:href => "javascript:void(0);"}
-
-          %li
-            %a{:href => "javascript:void(0);"}
+                  = button_tag "Upload Video", fit: 'clip',:class =>"video-pic img1"
+                -else
+                  = image_tag image_path('default_user.png'),  style: "width:100px;height:100px", fit: 'clip',:class =>"video-pic"
 
 
 
     .col-sm-12.col-md-12.col-lg-9
       #wid-id-7.jarviswidget.jarviswidget-color-teal{"data-widget-attstyle" => "jarviswidget-color-teal", "data-widget-custombutton" => "false", "data-widget-editbutton" => "false", "data-widget-fullscreenbutton" => "false", "data-widget-sortable" => "false", :role => "widget", :style => ""}
         %header{:role => "heading"}
-          %ul.nav.nav-tabs.pull-left.in#myTab
-            %li.active
-              %a{"aria-expanded" => "true", "data-toggle" => "tab", :href => "#hr1"}
-                %i.fa.fa-lg.fa-info-circle
-                %span.hidden-mobile.hidden-tablet Basic Info
-            %li
-              %a{"aria-expanded" => "false", "data-toggle" => "tab", :href => "#hr2"}
-                %i.fa.fa-lg.fa-location-arrow
-                %span.hidden-mobile.hidden-tablet
-                  Address
-          %span.jarviswidget-loader
-            %i.fa.fa-refresh.fa-spin
-        / widget div
         %div{:role => "content"}
           .jarviswidget-editbox
 
           .widget-body
-            .tab-content
-              #hr1.tab-pane.active
-                .tabbable.tabs-below
-                =render partial: 'company/users/partials/basic_info',locals: {user: user}
-
-              #hr2.tab-pane
-                .tabbable.tabs-below
-                  =render partial: 'company/users/partials/location',locals:{user:current_user,address:current_user.address}
-
+            =render partial: 'company/users/partials/basic_info',locals: {user: user}
 
 - content_for :scripts do
   :javascript
     $(document).ready(function() {
-    $('a[data-toggle="tab"]').on('show.bs.tab', function(e) {
-          // localStorage.setItem('activeTab', $(e.target).attr('href'));
-          var id = $(e.target).attr("href").substr(1);
-          window.location.hash = id;
-        });
-        var hash = window.location.hash;
-        $('#myTab a[href="' + hash + '"]').tab('show');
 
       $( ".profile-pic" ).click(function()
       {
@@ -73,6 +50,9 @@
        $(".best_in_place").on('change', function(event) {
           flash_success('Change Saved!');
       });
+      $( ".resume,.video-pic" ).click(function() {
+      $( ".file, .resume_file" ).trigger( "click" );
+     });
     });
     function employeeLogoUpload(event){
       photo_url = event.fpfile.url
