@@ -7,7 +7,7 @@
           = f.text_field :name,placeholder: "Company Name",class: 'form-control'
       .col-md-6
         %button.btn.btn-info{"data-target" => "#myModal", "data-toggle" => "modal", :type => "button"} Designamte business owner or application admin
-    = f.fields_for :address do |address|
+    = f.fields_for :addresses do |address|
       .row
         .col-md-12
           .form-group
@@ -21,7 +21,7 @@
             = address.text_field :country, placeholder: "country", class: 'form-control'
         .col-md-4
           .form-group
-            = address.text_field :zip,placeholder: "zip/pincode",class: 'form-control'
+            = address.text_field :zip_code,placeholder: "zip/pincode",class: 'form-control'
       .row
         .col-md-5
           %p

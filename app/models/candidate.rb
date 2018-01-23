@@ -25,7 +25,8 @@ class Candidate < ActiveRecord::Base
   validate :email_uniquenes ,on: :create,if: Proc.new{|candidate| candidate.status == "campany_candidate"}
   # validates_numericality_of :phone , on: :update
   # validates :dob, date: { before_or_equal_to: Proc.new { Date.today }, message: " Date Of Birth Can not be in future." } , on: :update
-
+  serialize :dept_name
+  serialize :industry_name
   has_many   :consultants
   has_many   :notifications        , as: :notifiable               ,dependent: :destroy
   has_many   :custom_fields        , as: :customizable             ,dependent: :destroy

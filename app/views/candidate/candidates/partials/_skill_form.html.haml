@@ -2,14 +2,15 @@
   .form-group
     = form_for @user,url: candidate_candidate_path(@user.id, tab: "skill"),method: :put do |f|
       %h2{style: "margin: 15px 0"}
+        =hidden_field_tag "candidate_id", @user.id
         %b Update Skills
       .row
         .col-md-4
           .form-group
-            = text_field_tag :name,'',placeholder: "Category",class: 'form-control'
+            =f.select :category, WORK_CATEGORIES.keys,{include_blank: "Select Category"},{class: "form-control", required: true }
         .col-md-4
           .form-group
-            = text_field_tag :subcat,'',placeholder: "Subcategory",class: 'form-control'
+            =f.select :subcategory, '', {include_blank: "Select Category"},{class: "form-control", required: true }
       .row
         .col-md-8
           .form-group
@@ -18,6 +19,15 @@
           .form-group
             = text_field_tag :subcat,'',placeholder: "Subcategory",class: 'form-control'
       .row
+        .col-md-6
+          .form-group
+            %p Department
+            =f.select :dept_name, department_list, {},{class: "form-control", required: true ,:multiple => true}
+        .col-md-6
+          .form-group
+            %p Industry
+            =f.select :industry_name, industry_list, {},{class: "form-control", required: true ,:multiple => true}
+    .row
       .col-lg-12
         %button.btn.pull-left{:type => "button"}
           Back
@@ -25,3 +35,26 @@
           Next
         %button.btn.btn-primary.pull-right{:type => "submit"}
           Saved
+
+
+-content_for :scripts do
+  :javascript
+    setcategories($("#candidate_category").val());
+    $(document).on("change","#candidate_category", function(){
+      setcategories($(this).val());
+    });
+    function setcategories(cat){
+        $.ajax({
+          type: 'POST',
+          dataType: "json",
+          data: {category: cat},
+          url: "#{get_sub_category_candidates_path}",
+          success: function(data){
+            $('#candidate_subcategory').empty();
+            $.each(data, function(i, value) {
+              $('#candidate_subcategory').append($('<option>').text(value).attr('value', value));
+          });
+
+          }
+        });
+    }

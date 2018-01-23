@@ -52,6 +52,7 @@ class Company < ActiveRecord::Base
   has_many :branches
   has_many :billing_infos
   has_many :company_departments
+  has_many :addresses, through:   :locations
 
   has_many :active_relationships, class_name: "SharedCandidate",
            foreign_key: "shared_by_id", dependent: :destroy
@@ -81,6 +82,7 @@ class Company < ActiveRecord::Base
   accepts_nested_attributes_for :billing_infos ,   allow_destroy: true, reject_if: :all_blank
   accepts_nested_attributes_for :branches ,   allow_destroy: true, reject_if: :all_blank
   accepts_nested_attributes_for :company_departments ,   allow_destroy: true, reject_if: :all_blank
+  accepts_nested_attributes_for :addresses ,   allow_destroy: true, reject_if: :all_blank
 
 
   before_validation :create_slug

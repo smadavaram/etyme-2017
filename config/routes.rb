@@ -55,6 +55,7 @@ Rails.application.routes.draw do
         get :notify_notifications
         post :upload_resume
         post :update_video
+        post :get_sub_category
       end
     end
     resources  :portfolios ,only: [:create,:update]
@@ -304,6 +305,8 @@ Rails.application.routes.draw do
         post :change_owner
         post :get_admins_list , as: :get_admins_list
         post :update_logo
+        post :update_file
+        post :update_video
       end
     end
 
