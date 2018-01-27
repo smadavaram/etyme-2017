@@ -18,10 +18,10 @@
           %a{"data-toggle" => "tab", :href => "#tab3"}
             %span.step 3
             %span.title Documents & Attachments
-        %li{"data-target" => "#step4"}
-          %a{"data-toggle" => "tab", :href => "#tab4"}
-            %span.step 4
-            %span.title Teams & Commissions
+        -#%li{"data-target" => "#step4"}
+        -#  %a{"data-toggle" => "tab", :href => "#tab4"}
+        -#    %span.step 4
+        -#    %span.title Teams & Commissions
       .clearfix
     .tab-content
       #tab1.tab-pane.active
@@ -44,12 +44,17 @@
           %strong Step 3
           \- Documents & Attachments
         = render 'company/contracts/partials/docs_and_attachments' , f: contract
-      #tab4.tab-pane
-        %br/
-        %h3
-          %strong Step 4
-          \- Teams & Commission
-        = render 'company/contracts/partials/teams_and_commission', f: contract
+
+
+      -##tab4.tab-pane
+      -#  %br/
+      -#  %h3
+      -#    %strong Step 4
+      -#    \- Teams & Commission
+      -#  = render 'company/contracts/partials/teams_and_commission', f: contract
+
+
+
       -##tab4.tab-pane
       -#  %br/
       -#  %h3
@@ -63,21 +68,21 @@
       -#  %h4.text-center Click next to finish
       -#  %br/
       -#  %br/
-      #tab4.tab-pane
-        %br/
-        %h3
-          %strong Step 4
-          \- Teams & Commission
-        .row
-          .col-sm-12
-            .form-group
-              #custom_fields
-                .col-sm-12
-                  = render 'company/contracts/partials/teams_and_commission', f: contract
-              %strong
-                .links.col-sm-12
-                  = #link_to_add_association '+ Add Custom Field', e, :custom_fields, class: 'text-info pull-right', partial: 'shared/custom_fields'
-                  %br/
+      -##tab4.tab-pane
+      -#  %br/
+      -#  %h3
+      -#    %strong Step 4
+      -#    \- Teams & Commission
+      -#  .row
+      -#    .col-sm-12
+      -#      .form-group
+      -#        #custom_fields
+      -#          .col-sm-12
+      -#            = render 'company/contracts/partials/teams_and_commission', f: contract
+      -#        %strong
+      -#          .links.col-sm-12
+      -#            = #link_to_add_association '+ Add Custom Field', e, :custom_fields, class: 'text-info pull-right', partial: 'shared/custom_fields'
+      -#            %br/
       .form-actions
         .row
           .col-sm-12

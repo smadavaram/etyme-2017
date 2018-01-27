@@ -1,45 +1,93 @@
 %fieldset
+  -#.form-group
+  -#  %label.col-md-2.control-label  Company name
+  -#  .col-md-10
+  -#    = f.text_field :company_name, class: "form-control", placeholder: "Contract Company name"
+  -#
+  -#.form-group
+  -#  %label.col-md-2.control-label  Company Address
+  -#  .col-md-10
+  -#    = f.text_field :company_address, class: "form-control", placeholder: "Contract Company Address"
+  -#
+  -#.form-group
+  -#  %label.col-md-2.control-label  Company Website
+  -#  .col-md-10
+  -#    = f.text_field :company_website, class: "form-control", placeholder: "Contract Company Email"
+  -#
+  -#.form-group
+  -#  %label.col-md-2.control-label  Fed Id
+  -#  .col-md-10
+  -#    = f.text_field :fed_id, class: "form-control", placeholder: "Contract Fed Id"
+
+  .form-group
+    %label.col-md-2.control-label  Company
+    .col-md-10
+      = select_tag 'contract[contractable_id]', options_for_select(current_company.invited_companies.collect { |c|[c.invited_company.name, c.invited_company.id] })  , class: "form-control"
+
+  .row
+    .col-md-12
+      .form-group
+        =f.fields_for :contract_sell_business_details do |custom_field|
+          = render 'company/contracts/contract_sell_business_details_fields', f: custom_field
+      %strong
+        .links.col-sm-12
+          = link_to_add_association '+ Add', f, :contract_sell_business_details, class: 'text-info pull-right', partial: 'company/contracts/contract_sell_business_details_fields'
+          %br/
+
   .form-group
     %label.col-md-2.control-label
-      Start Date
-      %sup.text-danger *
-    .col-md-4
-      = f.text_field :start_date ,class: "form-control" , required: 'required', placeholder: "Contract Start Date"
-    %label.col-md-2.control-label
-      End Date
-      %sup.text-danger *
-    .col-md-4
-      = f.text_field :end_date ,class: "form-control" , required: 'required', placeholder: "Contract End Date"
-  .form-group
-    %label.col-md-2.control-label
-      Type
-      %sup.text-danger *
+      Customer Rate $
     .col-md-10.select
-      = f.select :contract_type , Contract.contract_types.map { |key, value| [key.titleize, key] }, {include_blank: '-- Select Contract Type --'} , {class: "form-control" , required: true}
+      = f.select :customer_rate, (0..60).map{|a| [a.to_s + " days",a]}, class: "form-control"
+
   .form-group
-    %label.col-md-2.control-label Invoicing Frequency
-    .col-md-4.select
-      = f.select :billing_frequency , Contract.billing_frequencies.map { |key, value| [key.humanize, key] }, {} , {class: "form-control" }
-    -#= select_tag 'contract[billing_frequency]', Contract.billing_frequency.map { |key, value| [key.humanize, key] }  , class: "form-control"
-    %label.col-md-2.control-label Time Sheet Frequency
-    .col-md-4.select
-      = f.select :time_sheet_frequency , Contract.time_sheet_frequencies.map { |key, value| [key.humanize, key] }, {},{class: "form-control" }
-  -#= select_tag 'contract[time_sheet_frequency]', options_for_select(BILLING_FREQUENCY.collect{ |type| [type[0], type[1]] }) , class: "form-control"
-  = f.fields_for :contract_terms do |c|
-    = c.hidden_field :created_by , value: current_user.id.to_i
-    .form-group
-      %label.col-md-2.control-label
-        Rate
-        %sup.text-danger *
-      .col-md-10
-        = c.text_field :rate ,class: "form-control" , placeholder: "", required: 'required'
-    .form-group
-      %label.col-md-2.control-label Terms & Conditions
-      .col-md-10
-        =  c.text_area :terms_condition , class: 'form-control tinymce', rows: 6, placeholder: 'Enter Contract Terms & conditions'
-        = tinymce :default
-    -#.form-group
-    -#  %label.col-md-2.control-label Terms & Conditions
-    -#  .col-md-10
-    -#    =  c.text_area :terms_condition , class: 'form-control tinymce', rows: 6, placeholder: 'Enter Contract Terms & conditions'
-    -#    = tinymce :default
+    %label.col-md-2.control-label
+      Time sheet
+    .col-md-10.select
+      = f.select :billing_frequency , Contract.billing_frequencies.map { |key, value| [key.humanize, key] }, {},{class: "form-control" }
+
+  .form-group
+    %label.col-md-2.control-label
+      Invoice Terms
+    .col-md-10.select
+      = f.select :invoice_terms_period , (0..60).map{|a| ["Next " + a.to_s + " days",a]}, {},{class: "form-control" }
+
+  .form-group
+    %label.col-md-2.control-label
+    .col-md-10.select
+      = f.check_box :show_accounting_to_employee
+      %span
+        Show Accounting term to employee ?
+  -#.form-group
+  -#  %label.col-md-2.control-label
+  -#    Type
+  -#    %sup.text-danger *
+  -#  .col-md-10.select
+  -#    = f.select :contract_type , Contract.contract_types.map { |key, value| [key.titleize, key] }, {include_blank: '-- Select Contract Type --'} , {class: "form-control" , required: true}
+  -#.form-group
+  -#  %label.col-md-2.control-label Invoicing Frequency
+  -#  .col-md-4.select
+  -#    = f.select :billing_frequency , Contract.billing_frequencies.map { |key, value| [key.humanize, key] }, {} , {class: "form-control" }
+  -#  -#= select_tag 'contract[billing_frequency]', Contract.billing_frequency.map { |key, value| [key.humanize, key] }  , class: "form-control"
+  -#  %label.col-md-2.control-label Time Sheet Frequency
+  -#  .col-md-4.select
+  -#    = f.select :time_sheet_frequency , Contract.time_sheet_frequencies.map { |key, value| [key.humanize, key] }, {},{class: "form-control" }
+  -#-#= select_tag 'contract[time_sheet_frequency]', options_for_select(BILLING_FREQUENCY.collect{ |type| [type[0], type[1]] }) , class: "form-control"
+  -#= f.fields_for :contract_terms do |c|
+  -#  = c.hidden_field :created_by , value: current_user.id.to_i
+  -#  .form-group
+  -#    %label.col-md-2.control-label
+  -#      Rate
+  -#      %sup.text-danger *
+  -#    .col-md-10
+  -#      = c.text_field :rate ,class: "form-control" , placeholder: "", required: 'required'
+  -#  .form-group
+  -#    %label.col-md-2.control-label Terms & Conditions
+  -#    .col-md-10
+  -#      =  c.text_area :terms_condition , class: 'form-control tinymce', rows: 6, placeholder: 'Enter Contract Terms & conditions'
+  -#      = tinymce :default
+  -#  -#.form-group
+  -#  -#  %label.col-md-2.control-label Terms & Conditions
+  -#  -#  .col-md-10
+  -#  -#    =  c.text_area :terms_condition , class: 'form-control tinymce', rows: 6, placeholder: 'Enter Contract Terms & conditions'
+  -#  -#    = tinymce :default

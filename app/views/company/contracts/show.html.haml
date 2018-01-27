@@ -157,6 +157,215 @@
                             %td= invoice.end_date
                             %td
                               = link_to 'View Detail' , contract_invoice_path(@contract , invoice) , target: '_blank' ,class: 'btn btn-xs btn-default btn-primary'
+          .col-sm-12.col-md-12.col-lg-12
+            %h2
+              Contract Description
+            %div.contract-header
+              %div
+                %strong
+                  Contract ID:
+                %span
+                  =@contract.id
+              %div
+                %strong
+                  client Name:
+                %span
+                  =@contract.client_name
+              %div
+                %strong
+                  Job Title:
+                %span
+                  =@contract.job.title
+              %div
+                %strong
+                  cadidate Name:
+                %span
+                  =@contract.candidate_name
+              %div
+                %strong
+                  Work Location:
+                %span
+                  =@contract.work_location
+              %div
+                %strong
+                  start date:
+                %span
+                  =@contract.start_date
+              %div
+                %strong
+                  end date:
+                %span
+                  =@contract.end_date
+            .col-sm-6.col-md-6.col-lg-6
+              %h3
+                sell side
+              %div.sell-side
+                %div.contract-custome-details
+                  %div.row
+                    .col-sm-6.col-md-6.col-lg-6
+                      %div
+                        %strong
+                          Company Name:
+                        %span
+                          =@contract.contractable.full_name
+                      %div
+                        %strong
+                          Company Address:
+                        %span
+                          NEED TO ADD
+                    .col-sm-6.col-md-6.col-lg-6
+                      %div
+                        %strong
+                          Company Website:
+                        %span
+                          =@contract.contractable.website
+                      %div
+                        %strong
+                          Faq Id:
+                        %span
+                          NEED TO ADD
+                %div.table-responsive
+                  %table.table.table-bordered
+                    %thead
+                      %tr
+                        %th Business Contact Name
+                        %th Phone Number
+                        %th Email
+                        %th Dept
+                      -@contract.contract_buy_business_details.each do |cbbd|
+                        %tr
+                          %td
+                            =cbbd.contact_name
+                          %td
+                            =cbbd.phone
+                          %td
+                            =cbbd.email
+                          %td
+                            =cbbd.department
+                %div.contract-accounting
+                  %div
+                    %strong
+                      Customer Date Hour:
+                    %span
+                      =@contract.customer_rate
+                  %h5
+                    Work hour terms
+                  %div
+                    %strong
+                      Time sheet:
+                    %span
+                      =@contract.billing_frequency.humanize
+                  %div
+                    %strong
+                      Invoice terms:
+                    %span
+                      =@contract.invoice_terms_period.to_s + " days"
+            .col-sm-6.col-md-6.col-lg-6
+              %h3
+                buy side
+              %div.contract-custome-details
+                %div.row
+                  .col-sm-6.col-md-6.col-lg-6
+                    %div
+                      %strong
+                        Candidate Name:
+                      %span
+                        =@contract.candidate.full_name if @contract.candidate
+                    %div
+                      %strong
+                        Candidate Address:
+                      %span
+                        =@contract.candidate.address.address_1 if @contract.candidate && @contract.candidate.address
+                  .col-sm-6.col-md-6.col-lg-6
+                    %div
+                      %strong
+                        Encrypt SSN:
+                      %span
+                        =@contract.b_ssn
+                    %div
+                      %strong
+                        Contract Type:
+                      %span
+                        =@contract.contract_type
+                %div.row
+                  .col-sm-6.col-md-6.col-lg-6
+                    %div
+                      %strong
+                        Company Name:
+                      %span
+                        =@contract.buy_company.full_name if @contract.buy_company
+                    %div
+                      %strong
+                        Company Address:
+                      %span
+                        NEED TO ADD
+                  .col-sm-6.col-md-6.col-lg-6
+                    %div
+                      %strong
+                        Company Website:
+                      %span
+                        =@contract.buy_company.website if @contract.buy_company
+                    %div
+                      %strong
+                        Faq Id:
+                      %span
+                        NEED TO ADD
+                %div.table-responsive
+                  %table.table.table-bordered
+                    %thead
+                      %tr
+                        %th Business Contact Name
+                        %th Phone Number
+                        %th Email
+                        %th Dept
+                      -@contract.contract_sell_business_details.each do |csbd|
+                        %tr
+                          %td
+                            =csbd.contact_name
+                          %td
+                            =csbd.phone
+                          %td
+                            =csbd.email
+                          %td
+                            =csbd.department
+                %div.contract-accounting
+                  %div
+                    %strong
+                      Customer Date Hour:
+                    %span
+                      =@contract.payrate
+                  %h5
+                    Work hour terms
+                  %div
+                    %strong
+                      Time sheet:
+                    %span
+                      =@contract.time_sheet_frequency.humanize
+                  %div
+                    %strong
+                      Payment terms:
+                    %span
+                      =@contract.payment_term
+                %div.table-responsive
+                  %table.table.table-bordered
+                    %thead
+                      %tr
+                        %th Name
+                        %th Rate
+                        %th Frequency
+                        %th Limit
+                        %th Action
+                      -@contract.contract_sale_commisions.each do |csc|
+                        %tr
+                          %td
+                            =csc.name
+                          %td
+                            =csc.rate
+                          %td
+                            =csc.frequency
+                          %td
+                            =csc.limit
+                          %td action
 - if @contract.pending? && !@contract.is_sent?(current_company)
   - content_for :modals do
     #ajax-modal
@@ -175,5 +384,4 @@
           $(file).parent().submit();
         });
       });
-
 

@@ -4,9 +4,9 @@ class Contract < ApplicationRecord
 
   enum status:                [ :pending, :accepted , :rejected , :is_ended  , :cancelled , :paused , :in_progress]
   enum billing_frequency:     [ :weekly_invoice, :monthly_invoice  ]
-  enum time_sheet_frequency:  [:daily,:weekly,:monthly]
+  enum time_sheet_frequency:  [:daily,:weekly, :by_weekly, :monthly]
   enum commission_type:       [:percentage, :fixed]
-  enum contract_type:         [:contract_independent, :contract_w2 , :contract_C2H_independent , :contract_C2H_w2 , :third_party_crop_to_crop , :third_party_C2H_crop_to_crop]
+  enum contract_type:         [:W2, "1099", :C2C, :contract_independent, :contract_w2 , :contract_C2H_independent , :contract_C2H_w2 , :third_party_crop_to_crop , :third_party_C2H_crop_to_crop]
 
   CONTRACTABLE = [:company, :candidate]
 
@@ -22,6 +22,9 @@ class Contract < ApplicationRecord
   belongs_to :company, optional: true
   belongs_to :parent_contract , class_name: "Contract" , foreign_key: :parent_contract_id, optional: true
   belongs_to :contractable, polymorphic: true, optional: true
+  belongs_to :candidate
+  belongs_to :buy_company, foreign_key: :buy_company_id, class_name: "Company"
+
   has_one    :child_contract, class_name: "Contract", foreign_key: :parent_contract_id
   has_one    :job_invitation , through: :job_application
   has_many   :contract_terms , dependent: :destroy
@@ -32,6 +35,10 @@ class Contract < ApplicationRecord
   has_many   :timesheet_approvers   , through: :timesheets
   has_many   :attachable_docs, as: :documentable
   has_many   :attachments , as: :attachable
+
+  has_many :contract_buy_business_details
+  has_many :contract_sell_business_details
+  has_many :contract_sale_commisions
 
   after_create :insert_attachable_docs
   after_create :notify_recipient , if: Proc.new{ |contract| contract.not_system_generated? }
@@ -60,6 +67,9 @@ class Contract < ApplicationRecord
   accepts_nested_attributes_for :attachments ,   allow_destroy: true, reject_if: :all_blank
   accepts_nested_attributes_for :attachable_docs , reject_if: :all_blank
   accepts_nested_attributes_for :job    , allow_destroy: true
+  accepts_nested_attributes_for :contract_buy_business_details, allow_destroy: true,reject_if: :all_blank
+  accepts_nested_attributes_for :contract_sell_business_details, allow_destroy: true,reject_if: :all_blank
+  accepts_nested_attributes_for :contract_sale_commisions, allow_destroy: true,reject_if: :all_blank
 
   default_scope  -> {order(created_at: :desc)}
 
@@ -124,7 +134,8 @@ class Contract < ApplicationRecord
   end
 
   def rate
-    self.contract_terms.active.first.rate
+    # self.contract_terms.active.first.rate
+    self.customer_rate
   end
 
   def note
@@ -132,7 +143,8 @@ class Contract < ApplicationRecord
   end
 
   def terms_and_conditions
-    self.contract_terms.active.first.terms_condition
+    # self.contract_terms.active.first.terms_condition
+    "[CHANGE IT terms_and_conditions]"
   end
 
   # private

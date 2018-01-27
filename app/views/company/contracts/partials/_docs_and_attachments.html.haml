@@ -1,17 +1,115 @@
 %fieldset
+  -#.form-group
+  -#  %label.col-md-2.control-label  Company name
+  -#  .col-md-10
+  -#    = select_tag 'contract[candidate_id]', options_for_select(current_company.invited_companies.collect { |c|[c.invited_company.name, c.invited_company.id] })  , class: "form-control"
+
+  -#.form-group
+  -#  %label.col-md-2.control-label  Candidate Name
+  -#  .col-md-10
+  -#    = f.text_field :b_candidate_name, class: "form-control", placeholder: "Contract Candidate Name"
+  -#
+  -#.form-group
+  -#  %label.col-md-2.control-label  Candidate Address
+  -#  .col-md-10
+  -#    = f.text_field :b_candidate_address, class: "form-control", placeholder: "Contract Candidate Address"
+
+
+
+  .form-group
+    %label.col-md-2.control-label  Candidate
+    .col-md-10
+      = select_tag 'contract[candidate_id]', options_for_select(current_company.candidates.collect { |c|[c.full_name, c.id] })  , class: "form-control"
+
+  .form-group
+    %label.col-md-2.control-label  SSN
+    .col-md-10
+      = f.text_field :b_ssn, class: "form-control", placeholder: "SNN"
+
+  .form-group
+    %label.col-md-2.control-label  Contract Type
+    .col-md-10
+      = f.radio_button :contract_type, "W2", class: "form-control"
+      W2
+      = f.radio_button :contract_type, "1099", class: "form-control"
+      1099
+      = f.radio_button :contract_type, "C2C", class: "form-control"
+      C2C
+
+  .form-group
+    %label.col-md-2.control-label  Company
+    .col-md-10
+      = select_tag 'contract[buy_company_id]', options_for_select(current_company.invited_companies.collect { |c|[c.invited_company.name, c.invited_company.id] })  , class: "form-control"
+
+  -#.form-group
+  -#  %label.col-md-2.control-label  Company name
+  -#  .col-md-10
+  -#    = f.text_field :b_company_name, class: "form-control", placeholder: "Contract Company name"
+  -#
+  -#.form-group
+  -#  %label.col-md-2.control-label  Company Address
+  -#  .col-md-10
+  -#    = f.text_field :b_company_address, class: "form-control", placeholder: "Contract Company Address"
+  -#
+  -#.form-group
+  -#  %label.col-md-2.control-label  Company Website
+  -#  .col-md-10
+  -#    = f.text_field :b_company_website, class: "form-control", placeholder: "Contract Company Email"
+  -#
+  -#.form-group
+  -#  %label.col-md-2.control-label  Fed Id
+  -#  .col-md-10
+  -#    = f.text_field :b_fed_id, class: "form-control", placeholder: "Contract Fed Id"
+
+  .row
+    .col-md-12
+      .form-group
+        =f.fields_for :contract_buy_business_details do |custom_field|
+          = render 'company/contracts/contract_sell_business_details_fields', f: custom_field
+      %strong
+        .links.col-sm-12
+          = link_to_add_association '+ Add', f, :contract_buy_business_details, class: 'text-info pull-right', partial: 'company/contracts/contract_sell_business_details_fields'
+          %br/
+
   .form-group
     %label.col-md-2.control-label
-      Documents
+      PayRate
       %sup.text-danger *
-    .col-md-10
-      = f.select :company_doc_ids , options_for_select(current_company.company_docs.collect { |doc|[doc.name, doc.id] }),{} ,prompt: "Select Docs" , class: "form-control input-lg multi-select2-company-docs" , multiple: true , style:"width: 100%;"
-  %hr
-  .form-group#contract-attachment
+    .col-md-10.select
+      = f.select :payrate, (0..60).map{|a| ["$"+ a.to_s + " Hourly",a]}, class: "form-control"
+
+    .form-group
+    %label.col-md-2.control-label
+      Time Sheet
+      %sup.text-danger *
+    .col-md-10.select
+      = f.select :time_sheet_frequency , Contract.time_sheet_frequencies.map { |key, value| [key.humanize, key] }, {},{class: "form-control" }
+
+  .form-group
+    %label.col-md-2.control-label
+      Payment Term
+      %sup.text-danger *
+    .col-md-10.select
+      = f.select :payment_term , (0..60).map{|a| ["Next " + a.to_s + " days",a]}, {},{class: "form-control" }
+
+  .form-group
+    %label.col-md-2.control-label
+    .col-md-10.select
+      = f.check_box :b_show_accounting_to_employee
+      %span
+        Show Accounting term to employee ?
+
+  .row
     .col-md-12
-      = f.fields_for :attachments do |attachment|
-        = render 'company/contracts/attachment_fields', f: attachment
-      .links
-        = link_to_add_association 'Add Attachment', f, :attachments,partial:'company/contracts/attachment_fields',class:"btn btn-primary pull-right"
+      .form-group
+        =f.fields_for :contract_sale_commisions do |custom_field|
+          = render 'company/contracts/contract_sale_commisions_fields', f: custom_field
+      %strong
+        .links.col-sm-12
+          = link_to_add_association '+ Add', f, :contract_sale_commisions, class: 'text-info pull-right', partial: 'company/contracts/contract_sale_commisions_fields'
+          %br/
+
+
 :javascript
   $( document ).ready(function() {
      $(".multi-select2-company-docs").select2({

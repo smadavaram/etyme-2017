@@ -96,6 +96,9 @@ class Company < ApplicationRecord
     CompanyContact.where(company_id: self.invited_companies.map(&:invited_company_id))
   end
 
+  def full_name
+    self.name
+  end
 
   def all_admins_has_permission? permission
     self.admins.joins(:permissions).where('permissions.name = ?' , permission).group('users.id') || []
