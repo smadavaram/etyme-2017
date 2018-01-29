@@ -74,3 +74,4 @@ stdout_redirect "/var/www/etyme/shared/tmp/log/stdout", "/var/www/etyme/shared/t
 threads 1, 16
 bind "unix:///var/www/etyme/shared/tmp/sockets/puma.sock"
 workers 2
+daemonize true
