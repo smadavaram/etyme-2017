@@ -5,7 +5,27 @@
         %ul
           - @jobs.each do |job|
             %li
-              = link_to truncate(job.title,length: 50), job_company_public_job_path(job), remote: true
+              = link_to job_company_public_job_path(job), remote: true do
+                %div.public-job-list.clearfix
+                  %span.pull-left
+                    =job.id
+                  %span.pull-right
+                    %i.fa.fa-calendar-o
+                    =job.created_at.strftime("%d/%m/%Y")
+                %div.job-header.clearfix
+                  = image_tag "avatars/male.png"
+                  %p.job_title
+                    = truncate(job.title,length: 50)
+                  %p.job_title
+                    %i.fa.fa-usd
+                    =job.price
+                %div.public-job-other-info
+                  %span
+                    %i.fa.fa-map-marker
+                    =job.location
+                  %span
+                    %i.fa.fa-user
+                    kishan patel
         = digg_pagination(@jobs)
       .newsfeed-right
         %div#public-job-description

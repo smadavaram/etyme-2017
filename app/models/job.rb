@@ -24,6 +24,7 @@ class Job < ApplicationRecord
 
   accepts_nested_attributes_for :custom_fields , reject_if: :all_blank
 
+  acts_as_taggable_on :education
   acts_as_taggable
   acts_as_paranoid
 

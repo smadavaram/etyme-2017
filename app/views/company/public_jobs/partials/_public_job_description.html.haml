@@ -1,21 +1,42 @@
 %h2
-  Job
-.job-title
-  %strong
-    Title:-
-  %span
-    = @job.title
-.job-location
-  %strong
-    Location:-
-  %span
-    = @job.location
-.job-description
-  %strong
-    Description:-
-  %span
-    = @job.description.html_safe
-.job-match-candidates
-  %strong
-    Match Candidates:-
-  = find_match_candidates(@job)
+  job details
+.job-info
+  .job-title
+    %div.job-header.clearfix
+      = image_tag "avatars/male.png"
+      %p.job_title
+        = @job.title
+      %p.job_title
+        %i.fa.fa-usd
+        50
+    .job-location
+      %span
+        %i.fa.fa-map-marker
+        = @job.location
+      %span
+        %i.fa.fa-user
+        kishan patel
+  .job-description
+    .job-info
+      %strong
+        Description
+      %span
+        = @job.description.html_safe
+    .job-info
+      %strong
+        Skill
+      %span
+        %ul
+          -@job.tag_list.each do |tl|
+            %li=tl
+    .job-info
+      %strong
+        Education
+      %span
+        %ul
+          -@job.education_list.each do |el|
+            %li=el
+  .job-match-candidates
+    %strong
+      Match Candidates
+    = find_match_candidates(@job)

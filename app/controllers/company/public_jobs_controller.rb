@@ -8,6 +8,10 @@ class Company::PublicJobsController < Company::BaseController
 
   def job
     @job = Job.find(params[:id])
+    respond_to do |format|
+      format.js
+      format.html {redirect_to company_public_jobs_path }
+    end
   end
 
 end

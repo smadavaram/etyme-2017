@@ -51,6 +51,19 @@
             %sup.text-danger *
           = f.text_field :end_date , class: 'form-control' , placeholder: 'Enter End Date' , required: true
     .row
+      .col-md-6
+        .form-group
+          %label.control-label
+            Price
+            %sup.text-danger *
+          = f.text_field :price , class: 'form-control' , placeholder: 'Enter Price' , required: true
+      .col-md-6
+        .form-group
+          %label.control-label
+            JobType
+            %sup.text-danger *
+          = f.select :job_type, ["Full Time", "Part Time", "Contract"], class: 'form-control' , placeholder: 'Enter End Date' , required: true
+    .row
       .col-md-12
         .form-group
           %label.control-label
@@ -68,12 +81,22 @@
       .col-md-12
         .form-group
           %labelcontrol-label
-            Tags
+            Educations
             %sup.text-danger
-          = f.text_field :tag_list , class: 'form-control tagsinput','data-role'=>'tagsinput' , placeholder: 'Tags are separated with comma' , value: @job.tag_list.join(", ")
+          = f.text_field :education_list , class: 'form-control tagsinput','data-role'=>'tagsinput' , placeholder: 'Educations are separated with comma' , value: @job.education_list.join(", ")
           %p.note
             %strong Note:
-            Tags are separated with comma
+            Education are separated with comma
+    .row
+      .col-md-12
+        .form-group
+          %labelcontrol-label
+            Skill
+            %sup.text-danger
+          = f.text_field :tag_list , class: 'form-control tagsinput','data-role'=>'tagsinput' , placeholder: 'Skill are separated with comma' , value: @job.tag_list.join(", ")
+          %p.note
+            %strong Note:
+            Skill are separated with comma
     .row
       .col-md-12
         .form-group

@@ -115,52 +115,146 @@ header .add_job {
 }
 
 body.smart-style-6 #content.newsfeed {
+    background: #fff none repeat scroll 0 0;
+    border-left: 3px solid #2196f3;
     margin: 0 !important;
     padding: 0;
 }
 .newsfeed-left > ul {
+    list-style: outside none none;
     margin: 0;
+    max-height: 660px;
+    overflow: auto;
     padding: 0;
-    list-style: none;
 }
 .newsfeed-right {
     background: #f3f5f7 none repeat scroll 0 0;
-    border-left: 3px solid #4d5660;
+    border-left: 3px solid #2196f3;
     float: right;
     min-height: 660px;
-    padding: 20px;
-    width: 50%;
+    width: 70%;
+}
+body.smart-style-6 #ribbon {
+    background: #fff none repeat scroll 0 0;
+    border-bottom: 1px solid #ddd;
 }
 .newsfeed-left {
     float: left;
-    width: 50%;
+    width: 30%;
 }
 .newsfeed-left li {
-    background: #4d5660 none repeat scroll 0 0;
-    margin-bottom: 2px;
-    padding: 5px;
+    border-bottom: 1px solid #ddd;
+    margin-bottom: 0;
+    list-style: outside none none;
 }
 .newsfeed-left li a {
+    color: #333333;
     display: block;
     font-size: 16px;
-    color: #fff;
+    padding:10px;
+}
+.newsfeed-left li a:hover {
+    background: #E8EFF6;
 }
 .newsfeed h2 {
+    background: #fff none repeat scroll 0 0;
+    border-bottom: 1px solid #ddd;
+    display: block;
+    font-size: 20px;
+    font-weight: 500;
+    letter-spacing: 0;
+    line-height: 100%;
     margin: 0;
+    padding: 5px 0 10px;
     text-align: center;
-    font-weight: 600;
-    margin-bottom: 20px;
+    text-transform: capitalize;
 }
+
 .newsfeed .job-description {
-    margin-top: 20px;
+    background: #fff none repeat scroll 0 0;
+    margin-top: 0;
+    padding: 20px;
 }
 .job-description > span {
-    background: #fff;
-    display: block;
-    padding: 10px;
     border-radius: 5px;
+    color: #777;
+    display: block;
+    border-bottom: 1px solid #ddd;
+}
+.job-info > strong {
+    display: block;
+    font-weight: 600;
+    color: #333;
+    margin-bottom: 5px;
+}
+.job-description .job-info {
+    border-bottom: 1px solid #ccc;
+    margin-bottom: 10px;
+    padding-bottom: 10px;
+}
+.job-description .job-info:last-child {
+    margin: 0;
+    padding: 0;
+    border: none;
+}
+.job-info ul {
+    margin: 0;
+    list-style: none;
+    padding: 0;
+}
+.job-description .job-info li {
+    background: #e8eff6 none repeat scroll 0 0;
     border: 1px solid #ddd;
+    border-radius: 5px;
+    color: #000;
+    display: inline-block;
+    line-height: 20px;
+    padding: 5px 10px;
 }
 .job-match-candidates {
     margin-top: 20px;
+}
+.newsfeed-left span {
+    color: #777;
+    display: block;
+    font-size: 12px;
+    line-height: 100%;
+    margin-bottom: 5px;
+}
+.job-header > img {
+    border-radius: 50%;
+    display: block;
+    float: left;
+    height: 50px;
+    object-fit: cover;
+    width: 50px;
+}
+.job-header p.job_title {
+    display: inline-block;
+    margin: 0 0 0 10px;
+    font-size: 15px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    width: calc(100% - 60px);
+}
+.newsfeed-left span:last-child {
+    margin-bottom: 0;
+}
+.newsfeed-right .job-info .job-location {
+    margin-top: 20px;
+}
+.newsfeed-right .job-location > span {
+    color: #777;
+    display: block;
+}
+.job-title {
+    background: #e8eff6 none repeat scroll 0 0;
+    padding: 20px;
+    border-bottom: 1px solid #ddd;
+}
+.newsfeed-right .job-header p.job_title {
+    overflow: inherit;
+    text-overflow: inherit;
+    white-space: normal;
 }
