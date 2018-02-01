@@ -1,5 +1,5 @@
-#content{style:"overflow-y: hidden;"}
-  .row
+#content.newsfeed.contracts{style:"overflow-y: hidden;"}
+  -#.row
     -#.col-sm-12.col-md-12.col-lg-12
     -#  .product-content.product-wrap.clearfix.product-deatil
     -#    .row
@@ -157,75 +157,67 @@
     -#                        %td= invoice.end_date
     -#                        %td
     -#                          = link_to 'View Detail' , contract_invoice_path(@contract , invoice) , target: '_blank' ,class: 'btn btn-xs btn-default btn-primary'
-    .col-sm-12.col-md-12.col-lg-12
-      %h2
-        Contract Description
-      %div.contract-header
-        %div
-          %strong
-            Contract ID:
-          %span
+  %section#widget-grid.clearfix
+    .newsfeed-right
+      .job-title
+        .contract-top.clearfix
+          %span.pull-left
             =@contract.id
-        %div
-          %strong
-            client Name:
-          %span
-            =@contract.client.try(:full_name)
-        %div
-          %strong
-            Job Title:
-          %span
+          %span.pull-right
+            %i.fa.fa-calendar-o
+            1/2/2018
+        %div.job-header.clearfix
+          = image_tag "avatars/male.png"
+          %p.job_title
             =@contract.job.title
-        %div
-          %strong
-            cadidate Name:
+          %p.job_title
+            %i.fa.fa-user
+            =@contract.client.try(:full_name)
+        .job-location
           %span
-            =@contract.candidate.try(:full_name)
-        %div
-          %strong
-            Work Location:
-          %span
+            %i.fa.fa-map-marker
             =@contract.work_location
-        %div
-          %strong
-            start date:
           %span
+            %i.fa.fa-user
+            =@contract.candidate.try(:full_name)
+          %span
+            %i.fa.fa-calendar-o
             =@contract.start_date
-        %div
-          %strong
-            end date:
-          %span
+            To 
+            %i.fa.fa-calendar-o
             =@contract.end_date
       .col-sm-6.col-md-6.col-lg-6
         %h3
           sell side
-        %div.sell-side
-          %div.contract-custome-details
+        %div.sell-side.box
+          %div.contract-custome-details.line-bottom
+            %h5
+              Company info
             %div.row
               .col-sm-6.col-md-6.col-lg-6
                 %div
-                  %strong
-                    Company Name:
+                  %i.fa.fa-building
                   %span
                     =@contract.sell_contracts.first.try(:company).try(:full_name)
                 %div
-                  %strong
-                    Company Address:
                   %span
+                    %i.fa.fa-map-marker
                     NEED TO ADD
               .col-sm-6.col-md-6.col-lg-6
                 %div
-                  %strong
-                    Company Website:
+                  -#%strong
+                  -#  Company Website:
                   %span
+                    %i.fa.fa-link
                     -#=@contract.contractable.website
                 %div
-                  %strong
-                    Faq Id:
+                  -#%strong
+                  -#  Faq Id:
                   %span
+                    %i.fa.fa-id-badge
                     NEED TO ADD
-          %div.table-responsive
-            %table.table.table-bordered
+          %div.table.table-responsive
+            %table.table-bordered
               %thead
                 %tr
                   %th Business Contact Name
@@ -243,7 +235,7 @@
                     %td
                       =cbbd.department
           %div.contract-accounting
-            %div
+            %div.line-bottom
               %strong
                 Customer Date Hour:
               %span
@@ -263,47 +255,58 @@
       .col-sm-6.col-md-6.col-lg-6
         %h3
           buy side
-        %div.contract-custome-details
-          %div.row
+        %div.contract-custome-details.box
+          %h5
+            Candidate info
+          %div.row.line-bottom
             .col-sm-6.col-md-6.col-lg-6
               %div
-                %strong
-                  Candidate Name:
+                -#%strong
+                -#  Candidate Name:
                 %span
+                  %i.fa.fa-user
                   =@contract.candidate.full_name if @contract.candidate
               %div
-                %strong
-                  Candidate Address:
+                -#%strong
+                -#  Candidate Address:
                 %span
+                  %i.fa.fa-map-marker
                   =@contract.candidate.address.address_1 if @contract.candidate && @contract.candidate.address
             .col-sm-6.col-md-6.col-lg-6
               %div
-                %strong
-                  Encrypt SSN:
+                -#%strong
+                -#  Encrypt SSN:
                 %span
+                  %i.fa.fa-lock
                   =@contract.buy_contracts.first.try(:ssn)
               %div
-                %strong
-                  Contract Type:
+                -#%strong
+                -#  Contract Type:
                 %span
+                  %i.fa.fa-list-alt
                   =@contract.buy_contracts.first.try(:contract_type)
-          %div.row
+          %h5
+            Company info
+          %div.row.line-bottom
             .col-sm-6.col-md-6.col-lg-6
               %div
-                %strong
-                  Company Name:
+                -#%strong
+                -#  Company Name:
                 %span
+                  %i.fa.fa-building
                   -#=@contract.buy_company.full_name if @contract.buy_company
               %div
-                %strong
-                  Company Address:
+                -#%strong
+                -#  Company Address:
                 %span
+                  %i.fa.fa-map-marker
                   NEED TO ADD
             .col-sm-6.col-md-6.col-lg-6
               %div
-                %strong
-                  Company Website:
+                -#%strong
+                -#  Company Website:
                 %span
+                  %i.fa.fa-link
                   -#=@contract.buy_company.website if @contract.buy_company
               %div
                 %strong
@@ -329,14 +332,14 @@
                     %td
                       =csbd.department
           %div.contract-accounting
-            %div
+            %div.line-bottom
               %strong
                 Customer Date Hour:
               %span
                 =@contract.buy_contracts.first.try(:payrate)
             %h5
               Work hour terms
-            %div
+            %div.line-bottom
               %strong
                 Time sheet:
               %span

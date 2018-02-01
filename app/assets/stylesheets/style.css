@@ -258,3 +258,50 @@ body.smart-style-6 #ribbon {
     text-overflow: inherit;
     white-space: normal;
 }
+body.smart-style-6 #content.newsfeed.contracts {
+    border: none;
+}
+.newsfeed.contracts .newsfeed-right {
+    width: 100%;
+}
+.contract-top.clearfix {
+    margin-bottom: 5px;
+}
+.box{
+    background: #fff none repeat scroll 0 0;
+    border: 1px solid #ddd;
+    padding: 20px;
+    border-radius: 5px;
+}
+.box.np{
+    padding:0;
+}
+.line-bottom {
+    border-bottom: 1px solid #eee;
+    margin-bottom: 20px;
+    padding-bottom: 20px;
+}
+.contracts h3 {
+    background: rgb(33,150,243);
+    border-radius: 5px 5px 0 0;
+    color: #fff;
+    font-weight: 600;
+    margin: 0;
+    padding: 5px 20px;
+    text-transform: capitalize;
+}
+.contracts h5 {
+    font-size: 16px;
+    font-weight: bold;
+    margin: 0 0 10px;
+    text-transform: capitalize;
+}
+.contracts .box {
+    border-radius: 0 0 5px 5px;
+}
+.contracts .job-title {
+    margin-bottom: 15px;
+}
+.contracts .table th, .contracts .table td {
+    padding: 8px 10px !important;
+}
