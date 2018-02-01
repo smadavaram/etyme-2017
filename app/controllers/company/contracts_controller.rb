@@ -22,9 +22,9 @@ class Company::ContractsController < Company::BaseController
   def new
     @contract = current_company.sent_contracts.new
     @contract.contract_terms.new
-    @contract.contract_buy_business_details.build
-    @contract.contract_sell_business_details.build
-    @contract.contract_sale_commisions.build
+    @contract.sell_contracts.build
+    @contract.buy_contracts.build
+    # @contract.contract_sale_commisions.build
 
     @new_company = Company.new
     @new_company.build_owner
@@ -44,6 +44,7 @@ class Company::ContractsController < Company::BaseController
   end
 
   def create
+    params[:contract][:company_id] = params[:contract][:candidate_id]
     @contract  = current_company.sent_contracts.new(create_contract_params)
     respond_to do |format|
       if @contract.save
@@ -53,7 +54,6 @@ class Company::ContractsController < Company::BaseController
         }
         format.js{ flash.now[:success] = "successfully Send." }
       else
-        puts ":::::::#{@contract.errors.full_messages}::::::::"
         format.js{ flash.now[:errors] =  @contract.errors.full_messages }
         format.html{ flash[:errors] =  @contract.errors.full_messages
         redirect_back fallback_location: root_path
@@ -146,22 +146,24 @@ class Company::ContractsController < Company::BaseController
   end
 
   def contract_params
-      params.require(:contract).permit([:job_id  , :is_commission , :contract_type , :client_name, :client_name,
-                                        :company_name, :work_location, :received_by_signature,:received_by_name,:sent_by_signature,:sent_by_name,
-                                        :company_address, :company_website, :fed_id, :commission_type,:commission_amount , :max_commission , :commission_for_id ,
-                                        :candidate_name,  :customer_rate, :time_sheet_frequency, :invoice_terms_period, :show_accounting_to_employee, :billing_frequency, :time_sheet_frequency, :assignee_id , :contractable_id ,
-                                        :b_fed_id, :b_company_website, :b_company_address, :b_company_name, :b_ssn, :b_candidate_address, :b_candidate_name, :contractable_type , :job_application_id , :parent_contract_id ,:start_date ,
-                                        :b_show_accounting_to_employee, :payment_term, :b_time_sheet, :payrate, :contract_type, :end_date  , :message_from_hiring  ,:status ,company_doc_ids: [] ,
-                                        contract_terms_attributes: [:id, :created_by, :contract_id , :status ,
-                                        :terms_condition ,:rate , :note , :_destroy],attachments_attributes:[:id,:file,
-                                        :file_name,:file_size, :company_id ,:file_type,:attachable_type,:attachable_id,
-                                         :_destroy], contract_sell_business_details_attributes: [:id, :contact_name, :phone, :email, :department],
-                                           contract_buy_business_details_attributes: [:id, :contact_name, :phone, :email, :department],
-                                        contract_sale_commisions_attributes: [:id, :name, :rate, :frequency, :limit]
-                                       ])
-
-
-
+      params.require(:contract).permit(
+          [:job_id, :client_id, :candidate_id, :is_commission , :contract_type , :client_name, :client_name,
+           :company_name, :work_location, :received_by_signature,:received_by_name,:sent_by_signature,:sent_by_name,
+           :company_address, :company_website, :fed_id, :commission_type,:commission_amount , :max_commission,
+           :commission_for_id, :candidate_name,  :customer_rate, :time_sheet_frequency, :invoice_terms_period,
+           :show_accounting_to_employee, :billing_frequency, :time_sheet_frequency, :assignee_id , :contractable_id ,
+           :b_fed_id, :b_company_website, :b_company_address, :b_company_name, :b_ssn, :b_candidate_address,
+           :b_candidate_name, :contractable_type , :job_application_id , :parent_contract_id ,:start_date ,
+           :b_show_accounting_to_employee, :payment_term, :b_time_sheet, :payrate, :contract_type, :end_date,
+           :message_from_hiring, :status, company_doc_ids: [],
+           sell_contracts_attributes: [:company_id, :customer_rate, :customer_rate_type, :time_sheet, :invoice_terms_period, :show_accounting_to_employee,
+                                       contract_sell_business_details_attributes: [:id, :contact_name, :phone, :email, :department, :_destroy]],
+           buy_contracts_attributes: [:candidate_id, :ssn, :contract_type, :payrate, :time_sheet, :payment_term, :show_accounting_to_employee,
+                                      contract_buy_business_details_attributes: [:id, :contact_name, :phone, :email, :department, :_destroy],
+                                      contract_sale_commisions_attributes: [:id, :name, :rate, :frequency, :limit, :_destroy]],
+           contract_terms_attributes: [:id, :created_by, :contract_id, :status, :terms_condition, :rate, :note, :_destroy],
+           attachments_attributes:[:id,:file, :file_name,:file_size, :company_id ,:file_type,:attachable_type,:attachable_id,
+           :_destroy]])
   end
 
   def create_contract_params

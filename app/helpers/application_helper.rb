@@ -270,19 +270,29 @@ module ApplicationHelper
             title: 'HR',
             content: "<i class='fa fa-lg fa-fw fa-building-o'></i> <span class='menu-item-parent'>" + 'HR' + "</span>",
             children: [
-                {
-                    href: consultants_path,
-                    title: 'Consultants',
-                    content: "<span class='menu-item-parent'>" + 'Consultant(s)' + "</span>",
-                },
+                # {
+                #     href: consultants_path,
+                #     title: 'Consultants',
+                #     content: "<span class='menu-item-parent'>" + 'Consultant(s)' + "</span>",
+                # },
 
                 {
                   href: contracts_path,
                   title: 'Contracts',
                   content: "<span class='menu-item-parent'> Contract(s) </span>",
-                  }
+                },
 
+                {
+                    href: company_sell_contracts_path,
+                    title: 'Sell',
+                    content: "<span class='menu-item-parent'> Sell </span>",
+                },
 
+                {
+                    href: company_buy_contracts_path,
+                    title: 'Buy',
+                    content: "<span class='menu-item-parent'> Buy </span>",
+                }
             ]
         },
         {

@@ -22,8 +22,9 @@ class Contract < ApplicationRecord
   belongs_to :company, optional: true
   belongs_to :parent_contract , class_name: "Contract" , foreign_key: :parent_contract_id, optional: true
   belongs_to :contractable, polymorphic: true, optional: true
-  belongs_to :candidate
-  belongs_to :buy_company, foreign_key: :buy_company_id, class_name: "Company"
+  belongs_to :client, optional: true, foreign_key: :company_id, class_name: "Company"
+  belongs_to :candidate, optional: true
+  # belongs_to :buy_company, foreign_key: :buy_company_id, class_name: "Company"
 
   has_one    :child_contract, class_name: "Contract", foreign_key: :parent_contract_id
   has_one    :job_invitation , through: :job_application
@@ -36,9 +37,12 @@ class Contract < ApplicationRecord
   has_many   :attachable_docs, as: :documentable
   has_many   :attachments , as: :attachable
 
-  has_many :contract_buy_business_details
-  has_many :contract_sell_business_details
-  has_many :contract_sale_commisions
+  has_many :sell_contracts
+  has_many :buy_contracts
+
+  # has_many :contract_buy_business_details
+  # has_many :contract_sell_business_details
+  # has_many :contract_sale_commisions
 
   after_create :insert_attachable_docs
   after_create :notify_recipient , if: Proc.new{ |contract| contract.not_system_generated? }
@@ -53,10 +57,10 @@ class Contract < ApplicationRecord
   validate  :start_date_cannot_be_less_than_end_date , on: :create
   validate  :start_date_cannot_be_in_the_past , :next_invoice_date_should_be_in_future ,on: :create
   validates :status ,             inclusion: {in: statuses.keys}
-  validates :billing_frequency ,  inclusion: {in: billing_frequencies.keys}
-  validates :time_sheet_frequency,inclusion: {in: time_sheet_frequencies.keys}
+  # validates :billing_frequency ,  inclusion: {in: billing_frequencies.keys}
+  # validates :time_sheet_frequency,inclusion: {in: time_sheet_frequencies.keys}
   validates :commission_type ,    inclusion: {in: commission_types.keys} , on: :update , if: Proc.new{|contract| contract.is_commission}
-  validates :contract_type ,      inclusion: {in: contract_types.keys}
+  # validates :contract_type ,      inclusion: {in: contract_types.keys}
   validates :is_commission,       inclusion: {in: [ true, false ] }
   validates :start_date, :end_date , presence:   true
   validates :commission_amount  , numericality: true  , presence: true , if: Proc.new{|contract| contract.is_commission}
@@ -67,10 +71,16 @@ class Contract < ApplicationRecord
   accepts_nested_attributes_for :attachments ,   allow_destroy: true, reject_if: :all_blank
   accepts_nested_attributes_for :attachable_docs , reject_if: :all_blank
   accepts_nested_attributes_for :job    , allow_destroy: true
-  accepts_nested_attributes_for :contract_buy_business_details, allow_destroy: true,reject_if: :all_blank
-  accepts_nested_attributes_for :contract_sell_business_details, allow_destroy: true,reject_if: :all_blank
-  accepts_nested_attributes_for :contract_sale_commisions, allow_destroy: true,reject_if: :all_blank
 
+  accepts_nested_attributes_for :sell_contracts, allow_destroy: true,reject_if: :all_blank
+  accepts_nested_attributes_for :buy_contracts, allow_destroy: true,reject_if: :all_blank
+
+
+  # accepts_nested_attributes_for :contract_buy_business_details, allow_destroy: true,reject_if: :all_blank
+  # accepts_nested_attributes_for :contract_sell_business_details, allow_destroy: true,reject_if: :all_blank
+  # accepts_nested_attributes_for :contract_sale_commisions, allow_destroy: true,reject_if: :all_blank
+
+  include NumberGenerator.new({prefix: 'C', length: 7})
   default_scope  -> {order(created_at: :desc)}
 
   def is_not_ended?

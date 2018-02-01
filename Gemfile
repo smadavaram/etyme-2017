@@ -131,3 +131,5 @@ group :development, :test do
 end
 
 gem 'redis', '~> 3.3.3'
+gem "select2-rails", '~> 3.5.9.1'
+gem 'therubyracer'

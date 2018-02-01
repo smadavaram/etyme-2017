@@ -22,16 +22,16 @@
             %a{"data-toggle" => "tab", :href => "#tab-r1"}
               %span.badge.bg-color-blue.txt-color-white= @sent_contracts.count
               Contracts
-          %li
-            %a{"data-toggle" => "tab", :href => "#tab-r2"}
-              %span.badge.bg-color-blueDark.txt-color-white= @received_contracts.count
-              Sub Contracts
+          -#%li
+          -#  %a{"data-toggle" => "tab", :href => "#tab-r2"}
+          -#    %span.badge.bg-color-blueDark.txt-color-white= @received_contracts.count
+          -#    Sub Contracts
         .col-md-12
           .tab-content
             #tab-r1.tab-pane.padding-top-15.active.in
               = render 'company/contracts/partials/contract_table' , data: @sent_contracts
-            #tab-r2.tab-pane.padding-top-15
-              = render 'company/contracts/partials/receive_contract_table' , data: @received_contracts
+            -##tab-r2.tab-pane.padding-top-15
+            -#  = render 'company/contracts/partials/receive_contract_table' , data: @received_contracts
 - content_for :modals do
   #ajax-modal
 - content_for :scripts do

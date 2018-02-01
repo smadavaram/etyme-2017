@@ -12,14 +12,16 @@
       = select_tag 'contract[job_id]', options_for_select(current_company.jobs.collect { |c|[c.title, c.id] })  , class: "form-control"
 
   .form-group
-    %label.col-md-2.control-label  Client name
+    %label.col-md-2.control-label  Client
     .col-md-10
-      = f.text_field :client_name, class: "form-control", placeholder: "Contract Client name"
+      = hidden_field_tag "contract[client_id]", nil, id: "select_clients", required: true
+      =# f.text_field :client_name, class: "form-control", placeholder: "Contract Client name"
 
   .form-group
-    %label.col-md-2.control-label  Candidate name
+    %label.col-md-2.control-label  Candidate
     .col-md-10
-      = f.text_field :candidate_name, class: "form-control", placeholder: "Contract Candidate name"
+      = hidden_field_tag "contract[candidate_id]", nil, id: "select_candidates", required: true
+      =# f.text_field :candidate_name, class: "form-control", placeholder: "Contract Candidate name"
 
   .form-group
     %label.col-md-2.control-label  Work location

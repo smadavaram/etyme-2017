@@ -19,45 +19,51 @@
   -#  .col-md-10
   -#    = f.text_field :fed_id, class: "form-control", placeholder: "Contract Fed Id"
 
-  .form-group
-    %label.col-md-2.control-label  Company
-    .col-md-10
-      = select_tag 'contract[contractable_id]', options_for_select(current_company.invited_companies.collect { |c|[c.invited_company.name, c.invited_company.id] })  , class: "form-control"
+  =f.fields_for :sell_contracts do |sc|
+    .form-group
+      %label.col-md-2.control-label  Company
+      .col-md-10
+        = sc.hidden_field :company_id, id: "sell_contract_company", required: true
+        -#= hidden_field :company_id,
+        =# select_tag 'contract[contractable_id]', options_for_select(current_company.invited_companies.collect { |c|[c.invited_company.name, c.invited_company.id] })  , class: "form-control"
 
-  .row
-    .col-md-12
-      .form-group
-        =f.fields_for :contract_sell_business_details do |custom_field|
-          = render 'company/contracts/contract_sell_business_details_fields', f: custom_field
-      %strong
-        .links.col-sm-12
-          = link_to_add_association '+ Add', f, :contract_sell_business_details, class: 'text-info pull-right', partial: 'company/contracts/contract_sell_business_details_fields'
-          %br/
+    .row
+      .col-md-12
+        .form-group
+          =sc.fields_for :contract_sell_business_details do |custom_field|
+            = render 'company/contracts/contract_sell_business_details_fields', f: custom_field
+        %strong
+          .links.col-sm-12
+            = link_to_add_association '+ Add Business Details', sc, :contract_sell_business_details, class: 'text-info pull-right', partial: 'company/contracts/contract_sell_business_details_fields'
+            %br/
 
-  .form-group
-    %label.col-md-2.control-label
-      Customer Rate $
-    .col-md-10.select
-      = f.select :customer_rate, (0..60).map{|a| [a.to_s + " days",a]}, class: "form-control"
+    .form-group
+      %label.col-md-2.control-label
+        Customer Rate $
+      .col-md-10.select
+        = sc.number_field :customer_rate, class: "form-control"
+        = sc.select :customer_rate_type, ["hourly", "daily", "weekly", "monthly"], class: "form-control"
+    .form-group
+      %label.col-md-2.control-label
+        Time sheet
+      .col-md-10.select
+        = sc.select :time_sheet, ["hourly", "daily", "weekly", "monthly"].map { |key, value| [key.humanize, key] }, {},{class: "form-control" }
 
-  .form-group
-    %label.col-md-2.control-label
-      Time sheet
-    .col-md-10.select
-      = f.select :billing_frequency , Contract.billing_frequencies.map { |key, value| [key.humanize, key] }, {},{class: "form-control" }
+    .form-group
+      %label.col-md-2.control-label
+        Invoice Terms
+      .col-md-10.select
+        = sc.select :invoice_terms_period , (0..60).map{|a| ["Next " + a.to_s + " days",a]}, {},{class: "form-control" }
 
-  .form-group
-    %label.col-md-2.control-label
-      Invoice Terms
-    .col-md-10.select
-      = f.select :invoice_terms_period , (0..60).map{|a| ["Next " + a.to_s + " days",a]}, {},{class: "form-control" }
+    .form-group
+      %label.col-md-2.control-label
+      .col-md-10.select
+        = sc.check_box :show_accounting_to_employee
+        %span
+          Show Accounting term to employee ?
 
-  .form-group
-    %label.col-md-2.control-label
-    .col-md-10.select
-      = f.check_box :show_accounting_to_employee
-      %span
-        Show Accounting term to employee ?
+
+
   -#.form-group
   -#  %label.col-md-2.control-label
   -#    Type

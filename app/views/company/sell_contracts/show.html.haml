@@ -1,0 +1,63 @@
+%h3
+  sell side
+  %div.sell-side
+    %div.contract-custome-details
+      %div.row
+        .col-sm-6.col-md-6.col-lg-6
+          %div
+            %strong
+              Company Name:
+            %span
+              =@sell_contract.try(:company).try(:full_name)
+          %div
+            %strong
+              Company Address:
+            %span
+              NEED TO ADD
+        .col-sm-6.col-md-6.col-lg-6
+          %div
+            %strong
+              Company Website:
+            %span
+          -#=@sell_contract.contract.contractable.website
+          %div
+            %strong
+              Faq Id:
+            %span
+              NEED TO ADD
+    %div.table-responsive
+      %table.table.table-bordered
+        %thead
+          %tr
+            %th Business Contact Name
+            %th Phone Number
+            %th Email
+            %th Dept
+          -@sell_contract.contract_sell_business_details.each do |csbd|
+            %tr
+              %td
+                =csbd.contact_name
+              %td
+                =csbd.phone
+              %td
+                =csbd.email
+              %td
+                =csbd.department
+    %div.contract-accounting
+      %div
+        %strong
+          Customer Date Hour:
+        %span
+          =@sell_contract.try(:customer_rate)
+      %h5
+        Work hour terms
+      %div
+        %strong
+          Time sheet:
+        %span
+          =@sell_contract.try(:time_sheet)
+      %div
+        %strong
+          Invoice terms:
+        %span
+          =@sell_contract.try(:invoice_terms_period).to_s + " days"

@@ -1,0 +1,105 @@
+%h3
+  buy side
+  %div.contract-custome-details
+    %div.row
+      .col-sm-6.col-md-6.col-lg-6
+        %div
+          %strong
+            Candidate Name:
+          %span
+            =@buy_contract.contract.candidate.full_name if @buy_contract.contract.candidate
+        %div
+          %strong
+            Candidate Address:
+          %span
+            =@buy_contract.contract.candidate.address.address_1 if @buy_contract.contract.candidate && @buy_contract.contract.candidate.address
+      .col-sm-6.col-md-6.col-lg-6
+        %div
+          %strong
+            Encrypt SSN:
+          %span
+            =@buy_contract.try(:ssn)
+        %div
+          %strong
+            Contract Type:
+          %span
+            =@buy_contract.try(:contract_type)
+    %div.row
+      .col-sm-6.col-md-6.col-lg-6
+        %div
+          %strong
+            Company Name:
+          %span
+        -#=@buy_contract.contract.buy_company.full_name if @buy_contract.contract.buy_company
+        %div
+          %strong
+            Company Address:
+          %span
+            NEED TO ADD
+      .col-sm-6.col-md-6.col-lg-6
+        %div
+          %strong
+            Company Website:
+          %span
+        -#=@buy_contract.contract.buy_company.website if @buy_contract.contract.buy_company
+        %div
+          %strong
+            Faq Id:
+          %span
+            NEED TO ADD
+    %div.table-responsive
+      %table.table.table-bordered
+        %thead
+          %tr
+            %th Business Contact Name
+            %th Phone Number
+            %th Email
+            %th Dept
+          -@buy_contract.contract_buy_business_details.each do |csbd|
+            %tr
+              %td
+                =csbd.contact_name
+              %td
+                =csbd.phone
+              %td
+                =csbd.email
+              %td
+                =csbd.department
+    %div.contract-accounting
+      %div
+        %strong
+          Customer Date Hour:
+        %span
+          =@buy_contract.try(:payrate)
+      %h5
+        Work hour terms
+      %div
+        %strong
+          Time sheet:
+        %span
+          =@buy_contract.try(:time_sheet)
+      %div
+        %strong
+          Payment terms:
+        %span
+          =@buy_contract.try(:payment_term)
+    %div.table-responsive
+      %table.table.table-bordered
+        %thead
+          %tr
+            %th Name
+            %th Rate
+            %th Frequency
+            %th Limit
+            %th Action
+          -@buy_contract.contract_sale_commisions.each do |csc|
+            %tr
+              %td
+                =csc.name
+              %td
+                =csc.rate
+              %td
+                =csc.frequency
+              %td
+                =csc.limit
+              %td action

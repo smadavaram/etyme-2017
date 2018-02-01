@@ -92,6 +92,13 @@ class Company < ApplicationRecord
 
   attr_accessor :send_email
 
+  def self.like_any(fields, values)
+    conditions = fields.product(values).map do |(field, value)|
+      [arel_table[field].matches("#{value}%"), arel_table[field].matches("% #{value}%")]
+    end
+    where conditions.flatten.inject(:or)
+  end
+
   def invited_companies_contacts
     CompanyContact.where(company_id: self.invited_companies.map(&:invited_company_id))
   end

@@ -43,21 +43,27 @@
                       %th.hasinput{ :style => "width:10%"}
                         %input.form-control{:placeholder => "Status", :type => "text"}/
                     %tr{:role => "row"}
-                      %th Pic
+                      %th Number
                       %th Title
-                      %th Company/Candidate
+                      %th Client
+                      %th Candidate
                       %th Created By
-                      %th Expiry
+                      %th Start date
+                      %th Sell Contract
+                      %th Buy Contract
                       %th Invoice
                       %th Status
                   %tbody
                     - data.each do |contract|
                       %tr{class: "#{set_background_status_color(contract.status)}"}
-                        %td=image_tag show_recipient_picture(contract.contractable), alt: '', width: '20'
+                        %td=contract.number
                         %td=link_to contract.try(:title) ,contract_path(contract)
-                        %td= link_to show_recipient_name(contract.contractable)
+                        %td= contract.client.try(:full_name)
+                        %td= contract.candidate.try(:full_name)
                         %td= link_to contract.created_by.full_name , '#'
-                        %td= (contract.end_date)
+                        %td= (contract.start_date)
+                        %td= link_to contract.sell_contracts.first.try(:number), company_sell_contract_path(contract.sell_contracts.first.try(:number))
+                        %td= link_to contract.buy_contracts.first.try(:number), company_buy_contract_path(contract.buy_contracts.first.try(:number))
                         %td
                           =link_to "Invoice",contract_invoices_path(contract)
                         %td

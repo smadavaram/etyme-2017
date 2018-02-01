@@ -165,3 +165,5 @@
 //= require signature-pad/json2.min
 
 //=require cable
+//= require select2
+//= require company/select_autocomplete

@@ -176,6 +176,9 @@ Rails.application.routes.draw do
       end
     end
 
+    resources :sell_contracts
+    resources :buy_contracts
+
   end
 
   scope module: :company do
@@ -350,6 +353,13 @@ Rails.application.routes.draw do
   # Route set when subdomain is not present
   constraints(NakedEtymeDomain) do
     match '/'  => "static#index", via: [:get, :post]
+  end
+
+  namespace :api do
+    resources :select_searches, only: :index do
+      get :find_companies, on: :collection
+      get :find_job_applicants, on: :collection
+    end
   end
 
   root 'static#index'
