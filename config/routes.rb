@@ -359,6 +359,7 @@ Rails.application.routes.draw do
     resources :select_searches, only: :index do
       get :find_companies, on: :collection
       get :find_job_applicants, on: :collection
+      get :find_user_sign, on: :collection
     end
   end
 

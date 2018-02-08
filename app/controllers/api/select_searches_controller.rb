@@ -12,4 +12,10 @@ class Api::SelectSearchesController < ApplicationController
     respond_with @candidates
   end
 
+  def find_user_sign
+    @companies = Company.like_any([:name], params[:q][:name_cont].to_s.split).paginate(:page => params[:page], :per_page => params[:per_page])
+    @candidates = Candidate.like_any([:first_name, :last_name], params[:q][:name_cont].to_s.split).paginate(:page => params[:page], :per_page => params[:per_page])
+    respond_with [@companies, @candidates]
+  end
+
 end

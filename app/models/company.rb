@@ -58,6 +58,7 @@ class Company < ApplicationRecord
 
   has_many :share_by, through: :active_relationships, source: :shared_by
   has_many :share_to, through: :passive_relationships, source: :shared_to
+  has_many :document_signs       , as: :signable
 
   # validates           :company_type, inclusion: { in: [0, 1] } , presence: true
   # validates           :company_type, inclusion: {in: %w(0 , 1)}

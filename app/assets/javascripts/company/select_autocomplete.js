@@ -70,3 +70,36 @@ var set_job_candidate_select = function(selector, palce_holder){
         });
     }
 }
+
+var set_user_select = function(selector, palce_holder){
+    if ($(selector).length > 0) {
+        $(selector).select2({
+            placeholder: palce_holder,
+            multiple: true,
+            ajax: {
+                url: '/api/select_searches/find_user_sign',
+                dataType: 'json',
+                data: function (term, page) {
+                    return {
+                        per_page: 10,
+                        page: page,
+                        without_children: true,
+                        q: {
+                            name_cont: term
+                        }
+                    };
+                },
+                results: function (data, page) {
+                    var more = page < data.pages;
+                    return {
+                        results: data['companies'],
+                        more: more
+                    };
+                }
+            },
+            formatResult: formatUser,
+            formatSelection: formatSelectUser,
+            propertyMethods: ["value", "sdsss"]
+        });
+    }
+}

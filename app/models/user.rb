@@ -49,6 +49,7 @@ class User < ApplicationRecord
   has_many :statuses
 
   has_many :conversation_messages ,as: :userable
+  has_many :document_signs       , as: :signable
 
   accepts_nested_attributes_for :attachable_docs , reject_if: :all_blank
   accepts_nested_attributes_for :custom_fields   , reject_if: :all_blank

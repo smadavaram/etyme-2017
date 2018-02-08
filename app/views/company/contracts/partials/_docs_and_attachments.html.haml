@@ -1,33 +1,13 @@
 %fieldset
-  -#.form-group
-  -#  %label.col-md-2.control-label  Company name
-  -#  .col-md-10
-  -#    = select_tag 'contract[candidate_id]', options_for_select(current_company.invited_companies.collect { |c|[c.invited_company.name, c.invited_company.id] })  , class: "form-control"
-
-  -#.form-group
-  -#  %label.col-md-2.control-label  Candidate Name
-  -#  .col-md-10
-  -#    = f.text_field :b_candidate_name, class: "form-control", placeholder: "Contract Candidate Name"
-  -#
-  -#.form-group
-  -#  %label.col-md-2.control-label  Candidate Address
-  -#  .col-md-10
-  -#    = f.text_field :b_candidate_address, class: "form-control", placeholder: "Contract Candidate Address"
-
-
-
   =f.fields_for :buy_contracts do |bc|
     .form-group
       %label.col-md-2.control-label  Candidate
       .col-md-10
         = bc.hidden_field :candidate_id, id: "buy_contract_candidate", required: true
-        -#= select_tag 'contract[candidate_id]', options_for_select(current_company.candidates.collect { |c|[c.full_name, c.id] })  , class: "form-control"
-
     .form-group
       %label.col-md-2.control-label  SSN
       .col-md-10
         = bc.text_field :ssn, class: "form-control", placeholder: "SNN"
-
     .form-group
       %label.col-md-2.control-label  Contract Type
       .col-md-10
@@ -37,12 +17,6 @@
         1099
         = bc.radio_button :contract_type, "C2C", class: "form-control"
         C2C
-
-    -#.form-group
-    -#  %label.col-md-2.control-label  Company
-    -#  .col-md-10
-    -#    = select_tag 'contract[buy_company_id]', options_for_select(current_company.invited_companies.collect { |c|[c.invited_company.name, c.invited_company.id] })  , class: "form-control"
-
     .row
       .col-md-12
         .form-group
@@ -51,6 +25,30 @@
         %strong
           .links.col-sm-12
             = link_to_add_association '+ Add Business Details', bc, :contract_buy_business_details, class: 'text-info pull-right', partial: 'company/contracts/contract_sell_business_details_fields'
+            %br/
+    .row
+      Employye/Vender Documents
+      .col-md-12.contract-attachment
+        .form-group
+          =bc.fields_for :buy_send_documents do |custom_field|
+            = render 'company/contracts/contract_documents_fields', f: custom_field
+        %strong
+          .links.col-sm-6
+            = link_to_add_association '+ Add Send documents', bc, :buy_send_documents, class: 'text-info pull-right', partial: 'company/contracts/contract_documents_fields'
+            %br/
+        .form-group
+          =bc.fields_for :buy_emp_req_docs do |custom_field|
+            = render 'company/contracts/contract_documents_fields', f: custom_field
+        %strong
+          .links.col-sm-6
+            = link_to_add_association '+ Add Employee Request documents', bc, :buy_emp_req_docs, class: 'text-info pull-right', partial: 'company/contracts/contract_documents_fields'
+            %br/
+        .form-group
+          =bc.fields_for :buy_ven_req_docs do |custom_field|
+            = render 'company/contracts/contract_documents_fields', f: custom_field
+        %strong
+          .links.col-sm-6
+            = link_to_add_association '+ Add Vender Request documents', bc, :buy_ven_req_docs, class: 'text-info pull-right', partial: 'company/contracts/contract_documents_fields'
             %br/
 
     .form-group
@@ -73,7 +71,7 @@
         Payment Term
         %sup.text-danger *
       .col-md-10.select
-        = bc.select :payment_term , (0..60).map{|a| ["Next " + a.to_s + " days",a]}, {},{class: "form-control" }
+        = bc.select :payment_term , (0..60).map{|a| ["Net " + a.to_s + " days",a]}, {},{class: "form-control" }
 
     .form-group
       %label.col-md-2.control-label
@@ -93,10 +91,10 @@
             %br/
 
 
-:javascript
-  $( document ).ready(function() {
-     $(".multi-select2-company-docs").select2({
-     placeholder: "Select a Doc(s)",
-      tokenSeparators: [',', ' ']
-     });
-  });
+-#:javascript
+-#  $( document ).ready(function() {
+-#     $(".multi-select2-company-docs").select2({
+-#     placeholder: "Select a Doc(s)",
+-#      tokenSeparators: [',', ' ']
+-#     });
+-#  });

@@ -94,18 +94,18 @@
      });
   });
    // $(".multi-select2").select2({placeholder: "Select Doc's"});
-  $('#contract-attachment').on('cocoon:after-insert', function(e, insertedItem) {
-        insertedItem.find('.filepicker-attachment').each(function(i,e){
-          filepicker.constructWidget(e);
-
-        $(".filepicker-attachment").on('click',function() {
-        $('.fp__overlay').css({'z-index':'99999'})
-        });
-
-        $('.filepicker-attachment').on('click',function() {
-          $(this).hide();
-         });
-
-        });
-    });
+  //$('#contract-attachment').on('cocoon:after-insert', function(e, insertedItem) {
+  //      insertedItem.find('.filepicker-attachment').each(function(i,e){
+  //        filepicker.constructWidget(e);
+  //
+  //      $(".filepicker-attachment").on('click',function() {
+  //      $('.fp__overlay').css({'z-index':'99999'})
+  //      });
+  //
+  //      $('.filepicker-attachment').on('click',function() {
+  //        $(this).hide();
+  //       });
+  //
+  //      });
+  //  });
 
