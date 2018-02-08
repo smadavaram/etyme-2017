@@ -1,7 +1,7 @@
 class BuyVenReqDoc < ApplicationRecord
 
-  belongs_to :buy_contract
-  belongs_to :creatable      , polymorphic: :true
+  belongs_to :buy_contract, optional: true
+  belongs_to :creatable      , polymorphic: :true, optional: true
 
   has_many :document_signs       , as: :documentable
 

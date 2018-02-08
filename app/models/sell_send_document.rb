@@ -1,7 +1,7 @@
 class SellSendDocument < ApplicationRecord
 
-  belongs_to :sell_contract
-  belongs_to :creatable      , polymorphic: :true
+  belongs_to :sell_contract, optional: true
+  belongs_to :creatable      , polymorphic: :true, optional: true
 
   has_many :document_signs       , as: :documentable
 
