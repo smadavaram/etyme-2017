@@ -16,20 +16,26 @@
                   %thead
                     %tr{:role => "row"}
                       %th.expand.sorting_asc number
-                      %th.contract_type
+                      %th Contract
+                      %th contract_type
+                      %th Customer
                       %th.sorting{} payrate
                       %th.sorting{} time_sheet
                       %th.sorting{} payment_term
-                      %th.sorting{} show_accounting_to_employee
+                      %th.sorting{} show employee
+                      %th action
                   %tbody
                     - @buy_contracts.each_with_index  do |bc, index|
                       %tr.even{:role => "row"}
                         %td= link_to bc.number, company_buy_contract_path(bc.number)
+                        %td=link_to bc.contract.try(:title) ,contract_path(bc.contract)
                         %td= bc.contract_type
+                        %td= bc.candidate.try(:full_name)
                         %td= bc.payrate
                         %td= bc.time_sheet
                         %td= bc.payment_term
                         %td= bc.show_accounting_to_employee
+                        %td
 
 :css
   .form-control

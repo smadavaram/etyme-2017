@@ -16,6 +16,8 @@
                   %thead
                     %tr{:role => "row"}
                       %th number
+                      %th.sorting{} Contract
+                      %th.sorting{} company
                       %th.expand.sorting_asc customer_rate
                       %th.sorting{} time_sheet
                       %th.sorting{} invoice_terms_period
@@ -24,6 +26,8 @@
                     - @sell_contracts.each_with_index  do |sc, index|
                       %tr.even{:role => "row"}
                         %td= link_to sc.number, company_sell_contract_path(sc.number)
+                        %td= link_to sc.contract.try(:title) ,contract_path(sc.contract)
+                        %td= sc.company.try(:full_name)
                         %td= sc.customer_rate
                         %td= sc.time_sheet
                         %td= sc.invoice_terms_period

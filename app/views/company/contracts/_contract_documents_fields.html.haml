@@ -3,7 +3,10 @@
     %label.col-md-2.control-label
       Documents
     .col-md-10
-      = f.filepicker_field :doc_file, :button_text => "Pick File", disable: true , class: 'file-pick btn btn-primary filepicker-attach'
+      = f.filepicker_field :doc_file, :button_text => "Pick File", disable: true , class: 'file-pick btn btn-primary filepicker-attach filepicker-attach-doc'
+      = f.hidden_field :file_name, class: "doc-file-name"
+      = f.hidden_field :file_size, class: "doc-file-size"
+      = f.hidden_field :file_type, class: "doc-file-type"
 
   .form-group
     %label.col-md-2.control-label
@@ -23,9 +26,21 @@
       -f.object.document_signs.build
       =f.fields_for :document_signs do |ds|
         = link_to_add_fields 'available_tour_fields', f, :document_signs, {partial: 'company/contracts/contract_document_users_fields'}, {class: 'doc-user-generater'}
-        =# link_to_add_association '+ Add Signable user', f, :document_signs, class: 'text-info hidde1n doc-user-generater', partial: 'company/contracts/contract_document_users_fields'
         = ds.hidden_field :signable ,class: "form-control whois_sign" , placeholder: ""
 
 
     .col-md-2.margin-top-5
       = link_to_remove_association "Remove", f, class: "btn btn-danger remove pull-right"
+:javascript
+    $(document).ready(function() {
+        pageSetUp();
+        $(".filepicker-attach-doc").on("change", function(e){
+          var name = e["originalEvent"]["fpfile"]["filename"];
+          var size = e["originalEvent"]["fpfile"]["size"];
+          var type = e["originalEvent"]["fpfile"]["mimetype"];
+          alert(name+size+type)
+          $(this).siblings(".doc-file-name" ).val(name);
+          $(this).siblings( ".doc-file-size" ).val(size);
+          $(this).siblings( ".doc-file-type" ).val(type);
+        })
+      });

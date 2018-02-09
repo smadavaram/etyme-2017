@@ -43,7 +43,7 @@
                       %th.hasinput{ :style => "width:10%"}
                         %input.form-control{:placeholder => "Status", :type => "text"}/
                     %tr{:role => "row"}
-                      %th Number
+                      %th Id
                       %th Title
                       %th Client
                       %th Candidate
@@ -53,21 +53,42 @@
                       %th Buy Contract
                       %th Invoice
                       %th Status
+                      %th Action
                   %tbody
                     - data.each do |contract|
                       %tr{class: "#{set_background_status_color(contract.status)}"}
                         %td=contract.number
                         %td=link_to contract.try(:title) ,contract_path(contract)
-                        %td= contract.client.try(:full_name)
+                        %td
+                          = contract.client.try(:full_name)
                         %td= contract.candidate.try(:full_name)
                         %td= link_to contract.created_by.full_name , '#'
                         %td= (contract.start_date)
-                        %td= link_to contract.sell_contracts.first.try(:number), company_sell_contract_path(contract.sell_contracts.first.try(:number))
-                        %td= link_to contract.buy_contracts.first.try(:number), company_buy_contract_path(contract.buy_contracts.first.try(:number))
+                        %td
+                          = link_to contract.sell_contracts.first.try(:number), company_sell_contract_path(contract.sell_contracts.first.try(:number))
+                          %br
+                          =contract.sell_contracts.first.try(:customer_rate)
+                          %br
+                          =contract.sell_contracts.first.try(:time_sheet)
+                          %br
+                          =contract.sell_contracts.first.try(:invoice_terms_period)
+                          %br
+                          =contract.sell_contracts.first.try(:show_accounting_to_employee)
+                        %td
+                          = link_to contract.buy_contracts.first.try(:number), company_buy_contract_path(contract.buy_contracts.first.try(:number))
+                          %br
+                          =contract.buy_contracts.first.try(:contract_type)
+                          %br
+                          =contract.buy_contracts.first.try(:payrate)
+                          %br
+                          =contract.buy_contracts.first.try(:time_sheet)
+                          %br
+                          =contract.buy_contracts.first.try(:payment_term)
                         %td
                           =link_to "Invoice",contract_invoices_path(contract)
                         %td
                           = label_status_color(contract.status)
+                        %td
 
 = digg_pagination(data)
 

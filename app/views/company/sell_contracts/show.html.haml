@@ -43,6 +43,17 @@
                 =csbd.email
               %td
                 =csbd.department
+    %div
+      %ul
+        Send Documents
+        -@sell_contract.sell_send_documents.each do |ssd|
+          %li
+            =link_to ssd.file_name, ssd.doc_file, target: "_blank"
+      %ul
+        Request Documents
+        -@sell_contract.sell_request_documents.each do |srd|
+          %li
+            =link_to srd.file_name, srd.doc_file, target: "_blank"
     %div.contract-accounting
       %div
         %strong

@@ -1,6 +1,7 @@
 class SellContract < ApplicationRecord
 
   belongs_to :contract, optional: true
+  belongs_to :company, optional: true
   has_many :contract_sell_business_details
   has_many :sell_send_documents
   has_many :sell_request_documents

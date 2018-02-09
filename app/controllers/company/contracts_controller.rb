@@ -162,13 +162,13 @@ class Company::ContractsController < Company::BaseController
                contract_sell_business_details_attributes: [
                    :id, :contact_name, :phone, :email, :department, :_destroy
                ],
-               sell_send_documents_attributes: [:id, :doc_file, :when_expire, :is_sign_required, :creatable_type,
+               sell_send_documents_attributes: [:id, :doc_file, :file_name, :file_size, :file_type, :when_expire, :is_sign_required, :creatable_type,
                                                 :creatable_id, :_destroy,
                                                 document_signs_attributes: [
                                                     :id, :signable_type, :signable_id, :_destroy
                                                 ]
                ],
-               sell_request_documents_attributes: [:id, :doc_file, :when_expire, :is_sign_required, :creatable_type,
+               sell_request_documents_attributes: [:id, :doc_file, :file_name, :file_size, :file_type, :when_expire, :is_sign_required, :creatable_type,
                                                    :creatable_id,:_destroy,
                                                    document_signs_attributes: [:id, :signable_type, :signable_id, :_destroy] ]
                                       ],
@@ -182,20 +182,20 @@ class Company::ContractsController < Company::BaseController
                    :id, :name, :rate, :frequency, :limit, :_destroy
                ],
                buy_send_documents_attributes: [
-                   :id, :doc_file, :when_expire, :is_sign_required, :creatable_type,
+                   :id, :doc_file, :file_name, :file_size, :file_type, :when_expire, :is_sign_required, :creatable_type,
                                                :creatable_id,:_destroy,
                                               document_signs_attributes: [
                                                   :id, :signable_type, :signable_id, :_destroy
                                               ]
                ],
                buy_emp_req_docs_attributes: [
-                   :id, :doc_file, :when_expire, :is_sign_required, :creatable_type, :creatable_id,:_destroy,
+                   :id, :doc_file, :file_name, :file_size, :file_type, :when_expire, :is_sign_required, :creatable_type, :creatable_id,:_destroy,
                                             document_signs_attributes: [
                                                 :id, :signable_type, :signable_id, :_destroy
                                             ]
                ],
                buy_ven_req_docs_attributes: [
-                   :id, :doc_file, :when_expire, :is_sign_required, :creatable_type, :creatable_id,:_destroy,
+                   :id, :doc_file, :file_name, :file_size, :file_type, :when_expire, :is_sign_required, :creatable_type, :creatable_id,:_destroy,
                                             document_signs_attributes: [
                                                 :id, :signable_type, :signable_id, :_destroy
                                             ]

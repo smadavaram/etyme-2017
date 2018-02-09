@@ -65,6 +65,22 @@
                 =csbd.email
               %td
                 =csbd.department
+    %div
+      %ul
+        Send Documents
+        -@buy_contract.buy_send_documents.each do |bsd|
+          %li
+            =link_to bsd.file_name, bsd.doc_file, target: "_blank"
+      %ul
+        Employee Request Documents
+        -@buy_contract.buy_emp_req_docs.each do |berd|
+          %li
+            =link_to berd.file_name, berd.doc_file, target: "_blank"
+      %ul
+        Vendor Request Documents
+        -@buy_contract.buy_ven_req_docs.each do |bvrd|
+          %li
+            =link_to bvrd.file_name, bvrd.doc_file, target: "_blank"
     %div.contract-accounting
       %div
         %strong
