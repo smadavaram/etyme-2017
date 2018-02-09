@@ -12,7 +12,7 @@ class UserMailer < ApplicationMailer
     @owner = user
     @company = user.company rescue nil
     @email =  "Etyme <no-reply@etyme.com>"
-    @link  = @company.present? ? "#{@company.etyme_url}/users/confirmation?confirmation_token=#{token}" : " #{@owner.etyme_url}/candidates/confirmation?confirmation_token=#{token}"
+    @link  = @company.present? ? "http://#{@company.etyme_url}/users/confirmation?confirmation_token=#{token}" : "http://#{@owner.etyme_url}/candidates/confirmation?confirmation_token=#{token}"
     mail(:to => @owner.email, :subject => "Welcome to Etyme",:from => @email)
   end
 

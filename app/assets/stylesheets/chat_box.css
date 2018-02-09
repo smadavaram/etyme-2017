@@ -145,9 +145,11 @@
 }
 
 .messages_bs .tab-content {
+    padding: 0 10px;
+}
+.chatboxcontent-page{
     height: 485px;
     overflow: auto;
-    padding: 80px 10px;
 }
 .keystroke_tabs_bs .messages_bs {
     padding: 0;

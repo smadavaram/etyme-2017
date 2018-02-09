@@ -32,6 +32,9 @@ function set_conversation(data){
     }
   }
   $(data.dom).append("<div class='" + ((current_user_id == data.user && current_user_type == data.user ) ? 'send_message' : 'receive_message') + "'><span>" + data.message+"</span></div>");
+  if($("#conversation_"+data.conversation_id)[0]){
+    $("#conversation_"+data.conversation_id).scrollTop($("#conversation_"+data.conversation_id)[0].scrollHeight);
+  }
 }
 
 function mark_as_read(conversation_id, message_id){

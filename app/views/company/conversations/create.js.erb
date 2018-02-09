@@ -1,5 +1,5 @@
 $("#conversation-section").html("<%= j render 'company/conversations/conversation' %>");
 $("#unread-msg-<%= current_user.id %>").html("<%= @unread_message_count.to_i > 0 ? @unread_message_count : '' %>");
-$('.messages_bs .chat_box .keystroke_msgs_box').slimScroll({
-  height: '540px'
-});
+if($("#conversation_<%= @conversation.id %>")[0]){
+  $("#conversation_<%= @conversation.id %>").scrollTop($("#conversation_<%= @conversation.id %>")[0].scrollHeight);
+}

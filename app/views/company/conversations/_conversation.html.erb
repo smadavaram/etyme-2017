@@ -5,8 +5,8 @@
     </div>
   </div>
   <div class="tab-content">
-    <div class="tab-pane active" id="home" role="tabpanel">
-      <div class="keystroke_msgs_box" id="conversation_<%= @conversation.id if @conversation.present? %>">
+    <div class="tab-pane active chatboxcontent-page " id="conversation_<%= @conversation.id if @conversation.present? %>" role="tabpanel" >
+      <div class="keystroke_msgs_box" >
         <% @messages.each do |msg| %>
           <div class="<%= msg.userable == current_user ? 'send_message' : 'receive_message' %>">
             <span><%= msg.body %></span>

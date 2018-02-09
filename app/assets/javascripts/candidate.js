@@ -163,3 +163,5 @@
 //= require signature-pad/json2.min
 
 //=require cable
+//= require conversation/chat
+//= require conversation/users

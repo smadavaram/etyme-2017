@@ -167,3 +167,6 @@
 //=require cable
 //= require select2
 //= require company/select_autocomplete
+
+//= require conversation/chat
+//= require conversation/users

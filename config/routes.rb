@@ -363,6 +363,11 @@ Rails.application.routes.draw do
     end
   end
 
+  resources :conversations do
+    resources :conversation_messages do
+      get :mark_as_read, on: :member
+    end
+  end
   root 'static#index'
 
 end
