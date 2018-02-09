@@ -3,11 +3,19 @@ class Static::JobApplicationsController < ApplicationController
   before_action :find_job ,only: :create
 
   def create
-    @job_application=current_candidate.job_applications.new(job_application_params.merge(job_id:params[:job_id]))
-    if @job_application.save
-      flash[:success] = "Job Application Created"
+    if params[:candidate_id].present?
+      @candidate = Candidate.where(id: params[:candidate_id].split(" ").map(&:to_i))
+      @candidate.each do |candidate|
+        @job_application=candidate.job_applications.new(job_application_params.merge(job_id:params[:job_id]))
+        @job_application.save
+      end
     else
-      flash[:errors] = @job_application.errors.full_messages
+      @job_application=current_candidate.job_applications.new(job_application_params.merge(job_id:params[:job_id]))
+      if @job_application.save
+        flash[:success] = "Job Application Created"
+      else
+        flash[:errors] = @job_application.errors.full_messages
+      end
     end
     redirect_back fallback_location: root_path
   end

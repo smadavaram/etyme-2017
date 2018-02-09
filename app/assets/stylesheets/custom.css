@@ -77,3 +77,6 @@
 {
     width: 49%;
 }
+.disableClick{
+    pointer-events: none;
+}

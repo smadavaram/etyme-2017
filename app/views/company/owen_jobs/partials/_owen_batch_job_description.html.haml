@@ -31,7 +31,7 @@
             %li=tl
     .job-info
       %strong
-        Education
+        Educatio
       %span
         %ul
           -@job.education_list.each do |el|
@@ -49,7 +49,6 @@
           %th Location
           %th Visa
           %th Recuiter Name
-          %th Actions
       %tbody
         - current_company.candidates.each do |c|
           - if (job_skills & c.skills.pluck(:name)).count >= count
@@ -76,13 +75,3 @@
                   %span
                     .label-info.badge.margin-bottom-5
                       = com.name
-              %td
-                = link_to 'Apply',apply_company_public_job_path(@job, candidate_id: c.id), class: "btn btn-xs btn-primary margin-bottom-5 #{'disableClick' if c.is_already_applied?(@job.id)}",title: "Assign Groups", method: :post, remote: true, disabled: c.is_already_applied?(@job.id)
-    -user_list = []
-    -current_company.candidates.each do |c|
-      -user_list.push(c.id) if (job_skills & c.skills.pluck(:name)).count >= count
-    -appli_ids = @job.job_applications.pluck(:applicationable_id)
-    - ref_id = current_company.jobs.pluck(:ref_job_id).uniq
-    = link_to 'Apply for All',apply_company_public_job_path(@job,candidate_id:user_list - appli_ids), class: "btn btn-sm btn-primary margin-bottom-5 #{'disableClick' if appli_ids.sort == user_list.sort}",title: "Assign Groups",method: :post, remote: true, disabled:  appli_ids.sort == user_list.sort
-    = link_to 'Make it batch job',create_batch_job_company_public_job_path(@job), class: "btn btn-sm btn-primary margin-bottom-5 #{'disableClick' if @job.is_bench_job == true}",title: "Batch jb", method: :post, disabled: @job.is_bench_job
-    = link_to 'Make it my job',create_own_job_company_public_job_path(@job), class: "btn btn-sm btn-primary margin-bottom-5 #{'disableClick' if ref_id.include?(@job.id)}",title: "Assign Groups", method: :post, disabled: ref_id.include?(@job.id) if current_company.id != @job.company.id

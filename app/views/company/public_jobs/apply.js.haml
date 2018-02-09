@@ -1,0 +1,8 @@
+$('#job_application').html(("#{ j render('partials/job_application_modal' , job: @job , job_application: @job_application,candidate_id: @candidate_id )}"));
+$('#job-apply-#{@job.id }').modal('show');
+var element = $('#accept-filepiker');
+filepicker.constructWidget(element);
+
+$( ".file-pick" ).on('click',function() {
+$(".fp__overlay").css({'z-index':'99999'});
+});
