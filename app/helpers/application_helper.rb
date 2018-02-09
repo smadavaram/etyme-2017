@@ -234,7 +234,7 @@ module ApplicationHelper
                     content: "<span class='menu-item-parent'> Public </span>"
                 },
                 {
-                    href: "#",
+                    href: company_owen_jobs_path,
                     title: 'My Job',
                     content: "<span class='menu-item-parent'> My Job </span>"
                 }

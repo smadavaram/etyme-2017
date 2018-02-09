@@ -16,6 +16,7 @@ class Company::JobsController < Company::BaseController
   end
   def show
     add_breadcrumb @job.try(:title).try(:titleize)[0..30], :job_path, options: { title: "Job Invitation" }
+    @job_applications = @job.job_applications
   end
 
   def new
@@ -87,6 +88,7 @@ class Company::JobsController < Company::BaseController
       # @preferred_vendors_companies = Company.joins(:users).where("users.type = ?" , 'Vendor') - [current_company]|| []
       @preferred_vendors_companies = Company.vendors - [current_company] || []
     end
+
 
     def company_job_params
       params.require(:job).permit([:title,:description,:location,:job_category, :is_public , :start_date , :end_date , :tag_list, :video_file, :industry, :department, :job_type, :price, :education_list, custom_fields_attributes:

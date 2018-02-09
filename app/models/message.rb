@@ -19,7 +19,10 @@ class Message < ApplicationRecord
 
   def trigger_pusher
     timeout_and_retry do
-      Pusher.trigger(self.chat.channel_name, 'send-message', {message: self.id })
+      begin
+        Pusher.trigger(self.chat.channel_name, 'send-message', {message: self.id })
+      rescue Pusher::Error => e
+      end
     end
 
   end

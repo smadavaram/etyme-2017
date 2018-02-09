@@ -167,8 +167,14 @@ Rails.application.routes.draw do
     resources :job_receives, only: [:index, :destroy]
     resources :public_jobs, only: [:index, :destroy] do
       get :job, on: :member
+      get :apply_job_candidate, on: :member
+      post :create_batch_job, on: :member
+      post :create_own_job, on: :member
+      post :apply, on: :member
     end
-
+    resources :owen_jobs, only: [:index] do
+      get :batch_job, on: :member
+    end
     resources :conversations do
       get :search, on: :collection
       resources :conversation_messages do
