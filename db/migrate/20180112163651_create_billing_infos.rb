@@ -1,4 +1,4 @@
-class CreateBillingInfos < ActiveRecord::Migration
+class CreateBillingInfos < ActiveRecord::Migration[5.1]
   def change
     create_table :billing_infos do |t|
       t.belongs_to :company, index: true

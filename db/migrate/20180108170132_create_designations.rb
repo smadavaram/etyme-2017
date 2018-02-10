@@ -1,4 +1,4 @@
-class CreateDesignations < ActiveRecord::Migration
+class CreateDesignations < ActiveRecord::Migration[5.1]
   def change
     create_table :designations do |t|
       t.belongs_to :candidate, index: true

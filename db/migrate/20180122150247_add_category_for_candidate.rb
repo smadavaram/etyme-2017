@@ -1,4 +1,4 @@
-class AddCategoryForCandidate < ActiveRecord::Migration
+class AddCategoryForCandidate < ActiveRecord::Migration[5.1]
   def change
     add_column :candidates, :category, :string
     add_column :candidates, :subcategory, :string
