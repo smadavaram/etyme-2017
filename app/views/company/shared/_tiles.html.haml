@@ -1,6 +1,31 @@
 #shortcut
   %ul
     %li
+      = link_to company_path(current_company), class: 'jarvismetro-tile big-cubes selected bg-color-blueDark' do
+        %span.iconbox
+          %i.fa.fa-building.fa-4x
+          %span Company Info
+    %li
+      = link_to admins_path, class: 'jarvismetro-tile big-cubes bg-color-blueDark' do
+        %span.iconbox
+          %i.fa.fa-lock.fa-4x
+          %span users(owner)
+    %li
+      = link_to departments_path , class: 'jarvismetro-tile big-cubes bg-color-blueDark' do
+        %span.iconbox
+          %i.fa.fa-key.fa-4x
+          %span Department
+    %li
+      = link_to roles_path , class: 'jarvismetro-tile big-cubes bg-color-blueDark' do
+        %span.iconbox
+          %i.fa.fa-key.fa-4x
+          %span Roles/Permissions
+    %li
+      = link_to attachments_path, class: 'jarvismetro-tile big-cubes bg-color-blueDark' do
+        %span.iconbox
+          %i.fa.fa-book.fa-4x
+          %span Documents
+    %li
       = link_to company_user_path(current_user), class: 'jarvismetro-tile big-cubes bg-color-blueDark' do
         %span.iconbox
           %i.fa.fa-user.fa-4x
@@ -21,27 +46,11 @@
           %span Groups
           %span.label.pull-right.bg-color-darken
             = current_company.groups.count
-    %li
-      = link_to admins_path, class: 'jarvismetro-tile big-cubes bg-color-blueDark' do
-        %span.iconbox
-          %i.fa.fa-lock.fa-4x
-          %span Admins
-    %li
-      = link_to attachments_path, class: 'jarvismetro-tile big-cubes bg-color-blueDark' do
-        %span.iconbox
-          %i.fa.fa-book.fa-4x
-          %span
-            Documents
     -#%li
     -#  = link_to company_path(current_company), class: 'jarvismetro-tile big-cubes bg-color-blueDark' do
     -#    %span.iconbox
     -#      %i.fa.fa-gears.fa-4x
     -#      %span Settings
-    %li
-      = link_to roles_path , class: 'jarvismetro-tile big-cubes bg-color-blueDark' do
-        %span.iconbox
-          %i.fa.fa-key.fa-4x
-          %span Roles/Permissions
     %li
       = link_to company_path(current_company), class: 'jarvismetro-tile big-cubes selected bg-color-blueDark' do
         %span.iconbox

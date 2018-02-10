@@ -1,9 +1,9 @@
-class Education < ApplicationRecord
-  validates :degree_title , presence: true
-  validates :start_year ,  presence: true
-  validates :completion_year , presence: true
-  validate  :completion_year_is_greater_than_start_year
-  belongs_to :candidate , class_name:  "Candidate" ,foreign_key: 'user_id', optional: true
+class Education < ActiveRecord::Base
+  # validates :degree_title , presence: true
+  # validates :start_year ,  presence: true
+  # validates :completion_year , presence: true
+  # validate  :completion_year_is_greater_than_start_year
+  belongs_to :candidate , class_name:  "Candidate" ,foreign_key: 'user_id'
 
   private
 

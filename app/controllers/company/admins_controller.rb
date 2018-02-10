@@ -81,7 +81,7 @@ class Company::AdminsController < Company::BaseController
   def admin_params
     params.require(:admin).permit(:first_name,
                                        :last_name ,
-                                       :email ,
+                                       :email ,:phone,
                                   :primary_address_id,
                                        role_ids: [],
                                        company_doc_ids: [],

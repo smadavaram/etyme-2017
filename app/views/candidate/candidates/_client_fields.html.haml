@@ -1,0 +1,35 @@
+.row.multi-field-container{style: "padding: 15px;"}
+  .row
+    .col-md-4
+      .form-group
+        = f.text_field :name,placeholder: "Client Name",class: 'form-control'
+    .col-md-4
+      .form-group
+        = f.select :industry, industry_list,{},{class: 'form-control'}
+    .col-md-2
+      .form-group
+        = f.text_field :start_date,placeholder: "MM/DD/YY",class: 'form-control education_start_year'
+    .col-md-2
+      .form-group
+        = f.text_field :end_date,placeholder:"MM/DD/YY",class: 'form-control education_completion_year'
+  .row
+    .col-md-5
+      .form-group
+        = f.text_area :project_description,placeholder: "Project Description",class: 'form-control'
+    .col-md-7
+      .form-group
+        = f.text_area :role,placeholder: "My Role",class: 'form-control'
+  .row
+    .col-md-4
+      .form-group
+        = f.text_field :refrence_name,placeholder: "Degree level",class: 'form-control'
+    .col-md-4
+      .form-group
+        = f.text_field :refrence_phone, class: 'form-control'
+    .col-md-4
+      .form-group
+        = f.text_field :refrence_email,placeholder: "MM-DD-YY",class: 'form-control'
+  .row
+    .col-md-12
+      %a.bttn.btn-add.btn.remove-multi-fields.pull-right
+        %i.fa.fa-trash

@@ -56,6 +56,8 @@ Rails.application.routes.draw do
       collection do
         get :notify_notifications
         post :upload_resume
+        post :update_video
+        post :get_sub_category
       end
     end
     resources  :portfolios ,only: [:create,:update]
@@ -89,7 +91,7 @@ Rails.application.routes.draw do
       get  :show_invitation
     end
     # resources :contracts        , only: [:index]
-    resources :candidates ,only: [:show,:update]
+    resources :candidates ,only: [:show,:update,:create]
     resources :jobs do
       # resources :contracts , except: [:index] do
       #   member do
@@ -125,7 +127,7 @@ Rails.application.routes.draw do
 
   # COMPANY ROUTES
   namespace  :company do
-
+    resources :departments, only: [:create, :update]
     resources :statuses , only: [:create,:index] do
       collection do
         post :create_bulk_candidates
@@ -205,6 +207,7 @@ Rails.application.routes.draw do
       end
     end
     resources :locations
+    resources :departments
     resources :company_docs
     resources :roles
     resources :groups           ,concerns: :paginatable do
@@ -326,6 +329,8 @@ Rails.application.routes.draw do
         post :change_owner
         post :get_admins_list , as: :get_admins_list
         post :update_logo
+        post :update_file
+        post :update_video
       end
     end
 

@@ -1,29 +1,46 @@
-.tab-content.padding-10
-  %table.table.table-striped
-    %tbody
-      %tr
-        %th{style:'width:50%'}
-          First Name
-        %td{style:'width:50%'}
-          = best_in_place user, :first_name, :as => :input,placeholder:"Click here to edit",url:company_user_path(user),param:'user'
-      %tr
-        %th{style:'width:50%'}
-          Last Name
-        %td{style:'width:50%'}
-          = best_in_place user, :last_name, :as => :input,placeholder:"Click here to edit",url:company_user_path(user),param:'user'
-      %tr
-        %th
-          Email
-        %td
-          = best_in_place user,:email, :as => :input, :place_holder => "Click me to add content!",url:company_user_path(user),param:'user'
+.row{style: "padding: 15px;"}
+  = form_for @user,as: "user",url: company_user_path(@user.id),method: :put do |f|
+    .row
+      .col-md-6
+        .form-group
+          = f.text_field :first_name ,placeholder: "first Name",class: 'form-control'
+      .col-md-6
+        .form-group
+          = f.text_field :last_name ,placeholder: "last Name",class: 'form-control'
+    .row
+      .col-md-12
+        .form-group
+      %label.col-md-2.control-label Resume
+      .col-md-10
+        = f.filepicker_field :resume , class: 'btn btn-primary file-pick'  , id: 'accept-filepiker',"data-fp-extensions" => ".pdf,.doc,.docx,.txt"
+    .row
+      .col-md-9
+        .form-group
+          = f.text_field :phone ,placeholder: "first Name",class: 'form-control'
+      .col-md-3
+        .form-group
+          = f.text_field :phone ,placeholder: "last Name",class: 'form-control'
+    .row
+      .col-md-6
+        .form-group
+          = f.email_field :email ,placeholder: "email",class: 'form-control'
+      .col-md-6
+        .form-group
+          = f.number_field :age ,placeholder: "age",class: 'form-control'
+    = f.fields_for :address do |b|
+      .row
+        .col-md-12
+          .form-group
+            = b.text_field :address_1 ,placeholder: "current address",class: 'form-control'
+        .col-md-12
+          .form-group
+            = b.text_field :address_2, placeholder: "line2",class: 'form-control'
 
-      %tr
-        %th
-          Phone
-        %td
-          = best_in_place user,:phone, :as => :input, :place_holder => "Click me to add content!",url:company_user_path(user),param:'user'
-      %tr
-        %th
-          Date of Birth
-        %td
-          = best_in_place user,:dob, :as => :date, :place_holder => "Click me to add content!",url:company_user_path(user),param:'user'
+    .row
+      .col-lg-12
+        %button.btn.pull-left{:type => "button"}
+          Back
+        %button.btn.btn-primary.pull-right{:type => "button", style: "margin-left: 20px"}
+          Next
+        %button.btn.btn-primary.pull-right{:type => "submit"}
+          Saved

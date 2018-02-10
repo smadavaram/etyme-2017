@@ -12,9 +12,9 @@
         .files-manager-panel-in
           %header.files-manager-header
             .files-manager-header-left
-              %button.btn.btn-rounded{:type => "button"}
-                %i.font-icon-left.font-icon-upload-2>
+              %button.btn.btn-primary.pull-right.margin-bottom-5.margin-right-10{"data-target" => "#attachmentModal", "data-toggle" => "modal"}
                 Upload file
+              = render 'company/company_docs/partials/attachment_form_modal'
               %button.btn-icon{:type => "button"}
                 %i.font-icon.font-icon-folder
               %button.btn-icon{:type => "button"}
@@ -29,10 +29,6 @@
                   %i.font-icon.font-icon-view-grid
                 %button.btn-icon.view{:type => "button"}
                   %i.font-icon.font-icon-view-rows
-              .search
-                %input.form-control.form-control-rounded{:placeholder => "Search", :type => "text"}/
-                %button.btn-icon{:type => "submit"}
-                  %i.font-icon.font-icon-search
           .files-manager-content
             .files-manager-content-in.scrollable-block.jspScrollable{:style => "overflow: hidden; padding: 0px; height: auto; width: 100%;", :tabindex => "0"}
               .jspContainer{:style => "width: 600px; height: 380px;"}

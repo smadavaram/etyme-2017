@@ -62,7 +62,14 @@ class Company::CompaniesController < Company::BaseController
       respond_with current_company
       }
       format.html do
-        if @company.update(create_params)
+        if @company.update_attributes(create_params)
+          if params[:company][:branches_attributes].present?
+            params[:company][:branches_attributes].each_key do |mul_field|
+              unless params[:company][:branches_attributes][mul_field].reject { |p| p == "id" }.present?
+                Branch.where(id: params[:company][:branches_attributes][mul_field]["id"]).destroy_all
+              end
+            end
+          end
           flash[:success] = "Company Updated Successfully"
         else
           flash[:errors] = @company.errors.full_messages
@@ -77,6 +84,11 @@ class Company::CompaniesController < Company::BaseController
   end
 
   def show
+    @admin = current_company.admins.new
+    @company = Company.find(params[:id] || params[:company_id])
+    @company.billing_infos.build unless @company.billing_infos.present?
+    @company.branches.build unless @company.branches.present?
+    @company.addresses.build unless @company.addresses.present?
     add_breadcrumb current_company.name.titleize, company_path, :title => ""
     @company_doc = current_company.company_docs.new
     @company_doc.build_attachment
@@ -97,6 +109,18 @@ class Company::CompaniesController < Company::BaseController
   def update_logo
     render json: current_company.update_attribute(:logo, params[:photo])
     flash.now[:success] = "Logo Successfully Updated"
+  end
+
+  def update_file
+    current_company.update_attribute(:company_file, params[:file])
+    flash.now[:success] = "File Successfully Updated"
+    redirect_to :back
+  end
+
+  def update_video
+    current_company.update_attribute(:video, params[:video])
+    flash.now[:success] = "File Successfully Updated"
+    redirect_to :back
   end
 
   def get_admins_list
@@ -209,7 +233,11 @@ class Company::CompaniesController < Company::BaseController
           :id,
           :name,
           :value,
-          :_destroy]
-        ])
+          :_destroy]],
+         addresses_attributes:[:id,:address_1,:address_2,:country,:city,:state,:zip_code],
+         billing_infos_attributes: [:id,:address,:country,:city,:zip],
+         branches_attributes: [:id,:branch_name,:address,:country,:city,:zip],
+         departments_attributes: [:id,:name]
+        )
     end
 end
