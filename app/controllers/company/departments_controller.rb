@@ -9,7 +9,7 @@ class Company::DepartmentsController < Company::BaseController
   end
   def create
     @department = current_company.company_departments.create!(dept_params)
-    redirect_to :back
+    redirect_back fallback_location: root_path
   end
 
   def new
@@ -19,12 +19,12 @@ class Company::DepartmentsController < Company::BaseController
 
   def update
     @department.update_attributes(dept_params)
-    redirect_to :back
+    redirect_back fallback_location: root_path
   end
 
   def destroy
     @department.destroy
-    redirect_to :back
+    redirect_back fallback_location: root_path
   end
 
   private

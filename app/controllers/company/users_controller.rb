@@ -75,7 +75,7 @@ class Company::UsersController < Company::BaseController
         end
       end
       flash[:success] = "User Updated"
-      redirect_to :back
+      redirect_back fallback_location: root_path
     else
       flash[:errors] = current_user.errors.full_messages
       redirect_back fallback_location: root_path
