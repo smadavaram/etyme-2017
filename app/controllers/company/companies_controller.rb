@@ -64,7 +64,7 @@ class Company::CompaniesController < Company::BaseController
       format.html do
         if @company.update_attributes(create_params)
           if params[:company][:branches_attributes].present?
-            params[:company][:branches_attributes].each_key do |mul_field|
+            params[:company][:branches_attributes].each_pair do |mul_field|
               unless params[:company][:branches_attributes][mul_field].reject { |p| p == "id" }.present?
                 Branch.where(id: params[:company][:branches_attributes][mul_field]["id"]).destroy_all
               end
@@ -114,13 +114,13 @@ class Company::CompaniesController < Company::BaseController
   def update_file
     current_company.update_attribute(:company_file, params[:file])
     flash.now[:success] = "File Successfully Updated"
-    redirect_to :back
+    redirect_back fallback_location: root_path
   end
 
   def update_video
-    current_company.update_attribute(:video, params[:video])
+    current_company.update_attributes(video: params[:video], video_type: params[:video_type])
     flash.now[:success] = "File Successfully Updated"
-    redirect_to :back
+    redirect_back fallback_location: root_path
   end
 
   def get_admins_list

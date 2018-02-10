@@ -7,7 +7,7 @@
             //= f.label :filepicker_url, "Upload Your Avatar:"
             %p.imgDescription.col-sm-offset-4  Change Logo
             %div.pictureContainer.col-md-offset-2
-              = filepicker_field_tag "" ,class: "hidden file", onchange:"employeeLogoUpload(event)","data-fp-crop-ratio" => "2/2",mimetypes: "image/*"
+              = filepicker_field_tag "" ,class: "hidden file", onchange:"companyLogoUpload(event)","data-fp-crop-ratio" => "2/2",mimetypes: "image/*"
               -if(current_company.logo.present?)
                 = image_tag current_company.logo,  style:"width:100px;height:100px", fit: 'clip',:class =>"profile-pic image-setting"
               -else
@@ -32,11 +32,10 @@
               = filepicker_field_tag "" ,class: "hidden video-file", onchange:"videoUpload(event)","data-fp-crop-ratio" => "2/2",mimetypes: "video/*"
               -if(current_company.video.present?)
                 %video{:controls => "", :width => "200", :height=> "200"}
-                  %source{:src => current_company.video, :type => "video/mp4"}
-
-                = button_tag "Upload Video", fit: 'clip',:class =>"video-pic img1"
+                  %source{src: "#{current_company.video}",type:"#{current_company.video_type}"}
               -else
                 = image_tag image_path('default_user.png'),  style: "width:100px;height:100px", fit: 'clip',:class =>"video-pic"
+              = button_tag "Upload Video", fit: 'clip',:class =>"video-pic img1"
 
     .col-sm-12.col-md-12.col-lg-9
       #wid-id-7.jarviswidget{"data-widget-attstyle" => "jarviswidget-color-teal", "data-widget-custombutton" => "false", "data-widget-editbutton" => "false", "data-widget-fullscreenbutton" => "false", "data-widget-sortable" => "false", :role => "widget", :style => ""}
@@ -120,9 +119,13 @@
 
       $( ".profile-pic,.domain" ).click(function()
       {
-        $( ".file,.domain_file" ).trigger( "click" );
+        $( ".file" ).trigger( "click" );
         $('.fp__overlay').css({'z-index':'99999'});
       });
+      $(".domain").click(function(){
+       $( ".domain_file" ).trigger( "click" );
+        $('.fp__overlay').css({'z-index':'99999'});
+      })
       $( ".video-pic" ).click(function()
       {
         $( ".video-file" ).trigger( "click" );
@@ -160,7 +163,7 @@
             }
       });
     });
-    function employeeLogoUpload(event){
+    function companyLogoUpload(event){
       photo_url = event.fpfile.url
       $('.profile-pic').html('');
       $.ajax({
@@ -170,6 +173,7 @@
        data: { photo: photo_url,authenticity_token: window._token },
        success: function (data) {
         $('.text img').attr("src",photo_url);
+         location.reload();
        }
      });
     }
@@ -187,14 +191,15 @@
     }
     function videoUpload(event){
       video_url = event.fpfile.url
+      video_type=event.fpfile.mimetype
       $('.video-pic').html('');
       $.ajax({
        type: 'POST',
        dataType: 'json',
        url: "#{update_video_companies_path}",
-       data: { video: video_url,authenticity_token: window._token },
+       data: { video: video_url,authenticity_token: window._token, video_type: video_type },
        success: function (data) {
-        $('.text img1').attr("src",video_url);
+         location.reload();
        }
      });
     }
