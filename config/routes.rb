@@ -139,6 +139,7 @@ Rails.application.routes.draw do
       get  :add_reminder
       match  :assign_groups , via: [:get , :post]
       get :profile
+      post :update_video
       collection do
         get :notify_notifications
 

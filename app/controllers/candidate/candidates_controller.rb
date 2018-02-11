@@ -60,7 +60,7 @@ class Candidate::CandidatesController < Candidate::BaseController
   end
 
   def update_video
-    render json: current_candidate.update_attribute(:video, params[:video])
+    render json: current_candidate.update_attributes(video: params[:video], video_type: params[:video_type])
     flash.now[:success] = "Video Successfully Updated"
   end
 

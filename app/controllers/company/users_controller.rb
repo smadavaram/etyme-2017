@@ -44,6 +44,13 @@ class Company::UsersController < Company::BaseController
     render json: current_user.update_attribute(:photo, params[:photo])
     flash.now[:success] = "Photo Successfully Updated"
   end
+
+  def update_video
+    current_user.update_attributes(video: params[:video], video_type: params[:video_type])
+    flash.now[:success] = "File Successfully Updated"
+    redirect_back fallback_location: root_path
+  end
+
   def assign_groups
     @user = current_company.users.find(params[:user_id])
     if request.post?

@@ -6,7 +6,7 @@
           %div.profile-hover
             %p.imgDescription.col-sm-offset-4  Change Image
             %div.pictureContainer.col-md-offset-2
-              = filepicker_field_tag "" ,class: "hidden file", onchange:"employeeLogoUpload(event)","data-fp-crop-ratio" => "2/2",mimetypes: "image/*"
+              = filepicker_field_tag "" ,class: "hidden user-logo", onchange:"userLogoUpload(event)","data-fp-crop-ratio" => "2/2",mimetypes: "image/*"
               -if(user.photo.present?)
                 = image_tag user.photo,  style:"width:100px;height:100px", fit: 'clip',:class =>"profile-pic image-setting"
 
@@ -18,15 +18,13 @@
             %div.profile-hover
               %p.imgDescription.col-sm-offset-4 Upload Video
               %div.pictureContainer.col-md-offset-2
-                = filepicker_field_tag "" ,class: "hidden file", onchange:"employeevideoUpload(event)","data-fp-crop-ratio" => "2/2",mimetypes: "video/*"
+                = filepicker_field_tag "" ,class: "hidden file", onchange:"usersVideoUpload(event)","data-fp-crop-ratio" => "2/2",mimetypes: "video/*"
                 -if(user.video.present?)
                   %video{:controls => "", :width => "200", :height=> "200"}
-                    %source{:src => user.video, :type => "video/mp4"}
-
-                  = button_tag "Upload Video", fit: 'clip',:class =>"video-pic img1"
+                    %source{:src => user.video, :type => "#{user.video_type}"}
                 -else
                   = image_tag image_path('default_user.png'),  style: "width:100px;height:100px", fit: 'clip',:class =>"video-pic"
-
+                = button_tag "Upload Video", fit: 'clip',:class =>"video-pic img1"
 
 
     .col-sm-12.col-md-12.col-lg-9
@@ -44,17 +42,20 @@
 
       $( ".profile-pic" ).click(function()
       {
-        $( ".file" ).trigger( "click" );
+        $( ".user-logo" ).trigger( "click" );
       });
        $(".best_in_place").best_in_place();
        $(".best_in_place").on('change', function(event) {
           flash_success('Change Saved!');
       });
-      $( ".resume,.video-pic" ).click(function() {
-      $( ".file, .resume_file" ).trigger( "click" );
+      $( ".video-pic" ).click(function() {
+        $( ".file" ).trigger( "click" );
+     });
+     $( ".resume" ).click(function() {
+        $( ".resume_file" ).trigger( "click" );
      });
     });
-    function employeeLogoUpload(event){
+    function userLogoUpload(event){
       photo_url = event.fpfile.url
       $('.profile-pic').html('');
       $.ajax({
@@ -64,6 +65,21 @@
        data: { photo: photo_url,authenticity_token: window._token },
        success: function (data) {
         $('.text img').attr("src",photo_url);
+        location.reload();
+       }
+     });
+    }
+    function usersVideoUpload(event){
+      video_url = event.fpfile.url
+      video_type=event.fpfile.mimetype
+      $('.video-pic').html('');
+      $.ajax({
+       type: 'POST',
+       dataType: 'json',
+       url: "#{company_user_update_video_path(user_id:current_user.id)}",
+       data: { video: video_url,authenticity_token: window._token, video_type: video_type },
+       success: function (data) {
+         location.reload();
        }
      });
     }
