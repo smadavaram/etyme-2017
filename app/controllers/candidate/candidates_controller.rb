@@ -71,7 +71,7 @@ class Candidate::CandidatesController < Candidate::BaseController
 
   def get_sub_category
     sub_cat = WORK_CATEGORIES[params[:category]]
-    render :text => (sub_cat).to_json
+    render json: sub_cat
   end
 
   private
