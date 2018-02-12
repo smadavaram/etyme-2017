@@ -61,7 +61,7 @@
                         %td=link_to contract.try(:title) ,contract_path(contract)
                         %td
                           = contract.client.try(:full_name)
-                          = link_to "Chat", "#", class: "btn btn-success btn-md start-conversation", "data-sid" => current_company.id, "data-rid" => contract.client.id, "data-stype" => current_company.class, "data-rtype" => contract.client.class.to_s
+                          = link_to "Chat", "#", class: "btn btn-success btn-md start-conversation", "data-sid" => current_company.id, "data-rid" => contract.client.users.first.id, "data-stype" => current_company.class, "data-rtype" => contract.client.users.first.class.to_s
                         %td= contract.candidate.try(:full_name)
                         %td= link_to contract.created_by.full_name , '#'
                         %td= (contract.start_date)
