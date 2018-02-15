@@ -17,6 +17,10 @@ class Static::JobApplicationsController < ApplicationController
         flash[:errors] = @job_application.errors.full_messages
       end
     end
+    if params[:is_candidate] == "true"
+      job = Job.find(params[:job_id])
+      job.update_attribute('is_bench_job', true)
+    end
     redirect_back fallback_location: root_path
   end
 
