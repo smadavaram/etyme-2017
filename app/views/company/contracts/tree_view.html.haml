@@ -1,0 +1,94 @@
+.row
+  .col-md-4
+    %ul#tree2.ctree
+      %li.branch
+        %i.indicator.glyphicon.glyphicon-folder-open>
+        Contract #{@contract.number}
+        %ul
+          %li.branch
+            %i.indicator.glyphicon.glyphicon-folder-open>
+            sell #{@contract.sell_contracts.first.number if @contract.sell_contracts}
+            %ul
+              %li.last-node{"data-openhref" => "#sell_req_doc"} Request documents
+              %li.last-node{"data-openhref" => "#sell_send_doc"} Send documents
+          %li.branch
+            %i.indicator.glyphicon.glyphicon-folder-open>
+            Buy #{@contract.buy_contracts.first.number if @contract.buy_contracts}
+            %ul
+              %li.last-node{"data-openhref" => "#buy_send_doc"} Send documents
+              %li.last-node{"data-openhref" => "#buy_emp_req_doc"} Request employee documents
+              %li.last-node{"data-openhref" => "#buy_ven_req_doc"} Request vendor documents
+          %li.branch
+            %i.indicator.glyphicon.glyphicon-folder-open>
+            TimeSheet
+            %ul
+              %li.branch
+                %i.indicator.glyphicon.glyphicon-folder-open>
+                Invoice
+                %ul
+                  %li.last-node{"data-openhref" => "#time_invoice_receive_payment"} Receive payment
+              %li.branch
+                %i.indicator.glyphicon.glyphicon-folder-open>
+                Salary Calculation
+                %ul
+                  %li.last-node{"data-openhref" => "#time_sc_salary_pend"} Salary Pending
+                  %li.last-node{"data-openhref" => "#time_sc_expense_pend"} Expense pending
+              %li.last-node{"data-openhref" => "#time_commision_details"} Commission details
+              %li.last-node{"data-openhref" => "#time_payment"} Payment
+          %li.branch
+            %i.indicator.glyphicon.glyphicon-folder-open>
+            Client Expense
+            %ul
+              %li.branch
+                %i.indicator.glyphicon.glyphicon-folder-open>
+                Invoice
+                %ul
+                  %li.last-node{"data-openhref" => "#client_expense_inv_rec_payment"} Receive payment
+              %li.last-node{"data-openhref" => "#client_expense_cal"} Expense calculation
+  .col-md-8
+    #sell_req_doc.sub-tab
+      Request Documents
+      -@contract.sell_contracts.first.sell_request_documents.each do |srd|
+        %li
+          =link_to srd.file_name, srd.doc_file, target: "_blank"
+    #sell_send_doc.sub-tab.hidden
+      Send Documents
+      -@contract.sell_contracts.first.sell_send_documents.each do |ssd|
+        %li
+          =link_to ssd.file_name, ssd.doc_file, target: "_blank"
+    #buy_send_doc.sub-tab.hidden
+      Send Documents
+      -@contract.buy_contracts.first.buy_send_documents.each do |bsd|
+        %li
+          =link_to bsd.file_name, bsd.doc_file, target: "_blank"
+    #buy_emp_req_doc.sub-tab.hidden
+      Employee Request Documents
+      -@contract.buy_contracts.first.buy_emp_req_docs.each do |berd|
+        %li
+          =link_to berd.file_name, berd.doc_file, target: "_blank"
+    #buy_ven_req_doc.sub-tab.hidden
+      Vendor Request Documents
+      -@contract.buy_contracts.first.buy_ven_req_docs.each do |bvrd|
+        %li
+          =link_to bvrd.file_name, bvrd.doc_file, target: "_blank"
+    #time_invoice_receive_payment.sub-tab.hidden
+      time_invoice_receive_payment
+    #time_sc_salary_pend.sub-tab.hidden
+      time_sc_salary_pend
+    #time_sc_expense_pend.sub-tab.hidden
+      time_sc_expense_pend
+    #time_commision_details.sub-tab.hidden
+      time_commision_details
+    #time_payment.sub-tab.hidden
+      time_payment
+    #client_expense_inv_rec_payment.sub-tab.hidden
+      client_expense_inv_rec_payment
+    #client_expense_cal.sub-tab.hidden
+      client_expense_cal
+
+- content_for :scripts do
+  :javascript
+    $("li.last-node").on("click", function(){
+      $('.sub-tab').addClass('hidden');
+      $($(this).data('openhref')).removeClass('hidden');
+    });

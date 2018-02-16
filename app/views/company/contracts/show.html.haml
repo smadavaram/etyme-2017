@@ -162,10 +162,12 @@
       .job-title
         .contract-top.clearfix
           %span.pull-left
-            =@contract.id
+            =@contract.number
           %span.pull-right
             %i.fa.fa-calendar-o
-            1/2/2018
+            =@contract.created_at.strftime("%d/%m/%Y")
+            %br
+            =link_to "Tree View", tree_view_contract_path(@contract.number)
         %div.job-header.clearfix
           = image_tag "avatars/male.png"
           %p.job_title
@@ -183,7 +185,7 @@
           %span
             %i.fa.fa-calendar-o
             =@contract.start_date
-            To 
+            To
             %i.fa.fa-calendar-o
             =@contract.end_date
       .col-sm-6.col-md-6.col-lg-6

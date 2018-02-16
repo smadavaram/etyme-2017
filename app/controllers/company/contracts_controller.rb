@@ -120,6 +120,13 @@ class Company::ContractsController < Company::BaseController
     @sub_contract.contract_terms.new(rate: @contract.rate , terms_condition: @contract.terms_and_conditions )
   end
 
+  def tree_view
+    @contract = Contract.where(number: params[:id]).first
+    unless @contract.present?
+      redirect_back fallback_location: root_path
+    end
+  end
+
   private
 
   def find_contract

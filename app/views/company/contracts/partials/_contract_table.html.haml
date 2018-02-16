@@ -57,8 +57,8 @@
                   %tbody
                     - data.each do |contract|
                       %tr{class: "#{set_background_status_color(contract.status)}"}
-                        %td=contract.number
-                        %td=link_to contract.try(:title) ,contract_path(contract)
+                        %td=link_to contract.try(:number) ,contract_path(contract)
+                        %td=contract.try(:title)
                         %td
                           = contract.client.try(:full_name)
                           = link_to "Chat", "#", class: "btn btn-success btn-md start-conversation", "data-sid" => current_company.id, "data-rid" => contract.client.users.first.id, "data-stype" => current_company.class, "data-rtype" => contract.client.users.first.class.to_s

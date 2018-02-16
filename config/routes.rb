@@ -264,6 +264,7 @@ Rails.application.routes.draw do
       end
       member do
         post :update_attachable_doc
+        get :tree_view
       end
       post :change_invoice_date
       resources :invoices , only: [:index , :show] do
