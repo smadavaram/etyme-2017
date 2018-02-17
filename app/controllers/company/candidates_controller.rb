@@ -93,7 +93,7 @@ class Company::CandidatesController < Company::BaseController
 
   def remove_from_comapny
     @company_candidate = CandidatesCompany.where(candidate_id: params[:candidate_id], company_id: current_company.id).first
-    @company_candidate.destroy
+    ActiveRecord::Base.connection.execute("DELETE FROM candidates_companies WHERE candidate_id = #{params[:candidate_id]} AND company_id = #{current_company.id} ")
     flash[:success] = "Candidate is Remove Sucessfully."
     respond_to do |format|
       format.js {render inline: "location.reload();" }
