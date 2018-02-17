@@ -61,6 +61,13 @@ Rails.application.routes.draw do
       end
     end
     resources  :portfolios ,only: [:create,:update]
+    resources  :benchs ,only: [:index] do
+      get :job, on: :member
+      get :candidate_bench_job, on: :collection
+      get :candidate_company_info, on: :collection
+      get :batch_job, on: :member
+      post :apply, on: :member
+    end
     resources :chats , only:[:show] do
       resources :messages ,only: [:create] do
         collection do
@@ -240,6 +247,7 @@ Rails.application.routes.draw do
       get    :add_reminder
       get    :assign_status
       post   :create_chat
+      post   :remove_from_comapny
       collection do
         get    :share_candidates ,as: :share_hot_candidates
       end

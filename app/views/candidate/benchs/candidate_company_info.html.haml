@@ -1,0 +1,51 @@
+#content
+  %body
+    %section#widget-grid
+      .row
+        %article.col-xs-12.col-sm-12.col-md-12.col-lg-12.sortable-grid.ui-sortable
+          #wid-id-1.jarviswidget.jarviswidget-color-blueDark.jarviswidget-sortable{"data-widget-editbutton" => "false", :role => "widget"}
+            %header{:role => "heading"}
+              %span.widget-icon
+                %i.fa.fa-table
+              %h2 Company
+              %span.jarviswidget-loader
+                %i.fa.fa-refresh.fa-spin
+            / widget div
+            %div{:role => "content"}
+              .jarviswidget-editbox
+              .widget-body.no-padding
+                #datatable_fixed_column_wrapper.dataTables_wrapper.form-inline.dt-bootstrap.no-footer
+                  %table#example#datatable_fixed_column.table.table-striped.table-bordered.dataTable.no-footer{"aria-describedby" => "datatable_fixed_column_info", :role => "grid", :style => "width: 100%;", :width => "100%"}
+                    %thead
+                      %tr{:role => "row"}
+                        %th Logo
+                        %th Job
+                        %th comapny Name
+                        %th Email
+                        %th Phone
+                        %th Website
+                    %tbody
+                      -@company.each do |c|
+                        - job_skills = c.job.tags.pluck(:name)
+                        - count = (job_skills.count * 80 / 100.00).ceil
+                        - if (job_skills & current_candidate.skills.pluck(:name)).count >= count
+                          %tr
+                            %td=image_tag c.job.company.logo,  style:"width:50px;height:50px", fit: 'clip'
+                            %td=c.job.title
+                            %td=c.job.company.name
+                            %td=c.job.company.email
+                            %td=c.job.company.phone
+                            %td=c.job.company.website
+                  = digg_pagination(@company)
+
+
+
+:css
+  .form-control
+  {
+    background-color: white !important;
+  }
+  .digg_pagination
+  {
+    background-color: #fafafa !important;
+  }
