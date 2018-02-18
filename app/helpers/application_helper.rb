@@ -641,7 +641,8 @@ module ApplicationHelper
       "High Tech & Telecom Providers",
       "Real Estate",
       "Construction & Labour",
-      "Manufacturing"
+      "Manufacturing",
+      "Hospitality"
     ]
   end
 

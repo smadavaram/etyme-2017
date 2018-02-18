@@ -122,5 +122,15 @@
                 responsiveHelper_datatable_col_reorder.respond();
             }
         });
-
+    });
+    $(document).on('ready page:load', function () {
+      if (typeof tinyMCE != 'undefined') {
+        tinyMCE.init({
+          selector: "textarea.tinymce",
+          toolbar: "styleselect | bold italic | undo redo | table",
+          plugins: "link,table"
+        });
+      } else {
+        setTimeout(arguments.callee, 50);
+      }
     });

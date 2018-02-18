@@ -49,7 +49,7 @@
           %label.control-label
             End Date
             %sup.text-danger *
-          = f.text_field :end_date , class: 'form-control' , placeholder: 'Enter End Date' , required: true
+          = f.text_field :end_date , class: 'form-control' , placeholder: 'Enter End Date'
     .row
       .col-md-6
         .form-group
@@ -102,7 +102,6 @@
         .form-group
           %label.control-label Description
           =  f.text_area :description , class: 'form-control',:class => "tinymce", :rows => 6, :cols => 60, placeholder: 'Enter Job Description'
-          = tinymce :default
     .row
       .col-md-12
         .form-group
@@ -118,7 +117,7 @@
             = render 'company/jobs/partials/custom_fields', f: custom_field
         %strong
           .links.col-sm-12
-            = link_to_add_association '+ Add Custom Field', f, :custom_fields, class: 'text-info pull-right', partial: 'company/jobs/partials/custom_fields'
+            -#= link_to_add_association '+ Add Custom Field', f, :custom_fields, class: 'text-info pull-right', partial: 'company/jobs/partials/custom_fields'
             %br/
   .form-actions
     .row
@@ -133,7 +132,9 @@
       pageSetUp();
       // Job End Date
       $('#job_end_date , #job_start_date').datepicker({
-        dateFormat : 'dd/mm/yy'
+        dateFormat : 'mm/dd/yy',
+        prevText : '<i class="fa fa-chevron-left"></i>',
+        nextText : '<i class="fa fa-chevron-right"></i>',
       });
 
       //job_video_file
