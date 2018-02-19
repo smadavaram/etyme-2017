@@ -3,6 +3,8 @@
     %header.panel-heading
       -#%a.pull-right.btn.btn-primary.right.mt-12{href:"#",}  Apply Now
       .pull-right
+        - if current_company.id == @job.company_id
+          = link_to "Edit" , edit_job_path(@job) , class: 'btn btn-md btn-default btn-primary'
         = link_to "Company Candidates", job_create_multiple_for_candidate_path(@job),remote: true ,method: :get ,class: "btn btn-md btn-default btn-primary #{@job.is_active? ? "" : "disabled" }"
         - if(@job.is_active?)
           -if has_permission?("send_job_invitations")

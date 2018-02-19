@@ -18,6 +18,8 @@
                   %table#example#datatable_fixed_column.table.table-striped.table-bordered.dataTable.no-footer{"aria-describedby" => "datatable_fixed_column_info", :role => "grid", :style => "width: 100%;", :width => "100%"}
                     %thead
                       %tr{:role => "row"}
+                        %th.hasinput{ :style => "width:2%"}
+                          = check_box_tag "select_all[]", ""
                         %th.hasinput{ :style => "width:17%"}
                           %input.form-control{:placeholder => "Filter Title", :type => "text"}/
                         %th.hasinput{ :style => "width:18%"}
@@ -31,20 +33,24 @@
                         %th.hasinput{ :style => "width:16%"}
                           %input.form-control{:placeholder => "Filter Actions", :type => "text"}/
                       %tr{:role => "row"}
+                        %th Select
                         %th Title
                         %th Category
                         %th Last date
                         %th Location
                         %th Posted by
+                        %th Status
                         %th Actions
                     %tbody
                       - @company_jobs.each_with_index do |job , index|
                         %tr.even{:role => "row"}
+                          %td= check_box_tag "ids[]", job.id
                           %td= link_to_if(has_permission?("manage_job"), truncate(job.title,length: 50) , job_path(job) , target: '_blank')
                           %td= job.job_category
                           %td= job.end_date
                           %td= job.location
                           %td= job.created_by.full_name  rescue "  --"
+                          %td= job.is_active? ? "Active" : "Deactive"
                           %td
                             - if job.try(:chat).present? && job.try(:chat).is_chat_user?(current_user)
                               = link_to raw("<i class='fa fa-comment '></i>") , company_chat_path(job.try(:chat) ) ,target: '_blank' , class: 'btn btn-xs btn-default  margin-bottom-5',title: "Chat of  #{truncate(job.title.titleize,length:50)}",'data-toggle'=>"tooltip" ,'data-placement'=>"top"
@@ -100,6 +106,9 @@
             .draw();
 
       } );
+      $("#select_all_" ).on( "click", function() {
+        $("input[name='ids[]']").prop('checked', this.checked);
+      });
       /* COLUMN SHOW - HIDE */
         $('#datatable_col_reorder').dataTable({
             "sDom": "<'dt-toolbar'<'col-xs-12 col-sm-6'f><'col-sm-6 col-xs-6 hidden-xs'C>r>"+

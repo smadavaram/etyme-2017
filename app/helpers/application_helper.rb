@@ -656,7 +656,9 @@ module ApplicationHelper
       "Production",
       "Quality Assurance",
       "Logistics/Supply chain",
-      "Doctors & Nurses"
+      "Doctors & Nurses",
+      "Human resourcesNon-IT",
+      "Research and Development"
     ]
   end
 

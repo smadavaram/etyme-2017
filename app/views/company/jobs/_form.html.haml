@@ -48,7 +48,6 @@
         .form-group
           %label.control-label
             End Date
-            %sup.text-danger *
           = f.text_field :end_date , class: 'form-control' , placeholder: 'Enter End Date'
     .row
       .col-md-6
@@ -60,11 +59,11 @@
       .col-md-6
         .form-group
           %label.control-label
-            JobType
+            Job Type
             %sup.text-danger *
           = f.select :job_type, ["Full Time", "Part Time", "Contract"], class: 'form-control' , placeholder: 'Enter End Date' , required: true
     .row
-      .col-md-12
+      .col-md-6
         .form-group
           %label.control-label
             Video
@@ -77,13 +76,24 @@
               %strong
                 Note
               Please choose a video shorter than 120 seconds and smaller than 50MB
+      .col-md-6
+        .form-group
+          %label.control-label
+            = button_tag "Company Video" , class: 'btn btn-primary btn-lg', id: 'company_video', type: "button"
+            = f.text_field :comp_video , class: 'form-control'
+            %span.file-text
+    .row
+      .col-md-12
+        .form-group
+          %label.control-label Description
+          =  f.text_area :description , class: 'form-control',:class => "tinymce", :rows => 6, :cols => 60, placeholder: 'Enter Job Details and Qualification'
     .row
       .col-md-12
         .form-group
           %labelcontrol-label
             Educations
             %sup.text-danger
-          = f.text_field :education_list , class: 'form-control tagsinput','data-role'=>'tagsinput' , placeholder: 'Educations are separated with comma' , value: @job.education_list.join(", ")
+          = f.text_field :education_list , class: 'form-control tagsinput','data-role'=>'tagsinput' , placeholder: 'Educations and Certification' , value: @job.education_list.join(", ")
           %p.note
             %strong Note:
             Education are separated with comma
@@ -97,11 +107,6 @@
           %p.note
             %strong Note:
             Skill are separated with comma
-    .row
-      .col-md-12
-        .form-group
-          %label.control-label Description
-          =  f.text_area :description , class: 'form-control',:class => "tinymce", :rows => 6, :cols => 60, placeholder: 'Enter Job Description'
     .row
       .col-md-12
         .form-group
@@ -131,6 +136,11 @@
     $(document).ready(function() {
       pageSetUp();
       // Job End Date
+      $("#job_comp_video").hide();
+      $( "#company_video" ).click(function()
+      {
+          $('#job_comp_video').show().val("#{current_company.video}");
+      });
       $('#job_end_date , #job_start_date').datepicker({
         dateFormat : 'mm/dd/yy',
         prevText : '<i class="fa fa-chevron-left"></i>',
