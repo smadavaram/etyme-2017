@@ -356,7 +356,7 @@ module ApplicationHelper
         {
             href: '#',
             title: 'Network',
-            content: "<i class='fa fa-lg fa-fw fa-briefcase'></i> <span class='menu-item-parent'>" + 'Network' + "</span>",
+            content: "<i class='fa fa-lg fa-fw fa-globe'></i> <span class='menu-item-parent'>" + 'Network' + "</span>",
             children: [
                 {
                     href: '#',
@@ -415,7 +415,7 @@ module ApplicationHelper
     {
         href: '#',
         title: 'Trainings',
-        content: "<i class='fa fa-lg fa-fw fa-briefcase'></i> <span class='menu-item-parent'>" + 'Trainings' + "</span>",
+        content: "<i class='fa fa-lg fa-fw fa-book'></i> <span class='menu-item-parent'>" + 'Trainings' + "</span>",
         children: [
             {
                 href: '#',
@@ -459,7 +459,7 @@ module ApplicationHelper
     {
         href: '#',
         title: 'Contract',
-        content: "<i class='fa fa-lg fa-fw fa-briefcase'></i> <span class='menu-item-parent'>" + 'Contract' + "</span>",
+        content: "<i class='fa fa-lg fa-fw  fa-list-alt'></i> <span class='menu-item-parent'>" + 'Contract' + "</span>",
         children: [
             {
                 href: candidate_jobs_path,
@@ -476,7 +476,7 @@ module ApplicationHelper
         {
             href: '#',
             title: 'Timesheets',
-            content: "<i class='fa fa-lg fa-fw fa-briefcase'></i> <span class='menu-item-parent'>" + 'Timesheets' + "</span>",
+            content: "<i class='fa fa-lg fa-fw fa-calendar'></i> <span class='menu-item-parent'>" + 'Timesheets' + "</span>",
             children: [
                 {
                     href: '#',
@@ -503,7 +503,7 @@ module ApplicationHelper
         {
             href: '#',
             title: 'Expenses',
-            content: "<i class='fa fa-lg fa-fw fa-briefcase'></i> <span class='menu-item-parent'>" + 'Expenses' + "</span>",
+            content: "<i class='fa fa-lg fa-fw fa-money'></i> <span class='menu-item-parent'>" + 'Expenses' + "</span>",
             children: [
                 {
                     href: '#',
@@ -530,7 +530,7 @@ module ApplicationHelper
         {
             href: '#',
             title: 'Payments',
-            content: "<i class='fa fa-lg fa-fw fa-briefcase'></i> <span class='menu-item-parent'>" + 'Payments' + "</span>",
+            content: "<i class='fa fa-lg fa-fw fa-money'></i> <span class='menu-item-parent'>" + 'Payments' + "</span>",
             children: [
                 {
                     href: '#',

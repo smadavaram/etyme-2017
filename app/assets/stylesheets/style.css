@@ -1,11 +1,11 @@
 .pac-container {
     z-index: 1051;
 }
-#new_job  input[type="text"],
-#new_job select.form-control,
-#new_job textarea.form-control,
-#new_job select,
-#new_job textarea {
+.form-horizontal  input[type="text"],
+.form-horizontal select.form-control,
+.form-horizontal textarea.form-control,
+.form-horizontal select,
+.form-horizontal textarea {
     -moz-appearance: none;
     background-color: #ffffff;
     border: 1px solid #dbdbdb;
@@ -25,15 +25,19 @@
     padding: 0 20px;
     width: 100%;
 }
-#new-job .bootstrap-tagsinput {
+textarea {
+    height: 120px !important;
+    line-height: 1.5 !important;
+}
+.form-horizontal .bootstrap-tagsinput {
     border-radius: 3px;
     box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.06) !important;
 }
-#new_job .form-group,
-#new-job .form-group {
+.form-horizontal .form-group,
+.form-horizontal .form-group {
     margin: 0;
 }
-#new_job .bootstrap-tagsinput input[type="text"] {
+.form-horizontal .bootstrap-tagsinput input[type="text"] {
     border: medium none;
     margin: 0;
     display: inline-block;
