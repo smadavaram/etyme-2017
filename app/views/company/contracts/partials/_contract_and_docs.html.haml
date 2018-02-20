@@ -3,7 +3,7 @@
     .form-group
       %label.col-md-2.control-label  Company
       .col-md-10
-        = sc.hidden_field :company_id, id: "sell_contract_company", required: true
+        = sc.select :company_id, {}, {}, id: "sell_contract_company", required: true
         -#= hidden_field :company_id,
         =# select_tag 'contract[contractable_id]', options_for_select(current_company.invited_companies.collect { |c|[c.invited_company.name, c.invited_company.id] })  , class: "form-control"
 

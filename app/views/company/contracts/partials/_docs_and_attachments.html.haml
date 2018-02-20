@@ -3,7 +3,7 @@
     .form-group
       %label.col-md-2.control-label  Candidate
       .col-md-10
-        = bc.hidden_field :candidate_id, id: "buy_contract_candidate", required: true
+        = bc.select :candidate_id, {}, {}, id: "buy_contract_candidate", required: true
     .form-group
       %label.col-md-2.control-label  SSN
       .col-md-10

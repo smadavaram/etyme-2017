@@ -15,14 +15,14 @@
   .form-group
     %label.col-md-2.control-label  Client
     .col-md-10
-      = hidden_field_tag "contract[client_id]", nil, id: "select_clients", required: true
+      = select_tag  "contract[client_id]", nil, id: "select_clients", required: true
       = link_to "Add Client", new_job_path, class: "btn btn-success btn-sm pull-right"
       =# f.text_field :client_name, class: "form-control", placeholder: "Contract Client name"
 
   .form-group
     %label.col-md-2.control-label  Candidate
     .col-md-10
-      = hidden_field_tag "contract[candidate_id]", nil, id: "select_candidates", required: true
+      = select_tag "contract[candidate_id]", nil, id: "select_candidates", required: true
       = link_to "Apply candidate", jobs_path, class: "btn btn-success btn-sm pull-right"
       =# f.text_field :candidate_name, class: "form-control", placeholder: "Contract Candidate name"
 

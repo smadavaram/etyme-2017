@@ -31,7 +31,7 @@
 
           \- Job Details
           = link_to 'NEW', "#" ,class: 'btn btn-success btn-sm pull-right header-btn hidden-mobile' , "data-toggle": "modal" , "data-target":"#new-contract-company"
-        = render 'company/contracts/partials/job' , f: contract
+        = render 'company/contracts/partials/contract_and_docs' , f: contract
       #tab2.tab-pane
         %br/
         %h3
@@ -121,23 +121,44 @@
          $(this).parent().next('.assign_signable').addClass('hidden');
        }
     });
-    $( document ).on( "change", ".whois_sign", function( event ) {
-       if(event["removed"]) {
-         $(this).closest('.assign_signable').find('div.sign-nested-fields').find(':input.signable-id[value=' + event["removed"]["id"].split("_")[0] + ']').closest('div.sign-nested-fields').remove();
-       } else {
-         var sign_btn = $(this).closest('.assign_signable').find("a.doc-user-generater");
-         var obj = $( sign_btn.attr('data-form-prepend') );
-         var time_stamp = (new Date()).getTime() ;
-         obj.find('input').each( function() {
-           $(this).attr( 'name', function() {
-             return $(this).attr('name').replace( 'new_record', time_stamp);
-           });
-         });
-         obj.insertBefore( sign_btn );
-         $(this).closest('.assign_signable').find('div.sign-nested-fields:last').find("input.signable-id").val(event["added"]["id"].split("_")[0]);
-         $(this).closest('.assign_signable').find('div.sign-nested-fields:last').find("input.signable-type").val(event["added"]["id"].split("_")[1]);
-       }
+
+    $('.whois_sign').on('select2:select', function (e) {
+      //alert(e.toSource())
+      var data = e.params.data;
+      alert(data);
+
+      var sign_btn = $(this).closest('.assign_signable').find("a.doc-user-generater");
+      var obj = $( sign_btn.attr('data-form-prepend') );
+      var time_stamp = (new Date()).getTime() ;
+      obj.find('input').each( function() {
+        $(this).attr( 'name', function() {
+          return $(this).attr('name').replace( 'new_record', time_stamp);
+        });
+      });
+      obj.insertBefore( sign_btn );
+      $(this).closest('.assign_signable').find('div.sign-nested-fields:last').find("input.signable-id").val(event["added"]["id"].split("_")[0]);
+      $(this).closest('.assign_signable').find('div.sign-nested-fields:last').find("input.signable-type").val(event["added"]["id"].split("_")[1]);
     });
+
+      //$( document ).on( "change", ".whois_sign", function( event ) {
+      //   alert($(this).val())
+      //   if(event["removed"]) {
+      //     $(this).closest('.assign_signable').find('div.sign-nested-fields').find(':input.signable-id[value=' + event["removed"]["id"].split("_")[0] + ']').closest('div.sign-nested-fields').remove();
+      //   } else {
+      //     var sign_btn = $(this).closest('.assign_signable').find("a.doc-user-generater");
+      //     var obj = $( sign_btn.attr('data-form-prepend') );
+      //     var time_stamp = (new Date()).getTime() ;
+      //     obj.find('input').each( function() {
+      //       $(this).attr( 'name', function() {
+      //         return $(this).attr('name').replace( 'new_record', time_stamp);
+      //       });
+      //     });
+      //     obj.insertBefore( sign_btn );
+      //     $(this).closest('.assign_signable').find('div.sign-nested-fields:last').find("input.signable-id").val(event["added"]["id"].split("_")[0]);
+      //     $(this).closest('.assign_signable').find('div.sign-nested-fields:last').find("input.signable-type").val(event["added"]["id"].split("_")[1]);
+      //   }
+      //});
+
 
     //$('#contract-attachment').on('cocoon:after-insert', function(e, insertedItem) {
     //  insertedItem.find('.filepicker-attachment').each(function(i,e){

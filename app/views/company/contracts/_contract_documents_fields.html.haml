@@ -25,8 +25,8 @@
     .form-group.assign_signable.hidden
       -f.object.document_signs.build
       =f.fields_for :document_signs do |ds|
-        = link_to_add_fields 'available_tour_fields', f, :document_signs, {partial: 'company/contracts/contract_document_users_fields'}, {class: 'doc-user-generater'}
-        = ds.hidden_field :signable ,class: "form-control whois_sign" , placeholder: ""
+        = link_to_add_fields 'available_tour_fields', f, :document_signs, {partial: 'company/contracts/contract_document_users_fields'}, {class: 'doc-user-generater hidden'}
+        = ds.select :signable, {}, {}, class: "form-control whois_sign" , placeholder: ""
 
 
     .col-md-2.margin-top-5
@@ -38,7 +38,6 @@
           var name = e["originalEvent"]["fpfile"]["filename"];
           var size = e["originalEvent"]["fpfile"]["size"];
           var type = e["originalEvent"]["fpfile"]["mimetype"];
-          alert(name+size+type)
           $(this).siblings(".doc-file-name" ).val(name);
           $(this).siblings( ".doc-file-size" ).val(size);
           $(this).siblings( ".doc-file-type" ).val(type);
