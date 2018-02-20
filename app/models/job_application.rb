@@ -77,8 +77,8 @@ class JobApplication < ApplicationRecord
   private
 
   def send_message
-    chat = self.job.chat.chat_users.create(userable: self.try(:applicationable))
-    self.job.chat.messages.create(messageable: self.try(:applicationable) , body: "#{self.try(:applicationable).try(:full_name)} has applied for your job with title #{self.job.title}")
+    chat = self.job.chat.chat_users.create(userable: self.try(:applicationable)) if self.job.chat.present?
+    self.job.chat.messages.create(messageable: self.try(:applicationable) , body: "#{self.try(:applicationable).try(:full_name)} has applied for your job with title #{self.job.title}") if self.job.chat.present?
   end
 
 

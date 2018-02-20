@@ -3,6 +3,7 @@ class Static::JobApplicationsController < ApplicationController
   before_action :find_job ,only: :create
 
   def create
+    JobApplication
     if params[:candidate_id].present?
       @candidate = Candidate.where(id: params[:candidate_id].split(" ").map(&:to_i))
       @candidate.each do |candidate|
