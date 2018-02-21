@@ -51,8 +51,9 @@
           %th Recuiter Name
           %th Actions
       %tbody
+        - job_count_per = (job_skills.count * 60 / 100.00).ceil
         - current_company.candidates.each do |c|
-          - if (job_skills & c.skills.pluck(:name)).count >= count
+          - if (job_skills & c.skills.pluck(:name)).count >= job_count_per
             %tr
               %td
                 = link_to c.try(:full_name).try(:titleize),"#","data-content" => "<p class= 'text-center' ><image style='border-radius:50%;' src=#{image_url(c.photo)}/></br><div class='well well-sm'>#{c.full_name}</br>Email : #{c.email} </div></p>", "data-placement" => "top",:rel => "hover"

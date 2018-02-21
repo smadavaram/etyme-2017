@@ -24,24 +24,24 @@ class Candidate::CandidatesController < Candidate::BaseController
 
   def update
     respond_to do  |format|
-    if current_candidate.update_attributes candidate_params
-      if params[:candidate][:educations_attributes].present?
-        params[:candidate][:educations_attributes].each_pair do |mul_field|
-          unless params[:candidate][:educations_attributes][mul_field].reject { |p| p == "id" }.present?
-            Education.where(id: params[:candidate][:educations_attributes][mul_field]["id"]).destroy_all
+      if current_candidate.update_attributes candidate_params
+        if params[:candidate][:educations_attributes].present?
+          params[:candidate][:educations_attributes].each_pair do |mul_field|
+            unless params[:candidate][:educations_attributes][mul_field].reject { |p| p == "id" }.present?
+              Education.where(id: params[:candidate][:educations_attributes][mul_field]["id"]).destroy_all
+            end
           end
         end
-      end
-      format.json {respond_with current_candidate}
-      format.html {
-        flash[:success] = "Candidate Updated"
-        redirect_to candidate_candidate_dashboard_path(tab: params[:tab])
-      }
+        format.json {respond_with current_candidate}
+        format.html {
+          flash[:success] = "Candidate Updated"
+          redirect_to candidate_candidate_dashboard_path(tab: params[:tab])
+        }
 
-    else
-      format.html{redirect_back fallback_location: root_path}
-      format.json{redirect_back fallback_location: root_path}
-    end
+      else
+        format.html{redirect_back fallback_location: root_path}
+        format.json{redirect_back fallback_location: root_path}
+      end
     end
   end
 
