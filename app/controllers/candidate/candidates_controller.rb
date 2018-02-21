@@ -26,7 +26,7 @@ class Candidate::CandidatesController < Candidate::BaseController
     respond_to do  |format|
     if current_candidate.update_attributes candidate_params
       if params[:candidate][:educations_attributes].present?
-        params[:candidate][:educations_attributes].each_key do |mul_field|
+        params[:candidate][:educations_attributes].each_pair do |mul_field|
           unless params[:candidate][:educations_attributes][mul_field].reject { |p| p == "id" }.present?
             Education.where(id: params[:candidate][:educations_attributes][mul_field]["id"]).destroy_all
           end
