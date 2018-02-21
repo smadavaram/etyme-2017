@@ -74,11 +74,9 @@
                           %td
                             = c.candidate.visa
                           %td
-                            - c.candidate.companies.each do |com|
-                              - com.users.each do |u|
-                                %span
-                                  .label-info.badge.margin-bottom-5
-                                    = "#{u.first_name} #{u.last_name}"
+                            %span
+                              .label-info.badge.margin-bottom-5
+                                = c.candidate.invited_by_user.full_name if c.candidate.invited_by_user.present?
                           %td
                             -#= link_to 'Activity'     ,company_activities_index_path(index: true), class: 'btn btn-xs btn-primary margin-bottom-5',title: "Assign Groups"
                             = link_to raw("<i class='fa fa-file-text'></i>") , c.candidate.resume ,download: true , class: 'btn btn-xs btn-default  margin-bottom-5',title: "#{c.candidate.full_name} Resume",'data-toggle'=>"tooltip" ,'data-placement'=>"top"
