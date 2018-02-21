@@ -16,7 +16,7 @@ class Candidate::JobInvitationsController < Candidate::BaseController
   end
 
   def reject
-    @job_invitation.update_attributes(job_invitations_params)
+    @job_invitation.update_attributes(job_invitation_params)
   end
   private
 

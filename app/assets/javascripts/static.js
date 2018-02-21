@@ -4,7 +4,7 @@
 // require jquery_ujs
 // require jquery-ui
 
-// require static/js/bootstrap.min
+//= require static/js/bootstrap.min
 //= require static/js/waypoints.min
 //= require static/js/jquery.animateNumbers
 //= require static/js/jquery.flexslider-min

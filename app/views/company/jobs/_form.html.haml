@@ -55,7 +55,7 @@
           %label.control-label
             Price
             %sup.text-danger *
-          = f.text_field :price , class: 'form-control' , placeholder: 'Enter Price' , required: true
+          = f.text_field :price , class: 'form-control' , placeholder: 'Rate' , required: true
       .col-md-6
         .form-group
           %label.control-label
@@ -65,9 +65,6 @@
     .row
       .col-md-6
         .form-group
-          %label.control-label
-            Video
-            %sup.text-danger *
           .video-file
             .videp-btn
               = f.file_field :video_file , class: 'form-control'
@@ -79,8 +76,12 @@
       .col-md-6
         .form-group
           %label.control-label
-            = button_tag "Company Video" , class: 'btn btn-primary btn-lg', id: 'company_video', type: "button"
-            = f.text_field :comp_video , class: 'form-control'
+            - if @job.comp_video.present?
+              = button_tag "<i class='fa fa-check'> Added video</i>".html_safe , class: 'btn btn-primary btn-lg', id: 'added_company_video', type: "button"
+              = button_tag "<i class='fa fa-times'></i>".html_safe , class: 'btn btn-primary btn-lg', id: 'remove_company_video', type: "button"
+            -else
+              = button_tag "Company Video" , class: 'btn btn-primary btn-lg', id: 'company_video', type: "button"
+            = f.hidden_field :comp_video , class: 'form-control'
             %span.file-text
     .row
       .col-md-12
@@ -136,11 +137,20 @@
     $(document).ready(function() {
       pageSetUp();
       // Job End Date
-      $("#job_comp_video").hide();
-      $( "#company_video" ).click(function()
-      {
-          $('#job_comp_video').show().val("#{current_company.video}");
+      $( document ).on("click", "#company_video", function(){
+        $('#job_comp_video').val("#{current_company.video}");
+        $('#company_video').after("<button name='button' type='button' class='btn btn-primary btn-lg' id='remove_company_video'><i class='fa fa-times'></i></button>");
+        $('#company_video').after("<button name='button' type='button' class='btn btn-primary btn-lg' id='added_company_video'><i class='fa fa-check'> Added video</i></button>");
+        $('#company_video').remove();
       });
+
+      $( document ).on("click", "#remove_company_video", function(){
+        $('#job_comp_video').val("");
+        $('#remove_company_video').after("<button name='button' type='button' class='btn btn-primary btn-lg' id='company_video'>Company Video</button>");
+        $('#remove_company_video').remove();
+        $('#added_company_video').remove();
+      });
+
       $('#job_end_date , #job_start_date').datepicker({
         dateFormat : 'mm/dd/yy',
         prevText : '<i class="fa fa-chevron-left"></i>',

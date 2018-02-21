@@ -15,7 +15,7 @@ class Company::CompaniesController < Company::BaseController
     if params[:status]=='all'
       respond_to do |format|
         format.js{
-          @data = apply_scopes( Company.signup_companies..paginate(page: params[:page], per_page: 11))
+          @data = apply_scopes( Company.signup_companies.paginate(page: params[:page], per_page: 11))
         }
         format.html{
           @data = apply_scopes( Company.signup_companies.paginate(page: params[:page], per_page: 11))
