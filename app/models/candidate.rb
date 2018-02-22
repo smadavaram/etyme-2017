@@ -53,7 +53,7 @@ class Candidate < ApplicationRecord
   has_many   :clients, dependent: :destroy
   has_many   :designations, dependent: :destroy
 
-  belongs_to :invited_by_user, class_name: "User", foreign_key: :invited_by_id
+  belongs_to :invited_by_user, class_name: "User", foreign_key: :invited_by_id, optional: true
 
 
   attr_accessor :job_id , :expiry , :message , :invitation_type
