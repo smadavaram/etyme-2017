@@ -22,7 +22,8 @@
                     = flash_message(key,value)
                   .form-row
                     .form-controls
-                      = f.select :company_type , Company.company_types.map { |key, value| [key.humanize, key]},{include_blank: '-- Select Type --'} ,:class => 'form-control company_type', required: true ,onchange: "showNote();"
+                      .plain-select
+                        = f.select :company_type , Company.company_types.map { |key, value| [key.humanize, key]},{include_blank: '-- Select Type --'} ,:class => 'form-control company_type', required: true ,onchange: "showNote();"
                     .note#company_type{style: "float:left !important ;color: antiquewhite"}
 
                   .form-row
@@ -39,7 +40,7 @@
                       = u.password_field :password_confirmation, :placeholder => "Confirm password", "data-rule-equalTo": "#company_owner_attributes_password",class: 'field'
                   .form-row
                     .form-controls
-                      = f.text_field :domain  ,:placeholder => "Domain", required: true,minlength: "3",class:'field',id: "field"
+                      = f.text_field :domain  ,:placeholder => "Domain", required: true,minlength: "3",class:'field',id: "domain-field"
                     .note.text-muted{style: "float:left !important ;color: antiquewhite"}
                       Please Enter Domain like https://address
                   -#.form-row
@@ -193,22 +194,28 @@
         }
       });
       function validate_email() {
-          var non_valid_emails = ["gmail.com" ,"yahoo.com" ,"hotmail.com"]
-          var email = $('#company_owner_attributes_email').val();
-          var split_email = email.split("@");
-          var result = non_valid_emails.includes(split_email[1]);
-          if (result == true){
-            $('#company_owner_attributes_email').css("border-color","#d2160a");
-            $("#company_owner_attributes_email").parent().next('.validation').remove();
-            $("#company_owner_attributes_email").parent().after("<div class='validation' style='color:#d2160a;margin-bottom: 10px;'>Use only email that is provided by eTyme</div>");
-            $('#register_button').prop('disabled',true);
-            }
-          else{
-           $('#company_owner_attributes_email').css("border-color","green");
-           $("#company_owner_attributes_email").parent().next('.validation').remove();
-            $('#register_button').prop('disabled',false);
-            }
+        var non_valid_emails = ["gmail.com" ,"yahoo.com" ,"hotmail.com"]
+        var email = $('#company_owner_attributes_email').val();
+        var split_email = email.split("@");
+        var result = non_valid_emails.includes(split_email[1]);
+        if(split_email[1]){
+          $("#domain-field").val(split_email[1].split(".")[0]);
+        }else{
+          $("#domain-field").val("");
+        }
+
+        if (result == true){
+          $('#company_owner_attributes_email').css("border-color","#d2160a");
+          $("#company_owner_attributes_email").parent().next('.validation').remove();
+          $("#company_owner_attributes_email").parent().after("<div class='validation alert alert-warning' style='margin-bottom: 10px;'>Use only email that is provided by eTyme</div>");
+          $('#register_button').prop('disabled',true);
           }
+        else{
+          $('#company_owner_attributes_email').css("border-color","green");
+          $("#company_owner_attributes_email").parent().next('.validation').remove();
+          $('#register_button').prop('disabled',false);
+        }
+      }
 
 
         function showNote()
