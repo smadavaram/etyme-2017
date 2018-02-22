@@ -125,10 +125,9 @@
       $.ajax({
        type: 'POST',
        dataType: 'json',
-       url: "#{upload_resume_candidates_path}",
+       url: " #{ upload_resume_candidates_path } ",
        data: { resume: resume_url,authenticity_token: window._token },
-       // success: function (data) {
-       // }
+       success: function (data) {  }
      });
     }
     function candidateLogoUpload(event){
@@ -137,7 +136,7 @@
       $.ajax({
        type: 'POST',
        dataType: 'json',
-       url: "#{candidate_update_photo_path}",
+       url: "#{ candidate_update_photo_path }",
        data: { photo: photo_url,authenticity_token: window._token },
        success: function (data) {
         $('.text.img_pic').attr("src",photo_url);
@@ -152,7 +151,7 @@
       $.ajax({
        type: 'POST',
        dataType: 'json',
-       url: "#{update_video_candidates_path}",
+       url: "#{ update_video_candidates_path }",
        data: { video: video_url,authenticity_token: window._token, video_type: video_type },
        success: function (data) {
         $('.text img1').attr("src",video_url);
