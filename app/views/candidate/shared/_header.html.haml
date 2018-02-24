@@ -3,7 +3,7 @@
     / PLACE YOUR LOGO HERE
     %span#logo{style: 'margin-top: 3px;'}
       = image_tag 'etyme-logo.png', alt: 'SmartAdmin', style: 'width: 80px;'
-    %span#activity.activity-dropdown
+    %span#activity.activity-dropdown.pull-right
       %i.fa.fa-user
       %b.badge
         = current_candidate.notifications.count || 0
@@ -57,6 +57,12 @@
           Clear
   / pulled right: nav area
   .pull-right
+    /logout
+    #logout.btn-header.transparent.pull-right
+      %spa
+        = link_to "",destroy_candidate_session_path, method: :delete , class: 'hidden' , id: 'logout-hidden'
+        = link_to(destroy_candidate_session_path, title: 'Sign Out', data: {action: 'userLogout', 'logout-msg' => 'You can improve your security further after logging out by closing this opened browser'}) do
+          %i.fa.fa-sign-out
     / collapse menu button
     #hide-menu.btn-header.pull-right
       %span
@@ -99,11 +105,6 @@
               %strong
                 %u> Logout
     / logout button
-    #logout.btn-header.transparent.pull-right
-      %spa
-        = link_to "",destroy_candidate_session_path, method: :delete , class: 'hidden' , id: 'logout-hidden'
-        = link_to(destroy_candidate_session_path, title: 'Sign Out', data: {action: 'userLogout', 'logout-msg' => 'You can improve your security further after logging out by closing this opened browser'}) do
-          %i.fa.fa-sign-out
     / search mobile button (this is hidden till mobile view port)
     -##search-mobile.btn-header.transparent.pull-right
       %span

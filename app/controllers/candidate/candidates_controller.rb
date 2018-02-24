@@ -8,8 +8,12 @@ class Candidate::CandidatesController < Candidate::BaseController
   add_breadcrumb 'Candidates', "#", :title => ""
 
   def dashboard
+    add_breadcrumb current_candidate.full_name.titleize, profile_path, :title => ""
     @chat = @chats.try(:last)
     @messages = @chat.try(:messages)
+  end
+
+  def show
     @user = Candidate.find(current_candidate.id)
     @user.address.build unless @user.address.present?
     @user.educations.build unless @user.educations.present?
@@ -18,8 +22,24 @@ class Candidate::CandidatesController < Candidate::BaseController
     @user.designations.build unless @user.designations.present?
   end
 
-  def show
-    add_breadcrumb current_candidate.full_name.titleize, profile_path, :title => ""
+  def edit_educations
+    @user = Candidate.find(current_candidate.id)
+    @user.educations.build unless @user.educations.present?
+    @user.certificates.build unless @user.certificates.present?
+  end
+
+  def edit_skills
+    @user = Candidate.find(current_candidate.id)
+  end
+
+  def edit_client_info
+    @user = Candidate.find(current_candidate.id)
+    @user.clients.build unless @user.clients.present?
+  end
+
+  def edit_designate
+    @user = Candidate.find(current_candidate.id)
+    @user.designations.build unless @user.designations.present?
   end
 
   def update

@@ -116,7 +116,7 @@
 
 
         %hr
-    - if current_company.hiring_manager? && !current_user.is_consultant?
+    - if current_company.staffing? && !current_user.is_consultant?
       .col-sm-12.col-md-6
         .panel.panel-default
           .panel-body.status

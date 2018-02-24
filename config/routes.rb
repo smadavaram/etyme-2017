@@ -58,6 +58,10 @@ Rails.application.routes.draw do
         post :upload_resume
         post :update_video
         post :get_sub_category
+        get :edit_educations
+        get :edit_skills
+        get :edit_client_info
+        get :edit_designate
       end
     end
     resources  :portfolios ,only: [:create,:update]
