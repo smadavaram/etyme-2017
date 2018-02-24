@@ -30,6 +30,11 @@ class Company::CompaniesController < Company::BaseController
 
   end
 
+  def new
+    @new_company = Company.new
+    @new_company.build_invited_by
+  end
+
   def edit
   end
 

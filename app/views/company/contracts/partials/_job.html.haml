@@ -16,7 +16,7 @@
     %label.col-md-2.control-label  Client
     .col-md-10
       = select_tag  "contract[client_id]", nil, id: "select_clients", required: true
-      = link_to "Add Client", new_job_path, class: "btn btn-success btn-sm pull-right"
+      = link_to "Add Client", new_company_company_path, class: "btn btn-success btn-sm pull-right"
       =# f.text_field :client_name, class: "form-control", placeholder: "Contract Client name"
 
   .form-group

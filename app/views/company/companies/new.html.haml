@@ -1,0 +1,52 @@
+= form_for [:company,@new_company] , html:{ class:'form-horizontal'} do |f|
+  - if @new_company.new_record?
+    = f.fields_for :invited_by do |i|
+      = i.hidden_field :user_id , value: current_user.id
+      = i.hidden_field :invited_by_company_id , value: current_company.id
+  %fieldset
+    - if @new_company.new_record?
+      .form-group
+        %label.col-md-2.control-label
+          Name
+          %sup.text-danger *
+        .col-md-10
+          = f.text_field :name , class: 'form-control' , placeholder: 'Enter Company Name' , required: true
+      .form-group
+        %label.col-md-2.control-label
+          Domain
+          %sup.text-danger *
+        .col-md-10
+          = f.text_field :domain  ,:placeholder => "Domain", required: true,minlength: "3",class:'form-control'
+          .note.text-muted
+            Please Enter Domain like https://address
+      .form-group
+        %label.col-md-2.control-label
+          Phone
+          %sup.text-danger *
+        .col-md-10
+          = f.phone_field :phone , class: 'form-control' , placeholder: 'Phone' , required: true
+      .form-group
+        = f.fields_for :custom_fields do |lt|
+          = render 'shared/custom_fields', f: lt
+        %strong
+          .links.col-sm-12
+            = link_to_add_association '+ Add Custom Field', f, :custom_fields, class: 'text-info pull-right', partial: 'shared/custom_fields'
+          %br/
+    = f.fields_for :company_contacts do |contact|
+      = render 'company/companies/partials/company_contact_fields', f: contact
+
+    .col-md-12{style: "margin-left:15px"}
+      = link_to_add_association 'Add Contact', f, :company_contacts , partial: 'company/companies/partials/company_contact_fields',class:'btn btn-primary pull-right'
+
+
+      -#.form-group
+      -#  %label.col-md-4.control-label
+      -#    Send Email for On-Boarding
+      -#  .col-md-8
+      -#    = f.check_box :send_email
+      %br/
+  .form-actions
+    .row
+      .col-md-12
+        = button_tag 'Cancel' , class: 'btn btn-default' , "data-dismiss"=> "modal"
+        = f.button "Submit".html_safe, data: {disable_with: disable_spinning("Saving...")} , class: 'btn btn-primary'

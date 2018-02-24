@@ -167,7 +167,7 @@ class Company < ApplicationRecord
     if (!self.invited_by.present?)
        self.slug = host.start_with?('www.') ? host[4..-1].split(".").first : host.split(".").first
     else
-        self.slug = host.start_with?('www.') ? host[4..-1].split(".").first : host.split(".").first + "#{Time.now.to_s.parameterize("_")}"
+        self.slug = host.start_with?('www.') ? host[4..-1].split(".").first : host.split(".").first + "#{Time.now.to_s.parameterize(separator: "_")}"
     end
   end
 

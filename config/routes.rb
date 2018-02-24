@@ -152,7 +152,10 @@ Rails.application.routes.draw do
 
       end
     end
-    resources :companies ,only: [:create , :update] do
+
+    resources :company_contacts, only: [:index]
+
+    resources :companies ,only: [:new, :create , :update] do
       get    :add_reminder
       match  :assign_groups , via: [:get , :post]
       post   :add_to_network

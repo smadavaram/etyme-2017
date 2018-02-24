@@ -220,7 +220,7 @@ module ApplicationHelper
                     content: "</i><span class='menu-item-parent'> Company(s) </span>"
                 },
                 {
-                    href: companies_path,
+                    href: company_company_contacts_path,
                     title: 'Contacts',
                     content: "</i><span class='menu-item-parent'> Contact(s) </span>"
                 }
