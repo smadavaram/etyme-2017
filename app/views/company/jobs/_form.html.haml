@@ -125,6 +125,86 @@
           .links.col-sm-12
             -#= link_to_add_association '+ Add Custom Field', f, :custom_fields, class: 'text-info pull-right', partial: 'company/jobs/partials/custom_fields'
             %br/
+    .custome
+      .custome-filed-list.row
+        .col-md-12
+          .custome-filed-item
+            %h3 Tell your Applicant what you need to get hire.
+            .clearfix
+              %p Requirement
+              %textarea{:placeholder => "Structure your Applicant Instructions as free text, a multiple choice question or file upload."}
+              .select-filed
+                %label Answer Type
+                .plain-select
+                  %select
+                    %option Free Text
+                    %option Multiple Answer
+                    %option Attached File
+                %label.fancy
+                  %input{:type => "checkbox", :value => ""}/
+                  %span.label-text Answer is mandatory
+            .clearfix.checkbox-option
+              %input{:placeholder => "Option Answer", :type => "text"}/
+              %input{:placeholder => "Option Answer", :type => "text"}/
+              %input{:placeholder => "Option Answer", :type => "text"}/
+              %a.filed-Add
+                %i.fa.fa-plus>
+                Add another requirement
+              %label.fancy
+                %input{:type => "checkbox", :value => ""}/
+                %span.label-text Allow more than one answer to this question
+            .custome-filed-botton.clearfix
+              %input.btn.pull-right.btn-success{:type => "submit", :value => "Cancel"}/
+              %input.btn.pull-right.btn-danger{:type => "submit", :value => "Save"}/
+      .custome-filed-list.row
+        .col-md-12
+          .custome-filed-item.filed-option
+            .clearfix
+              %p.pull-left Need full details of your project
+              .fild-action.pull-right
+                %a.filed-edit
+                  %i.fa.fa-pencil
+                %a.filed-delete
+                  %i.fa.fa-trash
+            .clearfix
+              %textarea this is test
+      .custome-filed-list.row
+        .col-md-12
+          .custome-filed-item.filed-option
+            .clearfix
+              %p.pull-left Need full details of your project
+              .fild-action.pull-right
+                %a.filed-edit
+                  %i.fa.fa-pencil
+                %a.filed-delete
+                  %i.fa.fa-trash
+            .clearfix
+              %label.fancy
+                %input{:type => "checkbox", :value => ""}/
+                %span.label-text Answer is mandatory
+              %label.fancy
+                %input{:type => "checkbox", :value => ""}/
+                %span.label-text Answer is mandatory
+              %label.fancy
+                %input{:type => "checkbox", :value => ""}/
+                %span.label-text Answer is mandatory
+      .custome-filed-list.row
+        .col-md-12
+          .custome-filed-item.filed-option
+            .clearfix
+              %p.pull-left Need full details of your project
+              .fild-action.pull-right
+                %a.filed-edit
+                  %i.fa.fa-pencil
+                %a.filed-delete
+                  %i.fa.fa-trash
+            .clearfix
+              .Attach-file
+                .Attach-btn
+                  = f.file_field :video_file , class: 'form-control'
+      %a.filed-Add
+        %i.fa.fa-plus>
+        Add another requirement
   .form-actions
     .row
       .col-md-12
