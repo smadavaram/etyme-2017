@@ -30,8 +30,8 @@
           %strong Step 1
 
           \- Job Details
-          = link_to 'NEW', "#" ,class: 'btn btn-success btn-sm pull-right header-btn hidden-mobile' , "data-toggle": "modal" , "data-target":"#new-contract-company"
-        = render 'company/contracts/partials/contract_and_docs' , f: contract
+          =# link_to 'NEW', "#" ,class: 'btn btn-success btn-sm pull-right header-btn hidden-mobile' , "data-toggle": "modal" , "data-target":"#new-contract-company"
+        = render 'company/contracts/partials/job' , f: contract
       #tab2.tab-pane
         %br/
         %h3
@@ -105,15 +105,20 @@
     });
     $( document ).ready(function() {
      $('#contract_start_date').datepicker({
-        dateFormat : 'dd/mm/yy'
+        dateFormat : 'dd/mm/yy',
+        changeMonth: true,
+        changeYear: true,
+        nextText: "",
+        prevText: ""
       });
      $('#contract_end_date').datepicker({
-      dateFormat : 'dd/mm/yy'
+      dateFormat : 'dd/mm/yy',
+      changeYear: true
      });
     });
 
     $( document ).on( "change", ".is-require-sign", function( event ) {
-       set_user_select($(this).parent().next('.assign_signable').find('.whois_sign'), "Select User who is sign document");
+       $(this).parent().next('.assign_signable').find('.whois_sign').empty().trigger('change')
        $(this).parent().next('.assign_signable').find('.sign-nested-fields').remove();
        if ($(this).is(":checked")){
          $(this).parent().next('.assign_signable').removeClass('hidden');
@@ -122,11 +127,11 @@
        }
     });
 
-    $('.whois_sign').on('select2:select', function (e) {
-      //alert(e.toSource())
-      var data = e.params.data;
-      alert(data);
+    $( document ).on( "select2:unselect", ".whois_sign", function( e ) {
+      $(this).closest('.assign_signable').find('div.sign-nested-fields').find(':input.signable-id[value=' + e.params.data.id.split("_")[0] + ']').closest('div.sign-nested-fields').remove();
+    });
 
+    $( document ).on( "select2:select", ".whois_sign", function( e ) {
       var sign_btn = $(this).closest('.assign_signable').find("a.doc-user-generater");
       var obj = $( sign_btn.attr('data-form-prepend') );
       var time_stamp = (new Date()).getTime() ;
@@ -136,29 +141,9 @@
         });
       });
       obj.insertBefore( sign_btn );
-      $(this).closest('.assign_signable').find('div.sign-nested-fields:last').find("input.signable-id").val(event["added"]["id"].split("_")[0]);
-      $(this).closest('.assign_signable').find('div.sign-nested-fields:last').find("input.signable-type").val(event["added"]["id"].split("_")[1]);
+      $(this).closest('.assign_signable').find('div.sign-nested-fields:last').find("input.signable-id").val(e.params.data.id.split("_")[0]);
+      $(this).closest('.assign_signable').find('div.sign-nested-fields:last').find("input.signable-type").val(e.params.data.id.split("_")[1]);
     });
-
-      //$( document ).on( "change", ".whois_sign", function( event ) {
-      //   alert($(this).val())
-      //   if(event["removed"]) {
-      //     $(this).closest('.assign_signable').find('div.sign-nested-fields').find(':input.signable-id[value=' + event["removed"]["id"].split("_")[0] + ']').closest('div.sign-nested-fields').remove();
-      //   } else {
-      //     var sign_btn = $(this).closest('.assign_signable').find("a.doc-user-generater");
-      //     var obj = $( sign_btn.attr('data-form-prepend') );
-      //     var time_stamp = (new Date()).getTime() ;
-      //     obj.find('input').each( function() {
-      //       $(this).attr( 'name', function() {
-      //         return $(this).attr('name').replace( 'new_record', time_stamp);
-      //       });
-      //     });
-      //     obj.insertBefore( sign_btn );
-      //     $(this).closest('.assign_signable').find('div.sign-nested-fields:last').find("input.signable-id").val(event["added"]["id"].split("_")[0]);
-      //     $(this).closest('.assign_signable').find('div.sign-nested-fields:last').find("input.signable-type").val(event["added"]["id"].split("_")[1]);
-      //   }
-      //});
-
 
     //$('#contract-attachment').on('cocoon:after-insert', function(e, insertedItem) {
     //  insertedItem.find('.filepicker-attachment').each(function(i,e){
