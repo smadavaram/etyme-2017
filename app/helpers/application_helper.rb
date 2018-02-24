@@ -168,8 +168,8 @@ module ApplicationHelper
         },
         {
             href: '#',
-            title: 'Network ',
-            content: "<i class='fa fa-lg fa-fw fa-globe'></i> <span class='menu-item-parent'>" + 'Network' + "</span>",
+            title: 'Supplier Management',
+            content: "<i class='fa fa-lg fa-fw fa-globe'></i> <span class='menu-item-parent'>" + 'Supplier Management' + "</span>",
             children: [
                 {
                     href: companies_path(status: 'all'),
@@ -186,6 +186,18 @@ module ApplicationHelper
                     href: network_path,
                     title: 'Clients / Vendors',
                     content: "<span class='menu-item-parent'> Clients / Vendors </span>"
+                }
+            ]
+        },
+        {
+            href: '#',
+            title: 'Network ',
+            content: "<i class='fa fa-lg fa-fw fa-globe'></i> <span class='menu-item-parent'>" + 'Network' + "</span>",
+            children: [
+                {
+                    href:  groups_path,
+                    title: 'Group',
+                    content: "<span class='menu-item-parent'>" + 'Group(s)' + "</span>",
                 },
                 {
                     href:  directories_path,
@@ -197,18 +209,21 @@ module ApplicationHelper
                     title: 'Candidates( My Candidates(W2), Hot Candidates, Vendor )',
                     content: "<span class='menu-item-parent'>" + 'Candidate(s)' + "</span>",
                 },
+                # {
+                #     href: company_company_hot_index_path(current_company),
+                #     title: 'My Bench (Hot Candidates, Third Party)',
+                #     content: "<span class='menu-item-parent'>" + 'My Hotlist' + "</span>",
+                # },
                 {
-                    href: company_company_hot_index_path(current_company),
-                    title: 'My Bench (Hot Candidates, Third Party)',
-                    content: "<span class='menu-item-parent'>" + 'My Hotlist' + "</span>",
+                    href: companies_path,
+                    title: 'Companys',
+                    content: "</i><span class='menu-item-parent'> Company(s) </span>"
                 },
                 {
                     href: companies_path,
                     title: 'Contacts',
                     content: "</i><span class='menu-item-parent'> Contact(s) </span>"
-                },
-
-
+                }
              ]
         },
 

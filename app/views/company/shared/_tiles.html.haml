@@ -31,21 +31,21 @@
           %i.fa.fa-user.fa-4x
           %span
             Profile
-    %li
-      = link_to companies_path, class: 'jarvismetro-tile big-cubes bg-color-blueDark' do
-        %span.iconbox
-          %i.fa.fa-black-tie.fa-4x
-          %span
-            Preferred-Vendors
-            %span.label.pull-right.bg-color-darken
-              = current_company.invited_companies.count
-    %li
-      = link_to groups_path, class: 'jarvismetro-tile big-cubes bg-color-blueDark' do
-        %span.iconbox
-          %i.fa.fa-wechat.fa-4x
-          %span Groups
-          %span.label.pull-right.bg-color-darken
-            = current_company.groups.count
+    -#%li
+    -#  = link_to companies_path, class: 'jarvismetro-tile big-cubes bg-color-blueDark' do
+    -#    %span.iconbox
+    -#      %i.fa.fa-black-tie.fa-4x
+    -#      %span
+    -#        Preferred-Vendors
+    -#        %span.label.pull-right.bg-color-darken
+    -#          = current_company.invited_companies.count
+    -#%li
+    -#  = link_to groups_path, class: 'jarvismetro-tile big-cubes bg-color-blueDark' do
+    -#    %span.iconbox
+    -#      %i.fa.fa-wechat.fa-4x
+    -#      %span Groups
+    -#      %span.label.pull-right.bg-color-darken
+    -#        = current_company.groups.count
     -#%li
     -#  = link_to company_path(current_company), class: 'jarvismetro-tile big-cubes bg-color-blueDark' do
     -#    %span.iconbox

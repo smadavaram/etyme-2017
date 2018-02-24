@@ -1,6 +1,6 @@
 .row
   .col-md-4
-    %ul#tree2.ctree
+    %ul#contract-tree.ctree
       %li.branch
         %i.indicator.glyphicon.glyphicon-folder-open>
         Contract #{@contract.number}
@@ -22,6 +22,10 @@
             %i.indicator.glyphicon.glyphicon-folder-open>
             TimeSheet
             %ul
+              %li.last-node{"data-openhref" => "#timesheet-sent"} Timesheet Sent
+              %li.last-node{"data-openhref" => "#timesheet-approve"} Timesheet Approve
+              %li.last-node{"data-openhref" => "#employee-perfomance-sent"} Employee perfomance Sent
+              %li.last-node{"data-openhref" => "#employee-perfomance-approve"} Employee perfomance Approve
               %li.branch
                 %i.indicator.glyphicon.glyphicon-folder-open>
                 Invoice
@@ -32,8 +36,14 @@
                 Salary Calculation
                 %ul
                   %li.last-node{"data-openhref" => "#time_sc_salary_pend"} Salary Pending
-                  %li.last-node{"data-openhref" => "#time_sc_expense_pend"} Expense pending
-              %li.last-node{"data-openhref" => "#time_commision_details"} Commission details
+                  %li.last-node{"data-openhref" => "#time_sc_expense_pend"} Expense Payment
+                  %li.last-node{"data-openhref" => "#time_sc_payment"} Payment
+              %li.branch
+                %i.indicator.glyphicon.glyphicon-folder-open>
+                Commission details
+                %ul
+                  %li.last-node{"data-openhref" => "#cd-com-pending"} Commission Pending
+                  %li.last-node{"data-openhref" => "#cd-com-payment"} Commission Payment
               %li.last-node{"data-openhref" => "#time_payment"} Payment
           %li.branch
             %i.indicator.glyphicon.glyphicon-folder-open>
@@ -44,7 +54,11 @@
                 Invoice
                 %ul
                   %li.last-node{"data-openhref" => "#client_expense_inv_rec_payment"} Receive payment
-              %li.last-node{"data-openhref" => "#client_expense_cal"} Expense calculation
+              %li.branch
+                %i.indicator.glyphicon.glyphicon-folder-open>
+                Expense calculation
+                %ul
+                  %li.last-node{"data-openhref" => "#expense_payment"} Expense payment
   .col-md-8
     #sell_req_doc.sub-tab
       Request Documents
