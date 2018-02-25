@@ -19,10 +19,12 @@ class Job < ApplicationRecord
   has_many     :custom_fields    ,as: :customizable
   # has_many     :job_applications ,through: :job_invitations
   has_many     :timesheet_approvers,through: :timesheets
+  has_many     :job_requirements
   # has_many     :applicants , through: :job_applications , source: :applicationable ,source_type: "Candidate"
   has_one      :chat              ,as: :chatable ,dependent: :destroy
 
   accepts_nested_attributes_for :custom_fields , reject_if: :all_blank
+  accepts_nested_attributes_for :job_requirements , reject_if: :all_blank
 
   acts_as_taggable_on :education
   acts_as_taggable

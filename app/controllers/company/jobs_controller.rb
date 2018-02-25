@@ -22,6 +22,7 @@ class Company::JobsController < Company::BaseController
   def new
     add_breadcrumb "NEW", :new_job_path, options: { title: "NEW JOB" }
     @job = current_company.jobs.new
+    @job.job_requirements.build
   end
 
   def edit
@@ -100,6 +101,13 @@ class Company::JobsController < Company::BaseController
               :value,
               :required,
               :_destroy
-          ]])
+          ],job_requirements_attributes:[
+                                       :id,
+                                       :questions,
+                                       :ans_type,
+                                       :ans_mandatroy,
+                                       :multiple_ans,
+                                       :multiple_option
+                                         ]])
     end
 end
