@@ -13,7 +13,11 @@ $( ".file-pick" ).on('click',function() {
 
 $('.fp__overlay').css({'z-index':'99999'});
 });
-
+var reqelement = $('#req-accept-filepiker');
+filepicker.constructWidget(reqelement);
+$( ".req-file-pick" ).on('click',function() {
+$(".fp__overlay").css({'z-index':'99999'});
+});
 
 
 

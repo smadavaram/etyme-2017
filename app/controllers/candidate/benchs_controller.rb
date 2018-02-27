@@ -32,6 +32,7 @@ class Candidate::BenchsController < Candidate::BaseController
     @job = Job.find(params[:id])
     @candidate_id = params[:candidate_id]
     @job_application = @job.job_applications.new
+    @job_application.job_applicant_reqs.build
     @job.custom_fields.each do |cf|
       @job_application.custom_fields.new(name: cf.name,required: cf.required)
     end

@@ -14,6 +14,7 @@ class JobApplication < ApplicationRecord
   has_many   :custom_fields ,as: :customizable
   has_many   :comments ,as: :commentable
   has_many     :chats             ,as: :chatable
+  has_many :job_applicant_reqs
 
   validates :cover_letter , :applicant_resume ,presence: true
   # validates :application_type, inclusion: { in: application_types.keys }
@@ -27,6 +28,7 @@ class JobApplication < ApplicationRecord
   after_update  :notify_recipient_on_status_change, if: Proc.new{|application| application.status_changed? }
   after_create  :send_message
   accepts_nested_attributes_for :custom_fields , reject_if: :all_blank
+  accepts_nested_attributes_for :job_applicant_reqs , reject_if: :all_blank
 
   default_scope                { order(created_at: :desc) }
   scope :direct , -> {where(job_invitation_id: nil)}
