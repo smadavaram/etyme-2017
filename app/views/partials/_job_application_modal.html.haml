@@ -28,7 +28,7 @@
             .nested-fields
               - job.job_requirements.each do |r|
                 = f.fields_for :job_applicant_reqs do |ja|
-                  = ja.text_field :job_requirement_id,value: r.id
+                  = ja.hidden_field :job_requirement_id,value: r.id
                   .form-group
                     %label.col-md-12.control-label #{r.questions}
                     .col-md-12
@@ -40,13 +40,13 @@
                         - opt_array = s.split(" ")
                         - if r.multiple_ans
                           -opt_array.each do |a|
-                            %div{class:"checkbox-group required"}
-                              = check_box_tag 'job_applicant_reqs[app_multi_ans][]', "#{CGI.unescape(a)}",'',class:'set-checkbox'
-                              =CGI.unescape(a)
-                              %br/
+                            = ja.check_box :app_multi_ans, {:multiple => true, class: 'set-checkbox'},"#{CGI.unescape(a)}"
+                            = ja.label :app_multi_ans, :value => "#{CGI.unescape(a)}"
+                            %br/
                         - else
                           -opt_array.each do |a|
-                            %input{type: 'radio',class:'set-checkbox'}=CGI.unescape(a)
+                            = ja.radio_button :applicant_ans, "#{CGI.unescape(a)}",{class: 'set-checkbox'}
+                            = ja.label :applicant_ans, :value => "#{CGI.unescape(a)}"
                             %br/
                       - else
                         = ja.filepicker_field :applicant_ans , class: 'btn btn-primary req-file-pick',required: r.ans_mandatroy, id: 'req-accept-filepiker'

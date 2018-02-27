@@ -192,39 +192,44 @@
         }
     });
     $(document).on('click', '.save-req',  function (e) {
-      $(e.target).closest(".nested-fields").find('.question-req').css({ display: "block" });
-      $(e.target).closest(".nested-fields").find('.question-req p').html($(e.target).closest(".req_form").find('.question').val())
-      $(e.target).closest(".nested-fields").find('.req_form').css({ display: "none" });
-
-      selectedValue = $(e.target).closest(".nested-fields").find('.que-ans-type')
-      if($('option:selected', selectedValue).text() == "Free Text"){
-          $(e.target).closest(".nested-fields").find('.Attach-file').css({ display: "none" });
-          $(e.target).closest(".nested-fields").find('.multiple-fiels-box').css({ display: "none" });
-          $(e.target).closest(".nested-fields").find('.free-text').css({ display: "block" });
-      }
-      else if($('option:selected', selectedValue).text() == "Multiple Answer"){
-        $(e.target).closest(".nested-fields").find('.free-text').css({ display: "none" });
-          $(e.target).closest(".nested-fields").find('.Attach-file').css({ display: "none" });
-          $(e.target).closest(".nested-fields").find('.multiple-fiels-box').css({ display: "block" });
-          if($(e.target).closest(".req_form").find('.allow-multi-ans').prop("checked") == true){
-          $(e.target).closest(".nested-fields").find('.multiple-fiels-box').empty();
-            $(e.target).closest(".req_form").find("input[name='mytext']").each(function() {
-               $(e.target).closest(".nested-fields").find('.multiple-fiels-box').append("<div><input type='checkbox' class='set-checkbox'> "+$(this).val()+"</div>");
-            });
-          }else{
-          $(e.target).closest(".nested-fields").find('.multiple-fiels-box').empty();
-            $(e.target).closest(".req_form").find("input[name='mytext']").each(function() {
-                 $(e.target).closest(".nested-fields").find('.multiple-fiels-box').append("<div><input type='radio' name='set-option' class='set-checkbox'> "+$(this).val()+"</div>");
-            });
-          }
+      if($(e.target).closest(".req_form").find('.question').val() == ''){
+        alert("Job requirement blank not allow");
+        return false;
       }
       else{
+        $(e.target).closest(".nested-fields").find('.question-req').css({ display: "block" });
+        $(e.target).closest(".nested-fields").find('.question-req p').html($(e.target).closest(".req_form").find('.question').val())
+        $(e.target).closest(".nested-fields").find('.req_form').css({ display: "none" });
+        selectedValue = $(e.target).closest(".nested-fields").find('.que-ans-type')
+        if($('option:selected', selectedValue).text() == "Free Text"){
+            $(e.target).closest(".nested-fields").find('.Attach-file').css({ display: "none" });
+            $(e.target).closest(".nested-fields").find('.multiple-fiels-box').css({ display: "none" });
+            $(e.target).closest(".nested-fields").find('.free-text').css({ display: "block" });
+        }
+        else if($('option:selected', selectedValue).text() == "Multiple Answer"){
           $(e.target).closest(".nested-fields").find('.free-text').css({ display: "none" });
-          $(e.target).closest(".nested-fields").find('.Attach-file').css({ display: "block" });
-          $(e.target).closest(".nested-fields").find('.multiple-fiels-box').css({ display: "none" });
-      }
-       ans = $(e.target).closest(".req_form").find("input[name='mytext']").serialize();
-       $(e.target).closest(".req_form").find(".multi-option-text").val(ans);
+            $(e.target).closest(".nested-fields").find('.Attach-file').css({ display: "none" });
+            $(e.target).closest(".nested-fields").find('.multiple-fiels-box').css({ display: "block" });
+            if($(e.target).closest(".req_form").find('.allow-multi-ans').prop("checked") == true){
+            $(e.target).closest(".nested-fields").find('.multiple-fiels-box').empty();
+              $(e.target).closest(".req_form").find("input[name='mytext']").each(function() {
+                 $(e.target).closest(".nested-fields").find('.multiple-fiels-box').append("<div><input type='checkbox' class='set-checkbox'> "+$(this).val()+"</div>");
+              });
+            }else{
+            $(e.target).closest(".nested-fields").find('.multiple-fiels-box').empty();
+              $(e.target).closest(".req_form").find("input[name='mytext']").each(function() {
+                   $(e.target).closest(".nested-fields").find('.multiple-fiels-box').append("<div><input type='radio' name='set-option' class='set-checkbox'> "+$(this).val()+"</div>");
+              });
+            }
+        }
+        else{
+            $(e.target).closest(".nested-fields").find('.free-text').css({ display: "none" });
+            $(e.target).closest(".nested-fields").find('.Attach-file').css({ display: "block" });
+            $(e.target).closest(".nested-fields").find('.multiple-fiels-box').css({ display: "none" });
+        }
+         ans = $(e.target).closest(".req_form").find("input[name='mytext']").serialize();
+         $(e.target).closest(".req_form").find(".multi-option-text").val(ans);
+       }
     });
     $(document).on('click', '.filed-edit',  function (e) {
       $(e.target).closest(".nested-fields").find('.question-req').css({ display: "none" });

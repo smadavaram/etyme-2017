@@ -33,7 +33,7 @@ class Static::JobApplicationsController < ApplicationController
             :id,
             :name,
             :value
-        ],job_applicant_reqs: [:id, :job_requirement_id, :applicant_ans, :app_multi_ans]])
+        ],job_applicant_reqs_attributes: [:id, :job_requirement_id, :applicant_ans, app_multi_ans: []]])
   end
   def find_job
     @job=Job.active.is_public.where(id: params[:id]|| params[:job_id]).first

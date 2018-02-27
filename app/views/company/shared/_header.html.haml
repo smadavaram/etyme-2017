@@ -23,9 +23,18 @@
           %i.fa.fa-power-off
           Clear
   / pulled right: nav area
-  .pull-right
+  .pull-right.col-md-6
+    #logout.btn-header.transparent.pull-right
+      %spa
+        = link_to "",destroy_user_session_path, method: :delete , class: 'hidden' , id: 'logout-hidden'
+        = link_to(destroy_user_session_path, title: 'Sign Out', data: {action: 'userLogout', 'logout-msg' => 'You can improve your security further after logging out by closing this opened browser'}) do
+          %i.fa.fa-sign-out
     / logout button
-    #logo-group
+    #hide-menu.btn-header.pull-right
+      %span
+        %a{"data-action" => "toggleMenu", :href => "javascript:void(0);", :title => "Collapse Menu"}
+          %i.fa.fa-reorder
+    #logo-group.pull-right
       %span#activity.activity-dropdown
         %i.fa.fa-user
         %b.badge
@@ -58,16 +67,7 @@
           = Time.now.strftime("%D %T")
           %button.btn.btn-xs.btn-default.pull-right{"data-loading-text" => "<i class='fa fa-refresh fa-spin'></i> Loading...", :type => "button"}
             %i.fa.fa-refresh
-    #logout.btn-header.transparent.pull-right
-      %spa
-        = link_to "",destroy_user_session_path, method: :delete , class: 'hidden' , id: 'logout-hidden'
-        = link_to(destroy_user_session_path, title: 'Sign Out', data: {action: 'userLogout', 'logout-msg' => 'You can improve your security further after logging out by closing this opened browser'}) do
-          %i.fa.fa-sign-out
     / collapse menu button
-    #hide-menu.btn-header.pull-right
-      %span
-        %a{"data-action" => "toggleMenu", :href => "javascript:void(0);", :title => "Collapse Menu"}
-          %i.fa.fa-reorder
     / #MOBILE
     / Top menu profile link : this shows only when top menu is active
     %ul#mobile-profile-img.header-dropdown-list.hidden-xs.padding-5
@@ -104,21 +104,21 @@
               %i.fa.fa-sign-out.fa-lg
               %strong
                 %u> Logout
-  #logo-group.pull-right
-    %span#activity.activity-dropdown
-      / User image size is adjusted inside CSS, it should stay as it
-      %a#show-shortcut{"data-action" => "toggleShortcut", :href => "javascript:void(0);"}
-        %i.fa.fa-archive
+    #logo-group.pull-right
+      %span#activity.activity-dropdown
+        / User image size is adjusted inside CSS, it should stay as it
+        %a#show-shortcut{"data-action" => "toggleShortcut", :href => "javascript:void(0);"}
+          %a.fa.fa-th
 
-  #quick-add.btn-header.transparent.pull-right
-    %span.project-selector.dropdown-toggle{"data-toggle" => "dropdown"}
-      %a.fa.fa-plus-square
-    %ul.dropdown-menu
-      %li
-        %a{:href => new_job_path } Add Job
-      %li.divider
-      %li
-        %a{:href => new_contract_path } Add Contract(s)
+    #quick-add.btn-header.transparent.pull-right
+      %span.project-selector.dropdown-toggle{"data-toggle" => "dropdown"}
+        %a.fa.fa-plus-square
+      %ul.dropdown-menu
+        %li
+          %a{:href => new_job_path } Add Job
+        %li.divider
+        %li
+          %a{:href => new_contract_path } Add Contract(s)
 
     / search mobile button (this is hidden till mobile view port)
     -##search-mobile.btn-header.transparent.pull-right
