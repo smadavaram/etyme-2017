@@ -668,3 +668,6 @@ label span.label-text {
     font-size: 16px;
     margin: 0 5px;
 }
+#logo-group span.activity-dropdown a i {
+    color: #fff;
+}
