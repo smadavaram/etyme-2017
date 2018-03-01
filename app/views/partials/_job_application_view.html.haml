@@ -11,7 +11,7 @@
     - job_applications.each do |c|
       %tr
         %td
-          = link_to c.user.try(:full_name).try(:titleize),"#","data-content" => "<p class= 'text-center' ><image style='border-radius:50%;' src=#{image_url(c.user.photo)}/></br><div class='well well-sm'>#{c.user.full_name}</br>Email : #{c.user.email} </div></p>", "data-placement" => "top",:rel => "hover"
+          = link_to c.user.try(:full_name).try(:titleize),job_application_path(c.id),"data-content" => "<p class= 'text-center' ><image style='border-radius:50%;' src=#{image_url(c.user.photo)}/></br><div class='well well-sm'>#{c.user.full_name}</br>Email : #{c.user.email} </div></p>", "data-placement" => "top",:rel => "hover"
         %td
           - if c.user.try(:roles).present?
             - c.user.try(:roles).each do |role|

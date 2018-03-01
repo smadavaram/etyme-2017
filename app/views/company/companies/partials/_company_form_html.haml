@@ -7,6 +7,12 @@
           = f.text_field :name,placeholder: "Company Name",class: 'form-control'
       .col-md-6
         %button.btn.btn-info{"data-target" => "#myModal", "data-toggle" => "modal", :type => "button"} Designamte business owner or application admin
+    .row
+      .col-md-6
+        = f.text_field :phone , class: 'form-control' , placeholder: 'Phone Number'
+      .col-md-6
+        = f.text_field :fax_number , class: 'form-control' , placeholder: 'Fax Number'
+    %br
     = f.fields_for :addresses do |address|
       .row
         .col-md-12
