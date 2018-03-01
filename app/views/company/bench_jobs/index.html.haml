@@ -129,7 +129,7 @@
 
         });
 
-    $("div.toolbar").html("<div class='text-right'><a href='#' class= 'btn btn-success share btn-md pull-right header-btn margin-top-5'><i class='fa fa-share-alt'></i> Share</a></div>");
+    $("div.toolbar").html("<div class='text-right'><a href=#{new_company_candidate_path} class = 'btn btn-success btn-md pull-right header-btn margin-top-5 ' rel='tooltip' data-placement='top' title='New Candidate'><i class='fa fa-user-plus'> NEW </i></a><a href='#' class= 'btn btn-success share btn-md pull-right header-btn margin-top-5'><i class='fa fa-share-alt'></i> Share</a></div>");
       $("#datatable_fixed_column thead th input[type=text]").on( 'keyup change', function () {
         otable
           .column( $(this).parent().index()+':visible' )
