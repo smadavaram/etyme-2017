@@ -500,13 +500,13 @@ label.fancy {
     margin-top: 0;
 }
 
-input[type="checkbox"], input[type="radio"]{
+label.fancy input[type="checkbox"], input[type="radio"]{
     position: absolute;
     right: 9000px;
 }
 
 /*Check box*/
-input[type="checkbox"] + .label-text:before{
+label.fancy input[type="checkbox"] + .label-text:before{
     content: "\f096";
     font-family: "FontAwesome";
     speak: none;
@@ -523,24 +523,24 @@ input[type="checkbox"] + .label-text:before{
     line-height:16px;
 }
 
-input[type="checkbox"]:checked + .label-text:before{
+label.fancy input[type="checkbox"]:checked + .label-text:before{
     content: "\f14a";
     color: #2196f3;
     animation: effect 250ms ease-in;
 }
 
-input[type="checkbox"]:disabled + .label-text{
+label.fancy input[type="checkbox"]:disabled + .label-text{
     color: #aaa;
 }
 
-input[type="checkbox"]:disabled + .label-text:before{
+label.fancy input[type="checkbox"]:disabled + .label-text:before{
     content: "\f0c8";
     color: #ccc;
 }
 
 /*Radio box*/
 
-input[type="radio"] + .label-text:before{
+label.fancy input[type="radio"] + .label-text:before{
     content: "\f10c";
     font-family: "FontAwesome";
     speak: none;
@@ -557,17 +557,17 @@ input[type="radio"] + .label-text:before{
     line-height:16px;
 }
 
-input[type="radio"]:checked + .label-text:before{
+label.fancy input[type="radio"]:checked + .label-text:before{
     content: "\f192";
     color: #2196f3;
     animation: effect 250ms ease-in;
 }
 
-input[type="radio"]:disabled + .label-text{
+label.fancy input[type="radio"]:disabled + .label-text{
     color: #aaa;
 }
 
-input[type="radio"]:disabled + .label-text:before{
+label.fancy input[type="radio"]:disabled + .label-text:before{
     content: "\f111";
     color: #ccc;
 }

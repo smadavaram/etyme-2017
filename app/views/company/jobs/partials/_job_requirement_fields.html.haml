@@ -26,9 +26,10 @@
       .col-md-2
         %label Answer Type
       .col-md-3
-        =f.select :ans_type, ["Free Text", "Multiple Answer", "Attached file"],{include_blank: false},{class: "form-control que-ans-type plain-select" }
+        .plain-select
+          =f.select :ans_type, ["Free Text", "Multiple Answer", "Attached file"],{include_blank: false},{class: "form-control que-ans-type plain-select" }
       .col-md-3
-        = f.label :ans_mandatroy do
+        = f.label :ans_mandatroy, class:"fancy" do
           = f.check_box :ans_mandatroy, class: 'set-checkbox'
           Answer is mandatory
     .multi-ans-div{style: "display:none"}

@@ -49,8 +49,7 @@
                     %tbody
                       - @candidates.each do |candidate|
                         %tr.even{:role => "row"}
-                          %td
-                            = check_box_tag "ids[]", candidate.id
+                          %td= check_box_tag "ids[]", candidate.id
                           -#%td= image_tag candidate.photo, alt: '', width: '20'
                           %td= candidate.try(:full_name).try(:titleize)
                           %td= candidate.try(:email)
