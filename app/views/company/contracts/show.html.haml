@@ -236,17 +236,42 @@
                       =cbbd.email
                     %td
                       =cbbd.department
-          %div
-            %ul
-              Send Documents
-              -@contract.sell_contracts.first.sell_send_documents.each do |ssd|
-                %li
-                  =link_to ssd.file_name, ssd.doc_file, target: "_blank"
-            %ul
-              Request Documents
-              -@contract.sell_contracts.first.sell_request_documents.each do |srd|
-                %li
-                  =link_to srd.file_name, srd.doc_file, target: "_blank"
+          %div.table.table-responsive
+            %table.table-bordered
+              %thead
+                Send Documents
+                %tr
+                  %th Documents
+                  %th Owner
+                  %th Need signature of
+                -@contract.sell_contracts.first.sell_send_documents.each do |ssd|
+                  %tr
+                    %td
+                      =link_to ssd.file_name, ssd.doc_file, target: "_blank"
+                    %td
+                      =ssd.creatable.full_name
+                    %td
+                      %ul
+                      - ssd.document_signs.each do |ds|
+                        %li= ds.signable.full_name
+            %div.table.table-responsive
+              %table.table-bordered
+                %thead
+                  Request Documents
+                  %tr
+                    %th Documents
+                    %th Owner
+                    %th Need signature of
+                  -@contract.sell_contracts.first.sell_request_documents.each do |srd|
+                    %tr
+                      %td
+                        =link_to srd.file_name, srd.doc_file, target: "_blank"
+                      %td
+                        =srd.creatable.full_name
+                      %td
+                        %ul
+                        - srd.document_signs.each do |ds|
+                          %li= ds.signable.full_name
           %div.contract-accounting
             %div.line-bottom
               %strong
@@ -344,22 +369,60 @@
                       =csbd.email
                     %td
                       =csbd.department
-          %div
-            %ul
-              Send Documents
-              -@contract.buy_contracts.first.buy_send_documents.each do |bsd|
-                %li
-                  =link_to bsd.file_name, bsd.doc_file, target: "_blank"
-            %ul
-              Employee Request Documents
-              -@contract.buy_contracts.first.buy_emp_req_docs.each do |berd|
-                %li
-                  =link_to berd.file_name, berd.doc_file, target: "_blank"
-            %ul
-              Vendor Request Documents
-              -@contract.buy_contracts.first.buy_ven_req_docs.each do |bvrd|
-                %li
-                  =link_to bvrd.file_name, bvrd.doc_file, target: "_blank"
+          %div.table.table-responsive
+            %table.table-bordered
+              %thead
+                Send Documents
+                %tr
+                  %th Documents
+                  %th Owner
+                  %th Need signature of
+                -@contract.buy_contracts.first.buy_send_documents.each do |bsd|
+                  %tr
+                    %td
+                      =link_to bsd.file_name, bsd.doc_file, target: "_blank"
+                    %td
+                      =bsd.creatable.full_name
+                    %td
+                      %ul
+                      - bsd.document_signs.each do |ds|
+                        %li= ds.signable.full_name
+          %div.table.table-responsive
+            %table.table-bordered
+              %thead
+                Employee Request Documents
+                %tr
+                  %th Documents
+                  %th Owner
+                  %th Need signature of
+                -@contract.buy_contracts.first.buy_emp_req_docs.each do |berd|
+                  %tr
+                    %td
+                      =link_to berd.file_name, berd.doc_file, target: "_blank"
+                    %td
+                      =berd.creatable.full_name
+                    %td
+                      %ul
+                      - berd.document_signs.each do |ds|
+                        %li= ds.signable.full_name
+          %div.table.table-responsive
+            %table.table-bordered
+              %thead
+                Vendor Request Documents
+                %tr
+                  %th Documents
+                  %th Owner
+                  %th Need signature of
+                -@contract.buy_contracts.first.buy_ven_req_docs.each do |bvrd|
+                  %tr
+                    %td
+                      =link_to bvrd.file_name, bvrd.doc_file, target: "_blank"
+                    %td
+                      =bvrd.creatable.full_name
+                    %td
+                      %ul
+                      - bvrd.document_signs.each do |ds|
+                        %li= ds.signable.full_name
           %div.contract-accounting
             %div.line-bottom
               %strong
