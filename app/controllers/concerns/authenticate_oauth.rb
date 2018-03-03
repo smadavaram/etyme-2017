@@ -19,6 +19,7 @@ module AuthenticateOauth
     logger.info "User #{@auth[:email]} does not exist, creating them from Auth attributes..."
     pass = ('a'..'z').to_a.shuffle[0,8].join
     @user = Candidate.new(email: @auth[:email], password: pass, password_confirmation: pass )
+    @user.skip_confirmation!
     @user.save!
   end
 end
