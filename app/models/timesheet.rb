@@ -13,10 +13,10 @@ class Timesheet < ApplicationRecord
   has_many   :timesheet_approvers  , dependent: :destroy
   has_many   :transactions  , through: :timesheet_logs
 
-  before_validation :set_recurring_timesheet_cycle
+  # before_validation :set_recurring_timesheet_cycle
   after_create  :create_timesheet_logs
-  after_create  :notify_timesheet_created
-  after_update :update_pending_timesheet_logs, if: Proc.new{|t| t.status_changed? && t.approved?}
+  # after_create  :notify_timesheet_created
+  # after_update :update_pending_timesheet_logs, if: Proc.new{|t| t.status_changed? && t.approved?}
 
   validates           :start_date,  presence:   true
   validates           :end_date,    presence:   true
@@ -103,6 +103,13 @@ class Timesheet < ApplicationRecord
     self.timesheet_logs.pending.each do |timesheet_log|
       timesheet_log.approved!
     end
+  end
+
+  def contract_id=(new_contract_id)
+    write_attribute(:contract_id, new_contract_id)
+    con = Contract.find(new_contract_id)
+    self.job_id = con.job_id
+    self.company_id = con.company_id
   end
 
 end

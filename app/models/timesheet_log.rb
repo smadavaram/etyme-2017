@@ -53,7 +53,7 @@ class TimesheetLog < ApplicationRecord
   end
 
   def set_contract_term_id
-    self.contract_term_id = self.contract.contract_terms.active.first.id
+    # self.contract_term_id = self.contract.contract_terms.active.first.id
   end
 
 end

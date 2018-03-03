@@ -15,6 +15,7 @@ class Company < ApplicationRecord
   has_many :jobs                      , dependent: :destroy
   has_many :users                     , dependent: :destroy
   has_many :admins                    , dependent: :destroy
+  has_many :contracts               , dependent: :destroy
   has_many :consultants               , dependent: :destroy
   has_many :roles                     , dependent: :destroy
   has_many :company_docs              , dependent: :destroy

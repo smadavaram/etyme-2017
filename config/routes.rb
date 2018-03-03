@@ -325,7 +325,7 @@ Rails.application.routes.draw do
     # get 'attachment/documents_list',to: 'attachments#document_list'
     get 'dashboard' ,       to: 'users#dashboard' ,             as: :dashboard
     post 'update_photo',    to: 'users#update_photo'
-    resources :timesheets ,concerns: :paginatable , only: [:show , :index] do
+    resources :timesheets ,concerns: :paginatable , only: [:show , :index, :new, :create, :edit, :update] do
       get 'approve'
       get 'submit'
       get 'reject'

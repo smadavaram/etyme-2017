@@ -15,6 +15,24 @@ class Company::TimesheetsController < Company::BaseController
   def show
   end
 
+  def new
+    @timesheet = current_user.timesheets.new
+    @contracts = current_company.contracts.pluck(:number, :id)
+  end
+
+  def create
+    @timesheet = current_user.timesheets.new(timesheet_params)
+    @timesheet.days = params[:timesheet][:days]
+    @timesheet.total_time = params[:timesheet][:days].values.map(&:to_i)
+    if @timesheet.save
+      flash[:success] = "Successfully Created"
+      redirect_to timesheets_path
+    else
+      flash[:errors] = @timesheet.errors.full_messages
+      redirect_to timesheets_path
+    end
+  end
+
   def submit
       @timesheet_approver = current_user.timesheet_approvers.new(timesheet_id: @timesheet.id , status: Timesheet.statuses[:submitted].to_i)
       if @timesheet_approver.save
@@ -49,6 +67,10 @@ class Company::TimesheetsController < Company::BaseController
   end
 
   private
+
+  def timesheet_params
+    params.require(:timesheet).permit(:job_id, :user_id, :company_id, :contract_id, :status, :total_time, :start_date, :end_date, :submitted_date, :next_timesheet_created_date, :invoice_id)
+  end
 
   def find_timesheet
     @timesheet = Timesheet.find_sent_or_received(params[:id] || params[:timesheet_id] , current_company)
