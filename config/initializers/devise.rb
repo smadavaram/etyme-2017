@@ -29,6 +29,10 @@ Devise.setup do |config|
   # available as additional gems.
   require 'devise/orm/active_record'
 
+  config.omniauth :google_oauth2, ENV['google_people_key'], ENV['google_secret_key'],:image_size => 'large', skip_jwt: true
+  config.omniauth :facebook, ENV['facebook_public_key'], ENV['facebook_secret_key'], scope: 'email', info_fields: 'email,name,first_name,last_name,gender',:image_size => 'large'
+  config.omniauth :linkedin, ENV['linked_in_public_key'], ENV['linked_in_secret_key']
+
   # ==> Configuration for any authentication mechanism
   # Configure which keys are used when authenticating a user. The default is
   # just :email. You can configure it to use [:username, :subdomain], so for

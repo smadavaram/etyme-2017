@@ -31,6 +31,16 @@
                     = f.submit 'Login',class:'form-btn'
                   .form-head
                     = link_to 'Forgot password?', new_candidate_password_path ,class: "more-link", style: "color: black"
+                  .social-login
+                    = link_to user_google_oauth2_omniauth_authorize_path, class: "btn btn-block google" do
+                      %i.fa.fa-google
+                      Sign up with google
+                    = link_to user_facebook_omniauth_authorize_path, class: "btn btn-block facebook" do
+                      %i.fa.fa-facebook
+                      Sign up with Facebook
+                    = link_to user_linkedin_omniauth_authorize_path, class: "btn btn-block linkedin" do
+                      %i.fa.fa-linkedin
+                      Sign up with Linked In
 
 - content_for :scripts do
   :javascript

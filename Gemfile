@@ -71,6 +71,14 @@ gem 'date_validator'
 gem 'ruby-duration'#, '~> 3.2', '>= 3.2.1'
 
 #****************************
+# social signup & signin
+#****************************
+gem 'omniauth'
+gem 'omniauth-linkedin'
+gem 'omniauth-facebook'
+gem 'omniauth-google-oauth2'
+
+#****************************
 # CronJobs
 #****************************
 gem 'whenever', :require => false

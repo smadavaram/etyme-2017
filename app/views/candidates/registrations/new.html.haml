@@ -38,6 +38,16 @@
               .form-foot
                 .form-actions
                   %input.form-btn{:type => "submit", :value => "Register"}/
+                .social-login
+                  = link_to user_google_oauth2_omniauth_authorize_path, class: "btn btn-block google" do
+                    %i.fa.fa-google
+                    Sign up with google
+                  = link_to user_facebook_omniauth_authorize_path, class: "btn btn-block facebook" do
+                    %i.fa.fa-facebook
+                    Sign up with Facebook
+                  = link_to user_linkedin_omniauth_authorize_path, class: "btn btn-block linkedin" do
+                    %i.fa.fa-linkedin
+                    Sign up with Linked In
                 .form-head
                   = link_to "Already have Account?",new_candidate_session_path ,class: "more-link"
 

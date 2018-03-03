@@ -361,7 +361,7 @@ Rails.application.routes.draw do
 
 
   # Devise Routes
-  devise_for :users, controllers: { invitations: 'company/invitations', passwords: 'users/passwords', sessions: 'users/sessions', confirmations: 'users/confirmations' } , path_names: { sign_in: 'login', sign_out: 'logout'}
+  devise_for :users, controllers: { invitations: 'company/invitations', passwords: 'users/passwords', sessions: 'users/sessions', confirmations: 'users/confirmations', omniauth_callbacks: 'candidates/omniauth_callbacks'} , path_names: { sign_in: 'login', sign_out: 'logout'}
 
   # devise_for :candidates
   devise_for :candidates , controllers: {

@@ -671,3 +671,39 @@ label span.label-text {
 #logo-group span.activity-dropdown a i {
     color: #fff;
 }
+/*social link css start*/
+.social-login{
+    font-family: 'Varela Round', sans-serif;
+    margin-top: 35px;;
+}
+.social-login a i {
+    font-size: 20px;
+    left: 0;
+    position: absolute;
+    width: 50px;
+}
+.btn.facebook {
+    background: #3C66C4;
+    position: relative;
+    color: #fff;
+}
+.btn.google {
+    background: #cf4332;
+    position: relative;
+    color: #fff;
+}
+.btn.linkedin {
+    background: #0077b5;
+    position: relative;
+    color: #fff;
+}
+.btn.facebook:hover{
+    background: #3C66C4;
+}
+.btn.google:hover{
+    background: #cf4332;
+}
+.btn.google:hover, .btn.facebook:hover, .btn.linkedin:hover {
+    color: #fff !important;
+}
+/*social link css end*/
