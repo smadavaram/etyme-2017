@@ -42,6 +42,32 @@
         %ol.breadcrumb
           = render_breadcrumbs tag: :li, separator: ""
       -#= yield :ribbon
+      #sub-menu-tab
+        %ul.nav.nav-tabs.pull-left.in
+          %li
+            = link_to company_path(current_company) do
+              %i.fa.fa-lg.fa-building
+              %span.hidden-mobile.hidden-tablet Company Info
+          %li
+            = link_to departments_path do
+              %i.fa.fa-lg.fa-building
+              %span.hidden-mobile.hidden-tablet Department
+          %li
+            = link_to roles_path do
+              %i.fa.fa-lg.fa-building
+              %span.hidden-mobile.hidden-tablet Roles
+          %li
+            = link_to admins_path do
+              %i.fa.fa-lg.fa-users
+              %span.hidden-mobile.hidden-tablet Users
+          %li
+            = link_to nil do
+              %i.fa.fa-lg.fa-building
+              %span.hidden-mobile.hidden-tablet Social
+          %li
+            = link_to attachments_path do
+              %i.fa.fa-lg.fa-book
+              %span.hidden-mobile.hidden-tablet Documents
       = yield
     -#.remote_container
     = yield :modals

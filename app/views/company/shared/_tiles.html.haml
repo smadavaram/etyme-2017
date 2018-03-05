@@ -6,6 +6,24 @@
           %i.fa.fa-building.fa-4x
           %span Company Info
     %li
+      = link_to company_user_path(current_user), class: 'jarvismetro-tile big-cubes bg-color-blueDark' do
+        %span.iconbox
+          %i.fa.fa-user.fa-4x
+          %span
+            Personal Info
+    %li
+      = link_to groups_path, class: 'jarvismetro-tile big-cubes bg-color-blueDark' do
+        %span.iconbox
+          %i.fa.fa-group.fa-4x
+          %span
+            Groups
+    %li
+      = link_to nil, class: 'jarvismetro-tile big-cubes bg-color-blueDark' do
+        %span.iconbox
+          %i.fa.fa-list.fa-4x
+          %span
+            List
+    %li
       = link_to admins_path, class: 'jarvismetro-tile big-cubes bg-color-blueDark' do
         %span.iconbox
           %i.fa.fa-lock.fa-4x
@@ -25,12 +43,6 @@
         %span.iconbox
           %i.fa.fa-book.fa-4x
           %span Documents
-    %li
-      = link_to company_user_path(current_user), class: 'jarvismetro-tile big-cubes bg-color-blueDark' do
-        %span.iconbox
-          %i.fa.fa-user.fa-4x
-          %span
-            Profile
     -#%li
     -#  = link_to companies_path, class: 'jarvismetro-tile big-cubes bg-color-blueDark' do
     -#    %span.iconbox
