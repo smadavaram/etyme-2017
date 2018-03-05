@@ -145,7 +145,7 @@ class Contract < ApplicationRecord
 
   def rate
     # self.contract_terms.active.first.rate
-    self.customer_rate
+    self.sell_contracts.first.customer_rate
   end
 
   def note

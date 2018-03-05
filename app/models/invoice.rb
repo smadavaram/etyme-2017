@@ -33,7 +33,7 @@ class Invoice < ApplicationRecord
 
 
   def set_consultant_and_total_amount
-    assignee_rate    = self.contract.assignee.hourly_rate
+    assignee_rate    = 0 #self.contract.assignee.hourly_rate
     contract_rate    = self.contract.rate
     total_time_in_sec = 0.0
     self.contract.timesheets.approved.not_invoiced.each{ |t| total_time_in_sec += t.approved_total_time }
@@ -76,7 +76,8 @@ class Invoice < ApplicationRecord
   end
 
   def set_next_invoice_date
-    temp_date = self.contract.next_invoice_date + TIMESHEET_FREQUENCY[self.contract.time_sheet_frequency].days
+    # temp_date = self.contract.next_invoice_date + TIMESHEET_FREQUENCY[self.contract.time_sheet_frequency].days
+    temp_date = self.contract.next_invoice_date + self.contract.sell_contracts.first.invoice_terms_period.to_i.days # TIMESHEET_FREQUENCY[self.contract.time_sheet_frequency].days
     self.contract.next_invoice_date = temp_date > self.contract.end_date ? self.contract.end_date : temp_date
     self.contract.save
   end

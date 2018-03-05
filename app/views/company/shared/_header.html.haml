@@ -25,7 +25,7 @@
   / pulled right: nav area
   .pull-right.col-md-6
     #logout.btn-header.transparent.pull-right
-      %spa
+      %span
         = link_to "",destroy_user_session_path, method: :delete , class: 'hidden' , id: 'logout-hidden'
         = link_to(destroy_user_session_path, title: 'Sign Out', data: {action: 'userLogout', 'logout-msg' => 'You can improve your security further after logging out by closing this opened browser'}) do
           %i.fa.fa-sign-out
@@ -34,6 +34,22 @@
       %span
         %a{"data-action" => "toggleMenu", :href => "javascript:void(0);", :title => "Collapse Menu"}
           %i.fa.fa-reorder
+    #top-menu-toggle.btn-header.transparent.pull-right
+      %span#activity1.activity-dropdown
+        / User image size is adjusted inside CSS, it should stay as it
+        %a#show-shortcut{"data-action" => "toggleShortcut", :href => "javascript:void(0);"}
+          %i.fa.fa-th
+
+    #quick-add.btn-header.transparent.pull-right
+      %span.project-selector.dropdown-toggle{"data-toggle" => "dropdown"}
+        %a.fa.fa-plus-square
+      %ul.dropdown-menu
+        %li
+          %a{:href => new_job_path } Add Job
+        %li.divider
+        %li
+          %a{:href => new_contract_path } Add Contract(s)
+
     #logo-group.pull-right
       %span#activity.activity-dropdown
         %i.fa.fa-user
@@ -104,36 +120,23 @@
               %i.fa.fa-sign-out.fa-lg
               %strong
                 %u> Logout
-    #logo-group.pull-right
-      %span#activity.activity-dropdown
-        / User image size is adjusted inside CSS, it should stay as it
-        %a#show-shortcut{"data-action" => "toggleShortcut", :href => "javascript:void(0);"}
-          %i.fa.fa-th
 
-    #quick-add.btn-header.transparent.pull-right
-      %span.project-selector.dropdown-toggle{"data-toggle" => "dropdown"}
-        %a.fa.fa-plus-square
-      %ul.dropdown-menu
-        %li
-          %a{:href => new_job_path } Add Job
-        %li.divider
-        %li
-          %a{:href => new_contract_path } Add Contract(s)
 
-    / search mobile button (this is hidden till mobile view port)
-    -##search-mobile.btn-header.transparent.pull-right
-      %span
-        %a{:href => "javascript:void(0)", :title => "Search"}
-          %i.fa.fa-search
-    / input: search field
-    -#%form.header-search.pull-right{:action => root_path}
-      %input#search-fld{"data-autocomplete" => "[\n            \"ActionScript\",\n            \"AppleScript\",\n            \"Asp\",\n            \"BASIC\",\n            \"C\",\n            \"C++\",\n            \"Clojure\",\n            \"COBOL\",\n            \"ColdFusion\",\n            \"Erlang\",\n            \"Fortran\",\n            \"Groovy\",\n            \"Haskell\",\n            \"Java\",\n            \"JavaScript\",\n            \"Lisp\",\n            \"Perl\",\n            \"PHP\",\n            \"Python\",\n            \"Ruby\",\n            \"Scala\",\n            \"Scheme\"]", :name => "param", :placeholder => "#{'Find reports and more'}", :type => "text"}/
-      %button{:type => "submit"}
-        %i.fa.fa-search
-      %a#cancel-search-js{:href => "javascript:void(0);", :title => "Cancel Search"}
-        %i.fa.fa-times
-    / fullscreen button
-    -##fullscreen.btn-header.transparent.pull-right
-      %span
-        %a{"data-action" => "launchFullscreen", :href => "javascript:void(0);", :title => "Full Screen"}
-          %i.fa.fa-arrows-alt
+
+    -#/ search mobile button (this is hidden till mobile view port)
+    -#-##search-mobile.btn-header.transparent.pull-right
+    -#  %span
+    -#    %a{:href => "javascript:void(0)", :title => "Search"}
+    -#      %i.fa.fa-search
+    -#/ input: search field
+    -#-#%form.header-search.pull-right{:action => root_path}
+    -#  %input#search-fld{"data-autocomplete" => "[\n            \"ActionScript\",\n            \"AppleScript\",\n            \"Asp\",\n            \"BASIC\",\n            \"C\",\n            \"C++\",\n            \"Clojure\",\n            \"COBOL\",\n            \"ColdFusion\",\n            \"Erlang\",\n            \"Fortran\",\n            \"Groovy\",\n            \"Haskell\",\n            \"Java\",\n            \"JavaScript\",\n            \"Lisp\",\n            \"Perl\",\n            \"PHP\",\n            \"Python\",\n            \"Ruby\",\n            \"Scala\",\n            \"Scheme\"]", :name => "param", :placeholder => "#{'Find reports and more'}", :type => "text"}/
+    -#  %button{:type => "submit"}
+    -#    %i.fa.fa-search
+    -#  %a#cancel-search-js{:href => "javascript:void(0);", :title => "Cancel Search"}
+    -#    %i.fa.fa-times
+    -#/ fullscreen button
+    -#-##fullscreen.btn-header.transparent.pull-right
+    -#  %span
+    -#    %a{"data-action" => "launchFullscreen", :href => "javascript:void(0);", :title => "Full Screen"}
+    -#      %i.fa.fa-arrows-alt
