@@ -20,7 +20,8 @@ end
 every 1.day, :at => '11:59 pm' do
   runner "Contract.start_contracts"
 end
-endevery 1.day, :at => '11:59 pm' do
+
+every 1.day, :at => '11:59 pm' do
   runner "Contract.invoiced_timesheets"
 end
 
