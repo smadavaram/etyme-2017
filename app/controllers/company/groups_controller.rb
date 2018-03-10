@@ -54,6 +54,12 @@ class Company::GroupsController < Company::BaseController
     redirect_back fallback_location: root_path
   end
 
+  def find_group_details
+    @group = Group.find(params[:gid])
+    @candi_name = @group.candidates.map(&:first_name).join(", ").gsub("_"," ").titleize
+    render json: {res: @group, cname: @candi_name}.to_json
+  end
+
   private
 
  def  set_and_find_group

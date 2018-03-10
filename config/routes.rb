@@ -229,6 +229,7 @@ Rails.application.routes.draw do
       collection do
         post :create_bulk_candidates
         post :create_bulk_companies
+        post :find_group_details
       end
     end
     resources :admins           ,concerns: :paginatable

@@ -15,7 +15,7 @@
               .jarviswidget-editbox
               .widget-body.no-padding
                 #datatable_fixed_column_wrapper.dataTables_wrapper.form-inline.dt-bootstrap.no-footer
-                  %table#datatable_fixed_column.table.table-striped.table-bordered.dataTable.no-footer{"aria-describedby" => "datatable_fixed_column_info", :role => "grid", :style => "width: 100%;", :width => "100%"}
+                  %table#datatable_fixed_column.group-info-table.table.table-striped.table-bordered.dataTable.no-footer{"aria-describedby" => "datatable_fixed_column_info", :role => "grid", :style => "width: 100%;", :width => "100%"}
                     %thead
                       %tr{:role => "row"}
                         %th.hasinput{ :style => "width:5%"}
@@ -40,7 +40,7 @@
                         %th{"data-hide" => "phone,tablet",:width => "10%"}Actions
                     %tbody
                       - @groups.each_with_index do |group , index|
-                        %tr
+                        %tr{id: group.id}
                           %td= index+1
                           %td= group.group_name.titleize
                           %td= group.candidates.map(&:first_name).join(", ").gsub("_"," ").titleize
@@ -50,6 +50,8 @@
                   - if @groups.count >15
                     .dt-toolbar-footer
                       = digg_pagination(@groups)
+                  %div{class: 'group-info col-sm-4'}
+
 :css
   .form-control
   {
@@ -62,6 +64,30 @@
 
 -content_for :scripts do
   :javascript
+    $(document).on("click", ".group-info-table tbody tr", function(e) {
+        $.ajax({
+       type: 'POST',
+       dataType: 'json',
+       data: {gid: this.id},
+       url: "#{find_group_details_groups_path}",
+       success: function (data) {
+         var gData = JSON.stringify(data);
+         var htmlText = '';
+          htmlText += '<table class="table">';
+          htmlText += '<tr>';
+          htmlText += '<td><b>ID</b></td><td>' + JSON.stringify(data.res.id) + '</td>';
+          htmlText += '</tr>';
+          htmlText += '<tr>';
+          htmlText += '<td><b>Group Name</b></td><td>' + JSON.stringify(data.res.group_name).replace(/\"/g, "") + '</td>';
+          htmlText += '</tr>';
+          htmlText += '<tr>';
+          htmlText += '<td><b>Candidate Names</b></td><td>' + JSON.stringify(data.cname).replace(/\"/g, "") + '</td>';
+          htmlText += '</tr>';
+          htmlText += '</table>';
+          $('.group-info').html(htmlText);
+       }
+     });
+    });
     $(document).ready(function() {
      pageSetUp();
       var responsiveHelper_dt_basic = undefined;
