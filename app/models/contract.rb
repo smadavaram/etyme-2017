@@ -45,6 +45,7 @@ class Contract < ApplicationRecord
   # has_many :contract_sale_commisions
 
   after_create :insert_attachable_docs
+  after_create :set_next_invoice_date
   after_create :notify_recipient , if: Proc.new{ |contract| contract.not_system_generated? }
   after_create :notify_company_about_contract, if: Proc.new{|contract|contract.parent_contract?}
   after_update :notify_assignee_on_status_change , if: Proc.new{ |contract| contract.status_changed? && contract.not_system_generated? && contract.assignee? && contract.respond_by.present?  && contract.accepted? }
@@ -248,5 +249,8 @@ class Contract < ApplicationRecord
     end
   end
 
+  def set_next_invoice_date
+    self.update(next_invoice_date: (self.start_date + self.sell_contracts.first.invoice_terms_period.to_i.days) )
+  end
 
 end
