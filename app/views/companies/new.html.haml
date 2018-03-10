@@ -26,7 +26,7 @@
                   .form-row
                     .form-controls
                       .plain-select
-                        = f.select :company_type , Company.company_types.map { |key, value| [key.humanize, key]},{include_blank: '-- Select Type --'} ,:class => 'form-control company_type', required: true ,onchange: "showNote();"
+                        = f.select :company_type , Company.company_types.each_with_index.map { |x, index| [x[0], index]},{include_blank: '-- Select Type --'} ,:class => 'form-control company_type', required: true ,onchange: "showNote();"
                     .note#company_type{style: "float:left !important ;color: antiquewhite"}
                   -#.form-row
                     -#.form-controls

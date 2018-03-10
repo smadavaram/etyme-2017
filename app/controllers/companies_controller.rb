@@ -16,6 +16,7 @@ class CompaniesController < ApplicationController
   end
 
   def create
+    params[:company][:company_type] = params[:company][:company_type].to_i
     @company = Company.new(company_params)
     if @company.save
       flash[:success] =  "Registration Successfull."
