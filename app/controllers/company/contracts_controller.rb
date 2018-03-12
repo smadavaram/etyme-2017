@@ -154,18 +154,18 @@ class Company::ContractsController < Company::BaseController
 
   def contract_params
       params.require(:contract).permit(
-          [:job_id, :client_id, :candidate_id, :is_commission , :contract_type , :client_name, :client_name,
-           :company_name, :work_location, :received_by_signature,:received_by_name,:sent_by_signature,:sent_by_name,
-           :company_address, :company_website, :fed_id, :commission_type,:commission_amount , :max_commission,
-           :commission_for_id, :candidate_name,  :customer_rate, :time_sheet_frequency, :invoice_terms_period,
-           :show_accounting_to_employee, :billing_frequency, :time_sheet_frequency, :assignee_id , :contractable_id ,
-           :b_fed_id, :b_company_website, :b_company_address, :b_company_name, :b_ssn, :b_candidate_address,
-           :b_candidate_name, :contractable_type , :job_application_id , :parent_contract_id ,:start_date ,
-           :b_show_accounting_to_employee, :payment_term, :b_time_sheet, :payrate, :contract_type, :end_date,
+          [:job_id, :client_id, :candidate_id, :is_commission, :contract_type, :client_name, :client_name,
+           :company_name, :work_location, :received_by_signature,:received_by_name, :sent_by_signature,:sent_by_name,
+           :company_address, :company_website, :fed_id, :commission_type,:commission_amount, :max_commission,
+           :commission_for_id, :candidate_name, :customer_rate, :time_sheet_frequency, :invoice_terms_period,
+           :show_accounting_to_employee, :billing_frequency, :time_sheet_frequency, :assignee_id, :contractable_id ,
+           :contractable_type, :job_application_id, :parent_contract_id, :start_date ,
+           :payment_term, :b_time_sheet, :payrate, :contract_type, :end_date,
            :message_from_hiring, :status, :company_id, company_doc_ids: [],
            sell_contracts_attributes: [
                :company_id, :customer_rate, :customer_rate_type, :time_sheet, :invoice_terms_period,
-               :show_accounting_to_employee,
+               :show_accounting_to_employee, :first_date_of_timesheet, :day_of_week, :date_1, :date_2,
+               :end_of_month, :first_date_of_invoice,
                contract_sell_business_details_attributes: [
                    :id, :contact_name, :phone, :email, :department, :_destroy
                ],
@@ -181,7 +181,8 @@ class Company::ContractsController < Company::BaseController
                                       ],
            buy_contracts_attributes: [
                :candidate_id, :ssn, :contract_type, :payrate, :payrate_type, :time_sheet,
-               :payment_term, :show_accounting_to_employee,
+               :payment_term, :show_accounting_to_employee, :first_date_of_timesheet, :day_of_week, :date_1, :date_2,
+               :end_of_month, :first_date_of_invoice,
                contract_buy_business_details_attributes: [
                    :id, :contact_name, :phone, :email, :department, :_destroy
                ],
