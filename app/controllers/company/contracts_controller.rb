@@ -14,6 +14,7 @@ class Company::ContractsController < Company::BaseController
   add_breadcrumb "CONTRACTS", :contracts_path, options: { title: "CONTRACTS" }
 
   def index
+    @contract_activity = PublicActivity::Activity.where(trackable: current_company.contracts).order('created_at DESC').paginate(page: params[:page], per_page: 15 )
   end
 
   def show

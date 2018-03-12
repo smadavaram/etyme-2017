@@ -1,5 +1,9 @@
 class Contract < ApplicationRecord
 
+  include PublicActivity::Model
+  tracked owner: Proc.new{ |controller, model| controller.current_user },
+          params:{ "obj"=> proc {|controller, model_instance| model_instance.changes}}
+
   include Rails.application.routes.url_helpers
 
   enum status:                [ :pending, :accepted , :rejected , :is_ended  , :cancelled , :paused , :in_progress]
