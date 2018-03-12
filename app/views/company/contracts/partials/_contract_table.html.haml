@@ -57,16 +57,15 @@
                   %tbody
                     - data.each do |contract|
                       %tr{class: "#{set_background_status_color(contract.status)}"}
-                        %td=link_to contract.try(:number) ,contract_path(contract)
+                        %td=link_to contract.try(:display_number) ,contract_path(contract)
                         %td=contract.try(:title)
                         %td
                           = contract.client.try(:full_name)
-                          = link_to "Chat", "#", class: "btn btn-success btn-md start-conversation", "data-sid" => current_company.id, "data-rid" => contract.client.users.first.id, "data-stype" => current_company.class, "data-rtype" => contract.client.users.first.class.to_s
                         %td= contract.candidate.try(:full_name)
                         %td= link_to contract.created_by.full_name , '#'
                         %td= (contract.start_date)
                         %td
-                          = link_to contract.sell_contracts.first.try(:number), company_sell_contract_path(contract.sell_contracts.first.try(:number))
+                          = link_to contract.sell_contracts.first.try(:display_number), company_sell_contract_path(contract.sell_contracts.first.try(:display_number))
                           %br
                           =contract.sell_contracts.first.try(:customer_rate)
                           %br
@@ -76,7 +75,7 @@
                           %br
                           =contract.sell_contracts.first.try(:show_accounting_to_employee)
                         %td
-                          = link_to contract.buy_contracts.first.try(:number), company_buy_contract_path(contract.buy_contracts.first.try(:number))
+                          = link_to contract.buy_contracts.first.try(:display_number), company_buy_contract_path(contract.buy_contracts.first.try(:display_number))
                           %br
                           =contract.buy_contracts.first.try(:contract_type)
                           %br

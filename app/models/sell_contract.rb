@@ -7,7 +7,8 @@ class SellContract < ApplicationRecord
   has_many :sell_request_documents
   has_many :contract_customer_rate_histories
 
-  include NumberGenerator.new({prefix: 'SC', length: 7})
+  # include NumberGenerator.new({prefix: 'SC', length: 7})
+  before_create :set_number
 
   accepts_nested_attributes_for :contract_sell_business_details, allow_destroy: true,reject_if: :all_blank
   accepts_nested_attributes_for :sell_send_documents, allow_destroy: true,reject_if: :all_blank
@@ -18,6 +19,14 @@ class SellContract < ApplicationRecord
 
   def set_contract_customer_rate_history
     self.contract_customer_rate_histories.create(customer_rate: self.customer_rate, change_date: Time.now)
+  end
+
+  def set_number
+    self.number = self.contract.number
+  end
+
+  def display_number
+    "SC"+self.number
   end
 
 end

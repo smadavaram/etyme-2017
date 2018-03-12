@@ -8,7 +8,8 @@ class BuyContract < ApplicationRecord
   has_many :buy_emp_req_docs
   has_many :buy_ven_req_docs
 
-  include NumberGenerator.new({prefix: 'BC', length: 7})
+  # include NumberGenerator.new({prefix: 'BC', length: 7})
+  before_create :set_number
 
   accepts_nested_attributes_for :contract_buy_business_details, allow_destroy: true,reject_if: :all_blank
   accepts_nested_attributes_for :contract_sale_commisions, allow_destroy: true,reject_if: :all_blank
@@ -17,6 +18,14 @@ class BuyContract < ApplicationRecord
   accepts_nested_attributes_for :buy_ven_req_docs, allow_destroy: true,reject_if: :all_blank
 
   attr_accessor :ssn
+
+  def set_number
+    self.number = self.contract.number
+  end
+
+  def display_number
+    "BC"+self.number
+  end
 
   def ssn
     legacy_ssn

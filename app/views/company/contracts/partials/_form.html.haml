@@ -2,7 +2,6 @@
   =contract.hidden_field :contractable_type , value: "Company"
   - if params.has_key?('contract_id')
     =contract.hidden_field :parent_contract_id , value: params[:contract_id]
-  -#= e.fields_for :consultant_profile do |p|
   #bootstrap-wizard-1.col-sm-12
     .form-bootstrapWizard
       %ul.bootstrapWizard.form-wizard
@@ -103,18 +102,46 @@
       $(".multi-select2-role").select2({placeholder: "Select a Role(s)"});
       $(".multi-select2-company-docs").select2({placeholder: "Select Document(s)"});
     });
+
     $( document ).ready(function() {
-     $('#contract_start_date').datepicker({
+      $('#contract_start_date').datepicker({
         dateFormat : 'dd/mm/yy',
-        changeMonth: true,
-        changeYear: true,
-        nextText: "",
-        prevText: ""
+        prevText : '<i class="fa fa-chevron-left"></i>',
+        nextText : '<i class="fa fa-chevron-right"></i>',
+        onSelect : function(selectedDate) {
+          $('#contract_end_date').datepicker('option', 'minDate', selectedDate );
+        }
       });
-     $('#contract_end_date').datepicker({
-      dateFormat : 'dd/mm/yy',
-      changeYear: true
-     });
+
+      $('#contract_end_date').datepicker({
+        dateFormat : 'dd/mm/yy',
+        prevText : '<i class="fa fa-chevron-left"></i>',
+        nextText : '<i class="fa fa-chevron-right"></i>'
+      });
+      $(".first_date_of_invoice_field, .first_date_of_timesheet_field, .date_1").datepicker({
+          dateFormat : 'dd/mm/yy'
+      });
+
+      $(".sell-time-sheet").on("change", function(){
+        $(".sell-time-sheet-setting").children().addClass("hidden");
+        if($(this).val() == "weekly"){
+          $(".sell-time-sheet-setting").find('.week').removeClass("hidden");
+        } else if($(this).val() == "twice a month"){
+          $(".sell-time-sheet-setting").find('.twice-month, .month').removeClass("hidden");
+        } else if($(this).val() == "monthly"){
+          $(".sell-time-sheet-setting").find('.month').removeClass("hidden");
+        }
+      });
+      $(".buy-time-sheet").on("change", function(){
+        $(".buy-time-sheet-setting").children().addClass("hidden");
+        if($(this).val() == "weekly"){
+          $(".buy-time-sheet-setting").find('.week').removeClass("hidden");
+        } else if($(this).val() == "twice a month"){
+          $(".buy-time-sheet-setting").find('.twice-month, .month').removeClass("hidden");
+        } else if($(this).val() == "monthly"){
+          $(".buy-time-sheet-setting").find('.month').removeClass("hidden");
+        }
+        });
     });
 
     $( document ).on( "change", ".is-require-sign", function( event ) {

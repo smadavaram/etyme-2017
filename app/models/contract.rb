@@ -4,7 +4,7 @@ class Contract < ApplicationRecord
 
   enum status:                [ :pending, :accepted , :rejected , :is_ended  , :cancelled , :paused , :in_progress]
   enum billing_frequency:     [ :weekly_invoice, :monthly_invoice  ]
-  enum time_sheet_frequency:  [:daily,:weekly, :by_weekly, :monthly]
+  enum time_sheet_frequency:  [:daily,:weekly, "twice a month", :monthly]
   enum commission_type:       [:percentage, :fixed]
   enum contract_type:         [:W2, "1099", :C2C, :contract_independent, :contract_w2 , :contract_C2H_independent , :contract_C2H_w2 , :third_party_crop_to_crop , :third_party_C2H_crop_to_crop]
 
@@ -55,6 +55,8 @@ class Contract < ApplicationRecord
   before_create :set_contractable , if: Proc.new{ |contract| contract.not_system_generated? }
   before_create :set_sub_contract_attributes , if: Proc.new{ |contract| contract.parent_contract? }
 
+  before_create :set_number
+
   validate  :start_date_cannot_be_less_than_end_date , on: :create
   validate  :start_date_cannot_be_in_the_past , :next_invoice_date_should_be_in_future ,on: :create
   validates :status ,             inclusion: {in: statuses.keys}
@@ -81,8 +83,21 @@ class Contract < ApplicationRecord
   # accepts_nested_attributes_for :contract_sell_business_details, allow_destroy: true,reject_if: :all_blank
   # accepts_nested_attributes_for :contract_sale_commisions, allow_destroy: true,reject_if: :all_blank
 
-  include NumberGenerator.new({prefix: 'C', length: 7})
+  # include NumberGenerator.new({prefix: 'C', length: 7})
   default_scope  -> {order(created_at: :desc)}
+
+  def set_number
+    c = Contract.order("created_at DESC").last
+    if c.present?
+      self.number = (self.number.to_i + 1).to_s.rjust(3, "0")
+    else
+      self.number = "001"
+    end
+  end
+  
+  def display_number
+    "C"+self.number
+  end
 
   def is_not_ended?
     self.end_date >= Date.today
@@ -215,7 +230,7 @@ class Contract < ApplicationRecord
   end
 
   def start_date_cannot_be_less_than_end_date
-      errors.add(:start_date, ' cannot be less than end date.') if self.end_date < self.start_date
+      errors.add(:start_date, ' cannot be less than end date.') if self.end_date.blank? || self.end_date < self.start_date
   end
 
   def start_date_cannot_be_in_the_past

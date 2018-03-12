@@ -1,35 +1,26 @@
 %fieldset
-  -#= f.fields_for :job do |j|
-  -#  .form-group
-  -#    %label.col-md-2.control-label
-  -#      Job Title
-  -#      %sup.text-danger *
-  -#    .col-md-10
-  -#      = j.text_field :title , class: 'form-control' , placeholder: 'Job ' , required: true
   .form-group
     %label.col-md-2.control-label  Jobs
     .col-md-10
       = select_tag 'contract[job_id]', options_for_select(current_company.jobs.collect { |c|[c.title, c.id] })  , class: "form-control"
-      = link_to "Add Job", "#", class: "btn btn-success btn-sm pull-right"
+      = link_to "Add Job", new_job_path, class: "btn btn-success btn-sm pull-right"
 
   .form-group
     %label.col-md-2.control-label  Client
     .col-md-10
       = select_tag  "contract[client_id]", nil, id: "select_clients", required: true
       = link_to "Add Client", new_company_company_path, class: "btn btn-success btn-sm pull-right"
-      =# f.text_field :client_name, class: "form-control", placeholder: "Contract Client name"
+
+  .form-group
+    %label.col-md-2.control-label  Work location
+    .col-md-10
+      = f.text_field :work_location, class: "form-control", placeholder: "Contract Work location"
 
   .form-group
     %label.col-md-2.control-label  Candidate
     .col-md-10
       = select_tag "contract[candidate_id]", nil, id: "select_candidates", required: true
       = link_to "Apply candidate", jobs_path, class: "btn btn-success btn-sm pull-right"
-      =# f.text_field :candidate_name, class: "form-control", placeholder: "Contract Candidate name"
-
-  .form-group
-    %label.col-md-2.control-label  Work location
-    .col-md-10
-      = f.text_field :work_location, class: "form-control", placeholder: "Contract Work location"
 
   .form-group
     %label.col-md-2.control-label
