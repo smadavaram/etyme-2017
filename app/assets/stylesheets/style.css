@@ -707,3 +707,46 @@ label span.label-text {
     color: #fff !important;
 }
 /*social link css end*/
+
+
+/*timesheet*/
+.timesheet {
+    padding: 15px;
+    width: 100%;
+}
+.timesheet .table-responsive {
+    background: #fff none repeat scroll 0 0;
+}
+.timesheet .timesheet-header .plain-select,
+.timesheet > .plain-select {
+    display: inline-block;
+    max-width: 200px;
+}
+.timesheet-header .pull-left {
+    width: 80%;
+}
+.timesheet .pull-right > p {
+    color: #333;
+    font-size: 24px;
+    font-weight: bold;
+}
+.timesheet-header .pull-left > input[type="text"] {
+    display: inline-block !important;
+    max-width: 205px !important;
+    vertical-align: top;
+}
+.timesheet .table-responsive .plain-select {
+    width: 48%;
+}
+.timesheet .table-responsive textarea {
+    width: 48%;
+    display: inline-block;
+    height: 70px !important;
+    margin-right: 4%;
+}
+.timesheet .table-responsive .plain-select:first-child {
+    margin-right: 4%;
+}
+.timesheet label.fancy {
+    display: inline-block;
+}

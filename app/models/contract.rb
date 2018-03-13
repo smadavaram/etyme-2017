@@ -1,8 +1,7 @@
 class Contract < ApplicationRecord
 
   include PublicActivity::Model
-  tracked owner: Proc.new{ |controller, model| controller.current_user },
-          params:{ "obj"=> proc {|controller, model_instance| model_instance.changes}}
+  tracked params:{ "obj"=> proc {|controller, model_instance| model_instance.changes}}
 
   include Rails.application.routes.url_helpers
 
@@ -51,7 +50,7 @@ class Contract < ApplicationRecord
   after_create :insert_attachable_docs
   after_create :set_next_invoice_date
   after_create :notify_recipient , if: Proc.new{ |contract| contract.not_system_generated? }
-  after_create :notify_company_about_contract, if: Proc.new{|contract|contract.parent_contract?}
+  # after_create :notify_company_about_contract, if: Proc.new{|contract|contract.parent_contract?}
   after_update :notify_assignee_on_status_change , if: Proc.new{ |contract| contract.status_changed? && contract.not_system_generated? && contract.assignee? && contract.respond_by.present?  && contract.accepted? }
   after_update :notify_companies_admins_on_status_change, if: Proc.new{|contract| contract.status_changed? && contract.respond_by.present? && contract.not_system_generated?}
   # after_create :update_contract_application_status
@@ -93,7 +92,7 @@ class Contract < ApplicationRecord
   def set_number
     c = Contract.order("created_at DESC").last
     if c.present?
-      self.number = (self.number.to_i + 1).to_s.rjust(3, "0")
+      self.number = (c.number.to_i + 1).to_s.rjust(3, "0")
     else
       self.number = "001"
     end

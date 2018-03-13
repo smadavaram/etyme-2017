@@ -28,7 +28,7 @@
               My Contracts
           %li
             %a{"data-toggle" => "tab", :href => "#tab-r3"}
-              %span.badge.bg-color-blueDark.txt-color-white= @received_contracts.count
+              %span.badge.bg-color-blueDark.txt-color-white= @buy_contracts.count
               Received Contracts
         .col-md-12
           .tab-content
@@ -37,7 +37,8 @@
             #tab-r2.tab-pane.padding-top-15
               = render 'company/contracts/partials/contract_table' , data: @sent_contracts
             #tab-r3.tab-pane.padding-top-15
-              = render 'company/contracts/partials/receive_contract_table' , data: @received_contracts
+              = render 'company/contracts/partials/receive_contract_table' , data: @buy_contracts
+
 - content_for :modals do
   #ajax-modal
 - content_for :scripts do
