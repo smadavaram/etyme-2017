@@ -1,20 +1,30 @@
-.form-group
-  %label.col-md-2.control-label
-    Name
-  .col-md-10
-    = f.text_field :name ,class: "form-control" , placeholder: ""
-.form-group
-  %label.col-md-2.control-label
-    Rate
-  .col-md-10
-    = f.text_field :rate, class: "form-control" , placeholder: ""
-.form-group
-  %label.col-md-2.control-label
-    Frequency
-  .col-md-10
-    = f.text_field :frequency ,class: "form-control" , placeholder: ""
-.form-group
-  %label.col-md-2.control-label
-    Limit
-  .col-md-10
-    = f.text_field :limit ,class: "form-control" , placeholder: ""
+.contract_box
+  .row
+    .col-md-6
+      .form-group
+        %label.control-label
+          Name
+        .contract-fild
+          = f.text_field :name ,class: "form-control" , placeholder: ""
+    .col-md-6
+      .form-group
+        %label.control-label
+          Rate
+        .contract-fild
+          = f.text_field :rate, class: "form-control" , placeholder: ""
+  .row
+    .col-md-6
+      .form-group
+        %label.control-label
+          Frequency
+        .contract-fild
+          = f.text_field :frequency ,class: "form-control" , placeholder: ""
+    .col-md-6
+      .form-group
+        %label.control-label
+          Limit
+        .contract-fild
+          = f.text_field :limit ,class: "form-control" , placeholder: ""
+
+
+

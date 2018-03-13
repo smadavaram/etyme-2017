@@ -1,20 +1,28 @@
-.form-group
-  %label.col-md-2.control-label
-    Contact name
-  .col-md-10
-    = f.text_field :contact_name ,class: "form-control" , placeholder: ""
-.form-group
-  %label.col-md-2.control-label
-    Phone
-  .col-md-10
-    = f.text_field :phone ,class: "form-control" , placeholder: ""
-.form-group
-  %label.col-md-2.control-label
-    Email
-  .col-md-10
-    = f.email_field :email ,class: "form-control" , placeholder: ""
-.form-group
-  %label.col-md-2.control-label
-    Department
-  .col-md-10
-    = f.text_field :department ,class: "form-control" , placeholder: ""
+%label.control-label  Business Details
+.contract_box
+  .row
+    .col-md-6
+      .form-group
+        %label.control-label
+          Contact name
+        .contract-fild
+          = f.text_field :contact_name ,class: "form-control" , placeholder: ""
+    .col-md-6
+      .form-group
+        %label.control-label
+          Phone
+        .contract-fild
+          = f.text_field :phone ,class: "form-control" , placeholder: ""
+  .row
+    .col-md-6
+      .form-group
+        %label.control-label
+          Email
+        .contract-fild
+          = f.email_field :email ,class: "form-control" , placeholder: ""
+    .col-md-6
+      .form-group
+        %label.control-label
+          Department
+        .contract-fild
+          = f.text_field :department ,class: "form-control" , placeholder: ""

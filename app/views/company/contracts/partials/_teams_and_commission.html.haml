@@ -1,8 +1,11 @@
-.form-group
-  .form-group
-  %label.col-md-2.control-label Are you active this contract ?
-  .col-md-10.select
-    = f.select :status , [["No", false] , ["Yes" , true]], {} , {class: "form-control" }
+.row
+  .col-md-6
+    .form-group
+      .form-group
+      %label.control-label Are you active this contract ?
+      .select
+        .plain-select
+          = f.select :status , [["No", false] , ["Yes" , true]], {} , {class: "form-control" }
 
 
 -#.form-group

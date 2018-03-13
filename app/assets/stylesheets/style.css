@@ -2,12 +2,14 @@
     z-index: 1051;
 }
 .form-horizontal  input[type="text"],
+.form-horizontal  input[type="number"],
+.form-horizontal  input[type="email"],
 .form-horizontal select.form-control,
 .form-horizontal textarea.form-control,
 .form-horizontal select,
 .form-horizontal textarea {
     -moz-appearance: none;
-    background-color: #ffffff;
+    background-color: #ffffff !important;
     border: 1px solid #dbdbdb;
     border-radius: 3px !important;
     box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.06) !important;
@@ -749,4 +751,110 @@ label span.label-text {
 }
 .timesheet label.fancy {
     display: inline-block;
+}
+
+
+/*contract-job*/
+.new_contract .select2-selection.select2-selection--single {
+    box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.06);
+    height: 45px;
+    border-color: #ddd;
+    border-radius: 3px;
+}
+.new_contract .select2-selection.select2-selection--single > span {
+    font-size: 15px;
+    line-height: 45px;
+}
+.new_contract .plain-select select.form-control {
+    padding: 0 7px;
+}
+.new_contract label.control-label {
+    font-size: 15px;
+    line-height: 100%;
+    margin-bottom: 5px;
+    text-transform: capitalize;
+}
+.new_contract .add-link {
+    color: #2196f3;
+    font-size: 14px;
+    font-weight: 400;
+    line-height: 100%;
+    padding: 7px 0 0;
+    text-transform: capitalize;
+}
+.new_contract .help-block {
+    display: none !important;
+}
+.new_contract .has-error .select2-selection.select2-selection--single {
+    border-color: #ff0000;
+}
+.form-horizontal .has-error input[type="text"],
+.form-horizontal .has-error select.form-control,
+.form-horizontal .has-error textarea.form-control,
+.form-horizontal .has-error select,
+.form-horizontal .has-error textarea {
+    border-color: #ff0000;
+}
+/*contract-sell*/
+.new_contract .plain-select .select2-container {
+    width: 100% !important;
+    margin: 0 0 16px;
+}
+.contract_box {
+    background: #f9f9f9 none repeat scroll 0 0;
+    border: 1px solid #ddd;
+    margin-bottom: 15px;
+    padding: 10px 16px;
+    position: relative;
+}
+.bttn.add_fields.text-info {
+    background: #2196f3;
+    color: #fff !important;
+    display: inline-block;
+    height: 45px;
+    line-height: 45px;
+    padding: 0 15px;
+    margin-bottom: 15px;
+}
+.new_contract input[type="checkbox"] {
+    display: inline-block;
+    width: auto;
+    vertical-align: top;
+    height: auto;
+    margin: 0 !important;
+}
+.new_contract .select2 {
+    width: 100% !important;
+}
+.new_contract .select2 .select2-selection--multiple{
+    box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.06);
+    min-height: 45px !important;
+    border-color: #ddd;
+    border-radius: 3px;
+}
+.new_contract .contract_box .remove {
+    position: absolute;
+    right: -5px;
+    top: -10px;
+    left: inherit;
+}
+.new_contract .sell-time-sheet-setting {
+    margin-bottom: 15px;
+}
+
+/*contract-buy*/
+.new_contract input.form-control[type="radio"] {
+    display: inline-block;
+    height: auto;
+    margin: 0;
+    vertical-align: top;
+    width: auto;
+    position: relative;
+    left: 0;
+}
+.contract-fild.radio-grop {
+    margin-bottom: 15px;
+}
+.new_contract .row.contract-Accounting {
+    margin-bottom: 15px;
 }
