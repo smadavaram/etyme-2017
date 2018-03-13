@@ -280,7 +280,9 @@ Rails.application.routes.draw do
       member do
         post :update_attachable_doc
         get :tree_view
+        get :received_contract
       end
+
       post :change_invoice_date
       resources :invoices , only: [:index , :show] do
         member do

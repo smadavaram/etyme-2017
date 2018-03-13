@@ -1,76 +1,165 @@
-= form_for @timesheet ,html:{ class:'form-horizontal',id: 'group-val'} do |f|
-  %br
-  .form-group
-    %label.col-md-3.control-label
-      Select Contract
-      %sup.text-danger *
-    .col-md-8
-      = f.select :contract_id, @contracts
-  .form-group
-    %label.col-md-3.control-label
-      Date Range
-      %sup.text-danger *
-    .col-md-8
-      = f.text_field :start_date, required: true ,class:'form-control',id:"tm_start_date", placeholder: "Start date"
-      = f.text_field :end_date, required: true ,class:'form-control',id:"tm_end_date", placeholder: "End date"
-  #timesheet_dates
-  = f.button "submit".html_safe , class: 'btn btn-primary btn-sm' , data: {disable_with: ("Submitting...")} ,id: 'form_id'
-- content_for :scripts do
-  -#= javascript_include_tag 'select2'
-  :javascript
-    $(document).ready(function() {
-      pageSetUp();
+-#= form_for @timesheet ,html:{ class:'form-horizontal',id: 'group-val'} do |f|
+-#  %br
+-#  .form-group
+-#    %label.col-md-3.control-label
+-#      Select Contract
+-#      %sup.text-danger *
+-#    .col-md-8
+-#      = f.select :contract_id, @contracts
+-#  .form-group
+-#    %label.col-md-3.control-label
+-#      Date Range
+-#      %sup.text-danger *
+-#    .col-md-8
+-#      = f.text_field :start_date, required: true ,class:'form-control',id:"tm_start_date", placeholder: "Start date"
+-#      = f.text_field :end_date, required: true ,class:'form-control',id:"tm_end_date", placeholder: "End date"
+-#  #timesheet_dates
+-#  = f.button "submit".html_safe , class: 'btn btn-primary btn-sm' , data: {disable_with: ("Submitting...")} ,id: 'form_id'
+-#- content_for :scripts do
+-#  -#= javascript_include_tag 'select2'
+-#  :javascript
+-#    $(document).ready(function() {
+-#      pageSetUp();
+-#
+-#      $('#tm_start_date').datepicker({
+-#        dateFormat : 'mm/dd/yy',
+-#        prevText : '<i class="fa fa-chevron-left"></i>',
+-#        nextText : '<i class="fa fa-chevron-right"></i>',
+-#        onSelect : function(selectedDate) {
+-#          var date = $(this).datepicker('getDate');
+-#          maxDate = new Date(date);
+-#          maxDate.setDate(maxDate.getDate() + 6);
+-#          $('#tm_end_date').datepicker('option', 'minDate', selectedDate );
+-#          $('#tm_end_date').datepicker('option', 'maxDate', maxDate);
+-#          set_dates()
+-#        }
+-#      });
+-#
+-#      $('#tm_end_date').datepicker({
+-#        dateFormat : 'mm/dd/yy',
+-#        prevText : '<i class="fa fa-chevron-left"></i>',
+-#        nextText : '<i class="fa fa-chevron-right"></i>',
+-#        onSelect : function(selectedDate) {
+-#          $('#tm_end_date').datepicker('option', 'minDate', selectedDate);
+-#          set_dates()
+-#        }
+-#      });
+-#
+-#      function set_dates(){
+-#        if($('#tm_start_date').val() && $('#tm_end_date').val() ){
+-#          $("#timesheet_dates").empty();
+-#          var start = new Date($('#tm_start_date').val());
+-#          var end = new Date($('#tm_end_date').val());
+-#
+-#          var loop = new Date(start);
+-#          while(loop <= end){
+-#            key_name = loop.getDate()+"/"+loop.getMonth()+"/"+loop.getFullYear()
+-#            strHtml = "<div class='form-group'>"+
+-#                        "<label class='col-md-3 control-label'>"+
+-#                          key_name +
+-#                          "<sup class='text-danger'>*</sup>" +
+-#                        "</label>" +
+-#                        "<div class='col-md-8'>" +
+-#                          "<input required='required' value='0' class='form-control' name='timesheet[days]["+key_name+"]' type='text'>" +
+-#                        "</div>" +
+-#                      "</div>";
+-#            $("#timesheet_dates").append(strHtml);
+-#
+-#
+-#
+-#            var newDate = loop.setDate(loop.getDate() + 1);
+-#            loop = new Date(newDate);
+-#          }
+-#        }
+-#      }
+-#
+-#    });
 
-      $('#tm_start_date').datepicker({
-        dateFormat : 'mm/dd/yy',
-        prevText : '<i class="fa fa-chevron-left"></i>',
-        nextText : '<i class="fa fa-chevron-right"></i>',
-        onSelect : function(selectedDate) {
-          var date = $(this).datepicker('getDate');
-          maxDate = new Date(date);
-          maxDate.setDate(maxDate.getDate() + 6);
-          $('#tm_end_date').datepicker('option', 'minDate', selectedDate );
-          $('#tm_end_date').datepicker('option', 'maxDate', maxDate);
-          set_dates()
-        }
-      });
 
-      $('#tm_end_date').datepicker({
-        dateFormat : 'mm/dd/yy',
-        prevText : '<i class="fa fa-chevron-left"></i>',
-        nextText : '<i class="fa fa-chevron-right"></i>',
-        onSelect : function(selectedDate) {
-          $('#tm_end_date').datepicker('option', 'minDate', selectedDate);
-          set_dates()
-        }
-      });
-
-      function set_dates(){
-        if($('#tm_start_date').val() && $('#tm_end_date').val() ){
-          $("#timesheet_dates").empty();
-          var start = new Date($('#tm_start_date').val());
-          var end = new Date($('#tm_end_date').val());
-
-          var loop = new Date(start);
-          while(loop <= end){
-            key_name = loop.getDate()+"/"+loop.getMonth()+"/"+loop.getFullYear()
-            strHtml = "<div class='form-group'>"+
-                        "<label class='col-md-3 control-label'>"+
-                          key_name +
-                          "<sup class='text-danger'>*</sup>" +
-                        "</label>" +
-                        "<div class='col-md-8'>" +
-                          "<input required='required' value='0' class='form-control' name='timesheet[days]["+key_name+"]' type='text'>" +
-                        "</div>" +
-                      "</div>";
-            $("#timesheet_dates").append(strHtml);
-
-
-
-            var newDate = loop.setDate(loop.getDate() + 1);
-            loop = new Date(newDate);
-          }
-        }
-      }
-
-    });
+.timesheet
+  .row
+    .col-md-12
+      %h1 Pay Bills
+      %form.form-horizontal
+        .timesheet-header.clearfix
+          .pull-left
+            .plain-select
+              %select
+                %option 1
+                %option 1
+                %option 1
+                %option 1
+            %input{:placeholder => "Select Date", :type => "text"}/
+          .pull-right
+            %span Total hour
+            %p 0:00
+        .table-responsive
+          %table#mytable.table.table-bordred
+            %thead
+              %th #
+              %th{:width => "40%"} Details
+              %th SAT 10
+              %th SAT 11
+              %th SAT 12
+              %th SAT 13
+              %th SAT 14
+              %th SAT 15
+              %th SAT 16
+              %th Total
+              %th Action
+            %tbody
+              %tr
+                %td 1
+                %td
+                  .plain-select
+                    %select
+                      %option Customername
+                      %option 1
+                      %option 1
+                      %option 1
+                  .plain-select
+                    %select
+                      %option service item
+                      %option 1
+                      %option 1
+                      %option 1
+                  %br/
+                  %textarea
+                  %label.fancy
+                    %input.set-checkbox{:type => "checkbox"}/
+                    Bilable
+                %td
+                  %input.checkthis{:type => "text"}/
+                %td
+                  %input.checkthis{:type => "text"}/
+                %td
+                  %input.checkthis{:type => "text"}/
+                %td
+                  %input.checkthis{:type => "text"}/
+                %td
+                  %input.checkthis{:type => "text"}/
+                %td
+                  %input.checkthis{:type => "text"}/
+                %td
+                  %input.checkthis{:type => "text"}/
+                %td
+                %td
+                  %p{"data-placement" => "top", "data-toggle" => "tooltip", :title => "Delete"}
+                    %button.btn.btn-danger.btn-xs{"data-target" => "#delete", "data-title" => "Delete", "data-toggle" => "modal"}
+                      %span.glyphicon.glyphicon-trash
+            %tfoot
+              %tr
+                %td
+                %td
+                %td
+                %td
+                %td
+                %td
+                %td
+                %td
+                %td Total
+                %td 00:00
+                %td
+      .timesheet-btn
+        %a.btn.btn-success Add
+        %a.btn.btn-danger clear

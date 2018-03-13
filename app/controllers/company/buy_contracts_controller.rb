@@ -1,7 +1,7 @@
 class Company::BuyContractsController < Company::BaseController
 
   def index
-    @buy_contracts = BuyContract.joins(:contract).where(contracts: {company_id: current_company.id})
+    @buy_contracts = BuyContract.where(candidate_id: current_company.id)
   end
 
   def show

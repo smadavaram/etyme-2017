@@ -35,7 +35,7 @@
                         %td= bc.time_sheet
                         %td= bc.payment_term
                         %td= bc.show_accounting_to_employee
-                        %td
+                        %td= link_to "TimeSheet", new_timesheet_path(id: bc.contract_id)
 
 :css
   .form-control
