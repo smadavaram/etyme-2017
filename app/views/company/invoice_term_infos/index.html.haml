@@ -1,0 +1,23 @@
+= render partial: 'company/companies/sub_menu_company'
+#content
+  %body
+    %section#widget-grid
+      .row
+        %article.col-xs-12.col-sm-12.col-md-12.col-lg-12.sortable-grid.ui-sortable
+          #wid-id-1.jarviswidget.jarviswidget-color-blueDark.jarviswidget-sortable{"data-widget-editbutton" => "false", :role => "widget"}
+            %header{:role => "heading"}
+              %span.widget-icon
+                %i.fa.fa-table
+              %h2 Invoice Terms
+              %span.jarviswidget-loader
+                %i.fa.fa-refresh.fa-spin
+    = form_for InvoiceInfo.new,url: invoice_term_infos_path,method: :post do |f|
+      %fieldset
+        .form-group
+          %label.col-md-2.control-label Name
+          .col-md-10
+            = f.select :invoice_term, ['Immediate', 'Depending on customer payment', '1 Day'] + (2..90).map{|s| "#{s} Days"}, {include_blank: false}, {:class=>"form-control input-lg multi-select2-role"}
+      .form-actions
+        .row
+          .col-md-12
+            = f.button "submit".html_safe , class: 'btn btn-primary btn-sm' , data: {disable_with: ("Saving...")} ,id: 'form_id'

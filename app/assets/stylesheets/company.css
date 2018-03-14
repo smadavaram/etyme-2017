@@ -12,6 +12,7 @@
  *
  * Basic Styles
  *= require bootstrap
+ *= require bootstarp-year-calendar
  *= require font-awesome
  *
  * SmartAdmin Styles : Caution! DO NOT change the order
