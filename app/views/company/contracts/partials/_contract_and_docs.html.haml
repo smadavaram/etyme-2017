@@ -9,16 +9,35 @@
               = sc.select :company_id, {}, {}, id: "sell_contract_company", required: true
               -#= hidden_field :company_id,
               =# select_tag 'contract[contractable_id]', options_for_select(current_company.invited_companies.collect { |c|[c.invited_company.name, c.invited_company.id] })  , class: "form-control"
+    .form-group.company_contacts
+      -sc.object.contract_sell_business_details.build
+      =sc.fields_for :contract_sell_business_details do |csbd|
+        = link_to_add_fields 'available_tour_fields', sc, :contract_sell_business_details, {partial: 'company/contracts/contract_sell_business_details_fields'}, {class: 'link-company-contacts hidden'}
+      = select_tag 'contract[job_1_id]', nil, id: "select_sell_company_contacts", class: "form-control select_company_contacts"
 
-    .row
-      .col-md-12
-        .form-group
-          =sc.fields_for :contract_sell_business_details do |custom_field|
-            = render 'company/contracts/contract_sell_business_details_fields', f: custom_field
-        %strong
-          .links
-            = link_to_add_association '+ Add Business Details', sc, :contract_sell_business_details, class: 'bttn text-info pull-left', partial: 'company/contracts/contract_sell_business_details_fields'
-            %br/
+    -#.row
+    -#  .col-md-12
+    -#    .form-group.company_contacts
+    -#      -sc.object.contract_sell_business_details.build
+    -#      =sc.fields_for :contract_sell_business_details do |csbd|
+    -#        = link_to_add_fields 'available_tour_fields', csbd, :document_signs, {partial: 'company/contracts/contract_sell_business_details_fields'}, {class: 'doc-user-generater hidden'}
+    -#        -#= link_to_add_fields 'available_tour_fields', csbd, :csbd, {partial: 'company/contracts/contract_document_users_fields'}, {class: 'doc-user-generater hidden'}
+    -#        = select_tag 'contract[job_1_id]', nil, id: "select_sell_company_contacts", class: "form-control"
+    -#        -#= ds.select :signable, {}, {}, class: "form-control whois_sign" , placeholder: ""
+    -#
+    -#    .form-group.company_contacts
+    -#      -#=f.fields_for :document_signs do |ds|
+    -#      -#  = link_to_add_fields 'available_tour_fields', f, :document_signs, {partial: 'company/contracts/contract_document_users_fields'}, {class: 'doc-user-generater hidden'}
+    -#      -#  = ds.select :signable, {}, {}, class: "form-control whois_sign" , placeholder: ""
+    -#      =sc.fields_for :contract_sell_business_details do |custom_field|
+    -#        = link_to_add_association '+ Add Business Details', sc, :contract_sell_business_details, class: 'bttn text-info pull-left buy-contract-contacts hidden', partial: 'company/contracts/contract_sell_business_details_fields'
+    -#        = select_tag 'contract[job_1_id]', nil, id: "select_sell_company_contacts", class: "form-control"
+    -#      -#=sc.fields_for :contract_sell_business_details do |custom_field|
+    -#      -#  = render 'company/contracts/contract_sell_business_details_fields', f: custom_field
+    -#    -#%strong
+    -#    -#  .links
+    -#        =# link_to_add_association '+ Add Business Details', sc, :contract_sell_business_details, class: 'bttn text-info pull-left', partial: 'company/contracts/contract_sell_business_details_fields'
+    -#        -#%br/
 
     .row
       .col-md-12.contract-attachment

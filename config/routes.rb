@@ -121,6 +121,9 @@ Rails.application.routes.draw do
       get :search, on: :collection
       resources :conversation_messages
     end
+
+    resources :contracts, only: [:index]
+    resources :timesheets, only: [:index, :new, :create]
   end
 
 
@@ -276,6 +279,7 @@ Rails.application.routes.draw do
       resources :contracts
       collection do
         post :nested_create
+        get :set_job_application
       end
       member do
         post :update_attachable_doc
@@ -328,6 +332,7 @@ Rails.application.routes.draw do
     get 'dashboard' ,       to: 'users#dashboard' ,             as: :dashboard
     post 'update_photo',    to: 'users#update_photo'
     resources :timesheets ,concerns: :paginatable , only: [:show , :index, :new, :create, :edit, :update] do
+      get 'submit_timesheet'
       get 'approve'
       get 'submit'
       get 'reject'
@@ -388,8 +393,11 @@ Rails.application.routes.draw do
   namespace :api do
     resources :select_searches, only: :index do
       get :find_companies, on: :collection
+      get :find_candidates, on: :collection
+      get :find_contacts, on: :collection
       get :find_job_applicants, on: :collection
       get :find_user_sign, on: :collection
+      get :find_jobs, on: :collection
     end
   end
 

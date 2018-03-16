@@ -7,7 +7,7 @@
         %h2#myModalLabel.modal-title
           %strong= @new_company.new_record? ? "New Company" : "Edit or Add Contacts"
       .modal-body
-        = form_for [:company,@new_company] , html:{ class:'form-horizontal'} do |f|
+        = form_for [:company,@new_company] , html:{ class:'form-horizontal', remote: ((defined? for_remote) ? true :false)} do |f|
           - if @new_company.new_record?
             = f.fields_for :invited_by do |i|
               = i.hidden_field :user_id , value: current_user.id

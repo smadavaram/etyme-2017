@@ -1,0 +1,142 @@
+#content
+  #wid-id-5.no-border.jarviswidget{"data-widget-colorbutton" => "false", "data-widget-custombutton" => "false", "data-widget-editbutton" => "false", "data-widget-fullscreenbutton" => "false", "data-widget-sortable" => "false"}
+    %div
+      .jarviswidget-editbox
+      .widget-body
+        .col-md-12
+          .tab-content
+            #tab-r1.tab-pane.active
+              #hb2.tab-pane.active
+                %ul#internal-tab-1.nav.nav-tabs.tabs-pull-right
+                  %br
+                  .input-group.input-group-lg.hidden-mobile
+                    .input-group-btn
+                      %button.btn.btn-default.dropdown-toggle.textbtn{"data-toggle" => "dropdown", :type => "button"}
+                        All
+                        %span.caret
+                      %ul.dropdown-menu
+                        %li.active
+                          %a{:href => "javascript:void(0)"}
+                            All
+                        %li.divider
+                        %li
+                          %a{:href => "javascript:void(0)"} Rejected
+                        %li
+                          %a{:href => "javascript:void(0)"} Accepted
+                        %li
+                          %a{:href => "javascript:void(0)"} Pending
+                    %input#search-project.form-control.input-lg{:placeholder => "Search Contract...", :type => "text"}/
+                    .input-group-btn
+                      %button.btn.btn-default{:type => "submit"}
+                        \   
+                        %i.fa.fa-fw.fa-search.fa-lg>
+                        \  
+                  %br 
+                  %li
+                    %a{"aria-expanded" => "false", "data-toggle" => "tab", :href => "#is4"} Rejected
+                  %li
+                    %a{"aria-expanded" => "false", "data-toggle" => "tab", :href => "#is1"} Accepted
+                  %li
+                    %a{"aria-expanded" => "false", "data-toggle" => "tab", :href => "#is2"} Pending
+                  %li.active
+                    %a{"aria-expanded" => "true", "data-toggle" => "tab", :href => "#is3"} All
+                .tab-content.padding-10
+                  #is4.tab-pane
+                    = render partial: 'candidate/contracts/partials/receive_contract_table' , locals: {data: @received_contracts.rejected}
+                  #is1.tab-pane
+                    = render partial: 'candidate/contracts/partials/receive_contract_table' , locals: {data: @received_contracts.accepted}
+                  #is2.tab-pane.fade
+                    = render partial: 'candidate/contracts/partials/receive_contract_table' , locals: {data: @received_contracts.pending}
+                  #is3.tab-pane.fade.active.in
+                    = render partial: 'candidate/contracts/partials/receive_contract_table' , locals: { data: @received_contracts}
+- content_for :modals do
+  #ajax-modal
+- content_for :scripts do
+  :javascript
+    // DO NOT REMOVE : GLOBAL FUNCTIONS!
+
+    $(document).ready(function() {
+
+      pageSetUp();
+
+      /* // DOM Position key index //
+
+       l - Length changing (dropdown)
+       f - Filtering input (search)
+       t - The Table! (datatable)
+       i - Information (records)
+       p - Pagination (paging)
+       r - pRocessing
+       < and > - div elements
+       <"#id" and > - div with an id
+       <"class" and > - div with a class
+       <"#id.class" and > - div with an id and class
+
+       Also see: http://legacy.datatables.net/usage/features
+       */
+
+      /* BASIC ;*/
+      var responsiveHelper_dt_basic = undefined;
+      var responsiveHelper_datatable_fixed_column = undefined;
+      var responsiveHelper_datatable_col_reorder = undefined;
+      var responsiveHelper_datatable_tabletools = undefined;
+
+      var breakpointDefinition = {
+        tablet : 1024,
+        phone : 480
+      };
+
+      $('#dt_basic').dataTable({
+        "sDom": "<'dt-toolbar'<'col-xs-12 col-sm-6'f><'col-sm-6 col-xs-12 hidden-xs'l>r>"+
+        "t"+
+        "<'dt-toolbar-footer'<'col-sm-6 col-xs-12 hidden-xs'i><'col-xs-12 col-sm-6'p>>",
+        "autoWidth" : true,
+        "oLanguage": {
+          "sSearch": '<span class="input-group-addon"><i class="glyphicon glyphicon-search"></i></span>'
+        },
+        "preDrawCallback" : function() {
+          // Initialize the responsive datatables helper once.
+          if (!responsiveHelper_dt_basic) {
+            responsiveHelper_dt_basic = new ResponsiveDatatablesHelper($('#dt_basic'), breakpointDefinition);
+          }
+        },
+        "rowCallback" : function(nRow) {
+          responsiveHelper_dt_basic.createExpandIcon(nRow);
+        },
+        "drawCallback" : function(oSettings) {
+          responsiveHelper_dt_basic.respond();
+        }
+      });
+
+      /* END BASIC */
+
+      /* COLUMN FILTER  */
+      var otable = $('#datatable_fixed_column').DataTable({
+        //"bFilter": false,
+        //"bInfo": false,
+        //"bLengthChange": false
+        //"bAutoWidth": false,
+        //"bPaginate": false,
+        //"bStateSave": true // saves sort state using localStorage
+        "sDom": "<'dt-toolbar'<'col-xs-12 col-sm-6 hidden-xs'f><'col-sm-6 col-xs-12 hidden-xs'<'toolbar'>>r>"+
+        "t"+
+        "<'dt-toolbar-footer'<'col-sm-6 col-xs-12 hidden-xs'i><'col-xs-12 col-sm-6'p>>",
+        "autoWidth" : true,
+        "oLanguage": {
+          "sSearch": '<span class="input-group-addon"><i class="glyphicon glyphicon-search"></i></span>'
+        },
+        "preDrawCallback" : function() {
+          // Initialize the responsive datatables helper once.
+          if (!responsiveHelper_datatable_fixed_column) {
+            responsiveHelper_datatable_fixed_column = new ResponsiveDatatablesHelper($('#datatable_fixed_column'), breakpointDefinition);
+          }
+        },
+        "rowCallback" : function(nRow) {
+          responsiveHelper_datatable_fixed_column.createExpandIcon(nRow);
+        },
+        "drawCallback" : function(oSettings) {
+          responsiveHelper_datatable_fixed_column.respond();
+        }
+
+      });
+    });

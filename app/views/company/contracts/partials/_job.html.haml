@@ -6,7 +6,7 @@
         = link_to "+ Add Job", new_job_path, class: "pull-right add-link"
         .contract-fild
           .plain-select
-            = select_tag 'contract[job_id]', options_for_select(current_company.jobs.collect { |c|[c.title, c.id] })  , class: "form-control"
+            = select_tag 'contract[job_id]', nil, id: "select_jobs", class: "form-control"
     .col-md-6
       .form-group
         %label.control-label  Client

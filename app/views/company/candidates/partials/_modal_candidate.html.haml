@@ -1,0 +1,10 @@
+.modal.fade{id:"candidate-new-modal"}
+  .modal-dialog
+    .modal-content
+      .modal-header
+        %button.close{"aria-hidden" => "true", "data-dismiss" => "modal", :type => "button"}
+          ×
+        %h4.modal-title
+          %strong= "Candidate"
+      .modal-body.no-padding
+        = render 'company/candidates/partials/form', for_remote: (defined? for_remote)

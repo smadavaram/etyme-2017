@@ -8,7 +8,7 @@
           %strong Job Application - #{job.title}
 
       .modal-body
-        = form_for [JobApplication.new],url: job_create_multiple_for_candidate_path(job), html: {class: 'form-horizontal'},method: :post do |f|
+        = form_for [JobApplication.new],url: job_create_multiple_for_candidate_path(job), html: {class: 'form-horizontal', remote: (defined? for_remote)},method: :post do |f|
           %fieldset
             -#.form-group
             -#  %label.col-md-2.control-label Cover Letter
@@ -22,7 +22,7 @@
             .form-group
               %label.col-md-2.control-label Select Candidates
               .col-md-10
-                = select_tag 'temp_candidates', options_for_select(current_company.candidates.collect { |c| [c.full_name,c.id] if c.resume.present? && !c.is_already_applied?(job) }),class: 'form-control select2' , required: true ,:multiple => true
+                = select_tag 'temp_candidates', options_for_select(current_company.candidates.collect { |c| [c.full_name,c.id] if c.resume.present? && !c.is_already_applied?(job) }),class: 'form-control job_select2' , required: true ,:multiple => true
             .form-group
               %label.col-md-2.control-label
                 Memo
@@ -43,6 +43,6 @@
             = f.button "Save".html_safe , class: 'btn btn-primary' , data: {disable_with: disable_spinning('Saving...')}
 
 :css
-  .select2{
+  .job_select2{
     width: 470px;
     }

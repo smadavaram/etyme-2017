@@ -16,22 +16,32 @@
       .col-md-6
         .form-group
           %label.control-label  Contract Type
-          .contract-fild.radio-grop
+          .contract-fild.radio-group.contract-type-radio
             = bc.radio_button :contract_type, "W2", class: "form-control"
             W2
             = bc.radio_button :contract_type, "1099", class: "form-control"
             1099
             = bc.radio_button :contract_type, "C2C", class: "form-control"
             C2C
-    .row
+    .row.c2c-type.hidden
       .col-md-12
         .form-group
-          = bc.fields_for :contract_buy_business_details do |custom_field|
-            = render 'company/contracts/contract_sell_business_details_fields', bc: custom_field
-        %strong
-          .links
-            = link_to_add_association '+ Add Business Details', bc, :contract_buy_business_details, class: 'bttn text-info pull-left', partial: 'company/contracts/contract_sell_business_details_fields'
-            %br/
+          %label.control-label  Candidate
+          .contract-fild
+            .plain-select
+              = bc.select :company_id, {}, {}, id: "buy_contract_company"
+        .form-group.company_contacts
+          -bc.object.contract_buy_business_details.build
+          =bc.fields_for :contract_buy_business_details do |csbd|
+            = link_to_add_fields 'available_tour_fields', bc, :contract_buy_business_details, {partial: 'company/contracts/contract_sell_business_details_fields'}, {class: 'link-company-contacts hidden'}
+          = select_tag 'contract[job_1_id]', nil, id: "select_buy_company_contacts", class: "form-control select_company_contacts"
+
+        -#  = bc.fields_for :contract_buy_business_details do |custom_field|
+        -#    = render 'company/contracts/contract_sell_business_details_fields', bc: custom_field
+        -#%strong
+        -#  .links
+        -#    = link_to_add_association '+ Add Business Details', bc, :contract_buy_business_details, class: 'bttn text-info pull-left', partial: 'company/contracts/contract_sell_business_details_fields'
+        -#    %br/
     .row
       .col-md-12.contract-attachment
         %label.control-label  Employye/Vender Documents

@@ -32,9 +32,8 @@ class Company::JobApplicationsController < Company::BaseController
       Candidate.where(id: params[:temp_candidates]).each do |c|
         c.job_applications.create!({applicant_resume: c.resume ,cover_letter:"Application created by owner",job_id: @job.id })
       end
-      redirect_back fallback_location: root_path
+      @post = true
     end
-
   end
 
   def accept
@@ -161,7 +160,7 @@ class Company::JobApplicationsController < Company::BaseController
 
   def find_job
     # @job = current_company.jobs.find_by_id(params[:job_id]) || []
-    @job = Job.active.where(id: params[:job_id]).first || []
+    @job = Job.where(id: params[:job_id]).first || []
   end
 
   def find_job_invitation

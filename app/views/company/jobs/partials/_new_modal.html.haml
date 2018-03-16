@@ -7,4 +7,4 @@
         %h2#myModalLabel.modal-title
           %strong New Job
       .modal-body
-        = render 'company/jobs/form'
+        = render 'company/jobs/form', for_remote: (defined? for_remote)

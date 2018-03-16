@@ -477,7 +477,7 @@ module ApplicationHelper
         content: "<i class='fa fa-lg fa-fw  fa-list-alt'></i> <span class='menu-item-parent'>" + 'Contract' + "</span>",
         children: [
             {
-                href: candidate_jobs_path,
+                href: candidate_contracts_path,
                 title: 'Recieved',
                 content: "<span class='menu-item-parent'> Recieved </span>"
             },

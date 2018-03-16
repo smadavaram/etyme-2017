@@ -9,7 +9,6 @@ class Company::TimesheetsController < Company::BaseController
   add_breadcrumb "TIMESHEETS", :timesheets_path, options: { title: "TIMESHEETS" }
 
   def index
-
   end
 
   def show
@@ -20,10 +19,26 @@ class Company::TimesheetsController < Company::BaseController
     @contracts = current_company.contracts.pluck(:number, :id)
   end
 
+  def submit_timesheet
+    @buy_contract = BuyContract.find(params[:timesheet_id])
+    if @buy_contract.contract.timesheets.present?
+      last_time = @buy_contract.contract.timesheets.order("created_at DESC").first
+      @start_date = last_time.end_date + 1.days
+      @end_date = @start_date + 7.days
+    else
+      @start_date = @buy_contract.contract.start_date
+      @end_date = @buy_contract.first_date_of_timesheet
+    end
+
+    @timesheet = current_user.timesheets.new
+    render 'new'
+  end
+
   def create
-    @timesheet = current_user.timesheets.new(timesheet_params)
+    @timesheet = current_company.timesheets.new(timesheet_params)
+    @timesheet.user_id = current_user.id
     @timesheet.days = params[:timesheet][:days]
-    @timesheet.total_time = params[:timesheet][:days].values.map(&:to_i)
+    @timesheet.total_time = params[:timesheet][:days].values.map(&:to_i).sum
     if @timesheet.save
       flash[:success] = "Successfully Created"
       redirect_to timesheets_path
@@ -69,7 +84,7 @@ class Company::TimesheetsController < Company::BaseController
   private
 
   def timesheet_params
-    params.require(:timesheet).permit(:job_id, :user_id, :company_id, :contract_id, :status, :total_time, :start_date, :end_date, :submitted_date, :next_timesheet_created_date, :invoice_id)
+    params.require(:timesheet).permit(:job_id, :user_id, :company_id, :contract_id, :status, :total_time, :start_date, :end_date, :submitted_date, :next_timesheet_created_date, :invoice_id, :timesheet_attachment)
   end
 
   def find_timesheet

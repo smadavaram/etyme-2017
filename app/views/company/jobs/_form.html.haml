@@ -1,5 +1,5 @@
 
-= form_for @job ,html:{ class:'form-horizontal'} do |f|
+= form_for @job ,html:{ class:'form-horizontal', remote: ((defined? for_remote) ? true :false)} do |f|
   %fieldset
     .row
       .col-md-12

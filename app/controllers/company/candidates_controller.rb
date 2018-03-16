@@ -37,24 +37,34 @@ class Company::CandidatesController < Company::BaseController
 
 
    def create
-
       if Candidate.signup.where(email:params[:candidate][:email]).present? && !current_company.candidates.find_by(email:params[:candidate][:email]).present?
        flash[:already_exist] = true
        flash[:email] = params[:candidate][:email]
-       redirect_to company_candidates_path
+       respond_to do |format|
+         format.html {flash[:success] = "successfully Created."; redirect_to company_candidates_path}
+         format.js{ flash.now[:success] = "successfully Created." }
+       end
       elsif Candidate.signup.where(email:params[:candidate][:email]).present? && current_company.candidates.find_by(email:params[:candidate][:email]).present?
         flash[:notice] = "Candidate Already Present in Your Network!"
-        redirect_to company_candidates_path
+        respond_to do |format|
+          format.html {flash[:success] = "successfully Created."; redirect_to company_candidates_path}
+          format.js{ flash.now[:success] = "successfully Created." }
+        end
       else
        @candidate = current_company.candidates.new(create_candidate_params.merge(send_welcome_email_to_candidate: false,invited_by_id: current_user.id ,invited_by_type: 'User', status:"campany_candidate"))
        if @candidate.save
          current_company.candidates <<  @candidate
          @candidate.create_activity :create, owner:current_company,recipient: current_company
          flash[:success] =  "Successfull Added."
-         redirect_to candidates_path
+         respond_to do |format|
+           format.html {flash[:success] = "successfully Created."; redirect_to candidates_path}
+           format.js{ flash.now[:success] = "successfully Created." }
+         end
        else
-         flash[:errors] = @candidate.errors.full_messages
-         redirect_back fallback_location: root_path
+         respond_to do |format|
+           format.html {flash[:errors] = @candidate.errors.full_messages; redirect_back fallback_location: root_path}
+           format.js{ flash.now[:errors] = @candidate.errors.full_messages }
+         end
        end
      end
    end

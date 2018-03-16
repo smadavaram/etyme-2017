@@ -2,7 +2,8 @@
   .row
     .col-md-12
       %h1 Pay Bills
-      = form_for @timesheet, url: timesheets_path, html:{ class:'form-horizontal', method: :post} do |f|
+      =@time_cycle.inspect
+      -#= form_for @timesheet, url: timesheets_path, html:{ class:'form-horizontal', method: :post} do |f|
         =f.hidden_field :contract_id, value: @buy_contract.contract_id
         =f.hidden_field :job_id, value: @buy_contract.contract.job_id
         =f.hidden_field :job_id, value: @buy_contract.contract.job_id

@@ -229,13 +229,13 @@
                 -@contract.buy_contracts.first.contract_buy_business_details.each do |cbbd|
                   %tr
                     %td
-                      =cbbd.contact_name
+                      =cbbd.company_contact.full_name
                     %td
-                      =cbbd.phone
+                      =cbbd.company_contact.phone
                     %td
-                      =cbbd.email
+                      =cbbd.company_contact.email
                     %td
-                      =cbbd.department
+                      =cbbd.company_contact.department
           %div.table.table-responsive
             %table.table-bordered
               %thead
@@ -362,13 +362,13 @@
                 -@contract.sell_contracts.first.contract_sell_business_details.each do |csbd|
                   %tr
                     %td
-                      =csbd.contact_name
+                      =csbd.company_contact.full_name
                     %td
-                      =csbd.phone
+                      =csbd.company_contact.phone
                     %td
-                      =csbd.email
+                      =csbd.company_contact.email
                     %td
-                      =csbd.department
+                      =csbd.company_contact.department
           %div.table.table-responsive
             %table.table-bordered
               %thead

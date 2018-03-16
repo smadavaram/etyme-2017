@@ -37,10 +37,10 @@ class Company::JobsController < Company::BaseController
     respond_to do |format|
       if @job.save
         format.html { redirect_to @job, success: 'Job was successfully created.' }
-        format.json { render :show, status: :created, location: @job }
+        format.js{ flash.now[:success] = "successfully Created." }
       else
         format.html { flash[:errors] = @job.errors.full_messages; render :new}
-        format.json { render json: @job.errors, status: :unprocessable_entity }
+        format.js{ flash.now[:errors] =  @job.errors.full_messages }
       end
     end
   end

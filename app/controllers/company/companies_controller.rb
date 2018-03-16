@@ -50,14 +50,13 @@ class Company::CompaniesController < Company::BaseController
     @company = Company.new(create_params)
     respond_to do |format|
       if @company.valid? && @company.save
-        format.html {flash[:success] = "successfully Created."}
+        format.html {flash[:success] = "successfully Created."; redirect_back fallback_location: root_path}
         format.js{ flash.now[:success] = "successfully Created." }
       else
         format.js{ flash.now[:errors] =  @company.errors.full_messages }
-        format.html{ flash[:errors] =  @company.errors.full_messages }
+        format.html{ flash[:errors] =  @company.errors.full_messages; redirect_back fallback_location: root_path }
       end
     end
-    redirect_back fallback_location: root_path
   end
 
   def update

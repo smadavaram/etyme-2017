@@ -29,6 +29,8 @@ class Company::ContractsController < Company::BaseController
     # @contract.contract_sale_commisions.build
 
     @new_company = Company.new
+    @candidate = Candidate.new
+    @job = current_company.jobs.new
     @new_company.build_owner
     @new_company.build_invited_by
   end
@@ -137,6 +139,12 @@ class Company::ContractsController < Company::BaseController
     render 'new'
   end
 
+  def set_job_application
+    @job=Job.find(params[:job_id])
+    @candidates = Candidate.all
+    @preferred_vendors_companies = Company.vendors - [current_company] || []
+  end
+
   private
 
   def find_contract
@@ -177,7 +185,7 @@ class Company::ContractsController < Company::BaseController
                :show_accounting_to_employee, :first_date_of_timesheet, :day_of_week, :date_1, :date_2,
                :end_of_month, :first_date_of_invoice,
                contract_sell_business_details_attributes: [
-                   :id, :contact_name, :phone, :email, :department, :_destroy
+                   :id, :company_contact_id, :_destroy
                ],
                sell_send_documents_attributes: [:id, :doc_file, :file_name, :file_size, :file_type, :when_expire, :is_sign_required, :creatable_type,
                                                 :creatable_id, :_destroy,
@@ -192,9 +200,9 @@ class Company::ContractsController < Company::BaseController
            buy_contracts_attributes: [
                :candidate_id, :ssn, :contract_type, :payrate, :payrate_type, :time_sheet,
                :payment_term, :show_accounting_to_employee, :first_date_of_timesheet, :day_of_week, :date_1, :date_2,
-               :end_of_month, :first_date_of_invoice,
+               :end_of_month, :first_date_of_invoice, :company_id,
                contract_buy_business_details_attributes: [
-                   :id, :contact_name, :phone, :email, :department, :_destroy
+                   :id, :company_contact_id, :_destroy
                ],
                contract_sale_commisions_attributes: [
                    :id, :name, :rate, :frequency, :limit, :_destroy
