@@ -494,7 +494,7 @@ module ApplicationHelper
             content: "<i class='fa fa-lg fa-fw fa-calendar'></i> <span class='menu-item-parent'>" + 'Timesheets' + "</span>",
             children: [
                 {
-                    href: '#',
+                    href: candidate_timesheets_path,
                     title: 'Submitted',
                     content: "<span class='menu-item-parent'> Submitted </span>"
                 },

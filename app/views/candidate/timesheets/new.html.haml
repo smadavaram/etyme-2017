@@ -2,55 +2,93 @@
   .row
     .col-md-12
       %h1 Pay Bills
-      =@time_cycle.inspect
-      -#= form_for @timesheet, url: timesheets_path, html:{ class:'form-horizontal', method: :post} do |f|
-        =f.hidden_field :contract_id, value: @buy_contract.contract_id
-        =f.hidden_field :job_id, value: @buy_contract.contract.job_id
-        =f.hidden_field :job_id, value: @buy_contract.contract.job_id
-        =f.hidden_field :start_date, value: @start_date
-        =f.hidden_field :end_date, value: @end_date
-        .timesheet-header.clearfix
-          .pull-left
-            .plain-select
-              %select
-                %option 1
-                %option 1
-                %option 1
-                %option 1
-            %input{:placeholder => "Select Date", :type => "text"}/
-          .pull-right
-            %span Total hour
-            %p 0:00
-        .table-responsive
-          %table#mytable.table.table-bordred
-            %thead
-              %th #
-              %th{:width => "40%"} Details
-              - (@start_date..@end_date).each do |ti|
-                %th=ti.strftime("%a %d")
-            %tbody
-              %tr
-                %td 1
-                %td
-                  .plain-select
-                    %select
-                      %option Customername
-                      %option 1
-                      %option 1
-                      %option 1
-                  .plain-select
-                    %select
-                      %option service item
-                      %option 1
-                      %option 1
-                      %option 1
-                  %br/
-                  %textarea
-                  %label.fancy
-                    %input.set-checkbox{:type => "checkbox"}/
-                    Bilable
-                  = f.filepicker_field :timesheet_attachment, :button_text => "Pick File", disable: true , class: 'file-pick btn btn-primary timesheet-filepicker-attachment'
-                - (@start_date..@end_date).each do |ti|
-                  %td
-                    %input.checkthis{:name => "timesheet[days][#{ti}]", :required => "required", :type => "text", :value => "0"}/
-          =f.submit "Save"
+
+      %form.form-horizontal
+  = form_for @timesheet, url: candidate_timesheets_path, html:{ class:'form-horizontal', method: :post} do |f|
+    .timesheet-header.clearfix
+      .pull-left
+        %select.select-time-cycle
+          -@time_cycle.each do |t|
+            %option=t
+      .pull-right
+        %span Total hour
+        %p 0:00
+
+    =#f.hidden_field :contract_id, value: @buy_contract.contract_id
+    =#f.hidden_field :job_id, value: @buy_contract.contract.job_id
+    =f.hidden_field :start_date, id: "time-start"
+    =f.hidden_field :end_date, id: "time-end"
+    .table-responsive
+      %table#mytable.table.table-bordred
+        %thead
+          %th #
+          %th#text-titles{:width => "40%"} Details
+          -#%th Total
+        %tbody
+          %tr
+            %td
+            %td#text-boxes
+              .plain-select
+                =f.select :contract_id, @contracts.map{|c| [c.title, c.id]}
+              .candiate-name
+                = f.text_field :candidate_name, value: current_candidate.full_name
+              %br/
+              = f.filepicker_field :timesheet_attachment, :button_text => "Pick File", disable: true , class: 'file-pick btn btn-primary timesheet-filepicker-attachment'
+            -#%td 0.0
+    =f.submit "Save"
+#timesheet_dates
+
+- content_for :scripts do
+  :javascript
+    $(document).ready(function() {
+      pageSetUp();
+
+      set_dates()
+      $('.select-time-cycle').on("change", function(){
+        set_dates()
+      });
+
+      //$(document).on("change", ".dyno", function(){
+      //  $(".dyno").each(function(){
+      //    alert($(this).val());
+      //  })
+      //});
+
+      function set_dates(){
+        var weekday = new Array(7);
+        weekday[0] = "Sun";
+        weekday[1] = "Mon";
+        weekday[2] = "Tue";
+        weekday[3] = "Wed";
+        weekday[4] = "Thu";
+        weekday[5] = "Fri";
+        weekday[6] = "Sat";
+
+        dates = $('.select-time-cycle').val();
+        $("#timesheet_dates").empty();
+        //$("#time-start").val(dates.split(" - ")[0]);
+        //$("#time-end").val(dates.split(" - ")[1]);
+
+        var start = new Date(dates.split(" - ")[0]);
+        var end = new Date(dates.split(" - ")[1]);
+        var loop = new Date(start);
+        var strTextTitle = ""
+        var strTextBox = ""
+
+        $("#time-start").val(start.getDate()+"/"+(start.getMonth() + 1)+"/"+start.getFullYear());
+        $("#time-end").val(end.getDate()+"/"+(end.getMonth() + 1)+"/"+end.getFullYear());
+
+        $('.dyno').remove()
+        while(loop <= end){
+          key_name = loop.getDate()+"/"+(loop.getMonth() + 1)+"/"+loop.getFullYear()
+          strTextTitle += "<th class='dyno'>" + weekday[loop.getDay()] +" "+ loop.getDate() + "</th>"
+          strTextBox += "<td class='dyno'> <input required='required' value='0' class='form-control' name='timesheet[days]["+key_name+"]' type='text'> </td>"
+          var newDate = loop.setDate(loop.getDate() + 1);
+          loop = new Date(newDate);
+        }
+        $("#text-titles").after(strTextTitle);
+        $("#text-boxes").after(strTextBox);
+      }
+    });
+
+

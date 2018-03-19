@@ -1,6 +1,8 @@
 class AddTimesheetAttachment < ActiveRecord::Migration[5.1]
   def change
     add_column :timesheets, :timesheet_attachment, :string
+    add_column :timesheets, :candidate_name, :string
+    add_column :timesheets, :candidate_id, :integer, index: true
 
     remove_column :contract_buy_business_details, :contact_name, :string
     remove_column :contract_buy_business_details, :phone, :string

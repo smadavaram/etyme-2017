@@ -1,0 +1,23 @@
+#content
+  #wid-id-5.no-border.jarviswidget{"data-widget-colorbutton" => "false", "data-widget-custombutton" => "false", "data-widget-editbutton" => "false", "data-widget-fullscreenbutton" => "false", "data-widget-sortable" => "false"}
+    %div
+      .jarviswidget-editbox
+      .widget-body
+        .col-md-12
+          .table-responsive
+            %table#resultTable.table.table-striped.table-bordered.table-hover
+              %thead
+                %tr
+                  %th Contract
+                  %th Start Date
+                  %th End Date
+                  %th Status
+                  %th Total
+              %tbody
+                - @timesheets.each do |ts|
+                  %tr
+                    %td= ts.contract.title
+                    %td= ts.start_date
+                    %td= ts.end_date
+                    %td= ts.status
+                    %td= ts.total_time

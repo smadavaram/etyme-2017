@@ -9,6 +9,7 @@ class Timesheet < ApplicationRecord
   belongs_to :user, optional: true
   belongs_to :job, optional: true
   belongs_to :invoice, optional: true
+  belongs_to :candidate, optional: true
   has_many   :timesheet_logs , dependent: :destroy
   has_many   :timesheet_approvers  , dependent: :destroy
   has_many   :transactions  , through: :timesheet_logs
@@ -41,9 +42,10 @@ class Timesheet < ApplicationRecord
   end
 
   def total_time
-    total_time = 0
-    self.timesheet_logs.each do |t| total_time = total_time + t.total_time end
-    total_time
+    super
+    # total_time = 0
+    # self.timesheet_logs.each do |t| total_time = total_time + t.total_time end
+    # total_time
   end
 
   def approved_total_time
