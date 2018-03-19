@@ -46,9 +46,15 @@
       %ul.dropdown-menu
         %li
           %a{:href => new_job_path } Add Job
-        %li.divider
         %li
           %a{:href => new_contract_path } Add Contract(s)
+        %li.divider
+        %li
+          %a{:href => new_company_candidate_path } Add Candidate(s)
+        %li
+          %a{:href => new_company_company_path } Add Company(s)
+        %li
+          %a{:href => new_group_path } Add Group(s)
 
     #logo-group.pull-right
       %span#activity.activity-dropdown
@@ -121,22 +127,4 @@
               %strong
                 %u> Logout
 
-
-
-    -#/ search mobile button (this is hidden till mobile view port)
-    -#-##search-mobile.btn-header.transparent.pull-right
-    -#  %span
-    -#    %a{:href => "javascript:void(0)", :title => "Search"}
-    -#      %i.fa.fa-search
-    -#/ input: search field
-    -#-#%form.header-search.pull-right{:action => root_path}
-    -#  %input#search-fld{"data-autocomplete" => "[\n            \"ActionScript\",\n            \"AppleScript\",\n            \"Asp\",\n            \"BASIC\",\n            \"C\",\n            \"C++\",\n            \"Clojure\",\n            \"COBOL\",\n            \"ColdFusion\",\n            \"Erlang\",\n            \"Fortran\",\n            \"Groovy\",\n            \"Haskell\",\n            \"Java\",\n            \"JavaScript\",\n            \"Lisp\",\n            \"Perl\",\n            \"PHP\",\n            \"Python\",\n            \"Ruby\",\n            \"Scala\",\n            \"Scheme\"]", :name => "param", :placeholder => "#{'Find reports and more'}", :type => "text"}/
-    -#  %button{:type => "submit"}
-    -#    %i.fa.fa-search
-    -#  %a#cancel-search-js{:href => "javascript:void(0);", :title => "Cancel Search"}
-    -#    %i.fa.fa-times
-    -#/ fullscreen button
-    -#-##fullscreen.btn-header.transparent.pull-right
-    -#  %span
-    -#    %a{"data-action" => "launchFullscreen", :href => "javascript:void(0);", :title => "Full Screen"}
-    -#      %i.fa.fa-arrows-alt
+= render 'company/groups/partial/model', group: Group.new
