@@ -20,11 +20,11 @@ class Candidate::TimesheetsController < Candidate::BaseController
     @timesheet.days = params[:timesheet][:days]
     @timesheet.total_time = params[:timesheet][:days].values.map(&:to_i).sum
     if @timesheet.save
-      flash[:success] = "Successfully Created"
-      redirect_to candidate_contracts_path
+      flash[:success] = "Successfully Created" if params[:is_all].blank?
+      # redirect_to candidate_contracts_path
     else
-      flash[:errors] = @timesheet.errors.full_messages
-      redirect_to candidate_contracts_path
+      flash[:errors] = @timesheet.errors.full_messages if params[:is_all].blank?
+      # redirect_to candidate_contracts_path
     end
   end
 

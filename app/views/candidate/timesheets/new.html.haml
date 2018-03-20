@@ -4,40 +4,49 @@
       %h1 Pay Bills
 
       %form.form-horizontal
-  = form_for @timesheet, url: candidate_timesheets_path, html:{ class:'form-horizontal', method: :post} do |f|
     .timesheet-header.clearfix
       .pull-left
         %select.select-time-cycle
           -@time_cycle.each do |t|
             %option=t
-      .pull-right
-        %span Total hour
-        %p 0:00
-
-    =#f.hidden_field :contract_id, value: @buy_contract.contract_id
-    =#f.hidden_field :job_id, value: @buy_contract.contract.job_id
-    =f.hidden_field :start_date, id: "time-start"
-    =f.hidden_field :end_date, id: "time-end"
     .table-responsive
-      %table#mytable.table.table-bordred
+      %table.table.table-bordred
         %thead
-          %th #
-          %th#text-titles{:width => "40%"} Details
-          -#%th Total
+          %th=check_box_tag "", nil, nil, class: "all-select"
+          %th.text-titles{:width => "40%"} Details
+          %th Action
         %tbody
-          %tr
-            %td
-            %td#text-boxes
-              .plain-select
-                =f.select :contract_id, @contracts.map{|c| [c.title, c.id]}
-              .candiate-name
-                = f.text_field :candidate_name, value: current_candidate.full_name
-              %br/
-              = f.filepicker_field :timesheet_attachment, :button_text => "Pick File", disable: true , class: 'file-pick btn btn-primary timesheet-filepicker-attachment'
-            -#%td 0.0
-    =f.submit "Save"
-#timesheet_dates
-
+      - @contracts.each do |con|
+        = form_for @timesheet, url: candidate_timesheets_path, html:{ class:'form-horizontal', method: :post, remote: true} do |f|
+          = f.hidden_field :start_date, class: "time-start"
+          = f.hidden_field :end_date, class: "time-end"
+          .table-responsive
+            %table.table.table-bordred
+              %thead
+                %th
+                %th{:width => "40%"}
+                %th
+                %th
+                %th
+                %th
+                %th
+                %th
+                %th
+                %th
+              %tbody
+                %tr
+                  %td=check_box_tag "sin_select", nil, nil, class: "sin-select"
+                  %td.text-boxes
+                    = con.title
+                    = f.hidden_field :contract_id, value: con.id
+                    .candiate-name
+                      = f.text_field :candidate_name, value: current_candidate.full_name
+                    %br/
+                    = f.filepicker_field :timesheet_attachment, :button_text => "Pick File", disable: true , class: 'file-pick btn btn-primary timesheet-filepicker-attachment'
+                  %td
+                    = f.submit "Save"
+      %tfoot
+        %td{colspan: 10}=button_tag "Save All", class: "save-all-btn"
 - content_for :scripts do
   :javascript
     $(document).ready(function() {
@@ -48,11 +57,15 @@
         set_dates()
       });
 
-      //$(document).on("change", ".dyno", function(){
-      //  $(".dyno").each(function(){
-      //    alert($(this).val());
-      //  })
-      //});
+      $(".all-select").on("change", function(){
+        $( '.sin-select' ).prop('checked', this.checked)
+      });
+
+      $(".save-all-btn").on("click", function(){
+        $('input[name=sin_select]:checked').each(function(){
+          $(this).closest('form').submit();
+        });
+      })
 
       function set_dates(){
         var weekday = new Array(7);
@@ -65,7 +78,7 @@
         weekday[6] = "Sat";
 
         dates = $('.select-time-cycle').val();
-        $("#timesheet_dates").empty();
+        //$("#timesheet_dates").empty();
         //$("#time-start").val(dates.split(" - ")[0]);
         //$("#time-end").val(dates.split(" - ")[1]);
 
@@ -75,8 +88,8 @@
         var strTextTitle = ""
         var strTextBox = ""
 
-        $("#time-start").val(start.getDate()+"/"+(start.getMonth() + 1)+"/"+start.getFullYear());
-        $("#time-end").val(end.getDate()+"/"+(end.getMonth() + 1)+"/"+end.getFullYear());
+        $(".time-start").val(start.getDate()+"/"+(start.getMonth() + 1)+"/"+start.getFullYear());
+        $(".time-end").val(end.getDate()+"/"+(end.getMonth() + 1)+"/"+end.getFullYear());
 
         $('.dyno').remove()
         while(loop <= end){
@@ -86,8 +99,8 @@
           var newDate = loop.setDate(loop.getDate() + 1);
           loop = new Date(newDate);
         }
-        $("#text-titles").after(strTextTitle);
-        $("#text-boxes").after(strTextBox);
+        $(".text-titles").after(strTextTitle);
+        $(".text-boxes").after(strTextBox);
       }
     });
 
