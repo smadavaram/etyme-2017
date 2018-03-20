@@ -182,7 +182,6 @@ var set_company_contacts_select = function(selector, palce_holder, company_type)
                     return {
                         per_page: 10,
                         q: params.term, // search term
-                        company_id: $(company_type).val(),
                         page: params.page
                     };
                 },
@@ -198,6 +197,9 @@ var set_company_contacts_select = function(selector, palce_holder, company_type)
                 cache: true
             },
             placeholder: palce_holder,
+            language: {
+                noResults: function() {return "No results <a class='pull-right header-btn hidden-mobile' data-toggle='modal' data-target='#new-company-contacts-modal' href='#'>Add New</a>"; }
+            },
             multiple: true,
             escapeMarkup: function (markup) { return markup; },
             templateResult: formatCompanyContact,

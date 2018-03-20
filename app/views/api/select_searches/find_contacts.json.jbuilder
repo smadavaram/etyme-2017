@@ -8,5 +8,5 @@ json.contacts(@contacts) do |contact|
   json.name contact.full_name
   json.email contact.email
   json.phone contact.phone
-  json.department contact.department
+  json.department contact.department.present? ? contact.department : ""
 end

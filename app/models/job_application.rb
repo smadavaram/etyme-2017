@@ -16,7 +16,9 @@ class JobApplication < ApplicationRecord
   has_many     :chats             ,as: :chatable
   has_many :job_applicant_reqs
 
-  validates :cover_letter , :applicant_resume ,presence: true
+  # validates :cover_letter , :applicant_resume ,presence: true
+  validates :cover_letter, presence: true
+
   # validates :application_type, inclusion: { in: application_types.keys }
   validates :status ,             inclusion: {in: statuses.keys}
   validates_uniqueness_of :applicationable_id,scope: [:job_id,:applicationable_type] ,on: :create

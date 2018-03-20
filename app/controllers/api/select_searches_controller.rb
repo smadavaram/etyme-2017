@@ -12,8 +12,7 @@ class Api::SelectSearchesController < ApplicationController
   end
 
   def find_contacts
-    company= Company.find(params[:company_id])
-    @contacts = company.company_contacts.like_any([:first_name, :last_name], params[:q].to_s.split).paginate(:page => params[:page], :per_page => params[:per_page])
+    @contacts = current_company.company_contacts.like_any([:first_name, :last_name], params[:q].to_s.split).paginate(:page => params[:page], :per_page => params[:per_page])
     respond_with @contacts
   end
 
