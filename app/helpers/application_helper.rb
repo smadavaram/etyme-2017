@@ -311,11 +311,27 @@ module ApplicationHelper
             ]
         },
         {
-            href: timesheets_path,
-            title: 'Timesheets',
-            content: "<i class='fa fa-lg fa-fw fa-calendar'></i> <span class='menu-item-parent'>" + 'TIMESHEETS' + "</span>",
+            href: '#',
+            title: 'Timesheet ',
+            content: "<i class='fa fa-lg fa-fw fa-money'></i> <span class='menu-item-parent'>" + 'Timesheet' + "</span>",
+            children: [
+                {
+                    href: timesheets_path,
+                    title: 'Submitted',
+                    content: "<i class='fa fa-lg fa-fw fa-calendar'></i> <span class='menu-item-parent'>" + 'Submitted' + "</span>",
+                },
+                {
+                    href: timesheets_path,
+                    title: 'Approved',
+                    content: "<i class='fa fa-lg fa-fw fa-calendar'></i> <span class='menu-item-parent'>" + 'Approved' + "</span>",
+                },
+                {
+                    href:  current_user.is_owner? ? employees_leaves_path : (current_user.is_consultant? ? consultant_leaves_path(current_user) : '#'),
+                    title: 'Leaves',
+                    content: "<i class='fa fa-lg fa-fw fa-calendar-times-o'></i> <span class='menu-item-parent'>" + 'Leaves' + "</span>",
+                }
+            ]
         },
-
         {
             href: '#',
             title: 'Accounting ',
@@ -324,34 +340,47 @@ module ApplicationHelper
                 if has_permission?('show_invoices') || has_permission?('manage_contracts')
                 {
                     href: invoices_path(sent_invoice:true),
-                    title: 'Sent Invoices',
-                    content: "<span class='menu-item-parent'>Sent Invoices </span>"
+                    title: 'Open Invoices',
+                    content: "<span class='menu-item-parent'>Open Invoices </span>"
                 }end,
                 if has_permission?('show_invoices') || has_permission?('manage_contracts')
                 {
                     href: invoices_path(received_invoice: true),
-                    title: 'Received Invoices',
-                    content: "<span class='menu-item-parent'> Received Invoices </span>"
+                    title: 'Cleared Invoices',
+                    content: "<span class='menu-item-parent'> Cleared Invoices </span>"
                 }end,
                 {
-                    href: consultants_path,
-                    title: 'Salaries',
-                    content: "<span class='menu-item-parent'> Salaries </span>"
+                    href: "#",
+                    title: 'Open Bills',
+                    content: "<span class='menu-item-parent'> Open Bills </span>"
                 },
                 {
                     href: "#",
-                    title: ' Payments',
-                    content: "<span class='menu-item-parent'>  Payments </span>"
+                    title: 'Bill Payment(s)',
+                    content: "<span class='menu-item-parent'> Bill Payment(s) </span>"
+                },
+                {
+                    href: "#",
+                    title: 'Salary Calculation(s)',
+                    content: "<span class='menu-item-parent'> Salary Calculation(s) </span>"
+                },
+                {
+                    href: "#",
+                    title: 'Salary Payment(s)',
+                    content: "<span class='menu-item-parent'> Salary Payment(s)</span>"
+                },
+                {
+                    href: "#",
+                    title: 'Expense Payment(s)',
+                    content: "<span class='menu-item-parent'> Expense Payment(s)</span>"
                 },
             ]
         },
-
-          {
-              href:  current_user.is_owner? ? employees_leaves_path : (current_user.is_consultant? ? consultant_leaves_path(current_user) : '#'),
-              title: 'Leaves',
-              content: "<i class='fa fa-lg fa-fw fa-calendar-times-o'></i> <span class='menu-item-parent'>" + 'Leaves' + "</span>",
-          },
-
+        {
+            href: "#",
+            title: 'Profitability',
+            content: "<i class='fa fa-lg fa-fw fa-calendar'></i> <span class='menu-item-parent'>" + 'Profitability' + "</span>",
+        }
     ]
   end
 

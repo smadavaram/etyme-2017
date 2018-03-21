@@ -110,14 +110,14 @@
                 %span{:class => "form-group month #{['twice a month', 'monthly'].include?(bc.object.time_sheet) ? '' : 'hidden'}"} OR
                 = bc.check_box :end_of_month, class: "month #{['twice a month', 'monthly'].include?(bc.object.time_sheet) ? '' : 'hidden'}"
                 = bc.label :end_of_month, "End of month", class: "month #{['twice a month', 'monthly'].include?(bc.object.time_sheet) ? '' : 'hidden'}"
-    .row
-      .col-md-6
-        .form-group
-          %label.control-label
-            First Time Sheet Date
-            %sup.text-danger *
-          .select
-            = bc.text_field :first_date_of_timesheet, class: "first_date_of_timesheet_field", placeholder: "DD/MM/YYYY"
+    -#.row
+    -#  .col-md-6
+    -#    .form-group
+    -#      %label.control-label
+    -#        First Time Sheet Date
+    -#        %sup.text-danger *
+    -#      .select
+    -#        = bc.text_field :first_date_of_timesheet, class: "first_date_of_timesheet_field", placeholder: "DD/MM/YYYY"
     .row
       .col-md-6
         .form-group
@@ -127,14 +127,14 @@
           .select
             .row
             = bc.select :payment_term , (0..60).map{|a| ["Net " + a.to_s + " days",a]}, {},{class: "form-control" }
-      .col-md-6
-        .form-group
-          %label.control-label
-            First invoice date
-            %sup.text-danger *
-          .select
-            .plain-select
-              = bc.text_field :first_date_of_invoice, class: "first_date_of_invoice_field", placeholder: "DD/MM/YYYY"
+      -#.col-md-6
+      -#  .form-group
+      -#    %label.control-label
+      -#      First invoice date
+      -#      %sup.text-danger *
+      -#    .select
+      -#      .plain-select
+      -#        = bc.text_field :first_date_of_invoice, class: "first_date_of_invoice_field", placeholder: "DD/MM/YYYY"
     .row.contract-Accounting
       .col-md-6
         .form-group

@@ -183,6 +183,7 @@ class Company::ContractsController < Company::BaseController
            sell_contracts_attributes: [
                :company_id, :customer_rate, :customer_rate_type, :time_sheet, :invoice_terms_period,
                :show_accounting_to_employee, :first_date_of_timesheet, :day_of_week, :date_1, :date_2,
+               :payment_term, :invoice_day_of_week, :invoice_end_of_month, :invoice_date_2, :invoice_date_1,
                :end_of_month, :first_date_of_invoice,
                contract_sell_business_details_attributes: [
                    :id, :company_contact_id, :_destroy

@@ -136,9 +136,21 @@
           dateFormat : 'dd/mm/yy'
       });
 
+      $(".sell-invoice").on("change", function(){
+        $(".sell-invoice-setting").children().addClass("hidden");
+        if($(this).val() == "weekly" || $(this).val() == "biweekly"){
+          $(".sell-invoice-setting").find('.week').removeClass("hidden");
+        } else if($(this).val() == "twice a month"){
+          $(".sell-invoice-setting").find('.twice-month, .month').removeClass("hidden");
+        } else if($(this).val() == "monthly"){
+          $(".sell-invoice-setting").find('.month').removeClass("hidden");
+        }
+      });
+
+
       $(".sell-time-sheet").on("change", function(){
         $(".sell-time-sheet-setting").children().addClass("hidden");
-        if($(this).val() == "weekly"){
+        if($(this).val() == "weekly" || $(this).val() == "biweekly"){
           $(".sell-time-sheet-setting").find('.week').removeClass("hidden");
         } else if($(this).val() == "twice a month"){
           $(".sell-time-sheet-setting").find('.twice-month, .month').removeClass("hidden");
@@ -157,7 +169,7 @@
 
       $(".buy-time-sheet").on("change", function(){
         $(".buy-time-sheet-setting").children().addClass("hidden");
-        if($(this).val() == "weekly"){
+        if($(this).val() == "weekly" || $(this).val() == "biweekly"){
           $(".buy-time-sheet-setting").find('.week').removeClass("hidden");
         } else if($(this).val() == "twice a month"){
           $(".buy-time-sheet-setting").find('.twice-month, .month').removeClass("hidden");

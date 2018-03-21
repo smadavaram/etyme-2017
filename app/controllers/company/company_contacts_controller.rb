@@ -9,10 +9,14 @@ class Company::CompanyContactsController < Company::BaseController
 
   def create
     @company_contact = current_company.company_contacts.new(compnay_contact_params)
-    if @company_contact.save
-      flash[:success] = "Company Contacts Added successfully."
-    else
-      flash[:errors] = @company_contact.errors.full_messages
+    respond_to do |format|
+      if @company_contact.save
+        format.js{ flash.now[:success] = "Company Contacts Added successfully." }
+        format.html{ flash[:success] = "Company Contacts Added successfully."; redirect_to company_company_contacts_path }
+      else
+        format.js{ flash.now[:errors] =  @company_contact.errors.full_messages }
+        format.html{ flash[:errors] =  @company_contact.errors.full_messages; render 'new' }
+      end
     end
   end
 
