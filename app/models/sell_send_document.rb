@@ -3,7 +3,7 @@ class SellSendDocument < ApplicationRecord
   belongs_to :sell_contract, optional: true
   belongs_to :creatable      , polymorphic: :true, optional: true
 
-  has_many :document_signs       , as: :documentable
+  has_many :document_signs       , as: :documentable,dependent: :destroy
 
   # include NumberGenerator.new({prefix: 'SSD', length: 7})
   before_create :set_number

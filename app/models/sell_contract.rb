@@ -2,10 +2,10 @@ class SellContract < ApplicationRecord
 
   belongs_to :contract, optional: true
   belongs_to :company, optional: true
-  has_many :contract_sell_business_details
-  has_many :sell_send_documents
-  has_many :sell_request_documents
-  has_many :contract_customer_rate_histories
+  has_many :contract_sell_business_details,dependent: :destroy
+  has_many :sell_send_documents,dependent: :destroy
+  has_many :sell_request_documents,dependent: :destroy
+  has_many :contract_customer_rate_histories,dependent: :destroy
 
   # include NumberGenerator.new({prefix: 'SC', length: 7})
   before_create :set_number

@@ -143,8 +143,7 @@
           %label.control-label
             Payment Terms
           .select
-            .plain-select
-              = sc.select :payment_term , (0..60).map{|a| ["Net " + a.to_s + " days",a]}, {},{class: "form-control" }
+            = sc.number_field :payment_term , class: "form-control"
       -#.col-md-6
       -#  .form-group
       -#    %label.control-label

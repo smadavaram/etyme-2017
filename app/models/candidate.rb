@@ -53,6 +53,7 @@ class Candidate < ApplicationRecord
   has_many   :clients, dependent: :destroy
   has_many   :designations, dependent: :destroy
   has_many   :timesheets, dependent: :destroy
+  has_many :contract_salary_histories, dependent: :destroy
 
   belongs_to :invited_by_user, class_name: "User", foreign_key: :invited_by_id, optional: true
 

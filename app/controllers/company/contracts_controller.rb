@@ -48,7 +48,7 @@ class Company::ContractsController < Company::BaseController
   end
 
   def create
-    params[:contract][:company_id] = params[:contract][:candidate_id]
+    params[:contract][:company_id] = current_company.id
     @contract  = current_company.sent_contracts.new(create_contract_params)
     respond_to do |format|
       if @contract.save
@@ -201,7 +201,7 @@ class Company::ContractsController < Company::BaseController
            buy_contracts_attributes: [
                :candidate_id, :ssn, :contract_type, :payrate, :payrate_type, :time_sheet,
                :payment_term, :show_accounting_to_employee, :first_date_of_timesheet, :day_of_week, :date_1, :date_2,
-               :end_of_month, :first_date_of_invoice, :company_id,
+               :end_of_month, :first_date_of_invoice, :company_id, :uscis_rate,
                contract_buy_business_details_attributes: [
                    :id, :company_contact_id, :_destroy
                ],

@@ -333,6 +333,8 @@ Rails.application.routes.draw do
     post 'update_photo',    to: 'users#update_photo'
     resources :timesheets ,concerns: :paginatable , only: [:show , :index, :new, :create, :edit, :update] do
       get 'submit_timesheet'
+      get 'approved', on: :collection
+      get 'generate_invoice'
       get 'approve'
       get 'submit'
       get 'reject'

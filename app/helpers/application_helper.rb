@@ -321,7 +321,7 @@ module ApplicationHelper
                     content: "<i class='fa fa-lg fa-fw fa-calendar'></i> <span class='menu-item-parent'>" + 'Submitted' + "</span>",
                 },
                 {
-                    href: timesheets_path,
+                    href:  approved_timesheets_path,
                     title: 'Approved',
                     content: "<i class='fa fa-lg fa-fw fa-calendar'></i> <span class='menu-item-parent'>" + 'Approved' + "</span>",
                 },

@@ -53,7 +53,7 @@
                     - data.each_with_index do |timesheet , index|
                       - content_for :modals do
                         = render 'company/timesheets/partials/histroy_modal' , timesheet: timesheet
-                      %tr.even{:role => "row"}
+                      %tr
                         %td= timesheet.contract.title
                         %td= timesheet.contract.try(:billing_frequency).try(:humanize)
                         %td= timesheet.contract.try(:time_sheet_frequency).try(:humanize)
@@ -61,13 +61,16 @@
                         %td= timesheet.end_date
                         %td= timesheet.status.titleize
                         %td
-                          = link_to raw("<i class='fa fa-eye '></i>")  ,timesheet_timesheet_log_path(timesheet, timesheet.timesheet_logs.last) ,  target: '_blank' ,class: 'btn btn-xs btn-default ',title:'View Details','rel'=>"tooltip" ,'data-placement'=>"top"
-                          = link_to raw("<i class='fa fa-history '></i>") ,'#' , "data-target" => "#timesheet-#{timesheet.id}", "data-toggle" => "modal"  ,class: 'btn btn-xs btn-default ',title:'View History','rel'=>"tooltip" ,'data-placement'=>"top"
+                          = link_to raw("<i class='fa fa-check '></i>") ,timesheet_approve_path(timesheet) ,class: 'btn btn-xs btn-default ',title:'Approve Timesheet' ,'rel'=>"tooltip" ,'data-placement'=>"top" , data: {confirm: "Are you sure?", verify: 'Approve', verify_text: "Type 'Approve' to confirm"}
+                          = link_to raw("<i class='fa fa-times '></i>") ,timesheet_reject_path(timesheet) ,class: 'btn btn-xs btn-default ' ,title:'Reject Timesheet' ,'rel'=>"tooltip" ,'data-placement'=>"top", data: {confirm: "Are you sure?", verify: 'Reject', verify_text: "Type 'Reject' to confirm"}
+                          = link_to raw("<i class='fa fa-eye '></i>") ,timesheet_timesheet_log_path(timesheet, timesheet.timesheet_logs.last) ,  target: '_blank' ,class: 'btn btn-xs btn-default ',title:'View Details','rel'=>"tooltip" ,'data-placement'=>"top"
+                          =# link_to raw("<i class='fa fa-history '></i>") ,'#' , "data-target" => "#timesheet-#{timesheet.id}", "data-toggle" => "modal"  ,class: 'btn btn-xs btn-default ' ,title:'View History','rel'=>"tooltip" ,'data-placement'=>"top"
                           - if timesheet.open? && !timesheet.is_already_submitted?(current_user)
-                            = link_to raw("<i class='fa fa-check-circle '></i>") ,timesheet_submit_path(timesheet) ,class: 'btn btn-xs btn-default ','rel'=>"tooltip" ,'data-placement'=>"top" , data: {confirm: "Once submitted! you will not be able to add or modify any logs in this timesheet. It can only be Approve or Reject.", verify: 'Submit', verify_text: "Type 'Submit' to confirm"},title:"Submit"
+                            =# link_to raw("<i class='fa fa-check-circle '></i>") ,timesheet_submit_path(timesheet) ,class: 'btn btn-xs btn-default ',title:'Submit Timesheet' ,'rel'=>"tooltip" ,'data-placement'=>"top" , data: {confirm: "Once submitted! you will not be able to add or modify any logs in this timesheet. It can only be Approve or Reject.", verify: 'Submit', verify_text: "Type 'Submit' to confirm"}
                           - elsif timesheet.submitted?  && !timesheet.is_already_approved_or_rejected?(current_user)
-                            = link_to raw("<i class='fa fa-check '></i>") ,timesheet_approve_path(timesheet) ,class: 'btn btn-xs btn-default ','rel'=>"tooltip" ,'data-placement'=>"top" , data: {confirm: "Are you sure?", verify: 'Approve', verify_text: "Type 'Approve' to confirm"},title:"Approve"
-                            = link_to raw("<i class='fa fa-times '></i>") ,timesheet_reject_path(timesheet) ,class: 'btn btn-xs btn-default ','rel'=>"tooltip" ,'data-placement'=>"top" , data: {confirm: "Are you sure?", verify: 'Reject', verify_text: "Type 'Reject' to confirm"},title:"Reject"
+                            - if has_permission?("manage_timesheets")
+                              =# link_to raw("<i class='fa fa-check '></i>") ,timesheet_approve_path(timesheet) ,class: 'btn btn-xs btn-default ',title:'Approve Timesheet' ,'rel'=>"tooltip" ,'data-placement'=>"top" , data: {confirm: "Are you sure?", verify: 'Approve', verify_text: "Type 'Approve' to confirm"}
+                              =# link_to raw("<i class='fa fa-times '></i>") ,timesheet_reject_path(timesheet) ,class: 'btn btn-xs btn-default ' ,title:'Reject Timesheet' ,'rel'=>"tooltip" ,'data-placement'=>"top", data: {confirm: "Are you sure?", verify: 'Reject', verify_text: "Type 'Reject' to confirm"}
 = digg_pagination(data)
 
 :css

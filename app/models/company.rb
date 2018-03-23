@@ -65,6 +65,7 @@ class Company < ApplicationRecord
   has_many :share_by, through: :active_relationships, source: :shared_by
   has_many :share_to, through: :passive_relationships, source: :shared_to
   has_many :document_signs       , as: :signable
+  has_many :contract_salary_histories, dependent: :destroy
 
   # validates           :company_type, inclusion: { in: [0, 1] } , presence: true
   # validates           :company_type, inclusion: {in: %w(0 , 1)}
@@ -161,14 +162,15 @@ class Company < ApplicationRecord
 
 
   def get_host_from_domain
-
-    domain = self.domain.gsub(/[^0-9A-Za-z.]/, '')
-    url = URI.parse(domain).scheme.nil? ? "http://#{domain}" : domain
-    host = URI.parse(url).host.downcase
-    if (!self.invited_by.present?)
-       self.slug = host.start_with?('www.') ? host[4..-1].split(".").first : host.split(".").first
-    else
-        self.slug = host.start_with?('www.') ? host[4..-1].split(".").first : host.split(".").first + "#{Time.now.to_s.parameterize(separator: "_")}"
+    if self.domain.present?
+      domain = self.domain.gsub(/[^0-9A-Za-z.]/, '')
+      url = URI.parse(domain).scheme.nil? ? "http://#{domain}" : domain
+      host = URI.parse(url).host.downcase
+      if (!self.invited_by.present?)
+         self.slug = host.start_with?('www.') ? host[4..-1].split(".").first : host.split(".").first
+      else
+          self.slug = host.start_with?('www.') ? host[4..-1].split(".").first : host.split(".").first + "#{Time.now.to_s.parameterize(separator: "_")}"
+      end
     end
   end
 

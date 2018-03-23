@@ -39,9 +39,9 @@ class Contract < ApplicationRecord
   has_many   :timesheet_approvers   , through: :timesheets
   has_many   :attachable_docs, as: :documentable
   has_many   :attachments , as: :attachable
-
-  has_many :sell_contracts
-  has_many :buy_contracts
+  has_many :sell_contracts, dependent: :destroy
+  has_many :buy_contracts, dependent: :destroy
+  has_many :contract_salary_histories, dependent: :destroy
 
   # has_many :contract_buy_business_details
   # has_many :contract_sell_business_details

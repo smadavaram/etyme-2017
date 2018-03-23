@@ -14,16 +14,26 @@ class Timesheet < ApplicationRecord
   has_many   :timesheet_approvers  , dependent: :destroy
   has_many   :transactions  , through: :timesheet_logs
 
+  has_many :contract_salary_histories ,as: :salable, dependent: :destroy
+
+
   # before_validation :set_recurring_timesheet_cycle
   after_create  :create_timesheet_logs
   # after_create  :notify_timesheet_created
   # after_update :update_pending_timesheet_logs, if: Proc.new{|t| t.status_changed? && t.approved?}
 
+  after_update :set_contract_salary_histories, if: Proc.new{|t| t.status_changed? && t.approved?}
+
   validates           :start_date,  presence:   true
   validates           :end_date,    presence:   true
   validates :status , inclusion: {in: statuses.keys}
+  
+  validates_uniqueness_of :start_date, scope: :contract_id, :message => "Timesheet already submitted."
+  
 
   scope :not_invoiced , -> {where(invoice_id: nil)}
+  scope :submitted_timesheets , -> {where(status: :open)}
+  scope :approved_timesheets , -> {where(status: :approved)}
 
   def assignee
     self.contract.assignee
@@ -112,6 +122,22 @@ class Timesheet < ApplicationRecord
     con = Contract.find(new_contract_id)
     self.job_id = con.job_id
     self.company_id = con.company_id
+  end
+
+  def set_contract_salary_histories
+    amoount = (self.total_time * self.contract.buy_contracts.first.payrate)
+    contract_amount = self.contract.salary_to_pay
+    ContractSalaryHistory.create(contract_id: self.contract_id,
+                                 company_id: self.contract.company_id,
+                                 candidate_id: self.contract.buy_contracts.first.candidate_id,
+                                 salary_type: "CREDIT",
+                                 description: "Timesheet Approved",
+                                 amount: amoount,
+                                 final_amount: (contract_amount + amoount),
+                                 salable: self
+    )
+
+    self.contract.update(salary_to_pay: (contract_amount + amoount))
   end
 
 end

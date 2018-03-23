@@ -13,17 +13,17 @@ class Invoice < ApplicationRecord
   has_many    :timesheet_logs , through: :timesheets
 
 
-  before_validation :set_rate , on: :create
-  before_validation :set_consultant_and_total_amount, on: :create , if: Proc.new{|invoice| !invoice.contract.has_child?}
-  # before_validation :set_total_amount , on: :create , if: Proc.new{|invoice| !invoice.contract.has_child?}
-  before_validation :set_commissions , on: :create , if: Proc.new{|invoice| !invoice.contract.has_child?}
-  before_validation :set_start_date_and_end_date , on: :create , if: Proc.new{|invoice| !invoice.contract.has_child?}
+  # before_validation :set_rate , on: :create
+  # before_validation :set_consultant_and_total_amount, on: :create , if: Proc.new{|invoice| !invoice.contract.has_child?}
+    # before_validation :set_total_amount , on: :create , if: Proc.new{|invoice| !invoice.contract.has_child?}
+  # before_validation :set_commissions , on: :create , if: Proc.new{|invoice| !invoice.contract.has_child?}
+  # before_validation :set_start_date_and_end_date , on: :create , if: Proc.new{|invoice| !invoice.contract.has_child?}
 
-  after_create      :set_next_invoice_date , if: Proc.new{|invoice| !invoice.contract.has_child?}
-  after_create      :update_timesheet_status_to_invoiced , if: Proc.new{|invoice| !invoice.contract.has_child?}
-  after_create      :notify_contract_responder ,  if: Proc.new{|invoice| invoice.contract.respond_by.present?}
-  after_update      :create_invoice_for_parent, if: Proc.new{|invoice| invoice.status_changed? && invoice.submitted? && invoice.contract.parent_contract?}
-  after_update      :notify_contract_creator , if: Proc.new{ |invoice| invoice.status_changed?  && invoice.submitted?}
+  # after_create      :set_next_invoice_date , if: Proc.new{|invoice| !invoice.contract.has_child?}
+  # after_create      :update_timesheet_status_to_invoiced , if: Proc.new{|invoice| !invoice.contract.has_child?}
+  # after_create      :notify_contract_responder ,  if: Proc.new{|invoice| invoice.contract.respond_by.present?}
+  # after_update      :create_invoice_for_parent, if: Proc.new{|invoice| invoice.status_changed? && invoice.submitted? && invoice.contract.parent_contract?}
+  # after_update      :notify_contract_creator , if: Proc.new{ |invoice| invoice.status_changed?  && invoice.submitted?}
 
   validate :start_date_cannot_be_less_than_end_date
   validate :contract_validation , if: Proc.new{|invoice| !invoice.contract.in_progress?}

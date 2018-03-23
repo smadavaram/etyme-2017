@@ -70,6 +70,16 @@
       .col-md-12
         .form-group
           %label.control-label
+            USCIS Rate
+            %sup.text-danger *
+          .select
+            .row
+              .col-md-6
+                = bc.number_field :uscis_rate, class: "form-control"
+    .row
+      .col-md-12
+        .form-group
+          %label.control-label
             PayRate
             %sup.text-danger *
           .select

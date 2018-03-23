@@ -22,9 +22,8 @@
       .form-group
         %label.col-md-2.control-label
           Phone
-          %sup.text-danger *
         .col-md-10
-          = f.phone_field :phone , class: 'form-control' , placeholder: 'Phone' , required: true
+          = f.phone_field :phone , class: 'form-control' , placeholder: 'Phone'
       .form-group
         = f.fields_for :custom_fields do |lt|
           = render 'shared/custom_fields', f: lt
