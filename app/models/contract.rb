@@ -274,7 +274,7 @@ class Contract < ApplicationRecord
 
   def set_on_seq
     ledger = Sequence::Client.new(
-      ledger_name: 'chirag',
+      ledger_name: ENV['seq_ledgers'],
       credential: ENV['seq_token']
     )
     key = ledger.keys.create(id: self.display_number)
