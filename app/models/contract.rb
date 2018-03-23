@@ -47,6 +47,7 @@ class Contract < ApplicationRecord
   # has_many :contract_sell_business_details
   # has_many :contract_sale_commisions
 
+  after_create :set_on_seq
   after_create :insert_attachable_docs
   after_create :set_next_invoice_date
   after_create :notify_recipient , if: Proc.new{ |contract| contract.not_system_generated? }
@@ -90,7 +91,7 @@ class Contract < ApplicationRecord
   default_scope  -> {order(created_at: :desc)}
 
   def set_number
-    c = Contract.order("created_at DESC").last
+    c = Contract.order("created_at DESC").first
     if c.present?
       self.number = (c.number.to_i + 1).to_s.rjust(3, "0")
     else
@@ -269,6 +270,71 @@ class Contract < ApplicationRecord
 
   def set_next_invoice_date
     self.update(next_invoice_date: (self.start_date + self.sell_contracts.first.invoice_terms_period.to_i.days) )
+  end
+
+  def set_on_seq
+    ledger = Sequence::Client.new(
+      ledger_name: 'chirag',
+      credential: ENV['seq_token']
+    )
+    key = ledger.keys.create(id: self.display_number)
+    account = ledger.accounts.create(
+        alias: "comp#{self.company_id}_#{self.number}",
+        keys: [key],
+        quorum: 1,
+        tags: {
+          id: self.company_id,
+          name: self.company.full_name,
+          email: self.company.email,
+          phone: self.company.phone
+        }
+    )
+
+    account = ledger.accounts.create(
+          id: "cntrct#{self.id}_#{self.number}",
+          keys: [key],
+          quorum: 1,
+          tags: {
+              comp_id:"comp_#{self.company_id}",
+              cand_vend_id:"cand_#{self.sell_contracts.first.company_id}",
+              cust_id:"cust_#{self.buy_contracts.first.candidate_id}",
+              start_date: self.start_date,
+              end_date: self.end_date,
+              buy_rate: self.buy_contracts.first.payrate,
+              sell_rate: self.sell_contracts.first.customer_rate,
+              contract_duration:"#{self.start_date} TO #{self.end_date}",
+              sell_timesheet_type: self.sell_contracts.first.time_sheet,
+              sell_invoice_type: self.sell_contracts.first.invoice_terms_period,
+              buy_timesheet_type: self.buy_contracts.first.time_sheet,
+              hire: self.buy_contracts.first.contract_type,
+              status: self.status
+          }
+    )
+
+    account = ledger.accounts.create(
+      alias: "cust#{self.buy_contracts.first.candidate_id}_#{self.number}",
+      keys: [key],
+      quorum: 1,
+      tags: {
+          id: self.buy_contracts.first.candidate.id,
+          name: self.buy_contracts.first.candidate.full_name,
+          email: self.buy_contracts.first.candidate.email,
+          phone: self.buy_contracts.first.candidate.phone
+      }
+    )
+    if self.buy_contracts.first.company_id.present?
+      account = ledger.accounts.create(
+                                         alias: "vend#{self.buy_contracts.first.company.id}_#{self.number}",
+                                         keys: [key],
+                                         quorum: 1,
+                                         tags: {
+                                             id: self.buy_contracts.first.company.id,
+                                             name: self.buy_contracts.first.company.full_name,
+                                             email: self.buy_contracts.first.company.email,
+                                             phone: self.buy_contracts.first.company.phone
+                                         }
+      )
+    end
   end
 
 end

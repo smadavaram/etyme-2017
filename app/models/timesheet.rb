@@ -18,6 +18,8 @@ class Timesheet < ApplicationRecord
 
 
   # before_validation :set_recurring_timesheet_cycle
+  after_create  :set_timesheet_on_seq
+
   after_create  :create_timesheet_logs
   # after_create  :notify_timesheet_created
   # after_update :update_pending_timesheet_logs, if: Proc.new{|t| t.status_changed? && t.approved?}
@@ -138,6 +140,31 @@ class Timesheet < ApplicationRecord
     )
 
     self.contract.update(salary_to_pay: (contract_amount + amoount))
+  end
+
+
+
+
+  def set_timesheet_on_seq
+    ledger = Sequence::Client.new(
+        ledger_name: 'chirag',
+        credential: ENV['seq_token']
+    )
+    key = ledger.keys.create(id: "timesheet_#{self.id}")
+
+    account = ledger.accounts.create({
+      alias: "tmsht1001_#{self.id}",
+      keys: [key],
+      quorum: 1,
+      tags: {
+        id: self.id,
+        cntrct_id: self.contract.id,
+        days: self.days,
+        total_min: self.total_time,
+        tmsht_period: "#{self.start_date} TO #{self.start_date}"
+      },
+    })
+
   end
 
 end
