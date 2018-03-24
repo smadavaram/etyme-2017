@@ -858,3 +858,14 @@ label span.label-text {
 .new_contract .row.contract-Accounting {
     margin-bottom: 15px;
 }
+.timesheet h2 {
+    display: inline-block;
+    font-weight: bold;
+    font-size: 18px;
+    text-transform: capitalize;
+    margin-top: 0;
+}
+.timesheet-select-date {
+    display: inline-block;
+    margin-left: 20px;
+}

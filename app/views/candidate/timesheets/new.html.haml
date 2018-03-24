@@ -1,14 +1,13 @@
 .timesheet
   .row
     .col-md-12
-      %h1 Pay Bills
-
-      %form.form-horizontal
-    .timesheet-header.clearfix
-      .pull-left
+      %h2 Submit Timesheets
+      .timesheet-select-date
         %select.select-time-cycle
           -@time_cycle.each do |t|
             %option=t
+
+    .clearfix
     .table-responsive
       %table.table.table-bordred
         %thead
