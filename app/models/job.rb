@@ -1,15 +1,15 @@
 
-class Job < ActiveRecord::Base
+class Job < ApplicationRecord
 
-  validates :end_date , presence: true , if: Proc.new{ |job| !job.is_system_generated }
+  # validates :end_date , presence: true , if: Proc.new{ |job| !job.is_system_generated }
   validates :title , presence: true
   # validates :start_date, presence: true, date: { after_or_equal_to: Proc.new { Date.today }, message: "must be at least #{(Date.today + 1).to_s}" }, on: :create
   # validates :end_date, presence: true, date: { after_or_equal_to: :start_date, message: "must be at least #{(Date.today + 1).to_s}" }, on: :create
   # validates :start_date,:end_date, date: { allow_blank: false, message:"Date must be present" }
   validate :file_size
 
-  belongs_to   :created_by , class_name: "User" ,foreign_key: :created_by_id
-  belongs_to   :company
+  belongs_to   :created_by , class_name: "User" ,foreign_key: :created_by_id, optional: true
+  belongs_to   :company, optional: true
   # belongs_to   :location
   has_many     :contracts        ,dependent: :destroy
   has_many     :job_applications ,dependent: :destroy
@@ -19,11 +19,14 @@ class Job < ActiveRecord::Base
   has_many     :custom_fields    ,as: :customizable
   # has_many     :job_applications ,through: :job_invitations
   has_many     :timesheet_approvers,through: :timesheets
+  has_many     :job_requirements
   # has_many     :applicants , through: :job_applications , source: :applicationable ,source_type: "Candidate"
   has_one      :chat              ,as: :chatable ,dependent: :destroy
 
   accepts_nested_attributes_for :custom_fields , reject_if: :all_blank
+  accepts_nested_attributes_for :job_requirements , reject_if: :all_blank
 
+  acts_as_taggable_on :education
   acts_as_taggable
   acts_as_paranoid
 
@@ -50,6 +53,13 @@ class Job < ActiveRecord::Base
   # end
 
   # private_class_method :ransackable_attributes
+
+  def self.like_any(fields, values)
+    conditions = fields.product(values).map do |(field, value)|
+      [arel_table[field].matches("#{value}%"), arel_table[field].matches("% #{value}%")]
+    end
+    where conditions.flatten.inject(:or)
+  end
 
   def file_size
     if video_file.present? && video_file.file.size.to_f/(1000*1000) > 2

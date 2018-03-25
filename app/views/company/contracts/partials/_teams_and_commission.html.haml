@@ -1,24 +1,34 @@
-.form-group
-  %label.col-md-2.control-label Assign To
-  .col-md-10
-    = select_tag 'contract[assignee_id]', options_for_select(current_company.consultants.collect { |c|[c.full_name, c.id] })  , class: "form-control"
-.form-group
-  %label.col-md-2.control-label Are you paying any commission for this contract ?
-  .col-md-10.select
-    = f.select :is_commission , [["No", false] , ["Yes" , true]], {} , {class: "form-control" }
-#contract-commision
-  .form-group
-    %label.col-md-2.control-label Commission Type
-    .col-md-4.select
-      = f.select :commission_type , Contract.commission_types.map { |key, value| [key.humanize, key] }, {} , {class: "form-control" }
-    %label.col-md-2.control-label Commission For
-    .col-md-4.select
-      = f.select :commission_for_id , options_for_select(current_company.admins.collect { |admin|[admin.full_name.titleize, admin.id] }) ,{},prompt: "Select Admin" ,class: "form-control"
-  .form-group
-    %label.col-md-2.control-label Commission Amount
-    .col-md-4.select
-      = f.text_field :commission_amount , class: "form-control" , placeholder: ""
-    .max-commission
-      %label.col-md-2.control-label Max Commission
-      .col-md-4.select
-        = f.text_field :max_commission , class: "form-control" , placeholder: ""
+.row
+  .col-md-6
+    .form-group
+      .form-group
+      %label.control-label Are you active this contract ?
+      .select
+        .plain-select
+          = f.select :status , [["No", false] , ["Yes" , true]], {} , {class: "form-control" }
+
+
+-#.form-group
+-#  %label.col-md-2.control-label Assign To
+-#  .col-md-10
+-#    = select_tag 'contract[assignee_id]', options_for_select(current_company.consultants.collect { |c|[c.full_name, c.id] })  , class: "form-control"
+-#.form-group
+-#  %label.col-md-2.control-label Are you paying any commission for this contract ?
+-#  .col-md-10.select
+-#    = f.select :is_commission , [["No", false] , ["Yes" , true]], {} , {class: "form-control" }
+-##contract-commision
+-#  .form-group
+-#    %label.col-md-2.control-label Commission Type
+-#    .col-md-4.select
+-#      = f.select :commission_type , Contract.commission_types.map { |key, value| [key.humanize, key] }, {} , {class: "form-control" }
+-#    %label.col-md-2.control-label Commission For
+-#    .col-md-4.select
+-#      = f.select :commission_for_id , options_for_select(current_company.admins.collect { |admin|[admin.full_name.titleize, admin.id] }) ,{},prompt: "Select Admin" ,class: "form-control"
+-#  .form-group
+-#    %label.col-md-2.control-label Commission Amount
+-#    .col-md-4.select
+-#      = f.text_field :commission_amount , class: "form-control" , placeholder: ""
+-#    .max-commission
+-#      %label.col-md-2.control-label Max Commission
+-#      .col-md-4.select
+-#        = f.text_field :max_commission , class: "form-control" , placeholder: ""

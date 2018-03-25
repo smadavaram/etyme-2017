@@ -159,12 +159,54 @@ module ApplicationHelper
                     title: 'IM',
                     content: "<span class='menu-item-parent'> IM </span>"
                 },
+                {
+                    href: company_conversations_path,
+                    title: 'NEW IM',
+                    content: "<span class='menu-item-parent'> New IM </span>"
+                }
             ]
         },
         {
             href: '#',
             title: 'Network ',
             content: "<i class='fa fa-lg fa-fw fa-globe'></i> <span class='menu-item-parent'>" + 'Network' + "</span>",
+            children: [
+                {
+                    href:  groups_path,
+                    title: 'Group',
+                    content: "<span class='menu-item-parent'>" + 'Group(s)' + "</span>",
+                },
+                {
+                    href:  directories_path,
+                    title: 'My Directory',
+                    content: "<span class='menu-item-parent'>" + 'My Directory' + "</span>",
+                },
+                {
+                    href: candidates_path,
+                    title: 'Candidates( My Candidates(W2), Hot Candidates, Vendor )',
+                    content: "<span class='menu-item-parent'>" + 'Candidate(s)' + "</span>",
+                },
+                # {
+                #     href: company_company_hot_index_path(current_company),
+                #     title: 'My Bench (Hot Candidates, Third Party)',
+                #     content: "<span class='menu-item-parent'>" + 'My Hotlist' + "</span>",
+                # },
+                {
+                    href: companies_path,
+                    title: 'Companys',
+                    content: "</i><span class='menu-item-parent'> Company(s) </span>"
+                },
+                {
+                    href: company_company_contacts_path,
+                    title: 'Contacts',
+                    content: "</i><span class='menu-item-parent'> Contact(s) </span>"
+                }
+             ]
+        },
+        {
+            href: '#',
+            title: 'Supplier Management',
+            content: "<i class='fa fa-lg fa-fw fa-globe'></i> <span class='menu-item-parent'>" + 'Supplier Management' + "</span>",
             children: [
                 {
                     href: companies_path(status: 'all'),
@@ -181,30 +223,8 @@ module ApplicationHelper
                     href: network_path,
                     title: 'Clients / Vendors',
                     content: "<span class='menu-item-parent'> Clients / Vendors </span>"
-                },
-                {
-                    href:  directories_path,
-                    title: 'My Directory',
-                    content: "<span class='menu-item-parent'>" + 'My Directory' + "</span>",
-                },
-                {
-                    href: candidates_path,
-                    title: 'Candidates( My Candidates(W2), Hot Candidates, Vendor )',
-                    content: "<span class='menu-item-parent'>" + 'Candidate(s)' + "</span>",
-                },
-                {
-                    href: company_company_hot_index_path(current_company),
-                    title: 'My Bench (Hot Candidates, Third Party)',
-                    content: "<span class='menu-item-parent'>" + 'My Hotlist' + "</span>",
-                },
-                {
-                    href: companies_path,
-                    title: 'Contacts',
-                    content: "</i><span class='menu-item-parent'> Contact(s) </span>"
-                },
-
-
-             ]
+                }
+            ]
         },
 
         {
@@ -229,9 +249,9 @@ module ApplicationHelper
                     content: "<span class='menu-item-parent'> Public </span>"
                 },
                 {
-                    href: "#",
-                    title: 'My Job',
-                    content: "<span class='menu-item-parent'> My Job </span>"
+                    href: company_owen_jobs_path,
+                    title: 'Bench Job',
+                    content: "<span class='menu-item-parent'> Bench Job </span>"
                 }
             ]
         },
@@ -265,27 +285,53 @@ module ApplicationHelper
             title: 'HR',
             content: "<i class='fa fa-lg fa-fw fa-building-o'></i> <span class='menu-item-parent'>" + 'HR' + "</span>",
             children: [
-                {
-                    href: consultants_path,
-                    title: 'Consultants',
-                    content: "<span class='menu-item-parent'>" + 'Consultant(s)' + "</span>",
-                },
+                # {
+                #     href: consultants_path,
+                #     title: 'Consultants',
+                #     content: "<span class='menu-item-parent'>" + 'Consultant(s)' + "</span>",
+                # },
 
                 {
                   href: contracts_path,
                   title: 'Contracts',
                   content: "<span class='menu-item-parent'> Contract(s) </span>",
-                  }
+                },
 
+                {
+                    href: company_sell_contracts_path,
+                    title: 'Sell',
+                    content: "<span class='menu-item-parent'> Sell </span>",
+                },
 
+                {
+                    href: company_buy_contracts_path,
+                    title: 'Buy',
+                    content: "<span class='menu-item-parent'> Buy </span>",
+                }
             ]
         },
         {
-            href: timesheets_path,
-            title: 'Timesheets',
-            content: "<i class='fa fa-lg fa-fw fa-calendar'></i> <span class='menu-item-parent'>" + 'TIMESHEETS' + "</span>",
+            href: '#',
+            title: 'Timesheet ',
+            content: "<i class='fa fa-lg fa-fw fa-money'></i> <span class='menu-item-parent'>" + 'Timesheet' + "</span>",
+            children: [
+                {
+                    href: timesheets_path,
+                    title: 'Submitted',
+                    content: "<i class='fa fa-lg fa-fw fa-calendar'></i> <span class='menu-item-parent'>" + 'Submitted' + "</span>",
+                },
+                {
+                    href:  approved_timesheets_path,
+                    title: 'Approved',
+                    content: "<i class='fa fa-lg fa-fw fa-calendar'></i> <span class='menu-item-parent'>" + 'Approved' + "</span>",
+                },
+                {
+                    href:  current_user.is_owner? ? employees_leaves_path : (current_user.is_consultant? ? consultant_leaves_path(current_user) : '#'),
+                    title: 'Leaves',
+                    content: "<i class='fa fa-lg fa-fw fa-calendar-times-o'></i> <span class='menu-item-parent'>" + 'Leaves' + "</span>",
+                }
+            ]
         },
-
         {
             href: '#',
             title: 'Accounting ',
@@ -294,34 +340,47 @@ module ApplicationHelper
                 if has_permission?('show_invoices') || has_permission?('manage_contracts')
                 {
                     href: invoices_path(sent_invoice:true),
-                    title: 'Sent Invoices',
-                    content: "<span class='menu-item-parent'>Sent Invoices </span>"
+                    title: 'Open Invoices',
+                    content: "<span class='menu-item-parent'>Open Invoices </span>"
                 }end,
                 if has_permission?('show_invoices') || has_permission?('manage_contracts')
                 {
                     href: invoices_path(received_invoice: true),
-                    title: 'Received Invoices',
-                    content: "<span class='menu-item-parent'> Received Invoices </span>"
+                    title: 'Cleared Invoices',
+                    content: "<span class='menu-item-parent'> Cleared Invoices </span>"
                 }end,
                 {
-                    href: consultants_path,
-                    title: 'Salaries',
-                    content: "<span class='menu-item-parent'> Salaries </span>"
+                    href: "#",
+                    title: 'Open Bills',
+                    content: "<span class='menu-item-parent'> Open Bills </span>"
                 },
                 {
                     href: "#",
-                    title: ' Payments',
-                    content: "<span class='menu-item-parent'>  Payments </span>"
+                    title: 'Bill Payment(s)',
+                    content: "<span class='menu-item-parent'> Bill Payment(s) </span>"
+                },
+                {
+                    href: "#",
+                    title: 'Salary Calculation(s)',
+                    content: "<span class='menu-item-parent'> Salary Calculation(s) </span>"
+                },
+                {
+                    href: "#",
+                    title: 'Salary Payment(s)',
+                    content: "<span class='menu-item-parent'> Salary Payment(s)</span>"
+                },
+                {
+                    href: "#",
+                    title: 'Expense Payment(s)',
+                    content: "<span class='menu-item-parent'> Expense Payment(s)</span>"
                 },
             ]
         },
-
-          {
-              href:  current_user.is_owner? ? employees_leaves_path : (current_user.is_consultant? ? consultant_leaves_path(current_user) : '#'),
-              title: 'Leaves',
-              content: "<i class='fa fa-lg fa-fw fa-calendar-times-o'></i> <span class='menu-item-parent'>" + 'Leaves' + "</span>",
-          },
-
+        {
+            href: "#",
+            title: 'Profitability',
+            content: "<i class='fa fa-lg fa-fw fa-calendar'></i> <span class='menu-item-parent'>" + 'Profitability' + "</span>",
+        }
     ]
   end
 
@@ -334,24 +393,227 @@ module ApplicationHelper
             content: "<i class='fa fa-lg fa-fw fa-home'></i> <span class='menu-item-parent'>" + 'HOME' + "</span>",
         },
         {
+            href: candidate_conversations_path,
+            title: 'IM',
+            content: "<i class='fa fa-lg fa-fw fa-home'></i> <span class='menu-item-parent'>" + 'IM' + "</span>",
+        },
+        {
             href: '#',
-            title: 'JOBS',
-            content: "<i class='fa fa-lg fa-fw fa-briefcase'></i> <span class='menu-item-parent'>" + 'JOBS' + "</span>",
+            title: 'Network',
+            content: "<i class='fa fa-lg fa-fw fa-globe'></i> <span class='menu-item-parent'>" + 'Network' + "</span>",
             children: [
                 {
-                    href: candidate_jobs_path,
-                    title: 'Jobs',
-                    content: "<span class='menu-item-parent'> Jobs </span>"
+                    href: '#',
+                    title: 'Company',
+                    content: "<span class='menu-item-parent'> Company </span>"
                 },
                 {
-                    href: candidate_job_applications_path,
-                    title: 'Job Applications',
-                    content: "<span class='menu-item-parent'> Job Applications </span>"
+                    href: '#',
+                    title: 'Contacts',
+                    content: "<span class='menu-item-parent'> Contacts </span>"
                 },
                 {
-                    href: candidate_job_invitations_path,
-                    title: 'Job Invitations',
-                    content: "<span class='menu-item-parent'> Job Invitations </span>"
+                    href: '#',
+                    title: 'Groups',
+                    content: "<span class='menu-item-parent'> Groups </span>"
+                },
+                {
+                    href: '#',
+                    title: 'Lists',
+                    content: "<span class='menu-item-parent'> Lists </span>"
+                },
+                {
+                    href: '#',
+                    title: 'Directory',
+                    content: "<span class='menu-item-parent'> Directory </span>"
+                }
+            ]
+        },
+    {
+        href: '#',
+        title: 'Bench',
+        content: "<i class='fa fa-lg fa-fw fa-briefcase'></i> <span class='menu-item-parent'>" + 'Bench' + "</span>",
+        children: [
+            {
+                href: '#',
+                title: 'Invited bench',
+                content: "<span class='menu-item-parent'> Invited bench </span>"
+            },
+            {
+                href: candidate_company_info_benchs_path,
+                title: 'My company',
+                content: "<span class='menu-item-parent'> My company </span>"
+            },
+            {
+                href: benchs_path,
+                title: 'Public Jobs',
+                content: "<span class='menu-item-parent'> Public Jobs </span>"
+            },
+            {
+                href: candidate_bench_job_benchs_path,
+                title: 'Bench Jobs',
+                content: "<span class='menu-item-parent'> Bench Jobs </span>"
+            }
+        ]
+    },
+    {
+        href: '#',
+        title: 'Trainings',
+        content: "<i class='fa fa-lg fa-fw fa-book'></i> <span class='menu-item-parent'>" + 'Trainings' + "</span>",
+        children: [
+            {
+                href: '#',
+                title: 'My Trainings',
+                content: "<span class='menu-item-parent'> My Trainings </span>"
+            },
+            {
+                href: '#',
+                title: 'Invited',
+                content: "<span class='menu-item-parent'> Invited </span>"
+            },
+            {
+                href: '#',
+                title: 'Public trainings',
+                content: "<span class='menu-item-parent'> Public Jobs </span>"
+            }
+        ]
+    },
+    {
+        href: '#',
+        title: 'JOBS',
+        content: "<i class='fa fa-lg fa-fw fa-briefcase'></i> <span class='menu-item-parent'>" + 'JOBS' + "</span>",
+        children: [
+            {
+                href: candidate_jobs_path,
+                title: 'My Jobs',
+                content: "<span class='menu-item-parent'> My Jobs </span>"
+            },
+            {
+                href: candidate_job_applications_path,
+                title: 'Job Applications',
+                content: "<span class='menu-item-parent'> Job Applications </span>"
+            },
+            {
+                href: candidate_job_invitations_path,
+                title: 'Job Invitations',
+                content: "<span class='menu-item-parent'> Job Invitations </span>"
+            }
+        ]
+    },
+    {
+        href: '#',
+        title: 'Contract',
+        content: "<i class='fa fa-lg fa-fw  fa-list-alt'></i> <span class='menu-item-parent'>" + 'Contract' + "</span>",
+        children: [
+            {
+                href: candidate_contracts_path,
+                title: 'Recieved',
+                content: "<span class='menu-item-parent'> Recieved </span>"
+            },
+            {
+                href: candidate_job_applications_path,
+                title: 'My Contracts',
+                content: "<span class='menu-item-parent'> My Contracts </span>"
+            }
+        ]
+    },
+        {
+            href: candidate_timesheets_path,
+            title: 'Timesheets',
+            content: "<i class='fa fa-lg fa-fw fa-calendar'></i> <span class='menu-item-parent'>" + 'Timesheets' + "</span>",
+        },
+        {
+            href: '#',
+            title: 'Expenses',
+            content: "<i class='fa fa-lg fa-fw fa-money'></i> <span class='menu-item-parent'>" + 'Expenses' + "</span>",
+            children: [
+                {
+                    href: '#',
+                    title: 'Submitted',
+                    content: "<span class='menu-item-parent'> Submitted </span>"
+                },
+                {
+                    href: '#',
+                    title: 'Approved',
+                    content: "<span class='menu-item-parent'> Approved </span>"
+                },
+                {
+                    href: '#',
+                    title: 'Rejected',
+                    content: "<span class='menu-item-parent'> Rejected </span>"
+                },
+                {
+                    href: '#',
+                    title: 'Cleared',
+                    content: "<span class='menu-item-parent'> Cleared </span>"
+                }
+            ]
+        },
+        {
+            href: '#',
+            title: 'Payments',
+            content: "<i class='fa fa-lg fa-fw fa-money'></i> <span class='menu-item-parent'>" + 'Payments' + "</span>",
+            children: [
+                {
+                    href: '#',
+                    title: 'To be paid',
+                    content: "<span class='menu-item-parent'> To be paid </span>"
+                },
+                {
+                    href: '#',
+                    title: 'Recieved',
+                    content: "<span class='menu-item-parent'> Recieved </span>"
+                },
+                {
+                    href: '#',
+                    title: 'All',
+                    content: "<span class='menu-item-parent'> All </span>"
+                }
+            ]
+        },
+        {
+            href: '#',
+            title: 'Profitabiity',
+            content: "<i class='fa fa-lg fa-fw fa-briefcase'></i> <span class='menu-item-parent'>" + 'Profitabiity' + "</span>",
+            children: [
+                {
+                    href: '#',
+                    title: 'Contact',
+                    content: "<span class='menu-item-parent'> Contact </span>"
+                }
+            ]
+        },
+        {
+            href: '#',
+            title: 'Future',
+            content: "<i class='fa fa-lg fa-fw fa-briefcase'></i> <span class='menu-item-parent'>" + 'Future' + "</span>",
+            children: [
+                {
+                    href: '#',
+                    title: 'Invitations',
+                    content: "<span class='menu-item-parent'> Invitations </span>"
+                }
+            ]
+        },
+        {
+            href: '#',
+            title: 'Add-ons',
+            content: "<i class='fa fa-lg fa-fw fa-briefcase'></i> <span class='menu-item-parent'>" + 'Add-ons' + "</span>",
+            children: [
+                {
+                    href: '#',
+                    title: 'Insurance',
+                    content: "<span class='menu-item-parent'> Insurance </span>"
+                },
+                {
+                    href: '#',
+                    title: '401K',
+                    content: "<span class='menu-item-parent'> 401K </span>"
+                },
+                {
+                    href: '#',
+                    title: 'ADP',
+                    content: "<span class='menu-item-parent'> ADP </span>"
                 }
             ]
         }
@@ -401,7 +663,8 @@ module ApplicationHelper
       "High Tech & Telecom Providers",
       "Real Estate",
       "Construction & Labour",
-      "Manufacturing"
+      "Manufacturing",
+      "Hospitality"
     ]
   end
 
@@ -410,13 +673,50 @@ module ApplicationHelper
       "IT - Services & Product Development",
       "Marketing Department",
       "Sales",
-      "Human resourcesNon-IT - Research and Development",
+      "Human resourcesNon-IT",
+      "Research and Development",
       "Engineering",
       "Production",
       "Quality Assurance",
       "Logistics/Supply chain",
-      "Doctors & Nurses"
+      "Doctors & Nurses",
+      "Human resourcesNon-IT",
+      "Research and Development"
     ]
+  end
+
+  def link_to_add_fields(name = nil, f = nil, association = nil, options = nil, html_options = nil, &block)
+    # If a block is provided there is no name attribute and the arguments are
+    # shifted with one position to the left. This re-assigns those values.
+    f, association, options, html_options = name, f, association, options if block_given?
+
+    options = {} if options.nil?
+    html_options = {} if html_options.nil?
+
+    if options.include? :locals
+      locals = options[:locals]
+    else
+      locals = { }
+    end
+
+    if options.include? :partial
+      partial = options[:partial]
+    else
+      partial = association.to_s.singularize + '_fields'
+    end
+
+    # Render the form fields from a file with the association name provided
+    new_object = f.object.class.reflect_on_association(association).klass.new
+    fields = f.fields_for(association, new_object, child_index: 'new_record') do |builder|
+      render(partial, locals.merge!( f: builder))
+    end
+
+    # The rendered fields are sent with the link within the data-form-prepend attr
+    html_options['data-form-prepend'] = raw CGI::escapeHTML( fields )
+    html_options['href'] = '#'
+    html_options['class'] = 'bttn btn-add btn'
+
+    content_tag(:a,"+",html_options,&block)
   end
 
 end

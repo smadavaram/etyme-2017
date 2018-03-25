@@ -1,21 +1,24 @@
-class JobApplication < ActiveRecord::Base
+class JobApplication < ApplicationRecord
 
   include Rails.application.routes.url_helpers
 
   enum status: [ :pending_review ,:rejected , :short_listed,:interviewing,:hired ]
   enum application_type: [:direct , :candidate_direct , :vendor_direct , :invitation]
 
-  belongs_to :job_invitation
-  belongs_to :applicationable, polymorphic: true
-  belongs_to :job
-  belongs_to :company
-  belongs_to :user , class_name: "User",foreign_key: "applicationable_id"
+  belongs_to :job_invitation, optional: true
+  belongs_to :applicationable, polymorphic: true, optional: true
+  belongs_to :job, optional: true
+  belongs_to :company, optional: true
+  belongs_to :user , class_name: "User",foreign_key: "applicationable_id", optional: true
   has_one    :contract
   has_many   :custom_fields ,as: :customizable
   has_many   :comments ,as: :commentable
   has_many     :chats             ,as: :chatable
+  has_many :job_applicant_reqs
 
-  validates :cover_letter , :applicant_resume ,presence: true
+  # validates :cover_letter , :applicant_resume ,presence: true
+  validates :cover_letter, presence: true
+
   # validates :application_type, inclusion: { in: application_types.keys }
   validates :status ,             inclusion: {in: statuses.keys}
   validates_uniqueness_of :applicationable_id,scope: [:job_id,:applicationable_type] ,on: :create
@@ -27,6 +30,7 @@ class JobApplication < ActiveRecord::Base
   after_update  :notify_recipient_on_status_change, if: Proc.new{|application| application.status_changed? }
   after_create  :send_message
   accepts_nested_attributes_for :custom_fields , reject_if: :all_blank
+  accepts_nested_attributes_for :job_applicant_reqs , reject_if: :all_blank
 
   default_scope                { order(created_at: :desc) }
   scope :direct , -> {where(job_invitation_id: nil)}
@@ -77,8 +81,8 @@ class JobApplication < ActiveRecord::Base
   private
 
   def send_message
-    chat = self.job.chat.chat_users.create(userable: self.try(:applicationable))
-    self.job.chat.messages.create(messageable: self.try(:applicationable) , body: "#{self.try(:applicationable).try(:full_name)} has applied for your job with title #{self.job.title}")
+    chat = self.job.chat.chat_users.create(userable: self.try(:applicationable)) if self.job.chat.present?
+    self.job.chat.messages.create(messageable: self.try(:applicationable) , body: "#{self.try(:applicationable).try(:full_name)} has applied for your job with title #{self.job.title}") if self.job.chat.present?
   end
 
 

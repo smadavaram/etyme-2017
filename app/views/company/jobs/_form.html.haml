@@ -1,5 +1,5 @@
 
-= form_for @job ,html:{ class:'form-horizontal'} do |f|
+= form_for @job ,html:{ class:'form-horizontal', remote: ((defined? for_remote) ? true :false)} do |f|
   %fieldset
     .row
       .col-md-12
@@ -29,14 +29,14 @@
             Industry
             %sup.text-danger *
           .plain-select
-            =f.select :industry, industry_list, {include_blank: true},{class: "form-control", required: true }
+            =f.select :industry, industry_list, {include_blank: "Select Industry"},{class: "form-control", required: true }
       .col-md-6
         .form-group
           %label.control-label
             Department
             %sup.text-danger *
           .plain-select
-            =f.select :department, department_list, {include_blank: true},{class: "form-control", required: true }
+            =f.select :department, department_list, {include_blank: "Select Department"},{class: "form-control", required: true }
     .row
       .col-md-6
         .form-group
@@ -48,14 +48,23 @@
         .form-group
           %label.control-label
             End Date
-            %sup.text-danger *
-          = f.text_field :end_date , class: 'form-control' , placeholder: 'Enter End Date' , required: true
+          = f.text_field :end_date , class: 'form-control' , placeholder: 'Enter End Date'
     .row
-      .col-md-12
+      .col-md-6
         .form-group
           %label.control-label
-            Video
+            Price
             %sup.text-danger *
+          = f.text_field :price , class: 'form-control' , placeholder: 'Rate' , required: true
+      .col-md-6
+        .form-group
+          %label.control-label
+            Job Type
+            %sup.text-danger *
+          = f.select :job_type, ["Contract", "Full Time", "Contract To Hire"], class: 'form-control' , placeholder: 'Enter End Date' , required: true
+    .row
+      .col-md-6
+        .form-group
           .video-file
             .videp-btn
               = f.file_field :video_file , class: 'form-control'
@@ -64,22 +73,41 @@
               %strong
                 Note
               Please choose a video shorter than 120 seconds and smaller than 50MB
-    .row
-      .col-md-12
+      .col-md-6
         .form-group
-          %labelcontrol-label
-            Tags
-            %sup.text-danger
-          = f.text_field :tag_list , class: 'form-control tagsinput','data-role'=>'tagsinput' , placeholder: 'Tags are separated with comma' , value: @job.tag_list.join(", ")
-          %p.note
-            %strong Note:
-            Tags are separated with comma
+          %label.control-label
+            - if @job.comp_video.present?
+              = button_tag "<i class='fa fa-check'> Added video</i>".html_safe , class: 'btn btn-primary btn-lg', id: 'added_company_video', type: "button"
+              = button_tag "<i class='fa fa-times'></i>".html_safe , class: 'btn btn-primary btn-lg', id: 'remove_company_video', type: "button"
+            -else
+              = button_tag "Company Video" , class: 'btn btn-primary btn-lg', id: 'company_video', type: "button"
+            = f.hidden_field :comp_video , class: 'form-control'
+            %span.file-text
     .row
       .col-md-12
         .form-group
           %label.control-label Description
-          =  f.text_area :description , class: 'form-control',:class => "tinymce", :rows => 6, :cols => 60, placeholder: 'Enter Job Description'
-          = tinymce :default
+          =  f.text_area :description , class: 'form-control',:class => "tinymce", :rows => 6, :cols => 60, placeholder: 'Enter Job Details and Qualification'
+    .row
+      .col-md-12
+        .form-group
+          %labelcontrol-label
+            Educations
+            %sup.text-danger
+          = f.text_field :education_list , class: 'form-control tagsinput','data-role'=>'tagsinput' , placeholder: 'Educations and Certification' , value: @job.education_list.join(", ")
+          %p.note
+            %strong Note:
+            Education are separated with comma
+    .row
+      .col-md-12
+        .form-group
+          %labelcontrol-label
+            Skill
+            %sup.text-danger
+          = f.text_field :tag_list , class: 'form-control tagsinput','data-role'=>'tagsinput' , placeholder: 'Skill are separated with comma' , value: @job.tag_list.join(", ")
+          %p.note
+            %strong Note:
+            Skill are separated with comma
     .row
       .col-md-12
         .form-group
@@ -95,28 +123,117 @@
             = render 'company/jobs/partials/custom_fields', f: custom_field
         %strong
           .links.col-sm-12
-            = link_to_add_association '+ Add Custom Field', f, :custom_fields, class: 'text-info pull-right', partial: 'company/jobs/partials/custom_fields'
+            -#= link_to_add_association '+ Add Custom Field', f, :custom_fields, class: 'text-info pull-right', partial: 'company/jobs/partials/custom_fields'
             %br/
+    .custome
+      .custome-filed-list.row
+        .col-md-12
+          .custome-filed-item
+            %h3 Tell your Applicant what you need to get hire.
+            .clearfix
+              .form-group
+                =f.fields_for :job_requirements do |jr|
+                  = render 'company/jobs/partials/job_requirement_fields', f: jr
+              %strong
+                .links.col-sm-12
+                  = link_to_add_association '+ Add another requirement', f, :job_requirements, class: 'text-info add-other-req', partial: 'company/jobs/partials/job_requirement_fields'
   .form-actions
     .row
       .col-md-12
         = button_tag 'Cancel' , class: 'btn btn-default' , "data-dismiss"=> "modal"
         = f.button "Submit".html_safe, class: 'btn btn-primary' , data: {disable_with: disable_spinning('Submitting...')}
-
 - content_for :scripts do
   :javascript
     // DO NOT REMOVE : GLOBAL FUNCTIONS!
     $(document).ready(function() {
       pageSetUp();
       // Job End Date
+      $( document ).on("click", "#company_video", function(){
+        $('#job_comp_video').val("#{current_company.video}");
+        $('#company_video').after("<button name='button' type='button' class='btn btn-primary btn-lg' id='remove_company_video'><i class='fa fa-times'></i></button>");
+        $('#company_video').after("<button name='button' type='button' class='btn btn-primary btn-lg' id='added_company_video'><i class='fa fa-check'> Added video</i></button>");
+        $('#company_video').remove();
+      });
+
+      $( document ).on("click", "#remove_company_video", function(){
+        $('#job_comp_video').val("");
+        $('#remove_company_video').after("<button name='button' type='button' class='btn btn-primary btn-lg' id='company_video'>Company Video</button>");
+        $('#remove_company_video').remove();
+        $('#added_company_video').remove();
+      });
+
       $('#job_end_date , #job_start_date').datepicker({
-        dateFormat : 'dd/mm/yy'
+        dateFormat : 'mm/dd/yy',
+        prevText : '<i class="fa fa-chevron-left"></i>',
+        nextText : '<i class="fa fa-chevron-right"></i>',
       });
 
       //job_video_file
       $(document).on('change', '#job_video_file',  function () {
           $(this).parent('.videp-btn').siblings('span').text($(this).val().replace(/([^\\]*\\)*/,''))
       });
+    });
+    $(".multi-ans-div").hide();
+    var wrapper         = $(".input_fields_wrap"); //Fields wrapper
+    var add_button      = $(".add_field_button"); //Add button ID
+
+    $(document).on('click', ".add_field_button",  function () {
+      $(this).parent(wrapper).find('.checkbox-option').append('<div><input type="text" name="mytext"/><a href="javascript:void(0);" class="remove_field">Remove</a></div>'); //add input box
+    });
+    $(document).on('click', '.remove_field',  function () {
+      $(this).parent('div').remove();
+    });
+    $(document).on('change', '.que-ans-type',  function () {
+        if($('option:selected', this).text() == "Multiple Answer"){
+          $('.multi-ans-div').css({ display: "block" });
+        }
+        else{
+          $('.multi-ans-div').addClass('hidden');
+        }
+    });
+    $(document).on('click', '.save-req',  function (e) {
+      if($(e.target).closest(".req_form").find('.question').val() == ''){
+        alert("Job requirement blank not allow");
+        return false;
+      }
+      else{
+        $(e.target).closest(".nested-fields").find('.question-req').css({ display: "block" });
+        $(e.target).closest(".nested-fields").find('.question-req p').html($(e.target).closest(".req_form").find('.question').val())
+        $(e.target).closest(".nested-fields").find('.req_form').css({ display: "none" });
+        selectedValue = $(e.target).closest(".nested-fields").find('.que-ans-type')
+        if($('option:selected', selectedValue).text() == "Free Text"){
+            $(e.target).closest(".nested-fields").find('.Attach-file').css({ display: "none" });
+            $(e.target).closest(".nested-fields").find('.multiple-fiels-box').css({ display: "none" });
+            $(e.target).closest(".nested-fields").find('.free-text').css({ display: "block" });
+        }
+        else if($('option:selected', selectedValue).text() == "Multiple Answer"){
+          $(e.target).closest(".nested-fields").find('.free-text').css({ display: "none" });
+            $(e.target).closest(".nested-fields").find('.Attach-file').css({ display: "none" });
+            $(e.target).closest(".nested-fields").find('.multiple-fiels-box').css({ display: "block" });
+            if($(e.target).closest(".req_form").find('.allow-multi-ans').prop("checked") == true){
+            $(e.target).closest(".nested-fields").find('.multiple-fiels-box').empty();
+              $(e.target).closest(".req_form").find("input[name='mytext']").each(function() {
+                 $(e.target).closest(".nested-fields").find('.multiple-fiels-box').append("<div><input type='checkbox' class='set-checkbox'> "+$(this).val()+"</div>");
+              });
+            }else{
+            $(e.target).closest(".nested-fields").find('.multiple-fiels-box').empty();
+              $(e.target).closest(".req_form").find("input[name='mytext']").each(function() {
+                   $(e.target).closest(".nested-fields").find('.multiple-fiels-box').append("<div><input type='radio' name='set-option' class='set-checkbox'> "+$(this).val()+"</div>");
+              });
+            }
+        }
+        else{
+            $(e.target).closest(".nested-fields").find('.free-text').css({ display: "none" });
+            $(e.target).closest(".nested-fields").find('.Attach-file').css({ display: "block" });
+            $(e.target).closest(".nested-fields").find('.multiple-fiels-box').css({ display: "none" });
+        }
+         ans = $(e.target).closest(".req_form").find("input[name='mytext']").serialize();
+         $(e.target).closest(".req_form").find(".multi-option-text").val(ans);
+       }
+    });
+    $(document).on('click', '.filed-edit',  function (e) {
+      $(e.target).closest(".nested-fields").find('.question-req').css({ display: "none" });
+      $(e.target).closest(".nested-fields").find('.req_form').css({ display: "block" })
     });
 
 %script{:src => "https://maps.google.com/maps/api/js?key=AIzaSyDk4kWlA522W3T4oGwdug5nKPXYMhU6rCE&sensor=false&libraries=places"}

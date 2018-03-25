@@ -14,6 +14,8 @@ class Company::ContractsController < Company::BaseController
   add_breadcrumb "CONTRACTS", :contracts_path, options: { title: "CONTRACTS" }
 
   def index
+    @contract_activity = PublicActivity::Activity.where(trackable: current_company.contracts).order('created_at DESC').paginate(page: params[:page], per_page: 15 )
+    @buy_contracts = Contract.joins(:buy_contracts).where(buy_contracts: {candidate_id: current_company.id}).order('created_at DESC').paginate(page: params[:page], per_page: 15 )
   end
 
   def show
@@ -22,7 +24,13 @@ class Company::ContractsController < Company::BaseController
   def new
     @contract = current_company.sent_contracts.new
     @contract.contract_terms.new
+    @contract.sell_contracts.build
+    @contract.buy_contracts.build
+    # @contract.contract_sale_commisions.build
+
     @new_company = Company.new
+    @candidate = Candidate.new
+    @job = current_company.jobs.new
     @new_company.build_owner
     @new_company.build_invited_by
   end
@@ -36,10 +44,11 @@ class Company::ContractsController < Company::BaseController
     else
       flash[:errors] = @contract.errors.full_messages
     end
-    redirect_to :back
+    redirect_back fallback_location: root_path
   end
 
   def create
+    params[:contract][:company_id] = current_company.id
     @contract  = current_company.sent_contracts.new(create_contract_params)
     respond_to do |format|
       if @contract.save
@@ -51,7 +60,7 @@ class Company::ContractsController < Company::BaseController
       else
         format.js{ flash.now[:errors] =  @contract.errors.full_messages }
         format.html{ flash[:errors] =  @contract.errors.full_messages
-          redirect_to :back
+        redirect_back fallback_location: root_path
         }
       end
     end
@@ -66,7 +75,7 @@ class Company::ContractsController < Company::BaseController
     else
       flash[:errors] = @attachable_doc.errors.full_messages
     end
-    redirect_to :back
+    redirect_back fallback_location: root_path
   end
 
   def update_contract_response
@@ -90,7 +99,7 @@ class Company::ContractsController < Company::BaseController
     else
       flash[:errors]  = @contract.errors.full_messages
     end
-    redirect_to :back
+    redirect_back fallback_location: root_path
   end
 
   def authorize_user_for_new_contract
@@ -115,10 +124,31 @@ class Company::ContractsController < Company::BaseController
     @sub_contract.contract_terms.new(rate: @contract.rate , terms_condition: @contract.terms_and_conditions )
   end
 
+  def tree_view
+    @contract = Contract.where(number: params[:id]).first
+    unless @contract.present?
+      redirect_back fallback_location: root_path
+    end
+  end
+
+  def received_contract
+    contract = Contract.find(params[:id])
+    @contract = contract.dup
+    @contract.sell_contracts = contract.sell_contracts
+    @contract.buy_contracts = contract.buy_contracts
+    render 'new'
+  end
+
+  def set_job_application
+    @job=Job.find(params[:job_id])
+    @candidates = Candidate.all
+    @preferred_vendors_companies = Company.vendors - [current_company] || []
+  end
+
   private
 
   def find_contract
-    @contract = Contract.find_sent_or_received(params[:id] || params[:contract_id]  , current_company).first || []
+    @contract = Contract.find(params[:id] || params[:contract_id]) #  , current_company).first || []
   end
 
   def find_attachable_doc
@@ -141,17 +171,70 @@ class Company::ContractsController < Company::BaseController
   end
 
   def contract_params
-      params.require(:contract).permit([:job_id  , :is_commission , :contract_type ,
-                                        :received_by_signature,:received_by_name,:sent_by_signature,:sent_by_name,
-                                        :commission_type,:commission_amount , :max_commission , :commission_for_id ,
-                                        :billing_frequency, :time_sheet_frequency, :assignee_id , :contractable_id ,
-                                        :contractable_type , :job_application_id , :parent_contract_id ,:start_date ,
-                                        :end_date  , :message_from_hiring  ,:status ,company_doc_ids: [] ,
-                                        contract_terms_attributes: [:id, :created_by, :contract_id , :status ,
-                                        :terms_condition ,:rate , :note , :_destroy],attachments_attributes:[:id,:file,
-                                        :file_name,:file_size, :company_id ,:file_type,:attachable_type,:attachable_id,
-                                         :_destroy]
-                                       ])
+      params.require(:contract).permit(
+          [:job_id, :client_id, :candidate_id, :is_commission, :contract_type, :client_name, :client_name,
+           :company_name, :work_location, :received_by_signature,:received_by_name, :sent_by_signature,:sent_by_name,
+           :company_address, :company_website, :fed_id, :commission_type,:commission_amount, :max_commission,
+           :commission_for_id, :candidate_name, :customer_rate, :time_sheet_frequency, :invoice_terms_period,
+           :show_accounting_to_employee, :billing_frequency, :time_sheet_frequency, :assignee_id, :contractable_id ,
+           :contractable_type, :job_application_id, :parent_contract_id, :start_date ,
+           :payment_term, :b_time_sheet, :payrate, :contract_type, :end_date,
+           :message_from_hiring, :status, :company_id, company_doc_ids: [],
+           sell_contracts_attributes: [
+               :company_id, :customer_rate, :customer_rate_type, :time_sheet, :invoice_terms_period,
+               :show_accounting_to_employee, :first_date_of_timesheet, :day_of_week, :date_1, :date_2,
+               :payment_term, :invoice_day_of_week, :invoice_end_of_month, :invoice_date_2, :invoice_date_1,
+               :end_of_month, :first_date_of_invoice,
+               contract_sell_business_details_attributes: [
+                   :id, :company_contact_id, :_destroy
+               ],
+               sell_send_documents_attributes: [:id, :doc_file, :file_name, :file_size, :file_type, :when_expire, :is_sign_required, :creatable_type,
+                                                :creatable_id, :_destroy,
+                                                document_signs_attributes: [
+                                                    :id, :signable_type, :signable_id, :_destroy
+                                                ]
+               ],
+               sell_request_documents_attributes: [:id, :doc_file, :file_name, :file_size, :file_type, :when_expire, :is_sign_required, :creatable_type,
+                                                   :creatable_id,:_destroy,
+                                                   document_signs_attributes: [:id, :signable_type, :signable_id, :_destroy] ]
+                                      ],
+           buy_contracts_attributes: [
+               :candidate_id, :ssn, :contract_type, :payrate, :payrate_type, :time_sheet,
+               :payment_term, :show_accounting_to_employee, :first_date_of_timesheet, :day_of_week, :date_1, :date_2,
+               :end_of_month, :first_date_of_invoice, :company_id, :uscis_rate,
+               contract_buy_business_details_attributes: [
+                   :id, :company_contact_id, :_destroy
+               ],
+               contract_sale_commisions_attributes: [
+                   :id, :name, :rate, :frequency, :limit, :_destroy
+               ],
+               buy_send_documents_attributes: [
+                   :id, :doc_file, :file_name, :file_size, :file_type, :when_expire, :is_sign_required, :creatable_type,
+                                               :creatable_id,:_destroy,
+                                              document_signs_attributes: [
+                                                  :id, :signable_type, :signable_id, :_destroy
+                                              ]
+               ],
+               buy_emp_req_docs_attributes: [
+                   :id, :doc_file, :file_name, :file_size, :file_type, :when_expire, :is_sign_required, :creatable_type, :creatable_id,:_destroy,
+                                            document_signs_attributes: [
+                                                :id, :signable_type, :signable_id, :_destroy
+                                            ]
+               ],
+               buy_ven_req_docs_attributes: [
+                   :id, :doc_file, :file_name, :file_size, :file_type, :when_expire, :is_sign_required, :creatable_type, :creatable_id,:_destroy,
+                                            document_signs_attributes: [
+                                                :id, :signable_type, :signable_id, :_destroy
+                                            ]
+               ]
+           ],
+           contract_terms_attributes: [
+               :id, :created_by, :contract_id, :status, :terms_condition, :rate, :note, :_destroy
+           ],
+           attachments_attributes:[
+               :id,:file, :file_name,:file_size, :company_id ,:file_type,:attachable_type, :attachable_id, :_destroy
+           ]
+          ])
   end
 
   def create_contract_params

@@ -1,10 +1,10 @@
 
 
-class User < ActiveRecord::Base
+class User < ApplicationRecord
   # Include default devise modules. Others available are:
   # :confirmable, :lockable, :timeoutable and :omniauthable
   devise :invitable, :database_authenticatable, :registerable,
-         :recoverable, :rememberable, :trackable, :confirmable
+         :recoverable, :rememberable, :trackable, :omniauthable
 
   #Serializers
   # serialize :signature, JSON
@@ -22,8 +22,8 @@ class User < ActiveRecord::Base
 
   attr_accessor :temp_working_hours
 
-  belongs_to :company
-  belongs_to :address           , foreign_key: :primary_address_id
+  belongs_to :company, optional: true
+  belongs_to :address           , foreign_key: :primary_address_id, optional: true
   has_many :created_contracts   , class_name: 'Contract' , foreign_key: :created_by_id
   has_many :comments            , class_name: 'Comment' , foreign_key: :created_by_id
   has_many :contract_terms      , class_name: 'ContractTerm' , foreign_key: 'created_by'
@@ -40,13 +40,16 @@ class User < ActiveRecord::Base
   has_many :attachments         , as: :attachable
   has_many :groupables          , as:  :groupable
   has_many :groups              ,through:  :groupables
+  has_and_belongs_to_many :roles
   has_many :permissions         , through: :roles
   has_many :messages            ,as: :messageable ,dependent: :destroy
   has_many :chat_users          ,as: :userable
   has_many :chats               ,through: :chat_users
   has_many :reminders
   has_many :statuses
-  has_and_belongs_to_many :roles
+
+  has_many :conversation_messages ,as: :userable
+  has_many :document_signs       , as: :signable
 
   accepts_nested_attributes_for :attachable_docs , reject_if: :all_blank
   accepts_nested_attributes_for :custom_fields   , reject_if: :all_blank
@@ -101,7 +104,11 @@ class User < ActiveRecord::Base
   end
 
   def full_name
-    self.first_name + " " + self.last_name
+    if first_name.present? || first_name.present?
+      self.first_name + " " + self.last_name
+    else
+      company.name
+    end
   end
 
   def create_address

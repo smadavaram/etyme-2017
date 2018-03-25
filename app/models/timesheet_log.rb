@@ -1,10 +1,10 @@
-class TimesheetLog < ActiveRecord::Base
+class TimesheetLog < ApplicationRecord
 
   enum status: [:pending , :approved , :partially_approved , :rejected]
 
-  belongs_to :timesheet
+  belongs_to :timesheet, optional: true
   has_many   :transactions  , dependent: :destroy
-  belongs_to :contract_term
+  belongs_to :contract_term, optional: true
   has_one    :company , through: :timesheet
   has_one    :contract, through: :timesheet
   has_one    :invoice , through: :timesheet
@@ -53,7 +53,7 @@ class TimesheetLog < ActiveRecord::Base
   end
 
   def set_contract_term_id
-    self.contract_term_id = self.contract.contract_terms.active.first.id
+    # self.contract_term_id = self.contract.contract_terms.active.first.id
   end
 
 end

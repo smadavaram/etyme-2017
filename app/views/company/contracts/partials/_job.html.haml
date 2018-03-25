@@ -1,17 +1,56 @@
 %fieldset
-  -#= f.fields_for :job do |j|
-  -#  .form-group
-  -#    %label.col-md-2.control-label
-  -#      Job Title
-  -#      %sup.text-danger *
-  -#    .col-md-10
-  -#      = j.text_field :title , class: 'form-control' , placeholder: 'Job ' , required: true
-  .form-group
-    %label.col-md-2.control-label  Jobs
-    .col-md-10
-      = select_tag 'contract[job_id]', options_for_select(current_company.jobs.collect { |c|[c.title, c.id] })  , class: "form-control"
+  .row
+    .col-md-6
+      .form-group
+        %label.control-label  Jobs
+        = link_to "+ Add Job", new_job_path, class: "pull-right add-link"
+        .contract-fild
+          .plain-select
+            = select_tag 'contract[job_id]', nil, id: "select_jobs", class: "form-control"
+    .col-md-6
+      .form-group
+        %label.control-label  Client
+        = link_to "+ Add Client", new_company_company_path, class: "pull-right add-link"
+        .contract-fild
+          .plain-select
+            = select_tag  "contract[client_id]", nil, id: "select_clients", required: true
 
-  .form-group
-    %label.col-md-2.control-label  Company
-    .col-md-10
-      = select_tag 'contract[contractable_id]', options_for_select(current_company.invited_companies.collect { |c|[c.invited_company.name, c.invited_company.id] })  , class: "form-control"
+  .row
+    .col-md-6
+      .form-group
+        %label.control-label  Work location
+        .contract-fild
+          = f.text_field :work_location, class: "form-control", placeholder: "Contract Work location"
+    .col-md-6
+      .form-group
+        %label.control-label  Candidate
+        = link_to "+ Apply candidate", jobs_path, class: "pull-right add-link"
+        .contract-fild
+          .plain-select
+            = select_tag "contract[candidate_id]", nil, id: "select_candidates", required: true
+
+
+  .row
+    .col-md-6
+      .form-group
+        %label.control-label
+          Start Date
+          %sup.text-danger *
+        .contract-fild
+          = f.text_field :start_date ,class: "form-control" , required: 'required', placeholder: "Contract Start Date"
+    .col-md-6
+      .form-group
+        %label.control-label
+          End Date
+          %sup.text-danger *
+        .contract-fild
+          = f.text_field :end_date ,class: "form-control" , required: 'required', placeholder: "Contract End Date"
+
+
+
+
+
+
+
+
+

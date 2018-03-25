@@ -1,0 +1,79 @@
+= render partial: 'company/companies/sub_menu_company'
+#content
+  %body
+    %section#widget-grid
+      .row
+        %article.col-xs-12.col-sm-12.col-md-12.col-lg-12.sortable-grid.ui-sortable
+          #wid-id-1.jarviswidget.jarviswidget-color-blueDark.jarviswidget-sortable{"data-widget-editbutton" => "false", :role => "widget"}
+            %header{:role => "heading"}
+              %span.widget-icon
+                %i.fa.fa-table
+              %h2 Departments
+              %span.jarviswidget-loader
+                %i.fa.fa-refresh.fa-spin
+            / widget div
+            %div{:role => "content"}
+              .jarviswidget-editbox
+              .widget-body.no-padding
+                #datatable_fixed_column_wrapper.dataTables_wrapper.form-inline.dt-bootstrap.no-footer
+                  = link_to 'New' , new_department_path, remote: true , class: 'button btn btn-primary pull-right margin-bottom-5 margin-right-10'
+                  %table#example#datatable_fixed_column.table.table-striped.table-bordered.dataTable.no-footer{"aria-describedby" => "datatable_fixed_column_info", :role => "grid", :style => "width: 100%;", :width => "100%"}
+                    %thead
+                      %tr{:role => "row"}
+                        %th{"data-hide" => "phone"} Name
+                        %th Date
+                        %th{"data-hide" => "phone,tablet"}
+                          Actions
+                    %tbody
+                      - @department.each do |admin|
+                        %tr
+                          %td= admin.department.name
+                          %td= admin.department.created_at
+                          %td
+                            = link_to raw("<i class='fa fa-edit '></i>") , edit_department_path(admin) , class: 'btn btn-xs btn-default  margin-bottom-5' ,remote: true,'data-toggle'=>"tooltip" ,'data-placement'=>"top"
+                            = link_to raw("<i class='fa fa-times '></i>") , department_path(admin) , method: :delete ,  class: 'btn btn-xs btn-default btn-danger' ,data: {confirm: 'Are you sure?', verify: 'Confirm', verify_text: 'Type "Confirm" to confirm'}
+
+                  - if @department.count >15
+                    .dt-toolbar-footer
+                      =  digg_pagination(@admins)
+
+:css
+  .form-control
+  {
+    background-color: white !important;
+  }
+  .digg_pagination
+  {
+    background-color: #fafafa !important;
+  }
+-content_for :scripts do
+  :javascript
+    $(document).ready(function() {
+     pageSetUp();
+      var responsiveHelper_dt_basic = undefined;
+      var responsiveHelper_datatable_fixed_column = undefined;
+      var responsiveHelper_datatable_col_reorder = undefined;
+      var responsiveHelper_datatable_tabletools = undefined;
+      var otable = $('#datatable_fixed_column').DataTable({
+            "sDom": "<'dt-toolbar'<'col-xs-12 col-sm-6 hidden-xs'f><'col-sm-6 col-xs-12 hidden-xs'<'toolbar'>>r>"+
+                    "t"+
+                    "<'dt-toolbar-footer'<'col-sm-6 col-xs-12 hidden-xs'i><'col-xs-12 col-sm-6'p>>",
+            "autoWidth" : true,
+            "oLanguage": {
+                "sSearch": '<span class="input-group-addon"><i class="glyphicon glyphicon-search"></i></span>'
+            }
+
+        });
+
+      //$("div.toolbar").html('<div class="text-right">#{ link_to 'NEW' , new_department_path , remote: true , class: 'btn btn-success btn-md pull-right header-btn hidden-mobile'}</div>');
+
+      // Apply the filter
+      $("#datatable_fixed_column thead th input[type=text]").on( 'keyup change', function () {
+        otable
+            .column( $(this).parent().index()+':visible' )
+            .search( this.value )
+            .draw();
+
+      } );
+
+    });

@@ -1,4 +1,4 @@
-class AddFieldInJobAndCandidate < ActiveRecord::Migration
+class AddFieldInJobAndCandidate < ActiveRecord::Migration[5.1]
   def change
     add_column :jobs, :industry, :string
     add_column :jobs, :department, :string

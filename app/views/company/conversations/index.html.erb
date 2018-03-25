@@ -1,0 +1,41 @@
+<div class="no-border" id="content">
+      <div class="col-lg-12 col-md-12 col-sm-12 keystroke_tabs_bs">
+        <div class="row justify-content-center no-gutters">
+          <div class="col-lg-4 col-md-4 col-sm-3 col-xs-4 col-4 border_r">
+            <div class="keystroke_tabs">
+              <div class="key_tab_h">
+                <h5>MESSAGES</h5>
+                <div class="prfil-follower-following-search search_message">
+                  <input type="text" class="form-control" placeholder="Search Company/Candidates" id="conversation-users-search">
+                </div>
+              </div>
+              <div class="key_tabs_inner">
+                <div class="row">
+                  <div class="col-md-12">
+                    <ul class="nav nav-tabs tab-top" role="tablist">
+                      <li role="presentation" class="active"><a href="#Company"  role="tab" data-toggle="tab"><i class="fa fa-building"></i>Company</a></li>
+                      <li role="presentation"><a href="#Candidates" role="tab" data-toggle="tab"><i class="fa fa-user"></i> Candidates</a></li>
+                    </ul>
+                      <div class="tab-content">
+                        <div role="tabpanel" class="tab-pane active" id="Company">
+                          <ul class="nav flex-column nav-tabs" role="tablist" id="company-conversation-list">
+                            <%= render 'conversation_users', users: @companies %>
+                          </ul>
+                        </div>
+                        <div role="tabpanel" class="tab-pane" id="Candidates">
+                          <ul class="nav flex-column nav-tabs" role="tablist" id="candidate-conversation-list">
+                            <%= render 'conversation_users', users: @candidates %>
+                          </ul>
+                        </div>
+                      </div>
+                    </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="col-lg-8 col-md-8 col-sm-9 col-xs-8 col-8 messages_bs" id="conversation-section">
+            <%= render "company/conversations/conversation" %>
+          </div>
+        </div>
+      </div>
+</div>

@@ -1,0 +1,178 @@
+.row
+  .col-md-4
+    %ul#contract-tree.ctree
+      %li.branch
+        %i.indicator.glyphicon.glyphicon-folder-open>
+        Contract #{@contract.display_number}
+        %ul
+          %li.branch
+            %i.indicator.glyphicon.glyphicon-folder-open>
+            sell #{@contract.sell_contracts.first.display_number if @contract.sell_contracts}
+            %ul
+              %li.last-node{"data-openhref" => "#sell_req_doc"} Request documents
+              %li.last-node{"data-openhref" => "#sell_send_doc"} Send documents
+          %li.branch
+            %i.indicator.glyphicon.glyphicon-folder-open>
+            Buy #{@contract.buy_contracts.first.display_number if @contract.buy_contracts}
+            %ul
+              %li.last-node{"data-openhref" => "#buy_send_doc"} Send documents
+              %li.last-node{"data-openhref" => "#buy_emp_req_doc"} Request employee documents
+              %li.last-node{"data-openhref" => "#buy_ven_req_doc"} Request vendor documents
+          %li.branch
+            %i.indicator.glyphicon.glyphicon-folder-open>
+            TimeSheet
+            %ul
+              %li.last-node{"data-openhref" => "#timesheet-sent"} Timesheet Sent
+              %li.last-node{"data-openhref" => "#timesheet-approve"} Timesheet Approve
+              %li.last-node{"data-openhref" => "#employee-perfomance-sent"} Employee perfomance Sent
+              %li.last-node{"data-openhref" => "#employee-perfomance-approve"} Employee perfomance Approve
+              %li.branch
+                %i.indicator.glyphicon.glyphicon-folder-open>
+                Invoice
+                %ul
+                  %li.last-node{"data-openhref" => "#time_invoice_receive_payment"} Receive payment
+              %li.branch
+                %i.indicator.glyphicon.glyphicon-folder-open>
+                Salary Calculation
+                %ul
+                  %li.last-node{"data-openhref" => "#time_sc_salary_pend"} Salary Pending
+                  %li.last-node{"data-openhref" => "#time_sc_expense_pend"} Expense Payment
+                  %li.last-node{"data-openhref" => "#time_sc_payment"} Payment
+              %li.branch
+                %i.indicator.glyphicon.glyphicon-folder-open>
+                Commission details
+                %ul
+                  %li.last-node{"data-openhref" => "#cd-com-pending"} Commission Pending
+                  %li.last-node{"data-openhref" => "#cd-com-payment"} Commission Payment
+              %li.last-node{"data-openhref" => "#time_payment"} Payment
+          %li.branch
+            %i.indicator.glyphicon.glyphicon-folder-open>
+            Client Expense
+            %ul
+              %li.branch
+                %i.indicator.glyphicon.glyphicon-folder-open>
+                Invoice
+                %ul
+                  %li.last-node{"data-openhref" => "#client_expense_inv_rec_payment"} Receive payment
+              %li.branch
+                %i.indicator.glyphicon.glyphicon-folder-open>
+                Expense calculation
+                %ul
+                  %li.last-node{"data-openhref" => "#expense_payment"} Expense payment
+  .col-md-8
+    #sell_req_doc.sub-tab
+      Request Documents
+      %div.table.table-responsive
+        %table.table-bordered
+          %thead
+            %tr
+              %th Documents
+              %th Owner
+              %th Need signature of
+            -@contract.sell_contracts.first.sell_request_documents.each do |srd|
+              %tr
+                %td
+                  =link_to srd.file_name, srd.doc_file, target: "_blank"
+                %td
+                  =srd.creatable.full_name
+                %td
+                  %ul
+                  - srd.document_signs.each do |ds|
+                    %li= ds.signable.full_name
+    #sell_send_doc.sub-tab.hidden
+      Send Documents
+      %div.table.table-responsive
+        %table.table-bordered
+          %thead
+            %tr
+              %th Documents
+              %th Owner
+              %th Need signature of
+            -@contract.sell_contracts.first.sell_send_documents.each do |ssd|
+              %tr
+                %td
+                  =link_to ssd.file_name, ssd.doc_file, target: "_blank"
+                %td
+                  =ssd.creatable.full_name
+                %td
+                  %ul
+                  - ssd.document_signs.each do |ds|
+                    %li= ds.signable.full_name
+    #buy_send_doc.sub-tab.hidden
+      Send Documents
+      %div.table.table-responsive
+        %table.table-bordered
+          %thead
+            %tr
+              %th Documents
+              %th Owner
+              %th Need signature of
+            -@contract.buy_contracts.first.buy_send_documents.each do |bsd|
+              %tr
+                %td
+                  =link_to bsd.file_name, bsd.doc_file, target: "_blank"
+                %td
+                  =bsd.creatable.full_name
+                %td
+                  %ul
+                  - bsd.document_signs.each do |ds|
+                    %li= ds.signable.full_name
+    #buy_emp_req_doc.sub-tab.hidden
+      Employee Request Documents
+      %div.table.table-responsive
+        %table.table-bordered
+          %thead
+            %tr
+              %th Documents
+              %th Owner
+              %th Need signature of
+            -@contract.buy_contracts.first.buy_emp_req_docs.each do |berd|
+              %tr
+                %td
+                  =link_to berd.file_name, berd.doc_file, target: "_blank"
+                %td
+                  =berd.creatable.full_name
+                %td
+                  %ul
+                  - berd.document_signs.each do |ds|
+                    %li= ds.signable.full_name
+    #buy_ven_req_doc.sub-tab.hidden
+      Vendor Request Documents
+      %div.table.table-responsive
+        %table.table-bordered
+          %thead
+            %tr
+              %th Documents
+              %th Owner
+              %th Need signature of
+            -@contract.buy_contracts.first.buy_ven_req_docs.each do |bvrd|
+              %tr
+                %td
+                  =link_to bvrd.file_name, bvrd.doc_file, target: "_blank"
+                %td
+                  =bvrd.creatable.full_name
+                %td
+                  %ul
+                  - bvrd.document_signs.each do |ds|
+                    %li= ds.signable.full_name
+    #time_invoice_receive_payment.sub-tab.hidden
+      time_invoice_receive_payment
+    #time_sc_salary_pend.sub-tab.hidden
+      time_sc_salary_pend
+    #time_sc_expense_pend.sub-tab.hidden
+      time_sc_expense_pend
+    #time_commision_details.sub-tab.hidden
+      time_commision_details
+    #time_payment.sub-tab.hidden
+      time_payment
+    #client_expense_inv_rec_payment.sub-tab.hidden
+      client_expense_inv_rec_payment
+    #client_expense_cal.sub-tab.hidden
+      client_expense_cal
+
+- content_for :scripts do
+  :javascript
+    $("li.last-node").on("click", function(){
+      $('.sub-tab').addClass('hidden');
+      $($(this).data('openhref')).removeClass('hidden');
+    });

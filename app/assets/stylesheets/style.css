@@ -1,13 +1,15 @@
 .pac-container {
     z-index: 1051;
 }
-#new_job  input[type="text"],
-#new_job select.form-control,
-#new_job textarea.form-control,
-#new_job select,
-#new_job textarea {
+.form-horizontal  input[type="text"],
+.form-horizontal  input[type="number"],
+.form-horizontal  input[type="email"],
+.form-horizontal select.form-control,
+.form-horizontal textarea.form-control,
+.form-horizontal select,
+.form-horizontal textarea {
     -moz-appearance: none;
-    background-color: #ffffff;
+    background-color: #ffffff !important;
     border: 1px solid #dbdbdb;
     border-radius: 3px !important;
     box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.06) !important;
@@ -22,18 +24,22 @@
     max-width: 100%;
     opacity: 1;
     outline: medium none;
-    padding: 0 20px;
+    padding: 10px;
     width: 100%;
 }
-#new-job .bootstrap-tagsinput {
+textarea {
+    height: 120px !important;
+    line-height: 1.5 !important;
+}
+.form-horizontal .bootstrap-tagsinput {
     border-radius: 3px;
     box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.06) !important;
 }
-#new_job .form-group,
-#new-job .form-group {
+.form-horizontal .form-group,
+.form-horizontal .form-group {
     margin: 0;
 }
-#new_job .bootstrap-tagsinput input[type="text"] {
+.form-horizontal .bootstrap-tagsinput input[type="text"] {
     border: medium none;
     margin: 0;
     display: inline-block;
@@ -63,6 +69,39 @@
     vertical-align: middle;
     width: 100%;
 }
+.plain-select select.form-control{
+    -moz-appearance: none;
+    background-color: #ffffff;
+    border: 1px solid #dbdbdb;
+    border-radius: 3px;
+    box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.06);
+    box-sizing: border-box;
+    color: #808080;
+    display: block;
+    font-size: 15px;
+    font-weight: 400;
+    height: 45px;
+    line-height: 45px;
+    margin: 0 0 16px;
+    max-width: 100%;
+    opacity: 1;
+    outline: medium none;
+    padding: 0 20px;
+    width: 100%;
+}
+.form-sign .plain-select select.form-control {
+    height: 57px;
+    margin-bottom: 0;
+}
+.form-sign .plain-select{
+    height: 57px;
+}
+.form-sign .plain-select::after{
+    height: 57px;
+    line-height:57px;
+    width: 45px;
+    background:#7b53c1;
+}
 .videp-btn {
     display: inline-block;
     height: 45px;
@@ -80,7 +119,7 @@
 .videp-btn::before {
     background:#2196f3;
     color: #fff;
-    content: "upload video";
+    content: "Create job video";
     font-size: 18px;
     height: 100%;
     left: 0;
@@ -115,52 +154,756 @@ header .add_job {
 }
 
 body.smart-style-6 #content.newsfeed {
+    background: #fff none repeat scroll 0 0;
+    border-left: 3px solid #2196f3;
     margin: 0 !important;
     padding: 0;
 }
 .newsfeed-left > ul {
+    list-style: outside none none;
     margin: 0;
+    max-height: 660px;
+    overflow: auto;
     padding: 0;
-    list-style: none;
 }
 .newsfeed-right {
     background: #f3f5f7 none repeat scroll 0 0;
-    border-left: 3px solid #4d5660;
+    border-left: 3px solid #2196f3;
     float: right;
     min-height: 660px;
-    padding: 20px;
-    width: 50%;
+    width: 70%;
+}
+body.smart-style-6 #ribbon {
+    background: #fff none repeat scroll 0 0;
+    border-bottom: 1px solid #ddd;
 }
 .newsfeed-left {
     float: left;
-    width: 50%;
+    width: 30%;
 }
 .newsfeed-left li {
-    background: #4d5660 none repeat scroll 0 0;
-    margin-bottom: 2px;
-    padding: 5px;
+    border-bottom: 1px solid #ddd;
+    margin-bottom: 0;
+    list-style: outside none none;
 }
 .newsfeed-left li a {
+    color: #333333;
     display: block;
     font-size: 16px;
-    color: #fff;
+    padding:10px;
+}
+.newsfeed-left li a:hover {
+    background: #E8EFF6;
 }
 .newsfeed h2 {
+    background: #fff none repeat scroll 0 0;
+    border-bottom: 1px solid #ddd;
+    display: block;
+    font-size: 20px;
+    font-weight: 500;
+    letter-spacing: 0;
+    line-height: 100%;
     margin: 0;
+    padding: 5px 0 10px;
     text-align: center;
-    font-weight: 600;
-    margin-bottom: 20px;
+    text-transform: capitalize;
 }
+
 .newsfeed .job-description {
-    margin-top: 20px;
+    background: #fff none repeat scroll 0 0;
+    margin-top: 0;
+    padding: 20px;
 }
 .job-description > span {
-    background: #fff;
-    display: block;
-    padding: 10px;
     border-radius: 5px;
+    color: #777;
+    display: block;
+    border-bottom: 1px solid #ddd;
+}
+.job-info > strong {
+    display: block;
+    font-weight: 600;
+    color: #333;
+    margin-bottom: 5px;
+}
+.job-description .job-info {
+    border-bottom: 1px solid #ccc;
+    margin-bottom: 10px;
+    padding-bottom: 10px;
+}
+.job-description .job-info:last-child {
+    margin: 0;
+    padding: 0;
+    border: none;
+}
+.job-info ul {
+    margin: 0;
+    list-style: none;
+    padding: 0;
+}
+.job-description .job-info li {
+    background: #e8eff6 none repeat scroll 0 0;
     border: 1px solid #ddd;
+    border-radius: 5px;
+    color: #000;
+    display: inline-block;
+    line-height: 20px;
+    padding: 5px 10px;
 }
 .job-match-candidates {
     margin-top: 20px;
+}
+.newsfeed-left span {
+    color: #777;
+    display: block;
+    font-size: 12px;
+    line-height: 100%;
+    margin-bottom: 5px;
+}
+.job-header > img {
+    border-radius: 50%;
+    display: block;
+    float: left;
+    height: 50px;
+    object-fit: cover;
+    width: 50px;
+}
+.job-header p.job_title {
+    display: inline-block;
+    margin: 0 0 0 10px;
+    font-size: 15px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    width: calc(100% - 60px);
+}
+.newsfeed-left span:last-child {
+    margin-bottom: 0;
+}
+.newsfeed-right .job-info .job-location {
+    margin-top: 20px;
+}
+.newsfeed-right .job-location > span {
+    color: #777;
+    display: block;
+}
+.job-title {
+    background: #e8eff6 none repeat scroll 0 0;
+    padding: 20px;
+    border-bottom: 1px solid #ddd;
+}
+.newsfeed-right .job-header p.job_title {
+    overflow: inherit;
+    text-overflow: inherit;
+    white-space: normal;
+}
+body.smart-style-6 #content.newsfeed.contracts {
+    border: none;
+}
+.newsfeed.contracts .newsfeed-right {
+    width: 100%;
+}
+.contract-top.clearfix {
+    margin-bottom: 5px;
+}
+.box{
+    background: #fff none repeat scroll 0 0;
+    border: 1px solid #ddd;
+    padding: 20px;
+    border-radius: 5px;
+}
+.box.np{
+    padding:0;
+}
+.line-bottom {
+    border-bottom: 1px solid #eee;
+    margin-bottom: 20px;
+    padding-bottom: 20px;
+}
+.contracts h3 {
+    background: rgb(33,150,243);
+    border-radius: 5px 5px 0 0;
+    color: #fff;
+    font-weight: 600;
+    margin: 0;
+    padding: 5px 20px;
+    text-transform: capitalize;
+}
+.contracts h5 {
+    font-size: 16px;
+    font-weight: bold;
+    margin: 0 0 10px;
+    text-transform: capitalize;
+}
+.contracts .box {
+    border-radius: 0 0 5px 5px;
+}
+.contracts .job-title {
+    margin-bottom: 15px;
+}
+.contracts .table th, .contracts .table td {
+    padding: 8px 10px !important;
+}
+
+
+
+.ctree, .ctree ul {
+    margin:0;
+    padding:0;
+    list-style:none
+}
+.ctree ul {
+    margin-left:1em;
+    position:relative
+}
+.ctree ul ul {
+    margin-left:.5em
+}
+.ctree ul:before {
+    content:"";
+    display:block;
+    width:0;
+    position:absolute;
+    top:0;
+    bottom:0;
+    left:0;
+    border-left:1px solid
+}
+.ctree li {
+    margin:0;
+    padding:0 1em;
+    line-height:2em;
+    color:#333;
+    font-weight:700;
+    position:relative
+}
+.ctree ul li:before {
+    content:"";
+    display:block;
+    width:10px;
+    height:0;
+    border-top:1px solid;
+    margin-top:-1px;
+    position:absolute;
+    top:1em;
+    left:0
+}
+.ctree ul li:last-child:before {
+    /*background:#fff;*/
+    height:auto;
+    top:1em;
+    bottom:0
+}
+.indicator {
+    margin-right:5px;
+}
+.ctree li a {
+    text-decoration: none;
+    color:#369;
+}
+.ctree li button, .ctree li button:active, .ctree li button:focus {
+    text-decoration: none;
+    color:#369;
+    border:none;
+    background:transparent;
+    margin:0px 0px 0px 0px;
+    padding:0px 0px 0px 0px;
+    outline: 0;
+}
+.ctree li.last-node:hover {
+    cursor: pointer;
+}
+.form-sign label.error {
+    display: block;
+    float: none;
+    font-size: 14px;
+    font-weight: normal;
+    margin-top: 5px;
+    text-align: left;
+}
+.form-sign .field.error {
+    float: none;
+}
+
+/*job-form*/
+.custome-filed-item {
+    background: #fff none repeat scroll 0 0;
+    border-radius: 10px;
+    box-shadow: 0 2px 16px rgba(0, 0, 0, 0.05);
+    padding: 20px;
+}
+.custome-filed-list {
+    background: rgb(246, 246, 246) none repeat scroll 0 0;
+    padding: 20px 0;
+}
+.custome-filed-item .plain-select {
+    display: inline-block;
+    margin: 0 20px;
+    max-width: 200px;
+    vertical-align: top;
+}
+.custome-filed-item .select-filed {
+    margin-top: 20px;
+}
+.custome-filed-item h3 {
+    color: #000;
+    font-size: 18px;
+    margin:0 0 20px;
+    text-transform: capitalize;
+}
+.custome-filed-item p > span {
+    color: #777;
+    display: block;
+    font-size: 12px;
+    line-height: 100%;
+}
+.custome-filed-item p {
+    color: #000;
+    font-size: 16px;
+    margin: 0;
+}
+
+.select-filed input[type="checkbox"] + .label-text::before,
+.select-filed label,
+.select-filed label.fancy span{
+    line-height: 45px;
+}
+
+.custome-filed-list .filed-option input[type="checkbox"] + .label-text::before,
+.custome-filed-list .filed-option label.fancy span {
+    line-height:30px;
+}
+.custome-filed-item .filed-Add {
+    display: inline-block;
+    margin-top: 20px;
+}
+.custome-filed-item input.btn {
+    margin: 0 5px;
+}
+.custome-filed-list .filed-option label.fancy {
+    display: block;
+}
+.custome-filed-item .checkbox-option .filed-Add {
+    margin-top: 0;
+    cursor: pointer;
+}
+.checkbox-option label.fancy {
+    display: block;
+    margin-top: 20px;
+}
+.custome-filed-item .checkbox-option {
+    margin-top: 15px;
+}
+label.fancy {
+    color: #666;
+    cursor: pointer;
+    position: relative;
+    vertical-align: top;
+    margin-top: 0;
+}
+
+label.fancy input[type="checkbox"], input[type="radio"]{
+    position: absolute;
+    right: 9000px;
+}
+
+/*Check box*/
+label.fancy input[type="checkbox"] + .label-text:before{
+    content: "\f096";
+    font-family: "FontAwesome";
+    speak: none;
+    font-style: normal;
+    font-weight: normal;
+    font-variant: normal;
+    text-transform: none;
+    -webkit-font-smoothing:antialiased;
+    width: 1em;
+    display: inline-block;
+    margin-right: 5px;
+    font-size: 20px;
+    vertical-align: top;
+    line-height:16px;
+}
+
+label.fancy input[type="checkbox"]:checked + .label-text:before{
+    content: "\f14a";
+    color: #2196f3;
+    animation: effect 250ms ease-in;
+}
+
+label.fancy input[type="checkbox"]:disabled + .label-text{
+    color: #aaa;
+}
+
+label.fancy input[type="checkbox"]:disabled + .label-text:before{
+    content: "\f0c8";
+    color: #ccc;
+}
+
+/*Radio box*/
+
+label.fancy input[type="radio"] + .label-text:before{
+    content: "\f10c";
+    font-family: "FontAwesome";
+    speak: none;
+    font-style: normal;
+    font-weight: normal;
+    font-variant: normal;
+    text-transform: none;
+    -webkit-font-smoothing:antialiased;
+    width: 1em;
+    display: inline-block;
+    margin-right: 5px;
+    font-size: 20px;
+    vertical-align: top;
+    line-height:16px;
+}
+
+label.fancy input[type="radio"]:checked + .label-text:before{
+    content: "\f192";
+    color: #2196f3;
+    animation: effect 250ms ease-in;
+}
+
+label.fancy input[type="radio"]:disabled + .label-text{
+    color: #aaa;
+}
+
+label.fancy input[type="radio"]:disabled + .label-text:before{
+    content: "\f111";
+    color: #ccc;
+}
+
+/*Radio Toggle*/
+label span.label-text {
+    display: inline-block;
+    font-size: 14px;
+    font-weight: normal;
+    line-height: 17px;
+    margin-right: 10px;
+    vertical-align: top;
+}
+.toggle input[type="radio"] + .label-text:before{
+    content: "\f204";
+    font-family: "FontAwesome";
+    speak: none;
+    font-style: normal;
+    font-weight: normal;
+    font-variant: normal;
+    text-transform: none;
+    -webkit-font-smoothing:antialiased;
+    width: 1em;
+    display: inline-block;
+    margin-right: 10px;
+    font-size: 20px;
+    vertical-align: top;
+    line-height:16px;
+}
+
+.toggle input[type="radio"]:checked + .label-text:before{
+    content: "\f205";
+    color: #2196f3;
+    animation: effect 250ms ease-in;
+}
+
+.toggle input[type="radio"]:disabled + .label-text{
+    color: #aaa;
+}
+
+.toggle input[type="radio"]:disabled + .label-text:before{
+    content: "\f204";
+    color: #ccc;
+}
+
+
+@keyframes effect{
+    0%{transform: scale(0);}
+    25%{transform: scale(1.3);}
+    75%{transform: scale(1.4);}
+    100%{transform: scale(1);}
+}
+.Attach-btn {
+    display: inline-block;
+    height: 45px;
+    max-width: 200px;
+    overflow: hidden;
+    position: relative;
+}
+.Attach-btn input[type="file"] {
+    cursor: pointer;
+    height: 100%;
+    opacity: 0;
+    position: relative;
+    z-index: 1;
+}
+.Attach-btn::before {
+    background:#2196f3;
+    color: #fff;
+    content: "Attach Files";
+    font-size: 18px;
+    height: 100%;
+    left: 0;
+    line-height: 45px;
+    position: absolute;
+    text-align: center;
+    text-transform: capitalize;
+    top: 0;
+    width: 100%;
+}
+.Attach-file {
+    margin-bottom: 15px;
+}
+.Attach-file span.file-text {
+    line-height: 45px;
+    display: inline-block;
+    vertical-align: top;
+    margin-left: 10px;
+}
+.Attach-file p.note {
+    margin-top: 0;
+}
+.filed-Add i {
+    margin-right: 5px;
+}
+.fild-action a {
+    cursor: pointer;
+    font-size: 16px;
+    margin: 0 5px;
+}
+#logo-group span.activity-dropdown a i {
+    color: #fff;
+}
+/*social link css start*/
+.social-login{
+    font-family: 'Varela Round', sans-serif;
+    margin-top: 35px;;
+}
+.social-login a i {
+    font-size: 20px;
+    left: 0;
+    position: absolute;
+    width: 50px;
+}
+.btn.facebook {
+    background: #3C66C4;
+    position: relative;
+    color: #fff;
+}
+.btn.google {
+    background: #cf4332;
+    position: relative;
+    color: #fff;
+}
+.btn.linkedin {
+    background: #0077b5;
+    position: relative;
+    color: #fff;
+}
+.btn.facebook:hover{
+    background: #3C66C4;
+}
+.btn.google:hover{
+    background: #cf4332;
+}
+.btn.google:hover, .btn.facebook:hover, .btn.linkedin:hover {
+    color: #fff !important;
+}
+/*social link css end*/
+
+
+/*timesheet*/
+.timesheet {
+    padding: 15px;
+    width: 100%;
+}
+.timesheet .table-responsive {
+    background: #fff none repeat scroll 0 0;
+}
+.timesheet .timesheet-header .plain-select,
+.timesheet > .plain-select {
+    display: inline-block;
+    max-width: 200px;
+}
+.timesheet-header .pull-left {
+    width: 80%;
+}
+.timesheet .pull-right > p {
+    color: #333;
+    font-size: 24px;
+    font-weight: bold;
+}
+.timesheet-header .pull-left > input[type="text"] {
+    display: inline-block !important;
+    max-width: 205px !important;
+    vertical-align: top;
+}
+.timesheet .table-responsive .plain-select {
+    width: 48%;
+}
+.timesheet .table-responsive textarea {
+    width: 48%;
+    display: inline-block;
+    height: 70px !important;
+    margin-right: 4%;
+}
+.timesheet .table-responsive .plain-select:first-child {
+    margin-right: 4%;
+}
+.timesheet label.fancy {
+    display: inline-block;
+}
+
+
+/*contract-job*/
+.new_contract .select2-selection.select2-selection--single {
+    box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.06);
+    height: 45px;
+    border-color: #ddd;
+    border-radius: 3px;
+}
+.new_contract .select2-selection.select2-selection--single > span {
+    font-size: 15px;
+    line-height: 45px;
+}
+.new_contract .plain-select select.form-control {
+    padding: 0 7px;
+}
+.new_contract label.control-label {
+    font-size: 15px;
+    line-height: 100%;
+    margin-bottom: 5px;
+    text-transform: capitalize;
+}
+.new_contract .add-link {
+    color: #2196f3;
+    font-size: 14px;
+    font-weight: 400;
+    line-height: 100%;
+    padding: 7px 0 0;
+    text-transform: capitalize;
+}
+.new_contract .help-block {
+    display: none !important;
+}
+.new_contract .has-error .select2-selection.select2-selection--single {
+    border-color: #ff0000;
+}
+.form-horizontal .has-error input[type="text"],
+.form-horizontal .has-error select.form-control,
+.form-horizontal .has-error textarea.form-control,
+.form-horizontal .has-error select,
+.form-horizontal .has-error textarea {
+    border-color: #ff0000;
+}
+/*contract-sell*/
+.new_contract .plain-select .select2-container {
+    width: 100% !important;
+    margin: 0 0 16px;
+}
+.contract_box {
+    background: #f9f9f9 none repeat scroll 0 0;
+    border: 1px solid #ddd;
+    margin-bottom: 15px;
+    padding: 10px 16px;
+    position: relative;
+}
+.bttn.add_fields.text-info {
+    background: #2196f3;
+    color: #fff !important;
+    display: inline-block;
+    height: 45px;
+    line-height: 45px;
+    padding: 0 15px;
+    margin-bottom: 15px;
+}
+.new_contract input[type="checkbox"] {
+    display: inline-block;
+    width: auto;
+    vertical-align: top;
+    height: auto;
+    margin: 0 !important;
+}
+.new_contract .select2 {
+    width: 100% !important;
+}
+.new_contract .select2 .select2-selection--multiple{
+    box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.06);
+    min-height: 45px !important;
+    border-color: #ddd;
+    border-radius: 3px;
+}
+.new_contract .contract_box .remove {
+    position: absolute;
+    right: -5px;
+    top: -10px;
+    left: inherit;
+}
+.new_contract .sell-time-sheet-setting {
+    margin-bottom: 15px;
+}
+
+/*contract-buy*/
+.new_contract input.form-control[type="radio"] {
+    display: inline-block;
+    height: auto;
+    margin: 0;
+    vertical-align: top;
+    width: auto;
+    position: relative;
+    left: 0;
+}
+.contract-fild.radio-grop {
+    margin-bottom: 15px;
+}
+.new_contract .row.contract-Accounting {
+    margin-bottom: 15px;
+}
+.timesheet h2 {
+    display: inline-block;
+    font-weight: bold;
+    font-size: 18px;
+    text-transform: capitalize;
+    margin-top: 0;
+}
+.timesheet-select-date {
+    display: inline-block;
+    margin-left: 20px;
+}
+.timesheet table th,.timesheet table td {
+    border: 1px solid #ddd;
+}
+.timesheet table {
+    margin-bottom: 0;
+}
+.timesheet form .table thead {
+    display: none;
+}
+.timesheet .table-responsive button {
+    -moz-appearance: none;
+    background: rgba(0, 0, 0, 0) none repeat scroll 0 0;
+    border: medium none;
+}
+.timesheet .candiate-name > input,.timesheet .table-responsive input.form-control {
+    margin-bottom: 0;
+}
+.timesheet table td, .timesheet table th {
+    padding: 10px !important;
+}
+.timesheet .candiate-name > input, .timesheet .table-responsive input.form-control {
+    color: #333;
+    font-size: 12px;
+    height: 25px;
+    line-height: 20px;
+    margin-bottom: 0;
+    padding: 0 10px;
+}
+
+.link-disabled {
+    pointer-events: none;
+    cursor: default;
+    opacity: 0.6;
+}
+
+.candidate-profile header{
+    background-color: #fff;
 }

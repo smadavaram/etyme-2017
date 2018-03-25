@@ -4,7 +4,7 @@
       .content
         .row
           .col-lg-4.col-lg-offset-8.col-md-4.col-md-offset-8.col-sm-6.col-xs-12
-            = link_to raw("<i class= 'fa fa-align-left'> Send Proposal</i>") ,static_job_apply_path(@job,status: candidate_signed_in?)   , method: :post , remote: true  ,class: " kafe-btn kafe-btn-mint full-width revealOnScroll   #{current_candidate.present? ? (current_candidate.is_already_applied?(@job.id) ? "disabled " : "" ) : "" } "
+            = link_to raw("<i class= 'fa fa-align-left'> Apply</i>") ,static_job_apply_path(@job,status: candidate_signed_in?)   , method: :post , remote: true  ,class: " kafe-btn kafe-btn-mint full-width revealOnScroll   #{current_candidate.present? ? (current_candidate.is_already_applied?(@job.id) ? "disabled " : "" ) : "" } "
   %section.jobpost
     .container
       .row
@@ -85,3 +85,4 @@
   #job_application
 -content_for :scripts do
   :javascript
+    ''

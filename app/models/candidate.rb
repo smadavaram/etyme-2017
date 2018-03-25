@@ -1,4 +1,4 @@
-class Candidate < ActiveRecord::Base
+class Candidate < ApplicationRecord
   # Include default devise modules. Others available are:
   # :confirmable, :lockable, :timeoutable and :omniauthable
   devise :invitable, :database_authenticatable, :registerable,
@@ -25,7 +25,8 @@ class Candidate < ActiveRecord::Base
   validate :email_uniquenes ,on: :create,if: Proc.new{|candidate| candidate.status == "campany_candidate"}
   # validates_numericality_of :phone , on: :update
   # validates :dob, date: { before_or_equal_to: Proc.new { Date.today }, message: " Date Of Birth Can not be in future." } , on: :update
-
+  serialize :dept_name
+  serialize :industry_name
   has_many   :consultants
   has_many   :notifications        , as: :notifiable               ,dependent: :destroy
   has_many   :custom_fields        , as: :customizable             ,dependent: :destroy
@@ -37,7 +38,7 @@ class Candidate < ActiveRecord::Base
   has_many   :experiences          , dependent: :destroy           ,foreign_key: 'user_id'
   has_many   :candidates_companies , dependent: :destroy
   has_many   :companies            , through: :candidates_companies ,dependent: :destroy
-  belongs_to :address              , foreign_key: :primary_address_id
+  belongs_to :address              , foreign_key: :primary_address_id, optional: true
   # has_and_belongs_to_many :groups ,through: :company
   has_many   :groupables           , as:  :groupable     ,dependent: :destroy
   has_many   :groups               , through: :groupables
@@ -47,7 +48,14 @@ class Candidate < ActiveRecord::Base
   has_many   :chats                ,as: :chatable
   has_many   :statuses             ,as:  :statusable     ,dependent: :destroy
   has_many   :portfolios           ,as: :portfolioable   ,dependent: :destroy
+  has_many :conversation_messages  ,as: :userable
+  has_many   :certificates, dependent: :destroy
+  has_many   :clients, dependent: :destroy
+  has_many   :designations, dependent: :destroy
+  has_many   :timesheets, dependent: :destroy
+  has_many :contract_salary_histories, dependent: :destroy
 
+  belongs_to :invited_by_user, class_name: "User", foreign_key: :invited_by_id, optional: true
 
 
   attr_accessor :job_id , :expiry , :message , :invitation_type
@@ -60,15 +68,18 @@ class Candidate < ActiveRecord::Base
   accepts_nested_attributes_for :educations     ,reject_if: :all_blank, allow_destroy: true
   accepts_nested_attributes_for :address        , reject_if: :all_blank, update_only: true
   accepts_nested_attributes_for :custom_fields  , allow_destroy: true , reject_if: :all_blank
+  accepts_nested_attributes_for :certificates  , allow_destroy: true , reject_if: :all_blank
+  accepts_nested_attributes_for :clients  , allow_destroy: true , reject_if: :all_blank
+  accepts_nested_attributes_for :designations  , allow_destroy: true , reject_if: :all_blank
 
   scope :search_by ,->(term) { Candidate.where('lower(first_name) like :term or lower(last_name) like :term ' ,{term: "%#{term.downcase}%" })}
 
   #Tags Input
-  acts_as_taggable_on :skills
+  acts_as_taggable_on :skills, :designates
 
   validate :max_skill_size
   def max_skill_size
-    errors[:skill_list] << "8 skills maximum" if skill_list.count > 8
+    errors[:skill_list] << "8 skills maximum" if skill_list.count > 10
   end
 
   def etyme_url
@@ -81,6 +92,13 @@ class Candidate < ActiveRecord::Base
 
   def full_name
     self.first_name + " " + self.last_name
+  end
+
+  def self.like_any(fields, values)
+    conditions = fields.product(values).map do |(field, value)|
+      [arel_table[field].matches("#{value}%"), arel_table[field].matches("% #{value}%")]
+    end
+    where conditions.flatten.inject(:or)
   end
 
   # protected

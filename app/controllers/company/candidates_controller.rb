@@ -30,31 +30,41 @@ class Company::CandidatesController < Company::BaseController
       else
         flash[:errors] = @manage_candidate.errors.full_messages
       end
-        redirect_to :back
+      redirect_back fallback_location: root_path
     end
   end
 
 
 
    def create
-
       if Candidate.signup.where(email:params[:candidate][:email]).present? && !current_company.candidates.find_by(email:params[:candidate][:email]).present?
        flash[:already_exist] = true
        flash[:email] = params[:candidate][:email]
-       redirect_to company_candidates_path
+       respond_to do |format|
+         format.html {flash[:success] = "successfully Created."; redirect_to company_candidates_path}
+         format.js{ flash.now[:success] = "successfully Created." }
+       end
       elsif Candidate.signup.where(email:params[:candidate][:email]).present? && current_company.candidates.find_by(email:params[:candidate][:email]).present?
         flash[:notice] = "Candidate Already Present in Your Network!"
-        redirect_to company_candidates_path
+        respond_to do |format|
+          format.html {flash[:success] = "successfully Created."; redirect_to company_candidates_path}
+          format.js{ flash.now[:success] = "successfully Created." }
+        end
       else
        @candidate = current_company.candidates.new(create_candidate_params.merge(send_welcome_email_to_candidate: false,invited_by_id: current_user.id ,invited_by_type: 'User', status:"campany_candidate"))
        if @candidate.save
          current_company.candidates <<  @candidate
          @candidate.create_activity :create, owner:current_company,recipient: current_company
          flash[:success] =  "Successfull Added."
-         redirect_to candidates_path
+         respond_to do |format|
+           format.html {flash[:success] = "successfully Created."; redirect_to candidates_path}
+           format.js{ flash.now[:success] = "successfully Created." }
+         end
        else
-         flash[:errors] = @candidate.errors.full_messages
-         redirect_to :back
+         respond_to do |format|
+           format.html {flash[:errors] = @candidate.errors.full_messages; redirect_back fallback_location: root_path}
+           format.js{ flash.now[:errors] = @candidate.errors.full_messages }
+         end
        end
      end
    end
@@ -91,6 +101,15 @@ class Company::CandidatesController < Company::BaseController
 
   end
 
+  def remove_from_comapny
+    @company_candidate = CandidatesCompany.where(candidate_id: params[:candidate_id], company_id: current_company.id).first
+    ActiveRecord::Base.connection.execute("DELETE FROM candidates_companies WHERE candidate_id = #{params[:candidate_id]} AND company_id = #{current_company.id} ")
+    flash[:success] = "Candidate is Remove Sucessfully."
+    respond_to do |format|
+      format.js {render inline: "location.reload();" }
+    end
+  end
+
 
   def edit
     add_breadcrumb @candidate.full_name, "#"
@@ -102,7 +121,7 @@ class Company::CandidatesController < Company::BaseController
       redirect_to company_candidates_path
     else
       flash[:errors] = @candidate.errors.full_messages
-      redirect_to :back
+      redirect_back fallback_location: root_path
     end
 
   end
@@ -136,7 +155,7 @@ class Company::CandidatesController < Company::BaseController
     User.share_candidates(current_user.email ,emails.flatten.uniq.split(","),c_ids,current_company,params[:message])
     # CandidateMailer.share_hot_candidates(params[:emails].split(","),c_ids,current_company,params[:message]).deliver
     flash[:success] = "Candidates shared successfully."
-    redirect_to :back
+    redirect_back fallback_location: root_path
   end
 
   def create_chat

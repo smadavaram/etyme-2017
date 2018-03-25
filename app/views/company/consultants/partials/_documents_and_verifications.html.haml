@@ -14,19 +14,19 @@
         = render 'company/contracts/attachment_fields', f: attachment
       .links
         = link_to_add_association 'Add Attachment', e, :attachments,partial:'company/contracts/attachment_fields',class:"btn btn-primary pull-right"
-- content_for :scripts do
-  :javascript
-     $('#contract-attachment').on('cocoon:after-insert', function(e, insertedItem) {
-        insertedItem.find('.filepicker-attachment').each(function(i,e){
-          filepicker.constructWidget(e);
-
-        $(".filepicker-attachment").on('click',function() {
-        $('.fp__overlay').css({'z-index':'99999'})
-        });
-
-        $('.filepicker-attachment').on('click',function() {
-          $(this).hide();
-         });
-
-        });
-    });
+-#- content_for :scripts do
+-#  :javascript
+-#     $('#contract-attachment').on('cocoon:after-insert', function(e, insertedItem) {
+-#        insertedItem.find('.filepicker-attachment').each(function(i,e){
+-#          filepicker.constructWidget(e);
+-#
+-#        $(".filepicker-attachment").on('click',function() {
+-#        $('.fp__overlay').css({'z-index':'99999'})
+-#        });
+-#
+-#        $('.filepicker-attachment').on('click',function() {
+-#          $(this).hide();
+-#         });
+-#
+-#        });
+-#    });

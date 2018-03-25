@@ -1,45 +1,180 @@
 %fieldset
-  .form-group
-    %label.col-md-2.control-label
-      Start Date
-      %sup.text-danger *
-    .col-md-4
-      = f.text_field :start_date ,class: "form-control" , required: 'required', placeholder: "Contract Start Date"
-    %label.col-md-2.control-label
-      End Date
-      %sup.text-danger *
-    .col-md-4
-      = f.text_field :end_date ,class: "form-control" , required: 'required', placeholder: "Contract End Date"
-  .form-group
-    %label.col-md-2.control-label
-      Type
-      %sup.text-danger *
-    .col-md-10.select
-      = f.select :contract_type , Contract.contract_types.map { |key, value| [key.titleize, key] }, {include_blank: '-- Select Contract Type --'} , {class: "form-control" , required: true}
-  .form-group
-    %label.col-md-2.control-label Invoicing Frequency
-    .col-md-4.select
-      = f.select :billing_frequency , Contract.billing_frequencies.map { |key, value| [key.humanize, key] }, {} , {class: "form-control" }
-    -#= select_tag 'contract[billing_frequency]', Contract.billing_frequency.map { |key, value| [key.humanize, key] }  , class: "form-control"
-    %label.col-md-2.control-label Time Sheet Frequency
-    .col-md-4.select
-      = f.select :time_sheet_frequency , Contract.time_sheet_frequencies.map { |key, value| [key.humanize, key] }, {},{class: "form-control" }
-  -#= select_tag 'contract[time_sheet_frequency]', options_for_select(BILLING_FREQUENCY.collect{ |type| [type[0], type[1]] }) , class: "form-control"
-  = f.fields_for :contract_terms do |c|
-    = c.hidden_field :created_by , value: current_user.id.to_i
-    .form-group
-      %label.col-md-2.control-label
-        Rate
-        %sup.text-danger *
-      .col-md-10
-        = c.text_field :rate ,class: "form-control" , placeholder: "", required: 'required'
-    .form-group
-      %label.col-md-2.control-label Terms & Conditions
-      .col-md-10
-        =  c.text_area :terms_condition , class: 'form-control tinymce', rows: 6, placeholder: 'Enter Contract Terms & conditions'
-        = tinymce :default
-    -#.form-group
-    -#  %label.col-md-2.control-label Terms & Conditions
-    -#  .col-md-10
-    -#    =  c.text_area :terms_condition , class: 'form-control tinymce', rows: 6, placeholder: 'Enter Contract Terms & conditions'
-    -#    = tinymce :default
+  =f.fields_for :sell_contracts do |sc|
+    .row
+      .col-md-6
+        .form-group
+          %label.control-label  Company
+          .contract-fild
+            .plain-select
+              = sc.select :company_id, {}, {}, id: "sell_contract_company", required: true
+              -#= hidden_field :company_id,
+              =# select_tag 'contract[contractable_id]', options_for_select(current_company.invited_companies.collect { |c|[c.invited_company.name, c.invited_company.id] })  , class: "form-control"
+    .form-group.company_contacts
+      -sc.object.contract_sell_business_details.build
+      =sc.fields_for :contract_sell_business_details do |csbd|
+        = link_to_add_fields 'available_tour_fields', sc, :contract_sell_business_details, {partial: 'company/contracts/contract_sell_business_details_fields'}, {class: 'link-company-contacts hidden'}
+      = select_tag 'contract[job_1_id]', nil, id: "select_sell_company_contacts", class: "form-control select_company_contacts"
+
+    -#.row
+    -#  .col-md-12
+    -#    .form-group.company_contacts
+    -#      -sc.object.contract_sell_business_details.build
+    -#      =sc.fields_for :contract_sell_business_details do |csbd|
+    -#        = link_to_add_fields 'available_tour_fields', csbd, :document_signs, {partial: 'company/contracts/contract_sell_business_details_fields'}, {class: 'doc-user-generater hidden'}
+    -#        -#= link_to_add_fields 'available_tour_fields', csbd, :csbd, {partial: 'company/contracts/contract_document_users_fields'}, {class: 'doc-user-generater hidden'}
+    -#        = select_tag 'contract[job_1_id]', nil, id: "select_sell_company_contacts", class: "form-control"
+    -#        -#= ds.select :signable, {}, {}, class: "form-control whois_sign" , placeholder: ""
+    -#
+    -#    .form-group.company_contacts
+    -#      -#=f.fields_for :document_signs do |ds|
+    -#      -#  = link_to_add_fields 'available_tour_fields', f, :document_signs, {partial: 'company/contracts/contract_document_users_fields'}, {class: 'doc-user-generater hidden'}
+    -#      -#  = ds.select :signable, {}, {}, class: "form-control whois_sign" , placeholder: ""
+    -#      =sc.fields_for :contract_sell_business_details do |custom_field|
+    -#        = link_to_add_association '+ Add Business Details', sc, :contract_sell_business_details, class: 'bttn text-info pull-left buy-contract-contacts hidden', partial: 'company/contracts/contract_sell_business_details_fields'
+    -#        = select_tag 'contract[job_1_id]', nil, id: "select_sell_company_contacts", class: "form-control"
+    -#      -#=sc.fields_for :contract_sell_business_details do |custom_field|
+    -#      -#  = render 'company/contracts/contract_sell_business_details_fields', f: custom_field
+    -#    -#%strong
+    -#    -#  .links
+    -#        =# link_to_add_association '+ Add Business Details', sc, :contract_sell_business_details, class: 'bttn text-info pull-left', partial: 'company/contracts/contract_sell_business_details_fields'
+    -#        -#%br/
+
+    .row
+      .col-md-12.contract-attachment
+        %label.control-label  Customer Documents
+        .form-group
+          =sc.fields_for :sell_send_documents do |custom_field|
+            = render 'company/contracts/contract_documents_fields', f: custom_field
+        %strong
+          .links
+            = link_to_add_association '+ Add Send documents', sc, :sell_send_documents, class: 'bttn text-info pull-left doc-fields', partial: 'company/contracts/contract_documents_fields'
+            %br/
+        .form-group
+          =sc.fields_for :sell_request_documents do |custom_field|
+            = render 'company/contracts/contract_documents_fields', f: custom_field
+        %strong
+          .links
+            = link_to_add_association '+ Add Request documents', sc, :sell_request_documents, class: 'bttn text-info pull-left doc-fields', partial: 'company/contracts/contract_documents_fields'
+            %br/
+    .row
+      .col-md-12
+        .form-group
+          %label.control-label
+            Customer Rate $
+          .select
+            .row
+              .col-md-6
+                = sc.number_field :customer_rate, class: "form-control"
+              .col-md-6
+                .plain-select
+                  = sc.select :customer_rate_type, ["hourly", "daily", "weekly", "monthly"], class: "form-control"
+    .row
+      .col-md-12
+        .form-group
+          .select
+            .row
+              .col-md-6
+                %label.control-label
+                  Time sheet
+                .plain-select
+                  = sc.select :time_sheet, Contract.time_sheet_frequencies.map { |key, value| [key.humanize, key] }, {},{class: "form-control sell-time-sheet" }
+              .col-md-6
+                .sell-time-sheet-setting
+                  %div{:class => "form-group week #{sc.object.time_sheet != 'weekly' ? 'hidden' : ''}"}
+                    %label.control-label
+                      Select day of week for submission
+                    .select
+                      .plain-select
+                        = sc.select :day_of_week, [["Every Monday", "mon"], ["Every Tuesday", "tue"], ["Every Wednesday", "wed"], ["Every Thursday", "thu"], ["Every Friday", "fri"], ["Every Saturday", "sat"], ["Every Sunday", "sun"]], {},{class: "form-contro" }
+                  %div{:class => "form-group month #{['twice a month', 'monthly'].include?(sc.object.time_sheet) ? '' : 'hidden'}"}
+                    %label.control-label
+                      Select date
+                    .select
+                      = sc.text_field :date_1, class: "date_1", placeholder: "DD/MM/YYYY"
+                  %div{:class => "form-group twice-month #{sc.object.time_sheet != 'twice a month' ? 'hidden' : ''}"}
+                    %label.control-label
+                      Select second date
+                    .select
+                      = sc.text_field :date_2, class: "date_1", placeholder: "DD/MM/YYYY"
+                  %span{:class => "form-group month #{['twice a month', 'monthly'].include?(sc.object.time_sheet) ? '' : 'hidden'}"} OR
+                  = sc.check_box :end_of_month, class: "month #{['twice a month', 'monthly'].include?(sc.object.time_sheet) ? '' : 'hidden'}"
+                  = sc.label :end_of_month, "End of month", class: "month #{['twice a month', 'monthly'].include?(sc.object.time_sheet) ? '' : 'hidden'}"
+    -#.row
+    -#  .col-md-6
+    -#    .form-group
+    -#      %label.control-label
+    -#        First Time sheet Date
+    -#      .select
+    -#        = sc.text_field :first_date_of_timesheet, class: "first_date_of_timesheet_field", placeholder: "DD/MM/YYYY"
+    .row
+      .col-md-6
+        .form-group
+          %label.control-label
+            Invoice Terms
+          .select
+            .plain-select
+              = sc.select :invoice_terms_period, Contract.time_sheet_frequencies.map { |key, value| [key.humanize, key] }, {},{class: "form-control sell-invoice " }
+              -#= sc.select :invoice_terms_period , (0..60).map{|a| ["Net " + a.to_s + " days",a]}, {},{class: "form-control" }
+      .col-md-6
+        .sell-invoice-setting
+          %div{:class => "form-group week #{sc.object.time_sheet != 'weekly' ? 'hidden' : ''}"}
+            %label.control-label
+              Select day of week for submission
+            .select
+              .plain-select
+                = sc.select :invoice_day_of_week, [["Every Monday", "mon"], ["Every Tuesday", "tue"], ["Every Wednesday", "wed"], ["Every Thursday", "thu"], ["Every Friday", "fri"], ["Every Saturday", "sat"], ["Every Sunday", "sun"]], {},{class: "form-contro" }
+          %div{:class => "form-group month #{['twice a month', 'monthly'].include?(sc.object.time_sheet) ? '' : 'hidden'}"}
+            %label.control-label
+              Select date
+            .select
+              = sc.text_field :invoice_date_1, class: "date_1", placeholder: "DD/MM/YYYY"
+          %div{:class => "form-group twice-month #{sc.object.time_sheet != 'twice a month' ? 'hidden' : ''}"}
+            %label.control-label
+              Select second date
+            .select
+              = sc.text_field :invoice_date_2, class: "date_1", placeholder: "DD/MM/YYYY"
+          %span{:class => "form-group month #{['twice a month', 'monthly'].include?(sc.object.time_sheet) ? '' : 'hidden'}"} OR
+          = sc.check_box :invoice_end_of_month, class: "month #{['twice a month', 'monthly'].include?(sc.object.time_sheet) ? '' : 'hidden'}"
+          = sc.label :invoice_end_of_month, "End of month", class: "month #{['twice a month', 'monthly'].include?(sc.object.time_sheet) ? '' : 'hidden'}"
+
+      .row
+      .col-md-6
+        .form-group
+          %label.control-label
+            Payment Terms
+          .select
+            = sc.number_field :payment_term , class: "form-control"
+      -#.col-md-6
+      -#  .form-group
+      -#    %label.control-label
+      -#      First Invoice Date
+      -#    .select
+      -#      = sc.text_field :first_date_of_invoice, class: "first_date_of_invoice_field", placeholder: "DD/MM/YYYY"
+    .row
+      .col-md-6
+        .form-group
+          %label.control-label
+          .select
+            = sc.check_box :show_accounting_to_employee
+            %span
+              Show Accounting term to employee ?
+
+- content_for :scripts do
+  :javascript
+     $('.contract-attachment').on('cocoon:after-insert', function(e, insertedItem) {
+        insertedItem.find('.filepicker-attach').each(function(i,e){
+          filepicker.constructWidget(e);
+          $(".filepicker-attach").on('click',function() {
+            $('.fp__overlay').css({'z-index':'99999'})
+          });
+          $('.filepicker-attach').on('click',function() {
+            //$(this).hide();
+           });
+        });
+
+       $(".exp_date").datepicker({
+          dateFormat : 'dd/mm/yy'
+       });
+       set_user_select(".whois_sign:not([class*='added']", "Select User who is sign document");
+       $(".whois_sign:not([class*='added']").addClass('added');
+     });

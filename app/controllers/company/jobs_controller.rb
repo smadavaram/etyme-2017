@@ -16,11 +16,13 @@ class Company::JobsController < Company::BaseController
   end
   def show
     add_breadcrumb @job.try(:title).try(:titleize)[0..30], :job_path, options: { title: "Job Invitation" }
+    @job_applications = @job.job_applications
   end
 
   def new
     add_breadcrumb "NEW", :new_job_path, options: { title: "NEW JOB" }
     @job = current_company.jobs.new
+    @job.job_requirements.build
   end
 
   def edit
@@ -28,15 +30,17 @@ class Company::JobsController < Company::BaseController
   end
 
   def create
+    params[:job][:start_date] = Time.strptime(params[:job][:start_date], "%m/%d/%Y") if params[:job][:start_date].present?
+    params[:job][:end_date] = params[:job][:end_date].present? ? Time.strptime(params[:job][:end_date], "%m/%d/%Y") : Time.parse("31/12/9999")
     @job = current_company.jobs.new(company_job_params.merge!(created_by_id: current_user.id))
 
     respond_to do |format|
       if @job.save
         format.html { redirect_to @job, success: 'Job was successfully created.' }
-        format.json { render :show, status: :created, location: @job }
+        format.js{ flash.now[:success] = "successfully Created." }
       else
         format.html { flash[:errors] = @job.errors.full_messages; render :new}
-        format.json { render json: @job.errors, status: :unprocessable_entity }
+        format.js{ flash.now[:errors] =  @job.errors.full_messages }
       end
     end
   end
@@ -88,14 +92,22 @@ class Company::JobsController < Company::BaseController
       @preferred_vendors_companies = Company.vendors - [current_company] || []
     end
 
+
     def company_job_params
-      params.require(:job).permit([:title,:description,:location,:job_category, :is_public , :start_date , :end_date , :tag_list, :video_file, :industry, :department, custom_fields_attributes:
+      params.require(:job).permit([:title,:description,:location,:job_category, :is_public , :start_date , :end_date , :tag_list, :video_file, :industry, :department, :job_type, :price, :education_list, :comp_video, custom_fields_attributes:
           [
               :id,
               :name,
               :value,
               :required,
               :_destroy
-          ]])
+          ],job_requirements_attributes:[
+                                       :id,
+                                       :questions,
+                                       :ans_type,
+                                       :ans_mandatroy,
+                                       :multiple_ans,
+                                       :multiple_option
+                                         ]])
     end
 end

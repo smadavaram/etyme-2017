@@ -31,7 +31,7 @@ class Company::LeavesController <Company::BaseController
       redirect_to  consultant_leaves_path(current_user)
     else
       flash[:errors] =  @consultant_leave.errors.full_messages
-      redirect_to :back
+      redirect_back fallback_location: root_path
     end
   end
 
@@ -51,7 +51,7 @@ class Company::LeavesController <Company::BaseController
       redirect_to consultant_leaves_path(current_user)
     else
       flash[:errors] = "Leave not updated"
-      redirect_to :back
+      redirect_back fallback_location: root_path
     end
   end
 

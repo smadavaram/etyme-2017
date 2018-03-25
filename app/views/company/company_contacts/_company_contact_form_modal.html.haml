@@ -1,0 +1,10 @@
+.modal.fade.in{ id: "new-company-contacts-modal","aria-hidden": "true", "aria-labelledby": "myModalLabel", :role => "dialog", :style => "display: none;", :tabindex => "-1"}
+  .modal-dialog.modal-md
+    .modal-content
+      .modal-header
+        %button.close{"aria-hidden" => "true", "data-dismiss" => "modal", :type => "button"}
+          ×
+        %h2#myModalLabel.modal-title
+          %strong= @new_company.new_record? ? "New Company" : "Edit or Add Contacts"
+      .modal-body
+        = render "company/company_contacts/form", for_remote: ((defined? for_remote) ? true : false)

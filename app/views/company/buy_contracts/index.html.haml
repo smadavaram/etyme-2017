@@ -1,0 +1,73 @@
+%body
+  %section#widget-grid
+    .row
+      %article.col-xs-12.col-sm-12.col-md-12.col-lg-12.sortable-grid.ui-sortable
+        #wid-id-1.jarviswidget.jarviswidget-color-blueDark.jarviswidget-sortable{"data-widget-editbutton" => "false", :role => "widget"}
+          %header{:role => "heading"}
+            %span.widget-icon
+              %i.fa.fa-table
+            %h2 Buy Contract
+          / widget div
+          %div{:role => "content"}
+            .jarviswidget-editbox
+            .widget-body.no-padding
+              #datatable_fixed_column_wrapper.dataTables_wrapper.form-inline.dt-bootstrap.no-footer
+                %table#datatable_fixed_column.table.table-striped.table-bordered.dataTable.no-footer{"aria-describedby" => "datatable_fixed_column_info", :role => "grid", :style => "width: 100%;", :width => "100%"}
+                  %thead
+                    %tr{:role => "row"}
+                      %th.expand.sorting_asc number
+                      %th Contract
+                      %th contract_type
+                      %th Customer
+                      %th.sorting{} payrate
+                      %th.sorting{} time_sheet
+                      %th.sorting{} payment_term
+                      %th.sorting{} show employee
+                      %th action
+                  %tbody
+                    - @buy_contracts.each_with_index  do |bc, index|
+                      %tr.even{:role => "row"}
+                        %td= link_to bc.number, company_buy_contract_path(bc.number)
+                        %td=link_to bc.contract.try(:title) ,contract_path(bc.contract)
+                        %td= bc.contract_type
+                        %td= bc.candidate.try(:full_name)
+                        %td= bc.payrate
+                        %td= bc.time_sheet
+                        %td= bc.payment_term
+                        %td= bc.show_accounting_to_employee
+                        %td= link_to "TimeSheet", timesheet_submit_timesheet_path(bc.id)
+
+:css
+  .form-control
+  {
+    background-color: white !important;
+  }
+-content_for :scripts do
+  :javascript
+    $(document).ready(function() {
+     pageSetUp();
+      var responsiveHelper_dt_basic = undefined;
+      var responsiveHelper_datatable_fixed_column = undefined;
+      var responsiveHelper_datatable_col_reorder = undefined;
+      var responsiveHelper_datatable_tabletools = undefined;
+      var otable = $('#datatable_fixed_column').DataTable({
+            "sDom": "<'dt-toolbar'<'col-xs-12 col-sm-6 hidden-xs'f><'col-sm-6 col-xs-12 hidden-xs'<'toolbar'>>r>"+
+                    "t"+
+                    "<'dt-toolbar-footer'<'col-sm-6 col-xs-12 hidden-xs'i><'col-xs-12 col-sm-6'p>>",
+            "autoWidth" : true,
+            "oLanguage": {
+                "sSearch": '<span class="input-group-addon"><i class="glyphicon glyphicon-search"></i></span>'
+            }
+
+        });
+
+      // Apply the filter
+      $("#datatable_fixed_column thead th input[type=text]").on( 'keyup change', function () {
+        otable
+            .column( $(this).parent().index()+':visible' )
+            .search( this.value )
+            .draw();
+
+      } );
+
+    });

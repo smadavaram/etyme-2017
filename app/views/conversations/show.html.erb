@@ -1,0 +1,31 @@
+<div class="chat_box" data-conversation-id="<%= @conversation.id if @conversation.present?%>" id="conversation-chat-box">
+  <div class="chatboxhead">
+    <div class="chatboxtitle">
+      <i class="fa fa-comments"></i>
+      <h1><%= @conversation.senderable == current_user ? @conversation.recipientable.full_name : @conversation.senderable.full_name if @conversation.present? %> </h1>
+    </div>
+    <div class="chatboxoptions">
+      <%= link_to "<i class='fa  fa-minus'></i> ".html_safe, "#", class: "toggleChatBox", "data-cid" => @conversation.id %>
+      &nbsp;&nbsp;
+      <%= link_to "<i class='fa  fa-times'></i> ".html_safe, "#", class: "closeChat", "data-cid" => @conversation.id %>
+    </div>
+    <br clear="all"/>
+  </div>
+
+  <div class="tab-content chatboxcontent" id="conversation_<%= @conversation.id if @conversation.present? %>">
+    <div class="keystroke_msgs_box" >
+      <% @conversation_messages.each do |msg| %>
+        <div class="<%= msg.userable == current_user ? 'send_message' : 'receive_message' %>">
+          <span><%= msg.body %></span>
+        </div>
+      <% end if @conversation_messages.present? %>
+    </div>
+  </div>
+
+  <div class="chatboxinput">
+    <%= form_for([@conversation, @conversation_message], :remote => true, :html => {id: "conversation_form_#{@conversation.id}"}) do |f| %>
+        <%= f.text_area :body, class: "chatboxtextarea", "data-cid" => @conversation.id, id: "conversation_#{@conversation.id}_#{current_user.id}" %>
+        <%= f.submit "Send", class: "btn btn-sm btn-success", id: "send-chat-message" %>
+    <% end %>
+  </div>
+</div>

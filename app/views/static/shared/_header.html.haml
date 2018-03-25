@@ -5,7 +5,7 @@
       = image_tag image_path('etyme-logo.png'),  style:"width:125px ;height:60px"
     %input#toggle{:type => "checkbox"}/
     %label.toggle{:for => "toggle"}
-    %ul.menu
+    %ul.menu.static-menu
       %li
         %a{ :href => static_index_path}
           Home
@@ -34,3 +34,11 @@
             %a{:href => register_path} Company
           %li
             %a{:href => new_candidate_registration_path} Candidate
+
+- content_for :scripts do
+  :javascript
+    $(document).ready(function() {
+      $(".static-menu li.dropdown").click( function(){
+        $(this).toggleClass("open");
+      });
+    });

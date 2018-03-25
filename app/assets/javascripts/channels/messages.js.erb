@@ -1,0 +1,46 @@
+App.messages = App.cable.subscriptions.create('MessagesChannel', {
+  connected: function() {},
+
+  disconnected: function() {},
+
+  received: function(data) {
+    set_conversation(data);
+    return ""
+  },
+
+  notify: function(message) {
+    return alert(message);
+  },
+
+  speak: function(massage) {
+    return this.perform('speak', {
+      massage: massage
+    });
+  }
+});
+
+function set_conversation(data){
+  $("#conversation_" + data.conversation_id+ "_" + data.user_type + "_"+ data.user).val('');
+  current_user_id = $('meta[name=user-id]').attr("content");
+  current_user_type = $('meta[name=user-type]').attr("content");
+
+  if (current_user_id == data.recipient_id){
+    if ($("#conversation-chat-box").data("conversation-id") == data.conversation_id ){
+      mark_as_read(data.conversation_id, data.message_id)
+    }else{
+      $("#unread-msg-"+current_user_id).html(data.unread_message_count)
+    }
+  }
+  $(data.dom).append("<div class='" + ((current_user_id == data.user && current_user_type == data.user ) ? 'send_message' : 'receive_message') + "'><span>" + data.message+"</span></div>");
+  if($("#conversation_"+data.conversation_id)[0]){
+    $("#conversation_"+data.conversation_id).scrollTop($("#conversation_"+data.conversation_id)[0].scrollHeight);
+  }
+}
+
+function mark_as_read(conversation_id, message_id){
+  $.ajax({
+    url: "/company/conversations/" + conversation_id + "/conversation_messages/" + message_id + "/mark_as_read",
+    type: "GET",
+    dataType: "json"
+  });
+}

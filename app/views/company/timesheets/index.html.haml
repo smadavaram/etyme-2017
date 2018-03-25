@@ -14,36 +14,8 @@
 #content
   #wid-id-5.no-border.jarviswidget
     .col-xs-12.col-sm-9.col-md-9.col-lg-9.pull-left{style: 'border-bottom-color: #fff !important;'}
-      = search_form_for @search , url: search_timesheets_path , method: :get do |f|
-        %ul#internal-tab-1.nav.nav-tabs.tabs-pull-right.sub-tab
-          %br
-          .input-group.input-group-lg.hidden-mobile
-            .input-group-btn.select
-              = f.select :status_eq , Timesheet.statuses.map { |key, value| [key.humanize, value] }.push(['All', '']).reverse.to_h, {} , {class: "btn btn-default dropdown-toggle" ,  onChange: "this.form.submit();"}
-            = f.text_field :job_title_cont, class: "form-control input-lg bg-white", placeholder: "Search Timesheets..."
-            .input-group-btn
-              = f.button raw("<i class='fa fa-fw fa-search fa-lg'></i>") , class: 'btn btn-default'
-    %div
-      .jarviswidget-editbox
-      .widget-body
-        %ul#myTab1.nav.nav-tabs.bordered
-          %li.active
-            %a{"data-toggle" => "tab", :href => "#tab-r1"}
-              %span.badge.bg-color-blue.txt-color-white= @timesheets.count
-              Sent Timesheets
-          %li
-            %a{"data-toggle" => "tab", :href => "#tab-r2"}
-              %span.badge.bg-color-blueDark.txt-color-white= @received_timesheets.count
-              Received Timesheets
-        .col-md-12
-          .tab-content
-            #tab-r1.tab-pane.active
-              .tab-pane.active.fade.in.padding-10
-                = render'company/timesheets/partials/sent_timesheets' , data: @timesheets
+      = render'company/timesheets/partials/submitted_timesheets' , data: @timesheets
 
-            #tab-r2.tab-pane
-              .tab-pane.fade.in.padding-10
-                = render'company/timesheets/partials/received_timesheets' , data: @received_timesheets
 - content_for :modals do
   #ajax-modal
 - content_for :scripts do

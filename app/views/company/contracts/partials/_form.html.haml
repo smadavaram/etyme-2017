@@ -1,8 +1,7 @@
 = form_for  @contract ,html: {id: 'wizard-1' , class: 'form-horizontal new_contract' ,novalidate: "novalidate" } do |contract|
   =contract.hidden_field :contractable_type , value: "Company"
-  - if params.has_key?('contract_id')
-    =contract.hidden_field :parent_contract_id , value: params[:contract_id]
-  -#= e.fields_for :consultant_profile do |p|
+  - if params.has_key?('id')
+    =contract.hidden_field :parent_contract_id , value: params[:id]
   #bootstrap-wizard-1.col-sm-12
     .form-bootstrapWizard
       %ul.bootstrapWizard.form-wizard
@@ -13,22 +12,21 @@
         %li{"data-target" => "#step2"}
           %a{"data-toggle" => "tab", :href => "#tab2"}
             %span.step 2
-            %span.title Contract
+            %span.title Sell Contract
         %li{"data-target" => "#step3"}
           %a{"data-toggle" => "tab", :href => "#tab3"}
             %span.step 3
-            %span.title Documents & Attachments
+            %span.title Buy Contract
         %li{"data-target" => "#step4"}
           %a{"data-toggle" => "tab", :href => "#tab4"}
             %span.step 4
-            %span.title Teams & Commissions
+            %span.title Activation
       .clearfix
     .tab-content
       #tab1.tab-pane.active
         %br/
         %h3
           %strong Step 1
-
           \- Job Details
           = link_to 'NEW', "#" ,class: 'btn btn-success btn-sm pull-right header-btn hidden-mobile' , "data-toggle": "modal" , "data-target":"#new-contract-company"
         = render 'company/contracts/partials/job' , f: contract
@@ -36,20 +34,21 @@
         %br/
         %h3
           %strong Step 2
-          \- Contract Detail
+          \- Sell Contract
         = render 'company/contracts/partials/contract_and_docs' , f: contract
       #tab3.tab-pane
         %br/
         %h3
           %strong Step 3
-          \- Documents & Attachments
+          \- Buy Contract
         = render 'company/contracts/partials/docs_and_attachments' , f: contract
       #tab4.tab-pane
         %br/
         %h3
           %strong Step 4
-          \- Teams & Commission
+          \- Activation
         = render 'company/contracts/partials/teams_and_commission', f: contract
+
       -##tab4.tab-pane
       -#  %br/
       -#  %h3
@@ -63,21 +62,21 @@
       -#  %h4.text-center Click next to finish
       -#  %br/
       -#  %br/
-      #tab4.tab-pane
-        %br/
-        %h3
-          %strong Step 4
-          \- Teams & Commission
-        .row
-          .col-sm-12
-            .form-group
-              #custom_fields
-                .col-sm-12
-                  = render 'company/contracts/partials/teams_and_commission', f: contract
-              %strong
-                .links.col-sm-12
-                  = #link_to_add_association '+ Add Custom Field', e, :custom_fields, class: 'text-info pull-right', partial: 'shared/custom_fields'
-                  %br/
+      -##tab4.tab-pane
+      -#  %br/
+      -#  %h3
+      -#    %strong Step 4
+      -#    \- Teams & Commission
+      -#  .row
+      -#    .col-sm-12
+      -#      .form-group
+      -#        #custom_fields
+      -#          .col-sm-12
+      -#            = render 'company/contracts/partials/teams_and_commission', f: contract
+      -#        %strong
+      -#          .links.col-sm-12
+      -#            = #link_to_add_association '+ Add Custom Field', e, :custom_fields, class: 'text-info pull-right', partial: 'shared/custom_fields'
+      -#            %br/
       .form-actions
         .row
           .col-sm-12
@@ -88,33 +87,156 @@
                 %a.btn.btn-lg.txt-color-darken{:href => "javascript:void(0);"} Next
               %li.pull-right.finish{:style=>"di"}
                 %a.btn.btn-lg.btn-default{:href => "javascript:;"} Finish
+
+.remote_container_contract
+= render "company/companies/partials/new_company", for_remote: true
+= render "company/jobs/partials/new_modal", for_remote: true
+= render "company/candidates/partials/modal_candidate", for_remote: true
+= render "company/company_contacts/company_contact_form_modal", for_remote: true
+
+
+- content_for :head do
+  %script{:src => "http://maps.google.com/maps/api/js?key=AIzaSyDk4kWlA522W3T4oGwdug5nKPXYMhU6rCE&sensor=false&libraries=places"}
+
 - content_for :scripts do
   :javascript
+    set_company_select('#select_clients', "Please Select Client");
+    set_job_candidate_select('#select_candidates', "Please Select Candidate");
+    set_company_select('#sell_contract_company', "Please Select Company");
+    set_company_select('#buy_contract_company', "Please Select Company");
+
+    set_candidate_select('#buy_contract_candidate', "Please Select Candidate");
+
+
+    set_job_select('#select_jobs', "Please Select Job");
+    set_company_contacts_select('#select_sell_company_contacts', "Please Select Contacts", "#sell_contract_company");
+    set_company_contacts_select('#select_buy_company_contacts', "Please Select Contacts", "#buy_contract_company");
+
     $( document ).ready(function() {
       $(".multi-select2-role").select2({placeholder: "Select a Role(s)"});
       $(".multi-select2-company-docs").select2({placeholder: "Select Document(s)"});
     });
-    $( document ).ready(function() {
-     //$(".multi-select2-company-docs").select2({placeholder: "Select a Doc(s)"});
-     $('#contract_start_date').datepicker({
-        dateFormat : 'dd/mm/yy'
-      });
-     $('#contract_end_date').datepicker({
-      dateFormat : 'dd/mm/yy'
-     });
 
-    });
-    $('#contract-attachment').on('cocoon:after-insert', function(e, insertedItem) {
-      insertedItem.find('.filepicker-attachment').each(function(i,e){
-        filepicker.constructWidget(e);
-        $(".filepicker-attachment").on('click',function() {
-          $('.fp__overlay').css({'z-index':'99999'})
+    $( document ).ready(function() {
+      $('#contract_start_date').datepicker({
+        dateFormat : 'dd/mm/yy',
+        prevText : '<i class="fa fa-chevron-left"></i>',
+        nextText : '<i class="fa fa-chevron-right"></i>',
+        onSelect : function(selectedDate) {
+          $('#contract_end_date').datepicker('option', 'minDate', selectedDate );
+        }
+      });
+
+      $('#contract_end_date').datepicker({
+        dateFormat : 'dd/mm/yy',
+        prevText : '<i class="fa fa-chevron-left"></i>',
+        nextText : '<i class="fa fa-chevron-right"></i>'
+      });
+      $(".first_date_of_invoice_field, .first_date_of_timesheet_field, .date_1").datepicker({
+          dateFormat : 'dd/mm/yy'
+      });
+
+      $(".sell-invoice").on("change", function(){
+        $(".sell-invoice-setting").children().addClass("hidden");
+        if($(this).val() == "weekly" || $(this).val() == "biweekly"){
+          $(".sell-invoice-setting").find('.week').removeClass("hidden");
+        } else if($(this).val() == "twice a month"){
+          $(".sell-invoice-setting").find('.twice-month, .month').removeClass("hidden");
+        } else if($(this).val() == "monthly"){
+          $(".sell-invoice-setting").find('.month').removeClass("hidden");
+        }
+      });
+
+
+      $(".sell-time-sheet").on("change", function(){
+        $(".sell-time-sheet-setting").children().addClass("hidden");
+        if($(this).val() == "weekly" || $(this).val() == "biweekly"){
+          $(".sell-time-sheet-setting").find('.week').removeClass("hidden");
+        } else if($(this).val() == "twice a month"){
+          $(".sell-time-sheet-setting").find('.twice-month, .month').removeClass("hidden");
+        } else if($(this).val() == "monthly"){
+          $(".sell-time-sheet-setting").find('.month').removeClass("hidden");
+        }
+      });
+
+      $(".contract-type-radio input[type='radio']").on("change", function(){
+        if($(this).val() == "C2C"){
+          $(".c2c-type").removeClass('hidden');
+        } else {
+          $(".c2c-type").addClass('hidden');
+        }
+      });
+
+      $(".buy-time-sheet").on("change", function(){
+        $(".buy-time-sheet-setting").children().addClass("hidden");
+        if($(this).val() == "weekly" || $(this).val() == "biweekly"){
+          $(".buy-time-sheet-setting").find('.week').removeClass("hidden");
+        } else if($(this).val() == "twice a month"){
+          $(".buy-time-sheet-setting").find('.twice-month, .month').removeClass("hidden");
+        } else if($(this).val() == "monthly"){
+          $(".buy-time-sheet-setting").find('.month').removeClass("hidden");
+        }
         });
-        $('.filepicker-attachment').on('click',function() {
-          $(this).hide();
+    });
+
+    $( document ).on( "change", ".is-require-sign", function( event ) {
+       $(this).parent().next('.assign_signable').find('.whois_sign').empty().trigger('change')
+       $(this).parent().next('.assign_signable').find('.sign-nested-fields').remove();
+       if ($(this).is(":checked")){
+         $(this).parent().next('.assign_signable').removeClass('hidden');
+       } else {
+         $(this).parent().next('.assign_signable').addClass('hidden');
+       }
+    });
+
+
+    $( document ).on( "select2:unselect", ".select_company_contacts", function( e ) {
+      $(this).closest('.company_contacts').find('div.contact-nested-fields').find(':input.contact-id[value=' + e.params.data.id + ']').closest('div.contact-nested-fields').remove();
+    });
+
+    $( document ).on( "select2:select", ".select_company_contacts", function( e ) {
+      var sign_btn = $(this).closest('.company_contacts').find("a.link-company-contacts");
+      var obj = $( sign_btn.attr('data-form-prepend') );
+      var time_stamp = (new Date()).getTime() ;
+      obj.find('input').each( function() {
+        $(this).attr( 'name', function() {
+          return $(this).attr('name').replace( 'new_record', time_stamp);
         });
       });
+      obj.insertBefore( sign_btn );
+      $(this).closest('.company_contacts').find('div.contact-nested-fields:last').find("input.contact-id").val(e.params.data.id);
     });
+
+
+    $( document ).on( "select2:unselect", ".whois_sign", function( e ) {
+      $(this).closest('.assign_signable').find('div.sign-nested-fields').find(':input.signable-id[value=' + e.params.data.id.split("_")[0] + ']').closest('div.sign-nested-fields').remove();
+    });
+
+    $( document ).on( "select2:select", ".whois_sign", function( e ) {
+      var sign_btn = $(this).closest('.assign_signable').find("a.doc-user-generater");
+      var obj = $( sign_btn.attr('data-form-prepend') );
+      var time_stamp = (new Date()).getTime() ;
+      obj.find('input').each( function() {
+        $(this).attr( 'name', function() {
+          return $(this).attr('name').replace( 'new_record', time_stamp);
+        });
+      });
+      obj.insertBefore( sign_btn );
+      $(this).closest('.assign_signable').find('div.sign-nested-fields:last').find("input.signable-id").val(e.params.data.id.split("_")[0]);
+      $(this).closest('.assign_signable').find('div.sign-nested-fields:last').find("input.signable-type").val(e.params.data.id.split("_")[1]);
+    });
+
+    //$('#contract-attachment').on('cocoon:after-insert', function(e, insertedItem) {
+    //  insertedItem.find('.filepicker-attachment').each(function(i,e){
+    //    filepicker.constructWidget(e);
+    //    $(".filepicker-attachment").on('click',function() {
+    //      $('.fp__overlay').css({'z-index':'99999'})
+    //    });
+    //    $('.filepicker-attachment').on('click',function() {
+    //      $(this).hide();
+    //    });
+    //  });
+    //});
     function toggleFields() {
         if($('#contract_is_commission').val() == "true")
           $("#contract-commision").show();
@@ -140,4 +262,20 @@
       $("#contract_is_commission , #contract_commission_type").change(function () {
         toggleFields();
       });
+    });
+
+    google.maps.event.addDomListener(window, 'load', function () {
+      var places = new google.maps.places.Autocomplete(document.getElementById('contract_work_location'));
+      google.maps.event.addListener(places, 'place_changed', function () {
+        var place = places.getPlace();
+        $("#post_ad_latitude").val(place.geometry.location.lat());
+        $("#post_ad_longitude").val(place.geometry.location.lng());
+      });
+    });
+
+    var input = document.getElementById('contract_work_location');
+    google.maps.event.addDomListener(input, 'keydown', function(event) {
+      if (event.keyCode === 13) {
+        event.preventDefault();
+      }
     });

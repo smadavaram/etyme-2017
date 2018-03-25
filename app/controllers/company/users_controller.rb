@@ -44,6 +44,13 @@ class Company::UsersController < Company::BaseController
     render json: current_user.update_attribute(:photo, params[:photo])
     flash.now[:success] = "Photo Successfully Updated"
   end
+
+  def update_video
+    current_user.update_attributes(video: params[:video], video_type: params[:video_type])
+    flash.now[:success] = "File Successfully Updated"
+    redirect_back fallback_location: root_path
+  end
+
   def assign_groups
     @user = current_company.users.find(params[:user_id])
     if request.post?
@@ -56,20 +63,29 @@ class Company::UsersController < Company::BaseController
       else
         flash[:errors] = @user.errors.full_messages
       end
-      redirect_to :back
+      redirect_back fallback_location: root_path
     end
   end
   def show
+    @user = User.find(current_user.id)
+    @user.address.build unless @user.address.present?
     add_breadcrumb current_user.try(:full_name), :company_user_path
   end
 
   def update
     if current_user.update_attributes!(user_params)
+      if params[:user][:branches_attributes].present?
+        params[:user][:branches_attributes].each_key do |mul_field|
+          unless params[:user][:branches_attributes][mul_field].reject { |p| p == "id" }.present?
+            Branch.where(id: params[:user][:branches_attributes][mul_field]["id"]).destroy_all
+          end
+        end
+      end
       flash[:success] = "User Updated"
-      respond_with current_user
+      redirect_back fallback_location: root_path
     else
       flash[:errors] = current_user.errors.full_messages
-      redirect_to :back
+      redirect_back fallback_location: root_path
     end
   end
   def add_reminder
@@ -86,8 +102,8 @@ class Company::UsersController < Company::BaseController
     @user = current_company.users.find(params[:user_id] || params[:user_id]) || []
   end
   def user_params
-    params.require(:user).permit(:first_name, :last_name,:dob,:email,:phone,:skills, :primary_address_id,:tag_list,group_ids: [],
-     address_attributes: [:id,:address1,:address2,:country,:city,:state,:zip_code]
+    params.require(:user).permit(:first_name, :last_name,:dob,:email,:age,:phone,:skills, :primary_address_id,:tag_list,group_ids: [],
+     address_attributes: [:id,:address_1,:address_2,:country,:city,:state,:zip_code]
 
     )
   end

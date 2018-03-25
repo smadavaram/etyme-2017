@@ -8,7 +8,7 @@ class Candidate::PortfoliosController < Candidate::BaseController
     else
       flash[:errors] = @portfolio.errors.full_messages
     end
-    redirect_to :back
+    redirect_back fallback_location: root_path
   end
 
   def update

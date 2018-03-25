@@ -18,7 +18,7 @@
 -#            %br
 #content
   %section#widget-grid
-    - if current_company.vendor? && !current_user.is_consultant?
+    - if current_company.hiring_manager? && !current_user.is_consultant?
       .row
         -#.col-sm-12.col-md-8{style: 'margin-left: 15px;'}
           - if @data.present?
@@ -29,10 +29,10 @@
               %input.form-control#search-term.bg-color-white{placeholder: 'Search by Keywords ...',style: ''}
             .col-sm-4.margin-bottom-20
               = select_tag "Select Type", options_for_select([ "Candidates", "Jobs" , "Contacts" ]), include_blank: "All",class: 'form-control bg-color-white' ,id: "show_type",style:''
-          %br
-          .col-sm-12.col-md-8#dynamic-content{style: "width: 100%;"}
-            - @data.each do |d|
-              = render "company/users/partials/#{d.class.name.downcase}_show" ,data: d
+            %br
+            .col-sm-12.col-md-8#dynamic-content{style: "width: 100%;"}
+              - @data.each do |d|
+                = render "company/users/partials/#{d.class.name.downcase}_show" ,data: d
         .col-sm-12.col-md-4
 
           .panel.panel-default

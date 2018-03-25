@@ -1,54 +1,74 @@
-.tab-content.padding-10
-  %table.table.table-striped
-    %tbody
-      %tr
-        %th{style:'width:50%'}
-          Name
-        %td{style:'width:50%'}
-          = best_in_place current_company, :name, :as => :input,placeholder:"Click here to edit"
-      %tr
-        %th
-          Email
-        %td
-          = best_in_place current_company,:email, :as => :input, :place_holder => "Click me to add content!"
-
-      %tr
-        %th
-          Phone
-        %td
-          = best_in_place current_company,:phone, :as => :input, :place_holder => "Click me to add content!"
-      %tr
-        %th
-          Description
-        %td
-          = best_in_place current_company,:description, :as => :textarea, :place_holder => "Click me to add content!"
-      %tr
-        %th
-          Time Zone
-        %td
-          = best_in_place current_company,:time_zone, :as => :input, :place_holder => "Click me to add content!"
-      %tr
-        %th
-          Twitter URl
-        %td
-          = best_in_place current_company,:twitter_url, :as => :input, :place_holder => "Click me to add content!"
-      %tr
-        %th
-          LinkedIn URl
-        %td
-          = best_in_place current_company,:linkedin_url, :as => :input, :place_holder => "Click me to add content!"
-      %tr
-        %th
-          Tag Line
-        %td
-          = best_in_place current_company,:tag_line, :as => :input, :place_holder => "Click me to add content!"
-      %tr
-        %th
-          Google URl
-        %td
-          = best_in_place current_company,:google_url, :as => :input, :place_holder => "Click me to add content!"
-      %tr
-        %th
-          Currency
-        %td
-          = best_in_place current_company , :currency_id , as: :select , collection: Currency.all.map(&:name) , place_holder: "Click me to add content"
+.row{style: "padding: 15px;"}
+  = form_for @company,as: "company",url: company_company_path(@company.id),method: :put do |f|
+    - #= f.fields_for :company_infos do |b|
+    .row
+      .col-md-6
+        .form-group
+          = f.text_field :name,placeholder: "Company Name",class: 'form-control'
+      .col-md-6
+        %button.btn.btn-info{"data-target" => "#myModal", "data-toggle" => "modal", :type => "button"} Designamte business owner or application admin
+    .row
+      .col-md-6
+        = f.text_field :phone , class: 'form-control' , placeholder: 'Phone Number'
+      .col-md-6
+        = f.text_field :fax_number , class: 'form-control' , placeholder: 'Fax Number'
+    %br
+    = f.fields_for :addresses do |address|
+      .row
+        .col-md-12
+          .form-group
+            = address.text_field :address_1,:placeholder => "Address 1",class: "form-control",id:'ad1'
+      .row
+        .col-md-4
+          .form-grup
+            = address.text_field :city,placeholder: "city",class: 'form-control'
+        .col-md-4
+          .form-group
+            = address.text_field :country, placeholder: "country", class: 'form-control'
+        .col-md-4
+          .form-group
+            = address.text_field :zip_code,placeholder: "zip/pincode",class: 'form-control'
+      .row
+        .col-md-5
+          %p
+            %b Billing and headquarter address same?
+        .col-md-3
+          .form-group
+            = radio_button_tag 'same_billing_addr', 'true', false
+            = label_tag 'same_billing_addr', 'Yes'
+        .col-md-3
+          .form-group
+            = radio_button_tag 'same_billing_addr', 'false', true
+            = label_tag 'same_billing_addr', 'No'
+    = f.fields_for :billing_infos do |b|
+      .billing_info
+        .row
+          .col-md-12
+            .form-group
+              = b.text_area :address,placeholder: "address",class: 'form-control'
+        .row
+          .col-md-4
+            .form-group
+              = b.text_field :city,placeholder: "city",class: 'form-control'
+          .col-md-4
+            .form-group
+              = b.text_field :country, placeholder: "country", class: 'form-control'
+          .col-md-4
+            .form-group
+              = b.text_field :zip,placeholder: "zip/pincode",class: 'form-control'
+    .row.form-group
+      .col-lg-12.multi-field-wrapper
+        %p
+          %b Branch Info
+        .multi-fields
+          = f.fields_for :branches, f.object.branches do |b|
+            = render 'company/companies/branch_fields', f: b
+          = link_to_add_fields 'company/companies/branch_fields', f, :branches
+    .row
+    .col-lg-12
+      %button.btn.pull-left{:type => "button"}
+        Back
+      %button.btn.btn-primary.pull-right{:type => "button", style: "margin-left: 20px"}
+        Next
+      %button.btn.btn-primary.pull-right{:type => "submit"}
+        Saved

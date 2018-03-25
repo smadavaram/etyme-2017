@@ -1,8 +1,8 @@
-class Chat < ActiveRecord::Base
+class Chat < ApplicationRecord
   has_many   :messages      ,dependent: :destroy
   has_many   :chat_users    ,dependent: :destroy
   belongs_to :chatable      ,polymorphic: :true
-  belongs_to :company
+  belongs_to :company, optional: true
 
   attr_accessor :user_ids
 

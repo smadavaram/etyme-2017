@@ -11,7 +11,7 @@
           = raw job.description
 
       .modal-body
-        = form_for job_invitation, url: candidate_job_invitation_reject_path(job_invitation), html: {class: 'form-horizontal'} ,remote: true do |f|
+        = form_for job_invitation, url: candidate_job_invitation_reject_path(job_invitation), html: {class: 'form-horizontal'} ,remote: true, method: :post do |f|
           = f.hidden_field :status , value: :rejected
           %fieldset
             .form-group

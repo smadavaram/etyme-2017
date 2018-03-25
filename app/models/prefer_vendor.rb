@@ -1,10 +1,10 @@
-class PreferVendor < ActiveRecord::Base
+class PreferVendor < ApplicationRecord
 
   include PublicActivity::Model
   enum status: [:pending, :accepted ,:rejected]
 
-  belongs_to :company
-  belongs_to :prefer_vendor, class_name: "Company",foreign_key: 'vendor_id'
+  belongs_to :company, optional: true
+  belongs_to :prefer_vendor, class_name: "Company",foreign_key: 'vendor_id', optional: true
 
   attr_accessor :company_ids
 

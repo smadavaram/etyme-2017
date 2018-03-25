@@ -14,3 +14,9 @@ $( ".file-pick" ).on('click',function() {
 //    insert_toolbar: 'quicktable',
 //    selection_toolbar: 'bold italic | quicklink h2 h3 blockquote'
 //  });
+
+var reqelement = $('#req-accept-filepiker');
+filepicker.constructWidget(reqelement);
+$( ".req-file-pick" ).on('click',function() {
+    $(".fp__overlay").css({'z-index':'99999'});
+});

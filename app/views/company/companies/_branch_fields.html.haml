@@ -1,0 +1,23 @@
+.row.multi-field-container{style: "padding: 15px;"}
+  .row
+    .col-md-12
+      .form-group
+        = f.text_field :branch_name,placeholder: "Company Name",class: 'form-control'
+  .row
+    .col-md-12
+      .form-group
+        = f.text_area :address,placeholder: "address",class: 'form-control'
+  .row
+    .col-md-4
+      .form-group
+        = f.text_field :city,placeholder: "city",class: 'form-control'
+    .col-md-4
+      .form-group
+        = f.text_field :country, placeholder: "country", class: 'form-control'
+    .col-md-4
+      .form-group
+        = f.text_field :zip,placeholder: "zip/pincode",class: 'form-control'
+  .row
+    .col-md-12
+      %a.bttn.btn-add.btn.remove-multi-fields.pull-right
+        %i.fa.fa-trash

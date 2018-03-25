@@ -49,8 +49,7 @@
                     %tbody
                       - @candidates.each do |candidate|
                         %tr.even{:role => "row"}
-                          %td
-                            = check_box_tag "ids[]", candidate.id
+                          %td= check_box_tag "ids[]", candidate.id
                           -#%td= image_tag candidate.photo, alt: '', width: '20'
                           %td= candidate.try(:full_name).try(:titleize)
                           %td= candidate.try(:email)
@@ -99,6 +98,7 @@
                               = link_to raw("<i class='fa fa-fire '></i>"), candidate_make_normal_path(candidate) , remote:true,method: :post,class: 'btn btn-xs btn-default   margin-bottom-5',title:"Make Normal", data: {confirm: " Do you want to make #{candidate.full_name} Normal?",commit: 'Continue', cancel: 'Cancel'},'data-toggle'=>"tooltip" ,'data-placement'=>"top"
                             - if candidate.campany_candidate?
                               = link_to raw("<i class='fa fa-edit '></i>") , edit_company_candidate_path(candidate) , class: 'btn btn-xs btn-default   margin-bottom-5', title: "Edit #{candidate.full_name}",'data-toggle'=>"tooltip" ,'data-placement'=>"top"
+                            = link_to raw("<i class='fa fa-times '></i>") , candidate_remove_from_comapny_path(candidate) ,remote:true, method: :post ,  class: 'btn btn-xs btn-default  margin-bottom-5',title: "Delete  ",'data-toggle'=>"tooltip" ,'data-placement'=>"top"
                     - if @candidates.count >30
                       .dt-toolbar-footer
                         = digg_pagination(@candidates)

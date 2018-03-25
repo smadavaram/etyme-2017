@@ -1,8 +1,8 @@
-class Message < ActiveRecord::Base
+class Message < ApplicationRecord
   enum file_status: [:pending,:signed_uploaded]
-  belongs_to :messageable, polymorphic: true
-  belongs_to :chat
-  belongs_to :company_doc
+  belongs_to :messageable, polymorphic: true, optional: true
+  belongs_to :chat, optional: true
+  belongs_to :company_doc, optional: true
   after_create :trigger_pusher
 
   validates :body , presence:  :true
@@ -19,7 +19,10 @@ class Message < ActiveRecord::Base
 
   def trigger_pusher
     timeout_and_retry do
-      Pusher.trigger(self.chat.channel_name, 'send-message', {message: self.id })
+      begin
+        Pusher.trigger(self.chat.channel_name, 'send-message', {message: self.id })
+      rescue Pusher::Error => e
+      end
     end
 
   end
