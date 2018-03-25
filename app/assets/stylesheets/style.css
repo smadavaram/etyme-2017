@@ -869,3 +869,41 @@ label span.label-text {
     display: inline-block;
     margin-left: 20px;
 }
+.timesheet table th,.timesheet table td {
+    border: 1px solid #ddd;
+}
+.timesheet table {
+    margin-bottom: 0;
+}
+.timesheet form .table thead {
+    display: none;
+}
+.timesheet .table-responsive button {
+    -moz-appearance: none;
+    background: rgba(0, 0, 0, 0) none repeat scroll 0 0;
+    border: medium none;
+}
+.timesheet .candiate-name > input,.timesheet .table-responsive input.form-control {
+    margin-bottom: 0;
+}
+.timesheet table td, .timesheet table th {
+    padding: 10px !important;
+}
+.timesheet .candiate-name > input, .timesheet .table-responsive input.form-control {
+    color: #333;
+    font-size: 12px;
+    height: 25px;
+    line-height: 20px;
+    margin-bottom: 0;
+    padding: 0 10px;
+}
+
+.link-disabled {
+    pointer-events: none;
+    cursor: default;
+    opacity: 0.6;
+}
+
+.candidate-profile header{
+    background-color: #fff;
+}

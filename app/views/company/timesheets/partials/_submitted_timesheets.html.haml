@@ -42,7 +42,7 @@
                       %th.hasinput{ :style => "width:10%"}
                         %input.form-control{:placeholder => "Actions", :type => "text"}/
                     %tr{:role => "row"}
-                      %th Title
+                      %th Contract
                       %th Billing
                       %th Frequency
                       %th Start Cycle
@@ -54,7 +54,7 @@
                       - content_for :modals do
                         = render 'company/timesheets/partials/histroy_modal' , timesheet: timesheet
                       %tr
-                        %td= timesheet.contract.title
+                        %td= timesheet.contract.display_number
                         %td= timesheet.contract.try(:billing_frequency).try(:humanize)
                         %td= timesheet.contract.try(:time_sheet_frequency).try(:humanize)
                         %td= timesheet.start_date

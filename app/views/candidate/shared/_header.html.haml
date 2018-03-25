@@ -3,39 +3,6 @@
     / PLACE YOUR LOGO HERE
     %span#logo{style: 'margin-top: 3px;'}
       = image_tag 'etyme-logo.png', alt: 'SmartAdmin', style: 'width: 80px;'
-    %span#activity.activity-dropdown.pull-right
-      %i.fa.fa-user
-      %b.badge
-        = current_candidate.notifications.count || 0
-    / AJAX-DROPDOWN : control this dropdown height, look and feel from the LESS variable file
-    .ajax-dropdown
-      / the ID links are fetched via AJAX to the ajax container "ajax-notifications"
-      .btn-group.btn-group-justified{"data-toggle" => "buttons"}
-        -#%label.btn.btn-default
-        -#  %input{:id => ajax_notify_mail_path, :name => "activity", :type => "radio"}/
-        -#  = 'Msgs'
-        -#  (14)
-        %label.btn.btn-default
-          %input{:id => notify_notifications_candidates_path, :name => "activity", :type => "radio"}/
-          ='notify'
-          -#= notifications_count
-          = current_candidate.notifications.count
-        -#%label.btn.btn-default
-        -#  %input{:id => ajax_notify_tasks_path, :name => "activity", :type => "radio"}/
-        -#  = 'Tasks'
-        -#  (4)
-      / notification content
-      .ajax-notifications.custom-scroll
-        .alert.alert-transparent
-          %h4 Click a button to show messages here
-          This blank page message helps protect your privacy, or you can show the first message here automatically.
-        %i.fa.fa-lock.fa-4x.fa-border
-      / footer: refresh area
-      %span
-        Last updated on
-        = Time.now.strftime("%D %T")
-        %button.btn.btn-xs.btn-default.pull-right{"data-loading-text" => "<i class='fa fa-refresh fa-spin'></i> Loading...", :type => "button"}
-          %i.fa.fa-refresh
   = yield :top_right
   / projects dropdown
   -#.project-context.hidden-xs
@@ -104,6 +71,62 @@
               %i.fa.fa-sign-out.fa-lg
               %strong
                 %u> Logout
+    #top-menu-toggle.btn-header.transparent.pull-right
+      %span#activity1.activity-dropdown
+        / User image size is adjusted inside CSS, it should stay as it
+        %a#show-shortcut{"data-action" => "toggleShortcut", :href => "javascript:void(0);"}
+          %i.fa.fa-cog
+    #quick-add.btn-header.transparent.pull-right
+      %span.project-selector.dropdown-toggle{"data-toggle" => "dropdown"}
+        %a.fa.fa-plus-square
+      %ul.dropdown-menu
+        %li
+          %a{:href => new_company_company_path } Add Company(s)
+        %li
+          %a{:href => new_company_company_contact_path } Add Contact(s)
+        %li
+          %a{:href => new_group_path } Add Group(s)
+        %li.divider
+        %li
+          %a{:href => "#" } Received Payment(s)
+        %li
+          %a.link-disabled{:href => "#" } Send Payment(s)
+        %li
+          %a{:href => "#" } Add Timesheet(s)
+    #logo-group.pull-right
+      %span#activity.activity-dropdown.pull-right
+        %i.fa.fa-user
+        %b.badge
+          = current_candidate.notifications.count || 0
+      / AJAX-DROPDOWN : control this dropdown height, look and feel from the LESS variable file
+      .ajax-dropdown
+        / the ID links are fetched via AJAX to the ajax container "ajax-notifications"
+        .btn-group.btn-group-justified{"data-toggle" => "buttons"}
+          -#%label.btn.btn-default
+          -#  %input{:id => ajax_notify_mail_path, :name => "activity", :type => "radio"}/
+          -#  = 'Msgs'
+          -#  (14)
+          %label.btn.btn-default
+            %input{:id => notify_notifications_candidates_path, :name => "activity", :type => "radio"}/
+            ='notify'
+            -#= notifications_count
+            = current_candidate.notifications.count
+        -#%label.btn.btn-default
+        -#  %input{:id => ajax_notify_tasks_path, :name => "activity", :type => "radio"}/
+        -#  = 'Tasks'
+        -#  (4)
+        / notification content
+        .ajax-notifications.custom-scroll
+          .alert.alert-transparent
+            %h4 Click a button to show messages here
+            This blank page message helps protect your privacy, or you can show the first message here automatically.
+          %i.fa.fa-lock.fa-4x.fa-border
+        / footer: refresh area
+        %span
+          Last updated on
+          = Time.now.strftime("%D %T")
+          %button.btn.btn-xs.btn-default.pull-right{"data-loading-text" => "<i class='fa fa-refresh fa-spin'></i> Loading...", :type => "button"}
+            %i.fa.fa-refresh
     / logout button
     / search mobile button (this is hidden till mobile view port)
     -##search-mobile.btn-header.transparent.pull-right

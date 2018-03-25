@@ -168,29 +168,6 @@ module ApplicationHelper
         },
         {
             href: '#',
-            title: 'Supplier Management',
-            content: "<i class='fa fa-lg fa-fw fa-globe'></i> <span class='menu-item-parent'>" + 'Supplier Management' + "</span>",
-            children: [
-                {
-                    href: companies_path(status: 'all'),
-                    title: 'All Signed Up Companies on Etyme',
-                    content: "<span class='menu-item-parent'> All Companies </span>"
-                },
-                {
-                    href: prefer_vendors_path,
-                    title: 'Network Request',
-                    content: "<span class='menu-item-parent'> Network Request(s) </span>"
-                },
-
-                {
-                    href: network_path,
-                    title: 'Clients / Vendors',
-                    content: "<span class='menu-item-parent'> Clients / Vendors </span>"
-                }
-            ]
-        },
-        {
-            href: '#',
             title: 'Network ',
             content: "<i class='fa fa-lg fa-fw fa-globe'></i> <span class='menu-item-parent'>" + 'Network' + "</span>",
             children: [
@@ -225,6 +202,29 @@ module ApplicationHelper
                     content: "</i><span class='menu-item-parent'> Contact(s) </span>"
                 }
              ]
+        },
+        {
+            href: '#',
+            title: 'Supplier Management',
+            content: "<i class='fa fa-lg fa-fw fa-globe'></i> <span class='menu-item-parent'>" + 'Supplier Management' + "</span>",
+            children: [
+                {
+                    href: companies_path(status: 'all'),
+                    title: 'All Signed Up Companies on Etyme',
+                    content: "<span class='menu-item-parent'> All Companies </span>"
+                },
+                {
+                    href: prefer_vendors_path,
+                    title: 'Network Request',
+                    content: "<span class='menu-item-parent'> Network Request(s) </span>"
+                },
+
+                {
+                    href: network_path,
+                    title: 'Clients / Vendors',
+                    content: "<span class='menu-item-parent'> Clients / Vendors </span>"
+                }
+            ]
         },
 
         {
@@ -518,31 +518,9 @@ module ApplicationHelper
         ]
     },
         {
-            href: '#',
+            href: candidate_timesheets_path,
             title: 'Timesheets',
             content: "<i class='fa fa-lg fa-fw fa-calendar'></i> <span class='menu-item-parent'>" + 'Timesheets' + "</span>",
-            children: [
-                {
-                    href: candidate_timesheets_path,
-                    title: 'Submitted',
-                    content: "<span class='menu-item-parent'> Submitted </span>"
-                },
-                {
-                    href: '#',
-                    title: 'Approved',
-                    content: "<span class='menu-item-parent'> Approved </span>"
-                },
-                {
-                    href: '#',
-                    title: 'Rejected',
-                    content: "<span class='menu-item-parent'> Rejected </span>"
-                },
-                {
-                    href: '#',
-                    title: 'Cleared',
-                    content: "<span class='menu-item-parent'> Cleared </span>"
-                }
-            ]
         },
         {
             href: '#',

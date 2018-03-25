@@ -25,7 +25,7 @@ class Contract < ApplicationRecord
   belongs_to :company, optional: true
   belongs_to :parent_contract , class_name: "Contract" , foreign_key: :parent_contract_id, optional: true
   belongs_to :contractable, polymorphic: true, optional: true
-  belongs_to :client, optional: true, foreign_key: :company_id, class_name: "Company"
+  belongs_to :client, optional: true, foreign_key: :client_id, class_name: "Company"
   belongs_to :candidate, optional: true
   # belongs_to :buy_company, foreign_key: :buy_company_id, class_name: "Company"
 

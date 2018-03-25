@@ -1,4 +1,4 @@
-#content
+#content.candidate-profile
   .row
     .col-sm-12.col-md-12.col-lg-3
       .panel-body.status.profile-margin
@@ -32,8 +32,7 @@
           %ul.nav.nav-tabs.pull-left.in#myTab
             %li{class: ("active" if params[:tab] == 'basic_info' || params[:tab].nil?)}
               %a{"aria-expanded" => "true", "data-toggle" => "tab", :href => "#hr1"}
-                %i.fa.fa-check{ :style => "color: green" }
-                %span.hidden-mobile.hidden-tablet Basic Info
+                %span.hidden-mobile.hidden-tablet Basic Information
           %span.jarviswidget-loader
             %i.fa.fa-refresh.fa-spin
         / widget div
@@ -45,6 +44,9 @@
               #hr1.tab-pane{class: ("active" if params[:tab] == 'basic_info' || !params[:tab].present?)}
                 .tabbable.tabs-below
                   =render partial: 'candidate/candidates/partials/basic_info_form',locals: {candidate: current_candidate}
+
+- content_for :head do
+  %script{:src => "http://maps.google.com/maps/api/js?key=AIzaSyDk4kWlA522W3T4oGwdug5nKPXYMhU6rCE&sensor=false&libraries=places"}
 
 -content_for :scripts do
   :javascript
@@ -124,3 +126,16 @@
        }
      });
     }
+    google.maps.event.addDomListener(window, 'load', function () {
+      var places = new google.maps.places.Autocomplete(document.getElementById('candidate_address_attributes_address_1'));
+      google.maps.event.addListener(places, 'place_changed', function () {
+        var place = places.getPlace();
+      });
+    });
+
+    var input = document.getElementById('candidate_address_attributes_address_1');
+    google.maps.event.addDomListener(input, 'keydown', function(event) {
+      if (event.keyCode === 13) {
+        event.preventDefault();
+      }
+    });
