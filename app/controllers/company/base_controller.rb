@@ -1,5 +1,5 @@
 class Company::BaseController < ApplicationController
-  before_action :authenticate_user!
+  before_filter :authenticate_user!
   before_action :verify_company
   layout 'company'
 

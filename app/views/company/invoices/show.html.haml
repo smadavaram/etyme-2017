@@ -46,12 +46,12 @@
                       %address
                         %strong= @contract.respond_by.full_name.titleize
                         %br/
-                        =#show_address(@contract.assignee.try(:primary_address_id)).address_1
-                        =#show_address(@contract.assignee.try(:primary_address_id)).city
-                        =#show_address(@contract.assignee.try(:primary_address_id)).zip_code
-                        =#show_address(@contract.assignee.try(:primary_address_id)).country
+                        =show_address(@contract.assignee.try(:primary_address_id)).address_1
+                        =show_address(@contract.assignee.try(:primary_address_id)).city
+                        =show_address(@contract.assignee.try(:primary_address_id)).zip_code
+                        =show_address(@contract.assignee.try(:primary_address_id)).country
                         %br/
-                        =# @contract.assignee.company.phone
+                        = @contract.assignee.company.phone
                     .col-sm-3
                       %div
                         %div

@@ -1,10 +1,10 @@
-class Location < ApplicationRecord
+class Location < ActiveRecord::Base
 
-  # validates :name , presence: true
+  validates :name , presence: true
 
-  belongs_to  :company, optional: true
+  belongs_to  :company
   # has_many    :jobs
-  belongs_to  :address, optional: true
+  belongs_to  :address
 
   accepts_nested_attributes_for :address, allow_destroy: true ,reject_if: :all_blank
 

@@ -1,4 +1,4 @@
-class Leave < ApplicationRecord
+class Leave < ActiveRecord::Base
   enum status: [ :pending, :accepted  ,:rejected]
 
   validates :status ,             inclusion: {in: statuses.keys}
@@ -8,7 +8,7 @@ class Leave < ApplicationRecord
   validates :till_date, date: { after_or_equal_to: :from_date, message: 'End date should be greater then start date'}
   validate  :date_overlap , on: :create
 
-  belongs_to :user, optional: true
+  belongs_to :user
   has_one :company , through: :user
 
   def is_leave_owner?

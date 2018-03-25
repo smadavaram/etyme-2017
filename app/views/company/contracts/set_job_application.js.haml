@@ -1,3 +1,0 @@
-$('.remote_container_contract').empty().html("#{ j render 'company/job_applications/partials/modal_create_multipile_for_candidate.html.haml' , job: @job, for_remote: true}");
-$('#job-invitation-multiple-#{@job.id} ').modal('toggle');
-$(".job_select2").select2({language: {noResults: function() {return "No results <a class='pull-right header-btn hidden-mobile' data-toggle='modal' data-target='#candidate-new-modal' href='#'>Add New</a>"; }}, escapeMarkup: function (markup) { return markup; }});

@@ -1,4 +1,4 @@
-class Transaction < ApplicationRecord
+class Transaction < ActiveRecord::Base
 
   enum status: [:pending , :accepted , :rejected]
 
@@ -14,7 +14,7 @@ class Transaction < ApplicationRecord
   validate             :start_time_less_than_end_time
   validate             :end_time_is_not_in_future
 
-  belongs_to           :timesheet_log, optional: true
+  belongs_to           :timesheet_log
   has_one              :timesheet, through: :timesheet_log
   has_one              :contract , through: :timesheet
 

@@ -1,8 +1,8 @@
-class ConsultantProfile < ApplicationRecord
+class ConsultantProfile < ActiveRecord::Base
 
   enum salary_type: [:salaried, :hourly]
 
-  belongs_to :consultant, optional: true
+  belongs_to :consultant
 
   validates :designation, :joining_date, :salary , presence: true
   validates :salary, numericality: true

@@ -1,4 +1,4 @@
-class Package < ApplicationRecord
+class Package < ActiveRecord::Base
 
   has_many :subscriptions
   has_many :companies , through: :subscriptions

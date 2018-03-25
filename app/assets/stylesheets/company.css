@@ -42,9 +42,4 @@
  *= require company_override
  *= require global
   *= require style
-  *= require chat_box
- *= require select2
- *= require select2-bootstrap
- *= require conversation/chat
- *= require style
  */

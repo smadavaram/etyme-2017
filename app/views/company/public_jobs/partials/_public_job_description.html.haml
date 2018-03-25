@@ -1,89 +1,21 @@
 %h2
-  job details
-.job-info
-  .job-title
-    %div.job-header.clearfix
-      = image_tag @job.company.logo,  style:"width:50px;height:50px", fit: 'clip'
-      %p.job_title
-        = @job.title
-      %p.job_title
-        %i.fa.fa-usd
-        =@job.price
-    .job-location
-      %span
-        %i.fa.fa-map-marker
-        = @job.location
-      %span
-        %i.fa.fa-user
-        =@job.created_by.full_name
-  .job-description
-    .job-info
-      %strong
-        Description
-      %span
-        = @job.description.html_safe
-    .job-info
-      %strong
-        Skill
-      %span
-        %ul
-          -@job.tag_list.each do |tl|
-            %li=tl
-    .job-info
-      %strong
-        Education
-      %span
-        %ul
-          -@job.education_list.each do |el|
-            %li=el
-  .job-match-candidates
-    %strong
-    - job_skills = @job.tags.pluck(:name)
-    - count = (job_skills.count * 80 / 100.00).ceil
-    %table#datatable_fixed_column.table.table-striped.table-bordered.dataTable.no-footer{"aria-describedby" => "datatable_fixed_column_info", :role => "grid", :style => "width: 100%;", :width => "100%"}
-      %thead
-        %tr{:role => "row"}
-          %th Name
-          %th Role, Title
-          %th Skills
-          %th Location
-          %th Visa
-          %th Recuiter Name
-          %th Actions
-      %tbody
-        - job_count_per = (job_skills.count * 60 / 100.00).ceil
-        - current_company.candidates.each do |c|
-          - if (job_skills & c.skills.pluck(:name)).count >= job_count_per
-            %tr
-              %td
-                = link_to c.try(:full_name).try(:titleize),"#","data-content" => "<p class= 'text-center' ><image style='border-radius:50%;' src=#{image_url(c.photo)}/></br><div class='well well-sm'>#{c.full_name}</br>Email : #{c.email} </div></p>", "data-placement" => "top",:rel => "hover"
-              %td
-                - if c.try(:roles).present?
-                  - c.try(:roles).each do |role|
-                    %span
-                      .label-info.badge
-                        = role.try(:name)
-              %td
-                - c.skills.each do |skill|
-                  %span
-                    .label-info.badge.margin-bottom-5
-                      = skill.name
-              %td
-                = c.try(:location)
-              %td
-                = c.visa
-              %td
-                - c.companies.each do |com|
-                  %span
-                    .label-info.badge.margin-bottom-5
-                      = com.name
-              %td
-                = link_to 'Apply',apply_company_public_job_path(@job, candidate_id: c.id), class: "btn btn-xs btn-primary margin-bottom-5 #{'disableClick' if c.is_already_applied?(@job.id)}",title: "Assign Groups", method: :post, remote: true, disabled: c.is_already_applied?(@job.id)
-    -user_list = []
-    -current_company.candidates.each do |c|
-      -user_list.push(c.id) if (job_skills & c.skills.pluck(:name)).count >= count
-    -appli_ids = @job.job_applications.pluck(:applicationable_id)
-    - ref_id = current_company.jobs.pluck(:ref_job_id).uniq
-    = link_to 'Apply for All',apply_company_public_job_path(@job,candidate_id:user_list - appli_ids), class: "btn btn-sm btn-primary margin-bottom-5 #{'disableClick' if appli_ids.sort == user_list.sort}",title: "Assign Groups",method: :post, remote: true, disabled:  appli_ids.sort == user_list.sort
-    = link_to 'Make it batch job',create_batch_job_company_public_job_path(@job), class: "btn btn-sm btn-primary margin-bottom-5 #{'disableClick' if @job.is_bench_job == true}",title: "Batch jb", method: :post, disabled: @job.is_bench_job
-    = link_to 'Make it my job',create_own_job_company_public_job_path(@job), class: "btn btn-sm btn-primary margin-bottom-5 #{'disableClick' if ref_id.include?(@job.id)}",title: "Assign Groups", method: :post, disabled: ref_id.include?(@job.id) if current_company.id != @job.company.id
+  Job
+.job-title
+  %strong
+    Title:-
+  %span
+    = @job.title
+.job-location
+  %strong
+    Location:-
+  %span
+    = @job.location
+.job-description
+  %strong
+    Description:-
+  %span
+    = @job.description.html_safe
+.job-match-candidates
+  %strong
+    Match Candidates:-
+  = find_match_candidates(@job)

@@ -1,4 +1,4 @@
 class Candidate::BaseController < ApplicationController
-  before_action :authenticate_candidate!
+  before_filter :authenticate_candidate!
   layout 'candidate'
 end

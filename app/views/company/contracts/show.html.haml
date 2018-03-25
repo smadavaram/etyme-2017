@@ -1,466 +1,162 @@
-#content.newsfeed.contracts{style:"overflow-y: hidden;"}
-  -#.row
-    -#.col-sm-12.col-md-12.col-lg-12
-    -#  .product-content.product-wrap.clearfix.product-deatil
-    -#    .row
-    -#      .col-md-12.col-sm-12.col-xs-12
-    -#        - if @contract.pending? && !@contract.is_sent?(current_company)
-    -#          .btn-group.pull-right
-    -#            = button_tag 'Accept' , class: 'btn btn-primary btn-default margin-right-5' , disabled: @contract.signature_required_docs? , onclick: 'openAccept();'
-    -#            = button_tag 'Reject' ,  class: 'btn btn-default margin-right-5' , "data-toggle": "modal" , "data-target":"#contract-reject-#{@contract.id}"
-    -#        %h2.name
-    -#          = @contract.try(:title)
-    -#          %small
-    -#            Created by
-    -#            = link_to @contract.created_by.full_name , '#'
-    -#          %i.fa.fa-star.fa-2x.text-primary
-    -#          %i.fa.fa-star.fa-2x.text-primary
-    -#          %i.fa.fa-star.fa-2x.text-primary
-    -#          %i.fa.fa-star.fa-2x.text-primary
-    -#          %i.fa.fa-star.fa-2x.text-muted
-    -#          %span.badge= @contract.status.humanize
-    -#        %hr/
-    -#        -#%h3.price-container
-    -#          -#%small *includes tax
-    -#        - if @contract.signature_required_docs? && @contract.pending? && !@contract.is_sent?(current_company)
-    -#          .alert.alert-danger.alert-block
-    -#            %h4.alert-heading Required Documents
-    -#            Please upload the following required documents.
-    -#            - @contract.attachable_docs.each_with_index do |doc , index|
-    -#              %ul.margin-top-5
-    -#                - if doc.company_doc.is_required_signature? && @contract.pending? && !@contract.is_sent?(current_company) && !doc.is_file?
-    -#                  %li
-    -#                    = form_for [@contract , doc] , url: update_attachable_doc_contract_path(@contract) , method: :post  do |f|
-    -#                      = f.hidden_field :file , class: "attachment-file-upload-field-#{doc.id}"
-    -#                      = f.hidden_field :id
-    -#                    %p
-    -#                      Please upload a signed copy of #{link_to doc.company_doc.name , doc.orignal_file , class: 'text-white' , download: true },To upload now please #{link_to 'click here ' , '#' , id: "attachment-file-upload-field-#{doc.id}"  , class: 'upload-doc-button'}.
-    -#        %h5.price-container.margin-bottom-10
-    -#          Quick Details
-    -#        .certified
-    -#          %ul
-    -#            %li
-    -#              %a{:href => "javascript:void(0);"}
-    -#                Current Rate
-    -#                %span $#{@contract.rate}
-    -#            %li
-    -#              %a{:href => "javascript:void(0);"}
-    -#                Invoices Frequency
-    -#                %span= @contract.billing_frequency.humanize
-    -#            %li
-    -#              %a{:href => "javascript:void(0);"}
-    -#                Timesheet Frequency
-    -#                %span= @contract.time_sheet_frequency.humanize
-    -#            - if @contract.assignee?
-    -#              %li
-    -#                %a{:href => "javascript:void(0);"}
-    -#                  Assignee
-    -#                  %span= @contract.assignee.full_name
-    -#            - if @contract.is_commission
-    -#              %li
-    -#                %a{:href => "javascript:void(0);"}
-    -#                  Commission
-    -#                  %span=  @contract.fixed? ? '$'+ @contract.commission_amount.to_s : @contract.commission_amount.to_s + '%'
-    -#              %li
-    -#                %a{:href => "javascript:void(0);"}
-    -#                  Max Commission
-    -#                  %span $#{@contract.max_commission}
-    -#            %li
-    -#              %a{:href => "javascript:void(0);"}
-    -#                Start/End Date
-    -#                %span= @contract.start_date.to_s + "   /   " + @contract.end_date.to_s
-    -#
-    -#        - if @contract.is_sent?(current_company)
-    -#          -#%button.pull-right.btn.btn-white.btn-default.margin-right-5
-    -#          -#  Change Terms
-    -#          = link_to 'Change Terms', edit_contract_path(@contract), remote: true , class:"pull-right btn btn-white btn-default margin-right-5"
-    -#        %p
-    -#          %b
-    -#            Current Terms:
-    -#          = raw @contract.terms_and_conditions
-    -#        - if @contract.attachable_docs.present?
-    -#          %h5.price-container.margin-bottom-10
-    -#            #{@contract.attachable_docs.count} Contract Document(s)
-    -#          .table-responsive
-    -#            %table.table.table-bordered.table-condensed
-    -#              %thead
-    -#                %tr
-    -#                  %th{:style => "width:50%"} Name
-    -#                  %th{:style => "width:50%;"} Action
-    -#              %tbody
-    -#                -@contract.attachable_docs.each_with_index do |doc , index|
-    -#                  %tr
-    -#                    %td= doc.company_doc.name
-    -#                    %td
-    -#                      = link_to 'Download Orignal',doc.orignal_file,target:'_blank', class: 'margin-right-10 btn btn-default' , download: true
-    -#                      - if doc.is_file?
-    -#                        = link_to 'Download Signed',doc.file,target:'_blank', class: 'margin-right-10 btn btn-default' , download: true
-    -#        - if @contract.attachments.present?
-    -#          %h3.price-container
-    -#            #{@contract.attachments.size} Attachment(s)
-    -#          .forum-attachment
-    -#            -#%a{:href => "javascript:void(0);"} Download all attachments
-    -#            %ul.list-inline.margin-top-10
-    -#              - @contract.attachments.each do |attachment|
-    -#                %li.well.well-sm.padding-5
-    -#                  %strong= attachment.file_name.nil? ? '--'  : attachment.file_name.truncate(15)
-    -#                  %br/
-    -#                  = number_to_human_size(attachment.file_size)
-    -#                  %br/
-    -#                  = link_to 'Download' , attachment.file , download: true
-    -#                  |
-    -#                  = link_to 'View' , attachment.file , target: '_blank'
-    -#        - if @contract.message_from_hiring.present?
-    -#          %br
-    -#            %b
-    -#              Message:
-    -#            %br
-    -#            = raw(@contract.message_from_hiring)
-    -#        %hr/
-    -#        .description.description-tabs
-    -#          %ul#myTab.nav.nav-pills
-    -#            %li.active
-    -#              %a.no-margin{"aria-expanded" => "false", "data-toggle" => "tab", :href => "#application"}Job Application
-    -#            - if @contract.invoices?
-    -#              %li
-    -#                %a{"aria-expanded" => "true", "data-toggle" => "tab", :href => "#invoices"} Invoices
-    -#            %li
-    -#              = link_to 'Teams' , '#teams' , {"aria-expanded" => "true", "data-toggle" => "tab"}
-    -#            %li
-    -#              = link_to 'Comments' , '#comments' , {"aria-expanded" => "true", "data-toggle" => "tab"}
-    -#          #myTabContent.tab-content
-    -#            #teams.tab-pane.fade.in
-    -#              = render 'company/contracts/partials/teams', application: @contract.job_application
-    -#            #application.tab-pane.fade.active.in
-    -#              = render 'company/contracts/partials/application' , application: @contract.job_application
-    -#            - if not @contract.job_application_id.nil?
-    -#              #comments.tab-pane.fade
-    -#                = render 'company/contracts/partials/comments' , application: @contract.job_application
-    -#            -if @contract.invoices?
-    -#              #invoices.tab-pane.fade.in
-    -#                %table#dt_basic.table.table-striped.table-bordered.table-hover{:width => "100%"}
-    -#                  %thead
-    -#                    %tr
-    -#                      %th{"data-hide" => "phone"} #
-    -#                      %th{"data-class" => "expand"}
-    -#                        %i.fa.fa-fw.fa-calendar.txt-color-blue.hidden-md.hidden-sm.hidden-xs
-    -#                        Start-Date
-    -#                      %th{"data-class" => "expand"}
-    -#                        %i.fa.fa-fw.fa-calendar.txt-color-blue.hidden-md.hidden-sm.hidden-xs
-    -#                        Last-Date
-    -#                      %th{"data-hide" => "phone,tablet"}
-    -#                  %tbody
-    -#                    -@contract.invoices.each_with_index do |invoice , index|
-    -#                      %tr
-    -#                        %td= index + 1
-    -#                        %td= invoice.start_date
-    -#                        %td= invoice.end_date
-    -#                        %td
-    -#                          = link_to 'View Detail' , contract_invoice_path(@contract , invoice) , target: '_blank' ,class: 'btn btn-xs btn-default btn-primary'
-  %section#widget-grid.clearfix
-    .newsfeed-right
-      .job-title
-        .contract-top.clearfix
-          %span.pull-left
-            =@contract.number
-          %span.pull-right
-            %i.fa.fa-calendar-o
-            =@contract.created_at.strftime("%d/%m/%Y")
-            %br
-            =link_to "Tree View", tree_view_contract_path(@contract.number)
-        %div.job-header.clearfix
-          = image_tag "avatars/male.png"
-          %p.job_title
-            =@contract.job.title
-          %p.job_title
-            %i.fa.fa-user
-            =@contract.client.try(:full_name)
-        .job-location
-          %span
-            %i.fa.fa-map-marker
-            =@contract.work_location
-          %span
-            %i.fa.fa-user
-            =@contract.candidate.try(:full_name)
-          %span
-            %i.fa.fa-calendar-o
-            =@contract.start_date
-            To
-            %i.fa.fa-calendar-o
-            =@contract.end_date
-      .col-sm-6.col-md-6.col-lg-6
-        %h3
-          sell side
-        %div.sell-side.box
-          %div.contract-custome-details.line-bottom
-            %h5
-              Company info
-            %div.row
-              .col-sm-6.col-md-6.col-lg-6
-                %div
-                  %i.fa.fa-building
-                  %span
-                    =@contract.sell_contracts.first.try(:company).try(:full_name)
-                %div
-                  %span
-                    %i.fa.fa-map-marker
-                    NEED TO ADD
-              .col-sm-6.col-md-6.col-lg-6
-                %div
-                  -#%strong
-                  -#  Company Website:
-                  %span
-                    %i.fa.fa-link
-                    -#=@contract.contractable.website
-                %div
-                  -#%strong
-                  -#  Faq Id:
-                  %span
-                    %i.fa.fa-id-badge
-                    NEED TO ADD
-          %div.table.table-responsive
-            %table.table-bordered
-              %thead
-                %tr
-                  %th Business Contact Name
-                  %th Phone Number
-                  %th Email
-                  %th Dept
-                -@contract.buy_contracts.first.contract_buy_business_details.each do |cbbd|
-                  %tr
-                    %td
-                      =cbbd.company_contact.full_name
-                    %td
-                      =cbbd.company_contact.phone
-                    %td
-                      =cbbd.company_contact.email
-                    %td
-                      =cbbd.company_contact.department
-          %div.table.table-responsive
-            %table.table-bordered
-              %thead
-                Send Documents
-                %tr
-                  %th Documents
-                  %th Owner
-                  %th Need signature of
-                -@contract.sell_contracts.first.sell_send_documents.each do |ssd|
-                  %tr
-                    %td
-                      =link_to ssd.file_name, ssd.doc_file, target: "_blank"
-                    %td
-                      =ssd.creatable.full_name
-                    %td
-                      %ul
-                      - ssd.document_signs.each do |ds|
-                        %li= ds.signable.full_name
-            %div.table.table-responsive
-              %table.table-bordered
-                %thead
-                  Request Documents
-                  %tr
-                    %th Documents
-                    %th Owner
-                    %th Need signature of
-                  -@contract.sell_contracts.first.sell_request_documents.each do |srd|
+#content{style:"overflow-y: hidden;"}
+  .row
+    .col-sm-12.col-md-12.col-lg-12
+      .product-content.product-wrap.clearfix.product-deatil
+        .row
+          .col-md-12.col-sm-12.col-xs-12
+            - if @contract.pending? && !@contract.is_sent?(current_company)
+              .btn-group.pull-right
+                = button_tag 'Accept' , class: 'btn btn-primary btn-default margin-right-5' , disabled: @contract.signature_required_docs? , onclick: 'openAccept();'
+                = button_tag 'Reject' ,  class: 'btn btn-default margin-right-5' , "data-toggle": "modal" , "data-target":"#contract-reject-#{@contract.id}"
+            %h2.name
+              = @contract.try(:title)
+              %small
+                Created by
+                = link_to @contract.created_by.full_name , '#'
+              %i.fa.fa-star.fa-2x.text-primary
+              %i.fa.fa-star.fa-2x.text-primary
+              %i.fa.fa-star.fa-2x.text-primary
+              %i.fa.fa-star.fa-2x.text-primary
+              %i.fa.fa-star.fa-2x.text-muted
+              %span.badge= @contract.status.humanize
+            %hr/
+            -#%h3.price-container
+              -#%small *includes tax
+            - if @contract.signature_required_docs? && @contract.pending? && !@contract.is_sent?(current_company)
+              .alert.alert-danger.alert-block
+                %h4.alert-heading Required Documents
+                Please upload the following required documents.
+                - @contract.attachable_docs.each_with_index do |doc , index|
+                  %ul.margin-top-5
+                    - if doc.company_doc.is_required_signature? && @contract.pending? && !@contract.is_sent?(current_company) && !doc.is_file?
+                      %li
+                        = form_for [@contract , doc] , url: update_attachable_doc_contract_path(@contract) , method: :post  do |f|
+                          = f.hidden_field :file , class: "attachment-file-upload-field-#{doc.id}"
+                          = f.hidden_field :id
+                        %p
+                          Please upload a signed copy of #{link_to doc.company_doc.name , doc.orignal_file , class: 'text-white' , download: true },To upload now please #{link_to 'click here ' , '#' , id: "attachment-file-upload-field-#{doc.id}"  , class: 'upload-doc-button'}.
+            %h5.price-container.margin-bottom-10
+              Quick Details
+            .certified
+              %ul
+                %li
+                  %a{:href => "javascript:void(0);"}
+                    Current Rate
+                    %span $#{@contract.rate}
+                %li
+                  %a{:href => "javascript:void(0);"}
+                    Invoices Frequency
+                    %span= @contract.billing_frequency.humanize
+                %li
+                  %a{:href => "javascript:void(0);"}
+                    Timesheet Frequency
+                    %span= @contract.time_sheet_frequency.humanize
+                - if @contract.assignee?
+                  %li
+                    %a{:href => "javascript:void(0);"}
+                      Assignee
+                      %span= @contract.assignee.full_name
+                - if @contract.is_commission
+                  %li
+                    %a{:href => "javascript:void(0);"}
+                      Commission
+                      %span=  @contract.fixed? ? '$'+ @contract.commission_amount.to_s : @contract.commission_amount.to_s + '%'
+                  %li
+                    %a{:href => "javascript:void(0);"}
+                      Max Commission
+                      %span $#{@contract.max_commission}
+                %li
+                  %a{:href => "javascript:void(0);"}
+                    Start/End Date
+                    %span= @contract.start_date.to_s + "   /   " + @contract.end_date.to_s
+
+            - if @contract.is_sent?(current_company)
+              -#%button.pull-right.btn.btn-white.btn-default.margin-right-5
+              -#  Change Terms
+              = link_to 'Change Terms', edit_contract_path(@contract), remote: true , class:"pull-right btn btn-white btn-default margin-right-5"
+            %p
+              %b
+                Current Terms:
+              = raw @contract.terms_and_conditions
+            - if @contract.attachable_docs.present?
+              %h5.price-container.margin-bottom-10
+                #{@contract.attachable_docs.count} Contract Document(s)
+              .table-responsive
+                %table.table.table-bordered.table-condensed
+                  %thead
                     %tr
-                      %td
-                        =link_to srd.file_name, srd.doc_file, target: "_blank"
-                      %td
-                        =srd.creatable.full_name
-                      %td
-                        %ul
-                        - srd.document_signs.each do |ds|
-                          %li= ds.signable.full_name
-          %div.contract-accounting
-            %div.line-bottom
-              %strong
-                Customer Rate:
-              %span
-                =@contract.sell_contracts.first.try(:customer_rate)
-            %h5
-              Work hour terms
-            %div
-              %strong
-                Time sheet:
-              %span
-                =@contract.sell_contracts.first.try(:time_sheet)
-            %div
-              %strong
-                Invoice terms:
-              %span
-                =@contract.sell_contracts.first.try(:invoice_terms_period).to_s + " days"
-      .col-sm-6.col-md-6.col-lg-6
-        %h3
-          buy side
-        %div.contract-custome-details.box
-          %h5
-            Candidate info
-          %div.row.line-bottom
-            .col-sm-6.col-md-6.col-lg-6
-              %div
-                -#%strong
-                -#  Candidate Name:
-                %span
-                  %i.fa.fa-user
-                  =@contract.candidate.full_name if @contract.candidate
-              %div
-                -#%strong
-                -#  Candidate Address:
-                %span
-                  %i.fa.fa-map-marker
-                  =@contract.candidate.address.address_1 if @contract.candidate && @contract.candidate.address
-            .col-sm-6.col-md-6.col-lg-6
-              %div
-                -#%strong
-                -#  Encrypt SSN:
-                %span
-                  %i.fa.fa-lock
-                  =@contract.buy_contracts.first.try(:ssn)
-              %div
-                -#%strong
-                -#  Contract Type:
-                %span
-                  %i.fa.fa-list-alt
-                  =@contract.buy_contracts.first.try(:contract_type)
-          %h5
-            Company info
-          %div.row.line-bottom
-            .col-sm-6.col-md-6.col-lg-6
-              %div
-                -#%strong
-                -#  Company Name:
-                %span
-                  %i.fa.fa-building
-                  -#=@contract.buy_company.full_name if @contract.buy_company
-              %div
-                -#%strong
-                -#  Company Address:
-                %span
-                  %i.fa.fa-map-marker
-                  NEED TO ADD
-            .col-sm-6.col-md-6.col-lg-6
-              %div
-                -#%strong
-                -#  Company Website:
-                %span
-                  %i.fa.fa-link
-                  -#=@contract.buy_company.website if @contract.buy_company
-              %div
-                %strong
-                  Faq Id:
-                %span
-                  NEED TO ADD
-          %div.table-responsive
-            %table.table.table-bordered
-              %thead
-                %tr
-                  %th Business Contact Name
-                  %th Phone Number
-                  %th Email
-                  %th Dept
-                -@contract.sell_contracts.first.contract_sell_business_details.each do |csbd|
-                  %tr
-                    %td
-                      =csbd.company_contact.full_name
-                    %td
-                      =csbd.company_contact.phone
-                    %td
-                      =csbd.company_contact.email
-                    %td
-                      =csbd.company_contact.department
-          %div.table.table-responsive
-            %table.table-bordered
-              %thead
-                Send Documents
-                %tr
-                  %th Documents
-                  %th Owner
-                  %th Need signature of
-                -@contract.buy_contracts.first.buy_send_documents.each do |bsd|
-                  %tr
-                    %td
-                      =link_to bsd.file_name, bsd.doc_file, target: "_blank"
-                    %td
-                      =bsd.creatable.full_name
-                    %td
-                      %ul
-                      - bsd.document_signs.each do |ds|
-                        %li= ds.signable.full_name
-          %div.table.table-responsive
-            %table.table-bordered
-              %thead
-                Employee Request Documents
-                %tr
-                  %th Documents
-                  %th Owner
-                  %th Need signature of
-                -@contract.buy_contracts.first.buy_emp_req_docs.each do |berd|
-                  %tr
-                    %td
-                      =link_to berd.file_name, berd.doc_file, target: "_blank"
-                    %td
-                      =berd.creatable.full_name
-                    %td
-                      %ul
-                      - berd.document_signs.each do |ds|
-                        %li= ds.signable.full_name
-          %div.table.table-responsive
-            %table.table-bordered
-              %thead
-                Vendor Request Documents
-                %tr
-                  %th Documents
-                  %th Owner
-                  %th Need signature of
-                -@contract.buy_contracts.first.buy_ven_req_docs.each do |bvrd|
-                  %tr
-                    %td
-                      =link_to bvrd.file_name, bvrd.doc_file, target: "_blank"
-                    %td
-                      =bvrd.creatable.full_name
-                    %td
-                      %ul
-                      - bvrd.document_signs.each do |ds|
-                        %li= ds.signable.full_name
-          %div.contract-accounting
-            %div.line-bottom
-              %strong
-                Pay Rate:
-              %span
-                =@contract.buy_contracts.first.try(:payrate)
-            %h5
-              Work hour terms
-            %div.line-bottom
-              %strong
-                Time sheet:
-              %span
-                =@contract.buy_contracts.first.try(:time_sheet)
-            %div
-              %strong
-                Payment terms:
-              %span
-                =@contract.buy_contracts.first.try(:payment_term)
-          %div.table-responsive
-            %table.table.table-bordered
-              %thead
-                %tr
-                  %th Name
-                  %th Rate
-                  %th Frequency
-                  %th Limit
-                  %th Action
-                -@contract.buy_contracts.first.contract_sale_commisions.each do |csc|
-                  %tr
-                    %td
-                      =csc.name
-                    %td
-                      =csc.rate
-                    %td
-                      =csc.frequency
-                    %td
-                      =csc.limit
-                    %td action
+                      %th{:style => "width:50%"} Name
+                      %th{:style => "width:50%;"} Action
+                  %tbody
+                    -@contract.attachable_docs.each_with_index do |doc , index|
+                      %tr
+                        %td= doc.company_doc.name
+                        %td
+                          = link_to 'Download Orignal',doc.orignal_file,target:'_blank', class: 'margin-right-10 btn btn-default' , download: true
+                          - if doc.is_file?
+                            = link_to 'Download Signed',doc.file,target:'_blank', class: 'margin-right-10 btn btn-default' , download: true
+            - if @contract.attachments.present?
+              %h3.price-container
+                #{@contract.attachments.size} Attachment(s)
+              .forum-attachment
+                -#%a{:href => "javascript:void(0);"} Download all attachments
+                %ul.list-inline.margin-top-10
+                  - @contract.attachments.each do |attachment|
+                    %li.well.well-sm.padding-5
+                      %strong= attachment.file_name.nil? ? '--'  : attachment.file_name.truncate(15)
+                      %br/
+                      = number_to_human_size(attachment.file_size)
+                      %br/
+                      = link_to 'Download' , attachment.file , download: true
+                      |
+                      = link_to 'View' , attachment.file , target: '_blank'
+            - if @contract.message_from_hiring.present?
+              %br
+                %b
+                  Message:
+                %br
+                = raw(@contract.message_from_hiring)
+            %hr/
+            .description.description-tabs
+              %ul#myTab.nav.nav-pills
+                %li.active
+                  %a.no-margin{"aria-expanded" => "false", "data-toggle" => "tab", :href => "#application"}Job Application
+                - if @contract.invoices?
+                  %li
+                    %a{"aria-expanded" => "true", "data-toggle" => "tab", :href => "#invoices"} Invoices
+                %li
+                  = link_to 'Teams' , '#teams' , {"aria-expanded" => "true", "data-toggle" => "tab"}
+                %li
+                  = link_to 'Comments' , '#comments' , {"aria-expanded" => "true", "data-toggle" => "tab"}
+              #myTabContent.tab-content
+                #teams.tab-pane.fade.in
+                  = render 'company/contracts/partials/teams', application: @contract.job_application
+                #application.tab-pane.fade.active.in
+                  = render 'company/contracts/partials/application' , application: @contract.job_application
+                - if not @contract.job_application_id.nil?
+                  #comments.tab-pane.fade
+                    = render 'company/contracts/partials/comments' , application: @contract.job_application
+                -if @contract.invoices?
+                  #invoices.tab-pane.fade.in
+                    %table#dt_basic.table.table-striped.table-bordered.table-hover{:width => "100%"}
+                      %thead
+                        %tr
+                          %th{"data-hide" => "phone"} #
+                          %th{"data-class" => "expand"}
+                            %i.fa.fa-fw.fa-calendar.txt-color-blue.hidden-md.hidden-sm.hidden-xs
+                            Start-Date
+                          %th{"data-class" => "expand"}
+                            %i.fa.fa-fw.fa-calendar.txt-color-blue.hidden-md.hidden-sm.hidden-xs
+                            Last-Date
+                          %th{"data-hide" => "phone,tablet"}
+                      %tbody
+                        -@contract.invoices.each_with_index do |invoice , index|
+                          %tr
+                            %td= index + 1
+                            %td= invoice.start_date
+                            %td= invoice.end_date
+                            %td
+                              = link_to 'View Detail' , contract_invoice_path(@contract , invoice) , target: '_blank' ,class: 'btn btn-xs btn-default btn-primary'
 - if @contract.pending? && !@contract.is_sent?(current_company)
   - content_for :modals do
     #ajax-modal
@@ -479,4 +175,5 @@
           $(file).parent().submit();
         });
       });
+
 

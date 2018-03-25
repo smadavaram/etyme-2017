@@ -50,16 +50,16 @@
                   %tbody
                     - data.each_with_index  do |invitation,index|
                       %tr.even{:role => "row"}
-                        %td= image_tag invitation.recipient.photo, alt: '', width: '20' if invitation.recipient.present?
-                        %td= link_to invitation.recipient.full_name , '#' if invitation.recipient.present?
-                        %td= link_to invitation.recipient.company.name , '#' if invitation.recipient.present? && invitation.recipient_type != "Candidate"
+                        %td= image_tag invitation.recipient.photo, alt: '', width: '20'
+                        %td= link_to invitation.recipient.full_name , '#'
+                        %td= link_to invitation.recipient.company.name , '#' if invitation.recipient_type != "Candidate"
                         %td= link_to invitation.job.title , job_path(invitation.job)
                         %td
-                          = invitation.recipient.email if invitation.recipient.present?
+                          = invitation.recipient.email
                           %a.pull-right{:href => "javascript:void(0);"}
                             %i.fa.fa-key
                         %td= link_to invitation.created_by.full_name , '#'
-                        %td= invitation.recipient.phone if invitation.recipient.present?
+                        %td= invitation.recipient.phone
                         %td= invitation.expiry
                         %td= invitation_status_color(invitation.status)
                         %td= link_to raw("<i class='fa fa-eye '></i>") , job_invitation_path(invitation),title:"Detail of #{invitation.job.title}",class:"btn btn-xs btn-default",'data-toggle'=>"tooltip" ,'data-placement'=>"top"

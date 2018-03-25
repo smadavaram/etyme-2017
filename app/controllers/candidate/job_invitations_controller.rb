@@ -9,7 +9,6 @@ class Candidate::JobInvitationsController < Candidate::BaseController
   def show_invitation
     if(params[:status]=='accept')
       @job_application = @job_invitation.build_job_application
-      @job_application.job_applicant_reqs.build
       @job_application.custom_fields.build
     end
     @state = params[:status] == 'accept' ? true : false
@@ -17,7 +16,7 @@ class Candidate::JobInvitationsController < Candidate::BaseController
   end
 
   def reject
-    @job_invitation.update_attributes(job_invitation_params)
+    @job_invitation.update_attributes(job_invitations_params)
   end
   private
 

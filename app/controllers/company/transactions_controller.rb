@@ -8,12 +8,12 @@ class Company::TransactionsController < Company::BaseController
 
     respond_to do |format|
       if @transaction.save
-        format.html { redirect_back fallback_location: root_path, notice: 'Time has been successfully logged.' }
+        format.html { redirect_to :back, notice: 'Time has been successfully logged.' }
         format.json { render :show, status: :created, location: @transaction }
       else
         format.html {
           flash[:errors] =  @transaction.errors.full_messages
-          redirect_back fallback_location: root_path
+          redirect_to :back
         }
         format.json { render json: @transaction.errors, status: :unprocessable_entity }
       end
@@ -26,7 +26,7 @@ class Company::TransactionsController < Company::BaseController
     else
       flash[:errors] = @transaction.errors.full_messages
     end
-    redirect_back fallback_location: root_path
+    redirect_to :back
   end
 
   def reject
@@ -35,7 +35,7 @@ class Company::TransactionsController < Company::BaseController
     else
       flash[:errors] = @transaction.errors.full_messages
     end
-    redirect_back fallback_location: root_path
+    redirect_to :back
   end
   private
 

@@ -5,7 +5,7 @@
 * Author Name: TheMashaBrand
 * Author URI: http://themeforest.net/user/themashabrand
 * Website: http://www.themashabrand.com
-
+  
 /* ------------------------------------------------------------------- */
 /* Import Section
 ---------------------------------------------------------------------- */
@@ -15,7 +15,7 @@
 
 /* ------------------------------------------------------------------- */
 /* Table of Contents
-----------------------------------------------------------------------
+---------------------------------------------------------------------- 
 1. Navbar                           - Line 92
 2. Footer                           - Line 406
 3. Home Page (index.html, index-2.html, index-3.html)
@@ -80,11 +80,11 @@
 	- Faq Section                   - Line 3937
 	- Media Queries                 - Line 4043
 
----------------------------------------------------------------------- */
+---------------------------------------------------------------------- */     
 
 /* ==========================================================================
    Navbar Styles
-   ========================================================================== */
+   ========================================================================== */  
 .navbar{
   font-family: 'Montserrat', sans-serif;
   font-weight: 700;
@@ -96,9 +96,9 @@
 }
 
 .navbar.scrolled {
-  background-color: #ffffff;
+  background-color: #2c3e50;
   border: 0;
-}
+} 
 
 .navbar a {
   color: #fff !important;
@@ -106,7 +106,7 @@
 
 .navbar a:hover {
   outline: 0;
-  color: #7b53c1 !important;
+  color: #16A085 !important;
 }
 
 .navbar .navbar-nav {
@@ -163,15 +163,11 @@
   color: rgba(255,255,255,0.75);
   height: 100%;
 }
-.navbar.scrolled .menu li a{
-  color: #7b53c1 !important;
-}
+
 .menu li a:hover {
-  text-decoration: underline;
+  color: #16A085;
 }
-.navbar.scrolled .menu li a:hover{
-  text-decoration: underline;
-}
+
 .dropdown-menu {
   left: auto;
   right: 0;
@@ -321,7 +317,7 @@
 	 line-height: 50px;
 	}
 	.toggle:hover {
-	 color: #7b53c1;
+	 color: #16A085;
 	}
 	.toggle:after {
 	 content: '\f0c9';
@@ -334,7 +330,7 @@
 	#toggle:checked + .toggle:after {
 	 content: '\f077';
 	}
-
+	
 	/* The menu items */
 	.menu {
 	 display: none;
@@ -402,7 +398,7 @@
 
 /* ==========================================================================
    Footer Section
-   ========================================================================== */
+   ========================================================================== */   	
 .footer {
   padding: 60px 30px;
   background: #1D2026;
@@ -465,7 +461,7 @@
   font-size: 16px;
   letter-spacing: 2px;
   color: #8A9CA0 !important;
-}
+}   
 
 /* ==========================================================================
    Bottom Footer Section
@@ -561,14 +557,14 @@
 
 /* ==========================================================================
    Home Page  (index.html, index-2.html, index-3.html)
-   ========================================================================== */
-
+   ========================================================================== */ 
+   
 /* ------------------------------------------------------------------- */
 /* Header Section
 ---------------------------------------------------------------------- */
-
+   
 .header-one{
-  background:rgba(0, 0, 0, 0) linear-gradient(-60.76deg, #9679ff 0%, #d499ea 57.96%, #eea4b3 100%) repeat scroll 0 0;
+  background: image_url('static/img/slider/1.jpg') no-repeat center center fixed;
   background-size: cover;
   background-position: center center;
   -webkit-background-size: cover;
@@ -577,7 +573,7 @@
   color: #fff;
   height: 100vh;
   width: 100%;
-
+  
   display: flex;
   flex-direction: column;
   justify-content: center;
@@ -587,7 +583,7 @@
 
 .header-one .content {
   margin-top: 90px;
-}
+}   
 
 .header-two {
   height: 100vh;
@@ -598,7 +594,7 @@
   -moz-background-size: cover;
   -o-background-size: cover;
   color: #fff;
-
+  
   display: flex;
   flex-direction: column;
   justify-content: center;
@@ -617,9 +613,6 @@ header h1.name {
   letter-spacing: 2px;
   font-weight: 700;
 }
-header h1.name span{
-  text-shadow: 0 14px 24px rgba(50, 48, 58, 0.25);
-}
 
 header p.temp {
   font-family: 'Montserrat', Helvetica, Arial, sans-serif;
@@ -627,73 +620,71 @@ header p.temp {
   font-size: 14px;
   font-weight: 300;
   letter-spacing: 2px;
-  text-shadow: 0 14px 24px rgba(50, 48, 58, 0.25);
 }
 
-header h2.hire {
+header h1.hire {
   color: #ffffff;
   font-family: 'Varela Round', sans-serif;
   font-weight: 700;
   text-align: center;
   padding-bottom: 10px;
-  text-shadow: 0 14px 24px rgba(50, 48, 58, 0.25);
-
 }
 
 /* -------------------------------- */
 /* Header Buttons
 ----------------------------------- */
 
-header .form-row {
-  margin-bottom: 135px;
-  font-size: 0;
-  line-height: 0;
+header .form-row { 
+  margin-bottom: 135px; 
+  font-size: 0; 
+  line-height: 0; 
   text-align: center;
   font-family: 'Varela Round', sans-serif;
 }
 
 header .form-row .radio-left,
-header .form-row .radio-right {
-  display: inline-block;
+header .form-row .radio-right { 
+  display: inline-block; 
 }
 
-header .form-row .radio-left a, header .form-row .radio-right a {
-  color: #fff;
-  cursor: pointer;
-  display: block;
-  font-size: 18px;
-  font-weight: 700;
-  height: 50px;
+header .form-row .radio-left a,
+header .form-row .radio-right a { 
+  display: block; 
+  width: 210px; 
+  height: 50px; 
+  padding-top: 20px;  
+  font-size: 14px; 
+  line-height: 17px; 
+  color: #fff; 
+  text-transform: uppercase; 
+  cursor: pointer; 
   letter-spacing: 0.15em;
-  line-height: 50px;
-  margin-right: 10px;
-  padding-top: 0;
+  font-weight: 700;
   text-align: center;
-  text-transform: uppercase;
-  width: 210px;
-  box-shadow: 0 14px 24px 0 rgba(50, 48, 58, 0.25);
-}
-header .form-row .radio-left a {
-  background: #f5a623 none repeat scroll 0 0;
-  border-radius: 36px;
+  margin-right: 10px;
 }
 
-header .form-row .radio-right a {
-  background: #f5a623;
-  border-radius: 36px;
+header .form-row .radio-left a { 
+  background: #16A085; 
+  border-radius: 36px; 
 }
 
-header .form-row a:hover {
-  text-decoration: none !important;
+header .form-row .radio-right a { 
+  background: #2C3E50; 
+  border-radius: 36px; 
+}
+
+header .form-row a:hover { 
+  text-decoration: none !important; 
   color: #fff !important;
 }
 
-header .form-row .radio-left a:hover {
-  background:#e1910c !important;
+header .form-row .radio-left a:hover { 
+  background: #0de5ab !important; 
 }
 
-header .form-row .radio-right a:hover {
-  background: #e1910c !important;
+header .form-row .radio-right a:hover { 
+  background: #34495E !important; 
 }
 
 img{
@@ -712,42 +703,40 @@ header .logos {
 /* ------------------------------------------------------------------- */
 /* Services Section
 ---------------------------------------------------------------------- */
-h2.section_title {
-  font-size: 30px;
-  margin: 0 0 30px;
-  text-align: center;
-  color: #454545;
-  font-weight: 600;
-}
-h2.section_title > span {
-  color: #7b53c1;
-  font-size: 30px;
-}
-h2.section_title p {
-  color: #454545;
-}
+
 .services {
   padding: 30px 0 50px;
+  background: #2C3E50;
 }
 
+.services h3 {
+  font-family: 'Montserrat', sans-serif;
+  font-weight: 300;
+  color: #fff;
+}
+
+.services p.top-p {
+  margin: 10px 0;
+  color: #fff;
+}
 
 .services .features {
   /* Opera 10.5, IE 9, Safari 5, Chrome, Firefox 4, iOS 4, Android 2.1+ */
-  border-top-left-radius: 6px;
-  border-top-right-radius: 6px;
+  border-top-left-radius: 6px; 
+  border-top-right-radius: 6px; 
   /* Safari 3-4, iOS 1-3.2, Android 1.6- */
-  -webkit-border-top-left-radius: 6px;
-  -webkit-border-top-right-radius: 6px;
+  -webkit-border-top-left-radius: 6px; 
+  -webkit-border-top-right-radius: 6px; 
 
   /* Firefox 1-3.6 */
-  -moz-border-top-left-radius: 6px;
-  -moz-border-top-right-radius: 6px;
-
+  -moz-border-top-left-radius: 6px; 
+  -moz-border-top-right-radius: 6px; 
+  
 }
 
 .services .features.one{
   background: linear-gradient(
-      rgba(34,34,34,0.55),
+      rgba(34,34,34,0.55), 
       rgba(34,34,34,0.55)
     ), image_url('static/img/services/1.jpg') no-repeat center center;
   width: 100%;
@@ -758,7 +747,7 @@ h2.section_title p {
 
 .services .features.two{
   background: linear-gradient(
-      rgba(34,34,34,0.55),
+      rgba(34,34,34,0.55), 
       rgba(34,34,34,0.55)
     ), image_url('static/img/services/2.jpg') no-repeat center center;
   padding: 20px 15px;
@@ -768,7 +757,7 @@ h2.section_title p {
 
 .services .features.three{
   background: linear-gradient(
-      rgba(34,34,34,0.55),
+      rgba(34,34,34,0.55), 
       rgba(34,34,34,0.55)
     ), image_url('static/img/services/3.jpg') no-repeat center center;
   padding: 20px 15px;
@@ -778,7 +767,7 @@ h2.section_title p {
 
 .services .features.four{
   background: linear-gradient(
-      rgba(34,34,34,0.55),
+      rgba(34,34,34,0.55), 
       rgba(34,34,34,0.55)
     ), image_url('static/img/services/4.jpg') no-repeat center center;
   padding: 20px 15px;
@@ -788,7 +777,7 @@ h2.section_title p {
 
 .services .features.five{
   background: linear-gradient(
-      rgba(34,34,34,0.55),
+      rgba(34,34,34,0.55), 
       rgba(34,34,34,0.55)
     ), image_url('static/img/services/5.jpg') no-repeat center center;
   padding: 20px 15px;
@@ -798,7 +787,7 @@ h2.section_title p {
 
 .services .features.six{
   background: linear-gradient(
-      rgba(34,34,34,0.55),
+      rgba(34,34,34,0.55), 
       rgba(34,34,34,0.55)
     ), image_url('static/img/services/6.jpg') no-repeat center center;
   padding: 20px 15px;
@@ -808,7 +797,7 @@ h2.section_title p {
 
 .services .features.seven{
   background: linear-gradient(
-      rgba(34,34,34,0.55),
+      rgba(34,34,34,0.55), 
       rgba(34,34,34,0.55)
     ), image_url('static/img/services/7.jpg') no-repeat center center;
   padding: 20px 15px;
@@ -818,7 +807,7 @@ h2.section_title p {
 
 .services .features.eight{
   background: linear-gradient(
-      rgba(34,34,34,0.55),
+      rgba(34,34,34,0.55), 
       rgba(34,34,34,0.55)
     ),image_url('static/img/services/8.jpg') no-repeat center center;
   padding: 20px 15px;
@@ -855,44 +844,44 @@ h2.section_title p {
   padding: 20px 15px;
   color: #899797 !important;
   border-top: 5px solid #2C3E50;
-  border-bottom: 5px solid #7b53c1;
+  border-bottom: 5px solid #16A085;
 }
 
 .services .spacer > p {
   margin: 10px 0;
  }
-
+ 
 .services a:hover {
   text-decoration: none;
-}
+} 
 
 .services .spacer:hover{
-  background: #7b53c1;
+  background: #16A085;
   color: #fff !important;
 }
 
 /* ------------------------------------------------------------------- */
 /* Banner Comment Section
 ---------------------------------------------------------------------- */
-
+   
 .banner-comment {
   width: 100%;
   height: 50vh;
-  background:linear-gradient(141deg, #ff867e 0%, #ffaa6c 27%, #ffa876 52%, #fe906a 73%, #ff837d 100%) repeat scroll 0 0;
+  background: image_url('static/img/bg/1.jpg') no-repeat center center fixed;
   background-size: cover;
   background-position: center;
   -webkit-background-size: cover;
   -moz-background-size: cover;
   -o-background-size: cover;
  background-size: 100% 100%;
-
+ 
   display: flex;
   flex-direction: column;
   justify-content: center;
   align-items: center;
   text-align: center;
   padding: 30px 0 30px;
-}
+} 
 
 .banner-comment h1 {
   font-family: 'Montserrat', sans-serif;
@@ -960,7 +949,7 @@ h2.section_title p {
 ---------------------------------------------------------------------- */
 
 #testimonials {
-  background: #7b53c1;
+  background: #16A085;
   position: relative;
   padding-top: 20px;
   width: 100%;
@@ -1120,7 +1109,7 @@ html[xmlns] .flexslider .slides {
 @media only screen and (max-width: 768px){
 	.header-one .content {
 	  margin-top: 140px;
-	}
+	}   
 	.header-two .content {
 	  margin-top: 180px;
 	}
@@ -1131,9 +1120,9 @@ html[xmlns] .flexslider .slides {
      font-size: 24px;
     }
 	header .form-row .radio-left a,
-	header .form-row .radio-right a {
-	  margin-bottom: 10px;
-	}
+	header .form-row .radio-right a { 
+	  margin-bottom: 10px;  
+	}	  
     .banner-comment h1 {
      font-size: 24px;
     }
@@ -1142,18 +1131,18 @@ html[xmlns] .flexslider .slides {
     }
     .stats .pro{
 	 margin-bottom: 50px;
-	}
+	}	
 	.stats h1 {
 	 font-size: 24px;
 	}
 	.stats h5 {
 	 font-size: 15px;
-	}
+	}			
 }
 @media only screen and (max-width: 420px){
     .banner-comment h2 {
      font-size: 20px;
-    }
+    } 
 	.stats h1 {
 	 font-size: 20px;
 	}
@@ -1163,7 +1152,7 @@ html[xmlns] .flexslider .slides {
 }
 /* ==========================================================================
    About Page  (about.html)
-   ========================================================================== */
+   ========================================================================== */ 
 
 /* ------------------------------------------------------------------- */
 /* Header Section
@@ -1179,7 +1168,7 @@ html[xmlns] .flexslider .slides {
   color: #fff;
   height: 65vh;
   width: 100%;
-
+  
   display: flex;
   flex-direction: column;
   justify-content: center;
@@ -1224,7 +1213,7 @@ html[xmlns] .flexslider .slides {
   padding-top: 20px;
   padding-bottom: 30px;
   overflow:hidden;
-}
+} 
 
 .hello h3 {
   font-family: 'Montserrat', sans-serif;
@@ -1248,7 +1237,7 @@ html[xmlns] .flexslider .slides {
   .hello p {
    font-size: 14px;
   }
-}
+} 
 
 /* ------------------------------------------------------------------- */
 /* Timeline Section
@@ -1447,7 +1436,7 @@ html[xmlns] .flexslider .slides {
 	  left: -14px;
 	  right: auto;
 	}
-
+	
     .time h3 {
      font-size: 18px;
     }
@@ -1512,14 +1501,14 @@ html[xmlns] .flexslider .slides {
 .team h5.profile-name {
   font-family: 'Montserrat', sans-serif;
   margin-bottom: 15px;
-  letter-spacing: 1px;
+  letter-spacing: 1px;	
 }
 
 .team .profile-description {
   font-family: 'Varela Round', sans-serif;
   color: #899797 !important;
   font-size: 14px;
-  margin-bottom: 25px;
+  margin-bottom: 25px;	
   text-align: left;
 }
 
@@ -1534,7 +1523,7 @@ html[xmlns] .flexslider .slides {
   width: 100%;
   -webkit-border-radius: 8px;
      -moz-border-radius: 8px;
-          border-radius: 8px;
+          border-radius: 8px;	
 }
 
 .team .image-wrap  .hover-wrap {
@@ -1542,35 +1531,35 @@ html[xmlns] .flexslider .slides {
   display: block;
   width: 100%;
   height: 100%;
-
-
+  
+	
   opacity: 0;
   filter: alpha(opacity=0);
-
-  -webkit-transition: all 450ms ease-out 0s;
+	
+  -webkit-transition: all 450ms ease-out 0s;	
    -moz-transition: all 450ms ease-out 0s;
     -o-transition: all 450ms ease-out 0s;
      transition: all 450ms ease-out 0s;
-
+		  
   -webkit-transform: rotateY(180deg) scale(0.5,0.5);
    -moz-transform: rotateY(180deg) scale(0.5,0.5);
 	-ms-transform: rotateY(180deg) scale(0.5,0.5);
 	 -o-transform: rotateY(180deg) scale(0.5,0.5);
-	  transform: rotateY(180deg) scale(0.5,0.5);
+	  transform: rotateY(180deg) scale(0.5,0.5);	
 }
 
 .team .image-wrap:hover .hover-wrap,
 .team .image-wrap.active .hover-wrap {
   opacity: 1;
   filter: alpha(opacity=100);
-
-
+  
+  
   -webkit-transform: scale(1.1);
      -moz-transform: scale(1.1);
       -ms-transform: scale(1.1);
        -o-transform: scale(1.1);
           transform: scale(1.1);
-
+	
   -webkit-transform: rotateY(0deg) scale(1,1);
    -moz-transform: rotateY(0deg) scale(1,1);
     -ms-transform: rotateY(0deg) scale(1,1);
@@ -1582,13 +1571,13 @@ html[xmlns] .flexslider .slides {
   position: absolute;
   width: 100%;
   height: 100%;
-  background: #7b53c1;
-
-
+  background: #16a085;
+  
+  
   -webkit-border-radius: 8px;
      -moz-border-radius: 8px;
           border-radius: 8px;
-
+	
   opacity: 0.80;
   filter: alpha(opacity=80);
 }
@@ -1606,7 +1595,7 @@ html[xmlns] .flexslider .slides {
   line-height: 32px;
   text-transform: uppercase;
   text-align: center;
-
+	
   opacity: 1;
   filter: alpha(opacity=100);
 }
@@ -1618,7 +1607,7 @@ html[xmlns] .flexslider .slides {
 
 .team .social-icons li {
   display: inline-block;
-  margin-left: 15px;
+  margin-left: 15px;	
 }
 
 .team .social-icons li:first-child {
@@ -1631,11 +1620,11 @@ html[xmlns] .flexslider .slides {
   line-height: 1em;
   width: 16px;
   height: 16px;
-
+	
   opacity: 0.3;
   filter: alpha(opacity=30);
-
-  -webkit-transition: opacity 0.1s linear 0s;
+	
+  -webkit-transition: opacity 0.1s linear 0s;	
    -moz-transition: opacity 0.1s linear 0s;
     -o-transition: opacity 0.1s linear 0s;
      transition: opacity 0.1s linear 0s;
@@ -1655,14 +1644,14 @@ html[xmlns] .flexslider .slides {
   .team p {
    font-size: 14px;
   }
-}
+}	
 
 /* ------------------------------------------------------------------- */
 /* Join Section
 ---------------------------------------------------------------------- */
 
 .join {
-  background: #7b53c1;
+  background: #16A085;
   padding: 70px;
   text-align: center;
 }
@@ -1682,7 +1671,7 @@ html[xmlns] .flexslider .slides {
 
 /* ==========================================================================
    Job Page  (jobs.html)
-   ========================================================================== */
+   ========================================================================== */ 
 
 /* ------------------------------------------------------------------- */
 /* Header section
@@ -1705,7 +1694,7 @@ html[xmlns] .flexslider .slides {
 .jobslist h6 {
   font-family: 'Montserrat', sans-serif;
   font-weight: 700;
-  letter-spacing: 1px;
+  letter-spacing: 1px; 
   color: #2C3E50;
 }
 
@@ -1719,7 +1708,7 @@ html[xmlns] .flexslider .slides {
 	.kafe-btn-mint{
 	  font-weight: 700;
 	  font-size: 12px;
-
+	
 	  margin-top: 10px;
 	  padding: 13px 11px;
 	}
@@ -1730,7 +1719,7 @@ html[xmlns] .flexslider .slides {
 
 /* ==========================================================================
    Job Post Page (jobpost.html)
-   ========================================================================== */
+   ========================================================================== */ 
 
 /* ------------------------------------------------------------------- */
 /* Header section
@@ -1762,7 +1751,7 @@ html[xmlns] .flexslider .slides {
 	.header-jobpost .kafe-btn-mint{
 	  font-weight: 700;
 	  font-size: 12px;
-
+	
 	  margin-top: 10px;
 	  padding: 13px 11px;
 	}
@@ -1773,7 +1762,7 @@ html[xmlns] .flexslider .slides {
 
 /* ------------------------------------------------------------------- */
 /* Job Post section
----------------------------------------------------------------------- */
+---------------------------------------------------------------------- */ 
 .jobpost {
   z-index: 0;
 }
@@ -1839,7 +1828,7 @@ html[xmlns] .flexslider .slides {
 
 .jobpost .label-success {
   font-family: 'Varela Round', sans-serif;
-  background: #05cb95 !important;
+  background: #05cb95 !important; 
   margin-bottom: 5px;
   font-size: 10px;
   color: #fff !important;
@@ -1858,9 +1847,9 @@ html[xmlns] .flexslider .slides {
 
 /* ------------------------------------------------------------------- */
 /* User Panel section
----------------------------------------------------------------------- */
-
-.user .panel,
+---------------------------------------------------------------------- */ 
+   
+.user .panel, 
 .user.panel {
   overflow: hidden;
 }
@@ -1877,7 +1866,7 @@ html[xmlns] .flexslider .slides {
 }
 
 .user .user-avatar {
-  margin-bottom: 0px;
+  margin-bottom: 0px;  
   text-align: center;
   background: #25303B;
   padding-bottom: -40px;
@@ -1914,7 +1903,7 @@ html[xmlns] .flexslider .slides {
 
 .user > .list-group .list-group-item {
   border-top: 0;
-}
+} 
 
 .user .list-group .list-group-item {
   font-family: 'Varela Round', sans-serif;
@@ -1925,7 +1914,7 @@ html[xmlns] .flexslider .slides {
 
 /* ==========================================================================
    Service Page (services.html)
-   ========================================================================== */
+   ========================================================================== */ 
 
 /* ------------------------------------------------------------------- */
 /* Header section
@@ -1948,7 +1937,7 @@ html[xmlns] .flexslider .slides {
 .jobslist h6 {
   font-family: 'Montserrat', sans-serif;
   font-weight: 700;
-  letter-spacing: 1px;
+  letter-spacing: 1px; 
   color: #2C3E50;
 }
 
@@ -1966,16 +1955,16 @@ html[xmlns] .flexslider .slides {
 
 /* ==========================================================================
    Freelancer Styles  (freelancer.html)
-   ========================================================================== */
+   ========================================================================== */ 
 
 /* ------------------------------------------------------------------- */
 /* Header Section
----------------------------------------------------------------------- */
+---------------------------------------------------------------------- */   
 
 .header-freelancer {
 
   background: linear-gradient(
-      rgba(34,34,34,0.7),
+      rgba(34,34,34,0.7), 
       rgba(34,34,34,0.7)
     ), image_url('static/img/bg/2.jpg') no-repeat center center fixed;
   background-size: cover;
@@ -1986,7 +1975,7 @@ html[xmlns] .flexslider .slides {
   color: #fff;
   height: 85vh;
   width: 100%;
-
+  
   display: flex;
   flex-direction: column;
   justify-content: center;
@@ -2032,13 +2021,13 @@ html[xmlns] .flexslider .slides {
 	  font-size: 24px;
 	}
 	.header-freelancer p {
-     font-size: 14px;
+     font-size: 14px; 
     }
 	.header-freelancer .kafe-btn-mint-small{
 	  font-weight: 700;
 	  font-size: 12px;
 	  margin-top: 10px;
-	}
+	}		
 }
 
 /* ------------------------------------------------------------------- */
@@ -2067,7 +2056,7 @@ html[xmlns] .flexslider .slides {
 .overview {
   width: 100%;
   overflow:hidden;
-}
+} 
 
 .overview #sidebar {
   padding-top: 10px;
@@ -2107,7 +2096,7 @@ html[xmlns] .flexslider .slides {
   .overview h3 {
    font-size: 14px;
   }
-}
+} 
 
 .overview .about:after,
 .overview .education:after,
@@ -2128,7 +2117,7 @@ html[xmlns] .flexslider .slides {
 
 .overview .label-success {
   font-family: 'Varela Round', sans-serif;
-  background: #05cb95 !important;
+  background: #05cb95 !important; 
   margin-bottom: 5px;
   font-size: 10px;
   color: #fff !important;
@@ -2150,7 +2139,7 @@ html[xmlns] .flexslider .slides {
   box-shadow: none;
 }
 .overview .progress-bar-primary.progress-bar-mint{
-  background: #05CB95 !important;
+  background: #05CB95 !important; 
 }
 
 .overview .chart {
@@ -2264,10 +2253,10 @@ html[xmlns] .flexslider .slides {
 /* ==========================================================================
    Portfolio Page Styles  (porfolio.html)
    ========================================================================== */
-
+   
 /* ------------------------------------------------------------------- */
 /* Portfolio Section
----------------------------------------------------------------------- */
+---------------------------------------------------------------------- */   
 #portfolio .portfolio-item {
     right: 0;
     margin: 0 0 15px;
@@ -2379,7 +2368,7 @@ html[xmlns] .flexslider .slides {
     margin:0;
     padding:0;
     padding-top:40px;
-    background:#7b53c1;
+    background:#16a085;
     color:#fff;
     border:none;
     text-align:center;
@@ -2418,7 +2407,7 @@ html[xmlns] .flexslider .slides {
 
 .modal-body .project-descr{
     margin:0 0 24px;
-
+    
 }
 
 .modal-header .image-wrapper {
@@ -2468,11 +2457,11 @@ html[xmlns] .flexslider .slides {
 
 /* ==========================================================================
    How 1 page (how-1.html)
-   ========================================================================== */
-
+   ========================================================================== */ 
+   
 /* ------------------------------------------------------------------- */
 /* Header Section
----------------------------------------------------------------------- */
+---------------------------------------------------------------------- */   
 
 .header-how {
   background: image_url('static/img/slider/8.jpg') no-repeat center center fixed;
@@ -2484,7 +2473,7 @@ html[xmlns] .flexslider .slides {
   color: #fff;
   height: 65vh;
   width: 100%;
-
+  
   display: flex;
   flex-direction: column;
   justify-content: center;
@@ -2521,7 +2510,7 @@ html[xmlns] .flexslider .slides {
 
 /* ------------------------------------------------------------------- */
 /* White Section
----------------------------------------------------------------------- */
+---------------------------------------------------------------------- */ 
 
 .w {
   background: #ffffff;
@@ -2566,7 +2555,7 @@ html[xmlns] .flexslider .slides {
 
 /* ------------------------------------------------------------------- */
 /* Video Section
----------------------------------------------------------------------- */
+---------------------------------------------------------------------- */ 
 .video{
 	background:image_url('static/img/bg/video-bg.png') no-repeat 0px 0px;
 	min-height:400px;
@@ -2589,11 +2578,11 @@ a.play span:hover{
 
 /* ==========================================================================
    How 2 Page  (how-2.html)
-   ========================================================================== */
+   ========================================================================== */ 
 
 /* ------------------------------------------------------------------- */
 /* Header Section
----------------------------------------------------------------------- */
+---------------------------------------------------------------------- */    
 
 .header-how-2 {
   background: image_url('static/img/slider/6.jpg') no-repeat center center fixed;
@@ -2605,7 +2594,7 @@ a.play span:hover{
   color: #fff;
   height: 65vh;
   width: 100%;
-
+  
   display: flex;
   flex-direction: column;
   justify-content: center;
@@ -2645,7 +2634,7 @@ a.play span:hover{
 
 /* ------------------------------------------------------------------- */
 /* Banner How Section
----------------------------------------------------------------------- */
+---------------------------------------------------------------------- */ 
 
 .banner-how{
   background-size: cover;
@@ -2656,13 +2645,13 @@ a.play span:hover{
   color: #fff;
   height: 45vh;
   width: 100%;
-
+  
   display: flex;
   flex-direction: column;
   justify-content: center;
   align-items: center;
   text-align: center;
-
+  
 }
 
 .banner-how h1 {
@@ -2683,31 +2672,31 @@ a.play span:hover{
 
 .banner-how.one{
   background: linear-gradient(
-      rgba(34,34,34,0.7),
+      rgba(34,34,34,0.7), 
       rgba(34,34,34,0.7)
     ), image_url('static/img/how/1.jpg') no-repeat center center fixed;
 }
 .banner-how.two{
   background: linear-gradient(
-      rgba(34,34,34,0.7),
+      rgba(34,34,34,0.7), 
       rgba(34,34,34,0.7)
     ), image_url('static/img/how/2.jpg') no-repeat center center fixed;
 }
 .banner-how.three{
   background: linear-gradient(
-      rgba(34,34,34,0.7),
+      rgba(34,34,34,0.7), 
       rgba(34,34,34,0.7)
     ), image_url('static/img/how/3.jpg') no-repeat center center fixed;
 }
 .banner-how.four{
   background: linear-gradient(
-      rgba(34,34,34,0.7),
+      rgba(34,34,34,0.7), 
       rgba(34,34,34,0.7)
     ), image_url('static/img/how/4.jpg') no-repeat center center fixed;
 }
 .banner-how.five{
   background: linear-gradient(
-      rgba(34,34,34,0.7),
+      rgba(34,34,34,0.7), 
       rgba(34,34,34,0.7)
     ), image_url('static/img/how/5.jpg') no-repeat center center fixed;
 }
@@ -2723,14 +2712,17 @@ a.play span:hover{
 
 /* ==========================================================================
    Login Page Styles (login.html, register.html)
-   ========================================================================== */
+   ========================================================================== */ 
 
 /* ------------------------------------------------------------------- */
-/* Header Section
----------------------------------------------------------------------- */
+/* Header Section 
+---------------------------------------------------------------------- */   
 
 .header-login {
-  background:rgba(0, 0, 0, 0) linear-gradient(-60.76deg, #9679ff 0%, #d499ea 57.96%, #eea4b3 100%);
+  background: linear-gradient(
+      rgba(34,34,34,0.7), 
+      rgba(34,34,34,0.7)
+    ), image_url('static/img/bg/3.jpg') no-repeat center center fixed;
   background-size: cover;
   background-position: center center;
   -webkit-background-size: cover;
@@ -2739,6 +2731,7 @@ a.play span:hover{
   color: #fff;
   height: 55vh;
   width: 100%;
+  
   display: flex;
   flex-direction: column;
   justify-content: center;
@@ -2776,26 +2769,26 @@ a.play span:hover{
 
 /* ------------------------------------------------------------------- */
 /* Banner Section
----------------------------------------------------------------------- */
+---------------------------------------------------------------------- */    
 .banner-login {
   width: 100%;
-  background: #ffffff;
-}
+  background: #25303B;
+} 
 
 /* ==========================================================================
    Sign Up Page (signup.html)
    ========================================================================== */
-
+   
 /* ------------------------------------------------------------------- */
 /* Signup Section
----------------------------------------------------------------------- */
-
+---------------------------------------------------------------------- */    
+   
 .signup {
   width: 100%;
   background: #25303B;
-  padding-top: 150px;
-  padding-bottom: 150px;
-}
+  padding-top: 150px; 
+  padding-bottom: 150px; 
+} 
 
 .signup .item .fa-stack {
   color: #fff;
@@ -2830,8 +2823,8 @@ a.play span:hover{
   left: 0px;
   padding: 13px 31px;
   color: #fff;
-  background: #05cb95;
-  letter-spacing: 1px;
+  background: #05cb95; 
+  letter-spacing: 1px; 
 }
 
 .signup .divider{
@@ -2870,27 +2863,27 @@ a.play span:hover{
 	.signup span.or::before,
 	.signup span.or::after{
 	  display: none;
-	}
+	}	
 }
 
 @media only screen and (max-width: 767px){
 	.signup {
-	  padding-top: 100px;
-	  padding-bottom: 100px;
-	}
+	  padding-top: 100px; 
+	  padding-bottom: 100px; 
+	} 
 }
 
 /* ==========================================================================
    Contact Page Styles (contact.html)
-   ========================================================================== */
+   ========================================================================== */ 
 
 /* ------------------------------------------------------------------- */
 /* Header Contact Page
----------------------------------------------------------------------- */
+---------------------------------------------------------------------- */   
 
 .header-contact {
   background: linear-gradient(
-      rgba(34,34,34,0.8),
+      rgba(34,34,34,0.8), 
       rgba(34,34,34,0.8)
     ), image_url('static/img/bg/4.jpg') no-repeat center center fixed;
   background-size: cover;
@@ -2901,7 +2894,7 @@ a.play span:hover{
   color: #fff;
   height: 65vh;
   width: 100%;
-
+  
   display: flex;
   flex-direction: column;
   justify-content: center;
@@ -2934,11 +2927,11 @@ a.play span:hover{
 
 .header-contact .location a,
 .header-contact .location a:hover,
-.header-contact .location a:focus {
+.header-contact .location a:focus { 
   color: #fff;
 }
 
-.header-contact .location p {
+.header-contact .location p { 
   display: block;
   font-family: 'Varela Round', sans-serif;
   font-size: 12px;
@@ -2955,22 +2948,22 @@ a.play span:hover{
 
 /* ------------------------------------------------------------------- */
 /* Map Section inside Contact Page
----------------------------------------------------------------------- */
+---------------------------------------------------------------------- */   
  .map iframe{
   width:100%;
   height:400px;
-}
+}  
 
 /* ------------------------------------------------------------------- */
 /* Form Section inside Contact Page
----------------------------------------------------------------------- */
+---------------------------------------------------------------------- */   
 
 .contact {
   width: 100%;
   background: #fff;
   padding-top: 20px;
   padding-bottom: 60px;
-}
+} 
 
 .contact h3 {
   font-family: 'Montserrat', sans-serif;
@@ -3064,11 +3057,11 @@ a.play span:hover{
 	}
 	.header-contact .content {
 	  margin-top: 20px;
-	}
+	}	
 	.contact h3 {
 	font-size: 18px;
 	}
-}
+}	
 @media only screen and (max-width: 420px){
 	.header-contact h1 {
 	  font-size: 24px;
@@ -3080,15 +3073,15 @@ a.play span:hover{
 
 /* ==========================================================================
    Blog Page Styles (blog.html)
-   ========================================================================== */
-
+   ========================================================================== */ 
+   
 /* ------------------------------------------------------------------- */
 /* Header Section
----------------------------------------------------------------------- */
+---------------------------------------------------------------------- */    
 
 .header-blog {
   background: linear-gradient(
-      rgba(34,34,34,0.6),
+      rgba(34,34,34,0.6), 
       rgba(34,34,34,0.6)
     ), image_url('static/img/bg/5.jpg') no-repeat center center fixed;
   background-size: cover;
@@ -3099,7 +3092,7 @@ a.play span:hover{
   color: #fff;
   height: 65vh;
   width: 100%;
-
+  
   display: flex;
   flex-direction: column;
   justify-content: center;
@@ -3174,12 +3167,12 @@ a.play span:hover{
   margin: 0 !important;
   padding: 0 !important;
   overflow: hidden;
-}
+} 
 
 .blog-categories ul.cat .current-cat a{
   font-family: 'Montserrat', sans-serif;
   font-size: 13px;
-  color: #7b53c1 !important;
+  color: #16A085 !important;
   border-bottom: 5px solid #23b0a3;
 }
 
@@ -3188,11 +3181,11 @@ a.play span:hover{
   font-family: 'Montserrat', sans-serif;
   font-weight: 700;
   font-size: 13px;
-  color: #7b53c1;
+  color: #16A085;
   padding: 25px 30px;
   text-decoration: none;
   text-transform: uppercase;
-}
+}  
 
 .blog-categories ul.cat li a:hover {
   color: #2C3E50;
@@ -3207,7 +3200,7 @@ a.play span:hover{
       font-size: 1.2em;
       font-family: 'Montserrat', sans-serif;
       font-weight: 700;
-      color: #7b53c1 !important;
+      color: #16A085 !important;
 	  float: left;
 	  height: 50px;
 	  padding: 15px 15px;
@@ -3225,7 +3218,7 @@ a.play span:hover{
 		-webkit-touch-callout: none;
 		-webkit-user-select: none;
 		user-select: none;
-        color: #7b53c1 !important;
+        color: #16A085 !important;
 		float: right;
 		font-family: 'FontAwesome';
 		text-align: center;
@@ -3234,25 +3227,25 @@ a.play span:hover{
 		height: 50px;
 		line-height: 50px;
 	}
-
+	
 	.drop:hover {
-        color: #7b53c1 !important;
+        color: #16A085 !important;
 	}
-
+	
 	.drop:after {
 		content: '\f0c9';
 	}
-
+	
 	#drop:checked ~ .cat {
 		display: block;
 		filter: alpha(opacity=100);
 		opacity: 1;
 	}
-
+	
 	#drop:checked + .drop:after {
 		content: '\f077';
 	}
-
+	
 	/* The menu items */
 	.blog-categories .cat {
 		display: none;
@@ -3268,14 +3261,14 @@ a.play span:hover{
 		padding-bottom: 50px;
 		z-index: 999;
 	}
-
+	
 	.blog-categories .cat li {
 		display: block;
         color: #fff !important;
 		width: 100%;
 		height: 40px;
 	}
-
+	
 	.blog-categories .cat li a {
 		display: block;
         color: #fff !important;
@@ -3283,22 +3276,22 @@ a.play span:hover{
 		line-height: 10px !important;
 		margin-left: 15px;
 	}
-
+	
 	.blog-categories .cat li a:hover {
         color: #23b0a3 !important;
-	}
+	}	
 }
 
 /* ------------------------------------------------------------------- */
 /* Blog Articles Inside Blog Page
 ---------------------------------------------------------------------- */
-
+   
 .blog {
   width: 100%;
   background: #f2f2f2;
-  padding-top: 50px;
-  padding-bottom: 30px;
-}
+  padding-top: 50px; 
+  padding-bottom: 30px; 
+} 
 
 .blog h3 {
   font-family: 'Montserrat', sans-serif;
@@ -3314,17 +3307,17 @@ a.play span:hover{
   padding-bottom: 30px;
 }
 
-.blog span a{
-  display: inline-block;
+.blog span a{ 
+  display: inline-block; 
   font-family: 'Varela Round', sans-serif;
   font-weight: 700;
-  font-size: 14px;
+  font-size: 14px; 
   color: #858686;
   padding-bottom: 30px;
 }
 
-.blog span a:hover {
-  text-decoration: none;
+.blog span a:hover { 
+  text-decoration: none; 
 }
 
 .blog .bb{
@@ -3516,7 +3509,7 @@ a.a-body:hover{
   color: #fff !important;
 }
 
-.blog .page .pagination li a,
+.blog .page .pagination li a, 
 .blog .page .pagination li span{
   font-family: 'Montserrat', sans-serif;
   font-size:15px;
@@ -3558,11 +3551,11 @@ a.a-body:hover{
 
 /* ==========================================================================
    Blogpage.html Styles
-   ========================================================================== */
+   ========================================================================== */ 
 
 /* ------------------------------------------------------------------- */
 /* Header Page
----------------------------------------------------------------------- */
+---------------------------------------------------------------------- */   
 
 .header-blogpage {
   background: image_url('static/img/blog/1.jpg') no-repeat center center fixed;
@@ -3574,7 +3567,7 @@ a.a-body:hover{
   color: #fff;
   height: 75vh;
   width: 100%;
-
+  
   display: flex;
   flex-direction: column;
   justify-content: center;
@@ -3621,7 +3614,7 @@ a.a-body:hover{
 
 /* ------------------------------------------------------------------- */
 /* Related Articles Styles
----------------------------------------------------------------------- */
+---------------------------------------------------------------------- */ 
 .articles {
   background: #fff;
   width: 100%;
@@ -3712,7 +3705,7 @@ a.a-body:hover{
 
 /* ------------------------------------------------------------------- */
 /* Blog Author Styles
----------------------------------------------------------------------- */
+---------------------------------------------------------------------- */ 
 
 .blogauthor {
   background: #fff;
@@ -3786,7 +3779,7 @@ a.a-body:hover{
 
 /* ------------------------------------------------------------------- */
 /* Comments Styles
----------------------------------------------------------------------- */
+---------------------------------------------------------------------- */  
 .comments{
   width: 100%;
   padding-top: 15px;
@@ -3875,14 +3868,14 @@ a.a-body:hover{
   font-size: 14px;
   font-weight: 300;
   letter-spacing: 1px;
-}
+}   
 
 @media only screen and (max-width: 991px){
 	.blogauthor img{
 	  position: relative;
 	  left: 45%;
-	}
-
+	}	
+   
    .comment .comment-body{
     padding-top: 0px !important;
     padding-left: 13px !important;
@@ -3903,26 +3896,26 @@ a.a-body:hover{
 	}
 	.blogauthor h5 a {
 	font-size: 16px;
-	}
+	}	
 }
 @media only screen and (max-width: 420px){
 	.header-blogpage h2 {
 	  font-size: 20px;
 	}
-
+	
 	.blogauthor img{
 	  position: relative;
 	  left: 35%;
-	}
-}
+	}	
+}	
 
 /* ------------------------------------------------------------------- */
 /* Header Styles Page
----------------------------------------------------------------------- */
+---------------------------------------------------------------------- */   
 
 .header-faq {
   background: linear-gradient(
-      rgba(34,34,34,0.6),
+      rgba(34,34,34,0.6), 
       rgba(34,34,34,0.6)
     ), image_url('static/img/bg/6.jpg') no-repeat center center fixed;
   background-size: cover;
@@ -3933,7 +3926,7 @@ a.a-body:hover{
   color: #fff;
   height: 65vh;
   width: 100%;
-
+  
   display: flex;
   flex-direction: column;
   justify-content: center;
@@ -3968,7 +3961,7 @@ a.a-body:hover{
   padding-top: 30px;
   padding-bottom: 30px;
   overflow:hidden;
-}
+} 
 
 .faq #basics,
 .faq #account,
@@ -3990,7 +3983,7 @@ a.a-body:hover{
 }
 .faq .panel-success{
   border-color: #18bc9c;
-}
+} 
 .faq .panel-success .panel-heading{
   color: #fff;
   background-color: #18bc9c;
@@ -4085,4 +4078,4 @@ a.a-body:hover{
 	.panel-group .panel-heading .panel-title{
 	  font-size:15px;
 	}
-}
+}	

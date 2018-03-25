@@ -6,8 +6,6 @@ class Company::AttachmentsController < Company::BaseController
   def index
     @attachments_page = current_company.attachments.paginate(:page => params[:page], :per_page => 20)
     add_breadcrumb "Company Documents", attachments_path(current_company), :title => ""
-    @company_doc = current_company.company_docs.new
-    @company_doc.build_attachment
   end
 
   # def document_list

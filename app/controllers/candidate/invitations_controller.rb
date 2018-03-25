@@ -23,7 +23,7 @@ class Candidate::InvitationsController < Devise::InvitationsController
       redirect_to candidate_candidate_dashboard_path
     else
       flash[:error] = "Something went wrong please check it "
-      redirect_back fallback_location: root_path
+      redirect_to :back
     end
   end
 

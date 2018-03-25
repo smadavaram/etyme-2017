@@ -23,7 +23,7 @@ class Company::TimesheetLogsController < Company::BaseController
     else
       flash[:errors] = @timesheet_log.errors.full_messages
     end
-    redirect_back fallback_location: root_path
+    redirect_to :back
 
   end
 

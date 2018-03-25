@@ -8,7 +8,7 @@ class Candidate::EducationsController <Candidate::BaseController
     else
       flash[:errors] = @education.errors.full_messages
     end
-    redirect_back fallback_location: root_path
+    redirect_to :back
   end
 
   def update

@@ -79,12 +79,12 @@ class Company::JobInvitationsController < Company::BaseController
         current_company.sent_job_invitations.create!(invitation_params.merge!( created_by_id: current_user.id,invitation_type: 'candidate',recipient_type: 'Candidate' ,recipient_id: c.id))
       end
     end
-    redirect_back fallback_location: root_path
+    redirect_to :back
   end
 
   def import
     Consultant.import(params[:consultant][:file] , current_company , current_user)
-    redirect_back fallback_location: root_path, notice: "Bulk imported."
+    redirect_to :back, notice: "Bulk imported."
   end
 
   private

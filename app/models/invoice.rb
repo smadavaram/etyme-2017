@@ -1,29 +1,29 @@
-class Invoice < ApplicationRecord
+class Invoice < ActiveRecord::Base
 
   include Rails.application.routes.url_helpers
 
   enum status: [:pending_submission,:submitted, :paid , :partially_paid , :cancelled ]
 
-  belongs_to  :contract, optional: true
-  belongs_to  :submitted_by   , class_name:"Admin", foreign_key: :submitted_by, optional: true
-  belongs_to  :parent_invoice , class_name: "Invoice" , foreign_key: :parent_id, optional: true
+  belongs_to  :contract
+  belongs_to  :submitted_by   , class_name:"Admin", foreign_key: :submitted_by
+  belongs_to  :parent_invoice , class_name: "Invoice" , foreign_key: :parent_id
   has_one     :child_invoice  , class_name: "Invoice", foreign_key: :parent_id
   has_one     :company        , through: :company
   has_many    :timesheets
   has_many    :timesheet_logs , through: :timesheets
 
 
-  # before_validation :set_rate , on: :create
-  # before_validation :set_consultant_and_total_amount, on: :create , if: Proc.new{|invoice| !invoice.contract.has_child?}
-    # before_validation :set_total_amount , on: :create , if: Proc.new{|invoice| !invoice.contract.has_child?}
-  # before_validation :set_commissions , on: :create , if: Proc.new{|invoice| !invoice.contract.has_child?}
-  # before_validation :set_start_date_and_end_date , on: :create , if: Proc.new{|invoice| !invoice.contract.has_child?}
+  before_validation :set_rate , on: :create
+  before_validation :set_consultant_and_total_amount, on: :create , if: Proc.new{|invoice| !invoice.contract.has_child?}
+  # before_validation :set_total_amount , on: :create , if: Proc.new{|invoice| !invoice.contract.has_child?}
+  before_validation :set_commissions , on: :create , if: Proc.new{|invoice| !invoice.contract.has_child?}
+  before_validation :set_start_date_and_end_date , on: :create , if: Proc.new{|invoice| !invoice.contract.has_child?}
 
-  # after_create      :set_next_invoice_date , if: Proc.new{|invoice| !invoice.contract.has_child?}
-  # after_create      :update_timesheet_status_to_invoiced , if: Proc.new{|invoice| !invoice.contract.has_child?}
-  # after_create      :notify_contract_responder ,  if: Proc.new{|invoice| invoice.contract.respond_by.present?}
-  # after_update      :create_invoice_for_parent, if: Proc.new{|invoice| invoice.status_changed? && invoice.submitted? && invoice.contract.parent_contract?}
-  # after_update      :notify_contract_creator , if: Proc.new{ |invoice| invoice.status_changed?  && invoice.submitted?}
+  after_create      :set_next_invoice_date , if: Proc.new{|invoice| !invoice.contract.has_child?}
+  after_create      :update_timesheet_status_to_invoiced , if: Proc.new{|invoice| !invoice.contract.has_child?}
+  after_create      :notify_contract_responder ,  if: Proc.new{|invoice| invoice.contract.respond_by.present?}
+  after_update      :create_invoice_for_parent, if: Proc.new{|invoice| invoice.status_changed? && invoice.submitted? && invoice.contract.parent_contract?}
+  after_update      :notify_contract_creator , if: Proc.new{ |invoice| invoice.status_changed?  && invoice.submitted?}
 
   validate :start_date_cannot_be_less_than_end_date
   validate :contract_validation , if: Proc.new{|invoice| !invoice.contract.in_progress?}
@@ -33,7 +33,7 @@ class Invoice < ApplicationRecord
 
 
   def set_consultant_and_total_amount
-    assignee_rate    = 0 #self.contract.assignee.hourly_rate
+    assignee_rate    = self.contract.assignee.hourly_rate
     contract_rate    = self.contract.rate
     total_time_in_sec = 0.0
     self.contract.timesheets.approved.not_invoiced.each{ |t| total_time_in_sec += t.approved_total_time }
@@ -76,8 +76,7 @@ class Invoice < ApplicationRecord
   end
 
   def set_next_invoice_date
-    # temp_date = self.contract.next_invoice_date + TIMESHEET_FREQUENCY[self.contract.time_sheet_frequency].days
-    temp_date = self.contract.next_invoice_date + self.contract.sell_contracts.first.invoice_terms_period.to_i.days # TIMESHEET_FREQUENCY[self.contract.time_sheet_frequency].days
+    temp_date = self.contract.next_invoice_date + TIMESHEET_FREQUENCY[self.contract.time_sheet_frequency].days
     self.contract.next_invoice_date = temp_date > self.contract.end_date ? self.contract.end_date : temp_date
     self.contract.save
   end

@@ -19,10 +19,10 @@ class Company::CompanyDocsController < Company::BaseController
     @company_doc = current_company.company_docs.new(company_docs_params.merge!(created_by: current_user.id))
     if @company_doc.save
       flash[:success] = "Company doc added successfully."
-      redirect_back fallback_location: root_path
+      redirect_to :back
     else
       flash[:errors] = @company_doc.errors.full_messages
-      redirect_back fallback_location: root_path
+      redirect_to :back
     end
   end
   def update

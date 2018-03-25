@@ -17,7 +17,6 @@ class Static::JobsController < ApplicationController
 
   def apply
     @job_application = @job.job_applications.new
-    @job_application.job_applicant_reqs.build
     @job.custom_fields.each do |cf|
       @job_application.custom_fields.new(name: cf.name)
     end

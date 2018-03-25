@@ -26,12 +26,12 @@ class Company::InvitationsController < Devise::InvitationsController
       else
         resource.invitation_token = update_resource_params[:invitation_token]
         flash[:errors] = resource.errors.full_messages
-        redirect_back fallback_location: root_path
+        redirect_to :back
       end
     else
       resource.invitation_token = update_resource_params[:invitation_token] if resource
       flash[:errors] = resource.present? ? resource.errors.full_messages : ['Something is not right, Please try again.']
-      redirect_back fallback_location: root_path
+      redirect_to :back
     end
 
   end

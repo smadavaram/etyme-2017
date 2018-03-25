@@ -1,5 +1,5 @@
-class Group < ApplicationRecord
-  belongs_to :company, optional: true
+class Group < ActiveRecord::Base
+  belongs_to :company
   has_many :groupables ,dependent:  :destroy
   has_many :candidates  , through: :groupables, source: "groupable"  ,source_type: "Candidate"
   has_many :companies   , through: :groupables, source: "groupable"  ,source_type: "Company"

@@ -7,7 +7,7 @@ class Company::LocationsController < Company::BaseController
 
   def create
     @location=current_company.locations.create!(location_params)
-    redirect_back fallback_location: root_path
+    redirect_to :back
   end
 
   def new
@@ -24,7 +24,7 @@ class Company::LocationsController < Company::BaseController
 
   def update
     @location.update_attributes(location_params)
-    redirect_back fallback_location: root_path
+    redirect_to :back
 
   end
 

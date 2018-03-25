@@ -1,190 +1,103 @@
+.col-xs-12.col-sm-7.col-md-7.col-lg-4
+  %h1.page-title.txt-color-blueDark
+    %i.fa-fw.fa.fa-home
+    = "Welcome #{current_candidate.full_name.titleize} ,"
 #content
-  .row
-    .col-sm-12.col-md-12.col-lg-3
-      .panel-body.status.profile-margin
-        .text
-          %div.profile-hover
-            %p.imgDescription.col-sm-offset-4 Change Image
-            %div.pictureContainer.col-md-offset-2
-              = filepicker_field_tag "" ,class: "hidden file", onchange:"employeeLogoUpload(event)","data-fp-crop-ratio" => "2/2",mimetypes: "image/*"
-              -if(current_candidate.photo.present?)
-                = image_tag current_candidate.photo,  style:"width:100px;height:100px", fit: 'clip',:class =>"profile-pic image-setting"
+  -if @chat.present?
+    %section#widget-grid
 
-              -else
-                = image_tag image_path('default_user.png'),  style: "width:100px;height:100px", fit: 'clip',:class =>"profile-pic image-setting"
+      .row
+        .col-sm-6.col-lg-12
+          .panel.panel-default
+            .panel-body.status
+              .who.clearfix
+                .row
+                  .col-xs-6.col-sm-3.col-md-3.col-lg-3.pull-left
+                    %h4= @chat.try(:company).try(:name).try(:titleize)
+              #chat-body.chat-body.custom-scroll{style: "height: 500px !important"}
+                .widget-body
+                  .row
+                    .col-md-3.center.hidden-sm.hidden-xs{style: "position: absolute !important"}
+                      .who.clearfix.right
+                        %h4 Your Chats
+                      %br
+                      - @chats.take(10).each do |c|
+                        .margin-bottom-10.padding-10.bg-color-white.fa-border
+                          = link_to  c.try(:company).try(:name).try(:titleize) , chat_path(c)
+                    .col-md-8{style: "float: right !important"}
+                      %ol.discussion{id: "chat-#{@chat.try(:channel_name)}"}
+                        - @messages.each do |m|
+                          = render 'company/messages/partials/message' ,m: m
+              .chat-footer
+                / CHAT TEXTAREA
+                = form_for Message.new ,url:chat_messages_path(@chat),method: :post, remote: true do |f|
+                  = f.hidden_field :chat_id , value: @chat.id
+                  .textarea-div
+                    .typearea
+                      = f.text_area :body ,class: "textarea-div custom-scroll" , id:"textarea-expand" , :placeholder => "Write a reply..." ,required: true
+                  %span.textarea-controls
+                    = f.submit "Reply" , class: "button btn btn-sm btn-primary pull-right"
+                    -#%span.pull-right.smart-form{:style => "margin-top: 3px; margin-right: 10px;"}
+                      %label.checkbox.pull-right
+                        %input#subscription{:name => "subscription", :type => "checkbox"}/
+                        = succeed "Press" do
+                          %i
+                        %strong ENTER
+                        to send
+                    = filepicker_field_tag "" ,class: "hidden  file", onchange:"uploadFile(event)"
 
-        %ul.links.hidden-sm.hidden-xs
-          %li
-            = filepicker_field_tag "" ,class: "hidden resume_file", onchange:"uploadResume(event)"
-            - if !current_candidate.resume.present?
-              = link_to "Upload CV" ,"#",class: 'resume btn btn-md btn-primary'
-            - else
-              = link_to "Change CV","#",class: 'resume btn btn-md btn-primary'
+                    = link_to raw("<i class='fa fa-file fa-fw fa-lg '></i>") ,"#", class: 'btn btn-success fileUpload pull-left btn-sm'
+                - content_for :scripts do
+                  :javascript
+                     function replyUpload(id) {
+                          filepicker.pick({
+                            mimetype: 'image/*',
+                            container: 'window',
+                            services: ['COMPUTER', 'FACEBOOK', 'CLOUDAPP']
+                            },
+                            function(Blob){
+                              file_url = Blob.url
+                              file_name = Blob.filename;
+                              $.post("#{candidate_file_chat_messages_path(@chat.try(:id))}",{ file_url: file_url,file_name: file_name,file_url: file_url ,message_id: id ,authenticity_token: window._token })
+                            },
+                            function(FPError){
+                            //  console.log(FPError.toString()); - print errors to console
+                          }
+                        );
+                      }
+                    var pusher = new Pusher("#{PUSHER_KEY}");
+                    var channel = pusher.subscribe("#{@chat.try(:channel_name)}");
+                    channel.bind('send-message', function(data) {
+                      $.post("#{render_message_chat_messages_path(@chat.try(:id))}" , {id: data.message  , authenticity_token: window._token});
+                    });
+                    function uploadFile(event){
+                      file_url = event.fpfile.url
+                      file_name = event.fpfile.filename;
+                      $.post("#{candidate_file_chat_messages_path(@chat.try(:id))}",{ file_url: file_url,file_name: file_name,file_url: file_url  ,authenticity_token: window._token })
+                    }
 
-          %li
-            %a{:href => "javascript:void(0);"}
 
-          %li
-            %a{:href => "javascript:void(0);"}
+%script{:src => "https://js.pusher.com/4.0/pusher.min.js"}
+
+-content_for :modals do
+  -#= render "company/messages/partials/upload_document" ,chat: @chat
+-content_for :head do
+  = stylesheet_link_tag 'chats'
 
 
 
-    .col-sm-12.col-md-12.col-lg-9
-      #wid-id-7.jarviswidget.jarviswidget-color-teal{"data-widget-attstyle" => "jarviswidget-color-teal", "data-widget-custombutton" => "false", "data-widget-editbutton" => "false", "data-widget-fullscreenbutton" => "false", "data-widget-sortable" => "false", :role => "widget", :style => ""}
-        %header{:role => "heading"}
-          %ul.nav.nav-tabs.pull-left.in#myTab
-            %li.active
-              %a{"aria-expanded" => "true", "data-toggle" => "tab", :href => "#hr1"}
-                %i.fa.fa-lg.fa-info-circle
-                %span.hidden-mobile.hidden-tablet Basic Info
-            %li
-              %a{"aria-expanded" => "false", "data-toggle" => "tab", :href => "#hr2"}
-                %i.fa.fa-lg.fa-location-arrow
-                %span.hidden-mobile.hidden-tablet
-                  Address
-            %li
-              %a{"aria-expanded" => "false", "data-toggle" => "tab", :href => "#hr3"}
-                %i.fa.fa-lg.fa-graduation-cap
-                %span.hidden-mobile.hidden-tablet
-                  Educations
-            %li
-              %a{"aria-expanded" => "false", "data-toggle" => "tab", :href => "#hr4"}
-                %i.fa.fa-black-tie.fa-lg
-                %span.hidden-mobile.hidden-tablet
-                  Experience
-            %li
-              %a{"aria-expanded" => "false", "data-toggle" => "tab", :href => "#hr5"}
-                %i.fa.fa-briefcase.fa-lg
-                %span.hidden-mobile.hidden-tablet
-                  Portfolio
-          %span.jarviswidget-loader
-            %i.fa.fa-refresh.fa-spin
-        / widget div
-        %div{:role => "content"}
-          .jarviswidget-editbox
 
-          .widget-body
-            .tab-content
-              -## Basic Info form TAB
-              #hr1.tab-pane.active
-                = link_to 'Add Skills' ,"#",class:'btn btn-primary pull-right margin-bottom-5 margin-right-10',"data-target" => "#skills", "data-toggle" => "modal"
-                .tabbable.tabs-below
-                  =render partial: 'candidate/candidates/partials/basic_info',locals: {candidate: current_candidate}
-                = render partial: 'candidate/candidates/partials/skills_modal'
-
-              -# Locations form TAB
-              #hr2.tab-pane
-                -#%button.btn.btn-primary{"data-target" => "#myModal", "data-toggle" => "modal"}
-                -#  Add Location
-                .tabbable.tabs-below
-                  =render partial: 'candidate/candidates/partials/location',locals:{address: current_candidate.address}
-              #hr3.tab-pane
-                %button.btn.btn-primary.pull-right.margin-bottom-5.margin-right-10{"data-target" => "#education", "data-toggle" => "modal"}
-                  New
-                .tabbable.tabs-below
-                  = render partial: 'candidate/educations/partials/education_detail',locals: {user: current_candidate}
-                = render partial: 'candidate/educations/partials/form' ,locals: {user: current_candidate}
-              #hr4.tab-pane
-                %button.btn.btn-primary.pull-right.margin-bottom-5.margin-right-10{"data-target" => "#experience", "data-toggle" => "modal"}
-                  New
-                .tabbable.tabs-below
-                  = render partial: 'candidate/experiences/partials/experience_detail',locals: {user: current_candidate}
-                = render partial: 'candidate/experiences/partials/form' ,locals: {user: current_candidate}
-              #hr5.tab-pane
-                %button.btn.btn-primary.pull-right.margin-bottom-5.margin-right-10{"data-target" => "#add-portfolio", "data-toggle" => "modal"}
-                  New
-                .tabbable.tabs-below
-                  = render partial: 'candidate/portfolios/partials/portfolio',locals: {user: current_candidate}
-- content_for :modals do
-  = render partial: 'candidate/portfolios/partials/form_modal'
-
-- content_for :scripts do
+-content_for :scripts do
   :javascript
-
     $(document).ready(function() {
-
-      $('a[data-toggle="tab"]').on('show.bs.tab', function(e) {
-            // localStorage.setItem('activeTab', $(e.target).attr('href'));
-            var id = $(e.target).attr("href").substr(1);
-            window.location.hash = id;
-          });
-        var hash = window.location.hash;
-        $('#myTab a[href="' + hash + '"]').tab('show');
-
-      $( ".profile-pic" ).click(function()
-      {
-        $( ".file" ).trigger( "click" );
-      });
-
-      $('.resume').on("click",function(){
-
-          $(".resume_file").trigger("click");
-
-      });
-      $( '.file-portfolio' ).on('click',function() {
+      $(".select2").select2({placeholder: "Select a User(s)"});
+      $(".file_select").select2({placeholder: "Select Company Document"});
+      $('.fileUpload').on("click",function(){
+        $(".file").trigger("click");
         $('.fp__overlay').css({'z-index':'99999'});
-
-     });
-
-
-       $(".best_in_place").best_in_place();
-       $(".best_in_place").on('change', function(event) {
-          flash_success('Change Saved!');
       });
-      $('#education_start_year').datepicker({
-        dateFormat : 'dd/mm/yy'
-      });
-      $('#education_completion_year').datepicker({
-        dateFormat : 'dd/mm/yy'
-      });
-      $('#experience_start_date').datepicker({
-        dateFormat : 'dd/mm/yy'
-      });
-      $('#experience_end_date').datepicker({
-        dateFormat : 'dd/mm/yy'
-      });
-
+      var chatBody = $('#chat-body') ;
+      chatBody.scrollTop(5000000000);
     });
-    function employeeLogoUpload(event){
-      photo_url = event.fpfile.url
-      $('.profile-pic').html('');
-      $.ajax({
-       type: 'POST',
-       dataType: 'json',
-       url: "#{candidate_update_photo_path}",
-       data: { photo: photo_url,authenticity_token: window._token },
-       success: function (data) {
-        $('.text img').attr("src",photo_url);
-       }
-     });
-    }
-    function uploadResume(event){
-      resume_url = event.fpfile.url
-      $.ajax({
-       type: 'POST',
-       dataType: 'json',
-       url: "#{upload_resume_candidates_path}",
-       data: { resume: resume_url,authenticity_token: window._token },
-       // success: function (data) {
-       // }
-     });
-    }
-    $.datepicker.setDefaults({
-        changeYear: true,
-        yearRange: "1900:2017",
-        showMonthAfterYear: true,
-        showButtonPanel: true,
-        showAnim: "fold",
-        selectOtherMonths: true,
-        autoSize: true,
-        dateFormat: "yy-mm-dd"
-
-      });
-    $(".edit_in_line").css("display","none");
-    $('td').on('mouseover mouseout',function(){
-    $(this).find('.editprofile-pic_in_line').toggle();
-
-    });
-
 
 

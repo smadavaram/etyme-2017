@@ -36,16 +36,6 @@
           %span.text-muted Message
           %br
           = raw(job_application.message)
-        -job_application.job_applicant_reqs.each do |j|
-          %hr
-          %li
-            %span.text-muted
-              = j.job_requirement.questions
-            %p
-              - if j.app_multi_ans.present? && j.job_requirement.multiple_ans
-                =j.app_multi_ans.reject { |c| c.empty? || c == "0"}.join(",")
-              -else
-                =j.applicant_ans
         - job_application.custom_fields.each do |cf|
           %hr
           %li

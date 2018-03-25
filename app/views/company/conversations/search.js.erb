@@ -1,7 +1,0 @@
-<% if current_user.present? %>
-  $("#company-conversation-list").html("<%= j render 'company/conversations/conversation_users', users: @companies %>");
-  $("#candidate-conversation-list").html("<%= j render 'company/conversations/conversation_users', users: @candidates %>");
-<% else %>
-  $("#company-conversation-list").html("<%= j render 'candidate/conversations/conversation_users', users: @companies %>");
-  $("#candidate-conversation-list").html("<%= j render 'candidate/conversations/conversation_users', users: @candidates %>");
-<% end %>

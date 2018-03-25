@@ -1,41 +1,28 @@
-class Timesheet < ApplicationRecord
+class Timesheet < ActiveRecord::Base
 
   include Rails.application.routes.url_helpers
 
   enum status: [:open,:pending_review, :approved , :partially_approved , :rejected , :submitted , :invoiced]
 
-  belongs_to :company, optional: true
-  belongs_to :contract, optional: true
-  belongs_to :user, optional: true
-  belongs_to :job, optional: true
-  belongs_to :invoice, optional: true
-  belongs_to :candidate, optional: true
+  belongs_to :company
+  belongs_to :contract
+  belongs_to :user
+  belongs_to :job
+  belongs_to :invoice
   has_many   :timesheet_logs , dependent: :destroy
   has_many   :timesheet_approvers  , dependent: :destroy
   has_many   :transactions  , through: :timesheet_logs
 
-  has_many :contract_salary_histories ,as: :salable, dependent: :destroy
-
-
-  # before_validation :set_recurring_timesheet_cycle
-  after_create  :set_timesheet_on_seq
-
+  before_validation :set_recurring_timesheet_cycle
   after_create  :create_timesheet_logs
-  # after_create  :notify_timesheet_created
-  # after_update :update_pending_timesheet_logs, if: Proc.new{|t| t.status_changed? && t.approved?}
-
-  after_update :set_contract_salary_histories, if: Proc.new{|t| t.status_changed? && t.approved?}
+  after_create  :notify_timesheet_created
+  after_update :update_pending_timesheet_logs, if: Proc.new{|t| t.status_changed? && t.approved?}
 
   validates           :start_date,  presence:   true
   validates           :end_date,    presence:   true
   validates :status , inclusion: {in: statuses.keys}
-  
-  validates_uniqueness_of :start_date, scope: :contract_id, :message => "Timesheet already submitted."
-  
 
   scope :not_invoiced , -> {where(invoice_id: nil)}
-  scope :submitted_timesheets , -> {where(status: :open)}
-  scope :approved_timesheets , -> {where(status: :approved)}
 
   def assignee
     self.contract.assignee
@@ -54,10 +41,9 @@ class Timesheet < ApplicationRecord
   end
 
   def total_time
-    super
-    # total_time = 0
-    # self.timesheet_logs.each do |t| total_time = total_time + t.total_time end
-    # total_time
+    total_time = 0
+    self.timesheet_logs.each do |t| total_time = total_time + t.total_time end
+    total_time
   end
 
   def approved_total_time
@@ -117,54 +103,6 @@ class Timesheet < ApplicationRecord
     self.timesheet_logs.pending.each do |timesheet_log|
       timesheet_log.approved!
     end
-  end
-
-  def contract_id=(new_contract_id)
-    write_attribute(:contract_id, new_contract_id)
-    con = Contract.find(new_contract_id)
-    self.job_id = con.job_id
-    self.company_id = con.company_id
-  end
-
-  def set_contract_salary_histories
-    amoount = (self.total_time * self.contract.buy_contracts.first.payrate)
-    contract_amount = self.contract.salary_to_pay
-    ContractSalaryHistory.create(contract_id: self.contract_id,
-                                 company_id: self.contract.company_id,
-                                 candidate_id: self.contract.buy_contracts.first.candidate_id,
-                                 salary_type: "CREDIT",
-                                 description: "Timesheet Approved",
-                                 amount: amoount,
-                                 final_amount: (contract_amount + amoount),
-                                 salable: self
-    )
-
-    self.contract.update(salary_to_pay: (contract_amount + amoount))
-  end
-
-
-
-
-  def set_timesheet_on_seq
-    ledger = Sequence::Client.new(
-        ledger_name: ENV['seq_ledgers'],
-        credential: ENV['seq_token']
-    )
-    key = ledger.keys.create(id: "timesheet_#{self.id}")
-
-    account = ledger.accounts.create({
-      alias: "tmsht1001_#{self.id}",
-      keys: [key],
-      quorum: 1,
-      tags: {
-        id: self.id,
-        cntrct_id: self.contract.id,
-        days: self.days,
-        total_min: self.total_time,
-        tmsht_period: "#{self.start_date} TO #{self.start_date}"
-      },
-    })
-
   end
 
 end
