@@ -163,10 +163,3 @@
 //= require signature-pad/jquery.signaturepad
 //= require signature-pad/flashcanvas
 //= require signature-pad/json2.min
-
-//=require cable
-
-//= require company/select_autocomplete
-
-//= require conversation/chat
-//= require conversation/users

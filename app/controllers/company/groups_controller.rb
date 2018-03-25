@@ -43,7 +43,7 @@ class Company::GroupsController < Company::BaseController
       @candidate.update_attribute(:group_ids, params[:group_ids])
     end
     flash[:success] = "Groups Assigned"
-    redirect_back fallback_location: root_path
+    redirect_to :back
   end
   def create_bulk_companies
     params[:company_ids].split(',').each do |c_id|
@@ -51,7 +51,7 @@ class Company::GroupsController < Company::BaseController
       @invited_company.update_attribute(:group_ids, params[:group_ids])
     end
     flash[:success] = "Groups Assigned"
-    redirect_back fallback_location: root_path
+    redirect_to :back
   end
 
   private

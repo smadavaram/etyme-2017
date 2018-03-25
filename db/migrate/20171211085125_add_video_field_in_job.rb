@@ -1,4 +1,4 @@
-class AddVideoFieldInJob < ActiveRecord::Migration[5.1]
+class AddVideoFieldInJob < ActiveRecord::Migration
   def change
     add_column :jobs, :video_file, :string
   end

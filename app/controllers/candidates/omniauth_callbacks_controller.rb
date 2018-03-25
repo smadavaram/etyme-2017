@@ -1,86 +1,28 @@
 class Candidates::OmniauthCallbacksController < Devise::OmniauthCallbacksController
-  include AuthenticateOauth
-  def facebook
-    logger.info request.env["omniauth.auth"]
-    @auth = {
-        provider: request.env["omniauth.auth"].provider,
-        uid: request.env["omniauth.auth"].uid,
-        email: request.env["omniauth.auth"].info.email,
-        token: request.env["omniauth.auth"].credentials.token,
-        token_expires: request.env["omniauth.auth"].credentials.expired_at,
-        first_name: request.env["omniauth.auth"].info.first_name,
-        last_name: request.env["omniauth.auth"].info.last_name
-    }
+  # You should configure your model like this:
+  # devise :omniauthable, omniauth_providers: [:twitter]
 
-    if current_user && current_user.present?
-      session[:token]=@auth[:token]
-      redirect_to set_redirection(current_user)
-    else
-      process_oauth
-      if @is_new_user
-        render 'facebook', layout: 'user_type_layout'
-      else
-        redirect_to set_redirection(@user)
-      end
-    end
-  end
+  # You should also create an action method in this controller like this:
+  # def twitter
+  # end
 
-  def google_oauth2
-    logger.info request.env["omniauth.auth"]
-    @auth = {
-        provider: request.env["omniauth.auth"].provider,
-        uid: request.env["omniauth.auth"].uid,
-        email: request.env["omniauth.auth"].info.email,
-        token: request.env["omniauth.auth"].credentials.token,
-        token_expires: request.env["omniauth.auth"].credentials.expired_at,
-        first_name: request.env["omniauth.auth"].info.first_name,
-        last_name: request.env["omniauth.auth"].info.last_name
-    }
+  # More info at:
+  # https://github.com/plataformatec/devise#omniauth
 
-    if current_user && current_user.present?
-      session[:token]=@auth[:token]
-      redirect_to set_redirection(current_user)
-    else
-      process_oauth
-      if @is_new_user
-        render 'facebook', layout: 'user_type_layout'
-      else
-        redirect_to set_redirection(@user)
-      end
-    end
-  end
+  # GET|POST /resource/auth/twitter
+  # def passthru
+  #   super
+  # end
 
-  def linkedin
-    @auth = {
-        provider: request.env["omniauth.auth"].provider,
-        uid: request.env["omniauth.auth"].uid,
-        email: request.env["omniauth.auth"].info.email,
-        token: request.env["omniauth.auth"].credentials.token,
-        token_expires: request.env["omniauth.auth"].credentials.expired_at,
-        first_name: request.env["omniauth.auth"].info.first_name,
-        last_name: request.env["omniauth.auth"].info.last_name,
-        profile_image: request.env["omniauth.auth"].info.image
-    }
+  # GET|POST /users/auth/twitter/callback
+  # def failure
+  #   super
+  # end
 
-    if current_user && current_user.present?
-      session[:token]=@auth[:token]
-      redirect_to set_redirection(current_user)
-    else
-      process_oauth
+  # protected
 
-      if @is_new_user
-        render 'facebook', layout: 'user_type_layout'
-      else
-        redirect_to set_redirection(@user)
-      end
-    end
-  end
-
-  def failure
-    redirect_to root_path
-  end
-
-  def set_redirection(user)
-    candidate_candidate_dashboard_path
-  end
+  # The path used when OmniAuth fails
+  # def after_omniauth_failure_path_for(scope)
+  #   super(scope)
+  # end
 end

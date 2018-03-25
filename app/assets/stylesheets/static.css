@@ -9,9 +9,5 @@
  *= require static/css/style
  *= require static/css/vegas
  *= require static/css/vegas.min
- *= require style
+
 */
-.set-checkbox{
-    position: relative!important;
-    right: 0 !important;
-}

@@ -77,10 +77,3 @@
 {
     width: 49%;
 }
-.disableClick{
-    pointer-events: none;
-}
-.set-checkbox{
-    position: relative!important;
-    right: 0 !important;
-}

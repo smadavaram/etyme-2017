@@ -1,5 +1,5 @@
 
-class Company < ApplicationRecord
+class Company < ActiveRecord::Base
   include PublicActivity::Model
   tracked owner: ->(controller, model) { controller && controller.current_user }
   EXCLUDED_SUBDOMAINS = %w(admin www administrator admins owner etyme mail ftp)
@@ -9,13 +9,12 @@ class Company < ApplicationRecord
   enum company_type: [:hiring_manager, :vendor]
 
   #Note: Do not change the through association order.
-  belongs_to :owner                   , class_name: 'Admin'         , foreign_key: "owner_id", optional: true
-  belongs_to :currency, optional: true
+  belongs_to :owner                   , class_name: 'Admin'         , foreign_key: "owner_id"
+  belongs_to :currency
   has_many :locations                 , dependent: :destroy
   has_many :jobs                      , dependent: :destroy
   has_many :users                     , dependent: :destroy
   has_many :admins                    , dependent: :destroy
-  has_many :contracts               , dependent: :destroy
   has_many :consultants               , dependent: :destroy
   has_many :roles                     , dependent: :destroy
   has_many :company_docs              , dependent: :destroy
@@ -49,12 +48,7 @@ class Company < ApplicationRecord
   has_many :custom_fields             , as: :customizable             ,dependent: :destroy
   has_many :reminders                 ,as:  :reminderable
   has_many :chats                     ,dependent: :destroy
-  has_many :prefer_vendors_chats, -> { where chatable_type: "Company"}, class_name: "Chat", foreign_key: :chatable_id, foreign_type: :chatable_type, dependent: :destroy
-  has_many :branches
-  has_many :billing_infos
-  has_many :company_departments
-  has_many :addresses, through:   :locations
-
+  has_many :prefer_vendors_chats, -> { where chatable_type: "Company"}, class_name: Chat, foreign_key: :chatable_id, foreign_type: :chatable_type, dependent: :destroy
   has_many :statuses                  ,as:  :statusable
 
   has_many :active_relationships, class_name: "SharedCandidate",
@@ -64,8 +58,6 @@ class Company < ApplicationRecord
 
   has_many :share_by, through: :active_relationships, source: :shared_by
   has_many :share_to, through: :passive_relationships, source: :shared_to
-  has_many :document_signs       , as: :signable
-  has_many :contract_salary_histories, dependent: :destroy
 
   # validates           :company_type, inclusion: { in: [0, 1] } , presence: true
   # validates           :company_type, inclusion: {in: %w(0 , 1)}
@@ -84,10 +76,6 @@ class Company < ApplicationRecord
   accepts_nested_attributes_for :company_contacts, allow_destroy: true,reject_if: :all_blank
   accepts_nested_attributes_for :invited_by    , allow_destroy: true
   accepts_nested_attributes_for :custom_fields  , allow_destroy: true , reject_if: :all_blank
-  accepts_nested_attributes_for :billing_infos ,   allow_destroy: true, reject_if: :all_blank
-  accepts_nested_attributes_for :branches ,   allow_destroy: true, reject_if: :all_blank
-  accepts_nested_attributes_for :company_departments ,   allow_destroy: true, reject_if: :all_blank
-  accepts_nested_attributes_for :addresses ,   allow_destroy: true, reject_if: :all_blank
 
 
   before_validation :create_slug
@@ -104,20 +92,10 @@ class Company < ApplicationRecord
 
   attr_accessor :send_email
 
-  def self.like_any(fields, values)
-    conditions = fields.product(values).map do |(field, value)|
-      [arel_table[field].matches("#{value}%"), arel_table[field].matches("% #{value}%")]
-    end
-    where conditions.flatten.inject(:or)
-  end
-
   def invited_companies_contacts
     CompanyContact.where(company_id: self.invited_companies.map(&:invited_company_id))
   end
 
-  def full_name
-    self.name
-  end
 
   def all_admins_has_permission? permission
     self.admins.joins(:permissions).where('permissions.name = ?' , permission).group('users.id') || []
@@ -162,15 +140,14 @@ class Company < ApplicationRecord
 
 
   def get_host_from_domain
-    if self.domain.present?
-      domain = self.domain.gsub(/[^0-9A-Za-z.]/, '')
-      url = URI.parse(domain).scheme.nil? ? "http://#{domain}" : domain
-      host = URI.parse(url).host.downcase
-      if (!self.invited_by.present?)
-         self.slug = host.start_with?('www.') ? host[4..-1].split(".").first : host.split(".").first
-      else
-          self.slug = host.start_with?('www.') ? host[4..-1].split(".").first : host.split(".").first + "#{Time.now.to_s.parameterize(separator: "_")}"
-      end
+
+    domain = self.domain.gsub(/[^0-9A-Za-z.]/, '')
+    url = URI.parse(domain).scheme.nil? ? "http://#{domain}" : domain
+    host = URI.parse(url).host.downcase
+    if (!self.invited_by.present?)
+       self.slug = host.start_with?('www.') ? host[4..-1].split(".").first : host.split(".").first
+    else
+        self.slug = host.start_with?('www.') ? host[4..-1].split(".").first : host.split(".").first + "#{Time.now.to_s.parameterize("_")}"
     end
   end
 

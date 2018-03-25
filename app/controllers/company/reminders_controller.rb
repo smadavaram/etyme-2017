@@ -7,7 +7,7 @@ class Company::RemindersController < Company::BaseController
     else
       flash[:errors] = @reminder.errors.full_messages
     end
-    redirect_back fallback_location: root_path
+    redirect_to :back
   end
 
   def create_bulk_candidates
@@ -16,14 +16,14 @@ class Company::RemindersController < Company::BaseController
       current_company.candidates.find(c_id.to_i).reminders.create(title: params[:reminder][:title] ,remind_at:params[:reminder][:remind_at],user_id: current_user.id)
     end
     flash[:success] = "Reminder Created."
-    redirect_back fallback_location: root_path
+    redirect_to :back
   end
   def create_bulk_companies
     params[:company_ids].split(',').each do |c_id|
       current_company.invited_companies.find_by(invited_company: c_id.to_i).invited_company.reminders.create(title: params[:reminder][:title] ,remind_at:params[:reminder][:remind_at],user_id: current_user.id)
     end
     flash[:success] = "Reminder Created."
-    redirect_back fallback_location: root_path
+    redirect_to :back
   end
 
 

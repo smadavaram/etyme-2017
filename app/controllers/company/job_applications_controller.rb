@@ -6,7 +6,7 @@ class Company::JobApplicationsController < Company::BaseController
   before_action :set_job_applications , only: [:index]
   before_action :find_received_job_application , only: [:accept , :reject ,:interview,:hire, :short_list,:show , :share_application_with_companies]
   before_action :authorized_user,only: [:accept , :reject ,:interview,:hire, :short_list,:show]
-  skip_before_action :authenticate_user! , :authorized_user,only: [:share], raise: false
+  skip_before_filter :authenticate_user! , :authorized_user,only: [:share]
 
 
   add_breadcrumb "JOB APPLICATIONS", :job_applications_path, options: { title: "JOBS APPLICATION" }
@@ -30,10 +30,11 @@ class Company::JobApplicationsController < Company::BaseController
   def create_multiple_For_candidate
     if request.post?
       Candidate.where(id: params[:temp_candidates]).each do |c|
-        c.job_applications.create!({applicant_resume: c.resume, cover_letter:"Application created by owner",job_id: @job.id })
+        c.job_applications.create!({applicant_resume: c.resume ,cover_letter:"Application created by owner",job_id: @job.id })
       end
-      @post = true
+      redirect_to :back
     end
+
   end
 
   def accept
@@ -61,7 +62,7 @@ class Company::JobApplicationsController < Company::BaseController
         format.html{ flash[:errors] =  ["Request Not Completed."]}
       end
     end
-    redirect_back fallback_location: root_path
+    redirect_to :back
   end
 
   def short_list
@@ -74,7 +75,7 @@ class Company::JobApplicationsController < Company::BaseController
     else
       flash[:errors] =  ["Request Not Completed."]
     end
-    redirect_back fallback_location: root_path
+    redirect_to :back
   end
   def interview
     respond_to do |format|
@@ -89,7 +90,7 @@ class Company::JobApplicationsController < Company::BaseController
       end
 
     end
-    redirect_back fallback_location: root_path
+    redirect_to :back
   end
   def hire
     respond_to do |format|
@@ -104,7 +105,7 @@ class Company::JobApplicationsController < Company::BaseController
       end
 
     end
-    redirect_back fallback_location: root_path
+    redirect_to :back
   end
 
   def authorized_user
@@ -112,11 +113,7 @@ class Company::JobApplicationsController < Company::BaseController
   end
 
   def show
-    user = @job_application.user
-    set_conversation(user)
-    @conversation_messages = @conversation.conversation_messages.last(50)
-    @unread_message_count = Conversation.joins(:conversation_messages).where("(senderable_type = ? AND senderable_id = ? ) OR (recipientable_type = ? AND recipientable_id = ?)", current_user.class.to_s, current_user.id, current_user.class.to_s, current_user.id).where.not(conversation_messages: {is_read: true, userable: current_user}).uniq.count
-    @conversation_message = ConversationMessage.new
+
   end
 
   def share
@@ -136,20 +133,10 @@ class Company::JobApplicationsController < Company::BaseController
         end
       end
     end
-    redirect_back fallback_location: root_path , notice: "job application - #{@job_application.job.title} Successfully Shared."
+    redirect_to :back , notice: "job application - #{@job_application.job.title} Successfully Shared."
   end
 
   private
-
-  def set_conversation(user)
-    ConversationMessage.unread_messages(user, current_user).update_all(is_read: true)
-    if Conversation.between(current_user, user).present?
-      @conversation = Conversation.between(current_user, user).first
-    else
-      @conversation = Conversation.create!({senderable: current_user, recipientable: user})
-    end
-  end
-
 
   def set_job_applications
     @search           = current_company.received_job_applications.includes(:job ,:applicationable).search(params[:q])
@@ -160,7 +147,7 @@ class Company::JobApplicationsController < Company::BaseController
 
   def find_job
     # @job = current_company.jobs.find_by_id(params[:job_id]) || []
-    @job = Job.where(id: params[:job_id]).first || []
+    @job = Job.active.where(id: params[:job_id]).first || []
   end
 
   def find_job_invitation

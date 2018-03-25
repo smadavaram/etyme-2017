@@ -13,9 +13,6 @@
 #   rake "some:great:rake:task"
 # end
 #
-
-set :output, '/var/www/etyme/shared/log/cron.log'
-
 every 1.day, :at => '11:59 pm' do
   runner "Contract.end_contracts"
 end
@@ -23,8 +20,7 @@ end
 every 1.day, :at => '11:59 pm' do
   runner "Contract.start_contracts"
 end
-
-every 1.day, :at => '11:59 pm' do
+endevery 1.day, :at => '11:59 pm' do
   runner "Contract.invoiced_timesheets"
 end
 

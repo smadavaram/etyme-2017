@@ -47,7 +47,7 @@ class Candidate::MessagesController < Candidate::BaseController
     if request.post?
       UserMailer.share_message_email(@message, params[:email] ,params[:note]).deliver
       flash[:success] = "Message Shared Successfully."
-      redirect_back fallback_location: root_path
+      redirect_to :back
     end
   end
 

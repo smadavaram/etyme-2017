@@ -20,25 +20,18 @@
         %ul#myTab1.nav.nav-tabs.no-border
           %li.active
             %a{"data-toggle" => "tab", :href => "#tab-r1"}
-              %span.badge.bg-color-blue.txt-color-white= @contract_activity.count
-              Activity log
+              %span.badge.bg-color-blue.txt-color-white= @sent_contracts.count
+              Contracts
           %li
             %a{"data-toggle" => "tab", :href => "#tab-r2"}
-              %span.badge.bg-color-blue.txt-color-white= @sent_contracts.count
-              My Contracts
-          %li
-            %a{"data-toggle" => "tab", :href => "#tab-r3"}
-              %span.badge.bg-color-blueDark.txt-color-white= @buy_contracts.count
-              Received Contracts
+              %span.badge.bg-color-blueDark.txt-color-white= @received_contracts.count
+              Sub Contracts
         .col-md-12
           .tab-content
             #tab-r1.tab-pane.padding-top-15.active.in
-              = render 'company/contracts/partials/contract_activity' , data: @contract_activity
-            #tab-r2.tab-pane.padding-top-15
               = render 'company/contracts/partials/contract_table' , data: @sent_contracts
-            #tab-r3.tab-pane.padding-top-15
-              = render 'company/contracts/partials/receive_contract_table' , data: @buy_contracts
-
+            #tab-r2.tab-pane.padding-top-15
+              = render 'company/contracts/partials/receive_contract_table' , data: @received_contracts
 - content_for :modals do
   #ajax-modal
 - content_for :scripts do

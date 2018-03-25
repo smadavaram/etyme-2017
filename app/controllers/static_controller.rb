@@ -1,6 +1,6 @@
 class StaticController < ApplicationController
 
-  skip_before_action :authenticate_user!, raise: false
+  skip_before_action :authenticate_user!
   before_action      :set_jobs ,only: :index
 
   layout 'static'

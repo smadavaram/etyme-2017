@@ -8,7 +8,7 @@ class Candidate::ExperiencesController < Candidate::BaseController
     else
       flash[:errors] = @experience.errors.full_messages
     end
-    redirect_back fallback_location: root_path
+    redirect_to :back
   end
 
   def update

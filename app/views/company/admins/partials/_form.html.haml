@@ -14,12 +14,6 @@
         = f.text_field :last_name , class: 'form-control' , placeholder: 'Enter Last Name' , required: true,id:'lname'
     .form-group
       %label.col-md-2.control-label
-        Phone Number
-        %sup.text-danger *
-      .col-md-10
-        = f.number_field :phone , class: 'form-control' , placeholder: 'Enter Phone Number' , required: true ,id: 'phone'
-    .form-group
-      %label.col-md-2.control-label
         Email
         %sup.text-danger *
       .col-md-10
@@ -57,9 +51,6 @@
             lname: {
               required: true
             },
-            phone: {
-              required: true
-            },
             company: {
               required: true
             }
@@ -68,7 +59,6 @@
           messages: {
             fname: "Please specify your First name",
             lname: "Please specify your Last name",
-            phone: "Please specify your Phone Number",
             email: {
               required: "We need your email address to contact you",
               email: "Your email address must be in the format of name@domain.com"

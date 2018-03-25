@@ -1,6 +1,6 @@
 class CompaniesController < ApplicationController
 
-  skip_before_action :authenticate_user!  ,          only:[:new , :create , :signup_success], raise: false
+  skip_before_action :authenticate_user!  ,          only:[:new , :create , :signup_success]
   before_action :find_company             ,          only: :profile
 
   respond_to :html,:json
@@ -16,7 +16,6 @@ class CompaniesController < ApplicationController
   end
 
   def create
-    params[:company][:company_type] = params[:company][:company_type].to_i
     @company = Company.new(company_params)
     if @company.save
       flash[:success] =  "Registration Successfull."
@@ -43,7 +42,7 @@ class CompaniesController < ApplicationController
   end
 
   def company_params
-    params.require(:company).permit(:name ,:company_type,:domain,:company_sub_type, :website,:logo,:description,:phone,:email,:linkedin_url,:facebook_url,:twitter_url,:google_url,:is_activated,:status,:tag_line,
+    params.require(:company).permit(:name ,:company_type,:domain, :website,:logo,:description,:phone,:email,:linkedin_url,:facebook_url,:twitter_url,:google_url,:is_activated,:status,:tag_line,
                                     owner_attributes:[:id, :type  , :first_name, :last_name ,:email,:password, :password_confirmation],
                                     locations_attributes:[:id,:name,:status,
                                                           address_attributes:[:id,:address_1,:country,:city,:state,:zip_code] ] )

@@ -14,14 +14,17 @@
               .row
                 = render 'company/contracts/partials/form'
 
-  =#render  'company/contracts/partials/new_company'
+  =render  'company/contracts/partials/new_company'
   - content_for :scripts do
-    -#= javascript_include_tag 'select2'
     :javascript
       // DO NOT REMOVE : GLOBAL FUNCTIONS!
 
       $(document).ready(function() {
+
+
+
         pageSetUp();
+
 
         // Joining Date
           $('#consultant_consultant_profile_attributes_joining_date').datepicker({
@@ -32,6 +35,7 @@
               $('#consultant_consultant_profile_attributes_joining_date').datepicker('option', 'minDate', selectedDate);
             }
           });
+
 
         //Bootstrap Wizard Validations
 
@@ -112,31 +116,35 @@
                 .html('<i class="fa fa-check"></i>');
             }
           },'onPrevious': function(tab, navigation, index){
-            var $total = navigation.find('li').length;
-            var $current = index+1;
-            wizard_set_finish_button($current , $total );
+
+              var $total = navigation.find('li').length;
+              var $current = index+1;
+              wizard_set_finish_button($current , $total );
           },'onTabClick': function(tab, navigation, index){
 
              return false;
           }
         });
 
-        $('.finish').click(function(){
-          if ($("#wizard-1").valid()) {
-            $('.new_contract').submit();
-          }
-          return false;
+         $('.finish').click(function(){
+            if ($("#wizard-1").valid()) {
+              $('.new_contract').submit();
+
+            }
+            return false;
         });
 
         function wizard_set_finish_button(current , total )
         {
-          if(current >= total) {
-            $('#bootstrap-wizard-1').find('.pager .next').hide();
-            $('#bootstrap-wizard-1').find('.pager .finish').show();
-            $('#bootstrap-wizard-1').find('.pager .finish').removeClass('disabled');
-          } else {
-            $('#bootstrap-wizard-1').find('.pager .next').show();
-            $('#bootstrap-wizard-1').find('.pager .finish').hide();
-          }
+              if(current >= total) {
+                  $('#bootstrap-wizard-1').find('.pager .next').hide();
+                  $('#bootstrap-wizard-1').find('.pager .finish').show();
+                  $('#bootstrap-wizard-1').find('.pager .finish').removeClass('disabled');
+                } else {
+                  $('#bootstrap-wizard-1').find('.pager .next').show();
+                  $('#bootstrap-wizard-1').find('.pager .finish').hide();
+              }
         }
+
+
       });

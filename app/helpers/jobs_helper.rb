@@ -6,7 +6,7 @@ module JobsHelper
     if job_skills.nil?
       return ""
     else
-      count = (job_skills.count * 60 / 100.00).ceil
+      count = (job_skills.count * 80 / 100.00).ceil
       current_company.candidates.each do |c|
         user_list.push(c.full_name) if (job_skills & c.skills.pluck(:name)).count >= count
       end

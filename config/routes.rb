@@ -1,10 +1,8 @@
 Rails.application.routes.draw do
 
   namespace :company do
-    get 'activities/index'
+  get 'activities/index'
   end
-
-  mount ActionCable.server => '/cable'
 
   concern :commentable do
     resources :comments
@@ -56,22 +54,9 @@ Rails.application.routes.draw do
       collection do
         get :notify_notifications
         post :upload_resume
-        post :update_video
-        post :get_sub_category
-        get :edit_educations
-        get :edit_skills
-        get :edit_client_info
-        get :edit_designate
       end
     end
     resources  :portfolios ,only: [:create,:update]
-    resources  :benchs ,only: [:index] do
-      get :job, on: :member
-      get :candidate_bench_job, on: :collection
-      get :candidate_company_info, on: :collection
-      get :batch_job, on: :member
-      post :apply, on: :member
-    end
     resources :chats , only:[:show] do
       resources :messages ,only: [:create] do
         collection do
@@ -102,7 +87,7 @@ Rails.application.routes.draw do
       get  :show_invitation
     end
     # resources :contracts        , only: [:index]
-    resources :candidates ,only: [:show,:update,:create]
+    resources :candidates ,only: [:show,:update]
     resources :jobs do
       # resources :contracts , except: [:index] do
       #   member do
@@ -116,14 +101,6 @@ Rails.application.routes.draw do
         post :apply
       end #end of member
     end # End of jobs
-
-    resources :conversations do
-      get :search, on: :collection
-      resources :conversation_messages
-    end
-
-    resources :contracts, only: [:index]
-    resources :timesheets, only: [:index, :new, :create]
   end
 
 
@@ -141,7 +118,7 @@ Rails.application.routes.draw do
 
   # COMPANY ROUTES
   namespace  :company do
-    resources :departments, only: [:create, :update]
+
     resources :statuses , only: [:create,:index] do
       collection do
         post :create_bulk_candidates
@@ -153,16 +130,12 @@ Rails.application.routes.draw do
       get  :add_reminder
       match  :assign_groups , via: [:get , :post]
       get :profile
-      post :update_video
       collection do
         get :notify_notifications
 
       end
     end
-
-    resources :company_contacts, only: [:index, :new, :create]
-
-    resources :companies ,only: [:new, :create , :update] do
+    resources :companies ,only: [:create , :update] do
       get    :add_reminder
       match  :assign_groups , via: [:get , :post]
       post   :add_to_network
@@ -187,24 +160,7 @@ Rails.application.routes.draw do
     resources :job_receives, only: [:index, :destroy]
     resources :public_jobs, only: [:index, :destroy] do
       get :job, on: :member
-      get :apply_job_candidate, on: :member
-      post :create_batch_job, on: :member
-      post :create_own_job, on: :member
-      post :apply, on: :member
     end
-    resources :owen_jobs, only: [:index] do
-      get :batch_job, on: :member
-    end
-    resources :conversations do
-      get :search, on: :collection
-      resources :conversation_messages do
-        get :mark_as_read, on: :member
-      end
-    end
-
-    resources :sell_contracts
-    resources :buy_contracts
-
   end
 
   scope module: :company do
@@ -225,7 +181,6 @@ Rails.application.routes.draw do
       end
     end
     resources :locations
-    resources :departments
     resources :company_docs
     resources :roles
     resources :groups           ,concerns: :paginatable do
@@ -257,7 +212,6 @@ Rails.application.routes.draw do
       get    :add_reminder
       get    :assign_status
       post   :create_chat
-      post   :remove_from_comapny
       collection do
         get    :share_candidates ,as: :share_hot_candidates
       end
@@ -279,14 +233,10 @@ Rails.application.routes.draw do
       resources :contracts
       collection do
         post :nested_create
-        get :set_job_application
       end
       member do
         post :update_attachable_doc
-        get :tree_view
-        get :received_contract
       end
-
       post :change_invoice_date
       resources :invoices , only: [:index , :show] do
         member do
@@ -331,10 +281,7 @@ Rails.application.routes.draw do
     # get 'attachment/documents_list',to: 'attachments#document_list'
     get 'dashboard' ,       to: 'users#dashboard' ,             as: :dashboard
     post 'update_photo',    to: 'users#update_photo'
-    resources :timesheets ,concerns: :paginatable , only: [:show , :index, :new, :create, :edit, :update] do
-      get 'submit_timesheet'
-      get 'approved', on: :collection
-      get 'generate_invoice'
+    resources :timesheets ,concerns: :paginatable , only: [:show , :index] do
       get 'approve'
       get 'submit'
       get 'reject'
@@ -355,8 +302,6 @@ Rails.application.routes.draw do
         post :change_owner
         post :get_admins_list , as: :get_admins_list
         post :update_logo
-        post :update_file
-        post :update_video
       end
     end
 
@@ -370,7 +315,7 @@ Rails.application.routes.draw do
 
 
   # Devise Routes
-  devise_for :users, controllers: { invitations: 'company/invitations', passwords: 'users/passwords', sessions: 'users/sessions', confirmations: 'users/confirmations', omniauth_callbacks: 'candidates/omniauth_callbacks'} , path_names: { sign_in: 'login', sign_out: 'logout'}
+  devise_for :users, controllers: { invitations: 'company/invitations', passwords: 'users/passwords', sessions: 'users/sessions', confirmations: 'users/confirmations' } , path_names: { sign_in: 'login', sign_out: 'logout'}
 
   # devise_for :candidates
   devise_for :candidates , controllers: {
@@ -392,22 +337,5 @@ Rails.application.routes.draw do
     match '/'  => "static#index", via: [:get, :post]
   end
 
-  namespace :api do
-    resources :select_searches, only: :index do
-      get :find_companies, on: :collection
-      get :find_candidates, on: :collection
-      get :find_contacts, on: :collection
-      get :find_job_applicants, on: :collection
-      get :find_user_sign, on: :collection
-      get :find_jobs, on: :collection
-    end
-  end
-
-  resources :conversations do
-    resources :conversation_messages do
-      get :mark_as_read, on: :member
-    end
-  end
-  root 'static#index'
 
 end

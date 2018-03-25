@@ -1,6 +1,6 @@
-class Notification < ApplicationRecord
+class Notification < ActiveRecord::Base
 
-  belongs_to :notifiable,polymorphic: true, optional: true
+  belongs_to :notifiable,polymorphic: true
 
   default_scope { order(created_at: :desc) }
 

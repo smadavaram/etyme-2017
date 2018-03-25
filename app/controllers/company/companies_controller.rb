@@ -15,7 +15,7 @@ class Company::CompaniesController < Company::BaseController
     if params[:status]=='all'
       respond_to do |format|
         format.js{
-          @data = apply_scopes( Company.signup_companies.paginate(page: params[:page], per_page: 11))
+          @data = apply_scopes( Company.signup_companies..paginate(page: params[:page], per_page: 11))
         }
         format.html{
           @data = apply_scopes( Company.signup_companies.paginate(page: params[:page], per_page: 11))
@@ -28,11 +28,6 @@ class Company::CompaniesController < Company::BaseController
       @new_company.build_invited_by
     end
 
-  end
-
-  def new
-    @new_company = Company.new
-    @new_company.build_invited_by
   end
 
   def edit
@@ -50,13 +45,14 @@ class Company::CompaniesController < Company::BaseController
     @company = Company.new(create_params)
     respond_to do |format|
       if @company.valid? && @company.save
-        format.html {flash[:success] = "successfully Created."; redirect_back fallback_location: root_path}
+        format.html {flash[:success] = "successfully Created."}
         format.js{ flash.now[:success] = "successfully Created." }
       else
         format.js{ flash.now[:errors] =  @company.errors.full_messages }
-        format.html{ flash[:errors] =  @company.errors.full_messages; redirect_back fallback_location: root_path }
+        format.html{ flash[:errors] =  @company.errors.full_messages }
       end
     end
+    redirect_to :back
   end
 
   def update
@@ -66,19 +62,12 @@ class Company::CompaniesController < Company::BaseController
       respond_with current_company
       }
       format.html do
-        if @company.update_attributes(create_params)
-          if params[:company][:branches_attributes].present?
-            params[:company][:branches_attributes].each_pair do |mul_field|
-              unless params[:company][:branches_attributes][mul_field].reject { |p| p == "id" }.present?
-                Branch.where(id: params[:company][:branches_attributes][mul_field]["id"]).destroy_all
-              end
-            end
-          end
+        if @company.update(create_params)
           flash[:success] = "Company Updated Successfully"
         else
           flash[:errors] = @company.errors.full_messages
         end
-        redirect_back fallback_location: root_path
+        redirect_to :back
       end
     end
 
@@ -88,11 +77,6 @@ class Company::CompaniesController < Company::BaseController
   end
 
   def show
-    @admin = current_company.admins.new
-    @company = Company.find(params[:id] || params[:company_id])
-    @company.billing_infos.build unless @company.billing_infos.present?
-    @company.branches.build unless @company.branches.present?
-    @company.addresses.build unless @company.addresses.present?
     add_breadcrumb current_company.name.titleize, company_path, :title => ""
     @company_doc = current_company.company_docs.new
     @company_doc.build_attachment
@@ -108,23 +92,11 @@ class Company::CompaniesController < Company::BaseController
     else
       flash[:errors] = @company.errors.full_messages
     end
-    redirect_back fallback_location: root_path
+    redirect_to :back
   end
   def update_logo
     render json: current_company.update_attribute(:logo, params[:photo])
     flash.now[:success] = "Logo Successfully Updated"
-  end
-
-  def update_file
-    current_company.update_attribute(:company_file, params[:file])
-    flash.now[:success] = "File Successfully Updated"
-    redirect_back fallback_location: root_path
-  end
-
-  def update_video
-    current_company.update_attributes(video: params[:video], video_type: params[:video_type])
-    flash.now[:success] = "File Successfully Updated"
-    redirect_back fallback_location: root_path
   end
 
   def get_admins_list
@@ -155,7 +127,7 @@ class Company::CompaniesController < Company::BaseController
       else
         flash[:errors] = @invited_company.errors.full_messages
       end
-      redirect_back fallback_location: root_path
+      redirect_to :back
     end
   end
 
@@ -232,16 +204,12 @@ class Company::CompaniesController < Company::BaseController
     end
 
     def create_params
-      params.require(:company).permit([:name  ,:domain,:currency_id,:phone ,:fax_number,:send_email ,group_ids:[],company_contacts_attributes:[:id, :type  , :first_name, :last_name ,:email,:company_id,:phone, :title ,:_destroy] , invited_by_attributes: [:invited_by_company_id , :user_id],
+      params.require(:company).permit([:name  ,:domain,:currency_id,:phone ,:send_email ,group_ids:[],company_contacts_attributes:[:id, :type  , :first_name, :last_name ,:email,:company_id,:phone, :title ,:_destroy] , invited_by_attributes: [:invited_by_company_id , :user_id],
            custom_fields_attributes: [
           :id,
           :name,
           :value,
-          :_destroy]],
-         addresses_attributes:[:id,:address_1,:address_2,:country,:city,:state,:zip_code],
-         billing_infos_attributes: [:id,:address,:country,:city,:zip],
-         branches_attributes: [:id,:branch_name,:address,:country,:city,:zip],
-         departments_attributes: [:id,:name]
-        )
+          :_destroy]
+        ])
     end
 end

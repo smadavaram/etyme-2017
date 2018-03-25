@@ -17,6 +17,6 @@
             = tag.name
       .row
         .col-md-12.margin-top-5
-          - if current_company == data.company && data.chat.present?
+          - if current_company == data.company
             = link_to raw("<i class='fa fa-share-alt '></i>") ,send_invitation_job_path(data) , method: :post ,remote: true,  class: 'btn btn-xs btn-default',title: "Send invitation" ,'data-toggle'=>"tooltip" ,'data-placement'=>"top"
             = link_to raw("<i class='fa fa-comments '></i>") ,company_chat_path(data.chat),class: "btn btn-xs btn-default",title: " #{data.title} Chat", 'data-toggle'=>"tooltip" ,'data-placement'=>"top"

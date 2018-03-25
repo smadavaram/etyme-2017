@@ -9,9 +9,9 @@
       .row
         %h1.name.revealOnScroll{"data-animation" => "fadeInDown"}
           =image_tag('etyme-m-logo.png', height: 70, style: 'margin-right: -16px;')
-          %span ETYME.
+          ETYME.
         %p.temp The Plateform For Manage Jobs, Contracts and Timesheets.
-        %h2.hire.revealOnScroll{"data-animation" => "fadeInUp", "data-timeout" => "400"} Hire the best Candidates for your work.
+        %h1.hire.revealOnScroll{"data-animation" => "fadeInUp", "data-timeout" => "400"} Hire the best Candidates for your work.
         .form-row
           .radio.radio-left
             %a{:href => signin_path} HIRE
@@ -22,12 +22,9 @@
   .container.text-center
     .row
       .col-lg-12
-        %h2.section_title
-          Browse
-          %span
-            Freelance
-          Services
-          %p.top-p View over #{@count} available services by category.
+        %h3 Browse Freelance Services
+        %hr.mint/
+        %p.top-p View over #{@count} available services by category.
     .row
       .col-lg-12
         - @jobs.each do |category,jobs|

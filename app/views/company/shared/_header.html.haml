@@ -3,86 +3,64 @@
     / PLACE YOUR LOGO HERE
     %span#logo{style: 'margin-top: 3px;'}
       = image_tag 'etyme-logo.png', alt: 'Etyme', style: 'width: 80px;'
-  = yield :top_right
-  / projects dropdown
-
-  / pulled right: nav area
-  .pull-right.col-md-6
-    #logout.btn-header.transparent.pull-right
-      %span
-        = link_to "",destroy_user_session_path, method: :delete , class: 'hidden' , id: 'logout-hidden'
-        = link_to(destroy_user_session_path, title: 'Sign Out', data: {action: 'userLogout', 'logout-msg' => 'You can improve your security further after logging out by closing this opened browser'}) do
-          %i.fa.fa-sign-out
-    / logout button
-    #hide-menu.btn-header.pull-right
-      %span
-        %a{"data-action" => "toggleMenu", :href => "javascript:void(0);", :title => "Collapse Menu"}
-          %i.fa.fa-reorder
-    #top-menu-toggle.btn-header.transparent.pull-right
-      %span#activity1.activity-dropdown
-        / User image size is adjusted inside CSS, it should stay as it
-        %a#show-shortcut{"data-action" => "toggleShortcut", :href => "javascript:void(0);"}
-          %i.fa.fa-cog
-
-    #quick-add.btn-header.transparent.pull-right
-      %span.project-selector.dropdown-toggle{"data-toggle" => "dropdown"}
-        %a.fa.fa-plus-square
-      %ul.dropdown-menu
-        %li
-          %a{:href => new_job_path } Add Job
-        %li
-          %a{:href => new_contract_path } Add Contract(s)
-        %li.divider
-        %li
-          %a{:href => new_company_candidate_path } Add Candidate(s)
-        %li
-          %a{:href => new_company_company_path } Add Company(s)
-        %li
-          %a{:href => new_company_company_contact_path } Add Contact(s)
-        %li
-          %a{:href => new_group_path } Add Group(s)
-        %li.divider
-        %li
-          %a{:href => "#" } Received Payment(s)
-        %li
-          %a{:href => "#" } Sent Payment(s)
-        %li
-          %a{:href => "#" } Add Timesheet(s)
-
-    #logo-group.pull-right
-      %span#activity.activity-dropdown
-        %i.fa.fa-user
-        %b.badge
+    %span#activity.activity-dropdown
+      %i.fa.fa-user
+      %b.badge
+        = current_user.try(:notifications).try(:count)
+    / AJAX-DROPDOWN : control this dropdown height, look and feel from the LESS variable file
+    .ajax-dropdown
+      / the ID links are fetched via AJAX to the ajax container "ajax-notifications"
+      .btn-group.btn-group-justified{"data-toggle" => "buttons"}
+        -#%label.btn.btn-default
+        -#  %input{:id => ajax_notify_mail_path, :name => "activity", :type => "radio"}/
+        -#  = 'Msgs'
+        -#  (14)
+        %label.btn.btn-default
+          %input{:id => notify_notifications_company_users_path, :name => "activity", :type => "radio"}/
+          ='notify'
           = current_user.try(:notifications).try(:count)
-      / AJAX-DROPDOWN : control this dropdown height, look and feel from the LESS variable file
-      .ajax-dropdown
-        / the ID links are fetched via AJAX to the ajax container "ajax-notifications"
-        .btn-group.btn-group-justified{"data-toggle" => "buttons"}
-          -#%label.btn.btn-default
-          -#  %input{:id => ajax_notify_mail_path, :name => "activity", :type => "radio"}/
-          -#  = 'Msgs'
-          -#  (14)
-          %label.btn.btn-default
-            %input{:id => notify_notifications_company_users_path, :name => "activity", :type => "radio"}/
-            ='notify'
-            = current_user.try(:notifications).try(:count)
         -#%label.btn.btn-default
         -#  %input{:id => ajax_notify_tasks_path, :name => "activity", :type => "radio"}/
         -#  = 'Tasks'
         -#  (4)
-        / notification content
-        .ajax-notifications.custom-scroll
-          .alert.alert-transparent
-            %h4 Click a button to show messages here
-            This blank page message helps protect your privacy, or you can show the first message here automatically.
-          %i.fa.fa-lock.fa-4x.fa-border
-        / footer: refresh area
-        %span
-          Last updated on
-          = Time.now.strftime("%D %T")
-          %button.btn.btn-xs.btn-default.pull-right{"data-loading-text" => "<i class='fa fa-refresh fa-spin'></i> Loading...", :type => "button"}
-            %i.fa.fa-refresh
+      / notification content
+      .ajax-notifications.custom-scroll
+        .alert.alert-transparent
+          %h4 Click a button to show messages here
+          This blank page message helps protect your privacy, or you can show the first message here automatically.
+        %i.fa.fa-lock.fa-4x.fa-border
+      / footer: refresh area
+      %span
+        Last updated on
+        = Time.now.strftime("%D %T")
+        %button.btn.btn-xs.btn-default.pull-right{"data-loading-text" => "<i class='fa fa-refresh fa-spin'></i> Loading...", :type => "button"}
+          %i.fa.fa-refresh
+  = yield :top_right
+  / projects dropdown
+  .project-context.hidden-xs
+    %span.label Timesheets:
+    %span.project-selector.dropdown-toggle{"data-toggle" => "dropdown"}
+      = 'Pending (0)'
+      %i.fa.fa-angle-down
+    %ul.dropdown-menu
+      -#%li
+      -#  %a{:href => "javascript:void(0);"} Online e-merchant management system - attaching integration with the iOS
+      -#%li
+      -#  %a{:href => "javascript:void(0);"} Notes on pipeline upgradee
+      -#%li
+      -#  %a{:href => "javascript:void(0);"} Assesment Report for merchant account
+      %li.divider
+      %li
+        %a{:href => "javascript:void(0);"}
+          %i.fa.fa-power-off
+          Clear
+  / pulled right: nav area
+  .pull-right
     / collapse menu button
+    #hide-menu.btn-header.pull-right
+      %span
+        %a{"data-action" => "toggleMenu", :href => "javascript:void(0);", :title => "Collapse Menu"}
+          %i.fa.fa-reorder
     / #MOBILE
     / Top menu profile link : this shows only when top menu is active
     %ul#mobile-profile-img.header-dropdown-list.hidden-xs.padding-5
@@ -119,3 +97,39 @@
               %i.fa.fa-sign-out.fa-lg
               %strong
                 %u> Logout
+    / logout button
+    #logout.btn-header.transparent.pull-right
+      %spa
+        = link_to "",destroy_user_session_path, method: :delete , class: 'hidden' , id: 'logout-hidden'
+        = link_to(destroy_user_session_path, title: 'Sign Out', data: {action: 'userLogout', 'logout-msg' => 'You can improve your security further after logging out by closing this opened browser'}) do
+          %i.fa.fa-sign-out
+    #quick-add.btn-header.transparent.pull-right
+      %spa.project-selector.dropdown-toggle{"data-toggle" => "dropdown"}
+        %a.fa.fa-plus-square
+      %ul.dropdown-menu
+        %li
+          %a{:href => new_job_path } Add Job
+        %li.divider
+        %li
+          %a{:href => new_consultant_path } Add Consultant(s)
+        %li.divider
+        %li
+          %a{:href => new_contract_path } Add Contract(s)
+
+    / search mobile button (this is hidden till mobile view port)
+    -##search-mobile.btn-header.transparent.pull-right
+      %span
+        %a{:href => "javascript:void(0)", :title => "Search"}
+          %i.fa.fa-search
+    / input: search field
+    -#%form.header-search.pull-right{:action => root_path}
+      %input#search-fld{"data-autocomplete" => "[\n            \"ActionScript\",\n            \"AppleScript\",\n            \"Asp\",\n            \"BASIC\",\n            \"C\",\n            \"C++\",\n            \"Clojure\",\n            \"COBOL\",\n            \"ColdFusion\",\n            \"Erlang\",\n            \"Fortran\",\n            \"Groovy\",\n            \"Haskell\",\n            \"Java\",\n            \"JavaScript\",\n            \"Lisp\",\n            \"Perl\",\n            \"PHP\",\n            \"Python\",\n            \"Ruby\",\n            \"Scala\",\n            \"Scheme\"]", :name => "param", :placeholder => "#{'Find reports and more'}", :type => "text"}/
+      %button{:type => "submit"}
+        %i.fa.fa-search
+      %a#cancel-search-js{:href => "javascript:void(0);", :title => "Cancel Search"}
+        %i.fa.fa-times
+    / fullscreen button
+    -##fullscreen.btn-header.transparent.pull-right
+      %span
+        %a{"data-action" => "launchFullscreen", :href => "javascript:void(0);", :title => "Full Screen"}
+          %i.fa.fa-arrows-alt

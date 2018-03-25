@@ -52,7 +52,7 @@ class Company::MessagesController < Company::BaseController
         else
           flash[:errors] = @message.errors.full_messages
         end
-        redirect_back fallback_location: root_path
+        redirect_to :back
       end
     end
   end
@@ -60,7 +60,7 @@ class Company::MessagesController < Company::BaseController
     if request.post?
       UserMailer.share_message_email(@message, params[:email] ,params[:note]).deliver
       flash[:success] = "Message Shared Successfully."
-      redirect_back fallback_location: root_path
+      redirect_to :back
     end
   end
 
