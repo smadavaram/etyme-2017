@@ -66,6 +66,8 @@ class Company < ApplicationRecord
   has_many :share_to, through: :passive_relationships, source: :shared_to
   has_many :document_signs       , as: :signable
   has_many :contract_salary_histories, dependent: :destroy
+  has_many :invoice_infos
+  has_many :payroll_infos
 
   # validates           :company_type, inclusion: { in: [0, 1] } , presence: true
   # validates           :company_type, inclusion: {in: %w(0 , 1)}
@@ -87,6 +89,8 @@ class Company < ApplicationRecord
   accepts_nested_attributes_for :billing_infos ,   allow_destroy: true, reject_if: :all_blank
   accepts_nested_attributes_for :branches ,   allow_destroy: true, reject_if: :all_blank
   accepts_nested_attributes_for :company_departments ,   allow_destroy: true, reject_if: :all_blank
+  accepts_nested_attributes_for :invoice_infos ,   allow_destroy: true, reject_if: :all_blank
+  accepts_nested_attributes_for :payroll_infos ,   allow_destroy: true, reject_if: :all_blank
   accepts_nested_attributes_for :addresses ,   allow_destroy: true, reject_if: :all_blank
 
 

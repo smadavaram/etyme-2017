@@ -48,6 +48,8 @@
 
 // JQUERY UI + Bootstrap Slider
 //= require plugin/bootstrap-slider/bootstrap-slider.min
+//= require bootstrap/boostarp-year-calender
+
 
 // browser msie issue fix
 //= require plugin/msie-fix/jquery.mb.browser.min

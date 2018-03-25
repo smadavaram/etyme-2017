@@ -246,6 +246,8 @@ Rails.application.routes.draw do
         post :create_bulk_companies
       end
     end
+    resources :invoice_term_infos
+    resources :payroll_term_infos
     resources :prefer_vendors   ,concerns: :paginatable  do
       # end
     end
