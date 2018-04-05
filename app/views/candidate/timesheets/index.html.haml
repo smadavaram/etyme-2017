@@ -13,6 +13,9 @@
   -@temp.push({id: ts.id, contract: (ts.contract.display_number+"-" + ts.contract.title[0..14]), candidate: (ts.candidate_name + "-" + ts.contract.client.full_name), created_at: (ts.created_at), status: (ts.status), total_time: (ts.total_time) })
 
 
+
+-# var ajqgrid_data = #{raw(@temp.to_json)};
+
 / END SHORTCUT AREA
 / ==================================================
 %script{"data-pace-options" => "{ \"restartOnRequestAfter\": true }", :src => "js/plugin/pace/pace.min.js"}
@@ -21,39 +24,474 @@
 :javascript
   $(document).ready(function() {
     pageSetUp();
-    var jqgrid_data = #{raw(@temp.to_json)};
+    var jqgrid_data = [{
+      transaction_id : "123",
+      creation_date : "02/02/2018",
+      contract : "contract1",
+      client : "company1",
+      tax_type : "1099_w2",
+      candidate : "Candidate",
+      company_vender : "Company2",
+      buy_rate : 105,  
+      timesheet_clyver: "02/02/2018 - 02/02/2018",
+      date : "02/02/2018",
+      hours : 10,
+      amount : 10,
+      attachment : 0,
+      status : "submitted"
+    },
+    {
+      transaction_id : "123",
+      creation_date : "02/02/2018",
+      contract : "contract1",
+      client : "company1",
+      tax_type : "1099_w2",
+      candidate : "Candidate",
+      company_vender : "Company2",
+      buy_rate : 105,  
+      timesheet_clyver: "02/02/2018 - 02/02/2018",
+      date : "02/02/2018",
+      hours : 10,
+      amount : 10,
+      attachment : 0,
+      status : "submitted"
+    },
+    {
+      transaction_id : "123",
+      creation_date : "02/02/2018",
+      contract : "contract1",
+      client : "company1",
+      tax_type : "1099_w2",
+      candidate : "Candidate",
+      company_vender : "Company2",
+      buy_rate : 105,  
+      timesheet_clyver: "02/02/2018 - 02/02/2018",
+      date : "02/02/2018",
+      hours : 10,
+      amount : 10,
+      attachment : 0,
+      status : "submitted"
+    },
+    {
+      transaction_id : "123",
+      creation_date : "02/02/2018",
+      contract : "contract1",
+      client : "company1",
+      tax_type : "1099_c2c",
+      candidate : "Candidate",
+      company_vender : "Company2",
+      buy_rate : 105,  
+      timesheet_clyver: "02/02/2018 - 02/02/2018",
+      date : "02/02/2018",
+      hours : 10,
+      amount : 10,
+      attachment : 0,
+      status : "submitted"
+    },
+    {
+      transaction_id : "123",
+      creation_date : "02/02/2018",
+      contract : "contract1",
+      client : "company1",
+      tax_type : "1099_w2",
+      candidate : "Candidate",
+      company_vender : "Company2",
+      buy_rate : 105,  
+      timesheet_clyver: "02/02/2018 - 02/02/2018",
+      date : "02/02/2018",
+      hours : 10,
+      amount : 10,
+      attachment : 0,
+      status : "submitted"
+    },
+    {
+      transaction_id : "123",
+      creation_date : "02/02/2018",
+      contract : "contract1",
+      client : "company1",
+      tax_type : "1099_c2c",
+      candidate : "Candidate",
+      company_vender : "Company2",
+      buy_rate : 105,  
+      timesheet_clyver: "02/02/2018 - 02/02/2018",
+      date : "02/02/2018",
+      hours : 10,
+      amount : 10,
+      attachment : 0,
+      status : "submitted"
+    },
+    {
+      transaction_id : "123",
+      creation_date : "02/02/2018",
+      contract : "contract1",
+      client : "company1",
+      tax_type : "1099_w2",
+      candidate : "Candidate",
+      company_vender : "Company2",
+      buy_rate : 105,  
+      timesheet_clyver: "02/02/2018 - 02/02/2018",
+      date : "02/02/2018",
+      hours : 10,
+      amount : 10,
+      attachment : 0,
+      status : "submitted"
+    },
+    {
+      transaction_id : "123",
+      creation_date : "02/02/2018",
+      contract : "contract1",
+      client : "company1",
+      tax_type : "1099_c2c",
+      candidate : "Candidate",
+      company_vender : "Company2",
+      buy_rate : 105,  
+      timesheet_clyver: "02/02/2018 - 02/02/2018",
+      date : "02/02/2018",
+      hours : 10,
+      amount : 10,
+      attachment : 0,
+      status : "submitted"
+    },
+    {
+      transaction_id : "123",
+      creation_date : "02/02/2018",
+      contract : "contract1",
+      client : "company1",
+      tax_type : "1099_w2",
+      candidate : "Candidate",
+      company_vender : "Company2",
+      buy_rate : 105,  
+      timesheet_clyver: "02/02/2018 - 02/02/2018",
+      date : "02/02/2018",
+      hours : 10,
+      amount : 10,
+      attachment : 0,
+      status : "submitted"
+    },
+    {
+      transaction_id : "123",
+      creation_date : "02/02/2018",
+      contract : "contract1",
+      client : "company1",
+      tax_type : "1099_c2c",
+      candidate : "Candidate",
+      company_vender : "Company2",
+      buy_rate : 105,  
+      timesheet_clyver: "02/02/2018 - 02/02/2018",
+      date : "02/02/2018",
+      hours : 10,
+      amount : 10,
+      attachment : 0,
+      status : "submitted"
+    },
+    {
+      transaction_id : "123",
+      creation_date : "02/02/2018",
+      contract : "contract1",
+      client : "company1",
+      tax_type : "1099_c2c",
+      candidate : "Candidate",
+      company_vender : "Company2",
+      buy_rate : 105,  
+      timesheet_clyver: "02/02/2018 - 02/02/2018",
+      date : "02/02/2018",
+      hours : 10,
+      amount : 10,
+      attachment : 0,
+      status : "submitted"
+    },
+    {
+      transaction_id : "123",
+      creation_date : "02/02/2018",
+      contract : "contract1",
+      client : "company1",
+      tax_type : "1099_c2c",
+      candidate : "Candidate",
+      company_vender : "Company2",
+      buy_rate : 105,  
+      timesheet_clyver: "02/02/2018 - 02/02/2018",
+      date : "02/02/2018",
+      hours : 10,
+      amount : 10,
+      attachment : 0,
+      status : "submitted"
+    },
+    {
+      transaction_id : "123",
+      creation_date : "02/02/2018",
+      contract : "contract1",
+      client : "company1",
+      tax_type : "1099_w2",
+      candidate : "Candidate",
+      company_vender : "Company2",
+      buy_rate : 105,  
+      timesheet_clyver: "02/02/2018 - 02/02/2018",
+      date : "02/02/2018",
+      hours : 10,
+      amount : 10,
+      attachment : 0,
+      status : "submitted"
+    },
+    {
+      transaction_id : "123",
+      creation_date : "02/02/2018",
+      contract : "contract1",
+      client : "company1",
+      tax_type : "1099_c2c",
+      candidate : "Candidate",
+      company_vender : "Company2",
+      buy_rate : 105,  
+      timesheet_clyver: "02/02/2018 - 02/02/2018",
+      date : "02/02/2018",
+      hours : 10,
+      amount : 10,
+      attachment : 0,
+      status : "submitted"
+    },
+    {
+      transaction_id : "123",
+      creation_date : "02/02/2018",
+      contract : "contract1",
+      client : "company1",
+      tax_type : "1099_c2c",
+      candidate : "Candidate",
+      company_vender : "Company2",
+      buy_rate : 105,  
+      timesheet_clyver: "02/02/2018 - 02/02/2018",
+      date : "02/02/2018",
+      hours : 10,
+      amount : 10,
+      attachment : 0,
+      status : "submitted"
+    },
+    {
+      transaction_id : "123",
+      creation_date : "02/02/2018",
+      contract : "contract1",
+      client : "company1",
+      tax_type : "1099_w2",
+      candidate : "Candidate",
+      company_vender : "Company2",
+      buy_rate : 105,  
+      timesheet_clyver: "02/02/2018 - 02/02/2018",
+      date : "02/02/2018",
+      hours : 10,
+      amount : 10,
+      attachment : 0,
+      status : "submitted"
+    },
+    {
+      transaction_id : "123",
+      creation_date : "02/02/2018",
+      contract : "contract1",
+      client : "company1",
+      tax_type : "1099_c2c",
+      candidate : "Candidate",
+      company_vender : "Company2",
+      buy_rate : 105,  
+      timesheet_clyver: "02/02/2018 - 02/02/2018",
+      date : "02/02/2018",
+      hours : 10,
+      amount : 10,
+      attachment : 0,
+      status : "submitted"
+    },
+    {
+      transaction_id : "123",
+      creation_date : "02/02/2018",
+      contract : "contract1",
+      client : "company1",
+      tax_type : "1099_c2c",
+      candidate : "Candidate",
+      company_vender : "Company2",
+      buy_rate : 105,  
+      timesheet_clyver: "02/02/2018 - 02/02/2018",
+      date : "02/02/2018",
+      hours : 10,
+      amount : 10,
+      attachment : 0,
+      status : "submitted"
+    },
+    {
+      transaction_id : "123",
+      creation_date : "02/02/2018",
+      contract : "contract1",
+      client : "company1",
+      tax_type : "1099_c2c",
+      candidate : "Candidate",
+      company_vender : "Company2",
+      buy_rate : 105,  
+      timesheet_clyver: "02/02/2018 - 02/02/2018",
+      date : "02/02/2018",
+      hours : 10,
+      amount : 10,
+      attachment : 0,
+      status : "submitted"
+    },
+    {
+      transaction_id : "123",
+      creation_date : "02/02/2018",
+      contract : "contract1",
+      client : "company1",
+      tax_type : "1099_w2",
+      candidate : "Candidate",
+      company_vender : "Company2",
+      buy_rate : 105,  
+      timesheet_clyver: "02/02/2018 - 02/02/2018",
+      date : "02/02/2018",
+      hours : 10,
+      amount : 10,
+      attachment : 0,
+      status : "submitted"
+    },
+    {
+      transaction_id : "123",
+      creation_date : "02/02/2018",
+      contract : "contract1",
+      client : "company1",
+      tax_type : "1099_c2c",
+      candidate : "Candidate",
+      company_vender : "Company2",
+      buy_rate : 105,  
+      timesheet_clyver: "02/02/2018 - 02/02/2018",
+      date : "02/02/2018",
+      hours : 10,
+      amount : 10,
+      attachment : 0,
+      status : "submitted"
+    },
+    {
+      transaction_id : "123",
+      creation_date : "02/02/2018",
+      contract : "contract1",
+      client : "company1",
+      tax_type : "1099_w2",
+      candidate : "Candidate",
+      company_vender : "Company2",
+      buy_rate : 105,  
+      timesheet_clyver: "02/02/2018 - 02/02/2018",
+      date : "02/02/2018",
+      hours : 10,
+      amount : 10,
+      attachment : 0,
+      status : "submitted"
+    },
+    {
+      transaction_id : "123",
+      creation_date : "02/02/2018",
+      contract : "contract1",
+      client : "company1",
+      tax_type : "1099_c2c",
+      candidate : "Candidate",
+      company_vender : "Company2",
+      buy_rate : 105,  
+      timesheet_clyver: "02/02/2018 - 02/02/2018",
+      date : "02/02/2018",
+      hours : 10,
+      amount : 10,
+      attachment : 0,
+      status : "submitted"
+    },
+    {
+      transaction_id : "1223",
+      creation_date : "02/02/2018",
+      contract : "contract1",
+      client : "company1",
+      tax_type : "1099_c2c",
+      candidate : "Candidate",
+      company_vender : "Company2",
+      buy_rate : 105,  
+      timesheet_clyver: "02/02/2018 - 02/02/2018",
+      date : "02/02/2018",
+      hours : 10,
+      amount : 10,
+      attachment : 0,
+      status : "submitted"
+    },
+    {
+      transaction_id : "12322",
+      creation_date : "02/02/2018",
+      contract : "contract1",
+      client : "company1",
+      tax_type : "1099_w2",
+      candidate : "Candidate",
+      company_vender : "Company2",
+      buy_rate : 105,  
+      timesheet_clyver: "02/02/2018 - 02/02/2018",
+      date : "02/02/2018",
+      hours : 10,
+      amount : 10,
+      attachment : 0,
+      status : "submitted"
+    }
+
+  ]
 
     jQuery("#jqgrid").jqGrid({
       data : jqgrid_data,
       datatype : "local",
       height : 'auto',
-      colNames : ['Timesheet ID', 'contract', 'candidate', 'created_at', 'status', 'Total Time', 'Actions'],
+      colNames : ['Timesheet ID', 'Creation Date', 'Contract', 'Client', 'Tax Type',
+                  'candidate', 'Company Vendor', 'Buy Rate', 'Timesheet Cycle', 'Date', 'Hours', 'Amount', 'Attachment',
+                  'status', 'Actions'],
       colModel : [ {
-        name : 'id',
-        index : 'id'
+        name : 'transaction_id',
+        index : 'transaction_id'
+      }, {
+        name : 'creation_date',
+        index : 'creation_date',
+        editable : true
       }, {
         name : 'contract',
         index : 'contract',
         editable : true
       }, {
+        name : 'client',
+        index : 'client',
+        align : "right",
+        editable : true
+      }, {
+        name : 'tax_type',
+        index : 'tax_type',
+        align : "right",
+        editable : true
+      }, {
         name : 'candidate',
         index : 'candidate',
-        editable : true
-      }, {
-        name : 'created_at',
-        index : 'created_at',
         align : "right",
         editable : true
-      }, {
+      },{
+        name : 'company_vender',
+        index : 'company_vender',
+        sortable : false
+      },{
+        name : 'buy_rate',
+        index : 'buy_rate',
+        sortable : false
+      },{
+        name : 'timesheet_clyver',
+        index : 'timesheet_clyver',
+        sortable : false
+      },{
+        name : 'date',
+        index : 'date',
+        sortable : false
+      },{
+        name : 'hours',
+        index : 'hours',
+        sortable : false
+      },{
+        name : 'amount',
+        index : 'amount',
+        sortable : false
+      },{
+        name : 'attachment',
+        index : 'attachment',
+        sortable : false
+      },{
         name : 'status',
         index : 'status',
-        align : "right",
-        editable : true
-      }, {
-        name : 'total_time',
-        index : 'total_time',
-        align : "right",
-        editable : true
+        sortable : false
       },{
         name : 'act',
         index : 'act',

@@ -38,7 +38,10 @@ class Candidate < ApplicationRecord
   has_many   :experiences          , dependent: :destroy           ,foreign_key: 'user_id'
   has_many   :candidates_companies , dependent: :destroy
   has_many   :companies            , through: :candidates_companies ,dependent: :destroy
-  belongs_to :address              , foreign_key: :primary_address_id, optional: true
+
+  has_many :addresses, as:  :addressable
+  # belongs_to :address              , foreign_key: :primary_address_id, optional: true
+
   # has_and_belongs_to_many :groups ,through: :company
   has_many   :groupables           , as:  :groupable     ,dependent: :destroy
   has_many   :groups               , through: :groupables
@@ -66,7 +69,7 @@ class Candidate < ApplicationRecord
   accepts_nested_attributes_for :portfolios     ,reject_if: :all_blank, allow_destroy: true
   accepts_nested_attributes_for :experiences    ,reject_if: :all_blank, allow_destroy: true
   accepts_nested_attributes_for :educations     ,reject_if: :all_blank, allow_destroy: true
-  accepts_nested_attributes_for :address        , reject_if: :all_blank, update_only: true
+  accepts_nested_attributes_for :addresses        , reject_if: :all_blank, update_only: true
   accepts_nested_attributes_for :custom_fields  , allow_destroy: true , reject_if: :all_blank
   accepts_nested_attributes_for :certificates  , allow_destroy: true , reject_if: :all_blank
   accepts_nested_attributes_for :clients  , allow_destroy: true , reject_if: :all_blank
@@ -87,7 +90,7 @@ class Candidate < ApplicationRecord
   end
 
   def photo
-    super.present? ? super : 'avatars/male.png'
+    super.present? ? super : 'avatars/m_sunny_big.png'
   end
 
   def full_name

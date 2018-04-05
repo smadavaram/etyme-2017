@@ -45,7 +45,7 @@
                     %br
                     - current_company.candidates.take(30).each do |candidate|
                       %li
-                        = link_to image_tag( candidate.try(:photo) ,class:"margin-bottom-5 margin-top-5",alt:image_path('avatars/male.png')) , static_candidate_resume_path(candidate),target: "_blank" , title: candidate.full_name,"data-content" => "Email : #{candidate.email}", "data-placement" => "top",:rel => "hover"
+                        = link_to image_tag( candidate.try(:photo) ,class:"margin-bottom-5 margin-top-5",alt:image_path('avatars/m_sunny_big.png')) , static_candidate_resume_path(candidate),target: "_blank" , title: candidate.full_name,"data-content" => "Email : #{candidate.email}", "data-placement" => "top",:rel => "hover"
 
               -else
                 .text
@@ -61,7 +61,7 @@
                     %br
                     - current_company.invited_companies_contacts.take(30).each do |contact|
                       %li
-                        = link_to (image_tag contact.try(:photo) ,class:"margin-bottom-5 margin-top-5",alt: image_path('avatars/male.png') ), profile_company_path(contact) ,title: contact.full_name ,"data-content" => "Email : #{contact.email}", "data-placement" => "top",:rel => "hover"
+                        = link_to (image_tag contact.try(:photo) ,class:"margin-bottom-5 margin-top-5",alt: image_path('avatars/m_sunny_big.png') ), profile_company_path(contact) ,title: contact.full_name ,"data-content" => "Email : #{contact.email}", "data-placement" => "top",:rel => "hover"
               -else
                 .text
                   .font-md.text-center
@@ -76,7 +76,7 @@
                     %br
                     - current_company.consultants.take(30).each do |consultant|
                       %li
-                        = link_to image_tag( consultant.try(:photo) ,class:"margin-bottom-5 margin-top-5",alt: image_path('avatars/male.png') ), company_user_profile_path(consultant),target: "_blank" , title: consultant.full_name,"data-content" => "Email: #{consultant.email}", "data-placement" => "top","data-img"=>"#{consultant.photo}" ,:rel => "hover"
+                        = link_to image_tag( consultant.try(:photo) ,class:"margin-bottom-5 margin-top-5",alt: image_path('avatars/m_sunny_big.png') ), company_user_profile_path(consultant),target: "_blank" , title: consultant.full_name,"data-content" => "Email: #{consultant.email}", "data-placement" => "top","data-img"=>"#{consultant.photo}" ,:rel => "hover"
               -else
                 .text
                   .font-md.text-center

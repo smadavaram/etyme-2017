@@ -4,6 +4,12 @@
     %span#logo{style: 'margin-top: 3px;'}
       = image_tag 'etyme-logo.png', alt: 'Etyme', style: 'width: 80px;'
   = yield :top_right
+  %form.header-search.pull-left{:action => "#ajax/search.html"}
+    %input#search-fld{:name => "param", :placeholder => "Find reports and more", :type => "text"}/
+    %button{:type => "submit"}
+      %i.fa.fa-search
+    %a#cancel-search-js{:href => "javascript:void(0);", :title => "Cancel Search"}
+      %i.fa.fa-times
   / projects dropdown
 
   / pulled right: nav area

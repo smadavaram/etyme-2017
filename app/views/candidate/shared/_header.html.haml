@@ -4,6 +4,13 @@
     %span#logo{style: 'margin-top: 3px;'}
       = image_tag 'etyme-logo.png', alt: 'SmartAdmin', style: 'width: 80px;'
   = yield :top_right
+  %form.header-search.pull-left{:action => "#ajax/search.html"}
+    %input#search-fld{:name => "param", :placeholder => "Find reports and more", :type => "text"}/
+    %button{:type => "submit"}
+      %i.fa.fa-search
+    %a#cancel-search-js{:href => "javascript:void(0);", :title => "Cancel Search"}
+      %i.fa.fa-times
+
   / projects dropdown
   -#.project-context.hidden-xs
     %span.label Jobs:
@@ -50,7 +57,7 @@
           %li
             = link_to profile_path(current_candidate) , class: 'padding-10 padding-top-0 padding-bottom-0' do
               %i.fa.fa-user
-              = succeed "rofile" do
+              = succeed "rofile11111111" do
                 %u P
           %li.divider
           %li

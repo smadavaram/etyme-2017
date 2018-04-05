@@ -1,0 +1,200 @@
+%section#widget-grid
+  .row
+    %article.col-xs-12.col-sm-12.col-md-12.col-lg-12
+      %table#jqgrid
+      #pjqgrid
+
+- @temp = []
+- @temp = []
+-(0..20).each do |i|
+  -@temp.push({transaction_id: "#{rand(999)}", creation_date: "02/02/2018", contract: "Contract#{i}",
+               client: "Client#{i}", tax_type: "1099_w2", candidate: "Candidate#{i}",
+               company_vendor: "company#{i}", buy_rate: "#{rand(999)}", uscis_rate: rand(999),
+               per_hour: rand(999), hours: "#{rand(9)}", expense_type: ['rent', 'food', 'transport'][rand(3)],
+               amount: rand(999),  current_to_pay: rand(999), attachment: "NULL", status: "Pending" } )
+
+
+/ END SHORTCUT AREA
+/ ==================================================
+%script{"data-pace-options" => "{ \"restartOnRequestAfter\": true }", :src => "js/plugin/pace/pace.min.js"}
+%script{:src => "https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"}
+%script{:src => "https://ajax.googleapis.com/ajax/libs/jqueryui/1.12.1/jquery-ui.min.js"}
+:javascript
+  $(document).ready(function() {
+    pageSetUp();
+    var jqgrid_data = #{raw(@temp.to_json)};
+
+    jQuery("#jqgrid").jqGrid({
+      data : jqgrid_data,
+      datatype : "local",
+      height : 'auto',
+      colNames : ['Transaction ID', 'Creation Date', 'Contract', 'Client', 'Tax Type', 'candidate',
+                  'Company Vendor', 'Buy Rate', 'USCIS Rate', 'Per Hour', 'Hours', 'Expense type', 'Amount',
+                  'Current To Pay', 'Attachment', 'Status', 'Actions'],
+      colModel : [ {
+        name : 'transaction_id',
+        index : 'transaction_id'
+      }, {
+        name : 'creation_date',
+        index : 'creation_date'
+      }, {
+        name : 'contract',
+        index : 'contract',
+        editable : true
+      }, {
+        name : 'client',
+        index : 'client',
+        editable : true
+      }, {
+        name : 'tax_type',
+        index : 'tax_type',
+        align : "right",
+        editable : true
+      }, {
+        name : 'candidate',
+        index : 'candidate',
+        align : "right",
+        editable : true
+      }, {
+        name : 'company_vendor',
+        index : 'company_vendor',
+        align : "right",
+        editable : true
+      },{
+        name : 'buy_rate',
+        index : 'buy_rate',
+        sortable : false
+      },{
+        name : 'uscis_rate',
+        index : 'uscis_rate',
+        sortable : false
+      },{
+        name : 'per_hour',
+        index : 'per_hour',
+        sortable : false
+      },{
+        name : 'hours',
+        index : 'hours',
+        sortable : false
+      },{
+        name : 'expense_type',
+        index : 'expense_type',
+        sortable : false
+      },{
+        name : 'amount',
+        index : 'amount',
+        sortable : false
+      },{
+        name : 'current_to_pay',
+        index : 'current_to_pay',
+        sortable : false
+      },{
+        name : 'attachment',
+        index : 'attachment',
+        sortable : false
+      },{
+        name : 'status',
+        index : 'status',
+        sortable : false
+      },{
+        name : 'act',
+        index : 'act',
+        sortable : false
+      }],
+      rowNum : 10,
+      rowList : [10, 20, 30],
+      pager : '#pjqgrid',
+      sortname : 'id',
+      toolbarfilter : true,
+      viewrecords : true,
+      sortorder : "asc",
+      gridComplete : function() {
+        var ids = jQuery("#jqgrid").jqGrid('getDataIDs');
+        for (var i = 0; i < ids.length; i++) {
+          var cl = ids[i];
+          be = "<button class='btn btn-xs btn-default' data-original-title='Edit Row' onclick=\"jQuery('#jqgrid').editRow('" + cl + "');\"><i class='fa fa-pencil'></i></button>";
+          se = "<button class='btn btn-xs btn-default' data-original-title='Save Row' onclick=\"jQuery('#jqgrid').saveRow('" + cl + "');\"><i class='fa fa-save'></i></button>";
+          ca = "<button class='btn btn-xs btn-default' data-original-title='Cancel' onclick=\"jQuery('#jqgrid').restoreRow('" + cl + "');\"><i class='fa fa-times'></i></button>";
+          //ce = "<button class='btn btn-xs btn-default' onclick=\"jQuery('#jqgrid').restoreRow('"+cl+"');\"><i class='fa fa-times'></i></button>";
+          //jQuery("#jqgrid").jqGrid('setRowData',ids[i],{act:be+se+ce});
+          jQuery("#jqgrid").jqGrid('setRowData', ids[i], {
+            act : be + se + ca
+          });
+        }
+      },
+      editurl : "dummy.html",
+      caption : "Timesheet",
+      multiselect : true,
+      autowidth : true,
+
+    });
+    jQuery("#jqgrid").jqGrid('navGrid', "#pjqgrid", {
+      edit : false,
+      add : false,
+      del : true
+    });
+    jQuery("#jqgrid").jqGrid('inlineNav', "#pjqgrid");
+    /* Add tooltips */
+    $('.navtable .ui-pg-button').tooltip({
+      container : 'body'
+    });
+
+    jQuery("#m1").click(function() {
+      var s;
+      s = jQuery("#jqgrid").jqGrid('getGridParam', 'selarrrow');
+      alert(s);
+    });
+    jQuery("#m1s").click(function() {
+      jQuery("#jqgrid").jqGrid('setSelection', "13");
+    });
+
+    // remove classes
+    $(".ui-jqgrid").removeClass("ui-widget ui-widget-content");
+    $(".ui-jqgrid-view").children().removeClass("ui-widget-header ui-state-default");
+    $(".ui-jqgrid-labels, .ui-search-toolbar").children().removeClass("ui-state-default ui-th-column ui-th-ltr");
+    $(".ui-jqgrid-pager").removeClass("ui-state-default");
+    $(".ui-jqgrid").removeClass("ui-widget-content");
+
+    // add classes
+    $(".ui-jqgrid-htable").addClass("table table-bordered table-hover");
+    $(".ui-jqgrid-btable").addClass("table table-bordered table-striped");
+
+    $(".ui-pg-div").removeClass().addClass("btn btn-sm btn-primary");
+    $(".ui-icon.ui-icon-plus").removeClass().addClass("fa fa-plus");
+    $(".ui-icon.ui-icon-pencil").removeClass().addClass("fa fa-pencil");
+    $(".ui-icon.ui-icon-trash").removeClass().addClass("fa fa-trash-o");
+    $(".ui-icon.ui-icon-search").removeClass().addClass("fa fa-search");
+    $(".ui-icon.ui-icon-refresh").removeClass().addClass("fa fa-refresh");
+    $(".ui-icon.ui-icon-disk").removeClass().addClass("fa fa-save").parent(".btn-primary").removeClass("btn-primary").addClass("btn-success");
+    $(".ui-icon.ui-icon-cancel").removeClass().addClass("fa fa-times").parent(".btn-primary").removeClass("btn-primary").addClass("btn-danger");
+
+    $(".ui-icon.ui-icon-seek-prev").wrap("<div class='btn btn-sm btn-default'></div>");
+    $(".ui-icon.ui-icon-seek-prev").removeClass().addClass("fa fa-backward");
+
+    $(".ui-icon.ui-icon-seek-first").wrap("<div class='btn btn-sm btn-default'></div>");
+    $(".ui-icon.ui-icon-seek-first").removeClass().addClass("fa fa-fast-backward");
+
+    $(".ui-icon.ui-icon-seek-next").wrap("<div class='btn btn-sm btn-default'></div>");
+    $(".ui-icon.ui-icon-seek-next").removeClass().addClass("fa fa-forward");
+
+    $(".ui-icon.ui-icon-seek-end").wrap("<div class='btn btn-sm btn-default'></div>");
+    $(".ui-icon.ui-icon-seek-end").removeClass().addClass("fa fa-fast-forward");
+
+  })
+
+  $(window).on('resize.jqGrid', function() {
+    $("#jqgrid").jqGrid('setGridWidth', $("#content").width());
+  })
+:javascript
+  var _gaq = _gaq || [];
+  _gaq.push(['_setAccount', 'UA-XXXXXXXX-X']);
+  _gaq.push(['_trackPageview']);
+
+  (function() {
+    var ga = document.createElement('script');
+    ga.type = 'text/javascript';
+    ga.async = true;
+    ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+    var s = document.getElementsByTagName('script')[0];
+    s.parentNode.insertBefore(ga, s);
+  })();

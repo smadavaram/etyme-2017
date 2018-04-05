@@ -80,7 +80,7 @@ $( document ).ready(function() {
             series: [{
                 name: 'Total Hours ',
                 data: [4,7,5,7,10,7,10,4.4],
-                color: '#2196F3'
+                color: '#3b5998'
             }]
         })
     }

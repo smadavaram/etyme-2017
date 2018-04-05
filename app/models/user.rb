@@ -100,7 +100,7 @@ class User < ApplicationRecord
   end
 
   def photo
-    super.present? ? super : 'avatars/male.png'
+    super.present? ? super : 'avatars/m_sunny_big.png'
   end
 
   def full_name

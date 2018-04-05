@@ -350,6 +350,44 @@ module ApplicationHelper
                     content: "<span class='menu-item-parent'> Cleared Invoices </span>"
                 }end,
                 {
+                    href: recieved_payment_company_accountings_path,
+                    title: 'Open Bills',
+                    content: "<span class='menu-item-parent'> recieved_payment </span>"
+                },
+                {
+                    href: bill_to_pay_company_accountings_path,
+                    title: 'Bill Payment(s)',
+                    content: "<span class='menu-item-parent'> Bill To Pay </span>"
+                },
+                {
+                    href: bill_received_company_accountings_path,
+                    title: 'Bill Payment(s)',
+                    content: "<span class='menu-item-parent'> Bill Received </span>"
+                },
+                {
+                    href: bill_pay_company_accountings_path,
+                    title: 'Bill Payment(s)',
+                    content: "<span class='menu-item-parent'> Bill Pay </span>"
+                },
+
+                {
+                    href: salary_to_pay_company_accountings_path,
+                    title: 'Salary Payment(s)',
+                    content: "<span class='menu-item-parent'> Salary To Pay</span>"
+                },
+                {
+                    href: salary_advance_company_accountings_path,
+                    title: 'Salary Payment(s)',
+                    content: "<span class='menu-item-parent'> Salary Adavance</span>"
+                },
+                {
+                    href: salary_calculation_company_accountings_path,
+                    title: 'Salary Payment(s)',
+                    content: "<span class='menu-item-parent'> Salary Calculation </span>"
+                },
+
+
+                {
                     href: "#",
                     title: 'Open Bills',
                     content: "<span class='menu-item-parent'> Open Bills </span>"
@@ -361,6 +399,11 @@ module ApplicationHelper
                 },
                 {
                     href: "#",
+                    title: 'Expense Payment(s)',
+                    content: "<span class='menu-item-parent'> Expense Payment(s)</span>"
+                },
+                {
+                    href: "#",
                     title: 'Salary Calculation(s)',
                     content: "<span class='menu-item-parent'> Salary Calculation(s) </span>"
                 },
@@ -368,12 +411,7 @@ module ApplicationHelper
                     href: "#",
                     title: 'Salary Payment(s)',
                     content: "<span class='menu-item-parent'> Salary Payment(s)</span>"
-                },
-                {
-                    href: "#",
-                    title: 'Expense Payment(s)',
-                    content: "<span class='menu-item-parent'> Expense Payment(s)</span>"
-                },
+                }
             ]
         },
         {

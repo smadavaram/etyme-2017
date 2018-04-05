@@ -15,7 +15,7 @@ class Candidate::CandidatesController < Candidate::BaseController
 
   def show
     @user = Candidate.find(current_candidate.id)
-    @user.address.build unless @user.address.present?
+    @user.addresses.build unless @user.addresses.present?
     @user.educations.build unless @user.educations.present?
     @user.certificates.build unless @user.certificates.present?
     @user.clients.build unless @user.clients.present?
@@ -106,7 +106,7 @@ class Candidate::CandidatesController < Candidate::BaseController
 
     def candidate_params
       params.require(:candidate).permit(:first_name, :last_name, :invited_by ,:job_id,:description, :last_nam,:dob,:email,:phone,:visa, :skill_list,:designate_list, :primary_address_id,:category,:subcategory,dept_name: [],industry_name: [],
-                                        address_attributes: [:id,:address_1,:address_2,:country,:city,:state,:zip_code],
+                                        addresses_attributes: [:id,:address_1,:address_2,:country,:city,:state,:zip_code, :from_date, :to_date],
                                         educations_attributes: [:id,:degree_level,:degree_title,:grade,:completion_year,:start_year,:institute,:description],
                                         certificates_attributes: [:id,:title,:start_date,:end_date,:institute],
                                         clients_attributes: [:id, :name, :industry, :start_date, :end_date, :project_description, :role, :refrence_name, :refrence_phone, :refrence_email],
