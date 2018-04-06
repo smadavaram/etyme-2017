@@ -7,27 +7,27 @@ class ConversationMessagesController < ApplicationController
     message.userable = current_user
     recipient = (@conversation.recipientable == current_user ? @conversation.senderable : @conversation.recipientable )
     if message.save
-      ActionCable.server.broadcast "Message_#{recipient.class.to_s}_#{recipient.id}",
-                                   message_id: message.id,
-                                   message: message.body,
-                                   user_type: message.userable.class.to_s,
-                                   user: message.userable.id,
-                                   recipient_type: recipient.class.to_s,
-                                   recipient_id: recipient.id,
-                                   unread_message_count: Conversation.joins(:conversation_messages).where("(senderable_type = ? AND senderable_id = ? ) OR (recipientable_type = ? AND recipientable_id = ?)", recipient.class.to_s, recipient.id, recipient.class.to_s, recipient.id).where.not(conversation_messages: {is_read: true, userable: recipient}).uniq.count,
-                                   conversation_id: @conversation.id,
-                                   dom: "#conversation_#{@conversation.id}"
-
-      ActionCable.server.broadcast "Message_#{current_user.class.to_s}_#{current_user.id}",
-                                   message_id: message.id,
-                                   message: message.body,
-                                   user_type: message.userable.class.to_s,
-                                   user: message.userable.id,
-                                   recipient_type: recipient.class.to_s,
-                                   recipient_id: recipient.id,
-                                   unread_message_count: Conversation.joins(:conversation_messages).where("(senderable_type = ? AND senderable_id = ? ) OR (recipientable_type = ? AND recipientable_id = ?)", recipient.class.to_s, recipient.id, recipient.class.to_s, recipient.id).where.not(conversation_messages: {is_read: true, userable: recipient}).uniq.count,
-                                   conversation_id: @conversation.id,
-                                   dom: "#conversation_#{@conversation.id}"
+      # ActionCable.server.broadcast "Message_#{recipient.class.to_s}_#{recipient.id}",
+      #                              message_id: message.id,
+      #                              message: message.body,
+      #                              user_type: message.userable.class.to_s,
+      #                              user: message.userable.id,
+      #                              recipient_type: recipient.class.to_s,
+      #                              recipient_id: recipient.id,
+      #                              unread_message_count: Conversation.joins(:conversation_messages).where("(senderable_type = ? AND senderable_id = ? ) OR (recipientable_type = ? AND recipientable_id = ?)", recipient.class.to_s, recipient.id, recipient.class.to_s, recipient.id).where.not(conversation_messages: {is_read: true, userable: recipient}).uniq.count,
+      #                              conversation_id: @conversation.id,
+      #                              dom: "#conversation_#{@conversation.id}"
+      #
+      # ActionCable.server.broadcast "Message_#{current_user.class.to_s}_#{current_user.id}",
+      #                              message_id: message.id,
+      #                              message: message.body,
+      #                              user_type: message.userable.class.to_s,
+      #                              user: message.userable.id,
+      #                              recipient_type: recipient.class.to_s,
+      #                              recipient_id: recipient.id,
+      #                              unread_message_count: Conversation.joins(:conversation_messages).where("(senderable_type = ? AND senderable_id = ? ) OR (recipientable_type = ? AND recipientable_id = ?)", recipient.class.to_s, recipient.id, recipient.class.to_s, recipient.id).where.not(conversation_messages: {is_read: true, userable: recipient}).uniq.count,
+      #                              conversation_id: @conversation.id,
+      #                              dom: "#conversation_#{@conversation.id}"
     end
     head :ok
   end
