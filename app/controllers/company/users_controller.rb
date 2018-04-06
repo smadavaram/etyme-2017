@@ -97,6 +97,21 @@ class Company::UsersController < Company::BaseController
     render layout: false
   end
 
+  def current_status
+    @user = current_user
+    respond_with @user
+  end
+
+  def status_update
+    @user = current_user
+    if @user.chat_status == "available"
+      @user.go_unavailable
+    else
+      @user.go_available
+    end
+    respond_with @user
+  end
+
   private
   def find_user
     @user = current_company.users.find(params[:user_id] || params[:user_id]) || []

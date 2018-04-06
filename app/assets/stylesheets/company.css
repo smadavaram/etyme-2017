@@ -48,4 +48,5 @@
  *= require select2-bootstrap
  *= require conversation/chat
  *= require style
+ *= require bootstrap-switch
  */

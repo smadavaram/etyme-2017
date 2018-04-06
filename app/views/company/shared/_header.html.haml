@@ -4,6 +4,8 @@
     %span#logo{style: 'margin-top: 3px;'}
       = image_tag 'etyme-logo.png', alt: 'Etyme', style: 'width: 80px;'
   = yield :top_right
+  %input{"data-off-text" => "Off", "data-on-text" => "On", :name => "company-status-toggle", :type => "checkbox"}
+
   %form.header-search.pull-left{:action => "#ajax/search.html"}
     %input#search-fld{:name => "param", :placeholder => "Find reports and more", :type => "text"}/
     %button{:type => "submit"}

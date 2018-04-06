@@ -169,6 +169,8 @@
 //=require cable
 
 //= require company/select_autocomplete
+//= require company/chat_status
 
 //= require conversation/chat
 //= require conversation/users
+//= require bootstrap/bootstrap-switch

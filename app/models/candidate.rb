@@ -122,6 +122,16 @@ class Candidate < ApplicationRecord
     self.job_applications.find_by_job_id(job_id).present?
   end
 
+  def go_available
+    self.chat_status = "available"
+    self.save!
+  end
+
+  def go_unavailable
+    self.chat_status = "unavailable"
+    self.save!
+  end
+
   private
 
   def create_address
@@ -158,6 +168,5 @@ class Candidate < ApplicationRecord
       end
     end
   end
-
 
 end

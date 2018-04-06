@@ -122,4 +122,14 @@ class User < ApplicationRecord
     UserMailer.share_hot_candidates(to,to_emails,c_ids,current_company,message).deliver
   end
 
+  def go_available
+    self.chat_status = "available"
+    self.save!
+  end
+
+  def go_unavailable
+    self.chat_status = "unavailable"
+    self.save!
+  end
+
 end

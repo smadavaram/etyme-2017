@@ -43,4 +43,5 @@
  *= require global
  *= require chat_box
  *= require style
+  *= require bootstrap-switch
  */

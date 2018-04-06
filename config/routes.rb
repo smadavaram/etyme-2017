@@ -102,7 +102,10 @@ Rails.application.routes.draw do
       get  :show_invitation
     end
     # resources :contracts        , only: [:index]
-    resources :candidates ,only: [:show,:update,:create]
+    resources :candidates ,only: [:show,:update,:create] do
+      get 'current_status', on: :collection
+      get 'status_update', on: :collection
+    end
     resources :jobs do
       # resources :contracts , except: [:index] do
       #   member do
@@ -151,6 +154,8 @@ Rails.application.routes.draw do
     get 'companies/edit'
     resources :users, only: [:show,:update] do
       get  :add_reminder
+      get 'current_status', on: :collection
+      get 'status_update', on: :collection
       match  :assign_groups , via: [:get , :post]
       get :profile
       post :update_video
@@ -204,6 +209,17 @@ Rails.application.routes.draw do
 
     resources :sell_contracts
     resources :buy_contracts
+
+    resources :accountings do
+      get :recieved_payment, on: :collection
+      get :bill_to_pay, on: :collection
+      get :bill_received, on: :collection
+      get :bill_pay, on: :collection
+
+      get :salary_to_pay, on: :collection
+      get :salary_advance, on: :collection
+      get :salary_calculation, on: :collection
+    end
 
   end
 

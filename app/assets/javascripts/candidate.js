@@ -165,3 +165,6 @@
 //=require cable
 //= require conversation/chat
 //= require conversation/users
+
+//= require candidate/chat_status
+//= require bootstrap/bootstrap-switch

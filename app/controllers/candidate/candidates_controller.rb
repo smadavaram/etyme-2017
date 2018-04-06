@@ -94,6 +94,21 @@ class Candidate::CandidatesController < Candidate::BaseController
     render json: sub_cat
   end
 
+  def current_status
+    @candidate = current_candidate
+    respond_with @candidate
+  end
+
+  def status_update
+    @candidate = current_candidate
+    if @candidate.chat_status == "available"
+      @candidate.go_unavailable
+    else
+      @candidate.go_available
+    end
+    respond_with @candidate
+  end
+
   private
 
    def set_chats
