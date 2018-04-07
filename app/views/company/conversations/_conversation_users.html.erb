@@ -3,7 +3,7 @@
   <li class="nav-item" class="<%= chat_user_data[:class_name]  %>"  id="chat-user<%= usr.id %>">
     <%#= link_to  company_conversations_path(user_id: usr.id, user_type: usr.class.to_s), class: "nav-link", remote: true, method: :post do %>
     <%= link_to "#", class: "btn btn-success btn-md start-conversation",
-                "data-sid" => current_company.id, "data-rid" => usr.id,
+                "data-sid" => current_company.id, "data-rid" => usr.id, "data-chattopic" => "OneToOne",
                 "data-stype" => current_company.class, "data-rtype" => usr.class.to_s do %>
 
     <div class="user_ds">

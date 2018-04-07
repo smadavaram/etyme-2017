@@ -42,6 +42,7 @@
  *= require company_override
  *= require global
  *= require chat_box
+ *= require conversation/chat
  *= require style
-  *= require bootstrap-switch
+ *= require bootstrap-switch
  */

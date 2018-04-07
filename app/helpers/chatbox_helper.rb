@@ -56,4 +56,22 @@ module ChatboxHelper
     }
   end
 
+  def get_conversation_title(conversation)
+    if conversation.present?
+      if conversation.chatable.present?
+        if conversation.chatable_type == "Group"
+          conversation.chatable.group_name
+        else
+          ''
+        end
+      elsif  conversation.senderable == current_user
+        conversation.recipientable.full_name
+      else
+        conversation.senderable.full_name
+      end
+    else
+      ''
+    end
+  end
+
 end

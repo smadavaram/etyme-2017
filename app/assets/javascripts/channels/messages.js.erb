@@ -1,6 +1,5 @@
 App.messages = App.cable.subscriptions.create('MessagesChannel', {
   connected: function() {},
-
   disconnected: function() {},
 
   received: function(data) {
@@ -24,14 +23,14 @@ function set_conversation(data){
   current_user_id = $('meta[name=user-id]').attr("content");
   current_user_type = $('meta[name=user-type]').attr("content");
 
-  if (current_user_id == data.recipient_id){
+  if (current_user_id == data.recipient_id && current_user_type == data.recipient_type ){
     if ($("#conversation-chat-box").data("conversation-id") == data.conversation_id ){
       mark_as_read(data.conversation_id, data.message_id)
     }else{
       $("#unread-msg-"+current_user_id).html(data.unread_message_count)
     }
   }
-  $(data.dom).append("<div class='" + ((current_user_id == data.user && current_user_type == data.user ) ? 'send_message' : 'receive_message') + "'><span>" + data.message+"</span></div>");
+  $(data.dom).append("<div class='" + ((current_user_id == data.user && current_user_type == data.user_type ) ? 'send_message' : 'receive_message') + "'><span>" + data.message+"</span></div>");
   if($("#conversation_"+data.conversation_id)[0]){
     $("#conversation_"+data.conversation_id).scrollTop($("#conversation_"+data.conversation_id)[0].scrollHeight);
   }

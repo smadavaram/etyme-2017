@@ -2,8 +2,11 @@ class Conversation < ApplicationRecord
 
   has_many   :conversation_messages
 
-  belongs_to :senderable, polymorphic: :true
-  belongs_to :recipientable, polymorphic: :true
+  belongs_to :senderable, polymorphic: :true, optional: true
+  belongs_to :recipientable, polymorphic: :true, optional: true
+  belongs_to :chatable, polymorphic: true, optional: true
+
+  enum topic: [ :OneToOne, :Rate, :GroupChat, :Job ]
 
   scope :involving, -> (user) do
     where(senderable: user).or where(senderable: user)

@@ -11,8 +11,9 @@ var ready = function () {
         //var recipient_id = $(this).data('stype');
         var recipient_id = $(this).data('rid');
         var recipient_type = $(this).data('rtype');
+        var chat_topic = $(this).data('chattopic');
 
-        $.post("/conversations", { user_type: recipient_type, user_id: recipient_id }, function (data) {
+        $.post("/conversations", { user_type: recipient_type, user_id: recipient_id, chat_topic: chat_topic }, function (data) {
             //$("#unread-message-notify-"+data.user_id).html(data.unread_message_count)
             chatBox.chatWith(data.conversation_id);
 
