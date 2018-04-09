@@ -18,20 +18,25 @@ class ConversationMessagesController < ApplicationController
                                        recipient_id: gm.groupable_id,
                                        unread_message_count: 0, # Conversation.joins(:conversation_messages).where("(senderable_type = ? AND senderable_id = ? ) OR (recipientable_type = ? AND recipientable_id = ?)", recipient.class.to_s, recipient.id, recipient.class.to_s, recipient.id).where.not(conversation_messages: {is_read: true, userable: recipient}).uniq.count,
                                        conversation_id: @conversation.id,
+                                       chat_type: "Group",
+                                       group_id: @conversation.chatable.id,
                                        dom: "#conversation_#{@conversation.id}"
         end
-
-        ActionCable.server.broadcast "Message_#{get_current_user.class.to_s}_#{get_current_user.id}",
-                                     message_id: message.id,
-                                     message: message.body,
-                                     user_type: message.userable.class.to_s,
-                                     user: message.userable.id,
-                                     recipient_type: get_current_user.class.to_s,
-                                     recipient_id: get_current_user.id,
-                                     unread_message_count: 0, # Conversation.joins(:conversation_messages).where("(senderable_type = ? AND senderable_id = ? ) OR (recipientable_type = ? AND recipientable_id = ?)", recipient.class.to_s, recipient.id, recipient.class.to_s, recipient.id).where.not(conversation_messages: {is_read: true, userable: recipient}).uniq.count,
-                                     conversation_id: @conversation.id,
-                                     dom: "#conversation_#{@conversation.id}"
-
+        @conversation.chatable.company.users.each do |usr|
+          GroupMsgNotify.create(group_id: @conversation.chatable.id, member: usr, conversation_message: message)
+          ActionCable.server.broadcast "Message_#{usr.class}_#{usr.id}",
+                                       message_id: message.id,
+                                       message: message.body,
+                                       user_type: message.userable.class.to_s,
+                                       user: message.userable.id,
+                                       recipient_type: usr.class,
+                                       recipient_id: usr.id,
+                                       unread_message_count: 0, # Conversation.joins(:conversation_messages).where("(senderable_type = ? AND senderable_id = ? ) OR (recipientable_type = ? AND recipientable_id = ?)", recipient.class.to_s, recipient.id, recipient.class.to_s, recipient.id).where.not(conversation_messages: {is_read: true, userable: recipient}).uniq.count,
+                                       conversation_id: @conversation.id,
+                                       chat_type: "Group",
+                                       group_id: @conversation.chatable.id,
+                                       dom: "#conversation_#{@conversation.id}"
+        end
       else
         recipient = (@conversation.recipientable == get_current_user ? @conversation.senderable : @conversation.recipientable )
         ActionCable.server.broadcast "Message_#{recipient.class.to_s}_#{recipient.id}",
@@ -43,6 +48,7 @@ class ConversationMessagesController < ApplicationController
                                      recipient_id: recipient.id,
                                      unread_message_count: Conversation.joins(:conversation_messages).where("(senderable_type = ? AND senderable_id = ? ) OR (recipientable_type = ? AND recipientable_id = ?)", recipient.class.to_s, recipient.id, recipient.class.to_s, recipient.id).where.not(conversation_messages: {is_read: true, userable: recipient}).uniq.count,
                                      conversation_id: @conversation.id,
+                                     chat_type: "OneToOne",
                                      dom: "#conversation_#{@conversation.id}"
 
         ActionCable.server.broadcast "Message_#{get_current_user.class.to_s}_#{get_current_user.id}",
@@ -54,6 +60,7 @@ class ConversationMessagesController < ApplicationController
                                      recipient_id: recipient.id,
                                      unread_message_count: Conversation.joins(:conversation_messages).where("(senderable_type = ? AND senderable_id = ? ) OR (recipientable_type = ? AND recipientable_id = ?)", recipient.class.to_s, recipient.id, recipient.class.to_s, recipient.id).where.not(conversation_messages: {is_read: true, userable: recipient}).uniq.count,
                                      conversation_id: @conversation.id,
+                                     chat_type: "OneToOne",
                                      dom: "#conversation_#{@conversation.id}"
       end
     end
@@ -61,7 +68,12 @@ class ConversationMessagesController < ApplicationController
   end
 
   def mark_as_read
-    ConversationMessage.where(conversation_id: params[:conversation_id], id: params[:id]).update_all(is_read: true)
+    if params[:chat_type] == "Group"
+      GroupMsgNotify.where(conversation_message_id: params[:id], group_id: params[:group_id],
+                           member_type: params[:cnt_user_type], member_id: params[:cnt_user_id]).update_all(is_read: true)
+    else
+      ConversationMessage.where(conversation_id: params[:conversation_id], id: params[:id]).update_all(is_read: true)
+    end
     render json: :ok
   end
 

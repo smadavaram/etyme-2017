@@ -25,7 +25,7 @@ function set_conversation(data){
 
   if (current_user_id == data.recipient_id && current_user_type == data.recipient_type ){
     if ($("#conversation-chat-box").data("conversation-id") == data.conversation_id ){
-      mark_as_read(data.conversation_id, data.message_id)
+      mark_as_read(data.conversation_id, data.message_id, current_user_id, current_user_type, data.chat_type, data.group_id)
     }else{
       $("#unread-msg-"+current_user_id).html(data.unread_message_count)
     }
@@ -36,10 +36,11 @@ function set_conversation(data){
   }
 }
 
-function mark_as_read(conversation_id, message_id){
+function mark_as_read(conversation_id, message_id, cnt_user_id, cnt_user_type, chat_type, group_id){
   $.ajax({
-    url: "/company/conversations/" + conversation_id + "/conversation_messages/" + message_id + "/mark_as_read",
+    url: "/conversations/" + conversation_id + "/conversation_messages/" + message_id + "/mark_as_read",
     type: "GET",
+    data: { cnt_user_id: cnt_user_id, cnt_user_type: cnt_user_type, chat_type: chat_type, group_id: group_id },
     dataType: "json"
   });
 }
