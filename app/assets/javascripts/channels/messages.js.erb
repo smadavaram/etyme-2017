@@ -19,20 +19,34 @@ App.messages = App.cable.subscriptions.create('MessagesChannel', {
 });
 
 function set_conversation(data){
-  $("#conversation_" + data.conversation_id+ "_" + data.user_type + "_"+ data.user).val('');
+
+  $("#con-text-" + data.con_id+ "-" + data.usr_typ + "-" + data.usr).val('');
+  $("#con-atta-" + data.con_id+ "-" + data.usr_typ + "-" + data.usr).val('');
+  $("#con-filename-" + data.con_id+ "-" + data.usr_typ + "-" + data.usr).val('');
+  $("#con-filesize-" + data.con_id+ "-" + data.usr_typ + "-" + data.usr).val('');
+  $("#con-filetype-" + data.con_id+ "-" + data.usr_typ + "-" + data.usr).val('');
+
+
   current_user_id = $('meta[name=user-id]').attr("content");
   current_user_type = $('meta[name=user-type]').attr("content");
 
-  if (current_user_id == data.recipient_id && current_user_type == data.recipient_type ){
-    if ($("#conversation-chat-box").data("conversation-id") == data.conversation_id ){
-      mark_as_read(data.conversation_id, data.message_id, current_user_id, current_user_type, data.chat_type, data.group_id)
+  if (current_user_id == data.recpt_id && current_user_type == data.recpt_type ){
+    if ($("#conversation-chat-box").data("conversation-id") == data.con_id ){
+      mark_as_read(data.con_id, data.msg_id, current_user_id, current_user_type, data.chat_typ, data.group_id)
     }else{
-      $("#unread-msg-"+current_user_id).html(data.unread_message_count)
+      $("#unread-msg-"+current_user_id).html(data.unread_msg_cnt)
     }
   }
-  $(data.dom).append("<div class='" + ((current_user_id == data.user && current_user_type == data.user_type ) ? 'send_message' : 'receive_message') + "'><span>" + data.message+"</span></div>");
-  if($("#conversation_"+data.conversation_id)[0]){
-    $("#conversation_"+data.conversation_id).scrollTop($("#conversation_"+data.conversation_id)[0].scrollHeight);
+
+  message = (data.msg_att) ? data.msg +" <br/><a href='" + data.msg_att + "' target='_blank'>" + data.msg_att_name +"</a> "  : data.msg
+  $(data.dom).append(
+    "<div class='" + ((current_user_id == data.usr && current_user_type == data.usr_typ ) ? 'send_message' : 'receive_message') + "'>" +
+      "<span>" + message + "</span>" +
+    "</div>"
+  );
+
+  if($("#conversation_"+data.con_id)[0]){
+    $("#conversation_"+data.con_id).scrollTop($("#conversation_"+data.con_id)[0].scrollHeight);
   }
 }
 
