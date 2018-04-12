@@ -7,10 +7,10 @@
                 "data-stype" => current_company.class, "data-rtype" => usr.class.to_s do %>
 
     <div class="user_ds">
-        <%= image_tag usr.photo, class: "img-fluid" %>
-        <h5><%= usr.full_name %></h5>
-        <p><%= chat_user_data[:last_msg]  %> <%= chat_user_data[:last_msg_time]  %> <%= chat_user_data[:unread_count]  %></p>
-      </div>
+      <%= image_tag usr.photo, class: "img-fluid" %>
+      <h5><%= usr.full_name %></h5>
+      <p><%= chat_user_data[:last_msg]  %> <%= chat_user_data[:last_msg_time]  %> <%= chat_user_data[:unread_count]  %></p>
+    </div>
     <% end %>
   </li>
 <% end if users.present?  %>

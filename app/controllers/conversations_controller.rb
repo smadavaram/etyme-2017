@@ -9,15 +9,15 @@ class ConversationsController < ApplicationController
   end
 
   def create
-    if params[:user_type] == "Candidate"
-      user = Candidate.where(id: params[:user_id]).first
-    elsif params[:user_type] == "Group"
+    if params[:chatable_type] == "Group"
       user = Group.where(id: params[:user_id]).first
+    elsif params[:user_type] == "Candidate"
+      user = Candidate.where(id: params[:user_id]).first
     else
       user = User.where(id: params[:user_id]).first
     end
 
-    set_conversation(user, params[:chat_topic])
+    set_conversation(user, params[:chat_topic], params[:chatable_id], params[:chatable_type])
     @messages = @conversation.conversation_messages.last(50)
 
     @unread_message_count = 0 #Conversation.joins(:conversation_messages).where("(senderable_type = ? AND senderable_id = ? ) OR (recipientable_type = ? AND recipientable_id = ?)", get_current_user.class.to_s, get_current_user.id, get_current_user.class.to_s, get_current_user.id).where.not(conversation_messages: {is_read: true, userable: get_current_user}).uniq.count
@@ -34,7 +34,7 @@ class ConversationsController < ApplicationController
 
   private
 
-  def set_conversation(user, chat_topic)
+  def set_conversation(user, chat_topic, chatable_id, chatable_type)
     if chat_topic == "Group"
       GroupMsgNotify.where(group_id: user.id, member_type: get_current_user.class.to_s, member_id: get_current_user.id).update_all(is_read: true)
       if Conversation.where(chatable: user, topic: "GroupChat").present?
@@ -43,11 +43,11 @@ class ConversationsController < ApplicationController
         @conversation = Conversation.create!({chatable: user, topic: "GroupChat"})
       end
     else
-      ConversationMessage.unread_messages(user, get_current_user).update_all(is_read: true)
-      if Conversation.between(get_current_user, user).present?
-        @conversation = Conversation.between(get_current_user, user).first
+      ConversationMessage.unread_messages(user, get_current_user).where(conversations: {chatable_id: chatable_id, chatable_type: chatable_type}).update_all(is_read: true)
+      if Conversation.between(get_current_user, user).where(chatable_id: chatable_id, chatable_type: chatable_type).present?
+        @conversation = Conversation.between(get_current_user, user).where(chatable_id: chatable_id, chatable_type: chatable_type).first
       else
-        @conversation = Conversation.create!({senderable: get_current_user, recipientable: user})
+        @conversation = Conversation.create!({senderable: get_current_user, recipientable: user, chatable_id: chatable_id, chatable_type: chatable_type})
       end
     end
   end

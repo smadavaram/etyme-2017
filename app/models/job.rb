@@ -20,6 +20,8 @@ class Job < ApplicationRecord
   # has_many     :job_applications ,through: :job_invitations
   has_many     :timesheet_approvers,through: :timesheets
   has_many     :job_requirements
+  has_many     :conversations, as: :chatable
+
   # has_many     :applicants , through: :job_applications , source: :applicationable ,source_type: "Candidate"
   has_one      :chat              ,as: :chatable ,dependent: :destroy
 

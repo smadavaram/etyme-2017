@@ -61,6 +61,8 @@ module ChatboxHelper
       if conversation.chatable.present?
         if conversation.chatable_type == "Group"
           conversation.chatable.group_name
+        elsif conversation.chatable_type == "Job"
+          conversation.chatable.title + " (" + (conversation.senderable == current_user ? conversation.recipientable.full_name : conversation.senderable.full_name) +" )"
         else
           ''
         end
@@ -71,6 +73,18 @@ module ChatboxHelper
       end
     else
       ''
+    end
+  end
+
+  def interlocutor(conversation)
+    get_current_user == conversation.recipientable ? conversation.senderable : conversation.recipientable
+  end
+
+  def get_current_user
+    if current_user.present?
+      current_user
+    elsif current_candidate.present?
+      current_candidate
     end
   end
 
