@@ -3,7 +3,9 @@ class Candidate::BenchsController < Candidate::BaseController
   require 'will_paginate/array'
 
   def index
-    @jobs = Job.where(industry: current_candidate.industry_name, department: current_candidate.dept_name).order("id DESC").uniq.paginate(page: params[:page], per_page: 10) || []
+    @candidates = CandidatesCompany.where(candidate_id: current_candidate.id ).paginate(:page => params[:page], :per_page => 8)
+
+    # @jobs = Job.where(industry: current_candidate.industry_name, department: current_candidate.dept_name).order("id DESC").uniq.paginate(page: params[:page], per_page: 10) || []
   end
 
   def job
@@ -41,4 +43,12 @@ class Candidate::BenchsController < Candidate::BaseController
   def candidate_company_info
     @company = JobApplication.where(applicationable_id: current_candidate.id).paginate(page: params[:page], per_page: 10) || []
   end
+
+  def accept_bench
+    @candidate = CandidatesCompany.where(candidate_id: params[:candidate_id], company_id: params[:id])
+    CandidatesCompany.where(candidate_id: params[:candidate_id]).update_all(candidate_status: "pending" )
+    @candidate.update_all(candidate_status: 1)
+    redirect_to benchs_path
+  end
+
 end

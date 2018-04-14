@@ -10,7 +10,7 @@ class ConversationsController < ApplicationController
 
   def create
     if params[:chatable_type] == "Group"
-      user = Group.where(id: params[:user_id]).first
+      user = Group.where(id: params[:chatable_id]).first
     elsif params[:user_type] == "Candidate"
       user = Candidate.where(id: params[:user_id]).first
     else

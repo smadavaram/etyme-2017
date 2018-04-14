@@ -1,38 +1,13 @@
-#content.newsfeed
+#content
   %body
     %section#widget-grid.clearfix
-      .newsfeed-left
-        %ul
-          - @jobs.each do |job|
-            - job_skills = job.tags.pluck(:name)
-            - count = (job_skills.count * 80 / 100.00).ceil
-            - if (job_skills & current_candidate.skills.pluck(:name)).count >= count && !(Time.parse(job.created_at.to_s) <= Time.parse(Time.now.to_s) && job.job_applications.blank?)
-              %li
-                = link_to job_bench_path(job), remote: true do
-                  %div.public-job-list.clearfix
-                    %span.pull-left
-                      =job.id
-                    %span.pull-right
-                      %i.fa.fa-calendar-o
-                      =job.created_at.strftime("%d/%m/%Y")
-                  %div.job-header.clearfix
-                    = image_tag job.company.logo,  style:"width:50px;height:50px", fit: 'clip'
-                    %p.job_title
-                      = truncate(job.title,length: 50)
-                    %p.job_title
-                      %i.fa.fa-usd
-                      =job.price
-                  %div.public-job-other-info
-                    %span
-                      %i.fa.fa-map-marker
-                      =job.location
-                    %span
-                      %i.fa.fa-user
-                      =job.created_by.full_name
-        = digg_pagination(@jobs)
-      .newsfeed-right
-        %div#public-job-description
-
--content_for :body_class, 'greybg'
-- content_for :modals do
-  #job_application
+      %table
+        %tr
+          %th Company
+          %th status
+          %th Action
+        - @candidates.each do |cand|
+          %tr
+            %td=cand.company.full_name
+            %td=cand.candidate_status
+            %td=link_to "accept", accept_bench_bench_path(cand.company_id, candidate_id: cand.candidate_id,)

@@ -154,15 +154,15 @@ module ApplicationHelper
                     title: 'Log',
                     content: "<span class='menu-item-parent'> Log </span>"
                 },
-                {
-                    href: current_company.chats.exists? ? company_chat_path(current_company.chats.last) : ( current_company.prefer_vendors_chats.exists?  ? company_chat_path(current_company.prefer_vendors_chats.last) : '#'),
-                    title: 'IM',
-                    content: "<span class='menu-item-parent'> IM </span>"
-                },
+                # {
+                #     href: current_company.chats.exists? ? company_chat_path(current_company.chats.last) : ( current_company.prefer_vendors_chats.exists?  ? company_chat_path(current_company.prefer_vendors_chats.last) : '#'),
+                #     title: 'IM',
+                #     content: "<span class='menu-item-parent'> IM </span>"
+                # },
                 {
                     href: company_conversations_path,
-                    title: 'NEW IM',
-                    content: "<span class='menu-item-parent'> New IM </span>"
+                    title: 'Inbox',
+                    content: "<span class='menu-item-parent'> Inbox </span>"
                 }
             ]
         },
@@ -422,241 +422,506 @@ module ApplicationHelper
     ]
   end
 
-
   def candidate_left_menu_content
-    [
-        {
-            href: '/candidate',
-            title: 'HOME',
-            content: "<i class='fa fa-lg fa-fw fa-home'></i> <span class='menu-item-parent'>" + 'HOME' + "</span>",
-        },
-        {
-            href: candidate_conversations_path,
-            title: 'IM',
-            content: "<i class='fa fa-lg fa-fw fa-home'></i> <span class='menu-item-parent'>" + 'IM' + "</span>",
-        },
-        {
-            href: '#',
-            title: 'Network',
-            content: "<i class='fa fa-lg fa-fw fa-globe'></i> <span class='menu-item-parent'>" + 'Network' + "</span>",
-            children: [
-                {
-                    href: '#',
-                    title: 'Company',
-                    content: "<span class='menu-item-parent'> Company </span>"
-                },
-                {
-                    href: '#',
-                    title: 'Contacts',
-                    content: "<span class='menu-item-parent'> Contacts </span>"
-                },
-                {
-                    href: '#',
-                    title: 'Groups',
-                    content: "<span class='menu-item-parent'> Groups </span>"
-                },
-                {
-                    href: '#',
-                    title: 'Lists',
-                    content: "<span class='menu-item-parent'> Lists </span>"
-                },
-                {
-                    href: '#',
-                    title: 'Directory',
-                    content: "<span class='menu-item-parent'> Directory </span>"
-                }
-            ]
-        },
-    {
-        href: '#',
-        title: 'Bench',
-        content: "<i class='fa fa-lg fa-fw fa-briefcase'></i> <span class='menu-item-parent'>" + 'Bench' + "</span>",
-        children: [
-            {
-                href: '#',
-                title: 'Invited bench',
-                content: "<span class='menu-item-parent'> Invited bench </span>"
-            },
-            {
-                href: candidate_company_info_benchs_path,
-                title: 'My company',
-                content: "<span class='menu-item-parent'> My company </span>"
-            },
-            {
-                href: benchs_path,
-                title: 'Public Jobs',
-                content: "<span class='menu-item-parent'> Public Jobs </span>"
-            },
-            {
-                href: candidate_bench_job_benchs_path,
-                title: 'Bench Jobs',
-                content: "<span class='menu-item-parent'> Bench Jobs </span>"
-            }
-        ]
-    },
-    {
-        href: '#',
-        title: 'Trainings',
-        content: "<i class='fa fa-lg fa-fw fa-book'></i> <span class='menu-item-parent'>" + 'Trainings' + "</span>",
-        children: [
-            {
-                href: '#',
-                title: 'My Trainings',
-                content: "<span class='menu-item-parent'> My Trainings </span>"
-            },
-            {
-                href: '#',
-                title: 'Invited',
-                content: "<span class='menu-item-parent'> Invited </span>"
-            },
-            {
-                href: '#',
-                title: 'Public trainings',
-                content: "<span class='menu-item-parent'> Public Jobs </span>"
-            }
-        ]
-    },
-    {
-        href: '#',
-        title: 'JOBS',
-        content: "<i class='fa fa-lg fa-fw fa-briefcase'></i> <span class='menu-item-parent'>" + 'JOBS' + "</span>",
-        children: [
-            {
-                href: candidate_jobs_path,
-                title: 'My Jobs',
-                content: "<span class='menu-item-parent'> My Jobs </span>"
-            },
-            {
-                href: candidate_job_applications_path,
-                title: 'Job Applications',
-                content: "<span class='menu-item-parent'> Job Applications </span>"
-            },
-            {
-                href: candidate_job_invitations_path,
-                title: 'Job Invitations',
-                content: "<span class='menu-item-parent'> Job Invitations </span>"
-            }
-        ]
-    },
-    {
-        href: '#',
-        title: 'Contract',
-        content: "<i class='fa fa-lg fa-fw  fa-list-alt'></i> <span class='menu-item-parent'>" + 'Contract' + "</span>",
-        children: [
-            {
-                href: candidate_contracts_path,
-                title: 'Recieved',
-                content: "<span class='menu-item-parent'> Recieved </span>"
-            },
-            {
-                href: candidate_job_applications_path,
-                title: 'My Contracts',
-                content: "<span class='menu-item-parent'> My Contracts </span>"
-            }
-        ]
-    },
-        {
-            href: candidate_timesheets_path,
-            title: 'Timesheets',
-            content: "<i class='fa fa-lg fa-fw fa-calendar'></i> <span class='menu-item-parent'>" + 'Timesheets' + "</span>",
-        },
-        {
-            href: '#',
-            title: 'Expenses',
-            content: "<i class='fa fa-lg fa-fw fa-money'></i> <span class='menu-item-parent'>" + 'Expenses' + "</span>",
-            children: [
-                {
-                    href: '#',
-                    title: 'Submitted',
-                    content: "<span class='menu-item-parent'> Submitted </span>"
-                },
-                {
-                    href: '#',
-                    title: 'Approved',
-                    content: "<span class='menu-item-parent'> Approved </span>"
-                },
-                {
-                    href: '#',
-                    title: 'Rejected',
-                    content: "<span class='menu-item-parent'> Rejected </span>"
-                },
-                {
-                    href: '#',
-                    title: 'Cleared',
-                    content: "<span class='menu-item-parent'> Cleared </span>"
-                }
-            ]
-        },
-        {
-            href: '#',
-            title: 'Payments',
-            content: "<i class='fa fa-lg fa-fw fa-money'></i> <span class='menu-item-parent'>" + 'Payments' + "</span>",
-            children: [
-                {
-                    href: '#',
-                    title: 'To be paid',
-                    content: "<span class='menu-item-parent'> To be paid </span>"
-                },
-                {
-                    href: '#',
-                    title: 'Recieved',
-                    content: "<span class='menu-item-parent'> Recieved </span>"
-                },
-                {
-                    href: '#',
-                    title: 'All',
-                    content: "<span class='menu-item-parent'> All </span>"
-                }
-            ]
-        },
-        {
-            href: '#',
-            title: 'Profitabiity',
-            content: "<i class='fa fa-lg fa-fw fa-briefcase'></i> <span class='menu-item-parent'>" + 'Profitabiity' + "</span>",
-            children: [
-                {
-                    href: '#',
-                    title: 'Contact',
-                    content: "<span class='menu-item-parent'> Contact </span>"
-                }
-            ]
-        },
-        {
-            href: '#',
-            title: 'Future',
-            content: "<i class='fa fa-lg fa-fw fa-briefcase'></i> <span class='menu-item-parent'>" + 'Future' + "</span>",
-            children: [
-                {
-                    href: '#',
-                    title: 'Invitations',
-                    content: "<span class='menu-item-parent'> Invitations </span>"
-                }
-            ]
-        },
-        {
-            href: '#',
-            title: 'Add-ons',
-            content: "<i class='fa fa-lg fa-fw fa-briefcase'></i> <span class='menu-item-parent'>" + 'Add-ons' + "</span>",
-            children: [
-                {
-                    href: '#',
-                    title: 'Insurance',
-                    content: "<span class='menu-item-parent'> Insurance </span>"
-                },
-                {
-                    href: '#',
-                    title: '401K',
-                    content: "<span class='menu-item-parent'> 401K </span>"
-                },
-                {
-                    href: '#',
-                    title: 'ADP',
-                    content: "<span class='menu-item-parent'> ADP </span>"
-                }
-            ]
-        }
-    ]
+      [
+          {
+              href: '/candidate',
+              title: "HOME",
+              content: "<i class='fa fa-lg fa-fw fa-home'></i> <span class='menu-item-parent'>" + 'HOME' + "</span>",
+          },
+          {
+              href: '#',
+              title: 'Activity',
+              content: "<i class='fa fa-lg fa-fw fa-history'></i> <span class='menu-item-parent'>" + 'Activity' + "</span>",
+              children: [
+                  {
+                      href: '#',
+                      title: 'Dashboard (My Company,My)',
+                      content: "<span class='menu-item-parent'> Dashboard </span>"
+                  },
+
+                  {
+                      href: "#",
+                      title: 'Log',
+                      content: "<span class='menu-item-parent'> Log </span>"
+                  },
+                  # {
+                  #     href: current_company.chats.exists? ? company_chat_path(current_company.chats.last) : ( current_company.prefer_vendors_chats.exists?  ? company_chat_path(current_company.prefer_vendors_chats.last) : '#'),
+                  #     title: 'IM',
+                  #     content: "<span class='menu-item-parent'> IM </span>"
+                  # },
+                  {
+                      href: "#",
+                      title: 'Inbox',
+                      content: "<span class='menu-item-parent'> Inbox </span>"
+                  }
+              ]
+          },
+          {
+              href: '#',
+              title: 'Network ',
+              content: "<i class='fa fa-lg fa-fw fa-globe'></i> <span class='menu-item-parent'>" + 'Network' + "</span>",
+              children: [
+                  {
+                      href:  "#",
+                      title: 'Group',
+                      content: "<span class='menu-item-parent'>" + 'Group(s)' + "</span>",
+                  },
+                  {
+                      href:  "#",
+                      title: 'My Directory',
+                      content: "<span class='menu-item-parent'>" + 'My Directory' + "</span>",
+                  },
+                  {
+                      href: "#",
+                      title: 'Candidates( My Candidates(W2), Hot Candidates, Vendor )',
+                      content: "<span class='menu-item-parent'>" + 'Candidate(s)' + "</span>",
+                  },
+                  # {
+                  #     href: company_company_hot_index_path(current_company),
+                  #     title: 'My Bench (Hot Candidates, Third Party)',
+                  #     content: "<span class='menu-item-parent'>" + 'My Hotlist' + "</span>",
+                  # },
+                  {
+                      href: "#",
+                      title: 'Companys',
+                      content: "</i><span class='menu-item-parent'> Company(s) </span>"
+                  },
+                  {
+                      href: "#",
+                      title: 'Contacts',
+                      content: "</i><span class='menu-item-parent'> Contact(s) </span>"
+                  }
+              ]
+          },
+          {
+              href: '#',
+              title: 'BENCH',
+              content: "<i class='fa fa-lg fa-fw fa-briefcase'></i> <span class='menu-item-parent'>" + 'BENCH' + "</span>",
+              children: [
+                  {
+                      href: benchs_path,
+                      title: 'My Bench (Hot Candidates, Third Party)',
+                      content: "<span class='menu-item-parent'> My Bench </span>",
+                  },
+
+                  {
+                      href: "#",
+                      title: 'Received',
+                      content: "<span class='menu-item-parent'> Received </span>"
+                  },
+                  {
+                      href: "#",
+                      title: 'Public',
+                      content: "<span class='menu-item-parent'> Public </span>"
+                  },
+                  {
+                      href: "#",
+                      title: 'Bench Job',
+                      content: "<span class='menu-item-parent'> Bench Job </span>"
+                  }
+              ]
+          },
+
+          {
+              href: '#',
+              title: 'JOBS',
+              content: "<i class='fa fa-lg fa-fw fa-briefcase'></i> <span class='menu-item-parent'>" + 'JOBS' + "</span>",
+              children: [
+                  {
+                      href: "#",
+                      title: 'All Jobs',
+                      content: "<span class='menu-item-parent'> All Posted Job(s) </span>"
+                  },
+
+                  {
+                      href: "#",
+                      title: 'Job Invitations',
+                      content: "<span class='menu-item-parent'> Invitation(s) </span>"
+                  },
+                  {
+                      href: "#",
+                      title: 'Applicants',
+                      content: "<span class='menu-item-parent'> Applicants </span>"
+                  }
+              ]
+          },
+
+          {
+              href: "#",
+              title: 'HR',
+              content: "<i class='fa fa-lg fa-fw fa-building-o'></i> <span class='menu-item-parent'>" + 'HR' + "</span>",
+              children: [
+                  # {
+                  #     href: consultants_path,
+                  #     title: 'Consultants',
+                  #     content: "<span class='menu-item-parent'>" + 'Consultant(s)' + "</span>",
+                  # },
+
+                  {
+                      href: "#",
+                      title: 'Contracts',
+                      content: "<span class='menu-item-parent'> Contract(s) </span>",
+                  },
+
+                  {
+                      href: "#",
+                      title: 'Sell',
+                      content: "<span class='menu-item-parent'> Sell </span>",
+                  },
+
+                  {
+                      href: "#",
+                      title: 'Buy',
+                      content: "<span class='menu-item-parent'> Buy </span>",
+                  }
+              ]
+          },
+          {
+              href: '#',
+              title: 'Timesheet ',
+              content: "<i class='fa fa-lg fa-fw fa-money'></i> <span class='menu-item-parent'>" + 'Timesheet' + "</span>",
+              children: [
+                  {
+                      href: "#",
+                      title: 'Submitted',
+                      content: "<i class='fa fa-lg fa-fw fa-calendar'></i> <span class='menu-item-parent'>" + 'Submitted' + "</span>",
+                  },
+                  {
+                      href:  "#",
+                      title: 'Approved',
+                      content: "<i class='fa fa-lg fa-fw fa-calendar'></i> <span class='menu-item-parent'>" + 'Approved' + "</span>",
+                  },
+                  {
+                      href:  '#',
+                      title: 'Leaves',
+                      content: "<i class='fa fa-lg fa-fw fa-calendar-times-o'></i> <span class='menu-item-parent'>" + 'Leaves' + "</span>",
+                  }
+              ]
+          },
+          {
+              href: '#',
+              title: 'Accounting ',
+              content: "<i class='fa fa-lg fa-fw fa-money'></i> <span class='menu-item-parent'>" + 'Accounting' + "</span>",
+              children: [
+                  # if has_permission?('show_invoices') || has_permission?('manage_contracts')
+                      {
+                          href: "#",
+                          title: 'Open Invoices',
+                          content: "<span class='menu-item-parent'>Open Invoices </span>"
+                      },
+                  # if has_permission?('show_invoices') || has_permission?('manage_contracts')
+                      {
+                          href: "#",
+                          title: 'Cleared Invoices',
+                          content: "<span class='menu-item-parent'> Cleared Invoices </span>"
+                      },
+                  {
+                      href: "#",
+                      title: 'Open Bills',
+                      content: "<span class='menu-item-parent'> recieved_payment </span>"
+                  },
+                  {
+                      href: "#",
+                      title: 'Bill Payment(s)',
+                      content: "<span class='menu-item-parent'> Bill To Pay </span>"
+                  },
+                  {
+                      href: "#",
+                      title: 'Bill Payment(s)',
+                      content: "<span class='menu-item-parent'> Bill Received </span>"
+                  },
+                  {
+                      href: "#",
+                      title: 'Bill Payment(s)',
+                      content: "<span class='menu-item-parent'> Bill Pay </span>"
+                  },
+
+                  {
+                      href: "#",
+                      title: 'Salary Payment(s)',
+                      content: "<span class='menu-item-parent'> Salary To Pay</span>"
+                  },
+                  {
+                      href: "#",
+                      title: 'Salary Payment(s)',
+                      content: "<span class='menu-item-parent'> Salary Adavance</span>"
+                  },
+                  {
+                      href: "#",
+                      title: 'Salary Payment(s)',
+                      content: "<span class='menu-item-parent'> Salary Calculation </span>"
+                  },
+                  {
+                      href: "#",
+                      title: 'Open Bills',
+                      content: "<span class='menu-item-parent'> Open Bills </span>"
+                  },
+                  {
+                      href: "#",
+                      title: 'Bill Payment(s)',
+                      content: "<span class='menu-item-parent'> Bill Payment(s) </span>"
+                  },
+                  {
+                      href: "#",
+                      title: 'Expense Payment(s)',
+                      content: "<span class='menu-item-parent'> Expense Payment(s)</span>"
+                  },
+                  {
+                      href: "#",
+                      title: 'Salary Calculation(s)',
+                      content: "<span class='menu-item-parent'> Salary Calculation(s) </span>"
+                  },
+                  {
+                      href: "#",
+                      title: 'Salary Payment(s)',
+                      content: "<span class='menu-item-parent'> Salary Payment(s)</span>"
+                  }
+              ]
+          },
+          {
+              href: "#",
+              title: 'Profitability',
+              content: "<i class='fa fa-lg fa-fw fa-calendar'></i> <span class='menu-item-parent'>" + 'Profitability' + "</span>",
+          }
+      ]
   end
+
+
+  # def candidate_left_menu_content
+  #   [
+  #       {
+  #           href: '/candidate',
+  #           title: 'HOME',
+  #           content: "<i class='fa fa-lg fa-fw fa-home'></i> <span class='menu-item-parent'>" + 'HOME' + "</span>",
+  #       },
+  #       {
+  #           href: candidate_conversations_path,
+  #           title: 'IM',
+  #           content: "<i class='fa fa-lg fa-fw fa-home'></i> <span class='menu-item-parent'>" + 'IM' + "</span>",
+  #       },
+  #       {
+  #           href: '#',
+  #           title: 'Network',
+  #           content: "<i class='fa fa-lg fa-fw fa-globe'></i> <span class='menu-item-parent'>" + 'Network' + "</span>",
+  #           children: [
+  #               {
+  #                   href: '#',
+  #                   title: 'Company',
+  #                   content: "<span class='menu-item-parent'> Company </span>"
+  #               },
+  #               {
+  #                   href: '#',
+  #                   title: 'Contacts',
+  #                   content: "<span class='menu-item-parent'> Contacts </span>"
+  #               },
+  #               {
+  #                   href: '#',
+  #                   title: 'Groups',
+  #                   content: "<span class='menu-item-parent'> Groups </span>"
+  #               },
+  #               {
+  #                   href: '#',
+  #                   title: 'Lists',
+  #                   content: "<span class='menu-item-parent'> Lists </span>"
+  #               },
+  #               {
+  #                   href: '#',
+  #                   title: 'Directory',
+  #                   content: "<span class='menu-item-parent'> Directory </span>"
+  #               }
+  #           ]
+  #       },
+  #   {
+  #       href: '#',
+  #       title: 'Bench',
+  #       content: "<i class='fa fa-lg fa-fw fa-briefcase'></i> <span class='menu-item-parent'>" + 'Bench' + "</span>",
+  #       children: [
+  #           {
+  #               href: '#',
+  #               title: 'Invited bench',
+  #               content: "<span class='menu-item-parent'> Invited bench </span>"
+  #           },
+  #           {
+  #               href: candidate_company_info_benchs_path,
+  #               title: 'My company',
+  #               content: "<span class='menu-item-parent'> My company </span>"
+  #           },
+  #           {
+  #               href: benchs_path,
+  #               title: 'Public Jobs',
+  #               content: "<span class='menu-item-parent'> Public Jobs </span>"
+  #           },
+  #           {
+  #               href: candidate_bench_job_benchs_path,
+  #               title: 'Bench Jobs',
+  #               content: "<span class='menu-item-parent'> Bench Jobs </span>"
+  #           }
+  #       ]
+  #   },
+  #   {
+  #       href: '#',
+  #       title: 'Trainings',
+  #       content: "<i class='fa fa-lg fa-fw fa-book'></i> <span class='menu-item-parent'>" + 'Trainings' + "</span>",
+  #       children: [
+  #           {
+  #               href: '#',
+  #               title: 'My Trainings',
+  #               content: "<span class='menu-item-parent'> My Trainings </span>"
+  #           },
+  #           {
+  #               href: '#',
+  #               title: 'Invited',
+  #               content: "<span class='menu-item-parent'> Invited </span>"
+  #           },
+  #           {
+  #               href: '#',
+  #               title: 'Public trainings',
+  #               content: "<span class='menu-item-parent'> Public Jobs </span>"
+  #           }
+  #       ]
+  #   },
+  #   {
+  #       href: '#',
+  #       title: 'JOBS',
+  #       content: "<i class='fa fa-lg fa-fw fa-briefcase'></i> <span class='menu-item-parent'>" + 'JOBS' + "</span>",
+  #       children: [
+  #           {
+  #               href: candidate_jobs_path,
+  #               title: 'My Jobs',
+  #               content: "<span class='menu-item-parent'> My Jobs </span>"
+  #           },
+  #           {
+  #               href: candidate_job_applications_path,
+  #               title: 'Job Applications',
+  #               content: "<span class='menu-item-parent'> Job Applications </span>"
+  #           },
+  #           {
+  #               href: candidate_job_invitations_path,
+  #               title: 'Job Invitations',
+  #               content: "<span class='menu-item-parent'> Job Invitations </span>"
+  #           }
+  #       ]
+  #   },
+  #   {
+  #       href: '#',
+  #       title: 'Contract',
+  #       content: "<i class='fa fa-lg fa-fw  fa-list-alt'></i> <span class='menu-item-parent'>" + 'Contract' + "</span>",
+  #       children: [
+  #           {
+  #               href: candidate_contracts_path,
+  #               title: 'Recieved',
+  #               content: "<span class='menu-item-parent'> Recieved </span>"
+  #           },
+  #           {
+  #               href: candidate_job_applications_path,
+  #               title: 'My Contracts',
+  #               content: "<span class='menu-item-parent'> My Contracts </span>"
+  #           }
+  #       ]
+  #   },
+  #       {
+  #           href: candidate_timesheets_path,
+  #           title: 'Timesheets',
+  #           content: "<i class='fa fa-lg fa-fw fa-calendar'></i> <span class='menu-item-parent'>" + 'Timesheets' + "</span>",
+  #       },
+  #       {
+  #           href: '#',
+  #           title: 'Expenses',
+  #           content: "<i class='fa fa-lg fa-fw fa-money'></i> <span class='menu-item-parent'>" + 'Expenses' + "</span>",
+  #           children: [
+  #               {
+  #                   href: '#',
+  #                   title: 'Submitted',
+  #                   content: "<span class='menu-item-parent'> Submitted </span>"
+  #               },
+  #               {
+  #                   href: '#',
+  #                   title: 'Approved',
+  #                   content: "<span class='menu-item-parent'> Approved </span>"
+  #               },
+  #               {
+  #                   href: '#',
+  #                   title: 'Rejected',
+  #                   content: "<span class='menu-item-parent'> Rejected </span>"
+  #               },
+  #               {
+  #                   href: '#',
+  #                   title: 'Cleared',
+  #                   content: "<span class='menu-item-parent'> Cleared </span>"
+  #               }
+  #           ]
+  #       },
+  #       {
+  #           href: '#',
+  #           title: 'Payments',
+  #           content: "<i class='fa fa-lg fa-fw fa-money'></i> <span class='menu-item-parent'>" + 'Payments' + "</span>",
+  #           children: [
+  #               {
+  #                   href: '#',
+  #                   title: 'To be paid',
+  #                   content: "<span class='menu-item-parent'> To be paid </span>"
+  #               },
+  #               {
+  #                   href: '#',
+  #                   title: 'Recieved',
+  #                   content: "<span class='menu-item-parent'> Recieved </span>"
+  #               },
+  #               {
+  #                   href: '#',
+  #                   title: 'All',
+  #                   content: "<span class='menu-item-parent'> All </span>"
+  #               }
+  #           ]
+  #       },
+  #       {
+  #           href: '#',
+  #           title: 'Profitabiity',
+  #           content: "<i class='fa fa-lg fa-fw fa-briefcase'></i> <span class='menu-item-parent'>" + 'Profitabiity' + "</span>",
+  #           children: [
+  #               {
+  #                   href: '#',
+  #                   title: 'Contact',
+  #                   content: "<span class='menu-item-parent'> Contact </span>"
+  #               }
+  #           ]
+  #       },
+  #       {
+  #           href: '#',
+  #           title: 'Future',
+  #           content: "<i class='fa fa-lg fa-fw fa-briefcase'></i> <span class='menu-item-parent'>" + 'Future' + "</span>",
+  #           children: [
+  #               {
+  #                   href: '#',
+  #                   title: 'Invitations',
+  #                   content: "<span class='menu-item-parent'> Invitations </span>"
+  #               }
+  #           ]
+  #       },
+  #       {
+  #           href: '#',
+  #           title: 'Add-ons',
+  #           content: "<i class='fa fa-lg fa-fw fa-briefcase'></i> <span class='menu-item-parent'>" + 'Add-ons' + "</span>",
+  #           children: [
+  #               {
+  #                   href: '#',
+  #                   title: 'Insurance',
+  #                   content: "<span class='menu-item-parent'> Insurance </span>"
+  #               },
+  #               {
+  #                   href: '#',
+  #                   title: '401K',
+  #                   content: "<span class='menu-item-parent'> 401K </span>"
+  #               },
+  #               {
+  #                   href: '#',
+  #                   title: 'ADP',
+  #                   content: "<span class='menu-item-parent'> ADP </span>"
+  #               }
+  #           ]
+  #       }
+  #   ]
+  # end
 
   def time_format s
     return "--" if s.nil?

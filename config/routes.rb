@@ -66,6 +66,7 @@ Rails.application.routes.draw do
     end
     resources  :portfolios ,only: [:create,:update]
     resources  :benchs ,only: [:index] do
+      get :accept_bench, on: :member
       get :job, on: :member
       get :candidate_bench_job, on: :collection
       get :candidate_company_info, on: :collection
