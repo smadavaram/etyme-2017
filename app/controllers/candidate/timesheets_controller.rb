@@ -32,7 +32,7 @@ class Candidate::TimesheetsController < Candidate::BaseController
         @timesheet.days = params[:timesheet][:days]
         @timesheet.total_time = params[:timesheet][:days].values.map(&:to_i).sum
         if @timesheet.save
-          next_date = get_next_date(buy_contract.first_date_of_timesheet, buy_contract.time_sheet, buy_contract.date_1, buy_contract.date_2, buy_contract.end_of_month, buy_contract.day_of_week, @timesheet.end_date)
+          next_date = get_next_date(buy_contract.first_date_of_timesheet, buy_contract.time_sheet, buy_contract.date_1, buy_contract.date_2, buy_contract.end_of_month, buy_contract.ts_day_of_week, @timesheet.end_date)
           buy_contract.update(first_date_of_timesheet: next_date)
 
           flash[:success] = "Successfully Created" if params[:is_all].blank?

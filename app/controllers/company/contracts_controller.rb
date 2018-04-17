@@ -181,10 +181,13 @@ class Company::ContractsController < Company::BaseController
            :payment_term, :b_time_sheet, :payrate, :contract_type, :end_date,
            :message_from_hiring, :status, :company_id, company_doc_ids: [],
            sell_contracts_attributes: [
-               :company_id, :customer_rate, :customer_rate_type, :time_sheet, :invoice_terms_period,
-               :show_accounting_to_employee, :first_date_of_timesheet, :day_of_week, :date_1, :date_2,
+               :company_id, :customer_rate, :customer_rate_type, :invoice_terms_period,
+               :show_accounting_to_employee, :first_date_of_timesheet,
                :payment_term, :invoice_day_of_week, :invoice_end_of_month, :invoice_date_2, :invoice_date_1,
-               :end_of_month, :first_date_of_invoice,
+               :time_sheet, :ts_day_of_week, :ts_date_1, :ts_date_2, :ts_end_of_month,
+               :ts_approve, :ta_day_of_week, :ta_date_1, :ta_date_2, :ta_end_of_month,
+               :cr_start_date, :cr_end_date, :first_date_of_invoice,
+               :ts_day_time, :ta_day_time, :invoice_day_time,
                contract_sell_business_details_attributes: [
                    :id, :company_contact_id, :_destroy
                ],
@@ -199,9 +202,14 @@ class Company::ContractsController < Company::BaseController
                                                    document_signs_attributes: [:id, :signable_type, :signable_id, :_destroy] ]
                                       ],
            buy_contracts_attributes: [
-               :candidate_id, :ssn, :contract_type, :payrate, :payrate_type, :time_sheet,
-               :payment_term, :show_accounting_to_employee, :first_date_of_timesheet, :day_of_week, :date_1, :date_2,
-               :end_of_month, :first_date_of_invoice, :company_id, :uscis_rate,
+               :candidate_id, :ssn, :contract_type, :payrate, :payrate_type,
+               :payment_term, :show_accounting_to_employee, :first_date_of_timesheet,
+               :time_sheet, :ts_day_of_week, :ts_date_1, :ts_date_2, :ts_end_of_month,
+               :ts_approve, :ta_day_of_week, :ta_date_1, :ta_date_2, :ta_end_of_month,
+               :salary_calculation, :sc_day_of_week, :sc_date_1, :sc_date_2, :sc_end_of_month,
+               :commission_payment_term, :pr_start_date, :pr_end_date,
+               :first_date_of_invoice, :company_id, :uscis_rate,
+               :ts_day_time, :ta_day_time, :sc_day_time,
                contract_buy_business_details_attributes: [
                    :id, :company_contact_id, :_destroy
                ],

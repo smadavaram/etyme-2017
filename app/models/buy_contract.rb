@@ -26,7 +26,7 @@ class BuyContract < ApplicationRecord
   validates_presence_of :date_1, if: Proc.new{|b_con| b_con.time_sheet == "twice a month" }, :message => "Please select first date for timesheet"
   validates_presence_of :date_1, if: Proc.new{|b_con| b_con.time_sheet == "month" && !b_con.end_of_month }, :message => "Please select first date for timesheet"
   validates_presence_of :date_2, if: Proc.new{|b_con| b_con.time_sheet == "twice a month" && !b_con.end_of_month }, :message => "Please select second date or end of month"
-  validates_presence_of :day_of_week, if: Proc.new{|b_con| b_con.time_sheet == "weekly" || b_con.time_sheet == "biweekly" }, :message => "Please select day of week"
+  validates_presence_of :ts_day_of_week, if: Proc.new{|b_con| b_con.time_sheet == "weekly" || b_con.time_sheet == "biweekly" }, :message => "Please select day of week"
 
   attr_accessor :ssn
 
@@ -38,7 +38,7 @@ class BuyContract < ApplicationRecord
     if self.time_sheet == "daily"
       time_sheet_date = self.contract.start_date
     elsif  self.time_sheet == "weekly" || self.time_sheet == "biweekly"
-      time_sheet_date = date_of_next(self.day_of_week, self.contract.start_date)
+      time_sheet_date = date_of_next(self.ts_day_of_week, self.contract.start_date)
     elsif  self.time_sheet == "twice a month"
       time_sheet_date = self.date_1
     elsif  self.time_sheet == "monthly"

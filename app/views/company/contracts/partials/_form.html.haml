@@ -100,17 +100,14 @@
 
 - content_for :scripts do
   :javascript
-    set_company_select('#select_clients', "Please Select Client");
-    set_job_candidate_select('#select_candidates', "Please Select Candidate");
-    set_company_select('#sell_contract_company', "Please Select Company");
-    set_company_select('#buy_contract_company', "Please Select Company");
-
-    set_candidate_select('#buy_contract_candidate', "Please Select Candidate");
-
-
-    set_job_select('#select_jobs', "Please Select Job");
-    set_company_contacts_select('#select_sell_company_contacts', "Please Select Contacts", "#sell_contract_company");
-    set_company_contacts_select('#select_buy_company_contacts', "Please Select Contacts", "#buy_contract_company");
+    set_company_select('#select_clients', "Please Select Or Add new Client");
+    set_job_candidate_select('#select_candidates', "Please Select Or Add new Candidate");
+    set_company_select('#sell_contract_company', "Please Select Or Add new Company");
+    set_company_select('#buy_contract_company', "Please Select Or Add new Company");
+    set_candidate_select('#buy_contract_candidate', "Please Select Or Add new Candidate");
+    set_job_select('#select_jobs', "Please Select Or Add new Job");
+    set_company_contacts_select('#select_sell_company_contacts', "Please Select Or Add new Contacts", "#sell_contract_company");
+    set_company_contacts_select('#select_buy_company_contacts', "Please Select Or Add new Contacts", "#buy_contract_company");
 
     $( document ).ready(function() {
       $(".multi-select2-role").select2({placeholder: "Select a Role(s)"});
@@ -132,13 +129,17 @@
         prevText : '<i class="fa fa-chevron-left"></i>',
         nextText : '<i class="fa fa-chevron-right"></i>'
       });
-      $(".first_date_of_invoice_field, .first_date_of_timesheet_field, .date_1").datepicker({
+      $(".cr_start_date, .cr_end_date, .pr_start_date, .pr_end_date, .date_1").datepicker({
           dateFormat : 'dd/mm/yy'
       });
 
+      $('.con-time').timepicker();
+
       $(".sell-invoice").on("change", function(){
         $(".sell-invoice-setting").children().addClass("hidden");
-        if($(this).val() == "weekly" || $(this).val() == "biweekly"){
+        if($(this).val() == "daily"){
+          $(".sell-invoice-setting").find('.daily').removeClass("hidden");
+        } else if($(this).val() == "weekly" || $(this).val() == "biweekly"){
           $(".sell-invoice-setting").find('.week').removeClass("hidden");
         } else if($(this).val() == "twice a month"){
           $(".sell-invoice-setting").find('.twice-month, .month').removeClass("hidden");
@@ -147,15 +148,68 @@
         }
       });
 
-
       $(".sell-time-sheet").on("change", function(){
-        $(".sell-time-sheet-setting").children().addClass("hidden");
-        if($(this).val() == "weekly" || $(this).val() == "biweekly"){
-          $(".sell-time-sheet-setting").find('.week').removeClass("hidden");
+        $(".s-ts-set").children().addClass("hidden");
+        if($(this).val() == "daily"){
+          $(".s-ts-set").find('.daily').removeClass("hidden");
+        } else if($(this).val() == "weekly" || $(this).val() == "biweekly"){
+          $(".s-ts-set").find('.week').removeClass("hidden");
         } else if($(this).val() == "twice a month"){
-          $(".sell-time-sheet-setting").find('.twice-month, .month').removeClass("hidden");
+          $(".s-ts-set").find('.twice-month, .month').removeClass("hidden");
         } else if($(this).val() == "monthly"){
-          $(".sell-time-sheet-setting").find('.month').removeClass("hidden");
+          $(".s-ts-set").find('.month').removeClass("hidden");
+        }
+      });
+
+      $(".sell-time-sheet-approve").on("change", function(){
+        $(".s-ts-apv-set").children().addClass("hidden");
+        if($(this).val() == "daily"){
+          $(".s-ts-apv-set").find('.daily').removeClass("hidden");
+        } else if($(this).val() == "weekly" || $(this).val() == "biweekly"){
+          $(".s-ts-apv-set").find('.week').removeClass("hidden");
+        } else if($(this).val() == "twice a month"){
+          $(".s-ts-apv-set").find('.twice-month, .month').removeClass("hidden");
+        } else if($(this).val() == "monthly"){
+          $(".s-ts-apv-set").find('.month').removeClass("hidden");
+        }
+      });
+
+      $(".buy-time-sheet").on("change", function(){
+        $(".b-ts-set").children().addClass("hidden");
+        if($(this).val() == "daily"){
+          $(".b-ts-set").find('.daily').removeClass("hidden");
+        } else if($(this).val() == "weekly" || $(this).val() == "biweekly"){
+          $(".b-ts-set").find('.week').removeClass("hidden");
+        } else if($(this).val() == "twice a month"){
+          $(".b-ts-set").find('.twice-month, .month').removeClass("hidden");
+        } else if($(this).val() == "monthly"){
+          $(".b-ts-set").find('.month').removeClass("hidden");
+        }
+      });
+
+      $(".buy-time-approve-sheet").on("change", function(){
+        $(".b-ts-apv-set").children().addClass("hidden");
+        if($(this).val() == "daily"){
+          $(".b-ts-apv-set").find('.daily').removeClass("hidden");
+        } else if($(this).val() == "weekly" || $(this).val() == "biweekly"){
+          $(".b-ts-apv-set").find('.week').removeClass("hidden");
+        } else if($(this).val() == "twice a month"){
+          $(".b-ts-apv-set").find('.twice-month, .month').removeClass("hidden");
+        } else if($(this).val() == "monthly"){
+          $(".b-ts-apv-set").find('.month').removeClass("hidden");
+        }
+      });
+
+      $(".buy-sal-cal").on("change", function(){
+        $(".b-sal-cal").children().addClass("hidden");
+        if($(this).val() == "daily"){
+          $(".b-sal-cal").find('.daily').removeClass("hidden");
+        } else if($(this).val() == "weekly" || $(this).val() == "biweekly"){
+          $(".b-sal-cal").find('.week').removeClass("hidden");
+        } else if($(this).val() == "twice a month"){
+          $(".b-sal-cal").find('.twice-month, .month').removeClass("hidden");
+        } else if($(this).val() == "monthly"){
+          $(".b-sal-cal").find('.month').removeClass("hidden");
         }
       });
 

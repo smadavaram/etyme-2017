@@ -309,7 +309,7 @@
                 -#  Candidate Address:
                 %span
                   %i.fa.fa-map-marker
-                  =@contract.candidate.address.address_1 if @contract.candidate && @contract.candidate.address
+                  =@contract.candidate.addresses.first.address_1 if @contract.candidate && @contract.candidate.addresses.present?
             .col-sm-6.col-md-6.col-lg-6
               %div
                 -#%strong

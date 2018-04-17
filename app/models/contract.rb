@@ -7,7 +7,7 @@ class Contract < ApplicationRecord
 
   enum status:                [ :pending, :accepted , :rejected , :is_ended  , :cancelled , :paused , :in_progress]
   enum billing_frequency:     [ :weekly_invoice, :monthly_invoice  ]
-  enum time_sheet_frequency:  [:daily,:weekly, :biweekly, "twice a month", :monthly]
+  enum time_sheet_frequency:  [:immediately, :daily,:weekly, :biweekly, "twice a month", :monthly]
   enum commission_type:       [:percentage, :fixed]
   enum contract_type:         [:W2, "1099", :C2C, :contract_independent, :contract_w2 , :contract_C2H_independent , :contract_C2H_w2 , :third_party_crop_to_crop , :third_party_C2H_crop_to_crop]
 
