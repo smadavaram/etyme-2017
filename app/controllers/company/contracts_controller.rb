@@ -136,6 +136,13 @@ class Company::ContractsController < Company::BaseController
     @contract = contract.dup
     @contract.sell_contracts = contract.sell_contracts
     @contract.buy_contracts = contract.buy_contracts
+
+    @new_company = Company.new
+    @candidate = Candidate.new
+    @job = current_company.jobs.new
+    @new_company.build_owner
+    @new_company.build_invited_by
+
     render 'new'
   end
 

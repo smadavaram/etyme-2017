@@ -3,18 +3,17 @@
     .col-md-6
       .form-group
         %label.control-label  Jobs
-        = link_to "+ Add Job", new_job_path, class: "pull-right add-link"
+        =# link_to "+ Add Job", new_job_path, class: "pull-right add-link"
         .contract-fild
           .plain-select
             = select_tag 'contract[job_id]', nil, id: "select_jobs", class: "form-control"
     .col-md-6
       .form-group
         %label.control-label  Client
-        = link_to "+ Add Client", new_company_company_path, class: "pull-right add-link"
+        =# link_to "+ Add Client", new_company_company_path, class: "pull-right add-link"
         .contract-fild
           .plain-select
             = select_tag  "contract[client_id]", nil, id: "select_clients", required: true
-
   .row
     .col-md-6
       .form-group
@@ -24,11 +23,10 @@
     .col-md-6
       .form-group
         %label.control-label  Candidate
-        = link_to "+ Apply candidate", jobs_path, class: "pull-right add-link"
+        =# link_to "+ Apply candidate", jobs_path, class: "pull-right add-link"
         .contract-fild
           .plain-select
             = select_tag "contract[candidate_id]", nil, id: "select_candidates", required: true
-
 
   .row
     .col-md-6
