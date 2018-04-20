@@ -22,11 +22,12 @@ class SellContract < ApplicationRecord
   end
 
   def set_number
-    self.number = self.contract.number
+    # self.number = self.contract.number
+    self.number = "SC_" + self.contract.only_number.to_s
   end
 
-  def display_number
-    "SC"+self.number
-  end
+  # def display_number
+  #   "SC"+self.number
+  # end
 
 end

@@ -11,11 +11,12 @@ class SellSendDocument < ApplicationRecord
   accepts_nested_attributes_for :document_signs, allow_destroy: true,reject_if: :all_blank
 
   def set_number
-    self.number = self.sell_contract.number
+    # self.number = self.sell_contract.number
+    self.number = "SSD_" + self.sell_contract.only_number.to_s
   end
 
-  def display_number
-    "SSD"+self.number
-  end
+  # def display_number
+  #   "SSD"+self.number
+  # end
 
 end

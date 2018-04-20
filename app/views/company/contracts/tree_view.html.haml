@@ -3,17 +3,17 @@
     %ul#contract-tree.ctree
       %li.branch
         %i.indicator.glyphicon.glyphicon-folder-open>
-        Contract #{@contract.display_number}
+        Contract #{@contract.number}
         %ul
           %li.branch
             %i.indicator.glyphicon.glyphicon-folder-open>
-            sell #{@contract.sell_contracts.first.display_number if @contract.sell_contracts}
+            sell #{@contract.sell_contracts.first.number if @contract.sell_contracts}
             %ul
               %li.last-node{"data-openhref" => "#sell_req_doc"} Request documents
               %li.last-node{"data-openhref" => "#sell_send_doc"} Send documents
           %li.branch
             %i.indicator.glyphicon.glyphicon-folder-open>
-            Buy #{@contract.buy_contracts.first.display_number if @contract.buy_contracts}
+            Buy #{@contract.buy_contracts.first.number if @contract.buy_contracts}
             %ul
               %li.last-node{"data-openhref" => "#buy_send_doc"} Send documents
               %li.last-node{"data-openhref" => "#buy_emp_req_doc"} Request employee documents

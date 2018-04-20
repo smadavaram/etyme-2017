@@ -93,14 +93,14 @@ class Contract < ApplicationRecord
   def set_number
     c = Contract.order("created_at DESC").first
     if c.present?
-      self.number = (c.number.to_i + 1).to_s.rjust(3, "0")
+      self.number = "c_" + (c.only_number.to_i + 1).to_s.rjust(3, "0")
     else
-      self.number = "001"
+      self.number = "c_001"
     end
   end
   
-  def display_number
-    "C"+self.number
+  def only_number
+    self.number.split("_")[1]
   end
 
   def is_not_ended?
@@ -277,64 +277,260 @@ class Contract < ApplicationRecord
       ledger_name: ENV['seq_ledgers'],
       credential: ENV['seq_token']
     )
-    key = ledger.keys.create(id: self.display_number)
-    account = ledger.accounts.create(
-        alias: "comp#{self.company_id}_#{self.number}",
-        keys: [key],
-        quorum: 1,
-        tags: {
-          id: self.company_id,
-          name: self.company.full_name,
-          email: self.company.email,
-          phone: self.company.phone
-        }
-    )
 
-    account = ledger.accounts.create(
-          id: "cntrct#{self.id}_#{self.number}",
-          keys: [key],
-          quorum: 1,
-          tags: {
-              comp_id:"comp_#{self.company_id}",
-              cand_vend_id:"cand_#{self.sell_contracts.first.company_id}",
-              cust_id:"cust_#{self.buy_contracts.first.candidate_id}",
-              start_date: self.start_date,
-              end_date: self.end_date,
-              buy_rate: self.buy_contracts.first.payrate,
-              sell_rate: self.sell_contracts.first.customer_rate,
-              contract_duration:"#{self.start_date} TO #{self.end_date}",
-              sell_timesheet_type: self.sell_contracts.first.time_sheet,
-              sell_invoice_type: self.sell_contracts.first.invoice_terms_period,
-              buy_timesheet_type: self.buy_contracts.first.time_sheet,
-              hire: self.buy_contracts.first.contract_type,
-              status: self.status
-          }
-    )
+    key = ledger.keys.query({aliases: ['etyme']}).first
+    unless key.present?
+      key = ledger.keys.create(id: "etyme")
+    end
 
-    account = ledger.accounts.create(
-      alias: "cust#{self.buy_contracts.first.candidate_id}_#{self.number}",
+
+    # Contract owner Tressury account
+    cot = ledger.accounts.list(
+        filter: 'id=$1',
+        filter_params: ["#{self.company.slug}_t"]).first
+
+    ledger.accounts.create(
+      id: "#{self.company.slug}_t",
       keys: [key],
       quorum: 1,
       tags: {
-          id: self.buy_contracts.first.candidate.id,
-          name: self.buy_contracts.first.candidate.full_name,
-          email: self.buy_contracts.first.candidate.email,
-          phone: self.buy_contracts.first.candidate.phone
+        domain: self.company.domain,
+        primary_email: self.company.owner.email
       }
-    )
+    ) unless cot.present?
+
+    # Contract owner Customer account
+    coc = ledger.accounts.list(
+        filter: 'id=$1',
+        filter_params: ["#{self.company.slug}_c"]).first
+
+    ledger.accounts.create(
+      id: "#{self.company.slug}_c",
+      keys: [key],
+      quorum: 1,
+      tags: {
+        domain: self.company.domain,
+        primary_email: self.company.owner.email
+      }
+    ) unless coc.present?
+
+    # Contract owner Vendor account
+    cov = ledger.accounts.list(
+        filter: 'id=$1',
+        filter_params: ["#{self.company.slug}_v"]).first
+
+    ledger.accounts.create(
+      id: "#{self.company.slug}_v",
+      keys: [key],
+      quorum: 1,
+      tags: {
+        domain: self.company.domain,
+        primary_email: self.company.owner.email
+      }
+    ) unless cov.present?
+
+
+    # Contract assigned Tressury account
+    cat = ledger.accounts.list(
+        filter: 'id=$1',
+        filter_params: ["#{self.client.slug}_t"]).first
+
+    ledger.accounts.create(
+      id: "#{self.client.slug}_t",
+      keys: [key],
+      quorum: 1,
+      tags: {
+        domain: self.client.domain,
+        primary_email: self.client.owner.email
+      }
+    ) unless cat.present?
+
+    # Contract assigned Customer account
+    cac = ledger.accounts.list(
+        filter: 'id=$1',
+        filter_params: ["#{self.client.slug}_c"]).first
+
+    ledger.accounts.create(
+      id: "#{self.client.slug}_c",
+      keys: [key],
+      quorum: 1,
+      tags: {
+        domain: self.client.domain,
+        primary_email: self.client.owner.email
+      }
+    ) unless cac.present?
+
+    # Contract assigned Vendor account
+    cav = ledger.accounts.list(
+        filter: 'id=$1',
+        filter_params: ["#{self.client.slug}_v"]).first
+
+    ledger.accounts.create(
+      id: "#{self.client.slug}_v",
+      keys: [key],
+      quorum: 1,
+      tags: {
+        domain: self.client.domain,
+        primary_email: self.client.owner.email
+      }
+    ) unless cav.present?
+
     if self.buy_contracts.first.company_id.present?
-      account = ledger.accounts.create(
-                                         alias: "vend#{self.buy_contracts.first.company.id}_#{self.number}",
-                                         keys: [key],
-                                         quorum: 1,
-                                         tags: {
-                                             id: self.buy_contracts.first.company.id,
-                                             name: self.buy_contracts.first.company.full_name,
-                                             email: self.buy_contracts.first.company.email,
-                                             phone: self.buy_contracts.first.company.phone
-                                         }
-      )
+      # Contract Vendor Tressury account
+      cvt = ledger.accounts.list(
+          filter: 'id=$1',
+          filter_params: ["#{self.buy_contracts.first.company.slug}_t"]).first
+
+      ledger.accounts.create(
+        id: "#{self.buy_contracts.first.company.slug}_t",
+        keys: [key],
+        quorum: 1,
+        tags: {
+          domain: self.buy_contracts.first.company.domain,
+          primary_email: self.buy_contracts.first.company.owner.email
+        }
+      ) unless cvt.present?
+
+      # Contract Vendor Customer account
+      cvc = ledger.accounts.list(
+          filter: 'id=$1',
+          filter_params: ["#{self.buy_contracts.first.company.slug}_c"]).first
+
+      ledger.accounts.create(
+        id: "#{self.buy_contracts.first.company.slug}_c",
+        keys: [key],
+        quorum: 1,
+        tags: {
+          domain: self.buy_contracts.first.company.domain,
+          primary_email: self.buy_contracts.first.company.owner.email
+        }
+      ) unless cvc.present?
+
+      # Contract Vendor Vendor account
+      cvv = ledger.accounts.list(
+          filter: 'id=$1',
+          filter_params: ["#{self.buy_contracts.first.company.slug}_v"]).first
+
+      ledger.accounts.create(
+        id: "#{self.buy_contracts.first.company.slug}_v",
+        keys: [key],
+        quorum: 1,
+        tags: {
+          domain: self.buy_contracts.first.company.domain,
+          primary_email: self.buy_contracts.first.company.owner.email
+        }
+      ) unless cvv.present?
     end
+
+    # Gain account
+    ga = ledger.accounts.list(
+        filter: 'id=$1',
+        filter_params: ["#{self.number}_gain"]).first
+
+    ledger.accounts.create(
+      id: "#{self.number}_gain",
+      keys: [key],
+      quorum: 1,
+      tags: {
+        customer: self.buy_contracts.first.candidate.full_name,
+        vendor_candidate: "cand#{self.number}",
+        company: self.company.slug
+      }
+    ) unless ga.present?
+
+    # Loss account
+    la = ledger.accounts.list(
+        filter: 'id=$1',
+        filter_params: ["#{self.number}_loss"]).first
+
+    ledger.accounts.create(
+      id: "#{self.number}_loss",
+      keys: [key],
+      quorum: 1,
+      tags: {
+        customer: self.buy_contracts.first.candidate.full_name,
+        vendor_candidate: "cand#{self.number}",
+        company: self.company.slug
+      }
+    ) unless la.present?
+
+    # Consultant account
+    ca = ledger.accounts.list(
+        filter: 'id=$1',
+        filter_params: ["c_#{self.buy_contracts.first.candidate.id}"]).first
+
+    ledger.accounts.create(
+      id: "c_#{self.buy_contracts.first.candidate.id}",
+      keys: [key],
+      quorum: 1,
+      tags: {
+        name: self.buy_contracts.first.candidate.full_name,
+        id: "cand#{self.buy_contracts.first.candidate.id}"
+      }
+    ) unless ca.present?
+
+
+
+    # key = ledger.keys.create(id: self.display_number)
+    # account = ledger.accounts.create(
+    #     alias: "comp#{self.company_id}_#{self.number}",
+    #     keys: [key],
+    #     quorum: 1,
+    #     tags: {
+    #       id: self.company_id,
+    #       name: self.company.full_name,
+    #       email: self.company.email,
+    #       phone: self.company.phone
+    #     }
+    # )
+
+    # account = ledger.accounts.create(
+    #       id: "cntrct#{self.id}_#{self.number}",
+    #       keys: [key],
+    #       quorum: 1,
+    #       tags: {
+    #           comp_id:"comp_#{self.company_id}",
+    #           cand_vend_id:"cand_#{self.sell_contracts.first.company_id}",
+    #           cust_id:"cust_#{self.buy_contracts.first.candidate_id}",
+    #           start_date: self.start_date,
+    #           end_date: self.end_date,
+    #           buy_rate: self.buy_contracts.first.payrate,
+    #           sell_rate: self.sell_contracts.first.customer_rate,
+    #           contract_duration:"#{self.start_date} TO #{self.end_date}",
+    #           sell_timesheet_type: self.sell_contracts.first.time_sheet,
+    #           sell_invoice_type: self.sell_contracts.first.invoice_terms_period,
+    #           buy_timesheet_type: self.buy_contracts.first.time_sheet,
+    #           hire: self.buy_contracts.first.contract_type,
+    #           status: self.status
+    #       }
+    # )
+    #
+    # account = ledger.accounts.create(
+    #   alias: "cust#{self.buy_contracts.first.candidate_id}_#{self.number}",
+    #   keys: [key],
+    #   quorum: 1,
+    #   tags: {
+    #       id: self.buy_contracts.first.candidate.id,
+    #       name: self.buy_contracts.first.candidate.full_name,
+    #       email: self.buy_contracts.first.candidate.email,
+    #       phone: self.buy_contracts.first.candidate.phone
+    #   }
+    # )
+    #
+    #
+    # if self.buy_contracts.first.company_id.present?
+    #   account = ledger.accounts.create(
+    #                                      alias: "vend#{self.buy_contracts.first.company.id}_#{self.number}",
+    #                                      keys: [key],
+    #                                      quorum: 1,
+    #                                      tags: {
+    #                                          id: self.buy_contracts.first.company.id,
+    #                                          name: self.buy_contracts.first.company.full_name,
+    #                                          email: self.buy_contracts.first.company.email,
+    #                                          phone: self.buy_contracts.first.company.phone
+    #                                      }
+    #   )
+    # end
   end
 
 end

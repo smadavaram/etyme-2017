@@ -9,11 +9,11 @@ class BuyEmpReqDoc < ApplicationRecord
   accepts_nested_attributes_for :document_signs, allow_destroy: true,reject_if: :all_blank
 
   def set_number
-    self.number = self.buy_contract.number
+    self.number = "BERD_" + self.contract.only_number.to_s
   end
 
-  def display_number
-    "BERD"+self.number
-  end
+  # def display_number
+  #   "BERD"+self.number
+  # end
 
 end

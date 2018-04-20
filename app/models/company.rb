@@ -99,7 +99,7 @@ class Company < ApplicationRecord
   after_create      :welcome_email_to_owner, if: Proc.new{|comp| !comp.invited_by.present?}
   after_create      :assign_free_subscription
   after_create      :create_defult_roles
-  after_create  :set_account_on_seq
+  # after_create  :set_account_on_seq
 
   scope :vendors, -> {where(company_type: 1)}
   scope :signup_companies,->{ Company.where.not(:id=>InvitedCompany.select(:invited_company_id))}

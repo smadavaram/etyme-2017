@@ -72,7 +72,7 @@ var set_job_select = function(selector, palce_holder){
                     return {
                         results: data.companies,
                         pagination: {
-                            more: (params.page * 10) < data.total_count
+                            more: ((params.page * 10) < data.total_count)
                         }
                     };
                 },

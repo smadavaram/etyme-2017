@@ -161,7 +161,7 @@ class Timesheet < ApplicationRecord
         cntrct_id: self.contract.id,
         days: self.days,
         total_min: self.total_time,
-        tmsht_period: "#{self.start_date} TO #{self.start_date}"
+        tmsht_period: "#{self.start_date} TO #{self.end_date}"
       },
     })
 

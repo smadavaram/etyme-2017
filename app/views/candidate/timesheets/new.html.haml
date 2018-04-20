@@ -40,7 +40,7 @@
                 %tr
                   %td{:width => "3%"}=check_box_tag "sin_select", nil, nil, class: "sin-select"
                   %td{:width => "20%"}
-                    = con.display_number+"-" + con.title[0..14]
+                    = con.number+"-" + con.title[0..14]
                     = f.hidden_field :contract_id, value: con.id
                   %td.text-boxes{:width => "20%"}
                     .candiate-name

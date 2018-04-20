@@ -23,7 +23,7 @@
                 %tbody
                   - data.each do |activty|
                     %tr
-                      %td=link_to activty.trackable.try(:display_number) ,contract_path(activty.trackable)
+                      %td=link_to activty.trackable.try(:number) ,contract_path(activty.trackable)
                       %td=activty.trackable.try(:title)
                       %td=activty.parameters["obj"].reject{|a| a=="updated_at"} if activty.parameters["obj"]
                       %td=activty.owner.try(:full_name)
