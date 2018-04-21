@@ -28,4 +28,8 @@ every 1.day, :at => '11:59 pm' do
   runner "Contract.invoiced_timesheets"
 end
 
+every 1.day, :at => '12:01 am' do
+  runner "Contract.cycle"
+end
+
 # Learn more: http://github.com/javan/whenever

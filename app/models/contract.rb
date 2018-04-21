@@ -5,6 +5,8 @@ class Contract < ApplicationRecord
 
   include Rails.application.routes.url_helpers
 
+  include CandidateHelper
+
   enum status:                [ :pending, :accepted , :rejected , :is_ended  , :cancelled , :paused , :in_progress]
   enum billing_frequency:     [ :weekly_invoice, :monthly_invoice  ]
   enum time_sheet_frequency:  [:immediately, :daily,:weekly, :biweekly, "twice a month", :monthly]
@@ -39,9 +41,11 @@ class Contract < ApplicationRecord
   has_many   :timesheet_approvers   , through: :timesheets
   has_many   :attachable_docs, as: :documentable
   has_many   :attachments , as: :attachable
-  has_many :sell_contracts, dependent: :destroy
-  has_many :buy_contracts, dependent: :destroy
-  has_many :contract_salary_histories, dependent: :destroy
+  has_many   :sell_contracts, dependent: :destroy
+  has_many   :buy_contracts, dependent: :destroy
+  has_many   :contract_salary_histories, dependent: :destroy
+
+  has_many   :contract_cycles
 
   # has_many :contract_buy_business_details
   # has_many :contract_sell_business_details
@@ -265,6 +269,62 @@ class Contract < ApplicationRecord
   def self.invoiced_timesheets
     self.in_progress.where({next_invoice_date: Date.today}).each do |contract|
       contract.invoices.create! if !contract.has_child?
+    end
+  end
+
+  def self.set_cycle
+    self.in_progress.each do |contract|
+      contract.check_for_ts_submit
+      contract.check_for_ts_approve
+    end
+  end
+
+  def check_for_ts_submit
+    ts_cycle = self.contract_cycles.where(cycle_type: "TimesheetSubmit").order("created_at DESC").first
+    buy_contract = self.buy_contracts.first
+    if ts_cycle.present?
+      next_date =  get_next_date(buy_contract.first_date_of_timesheet,
+                    buy_contract.time_sheet,
+                    buy_contract.ts_date_1,
+                    buy_contract.ts_date_2,
+                    buy_contract.ts_end_of_month,
+                    buy_contract.ts_day_of_week,
+                    ts_cycle.cycle_date )
+
+      if next_date.today?
+        self.contract_cycles.create(candidate_id: buy_contract.candidate_id,
+                                    note: "Timesheet submit",
+                                    cycle_type: "TimesheetSubmit"
+
+        )
+      end
+    else
+      next_date =  get_next_date(buy_contract.first_date_of_timesheet,
+                                 buy_contract.time_sheet,
+                                 buy_contract.ts_date_1,
+                                 buy_contract.ts_date_2,
+                                 buy_contract.ts_end_of_month,
+                                 buy_contract.ts_day_of_week,
+                                 Time.now)
+      if next_date.today?
+        self.contract_cycles.create(candidate_id: buy_contract.candidate_id,
+                                    note: "Timesheet submit",
+                                    cycle_type: "TimesheetSubmit"
+
+        )
+      end
+    end
+  end
+
+  def check_for_ts_approve
+    timesheets = self.timesheets.where(status: "open")
+    timesheets.each do |t|
+      self.contract_cycles.create(company_id: self.company_id,
+                                  cyclable: t,
+                                  note: "Timesheet approve",
+                                  cycle_type: "TimesheetApprove"
+
+      )
     end
   end
 

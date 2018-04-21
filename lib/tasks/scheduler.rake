@@ -16,3 +16,9 @@ task invoiced_contracts: :environment do
   Contract.invoiced_timesheets
   puts "done."
 end
+
+task cycle: :environement do
+  puts "Invoiced contracts..."
+  Contract.set_cycle
+  puts "done."
+end

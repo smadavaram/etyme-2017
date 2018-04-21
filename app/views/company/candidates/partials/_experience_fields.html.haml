@@ -13,6 +13,17 @@
       = f.text_field :institute,placeholder: "Company Name",class: 'form-control'
   .form-group
     %label.col-md-2.control-label
+      Industry
+      %sup.text-danger *
+    .col-md-4
+      =f.select :industry, industry_list, {include_blank: true},{class: "form-control", required: true }
+    %label.col-md-2.control-label
+      Department
+      %sup.text-danger *
+    .col-md-4
+      =f.select :department, department_list, {include_blank: true},{class: "form-control", required: true }
+  .form-group
+    %label.col-md-2.control-label
       Start Date
       %sup.text-danger *
     .col-md-10

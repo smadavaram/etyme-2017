@@ -156,13 +156,18 @@
         var ids = jQuery("#jqgrid").jqGrid('getDataIDs');
         for (var i = 0; i < ids.length; i++) {
           var cl = ids[i];
+          var id = $("#jqgrid").jqGrid('getCell', cl, "timesheet_id");
+
           be = "<button class='btn btn-xs btn-default' data-original-title='Edit Row' onclick=\"jQuery('#jqgrid').editRow('" + cl + "');\"><i class='fa fa-pencil'></i></button>";
           se = "<button class='btn btn-xs btn-default' data-original-title='Save Row' onclick=\"jQuery('#jqgrid').saveRow('" + cl + "');\"><i class='fa fa-save'></i></button>";
           ca = "<button class='btn btn-xs btn-default' data-original-title='Cancel' onclick=\"jQuery('#jqgrid').restoreRow('" + cl + "');\"><i class='fa fa-times'></i></button>";
-          ta = "<a href='#{timesheet_approve_path(1)}' class='btn btn-xs btn-default' title='Approve Timesheet' rel='tooltip' 'data-placement'= 'top' data-confirm = 'Are you sure?' verify='Approve' verify_text=\" Type 'Approve' to confirm\"> testxcvcxv </a> " ;
+
+          ta = "<a href='/timesheets/" + id + "/approve' class='btn btn-xs btn-default' title='Approve Timesheet' rel='tooltip' 'data-placement'= 'top' data-confirm = 'Are you sure?' verify='Approve' verify_text=\" Type 'Approve' to confirm\"> <i class='fa fa-check '></i> </a> " ;
+          tr = "<a href='/timesheets/" + id + "/approve' class='btn btn-xs btn-default' title='Approve Timesheet' rel='tooltip' 'data-placement'= 'top' data-confirm = 'Are you sure?' verify='Approve' verify_text=\" Type 'Approve' to confirm\"> <i class='fa fa-check '></i> </a> " ;
+
 
           jQuery("#jqgrid").jqGrid('setRowData', ids[i], {
-            act : be + se + ca + ta
+            act : ta
           });
         }
       },
