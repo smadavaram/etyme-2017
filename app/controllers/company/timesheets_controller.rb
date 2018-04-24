@@ -93,45 +93,71 @@ class Company::TimesheetsController < Company::BaseController
     has_access?("manage_timesheets")
   end
 
+  def check_invoice
+    @timesheet = current_company.timesheets.approved_timesheets.where(id: (params[:id] || params[:timesheet_id])).first
+    if @timesheet.present?
+      @invoice_date = get_next_invoice_date(@timesheet.contract)
+      @min_date = @timesheet.contract.timesheets.approved_timesheets.where(invoice_id: nil).minimum(:start_date)
+      @max_date = @timesheet.contract.timesheets.approved_timesheets.where(invoice_id: nil).maximum(:end_date)
+    else
+      @errors = true
+    end
+  end
+
   def generate_invoice
     timesheet = current_company.timesheets.approved_timesheets.where(id: (params[:id] || params[:timesheet_id])).first
     if timesheet.present?
       timesheets = timesheet.contract.timesheets.approved_timesheets.where(invoice_id: nil)
       if timesheets.present?
-        if timesheet.contract.invoices.present?
-          lastdate = timesheet.contract.invoices.last.end_date + 1.day
-        else
-          lastdate = timesheet.contract.start_date
-        end
+        # if timesheet.contract.invoices.present?
+        #   lastdate = timesheet.contract.invoices.last.end_date + 1.day
+        # else
+        #   lastdate = timesheet.contract.start_date
+        # end
 
-        first_timesheet = timesheets.where("start_date <= ? AND end_date >= ?", lastdate, lastdate).first
-        if first_timesheet.present?
-          remain_timesheets = timesheets.where("id > ?", first_timesheet.id)
-          unless remain_timesheets.present?
-            invoice = Invoice.new(contract_id: timesheet.contract_id, start_date: first_timesheet.start_date,
-                    end_date: first_timesheet.end_date, total_amount: (timesheet.total_time * (timesheet.contract.buy_contracts.first.payrate))
-            )
-            if invoice.save
-              first_timesheet.update(invoice_id: invoice.id)
-              flash[:success] = ["Invoice Generated successfully."]
-            else
+        # remain_timesheets = timesheets.where("start_date <= ? AND end_date >= ?", lastdate, lastdate)
 
-              flash[:errors] = invoice.errors.full_messages
-            end
+
+          # if timesheets.present?
+          min_date = timesheets.minimum(:start_date)
+          max_date = timesheets.maximum(:end_date)
+
+          invoice = Invoice.new(contract_id: timesheet.contract_id, start_date: min_date, end_date: max_date,
+                                total_amount: (timesheets.pluck(:total_time).sum * (timesheet.contract.buy_contracts.first.payrate))
+          )
+          if invoice.save
+            timesheets.update_all(invoice_id: invoice.id)
+            flash[:sucess] = "Invoice Generated successfully."
           else
-            invoice = Invoice.new(contract_id: timesheet.contract_id, start_date: first_timesheet.start_date,
-                                  end_date: remain_timesheets.last.end_date, total_amount: (remain_timesheets.pluck(:total_time).sum * (timesheet.contract.buy_contracts.first.payrate))
-            )
-            if invoice.save
-              remain_timesheets.update_all(invoice_id: invoice.id)
-              flash[:sucess] = ["Invoice Generated successfully."]
-            else
-              flash[:errors] = invoice.errors.full_messages
-            end
+            flash[:errors] = invoice.errors.full_messages
           end
-        else
-          flash[:errors] = ["There is no approve timesheets."]
-        end
+
+
+          # unless remain_timesheets.present?
+          #   invoice = Invoice.new(contract_id: timesheet.contract_id, start_date: first_timesheet.start_date,
+          #           end_date: first_timesheet.end_date, total_amount: (timesheet.total_time * (timesheet.contract.buy_contracts.first.payrate))
+          #   )
+          #   if invoice.save
+          #     first_timesheet.update(invoice_id: invoice.id)
+          #     flash[:success] = "Invoice Generated successfully."
+          #   else
+          #
+          #     flash[:errors] = invoice.errors.full_messages
+          #   end
+          # else
+          #   invoice = Invoice.new(contract_id: timesheet.contract_id, start_date: first_timesheet.start_date,
+          #                         end_date: remain_timesheets.last.end_date, total_amount: (remain_timesheets.pluck(:total_time).sum * (timesheet.contract.buy_contracts.first.payrate))
+          #   )
+          #   if invoice.save
+          #     remain_timesheets.update_all(invoice_id: invoice.id)
+          #     flash[:sucess] = "Invoice Generated successfully."
+          #   else
+          #     flash[:errors] = invoice.errors.full_messages
+          #   end
+          # end
+          # else
+          #   flash[:errors] = ["There is no approve timesheets."]
+          # end
       else
         flash[:errors] = ["There is no approve timesheets."]
       end
@@ -162,4 +188,11 @@ class Company::TimesheetsController < Company::BaseController
     @rec_search = current_company.received_timesheets.search(params[:q])
     @received_timesheets   = @rec_search.result(distinct: true).paginate(page: params[:page], per_page: 10) || []
   end
+
+  def get_next_invoice_date(contract)
+    last_invoice = contract.invoices.order("created_at DESC").first
+    sell_contract = contract.sell_contracts.first
+    get_next_date(Time.now, sell_contract.invoice_terms_period, sell_contract.invoice_date_1, sell_contract.invoice_date_2, sell_contract.invoice_end_of_month, sell_contract.invoice_day_of_week, (last_invoice.present? ? last_invoice.end_date : contract.start_date))
+  end
+
 end

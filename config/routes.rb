@@ -354,6 +354,7 @@ Rails.application.routes.draw do
       get 'submit_timesheet'
       get 'approved', on: :collection
       get 'generate_invoice'
+      get 'check_invoice'
       get 'approve'
       get 'submit'
       get 'reject'
