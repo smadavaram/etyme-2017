@@ -3,7 +3,7 @@ class Candidate::TimesheetsController < Candidate::BaseController
   include CandidateHelper
 
   def index
-    @timesheets = current_candidate.timesheets
+    @timesheets = current_candidate.timesheets.submitted_timesheets
   end
 
   def new
@@ -53,6 +53,10 @@ class Candidate::TimesheetsController < Candidate::BaseController
     else
       flash[:errors] = ["Contract Invalid"]
     end
+  end
+
+  def approve_timesheets
+    @timesheets = current_candidate.timesheets.approved_timesheets
   end
 
   private

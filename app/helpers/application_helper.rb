@@ -451,7 +451,7 @@ module ApplicationHelper
                   #     content: "<span class='menu-item-parent'> IM </span>"
                   # },
                   {
-                      href: "#",
+                      href: candidate_conversations_path,
                       title: 'Inbox',
                       content: "<span class='menu-item-parent'> Inbox </span>"
                   }
@@ -503,23 +503,24 @@ module ApplicationHelper
                       href: benchs_path,
                       title: 'My Bench (Hot Candidates, Third Party)',
                       content: "<span class='menu-item-parent'> My Bench </span>",
-                  },
-
-                  {
-                      href: "#",
-                      title: 'Received',
-                      content: "<span class='menu-item-parent'> Received </span>"
-                  },
-                  {
-                      href: "#",
-                      title: 'Public',
-                      content: "<span class='menu-item-parent'> Public </span>"
-                  },
-                  {
-                      href: "#",
-                      title: 'Bench Job',
-                      content: "<span class='menu-item-parent'> Bench Job </span>"
                   }
+                  #   ,
+                  #
+                  # {
+                  #     href: "#",
+                  #     title: 'Received',
+                  #     content: "<span class='menu-item-parent'> Received </span>"
+                  # },
+                  # {
+                  #     href: "#",
+                  #     title: 'Public',
+                  #     content: "<span class='menu-item-parent'> Public </span>"
+                  # },
+                  # {
+                  #     href: "#",
+                  #     title: 'Bench Job',
+                  #     content: "<span class='menu-item-parent'> Bench Job </span>"
+                  # }
               ]
           },
 
@@ -529,18 +530,18 @@ module ApplicationHelper
               content: "<i class='fa fa-lg fa-fw fa-briefcase'></i> <span class='menu-item-parent'>" + 'JOBS' + "</span>",
               children: [
                   {
-                      href: "#",
+                      href: candidate_jobs_path,
                       title: 'All Jobs',
                       content: "<span class='menu-item-parent'> All Posted Job(s) </span>"
                   },
 
                   {
-                      href: "#",
+                      href: candidate_job_invitations_path,
                       title: 'Job Invitations',
                       content: "<span class='menu-item-parent'> Invitation(s) </span>"
                   },
                   {
-                      href: "#",
+                      href: candidate_job_applications_path,
                       title: 'Applicants',
                       content: "<span class='menu-item-parent'> Applicants </span>"
                   }
@@ -588,7 +589,7 @@ module ApplicationHelper
                       content: "<i class='fa fa-lg fa-fw fa-calendar'></i> <span class='menu-item-parent'>" + 'Submitted' + "</span>",
                   },
                   {
-                      href:  "#",
+                      href:  approve_timesheets_candidate_timesheets_path,
                       title: 'Approved',
                       content: "<i class='fa fa-lg fa-fw fa-calendar'></i> <span class='menu-item-parent'>" + 'Approved' + "</span>",
                   },

@@ -27,7 +27,6 @@
 
 / END SHORTCUT AREA
 / ==================================================
-%script{"data-pace-options" => "{ \"restartOnRequestAfter\": true }", :src => "js/plugin/pace/pace.min.js"}
 %script{:src => "https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"}
 %script{:src => "https://ajax.googleapis.com/ajax/libs/jqueryui/1.12.1/jquery-ui.min.js"}
 :javascript
@@ -116,17 +115,13 @@
         var ids = jQuery("#jqgrid").jqGrid('getDataIDs');
         for (var i = 0; i < ids.length; i++) {
           var cl = ids[i];
-          be = "<button class='btn btn-xs btn-default' data-original-title='Edit Row' onclick=\"jQuery('#jqgrid').editRow('" + cl + "');\"><i class='fa fa-pencil'></i></button>";
-          se = "<button class='btn btn-xs btn-default' data-original-title='Save Row' onclick=\"jQuery('#jqgrid').saveRow('" + cl + "');\"><i class='fa fa-save'></i></button>";
-          ca = "<button class='btn btn-xs btn-default' data-original-title='Cancel' onclick=\"jQuery('#jqgrid').restoreRow('" + cl + "');\"><i class='fa fa-times'></i></button>";
-          //ce = "<button class='btn btn-xs btn-default' onclick=\"jQuery('#jqgrid').restoreRow('"+cl+"');\"><i class='fa fa-times'></i></button>";
-          //jQuery("#jqgrid").jqGrid('setRowData',ids[i],{act:be+se+ce});
+
           jQuery("#jqgrid").jqGrid('setRowData', ids[i], {
             act : ''
           });
         }
       },
-      editurl : "dummy.html",
+      editurl : "",
       caption : "Timesheet",
       multiselect : true,
       autowidth : true,
@@ -189,16 +184,3 @@
   $(window).on('resize.jqGrid', function() {
     $("#jqgrid").jqGrid('setGridWidth', $("#content").width());
   })
-:javascript
-  var _gaq = _gaq || [];
-  _gaq.push(['_setAccount', 'UA-XXXXXXXX-X']);
-  _gaq.push(['_trackPageview']);
-
-  (function() {
-    var ga = document.createElement('script');
-    ga.type = 'text/javascript';
-    ga.async = true;
-    ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
-    var s = document.getElementsByTagName('script')[0];
-    s.parentNode.insertBefore(ga, s);
-  })();

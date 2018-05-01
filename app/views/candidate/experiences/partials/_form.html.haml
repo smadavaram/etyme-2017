@@ -24,6 +24,13 @@
               .form-group
                 = experience.text_field :end_date,placeholder:"End Date",class: 'form-control '
           .row
+            .col-md-6
+              .form-group
+                = experience.select :industry, industry_list, {prompt: "Select Industry"},{class: "form-control", required: true }
+            .col-md-6
+              .form-group
+                = experience.select :department, department_list, { prompt: "Select Department" },{class: "form-control", required: true }
+          .row
             .col-md-12
               .form-group
                 = experience.text_area :description,placeholder: "Description",class: 'form-control', row: '5'

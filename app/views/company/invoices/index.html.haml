@@ -344,12 +344,12 @@
       #pjqgrid
 
 - @temp = []
--(0..20).each do |i|
-  -@temp.push({transaction_id: "#{rand(999)}", creation_date: "02/02/2018", contract: "Contract#{i}", client: "Client#{i}",
-                tax_type: "1099_w2", candidate: "Candidate#{i}", company_customer: "company#{i}",
-                sell_rate: "#{rand(999)}", cycle_date: "02/02/2018-02/03/2018", hours: "#{rand(9)}",
-                recieved_date: "02/02/2018", due_date: "02/02/2018", pending: "#{rand(999)}",
-                amount: "#{rand(999)}", attachment: "02/02/2018", status: "pending"})
+-@invoices.each do |inv|
+  -@temp.push({transaction_id: "#{rand(999)}", creation_date: inv.created_at, contract: inv.contract.number, client: inv.contract.sell_contracts.first.company.full_name,
+                tax_type: inv.contract.contract_type, candidate: inv.contract.buy_contracts.first.candidate.full_name, company_customer: inv.contract.buy_contracts.first.company.present? ? inv.contract.buy_contracts.first.company.full_name : '',
+                sell_rate: inv.contract.sell_contracts.first.customer_rate, cycle_date: "#{inv.start_date} - #{inv.end_date}", hours: inv.total_approve_time,
+                recieved_date: inv.created_at, due_date: inv.created_at, pending: "#{rand(999)}",
+                amount: inv.total_amount, attachment: "02/02/2018", status: inv.status})
 
 
 / END SHORTCUT AREA
@@ -450,13 +450,9 @@
         var ids = jQuery("#jqgrid").jqGrid('getDataIDs');
         for (var i = 0; i < ids.length; i++) {
           var cl = ids[i];
-          be = "<button class='btn btn-xs btn-default' data-original-title='Edit Row' onclick=\"jQuery('#jqgrid').editRow('" + cl + "');\"><i class='fa fa-pencil'></i></button>";
-          se = "<button class='btn btn-xs btn-default' data-original-title='Save Row' onclick=\"jQuery('#jqgrid').saveRow('" + cl + "');\"><i class='fa fa-save'></i></button>";
-          ca = "<button class='btn btn-xs btn-default' data-original-title='Cancel' onclick=\"jQuery('#jqgrid').restoreRow('" + cl + "');\"><i class='fa fa-times'></i></button>";
-          //ce = "<button class='btn btn-xs btn-default' onclick=\"jQuery('#jqgrid').restoreRow('"+cl+"');\"><i class='fa fa-times'></i></button>";
-          //jQuery("#jqgrid").jqGrid('setRowData',ids[i],{act:be+se+ce});
+
           jQuery("#jqgrid").jqGrid('setRowData', ids[i], {
-            act : be + se + ca
+            act : ''
           });
         }
       },

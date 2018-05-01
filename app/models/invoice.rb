@@ -45,11 +45,11 @@ class Invoice < ApplicationRecord
   # private
 
   def start_date_cannot_be_less_than_end_date
-      errors.add(:start_date, ' cannot be less than end date.') if self.end_date < self.start_date
+    errors.add(:start_date, ' cannot be less than end date.') if self.end_date < self.start_date
   end
 
   def contract_validation
-      errors.add(:base , "Contract is #{self.contract.status.humanize}" )
+    errors.add(:base , "Contract is #{self.contract.status.humanize}" )
   end
 
   # def set_total_amount

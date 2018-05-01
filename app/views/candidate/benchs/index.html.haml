@@ -1,13 +1,133 @@
-#content
-  %body
-    %section#widget-grid.clearfix
-      %table
-        %tr
-          %th Company
-          %th status
-          %th Action
-        - @candidates.each do |cand|
-          %tr
-            %td=cand.company.full_name
-            %td=cand.candidate_status
-            %td=link_to "accept", accept_bench_bench_path(cand.company_id, candidate_id: cand.candidate_id,)
+%section#widget-grid
+  .row
+    %article.col-xs-12.col-sm-12.col-md-12.col-lg-12
+      %table#jqgrid
+      #pjqgrid
+
+- @temp = []
+-@candidates.each do |cand|
+  -@temp.push({ company_id: cand.company_id,
+                candidate_id: cand.candidate_id,
+                company_name: cand.company.full_name,
+                status: cand.candidate_status})
+
+-# var ajqgrid_data = #{raw(@temp.to_json)};
+
+/ END SHORTCUT AREA
+/ ==================================================
+%script{:src => "https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"}
+%script{:src => "https://ajax.googleapis.com/ajax/libs/jqueryui/1.12.1/jquery-ui.min.js"}
+:javascript
+  $(document).ready(function() {
+    pageSetUp();
+    var jqgrid_data = #{raw(@temp.to_json)};
+
+    jQuery("#jqgrid").jqGrid({
+      data : jqgrid_data,
+      datatype : "local",
+      height : 'auto',
+      colNames : ['', '',  'Company Name', 'Status', 'Actions'],
+      colModel : [{
+        name: 'company_id',
+        index : 'company_id',
+        hidden: true
+      }, {
+        name: 'candidate_id',
+        index : 'candidate_id',
+        hidden: true
+      }, {
+        name : 'company_name',
+        index : 'company_name',
+        editable : true
+      }, {
+        name : 'status',
+        index : 'status',
+        editable : true
+      }, {
+        name : 'act',
+        index : 'act',
+        sortable : false
+      }],
+      rowNum : 10,
+      rowList : [10, 20, 30],
+      pager : '#pjqgrid',
+      sortname : 'id',
+      toolbarfilter : true,
+      viewrecords : true,
+      sortorder : "asc",
+      gridComplete : function() {
+        var ids = jQuery("#jqgrid").jqGrid('getDataIDs');
+        for (var i = 0; i < ids.length; i++) {
+          var cl = ids[i];
+          var com_id = $("#jqgrid").jqGrid('getCell', cl, "company_id");
+          var can_id = $("#jqgrid").jqGrid('getCell', cl, "candidate_id");
+
+          ba = "<a href='/benchs/"+ com_id +"/accept_bench?candidate_id="+ can_id +"' class='btn btn-xs btn-default' title='Accept' rel='tooltip' 'data-placement'= 'top'> <i class='fa fa-check '></i> </a> " ;
+          jQuery("#jqgrid").jqGrid('setRowData', ids[i], {
+            act : ba
+          });
+        }
+      },
+      editurl : "",
+      caption : "Bench",
+      multiselect : true,
+      autowidth : true,
+
+    });
+    jQuery("#jqgrid").jqGrid('navGrid', "#pjqgrid", {
+      edit : false,
+      add : false,
+      del : true
+    });
+    jQuery("#jqgrid").jqGrid('inlineNav', "#pjqgrid");
+    /* Add tooltips */
+    $('.navtable .ui-pg-button').tooltip({
+      container : 'body'
+    });
+
+    jQuery("#m1").click(function() {
+      var s;
+      s = jQuery("#jqgrid").jqGrid('getGridParam', 'selarrrow');
+      alert(s);
+    });
+    jQuery("#m1s").click(function() {
+      jQuery("#jqgrid").jqGrid('setSelection', "13");
+    });
+
+    // remove classes
+    $(".ui-jqgrid").removeClass("ui-widget ui-widget-content");
+    $(".ui-jqgrid-view").children().removeClass("ui-widget-header ui-state-default");
+    $(".ui-jqgrid-labels, .ui-search-toolbar").children().removeClass("ui-state-default ui-th-column ui-th-ltr");
+    $(".ui-jqgrid-pager").removeClass("ui-state-default");
+    $(".ui-jqgrid").removeClass("ui-widget-content");
+
+    // add classes
+    $(".ui-jqgrid-htable").addClass("table table-bordered table-hover");
+    $(".ui-jqgrid-btable").addClass("table table-bordered table-striped");
+
+    $(".ui-pg-div").removeClass().addClass("btn btn-sm btn-primary");
+    $(".ui-icon.ui-icon-plus").removeClass().addClass("fa fa-plus");
+    $(".ui-icon.ui-icon-pencil").removeClass().addClass("fa fa-pencil");
+    $(".ui-icon.ui-icon-trash").removeClass().addClass("fa fa-trash-o");
+    $(".ui-icon.ui-icon-search").removeClass().addClass("fa fa-search");
+    $(".ui-icon.ui-icon-refresh").removeClass().addClass("fa fa-refresh");
+    $(".ui-icon.ui-icon-disk").removeClass().addClass("fa fa-save").parent(".btn-primary").removeClass("btn-primary").addClass("btn-success");
+    $(".ui-icon.ui-icon-cancel").removeClass().addClass("fa fa-times").parent(".btn-primary").removeClass("btn-primary").addClass("btn-danger");
+
+    $(".ui-icon.ui-icon-seek-prev").wrap("<div class='btn btn-sm btn-default'></div>");
+    $(".ui-icon.ui-icon-seek-prev").removeClass().addClass("fa fa-backward");
+
+    $(".ui-icon.ui-icon-seek-first").wrap("<div class='btn btn-sm btn-default'></div>");
+    $(".ui-icon.ui-icon-seek-first").removeClass().addClass("fa fa-fast-backward");
+
+    $(".ui-icon.ui-icon-seek-next").wrap("<div class='btn btn-sm btn-default'></div>");
+    $(".ui-icon.ui-icon-seek-next").removeClass().addClass("fa fa-forward");
+
+    $(".ui-icon.ui-icon-seek-end").wrap("<div class='btn btn-sm btn-default'></div>");
+    $(".ui-icon.ui-icon-seek-end").removeClass().addClass("fa fa-fast-forward");
+
+  })
+
+  $(window).on('resize.jqGrid', function() {
+    $("#jqgrid").jqGrid('setGridWidth', $("#content").width());
+  })

@@ -9,6 +9,7 @@ class Company::InvoicesController < Company::BaseController
   add_breadcrumb "INVOICES", '#', options: { title: "INVOICES" }
 
   def index
+    @invoices = Invoice.joins(:contract).where(contracts: {company_id: current_company.id})
   end
 
   def accept_invoice

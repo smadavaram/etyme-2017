@@ -42,7 +42,7 @@ class BuyContract < ApplicationRecord
     elsif  self.time_sheet == "twice a month"
       time_sheet_date = self.ts_date_1
     elsif  self.time_sheet == "monthly"
-      if self.end_of_month
+      if self.ts_end_of_month
         time_sheet_date = self.contract.start_date.end_of_month
       else
         time_sheet_date = self.ts_date_1

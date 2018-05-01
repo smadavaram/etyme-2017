@@ -127,7 +127,9 @@ Rails.application.routes.draw do
     end
 
     resources :contracts, only: [:index]
-    resources :timesheets, only: [:index, :new, :create]
+    resources :timesheets, only: [:index, :new, :create] do
+      get :approve_timesheets, on: :collection
+    end
   end
 
 
