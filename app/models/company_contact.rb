@@ -13,7 +13,7 @@ class CompanyContact < ApplicationRecord
     where conditions.flatten.inject(:or)
   end
   def full_name
-    self.first_name + " " + self.last_name
+    self.first_name.to_s + " " + self.last_name.to_s
   end
   def photo
     super.present? ? super : 'avatars/m_sunny_big.png'
