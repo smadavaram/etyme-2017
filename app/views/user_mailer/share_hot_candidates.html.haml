@@ -16,15 +16,25 @@
         %td
         %td.container{:bgcolor => "#FFFFFF"}
           %h4 Hi, #{@company.name.titleize} has shared following Hot Candidates link  with you.
+          %p{style: "font-size:20px"}
+            Message : "#{@message.html_safe}"
+          %br
+          %br
           %table
             %thead
               %tr
-                %th.padding-20{style:"width:55% ;text-align: left;"}
+                %th.padding-20{style:"width:16% ;text-align: left;"}
                   Name
-                %th.padding-20{style:"width:25% ;text-align: left;"}
-                  Designation
-                %th.padding-20{style:"width:20% ;text-align: left;"}
-                  Link
+                %th.padding-20{style:"width:18% ;text-align: left;"}
+                  Roles
+                %th.padding-20{style:"width:18% ;text-align: left;"}
+                  Skills
+                %th.padding-20{style:"width:16% ;text-align: left;"}
+                  Location
+                %th.padding-20{style:"width:16% ;text-align: left;"}
+                  Visa
+                %th.padding-20{style:"width:16% ;text-align: left;"}
+                  Recuiter Name
             %tbody
               - company_url = @company.etyme_url
               - @link_list.each do |link|
@@ -32,13 +42,16 @@
                   %td{style:"width:55% "}
                     = link_to  link[:name] ,link[:url],target: '_blank'
                   %td{style:"width:55% "}
-                    Candidate
-                  %td{style:"width:55%"}
-                    = link_to  'Show' ,link[:url],target: '_blank'
-          %br
-          %br
-          %p{style: "font-size:20px"}
-            Message : " #{@message} "
+                    = link[:roles]
+                  %td{style:"width:55% "}
+                    = link[:skills]
+                  %td{style:"width:55% "}
+                    = link[:location]
+                  %td{style:"width:55% "}
+                    = link[:visa]
+                  %td{style:"width:55% "}
+                    = link[:recuiter_name]
+
           = render 'user_mailer/partials/social_contact'
         %td
     / FOOTER
