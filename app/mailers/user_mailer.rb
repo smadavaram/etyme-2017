@@ -54,7 +54,16 @@ class UserMailer < ApplicationMailer
     @link_list = []
     @message = message
     candidates_ids.each do |cid|
-      @link_list.push({name: current_company.candidates.find(cid).full_name ,url: "http://#{current_company.etyme_url}/static/companies/#{current_company.id}/candidates/#{cid}/resume"})
+      candidate = current_company.candidates.find(cid)
+      @link_list.push({
+                          name: candidate.full_name,
+                          url: "http://#{current_company.etyme_url}/static/companies/#{current_company.id}/candidates/#{cid}/resume",
+                          roles: candidate.try(:roles).present? ? candidate.roles.pluck(:name).to_sentence : '',
+                          skills: candidate.skills.pluck(:name).to_sentence,
+                          location: candidate.try(:location),
+                          visa: candidate.visa,
+                          recuiyter_name: candidate.invited_by_user.present? ? candidate.invited_by_user.full_name : ''
+                      })
     end
     @candidates_ids = candidates_ids
     @company = current_company

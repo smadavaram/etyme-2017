@@ -29,7 +29,7 @@
               %header{:role => "heading"}
                 %span.widget-icon
                   %i.fa.fa-table
-                %h2 Companies
+                %h2 Contacts
               / widget div
               %div{:role => "content"}
                 .widget-body.no-padding
@@ -77,10 +77,10 @@
                             %td
                               = check_box_tag "ids[]", d.invited_company.id
                             %td= image_tag show_recipient_picture(d.invited_company.logo) , alt: '', width: '40'
-                            %td= link_to d.invited_company.try(:full_name) ,"#"
+                            %td= link_to d.invited_company.try(:company_contacts).try(:first).try(:full_name) ,"#"
                             -#%td= d.invited_company.try(:company_contact).try(:full_name)  rescue "  --"
                             -#%td= d.invited_company.company_contact.try(:email)
-                            %td= link_to d.try(:invited_company).try(:name), profile_company_path(d.try(:invited_company))
+                            %td= link_to d.invited_company.try(:name), profile_company_path(d.try(:invited_company))
                             %td= d.invited_company.try(:email)
                             %td= d.invited_company.try(:phone)
                             %td
