@@ -62,7 +62,7 @@ class UserMailer < ApplicationMailer
                           skills: candidate.skills.pluck(:name).to_sentence,
                           location: candidate.try(:location),
                           visa: candidate.visa,
-                          recuiter_name: candidate.invited_by_user.present? ? candidate.invited_by_user.full_name : ''
+                          recuiter_name: candidate.invited_by_user.present? ? candidate.invited_by_user.full_name + ' ' + candidate.invited_by_user.email.to_s + ' ' + candidate.invited_by_user.phone.to_s : ''
                       })
     end
     @candidates_ids = candidates_ids
