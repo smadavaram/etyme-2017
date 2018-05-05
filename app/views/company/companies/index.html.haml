@@ -75,7 +75,7 @@
                         -@invited_companies.each do |d|
                           %tr
                             %td
-                              = check_box_tag "ids[]", d.invited_company.id
+                              = check_box_tag "ids[]", d.invited_company.id, nil, class: "table-check"
                             %td= image_tag show_recipient_picture(d.invited_company.logo) , alt: '', width: '40'
                             %td= link_to d.invited_company.try(:company_contacts).try(:first).try(:full_name) ,"#"
                             -#%td= d.invited_company.try(:company_contact).try(:full_name)  rescue "  --"
@@ -165,16 +165,6 @@
 
       } );
      // share hide and show on base of checked checkboxes
-      $('.bulk').hide();
-      $( "input[type=checkbox]" ).on( "click", function() {
-         if($( "input:checked" ).length> 0)
-          {
-            $('.bulk').show();
-          }else
-          {
-            $('.bulk').hide();
-          }
-       });
       // for share of checked rows
       var checkedRows = new Array();
         $(".bulk" ).on( "click", function() {
@@ -185,6 +175,10 @@
           {
             $('.company_ids').val(checkedRows);
 
+          }
+          if($( ".table-check:checked" ).length <= 0){
+              alert("Make a selection first.")
+              return false;
           }
       });
 

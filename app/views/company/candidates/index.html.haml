@@ -49,7 +49,7 @@
                     %tbody
                       - @candidates.each do |candidate|
                         %tr.even{:role => "row"}
-                          %td= check_box_tag "ids[]", candidate.id
+                          %td= check_box_tag "ids[]", candidate.id, nil, class: "table-check"
                           -#%td= image_tag candidate.photo, alt: '', width: '20'
                           %td= candidate.try(:full_name).try(:titleize)
                           %td= candidate.try(:email)
@@ -150,26 +150,20 @@
 
       } );
        // share hide and show on base of checked checkboxes
-        $('.bulk').hide();
-        $( "input[type=checkbox]" ).on( "click", function() {
-           if($( "input:checked" ).length> 0)
-            {
-              $('.bulk').show();
-            }else
-            {
-              $('.bulk').hide();
-            }
-         });
+
         // for share of checked rows
         var checkedRows = new Array();
-          $(".bulk" ).on( "click", function() {
+          $(".bulk" ).on( "click", function(e) {
             $('input:checkbox:checked').each(function(){
             checkedRows.push($(this).val());
             });
             if(checkedRows.length>0)
             {
               $('.candidates_ids').val(checkedRows);
-
+            }
+            if($( ".table-check:checked" ).length <= 0){
+              alert("Make a selection first.")
+              return false;
             }
         });
 
