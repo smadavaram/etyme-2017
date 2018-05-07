@@ -86,6 +86,7 @@ class Candidate::CandidatesController < Candidate::BaseController
 
   def notify_notifications
     @notifications = current_candidate.notifications || []
+    @contract_cycles = current_candidate.contract_cycles.incomplete || []
     render layout: false
   end
 

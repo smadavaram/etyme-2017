@@ -160,6 +160,41 @@ var set_user_select = function(selector, palce_holder){
     }
 }
 
+
+var set_commission_user_select = function(selector, palce_holder){
+    if ($(selector).length > 0) {
+        $(selector).select2({
+            ajax: {
+                url: '/api/select_searches/find_commission_user',
+                dataType: 'json',
+                delay: 250,
+                data: function (params) {
+                    return {
+                        per_page: 10,
+                        q: params.term, // search term
+                        page: params.page
+                    };
+                },
+                processResults: function (data, params) {
+                    params.page = params.page || 1;
+                    return {
+                        results: data.companies,
+                        pagination: {
+                            more: (params.page * 10) < data.total_count
+                        }
+                    };
+                },
+                cache: true
+            },
+            placeholder: palce_holder,
+            multiple: true,
+            escapeMarkup: function (markup) { return markup; },
+            templateResult: formatRepo,
+            templateSelection: formatRepoSelection
+        });
+    }
+}
+
 function formatCompanyContact (contact) {
     if (contact.loading) {
         return contact.text;

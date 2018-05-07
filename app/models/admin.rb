@@ -19,4 +19,11 @@ class Admin < User
       UserMailer.invite_user(self).deliver
     end
 
+  def self.like_any(fields, values)
+    conditions = fields.product(values).map do |(field, value)|
+      [arel_table[field].matches("#{value}%"), arel_table[field].matches("%#{value}%")]
+    end
+    where conditions.flatten.inject(:or)
+  end
+
 end

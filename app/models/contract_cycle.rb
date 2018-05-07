@@ -11,4 +11,7 @@ class ContractCycle < ApplicationRecord
             presence: true,
             inclusion: { in: CYCLETYPES }
 
+  scope :incomplete, -> {where(status: 'pending')}
+  scope :completed, -> {where(status: 'completed')}
+
 end

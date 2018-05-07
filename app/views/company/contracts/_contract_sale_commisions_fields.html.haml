@@ -5,7 +5,13 @@
         %label.control-label
           Name
         .contract-fild
-          = f.text_field :name ,class: "form-control" , placeholder: ""
+          =# f.text_field :name ,class: "form-control" , placeholder: ""
+      .form-group.assign_commission_user
+        -f.object.csc_accounts.build
+        =f.fields_for :csc_accounts do |csca|
+          = link_to_add_fields 'available_tour_fields', f, :csc_accounts, {partial: 'company/contracts/csc_accounts_fields'}, {class: 'com-user-generater hidden'}
+          = csca.select :accountable, {}, {}, class: "form-control commission-user" , placeholder: ""
+
     .col-md-6
       .form-group
         %label.control-label
@@ -18,7 +24,7 @@
         %label.control-label
           Frequency
         .contract-fild
-          = f.text_field :frequency ,class: "form-control" , placeholder: ""
+          = f.select :frequency , Contract.commission_types.map { |key, value| [key.humanize, key] }, {include_blank: '-- Select Frequency Type --'} , {class: "form-control" }
     .col-md-6
       .form-group
         %label.control-label

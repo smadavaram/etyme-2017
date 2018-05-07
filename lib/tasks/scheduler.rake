@@ -12,13 +12,13 @@ task start_contracts: :environment do
 end
 
 task invoiced_contracts: :environment do
-  puts "Invoiced contracts..."
+  puts "Timesheet contracts..."
   Contract.invoiced_timesheets
   puts "done."
 end
 
 task cycle: :environement do
-  puts "Invoiced contracts..."
+  puts "Cycle contracts..."
   Contract.set_cycle
   puts "done."
 end

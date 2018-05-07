@@ -86,6 +86,10 @@ class Company::TimesheetsController < Company::BaseController
     else
       flash[:errors] = @timesheet.errors.full_messages
     end
+
+    con_cycle = ContractCycle.find(@timesheet.ta_cycle_id)
+    con_cycle.update_attributes(completed_at: Time.now, status: "completed")
+
     redirect_back fallback_location: root_path
   end
 

@@ -222,7 +222,10 @@ class Company::ContractsController < Company::BaseController
                    :id, :company_contact_id, :_destroy
                ],
                contract_sale_commisions_attributes: [
-                   :id, :name, :rate, :frequency, :limit, :_destroy
+                   :id, :name, :rate, :frequency, :limit, :_destroy,
+                   csc_accounts_attributes: [
+                       :id, :accountable_type, :accountable_id, :_destroy
+                   ]
                ],
                buy_send_documents_attributes: [
                    :id, :doc_file, :file_name, :file_size, :file_type, :when_expire, :is_sign_required, :creatable_type,

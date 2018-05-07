@@ -5,7 +5,7 @@ class BuyContract < ApplicationRecord
   belongs_to :company, optional: true
 
   has_many :contract_buy_business_details,dependent: :destroy
-  has_many :contract_sale_commisions,dependent: :destroy
+  has_many :contract_sale_commisions, dependent: :destroy
   has_many :buy_send_documents,dependent: :destroy
   has_many :buy_emp_req_docs,dependent: :destroy
   has_many :buy_ven_req_docs,dependent: :destroy

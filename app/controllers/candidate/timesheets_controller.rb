@@ -3,11 +3,31 @@ class Candidate::TimesheetsController < Candidate::BaseController
   include CandidateHelper
 
   def index
-    @timesheets = current_candidate.timesheets.submitted_timesheets
+    @timesheets = current_candidate.timesheets.open_timesheets
+    @dates = Time.now-1.month
+    @time_cycle = [((@dates.beginning_of_week-1.day).strftime("%m/%d/%Y") +" - " + (@dates.end_of_week - 1.day).strftime("%m/%d/%Y")),
+                   ((@dates.end_of_week ).strftime("%m/%d/%Y") +" - " + (@dates.end_of_week + 6.day).strftime("%m/%d/%Y")),
+                   ((@dates.end_of_week + 7.day).strftime("%m/%d/%Y") +" - " + (@dates.end_of_week + 13.day).strftime("%m/%d/%Y")),
+                   ((@dates.end_of_week + 14.day).strftime("%m/%d/%Y") +" - " + (@dates.end_of_week + 20.day).strftime("%m/%d/%Y")),
+                   ((@dates.end_of_week + 21.day).strftime("%m/%d/%Y") +" - " + (@dates.end_of_week + 27.day).strftime("%m/%d/%Y")),
+                   ((@dates.end_of_week + 28.day).strftime("%m/%d/%Y") +" - " + (@dates.end_of_week + 34.day).strftime("%m/%d/%Y")),
+                   ((@dates.end_of_week + 35.day).strftime("%m/%d/%Y") +" - " + (@dates.end_of_week + 41.day).strftime("%m/%d/%Y")),
+                   ((@dates.end_of_week + 42.day).strftime("%m/%d/%Y") +" - " + (@dates.end_of_week + 48.day).strftime("%m/%d/%Y")),
+                   ((@dates.end_of_week + 49.day).strftime("%m/%d/%Y") +" - " + (@dates.end_of_week + 55.day).strftime("%m/%d/%Y")),
+                   ((@dates.end_of_week + 56.day).strftime("%m/%d/%Y") +" - " + (@dates.end_of_week + 62.day).strftime("%m/%d/%Y"))]
+
+  end
+
+  def get_timesheets
+    dates = params[:date_range].split(" - ")
+    @start_date = Date.strptime(dates[0].gsub('/', '-'), '%m-%d-%Y')
+    @end_date = Date.strptime(dates[1].gsub('/', '-'), '%m-%d-%Y')
+    @timesheets = current_candidate.timesheets.open_timesheets
   end
 
   def new
-    @contracts = Contract.joins(:buy_contracts).where(buy_contracts: {candidate_id: current_candidate.id})
+    # @contracts = Contract.joins(:buy_contracts).where(buy_contracts: {candidate_id: current_candidate.id})
+    @ts_cycle = current_candidate.contract_cycles.where(cycle_type: "TimesheetSubmit").order("created_at DESC")
     dates = Time.now-1.month
     @time_cycle = [((dates.beginning_of_week-1.day).strftime("%m/%d/%Y") +" - " + (dates.end_of_week - 1.day).strftime("%m/%d/%Y")),
                    ((dates.end_of_week ).strftime("%m/%d/%Y") +" - " + (dates.end_of_week + 6.day).strftime("%m/%d/%Y")),
@@ -55,6 +75,43 @@ class Candidate::TimesheetsController < Candidate::BaseController
     end
   end
 
+  def update
+    timesheet = current_candidate.timesheets.open_timesheets.find(params[:id])
+    if timesheet.present?
+      if params[:timesheet][:days].present?
+        timesheet.assign_attributes(timesheet_params)
+        timesheet.days = params[:timesheet][:days]
+        timesheet.total_time = params[:timesheet][:days].values.map(&:to_i).sum
+        timesheet.status = 'submitted'
+        timesheet.save
+        flash[:success] = "Successfully Submitted"
+
+        con_cycle = ContractCycle.find(timesheet.ts_cycle_id)
+        con_cycle.update_attributes(completed_at: Time.now, status: "completed")
+
+        con_cycle_ta = ContractCycle.create(contract_id: con_cycle.contract_id,
+                                            start_date: con_cycle.start_date,
+                                            end_date: con_cycle.end_date,
+                                            cyclable: timesheet,
+                                            company_id: timesheet.contract.sell_contracts.first.company_id,
+                                            note: "Timesheet Approve",
+                                            cycle_date: Time.now,
+                                            cycle_type: "TimesheetApprove"
+        )
+        timesheet.update_attributes(ta_cycle_id: con_cycle_ta.id)
+      else
+        flash[:errors] = ["You are able to submit timeshhet for #{timesheet.contract.title} on #{timesheet.start_date.strftime('%d/%m/%Y')}"]
+      end
+    else
+      flash[:errors] = ["Timesheet Invalid"]
+    end
+    render 'create'
+  end
+
+  def submitted_timesheets
+    @timesheets = current_candidate.timesheets.submitted_timesheets
+  end
+
   def approve_timesheets
     @timesheets = current_candidate.timesheets.approved_timesheets
   end
@@ -62,7 +119,7 @@ class Candidate::TimesheetsController < Candidate::BaseController
   private
 
   def timesheet_params
-    params.require(:timesheet).permit(:job_id, :user_id, :company_id, :contract_id, :status, :total_time, :start_date, :end_date, :submitted_date, :next_timesheet_created_date, :invoice_id, :timesheet_attachment, :candidate_name)
+    params.require(:timesheet).permit(:job_id, :user_id, :company_id, :contract_id, :status, :total_time, :start_date, :end_date, :submitted_date, :next_timesheet_created_date, :invoice_id, :timesheet_attachment, :candidate_name, :ts_cycle_id)
   end
 
   def check_valid_dates(contract, startdate, enddate)
@@ -71,7 +128,7 @@ class Candidate::TimesheetsController < Candidate::BaseController
     if startdate.to_date <= nd && nd <= enddate.to_date
       true
     else
-      flash[:errors] = ["You are able to submit timeshhet, You need to send timesheet of date #{nd} first." ]
+      flash[:errors] = ["You are able to submit timesheet, You need to send timesheet of date #{nd} first." ]
       false
     end
   end

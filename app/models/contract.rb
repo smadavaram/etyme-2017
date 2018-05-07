@@ -275,7 +275,7 @@ class Contract < ApplicationRecord
   def self.set_cycle
     self.in_progress.each do |contract|
       contract.check_for_ts_submit
-      contract.check_for_ts_approve
+      # contract.check_for_ts_approve
     end
   end
 
@@ -283,7 +283,7 @@ class Contract < ApplicationRecord
     ts_cycle = self.contract_cycles.where(cycle_type: "TimesheetSubmit").order("created_at DESC").first
     buy_contract = self.buy_contracts.first
     if ts_cycle.present?
-      next_date =  get_next_date(buy_contract.first_date_of_timesheet,
+      next_date =  get_next_date(ts_cycle.cycle_date,
                     buy_contract.time_sheet,
                     buy_contract.ts_date_1,
                     buy_contract.ts_date_2,
@@ -291,27 +291,70 @@ class Contract < ApplicationRecord
                     buy_contract.ts_day_of_week,
                     ts_cycle.cycle_date )
 
-      if next_date.today?
-        self.contract_cycles.create(candidate_id: buy_contract.candidate_id,
+      start_date = ts_cycle.cycle_date + 1.day
+      while next_date <= Time.now
+        cycle = self.contract_cycles.create(candidate_id: buy_contract.candidate_id,
                                     note: "Timesheet submit",
+                                    cycle_date: next_date,
+                                    start_date: start_date,
+                                    end_date: next_date,
                                     cycle_type: "TimesheetSubmit"
 
         )
+
+       t = Timesheet.create(
+            contract_id: self.id,
+            start_date: start_date,
+            end_date: next_date,
+            candidate_name: buy_contract.candidate.full_name,
+            candidate_id: buy_contract.candidate_id,
+            ts_cycle_id: cycle.id
+        )
+
+        next_date =  get_next_date(next_date,
+                                   buy_contract.time_sheet,
+                                   buy_contract.ts_date_1,
+                                   buy_contract.ts_date_2,
+                                   buy_contract.ts_end_of_month,
+                                   buy_contract.ts_day_of_week,
+                                   next_date)
+        start_date = cycle.cycle_date + 1.day
       end
     else
-      next_date =  get_next_date(buy_contract.first_date_of_timesheet,
+      next_date =  get_next_date(self.start_date-1.day,
                                  buy_contract.time_sheet,
                                  buy_contract.ts_date_1,
                                  buy_contract.ts_date_2,
                                  buy_contract.ts_end_of_month,
                                  buy_contract.ts_day_of_week,
                                  Time.now)
-      if next_date.today?
-        self.contract_cycles.create(candidate_id: buy_contract.candidate_id,
+      start_date = self.start_date
+      while next_date <= Time.now
+        cycle = self.contract_cycles.create(candidate_id: buy_contract.candidate_id,
                                     note: "Timesheet submit",
+                                    cycle_date: next_date,
+                                    start_date: start_date,
+                                    end_date: next_date,
                                     cycle_type: "TimesheetSubmit"
-
         )
+
+        t = Timesheet.create(
+            contract_id: self.id,
+            start_date: start_date,
+            end_date: next_date,
+            candidate_name: buy_contract.candidate.full_name,
+            candidate_id: buy_contract.candidate_id,
+            ts_cycle_id: cycle.id
+        )
+        next_date =  get_next_date(next_date,
+                                   buy_contract.time_sheet,
+                                   buy_contract.ts_date_1,
+                                   buy_contract.ts_date_2,
+                                   buy_contract.ts_end_of_month,
+                                   buy_contract.ts_day_of_week,
+                                   next_date)
+        start_date = cycle.cycle_date + 1.day
+
       end
     end
   end
@@ -332,202 +375,194 @@ class Contract < ApplicationRecord
     self.update(next_invoice_date: (self.start_date + self.sell_contracts.first.invoice_terms_period.to_i.days) )
   end
 
+  #
+
+  # tx = ledger.transactions.transact do |builder|
+  #   builder.issue(
+  #       flavor_id: 'usd',
+  #       amount: 10,
+  #       source_account_id: 'orande115_ven',
+  #       action_tags: {source: 'wire'}
+  #   )
+  #   builder.issue(
+  #       flavor_id: 'min',
+  #       amount: 20,
+  #       source_account_id: 'cloudepa123_usd'
+  #   )
+  # end
+  #
+  #
+  #
+  # tx = ledger.transactions.transact do |builder|
+  #   builder.transfer(
+  #       flavor_id: 'usd',
+  #       amount: 10,
+  #       source_account_id: 'orande115_ven',
+  #       destination_account_id: 'cloudepa123_usd'
+  #   )
+  # end
+
+
+
   def set_on_seq
     ledger = Sequence::Client.new(
       ledger_name: ENV['seq_ledgers'],
       credential: ENV['seq_token']
     )
 
-    key = ledger.keys.query({aliases: ['etyme']}).first
-    unless key.present?
-      key = ledger.keys.create(id: "etyme")
+    com_key = ledger.keys.query({aliases: ['company']}).first
+    unless com_key.present?
+      com_key = ledger.keys.create(id: "company")
     end
 
+    con_key = ledger.keys.query({aliases: ['consultant']}).first
+    unless con_key.present?
+      con_key = ledger.keys.create(id: "consultant")
+    end
 
-    # Contract owner Tressury account
-    cot = ledger.accounts.list(
-        filter: 'id=$1',
-        filter_params: ["#{self.company.slug}_t"]).first
+    contract_key = ledger.keys.query({aliases: ['contract']}).first
+    unless contract_key.present?
+      contract_key = ledger.keys.create(id: "contract")
+    end
 
-    ledger.accounts.create(
-      id: "#{self.company.slug}_t",
-      keys: [key],
-      quorum: 1,
-      tags: {
-        domain: self.company.domain,
-        primary_email: self.company.owner.email
-      }
-    ) unless cot.present?
+    if self.sell_contracts.first.company_id.present?
+      tre_q = ledger.accounts.list(
+          filter: 'id=$1',
+          filter_params: ["#{self.sell_contracts.first.company.slug.to_s + self.sell_contracts.first.company.id.to_s}_q"]).first
 
-    # Contract owner Customer account
-    coc = ledger.accounts.list(
-        filter: 'id=$1',
-        filter_params: ["#{self.company.slug}_c"]).first
+      ledger.accounts.create(
+          id: "#{self.sell_contracts.first.company.slug.to_s + self.sell_contracts.first.company.id.to_s}_q",
+          keys: [com_key],
+          quorum: 1,
+          tags: {
+              domain: self.sell_contracts.first.company.domain,
+              primary_email: self.sell_contracts.first.company.owner.email
+          }
+      ) unless tre_q.present?
 
-    ledger.accounts.create(
-      id: "#{self.company.slug}_c",
-      keys: [key],
-      quorum: 1,
-      tags: {
-        domain: self.company.domain,
-        primary_email: self.company.owner.email
-      }
-    ) unless coc.present?
+      tre_usd = ledger.accounts.list(
+          filter: 'id=$1',
+          filter_params: ["#{self.sell_contracts.first.company.slug.to_s + self.sell_contracts.first.company.id.to_s}_usd"]).first
 
-    # Contract owner Vendor account
-    cov = ledger.accounts.list(
-        filter: 'id=$1',
-        filter_params: ["#{self.company.slug}_v"]).first
-
-    ledger.accounts.create(
-      id: "#{self.company.slug}_v",
-      keys: [key],
-      quorum: 1,
-      tags: {
-        domain: self.company.domain,
-        primary_email: self.company.owner.email
-      }
-    ) unless cov.present?
-
-
-    # Contract assigned Tressury account
-    cat = ledger.accounts.list(
-        filter: 'id=$1',
-        filter_params: ["#{self.client.slug}_t"]).first
-
-    ledger.accounts.create(
-      id: "#{self.client.slug}_t",
-      keys: [key],
-      quorum: 1,
-      tags: {
-        domain: self.client.domain,
-        primary_email: self.client.owner.email
-      }
-    ) unless cat.present?
-
-    # Contract assigned Customer account
-    cac = ledger.accounts.list(
-        filter: 'id=$1',
-        filter_params: ["#{self.client.slug}_c"]).first
-
-    ledger.accounts.create(
-      id: "#{self.client.slug}_c",
-      keys: [key],
-      quorum: 1,
-      tags: {
-        domain: self.client.domain,
-        primary_email: self.client.owner.email
-      }
-    ) unless cac.present?
-
-    # Contract assigned Vendor account
-    cav = ledger.accounts.list(
-        filter: 'id=$1',
-        filter_params: ["#{self.client.slug}_v"]).first
-
-    ledger.accounts.create(
-      id: "#{self.client.slug}_v",
-      keys: [key],
-      quorum: 1,
-      tags: {
-        domain: self.client.domain,
-        primary_email: self.client.owner.email
-      }
-    ) unless cav.present?
+      ledger.accounts.create(
+          id: "#{self.sell_contracts.first.company.slug.to_s + self.sell_contracts.first.company.id.to_s}_usd",
+          keys: [com_key],
+          quorum: 1,
+          tags: {
+              domain: self.sell_contracts.first.company.domain,
+              primary_email: self.sell_contracts.first.company.owner.email
+          }
+      ) unless tre_usd.present?
+    end
 
     if self.buy_contracts.first.company_id.present?
       # Contract Vendor Tressury account
       cvt = ledger.accounts.list(
           filter: 'id=$1',
-          filter_params: ["#{self.buy_contracts.first.company.slug}_t"]).first
+          filter_params: ["#{self.buy_contracts.first.company.slug.to_s + self.buy_contracts.first.company.id.to_s}_ven"]).first
 
       ledger.accounts.create(
-        id: "#{self.buy_contracts.first.company.slug}_t",
-        keys: [key],
+        id: "#{self.buy_contracts.first.company.slug.to_s + self.buy_contracts.first.company.id.to_s}_ven",
+        keys: [com_key],
         quorum: 1,
         tags: {
           domain: self.buy_contracts.first.company.domain,
           primary_email: self.buy_contracts.first.company.owner.email
         }
       ) unless cvt.present?
-
-      # Contract Vendor Customer account
-      cvc = ledger.accounts.list(
-          filter: 'id=$1',
-          filter_params: ["#{self.buy_contracts.first.company.slug}_c"]).first
-
-      ledger.accounts.create(
-        id: "#{self.buy_contracts.first.company.slug}_c",
-        keys: [key],
-        quorum: 1,
-        tags: {
-          domain: self.buy_contracts.first.company.domain,
-          primary_email: self.buy_contracts.first.company.owner.email
-        }
-      ) unless cvc.present?
-
-      # Contract Vendor Vendor account
-      cvv = ledger.accounts.list(
-          filter: 'id=$1',
-          filter_params: ["#{self.buy_contracts.first.company.slug}_v"]).first
-
-      ledger.accounts.create(
-        id: "#{self.buy_contracts.first.company.slug}_v",
-        keys: [key],
-        quorum: 1,
-        tags: {
-          domain: self.buy_contracts.first.company.domain,
-          primary_email: self.buy_contracts.first.company.owner.email
-        }
-      ) unless cvv.present?
     end
 
-    # Gain account
-    ga = ledger.accounts.list(
-        filter: 'id=$1',
-        filter_params: ["#{self.number}_gain"]).first
-
-    ledger.accounts.create(
-      id: "#{self.number}_gain",
-      keys: [key],
-      quorum: 1,
-      tags: {
-        customer: self.buy_contracts.first.candidate.full_name,
-        vendor_candidate: "cand#{self.number}",
-        company: self.company.slug
-      }
-    ) unless ga.present?
-
-    # Loss account
+    # Contract Expense
     la = ledger.accounts.list(
         filter: 'id=$1',
-        filter_params: ["#{self.number}_loss"]).first
+        filter_params: ["#{self.number}_exp"]).first
 
     ledger.accounts.create(
-      id: "#{self.number}_loss",
-      keys: [key],
+      id: "#{self.number}_exp",
+      keys: [contract_key],
       quorum: 1,
       tags: {
-        customer: self.buy_contracts.first.candidate.full_name,
-        vendor_candidate: "cand#{self.number}",
-        company: self.company.slug
+        contract_id: self.id
       }
     ) unless la.present?
 
     # Consultant account
-    ca = ledger.accounts.list(
+    ca_q = ledger.accounts.list(
         filter: 'id=$1',
-        filter_params: ["c_#{self.buy_contracts.first.candidate.id}"]).first
+        filter_params: ["#{self.buy_contracts.first.candidate.full_name.parameterize + self.buy_contracts.first.candidate.id.to_s}_q"]).first
 
     ledger.accounts.create(
-      id: "c_#{self.buy_contracts.first.candidate.id}",
-      keys: [key],
+      id: "#{self.buy_contracts.first.candidate.full_name.parameterize + self.buy_contracts.first.candidate.id.to_s}_q",
+      keys: [con_key],
       quorum: 1,
       tags: {
         name: self.buy_contracts.first.candidate.full_name,
-        id: "cand#{self.buy_contracts.first.candidate.id}"
+        id: self.buy_contracts.first.candidate.id
       }
-    ) unless ca.present?
+    ) unless ca_q.present?
+
+    ca_usd = ledger.accounts.list(
+        filter: 'id=$1',
+        filter_params: ["#{self.buy_contracts.first.candidate.full_name.parameterize + self.buy_contracts.first.candidate.id.to_s}_usd"]).first
+
+    ledger.accounts.create(
+        id: "#{self.buy_contracts.first.candidate.full_name.parameterize + self.buy_contracts.first.candidate.id.to_s}_usd",
+        keys: [con_key],
+        quorum: 1,
+        tags: {
+            name: self.buy_contracts.first.candidate.full_name,
+            id: self.buy_contracts.first.candidate.id
+        }
+    ) unless ca_usd.present?
+
+    ca_exp = ledger.accounts.list(
+        filter: 'id=$1',
+        filter_params: ["#{self.buy_contracts.first.candidate.full_name.parameterize + self.buy_contracts.first.candidate.id.to_s}_exp"]).first
+
+    ledger.accounts.create(
+        id: "#{self.buy_contracts.first.candidate.full_name.parameterize + self.buy_contracts.first.candidate.id.to_s}_exp",
+        keys: [con_key],
+        quorum: 1,
+        tags: {
+            name: self.buy_contracts.first.candidate.full_name,
+            id: self.buy_contracts.first.candidate.id
+        }
+    ) unless ca_exp.present?
+
+
+    # Commission Account
+    self.buy_contracts.first.contract_sale_commisions.each do |csc|
+      csc.csc_accounts.each do |csca|
+
+        temp_com = ledger.accounts.list(
+            filter: 'id=$1',
+            filter_params: ["#{csca.accountable.full_name.parameterize + csca.accountable.id.to_s}_com"]).first
+
+        ledger.accounts.create(
+            id: "#{csca.accountable.full_name.parameterize + csca.accountable.id.to_s}_com",
+            keys: [con_key],
+            quorum: 1,
+            tags: {
+                name: csca.accountable.full_name.parameterize
+            }
+        ) unless temp_com.present?
+      end
+    end
+
+    ca_exp = ledger.accounts.list(
+        filter: 'id=$1',
+        filter_params: ["#{self.buy_contracts.first.candidate.full_name.parameterize + self.buy_contracts.first.candidate.id.to_s}_exp"]).first
+
+    ledger.accounts.create(
+        id: "#{self.buy_contracts.first.candidate.full_name.parameterize + self.buy_contracts.first.candidate.id.to_s}_exp",
+        keys: [con_key],
+        quorum: 1,
+        tags: {
+            name: self.buy_contracts.first.candidate.full_name,
+            id: self.buy_contracts.first.candidate.id
+        }
+    ) unless ca_exp.present?
+
 
 
 

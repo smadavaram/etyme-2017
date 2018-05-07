@@ -18,9 +18,10 @@ class Timesheet < ApplicationRecord
 
 
   # before_validation :set_recurring_timesheet_cycle
-  after_create  :set_timesheet_on_seq
+  after_update  :set_ts_on_seq, if: Proc.new{|t| t.status_changed? && t.submitted? && t.total_time.to_f > 0}
+  after_update  :set_ta_on_seq, if: Proc.new{|t| t.status_changed? && t.approved? && t.total_time.to_f > 0}
 
-  after_create  :create_timesheet_logs
+  # after_create  :create_timesheet_logs
   # after_create  :notify_timesheet_created
   # after_update :update_pending_timesheet_logs, if: Proc.new{|t| t.status_changed? && t.approved?}
 
@@ -33,9 +34,10 @@ class Timesheet < ApplicationRecord
   validates_uniqueness_of :start_date, scope: :contract_id, :message => "Timesheet already submitted."
   
 
-  scope :not_invoiced , -> {where(invoice_id: nil)}
-  scope :submitted_timesheets , -> {where(status: :open)}
-  scope :approved_timesheets , -> {where(status: :approved)}
+  scope :not_invoiced, -> {where(invoice_id: nil)}
+  scope :open_timesheets, -> {where(status: :open)}
+  scope :submitted_timesheets, -> {where(status: :submitted)}
+  scope :approved_timesheets, -> {where(status: :approved)}
 
   def assignee
     self.contract.assignee
@@ -142,29 +144,86 @@ class Timesheet < ApplicationRecord
     self.contract.update(salary_to_pay: (contract_amount + amoount))
   end
 
+  def get_total_amount
+    self.total_time * self.contract.buy_contracts.first.payrate
+  end
 
-
-
-  def set_timesheet_on_seq
+  def set_ts_on_seq
     ledger = Sequence::Client.new(
         ledger_name: ENV['seq_ledgers'],
         credential: ENV['seq_token']
     )
-    key = ledger.keys.create(id: "timesheet_#{self.id}")
 
-    account = ledger.accounts.create({
-      alias: "tmsht1001_#{self.id}",
-      keys: [key],
-      quorum: 1,
-      tags: {
-        id: self.id,
-        cntrct_id: self.contract.id,
-        days: self.days,
-        total_min: self.total_time,
-        tmsht_period: "#{self.start_date} TO #{self.end_date}"
-      },
-    })
+    tx = ledger.transactions.transact do |builder|
+      builder.issue(
+          flavor_id: 'min',
+          amount: (self.total_time.to_f * 60).to_i,
+          destination_account_id: "#{self.contract.buy_contracts.first.candidate.full_name.parameterize + self.contract.buy_contracts.first.candidate.id.to_s}_q",
+          action_tags: {
+            "Fixed" => "false",
+            "Status" => "open",
+            "Account" => "",
+            "CycleId" => self.ts_cycle_id.to_s,
+            "ObjType" => "TS",
+            "ContractId" => self.contract_id.to_s,
+            "PostingDate" => Time.now.strftime("%m/%d/%Y"),
+            "CycleFrom" => self.start_date.strftime("%m/%d/%Y"),
+            "CycleTo" => self.end_date.strftime("%m/%d/%Y"),
+            "Documentdate" => Time.now.strftime("%m/%d/%Y"),
+            "TransactionType" => self.contract.buy_contracts.first.contract_type == "C2C" ? "C2C" : "W2"
+          },
+      )
+    end
+  end
 
+  def set_ta_on_seq
+    ledger = Sequence::Client.new(
+        ledger_name: ENV['seq_ledgers'],
+        credential: ENV['seq_token']
+    )
+
+    puts "::::::::::#{self.contract.sell_contracts.first.company.slug.to_s + self.contract.sell_contracts.first.company.id.to_s}_q::::::::"
+    tx = ledger.transactions.transact do |builder|
+
+      builder.transfer(
+          flavor_id: 'min',
+          amount: (self.total_time.to_f * 60).to_i,
+          destination_account_id: "#{self.contract.sell_contracts.first.company.slug.to_s + self.contract.sell_contracts.first.company.id.to_s}_q",
+          source_account_id: "#{self.contract.buy_contracts.first.candidate.full_name.parameterize + self.contract.buy_contracts.first.candidate.id.to_s}_q",
+          action_tags: {
+              "Fixed" => "false",
+              "Status" => "open",
+              "Account" => "",
+              "CycleId" => self.ta_cycle_id.to_s,
+              "ObjType" => "TA",
+              "ContractId" => self.contract_id.to_s,
+              "PostingDate" => Time.now.strftime("%m/%d/%Y"),
+              "CycleFrom" => self.start_date.strftime("%m/%d/%Y"),
+              "CycleTo" => self.end_date.strftime("%m/%d/%Y"),
+              "Documentdate" => Time.now.strftime("%m/%d/%Y"),
+              "TransactionType" => self.contract.buy_contracts.first.contract_type == "C2C" ? "C2C" : "W2"
+          },
+      )
+
+      builder.issue(
+          flavor_id: 'tym',
+          amount: get_total_amount.to_i,
+          destination_account_id: "#{self.contract.buy_contracts.first.candidate.full_name.parameterize + self.contract.buy_contracts.first.candidate.id.to_s}_q",
+          action_tags: {
+              "Fixed" => "false",
+              "Status" => "open",
+              "Account" => "",
+              "CycleId" => self.ta_cycle_id.to_s,
+              "ObjType" => "TA",
+              "ContractId" => self.contract_id.to_s,
+              "PostingDate" => Time.now.strftime("%m/%d/%Y"),
+              "CycleFrom" => self.start_date.strftime("%m/%d/%Y"),
+              "CycleTo" => self.end_date.strftime("%m/%d/%Y"),
+              "Documentdate" => Time.now.strftime("%m/%d/%Y"),
+              "TransactionType" => self.contract.buy_contracts.first.contract_type == "C2C" ? "C2C" : "W2"
+          },
+      )
+    end
   end
 
 end

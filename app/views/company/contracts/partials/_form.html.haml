@@ -213,6 +213,19 @@
         }
       });
 
+      $(".buy-invoice-recepit").on("change", function(){
+        $(".b-in-re-set").children().addClass("hidden");
+        if($(this).val() == "daily"){
+          $(".b-in-re-set").find('.daily').removeClass("hidden");
+        } else if($(this).val() == "weekly" || $(this).val() == "biweekly"){
+          $(".b-in-re-set").find('.week').removeClass("hidden");
+        } else if($(this).val() == "twice a month"){
+          $(".b-in-re-set").find('.twice-month, .month').removeClass("hidden");
+        } else if($(this).val() == "monthly"){
+          $(".b-in-re-set").find('.month').removeClass("hidden");
+        }
+      });
+
       $(".contract-type-radio input[type='radio']").on("change", function(){
         if($(this).val() == "C2C"){
           $(".c2c-type").removeClass('hidden');
@@ -242,7 +255,6 @@
          $(this).parent().next('.assign_signable').addClass('hidden');
        }
     });
-
 
     $( document ).on( "select2:unselect", ".select_company_contacts", function( e ) {
       $(this).closest('.company_contacts').find('div.contact-nested-fields').find(':input.contact-id[value=' + e.params.data.id + ']').closest('div.contact-nested-fields').remove();
@@ -278,6 +290,27 @@
       obj.insertBefore( sign_btn );
       $(this).closest('.assign_signable').find('div.sign-nested-fields:last').find("input.signable-id").val(e.params.data.id.split("_")[0]);
       $(this).closest('.assign_signable').find('div.sign-nested-fields:last').find("input.signable-type").val(e.params.data.id.split("_")[1]);
+    });
+
+
+
+
+    $( document ).on( "select2:unselect", ".commission-user", function( e ) {
+      $(this).closest('.assign_commission_user').find('div.account-nested-fields').find(':input.accountable-id[value=' + e.params.data.id.split("_")[0] + ']').closest('div.account-nested-fields').remove();
+    });
+
+    $( document ).on( "select2:select", ".commission-user", function( e ) {
+      var sign_btn = $(this).closest('.assign_commission_user').find("a.com-user-generater");
+      var obj = $( sign_btn.attr('data-form-prepend') );
+      var time_stamp = (new Date()).getTime() ;
+      obj.find('input').each( function() {
+        $(this).attr( 'name', function() {
+          return $(this).attr('name').replace( 'new_record', time_stamp);
+        });
+      });
+      obj.insertBefore( sign_btn );
+      $(this).closest('.assign_commission_user').find('div.account-nested-fields:last').find("input.accountable-id").val(e.params.data.id.split("_")[0]);
+      $(this).closest('.assign_commission_user').find('div.account-nested-fields:last').find("input.accountable-type").val(e.params.data.id.split("_")[1]);
     });
 
     //$('#contract-attachment').on('cocoon:after-insert', function(e, insertedItem) {

@@ -22,7 +22,6 @@
             = f.check_box :is_sign_required ,class: "form-control is-require-sign" , placeholder: ""
             = f.hidden_field :creatable_type, class: "form-control", value: "Company"
             = f.hidden_field :creatable_id, class: "form-control", value: current_company.id
-            is_sign_required
 
           .form-group.assign_signable.hidden
             -f.object.document_signs.build

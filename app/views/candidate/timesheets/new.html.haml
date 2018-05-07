@@ -17,7 +17,7 @@
           %th{:width => "13%"} Status
           %th Action
         %tbody
-      - @contracts.each do |con|
+      - @ts_cycle.each do |ts_c|
         = form_for @timesheet, url: candidate_timesheets_path, html:{ class:'form-horizontal', method: :post, remote: true} do |f|
           = f.hidden_field :start_date, class: "time-start"
           = f.hidden_field :end_date, class: "time-end"
@@ -40,8 +40,8 @@
                 %tr
                   %td{:width => "3%"}=check_box_tag "sin_select", nil, nil, class: "sin-select"
                   %td{:width => "20%"}
-                    = con.number+"-" + con.title[0..14]
-                    = f.hidden_field :contract_id, value: con.id
+                    = ts_c.contract.number+"-" + ts_c.contract.title[0..14]
+                    = f.hidden_field :contract_id, value: ts_c.contract.id
                   %td.text-boxes{:width => "20%"}
                     .candiate-name
                       = f.text_field :candidate_name, value: current_candidate.full_name

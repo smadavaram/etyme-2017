@@ -1,0 +1,4 @@
+$(".set-timesheet-form").empty().html("#{ j render 'timesheet_form', start_date: @start_date, end_date: @end_date}");
+$('.timesheet-filepicker-attachment').each(function(e){
+filepicker.constructWidget($(this));
+});

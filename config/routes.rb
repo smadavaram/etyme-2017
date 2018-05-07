@@ -127,7 +127,9 @@ Rails.application.routes.draw do
     end
 
     resources :contracts, only: [:index]
-    resources :timesheets, only: [:index, :new, :create] do
+    resources :timesheets, only: [:index, :new, :create, :update] do
+      post :get_timesheets, on: :collection
+      get :submitted_timesheets, on: :collection
       get :approve_timesheets, on: :collection
     end
   end
@@ -422,6 +424,7 @@ Rails.application.routes.draw do
       get :find_job_applicants, on: :collection
       get :find_user_sign, on: :collection
       get :find_jobs, on: :collection
+      get :find_commission_user, on: :collection
     end
   end
 

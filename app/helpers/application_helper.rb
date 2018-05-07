@@ -589,8 +589,14 @@ module ApplicationHelper
               title: 'Timesheet ',
               content: "<i class='fa fa-lg fa-fw fa-money'></i> <span class='menu-item-parent'>" + 'Timesheet' + "</span>",
               children: [
+
                   {
                       href: candidate_timesheets_path,
+                      title: 'Timesheets',
+                      content: "<i class='fa fa-lg fa-fw fa-calendar'></i> <span class='menu-item-parent'>" + 'Timesheets' + "</span>",
+                  },
+                  {
+                      href: submitted_timesheets_candidate_timesheets_path,
                       title: 'Submitted',
                       content: "<i class='fa fa-lg fa-fw fa-calendar'></i> <span class='menu-item-parent'>" + 'Submitted' + "</span>",
                   },

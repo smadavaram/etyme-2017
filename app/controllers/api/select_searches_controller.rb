@@ -34,4 +34,9 @@ class Api::SelectSearchesController < ApplicationController
     respond_with [@companies, @candidates]
   end
 
+  def find_commission_user
+    @commission_users = current_company.admins.like_any([:first_name, :last_name], params[:q].to_s.split).paginate(:page => params[:page], :per_page => params[:per_page])
+    respond_with @commission_users
+  end
+
 end
