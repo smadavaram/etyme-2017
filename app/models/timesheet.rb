@@ -182,9 +182,7 @@ class Timesheet < ApplicationRecord
         credential: ENV['seq_token']
     )
 
-    puts "::::::::::#{self.contract.sell_contracts.first.company.slug.to_s + self.contract.sell_contracts.first.company.id.to_s}_q::::::::"
     tx = ledger.transactions.transact do |builder|
-
       builder.transfer(
           flavor_id: 'min',
           amount: (self.total_time.to_f * 60).to_i,
@@ -207,7 +205,7 @@ class Timesheet < ApplicationRecord
 
       builder.issue(
           flavor_id: 'tym',
-          amount: get_total_amount.to_i,
+          amount: get_total_amount.to_i * 100,
           destination_account_id: "#{self.contract.buy_contracts.first.candidate.full_name.parameterize + self.contract.buy_contracts.first.candidate.id.to_s}_q",
           action_tags: {
               "Fixed" => "false",
