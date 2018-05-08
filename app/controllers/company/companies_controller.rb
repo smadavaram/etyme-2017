@@ -221,9 +221,11 @@ class Company::CompaniesController < Company::BaseController
   def set_company_contacts
     @company_contacts = current_company.invited_companies.find_by(invited_company_id: params[:company_id]).invited_company.company_contacts.paginate(:page => params[:page], :per_page => 20) || []
   end
+
   def set_hot_candidates
     @candidates = CandidatesCompany.hot_candidate.where(company_id: params[:company_id]).paginate(:page => params[:page], :per_page => 8)
   end
+
   def find_company
     @company = Company.find(params[:id] || params[:company_id])
   end
@@ -232,21 +234,21 @@ class Company::CompaniesController < Company::BaseController
     @admin = current_company.admins.find_by_id(params[:admin_id])
   end
 
-    def company_params
-      params.require(:company).permit(:name ,:company_type,:domain, :skill_list , :website,:logo,:description,:phone,:email,:linkedin_url,:facebook_url,:twitter_url,:google_url,:is_activated,:status,:time_zone,:tag_line,group_ids:[], owner_attributes:[:id, :type ,:first_name, :last_name ,:email,:password, :password_confirmation],locations_attributes:[:id,:name,:status,  address_attributes:[:id,:address_1,:country,:city,:state,:zip_code] ] )
-    end
+  def company_params
+    params.require(:company).permit(:name ,:company_type,:domain, :skill_list , :website,:logo,:description,:phone,:email,:linkedin_url,:facebook_url,:twitter_url,:google_url,:is_activated,:status,:time_zone,:tag_line,group_ids:[], owner_attributes:[:id, :type ,:first_name, :last_name ,:email,:password, :password_confirmation],locations_attributes:[:id,:name,:status,  address_attributes:[:id,:address_1,:country,:city,:state,:zip_code] ] )
+  end
 
-    def create_params
-      params.require(:company).permit([:name  ,:domain,:currency_id,:phone ,:fax_number,:send_email ,group_ids:[],company_contacts_attributes:[:id, :type  , :first_name, :last_name ,:email,:company_id,:phone, :title ,:_destroy] , invited_by_attributes: [:invited_by_company_id , :user_id],
-           custom_fields_attributes: [
-          :id,
-          :name,
-          :value,
-          :_destroy]],
-         addresses_attributes:[:id,:address_1,:address_2,:country,:city,:state,:zip_code],
-         billing_infos_attributes: [:id,:address,:country,:city,:zip],
-         branches_attributes: [:id,:branch_name,:address,:country,:city,:zip],
-         departments_attributes: [:id,:name]
-        )
-    end
+  def create_params
+    params.require(:company).permit([:name  ,:domain,:currency_id,:phone ,:fax_number,:send_email ,group_ids:[],company_contacts_attributes:[:id, :type  , :first_name, :last_name ,:email,:company_id,:phone, :title ,:_destroy] , invited_by_attributes: [:invited_by_company_id , :user_id],
+         custom_fields_attributes: [
+        :id,
+        :name,
+        :value,
+        :_destroy]],
+       addresses_attributes:[:id,:address_1,:address_2,:country,:city,:state,:zip_code],
+       billing_infos_attributes: [:id,:address,:country,:city,:zip],
+       branches_attributes: [:id,:branch_name,:address,:country,:city,:zip],
+       departments_attributes: [:id,:name]
+      )
+  end
 end

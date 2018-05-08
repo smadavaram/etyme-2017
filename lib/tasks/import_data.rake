@@ -4,7 +4,7 @@ desc "This task is called For import data"
 namespace :import_data do
   task contacts: :environment do
     puts "importing contacts...#{Time.now}"
-    user = User.where(email: 'mounika@cloudepa.com').first
+    user = User.where(email: 'madhuri@cloudepa.com').first
 
     csv_text = File.read('public/Vendor_List.csv')
     csv = CSV.parse(csv_text, :headers => true)
