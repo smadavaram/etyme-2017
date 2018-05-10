@@ -29,7 +29,7 @@
               %header{:role => "heading"}
                 %span.widget-icon
                   %i.fa.fa-table
-                %h2 Companies
+                %h2 Contacts
               / widget div
               %div{:role => "content"}
                 .widget-body.no-padding
@@ -40,7 +40,10 @@
                           %th.hasinput{ :style => "width:2%"}
                             %input.form-control{:placeholder => "Select", :type => ""}/
                           %th.hasinput{ :style => "width:10%"}
-                            %input.form-control{:placeholder => "Logo", :type => "text"}/
+                            %input.form-control{:placeholder => "Pic", :type => "text"}/
+                          %th.hasinput{:style => "width:10%"}
+                            .input-group
+                              %input.form-control{:placeholder => "Name", :type => "text"}/
                           %th.hasinput{:style => "width:10%"}
                             %input.form-control{:placeholder => "Company", :type => "text"}/
                           %th.hasinput{:style => "width:10%"}
@@ -50,24 +53,28 @@
                           %th.hasinput{:style => "width:10%"}
                             %input.form-control{:placeholder => "Groups", :type => "text"}/
                           %th.hasinput{:style => "width:10%"}
+                            %input.form-control{:placeholder => "Last Reminder / Note", :type => "text"}/
+                          %th.hasinput{:style => "width:10%"}
                             %input.form-control{:placeholder => "Actions", :type => "text"}/
                         %tr{:role => "row"}
                           %th Select
-                          %th Logo
+                          %th Pic
+                          %th Name
                           %th Company
                           -#%th Owner
                           -#%th Owner Email
                           %th Email
                           %th Phone
                           %th Groups
+                          %th Last Reminder / Note
                           %th Actions
                       %tbody
                         -@invited_companies.each do |d|
-                          -#- next if d.invited_company.try(:company_contacts).try(:first).try(:full_name).present?
                           %tr
                             %td
                               = check_box_tag "ids[]", d.invited_company.id, nil, class: "table-check"
                             %td= image_tag show_recipient_picture(d.invited_company.logo) , alt: '', width: '40'
+                            %td= link_to d.invited_company.try(:company_contacts).try(:first).try(:full_name) ,"#"
                             -#%td= d.invited_company.try(:company_contact).try(:full_name)  rescue "  --"
                             -#%td= d.invited_company.company_contact.try(:email)
                             %td= link_to d.invited_company.try(:name), profile_company_path(d.try(:invited_company))
@@ -78,6 +85,16 @@
                                 %span.badge.bg-color-blue.margin-bottom-5
                                   = group.try(:group_name).try(:titleize)
                             %td
+                              - reminder = find_reminderable_last_reminder( d.try(:invited_company))
+                              = reminder.present? ? reminder.try(:title).try(:titleize) : ''
+                            %td{style: "max-width: 250px;word-wrap: break-word;"}
+                              - if d.try(:invited_company).try(:statuses).present?
+                                %span
+                                  .label-info.badge
+                                    = d.try(:invited_company).try(:statuses).try(:last).try(:status_type)
+                                %br
+                                  = d.try(:invited_company).try(:statuses).try(:last).try(:note)
+                            %td
                               = link_to raw("<i class='fa fa-sticky-note '></i>")  ,company_statuses_path(id: d.invited_company,type: 'Company' )   ,class: 'btn btn-default  btn-xs margin-bottom-5 ',title: "Status Log",'data-toggle'=>"tooltip" ,'data-placement'=>"top"
 
                               = link_to raw("<i class='fa fa-sticky-note '></i>")    ,company_assign_status_path(d.invited_company) ,class: 'btn  btn-default btn-xs margin-bottom-5', remote: :true,title:"Assign Status",'data-toggle'=>"tooltip" ,'data-placement'=>"top"
@@ -85,7 +102,7 @@
                               -#= link_to "Contacts" ,company_contacts_path(d.try(:invited_company)), class: 'btn btn-xs btn-default btn-primary'
                               = link_to raw("<i class='fa fa-edit '></i>") , edit_company_path(d.invited_company) , class: 'btn btn-xs btn-default  margin-bottom-5',remote: :true ,title:"Edit #{d.invited_company.name}",'data-toggle'=>"tooltip" ,'data-placement'=>"top"
                               = link_to raw("<i class='fa fa-users '></i>"), company_company_assign_groups_path(d.invited_company) , remote:true,class: 'btn btn-xs btn-default margin-bottom-5' ,title:"Assign Groups",'data-toggle'=>"tooltip" ,'data-placement'=>"top"
-                              -#= link_to raw("<i class='fa fa-times '></i>") , company_path(d.invited_company) ,method: :delete, class: 'btn btn-xs btn-default btn-danger' ,title:"Delete #{d.invited_company.name}",data: {confirm: "Are you sure you want to Delete this Company ?", verify: 'Confirm', verify_text: "Type 'Confirm' to Continue"}
+                    -#= link_to raw("<i class='fa fa-times '></i>") , company_path(d.invited_company) ,method: :delete, class: 'btn btn-xs btn-default btn-danger' ,title:"Delete #{d.invited_company.name}",data: {confirm: "Are you sure you want to Delete this Company ?", verify: 'Confirm', verify_text: "Type 'Confirm' to Continue"}
                     - if @invited_companies.count>10
                       .dt-toolbar-footer
                         = digg_pagination(@invited_companies)
@@ -163,4 +180,3 @@
       });
 
     });
-

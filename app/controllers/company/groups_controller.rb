@@ -30,7 +30,15 @@ class Company::GroupsController < Company::BaseController
     @group = current_company.groups.create(group_params)
     if @group.save
       flash[:success] = "New Group has been successfully created"
-      redirect_to groups_path
+      if @group.member_type == "Candidate"
+        redirect_to candidates_path
+      elsif @group.member_type == "Contact"
+        redirect_to network_contacts_company_companies_path
+      elsif @group.member_type == "Directory"
+        redirect_to directories_path
+      else
+        redirect_to groups_path
+      end
     else
       flash[:errors] = @group.errors.full_messages
       redirect_to groups_path
@@ -61,6 +69,6 @@ class Company::GroupsController < Company::BaseController
  end
 
   def group_params
-    params.require(:group).permit(:group_name,candidate_ids: [])
+    params.require(:group).permit(:group_name, :member_type, candidate_ids: [])
   end
 end

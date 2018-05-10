@@ -8,10 +8,17 @@
       =f.text_field :group_name , required: true ,class:'form-control'
   .form-group
     %label.col-md-3.control-label
-      Select Candidate
+      Select Type
       %sup.text-danger *
     .col-md-8
-      = f.select :candidate_ids, current_company.candidates.collect { |c| [c.first_name,c.id] },{},class: 'form-control select2',:multiple => true
+      = f.label :member_type, "Candidate", :value => "Candidate"
+      = f.radio_button :member_type, "Candidate", class: "set-checkbox", :checked => true
+      = f.label :member_type, "Contact", :value => "Contact"
+      = f.radio_button :member_type, "Contact", class: "set-checkbox"
+      = f.label :member_type, "Directory", :value => "Directory"
+      = f.radio_button :member_type, "Directory", class: "set-checkbox"
+
+      =# f.select :candidate_ids, current_company.candidates.collect { |c| [c.first_name,c.id] },{},class: 'form-control select2',:multiple => true
   .modal-footer
     = f.button "submit".html_safe , class: 'btn btn-primary btn-sm' , data: {disable_with: ("Submitting...")} ,id: 'form_id'
     %button.btn.btn-default{"data-dismiss" => "modal", :type => "button"}

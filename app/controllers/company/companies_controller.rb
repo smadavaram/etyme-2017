@@ -1,12 +1,12 @@
 class Company::CompaniesController < Company::BaseController
 
   before_action :find_admin, only: :change_owner
-  before_action :authorized_user , only: [:show,:create ,:hot_candidates,:index, :new]
+  before_action :authorized_user , only: [:show,:create ,:hot_candidates, :index, :network_contacts, :new]
   before_action :find_company , only: [:edit,:update,:destroy ,:add_reminder ,:assign_status ,:create_chat]
   before_action :set_hot_candidates ,only: [:hot_candidates]
   before_action :set_company_contacts , only:  [:contacts]
   before_action :find_user , only: [:create_chat]
-  has_scope :search_by , only: :index
+  has_scope :search_by , only: [:index, :network_contacts]
   respond_to :html,:json
 
   add_breadcrumb 'Companies', :companies_path, :title => ""
@@ -32,7 +32,15 @@ class Company::CompaniesController < Company::BaseController
       @new_company = Company.new
       @new_company.build_invited_by
     end
+    # - next if d.invited_company.try(:company_contacts).try(:first).try(:full_name).present?
 
+  end
+
+  def network_contacts
+    @search = current_company.invited_companies.joins(:invited_company).includes(:invited_company).where("companies.email IS NOT NULL").search(params[:q])
+    @invited_companies = @search.result.paginate(page: params[:page], per_page: 10)
+    @new_company = Company.new
+    @new_company.build_invited_by
   end
 
   def new

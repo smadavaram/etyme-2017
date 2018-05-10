@@ -177,6 +177,7 @@ Rails.application.routes.draw do
       match  :assign_groups , via: [:get , :post]
       post   :add_to_network
       get    :hot_candidates
+      get    :network_contacts, on: :collection
       get    :hot_index
       match :create_chat ,via: [:get, :post]
     end
@@ -316,6 +317,7 @@ Rails.application.routes.draw do
           get :download
           post :accept_invoice
           post :reject_invoice
+          get :submit_invoice
         end
       end
     end

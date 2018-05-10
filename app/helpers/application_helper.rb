@@ -193,13 +193,13 @@ module ApplicationHelper
                 # },
                 {
                     href: companies_path,
-                    title: 'Contacts',
-                    content: "</i><span class='menu-item-parent'> Contact(s) </span>"
+                    title: 'Company',
+                    content: "</i><span class='menu-item-parent'> Company(s) </span>"
                 },
                 {
-                    href: companies_path(status: '1'),
+                    href: network_contacts_company_companies_path,
                     title: 'Contacts',
-                    content: "</i><span class='menu-item-parent'> Contact_1(s) </span>"
+                    content: "</i><span class='menu-item-parent'> Contact(s) </span>"
                 }
                 # ,
                 # {

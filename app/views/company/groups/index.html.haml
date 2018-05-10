@@ -33,7 +33,8 @@
                         %th{"data-class" => "expand",:width => "10%"}
                           %i.fa.fa-fw.fa-user.text-muted.hidden-md.hidden-sm.hidden-xs
                           Name
-                        %th{"data-hide" => "phone,tablet",:width => "20%"}Candidates
+                        %th{"data-hide" => "phone,tablet",:width => "20%"}type
+                        %th{"data-hide" => "phone,tablet",:width => "20%"}member
                         %th{"data-hide" => "phone,tablet",:width => "5%"}
                           %i.fa.fa-fw.fa-calendar.txt-color-blue.hidden-md.hidden-sm.hidden-xs
                           Date
@@ -43,7 +44,8 @@
                         %tr
                           %td= index+1
                           %td= group.group_name.titleize
-                          %td= group.candidates.map(&:first_name).join(", ").gsub("_"," ").titleize
+                          %td= group.member_type
+                          %td= group.candidates.count
                           %td= group.created_at.try(:strftime,'%B %d, %Y')
                           %td
                             = link_to raw("<i class='fa fa-edit'></i>"),edit_group_path(group) ,remote:true,class: "btn btn-default btn-xs" ,title: "Edit #{group.group_name.titleize}",'data-toggle'=>"tooltip" ,'data-placement'=>"top"
