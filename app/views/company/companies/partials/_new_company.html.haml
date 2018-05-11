@@ -16,6 +16,12 @@
             - if @new_company.new_record?
               .form-group
                 %label.col-md-2.control-label
+                  Email
+                  %sup.text-danger *
+                .col-md-10
+                  = f.text_field :email , class: 'form-control' , placeholder: 'Enter Email' , required: true, onblur: 'validate_email();'
+              .form-group
+                %label.col-md-2.control-label
                   Name
                   %sup.text-danger *
                 .col-md-10
@@ -58,3 +64,14 @@
               .col-md-12
                 = button_tag 'Cancel' , class: 'btn btn-default' , "data-dismiss"=> "modal"
                 = f.button "Submit".html_safe, data: {disable_with: disable_spinning("Saving...")} , class: 'btn btn-primary'
+- content_for :scripts do
+  :javascript
+    function validate_email() {
+      var email = $('#company_email').val();
+      var split_email = email.split("@");
+      if(split_email[1]){
+        $("#company_domain").val(split_email[1].split(".")[0]);
+      }else{
+        $("#company_domain").val("");
+      }
+    }

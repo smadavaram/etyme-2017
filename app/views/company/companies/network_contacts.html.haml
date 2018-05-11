@@ -73,7 +73,9 @@
                           %tr
                             %td
                               = check_box_tag "ids[]", d.invited_company.id, nil, class: "table-check"
-                            %td= image_tag show_recipient_picture(d.invited_company.logo) , alt: '', width: '40'
+                            %td
+                              = image_tag show_recipient_picture(d.invited_company.logo) , alt: '', width: '40'
+                              = image_tag show_recipient_picture(d.invited_company.try(:company_contacts).try(:first).try(:photo)) , alt: '', width: '40' if d.invited_company.try(:company_contacts).try(:first).present?
                             %td= link_to d.invited_company.try(:company_contacts).try(:first).try(:full_name) ,"#"
                             -#%td= d.invited_company.try(:company_contact).try(:full_name)  rescue "  --"
                             -#%td= d.invited_company.company_contact.try(:email)
@@ -87,7 +89,6 @@
                             %td
                               - reminder = find_reminderable_last_reminder( d.try(:invited_company))
                               = reminder.present? ? reminder.try(:title).try(:titleize) : ''
-                            %td{style: "max-width: 250px;word-wrap: break-word;"}
                               - if d.try(:invited_company).try(:statuses).present?
                                 %span
                                   .label-info.badge

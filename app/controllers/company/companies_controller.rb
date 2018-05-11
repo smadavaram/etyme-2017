@@ -60,7 +60,13 @@ class Company::CompaniesController < Company::BaseController
   end
 
   def create
-    @company = Company.new(create_params)
+    pass = get_uniq_identifier
+    @company = Company.new(create_params.merge(owner_attributes: {
+                                                   email: params[:company][:email],
+                                                   password: pass,
+                                                   password_confirmation: pass,
+                                                   temp_pass: pass
+                                               }))
     respond_to do |format|
       if @company.valid? && @company.save
         format.html {flash[:success] = "successfully Created."; redirect_back fallback_location: root_path}
@@ -247,7 +253,9 @@ class Company::CompaniesController < Company::BaseController
   end
 
   def create_params
-    params.require(:company).permit([:name  ,:domain,:currency_id,:phone ,:fax_number,:send_email ,group_ids:[],company_contacts_attributes:[:id, :type  , :first_name, :last_name ,:email,:company_id,:phone, :title ,:_destroy] , invited_by_attributes: [:invited_by_company_id , :user_id],
+    params.require(:company).permit([:name, :email, :domain,:currency_id,:phone ,:fax_number,:send_email ,group_ids:[],
+         company_contacts_attributes:[:id, :type  , :first_name, :last_name ,:email,:company_id,:phone, :title ,:_destroy],
+         invited_by_attributes: [:invited_by_company_id , :user_id],
          custom_fields_attributes: [
         :id,
         :name,
@@ -259,4 +267,11 @@ class Company::CompaniesController < Company::BaseController
        departments_attributes: [:id,:name]
       )
   end
+
+  def get_uniq_identifier
+    o = [('a'..'z'), ('A'..'Z'),(0..9)].map { |i| i.to_a }.flatten
+    string = (0...15).map { o[rand(o.length)] }.join
+    return Digest::MD5.hexdigest(string)
+  end
+
 end

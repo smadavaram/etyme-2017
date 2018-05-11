@@ -6,8 +6,6 @@ namespace :import_data do
     puts "importing contacts...#{Time.now}"
     user = User.where(email: 'madhuri@cloudepa.com').first
 
-    Company.where("created_at >= '2018-05-08 00:00' AND created_at < '2018-05-9 00:00'").destroy_all
-
     csv_text = File.read('public/Vendor_List.csv')
     csv = CSV.parse(csv_text, :headers => true)
     csv.each do |row|
