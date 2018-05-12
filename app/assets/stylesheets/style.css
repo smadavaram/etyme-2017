@@ -907,3 +907,9 @@ label span.label-text {
 .candidate-profile header{
     background-color: #fff;
 }
+
+#new-contract-company h3 {
+    font-size: 20px;
+    margin: 0 0 10px;
+    text-transform: capitalize;
+}

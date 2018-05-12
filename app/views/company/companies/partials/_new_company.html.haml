@@ -5,7 +5,7 @@
         %button.close{"aria-hidden" => "true", "data-dismiss" => "modal", :type => "button"}
           ×
         %h2#myModalLabel.modal-title
-          %strong= @new_company.new_record? ? "New Company" : "Edit or Add Contacts"
+          %strong= @new_company.new_record? ? "New Contact/Company" : "Edit or Add Contacts"
       .modal-body
         = form_for [:company,@new_company] , html:{ class:'form-horizontal', remote: ((defined? for_remote) ? true :false)} do |f|
           - if @new_company.new_record?
@@ -13,52 +13,49 @@
               = i.hidden_field :user_id , value: current_user.id
               = i.hidden_field :invited_by_company_id , value: current_company.id
           %fieldset
-            - if @new_company.new_record?
-              .form-group
-                %label.col-md-2.control-label
-                  Email
-                  %sup.text-danger *
-                .col-md-10
-                  = f.text_field :email , class: 'form-control' , placeholder: 'Enter Email' , required: true, onblur: 'validate_email();'
-              .form-group
-                %label.col-md-2.control-label
-                  Name
-                  %sup.text-danger *
-                .col-md-10
-                  = f.text_field :name , class: 'form-control' , placeholder: 'Enter Company Name' , required: true
-              .form-group
-                %label.col-md-2.control-label
-                  Domain
-                  %sup.text-danger *
-                .col-md-10
-                  = f.text_field :domain  ,:placeholder => "Domain", required: true,minlength: "3",class:'form-control'
-                  .note.text-muted
-                    Please Enter Domain like https://address
-              .form-group
-                %label.col-md-2.control-label
-                  Phone
-                .col-md-10
-                  = f.phone_field :phone , class: 'form-control' , placeholder: 'Phone'
-              .form-group
-                = f.fields_for :custom_fields do |lt|
-                  = render 'shared/custom_fields', f: lt
-                %strong
-                  .links.col-sm-12
-                    = link_to_add_association '+ Add Custom Field', f, :custom_fields, class: 'text-info pull-right', partial: 'shared/custom_fields'
+            .row
+              .col-md-6
+                %h3 Contact
+                - f.object.company_contacts.build
+                = f.fields_for :company_contacts do |contact|
+                  = render 'company/companies/partials/company_contact_fields', f: contact
+
+                .col-md-12{style: "margin-left:15px"}
+                  = link_to_add_association 'Add Contact', f, :company_contacts , partial: 'company/companies/partials/company_contact_fields',class:'btn btn-primary pull-right'
+
+
+                  -#.form-group
+                  -#  %label.col-md-4.control-label
+                  -#    Send Email for On-Boarding
+                  -#  .col-md-8
+                  -#    = f.check_box :send_email
                   %br/
-            = f.fields_for :company_contacts do |contact|
-              = render 'company/companies/partials/company_contact_fields', f: contact
-
-            .col-md-12{style: "margin-left:15px"}
-              = link_to_add_association 'Add Contact', f, :company_contacts , partial: 'company/companies/partials/company_contact_fields',class:'btn btn-primary pull-right'
-
-
-              -#.form-group
-              -#  %label.col-md-4.control-label
-              -#    Send Email for On-Boarding
-              -#  .col-md-8
-              -#    = f.check_box :send_email
-              %br/
+              .col-md-6
+                %h3 company
+                - if @new_company.new_record?
+                  .form-group
+                    %label.control-label
+                      Domain
+                      %sup.text-danger *
+                    = f.text_field :domain  ,:placeholder => "Domain", required: true,minlength: "3",class:'form-control'
+                    .note.text-muted
+                      Please Enter Domain like https://address
+                  .form-group
+                    %label.control-label
+                      Name
+                      %sup.text-danger *
+                    = f.text_field :name , class: 'form-control' , placeholder: 'Enter Company Name' , required: true
+                  .form-group
+                    %label.control-label
+                      Phone
+                    = f.phone_field :phone , class: 'form-control' , placeholder: 'Phone'
+                  .form-group
+                    = f.fields_for :custom_fields do |lt|
+                      = render 'shared/custom_fields', f: lt
+                    %strong
+                      .links.col-sm-12
+                        = link_to_add_association '+ Add Custom Field', f, :custom_fields, class: 'text-info pull-right', partial: 'shared/custom_fields'
+                      %br/
           .form-actions
             .row
               .col-md-12
@@ -67,7 +64,7 @@
 - content_for :scripts do
   :javascript
     function validate_email() {
-      var email = $('#company_email').val();
+      var email = $('#company_company_contacts_attributes_0_email').val();
       var split_email = email.split("@");
       if(split_email[1]){
         $("#company_domain").val(split_email[1].split(".")[0]);

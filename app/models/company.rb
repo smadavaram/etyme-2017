@@ -98,7 +98,7 @@ class Company < ApplicationRecord
 
 
   before_validation :create_slug
-  after_create      :set_owner_company_id #, if: Proc.new{|com| !com.invited_by.present?}
+  after_create      :set_owner_company_id , if: Proc.new{|com| com.owner.present?}
   after_create      :welcome_email_to_owner, if: Proc.new{|comp| !comp.invited_by.present?}
   after_create      :assign_free_subscription
   after_create      :create_defult_roles

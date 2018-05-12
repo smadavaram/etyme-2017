@@ -61,12 +61,7 @@ class Company::CompaniesController < Company::BaseController
 
   def create
     pass = get_uniq_identifier
-    @company = Company.new(create_params.merge(owner_attributes: {
-                                                   email: params[:company][:email],
-                                                   password: pass,
-                                                   password_confirmation: pass,
-                                                   temp_pass: pass
-                                               }))
+    @company = Company.new(create_params)
     respond_to do |format|
       if @company.valid? && @company.save
         format.html {flash[:success] = "successfully Created."; redirect_back fallback_location: root_path}
