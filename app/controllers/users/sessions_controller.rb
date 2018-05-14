@@ -48,21 +48,12 @@ class Users::SessionsController < Devise::SessionsController
       return true
     else
       if params[:user][:email].split("@")[1].start_with?(current_company.slug)
-        if current_company.users.present?
-          current_company.users.create(
-                                        email: params[:user][:email],
-                                        company_id: current_company.id,
-                                        password: "passpass#{rand(999)}",
-                                        password_confirmation: "passpass#{rand(999)}"
-                                      )
-        else
-          current_company.update_attributes(owner_attributes: {
-                                                email: params[:user][:email],
-                                                company_id: current_company.id,
-                                                password: "passpass#{rand(999)}",
-                                                password_confirmation: "passpass#{rand(999)}"
-                                            })
-        end
+        current_company.users.create(
+                                      email: params[:user][:email],
+                                      company_id: current_company.id,
+                                      password: "passpass#{rand(999)}",
+                                      password_confirmation: "passpass#{rand(999)}"
+                                    )
         u = User.where(email: params[:user][:email]).first
         flash[:error] = "Please check your email."
         u.send_reset_password_instructions()

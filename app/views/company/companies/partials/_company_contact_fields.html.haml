@@ -3,17 +3,14 @@
     %label.control-label
       Email
       %sup.text-danger *
-    .col-md-10
     = f.email_field :email , class: 'form-control' , placeholder: 'Email' , required: true, onblur: 'validate_email();'
   .form-group
     %label.control-label
       First Name
-      %sup.text-danger *
-    = f.text_field :first_name ,class: "form-control" , required: 'required', placeholder: "First Name"
+    = f.text_field :first_name ,class: "form-control" ,  placeholder: "First Name"
     %label.control-label
       Last Name
-      %sup.text-danger *
-    = f.text_field :last_name ,class: "form-control" , required: 'required', placeholder: "Last Name"
+    = f.text_field :last_name ,class: "form-control" , placeholder: "Last Name"
   .form-group
     %label.control-label
       Phone
