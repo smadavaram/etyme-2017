@@ -91,6 +91,10 @@ class Job < ApplicationRecord
     self.parent_job_id.present?
   end
 
+  def self.share_jobs(to,to_emails,c_ids,current_company,message)
+    JobMailer.share_jobs(to,to_emails,c_ids,current_company,message).deliver
+  end
+
   private
 
   def create_job_chat

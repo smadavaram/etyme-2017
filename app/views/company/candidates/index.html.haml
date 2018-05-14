@@ -154,7 +154,7 @@
         // for share of checked rows
         var checkedRows = new Array();
           $(".bulk" ).on( "click", function(e) {
-            $('input:checkbox:checked').each(function(){
+            $('input[name="ids[]"]:checkbox:checked').each(function(){
             checkedRows.push($(this).val());
             });
             if(checkedRows.length>0)

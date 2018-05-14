@@ -38,7 +38,7 @@
                       %thead
                         %tr{:role => "row"}
                           %th.hasinput{ :style => "width:2%"}
-                            %input.form-control{:placeholder => "Select", :type => ""}/
+                            = check_box_tag "select_all[]", ""
                           %th.hasinput{ :style => "width:10%"}
                             %input.form-control{:placeholder => "Logo", :type => "text"}/
                           %th.hasinput{:style => "width:10%"}
@@ -148,7 +148,7 @@
       // for share of checked rows
       var checkedRows = new Array();
         $(".bulk" ).on( "click", function() {
-          $('input:checkbox:checked').each(function(){
+          $('input[name="ids[]"]:checkbox:checked').each(function(){
           checkedRows.push($(this).val());
           });
           if(checkedRows.length>0)
@@ -160,6 +160,10 @@
               alert("Make a selection first.")
               return false;
           }
+      });
+
+      $("#select_all_" ).on( "click", function() {
+        $("input[name='ids[]']").prop('checked', this.checked);
       });
 
     });

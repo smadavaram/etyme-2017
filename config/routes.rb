@@ -353,6 +353,10 @@ Rails.application.routes.draw do
       member do
         post :send_invitation , as: :send_invitation
       end
+
+      collection do
+        post :share_jobs , as: :share_jobs
+      end
     end
 
     #leaves path for owner of company

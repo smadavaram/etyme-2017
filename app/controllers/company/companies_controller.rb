@@ -22,11 +22,7 @@ class Company::CompaniesController < Company::BaseController
         }
       end
     else
-      if params[:status]=='1'
-        @search = current_company.invited_companies.joins(:invited_company).includes(:invited_company).where("companies.email IS NOT NULL").search(params[:q])
-      else
-        @search = current_company.invited_companies.joins(:invited_company).includes(:invited_company).where("companies.email IS NULL").search(params[:q])
-      end
+      @search = current_company.invited_companies.joins(:invited_company).includes(:invited_company).where("companies.email IS NULL").search(params[:q])
       # @search = current_company.invited_companies.includes(:invited_company).search(params[:q])
       @invited_companies = @search.result.paginate(page: params[:page], per_page: 10)
       @new_company = Company.new

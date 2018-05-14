@@ -65,6 +65,8 @@
                   - if @company_jobs.count >15
                     .dt-toolbar-footer
                       = digg_pagination(@company_jobs)
+= render 'company/jobs/partials/share_jobs'
+
 :css
   .form-control
   {
@@ -96,7 +98,7 @@
 
         });
 
-      $("div.toolbar").html('<div class="text-right">#{ button_tag 'NEW' ,class: 'btn btn-success btn-md pull-right header-btn margin-top-5' , "data-toggle": "modal" , "data-target":"#new-job",'rel'=>"tooltip" ,'data-placement'=>"top"}</div>');
+      $("div.toolbar").html('<div class="text-right">#{ button_tag 'NEW' ,class: 'btn btn-success btn-md pull-right header-btn margin-top-5' , "data-toggle": "modal" , "data-target":"#new-job",'rel'=>"tooltip" ,'data-placement'=>"top"}<a href="#" class= "btn btn-success share btn-md pull-right header-btn margin-top-5"><i class="fa fa-share-alt"></i> Share</a></div>');
 
       // Apply the filter
       $("#datatable_fixed_column thead th input[type=text]").on( 'keyup change', function () {
@@ -131,6 +133,28 @@
                 responsiveHelper_datatable_col_reorder.respond();
             }
         });
+
+        var checkedRows = new Array();
+        $(".share" ).on( "click", function() {
+          $("input[name='ids[]']:checked").each(function(){
+            checkedRows.push($(this).val());
+          });
+          if(checkedRows.length>0)
+          {
+            $('#jobs_ids').val(checkedRows);
+            $('#share-jobs').modal('toggle');
+          }
+          else{
+            alert("Please select atleast one job to proceed before.");
+          }
+        });
+
+        $('#share-jobs').on('shown.bs.modal', function() {
+          $(".select2").select2({
+            placeholder: "Groups/Contact/Email",
+            tags: true
+          });
+        });
     });
     $(document).on('ready page:load', function () {
       if (typeof tinyMCE != 'undefined') {
@@ -143,3 +167,4 @@
         setTimeout(arguments.callee, 50);
       }
     });
+
