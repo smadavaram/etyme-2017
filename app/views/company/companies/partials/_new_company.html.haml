@@ -37,7 +37,8 @@
                     %label.control-label
                       Domain
                       %sup.text-danger *
-                    = f.text_field :domain  ,:placeholder => "Domain", required: true,minlength: "3",class:'form-control'
+                    = f.text_field :domain  ,:placeholder => "Domain", required: true,minlength: "3",class:'form-control', readonly: true
+                    .note.text-muted.errors.text-danger
                     .note.text-muted
                       Please Enter Domain like https://address
                   .form-group
@@ -65,9 +66,30 @@
     function validate_email() {
       var email = $('#company_company_contacts_attributes_0_email').val();
       var split_email = email.split("@");
-      if(split_email[1]){
-        $("#company_domain").val(split_email[1].split(".")[0]);
-      }else{
+      checkDomain(split_email[1].split(".")[0])
+    }
+
+    //function validate_domain() {
+    //  checkDomain($("#company_domain").val())
+    //}
+
+    function checkDomain(domain_name) {
+      if(domain_name){
+        $.ajax({
+          url: '/check_for_domain',
+          type: "POST",
+          data: {domain_name: domain_name },
+          success: function (data) {
+            if(data.present_count > 0){
+              $("#company_domain").val(domain_name+data.present_count);
+              $(".errors").text("Domain Already Register So we added '" + data.present_count + "'." )
+            } else {
+              $(".errors").text("")
+              $("#company_domain").val(domain_name);
+            }
+          }
+        });
+      } else {
         $("#company_domain").val("");
       }
     }
