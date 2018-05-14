@@ -5,6 +5,10 @@
       = image_tag 'etyme-logo.png', alt: 'SmartAdmin', style: 'width: 80px;'
   = yield :top_right
   %input{"data-off-text" => "Unavailable", "data-on-text" => "Available", :name => "candidate-status-toggle", :type => "checkbox", :checked => current_candidate.chat_status == 'available' ? true : false}
+  / %label.switch
+  /   %input#myonoffswitch{:type => "checkbox", :checked=>current_candidate.chat_status == 'available' ? true : false, :name=>"candidate-status-toggle"}/
+  /   %span.slider.round
+
   %form.header-search.pull-left{:action => "#ajax/search.html"}
     %input#search-fld{:name => "param", :placeholder => "Find reports and more", :type => "text"}/
     %button{:type => "submit"}

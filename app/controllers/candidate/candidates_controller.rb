@@ -110,6 +110,18 @@ class Candidate::CandidatesController < Candidate::BaseController
     respond_with @candidate
   end
 
+
+  def my_profile
+
+    @user = Candidate.find(current_candidate.id)
+    @user.addresses.build unless @user.addresses.present?
+    @user.educations.build unless @user.educations.present?
+    @user.certificates.build unless @user.certificates.present?
+    @user.clients.build unless @user.clients.present?
+    @user.designations.build unless @user.designations.present?
+
+  end  
+
   private
 
    def set_chats
