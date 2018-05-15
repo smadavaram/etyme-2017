@@ -1,10 +1,29 @@
 .row
-  .col-lg-6
+  .col-sm-6
     .form-group
-      = f.text_field :address_1  ,:placeholder => "Current Address", required: true,class:'form-control p-location'
-  .col-lg-3
+      .input-group
+        %span.input-group-addon
+          %i.fa.fa-map-marker.fa-lg.fa-fw
+        = f.text_field :address_1  ,:placeholder => "Current Address", required: true,class:'form-control p-location input-lg'
+  .col-sm-3
     .form-group
-      = f.text_field :from_date  ,:placeholder => "From date", required: true,class:'form-control start_date'
-  .col-lg-3
+      .input-group
+        %span.input-group-addon
+          %i.fa.fa-calendar.fa-lg.fa-fw
+        = f.text_field :from_date  ,:placeholder => "From date", required: true,class:'form-control start_date input-lg'
+  .col-sm-3
     .form-group
-      = f.text_field :to_date  ,:placeholder => "To date", required: true,class:'form-control end_date'
+      .input-group
+        %span.input-group-addon
+          %i.fa.fa-calendar.fa-lg.fa-fw
+        = f.text_field :to_date  ,:placeholder => "To date", required: true,class:'form-control end_date input-lg'
+/ .row
+/   .col-lg-6
+/     .form-group
+/       = f.text_field :address_1  ,:placeholder => "Current Address", required: true,class:'form-control p-location'
+/   .col-lg-3
+/     .form-group
+/       = f.text_field :from_date  ,:placeholder => "From date", required: true,class:'form-control start_date'
+/   .col-lg-3
+/     .form-group
+/       = f.text_field :to_date  ,:placeholder => "To date", required: true,class:'form-control end_date'

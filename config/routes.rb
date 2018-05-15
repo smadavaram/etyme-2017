@@ -96,6 +96,10 @@ Rails.application.routes.draw do
   namespace :candidate do
 
     post 'update_photo',    to: 'candidates#update_photo'
+    delete 'delete_resume',    to: 'candidates#delete_resume'
+    get 'make_primary_resume',    to: 'candidates#make_primary_resume'
+
+
     resources :educations, only:[:create,:update]
     resources :experiences, only: [:create,:update]
     get '/' ,       to: 'candidates#dashboard' ,             as: :candidate_dashboard

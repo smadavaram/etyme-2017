@@ -30,27 +30,27 @@
                     %li{"data-target" => "#step3"}
                       %a{"data-toggle" => "tab", :href => "#tab3"}
                         %span.step 3
-                        %span.title Update Education
+                        %span.title Social Media     
                     %li{"data-target" => "#step4"}
                       %a{"data-toggle" => "tab", :href => "#tab4"}
                         %span.step 4
-                        %span.title Update Skills
+                        %span.title Update Education
                     %li{"data-target" => "#step5"}
                       %a{"data-toggle" => "tab", :href => "#tab5"}
                         %span.step 5
-                        %span.title Client Information
+                        %span.title Update Skills
                     %li{"data-target" => "#step6"}
                       %a{"data-toggle" => "tab", :href => "#tab6"}
                         %span.step 6
-                        %span.title Designate
+                        %span.title Client Information
                     %li{"data-target" => "#step7"}
                       %a{"data-toggle" => "tab", :href => "#tab7"}
                         %span.step 7
-                        %span.title Submit Doc
+                        %span.title Designate
                     %li{"data-target" => "#step8"}
                       %a{"data-toggle" => "tab", :href => "#tab8"}
                         %span.step 8
-                        %span.title Social Media                    
+                        %span.title Submit Doc
                     %li{"data-target" => "#step9"}
                       %a{"data-toggle" => "tab", :href => "#tab9"}
                         %span.step 9
@@ -142,7 +142,11 @@
                                               %i.fa.fa-upload
                                               %i.glyphicon.glyphicon-fullscreen
                                               %i.glyphicon.glyphicon-chevron-right
+                                      .row{style: "padding: 15px;"}
+                
+                                      =render partial: 'candidate/candidates/partials/basic_info_form',locals: {candidate: current_candidate}
                                       / =render partial: 'candidate/candidates/partials/basic_info_form',locals: {candidate: current_candidate}
+                                      
 
 
                   #tab3.tab-pane
@@ -404,5 +408,111 @@
 
     
     })
+
+
+    $(document).ready(function() {
+      $(".select2").select2({placeholder: "Select a User(s)"});
+      $(".file_select").select2({placeholder: "Select Company Document"});
+      $('.fileUpload').on("click",function(){
+        $(".file").trigger("click");
+        $('.fp__overlay').css({'z-index':'99999'});
+      });
+      var chatBody = $('#chat-body') ;
+      chatBody.scrollTop(5000000000);
+       $('.resume').on("click",function(){
+          $(".resume_file").trigger("click");
+      });
+     $( ".video-pic" ).click(function() {
+      $( ".file" ).trigger( "click" );
+     });
+      $( ".candi-profile-pic" ).click(function()
+      {
+        $( ".candi-logo" ).trigger( "click" );
+      });
+     $('.education_start_year, .education_completion_year, .start_date, .end_date').datepicker({
+       autoclose: true,
+       todayHighlight: true,
+       format: "mm-dd-yy"
+      });
+      $('#myTab a').click(function(e) {
+        e.preventDefault();
+        $(this).tab('show');
+      });
+      $("ul.nav-tabs > li > a").on("shown.bs.tab", function(e) {
+        var id = $(e.target).attr("href").substr(1);
+        window.location.hash = id;
+      });
+
+      var hash = window.location.hash;
+      $('#myTab a[href="' + hash + '"]').tab('show');
+
+    });
+    function uploadResume(event){
+      resume_url = event.fpfile.url
+      $.ajax({
+       type: 'POST',
+       dataType: 'json',
+       url: " #{ upload_resume_candidates_path } ",
+       data: { resume: resume_url,authenticity_token: window._token },
+       success: function (data) {  }
+     });
+    }
+    function candidateLogoUpload(event){
+      photo_url = event.fpfile.url
+      $('.profile-pic').html('');
+      $.ajax({
+       type: 'POST',
+       dataType: 'json',
+       url: "#{ candidate_update_photo_path }",
+       data: { photo: photo_url,authenticity_token: window._token },
+       success: function (data) {
+        $('.text.img_pic').attr("src",photo_url);
+        location.reload();
+       }
+     });
+    }
+    function employeevideoUpload(event){
+      video_url = event.fpfile.url
+      video_type=event.fpfile.mimetype
+      $('.video-pic').html('');
+      $.ajax({
+       type: 'POST',
+       dataType: 'json',
+       url: "#{ update_video_candidates_path }",
+       data: { video: video_url,authenticity_token: window._token, video_type: video_type },
+       success: function (data) {
+        $('.text img1').attr("src",video_url);
+        location.reload();
+       }
+     });
+    }
+    
+
+     $(document).ready(function () {
+        addressLookup();
+    });
+
+    function addressLookup() {
+      var address = document.getElementsByClassName('p-location');
+
+      for(var i=0; i< address.length; i++){
+        new google.maps.places.Autocomplete(address[i]);
+
+        google.maps.event.addDomListener(address[i], 'keydown', function(event) {
+          if (event.keyCode === 13) {
+            event.preventDefault();
+          }
+        });
+      }
+    }
+  
+
+    $('.candidate-association').on('cocoon:after-insert', function(e, insertedItem) {
+      addressLookup();
+
+     $(".start_date, .end_date").datepicker({
+        dateFormat : 'dd/mm/yy'
+      });
+    });
 
     
