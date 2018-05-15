@@ -11,7 +11,7 @@ class Company::JobsController < Company::BaseController
 
   def index
     @search =  current_company.jobs.not_system_generated.includes(:created_by).order(created_at: :desc).search(params[:q])
-    @company_jobs = @search.result.order(created_at: :desc).paginate(page: params[:page], per_page: 15) || []
+    @company_jobs = @search.result.order(created_at: :desc)#.paginate(page: params[:page], per_page: params[:per_page]||=15) || []
     @job = current_company.jobs.new
   end
   def show

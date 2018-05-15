@@ -40,7 +40,7 @@
               - @link_list.each do |link|
                 %tr
                   %td{style:"width:55% "}
-                    = link[:title]
+                    = link_to link[:title], link[:job_link]
                   %td{style:"width:55% "}
                     = link[:category]
                   %td{style:"width:55% "}

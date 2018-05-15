@@ -18,6 +18,7 @@ class JobMailer < ApplicationMailer
     jobs.each do |job|
       @link_list.push({
                           title: job.title[0..50],
+                          job_link: static_job_url(job).to_s,
                           category: job.job_category,
                           last_date: job.end_date,
                           location: job.location,
