@@ -1,3 +1,33 @@
 // Place all the styles related to the Company/Companies controller here.
 // They will automatically be included in application.css.
 // You can use Sass (SCSS) here: http://sass-lang.com/
+.radio-group input[type=radio] {
+  position: absolute;
+  visibility: hidden;
+  display: none;
+}
+
+.radio-group label {
+  color: #3B5998;
+  display: inline-block;
+  cursor: pointer;
+  font-weight: bold;
+  padding: 5px 20px;
+  margin-bottom: 0;
+}
+
+.radio-group input[type=radio]:checked + label{
+  color: lighten(#3B5998, 60%);
+  background: lighten(#3B5998,20%);;
+}
+
+.radio-group  label + input[type=radio] + label {
+  //border-left: solid 3px lighten(#3B5998,20%);;
+}
+.radio-group {
+  border: solid 3px lighten(#3B5998,20%);;
+  display: inline-block;
+  margin: 20px;
+  //border-radius: 10px;
+  overflow: hidden;
+}

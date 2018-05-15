@@ -49,4 +49,5 @@
  *= require conversation/chat
  *= require style
  *= require bootstrap-switch
+ *= require company/companies
  */
