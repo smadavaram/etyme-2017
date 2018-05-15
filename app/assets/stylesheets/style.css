@@ -973,3 +973,21 @@ input:checked + .slider:before {
 .slider.round:before {
   border-radius: 50%;
 }
+
+.add_candidate_address a { width: 100%;}
+.resume_div{border-left: 1px solid #ccc; border-right: 1px solid #ccc;}
+.primary_doc i{
+  margin-left: -15px;
+  font-size: 25px;
+  color: green;margin-top: 10px;}
+.make_primary_doc {
+  margin-left: -15px;
+  font-size: 25px;
+  margin-top: 10px;
+  color: black;
+}  
+
+  .delete_primary_doc{
+  font-size: 25px;
+  margin-top: 10px;
+  color: red;} 

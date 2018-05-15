@@ -66,13 +66,54 @@ class Candidate::CandidatesController < Candidate::BaseController
   end
 
   def upload_resume
-    if current_candidate.update(resume: params[:resume])
+
+    new_resume = current_candidate.candidates_resumes.new()
+    new_resume.resume = params[:resume]
+    new_resume.candidate_id = current_candidate.id
+    new_resume.is_primary = current_candidate.candidates_resumes.count == 0 ? true : false
+
+    if new_resume.save
       flash[:success] = "Resume uploaded successfully."
     else
       flash[:errors] = 'Resume not updated'
     end
+
+    # if current_candidate.update(resume: params[:resume])
+    #   flash[:success] = "Resume uploaded successfully."
+    # else
+    #   flash[:errors] = 'Resume not updated'
+    # end
     redirect_back fallback_location: root_path
   end
+
+  def delete_resume
+    resume = CandidatesResume.find(params["id"]) rescue nil
+    if resume.is_primary
+      resumes = CandidatesResume.where(:candidate_id=>resume.candidate_id).map{|data| data.id}
+      resumes.delete(resume.id)
+      resume.destroy()
+      if resumes.count > 0
+        primary_resume = CandidatesResume.find(resumes[0]) rescue nil
+        primary_resume.update_attributes(:is_primary=>true)
+      end  
+    else  
+      resume.destroy()
+    end  
+    redirect_back fallback_location: root_path
+  end  
+
+  def make_primary_resume
+
+    resume = CandidatesResume.find(params["id"]) rescue nil
+
+    resumes = CandidatesResume.where(:candidate_id=>resume.candidate_id)
+    resumes.each do |data|
+      data.update_attributes(:is_primary=>false)
+    end  
+    resume.update_attributes(:is_primary=>true)
+
+    redirect_back fallback_location: root_path
+  end  
 
   def update_photo
     render json: current_candidate.update_attribute(:photo, params[:photo])

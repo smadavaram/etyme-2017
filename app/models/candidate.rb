@@ -38,6 +38,8 @@ class Candidate < ApplicationRecord
   has_many   :experiences          , dependent: :destroy           ,foreign_key: 'user_id'
   has_many   :candidates_companies , dependent: :destroy
   has_many   :companies            , through: :candidates_companies ,dependent: :destroy
+  has_many :candidates_resumes, dependent: :destroy
+
 
   has_many :addresses, as:  :addressable
   # belongs_to :address              , foreign_key: :primary_address_id, optional: true
