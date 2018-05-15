@@ -15,7 +15,7 @@
               Select Groups
               %sup.text-danger *
             .col-md-8
-              = select_tag 'group_ids[]', options_for_select(current_company.groups.collect { |g| [g.group_name,g.id] }),class: 'form-control select2',:multiple => true
+              = select_tag 'group_ids[]', options_for_select(current_company.groups.collect { |g| [g.group_name,g.id] }),class: 'form-control select2-group',:multiple => true
           -#.form-group
             %label.col-md-3.control-label
               Select Companies
@@ -29,5 +29,16 @@
 :css
   .select2{
     width: 389px;
-    }
-
+  }
+-content_for :scripts do
+  :javascript
+    $(".select2-group").select2({
+      create: true,
+      addPrecedence: true,
+      language: {
+              noResults: function() {
+                return "No results <a class='btn btn-success pull-right header-btn' data-remote='true' href='/groups/new'>Add New</a>";
+              }
+          },
+      escapeMarkup: function (markup) { return markup; }
+    });

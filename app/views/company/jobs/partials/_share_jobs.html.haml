@@ -1,0 +1,38 @@
+.modal.fade.in#share-jobs
+  .modal-dialog.modal-md
+    .modal-content
+      .modal-header
+        %button.close{"aria-hidden" => "true", "data-dismiss" => "modal", :type => "button"}
+          ×
+        %h2#myModalLabel.modal-title
+          %strong Share jobs
+          %hr
+          %p.muted Share your jobs with external users
+          and you can also attach a custom message along with.
+
+      .modal-body
+        = form_for '', url: share_jobs_jobs_path, html: {class: 'form-horizontal'} do |f|
+          = hidden_field_tag 'jobs_ids',value ='',{class: "jobs_ids"}
+          %fieldset
+            .form-group
+              %label.col-md-2.control-label
+                Email
+                %sup.text-danger
+              .col-md-10
+                = select_tag "emails",options_for_select(Group.all.map{|c| [c.group_name,c.candidates.map{|e| e.email}] }),{class: 'form-control select2',required: true ,:multiple => true}
+            .form-group
+              %label.col-md-2.control-label
+                Message
+                %sup.text-danger
+              .col-md-10
+                = text_area_tag "message" ,nil ,class: "form-control tinymce" , placeholder: "Message "
+
+          .modal-footer
+            %button.btn.btn-default{"data-dismiss" => "modal", :type => "button"}
+              Cancel
+            = f.button "Save".html_safe , class: 'btn btn-primary' , data: {disable_with: disable_spinning('Saving...')}
+
+:css
+  .select2{
+    width: 470px;
+    }

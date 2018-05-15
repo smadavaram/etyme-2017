@@ -27,6 +27,11 @@ class StaticController < ApplicationController
 
   end
 
+  def check_for_domain
+    companies = Company.where(slug: params[:domain_name])
+    render json: {present_count: companies.count}
+  end
+
   private
 
   def set_jobs

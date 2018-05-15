@@ -9,6 +9,17 @@
             %sup.text-danger *
           = f.text_field :title , class: 'form-control' , placeholder: 'Enter Job Title' , required: true
     .row
+      .col-md-12
+        .form-group.radio-group
+          = f.radio_button :listing_type, "Job", class: "set-checkbox", :checked => true
+          = f.label :listing_type, "Job", :value => "Job"
+          = f.radio_button :listing_type, "Training", class: "set-checkbox"
+          = f.label :listing_type, "Training", :value => "Training"
+          = f.radio_button :listing_type, "Products", class: "set-checkbox"
+          = f.label :listing_type, "Products", :value => "Products"
+          = f.radio_button :listing_type, "Services", class: "set-checkbox"
+          = f.label :listing_type, "Services", :value => "Services"
+    .row
       .col-md-6
         .form-group
           %label.control-label
@@ -142,6 +153,7 @@
       .col-md-12
         = button_tag 'Cancel' , class: 'btn btn-default' , "data-dismiss"=> "modal"
         = f.button "Submit".html_safe, class: 'btn btn-primary' , data: {disable_with: disable_spinning('Submitting...')}
+
 - content_for :scripts do
   :javascript
     // DO NOT REMOVE : GLOBAL FUNCTIONS!

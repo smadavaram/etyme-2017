@@ -38,7 +38,7 @@
                       %thead
                         %tr{:role => "row"}
                           %th.hasinput{ :style => "width:2%"}
-                            %input.form-control{:placeholder => "Select", :type => ""}/
+                            = check_box_tag "select_all[]", ""
                           %th.hasinput{ :style => "width:10%"}
                             %input.form-control{:placeholder => "Logo", :type => "text"}/
                           %th.hasinput{:style => "width:10%"}
@@ -86,17 +86,17 @@
                               = link_to raw("<i class='fa fa-edit '></i>") , edit_company_path(d.invited_company) , class: 'btn btn-xs btn-default  margin-bottom-5',remote: :true ,title:"Edit #{d.invited_company.name}",'data-toggle'=>"tooltip" ,'data-placement'=>"top"
                               = link_to raw("<i class='fa fa-users '></i>"), company_company_assign_groups_path(d.invited_company) , remote:true,class: 'btn btn-xs btn-default margin-bottom-5' ,title:"Assign Groups",'data-toggle'=>"tooltip" ,'data-placement'=>"top"
                               -#= link_to raw("<i class='fa fa-times '></i>") , company_path(d.invited_company) ,method: :delete, class: 'btn btn-xs btn-default btn-danger' ,title:"Delete #{d.invited_company.name}",data: {confirm: "Are you sure you want to Delete this Company ?", verify: 'Confirm', verify_text: "Type 'Confirm' to Continue"}
-                    - if @invited_companies.count>10
-                      .dt-toolbar-footer
-                        = digg_pagination(@invited_companies)
+                    -#- if @invited_companies.count>10
+                    -#  .dt-toolbar-footer
+                    -#    = digg_pagination(@invited_companies)
 
-- if params[:status]!='all'
-  - content_for :modals do
-    #job_invitation
-      = render 'company/companies/partials/new_company'
-      = render 'company/reminders/partials/bulk_reminder_companies_form'
-      = render 'company/statuses/partials/assign_bulk_companies'
-      = render 'company/groups/partial/assign_bulk_companies'
+- content_for :modals do
+  #job_invitation
+    = render 'company/companies/partials/new_company'
+    = render 'company/reminders/partials/bulk_reminder_companies_form'
+    = render 'company/statuses/partials/assign_bulk_companies'
+    = render 'company/groups/partial/assign_bulk_companies'
+
 :css
   .form-control
   {
@@ -123,13 +123,14 @@
       var responsiveHelper_datatable_tabletools = undefined;
       var table = $('#example').DataTable();
       var otable = $('#datatable_fixed_column').DataTable({
-            "sDom": "<'dt-toolbar'<'col-xs-12 col-sm-6 hidden-xs'f><'col-sm-6 col-xs-12 hidden-xs'<'toolbar'>>r>"+
+            "sDom": "<'dt-toolbar'<'col-xs-12 col-sm-6 hidden-xs'fl><'col-sm-6 col-xs-12 hidden-xs'<'toolbar'>>r>"+
                     "t"+
                     "<'dt-toolbar-footer'<'col-sm-6 col-xs-12 hidden-xs'i><'col-xs-12 col-sm-6'p>>",
             "autoWidth" : true,
             "oLanguage": {
                 "sSearch": '<span class="input-group-addon"><i class="glyphicon glyphicon-search"></i></span>'
-            }
+            },
+            "lengthMenu": [[20,30, 50, 100, 500, 1000, -1], [20,30, 50, 100, 500, 1000]]
 
         });
 
@@ -148,7 +149,7 @@
       // for share of checked rows
       var checkedRows = new Array();
         $(".bulk" ).on( "click", function() {
-          $('input:checkbox:checked').each(function(){
+          $('input[name="ids[]"]:checkbox:checked').each(function(){
           checkedRows.push($(this).val());
           });
           if(checkedRows.length>0)
@@ -160,6 +161,10 @@
               alert("Make a selection first.")
               return false;
           }
+      });
+
+      $("#select_all_" ).on( "click", function() {
+        $("input[name='ids[]']").prop('checked', this.checked);
       });
 
     });

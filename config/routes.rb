@@ -24,6 +24,7 @@ Rails.application.routes.draw do
   get  'signin' ,to: 'static#signin'
   post 'signin' ,to: 'static#signin'
   get 'signup' ,to: 'static#signup'
+  post 'check_for_domain' ,to: 'static#check_for_domain'
 
   concern :paginatable do
     get '(page/:page)', action: :index, on: :collection, as: ''
@@ -355,6 +356,10 @@ Rails.application.routes.draw do
 
       member do
         post :send_invitation , as: :send_invitation
+      end
+
+      collection do
+        post :share_jobs , as: :share_jobs
       end
     end
 

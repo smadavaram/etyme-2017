@@ -11,7 +11,7 @@ class Company::JobsController < Company::BaseController
 
   def index
     @search =  current_company.jobs.not_system_generated.includes(:created_by).order(created_at: :desc).search(params[:q])
-    @company_jobs = @search.result.order(created_at: :desc).paginate(page: params[:page], per_page: 15) || []
+    @company_jobs = @search.result.order(created_at: :desc)#.paginate(page: params[:page], per_page: params[:per_page]||=15) || []
     @job = current_company.jobs.new
   end
   def show
@@ -76,6 +76,25 @@ class Company::JobsController < Company::BaseController
     has_access?("manage_jobs")
   end
 
+  def share_jobs
+    j_ids = params[:jobs_ids].split(",").map { |s| s.to_i }
+    jobs = Job.where("id IN (?) AND end_date >= ? ",j_ids, Date.today)
+
+    if jobs.present?
+      emails = []
+      params[:emails].each do |e|
+        email = e.include?('[') ? JSON.parse(e) : e
+        emails << email
+      end
+      Job.share_jobs(current_user.email, emails.flatten.uniq.split(","), j_ids, current_company, params[:message])
+      flash[:success] = "job shared successfully."
+    else
+      flash[:errors] = "There is no one active job."
+    end
+
+    redirect_back fallback_location: root_path
+  end
+
   private
     def set_candidates
       @candidates = Candidate.all
@@ -95,7 +114,7 @@ class Company::JobsController < Company::BaseController
 
 
     def company_job_params
-      params.require(:job).permit([:title,:description,:location,:job_category, :is_public , :start_date , :end_date , :tag_list, :video_file, :industry, :department, :job_type, :price, :education_list, :comp_video, custom_fields_attributes:
+      params.require(:job).permit([:title,:description,:location,:job_category, :is_public , :start_date , :end_date , :tag_list, :video_file, :industry, :department, :job_type, :price, :education_list, :comp_video, :listing_type, custom_fields_attributes:
           [
               :id,
               :name,

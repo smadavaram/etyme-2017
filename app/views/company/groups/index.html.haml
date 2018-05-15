@@ -45,10 +45,10 @@
                           %td= index+1
                           %td= group.group_name.titleize
                           %td= group.member_type
-                          %td= group.candidates.count
+                          %td= group.groupables.count
                           %td= group.created_at.try(:strftime,'%B %d, %Y')
                           %td
-                            = link_to raw("<i class='fa fa-edit'></i>"),edit_group_path(group) ,remote:true,class: "btn btn-default btn-xs" ,title: "Edit #{group.group_name.titleize}",'data-toggle'=>"tooltip" ,'data-placement'=>"top"
+                            =# link_to raw("<i class='fa fa-edit'></i>"),edit_group_path(group) ,remote:true,class: "btn btn-default btn-xs" ,title: "Edit #{group.group_name.titleize}",'data-toggle'=>"tooltip" ,'data-placement'=>"top"
                             = link_to raw("<i class='fa fa-comment'></i>"), "#", class: "btn btn-xs btn-default margin-bottom-5 start-conversation", title: "Chat",
                                 "data-chattopic" => "Group",
                                 "data-cid" => group.id,
@@ -86,7 +86,7 @@
             }
         });
 
-      $("div.toolbar").html('<div class="text-right">#{ link_to 'NEW',new_group_path , remote: true , class: 'btn btn-success btn-md pull-right header-btn'}</div>');
+      $("div.toolbar").html('<div class="text-right">#{ link_to 'NEW', new_group_path , remote: true , class: 'btn btn-success btn-md pull-right header-btn'}</div>');
 
       // Apply the filter
       $("#datatable_fixed_column thead th input[type=text]").on( 'keyup change', function () {
