@@ -1,13 +1,16 @@
-.row{style: "padding: 15px;"}
+.row{style: "padding: 0px 15px 15px 15px;"}
   .form-group
     .multi-field-wrapper
       .multi-fields
         = form_for @user,url: candidate_candidate_path(@user.id, tab: "client"),method: :put do |f|
-          %h2{style: "margin: 15px 0"}
-            %b Client Information
+          / %h2{style: "margin: 15px 0"}
+          /   %b Client Information
           = f.fields_for :clients, f.object.clients do |b|
             = render 'candidate/candidates/client_fields', f: b
-          = link_to_add_fields 'candidate/candidates/client_fields', f, :clients
+          %strong
+            .links
+              = link_to_add_association '+ Add Client', f, :clients, class: 'btn btn-success', partial: 'candidate/candidates/client_fields'  
+          / = link_to_add_fields 'candidate/candidates/client_fields', f, :clients
           .row
           .col-lg-12
             %button.btn.btn-primary.pull-right{:type => "submit"}

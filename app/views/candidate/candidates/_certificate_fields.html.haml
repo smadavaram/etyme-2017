@@ -1,22 +1,23 @@
-.row.multi-field-container{style: "padding: 15px;"}
+.row.multi-field-container{style: "padding: 0px 15px 15px 15px;"}
   .row
-    .col-md-6
+    .col-sm-6
       .form-group
-        = f.text_field :title,placeholder: "Certificate Title",class: 'form-control'
-    .col-md-6
+        = f.text_field :title,placeholder: "Certificate Title",class: 'form-control p-location input-lg'
+  
+    .col-sm-6
       .form-group
-        = f.select :institute, industry_list,{},{class: 'form-control',style: "width:100% !important"}
+        = f.select :institute, industry_list,{},{class: 'form-control p-location input-lg',style: "width:100% !important"}
+
   .row
-    .col-md-6.pull-right
-      .row
-        .col-md-4
-        .col-md-4
-          .form-group
-            = f.text_field :start_date,placeholder: "MM-DD-YY",class: 'form-control start_date'
-        .col-md-4
-          .form-group
-            = f.text_field :end_date,placeholder:"MM-DD-YY",class: 'form-control end_date'
+    .col-sm-3
+      .form-group
+        = f.text_field :start_date,placeholder: "MM-DD-YY",class: 'form-control start_date p-location input-lg'
+  
+    .col-sm-3
+      .form-group
+        = f.text_field :end_date,placeholder:"MM-DD-YY",class: 'form-control end_date p-location input-lg'
+
   .row
     .col-md-12
-      %a.bttn.btn-add.btn.remove-multi-fields.pull-right
+      %a.bttn.btn-add.remove-multi-fields.pull-right.delete_icon
         %i.fa.fa-trash

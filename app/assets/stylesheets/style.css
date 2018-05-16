@@ -987,7 +987,12 @@ input:checked + .slider:before {
   color: black;
 }  
 
-  .delete_primary_doc{
-  font-size: 25px;
-  margin-top: 10px;
-  color: red;} 
+.delete_primary_doc{
+font-size: 25px;
+margin-top: 10px;
+color: red;} 
+.delete_icon{
+font-size: 25px;
+/*margin-top: 10px;*/
+color: red;}
+.education_links{margin-top: -15px;}

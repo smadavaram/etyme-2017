@@ -1,32 +1,30 @@
-.row{style: "padding: 15px;"}
+.row{style: "padding: 0px 15px 15px 15px;"}
   .form-group
     = form_for @user,url: candidate_candidate_path(@user.id, tab: "skill"),method: :put do |f|
-      %h2{style: "margin: 15px 0"}
-        =hidden_field_tag "candidate_id", @user.id
-        %b Update Skills
       .row
-        .col-md-4
+        .col-sm-6
           .form-group
-            =f.select :category, WORK_CATEGORIES.keys,{include_blank: "Select Category"},{class: "form-control", required: true }
-        .col-md-4
+            =f.select :category, WORK_CATEGORIES.keys,{include_blank: "Select Category"},{class: "form-control p-location input-lg", required: true }
+        .col-sm-6
           .form-group
-            =f.select :subcategory, '', {include_blank: "Select Category"},{class: "form-control", required: true }
+            =f.select :subcategory, '', {include_blank: "Select Category"},{class: "form-control p-location input-lg", required: true }
       .row
-        .col-md-8
+        .col-sm-6
           .form-group
-            = f.text_field :skill_list,placeholder: "Add Skills Comma seperated",class: 'form-control', 'data-role'=>'tagsinput',value: current_candidate.skill_list.join(", ")
-        .col-md-4
+            = f.text_field :skill_list,placeholder: "Add Skills Comma seperated",class: 'form-control p-location input-lg', 'data-role'=>'tagsinput',value: current_candidate.skill_list.join(", ")
+        .col-sm-6
           .form-group
-            = text_field_tag :subcat,'',placeholder: "Subcategory",class: 'form-control'
+            = text_field_tag :subcat,'',placeholder: "Subcategory",class: 'form-control p-location input-lg'
+
       .row
-        .col-md-6
+        .col-sm-6
           .form-group
             %p Department
-            =f.select :dept_name, department_list, {},{class: "form-control", required: true}
-        .col-md-6
+            = f.select :dept_name, department_list, {include_blank: "Select Department"},{class: "form-control p-location input-lg", required: true}
+        .col-sm-6
           .form-group
             %p Industry
-            =f.select :industry_name, industry_list, {},{class: "form-control", required: true}
+            = f.select :industry_name, industry_list, {include_blank: "Select Industry"},{class: "form-control p-location input-lg", required: true}
       .row
         .col-lg-12
           %button.btn.btn-primary.pull-right{:type => "submit"}

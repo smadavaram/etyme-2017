@@ -1,27 +1,29 @@
-.row.multi-field-container{style: "padding: 15px;"}
+.row.multi-field-container{style: "padding: 0px 15px 15px 15px;"}
   .row
-    .col-md-6
+    .col-sm-6
       .form-group
-        = f.text_field :degree_level,placeholder: "Degree level",class: 'form-control'
-    .col-md-6
+        = f.text_field :degree_level, placeholder: "Degree level", class: 'form-control p-location input-lg'
+  
+    .col-sm-6
       .form-group
-        = f.select :institute, industry_list,{},{class: 'form-control',style: "width:100% !important"}
+        = f.select :institute, industry_list,{},{class: 'form-control p-location input-lg',style: "width:100% !important"}
   .row
-    .col-md-6
+    .col-sm-6
       .form-group
-        = f.text_field :degree_title,placeholder: "Degree Title",class: 'form-control'
-    .col-md-6
+        = f.text_field :degree_title, placeholder: "Degree Title",class: 'form-control p-location input-lg'
+    .col-sm-6
       .row
         .col-md-4
           .form-group
-            = f.text_field :degree_title,placeholder: "CGPA",class: 'form-control'
+            = f.text_field :degree_title, placeholder: "CGPA", class: 'form-control p-location input-lg'
         .col-md-4
           .form-group
-            = f.text_field :start_year,placeholder: "MM-DD-YY",class: 'form-control education_start_year'
+            = f.text_field :start_year, placeholder: "MM-DD-YY", class: 'form-control education_start_year p-location input-lg'
+  
         .col-md-4
           .form-group
-            = f.text_field :completion_year,placeholder:"MM-DD-YY",class: 'form-control education_completion_year'
+            = f.text_field :completion_year, placeholder:"MM-DD-YY", class: 'form-control education_completion_year p-location input-lg'
   .row
     .col-md-12
-      %a.bttn.btn-add.btn.remove-multi-fields.pull-right
+      %a.bttn.btn-add.remove-multi-fields.pull-right.delete_icon
         %i.fa.fa-trash

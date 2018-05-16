@@ -1,17 +1,33 @@
-.row.multi-field-container{style: "padding: 15px;"}
+.row.multi-field-container{style: "padding: 0px 15px 15px 15px;"}
   .row
-    .col-md-4
+    .col-sm-6
       .form-group
-        = f.text_field :name,placeholder: "Client Name",class: 'form-control'
-    .col-md-4
+        = f.text_field :name,placeholder: "Client Name",class: 'form-control p-location input-lg'
+
+    .col-sm-6
       .form-group
-        = f.select :industry, industry_list,{},{class: 'form-control'}
-    .col-md-2
+        = f.select :industry, industry_list,{},{class: 'form-control p-location input-lg'}
+  .row
+    .col-sm-3
       .form-group
-        = f.text_field :start_date,placeholder: "MM/DD/YY",class: 'form-control education_start_year'
-    .col-md-2
+        = f.text_field :start_date,placeholder: "MM/DD/YY",class: 'form-control education_start_year p-location input-lg'
+    .col-sm-3
       .form-group
-        = f.text_field :end_date,placeholder:"MM/DD/YY",class: 'form-control education_completion_year'
+        = f.text_field :end_date,placeholder:"MM/DD/YY",class: 'form-control education_completion_year p-location input-lg'
+
+
+    / .col-md-4
+    /   .form-group
+    /     = f.text_field :name,placeholder: "Client Name",class: 'form-control'
+    / .col-md-4
+    /   .form-group
+    /     = f.select :industry, industry_list,{},{class: 'form-control'}
+    / .col-md-2
+    /   .form-group
+    /     = f.text_field :start_date,placeholder: "MM/DD/YY",class: 'form-control education_start_year'
+    / .col-md-2
+    /   .form-group
+    /     = f.text_field :end_date,placeholder:"MM/DD/YY",class: 'form-control education_completion_year'
   .row
     .col-md-5
       .form-group
@@ -20,6 +36,19 @@
       .form-group
         = f.text_area :role,placeholder: "My Role",class: 'form-control'
   .row
+    .col-sm-6
+      .form-group
+        = f.text_field :refrence_name,placeholder: "Degree level",class: 'form-control p-location input-lg'
+
+    .col-sm-6
+      .form-group
+        = f.text_field :refrence_phone, class: 'form-control p-location input-lg'
+
+    .col-sm-3
+      .form-group
+        = f.text_field :refrence_email,placeholder: "MM-DD-YY",class: 'form-control p-location input-lg'
+
+
     .col-md-4
       .form-group
         = f.text_field :refrence_name,placeholder: "Degree level",class: 'form-control'
@@ -31,5 +60,5 @@
         = f.text_field :refrence_email,placeholder: "MM-DD-YY",class: 'form-control'
   .row
     .col-md-12
-      %a.bttn.btn-add.btn.remove-multi-fields.pull-right
+      %a.bttn.btn-add.remove-multi-fields.pull-right.delete_icon
         %i.fa.fa-trash

@@ -153,33 +153,43 @@
                     %br/
                     %h3
                       %strong Step 3
-                      \- Update Education
+                      \- Social Media
                   #tab4.tab-pane
                     %br/
                     %h3
                       %strong Step 4
-                      \- Update Skills
+                      \- Update Education
+                    .row
+                      .col-sm-12.col-md-12.col-lg-12
+                        =render partial: 'candidate/candidates/partials/education_form',locals:{education: current_candidate.educations}  
                       
                   #tab5.tab-pane
                     %br/
                     %h3
                       %strong Step 5
-                      \- Client Information
+                      \- Update Skills
+                    .row
+                      .col-sm-12.col-md-12.col-lg-12
+                        = render partial: 'candidate/candidates/partials/skill_form',locals: {user: current_candidate}  
+                        
                   #tab6.tab-pane
                     %br/
                     %h3
                       %strong Step 6
-                      \- Designet
+                      \- Client Information
+                    .row
+                      .col-sm-12.col-md-12.col-lg-12
+                          
                   #tab7.tab-pane
                     %br/
                     %h3
                       %strong Step 7
-                      \- Submit Doc
+                      \- Designet
                   #tab8.tab-pane
                     %br/
                     %h3
                       %strong Step 8
-                      \- Social Media                    
+                      \- Submit Doc                    
                     
                   #tab9.tab-pane
                     %br/
