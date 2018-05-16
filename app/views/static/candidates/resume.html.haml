@@ -26,7 +26,7 @@
               #{@candidate.dob}
             %li
               %strong Address:
-              #{@candidate.try(:address).try(:zip_code)} #{@candidate.try(:address).try(:city)},#{@candidate.try(:address).try(:country)}
+              #{@candidate.try(:addresses).first.try(:zip_code)} #{@candidate.try(:addresses).first.try(:city)},#{@candidate.try(:addresses).first.try(:country)}
             %li
               %strong Visa:
               #{@candidate.try(:visa).try(:humanize)}
@@ -248,10 +248,10 @@
           .col-sm-6
             %i.fa.fa-map-marker
             %address
-              %strong #{@candidate.address.address_1}
-              #{@candidate.address.zip_code}
+              %strong #{@candidate.try(:addresses).first.try(:address_1)}
+              #{@candidate.try(:addresses).first.try(:zip_code)}
               %br
-              #{@candidate.address.city}  #{@candidate.address.country}
+              #{@candidate.try(:addresses).first.try(:city)}  #{@candidate.try(:addresses).first.try(:country)}
               %br/
           .col-sm-6
             %i.fa.fa-mobile
