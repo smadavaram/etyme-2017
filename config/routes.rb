@@ -98,6 +98,8 @@ Rails.application.routes.draw do
     post 'update_photo',    to: 'candidates#update_photo'
     delete 'delete_resume',    to: 'candidates#delete_resume'
     get 'make_primary_resume',    to: 'candidates#make_primary_resume'
+    post 'send_otp_on_mobile',    to: 'candidates#send_otp_on_mobile'
+
 
 
     resources :educations, only:[:create,:update]

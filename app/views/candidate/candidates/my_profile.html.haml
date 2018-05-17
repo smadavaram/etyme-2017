@@ -1,3 +1,6 @@
+%script{:src => "https://sdk.accountkit.com/en_US/sdk.js"}
+%script{:src => "https://sdk.accountkit.com/en_EN/sdk.js"}
+
 %body
   %article.col-sm-12.col-md-12.col-lg-12
     / Widget ID (each widget will need unique ID)
@@ -63,24 +66,36 @@
                       %strong Step 1
                       \- Veryfy Phone Number
                     .row
-                      .col-sm-6
-                        .form-group
-                          .input-group
-                            %span.input-group-addon
-                              %i.fa.fa-mobile-phone.fa-lg.fa-fw
-                            %input#phone_no.form-control.input-lg{:name => "phone_no", :placeholder => "Enter Phone number", :type => "text"}/
-                      .col-sm-6
-                        .form-group
-                          .input-group
-                            %a.btn.btn-primary.btn-lg{:href => "javascript:void(0);"} Veryfy
-      
-                    .row
-                      .col-sm-6
-                        .form-group
-                          .input-group
-                            %span.input-group-addon
-                              %i.fa.fa-key.fa-lg.fa-fw
-                            %input#otp.form-control.input-lg{:name => "otp", :placeholder => "Enter 6 Digit verification Code sent by SMS", :type => "text"}/
+                      .col-sm-12
+                        / = form_for @user,url: candidate_send_otp_on_mobile_path(@user.id, tab: "edu"),method: :post do |f|  
+                        /   .row
+                        /     .col-sm-6
+                        /       .form-group
+                        /         .input-group
+                        / = form_for @user,url: candidate_send_otp_on_mobile_path(@user.id, tab: "edu"),method: :post do |f|  
+                        .row
+                          .col-sm-6
+                            .form-group
+                              .input-group
+                                %span.input-group-addon
+                                  %i.fa.fa-mobile-phone.fa-lg.fa-fw
+                                %input#phone_no.form-control.input-lg{:name => "phone_no", :placeholder => "Enter Phone number", :type => "text"}/
+                                %input#country_code.form-control.input-lg{:name => "country_code", :type => "hidden"}/
+
+                          .col-sm-6
+                            .form-group
+                              .input-group
+                                %a.btn.btn-primary.btn-lg{:href => "javascript:void(0);", :onclick => "smsLogin();"} Send OTP
+                              / %button.btn.btn-primary.pull-right{:type => "submit"}
+                              /   Saved  
+          
+                    / .row
+                    /   .col-sm-6
+                    /     .form-group
+                    /       .input-group
+                    /         %span.input-group-addon
+                    /           %i.fa.fa-key.fa-lg.fa-fw
+                    /         %input#otp.form-control.input-lg{:name => "otp", :placeholder => "Enter 6 Digit verification Code sent by SMS", :type => "text"}/
                       
                   #tab2.tab-pane
                     %br/
@@ -179,12 +194,17 @@
                       \- Client Information
                     .row
                       .col-sm-12.col-md-12.col-lg-12
+                        = render partial: 'candidate/candidates/partials/client_form',locals: {user: current_candidate}
                           
                   #tab7.tab-pane
                     %br/
                     %h3
                       %strong Step 7
                       \- Designet
+                    .row
+                      .col-sm-12.col-md-12.col-lg-12
+                        = render partial: 'candidate/candidates/partials/designate_form',locals: {user: current_candidate}
+                        
                   #tab8.tab-pane
                     %br/
                     %h3
@@ -225,99 +245,59 @@
     / end widget
   / WIDGET END
 
+  / %input#country_code{:value => ""}/
+  / %input#phone_number{:placeholder => "phone number"}/
+  / %button{:onclick => "smsLogin();"} Login via SMS
+  / %div OR
+  / %input#email{:placeholder => "email"}/
+  / %button{:onclick => "emailLogin();"} Login via Email
+
 
 - content_for :scripts do
   :javascript
-
+    // Facebook Account Kit
     $(document).ready(function() {
+      // initialize Account Kit with CSRF protection
+      AccountKit_OnInteractive = function(){
+        AccountKit.init(
+          {
+            appId:"1209424855859249",
+            state:"fgh521fgh",
+            version:"v1.1",
+            fbAppEventsEnabled:true
+            //redirect:"/"
+          }
+        );
+      };
+     
+    }); 
 
-      $('a[data-toggle="tab"]').on('show.bs.tab', function(e) {
-            // localStorage.setItem('activeTab', $(e.target).attr('href'));
-            var id = $(e.target).attr("href").substr(1);
-            window.location.hash = id;
-          });
-        var hash = window.location.hash;
-        $('#myTab a[href="' + hash + '"]').tab('show');
-
-      $( ".profile-pic" ).click(function()
-      {
-        $( ".file" ).trigger( "click" );
-      });
-
-      $('.resume').on("click",function(){
-
-          $(".resume_file").trigger("click");
-
-      });
-      $( '.file-portfolio' ).on('click',function() {
-        $('.fp__overlay').css({'z-index':'99999'});
-
-     });
-
-
-       $(".best_in_place").best_in_place();
-       $(".best_in_place").on('change', function(event) {
-          flash_success('Change Saved!');
-      });
-      $('#education_start_year').datepicker({
-        dateFormat : 'dd/mm/yy'
-      });
-      $('#education_completion_year').datepicker({
-        dateFormat : 'dd/mm/yy'
-      });
-      $('#experience_start_date').datepicker({
-        dateFormat : 'dd/mm/yy'
-      });
-      $('#experience_end_date').datepicker({
-        dateFormat : 'dd/mm/yy'
-      });
-
-    });
-    function employeeLogoUpload(event){
-      photo_url = event.fpfile.url
-      $('.profile-pic').html('');
-      $.ajax({
-       type: 'POST',
-       dataType: 'json',
-       url: "#{candidate_update_photo_path}",
-       data: { photo: photo_url,authenticity_token: window._token },
-       success: function (data) {
-        $('.text img').attr("src",photo_url);
-       }
-     });
+    function loginCallback(response) {
+      if (response.status === "PARTIALLY_AUTHENTICATED") {
+        var code = response.code;
+        var csrf = response.state;
+        //Click on next after Authenticate
+        $(".next a").click();
+      }
+      else if (response.status === "NOT_AUTHENTICATED") {
+      }
+      else if (response.status === "BAD_PARAMS") {
+      }
     }
-    function uploadResume(event){
-      resume_url = event.fpfile.url
-      $.ajax({
-       type: 'POST',
-       dataType: 'json',
-       url: "#{upload_resume_candidates_path}",
-       data: { resume: resume_url,authenticity_token: window._token },
-       // success: function (data) {
-       // }
-     });
+
+    function smsLogin() {
+      var countryCode = document.getElementById("country_code").value;
+      var phoneNumber = document.getElementById("phone_no").value;
+      AccountKit.login(
+        'PHONE', 
+        {countryCode: countryCode, phoneNumber: phoneNumber}, // will use default values if not specified
+        loginCallback
+      );
     }
-    $.datepicker.setDefaults({
-        changeYear: true,
-        yearRange: "1900:2017",
-        showMonthAfterYear: true,
-        showButtonPanel: true,
-        showAnim: "fold",
-        selectOtherMonths: true,
-        autoSize: true,
-        dateFormat: "yy-mm-dd"
 
-      });
-    $(".edit_in_line").css("display","none");
-    $('td').on('mouseover mouseout',function(){
-    $(this).find('.editprofile-pic_in_line').toggle();
-
-    });
-
+    //Bootstrap Wizard
     $(document).ready(function() {
-  
       //Bootstrap Wizard Validations
-
         var $validator = $("#wizard-1").validate({
           
           rules: {
@@ -415,8 +395,6 @@
           });
           
         });
-
-    
     })
 
 
@@ -497,7 +475,6 @@
      });
     }
     
-
      $(document).ready(function () {
         addressLookup();
     });
@@ -515,7 +492,6 @@
         });
       }
     }
-  
 
     $('.candidate-association').on('cocoon:after-insert', function(e, insertedItem) {
       addressLookup();
@@ -524,5 +500,3 @@
         dateFormat : 'dd/mm/yy'
       });
     });
-
-    

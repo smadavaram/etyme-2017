@@ -1,11 +1,11 @@
-.row{style: "padding: 15px;"}
+.row{style: "padding: 0px 15px 15px 15px;"}
   = form_for @user,url: candidate_candidate_path(@user.id, tab: "des"),method: :put do |f|
-    %h2{style: "margin: 15px 0"}
-      %b Designate
+    / %h2{style: "margin: 15px 0"}
+    /   %b Designate
     .row
       .col-md-12
         .form-group
-          = f.text_field :designate_list,placeholder: "Add Skills Comma seperated",class: 'form-control', 'data-role'=>'tagsinput',value: current_candidate.designate_list.join(", ")
+          = f.text_field :designate_list,placeholder: "Add Skills Comma seperated", class: 'form-control start_date input-lg', 'data-role'=>'tagsinput',value: current_candidate.designate_list.join(", ")
     %hr
     = f.fields_for :designations do |b|
       .row
@@ -21,19 +21,19 @@
             = b.radio_button :status, "Employee"
             = b.label :status, 'Employee'
       .row
-        .col-md-12
+        .col-md-6
           .form-group
-            = b.text_field :comp_name, placeholder: "Company Name",class: 'form-control'
+            = b.text_field :comp_name, placeholder: "Company Name",class: 'form-control start_date input-lg'
+        .col-md-6
+          .form-group
+            = b.text_field :recruiter_name, placeholder: "Recruiter Name",class: 'form-control start_date input-lg'    
       .row
-        .col-md-4
+        .col-md-6
           .form-group
-            = b.text_field :recruiter_name, placeholder: "Recruiter Name",class: 'form-control'
-        .col-md-4
+            = b.text_field :recruiter_phone, placeholder: "Recruiter Phone",class: 'form-control start_date input-lg'
+        .col-md-6
           .form-group
-            = b.text_field :recruiter_phone, placeholder: "Recruiter Phone",class: 'form-control'
-        .col-md-4
-          .form-group
-            = b.text_field :recruiter_email, placeholder: "Recruiter Email",class: 'form-control'
+            = b.text_field :recruiter_email, placeholder: "Recruiter Email",class: 'form-control start_date input-lg'
     .row
     .col-lg-12
       %button.btn.btn-primary.pull-right{:type => "submit"}

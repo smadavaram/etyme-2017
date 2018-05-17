@@ -163,6 +163,12 @@ class Candidate::CandidatesController < Candidate::BaseController
 
   end  
 
+  def send_otp_on_mobile
+    # sendotp = SendOtp::Otp.new('AuthKey')  
+    # a = sendotp.send_otp("919924555675", "PRIIND", "4635")
+
+  end  
+
   private
 
    def set_chats

@@ -143,3 +143,5 @@ gem "select2-rails", '~> 3.5.9.1'
 gem 'therubyracer'
 
 gem 'sequence-sdk', '~> 1.5', require: 'sequence'
+
+gem 'facebook-account-kit'
