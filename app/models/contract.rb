@@ -45,7 +45,7 @@ class Contract < ApplicationRecord
   has_many   :buy_contracts, dependent: :destroy
   has_many   :contract_salary_histories, dependent: :destroy
 
-  has_many   :contract_cycles
+  has_many   :contract_cycles, dependent: :destroy
 
   # has_many :contract_buy_business_details
   # has_many :contract_sell_business_details
@@ -93,6 +93,8 @@ class Contract < ApplicationRecord
 
   # include NumberGenerator.new({prefix: 'C', length: 7})
   default_scope  -> {order(created_at: :desc)}
+
+  delegate :set_timesheet_submit, :to => :appraiser
 
   def set_number
     c = Contract.order("created_at DESC").first
@@ -274,84 +276,85 @@ class Contract < ApplicationRecord
 
   def self.set_cycle
     self.in_progress.each do |contract|
-      contract.check_for_ts_submit
-      # contract.check_for_ts_approve
+      contract.set_timesheet_submit
+      # contract.check_for_invoice_generate
     end
   end
 
-  def check_for_ts_submit
-    ts_cycle = self.contract_cycles.where(cycle_type: "TimesheetSubmit").order("created_at DESC").first
+  def check_for_invoice_generate
+    ig_cycle = self.contract_cycles.where(cycle_type: "InvoiceGenerate").order("created_at DESC").first
     buy_contract = self.buy_contracts.first
-    if ts_cycle.present?
-      next_date =  get_next_date(ts_cycle.cycle_date,
-                    buy_contract.time_sheet,
-                    buy_contract.ts_date_1,
-                    buy_contract.ts_date_2,
-                    buy_contract.ts_end_of_month,
-                    buy_contract.ts_day_of_week,
-                    ts_cycle.cycle_date )
+    sell_contract = self.sell_contracts.first
 
-      start_date = ts_cycle.cycle_date + 1.day
+    if ig_cycle.present?
+      next_date =  get_next_date(ig_cycle.cycle_date,
+                                 buy_contract.invoice_recepit,
+                                 buy_contract.ir_date_1,
+                                 buy_contract.ir_date_2,
+                                 buy_contract.ir_end_of_month,
+                                 buy_contract.ir_day_of_week,
+                                 ig_cycle.cycle_date )
+
+      start_date = ig_cycle.cycle_date + 1.day
       while next_date <= Time.now
         cycle = self.contract_cycles.create(candidate_id: buy_contract.candidate_id,
-                                    note: "Timesheet submit",
-                                    cycle_date: next_date,
-                                    start_date: start_date,
-                                    end_date: next_date,
-                                    cycle_type: "TimesheetSubmit"
+                                            company_id: sell_contract.company_id,
+                                            note: "Generate Invoice",
+                                            cycle_date: next_date,
+                                            start_date: start_date,
+                                            end_date: next_date,
+                                            cycle_type: "InvoiceGenerate"
 
         )
 
-       t = Timesheet.create(
+        t = Invoice.create(
             contract_id: self.id,
             start_date: start_date,
             end_date: next_date,
-            candidate_name: buy_contract.candidate.full_name,
-            candidate_id: buy_contract.candidate_id,
-            ts_cycle_id: cycle.id
+            ig_cycle_id: cycle.id
         )
 
         next_date =  get_next_date(next_date,
-                                   buy_contract.time_sheet,
-                                   buy_contract.ts_date_1,
-                                   buy_contract.ts_date_2,
-                                   buy_contract.ts_end_of_month,
-                                   buy_contract.ts_day_of_week,
+                                   buy_contract.invoice_recepit,
+                                   buy_contract.ir_date_1,
+                                   buy_contract.ir_date_2,
+                                   buy_contract.ir_end_of_month,
+                                   buy_contract.ir_day_of_week,
                                    next_date)
         start_date = cycle.cycle_date + 1.day
       end
     else
       next_date =  get_next_date(self.start_date-1.day,
-                                 buy_contract.time_sheet,
-                                 buy_contract.ts_date_1,
-                                 buy_contract.ts_date_2,
-                                 buy_contract.ts_end_of_month,
-                                 buy_contract.ts_day_of_week,
+                                 buy_contract.invoice_recepit,
+                                 buy_contract.ir_date_1,
+                                 buy_contract.ir_date_2,
+                                 buy_contract.ir_end_of_month,
+                                 buy_contract.ir_day_of_week,
                                  Time.now)
       start_date = self.start_date
       while next_date <= Time.now
         cycle = self.contract_cycles.create(candidate_id: buy_contract.candidate_id,
-                                    note: "Timesheet submit",
-                                    cycle_date: next_date,
-                                    start_date: start_date,
-                                    end_date: next_date,
-                                    cycle_type: "TimesheetSubmit"
+                                            company_id: sell_contract.company_id,
+                                            note: "Invoice Generate",
+                                            cycle_date: next_date,
+                                            start_date: start_date,
+                                            end_date: next_date,
+                                            cycle_type: "InvoiceGenerate"
         )
 
-        t = Timesheet.create(
+        t = Invoice.create(
             contract_id: self.id,
             start_date: start_date,
             end_date: next_date,
-            candidate_name: buy_contract.candidate.full_name,
-            candidate_id: buy_contract.candidate_id,
-            ts_cycle_id: cycle.id
+            ig_cycle_id: cycle.id
         )
+
         next_date =  get_next_date(next_date,
-                                   buy_contract.time_sheet,
-                                   buy_contract.ts_date_1,
-                                   buy_contract.ts_date_2,
-                                   buy_contract.ts_end_of_month,
-                                   buy_contract.ts_day_of_week,
+                                   buy_contract.invoice_recepit,
+                                   buy_contract.ir_date_1,
+                                   buy_contract.ir_date_2,
+                                   buy_contract.ir_end_of_month,
+                                   buy_contract.ir_day_of_week,
                                    next_date)
         start_date = cycle.cycle_date + 1.day
 
@@ -628,4 +631,9 @@ class Contract < ApplicationRecord
     # end
   end
 
+  private
+
+  def appraiser
+    Contracts::Cycle.new(self)
+  end
 end

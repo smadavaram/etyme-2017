@@ -22,9 +22,9 @@ class Candidate::JobsController < Candidate::BaseController
     @job.custom_fields.each do |cf|
       @job_application.custom_fields.new(name: cf.name,required: cf.required)
     end
-    # if current_candidate.jobs_applicationhttps://www.google.com.pk/?gws_rd=ssls.where(job: @job)
-    #
-    # end
+     # if current_candidate.jobs_application.where(job: @job)
+     #
+     # end
 
   end
   private
