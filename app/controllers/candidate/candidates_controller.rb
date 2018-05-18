@@ -160,13 +160,20 @@ class Candidate::CandidatesController < Candidate::BaseController
     @user.certificates.build unless @user.certificates.present?
     @user.clients.build unless @user.clients.present?
     @user.designations.build unless @user.designations.present?
+    @sub_cat = WORK_CATEGORIES[@user.category]
+
+    p "222222222222222222222"
+    p @sub_cat
+    p "222222222222222222222"
 
   end  
 
-  def send_otp_on_mobile
-    # sendotp = SendOtp::Otp.new('AuthKey')  
-    # a = sendotp.send_otp("919924555675", "PRIIND", "4635")
+  def update_mobile_number
+    @candidate=Candidate.find_by_id(params[:id])
 
+    if @candidate
+      @candidate.update_attributes(:phone=>params["phone_number"], :is_number_verify=> true)
+    end  
   end  
 
   private
@@ -180,7 +187,7 @@ class Candidate::CandidatesController < Candidate::BaseController
     end
 
     def candidate_params
-      params.require(:candidate).permit(:first_name, :last_name, :invited_by ,:job_id,:description, :last_nam,:dob,:email,:phone,:visa, :skill_list,:designate_list, :primary_address_id,:category,:subcategory,dept_name: [],industry_name: [],
+      params.require(:candidate).permit(:first_name, :last_name, :invited_by ,:job_id,:description, :last_nam,:dob,:email,:phone,:visa, :skill_list,:designate_list, :primary_address_id,:category,:subcategory,:dept_name,:industry_name, :selected_from_resume,
                                         addresses_attributes: [:id,:address_1,:address_2,:country,:city,:state,:zip_code, :from_date, :to_date],
                                         educations_attributes: [:id,:degree_level,:degree_title,:grade,:completion_year,:start_year,:institute,:description],
                                         certificates_attributes: [:id,:title,:start_date,:end_date,:institute],

@@ -14,7 +14,7 @@
             = f.text_field :skill_list,placeholder: "Add Skills Comma seperated",class: 'form-control p-location input-lg', 'data-role'=>'tagsinput',value: current_candidate.skill_list.join(", ")
         .col-sm-6
           .form-group
-            = text_field_tag :subcat,'',placeholder: "Subcategory",class: 'form-control p-location input-lg'
+            = f.text_field :selected_from_resume,placeholder: "Selected From Resume",class: 'form-control p-location input-lg'
 
       .row
         .col-sm-6

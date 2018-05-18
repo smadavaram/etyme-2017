@@ -22,39 +22,39 @@
               #bootstrap-wizard-1.col-sm-12
                 .form-bootstrapWizard
                   %ul.bootstrapWizard.form-wizard
-                    %li.active{"data-target" => "#step1"}
+                    %li.active{"data-target" => "#step1", :id=>"wiz_tab1"}
                       %a{"data-toggle" => "tab", :href => "#tab1"}
                         %span.step 1
                         %span.title Veryfy Number
-                    %li{"data-target" => "#step2"}
+                    %li{"data-target" => "#step2" , :id=>"wiz_tab2"}
                       %a{"data-toggle" => "tab", :href => "#tab2"}
                         %span.step 2
                         %span.title Personal information
-                    %li{"data-target" => "#step3"}
+                    %li{"data-target" => "#step3" , :id=>"wiz_tab3"}
                       %a{"data-toggle" => "tab", :href => "#tab3"}
                         %span.step 3
                         %span.title Social Media     
-                    %li{"data-target" => "#step4"}
+                    %li{"data-target" => "#step4" , :id=>"wiz_tab4"}
                       %a{"data-toggle" => "tab", :href => "#tab4"}
                         %span.step 4
                         %span.title Update Education
-                    %li{"data-target" => "#step5"}
+                    %li{"data-target" => "#step5" , :id=>"wiz_tab5"}
                       %a{"data-toggle" => "tab", :href => "#tab5"}
                         %span.step 5
                         %span.title Update Skills
-                    %li{"data-target" => "#step6"}
+                    %li{"data-target" => "#step6" , :id=>"wiz_tab6"}
                       %a{"data-toggle" => "tab", :href => "#tab6"}
                         %span.step 6
                         %span.title Client Information
-                    %li{"data-target" => "#step7"}
+                    %li{"data-target" => "#step7" , :id=>"wiz_tab7"}
                       %a{"data-toggle" => "tab", :href => "#tab7"}
                         %span.step 7
                         %span.title Designate
-                    %li{"data-target" => "#step8"}
+                    %li{"data-target" => "#step8" , :id=>"wiz_tab8"}
                       %a{"data-toggle" => "tab", :href => "#tab8"}
                         %span.step 8
                         %span.title Submit Doc
-                    %li{"data-target" => "#step9"}
+                    %li{"data-target" => "#step9" , :id=>"wiz_tab9"}
                       %a{"data-toggle" => "tab", :href => "#tab9"}
                         %span.step 9
                         %span.title Save Form
@@ -67,35 +67,19 @@
                       \- Veryfy Phone Number
                     .row
                       .col-sm-12
-                        / = form_for @user,url: candidate_send_otp_on_mobile_path(@user.id, tab: "edu"),method: :post do |f|  
-                        /   .row
-                        /     .col-sm-6
-                        /       .form-group
-                        /         .input-group
-                        / = form_for @user,url: candidate_send_otp_on_mobile_path(@user.id, tab: "edu"),method: :post do |f|  
                         .row
                           .col-sm-6
                             .form-group
                               .input-group
                                 %span.input-group-addon
                                   %i.fa.fa-mobile-phone.fa-lg.fa-fw
-                                %input#phone_no.form-control.input-lg{:name => "phone_no", :placeholder => "Enter Phone number", :type => "text"}/
+                                %input#phone_no.form-control.input-lg{:name => "phone_no", :placeholder => "Enter Phone number", :type => "text", :value=>current_candidate.phone}/
                                 %input#country_code.form-control.input-lg{:name => "country_code", :type => "hidden"}/
 
                           .col-sm-6
                             .form-group
                               .input-group
                                 %a.btn.btn-primary.btn-lg{:href => "javascript:void(0);", :onclick => "smsLogin();"} Send OTP
-                              / %button.btn.btn-primary.pull-right{:type => "submit"}
-                              /   Saved  
-          
-                    / .row
-                    /   .col-sm-6
-                    /     .form-group
-                    /       .input-group
-                    /         %span.input-group-addon
-                    /           %i.fa.fa-key.fa-lg.fa-fw
-                    /         %input#otp.form-control.input-lg{:name => "otp", :placeholder => "Enter 6 Digit verification Code sent by SMS", :type => "text"}/
                       
                   #tab2.tab-pane
                     %br/
@@ -277,7 +261,18 @@
         var code = response.code;
         var csrf = response.state;
         //Click on next after Authenticate
-        $(".next a").click();
+        var phoneNumber = document.getElementById("phone_no").value;
+
+        $.ajax({
+         url: '/candidate/update_mobile_number',
+         type: "POST",
+         contentType:"application/json",
+         data: JSON.stringify({phone_number:phoneNumber, id:"#{current_candidate.id}"}),
+         success:function(data){
+            $(".next a").click();
+         }
+        });
+
       }
       else if (response.status === "NOT_AUTHENTICATED") {
       }
@@ -378,7 +373,19 @@
             }
           }
         });
-        
+
+        var is_number_verify = "#{current_candidate.is_number_verify}"
+        console.log(is_number_verify)
+
+        if (is_number_verify === "true") {
+          $('#bootstrap-wizard-1').find('.form-wizard').children('li').eq(0).addClass(
+                'complete');
+          $('#bootstrap-wizard-1').find('.form-wizard').children('li').eq(0
+          ).find('.step')
+          .html('<i class="fa fa-check"></i>');
+          $("#wiz_tab2 a").click();
+        }
+
     
       // fuelux wizard
         var wizard = $('.wizard').wizard();
@@ -479,19 +486,19 @@
         addressLookup();
     });
 
-    function addressLookup() {
-      var address = document.getElementsByClassName('p-location');
+    //function addressLookup() {
+      //var address = document.getElementsByClassName('p-location');
 
-      for(var i=0; i< address.length; i++){
-        new google.maps.places.Autocomplete(address[i]);
+      //for(var i=0; i< address.length; i++){
+        //new google.maps.places.Autocomplete(address[i]);
 
-        google.maps.event.addDomListener(address[i], 'keydown', function(event) {
-          if (event.keyCode === 13) {
-            event.preventDefault();
-          }
-        });
-      }
-    }
+        //google.maps.event.addDomListener(address[i], 'keydown', function(event) {
+          //if (event.keyCode === 13) {
+            //event.preventDefault();
+          //}
+        //});
+      //}
+    //}
 
     $('.candidate-association').on('cocoon:after-insert', function(e, insertedItem) {
       addressLookup();

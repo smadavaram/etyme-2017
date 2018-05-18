@@ -21,3 +21,10 @@
     .col-md-12
       %a.bttn.btn-add.remove-multi-fields.pull-right.delete_icon
         %i.fa.fa-trash
+
+:javascript
+  $('.start_date, .end_date').datepicker({
+   autoclose: true,
+   todayHighlight: true,
+   format: "mm-dd-yy"
+  });         

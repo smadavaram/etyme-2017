@@ -37,13 +37,19 @@
         %p Refrence Phone
         = f.text_field :refrence_phone, class: 'form-control p-location input-lg'
   .row
-    .col-md-6
-    .col-sm-3
+    .col-sm-6
       .form-group
-        = f.text_field :refrence_email,placeholder: "MM-DD-YY",class: 'form-control p-location input-lg'
+        = f.text_field :refrence_email,placeholder: "Email",class: 'form-control p-location input-lg'
+    .col-md-6
 
 
   .row
     .col-md-12
       %a.bttn.btn-add.remove-multi-fields.pull-right.delete_icon
         %i.fa.fa-trash
+:javascript
+  $('.education_start_year, .education_completion_year').datepicker({
+   autoclose: true,
+   todayHighlight: true,
+   format: "mm-dd-yy"
+  });        

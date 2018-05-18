@@ -996,3 +996,12 @@ font-size: 25px;
 /*margin-top: 10px;*/
 color: red;}
 .education_links{margin-top: -15px;}
+
+
+.ui-datepicker-prev{width: 35px;cursor: pointer;}
+.ui-datepicker-prev span{
+    width: 30px;
+    margin-left: -15px;}
+.ui-datepicker-next{width: 35px;cursor: pointer;}
+.ui-datepicker-next span{width: 30px;
+    margin-left: -20px !important; }
