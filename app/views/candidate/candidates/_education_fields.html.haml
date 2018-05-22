@@ -1,28 +1,32 @@
 .row.multi-field-container{style: "padding: 0px 15px 15px 15px;"}
   .row
-    .col-sm-6
+    .col-sm-3
       .form-group
-        = f.text_field :degree_level, placeholder: "Degree level", class: 'form-control p-location input-lg'
+        %p Degree level
+        = f.text_field :degree_level, placeholder: "Degree level", class: 'form-control p-location input'
   
-    .col-sm-6
+    .col-sm-3
       .form-group
-        = f.select :institute, industry_list,{},{class: 'form-control p-location input-lg',style: "width:100% !important"}
-  .row
-    .col-sm-6
+        %p Institute
+        = f.select :institute, industry_list,{},{class: 'form-control p-location input',style: "width:100% !important"}
+    .col-sm-3
       .form-group
-        = f.text_field :degree_title, placeholder: "Degree Title",class: 'form-control p-location input-lg'
-    .col-sm-6
-      .row
-        .col-md-4
-          .form-group
-            = f.text_field :degree_title, placeholder: "CGPA", class: 'form-control p-location input-lg'
-        .col-md-4
-          .form-group
-            = f.text_field :start_year, placeholder: "MM-DD-YY", class: 'form-control education_start_year p-location input-lg'
-  
-        .col-md-4
-          .form-group
-            = f.text_field :completion_year, placeholder:"MM-DD-YY", class: 'form-control education_completion_year p-location input-lg'
+        %p Degree Title
+        = f.text_field :degree_title, placeholder: "Degree Title",class: 'form-control p-location input'
+    .col-sm-3
+      .form-group
+        %p CGPA
+        = f.text_field :degree_title, placeholder: "CGPA", class: 'form-control p-location input'
+  .row 
+    .col-md-3
+      .form-group
+        %p Start Year
+        = f.text_field :start_year, placeholder: "MM-DD-YY", class: 'form-control education_start_year p-location input'
+
+    .col-md-3
+      .form-group
+        %p End Year
+        = f.text_field :completion_year, placeholder:"MM-DD-YY", class: 'form-control education_completion_year p-location input'
   .row
     .col-md-12
       %a.bttn.btn-add.remove-multi-fields.pull-right.delete_icon
@@ -30,8 +34,8 @@
 
 
 :javascript
-  $('.education_start_year, .education_completion_year').datepicker({
-   autoclose: true,
-   todayHighlight: true,
-   format: "mm-dd-yy"
-  });        
+  //$('.education_start_year, .education_completion_year').datepicker({
+   //autoclose: true,
+   //todayHighlight: true,
+   //format: "mm-dd-yy"
+  //});        

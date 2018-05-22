@@ -4,27 +4,31 @@
       .row
         .col-sm-6
           .form-group
-            =f.select :category, WORK_CATEGORIES.keys,{include_blank: "Select Category"},{class: "form-control p-location input-lg", required: true }
+            %p Category
+            =f.select :category, WORK_CATEGORIES.keys,{include_blank: "Select Category"},{class: "form-control p-location input", required: true }
         .col-sm-6
-          .form-group
-            =f.select :subcategory, '', {include_blank: "Select Category"},{class: "form-control p-location input-lg", required: true }
+          .form-
+            %p Sub Category
+            =f.select :subcategory, '', {include_blank: "Select Category"},{class: "form-control p-location input", required: true }
       .row
         .col-sm-6
           .form-group
-            = f.text_field :skill_list,placeholder: "Add Skills Comma seperated",class: 'form-control p-location input-lg', 'data-role'=>'tagsinput',value: current_candidate.skill_list.join(", ")
+            %p Skills
+            = f.text_field :skill_list,placeholder: "Add Skills Comma seperated",class: 'form-control p-location input', 'data-role'=>'tagsinput',value: current_candidate.skill_list.join(", ")
         .col-sm-6
           .form-group
-            = f.text_field :selected_from_resume,placeholder: "Selected From Resume",class: 'form-control p-location input-lg'
+            %p Selected From Resume
+            = f.text_field :selected_from_resume,placeholder: "Selected From Resume",class: 'form-control p-location input'
 
       .row
         .col-sm-6
           .form-group
             %p Department
-            = f.select :dept_name, department_list, {include_blank: "Select Department"},{class: "form-control p-location input-lg", required: true}
+            = f.select :dept_name, department_list, {include_blank: "Select Department"},{class: "form-control p-location input", required: true}
         .col-sm-6
           .form-group
             %p Industry
-            = f.select :industry_name, industry_list, {include_blank: "Select Industry"},{class: "form-control p-location input-lg", required: true}
+            = f.select :industry_name, industry_list, {include_blank: "Select Industry"},{class: "form-control p-location input", required: true}
       .row
         .col-lg-12
           %button.btn.btn-primary.pull-right{:type => "submit"}
@@ -46,7 +50,14 @@
           success: function(data){
             $('#candidate_subcategory').empty();
             $.each(data, function(i, value) {
-              $('#candidate_subcategory').append($('<option>').text(value).attr('value', value));
+              
+              if(value == "#{@user.subcategory}")
+              {
+                $('#candidate_subcategory').append($('<option selected="selected">').text(value).attr('value', value));
+              }else{
+                $('#candidate_subcategory').append($('<option>').text(value).attr('value', value));
+
+              }
           });
 
           }

@@ -1,0 +1,29 @@
+.row.multi-field-container{style: "padding: 0px 15px 15px 15px;"}
+  .row
+    .col-sm-3
+      .form-group
+        %p Title
+        = f.text_field :title, placeholder: "Title",class: 'form-control p-location input'
+
+    .col-sm-3
+      .form-group
+        %p Expiry Date
+        = f.text_field :exp_date,placeholder: "MM/DD/YY",class: 'form-control education_start_year p-location input'
+
+        / = filepicker_field_tag "" ,class: "resume_file", onchange:"uploadResume(event)"
+    .col-sm-3
+      .form-group
+        %p Select Document
+        = f.file_field :file, label: 'Photo'
+
+
+  / .row
+  /   .col-md-12
+  /     %a.bttn.btn-add.remove-multi-fields.pull-right.delete_icon
+  /       %i.fa.fa-trash
+:javascript
+  //$('.education_start_year, .education_completion_year').datepicker({
+  // autoclose: true,
+  // todayHighlight: true,
+  // format: "mm-dd-yy"
+  //});        

@@ -60,6 +60,10 @@ class Candidate < ApplicationRecord
   has_many   :timesheets, dependent: :destroy
   has_many :contract_salary_histories, dependent: :destroy
   has_many :contract_cycles, dependent: :destroy
+  has_many   :documents, dependent: :destroy
+  has_many   :criminal_check, dependent: :destroy
+
+
 
   belongs_to :invited_by_user, class_name: "User", foreign_key: :invited_by_id, optional: true
 
@@ -77,6 +81,10 @@ class Candidate < ApplicationRecord
   accepts_nested_attributes_for :certificates  , allow_destroy: true , reject_if: :all_blank
   accepts_nested_attributes_for :clients  , allow_destroy: true , reject_if: :all_blank
   accepts_nested_attributes_for :designations  , allow_destroy: true , reject_if: :all_blank
+  accepts_nested_attributes_for :documents  , allow_destroy: true , reject_if: :all_blank
+  accepts_nested_attributes_for :criminal_check  , allow_destroy: true , reject_if: :all_blank
+
+
 
   scope :search_by ,->(term) { Candidate.where('lower(first_name) like :term or lower(last_name) like :term ' ,{term: "%#{term.downcase}%" })}
 

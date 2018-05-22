@@ -1,0 +1,39 @@
+.row.multi-field-container{style: "padding: 0px 15px 15px 15px;"}
+  
+  .row
+    .col-md-3
+      .form-group
+        %p Recruiter Email
+        = f.text_field :recruiter_email, placeholder: "Recruiter Email",class: 'form-control  input'
+       
+    .col-md-3
+      .form-group
+        %p Recruiter Name
+        = f.text_field :recruiter_name, placeholder: "Recruiter Name",class: 'form-control  input'    
+    
+    .col-md-3
+      .form-group
+        %p Recruiter Phone
+        = f.text_field :recruiter_phone, placeholder: "Recruiter Phone",class: 'form-control  input'
+    .col-md-3
+      .form-group
+        %p Company Name
+        = f.text_field :comp_name, placeholder: "Company Name",class: 'form-control  input'  
+
+  .row
+    .col-md-3
+      .form-group
+        %p Company Role
+        = f.text_field :company_role, placeholder: "Company Role",class: 'form-control  input'      
+
+
+  .row
+    .col-md-12
+      %a.bttn.btn-add.remove-multi-fields.pull-right.delete_icon
+        %i.fa.fa-trash
+:javascript
+  //$('.education_start_year, .education_completion_year').datepicker({
+  // autoclose: true,
+  // todayHighlight: true,
+  // format: "mm-dd-yy"
+  //});        

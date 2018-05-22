@@ -1,0 +1,2 @@
+class CriminalCheck < ApplicationRecord
+end

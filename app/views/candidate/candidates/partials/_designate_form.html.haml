@@ -5,35 +5,72 @@
     .row
       .col-md-12
         .form-group
-          = f.text_field :designate_list,placeholder: "Add Skills Comma seperated", class: 'form-control start_date input-lg', 'data-role'=>'tagsinput',value: current_candidate.designate_list.join(", ")
+          %p Skills
+          = f.text_field :designate_list,placeholder: "Add Skills Comma seperated", class: 'form-control start_date input', 'data-role'=>'tagsinput',value: current_candidate.designate_list.join(", ")
     %hr
-    = f.fields_for :designations do |b|
-      .row
-        .col-md-5
-          %h4
-            %b What is your current status ?
-        .col-md-3
-          .form-group
-            = b.radio_button :status, "Self Employee", checked: true
-            = b.label :status, 'Self Employed'
-        .col-md-3
-          .form-group
-            = b.radio_button :status, "Employee"
-            = b.label :status, 'Employee'
-      .row
-        .col-md-6
-          .form-group
-            = b.text_field :comp_name, placeholder: "Company Name",class: 'form-control start_date input-lg'
-        .col-md-6
-          .form-group
-            = b.text_field :recruiter_name, placeholder: "Recruiter Name",class: 'form-control start_date input-lg'    
-      .row
-        .col-md-6
-          .form-group
-            = b.text_field :recruiter_phone, placeholder: "Recruiter Phone",class: 'form-control start_date input-lg'
-        .col-md-6
-          .form-group
-            = b.text_field :recruiter_email, placeholder: "Recruiter Email",class: 'form-control start_date input-lg'
+    .row
+      .col-md-4
+        %h5
+          %b What is your current status ?
+      .col-md-2
+        .form-group
+          %label.radio-container
+            Self Employed
+            = f.radio_button :designation_status, "Self Employee", checked:true
+            %span.radio-checkmark
+      .col-md-2
+        .form-group
+          %label.radio-container
+            Employee
+            = f.radio_button :designation_status, "Employee"
+            %span.radio-checkmark
+    = f.fields_for :designations, f.object.designations do |b|
+      = render 'candidate/candidates/designations_fields', f: b
+      .links.education_links  
+        = link_to_add_association '+ Add Designations', f, :designations, class: 'btn btn-success', partial: 'candidate/candidates/designations_fields'   
+
+    / = f.fields_for :designations do |b|
+    /   .row
+    /     .col-md-4
+    /       %h5
+    /         %b What is your current status ?
+    /     .col-md-2
+    /       .form-group
+    /         %label.container
+    /           Self Employed
+    /           = b.radio_button :status, "Self Employee", checked:true
+    /           %span.checkmark
+    /     .col-md-2
+    /       .form-group
+    /         %label.container
+    /           Employee
+    /           = b.radio_button :status, "Employee"
+    /           %span.checkmark
+    /   .row
+    /     .col-md-3
+    /       .form-group
+    /         %p Recruiter Email
+    /         = b.text_field :recruiter_email, placeholder: "Recruiter Email",class: 'form-control  input'
+           
+    /     .col-md-3
+    /       .form-group
+    /         %p Recruiter Name
+    /         = b.text_field :recruiter_name, placeholder: "Recruiter Name",class: 'form-control  input'    
+        
+    /     .col-md-3
+    /       .form-group
+    /         %p Recruiter Phone
+    /         = b.text_field :recruiter_phone, placeholder: "Recruiter Phone",class: 'form-control  input'
+    /     .col-md-3
+    /       .form-group
+    /         %p Company Name
+    /         = b.text_field :comp_name, placeholder: "Company Name",class: 'form-control  input'  
+
+    /   .row
+    /     .col-md-3
+    /       .form-group
+    /         %p Company Role
+    /         = b.text_field :company_role, placeholder: "Company Role",class: 'form-control  input'      
     .row
     .col-lg-12
       %button.btn.btn-primary.pull-right{:type => "submit"}

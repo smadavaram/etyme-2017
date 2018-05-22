@@ -1,0 +1,43 @@
+.row{style: "padding: 0px 15px 15px 15px;"}
+  .form-group
+    .multi-field-wrapper
+      .multi-fields
+        = form_for @user,url: candidate_candidate_path(@user.id, tab: "client"),method: :put do |f|
+          / - if @user.ever_worked_with_company == 'Yes'
+          .row
+            .col-md-12 
+              = f.fields_for :documents, f.object.documents do |b|
+                = render 'candidate/candidates/document_fields', f: b
+              %strong
+                .links
+                  = link_to_add_association '+ Add Document', f, :documents, class: 'btn btn-success', partial: 'candidate/candidates/document_fields' 
+          %br
+          %hr        
+          .row
+            .col-md-12 
+              = f.fields_for :criminal_check, f.object.criminal_check do |b|
+                = render 'candidate/candidates/criminal_check_fields', f: b
+              %strong
+                .links
+                  = link_to_add_association '+ Add Criminal Check Docs', f, :criminal_check, class: 'btn btn-success', partial: 'candidate/candidates/criminal_check_fields'           
+              .row
+              .col-lg-12
+                %button.btn.btn-primary.pull-right{:type => "submit"}
+                  Saved
+
+-content_for :scripts do
+  :javascript
+
+    if("#{@user.ever_worked_with_company}" == "Yes")
+    {
+      $(".client_information_main_div").show();
+    }else{
+      $(".client_information_main_div").hide();
+    }
+  
+    $("#candidate_ever_worked_with_company_yes").on("click", function(){
+      $(".client_information_main_div").show();
+    }) 
+    $("#candidate_ever_worked_with_company_no").on("click", function(){
+      $(".client_information_main_div").hide();
+    })                  
