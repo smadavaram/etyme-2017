@@ -22,7 +22,7 @@ class Company::CompaniesController < Company::BaseController
         }
       end
     else
-      @search = current_company.invited_companies.joins(:invited_company).includes(:invited_company).where("companies.email IS NULL").search(params[:q])
+      @search = current_company.invited_companies.joins(:invited_company).includes(:invited_company).search(params[:q])
       # @search = current_company.invited_companies.includes(:invited_company).search(params[:q])
       @invited_companies = @search.result.order("companies.created_at DESC")#.paginate(page: params[:page], per_page: 10)
     end
