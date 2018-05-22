@@ -62,7 +62,7 @@
                         %td= timesheet.status.titleize
                         %td
                           =# link_to raw("<i class='fa fa-eye '></i>")  ,timesheet_timesheet_log_path(timesheet, timesheet.timesheet_logs.last) ,  target: '_blank' ,class: 'btn btn-xs btn-default ',title:'View Details','rel'=>"tooltip" ,'data-placement'=>"top"
-                          = link_to raw("<i class='fa  fa-fax '></i>") ,timesheet_check_invoice_path(timesheet) , class: 'btn btn-xs btn-default ',title:'Generate Invoice','rel'=>"tooltip" ,'data-placement'=>"top", remote: true
+                          = link_to raw("<i class='fa  fa-fax '></i>"), timesheet_check_invoice_path(timesheet) , class: 'btn btn-xs btn-default ',title:'Generate Invoice','rel'=>"tooltip" ,'data-placement'=>"top", remote: true
                           =# link_to raw("<i class='fa  fa-fax '></i>") ,timesheet_generate_invoice_path(timesheet) , class: 'btn btn-xs btn-default ',title:'Generate Invoice','rel'=>"tooltip" ,'data-placement'=>"top"
 
                           =# link_to raw("<i class='fa fa-history '></i>") ,'#' , "data-target" => "#timesheet-#{timesheet.id}", "data-toggle" => "modal"  ,class: 'btn btn-xs btn-default ',title:'View History','rel'=>"tooltip" ,'data-placement'=>"top"

@@ -13,7 +13,7 @@
     %tbody
   - @timesheets.each do |ts|
     - s_date = start_date
-    = form_for [:candidate, ts], html:{ class:'form-horizontal', remote: true} do |f|
+    = form_for [:candidate, ts], html:{ class:'form-horizontal', remote: true, id: "tms_#{ts.id}"} do |f|
       .table-responsive
         %table.table.table-bordred
           %thead

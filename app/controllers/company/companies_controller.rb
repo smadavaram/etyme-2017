@@ -25,9 +25,9 @@ class Company::CompaniesController < Company::BaseController
       @search = current_company.invited_companies.joins(:invited_company).includes(:invited_company).where("companies.email IS NULL").search(params[:q])
       # @search = current_company.invited_companies.includes(:invited_company).search(params[:q])
       @invited_companies = @search.result.order("companies.created_at DESC")#.paginate(page: params[:page], per_page: 10)
-      @new_company = Company.new
-      @new_company.build_invited_by
     end
+    @new_company = Company.new
+    @new_company.build_invited_by
     # - next if d.invited_company.try(:company_contacts).try(:first).try(:full_name).present?
 
   end

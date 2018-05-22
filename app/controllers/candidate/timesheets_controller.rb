@@ -76,31 +76,13 @@ class Candidate::TimesheetsController < Candidate::BaseController
   end
 
   def update
-    timesheet = current_candidate.timesheets.open_timesheets.find(params[:id])
-    if timesheet.present?
+    @timesheet = current_candidate.timesheets.open_timesheets.find(params[:id])
+    if @timesheet.present?
       if params[:timesheet][:days].present?
-        timesheet.assign_attributes(timesheet_params)
-        timesheet.days = params[:timesheet][:days]
-        timesheet.total_time = params[:timesheet][:days].values.map(&:to_i).sum
-        timesheet.status = 'submitted'
-        timesheet.save
+        @timesheet.submitted(timesheet_params, params[:timesheet][:days], params[:timesheet][:days].values.map(&:to_i).sum)
         flash[:success] = "Successfully Submitted"
-
-        con_cycle = ContractCycle.find(timesheet.ts_cycle_id)
-        con_cycle.update_attributes(completed_at: Time.now, status: "completed")
-
-        con_cycle_ta = ContractCycle.create(contract_id: con_cycle.contract_id,
-                                            start_date: con_cycle.start_date,
-                                            end_date: con_cycle.end_date,
-                                            cyclable: timesheet,
-                                            company_id: timesheet.contract.sell_contracts.first.company_id,
-                                            note: "Timesheet Approve",
-                                            cycle_date: Time.now,
-                                            cycle_type: "TimesheetApprove"
-        )
-        timesheet.update_attributes(ta_cycle_id: con_cycle_ta.id)
       else
-        flash[:errors] = ["You are able to submit timeshhet for #{timesheet.contract.title} on #{timesheet.start_date.strftime('%d/%m/%Y')}"]
+        flash[:errors] = ["You are able to submit timeshhet for #{@timesheet.contract.title} on #{@timesheet.start_date.strftime('%d/%m/%Y')}"]
       end
     else
       flash[:errors] = ["Timesheet Invalid"]

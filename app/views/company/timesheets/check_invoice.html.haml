@@ -1,0 +1,71 @@
+#content
+  %body
+    %section#widget-grid
+      .row
+        %article.col-xs-12.col-sm-12.col-md-12.col-lg-12.sortable-grid.ui-sortable
+          #wid-id-1.jarviswidget.jarviswidget-color-blueDark.jarviswidget-sortable{"data-widget-editbutton" => "false", :role => "widget"}
+            %header{:role => "heading"}
+              %span.widget-icon
+                %i.fa.fa-table
+              %h2 Generate Invoices
+            / widget div
+            %div{:role => "content"}
+              .jarviswidget-editbox
+              .widget-body.no-padding
+                #datatable_fixed_column_wrapper.dataTables_wrapper.form-inline.dt-bootstrap.no-footer
+                  .dt-toolbar
+                    .col-xs-12.col-sm-6.hidden-xs
+                      = form_for ["company", @invoice], url: timesheet_check_invoice_path(@invoice), method: :put do |f|
+                        = f.text_field :start_date, id:"in_start_date", disabled: true
+                        To
+                        = f.text_field :end_date, id:"in_end_date", disabled: true
+                        = f.submit "Confirm", class: "btn btn-xs btn-success"
+                    .col-sm-6.col-xs-12.hidden-xs
+                      .toolbar
+                        .text-right
+                  -#= button_tag 'NEW' ,class: 'btn btn-success btn-md pull-right header-btn margin-top-5' , "data-toggle": "modal" , "data-target":"#new-job"
+                  %table#datatable_fixed_column.table.table-striped.table-bordered.dataTable.no-footer{"aria-describedby" => "datatable_fixed_column_info", :role => "grid", :style => "width: 100%;", :width => "100%"}
+                    %thead
+                      %tr{:role => "row"}
+                        %th id
+                        %th Contract
+                        %th Start Date
+                        %th End Date
+                        %th Status
+                    %tbody
+                      -  @timesheets.each_with_index do |tms , index|
+                        %tr
+                          %td= index+1
+                          %td= tms.contract.title.humanize
+                          %td= tms.start_date
+                          %td= tms.end_date
+                          %td= tms.status.humanize
+
+
+
+-#- content_for :scripts do
+-#  :javascript
+-#    $(document).ready(function() {
+-#      pageSetUp();
+-#      $('#in_start_date').datepicker({
+-#        dateFormat : 'yy-mm-dd',
+-#        prevText : '<i class="fa fa-chevron-left"></i>',
+-#        nextText : '<i class="fa fa-chevron-right"></i>',
+-#        onSelect : function(selectedDate) {
+-#          var date = $(this).datepicker('getDate');
+-#          maxDate = new Date(date);
+-#          maxDate.setDate(maxDate.getDate() + 6);
+-#          $('#in_end_date').datepicker('option', 'minDate', selectedDate );
+-#          $('#in_end_date').datepicker('option', 'maxDate', maxDate);
+-#        }
+-#      });
+-#
+-#      $('#in_end_date').datepicker({
+-#        dateFormat : 'yy-mm-dd',
+-#        prevText : '<i class="fa fa-chevron-left"></i>',
+-#        nextText : '<i class="fa fa-chevron-right"></i>',
+-#        onSelect : function(selectedDate) {
+-#          $('#in_end_date').datepicker('option', 'minDate', selectedDate);
+-#        }
+-#      });
+-#    });

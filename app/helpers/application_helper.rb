@@ -343,87 +343,112 @@ module ApplicationHelper
             title: 'Accounting ',
             content: "<i class='fa fa-lg fa-fw fa-money'></i> <span class='menu-item-parent'>" + 'Accounting' + "</span>",
             children: [
-                if has_permission?('show_invoices') || has_permission?('manage_contracts')
-                {
-                    href: invoices_path(sent_invoice:true),
-                    title: 'Open Invoices',
-                    content: "<span class='menu-item-parent'>Open Invoices </span>"
-                }end,
-                if has_permission?('show_invoices') || has_permission?('manage_contracts')
-                {
-                    href: invoices_path(received_invoice: true),
-                    title: 'Cleared Invoices',
-                    content: "<span class='menu-item-parent'> Cleared Invoices </span>"
-                }end,
-                {
-                    href: recieved_payment_company_accountings_path,
-                    title: 'Open Bills',
-                    content: "<span class='menu-item-parent'> recieved_payment </span>"
-                },
-                {
-                    href: bill_to_pay_company_accountings_path,
-                    title: 'Bill Payment(s)',
-                    content: "<span class='menu-item-parent'> Bill To Pay </span>"
-                },
-                {
-                    href: bill_received_company_accountings_path,
-                    title: 'Bill Payment(s)',
-                    content: "<span class='menu-item-parent'> Bill Received </span>"
-                },
-                {
-                    href: bill_pay_company_accountings_path,
-                    title: 'Bill Payment(s)',
-                    content: "<span class='menu-item-parent'> Bill Pay </span>"
-                },
-
-                {
-                    href: salary_to_pay_company_accountings_path,
-                    title: 'Salary Payment(s)',
-                    content: "<span class='menu-item-parent'> Salary To Pay</span>"
-                },
-                {
-                    href: salary_advance_company_accountings_path,
-                    title: 'Salary Payment(s)',
-                    content: "<span class='menu-item-parent'> Salary Adavance</span>"
-                },
-                {
-                    href: salary_calculation_company_accountings_path,
-                    title: 'Salary Payment(s)',
-                    content: "<span class='menu-item-parent'> Salary Calculation </span>"
-                },
-
-
                 {
                     href: "#",
-                    title: 'Open Bills',
-                    content: "<span class='menu-item-parent'> Open Bills </span>"
+                    title: 'Sales',
+                    content: "<i class='fa fa-lg fa-fw fa-calendar'></i> <span class='menu-item-parent'>" + 'Sales' + "</span>",
+                    children: [
+                        if has_permission?('show_invoices') || has_permission?('manage_contracts')
+                            {
+                                href: invoices_path,
+                                title: 'Open Invoices',
+                                content: "<span class='menu-item-parent'>Open Invoices </span>"
+                            }end,
+                        if has_permission?('show_invoices') || has_permission?('manage_contracts')
+                            {
+                                href: cleared_invoice_invoices_path,
+                                title: 'Cleared Invoices',
+                                content: "<span class='menu-item-parent'> Cleared Invoices </span>"
+                        }end,
+                        {
+                            href: recieved_payment_company_accountings_path,
+                            title: 'Payment',
+                            content: "<span class='menu-item-parent'> payment </span>"
+                        }
+                    ]
                 },
                 {
                     href: "#",
-                    title: 'Bill Payment(s)',
-                    content: "<span class='menu-item-parent'> Bill Payment(s) </span>"
+                    title: 'Purchasing',
+                    content: "<i class='fa fa-lg fa-fw fa-calendar'></i> <span class='menu-item-parent'>" + 'Purchasing' + "</span>",
+                    children: [
+                        {
+                            href: bill_to_pay_company_accountings_path,
+                            title: 'Bill Payment(s)',
+                            content: "<span class='menu-item-parent'> Bill To Pay </span>"
+                        },
+                        {
+                            href: bill_received_company_accountings_path,
+                            title: 'Bill Payment(s)',
+                            content: "<span class='menu-item-parent'> Bill Received </span>"
+                        },
+                        {
+                            href: bill_pay_company_accountings_path,
+                            title: 'Bill Payment(s)',
+                            content: "<span class='menu-item-parent'> Bill Pay </span>"
+                        }
+                    ]
                 },
                 {
                     href: "#",
-                    title: 'Expense Payment(s)',
-                    content: "<span class='menu-item-parent'> Expense Payment(s)</span>"
+                    title: 'salary',
+                    content: "<i class='fa fa-lg fa-fw fa-calendar'></i> <span class='menu-item-parent'>" + 'salary' + "</span>",
+                    children: [
+                        {
+                            href: salary_to_pay_company_accountings_path,
+                            title: 'Salary Payment(s)',
+                            content: "<span class='menu-item-parent'> Salary To Pay</span>"
+                        },
+                        {
+                            href: salary_advance_company_accountings_path,
+                            title: 'Salary Payment(s)',
+                            content: "<span class='menu-item-parent'> Salary Adavance</span>"
+                        },
+                        {
+                            href: salary_calculation_company_accountings_path,
+                            title: 'Salary Payment(s)',
+                            content: "<span class='menu-item-parent'> Salary Calculation </span>"
+                        },
+                        {
+                            href: "#",
+                            title: 'Salary Calculation(s)',
+                            content: "<span class='menu-item-parent'> Salary Calculation(s) </span>"
+                        },
+                        {
+                            href: "#",
+                            title: 'Salary Payment(s)',
+                            content: "<span class='menu-item-parent'> Salary Payment(s)</span>"
+                        }
+                    ]
                 },
                 {
                     href: "#",
-                    title: 'Salary Calculation(s)',
-                    content: "<span class='menu-item-parent'> Salary Calculation(s) </span>"
+                    title: 'expenses',
+                    content: "<i class='fa fa-lg fa-fw fa-calendar'></i> <span class='menu-item-parent'>" + 'expenses' + "</span>",
+                    children: [
+                        {
+                            href: "#",
+                            title: 'Open Bills',
+                            content: "<span class='menu-item-parent'> Open Bills </span>"
+                        },
+                        {
+                            href: "#",
+                            title: 'Bill Payment(s)',
+                            content: "<span class='menu-item-parent'> Bill Payment(s) </span>"
+                        },
+                        {
+                            href: "#",
+                            title: 'Expense Payment(s)',
+                            content: "<span class='menu-item-parent'> Expense Payment(s)</span>"
+                        }
+                    ]
                 },
                 {
                     href: "#",
-                    title: 'Salary Payment(s)',
-                    content: "<span class='menu-item-parent'> Salary Payment(s)</span>"
+                    title: 'Reporting',
+                    content: "<i class='fa fa-lg fa-fw fa-calendar'></i> <span class='menu-item-parent'>" + 'Reporting' + "</span>",
                 }
             ]
-        },
-        {
-            href: "#",
-            title: 'Profitability',
-            content: "<i class='fa fa-lg fa-fw fa-calendar'></i> <span class='menu-item-parent'>" + 'Profitability' + "</span>",
         }
     ]
   end
@@ -694,8 +719,13 @@ module ApplicationHelper
           },
           {
               href: "#",
-              title: 'Profitability',
-              content: "<i class='fa fa-lg fa-fw fa-calendar'></i> <span class='menu-item-parent'>" + 'Profitability' + "</span>",
+              title: 'Reporting',
+              content: "<i class='fa fa-lg fa-fw fa-calendar'></i> <span class='menu-item-parent'>" + 'Sale' + "</span>",
+          },
+          {
+              href: "#",
+              title: 'Reporting',
+              content: "<i class='fa fa-lg fa-fw fa-calendar'></i> <span class='menu-item-parent'>" + 'Reporting' + "</span>",
           }
       ]
   end

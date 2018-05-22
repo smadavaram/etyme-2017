@@ -271,7 +271,11 @@ Rails.application.routes.draw do
     resources :directories      ,only: [:index]
     resources :comments         , only: [:create]
     resources :attachments      ,concerns: :paginatable , only: [:index]
-    resources :invoices         ,concerns: :paginatable , only: [:index]
+    resources :invoices         ,concerns: :paginatable , only: [:index, :edit, :update] do
+      collection do
+        get :cleared_invoice
+      end
+    end
     resources :reminders        ,only: :create do
       collection do
         post :create_bulk_candidates
@@ -328,6 +332,7 @@ Rails.application.routes.draw do
           post :accept_invoice
           post :reject_invoice
           get :submit_invoice
+          get :paid_invoice
         end
       end
     end
