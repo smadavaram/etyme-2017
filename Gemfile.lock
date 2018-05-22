@@ -109,6 +109,7 @@ GEM
     erubi (1.7.0)
     erubis (2.7.0)
     execjs (2.7.0)
+    facebook-account-kit (1.0.0)
     faraday (0.12.2)
       multipart-post (>= 1.2, < 3)
     ffi (1.9.18)
@@ -406,6 +407,7 @@ DEPENDENCIES
   delayed_job_active_record
   devise
   devise_invitable
+  facebook-account-kit
   figaro
   filepicker-rails
   font-awesome-rails
