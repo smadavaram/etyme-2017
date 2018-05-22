@@ -142,11 +142,53 @@ class Company::InvoicesController < Company::BaseController
   end
 
   def update
-
+    inv = Invoice.find(params[:id])
+    next_inv = inv.contract.invoices.where(start_date: inv.end_date + 1.days).first
+    new_date = Date.strptime(params[:invoice][:end_date], '%m/%d/%Y') rescue nil
+    if !new_date.nil? && inv.start_date <= new_date
+      if next_inv.present?
+        if next_inv.end_date >= new_date
+          inv.update!(end_date: new_date)
+          set_invoice_timesheets(inv)
+          next_inv.update!(start_date: inv.end_date + 1.days)
+          set_invoice_timesheets(next_inv)
+          flash[:errors] = "End Date Updated"
+        else
+          flash[:errors] = "Invalid Invoice End Date."
+        end
+      else
+        inv.update!(end_date: params[:invoice][:end_date])
+        set_invoice_timesheets(inv)
+        flash[:errors] = "End Date Updated"
+      end
+    else
+      flash[:errors] = "Invalid Invoice End Date."
+    end
+    render json: :ok
   end
 
-
   private
+
+  def set_invoice_timesheets(inv)
+    timesheets = inv.contract.timesheets.approved_timesheets.where("start_date <= ? AND end_date <= ?", inv.start_date, inv.end_date)
+
+    total_amount = 0
+    total_approve_time = 0
+    payrate = inv.contract.buy_contracts.first.payrate
+
+    timesheets.each do |t|
+      t.days.each_key do |k|
+        if (inv.start_date <= k.to_date && inv.end_date >= k.to_date )
+          total_amount += t.days[k].to_i * payrate
+          total_approve_time += t.days[k].to_i
+        end
+      end
+    end
+    inv.total_amount = total_amount,
+    inv.total_approve_time =  total_approve_time,
+    inv.rate =  payrate
+    inv.save
+  end
 
   def find_contract
     # @contract = current_company.sent_contracts.find(params[:contract_id])

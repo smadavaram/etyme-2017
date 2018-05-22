@@ -597,13 +597,13 @@
                           %td= index+1
                           %td= invoice.contract.title.humanize
                           %td= invoice.start_date
-                          %td= best_in_place invoice,:end_date, :as => :date, :place_holder => "Click me to add content!"
+                          %td= invoice.pending_submission? ? (best_in_place invoice,:end_date, :as => :date, :place_holder => "Click me to add content!") : invoice.end_date
                           %td= invoice.total_approve_time
                           %td= invoice.rate
                           %td= invoice.status.humanize
                           %td
-                            = link_to raw("<i class='fa fa-eye'></i>") , timesheet_check_invoice_path(invoice), remote: true, class: 'btn btn-md btn-default btn-primary',title: "Details"
-                            = link_to raw("<i class='fa fa-fax'></i>") , accept_invoice_contract_invoice_path(invoice.contract, invoice), class: 'btn btn-md btn-default btn-primary',title: "Submit Invoice", method: "POST", data: {confirm:  'Are you sure?'} if invoice.pending_submission?
+                            = link_to raw("<i class='fa fa-eye'></i>"), timesheet_check_invoice_path(invoice), remote: true, class: 'btn btn-md btn-default btn-primary',title: "Details"
+                            = link_to raw("<i class='fa fa-fax'></i>"), accept_invoice_contract_invoice_path(invoice.contract, invoice), class: 'btn btn-md btn-default btn-primary',title: "Submit Invoice", method: "POST", data: {confirm:  'Are you sure?'} if invoice.pending_submission?
                             = link_to raw("<i class='fa fa-dollar'></i>"), paid_invoice_contract_invoice_path(invoice.contract, invoice), class: 'btn btn-md btn-default btn-primary',title: "Paid Invoice", data: {confirm:  'Are you sure?'} if invoice.submitted?
                             =# link_to raw("<i class='fa fa-fax'></i>") , timesheet_check_invoice_path(invoice), target: '_blank', class: 'btn btn-md btn-default btn-primary',title: "Submit Invoice"
 
@@ -623,3 +623,10 @@
   {
     background-color: white !important;
   }
+
+- content_for :scripts do
+  :javascript
+    $(document).ready(function() {
+      $(".best_in_place").best_in_place();
+      $(".best_in_place").bind("ajax:success", function(){ location.reload() });
+    });
