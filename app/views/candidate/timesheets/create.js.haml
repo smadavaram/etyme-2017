@@ -3,3 +3,4 @@
     flash_error("#{e}");
 - if flash[:success].present?
   flash_success("#{flash[:success]}");
+  $("#tms_#{@timesheet.id}").remove();

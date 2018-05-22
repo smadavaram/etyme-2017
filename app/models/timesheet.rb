@@ -2,7 +2,8 @@ class Timesheet < ApplicationRecord
 
   include Rails.application.routes.url_helpers
 
-  enum status: [:open,:pending_review, :approved , :partially_approved , :rejected , :submitted , :invoiced]
+  # enum status: [:open,:pending_review, :approved , :partially_approved , :rejected , :submitted , :invoiced]
+  enum status: [:open, :submitted, :approved , :partially_approved, :rejected, :invoiced]
 
   belongs_to :company, optional: true
   belongs_to :contract, optional: true
@@ -146,6 +147,28 @@ class Timesheet < ApplicationRecord
 
   def get_total_amount
     self.total_time * self.contract.buy_contracts.first.payrate
+  end
+
+  def submitted(timesheet_params, days, total_time)
+    self.assign_attributes(timesheet_params)
+    self.days = days
+    self.total_time = total_time
+    self.status = 'submitted'
+    self.save
+    con_cycle = ContractCycle.find(self.ts_cycle_id)
+    con_cycle.update_attributes(completed_at: Time.now, status: "completed")
+
+    con_cycle_ta = ContractCycle.create(contract_id: con_cycle.contract_id,
+                                        start_date: con_cycle.start_date,
+                                        end_date: con_cycle.end_date,
+                                        cyclable: self,
+                                        company_id: self.contract.sell_contracts.first.company_id,
+                                        note: "Timesheet Approve",
+                                        cycle_date: Time.now,
+                                        cycle_type: "TimesheetApprove",
+                                        next_action: "InvoiceGenerate"
+    )
+    self.update_attributes(ta_cycle_id: con_cycle_ta.id)
   end
 
   def set_ts_on_seq

@@ -18,7 +18,7 @@
 -#            %br
 #content
   %section#widget-grid
-    - if current_company.hiring_manager? && !current_user.is_consultant?
+    - if current_company.hiring_manager? || current_company.vendor?
       .row
         -#.col-sm-12.col-md-8{style: 'margin-left: 15px;'}
           - if @data.present?

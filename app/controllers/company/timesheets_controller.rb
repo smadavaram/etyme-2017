@@ -82,14 +82,44 @@ class Company::TimesheetsController < Company::BaseController
     # if current_user.timesheet_approvers.create!(timesheet_id: @timesheet.id , status: Timesheet.statuses[:approved].to_i)
 
     if @timesheet.update_attributes(status: "approved")
+      con_cycle = ContractCycle.find(@timesheet.ta_cycle_id)
+      con_cycle.update_attributes(completed_at: Time.now, status: "completed")
+      @timesheet.contract.invoice_generate
+
+      invoices = @timesheet.contract.invoices.where("(start_date <= ? AND end_date >= ?) OR (start_date <= ? AND end_date >= ?)", @timesheet.start_date, @timesheet.start_date, @timesheet.end_date, @timesheet.end_date)
+      invoices.each do |i|
+        hours = 0
+        if @timesheet.start_date >= i.start_date && @timesheet.end_date <= i.end_date
+          i.update(total_approve_time: (i.total_approve_time+@timesheet.total_time))
+          @timesheet.update(inv_numbers: (@timesheet.inv_numbers+[i.id]))
+        else
+          @timesheet.days.each do |t|
+            if i.start_date <= t[0] && t[0] <= i.end_date
+              hours += t[1].to_i
+            end
+          end
+          i.update(total_approve_time: (i.total_approve_time+hours))
+          @timesheet.update(inv_numbers: (@timesheet.inv_numbers+[i.id]))
+        end
+      end
+
+      # @timesheet.contract.invoices.where("start_date <= ? AND end_date >= ?", self.start_date, self.start_date )
+      # timesheets = self.contract.timesheets.where("start_date >= ? AND start_date <= ?", self.start_date, self.end_date )
+      # hours = 0
+      # timesheets.each do |t|
+      #   if t.start_date >= self.start_date && t.end_date <= self.end_date
+      #     hours += t.total_time
+      #     t.update(inv_numbers: (t.inv_numbers+[t.id]))
+      #   else
+      #     # t.days.each
+      #   end
+      # end
+
+
       flash[:success] = "Successfully Approved"
     else
       flash[:errors] = @timesheet.errors.full_messages
     end
-
-    con_cycle = ContractCycle.find(@timesheet.ta_cycle_id)
-    con_cycle.update_attributes(completed_at: Time.now, status: "completed")
-
     redirect_back fallback_location: root_path
   end
 
@@ -98,11 +128,9 @@ class Company::TimesheetsController < Company::BaseController
   end
 
   def check_invoice
-    @timesheet = current_company.timesheets.approved_timesheets.where(id: (params[:id] || params[:timesheet_id])).first
-    if @timesheet.present?
-      @invoice_date = get_next_invoice_date(@timesheet.contract)
-      @min_date = @timesheet.contract.timesheets.approved_timesheets.where(invoice_id: nil).minimum(:start_date)
-      @max_date = @timesheet.contract.timesheets.approved_timesheets.where(invoice_id: nil).maximum(:end_date)
+    @invoice = Invoice.where(id: (params[:id] || params[:timesheet_id])).first
+    if @invoice.present?
+      @timesheets = current_company.timesheets.approved_timesheets.where("start_date >= ? AND end_date <= ?", @invoice.start_date, @invoice.end_date)
     else
       @errors = true
     end

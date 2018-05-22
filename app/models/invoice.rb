@@ -2,7 +2,7 @@ class Invoice < ApplicationRecord
 
   include Rails.application.routes.url_helpers
 
-  enum status: [:pending_submission,:submitted, :paid , :partially_paid , :cancelled ]
+  enum status: [:pending_submission, :submitted, :paid , :partially_paid , :cancelled ]
 
   belongs_to  :contract, optional: true
   belongs_to  :submitted_by   , class_name:"Admin", foreign_key: :submitted_by, optional: true
@@ -11,7 +11,6 @@ class Invoice < ApplicationRecord
   has_one     :company        , through: :company
   has_many    :timesheets
   has_many    :timesheet_logs , through: :timesheets
-
 
   # before_validation :set_rate , on: :create
   # before_validation :set_consultant_and_total_amount, on: :create , if: Proc.new{|invoice| !invoice.contract.has_child?}
@@ -25,12 +24,86 @@ class Invoice < ApplicationRecord
   # after_update      :create_invoice_for_parent, if: Proc.new{|invoice| invoice.status_changed? && invoice.submitted? && invoice.contract.parent_contract?}
   # after_update      :notify_contract_creator , if: Proc.new{ |invoice| invoice.status_changed?  && invoice.submitted?}
 
+  before_create     :set_number
+
   validate :start_date_cannot_be_less_than_end_date
   validate :contract_validation , if: Proc.new{|invoice| !invoice.contract.in_progress?}
   # validates_numericality_of :total_amount , :rate , presence: true, greater_than_or_equal_to: 1
   validates_numericality_of :billing_amount
 
+  scope :open_invoices, -> {where(status: [:pending_submission, :submitted])}
+  scope :cleared_invoices, -> {where(status: [:paid])}
+  scope :submitted_invoices, -> {where(status: :submitted)}
 
+  def set_number
+    i = self.contract.invoices.order("created_at DESC").first
+    if i.present?
+      self.number = "IN_" + self.contract.only_number.to_s+"_"+(i.only_number.to_i + 1).to_s.rjust(3, "0")
+    else
+      self.number = "IN_" + self.contract.only_number.to_s+"_001"
+    end
+  end
+
+  def only_number
+    self.number.split("_")[2]
+  end
+
+  def set_seq_accept_in
+    ledger = Sequence::Client.new(
+        ledger_name: ENV['seq_ledgers'],
+        credential: ENV['seq_token']
+    )
+
+    tx = ledger.transactions.transact do |builder|
+      builder.issue(
+          flavor_id: 'tym',
+          amount: (self.total_amount.to_i * 100).to_i,
+          destination_account_id: "#{self.contract.buy_contracts.first.candidate.full_name.parameterize + self.contract.buy_contracts.first.candidate.id.to_s}_exp",
+          action_tags: {
+              "Fixed" => "false",
+              "Status" => "open",
+              "Account" => "",
+              "CycleId" => self.ig_cycle_id.to_s,
+              "ObjType" => "IG",
+              "ContractId" => self.contract_id.to_s,
+              "PostingDate" => Time.now.strftime("%m/%d/%Y"),
+              "CycleFrom" => self.start_date.strftime("%m/%d/%Y"),
+              "CycleTo" => self.end_date.strftime("%m/%d/%Y"),
+              "Documentdate" => Time.now.strftime("%m/%d/%Y"),
+              "TransactionType" => self.contract.buy_contracts.first.contract_type == "C2C" ? "C2C" : "W2"
+          }
+      )
+    end
+  end
+
+  def set_seq_paid_in
+    ledger = Sequence::Client.new(
+        ledger_name: ENV['seq_ledgers'],
+        credential: ENV['seq_token']
+    )
+
+    tx = ledger.transactions.transact do |builder|
+      builder.transfer(
+          flavor_id: 'tym',
+          amount: (self.total_amount.to_i * 100).to_i,
+          destination_account_id: "#{self.contract.sell_contracts.first.company.slug.to_s + self.contract.sell_contracts.first.company.id.to_s}_q",
+          source_account_id: "#{self.contract.buy_contracts.first.candidate.full_name.parameterize + self.contract.buy_contracts.first.candidate.id.to_s}_exp",
+          action_tags: {
+              "Fixed" => "false",
+              "Status" => "Clear",
+              "Account" => "",
+              "CycleId" => self.ig_cycle_id.to_s,
+              "ObjType" => "IP",
+              "ContractId" => self.contract_id.to_s,
+              "PostingDate" => Time.now.strftime("%m/%d/%Y"),
+              "CycleFrom" => self.start_date.strftime("%m/%d/%Y"),
+              "CycleTo" => self.end_date.strftime("%m/%d/%Y"),
+              "Documentdate" => Time.now.strftime("%m/%d/%Y"),
+              "TransactionType" => self.contract.buy_contracts.first.contract_type == "C2C" ? "C2C" : "W2"
+          },
+      )
+    end
+  end
 
   def set_consultant_and_total_amount
     assignee_rate    = 0 #self.contract.assignee.hourly_rate
