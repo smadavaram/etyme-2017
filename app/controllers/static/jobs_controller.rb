@@ -12,7 +12,12 @@ class Static::JobsController < ApplicationController
   end
 
   def show
-    add_breadcrumb @job.title, static_job_path
+    unless @job.present?
+      flash[:error] = "Job not found."
+      redirect_to static_jobs_path
+    else
+      add_breadcrumb @job.title, static_job_path
+    end
   end
 
   def apply
