@@ -1,407 +1,287 @@
-%script{:src => "https://sdk.accountkit.com/en_US/sdk.js"}
-%script{:src => "https://sdk.accountkit.com/en_EN/sdk.js"}
-
-%body
-  %article.col-sm-12.col-md-12.col-lg-12
-    / Widget ID (each widget will need unique ID)
-    #wid-id-0.jarviswidget.jarviswidget-color-darken{"data-widget-deletebutton" => "false", "data-widget-editbutton" => "false"}
-      %header
-        %span.widget-icon
-          %i.fa.fa-check
-        %h2 On Boarding Profile Set Up
-      / widget div
-      %div
-        / widget edit box
-        .jarviswidget-editbox
-          / This area used as dropdown edit box
-        / end widget edit box
-        / widget content
-        .widget-body
-          .row
-            %form#wizard-1{:novalidate => "novalidate"}
-              #bootstrap-wizard-1.col-sm-12
-                .form-bootstrapWizard
-                  %ul.bootstrapWizard.form-wizard
-                    %li.active{"data-target" => "#step1", :id=>"wiz_tab1"}
-                      %a{"data-toggle" => "tab", :href => "#tab1"}
-                        %span.step 1
-                        %span.title Veryfy Number
-                    %li{"data-target" => "#step2" , :id=>"wiz_tab2"}
-                      %a{"data-toggle" => "tab", :href => "#tab2"}
-                        %span.step 2
-                        %span.title Personal information
-                    %li{"data-target" => "#step3" , :id=>"wiz_tab3"}
-                      %a{"data-toggle" => "tab", :href => "#tab3"}
-                        %span.step 3
-                        %span.title Social Media     
-                    %li{"data-target" => "#step4" , :id=>"wiz_tab4"}
-                      %a{"data-toggle" => "tab", :href => "#tab4"}
-                        %span.step 4
-                        %span.title Update Education
-                    %li{"data-target" => "#step5" , :id=>"wiz_tab5"}
-                      %a{"data-toggle" => "tab", :href => "#tab5"}
-                        %span.step 5
-                        %span.title Update Skills
-                    %li{"data-target" => "#step6" , :id=>"wiz_tab6"}
-                      %a{"data-toggle" => "tab", :href => "#tab6"}
-                        %span.step 6
-                        %span.title Client Information
-                    %li{"data-target" => "#step7" , :id=>"wiz_tab7"}
-                      %a{"data-toggle" => "tab", :href => "#tab7"}
-                        %span.step 7
-                        %span.title Employer Information
-                    %li{"data-target" => "#step8" , :id=>"wiz_tab8"}
-                      %a{"data-toggle" => "tab", :href => "#tab8"}
-                        %span.step 8
-                        %span.title Background Check
-                    %li{"data-target" => "#step9" , :id=>"wiz_tab9"}
-                      %a{"data-toggle" => "tab", :href => "#tab9"}
-                        %span.step 9
-                        %span.title Save Form
-                  .clearfix
-                .tab-content
-                  #tab1.tab-pane.active
-                    %br/
-                    %h3
-                      %strong Step 1
-                      \- Veryfy Phone Number
-                    .row
-                      .col-sm-12
+#content
+  / Bread crumb is created dynamically
+  / row
+  .row
+    / col
+    .col-xs-12.col-sm-7.col-md-7.col-lg-4
+      %h1.page-title.txt-color-blueDark
+        / PAGE HEADER
+        %i.fa-fw.fa.fa-puzzle-piece
+        App Views
+        %span
+          \&gt;
+          Profile
+    / end col
+    / right side of the page with the sparkline graphs
+    / col
+    .col-xs-12.col-sm-5.col-md-5.col-lg-8
+      / sparks
+      %ul#sparks
+        %li.sparks-info
+          %h5
+            My Income
+            %span.txt-color-blue $47,171
+          .sparkline.txt-color-blue.hidden-mobile.hidden-md.hidden-sm
+            1300, 1877, 2500, 2577, 2000, 2100, 3000, 2700, 3631, 2471, 2700, 3631, 2471
+        %li.sparks-info
+          %h5
+            Site Traffic
+            %span.txt-color-purple
+              %i.fa.fa-arrow-circle-up{"data-rel" => "bootstrap-tooltip", :title => "Increased"}>
+               45%
+          .sparkline.txt-color-purple.hidden-mobile.hidden-md.hidden-sm
+            110,150,300,130,400,240,220,310,220,300, 270, 210
+        %li.sparks-info
+          %h5
+            Site Orders
+            %span.txt-color-greenDark
+              %i.fa.fa-shopping-cart>
+               2447
+          .sparkline.txt-color-greenDark.hidden-mobile.hidden-md.hidden-sm
+            110,150,300,130,400,240,220,310,220,300, 270, 210
+      / end sparks
+    / end col
+  / end row
+  / row
+  .row
+    .col-sm-12
+      .well.well-sm
+        .row
+          .col-sm-12.col-md-12.col-lg-12
+            .well.well-light.well-sm.no-margin.no-padding
+              .row
+                .col-sm-12
+                  #myCarousel.carousel.fade.profile-carousel
+                    .air.air-bottom-right.padding-10
+                      %a.btn.txt-color-white.bg-color-teal.btn-sm{:href => "javascript:void(0);"}>
+                        %i.fa.fa-check
+                        Follow
+                       
+                      %a.btn.txt-color-white.bg-color-pinkDark.btn-sm{:href => "javascript:void(0);"}
+                        %i.fa.fa-link
+                        Connect
+                    .air.air-top-left.padding-10
+                      %h4.txt-color-white.font-md Jan 1, 2014
+                    %ol.carousel-indicators
+                      %li.active{"data-slide-to" => "0", "data-target" => "#myCarousel"}
+                      %li{"data-slide-to" => "1", "data-target" => "#myCarousel"}
+                      %li{"data-slide-to" => "2", "data-target" => "#myCarousel"}
+                    .carousel-inner
+                      / Slide 1
+                      .item.active
+                        %img{:alt => "demo user", :src => "img/demo/s1.jpg"}/
+                      / Slide 2
+                      .item
+                        %img{:alt => "demo user", :src => "img/demo/s2.jpg"}/
+                      / Slide 3
+                      .item
+                        %img{:alt => "demo user", :src => "img/demo/m3.jpg"}/
+                .col-sm-12
+                  .row
+                    .col-sm-3.profile-pic
+                      %img{:alt => "demo user", :src => "img/avatars/sunny-big.png"}/
+                      .padding-10
+                        %h4.font-md
+                          %strong 1,543
+                          %br/
+                          %small Followers
+                        %br/
+                        %h4.font-md
+                          %strong 419
+                          %br/
+                          %small Connections
+                    .col-sm-6
+                      %h1
+                        John
+                        %span.semi-bold Doe
+                        %br/
+                        %small CEO, SmartAdmin
+                      %ul.list-unstyled
+                        %li
+                          %p.text-muted
+                            %i.fa.fa-phone>
+                              (
+                            %span.txt-color-darken> 313
+                            )
+                            %span.txt-color-darken 464
+                            \-
+                            %span.txt-color-darken 6473
+                        %li
+                          %p.text-muted
+                            %i.fa.fa-envelope>
+                              
+                            %a{:href => "mailto:simmons@smartadmin"} ceo@smartadmin.com
+                        %li
+                          %p.text-muted
+                            %i.fa.fa-skype>
+                              
+                            %span.txt-color-darken john12
+                        %li
+                          %p.text-muted
+                            %i.fa.fa-calendar>
+                              
+                            %span.txt-color-darken
+                              Free after
+                              %a{"data-original-title" => "Create an Appointment", "data-placement" => "top", :href => "javascript:void(0);", :rel => "tooltip", :title => ""} 4:30 PM
+                      %br/
+                      %p.font-md
+                        %i A little about me...
+                      %p
+                        Et harum quidem rerum facilis est et expedita distinctio. Nam libero tempore, cum soluta nobis est eligendi optio
+                        cumque nihil impedit quo minus id quod maxime placeat facere
+                      %br/
+                      %a.btn.btn-default.btn-xs{:href => "javascript:void(0);"}
+                        %i.fa.fa-envelope-o
+                        Send Message
+                      %br/
+                      %br/
+                    .col-sm-3
+                      %h1
+                        %small Connections
+                      %ul.list-inline.friends-list
+                        %li
+                          %img{:alt => "friend-1", :src => "img/avatars/1.png"}/
+                        %li
+                          %img{:alt => "friend-2", :src => "img/avatars/2.png"}/
+                        %li
+                          %img{:alt => "friend-3", :src => "img/avatars/3.png"}/
+                        %li
+                          %img{:alt => "friend-4", :src => "img/avatars/4.png"}/
+                        %li
+                          %img{:alt => "friend-5", :src => "img/avatars/5.png"}/
+                        %li
+                          %img{:alt => "friend-6", :src => "img/avatars/male.png"}/
+                        %li
+                          %a{:href => "javascript:void(0);"} 413 more
+                      %h1
+                        %small Recent visitors
+                      %ul.list-inline.friends-list
+                        %li
+                          %img{:alt => "friend-1", :src => "img/avatars/male.png"}/
+                        %li
+                          %img{:alt => "friend-2", :src => "img/avatars/female.png"}/
+                        %li
+                          %img{:alt => "friend-3", :src => "img/avatars/female.png"}/
+              .row
+                .col-sm-12
+                  %hr/
+                  .padding-10
+                    %ul.nav.nav-tabs.tabs-pull-right
+                      %li.active
+                        %a{"data-toggle" => "tab", :href => "#a1"} Recent Articles
+                      %li
+                        %a{"data-toggle" => "tab", :href => "#a2"} New Members
+                      %li.pull-left
+                        %span.margin-top-10.display-inline
+                          %i.fa.fa-rss.text-success
+                          Activity
+                    .tab-content.padding-top-10
+                      #a1.tab-pane.fade.in.active
                         .row
-                          .col-sm-6
-                            .form-group
-                              .input-group
-                                %span.input-group-addon
-                                  %i.fa.fa-mobile-phone.fa-lg.fa-fw
-                                %input#phone_no.form-control.input-lg{:name => "phone_no", :placeholder => "Enter Phone number", :type => "text", :value=>current_candidate.phone}/
-                                %input#country_code.form-control.input-lg{:name => "country_code", :type => "hidden"}/
-
-                          .col-sm-6
-                            .form-group
-                              .input-group
-                                %a.btn.btn-primary.btn-lg{:href => "javascript:void(0);", :onclick => "smsLogin();"} Send OTP
-                      
-                  #tab2.tab-pane
-                    %br/
-                    %h3
-                      %strong Step 2
-                      \- Personal Information
-                    .row
-                      #content.candidate-profile
-                        .col-sm-12.col-md-12.col-lg-12
-                          #wid-id-7.jarviswidget.jarviswidget-color-teal{"data-widget-attstyle" => "jarviswidget-color-teal", "data-widget-custombutton" => "false", "data-widget-editbutton" => "false", "data-widget-fullscreenbutton" => "false", "data-widget-sortable" => "false", :role => "widget", :style => ""}
-                            %header{:role => "heading"}
-                              %ul.nav.nav-tabs.pull-left.in#myTab
-                                %li{class: ("active" if params[:tab] == 'basic_info' || params[:tab].nil?)}
-                                  %a{"aria-expanded" => "true", "data-toggle" => "tab", :href => "#hr1"}
-                                    %span.hidden-mobile.hidden-tablet Personal Information
-                              %span.jarviswidget-loader
-                                %i.fa.fa-refresh.fa-spin
-                            / widget div
-                            %div{:role => "content"}
-                              .jarviswidget-editbox
-
-                              .widget-body
-                                .tab-content
-                                  #hr1.tab-pane{class: ("active" if params[:tab] == 'basic_info' || !params[:tab].present?)}
-                                    .tabbable.tabs-below
-                                      .row
-                                        .col-sm-12.col-md-12.col-lg-2
-                                          .panel-body.status.profile-margin
-                                            .text
-                                              %div.profile-hover
-                                                %div.pictureContainer
-                                                  = filepicker_field_tag "" ,class: "hidden candi-logo", onchange:"candidateLogoUpload(event)","data-fp-crop-ratio" => "2/2",mimetypes: "image/*"
-                                                  -if(current_candidate.photo.present?)
-                                                    = image_tag current_candidate.photo,  style:"width:100px;height:100px", fit: 'clip',:class =>"candi-profile-pic img_pic"
-
-                                                  -else
-                                                    = image_tag image_path('avatars/m_sunny_big.png'),  style: "width:100px;height:100px", fit: 'clip', class: "img_pic"
-                                            %p.text-center
-                                              %i.fa.fa-camera
-                                              %i.fa.fa-upload
-                                        .col-sm-12.col-md-12.col-lg-10
-                                          .panel-body.status.profile-margin
-                                            .text
-                                              %div.profile-hover
-                                                %div.pictureContainer.col-md-offset-2
-                                                  = filepicker_field_tag "" ,class: "hidden file", onchange:"employeevideoUpload(event)","data-fp-crop-ratio" => "2/2",mimetypes: "video/*"
-                                                  -if(current_candidate.video.present?)
-                                                    %video{:controls => "", :width => "100", :height=> "100"}
-                                                      %source{:src => current_candidate.video, :type => "#{current_candidate.video_type}"}
-                                                  -else
-                                                    = image_tag image_path('avatars/m_sunny_big.png'),  style: "width:100px;height:100px", fit: 'clip',:class =>"video-pic"
-                                            -#= button_tag "Upload Video", fit: 'clip',:class =>"video-pic img1"
-                                            %p.text-center
-                                              %i.glyphicon.glyphicon-chevron-left
-                                              %i.fa.fa-video-camera
-                                              %i.fa.fa-file-pdf-o
-                                              %i.fa.fa-file-powerpoint-o
-                                              %i.fa.fa-file-image-o
-                                              %i.fa.fa-upload
-                                              %i.glyphicon.glyphicon-fullscreen
-                                              %i.glyphicon.glyphicon-chevron-right
-                                      .row{style: "padding: 15px;"}
-                
-                                      =render partial: 'candidate/candidates/partials/basic_info_form',locals: {candidate: current_candidate}
-                                      / =render partial: 'candidate/candidates/partials/basic_info_form',locals: {candidate: current_candidate}
-                                      
-
-
-                  #tab3.tab-pane
-                    %br/
-                    %h3
-                      %strong Step 3
-                      \- Social Media
-                  #tab4.tab-pane
-                    %br/
-                    %h3
-                      %strong Step 4
-                      \- Update Education
-                    .row
-                      .col-sm-12.col-md-12.col-lg-12
-                        =render partial: 'candidate/candidates/partials/education_form',locals:{education: current_candidate.educations}  
-                      
-                  #tab5.tab-pane
-                    %br/
-                    %h3
-                      %strong Step 5
-                      \- Update Skills
-                    .row
-                      .col-sm-12.col-md-12.col-lg-12
-                        = render partial: 'candidate/candidates/partials/skill_form',locals: {user: current_candidate}  
-                        
-                  #tab6.tab-pane
-                    %br/
-                    %h3
-                      %strong Step 6
-                      \- Client Information
-                    .row
-                      .col-sm-12.col-md-12.col-lg-12
-                        = render partial: 'candidate/candidates/partials/client_form',locals: {user: current_candidate}
-                          
-                  #tab7.tab-pane
-                    %br/
-                    %h3
-                      %strong Step 7
-                      \- Employer Information
-                    .row
-                      .col-sm-12.col-md-12.col-lg-12
-                        = render partial: 'candidate/candidates/partials/designate_form',locals: {user: current_candidate}
-                        
-                  #tab8.tab-pane
-                    %br/
-                    %h3
-                      %strong Step 8
-                      \- Background Check 
-                    .row
-                      .col-sm-12.col-md-12.col-lg-12
-                        = render partial: 'candidate/candidates/partials/submit_doc_form',locals: {user: current_candidate}                     
-                    
-                  #tab9.tab-pane
-                    %br/
-                    %h3
-                      %strong Step 9
-                      \- Save Form
-                    %br/
-                    %h1.text-center.text-success
-                      %strong
-                        %i.fa.fa-check.fa-lg
-                        Complete
-                    %h4.text-center Click next to finish
-                    %br/
-                    %br/
-                  .form-actions
-                    .row
-                      .col-sm-12
-                        %ul.pager.wizard.no-margin
-                          /
-                            <li class="previous first disabled">
-                            <a href="javascript:void(0);" class="btn btn-lg btn-default"> First </a>
-                            </li>
-                          %li.previous.disabled
-                            %a.btn.btn-lg.btn-default{:href => "javascript:void(0);"} Previous
-                          /
-                            <li class="next last">
-                            <a href="javascript:void(0);" class="btn btn-lg btn-primary"> Last </a>
-                            </li>
-                          %li.next
-                            %a.btn.btn-lg.txt-color-darken{:href => "javascript:void(0);"} Next
-        / end widget content
-      / end widget div
-    / end widget
-  / WIDGET END
-
-
-- content_for :scripts do
-  :javascript
-    // Facebook Account Kit
-    $(document).ready(function() {
-      // initialize Account Kit with CSRF protection
-      AccountKit_OnInteractive = function(){
-        AccountKit.init(
-          {
-            appId:"1209424855859249",
-            state:"fgh521fgh",
-            version:"v1.1",
-            fbAppEventsEnabled:true
-            //redirect:"/"
-          }
-        );
-      };
-     
-    }); 
-
-    function loginCallback(response) {
-      if (response.status === "PARTIALLY_AUTHENTICATED") {
-        var code = response.code;
-        var csrf = response.state;
-        //Click on next after Authenticate
-        var phoneNumber = document.getElementById("phone_no").value;
-
-        $.ajax({
-         url: '/candidate/update_mobile_number',
-         type: "POST",
-         contentType:"application/json",
-         data: JSON.stringify({phone_number:phoneNumber, id:"#{current_candidate.id}"}),
-         success:function(data){
-            $(".next a").click();
-         }
-        });
-
-      }
-      else if (response.status === "NOT_AUTHENTICATED") {
-      }
-      else if (response.status === "BAD_PARAMS") {
-      }
-    }
-
-    function smsLogin() {
-      var countryCode = document.getElementById("country_code").value;
-      var phoneNumber = document.getElementById("phone_no").value;
-      AccountKit.login(
-        'PHONE', 
-        {countryCode: countryCode, phoneNumber: phoneNumber}, // will use default values if not specified
-        loginCallback
-      );
-    }
-
-    //Bootstrap Wizard
-    $(document).ready(function() {
-      //Bootstrap Wizard Validations
-        var $validator = $("#wizard-1").validate({
+                          .col-xs-2.col-sm-1
+                            %time.icon{:datetime => "2014-09-20"}
+                              %strong Jan
+                              %span 10
+                          .col-xs-10.col-sm-11
+                            %h6.no-margin
+                              %a{:href => "javascript:void(0);"} Allice in Wonderland
+                            %p
+                              Etiam ultricies nisi vel augue. Curabitur ullamcorper ultricies nisi Nam eget dui.
+                              Etiam rhoncus. Maecenas tempus, tellus eget condimentum rhoncus, sem quam semper libero,
+                              sit amet adipiscing sem neque sed ipsum. Nam quam nunc, blandit vel.
+                          .col-sm-12
+                            %hr/
+                          .col-xs-2.col-sm-1
+                            %time.icon{:datetime => "2014-09-20"}
+                              %strong Jan
+                              %span 10
+                          .col-xs-10.col-sm-11
+                            %h6.no-margin
+                              %a{:href => "javascript:void(0);"} World Report
+                            %p
+                              Morning our be dry. Life also third land after first beginning to evening cattle created let subdue you'll winged don't Face firmament.
+                              You winged you're was Fruit divided signs lights i living cattle yielding over light life life sea, so deep.
+                              Abundantly given years bring were after. Greater you're meat beast creeping behold he unto She'd doesn't. Replenish brought kind gathering Meat.
+                          .col-sm-12
+                            %br/
+                      #a2.tab-pane.fade
+                        .alert.alert-info.fade.in
+                          %button.close{"data-dismiss" => "alert"}
+                            ×
+                          %i.fa-fw.fa.fa-info
+                          = succeed "joined" do
+                            %strong 51 new members
+                        .user{:title => "email@company.com"}
+                          %img{:alt => "demo user", :src => "img/avatars/female.png"}/
+                          %a{:href => "javascript:void(0);"} Jenn Wilson
+                          .email
+                            travis@company.com
+                        .user{:title => "email@company.com"}
+                          %img{:alt => "demo user", :src => "img/avatars/male.png"}/
+                          %a{:href => "javascript:void(0);"} Marshall Hitt
+                          .email
+                            marshall@company.com
+                        .user{:title => "email@company.com"}
+                          %img{:alt => "demo user", :src => "img/avatars/male.png"}/
+                          %a{:href => "javascript:void(0);"} Joe Cadena
+                          .email
+                            joe@company.com
+                        .user{:title => "email@company.com"}
+                          %img{:alt => "demo user", :src => "img/avatars/male.png"}/
+                          %a{:href => "javascript:void(0);"} Mike McBride
+                          .email
+                            mike@company.com
+                        .user{:title => "email@company.com"}
+                          %img{:alt => "demo user", :src => "img/avatars/male.png"}/
+                          %a{:href => "javascript:void(0);"} Travis Wilson
+                          .email
+                            travis@company.com
+                        .user{:title => "email@company.com"}
+                          %img{:alt => "demo user", :src => "img/avatars/male.png"}/
+                          %a{:href => "javascript:void(0);"} Marshall Hitt
+                          .email
+                            marshall@company.com
+                        .user{:title => "Joe Cadena joe@company.com"}
+                          %img{:alt => "demo user", :src => "img/avatars/male.png"}/
+                          %a{:href => "javascript:void(0);"} Joe Cadena
+                          .email
+                            joe@company.com
+                        .user{:title => "email@company.com"}
+                          %img{:alt => "demo user", :src => "img/avatars/male.png"}/
+                          %a{:href => "javascript:void(0);"} Mike McBride
+                          .email
+                            mike@company.com
+                        .user{:title => "email@company.com"}
+                          %img{:alt => "demo user", :src => "img/avatars/male.png"}/
+                          %a{:href => "javascript:void(0);"} Marshall Hitt
+                          .email
+                            marshall@company.com
+                        .user{:title => "email@company.com"}
+                          %img{:alt => "demo user", :src => "img/avatars/male.png"}/
+                          %a{:href => "javascript:void(0);"} Joe Cadena
+                          .email
+                            joe@company.com
+                        .user{:title => "email@company.com"}
+                          %img{:alt => "demo user", :src => "img/avatars/male.png"}/
+                          %a{:href => "javascript:void(0);"} Mike McBride
+                          .email
+                            mike@company.com
+                        .text-center
+                          %ul.pagination.pagination-sm
+                            %li.disabled
+                              %a{:href => "javascript:void(0);"} Prev
+                            %li.active
+                              %a{:href => "javascript:void(0);"} 1
+                            %li
+                              %a{:href => "javascript:void(0);"} 2
+                            %li
+                              %a{:href => "javascript:void(0);"} 3
+                            %li
+                              %a{:href => "javascript:void(0);"} ...
+                            %li
+                              %a{:href => "javascript:void(0);"} 99
+                            %li
+                              %a{:href => "javascript:void(0);"} Next
+                      / end tab
+              / end row
           
-          rules: {
-            // phone_no: {
-            //   required: true,
-            // },
-            // otp: {
-            //   required: true,
-            // },
-            email: {
-              required: true,
-              email: "Your email address must be in the format of name@domain.com"
-            },
-            fname: {
-              required: true
-            },
-            lname: {
-              required: true
-            },
-            country: {
-              required: true
-            },
-            city: {
-              required: true
-            },
-            postal: {
-              required: true,
-              minlength: 4
-            },
-            wphone: {
-              required: true,
-              minlength: 10
-            },
-            hphone: {
-              required: true,
-              minlength: 10
-            }
-          },
-          
-          messages: {
-            fname: "Please specify your First name",
-            lname: "Please specify your Last name",
-            email: {
-              required: "We need your email address to contact you",
-              email: "Your email address must be in the format of name@domain.com"
-            }
-          },
-          
-          highlight: function (element) {
-            $(element).closest('.form-group').removeClass('has-success').addClass('has-error');
-          },
-          unhighlight: function (element) {
-            $(element).closest('.form-group').removeClass('has-error').addClass('has-success');
-          },
-          errorElement: 'span',
-          errorClass: 'help-block',
-          errorPlacement: function (error, element) {
-            if (element.parent('.input-group').length) {
-              error.insertAfter(element.parent());
-            } else {
-              error.insertAfter(element);
-            }
-          }
-        });
-        
-        $('#bootstrap-wizard-1').bootstrapWizard({
-          'tabClass': 'form-wizard',
-          'onNext': function (tab, navigation, index) {
-            var $valid = $("#wizard-1").valid();
-            if (!$valid) {
-              $validator.focusInvalid();
-              return false;
-            } else {
-              $('#bootstrap-wizard-1').find('.form-wizard').children('li').eq(index - 1).addClass(
-                'complete');
-              $('#bootstrap-wizard-1').find('.form-wizard').children('li').eq(index - 1).find('.step')
-              .html('<i class="fa fa-check"></i>');
-            }
-          }
-        });
-
-        var is_number_verify = "#{current_candidate.is_number_verify}"
-        console.log(is_number_verify)
-
-        if (is_number_verify === "true") {
-          $('#bootstrap-wizard-1').find('.form-wizard').children('li').eq(0).addClass(
-                'complete');
-          $('#bootstrap-wizard-1').find('.form-wizard').children('li').eq(0
-          ).find('.step')
-          .html('<i class="fa fa-check"></i>');
-          $("#wiz_tab2 a").click();
-        }
-
-    
-      // fuelux wizard
-        var wizard = $('.wizard').wizard();
-        
-        wizard.on('finished', function (e, data) {
-          //$("#fuelux-wizard").submit();
-          //console.log("submitted!");
-          $.smallBox({
-            title: "Congratulations! Your form was submitted",
-            content: "<i class='fa fa-clock-o'></i> <i>1 seconds ago...</i>",
-            color: "#5F895F",
-            iconSmall: "fa fa-check bounce animated",
-            timeout: 4000
-          });
-          
-        });
-    })
-
-
-
-
-
-   

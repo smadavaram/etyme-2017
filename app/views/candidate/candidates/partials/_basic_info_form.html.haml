@@ -24,8 +24,8 @@
     .form-group.candidate-association
       =f.fields_for :addresses do |custom_field|
         = render 'candidate/candidates/partials/address_fields', f: custom_field
-      %strong
-        .links
+      %strong.pull-right
+        .links.pull-right
           = link_to_add_association '+ Add Addresses', f, :addresses, class: 'btn btn-success', partial: 'candidate/candidates/partials/address_fields'
           %br/
       
@@ -153,22 +153,22 @@
      });
     }
 
-    $(document).ready(function () {
-      addressLookup();
-    });
+    // $(document).ready(function () {
+    //   addressLookup();
+    // });
 
     function addressLookup() {
-      // var address = document.getElementsByClassName('p-location');
+       // var address = document.getElementsByClassName('p-location');
 
-      // for(var i=0; i< address.length; i++){
-      //   new google.maps.places.Autocomplete(address[i]);
+       // for(var i=0; i< address.length; i++){
+       //   new google.maps.places.Autocomplete(address[i]);
 
-      //   google.maps.event.addDomListener(address[i], 'keydown', function(event) {
-      //     if (event.keyCode === 13) {
-      //       event.preventDefault();
-      //     }
-      //   });
-      // }
+       //   google.maps.event.addDomListener(address[i], 'keydown', function(event) {
+       //     if (event.keyCode === 13) {
+       //       event.preventDefault();
+       //     }
+       //   });
+       // }
     }
 
     $('.candidate-association').on('cocoon:after-insert', function(e, insertedItem) {

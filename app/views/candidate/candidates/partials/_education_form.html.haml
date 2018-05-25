@@ -22,6 +22,35 @@
         .links.education_links.pull-right  
           = link_to_add_association '+ Add Certificates', f, :certificates, class: 'btn btn-success', partial: 'candidate/candidates/certificate_fields' 
           / = link_to_add_fields 'candidate/candidates/certificate_fields', f, :certificates  
+    %br
+    %hr
+    .row
+      .col-md-12 
+        %h4
+          %b Education Document 
+        %br  
+        .form-group.candidate-association
+          = f.fields_for :documents, f.object.documents do |b|
+            / = render 'candidate/candidates/document_fields', f: b
+          %strong
+            .links.pull-right
+              = link_to_add_association '+ Add Document', f, :documents, class: 'btn btn-success add_education_btn', partial: 'candidate/candidates/document_fields'  
+    .row
+      .col-md-6
+        - if current_candidate.documents
+          %table.table.table-bordered
+            %tr
+              %th Title
+              %th Expiry Date
+              %th Attachments
+            - current_candidate.documents.each do |doc|
+              %tr
+                %td= doc.title
+                %td= doc.exp_date
+                %td
+                  %a.delete_icon
+                    %i.fa.fa-paperclip
+
     .row
       .col-lg-12
         %button.btn.btn-primary.pull-right{:type => "submit"}
@@ -32,6 +61,16 @@
   :javascript 
 
     $('.candidate-association').on('cocoon:after-insert', function(e, insertedItem) {
+
+      insertedItem.find('.filepicker-attach').each(function(i,e){
+        filepicker.constructWidget(e);
+        $(".filepicker-attach").on('click',function() {
+          $('.fp__overlay').css({'z-index':'99999'})
+        });
+        $('.filepicker-attach').on('click',function() {
+          //$(this).hide();
+         });
+      });
 
       $(".ed_start_year, .ed_end_year").datepicker({
         dateFormat : 'yy-mm-dd'

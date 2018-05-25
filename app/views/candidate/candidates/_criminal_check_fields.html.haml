@@ -3,32 +3,33 @@
     .col-sm-3
       .form-group
         %p State
-        = f.text_field :state, placeholder: "State",class: 'form-control p-location input'
+        = f.text_field :state, placeholder: "State",class: 'form-control input'
 
     .col-sm-3
       .form-group
         %p Address
-        = f.text_field :address,placeholder: "Address",class: 'form-control education_start_year p-location input'
+        = f.text_field :address,placeholder: "Address",class: 'form-control education_start_year input'
 
     .col-sm-3
       .form-group
         %p Start Date
-        = f.text_field :start_date,placeholder: "MM/DD/YY",class: 'form-control education_start_year p-location input'
+        = f.text_field :start_date,placeholder: "YYYY-MM-DD",class: 'form-control creminal_check_start_year input'
 
     .col-sm-3
       .form-group
         %p End Date
-        = f.text_field :end_date,placeholder: "MM/DD/YY",class: 'form-control education_start_year p-location input'
+        = f.text_field :end_date,placeholder: "YYYY-MM-DD",class: 'form-control creminal_check_end_year input'
 
   .row
     .col-md-12
       %a.bttn.btn-add.remove-multi-fields.pull-right.delete_icon
         %i.fa.fa-trash
         
--content_for :scripts do
-  :javascript
-    $('.education_start_year, .education_completion_year').datepicker({
-     autoclose: true,
-     todayHighlight: true,
-     format: "mm-dd-yy"
+- content_for :scripts do
+  :javascript 
+
+    $(document).ready(function() {
+      $('.creminal_check_start_year, .creminal_check_end_year').datepicker({
+       dateFormat: "yy-mm-dd"
+      });  
     });        

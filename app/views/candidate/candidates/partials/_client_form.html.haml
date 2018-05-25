@@ -29,7 +29,7 @@
                 = f.fields_for :clients, f.object.clients do |b|
                   = render 'candidate/candidates/client_fields', f: b
                 %strong
-                  .links
+                  .links.pull-right
                     = link_to_add_association '+ Add Client', f, :clients, class: 'btn btn-success', partial: 'candidate/candidates/client_fields'  
               / = link_to_add_fields 'candidate/candidates/client_fields', f, :clients
               .row

@@ -3,71 +3,35 @@
     .col-sm-3
       .form-group
         %p Title
-        = f.text_field :title, placeholder: "Title",class: 'form-control p-location input'
+        = f.text_field :title, placeholder: "Title",class: 'form-control input'
 
     .col-sm-3
       .form-group
         %p Expiry Date
-        = f.text_field :exp_date,placeholder: "MM/DD/YY",class: 'form-control education_start_year p-location input'
+        = f.text_field :exp_date,placeholder: "YYYY-MM-DD",class: 'form-control education_doc_expiry_date p-location input'
 
         / = filepicker_field_tag "" ,class: "resume_file", onchange:"uploadResume(event)"
     .col-sm-3
       .form-group
         %p Select Document
         = f.text_field :file, class: 'hidden file_education_document'
-        = filepicker_field_tag "" , class: " hidden education_file", onchange:"uploadEducationDoc(event, this)"
-        / %button.education_file{:type => "button"} Pick File
-        = link_to "Select Document" ,"#",class: 'col-lg-12 education_doc btn btn-md btn-primary', style: "margin-bottom: 10px", onclick:"select_file($(this).prev(),$(this).prev().prev())"
-        = f.object.id
-        = f.options[:child_index]
-
-
-
+        = filepicker_field_tag "" , class: " hidden education_file filepicker-attach", onchange:"uploadEducationDoc(event, $(this).prev())"
+        = link_to "Select Document" ,"#",class: 'col-lg-12 education_doc btn btn-md btn-primary', style: "margin-bottom: 10px", onclick:"select_file($(this).prev())"
 
 
 - content_for :scripts do
   :javascript  
 
-    $(document).ready(function() {
-      
-       $('.education_doc').on("click",function(){
-           $(".education_file").trigger("click");
-       });
-      
-    
-    });      
-
-    function select_file(prev, file_el)
-    {
-      console.log("+++++++++++++++++")
-      console.log($(".file_education_document").length)
-      console.log("+++++++++++++++++")
-
-      console.log("==========================")
-      console.log(prev.trigger("click"))
-
-      console.log(file_el.attr("id"))
-      console.log("==========================")
-
-
-
+    function select_file(prev){
+      prev.trigger("click");
     }  
 
-    function uploadEducationDoc(event, a){
+    function uploadEducationDoc(event, file_el){
       document_url = event.fpfile.url
-
-      console.log("====================")
-      console.log(document_url)
-      console.log("====================")
-
+      $("#"+file_el.attr("id")).val(document_url)
     }
 
-    $('.education_start_year, .education_completion_year').datepicker({
-      autoclose: true,
-      todayHighlight: true,
-      format: "mm-dd-yy"
-    });  
-
+   
 
     
 
