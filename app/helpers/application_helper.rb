@@ -197,7 +197,7 @@ module ApplicationHelper
                     content: "</i><span class='menu-item-parent'> Company(s) </span>"
                 },
                 {
-                    href: candidates_path,
+                    href: network_contacts_company_companies_path,
                     title: 'Contacts',
                     content: "</i><span class='menu-item-parent'> Contact(s) </span>"
                 }
