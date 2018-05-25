@@ -52,10 +52,16 @@ class Candidate::CandidatesController < Candidate::BaseController
             end
           end
         end
+        # format.json {respond_with current_candidate}
+        # format.html {
+        #   flash[:success] = "Candidate Updated"
+        #   redirect_to candidate_candidate_dashboard_path(tab: params[:tab])
+        # }
+
         format.json {respond_with current_candidate}
         format.html {
           flash[:success] = "Candidate Updated"
-          redirect_to candidate_candidate_dashboard_path(tab: params[:tab])
+          redirect_to onboarding_profile_path
         }
 
       else

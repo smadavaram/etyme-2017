@@ -90,6 +90,13 @@
                             .form-group
                               .input-group
                                 %a.btn.btn-primary.btn-lg{:href => "javascript:void(0);", :onclick => "smsLogin();"} Send OTP
+
+                          .col-sm-4
+                            .form-group
+                              = form_for @user,url: candidate_candidate_path(@user.id, tab: "basic_info"),method: :put do |f|      
+
+                                .col-sm-4
+                                  .form-group
                       
                   #tab2.tab-pane
                     %br/
