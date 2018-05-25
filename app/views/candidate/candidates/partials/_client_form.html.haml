@@ -25,11 +25,12 @@
           / - if @user.ever_worked_with_company == 'Yes'
           .row.client_information_main_div
             .col-md-12 
-              = f.fields_for :clients, f.object.clients do |b|
-                = render 'candidate/candidates/client_fields', f: b
-              %strong
-                .links
-                  = link_to_add_association '+ Add Client', f, :clients, class: 'btn btn-success', partial: 'candidate/candidates/client_fields'  
+              .form-group.candidate-association
+                = f.fields_for :clients, f.object.clients do |b|
+                  = render 'candidate/candidates/client_fields', f: b
+                %strong
+                  .links
+                    = link_to_add_association '+ Add Client', f, :clients, class: 'btn btn-success', partial: 'candidate/candidates/client_fields'  
               / = link_to_add_fields 'candidate/candidates/client_fields', f, :clients
               .row
               .col-lg-12
@@ -52,3 +53,9 @@
     $("#candidate_ever_worked_with_company_no").on("click", function(){
       $(".client_information_main_div").hide();
     })                  
+
+    $('.candidate-association').on('cocoon:after-insert', function(e, insertedItem) {
+      $(".cl_start_year, .cl_end_year").datepicker({
+        dateFormat : 'yy-mm-dd'
+      });
+    });

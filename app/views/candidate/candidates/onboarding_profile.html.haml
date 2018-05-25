@@ -1,5 +1,9 @@
 %script{:src => "https://sdk.accountkit.com/en_US/sdk.js"}
 %script{:src => "https://sdk.accountkit.com/en_EN/sdk.js"}
+/ %script{:src => "https://ajax.googleapis.com/ajax/libs/jquery/1.8.3/jquery.min.js"}
+/ %script{:src => "https://maps.googleapis.com/maps/api/js?v=3.exp&sensor=false&callback=initialize"}
+
+
 
 %body
   %article.col-sm-12.col-md-12.col-lg-12
@@ -68,15 +72,19 @@
                     .row
                       .col-sm-12
                         .row
+                          .col-sm-1
+                            .form-group
+                              %input#country_code.form-control.input-lg{:name => "country_code", :type => "text", :value=>"+91"}/  
+                                
                           .col-sm-6
                             .form-group
                               .input-group
                                 %span.input-group-addon
                                   %i.fa.fa-mobile-phone.fa-lg.fa-fw
                                 %input#phone_no.form-control.input-lg{:name => "phone_no", :placeholder => "Enter Phone number", :type => "text", :value=>current_candidate.phone}/
-                                %input#country_code.form-control.input-lg{:name => "country_code", :type => "hidden"}/
+                                
 
-                          .col-sm-6
+                          .col-sm-4
                             .form-group
                               .input-group
                                 %a.btn.btn-primary.btn-lg{:href => "javascript:void(0);", :onclick => "smsLogin();"} Send OTP
@@ -117,9 +125,9 @@
 
                                                   -else
                                                     = image_tag image_path('avatars/m_sunny_big.png'),  style: "width:100px;height:100px", fit: 'clip', class: "img_pic"
-                                            %p.text-center
-                                              %i.fa.fa-camera
-                                              %i.fa.fa-upload
+                                            / %p.text-center
+                                            /   %i.fa.fa-camera
+                                            /   %i.fa.fa-upload
                                         .col-sm-12.col-md-12.col-lg-10
                                           .panel-body.status.profile-margin
                                             .text
@@ -132,15 +140,15 @@
                                                   -else
                                                     = image_tag image_path('avatars/m_sunny_big.png'),  style: "width:100px;height:100px", fit: 'clip',:class =>"video-pic"
                                             -#= button_tag "Upload Video", fit: 'clip',:class =>"video-pic img1"
-                                            %p.text-center
-                                              %i.glyphicon.glyphicon-chevron-left
-                                              %i.fa.fa-video-camera
-                                              %i.fa.fa-file-pdf-o
-                                              %i.fa.fa-file-powerpoint-o
-                                              %i.fa.fa-file-image-o
-                                              %i.fa.fa-upload
-                                              %i.glyphicon.glyphicon-fullscreen
-                                              %i.glyphicon.glyphicon-chevron-right
+                                            / %p.text-center
+                                            /   %i.glyphicon.glyphicon-chevron-left
+                                            /   %i.fa.fa-video-camera
+                                            /   %i.fa.fa-file-pdf-o
+                                            /   %i.fa.fa-file-powerpoint-o
+                                            /   %i.fa.fa-file-image-o
+                                            /   %i.fa.fa-upload
+                                            /   %i.glyphicon.glyphicon-fullscreen
+                                            /   %i.glyphicon.glyphicon-chevron-right
                                       .row{style: "padding: 15px;"}
                 
                                       =render partial: 'candidate/candidates/partials/basic_info_form',locals: {candidate: current_candidate}

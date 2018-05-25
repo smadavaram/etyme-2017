@@ -1,0 +1,38 @@
+.row.multi-field-container{style: "padding: 0px 15px 15px 15px;"}
+  
+  .row
+    .col-md-3
+      .form-group
+        %p Title
+        = f.text_field :title, placeholder: "Title",class: 'form-control  input'
+       
+    .col-md-3
+      .form-group
+        %p Status
+        = f.text_field :status, placeholder: "status",class: 'form-control  input'
+           
+    .col-md-3
+      .form-group
+        %p Expiry Date
+        = f.text_field :exp_date, placeholder: "Expiry Date",class: 'form-control  input'    
+    
+    
+    .col-md-3
+      .form-group
+        %p Select File
+        = f.text_field :file, class: 'hidden file_education_document'
+        = filepicker_field_tag "" , class: " hidden education_file", onchange:"uploadEducationDoc(event, this)"
+        / %button.education_file{:type => "button"} Pick File
+        = link_to "Select Document" ,"#",class: 'col-lg-12 education_doc btn btn-md btn-primary', style: "margin-bottom: 10px", onclick:"select_file($(this).prev(),$(this).prev().prev())"
+  
+
+  / .row
+  /   .col-md-12
+  /     %a.bttn.btn-add.remove-multi-fields.pull-right.delete_icon
+  /       %i.fa.fa-trash
+:javascript
+  //$('.education_start_year, .education_completion_year').datepicker({
+  // autoclose: true,
+  // todayHighlight: true,
+  // format: "mm-dd-yy"
+  //});        

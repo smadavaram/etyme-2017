@@ -1,0 +1,13 @@
+# Read about fixtures at http://api.rubyonrails.org/classes/ActiveRecord/FixtureSet.html
+
+one:
+  candidate_id: 1
+  title: MyString
+  file: MyString
+  exp_date: 2018-05-23
+
+two:
+  candidate_id: 1
+  title: MyString
+  file: MyString
+  exp_date: 2018-05-23

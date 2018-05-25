@@ -3,31 +3,34 @@
     .col-sm-3
       .form-group
         %p Certificate Title
-        = f.text_field :title,placeholder: "Certificate Title",class: 'form-control p-location input'
+        = f.text_field :title,placeholder: "Certificate Title",class: 'form-control input'
   
     .col-sm-3
       .form-group
         %p Institute
-        = f.select :institute, industry_list,{},{class: 'form-control p-location input',style: "width:100% !important"}
+        = f.select :institute, industry_list,{},{class: 'form-control  input',style: "width:100% !important"}
 
     .col-sm-3
       .form-group 
         %p Start Date
-        = f.text_field :start_date,placeholder: "MM-DD-YY",class: 'form-control start_date p-location input'
+        = f.text_field :start_date,placeholder: "YYYY-MM-DD",class: 'form-control cer_start_date input'
   
     .col-sm-3
       .form-group
         %p End Date
-        = f.text_field :end_date,placeholder:"MM-DD-YY",class: 'form-control end_date p-location input'
+        = f.text_field :end_date,placeholder:"YYYY-MM-DD",class: 'form-control cer_end_date input'
 
-  .row
-    .col-md-12
-      %a.bttn.btn-add.remove-multi-fields.pull-right.delete_icon
-        %i.fa.fa-trash
+  / .row
+  /   .col-md-12
+  /     %a.bttn.btn-add.remove-multi-fields.pull-right.delete_icon
+  /       %i.fa.fa-trash
 
-:javascript
-  //$('.start_date, .end_date').datepicker({
-  // autoclose: true,
-  // todayHighlight: true,
-  // format: "mm-dd-yy"
-  //});         
+
+- content_for :scripts do
+  :javascript 
+
+    $(document).ready(function() {
+      $('.cer_start_date, .cer_end_date').datepicker({
+       dateFormat: "yy-mm-dd"
+      });  
+    });       

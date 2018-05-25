@@ -4,23 +4,40 @@
       %h4
         %b Education Details 
       %br  
-      = f.fields_for :educations, f.object.educations do |b|
-        = render 'candidate/candidates/education_fields', f: b
-      .links.education_links
-        / = link_to_add_fields 'candidate/candidates/education_fields', f, :educations
-        = link_to_add_association '+ Add Education', f, :educations, class: 'btn btn-success', partial: 'candidate/candidates/education_fields'  
-    %br 
+      .form-group.candidate-association
+        = f.fields_for :educations, f.object.educations do |b|
+          = render 'candidate/candidates/education_fields', f: b
+        .links.education_links.pull-right
+          / = link_to_add_fields 'candidate/candidates/education_fields', f, :educations
+          = link_to_add_association '+ Add Education', f, :educations, class: 'btn btn-success', partial: 'candidate/candidates/education_fields'  
+      %br 
+      %hr
     .row
       %h4
         %b Certificate Details 
       %br 
-      = f.fields_for :certificates, f.object.certificates do |b|
-        = render 'candidate/candidates/certificate_fields', f: b
-      .links.education_links  
-        = link_to_add_association '+ Add Certificates', f, :certificates, class: 'btn btn-success', partial: 'candidate/candidates/certificate_fields' 
-        / = link_to_add_fields 'candidate/candidates/certificate_fields', f, :certificates  
+      .form-group.candidate-association
+        = f.fields_for :certificates, f.object.certificates do |b|
+          = render 'candidate/candidates/certificate_fields', f: b
+        .links.education_links.pull-right  
+          = link_to_add_association '+ Add Certificates', f, :certificates, class: 'btn btn-success', partial: 'candidate/candidates/certificate_fields' 
+          / = link_to_add_fields 'candidate/candidates/certificate_fields', f, :certificates  
     .row
       .col-lg-12
         %button.btn.btn-primary.pull-right{:type => "submit"}
           Saved
       
+
+- content_for :scripts do
+  :javascript 
+
+    $('.candidate-association').on('cocoon:after-insert', function(e, insertedItem) {
+
+      $(".ed_start_year, .ed_end_year").datepicker({
+        dateFormat : 'yy-mm-dd'
+      });
+
+      $('.cer_start_date, .cer_end_date').datepicker({
+       dateFormat: "yy-mm-dd"
+      }); 
+    });

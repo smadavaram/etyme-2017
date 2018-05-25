@@ -86,8 +86,9 @@
     #top-menu-toggle.btn-header.transparent.pull-right
       %span#activity1.activity-dropdown
         / User image size is adjusted inside CSS, it should stay as it
-        %a#show-shortcut{"data-action" => "toggleShortcut", :href => "javascript:void(0);"}
-          %i.fa.fa-cog
+        / %a#show-shortcut{"data-action" => "toggleShortcut", :href => "javascript:void(0);"}
+        %a{:href => onboarding_profile_path, :style=>"cursor:pointer"}
+          %i.fa.fa-cog{:style=>"cursor:pointer"}
     #quick-add.btn-header.transparent.pull-right
       %span.project-selector.dropdown-toggle{"data-toggle" => "dropdown"}
         %a.fa.fa-plus-square

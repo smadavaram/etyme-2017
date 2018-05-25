@@ -66,3 +66,115 @@
         %button.btn.btn-primary.pull-right{:type => "submit"}
           Saved          
         
+
+- content_for :scripts do
+  :javascript        
+
+
+    $(document).ready(function() {
+      $(".select2").select2({placeholder: "Select a User(s)"});
+      $(".file_select").select2({placeholder: "Select Company Document"});
+      $('.fileUpload').on("click",function(){
+        $(".file").trigger("click");
+        $('.fp__overlay').css({'z-index':'99999'});
+      });
+      var chatBody = $('#chat-body') ;
+      chatBody.scrollTop(5000000000);
+      
+      $('.resume').on("click",function(){
+          $(".resume_file").trigger("click");
+      });
+      
+      $( ".video-pic" ).click(function() {
+        $( ".file" ).trigger( "click" );
+      });
+      
+      $( ".candi-profile-pic" ).click(function()
+      {
+        $( ".candi-logo" ).trigger( "click" );
+      });
+
+      // $('.education_start_year, .education_completion_year, .start_date, .end_date').datepicker({
+      //  autoclose: true,
+      //  todayHighlight: true,
+      //  format: "mm-dd-yy"
+      // });
+      $('#myTab a').click(function(e) {
+        e.preventDefault();
+        $(this).tab('show');
+      });
+      $("ul.nav-tabs > li > a").on("shown.bs.tab", function(e) {
+        var id = $(e.target).attr("href").substr(1);
+        window.location.hash = id;
+      });
+
+      var hash = window.location.hash;
+      $('#myTab a[href="' + hash + '"]').tab('show');
+
+    });
+
+    function uploadResume(event){
+      resume_url = event.fpfile.url
+      $.ajax({
+       type: 'POST',
+       dataType: 'json',
+       url: " #{ upload_resume_candidates_path } ",
+       data: { resume: resume_url,authenticity_token: window._token },
+       success: function (data) {  }
+     });
+    }
+    function candidateLogoUpload(event){
+      photo_url = event.fpfile.url
+      $('.profile-pic').html('');
+      $.ajax({
+       type: 'POST',
+       dataType: 'json',
+       url: "#{ candidate_update_photo_path }",
+       data: { photo: photo_url,authenticity_token: window._token },
+       success: function (data) {
+        $('.text.img_pic').attr("src",photo_url);
+        location.reload();
+       }
+     });
+    }
+    function employeevideoUpload(event){
+      video_url = event.fpfile.url
+      video_type=event.fpfile.mimetype
+      $('.video-pic').html('');
+      $.ajax({
+       type: 'POST',
+       dataType: 'json',
+       url: "#{ update_video_candidates_path }",
+       data: { video: video_url,authenticity_token: window._token, video_type: video_type },
+       success: function (data) {
+        $('.text img1').attr("src",video_url);
+        location.reload();
+       }
+     });
+    }
+
+    $(document).ready(function () {
+      addressLookup();
+    });
+
+    function addressLookup() {
+      // var address = document.getElementsByClassName('p-location');
+
+      // for(var i=0; i< address.length; i++){
+      //   new google.maps.places.Autocomplete(address[i]);
+
+      //   google.maps.event.addDomListener(address[i], 'keydown', function(event) {
+      //     if (event.keyCode === 13) {
+      //       event.preventDefault();
+      //     }
+      //   });
+      // }
+    }
+
+    $('.candidate-association').on('cocoon:after-insert', function(e, insertedItem) {
+      addressLookup();
+
+     $(".ba_info_start_date, .ba_info_end_date").datepicker({
+        dateFormat : 'yy-mm-dd'
+      });
+    });

@@ -88,6 +88,8 @@ Rails.application.routes.draw do
     get '/profile',to:'candidates#show'
 
     get '/my_profile',to:'candidates#my_profile'
+    get '/onboarding_profile',to:'candidates#onboarding_profile'
+
 
 
   end

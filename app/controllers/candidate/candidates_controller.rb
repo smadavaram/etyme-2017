@@ -164,6 +164,18 @@ class Candidate::CandidatesController < Candidate::BaseController
 
   end  
 
+  def onboarding_profile
+
+    @user = Candidate.find(current_candidate.id)
+    @user.addresses.build unless @user.addresses.present?
+    @user.educations.build unless @user.educations.present?
+    @user.certificates.build unless @user.certificates.present?
+    @user.clients.build unless @user.clients.present?
+    @user.designations.build unless @user.designations.present?
+    @sub_cat = WORK_CATEGORIES[@user.category]
+
+  end  
+
   def update_mobile_number
     @candidate=Candidate.find_by_id(params[:id])
 
@@ -189,7 +201,9 @@ class Candidate::CandidatesController < Candidate::BaseController
                                         certificates_attributes: [:id,:title,:start_date,:end_date,:institute],
                                         clients_attributes: [:id, :name, :industry, :start_date, :end_date, :project_description, :role, :refrence_name, :refrence_phone, :refrence_email],
                                         documents_attributes: [:id, :candidate_id, :title, :file, :exp_date, :is_education, :is_legal_doc],
+                                        legal_documents_attributes: [:id, :candidate_id, :title, :file, :exp_date],
                                         criminal_check_attributes: [:id, :candidate_id, :state, :address, :start_date, :end_date],
+                                        visas_attributes: [:id, :candidate_id, :title, :file, :exp_date, :status],
                                         designations_attributes: [:id, :comp_name, :recruiter_name, :recruiter_phone, :recruiter_email, :status, :company_role])
     end
 

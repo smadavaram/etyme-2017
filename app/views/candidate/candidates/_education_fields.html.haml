@@ -3,39 +3,43 @@
     .col-sm-3
       .form-group
         %p Degree level
-        = f.text_field :degree_level, placeholder: "Degree level", class: 'form-control p-location input'
+        = f.text_field :degree_level, placeholder: "Degree level", class: 'form-control input'
   
     .col-sm-3
       .form-group
         %p Institute
-        = f.select :institute, industry_list,{},{class: 'form-control p-location input',style: "width:100% !important"}
+        = f.select :institute, industry_list,{},{class: 'form-control input',style: "width:100% !important"}
     .col-sm-3
       .form-group
         %p Degree Title
-        = f.text_field :degree_title, placeholder: "Degree Title",class: 'form-control p-location input'
+        = f.text_field :degree_title, placeholder: "Degree Title",class: 'form-control input'
     .col-sm-3
       .form-group
         %p CGPA
-        = f.text_field :degree_title, placeholder: "CGPA", class: 'form-control p-location input'
+        = f.text_field :degree_title, placeholder: "CGPA", class: 'form-control input'
   .row 
     .col-md-3
       .form-group
         %p Start Year
-        = f.text_field :start_year, placeholder: "MM-DD-YY", class: 'form-control education_start_year p-location input'
+        = f.text_field :start_year, placeholder: "YYYY-MM-DD", class: 'form-control ed_start_year'
 
     .col-md-3
       .form-group
         %p End Year
-        = f.text_field :completion_year, placeholder:"MM-DD-YY", class: 'form-control education_completion_year p-location input'
-  .row
-    .col-md-12
-      %a.bttn.btn-add.remove-multi-fields.pull-right.delete_icon
-        %i.fa.fa-trash
+        = f.text_field :completion_year, placeholder:"YYYY-MM-DD", class: 'form-control ed_end_year input'
+  / .row
+  /   .col-md-12
+  /     %a.bttn.btn-add.remove-multi-fields.pull-right.delete_icon
+  /       %i.fa.fa-trash
 
 
-:javascript
-  //$('.education_start_year, .education_completion_year').datepicker({
-   //autoclose: true,
-   //todayHighlight: true,
-   //format: "mm-dd-yy"
-  //});        
+
+- content_for :scripts do
+  :javascript 
+
+    $(document).ready(function() {
+      $('.ed_start_year, .ed_end_year').datepicker({
+       dateFormat: "yy-mm-dd"
+      });  
+    });
+          

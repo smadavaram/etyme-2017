@@ -3,55 +3,59 @@
     .col-sm-3
       .form-group
         %p Name
-        = f.text_field :name,placeholder: "Client Name",class: 'form-control p-location input'
+        = f.text_field :name,placeholder: "Client Name",class: 'form-control input'
 
     .col-sm-3
       .form-group
         %p Industry
-        = f.select :industry, industry_list,{},{class: 'form-control p-location input'}
+        = f.select :industry, industry_list,{},{class: 'form-control input'}
     .col-sm-3
       .form-group
         %p Start Date
-        = f.text_field :start_date,placeholder: "MM/DD/YY",class: 'form-control education_start_year p-location input'
+        = f.text_field :start_date,placeholder: "YYYY-MM-DD",class: 'form-control cl_start_year input'
     .col-sm-3
       .form-group
         %p End Date
-        = f.text_field :end_date,placeholder:"MM/DD/YY",class: 'form-control education_completion_year p-location input'
+        = f.text_field :end_date,placeholder:"YYYY-MM-DD",class: 'form-control cl_end_year input'
 
   .row
     .col-sm-3
       .form-group
         %p Refrence name
-        = f.text_field :refrence_name,placeholder: "Degree level",class: 'form-control p-location input'
+        = f.text_field :refrence_name,placeholder: "Degree level",class: 'form-control input'
 
     .col-sm-3
       .form-group
         %p Refrence Phone
-        = f.text_field :refrence_phone, class: 'form-control p-location input'
+        = f.text_field :refrence_phone, class: 'form-control input'
     .col-sm-3
       .form-group
         %p Refrence Email
-        = f.text_field :refrence_email,placeholder: "Email",class: 'form-control p-location input'
+        = f.text_field :refrence_email,placeholder: "Email",class: 'form-control input'
 
 
   .row
     .col-md-6
       .form-group
         %p Project Description
-        = f.text_area :project_description,placeholder: "Project Description",class: 'form-control p-location input'
+        = f.text_area :project_description,placeholder: "Project Description",class: 'form-control input'
     .col-md-6
       .form-group
         %p Role
-        = f.text_area :role,placeholder: "My Role",class: 'form-control p-location input'
+        = f.text_area :role,placeholder: "My Role",class: 'form-control input'
  
 
   .row
     .col-md-12
       %a.bttn.btn-add.remove-multi-fields.pull-right.delete_icon
         %i.fa.fa-trash
-:javascript
-  //$('.education_start_year, .education_completion_year').datepicker({
-  // autoclose: true,
-  // todayHighlight: true,
-  // format: "mm-dd-yy"
-  //});        
+
+
+- content_for :scripts do
+  :javascript 
+
+    $(document).ready(function() {
+      $('.cl_start_year, .cl_end_year').datepicker({
+       dateFormat: "yy-mm-dd"
+      });  
+    }); 

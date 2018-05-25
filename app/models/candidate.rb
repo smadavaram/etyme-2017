@@ -62,6 +62,10 @@ class Candidate < ApplicationRecord
   has_many :contract_cycles, dependent: :destroy
   has_many   :documents, dependent: :destroy
   has_many   :criminal_check, dependent: :destroy
+  has_many   :visas, dependent: :destroy
+  has_many   :legal_documents, dependent: :destroy
+
+
 
 
 
@@ -83,6 +87,9 @@ class Candidate < ApplicationRecord
   accepts_nested_attributes_for :designations  , allow_destroy: true , reject_if: :all_blank
   accepts_nested_attributes_for :documents  , allow_destroy: true , reject_if: :all_blank
   accepts_nested_attributes_for :criminal_check  , allow_destroy: true , reject_if: :all_blank
+  accepts_nested_attributes_for :visas  , allow_destroy: true , reject_if: :all_blank
+  accepts_nested_attributes_for :legal_documents  , allow_destroy: true , reject_if: :all_blank
+
 
 
 

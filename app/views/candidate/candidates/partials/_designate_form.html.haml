@@ -26,8 +26,8 @@
             %span.radio-checkmark
     = f.fields_for :designations, f.object.designations do |b|
       = render 'candidate/candidates/designations_fields', f: b
-      .links.education_links  
-        = link_to_add_association '+ Add Designations', f, :designations, class: 'btn btn-success', partial: 'candidate/candidates/designations_fields'   
+    .links.education_links  
+      = link_to_add_association '+ Add Designations', f, :designations, class: 'btn btn-success', partial: 'candidate/candidates/designations_fields'   
 
     / = f.fields_for :designations do |b|
     /   .row
