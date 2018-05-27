@@ -1,18 +1,23 @@
 .row{style: "padding: 15px;"}
   = form_for @user,url: candidate_candidate_path(@user.id, tab: "basic_info"),method: :put do |f|
     .row
+      / .col-md-6
+      /   .form-group
+      /     %label.control-label  Work location
+      /     .contract-fild
+      /       = f.text_field :first_name, class: "form-control", placeholder: "Contract Work location", :id=>"contract_work_location"
       .col-sm-6
         .form-group
           / .input-group
           /   %span.input-group-addon
           /     %i.fa.fa-mobile-phone.fa-lg.fa-fw
-          = f.text_field :first_name  ,:placeholder => "Enter First Name", required: true,class:'form-control input'
+          = f.text_field :first_name  ,:placeholder => "Enter First Name",class:'form-control input'
       .col-sm-6
         .form-group
           / .input-group
           /   %span.input-group-addon
           /     %i.fa.fa-mobile-phone.fa-lg.fa-fw
-          = f.text_field :last_name  ,:placeholder => "Enter last Name", required: true,class:'form-control input'
+          = f.text_field :last_name  ,:placeholder => "Enter last Name",class:'form-control input'
       
       / .col-md-6
       /   .form-group
@@ -66,7 +71,7 @@
         %button.btn.btn-primary.pull-right{:type => "submit"}
           Saved          
         
-
+%script{:src => "https://maps.google.com/maps/api/js?key=AIzaSyDk4kWlA522W3T4oGwdug5nKPXYMhU6rCE&sensor=false&libraries=places"}
 - content_for :scripts do
   :javascript        
 
@@ -153,22 +158,22 @@
      });
     }
 
-    // $(document).ready(function () {
-    //   addressLookup();
-    // });
+    $(document).ready(function () {
+      addressLookup();
+    });
 
     function addressLookup() {
-       // var address = document.getElementsByClassName('p-location');
+      var address = document.getElementsByClassName('p-location');
 
-       // for(var i=0; i< address.length; i++){
-       //   new google.maps.places.Autocomplete(address[i]);
+      for(var i=0; i< address.length; i++){
+        new google.maps.places.Autocomplete(address[i]);
 
-       //   google.maps.event.addDomListener(address[i], 'keydown', function(event) {
-       //     if (event.keyCode === 13) {
-       //       event.preventDefault();
-       //     }
-       //   });
-       // }
+        google.maps.event.addDomListener(address[i], 'keydown', function(event) {
+          if (event.keyCode === 13) {
+            event.preventDefault();
+          }
+        });
+      }
     }
 
     $('.candidate-association').on('cocoon:after-insert', function(e, insertedItem) {

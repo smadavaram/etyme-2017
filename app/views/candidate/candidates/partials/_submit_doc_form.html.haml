@@ -97,11 +97,30 @@
     }) 
     $("#candidate_ever_worked_with_company_no").on("click", function(){
       $(".client_information_main_div").hide();
-    })      
+    })     
+
+     $(document).ready(function () {
+      addressLookup();
+    });
+
+    function addressLookup() {
+      var address = document.getElementsByClassName('p-location');
+
+      for(var i=0; i< address.length; i++){
+        new google.maps.places.Autocomplete(address[i]);
+
+        google.maps.event.addDomListener(address[i], 'keydown', function(event) {
+          if (event.keyCode === 13) {
+            event.preventDefault();
+          }
+        });
+      }
+    }
+ 
 
     // For file Picker
     $('.candidate-association').on('cocoon:after-insert', function(e, insertedItem) {
-      
+      addressLookup();
 
      $(".education_doc_expiry_date, .visa_exp_date, .legal_doc_exp_date, .creminal_check_start_year, .creminal_check_end_year").datepicker({
         dateFormat : 'yy-mm-dd'

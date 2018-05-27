@@ -15,6 +15,8 @@ class JobApplication < ApplicationRecord
   has_many   :comments ,as: :commentable
   has_many     :chats             ,as: :chatable
   has_many :job_applicant_reqs
+  has_many :job_applicantion_without_registrations
+
 
   # validates :cover_letter , :applicant_resume ,presence: true
   validates :cover_letter, presence: true
@@ -31,6 +33,8 @@ class JobApplication < ApplicationRecord
   after_create  :send_message
   accepts_nested_attributes_for :custom_fields , reject_if: :all_blank
   accepts_nested_attributes_for :job_applicant_reqs , reject_if: :all_blank
+  accepts_nested_attributes_for :job_applicantion_without_registrations , reject_if: :all_blank
+
 
   default_scope                { order(created_at: :desc) }
   scope :direct , -> {where(job_invitation_id: nil)}

@@ -38,6 +38,8 @@ Rails.application.routes.draw do
       match :search, action: :index, via: [:get , :post], on: :collection
       post :apply
       resources :job_applications ,only:[:create]
+      # get 'job_appication_without_registeration' ,to: 'job_applications#job_appication_without_registeration'
+      post :job_appication_without_registeration
     end
     resources :companies , only: [] do
       resources :candidates  do

@@ -55,3 +55,31 @@
     = render partial: 'shared/flash_messages'
     /[if IE 8]
     = yield(:scripts).present? ? yield(:scripts) : render(partial: 'shared/scripts')
+
+
+- content_for :scripts do
+  :javascript
+
+    $(".switch").on("click", function(){
+      
+
+      var switch_status = $("#myonoffswitch").attr("checked");
+
+      console.log("11111111111111111111111");
+      console.log(switch_status);
+      console.log("11111111111111111111111");
+
+      if(switch_status == "checked"){
+        switch_status = true;
+        
+        console.log("--------------------------")
+        
+        $("#myonoffswitch").removeAttr("checked");
+      }else{
+          console.log("+++++++++++++++++++++++++++")
+        //$("#myonoffswitch").click();
+        $("#myonoffswitch").attr("checked", "chacked");
+        //$("#myonoffswitch").removeAttr("checked");
+        switch_status = false;
+      }
+    }); 

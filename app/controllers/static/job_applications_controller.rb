@@ -25,15 +25,14 @@ class Static::JobApplicationsController < ApplicationController
     redirect_back fallback_location: root_path
   end
 
-
-  private
   def job_application_params
     params.require(:job_application).permit([ :message ,:applicant_resume, :cover_letter ,:candidate_email,:candidate_first_name,:candidate_last_name, :status, custom_fields_attributes:
         [
             :id,
             :name,
             :value
-        ],job_applicant_reqs_attributes: [:id, :job_requirement_id, :applicant_ans, app_multi_ans: []]])
+        ],job_applicant_reqs_attributes: [:id, :job_requirement_id, :applicant_ans, app_multi_ans: []], 
+        job_applicantion_without_registrations_attributes: [:id, :first_name, :last_name, :email, :phone, :location, :skill, :visa, :title, :roal, :resume, :is_registerd ]])
   end
   def find_job
     @job=Job.active.is_public.where(id: params[:id]|| params[:job_id]).first

@@ -55,6 +55,9 @@ class Company::CandidatesController < Company::BaseController
        if @candidate.save
          current_company.candidates <<  @candidate
          @candidate.create_activity :create, owner:current_company,recipient: current_company
+
+         CandidatesResume.create(:candidate_id=> @candidate.id, :resume=>@candidate.resume, :is_primary=>true)
+         Address.create(:address_1=>@candidate.location, :addressable_type=>"Candidate", :addressable_id=>@candidate.id)
          flash[:success] =  "Successfull Added."
          respond_to do |format|
            format.html {flash[:success] = "successfully Created."; redirect_to candidates_path}
@@ -187,7 +190,7 @@ class Company::CandidatesController < Company::BaseController
     def create_candidate_params
       params.require(:candidate).permit(:first_name,:invited_by_id ,:send_invitation,:invited_by_type,
                                         :resume ,:description, :last_name,:dob,:phone,
-                                        :email, :skill_list, :location,
+                                        :email, :skill_list, :location, :candidate_visa, :candidate_title, :candidate_roal,
                                         experiences_attributes:[:id,
                                             :experience_title,:end_date,
                                             :industry, :department,

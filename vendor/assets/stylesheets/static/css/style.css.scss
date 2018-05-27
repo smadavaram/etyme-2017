@@ -2413,7 +2413,7 @@ html[xmlns] .flexslider .slides {
 
 .modal-body {
     margin:0;
-    padding:60px 0 20px;
+    padding:25px 0 20px;
 }
 
 .modal-body .project-descr{
@@ -4085,4 +4085,11 @@ a.a-body:hover{
 	.panel-group .panel-heading .panel-title{
 	  font-size:15px;
 	}
+}
+
+.job_application_model .modal-content{width: 750px;
+    align-items: center;
+    margin-left: -100px;}
+.job_application_model .modal-header{
+  background: #dedce2;
 }
