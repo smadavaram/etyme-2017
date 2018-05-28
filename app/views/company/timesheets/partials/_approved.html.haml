@@ -42,11 +42,14 @@
                       %th.hasinput{ :style => "width:10%"}
                         %input.form-control{:placeholder => "Actions", :type => "text"}/
                     %tr{:role => "row"}
-                      %th Title
-                      %th Billing
-                      %th Frequency
-                      %th Start Cycle
-                      %th End Cycle
+                      %th Id
+                      %th Description
+                      %th Hours
+                      %th Start Date
+                      %th End Date
+                      %th Next Timesheet
+                      %th Sell Cycle
+                      %th Buy Cycle
                       %th Status
                       %th Actions
                   %tbody
@@ -54,11 +57,23 @@
                       - content_for :modals do
                         = render 'company/timesheets/partials/histroy_modal' , timesheet: timesheet
                       %tr.even{:role => "row"}
-                        %td= timesheet.contract.title
-                        %td= timesheet.contract.try(:billing_frequency).try(:humanize)
-                        %td= timesheet.contract.try(:time_sheet_frequency).try(:humanize)
+                        %td= timesheet.id
+                        %td
+                          = link_to "#"+timesheet.contract.id.to_s, contract_path(timesheet. contract)
+                          %br
+                          = "-"+timesheet.contract.title[0..10]
+                          %br
+                          = "-"+timesheet.contract.client.full_name[0..10]
+                          %br
+                          = "-"+timesheet.contract.buy_contracts.first.contract_type
+                          %br
+                          = "-"+timesheet.contract.buy_contracts.first.candidate.full_name[0..10]
+                        %td= timesheet.total_time
                         %td= timesheet.start_date
                         %td= timesheet.end_date
+                        %td= timesheet.ts_cycle.next_date.strftime("%m/%d/%Y")
+                        %td
+                        %td
                         %td= timesheet.status.titleize
                         %td
                           =# link_to raw("<i class='fa fa-eye '></i>")  ,timesheet_timesheet_log_path(timesheet, timesheet.timesheet_logs.last) ,  target: '_blank' ,class: 'btn btn-xs btn-default ',title:'View Details','rel'=>"tooltip" ,'data-placement'=>"top"

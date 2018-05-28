@@ -39,7 +39,7 @@ class Company::InvoicesController < Company::BaseController
       inv.total_amount = total_amount,
       inv.total_approve_time =  total_approve_time,
       inv.rate =  payrate
-      inv.status =  :submitted
+      inv.status =  :open
 
       inv.save
       flash[:success] = "Successfully Submitted"
@@ -67,7 +67,7 @@ class Company::InvoicesController < Company::BaseController
     if @invoice.total_approve_time <= 0 || @invoice.rate <= 0
       flash[:errors] = "Invoice not contains any amount. "
     else
-      @invoice.submitted!
+      @invoice.open!
       @invoice.submitted_by = current_user
       @invoice.submitted_on = DateTime.now
       @invoice.total_amount = (@invoice.total_approve_time * @invoice.rate)
@@ -96,6 +96,13 @@ class Company::InvoicesController < Company::BaseController
     end
 
     redirect_back fallback_location: root_path
+
+     # if @invoice.total_approve_time <= 0 || @invoice.rate <= 0
+     #   flash[:errors] = "Invoice not contains any amount. "
+     #   redirect_back fallback_location: root_path
+     # else
+     #   @receive_payment = @invoice.receive_payments.new
+     # end
   end
 
   def reject_invoice
@@ -138,7 +145,7 @@ class Company::InvoicesController < Company::BaseController
   end
 
   def edit
-
+    @invoice = Invoice.find(params[:id])
   end
 
   def update
@@ -164,7 +171,7 @@ class Company::InvoicesController < Company::BaseController
     else
       flash[:errors] = "Invalid Invoice End Date."
     end
-    render json: :ok
+    redirect_to invoices_path
   end
 
   private

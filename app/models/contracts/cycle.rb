@@ -82,7 +82,7 @@ module Contracts
           start_date: start_date,
           end_date: next_date,
           ig_cycle_id: cycle_id,
-          rate: buy_payrate
+          rate: sell_payrate
       )
     end
 
@@ -100,6 +100,10 @@ module Contracts
 
     def buy_contract
       buy_contracts.first
+    end
+
+    def sell_contract
+      sell_contracts.first
     end
 
     def ts_time_sheet_frequency
@@ -164,6 +168,10 @@ module Contracts
 
     def buy_payrate
       buy_contract.payrate
+    end
+
+    def sell_payrate
+      sell_contract.customer_rate
     end
 
     def get_next_date(time_sheet_frequency, date_1, date_2, end_of_month, day_of_week, last_date = Date.today - 1.day )

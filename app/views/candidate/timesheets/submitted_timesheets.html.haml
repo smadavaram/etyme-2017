@@ -19,7 +19,7 @@
                 timesheet_clyver: "#{ts.start_date} - #{ts.end_date}",
                 date: ts.submitted_date,
                 hours: ts.total_time,
-                amount: (ts.total_time * ts.contract.buy_contracts.first.payrate),
+                pay: (ts.total_time * ts.contract.buy_contracts.first.payrate),
                 attachment: ts.timesheet_attachment,
                 status: ts.status})
 
@@ -40,7 +40,7 @@
       datatype : "local",
       height : 'auto',
       colNames : ['Timesheet ID', 'Creation Date', 'Contract', 'Client', 'Tax Type',
-                  'candidate', 'Company Vendor', 'Buy Rate', 'Timesheet Cycle', 'Date', 'Hours', 'Amount', 'Attachment',
+                  'candidate', 'Company Vendor', 'Buy Rate', 'Timesheet Cycle', 'Date', 'Hours', 'Pay', 'Attachment',
                   'status', 'Actions'],
       colModel : [ {
         name : 'timesheet_id',
@@ -89,8 +89,8 @@
         index : 'hours',
         sortable : false
       },{
-        name : 'amount',
-        index : 'amount',
+        name : 'pay',
+        index : 'pay',
         sortable : false
       },{
         name : 'attachment',

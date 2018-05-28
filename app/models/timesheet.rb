@@ -18,6 +18,9 @@ class Timesheet < ApplicationRecord
   has_many :contract_salary_histories ,as: :salable, dependent: :destroy
 
 
+  belongs_to :ts_cycle, optional: true, foreign_key: :ts_cycle_id, class_name: 'ContractCycle'
+  belongs_to :ta_cycle, optional: true, foreign_key: :ta_cycle_id, class_name: 'ContractCycle'
+
   # before_validation :set_recurring_timesheet_cycle
   after_update  :set_ts_on_seq, if: Proc.new{|t| t.status_changed? && t.submitted? && t.total_time.to_f > 0}
   after_update  :set_ta_on_seq, if: Proc.new{|t| t.status_changed? && t.approved? && t.total_time.to_f > 0}

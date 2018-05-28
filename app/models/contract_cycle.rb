@@ -6,6 +6,9 @@ class ContractCycle < ApplicationRecord
   belongs_to :candidate, optional: true
   belongs_to :cyclable, polymorphic: true, optional: true
 
+  has_many :ts_submitteds, foreign_key: :ts_cycle_id, class_name: 'Timesheet'
+  has_many :ta_approveds, foreign_key: :ta_cycle_id, class_name: 'Timesheet'
+
   validates :cycle_type, uniqueness: { scope: [ :cyclable_type, :cyclable_id ] }, if: Proc.new { |cc| cc.cyclable_type.present? }
   validates :cycle_type,
             presence: true,
