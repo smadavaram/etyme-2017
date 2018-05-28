@@ -77,7 +77,11 @@ class JobApplication < ApplicationRecord
         self.job.created_by.notifications.create(message: self.applicationable.full_name + " has <a href='http://#{self.job.created_by.company.etyme_url + job_application_path(self)}'>apply</a> to your Job Application - #{self.job.title}",title:"Job Application")
       else
         self.job.company.all_admins_has_permission?('manage_job_applications').each  do |admin|
-          admin.notifications.create(message: self.applicationable.company.name + " has <a href='http://#{self.job.created_by.company.etyme_url + job_application_path(self)}'>apply</a> your Job Application - #{self.job.title}",title:"Job Application")
+          if self.applicationable_id.blank?
+            admin.notifications.create(message: " has <a href='http://#{self.job.created_by.company.etyme_url + job_application_path(self)}'>apply</a> your Job Application - #{self.job.title}",title:"Job Application")
+          else 
+            admin.notifications.create(message: self.applicationable.company.name + " has <a href='http://#{self.job.created_by.company.etyme_url + job_application_path(self)}'>apply</a> your Job Application - #{self.job.title}",title:"Job Application")
+          end   
         end
       end
     end
@@ -85,8 +89,12 @@ class JobApplication < ApplicationRecord
   private
 
   def send_message
-    chat = self.job.chat.chat_users.create(userable: self.try(:applicationable)) if self.job.chat.present?
-    self.job.chat.messages.create(messageable: self.try(:applicationable) , body: "#{self.try(:applicationable).try(:full_name)} has applied for your job with title #{self.job.title}") if self.job.chat.present?
+    if self.applicationable_id.blank?
+
+    else  
+      chat = self.job.chat.chat_users.create(userable: self.try(:applicationable)) if self.job.chat.present?
+      self.job.chat.messages.create(messageable: self.try(:applicationable) , body: "#{self.try(:applicationable).try(:full_name)} has applied for your job with title #{self.job.title}") if self.job.chat.present?
+    end
   end
 
 

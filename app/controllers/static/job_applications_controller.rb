@@ -11,12 +11,26 @@ class Static::JobApplicationsController < ApplicationController
         @job_application.save
       end
     else
-      @job_application=current_candidate.job_applications.new(job_application_params.merge(job_id:params[:job_id]))
-      if @job_application.save
-        flash[:success] = "Job Application Created"
+      if params["candidate_without_registration"].present?
+        @job_application = JobApplication.new()
+        @job_application.cover_letter = params["job_application"]["cover_letter"]
+        @job_application.message = params["job_application"]["message"]
+        @job_application.job_id = params[:job_id]
+        @job_application.applicant_resume = params["job_application"]["applicant_resume"]
+
+        if @job_application.save
+          flash[:success] = "Job Application Created"
+        else
+          flash[:errors] = @job_application.errors.full_messages
+        end 
       else
-        flash[:errors] = @job_application.errors.full_messages
-      end
+        @job_application=current_candidate.job_applications.new(job_application_params.merge(job_id:params[:job_id]))
+        if @job_application.save
+          flash[:success] = "Job Application Created"
+        else
+          flash[:errors] = @job_application.errors.full_messages
+        end
+      end  
     end
     if params[:is_candidate] == "true"
       job = Job.find(params[:job_id])

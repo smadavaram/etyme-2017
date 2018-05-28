@@ -11,27 +11,76 @@
         = form_for [:static , job,job_application], html: {class: 'form-horizontal'} do |f|
           = hidden_field_tag 'candidate_id', candidate_id if local_assigns[:candidate_id].present?
           = hidden_field_tag 'is_candidate', is_candidate if local_assigns[:is_candidate].present?
+          = hidden_field_tag 'candidate_without_registration', :value=>true
+
           .form-group.candidate-association
-            = f.fields_for :job_applicantion_without_registrations do |b|
-              .row
-                .col-sm-3
+            .row
+              = f.fields_for :job_application_without_registrations do |b|
+                .col-sm-12
+                  .col-sm-6
+                    .form-group
+                      %p First Name
+                      = b.text_field :first_name,placeholder: "First Name",class: 'form-control input'
+                  .col-sm-6
+                    .form-group
+                      %p Last Name
+                      = b.text_field :last_name,placeholder: "Last Name",class: 'form-control input'    
+                .col-sm-12
+                  .col-sm-6
+                    .form-group
+                      %p Email
+                      = b.text_field :email,placeholder: "Email",class: 'form-control input'
+                  .col-sm-6
+                    .form-group
+                      %p Phone
+                      = b.text_field :phone,placeholder: "Phone",class: 'form-control input'    
+                .col-sm-12
+                  .col-sm-6
+                    .form-group
+                      %p Visa
+                      = b.text_field :visa,placeholder: "Visa",class: 'form-control input'
+                  .col-sm-6
+                    .form-group
+                      %p Title
+                      = b.text_field :title,placeholder: "Title",class: 'form-control input'    
+                .col-sm-12
+                  .col-sm-6
+                    .form-group
+                      %p Roal
+                      = b.text_field :roal,placeholder: "Roal",class: 'form-control input'
+                  .col-sm-6
+                    .form-group
+                      %p Resume
+                      = f.filepicker_field :applicant_resume , class: 'btn btn-primary file-pick'  , id: 'accept-filepiker' ,"data-fp-extensions" => ".pdf,.doc,.docx,.txt"
+            .row
+              .col-sm-12
+                .col-sm-12
                   .form-group
-                    %p Name
-                    = b.text_field :first_name,placeholder: "First Name",class: 'form-control input'
+                    %p Cover Letter
+                    =  f.text_area :cover_letter , class: "form-control tinymce", rows: 8, cols: 25, placeholder: 'Cover Letter'
+                    =  tinymce :default
+            .row
+              .col-sm-12
+                .col-sm-12
+                  .form-group
+                    %p Message (optional)
+                    = f.text_area :message, class: "form-control", rows: "2" ,placeholder: 'Write tour message'
+    
+
           %fieldset
-            .form-group
-              %label.col-md-2.control-label Cover Letter
-              .col-md-10
-                =  f.text_area :cover_letter , class: "form-control tinymce", rows: 8, cols: 25, placeholder: 'Cover Letter'
-                =  tinymce :default
-            .form-group
-              %label.col-md-2.control-label Resume
-              .col-md-10
-                = f.filepicker_field :applicant_resume , class: 'btn btn-primary file-pick'  , id: 'accept-filepiker' ,"data-fp-extensions" => ".pdf,.doc,.docx,.txt"
-            .form-group
-              %label.col-md-2.control-label Message (optional)
-              .col-md-10
-                = f.text_area :message, class: "form-control", rows: "2" ,placeholder: 'Write tour message'
+            / .form-group
+            /   %label.col-md-2.control-label Cover Letter
+            /   .col-md-10
+            /     =  f.text_area :cover_letter , class: "form-control tinymce", rows: 8, cols: 25, placeholder: 'Cover Letter'
+            /     =  tinymce :default
+            / .form-group
+            /   %label.col-md-2.control-label Resume
+            /   .col-md-10
+            /     = f.filepicker_field :applicant_resume , class: 'btn btn-primary file-pick'  , id: 'accept-filepiker' ,"data-fp-extensions" => ".pdf,.doc,.docx,.txt"
+            / .form-group
+            /   %label.col-md-2.control-label Message (optional)
+            /   .col-md-10
+            /     = f.text_area :message, class: "form-control", rows: "2" ,placeholder: 'Write tour message'
             .nested-fields
               - job.job_requirements.each do |r|
                 = f.fields_for :job_applicant_reqs do |ja|
