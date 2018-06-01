@@ -1,12 +1,12 @@
 class Company::CompaniesController < Company::BaseController
 
   before_action :find_admin, only: :change_owner
-  before_action :authorized_user , only: [:show,:create ,:hot_candidates, :index, :network_contacts, :new]
+  before_action :authorized_user , only: [:show,:create ,:hot_candidates, :index, :network_contacts, :new, :company_contacts]
   before_action :find_company , only: [:edit,:update,:destroy ,:add_reminder ,:assign_status ,:create_chat]
   before_action :set_hot_candidates ,only: [:hot_candidates]
   before_action :set_company_contacts , only:  [:contacts]
   before_action :find_user , only: [:create_chat]
-  has_scope :search_by , only: [:index, :network_contacts]
+  has_scope :search_by , only: [:index, :network_contacts, :company_contacts]
   respond_to :html,:json
 
   add_breadcrumb 'Companies', :companies_path, :title => ""
@@ -30,6 +30,19 @@ class Company::CompaniesController < Company::BaseController
     @new_company.build_invited_by
     # - next if d.invited_company.try(:company_contacts).try(:first).try(:full_name).present?
 
+  end
+
+  def company_contacts
+
+    @search = current_company.invited_companies.joins(:invited_company).includes(:invited_company).search(params[:q])
+    
+    company_ids = @search.result.map{|data| data.invited_company_id}.uniq
+
+    @company_contacts = CompanyContact.where("company_id IN (?)", company_ids ).order("created_at DESC")
+
+    # @invited_companies = @search.result.order("companies.created_at DESC")#.paginate(page: params[:page], per_page: 10)
+    @new_company = Company.new
+    @new_company.build_invited_by
   end
 
   def network_contacts
@@ -57,16 +70,59 @@ class Company::CompaniesController < Company::BaseController
 
   def create
     pass = get_uniq_identifier
-    @company = Company.new(create_params)
-    respond_to do |format|
-      if @company.valid? && @company.save
-        format.html {flash[:success] = "successfully Created."; redirect_back fallback_location: root_path}
-        format.js{ flash.now[:success] = "successfully Created." }
+    # @company = Company.new(create_params)
+
+    if params["company"]["domain"] && !params["company"]["domain"].blank? 
+
+      companies = Company.where(domain: params["company"]["domain"])
+
+      if !companies.blank?
+        if !params["company"]["company_contacts_attributes"].blank?
+          params["company"]["company_contacts_attributes"].each do |key, val|
+            company_contact = CompanyContact.create(:company_id=> companies.first.id, :email=>val["email"], :first_name=>val["first_name"] , :last_name=>val["last_name"] , :phone=>val["phone"] , :title=>val["title"] )
+          end  
+
+          respond_to do |format|
+            format.html {flash[:success] = "successfully Created."; redirect_back fallback_location: root_path}
+            format.js{ flash.now[:success] = "successfully Created." }
+          end
+
+        end  
       else
-        format.js{ flash.now[:errors] =  @company.errors.full_messages }
-        format.html{ flash[:errors] =  @company.errors.full_messages; redirect_back fallback_location: root_path }
-      end
-    end
+        total_slug = Company.where("slug like ?", "#{params["company"]["domain"].split('.')[0].gsub(/[^0-9A-Za-z.]/, '').downcase}_").count
+        @company = Company.new(create_params)
+       
+        if total_slug == 0
+          @company.slug = "#{params["company"]["domain"].split('.')[0].gsub(/[^0-9A-Za-z.]/, '').downcase}"
+        else
+          @company.slug = "#{params["company"]["domain"].split('.')[0].gsub(/[^0-9A-Za-z.]/, '').downcase}" + "#{total_slug +1}"
+        end  
+
+        # @company.slug = total_slug == 0 ? "#{params["company"]["domain"].split('.')[0].gsub(/[^0-9A-Za-z.]/, '').downcase}" : "#{params["company"]["domain"].split('.')[0].gsub(/[^0-9A-Za-z.]/, '').downcase}" + "#{total_slug - 1}" 
+        respond_to do |format|
+          if @company.valid? && @company.save
+
+            format.html {flash[:success] = "successfully Created."; redirect_back fallback_location: root_path}
+            format.js{ flash.now[:success] = "successfully Created." }
+          else
+
+            format.js{ flash.now[:errors] =  @company.errors.full_messages }
+            format.html{ flash[:errors] =  @company.errors.full_messages; redirect_back fallback_location: root_path }
+          end
+        end
+      end  
+    end  
+
+
+    # respond_to do |format|
+    #   if @company.valid? && @company.save
+    #     format.html {flash[:success] = "successfully Created."; redirect_back fallback_location: root_path}
+    #     format.js{ flash.now[:success] = "successfully Created." }
+    #   else
+    #     format.js{ flash.now[:errors] =  @company.errors.full_messages }
+    #     format.html{ flash[:errors] =  @company.errors.full_messages; redirect_back fallback_location: root_path }
+    #   end
+    # end
   end
 
   def update
@@ -244,7 +300,7 @@ class Company::CompaniesController < Company::BaseController
   end
 
   def create_params
-    params.require(:company).permit([:name, :email, :domain,:currency_id,:phone ,:fax_number,:send_email ,group_ids:[],
+    params.require(:company).permit([:name, :email, :domain,:currency_id,:phone ,:fax_number,:send_email, :slug, :website ,group_ids:[],
          company_contacts_attributes:[:id, :type  , :first_name, :last_name ,:email,:company_id,:phone, :title ,:_destroy],
          invited_by_attributes: [:invited_by_company_id , :user_id],
          custom_fields_attributes: [

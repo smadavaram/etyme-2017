@@ -97,7 +97,7 @@ class Company < ApplicationRecord
   accepts_nested_attributes_for :addresses ,   allow_destroy: true, reject_if: :all_blank
 
 
-  before_validation :create_slug
+  # before_validation :create_slug
   after_create      :set_owner_company_id , if: Proc.new{|com| com.owner.present?}
   after_create      :welcome_email_to_owner, if: Proc.new{|comp| !comp.invited_by.present?}
   after_create      :assign_free_subscription

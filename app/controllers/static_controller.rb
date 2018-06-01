@@ -28,8 +28,13 @@ class StaticController < ApplicationController
   end
 
   def check_for_domain
-    companies = Company.where(slug: params[:domain_name])
-    render json: {present_count: companies.count}
+    company = Company.where(domain: params[:domain_name]).first()
+    total_count = Company.where("slug like ?", "#{params[:domain_name].split('.')[0].gsub(/[^0-9A-Za-z.]/, '').downcase}_").count
+
+    company_slug = !company.blank? ? company.slug : ""
+    total_count = total_count == 0 ? 0 : total_count +1
+
+    render json: {present_count: total_count , :company_slug=>company_slug}
   end
 
   private

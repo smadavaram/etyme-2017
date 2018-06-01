@@ -192,6 +192,7 @@ Rails.application.routes.draw do
       post   :add_to_network
       get    :hot_candidates
       get    :network_contacts, on: :collection
+      get    :company_contacts, on: :collection
       get    :hot_index
       match :create_chat ,via: [:get, :post]
     end

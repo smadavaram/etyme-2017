@@ -20,8 +20,8 @@
                 = f.fields_for :company_contacts do |contact|
                   = render 'company/companies/partials/company_contact_fields', f: contact
 
-                .col-md-12{style: "margin-left:15px"}
-                  = link_to_add_association 'Add Contact', f, :company_contacts , partial: 'company/companies/partials/company_contact_fields',class:'btn btn-primary pull-right'
+                .col-md-6
+                  = link_to_add_association 'Add Contact', f, :company_contacts , partial: 'company/companies/partials/company_contact_fields',class:'btn btn-primary pull-right mr-top--30'
 
 
                   -#.form-group
@@ -35,9 +35,10 @@
                 - if @new_company.new_record?
                   .form-group
                     %label.control-label
-                      Domain
+                      Sub Domain
                       %sup.text-danger *
-                    = f.text_field :domain  ,:placeholder => "Domain", required: true,minlength: "3",class:'form-control', readonly: true
+                    = f.text_field :slug  ,:placeholder => "Domain", required: true,minlength: "3",class:'form-control', readonly: true  
+                    = f.hidden_field :domain  ,:placeholder => "Domain", required: true,minlength: "3",class:'form-control', readonly: true
                     .note.text-muted.errors.text-danger
                     .note.text-muted
                       Please Enter Domain like https://address
@@ -45,6 +46,10 @@
                     %label.control-label
                       Name
                     = f.text_field :name , class: 'form-control' , placeholder: 'Enter Company Name' 
+                  .form-group
+                    %label.control-label
+                      Website
+                    = f.text_field :website , class: 'form-control' , placeholder: 'Enter Website'   
                   .form-group
                     %label.control-label
                       Phone
@@ -66,7 +71,8 @@
     function validate_email() {
       var email = $('#company_company_contacts_attributes_0_email').val();
       var split_email = email.split("@");
-      checkDomain(split_email[1].split(".")[0])
+      // checkDomain(split_email[1].split(".")[0])
+      checkDomain(split_email[1])
     }
 
     //function validate_domain() {
@@ -80,12 +86,29 @@
           type: "POST",
           data: {domain_name: domain_name },
           success: function (data) {
-            if(data.present_count > 0){
-              $("#company_domain").val(domain_name+data.present_count);
-              $(".errors").text("Domain Already Register So we added '" + data.present_count + "'." )
-            } else {
-              $(".errors").text("")
+            if(data.company_slug != ""){
+              $("#company_slug").val(data.company_slug);
               $("#company_domain").val(domain_name);
+              $("#company_website").val(domain_name);
+              $("#company_name").val(domain_name.split(".")[0]);
+
+              $(".errors").text("Domain Already Register So Just Add contact to this Domain.")
+            }else if(data.present_count > 0){
+              $("#company_slug").val(domain_name.split(".")[0]+data.present_count);
+              $("#company_domain").val(domain_name);
+              $("#company_website").val(domain_name);
+              $("#company_name").val(domain_name.split(".")[0]);
+
+              $(".errors").text("Domain Already Register So we added '" + data.present_count + "'." )
+
+            }else {
+
+              $(".errors").text("")
+              $("#company_slug").val(domain_name.split(".")[0]);
+              $("#company_domain").val(domain_name);
+              $("#company_name").val(domain_name.split(".")[0]);
+              $("#company_website").val(domain_name);
+
             }
           }
         });

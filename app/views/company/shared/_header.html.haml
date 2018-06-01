@@ -4,7 +4,7 @@
     %span#logo{style: 'margin-top: 3px;'}
       = image_tag 'etyme-logo.png', alt: 'Etyme', style: 'width: 80px;'
   = yield :top_right
-  %input{"data-off-text" => "Unavailable", "data-on-text" => "Available", :name => "company-status-toggle", :type => "checkbox", :checked => current_user.chat_status == 'available' ? true : false}
+  %input{"data-off-text" => "Off", "data-on-text" => "On", :name => "company-status-toggle", :type => "checkbox", :checked => current_user.chat_status == 'available' ? true : false}
 
   %form.header-search.pull-left{:action => "#ajax/search.html"}
     %input#search-fld{:name => "param", :placeholder => "Find reports and more", :type => "text"}/
