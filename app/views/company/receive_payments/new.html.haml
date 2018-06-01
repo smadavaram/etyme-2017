@@ -1,0 +1,47 @@
+#content
+  %body
+    %section#widget-grid
+      .row
+        %div
+          Invoice No :
+          = @invoice.number
+        = form_for @receive_payment, url: invoice_receive_payments_path(@invoice), multipart: true do |f|
+          %p
+            = f.label :payment_date
+            = f.text_field :payment_date, class: "date"
+          %p
+            = f.label :payment_method
+            = f.text_field :payment_method
+          %p
+            = f.label :reference_no
+            = f.text_field :reference_no
+          %p
+            = f.label :deposit_to
+            = f.text_field :deposit_to
+          %p
+            %div
+              Balance :
+              = @invoice.balance
+            = f.label :amount_received
+            = f.number_field :amount_received
+          %p
+            = f.label :posted_as_discount
+            = f.check_box :posted_as_discount
+          %p
+            = f.label :memo
+            = f.text_area :memo
+          %p
+            = f.label :attachment
+            = f.filepicker_field :attachment, :button_text => "Pick File", class: 'file-pick btn btn-primary'
+          %p
+            = f.submit :save
+
+- content_for :scripts do
+  :javascript
+     $( document ).ready(function() {
+        $('#receive_payment_payment_date').datepicker({
+          dateFormat : 'dd/mm/yy',
+          prevText : '<i class="fa fa-chevron-left"></i>',
+          nextText : '<i class="fa fa-chevron-right"></i>'
+        });
+     });

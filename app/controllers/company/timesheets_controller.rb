@@ -90,7 +90,7 @@ class Company::TimesheetsController < Company::BaseController
       invoices.each do |i|
         hours = 0
         if @timesheet.start_date >= i.start_date && @timesheet.end_date <= i.end_date
-          i.update(total_approve_time: (i.total_approve_time+@timesheet.total_time))
+          i.update_attributes(total_approve_time: (i.total_approve_time+@timesheet.total_time), balance: (i.balance + (@timesheet.total_time * i.rate)))
           @timesheet.update(inv_numbers: (@timesheet.inv_numbers+[i.id]))
         else
           @timesheet.days.each do |t|

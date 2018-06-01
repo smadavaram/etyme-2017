@@ -280,6 +280,7 @@ Rails.application.routes.draw do
       collection do
         get :cleared_invoice
       end
+      resources :receive_payments
     end
     resources :reminders        ,only: :create do
       collection do

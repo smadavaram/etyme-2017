@@ -374,13 +374,13 @@ module ApplicationHelper
                     children: [
                         {
                             href: bill_to_pay_company_accountings_path,
-                            title: 'Bill Payment(s)',
-                            content: "<span class='menu-item-parent'> Bill To Pay </span>"
+                            title: 'Open Bills(s)',
+                            content: "<span class='menu-item-parent'> Open Bills </span>"
                         },
                         {
                             href: bill_received_company_accountings_path,
-                            title: 'Bill Payment(s)',
-                            content: "<span class='menu-item-parent'> Bill Received </span>"
+                            title: 'Vendor Bill(s)',
+                            content: "<span class='menu-item-parent'> Vendor Bill </span>"
                         },
                         {
                             href: bill_pay_company_accountings_path,

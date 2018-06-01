@@ -2,7 +2,7 @@ class Invoice < ApplicationRecord
 
   include Rails.application.routes.url_helpers
 
-  enum status: [:pending_submission, :submitted, :paid , :partially_paid , :cancelled ]
+  enum status: [:pending_invoice, :open, :paid , :partially_paid , :cancelled ]
 
   belongs_to  :contract, optional: true
   belongs_to  :submitted_by   , class_name:"Admin", foreign_key: :submitted_by, optional: true
@@ -11,6 +11,7 @@ class Invoice < ApplicationRecord
   has_one     :company        , through: :company
   has_many    :timesheets
   has_many    :timesheet_logs , through: :timesheets
+  has_many    :receive_payments
 
   # before_validation :set_rate , on: :create
   # before_validation :set_consultant_and_total_amount, on: :create , if: Proc.new{|invoice| !invoice.contract.has_child?}
@@ -31,9 +32,9 @@ class Invoice < ApplicationRecord
   # validates_numericality_of :total_amount , :rate , presence: true, greater_than_or_equal_to: 1
   validates_numericality_of :billing_amount
 
-  scope :open_invoices, -> {where(status: [:pending_submission, :submitted])}
+  scope :open_invoices, -> {where(status: [:pending_invoice, :open])}
   scope :cleared_invoices, -> {where(status: [:paid])}
-  scope :submitted_invoices, -> {where(status: :submitted)}
+  scope :submitted_invoices, -> {where(status: :open)}
 
   def set_number
     i = self.contract.invoices.order("created_at DESC").first
