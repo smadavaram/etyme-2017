@@ -918,62 +918,6 @@ label span.label-text {
 
 
 
-.switch {
-  position: relative;
-  display: inline-block;
-  width: 60px;
-  height: 65px;
-}
-
-.switch input {display:none;}
-
-.slider {
-  position: absolute;
-  cursor: pointer;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background-color: #ccc;
-  -webkit-transition: .4s;
-  transition: .4s;
-}
-
-.slider:before {
-  position: absolute;
-  content: "";
-  height: 26px;
-  width: 26px;
-  left: 4px;
-  bottom: 4px;
-  background-color: white;
-  -webkit-transition: .4s;
-  transition: .4s;
-}
-
-input:checked + .slider {
-  background-color: #2196F3;
-}
-
-input:focus + .slider {
-  box-shadow: 0 0 1px #2196F3;
-}
-
-input:checked + .slider:before {
-  -webkit-transform: translateX(26px);
-  -ms-transform: translateX(26px);
-  transform: translateX(26px);
-}
-
-/* Rounded sliders */
-.slider.round {
-  border-radius: 34px;
-}
-
-.slider.round:before {
-  border-radius: 50%;
-}
-
 .add_candidate_address a { width: 100%;}
 .resume_div{border-left: 1px solid #ccc; border-right: 1px solid #ccc;}
 .primary_doc i{
@@ -1077,3 +1021,69 @@ color: red;}
 .mr-top-10{margin-top: 10px;}
 .mr-left-20{margin-left: 20px;}
 .mr-top--30{margin-top: -30px;}
+
+#active_chat_button{margin-top: 7px; margin-right: 10px;}
+
+
+/*Switch Start*/
+
+#active_chat_button .switch {
+  position: relative;
+  display: inline-block;
+  width: 60px;
+  height: 65px;
+}
+
+#active_chat_button .switch input {display:none;}
+
+#active_chat_button .slider1 {
+  position: absolute;
+  cursor: pointer;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: #ccc;
+  -webkit-transition: .4s;
+  transition: .4s;
+}
+
+#active_chat_button .slider1:before {
+  position: absolute;
+  content: "";
+  height: 26px;
+  width: 26px;
+  left: 4px;
+  bottom: 4px;
+  background-color: white;
+  -webkit-transition: .4s;
+  transition: .4s;
+}
+
+input:checked + .slider1 {
+  background-color: #2196F3;
+}
+
+input:focus + .slider1 {
+  box-shadow: 0 0 1px #2196F3;
+}
+
+input:checked + .slider1:before {
+  -webkit-transform: translateX(26px);
+  -ms-transform: translateX(26px);
+  transform: translateX(26px);
+}
+
+/* Rounded sliders */
+#active_chat_button .slider1.round {
+  border-radius: 34px;
+}
+
+#active_chat_button .slider1.round:before {
+  border-radius: 50%;
+}
+
+#active_chat_button .slider1 {
+  height: 35px;
+}
+/*Switch End*/

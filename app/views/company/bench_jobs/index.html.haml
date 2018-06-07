@@ -61,6 +61,7 @@
                                 %span
                                   .label-info.badge
                                     = role.try(:name)
+                            = c.candidate.candidate_title        
                           -#%td= candidate.try(:status).try(:titleize)
                           %td
                             - c.candidate.skills.each do |skill|
@@ -72,7 +73,7 @@
                               =# c.candidate.try(:address).try(:city) + ' , '+ c.candidate.try(:address).try(:state) + ' , '+ c.candidate.try(:address).try(:country)
                             = c.candidate.try(:location)
                           %td
-                            = c.candidate.visa
+                            = c.candidate.candidate_visa
                           %td
                             %span
                               .label-info.badge.margin-bottom-5

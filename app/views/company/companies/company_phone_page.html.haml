@@ -1,0 +1,80 @@
+%script{:src => "https://sdk.accountkit.com/en_US/sdk.js"}
+%script{:src => "https://sdk.accountkit.com/en_EN/sdk.js"}
+.row.panel.panel-default
+  .col-sm-12
+    .row
+      .col-sm-12
+        .form-group
+      .col-sm-12
+        %p.imgDescription.col-sm-offset-4  Please Confirm your Mobile Number
+        .col-sm-1
+        .col-sm-1
+          .form-group
+            %input#country_code.form-control.input-lg{:name => "country_code", :type => "text", :value=>"+91"}/  
+              
+        .col-sm-6
+          .form-group
+            .input-group
+              %span.input-group-addon
+                %i.fa.fa-mobile-phone.fa-lg.fa-fw
+              %input#phone_no.form-control.input-lg{:name => "phone_no", :placeholder => "Enter Phone number", :type => "text", :value=>current_company.phone}/
+
+        .col-sm-4
+          .form-group
+            .input-group
+              %a.btn.btn-primary.btn-lg{:href => "javascript:void(0);", :onclick => "smsLogin();"} Send OTP
+
+
+- content_for :scripts do
+  :javascript
+    // Facebook Account Kit
+    $(document).ready(function() {
+      // initialize Account Kit with CSRF protection
+      AccountKit_OnInteractive = function(){
+        AccountKit.init(
+          {
+            appId:"1209424855859249",
+            state:"fgh521fgh",
+            version:"v1.1",
+            fbAppEventsEnabled:true
+            //redirect:"/"
+          }
+        );
+      };
+     
+    }); 
+
+    function loginCallback(response) {
+      if (response.status === "PARTIALLY_AUTHENTICATED") {
+        var code = response.code;
+        var csrf = response.state;
+        //Click on next after Authenticate
+        var phoneNumber = document.getElementById("phone_no").value;
+
+        $.ajax({
+         url: '/candidate/update_mobile_number',
+         type: "POST",
+         contentType:"application/json",
+         data: JSON.stringify({phone_number:phoneNumber, id:"#{current_company.id}"}),
+         success:function(data){
+            $(".next a").click();
+         }
+        });
+
+      }
+      else if (response.status === "NOT_AUTHENTICATED") {
+      }
+      else if (response.status === "BAD_PARAMS") {
+      }
+    }
+
+    function smsLogin() {
+      var countryCode = document.getElementById("country_code").value;
+      var phoneNumber = document.getElementById("phone_no").value;
+
+      AccountKit.login(
+        'PHONE', 
+        {countryCode: countryCode, phoneNumber: phoneNumber}, // will use default values if not specified
+        loginCallback
+      );
+    }

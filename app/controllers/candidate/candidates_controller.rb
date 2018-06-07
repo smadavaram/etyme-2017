@@ -148,6 +148,7 @@ class Candidate::CandidatesController < Candidate::BaseController
   end
 
   def status_update
+
     @candidate = current_candidate
     if @candidate.chat_status == "available"
       @candidate.go_unavailable
@@ -155,6 +156,20 @@ class Candidate::CandidatesController < Candidate::BaseController
       @candidate.go_available
     end
     respond_with @candidate
+
+  end
+
+  def chat_status_update
+
+    @candidate = current_candidate
+    if @candidate.chat_status == "available"
+      @candidate.go_unavailable
+    else
+      @candidate.go_available
+    end
+    # respond_with @candidate
+    render :json=>@candidate
+
   end
 
 

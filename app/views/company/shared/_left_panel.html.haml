@@ -3,8 +3,10 @@
   .login-info
     %span
       / User image size is adjusted inside CSS, it should stay as it
-      %a#show-shortcut{"data-action" => "toggleShortcut", :href => "javascript:void(0);"}
+      %a{:href => company_profile_page_companies_path}
         = image_tag((current_user.photo.present? ? current_user.photo : 'avatars/m_sunny_big.png'), alt: 'me', class: 'online')
+       
+      %a{:href => company_user_profile_page_companies_path}  
         %span
           = current_user.full_name
         %i.fa.fa-angle-down

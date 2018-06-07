@@ -4,7 +4,7 @@
     %span#logo{style: 'margin-top: 3px;'}
       = image_tag 'etyme-logo.png', alt: 'Etyme', style: 'width: 80px;'
   = yield :top_right
-  %input{"data-off-text" => "Off", "data-on-text" => "On", :name => "company-status-toggle", :type => "checkbox", :checked => current_user.chat_status == 'available' ? true : false}
+  / %input{"data-off-text" => "Off", "data-on-text" => "On", :name => "company-status-toggle", :type => "checkbox", :checked => current_user.chat_status == 'available' ? true : false}
 
   %form.header-search.pull-left{:action => "#ajax/search.html"}
     %input#search-fld{:name => "param", :placeholder => "Find reports and more", :type => "text"}/
@@ -90,6 +90,7 @@
           = Time.now.strftime("%D %T")
           %button.btn.btn-xs.btn-default.pull-right{"data-loading-text" => "<i class='fa fa-refresh fa-spin'></i> Loading...", :type => "button"}
             %i.fa.fa-refresh
+         
     / collapse menu button
     / #MOBILE
     / Top menu profile link : this shows only when top menu is active
@@ -127,3 +128,26 @@
               %i.fa.fa-sign-out.fa-lg
               %strong
                 %u> Logout
+    #active_chat_button.pull-right
+      %label.switch
+        %input#myonoffswitch{:type => "checkbox", :checked=>current_user.chat_status == 'available' ? true : false, :name=>""}/
+        %span.slider1.round             
+
+
+- content_for :scripts do
+  :javascript
+
+    $(document).ready(function() {
+      $(".switch span").on("click", function(){
+        $.ajax({
+          url: '/company/users/chat_status_update',
+          type: "GET",
+          contentType:"application/json",
+          data: JSON.stringify(),
+          success:function(data){
+
+          }
+        });
+      });
+    });
+            

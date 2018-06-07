@@ -120,6 +120,8 @@ Rails.application.routes.draw do
     resources :candidates ,only: [:show,:update,:create] do
       get 'current_status', on: :collection
       get 'status_update', on: :collection
+      get 'chat_status_update', on: :collection
+
     end
     resources :jobs do
       # resources :contracts , except: [:index] do
@@ -175,6 +177,8 @@ Rails.application.routes.draw do
       get  :add_reminder
       get 'current_status', on: :collection
       get 'status_update', on: :collection
+      get 'chat_status_update', on: :collection
+
       match  :assign_groups , via: [:get , :post]
       get :profile
       post :update_video
@@ -408,6 +412,9 @@ Rails.application.routes.draw do
         post :update_logo
         post :update_file
         post :update_video
+        get :company_phone_page
+        get :company_profile_page
+        get :company_user_profile_page
       end
     end
 

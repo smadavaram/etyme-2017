@@ -4,9 +4,10 @@
     %span#logo{style: 'margin-top: 3px;'}
       = image_tag 'etyme-logo.png', alt: 'SmartAdmin', style: 'width: 80px;'
   = yield :top_right
-  %input{"data-off-text" => "Unavailable", "data-on-text" => "Available", :name => "candidate-status-toggle", :type => "checkbox", :checked => current_candidate.chat_status == 'available' ? true : false}
+  / %input{"data-off-text" => "Unavailable", "data-on-text" => "Available", :name => "candidate-status-toggle", :type => "checkbox", :checked => current_candidate.chat_status == 'available' ? true : false}
+  
   / %label.switch
-  /   %input#myonoffswitch{:type => "checkbox", :checked=>current_candidate.chat_status == 'available' ? true : false, :name=>"candidate-status-toggle"}/
+  /   %input#myonoffswitch{:type => "checkbox", :checked=>current_candidate.chat_status == 'available' ? true : false, :name=>""}/
   /   %span.slider.round
 
   %form.header-search.pull-left{:action => "#ajax/search.html"}
@@ -106,6 +107,7 @@
           %a.link-disabled{:href => "#" } Send Payment(s)
         %li
           %a{:href => "#" } Add Timesheet(s)
+
     #logo-group.pull-right
       %span#activity.activity-dropdown.pull-right
         %i.fa.fa-user
@@ -159,5 +161,26 @@
         %a{"data-action" => "launchFullscreen", :href => "javascript:void(0);", :title => "Full Screen"}
           %i.fa.fa-arrows-alt
 
+    #active_chat_button.pull-right
+      %label.switch
+        %input#myonoffswitch{:type => "checkbox", :checked=>current_candidate.chat_status == 'available' ? true : false, :name=>""}/
+        %span.slider1.round        
 
+
+- content_for :scripts do
+  :javascript
+
+    $(document).ready(function() {
+      $(".switch span").on("click", function(){
+        $.ajax({
+          url: '/candidate/candidates/chat_status_update',
+          type: "GET",
+          contentType:"application/json",
+          data: JSON.stringify(),
+          success:function(data){
+
+          }
+        });
+      });
+    });
     

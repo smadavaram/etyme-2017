@@ -168,6 +168,21 @@ class Company::CompaniesController < Company::BaseController
     #pagination
     # @company_docs = current_company.company_docs.paginate(:page => params[:page], :per_page => 15)
   end
+
+  def company_phone_page
+
+
+  end
+
+  def company_profile_page
+
+  end
+  
+  def company_user_profile_page
+
+  end  
+    
+
   def destroy
     if @company.destroy
       flash[:success] = "Company deleted successfully."

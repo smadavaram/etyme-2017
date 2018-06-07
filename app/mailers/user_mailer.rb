@@ -36,10 +36,13 @@ class UserMailer < ApplicationMailer
   end
 
   def welcome_email_to_owner(company)
-    @company   = company
-    @owner     = company.owner.present? ? company.owner : company.company_contact
-    @name      = @owner.full_name
-    mail(to: @owner.email,  subject: "#{@company.name.titleize} welcome to Etyme",from: "Etyme <no-reply@etyme.com>")
+    @owner     = company.owner.present? ? company.owner : company.company_contacts
+
+    if !@owner.blank?
+      @company   = company
+      @name      = @owner.full_name
+      mail(to: @owner.email,  subject: "#{@company.name.titleize} welcome to Etyme",from: "Etyme <no-reply@etyme.com>")
+    end  
   end
 
   # method for sharing of message

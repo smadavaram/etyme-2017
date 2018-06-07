@@ -112,6 +112,16 @@ class Company::UsersController < Company::BaseController
     respond_with @user
   end
 
+  def chat_status_update
+    @user = current_user
+    if @user.chat_status == "available"
+      @user.go_unavailable
+    else
+      @user.go_available
+    end
+    render :json=>@user
+  end
+
   private
   def find_user
     @user = current_company.users.find(params[:user_id] || params[:user_id]) || []
