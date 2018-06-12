@@ -15,8 +15,8 @@
 {
     width: 99px !important;
     height: 99px !important;
-    margin-left: 35px !important;
-    margin-bottom: 60px !important;
+    margin-left: 50px !important;
+    /*margin-bottom: 60px !important;*/
     padding: 0px !important;
     position: initial !important;
     border: 1px solid #ddd;
@@ -47,9 +47,9 @@
 
 .profile-margin
 {
-    background-color: aliceblue;
-    /*margin-top: 10px;*/
-    /*margin-left: 25px;*/
+    background-color: white;
+    margin-top: -10px;
+    margin-left: 5px;
 }
 
 .pictureContainer img:hover {
@@ -83,4 +83,21 @@
 .set-checkbox{
     position: relative!important;
     right: 0 !important;
+}
+
+.pictureContainer .btn-primary{
+  margin-left: 45px;
+}
+
+.edit_company .delete_primary_doc{
+  margin-top: -10px;
+}
+
+.edit_company .links{
+  margin-right: 45px;
+  margin-top: -20px;
+}
+
+.bg_white{
+  background-color: white;
 }

@@ -1036,7 +1036,7 @@ color: red;}
 
 #active_chat_button .switch input {display:none;}
 
-#active_chat_button .slider1 {
+.slider1 {
   position: absolute;
   cursor: pointer;
   top: 0;
@@ -1048,7 +1048,7 @@ color: red;}
   transition: .4s;
 }
 
-#active_chat_button .slider1:before {
+.slider1:before {
   position: absolute;
   content: "";
   height: 26px;
@@ -1075,15 +1075,17 @@ input:checked + .slider1:before {
 }
 
 /* Rounded sliders */
-#active_chat_button .slider1.round {
+.slider1.round {
   border-radius: 34px;
 }
 
-#active_chat_button .slider1.round:before {
+.slider1.round:before {
   border-radius: 50%;
 }
 
-#active_chat_button .slider1 {
+.slider1 {
   height: 35px;
 }
 /*Switch End*/
+
+.mr-top-20{margin-top: 20px}

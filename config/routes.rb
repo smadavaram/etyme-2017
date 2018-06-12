@@ -200,7 +200,10 @@ Rails.application.routes.draw do
       get    :hot_index
       match :create_chat ,via: [:get, :post]
     end
-    resources :candidates
+    resources :candidates 
+
+    get 'new_candidate_to_bench',    to: 'candidates#new_candidate_to_bench'
+    # get :new_candidate_to_banch
 
     resources :chats  , only: [:show] do
       post :add_users
@@ -280,6 +283,7 @@ Rails.application.routes.draw do
     resources :directories      ,only: [:index]
     resources :comments         , only: [:create]
     resources :attachments      ,concerns: :paginatable , only: [:index]
+    resources :company_legal_docs 
     resources :invoices         ,concerns: :paginatable , only: [:index, :edit, :update] do
       collection do
         get :cleared_invoice

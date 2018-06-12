@@ -68,6 +68,8 @@ class Company < ApplicationRecord
   has_many :contract_salary_histories, dependent: :destroy
   has_many :invoice_infos
   has_many :payroll_infos
+  has_many :company_legal_docs, dependent: :destroy
+
 
   # validates           :company_type, inclusion: { in: [0, 1] } , presence: true
   # validates           :company_type, inclusion: {in: %w(0 , 1)}
@@ -95,6 +97,8 @@ class Company < ApplicationRecord
   accepts_nested_attributes_for :invoice_infos ,   allow_destroy: true, reject_if: :all_blank
   accepts_nested_attributes_for :payroll_infos ,   allow_destroy: true, reject_if: :all_blank
   accepts_nested_attributes_for :addresses ,   allow_destroy: true, reject_if: :all_blank
+  accepts_nested_attributes_for :company_legal_docs  , allow_destroy: true , reject_if: :all_blank
+
 
 
   # before_validation :create_slug

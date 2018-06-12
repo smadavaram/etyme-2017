@@ -51,29 +51,68 @@ class Company::CandidatesController < Company::BaseController
           format.js{ flash.now[:success] = "successfully Created." }
         end
       else
-       @candidate = current_company.candidates.new(create_candidate_params.merge(send_welcome_email_to_candidate: false,invited_by_id: current_user.id ,invited_by_type: 'User', status:"campany_candidate"))
-       if @candidate.save
-         current_company.candidates <<  @candidate
-         @candidate.create_activity :create, owner:current_company,recipient: current_company
 
-         CandidatesResume.create(:candidate_id=> @candidate.id, :resume=>@candidate.resume, :is_primary=>true)
-         Address.create(:address_1=>@candidate.location, :addressable_type=>"Candidate", :addressable_id=>@candidate.id)
-         flash[:success] =  "Successfull Added."
-         respond_to do |format|
-           format.html {flash[:success] = "successfully Created."; redirect_to candidates_path}
-           format.js{ flash.now[:success] = "successfully Created." }
-         end
-       else
-         respond_to do |format|
-           format.html {flash[:errors] = @candidate.errors.full_messages; redirect_back fallback_location: root_path}
-           format.js{ flash.now[:errors] = @candidate.errors.full_messages }
-         end
-       end
+        if params["is_add_to_bench"]
+
+          @candidate = current_company.candidates.new(create_candidate_params.merge(send_welcome_email_to_candidate: false,invited_by_id: current_user.id ,invited_by_type: 'User', status:"campany_candidate"))
+          if @candidate.save
+            current_company.candidates <<  @candidate
+            @candidate.create_activity :create, owner:current_company,recipient: current_company
+
+            CandidatesResume.create(:candidate_id=> @candidate.id, :resume=>@candidate.resume, :is_primary=>true)
+            Address.create(:address_1=>@candidate.location, :addressable_type=>"Candidate", :addressable_id=>@candidate.id)
+            
+            @company_candidate = CandidatesCompany.normal.where(candidate_id: @candidate.id,company_id:current_company.id)
+            @company_candidate.update_all(status:1)
+
+            flash[:success] =  "Successfull Added."
+            respond_to do |format|
+              format.html {flash[:success] = "successfully Created."; redirect_to company_bench_jobs_path}
+              format.js{ flash.now[:success] = "successfully Created." }
+            end
+          else
+            respond_to do |format|
+              format.html {flash[:errors] = @candidate.errors.full_messages; redirect_back fallback_location: root_path}
+              format.js{ flash.now[:errors] = @candidate.errors.full_messages }
+            end
+          end
+
+
+        else
+        
+          @candidate = current_company.candidates.new(create_candidate_params.merge(send_welcome_email_to_candidate: false,invited_by_id: current_user.id ,invited_by_type: 'User', status:"campany_candidate"))
+          if @candidate.save
+            current_company.candidates <<  @candidate
+            @candidate.create_activity :create, owner:current_company,recipient: current_company
+
+            CandidatesResume.create(:candidate_id=> @candidate.id, :resume=>@candidate.resume, :is_primary=>true)
+            Address.create(:address_1=>@candidate.location, :addressable_type=>"Candidate", :addressable_id=>@candidate.id)
+            flash[:success] =  "Successfull Added."
+            respond_to do |format|
+              format.html {flash[:success] = "successfully Created."; redirect_to candidates_path}
+              format.js{ flash.now[:success] = "successfully Created." }
+            end
+          else
+            respond_to do |format|
+              format.html {flash[:errors] = @candidate.errors.full_messages; redirect_back fallback_location: root_path}
+              format.js{ flash.now[:errors] = @candidate.errors.full_messages }
+            end
+          end
+
+        end  
+
+       
      end
    end
 
+  def new_candidate_to_bench
+    add_breadcrumb "New", "#"
+    @candidate = Candidate.new
+  end  
+
   def make_hot
     @company_candidate = CandidatesCompany.normal.where(candidate_id: params[:candidate_id],company_id:current_company.id)
+      
       if @company_candidate.update_all(status:1)
         flash[:success] = "Candidate is now Hot Candidate."
         respond_to do |format|

@@ -1,0 +1,58 @@
+
+= render partial: 'company/companies/sub_menu_company'
+%body.bg_white
+  .container-fluid.bg_white
+    .row{style: "padding: 0px 15px 15px 15px;"}
+      .form-group
+        .multi-field-wrapper
+          .multi-fields
+            = form_for current_company,url: "/company_legal_docs",method: :post do |f|
+              %br
+              %hr
+              .row
+                .col-md-12
+                  %h4
+                    %b Legal Document 
+                  %br
+                  .form-group.candidate-association
+                    = fields_for :company_legal_docs, @company_legal_docs do |b|
+                      = render 'company/companies/company_legal_docs_fields', f: b
+                      %strong
+                      .links.pull-right
+                        = link_to_add_association '+ Add Document', f, :company_legal_docs, class: 'btn btn-success', partial: 'company/companies/company_legal_docs_fields'
+              .row
+              .col-lg-12
+                %button.btn.btn-primary.pull-right{:type => "submit"}
+                  Saved  
+    .row
+      .col-md-12
+        - if current_company.company_legal_docs &&  current_company.company_legal_docs.count != 0
+          %table.table.table-bordered
+            %tr
+              %th Title
+              %th Custome Name
+              %th Expiry Date
+              %th Attachments
+            - current_company.company_legal_docs.each do |doc|
+              %tr
+                %td= doc.title
+                %td= doc.custome_name
+                %td= doc.exp_date
+                %td
+                  %a.delete_icon
+                    %i.fa.fa-paperclip                              
+
+- content_for :scripts do
+  :javascript 
+    $(document).ready(function() {
+      $('.legal_doc_exp_date').datepicker({
+       dateFormat: "yy-mm-dd"
+      });  
+    });
+
+     $('.candidate-association').on('cocoon:after-insert', function(e, insertedItem) {
+      $(".legal_doc_exp_date").datepicker({
+        dateFormat : 'yy-mm-dd'
+      });
+    });
+   

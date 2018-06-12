@@ -6,8 +6,8 @@
         .text
           %div.profile-hover
             //= f.label :filepicker_url, "Upload Your Avatar:"
-            %p.imgDescription.col-sm-offset-4  Change Logo
-            %div.pictureContainer.col-md-offset-2
+            %p.imgDescription.col-sm-offset-3  Change Logo
+            %div.pictureContainer
               = filepicker_field_tag "" ,class: "hidden file", onchange:"companyLogoUpload(event)","data-fp-crop-ratio" => "2/2",mimetypes: "image/*"
               -if(current_company.logo.present?)
                 = image_tag current_company.logo,  style:"width:100px;height:100px", fit: 'clip',:class =>"profile-pic image-setting"
@@ -25,18 +25,19 @@
             %i.fa.fa-user.fa-2x.text-muted
               5
 
+      %br        
       .panel-body.status.profile-margin
         .text
           %div.profile-hover
             %p.imgDescription.col-sm-offset-4 Upload Video
-            %div.pictureContainer.col-md-offset-2
+            %div.pictureContainer
               = filepicker_field_tag "" ,class: "hidden video-file", onchange:"videoUpload(event)","data-fp-crop-ratio" => "2/2",mimetypes: "video/*"
               -if(current_company.video.present?)
                 %video{:controls => "", :width => "200", :height=> "200"}
                   %source{src: "#{current_company.video}",type:"#{current_company.video_type}"}
               -else
                 = image_tag image_path('default_user.png'),  style: "width:100px;height:100px", fit: 'clip',:class =>"video-pic"
-              = button_tag "Upload Video", fit: 'clip',:class =>"video-pic img1"
+              = button_tag "Upload Video", fit: 'clip',:class =>"video-pic img1 btn btn-md btn-primary"
 
     .col-sm-12.col-md-12.col-lg-9
       #wid-id-7.jarviswidget{"data-widget-attstyle" => "jarviswidget-color-teal", "data-widget-custombutton" => "false", "data-widget-editbutton" => "false", "data-widget-fullscreenbutton" => "false", "data-widget-sortable" => "false", :role => "widget", :style => ""}

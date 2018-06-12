@@ -60,10 +60,14 @@
       .col-lg-12.multi-field-wrapper
         %p
           %b Branch Info
+        / .form-group.candidate-association  
         .multi-fields
           = f.fields_for :branches, f.object.branches do |b|
             = render 'company/companies/branch_fields', f: b
-          = link_to_add_fields 'company/companies/branch_fields', f, :branches
+          / = link_to_add_fields 'company/companies/branch_fields', f, :branches
+          %strong
+            .links
+              = link_to_add_association '+ Add Branch', f, :branches, class: 'btn btn-success', partial: 'company/companies/branch_fields'
     .row
     .col-lg-12
       %button.btn.pull-left{:type => "button"}

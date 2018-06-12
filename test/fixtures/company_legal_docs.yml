@@ -1,0 +1,15 @@
+# Read about fixtures at http://api.rubyonrails.org/classes/ActiveRecord/FixtureSet.html
+
+one:
+  company_id: 1
+  title: MyString
+  file: MyString
+  exp_date: 2018-06-12
+  custome_name: MyString
+
+two:
+  company_id: 1
+  title: MyString
+  file: MyString
+  exp_date: 2018-06-12
+  custome_name: MyString
