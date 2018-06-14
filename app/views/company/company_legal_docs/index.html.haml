@@ -39,8 +39,9 @@
                 %td= doc.custome_name
                 %td= doc.exp_date
                 %td
-                  %a.delete_icon
-                    %i.fa.fa-paperclip                              
+                  -if doc.file
+                    %a.delete_icon{:download => "", :href => doc.file}
+                      %i.fa.fa-paperclip                              
 
 - content_for :scripts do
   :javascript 
@@ -53,6 +54,16 @@
      $('.candidate-association').on('cocoon:after-insert', function(e, insertedItem) {
       $(".legal_doc_exp_date").datepicker({
         dateFormat : 'yy-mm-dd'
+      });
+
+      insertedItem.find('.filepicker-attach').each(function(i,e){
+        filepicker.constructWidget(e);
+        $(".filepicker-attach").on('click',function() {
+          $('.fp__overlay').css({'z-index':'99999'})
+        });
+        $('.filepicker-attach').on('click',function() {
+          //$(this).hide();
+         });
       });
     });
    

@@ -101,3 +101,7 @@
 .bg_white{
   background-color: white;
 }
+
+.edit_company .links a{
+  margin-right: 87px;
+}

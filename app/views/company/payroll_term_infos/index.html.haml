@@ -19,50 +19,109 @@
                       .form-group
                     %label.col-md-2.control-label Payroll Terms
                     .col-md-10
-                      = f.select :payroll_term, ['End of month', 'End of previous month','End of week','End of previous week', '1 Day'] + (2..45).map{|s| "#{s} Days"}, {include_blank: false}, {:class=>"form-control input-lg multi-select2-role"}
+                      -options = ['End of month', 'End of previous month','End of week','End of previous week', '1 Day'] + (2..45).map{|s| "#{s} Days"}
+                      - new_options = []
+                      - options.each do |data| 
+                        -new_options << [data, data]  
+                      / = new_options
+                      = f.select :payroll_term, options_for_select(new_options, :selected => !@payroll_detail.blank? ? @payroll_detail.payroll_term : ""), {}, { :class => 'form-control input-lg multi-select2-role' }
+                      
                   .row
                     .col-md-12
                       .form-group
                     %label.col-md-2.control-label Payroll type
                     .col-md-10
                       .col-md-2
-                        = f.radio_button :payroll_type, "Weekly", checked: true, class: 'set-checkbox'
-                        = f.label :payroll_type, 'Weekly<br>(52 payrolls)'.html_safe
+                        .form-group.mr-top-10
+                          %label.radio-container
+                            Weekly
+                            %br
+                            (52 payrolls)
+                            = f.radio_button :payroll_type, "Weekly", checked:!@payroll_detail.blank? ? @payroll_detail.payroll_type == "Weekly" ? true :false : "", class: 'set-checkbox'
+                            %span.radio-checkmark
                       .col-md-3
-                        = f.radio_button :payroll_type, "Bi-Weekly", class: 'set-checkbox'
-                        = f.label :payroll_type, 'Bi-Weekly<br>(48 payrolls with start date)'.html_safe
+                        .form-group.mr-top-10
+                          %label.radio-container
+                            Bi-Weekly
+                            %br
+                            (26 payrolls with start date)
+                            = f.radio_button :payroll_type, "Bi-Weekly",checked:!@payroll_detail.blank? ? @payroll_detail.payroll_type == "Bi-Weekly" ? true :false : "", class: 'set-checkbox'
+                            %span.radio-checkmark
                       .col-md-3
-                        = f.radio_button :payroll_type, "Monthly", class: 'set-checkbox'
-                        = f.label :payroll_type, 'Monthly<br>(12 payrolls with fix date of pay)'.html_safe
+                        .form-group.mr-top-10
+                          %label.radio-container
+                            Monthly
+                            %br
+                            (12 payrolls with fix date of pay)
+                            = f.radio_button :payroll_type, "Monthly", checked:!@payroll_detail.blank? ? @payroll_detail.payroll_type == "Monthly" ? true :false : "", class: 'set-checkbox'
+                            %span.radio-checkmark
                       .col-md-2
-                        = f.radio_button :payroll_type, "Twice Month", class: 'set-checkbox'
-                        = f.label :payroll_type, 'Twice Month'.html_safe
+                        .form-group.mr-top-10
+                          %label.radio-container
+                            Twice Month
+                            = f.radio_button :payroll_type, "Twice Month", checked:!@payroll_detail.blank? ? @payroll_detail.payroll_type == "Twice Month" ? true :false : "", class: 'set-checkbox'
+                            %span.radio-checkmark 
                       .col-md-2
-                        = f.radio_button :payroll_type, "Daily", class: 'set-checkbox'
-                        = f.label :payroll_type, 'Daily'.html_safe
+                        .form-group.mr-top-10
+                          %label.radio-container
+                            Daily
+                            = f.radio_button :payroll_type, "Daily", checked:!@payroll_detail.blank? ? @payroll_detail.payroll_type == "Daily" ? true :false : "", class: 'set-checkbox'
+                            %span.radio-checkmark               
+                      
+                      / .col-md-2
+                      /   = f.radio_button :payroll_type, "Weekly", checked: true, class: 'set-checkbox'
+                      /   = f.label :payroll_type, 'Weekly<br>(52 payrolls)'.html_safe
+                      / .col-md-3
+                      /   = f.radio_button :payroll_type, "Bi-Weekly", class: 'set-checkbox'
+                      /   = f.label :payroll_type, 'Bi-Weekly<br>(48 payrolls with start date)'.html_safe
+                      / .col-md-3
+                      /   = f.radio_button :payroll_type, "Monthly", class: 'set-checkbox'
+                      /   = f.label :payroll_type, 'Monthly<br>(12 payrolls with fix date of pay)'.html_safe
+                      / .col-md-2
+                      /   = f.radio_button :payroll_type, "Twice Month", class: 'set-checkbox'
+                      /   = f.label :payroll_type, 'Twice Month'.html_safe
+                      / .col-md-2
+                      /   = f.radio_button :payroll_type, "Daily", class: 'set-checkbox'
+                      /   = f.label :payroll_type, 'Daily'.html_safe
                   .row
                     .col-md-12
                       .form-group
                     %label.col-md-2.control-label Weekend Schedule
                     .col-md-10
                       .col-md-5
-                        = f.radio_button :weekend_sch, "Payroll Before Weekend", checked: true, class: 'set-checkbox'
-                        = f.label :weekend_sch, 'Payroll Before Weekend'
-                      .col-md-5
-                        = f.radio_button :weekend_sch, "Payroll After Weekend", class: 'set-checkbox'
-                        = f.label :weekend_sch, 'Payroll After Weekend'
+                        .form-group.mr-top-10
+                          %label.radio-container
+                            Payroll Before Weekend
+                            = f.radio_button :weekend_sch, "Payroll Before Weekend", checked:!@payroll_detail.blank? ? @payroll_detail.weekend_sch == "Payroll Before Weekend" ? true :false : "", class: 'set-checkbox'
+                            %span.radio-checkmark
+                      .col-md-5 
+                        .form-group.mr-top-10
+                          %label.radio-container
+                            Payroll After Weekend
+                            = f.radio_button :weekend_sch, "Payroll After Weekend", checked:!@payroll_detail.blank? ? @payroll_detail.weekend_sch == "Payroll After Weekend" ? true :false : "", class: 'set-checkbox'
+                            %span.radio-checkmark
+                      
+                      / .col-md-5
+                      /   = f.radio_button :weekend_sch, "Payroll Before Weekend", checked: true, class: 'set-checkbox'
+                      /   = f.label :weekend_sch, 'Payroll Before Weekend'
+                      / .col-md-5
+                      /   = f.radio_button :weekend_sch, "Payroll After Weekend", class: 'set-checkbox'
+                      /   = f.label :weekend_sch, 'Payroll After Weekend'
+                  %br
                   .row
                     .col-md-12
-                      .form-group
-                    %label.col-md-2.control-label Salary Calculation Date
-                    .col-md-10
-                      = f.text_field :sal_cal_date, required: true
-                  .row
-                    .col-md-12
-                      .form-group
-                    %label.col-md-2.control-label Payroll Date
-                    .col-md-10
-                      = f.text_field :payroll_date, required: true
+                      .col-md-6
+                        .form-group
+                          %label.col-md-4.control-label Salary Calculation Date
+                          .col-md-8
+                            = f.text_field :sal_cal_date, required: true,class: 'form-control input', :value=>!@payroll_detail.blank? ? @payroll_detail.sal_cal_date.strftime("%m/%d/%Y") : ""
+                      
+                      .col-md-6
+                        .form-group
+                          %label.col-md-4.control-label Payroll Date
+                          .col-md-8
+                            = f.text_field :payroll_date, required: true,class: 'form-control input', :value=>!@payroll_detail.blank? ? @payroll_detail.payroll_date.strftime("%m/%d/%Y") : ""
+                      
                   .row
                     .col-md-12
                       %div{id: "datepicker"}
@@ -70,10 +129,27 @@
                     .col-lg-12.multi-field-wrapper
                       %p
                         %b Add Tex
-                      .multi-fields
-                        = f.fields_for :tax_infos, f.object.tax_infos do |b|
-                          = render 'company/payroll_term_infos/tax_info_fields', f: b
-                        = link_to_add_fields 'company/payroll_term_infos/tax_info_fields', f, :tax_infos
+                      .form-group.candidate-association  
+                        .multi-fields
+                          = f.fields_for :tax_infos, f.object.tax_infos do |b|
+                            = render 'company/payroll_term_infos/tax_info_fields', f: b
+                            %strong
+                            .links
+                              = link_to_add_association '+ Add Tex', f, :tax_infos, class: 'btn btn-success', partial: 'company/payroll_term_infos/tax_info_fields'
+                          / = link_to_add_fields 'company/payroll_term_infos/tax_info_fields', f, :tax_infos
+                  .row.mr-top-20
+                    .col-md-6
+                      - if @payroll_detail
+                        %h4 Tex
+                        %br
+                        %table.table.table-bordered
+                          %tr
+                            %th Term
+                          - @payroll_detail.tax_infos.each do |info|
+                            %tr
+                              %td= info.tax_term
+        
+
                   .row
                     .col-lg-12
                       .form-actions

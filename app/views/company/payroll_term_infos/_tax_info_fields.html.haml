@@ -1,9 +1,8 @@
 .row.multi-field-container{style: "padding: 15px;"}
   .row
-    .col-md-12
+    .col-md-6
       .form-group
-        = f.text_field :tax_term
-  .row
-    .col-md-12
-      %a.bttn.btn-add.btn.remove-multi-fields.pull-right
+        = f.text_field :tax_term, class: 'form-control input'
+    .col-md-2	
+      %a.bttn.btn-add.remove-multi-fields.delete_icon
         %i.fa.fa-trash

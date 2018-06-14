@@ -13,6 +13,7 @@ class Company::CompanyLegalDocsController < Company::BaseController
   		company_legal_docs.title = params["company_legal_docs"]["title"]
   		company_legal_docs.custome_name = params["company_legal_docs"]["custome_name"]
   		company_legal_docs.exp_date = params["company_legal_docs"]["exp_date"]
+  		company_legal_docs.file = params["company_legal_docs"]["file"]
 
   		company_legal_docs.company_id = current_company.id
   		company_legal_docs.save
@@ -25,6 +26,7 @@ class Company::CompanyLegalDocsController < Company::BaseController
   				company_legal_docs.title = data["title"]
 		  		company_legal_docs.custome_name = data["custome_name"]
 		  		company_legal_docs.exp_date = data["exp_date"]
+		  		company_legal_docs.file = data["file"]
 
 		  		company_legal_docs.company_id = current_company.id
 		  		company_legal_docs.save
