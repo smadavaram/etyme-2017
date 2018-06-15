@@ -1,0 +1,7 @@
+require 'test_helper'
+
+class Company::CompanyCandidateDocControllerTest < ActionDispatch::IntegrationTest
+  # test "the truth" do
+  #   assert true
+  # end
+end

@@ -1,56 +1,186 @@
 = render partial: 'company/companies/sub_menu_company'
-%body
-  .container-fluid.no-padding
-    %section.box-typical.files-manager.m-t-lg
-      %nav.files-manager-side{:style => "height: auto;"}
-        %header.files-manager-side-title My files
-        %ul.files-manager-side-list
-          - @attachment_types.each do |type|
-            %li.this_is{class: params[:type] == type ? 'active' : ''}
-              = link_to type , attachments_path(type: type)
-              -#%a{"data-toggle" => "tab", :href => "#"}= type
-      .files-manager-panel
-        .files-manager-panel-in
-          %header.files-manager-header
-            .files-manager-header-left
-              %button.btn.btn-primary.pull-right.margin-bottom-5.margin-right-10{"data-target" => "#attachmentModal", "data-toggle" => "modal"}
-                Upload file
-              = render 'company/company_docs/partials/attachment_form_modal'
-              %button.btn-icon{:type => "button"}
-                %i.font-icon.font-icon-folder
-              %button.btn-icon{:type => "button"}
-                %i.font-icon.font-icon-download-2
-              %button.btn-icon{:type => "button"}
-                %i.font-icon.font-icon-share
-              %button.btn-icon{:type => "button"}
-                %i.font-icon.font-icon-trash
-            .files-manager-header-right
-              .views
-                %button.btn-icon.view.active{:type => "button"}
-                  %i.font-icon.font-icon-view-grid
-                %button.btn-icon.view{:type => "button"}
-                  %i.font-icon.font-icon-view-rows
-          .files-manager-content
-            .files-manager-content-in.scrollable-block.jspScrollable{:style => "overflow: hidden; padding: 0px; height: auto; width: 100%;", :tabindex => "0"}
-              .jspContainer{:style => "width: 600px; height: 380px;"}
-                .jspPane{:style => "padding: 0px; top: 0px; left: 0px; width: 588px;"}
-                  .fm-file-grid
-                    - @selected_attachments.each do |attachable_type|
-                      .fm-file
-                        .fm-file-icon.dblclick
-                          = image_tag image_type(attachable_type)
-                        .fm-file-name
-                          = attachable_type.file_name
-                        .fm-file-size
-                          %a{:download => "", :href => image_path(attachable_type.file)}
-                            Download
-                .jspVerticalBar
-                  .jspCap.jspCapTop
-                  .jspTrack{:style => "height: 380px;"}
-                    .jspDrag{:style => "height: 356px;"}
-                      .jspDragTop
-                      .jspDragBottom
-                  .jspCap.jspCapBottom
+
+%body.bg_white
+  .container-fluid.bg_white
+    .row{style: "padding: 0px 15px 15px 15px;"}
+      .form-group
+        .multi-field-wrapper
+          .multi-fields
+            = form_for current_company,url: "/company_candidate_docs",method: :post do |f|
+              %br
+              %hr
+              .row
+                .col-md-12
+                  %h4
+                    %b Candidate 
+                  %br
+                  .form-group.candidate-association
+                    = fields_for :company_candidate_docs, @company_candidate_docs do |b|
+                      = render 'company/companies/company_candidate_docs_fields', f: b
+                      %strong
+                      .links.pull-right
+                        = link_to_add_association '+ Add Document', f, :company_candidate_docs, class: 'btn btn-success', partial: 'company/companies/company_candidate_docs_fields'
+              .row
+                .col-md-12
+                  - if current_company.company_candidate_docs &&  current_company.company_candidate_docs.count != 0
+                    %table.table.table-bordered
+                      %tr
+                        %th Title
+                        %th Expiry Date
+                        %th Attachments
+                      - current_company.company_candidate_docs.each do |doc|
+                        %tr
+                          %td= doc.title
+                          %td= doc.exp_date
+                          %td
+                            -if !doc.file.blank?
+                              %a.delete_icon{:download => "", :href => doc.file}
+                                %i.fa.fa-paperclip                              
+                  
+              
+              %hr
+              .row
+                .col-md-12
+                  %h4
+                    %b Customer 
+                  %br
+                  .form-group.candidate-association
+                    = fields_for :company_customer_docs, @company_customer_docs do |b|
+                      = render 'company/companies/company_customer_docs_fields', f: b
+                      %strong
+                      .links.pull-right
+                        = link_to_add_association '+ Add Document', f, :company_customer_docs, class: 'btn btn-success', partial: 'company/companies/company_customer_docs_fields'
+              .row
+                .col-md-12
+                  - if current_company.company_customer_docs &&  current_company.company_customer_docs.count != 0
+                    %table.table.table-bordered
+                      %tr
+                        %th Title
+                        %th Expiry Date
+                        %th Attachments
+                      - current_company.company_customer_docs.each do |doc|
+                        %tr
+                          %td= doc.title
+                          %td= doc.exp_date
+                          %td
+                            -if !doc.file.blank?
+                              %a.delete_icon{:download => "", :href => doc.file}
+                                %i.fa.fa-paperclip          
+                                          
+              %hr
+              .row
+                .col-md-12
+                  %h4
+                    %b Vendor 
+                  %br
+                  .form-group.candidate-association
+                    = fields_for :company_vendor_docs, @company_vendor_docs do |b|
+                      = render 'company/companies/company_vendor_docs_fields', f: b
+                      %strong
+                      .links.pull-right
+                        = link_to_add_association '+ Add Document', f, :company_vendor_docs, class: 'btn btn-success', partial: 'company/companies/company_vendor_docs_fields'  
+              .row
+                .col-md-12
+                  - if current_company.company_vendor_docs &&  current_company.company_vendor_docs.count != 0
+                    %table.table.table-bordered
+                      %tr
+                        %th Title
+                        %th Expiry Date
+                        %th Attachments
+                      - current_company.company_vendor_docs.each do |doc|
+                        %tr
+                          %td= doc.title
+                          %td= doc.exp_date
+                          %td
+                            -if !doc.file.blank?
+                              %a.delete_icon{:download => "", :href => doc.file}
+                                %i.fa.fa-paperclip                            
+          
+              %hr
+              .row
+                .col-md-12
+                  %h4
+                    %b Employee 
+                  %br
+                  .form-group.candidate-association
+                    = fields_for :company_employee_docs, @company_employee_docs do |b|
+                      = render 'company/companies/company_employee_docs_fields', f: b
+                      %strong
+                      .links.pull-right
+                        = link_to_add_association '+ Add Document', f, :company_employee_docs, class: 'btn btn-success', partial: 'company/companies/company_employee_docs_fields'
+              .row
+                .col-md-12
+                  - if current_company.company_employee_docs &&  current_company.company_employee_docs.count != 0
+                    %table.table.table-bordered
+                      %tr
+                        %th Title
+                        %th Expiry Date
+                        %th Attachments
+                      - current_company.company_employee_docs.each do |doc|
+                        %tr
+                          %td= doc.title
+                          %td= doc.exp_date
+                          %td
+                            -if !doc.file.blank?
+                              %a.delete_icon{:download => "", :href => doc.file}
+                                %i.fa.fa-paperclip                                                  
+              .row
+              .col-lg-12
+                %button.btn.btn-primary.pull-right{:type => "submit"}
+                  Saved  
+
+/ %body
+/   .container-fluid.no-padding
+/     %section.box-typical.files-manager.m-t-lg
+/       %nav.files-manager-side{:style => "height: auto;"}
+/         %header.files-manager-side-title My files
+/         %ul.files-manager-side-list
+/           - @attachment_types.each do |type|
+/             %li.this_is{class: params[:type] == type ? 'active' : ''}
+/               = link_to type , attachments_path(type: type)
+/               -#%a{"data-toggle" => "tab", :href => "#"}= type
+/       .files-manager-panel
+/         .files-manager-panel-in
+/           %header.files-manager-header
+/             .files-manager-header-left
+/               %button.btn.btn-primary.pull-right.margin-bottom-5.margin-right-10{"data-target" => "#attachmentModal", "data-toggle" => "modal"}
+/                 Upload file
+/               = render 'company/company_docs/partials/attachment_form_modal'
+/               %button.btn-icon{:type => "button"}
+/                 %i.font-icon.font-icon-folder
+/               %button.btn-icon{:type => "button"}
+/                 %i.font-icon.font-icon-download-2
+/               %button.btn-icon{:type => "button"}
+/                 %i.font-icon.font-icon-share
+/               %button.btn-icon{:type => "button"}
+/                 %i.font-icon.font-icon-trash
+/             .files-manager-header-right
+/               .views
+/                 %button.btn-icon.view.active{:type => "button"}
+/                   %i.font-icon.font-icon-view-grid
+/                 %button.btn-icon.view{:type => "button"}
+/                   %i.font-icon.font-icon-view-rows
+/           .files-manager-content
+/             .files-manager-content-in.scrollable-block.jspScrollable{:style => "overflow: hidden; padding: 0px; height: auto; width: 100%;", :tabindex => "0"}
+/               .jspContainer{:style => "width: 600px; height: 380px;"}
+/                 .jspPane{:style => "padding: 0px; top: 0px; left: 0px; width: 588px;"}
+/                   .fm-file-grid
+/                     - @selected_attachments.each do |attachable_type|
+/                       .fm-file
+/                         .fm-file-icon.dblclick
+/                           / = image_tag image_type(attachable_type)
+/                         .fm-file-name
+/                           = attachable_type.file_name
+/                         .fm-file-size
+/                           %a{:download => "", :href => image_path(attachable_type.file)}
+/                             Download
+/                 .jspVerticalBar
+/                   .jspCap.jspCapTop
+/                   .jspTrack{:style => "height: 380px;"}
+/                     .jspDrag{:style => "height: 356px;"}
+/                       .jspDragTop
+/                       .jspDragBottom
+/                   .jspCap.jspCapBottom
 
 - content_for :scripts do
   :javascript
@@ -104,4 +234,24 @@
        * LOAD INBOX MESSAGES
        */
 
+      $(".candidate_doc_exp_date").datepicker({
+        dateFormat : 'yy-mm-dd'
+      });
+
+    });
+
+    $('.candidate-association').on('cocoon:after-insert', function(e, insertedItem) {
+      $(".candidate_doc_exp_date").datepicker({
+        dateFormat : 'yy-mm-dd'
+      });
+
+      insertedItem.find('.filepicker-attach').each(function(i,e){
+        filepicker.constructWidget(e);
+        $(".filepicker-attach").on('click',function() {
+          $('.fp__overlay').css({'z-index':'99999'})
+        });
+        $('.filepicker-attach').on('click',function() {
+          //$(this).hide();
+         });
+      });
     });

@@ -8,6 +8,7 @@ class Company::AttachmentsController < Company::BaseController
     add_breadcrumb "Company Documents", attachments_path(current_company), :title => ""
     @company_doc = current_company.company_docs.new
     @company_doc.build_attachment
+    @company_candidate_docs = CompanyCandidateDoc.new()
   end
 
   # def document_list

@@ -283,7 +283,8 @@ Rails.application.routes.draw do
     resources :directories      ,only: [:index]
     resources :comments         , only: [:create]
     resources :attachments      ,concerns: :paginatable , only: [:index]
-    resources :company_legal_docs 
+    resources :company_legal_docs
+    resources :company_candidate_docs 
     resources :invoices         ,concerns: :paginatable , only: [:index, :edit, :update] do
       collection do
         get :cleared_invoice

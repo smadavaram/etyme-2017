@@ -1,0 +1,2 @@
+class CompanyCustomerDoc < ApplicationRecord
+end

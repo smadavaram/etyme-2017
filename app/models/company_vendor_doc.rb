@@ -1,0 +1,2 @@
+class CompanyVendorDoc < ApplicationRecord
+end

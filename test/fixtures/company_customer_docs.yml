@@ -1,0 +1,17 @@
+# Read about fixtures at http://api.rubyonrails.org/classes/ActiveRecord/FixtureSet.html
+
+one:
+  company_id: 1
+  title: MyString
+  file: MyString
+  exp_date: 2018-06-15
+  is_required_signature: false
+  created_by: 1
+
+two:
+  company_id: 1
+  title: MyString
+  file: MyString
+  exp_date: 2018-06-15
+  is_required_signature: false
+  created_by: 1
