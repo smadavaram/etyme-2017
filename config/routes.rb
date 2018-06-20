@@ -284,7 +284,14 @@ Rails.application.routes.draw do
     resources :comments         , only: [:create]
     resources :attachments      ,concerns: :paginatable , only: [:index]
     resources :company_legal_docs
+    delete 'delete_company_legal_docs' ,to: 'company_legal_docs#delete_company_legal_docs'
+
     resources :company_candidate_docs 
+    delete 'delete_company_candidate_docs' ,to: 'company_candidate_docs#delete_company_candidate_docs'
+    delete 'delete_company_customer_docs' ,to: 'company_candidate_docs#delete_company_customer_docs'
+    delete 'delete_company_vendor_docs' ,to: 'company_candidate_docs#delete_company_vendor_docs'
+    delete 'delete_company_employee_docs' ,to: 'company_candidate_docs#delete_company_employee_docs'
+
     resources :invoices         ,concerns: :paginatable , only: [:index, :edit, :update] do
       collection do
         get :cleared_invoice

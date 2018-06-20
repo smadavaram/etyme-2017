@@ -39,6 +39,16 @@ class Company::CompanyLegalDocsController < Company::BaseController
   end
   	
 
+  def delete_company_legal_docs
+    doc = CompanyLegalDoc.find(params["id"]) rescue nil
+
+    if !doc.blank?
+      doc.delete
+    end  
+    redirect_to company_legal_docs_path  
+
+  end  
+
    private
 
 

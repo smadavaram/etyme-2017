@@ -1089,3 +1089,8 @@ input:checked + .slider1:before {
 /*Switch End*/
 
 .mr-top-20{margin-top: 20px}
+.mr-top-30{margin-top: 30px}
+.mr-right-30{margin-right: 30px}
+.payroll_term_info_dtpicker #datepicker{
+  margin-left: 140px;
+}

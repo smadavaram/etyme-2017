@@ -33,6 +33,7 @@
               %th Custome Name
               %th Expiry Date
               %th Attachments
+              %th Action
             - current_company.company_legal_docs.each do |doc|
               %tr
                 %td= doc.title
@@ -41,7 +42,9 @@
                 %td
                   -if doc.file
                     %a.delete_icon{:download => "", :href => doc.file}
-                      %i.fa.fa-paperclip                              
+                      %i.fa.fa-paperclip  
+                %td
+                  = link_to "", delete_company_legal_docs_path(:id=>doc.id), :title=>"Delete", class: "fa fa-trash-o fa-lg fa-fw delete_primary_doc", method: :delete, data: { confirm: 'Are you sure?' }                                   
 
 - content_for :scripts do
   :javascript 

@@ -15,6 +15,9 @@ class Company::CompanyCandidateDocsController < Company::BaseController
     		company_candidate_docs.file = params["company_candidate_docs"]["file"]
         company_candidate_docs.is_required_signature = params["company_candidate_docs"]["is_required_signature"] == "1" ? true : false
     		company_candidate_docs.company_id = current_company.id
+        company_candidate_docs.title_type = params["company_candidate_docs"]["title_type"]
+        company_candidate_docs.is_require = params["company_candidate_docs"]["is_require"]
+
     		company_candidate_docs.save
       end  
   	end	
@@ -27,6 +30,7 @@ class Company::CompanyCandidateDocsController < Company::BaseController
         company_customer_docs.file = params["company_customer_docs"]["file"]
         company_customer_docs.is_required_signature = params["company_customer_docs"]["is_required_signature"] == "1" ? true : false
         company_customer_docs.company_id = current_company.id
+
         company_customer_docs.save
       end  
     end 
@@ -66,6 +70,8 @@ class Company::CompanyCandidateDocsController < Company::BaseController
   		  		company_candidate_docs.file = data["file"]
             company_candidate_docs.is_required_signature = data["is_required_signature"] == "1" ? true : false
   		  		company_candidate_docs.company_id = current_company.id
+            company_candidate_docs.title_type = data["title_type"]
+            company_candidate_docs.is_require = data["is_require"]
   		  		company_candidate_docs.save
           end   
   			end	
@@ -119,13 +125,54 @@ class Company::CompanyCandidateDocsController < Company::BaseController
   	redirect_to attachments_path
 
   end
+
+
+  def delete_company_candidate_docs
+    doc = CompanyCandidateDoc.find(params["id"]) rescue nil
+
+    if !doc.blank?
+      doc.delete
+    end  
+    redirect_to attachments_path  
+  end
+
+
+  def delete_company_customer_docs
+    doc = CompanyCustomerDoc.find(params["id"]) rescue nil
+
+    if !doc.blank?
+      doc.delete
+    end  
+    redirect_to attachments_path  
+  end
+
+
+  def delete_company_vendor_docs
+    doc = CompanyVendorDoc.find(params["id"]) rescue nil
+
+    if !doc.blank?
+      doc.delete
+    end  
+    redirect_to attachments_path  
+  end
+
+
+  def delete_company_employee_docs
+    doc = CompanyEmployeeDoc.find(params["id"]) rescue nil
+
+    if !doc.blank?
+      doc.delete
+    end  
+    redirect_to attachments_path  
+  end
+    
   	
 
    private
 
 
     def company_candidate_docs_params
-      params.require(:company_candidate_docs).permit(:id,:name,:file, :title ,:company_id, :is_required_signature)
+      params.require(:company_candidate_docs).permit(:id,:name,:file, :title ,:company_id, :is_required_signature, :title_type, :is_require)
     end
 
 

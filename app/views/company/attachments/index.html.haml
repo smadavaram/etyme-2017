@@ -18,7 +18,7 @@
                     = fields_for :company_candidate_docs, @company_candidate_docs do |b|
                       = render 'company/companies/company_candidate_docs_fields', f: b
                       %strong
-                      .links.pull-right
+                      .links
                         = link_to_add_association '+ Add Document', f, :company_candidate_docs, class: 'btn btn-success', partial: 'company/companies/company_candidate_docs_fields'
               .row
                 .col-md-12
@@ -26,16 +26,23 @@
                     %table.table.table-bordered
                       %tr
                         %th Title
+                        %th Type
                         %th Expiry Date
+                        %th Is Require
                         %th Attachments
+                        %th Action
                       - current_company.company_candidate_docs.each do |doc|
                         %tr
                           %td= doc.title
+                          %td= doc.title_type
                           %td= doc.exp_date
+                          %td= doc.is_require
                           %td
                             -if !doc.file.blank?
                               %a.delete_icon{:download => "", :href => doc.file}
-                                %i.fa.fa-paperclip                              
+                                %i.fa.fa-paperclip   
+                          %td
+                            = link_to "", delete_company_candidate_docs_path(:id=>doc.id), :title=>"Delete", class: "fa fa-trash-o fa-lg fa-fw delete_primary_doc", method: :delete, data: { confirm: 'Are you sure?' }                                 
                   
               
               %hr
@@ -48,7 +55,7 @@
                     = fields_for :company_customer_docs, @company_customer_docs do |b|
                       = render 'company/companies/company_customer_docs_fields', f: b
                       %strong
-                      .links.pull-right
+                      .links
                         = link_to_add_association '+ Add Document', f, :company_customer_docs, class: 'btn btn-success', partial: 'company/companies/company_customer_docs_fields'
               .row
                 .col-md-12
@@ -56,16 +63,23 @@
                     %table.table.table-bordered
                       %tr
                         %th Title
+                        %th Type
                         %th Expiry Date
+                        %th Is Require
                         %th Attachments
+                        %th Action
                       - current_company.company_customer_docs.each do |doc|
                         %tr
                           %td= doc.title
+                          %td= doc.title_type
                           %td= doc.exp_date
+                          %td= doc.is_require
                           %td
                             -if !doc.file.blank?
                               %a.delete_icon{:download => "", :href => doc.file}
-                                %i.fa.fa-paperclip          
+                                %i.fa.fa-paperclip  
+                          %td
+                            = link_to "", delete_company_customer_docs_path(:id=>doc.id), :title=>"Delete", class: "fa fa-trash-o fa-lg fa-fw delete_primary_doc", method: :delete, data: { confirm: 'Are you sure?' }                   
                                           
               %hr
               .row
@@ -77,7 +91,7 @@
                     = fields_for :company_vendor_docs, @company_vendor_docs do |b|
                       = render 'company/companies/company_vendor_docs_fields', f: b
                       %strong
-                      .links.pull-right
+                      .links
                         = link_to_add_association '+ Add Document', f, :company_vendor_docs, class: 'btn btn-success', partial: 'company/companies/company_vendor_docs_fields'  
               .row
                 .col-md-12
@@ -85,16 +99,23 @@
                     %table.table.table-bordered
                       %tr
                         %th Title
+                        %th Type
                         %th Expiry Date
+                        %th Is Require
                         %th Attachments
+                        %th Action
                       - current_company.company_vendor_docs.each do |doc|
                         %tr
                           %td= doc.title
+                          %td= doc.title_type
                           %td= doc.exp_date
+                          %td= doc.is_require
                           %td
                             -if !doc.file.blank?
                               %a.delete_icon{:download => "", :href => doc.file}
-                                %i.fa.fa-paperclip                            
+                                %i.fa.fa-paperclip 
+                          %td
+                            = link_to "", delete_company_vendor_docs_path(:id=>doc.id), :title=>"Delete", class: "fa fa-trash-o fa-lg fa-fw delete_primary_doc", method: :delete, data: { confirm: 'Are you sure?' }                                      
           
               %hr
               .row
@@ -106,7 +127,7 @@
                     = fields_for :company_employee_docs, @company_employee_docs do |b|
                       = render 'company/companies/company_employee_docs_fields', f: b
                       %strong
-                      .links.pull-right
+                      .links
                         = link_to_add_association '+ Add Document', f, :company_employee_docs, class: 'btn btn-success', partial: 'company/companies/company_employee_docs_fields'
               .row
                 .col-md-12
@@ -114,16 +135,23 @@
                     %table.table.table-bordered
                       %tr
                         %th Title
+                        %th Type
                         %th Expiry Date
+                        %th Is Require
                         %th Attachments
+                        %th Action
                       - current_company.company_employee_docs.each do |doc|
                         %tr
                           %td= doc.title
+                          %td= doc.title_type
                           %td= doc.exp_date
+                          %td= doc.is_require
                           %td
                             -if !doc.file.blank?
                               %a.delete_icon{:download => "", :href => doc.file}
-                                %i.fa.fa-paperclip                                                  
+                                %i.fa.fa-paperclip  
+                          %td
+                            = link_to "", delete_company_employee_docs_path(:id=>doc.id), :title=>"Delete", class: "fa fa-trash-o fa-lg fa-fw delete_primary_doc", method: :delete, data: { confirm: 'Are you sure?' }                                                           
               .row
               .col-lg-12
                 %button.btn.btn-primary.pull-right{:type => "submit"}
