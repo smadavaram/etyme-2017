@@ -29,15 +29,30 @@
       .panel-body.status.profile-margin
         .text
           %div.profile-hover
-            %p.imgDescription.col-sm-offset-4 Upload Video
+            %p.imgDescription.col-sm-offset-4 Upload Media
             %div.pictureContainer
-              = filepicker_field_tag "" ,class: "hidden video-file", onchange:"videoUpload(event)","data-fp-crop-ratio" => "2/2",mimetypes: "video/*"
-              -if(current_company.video.present?)
-                %video{:controls => "", :width => "200", :height=> "200"}
-                  %source{src: "#{current_company.video}",type:"#{current_company.video_type}"}
+              = filepicker_field_tag "" ,class: "hidden video-file", onchange:"videoUpload(event)","data-fp-crop-ratio" => "2/2"
+              -if(current_company.company_videos.first.present?)
+                -if current_company.company_videos.first.video_type == "video/mp4"
+                  %video{:controls => "", :width => "200", :height=> "200"}
+                    %source{src: "#{current_company.company_videos.first.video}",type:"#{current_company.company_videos.first.video_type}"}
+                -else
+                  = image_tag image_path(current_company.company_videos.first.video),  style: "width:200px;height:200px", fit: 'clip',:class =>"video-pic"
+                  
               -else
-                = image_tag image_path('default_user.png'),  style: "width:100px;height:100px", fit: 'clip',:class =>"video-pic"
-              = button_tag "Upload Video", fit: 'clip',:class =>"video-pic img1 btn btn-md btn-primary"
+                = image_tag image_path('default_user.png'),  style: "width:100px;height:100px;margin-left: 47px;", fit: 'clip',:class =>"video-pic"
+              = button_tag "Upload Media", fit: 'clip',:class =>"video-pic img1 btn btn-md btn-primary"
+      %br 
+      .panel-body.status.profile-margin
+        %h5.mr-left-20 Media list
+        / = current_company.company_videos.count
+        - current_company.company_videos.each do |data|
+          -if data.video_type == "video/mp4"
+            %video.mr-left-20{:controls => "", :width => "50", :height=> "50"}
+              %source{src: "#{data.video}",type:"#{current_company.company_videos.first.video_type}"}
+          -else
+            = image_tag image_path(data.video),  style: "width:50px;height:50px;margin-left: 20px;    margin-top: -40px", fit: 'clip',:class =>"video-pic"
+      
 
     .col-sm-12.col-md-12.col-lg-9
       #wid-id-7.jarviswidget{"data-widget-attstyle" => "jarviswidget-color-teal", "data-widget-custombutton" => "false", "data-widget-editbutton" => "false", "data-widget-fullscreenbutton" => "false", "data-widget-sortable" => "false", :role => "widget", :style => ""}

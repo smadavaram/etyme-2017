@@ -173,7 +173,7 @@ Rails.application.routes.draw do
       end
     end
     get 'companies/edit'
-    resources :users, only: [:show,:update] do
+    resources :users, only: [:show,:update, :destroy] do
       get  :add_reminder
       get 'current_status', on: :collection
       get 'status_update', on: :collection
@@ -193,6 +193,7 @@ Rails.application.routes.draw do
     resources :companies ,only: [:new, :create , :update] do
       get    :add_reminder
       match  :assign_groups , via: [:get , :post]
+      match  :assign_groups_to_contact , via: [:get , :post]
       post   :add_to_network
       get    :hot_candidates
       get    :network_contacts, on: :collection

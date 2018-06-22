@@ -3,6 +3,8 @@ class CompanyContact < ApplicationRecord
   validates_uniqueness_of :email,  scope: :company_id
   has_many :notifications       , as: :notifiable,dependent: :destroy
 
+  has_many :groupables ,as: :groupable
+  has_many :groups ,through: :groupables
 
   scope :search_by ,->(term) { CompanyContact.where('lower(first_name) like :term or lower(last_name) like :term or title like :term ' ,{term: "%#{term.downcase}%" })}
 

@@ -83,7 +83,7 @@
                             %td= d.try(:email)
                             %td= d.try(:phone)
                             %td
-                              - d.company.groups.each do |group|
+                              - d.groups.each do |group|
                                 %span.badge.bg-color-blue.margin-bottom-5
                                   = group.try(:group_name).try(:titleize)
                             %td
@@ -101,7 +101,7 @@
                               = link_to raw("<i class='fa fa-bell '></i>")    ,company_company_add_reminder_path(d.company)   ,class: 'btn btn-default  btn-xs margin-bottom-5', remote: :true ,title:"Remind Me",'data-toggle'=>"tooltip" ,'data-placement'=>"top"
                               -#= link_to "Contacts" ,company_contacts_path(d.try(:invited_company)), class: 'btn btn-xs btn-default btn-primary'
                               = link_to raw("<i class='fa fa-edit '></i>") , edit_company_path(d.company) , class: 'btn btn-xs btn-default  margin-bottom-5',remote: :true ,title:"Edit #{d.company.name}",'data-toggle'=>"tooltip" ,'data-placement'=>"top"
-                              = link_to raw("<i class='fa fa-users '></i>"), company_company_assign_groups_path(d.company) , remote:true,class: 'btn btn-xs btn-default margin-bottom-5' ,title:"Assign Groups",'data-toggle'=>"tooltip" ,'data-placement'=>"top"
+                              = link_to raw("<i class='fa fa-users '></i>"), company_company_assign_groups_to_contact_path(d) , remote:true,class: 'btn btn-xs btn-default margin-bottom-5' ,title:"Assign Groups",'data-toggle'=>"tooltip" ,'data-placement'=>"top"
 
                               
                     -#= link_to raw("<i class='fa fa-times '></i>") , company_path(d.invited_company) ,method: :delete, class: 'btn btn-xs btn-default btn-danger' ,title:"Delete #{d.invited_company.name}",data: {confirm: "Are you sure you want to Delete this Company ?", verify: 'Confirm', verify_text: "Type 'Confirm' to Continue"}

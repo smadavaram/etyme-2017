@@ -17,47 +17,49 @@ class Company::CompanyCandidateDocsController < Company::BaseController
     		company_candidate_docs.company_id = current_company.id
         company_candidate_docs.title_type = params["company_candidate_docs"]["title_type"]
         company_candidate_docs.is_require = params["company_candidate_docs"]["is_require"]
+        company_candidate_docs.document_for = params["company_candidate_docs"]["document_for"]
+
 
     		company_candidate_docs.save
       end  
   	end	
 
-    if params["company_customer_docs"]
-      if !params["company_candidate_docs"]["file"].blank?
-        company_customer_docs = CompanyCustomerDoc.new()
-        company_customer_docs.title = params["company_customer_docs"]["title"]
-        company_customer_docs.exp_date = params["company_customer_docs"]["exp_date"]
-        company_customer_docs.file = params["company_customer_docs"]["file"]
-        company_customer_docs.is_required_signature = params["company_customer_docs"]["is_required_signature"] == "1" ? true : false
-        company_customer_docs.company_id = current_company.id
+    # if params["company_customer_docs"]
+    #   if !params["company_candidate_docs"]["file"].blank?
+    #     company_customer_docs = CompanyCustomerDoc.new()
+    #     company_customer_docs.title = params["company_customer_docs"]["title"]
+    #     company_customer_docs.exp_date = params["company_customer_docs"]["exp_date"]
+    #     company_customer_docs.file = params["company_customer_docs"]["file"]
+    #     company_customer_docs.is_required_signature = params["company_customer_docs"]["is_required_signature"] == "1" ? true : false
+    #     company_customer_docs.company_id = current_company.id
 
-        company_customer_docs.save
-      end  
-    end 
+    #     company_customer_docs.save
+    #   end  
+    # end 
 
-    if params["company_vendor_docs"]
-      if !params["company_candidate_docs"]["file"].blank?
-        company_vendor_docs = CompanyVendorDoc.new()
-        company_vendor_docs.title = params["company_vendor_docs"]["title"]
-        company_vendor_docs.exp_date = params["company_vendor_docs"]["exp_date"]
-        company_vendor_docs.file = params["company_vendor_docs"]["file"]
-        company_vendor_docs.is_required_signature = params["company_vendor_docs"]["is_required_signature"] == "1" ? true : false
-        company_vendor_docs.company_id = current_company.id
-        company_vendor_docs.save
-      end  
-    end 
+    # if params["company_vendor_docs"]
+    #   if !params["company_candidate_docs"]["file"].blank?
+    #     company_vendor_docs = CompanyVendorDoc.new()
+    #     company_vendor_docs.title = params["company_vendor_docs"]["title"]
+    #     company_vendor_docs.exp_date = params["company_vendor_docs"]["exp_date"]
+    #     company_vendor_docs.file = params["company_vendor_docs"]["file"]
+    #     company_vendor_docs.is_required_signature = params["company_vendor_docs"]["is_required_signature"] == "1" ? true : false
+    #     company_vendor_docs.company_id = current_company.id
+    #     company_vendor_docs.save
+    #   end  
+    # end 
 
-    if params["company_employee_docs"]
-      if !params["company_candidate_docs"]["file"].blank?
-        company_employee_docs = CompanyEmployeeDoc.new()
-        company_employee_docs.title = params["company_employee_docs"]["title"]
-        company_employee_docs.exp_date = params["company_employee_docs"]["exp_date"]
-        company_employee_docs.file = params["company_employee_docs"]["file"]
-        company_employee_docs.is_required_signature = params["company_employee_docs"]["is_required_signature"] == "1" ? true : false
-        company_employee_docs.company_id = current_company.id
-        company_employee_docs.save
-      end  
-    end 
+    # if params["company_employee_docs"]
+    #   if !params["company_candidate_docs"]["file"].blank?
+    #     company_employee_docs = CompanyEmployeeDoc.new()
+    #     company_employee_docs.title = params["company_employee_docs"]["title"]
+    #     company_employee_docs.exp_date = params["company_employee_docs"]["exp_date"]
+    #     company_employee_docs.file = params["company_employee_docs"]["file"]
+    #     company_employee_docs.is_required_signature = params["company_employee_docs"]["is_required_signature"] == "1" ? true : false
+    #     company_employee_docs.company_id = current_company.id
+    #     company_employee_docs.save
+    #   end  
+    # end 
 
 
   	if params["company"]
@@ -72,52 +74,54 @@ class Company::CompanyCandidateDocsController < Company::BaseController
   		  		company_candidate_docs.company_id = current_company.id
             company_candidate_docs.title_type = data["title_type"]
             company_candidate_docs.is_require = data["is_require"]
+            company_candidate_docs.document_for = data["document_for"]
+
   		  		company_candidate_docs.save
           end   
   			end	
   		end	
 
-      if params["company"]["company_customer_docs_attributes"]
-        params["company"]["company_customer_docs_attributes"].each do |key,data|
-          if !data["file"].blank?
-            company_customer_docs = CompanyCustomerDoc.new()
-            company_customer_docs.title = data["title"]
-            company_customer_docs.exp_date = data["exp_date"]
-            company_customer_docs.file = data["file"]
-            company_customer_docs.is_required_signature = data["is_required_signature"] == "1" ? true : false
-            company_customer_docs.company_id = current_company.id
-            company_customer_docs.save
-          end   
-        end 
-      end 
+      # if params["company"]["company_customer_docs_attributes"]
+      #   params["company"]["company_customer_docs_attributes"].each do |key,data|
+      #     if !data["file"].blank?
+      #       company_customer_docs = CompanyCustomerDoc.new()
+      #       company_customer_docs.title = data["title"]
+      #       company_customer_docs.exp_date = data["exp_date"]
+      #       company_customer_docs.file = data["file"]
+      #       company_customer_docs.is_required_signature = data["is_required_signature"] == "1" ? true : false
+      #       company_customer_docs.company_id = current_company.id
+      #       company_customer_docs.save
+      #     end   
+      #   end 
+      # end 
 
-      if params["company"]["company_vendor_docs_attributes"]
-        params["company"]["company_vendor_docs_attributes"].each do |key,data|
-          if !data["file"].blank?
-            company_vendor_docs = CompanyVendorDoc.new()
-            company_vendor_docs.title = data["title"]
-            company_vendor_docs.exp_date = data["exp_date"]
-            company_vendor_docs.file = data["file"]
-            company_vendor_docs.is_required_signature = data["is_required_signature"] == "1" ? true : false
-            company_vendor_docs.company_id = current_company.id
-            company_vendor_docs.save
-          end   
-        end 
-      end 
+      # if params["company"]["company_vendor_docs_attributes"]
+      #   params["company"]["company_vendor_docs_attributes"].each do |key,data|
+      #     if !data["file"].blank?
+      #       company_vendor_docs = CompanyVendorDoc.new()
+      #       company_vendor_docs.title = data["title"]
+      #       company_vendor_docs.exp_date = data["exp_date"]
+      #       company_vendor_docs.file = data["file"]
+      #       company_vendor_docs.is_required_signature = data["is_required_signature"] == "1" ? true : false
+      #       company_vendor_docs.company_id = current_company.id
+      #       company_vendor_docs.save
+      #     end   
+      #   end 
+      # end 
 
-      if params["company"]["company_employee_docs_attributes"]
-        params["company"]["company_employee_docs_attributes"].each do |key,data|
-          if !data["file"].blank?
-            company_employee_docs = CompanyEmployeeDoc.new()
-            company_employee_docs.title = data["title"]
-            company_employee_docs.exp_date = data["exp_date"]
-            company_employee_docs.file = data["file"]
-            company_employee_docs.is_required_signature = data["is_required_signature"] == "1" ? true : false
-            company_employee_docs.company_id = current_company.id
-            company_employee_docs.save
-          end   
-        end 
-      end 
+      # if params["company"]["company_employee_docs_attributes"]
+      #   params["company"]["company_employee_docs_attributes"].each do |key,data|
+      #     if !data["file"].blank?
+      #       company_employee_docs = CompanyEmployeeDoc.new()
+      #       company_employee_docs.title = data["title"]
+      #       company_employee_docs.exp_date = data["exp_date"]
+      #       company_employee_docs.file = data["file"]
+      #       company_employee_docs.is_required_signature = data["is_required_signature"] == "1" ? true : false
+      #       company_employee_docs.company_id = current_company.id
+      #       company_employee_docs.save
+      #     end   
+      #   end 
+      # end 
 
 
   	end	
@@ -172,7 +176,7 @@ class Company::CompanyCandidateDocsController < Company::BaseController
 
 
     def company_candidate_docs_params
-      params.require(:company_candidate_docs).permit(:id,:name,:file, :title ,:company_id, :is_required_signature, :title_type, :is_require)
+      params.require(:company_candidate_docs).permit(:id,:name,:file, :title ,:company_id, :is_required_signature, :title_type, :is_require, :document_for)
     end
 
 

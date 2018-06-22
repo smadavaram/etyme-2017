@@ -1094,3 +1094,7 @@ input:checked + .slider1:before {
 .payroll_term_info_dtpicker #datepicker{
   margin-left: 140px;
 }
+
+.mr-bottom-20{margin-bottom: 20px;}
+
+.popup_select .select2-container{width: 350px !important;}

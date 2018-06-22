@@ -73,6 +73,8 @@ class Company < ApplicationRecord
   has_many :company_vendor_docs, dependent: :destroy
   has_many :company_customer_docs, dependent: :destroy
   has_many :company_employee_docs, dependent: :destroy
+  has_many :company_videos, dependent: :destroy
+
 
 
 

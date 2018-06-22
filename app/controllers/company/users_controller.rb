@@ -122,6 +122,14 @@ class Company::UsersController < Company::BaseController
     render :json=>@user
   end
 
+  def destroy
+    user = User.find(params["id"]) rescue nil
+    if !user.blank?
+      user.delete
+    end 
+    redirect_to admins_path
+  end  
+
   private
   def find_user
     @user = current_company.users.find(params[:user_id] || params[:user_id]) || []

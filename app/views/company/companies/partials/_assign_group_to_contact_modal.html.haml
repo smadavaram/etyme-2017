@@ -1,0 +1,10 @@
+.modal.fade{id:"company-#{contact.id}"}
+  .modal-dialog
+    .modal-content
+      .modal-header
+        %button.close{"aria-hidden" => "true", "data-dismiss" => "modal", :type => "button"}
+          ×
+        %h4.modal-title
+          %strong= "Manage Groups"
+      .modal-body.no-padding
+        = render 'company/companies/partials/assign_groups_to_contact_form' , company: contact

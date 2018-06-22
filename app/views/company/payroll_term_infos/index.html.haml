@@ -92,13 +92,13 @@
                         .form-group.mr-top-10
                           %label.radio-container
                             Payroll Before Weekend
-                            = f.radio_button :weekend_sch, "Payroll Before Weekend", checked:!@payroll_detail.blank? ? @payroll_detail.weekend_sch == "Payroll Before Weekend" ? true :false : "", class: 'set-checkbox'
+                            = f.radio_button :weekend_sch, "Payroll Before Weekend", checked:!@payroll_detail.blank? ? @payroll_detail.weekend_sch == "Payroll Before Weekend" ? true :false : "", class: 'set-checkbox payroll-schedule-btn'
                             %span.radio-checkmark
                       .col-md-5 
                         .form-group.mr-top-10
                           %label.radio-container
                             Payroll After Weekend
-                            = f.radio_button :weekend_sch, "Payroll After Weekend", checked:!@payroll_detail.blank? ? @payroll_detail.weekend_sch == "Payroll After Weekend" ? true :false : "", class: 'set-checkbox'
+                            = f.radio_button :weekend_sch, "Payroll After Weekend", checked:!@payroll_detail.blank? ? @payroll_detail.weekend_sch == "Payroll After Weekend" ? true :false : "", class: 'set-checkbox payroll-schedule-btn'
                             %span.radio-checkmark
                       
                       / .col-md-5
@@ -159,6 +159,15 @@
   :javascript
     $(document).ready(function() {
 
+    $(".payroll-schedule-btn").on("click", function(){
+      if($(this).attr("id") == "payroll_info_weekend_sch_payroll_after_weekend"){
+        $("#payroll_info_weekend_sch_payroll_before_weekend").removeAttr("checked", "checked");
+      }else{
+        $("#payroll_info_weekend_sch_payroll_after_weekend").removeAttr("checked", "checked");
+      }
+      $("#"+$(this).attr("id")).attr("checked", "checked");
+    });
+
     
     $("#payroll_info_payroll_date").on("change", function(){
       var date_present = $(this).val();
@@ -168,7 +177,32 @@
           date1 = date_present1.split("/");
         var arr = [];
           for (var i = 1; i <= 12; i++) {
-            arr.push(i+'/'+date[1]+'/'+date[2]);
+            
+            var new_date = new Date(i+'/'+date[1]+'/'+date[2]);
+            var day = new_date.getDay();
+
+            if( $("#payroll_info_weekend_sch_payroll_before_weekend").attr("checked")){
+              if(day == 6){
+                var saturday = parseInt(date[1]) -1
+                arr.push(i+'/'+saturday+'/'+date[2]);
+              }else if(day == 0){
+                var sunday = parseInt(date[1]) -2
+                arr.push(i+'/'+sunday+'/'+date[2]);
+              }else{
+                arr.push(i+'/'+date[1]+'/'+date[2]);
+              }
+            }else{
+              if(day == 6){
+                var saturday = parseInt(date[1]) +2
+                arr.push(i+'/'+saturday+'/'+date[2]);
+              }else if(day == 0){
+                var sunday = parseInt(date[1]) +1
+                arr.push(i+'/'+sunday+'/'+date[2]);
+              }else{
+                arr.push(i+'/'+date[1]+'/'+date[2]);
+              }
+            }
+            
           }
           if(date_present1 != ''){
           for (var i = 1; i <= 12; i++) {

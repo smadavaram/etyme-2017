@@ -18,144 +18,187 @@
                     = fields_for :company_candidate_docs, @company_candidate_docs do |b|
                       = render 'company/companies/company_candidate_docs_fields', f: b
                       %strong
-                      .links
+                      .links.pull-right{:style=>"margin-top: -60px;"}
                         = link_to_add_association '+ Add Document', f, :company_candidate_docs, class: 'btn btn-success', partial: 'company/companies/company_candidate_docs_fields'
+                      
+                    %button.btn.btn-primary.pull-right{:type => "submit", :style=>"margin-top: -60px;"}
+                      Saved      
               .row
                 .col-md-12
-                  - if current_company.company_candidate_docs &&  current_company.company_candidate_docs.count != 0
-                    %table.table.table-bordered
-                      %tr
-                        %th Title
-                        %th Type
-                        %th Expiry Date
-                        %th Is Require
-                        %th Attachments
-                        %th Action
-                      - current_company.company_candidate_docs.each do |doc|
-                        %tr
-                          %td= doc.title
-                          %td= doc.title_type
-                          %td= doc.exp_date
-                          %td= doc.is_require
-                          %td
-                            -if !doc.file.blank?
-                              %a.delete_icon{:download => "", :href => doc.file}
-                                %i.fa.fa-paperclip   
-                          %td
-                            = link_to "", delete_company_candidate_docs_path(:id=>doc.id), :title=>"Delete", class: "fa fa-trash-o fa-lg fa-fw delete_primary_doc", method: :delete, data: { confirm: 'Are you sure?' }                                 
-                  
+                  %section#widget-grid
+                    .row
+                      %article.col-xs-12.col-sm-12.col-md-12.col-lg-12.sortable-grid.ui-sortable
+                        #wid-id-1.jarviswidget.jarviswidget-color-blueDark.jarviswidget-sortable{"data-widget-editbutton" => "false", :role => "widget"}
+                          %header{:role => "heading"}
+                            %span.widget-icon
+                              %i.fa.fa-table
+                            %h2 My Bench
+                            %span.jarviswidget-loader
+                              %i.fa.fa-refresh.fa-spin
+                          / widget div
+                          %div{:role => "content"}
+                            .jarviswidget-editbox
+                            .widget-body.no-padding
+                              #datatable_fixed_column_wrapper.dataTables_wrapper.form-inline.dt-bootstrap.no-footer
+                                %table#datatable_fixed_column.table.table-striped.table-bordered.dataTable.no-footer{"aria-describedby" => "datatable_fixed_column_info", :role => "grid", :style => "width: 100%;", :width => "100%"}
+                                  %thead
+                                    %tr{:role => "row"}
+                                      %th.hasinput{ :style => "width:2%"}
+                                        / %input.form-control{type: "checkbox", :type => ""}/
+                                        = check_box_tag "select_all[]", ""
+                                      %th.hasinput{ :style => "width:17%"}
+                                        %input.form-control{:placeholder => "Title", :type => "text"}/
+                                      %th.hasinput{ :style => "width:18%"}
+                                        %input.form-control{:placeholder => "Type", :type => "text"}/
+                                      %th.hasinput{ :style => "width:18%"}
+                                        %input.form-control{:placeholder => "Document For", :type => "text"}/  
+                                      %th.hasinput{ :style => "width:16%"}
+                                        %input.form-control{:placeholder => "Expiry Date ", :type => "text"}/
+                                      %th.hasinput{ :style => "width:17%"}
+                                        %input.form-control{:placeholder => "Is Require ", :type => "text"}/
+                                      %th.hasinput{ :style => "width:17%"}
+                                        %input.form-control{:placeholder => "Attachments", :type => "text"}/  
+                                      %th.hasinput{ :style => "width:16%"}
+                                        %input.form-control{:placeholder => "Actions", :type => "text"}/
+                                    %tr{:role => "row"}
+                                      %th Select
+                                      %th.expand.sorting_asc Title
+                                      %th Type
+                                      %th Document For
+                                      %th Expiry Date
+                                      %th Is Require
+                                      %th Attachments
+                                      %th.sorting{} Actions
+                                  %tbody
+                                    - current_company.company_candidate_docs.each do |doc|
+                                      %tr.even{:role => "row"}
+                                        %td
+                                          = check_box_tag "ids[]", doc.id
+                                        %td= doc.title
+                                        %td= doc.title_type
+                                        %td= doc.document_for
+                                        %td= doc.exp_date
+                                        %td= doc.is_require
+                                        %td
+                                          -if !doc.file.blank?
+                                            %a.delete_icon{:download => "", :href => doc.file}
+                                              %i.fa.fa-paperclip   
+                                        %td
+                                          = link_to "", delete_company_candidate_docs_path(:id=>doc.id), :title=>"Delete", class: "fa fa-trash-o fa-lg fa-fw delete_primary_doc", method: :delete, data: { confirm: 'Are you sure?' }                                 
+                          
+
               
-              %hr
-              .row
-                .col-md-12
-                  %h4
-                    %b Customer 
-                  %br
-                  .form-group.candidate-association
-                    = fields_for :company_customer_docs, @company_customer_docs do |b|
-                      = render 'company/companies/company_customer_docs_fields', f: b
-                      %strong
-                      .links
-                        = link_to_add_association '+ Add Document', f, :company_customer_docs, class: 'btn btn-success', partial: 'company/companies/company_customer_docs_fields'
-              .row
-                .col-md-12
-                  - if current_company.company_customer_docs &&  current_company.company_customer_docs.count != 0
-                    %table.table.table-bordered
-                      %tr
-                        %th Title
-                        %th Type
-                        %th Expiry Date
-                        %th Is Require
-                        %th Attachments
-                        %th Action
-                      - current_company.company_customer_docs.each do |doc|
-                        %tr
-                          %td= doc.title
-                          %td= doc.title_type
-                          %td= doc.exp_date
-                          %td= doc.is_require
-                          %td
-                            -if !doc.file.blank?
-                              %a.delete_icon{:download => "", :href => doc.file}
-                                %i.fa.fa-paperclip  
-                          %td
-                            = link_to "", delete_company_customer_docs_path(:id=>doc.id), :title=>"Delete", class: "fa fa-trash-o fa-lg fa-fw delete_primary_doc", method: :delete, data: { confirm: 'Are you sure?' }                   
+              / %hr
+              / .row
+              /   .col-md-12
+              /     %h4
+              /       %b Customer 
+              /     %br
+              /     .form-group.candidate-association
+              /       = fields_for :company_customer_docs, @company_customer_docs do |b|
+              /         = render 'company/companies/company_customer_docs_fields', f: b
+              /         %strong
+              /         .links
+              /           = link_to_add_association '+ Add Document', f, :company_customer_docs, class: 'btn btn-success', partial: 'company/companies/company_customer_docs_fields'
+              / .row
+              /   .col-md-12
+              /     - if current_company.company_customer_docs &&  current_company.company_customer_docs.count != 0
+              /       %table.table.table-bordered
+              /         %tr
+              /           %th Title
+              /           %th Type
+              /           %th Expiry Date
+              /           %th Is Require
+              /           %th Attachments
+              /           %th Action
+              /         - current_company.company_customer_docs.each do |doc|
+              /           %tr
+              /             %td= doc.title
+              /             %td= doc.title_type
+              /             %td= doc.exp_date
+              /             %td= doc.is_require
+              /             %td
+              /               -if !doc.file.blank?
+              /                 %a.delete_icon{:download => "", :href => doc.file}
+              /                   %i.fa.fa-paperclip  
+              /             %td
+              /               = link_to "", delete_company_customer_docs_path(:id=>doc.id), :title=>"Delete", class: "fa fa-trash-o fa-lg fa-fw delete_primary_doc", method: :delete, data: { confirm: 'Are you sure?' }                   
                                           
-              %hr
-              .row
-                .col-md-12
-                  %h4
-                    %b Vendor 
-                  %br
-                  .form-group.candidate-association
-                    = fields_for :company_vendor_docs, @company_vendor_docs do |b|
-                      = render 'company/companies/company_vendor_docs_fields', f: b
-                      %strong
-                      .links
-                        = link_to_add_association '+ Add Document', f, :company_vendor_docs, class: 'btn btn-success', partial: 'company/companies/company_vendor_docs_fields'  
-              .row
-                .col-md-12
-                  - if current_company.company_vendor_docs &&  current_company.company_vendor_docs.count != 0
-                    %table.table.table-bordered
-                      %tr
-                        %th Title
-                        %th Type
-                        %th Expiry Date
-                        %th Is Require
-                        %th Attachments
-                        %th Action
-                      - current_company.company_vendor_docs.each do |doc|
-                        %tr
-                          %td= doc.title
-                          %td= doc.title_type
-                          %td= doc.exp_date
-                          %td= doc.is_require
-                          %td
-                            -if !doc.file.blank?
-                              %a.delete_icon{:download => "", :href => doc.file}
-                                %i.fa.fa-paperclip 
-                          %td
-                            = link_to "", delete_company_vendor_docs_path(:id=>doc.id), :title=>"Delete", class: "fa fa-trash-o fa-lg fa-fw delete_primary_doc", method: :delete, data: { confirm: 'Are you sure?' }                                      
+              / %hr
+              / .row
+              /   .col-md-12
+              /     %h4
+              /       %b Vendor 
+              /     %br
+              /     .form-group.candidate-association
+              /       = fields_for :company_vendor_docs, @company_vendor_docs do |b|
+              /         = render 'company/companies/company_vendor_docs_fields', f: b
+              /         %strong
+              /         .links
+              /           = link_to_add_association '+ Add Document', f, :company_vendor_docs, class: 'btn btn-success', partial: 'company/companies/company_vendor_docs_fields'  
+              / .row
+              /   .col-md-12
+              /     - if current_company.company_vendor_docs &&  current_company.company_vendor_docs.count != 0
+              /       %table.table.table-bordered
+              /         %tr
+              /           %th Title
+              /           %th Type
+              /           %th Expiry Date
+              /           %th Is Require
+              /           %th Attachments
+              /           %th Action
+              /         - current_company.company_vendor_docs.each do |doc|
+              /           %tr
+              /             %td= doc.title
+              /             %td= doc.title_type
+              /             %td= doc.exp_date
+              /             %td= doc.is_require
+              /             %td
+              /               -if !doc.file.blank?
+              /                 %a.delete_icon{:download => "", :href => doc.file}
+              /                   %i.fa.fa-paperclip 
+              /             %td
+              /               = link_to "", delete_company_vendor_docs_path(:id=>doc.id), :title=>"Delete", class: "fa fa-trash-o fa-lg fa-fw delete_primary_doc", method: :delete, data: { confirm: 'Are you sure?' }                                      
           
-              %hr
-              .row
-                .col-md-12
-                  %h4
-                    %b Employee 
-                  %br
-                  .form-group.candidate-association
-                    = fields_for :company_employee_docs, @company_employee_docs do |b|
-                      = render 'company/companies/company_employee_docs_fields', f: b
-                      %strong
-                      .links
-                        = link_to_add_association '+ Add Document', f, :company_employee_docs, class: 'btn btn-success', partial: 'company/companies/company_employee_docs_fields'
-              .row
-                .col-md-12
-                  - if current_company.company_employee_docs &&  current_company.company_employee_docs.count != 0
-                    %table.table.table-bordered
-                      %tr
-                        %th Title
-                        %th Type
-                        %th Expiry Date
-                        %th Is Require
-                        %th Attachments
-                        %th Action
-                      - current_company.company_employee_docs.each do |doc|
-                        %tr
-                          %td= doc.title
-                          %td= doc.title_type
-                          %td= doc.exp_date
-                          %td= doc.is_require
-                          %td
-                            -if !doc.file.blank?
-                              %a.delete_icon{:download => "", :href => doc.file}
-                                %i.fa.fa-paperclip  
-                          %td
-                            = link_to "", delete_company_employee_docs_path(:id=>doc.id), :title=>"Delete", class: "fa fa-trash-o fa-lg fa-fw delete_primary_doc", method: :delete, data: { confirm: 'Are you sure?' }                                                           
-              .row
-              .col-lg-12
-                %button.btn.btn-primary.pull-right{:type => "submit"}
-                  Saved  
+              / %hr
+              / .row
+              /   .col-md-12
+              /     %h4
+              /       %b Employee 
+              /     %br
+              /     .form-group.candidate-association
+              /       = fields_for :company_employee_docs, @company_employee_docs do |b|
+              /         = render 'company/companies/company_employee_docs_fields', f: b
+              /         %strong
+              /         .links
+              /           = link_to_add_association '+ Add Document', f, :company_employee_docs, class: 'btn btn-success', partial: 'company/companies/company_employee_docs_fields'
+              / .row
+              /   .col-md-12
+              /     - if current_company.company_employee_docs &&  current_company.company_employee_docs.count != 0
+              /       %table.table.table-bordered
+              /         %tr
+              /           %th Title
+              /           %th Type
+              /           %th Expiry Date
+              /           %th Is Require
+              /           %th Attachments
+              /           %th Action
+              /         - current_company.company_employee_docs.each do |doc|
+              /           %tr
+              /             %td= doc.title
+              /             %td= doc.title_type
+              /             %td= doc.exp_date
+              /             %td= doc.is_require
+              /             %td
+              /               -if !doc.file.blank?
+              /                 %a.delete_icon{:download => "", :href => doc.file}
+              /                   %i.fa.fa-paperclip  
+              /             %td
+              /               = link_to "", delete_company_employee_docs_path(:id=>doc.id), :title=>"Delete", class: "fa fa-trash-o fa-lg fa-fw delete_primary_doc", method: :delete, data: { confirm: 'Are you sure?' }                                                           
+              / .row
+              / .col-lg-12
+              /   %button.btn.btn-primary.pull-right{:type => "submit"}
+              /     Saved  
 
 / %body
 /   .container-fluid.no-padding
@@ -265,6 +308,35 @@
       $(".candidate_doc_exp_date").datepicker({
         dateFormat : 'yy-mm-dd'
       });
+
+
+
+      var responsiveHelper_dt_basic = undefined;
+      var responsiveHelper_datatable_fixed_column = undefined;
+      var responsiveHelper_datatable_col_reorder = undefined;
+      var responsiveHelper_datatable_tabletools = undefined;
+      var otable = $('#datatable_fixed_column').DataTable({
+            "sDom": "<'dt-toolbar'<'col-xs-12 col-sm-6 hidden-xs'f><'col-sm-6 col-xs-12 hidden-xs'<'toolbar'>>r>"+
+                    "t"+
+                    "<'dt-toolbar-footer'<'col-sm-6 col-xs-12 hidden-xs'i><'col-xs-12 col-sm-6'p>>",
+            "autoWidth" : true,
+            "oLanguage": {
+                "sSearch": '<span class="input-group-addon"><i class="glyphicon glyphicon-search"></i></span>'
+            }
+
+        });
+
+      // Apply the filter
+      $("#datatable_fixed_column thead th input[type=text]").on( 'keyup change', function () {
+        otable
+            .column( $(this).parent().index()+':visible' )
+            .search( this.value )
+            .draw();
+
+      } );
+
+
+      
 
     });
 

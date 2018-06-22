@@ -1,0 +1,3 @@
+$('.remote_container').html("#{ j render 'company/companies/partials/assign_group_to_contact_modal' , contact: @company_contact }");
+$('#company-#{@company_contact.id}').modal('toggle');
+$(".select2").select2({placeholder: "Select Group(s)"});

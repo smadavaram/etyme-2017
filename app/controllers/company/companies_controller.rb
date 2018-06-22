@@ -203,9 +203,12 @@ class Company::CompaniesController < Company::BaseController
   end
 
   def update_video
-    current_company.update_attributes(video: params[:video], video_type: params[:video_type])
+    # current_company.id.update_attributes(video: params[:video], video_type: params[:video_type])
+    CompanyVideo.create(:company_id=>current_company.id, :video=>params[:video], :video_type=> params[:video_type] )
     flash.now[:success] = "File Successfully Updated"
-    redirect_back fallback_location: root_path
+    # redirect_back fallback_location: root_path
+
+    redirect_to company_path(current_company)
   end
 
   def get_admins_list
@@ -235,6 +238,29 @@ class Company::CompaniesController < Company::BaseController
         flash[:success] = "Groups has been assigned"
       else
         flash[:errors] = @invited_company.errors.full_messages
+      end
+      redirect_back fallback_location: root_path
+    end
+  end
+
+  def assign_groups_to_contact
+    @company_contact = CompanyContact.find(params[:company_id])
+
+    p "11111111111111111111111111111111"
+    p @company_contact
+    p "11111111111111111111111111111111"
+
+    # @invited_company = current_company.invited_companies.find_by(invited_company_id: params[:company_id])
+    if request.post?
+      groups = params[:invited_company][:group_ids]
+      groups = groups.reject { |t| t.empty? }
+      groups_id = groups.map(&:to_i)
+      @company_contact.update_attribute(:group_ids, groups_id)
+      # @invited_company.update_attribute(:group_ids, groups_id)
+      if @company_contact.save
+        flash[:success] = "Groups has been assigned"
+      else
+        flash[:errors] = @company_contact.errors.full_messages
       end
       redirect_back fallback_location: root_path
     end
