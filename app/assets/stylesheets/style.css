@@ -1098,3 +1098,24 @@ input:checked + .slider1:before {
 .mr-bottom-20{margin-bottom: 20px;}
 
 .popup_select .select2-container{width: 350px !important;}
+
+.mr-bottom-10{margin-bottom: 10px;}
+
+.candidate-file-upload-btn button{background-color: transparent;
+  border: 0px;
+  color: red;
+  font-size: 25px;
+  float: right;
+  margin-top: -20px;
+  margin-right: -10px;}
+
+.legal-document-file-upload-btn button{background-color: transparent;
+  border: 0px;
+  color: red;
+  font-size: 25px;
+  float: right;
+  margin-top: 10px;
+  }  
+  .legal-document-file-upload-btn a{
+    float: right;
+  }  

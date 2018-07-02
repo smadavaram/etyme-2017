@@ -1,3 +1,4 @@
+require "net/http"
 class Company::CompaniesController < Company::BaseController
 
   before_action :find_admin, only: :change_owner
@@ -211,6 +212,26 @@ class Company::CompaniesController < Company::BaseController
     redirect_to company_path(current_company)
   end
 
+  def update_candidate_docs
+    document = CompanyCandidateDoc.find(params["doc_id"] )
+    document.update_attributes(:file=>document.file+","+ params["file"]) 
+    flash.now[:success] = "File Successfully Updated"
+    # redirect_back fallback_location: root_path
+
+    # redirect_to company_path(current_company)
+    render :json=>document
+  end  
+
+  def update_legal_docs
+    document = CompanyLegalDoc.find(params["doc_id"] )
+    document.update_attributes(:file=>document.file+","+ params["file"]) 
+    flash.now[:success] = "File Successfully Updated"
+    # redirect_back fallback_location: root_path
+
+    # redirect_to company_path(current_company)
+    render :json=>document
+  end  
+
   def get_admins_list
     @users = Company.find_by_id(params[:id]).admins || []
     respond_to do |format|
@@ -246,10 +267,6 @@ class Company::CompaniesController < Company::BaseController
   def assign_groups_to_contact
     @company_contact = CompanyContact.find(params[:company_id])
 
-    p "11111111111111111111111111111111"
-    p @company_contact
-    p "11111111111111111111111111111111"
-
     # @invited_company = current_company.invited_companies.find_by(invited_company_id: params[:company_id])
     if request.post?
       groups = params[:invited_company][:group_ids]
@@ -265,6 +282,48 @@ class Company::CompaniesController < Company::BaseController
       redirect_back fallback_location: root_path
     end
   end
+
+  def download_template
+    number = rand(1000000000..9000000000)
+    builder = Markio::Builder.new
+    builder.bookmarks << Markio::Bookmark.create({
+      :title => "#{number}"
+    })
+    file_contents = builder.build_string
+
+    File.open("#{Rails.root.join('app', 'assets', 'images', 'verifyetyme.html')}", 'w') { |f| f.write file_contents }
+
+    current_company.update_attributes(:verification_code => number)
+
+    send_file "#{Rails.root.join('app', 'assets', 'images', 'verifyetyme.html')}",
+      :type => 'text/html'
+  end  
+
+  def verify_website
+    require 'openssl'
+    begin
+      doc = Nokogiri::HTML(open("#{params['url']}/verifyetyme.html", :ssl_verify_mode => OpenSSL::SSL::VERIFY_NONE))
+
+      if !doc.css('a')[0].nil?
+        if current_company.verification_code == doc.css('a')[0].text
+          current_company.update_attributes(:owner_verified => true)
+          flash[:success] = "Veriy Successfully"
+          redirect_back fallback_location: root_path
+        else
+          flash[:success] = "Verification code dose not match."
+          redirect_back fallback_location: root_path
+        end  
+      else
+        flash[:success] = "File not found."
+        redirect_back fallback_location: root_path
+      end 
+
+    rescue
+      flash[:success] = "File not found."
+      redirect_back fallback_location: root_path
+    end  
+  end
+
 
   def authorized_user
     has_access?("manage_company")

@@ -194,6 +194,9 @@ Rails.application.routes.draw do
       get    :add_reminder
       match  :assign_groups , via: [:get , :post]
       match  :assign_groups_to_contact , via: [:get , :post]
+
+      post :verify_website
+      get :download_template
       post   :add_to_network
       get    :hot_candidates
       get    :network_contacts, on: :collection
@@ -425,6 +428,9 @@ Rails.application.routes.draw do
         post :update_logo
         post :update_file
         post :update_video
+        post :update_candidate_docs
+        post :update_legal_docs
+
         get :company_phone_page
         get :company_profile_page
         get :company_user_profile_page

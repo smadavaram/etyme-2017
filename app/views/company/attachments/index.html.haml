@@ -17,12 +17,12 @@
                   .form-group.candidate-association
                     = fields_for :company_candidate_docs, @company_candidate_docs do |b|
                       = render 'company/companies/company_candidate_docs_fields', f: b
-                      %strong
-                      .links.pull-right{:style=>"margin-top: -60px;"}
-                        = link_to_add_association '+ Add Document', f, :company_candidate_docs, class: 'btn btn-success', partial: 'company/companies/company_candidate_docs_fields'
+                      / %strong
+                      / .links.pull-right{:style=>"margin-top: -60px;"}
+                      /   = link_to_add_association '+ Add Document', f, :company_candidate_docs, class: 'btn btn-success', partial: 'company/companies/company_candidate_docs_fields'
                       
-                    %button.btn.btn-primary.pull-right{:type => "submit", :style=>"margin-top: -60px;"}
-                      Saved      
+                    / %button.btn.btn-primary.pull-right{:type => "submit", :style=>"margin-top: -60px;"}
+                    /   Saved      
               .row
                 .col-md-12
                   %section#widget-grid
@@ -32,7 +32,7 @@
                           %header{:role => "heading"}
                             %span.widget-icon
                               %i.fa.fa-table
-                            %h2 My Bench
+                            %h2 Candidates
                             %span.jarviswidget-loader
                               %i.fa.fa-refresh.fa-spin
                           / widget div
@@ -81,10 +81,16 @@
                                         %td= doc.is_require
                                         %td
                                           -if !doc.file.blank?
-                                            %a.delete_icon{:download => "", :href => doc.file}
-                                              %i.fa.fa-paperclip   
-                                        %td
-                                          = link_to "", delete_company_candidate_docs_path(:id=>doc.id), :title=>"Delete", class: "fa fa-trash-o fa-lg fa-fw delete_primary_doc", method: :delete, data: { confirm: 'Are you sure?' }                                 
+                                            -index = 1
+                                            - doc.file.split(",").each do |file_path|
+                                              %br
+                                              %a{:download => "", :href => file_path, :target=>"_blank"}
+                                                = "File #{index}"  
+                                                - index = index +1
+                                        %td.candidate-file-upload-btn
+                                          = link_to "", delete_company_candidate_docs_path(:id=>doc.id), :title=>"Delete", class: "fa fa-trash-o fa-lg fa-fw delete_primary_doc", method: :delete, data: { confirm: 'Are you sure?' }
+                                          = filepicker_field_tag "" ,class: "video-file fa fa-paperclip fa-lg", onchange:"fileUpload(event, #{doc.id})","data-fp-crop-ratio " => "2/2", :button_text=>" "
+
                           
 
               
@@ -355,3 +361,18 @@
          });
       });
     });
+
+    function fileUpload(event,doc_id){
+      file_url = event.fpfile.url
+      file_type=event.fpfile.mimetype
+      $('.video-pic').html('');
+      $.ajax({
+       type: 'POST',
+       dataType: 'json',
+       url: "#{update_candidate_docs_companies_path}",
+       data: { file: file_url,authenticity_token: window._token, file_type: file_type, doc_id:doc_id },
+       success: function (data) {
+         location.reload();
+       }
+     });
+    }

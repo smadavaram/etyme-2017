@@ -145,3 +145,7 @@ gem 'therubyracer'
 gem 'sequence-sdk', '~> 1.5', require: 'sequence'
 
 gem 'facebook-account-kit'
+
+gem 'nokogiri'
+
+gem 'markio'
