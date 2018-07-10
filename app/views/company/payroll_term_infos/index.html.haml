@@ -17,7 +17,10 @@
                   .row
                     .col-md-12
                       .form-group
-                    %label.col-md-2.control-label Payroll Terms
+                    
+                    %span.col-md-2
+                      %label.control-label Payroll Terms
+                      %i.fa.fa-info-circle
                     .col-md-10
                       -options = ['End of month', 'End of previous month','End of week','End of previous week', '1 Day'] + (2..45).map{|s| "#{s} Days"}
                       - new_options = []
@@ -25,11 +28,14 @@
                         -new_options << [data, data]  
                       / = new_options
                       = f.select :payroll_term, options_for_select(new_options, :selected => !@payroll_detail.blank? ? @payroll_detail.payroll_term : ""), {}, { :class => 'form-control input-lg multi-select2-role' }
-                      
+                  
+                  %hr    
                   .row
                     .col-md-12
                       .form-group
-                    %label.col-md-2.control-label Payroll type
+                    %span.col-md-2  
+                      %label.control-label Payroll type
+                      %i.fa.fa-info-circle
                     .col-md-10
                       .col-md-2
                         .form-group.mr-top-10
@@ -83,10 +89,13 @@
                       / .col-md-2
                       /   = f.radio_button :payroll_type, "Daily", class: 'set-checkbox'
                       /   = f.label :payroll_type, 'Daily'.html_safe
+                  %hr
                   .row
                     .col-md-12
                       .form-group
-                    %label.col-md-2.control-label Weekend Schedule
+                    %span.col-md-2    
+                      %label.control-label Weekend Schedule
+                      %i.fa.fa-info-circle
                     .col-md-10
                       .col-md-5
                         .form-group.mr-top-10
@@ -125,22 +134,23 @@
                   .row
                     .col-md-12.payroll_term_info_dtpicker
                       %div{id: "datepicker"}
+                  %hr
                   .row.form-group
                     .col-lg-12.multi-field-wrapper
                       %p
-                        %b Add Tex
+                        %b Add Tax
                       .form-group.candidate-association  
                         .multi-fields
                           = f.fields_for :tax_infos, f.object.tax_infos do |b|
                             = render 'company/payroll_term_infos/tax_info_fields', f: b
                             %strong
                             .links
-                              = link_to_add_association '+ Add Tex', f, :tax_infos, class: 'btn btn-success', partial: 'company/payroll_term_infos/tax_info_fields'
+                              = link_to_add_association '+ Add Tax', f, :tax_infos, class: 'btn btn-success', partial: 'company/payroll_term_infos/tax_info_fields'
                           / = link_to_add_fields 'company/payroll_term_infos/tax_info_fields', f, :tax_infos
                   .row.mr-top-20
                     .col-md-6
                       - if @payroll_detail
-                        %h4 Tex
+                        %h4 Tax
                         %br
                         %table.table.table-bordered
                           %tr
@@ -154,7 +164,7 @@
                     .col-lg-12
                       .form-actions
                         %button.btn.btn-primary.pull-right{:type => "submit"}
-                          Saved
+                          Save
 - content_for :scripts do
   :javascript
     $(document).ready(function() {

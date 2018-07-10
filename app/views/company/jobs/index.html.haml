@@ -103,7 +103,7 @@
         //window.location.href = window.location.href.split('?')[0]+"?page=1&per_page="+len;
       });
 
-      $("div.toolbar").html('<div class="text-right">#{ button_tag 'NEW' ,class: 'btn btn-success btn-md pull-right header-btn margin-top-5' , "data-toggle": "modal" , "data-target":"#new-job",'rel'=>"tooltip" ,'data-placement'=>"top"}<a href="#" class= "btn btn-success share btn-md pull-right header-btn margin-top-5"><i class="fa fa-share-alt"></i> Share</a></div>');
+      $("div.toolbar").html('<div class="text-right">#{ button_tag 'NEW' ,class: 'btn btn-success btn-md pull-right header-btn margin-top-5 mr-left-10' , "data-toggle": "modal" , "data-target":"#new-job",'rel'=>"tooltip" ,'data-placement'=>"top"}<a href="#" class= "btn btn-success share btn-md pull-right header-btn margin-top-5"><i class="fa fa-share-alt"></i> Share</a></div>');
 
       // Apply the filter
       $("#datatable_fixed_column thead th input[type=text]").on( 'keyup change', function () {
@@ -171,5 +171,11 @@
       } else {
         setTimeout(arguments.callee, 50);
       }
+    });
+
+    $('#emailbody').summernote({
+        height: 250,
+        focus: false,
+        tabsize: 2
     });
 

@@ -371,6 +371,14 @@ class Company::CompaniesController < Company::BaseController
   end
 
 
+  def update_mobile_number
+    @company=Company.find_by_id(params[:id])
+
+    if @company
+      @company.update_attributes(:phone=>params["phone_number"], :is_number_verify=> true)
+    end  
+  end   
+
   private
 
   def find_user

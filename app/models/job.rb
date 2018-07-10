@@ -91,8 +91,8 @@ class Job < ApplicationRecord
     self.parent_job_id.present?
   end
 
-  def self.share_jobs(to,to_emails,c_ids,current_company,message)
-    JobMailer.share_jobs(to,to_emails,c_ids,current_company,message).deliver
+  def self.share_jobs(to,to_emails,c_ids,current_company,message, subject)
+    JobMailer.share_jobs(to,to_emails,c_ids,current_company,message,subject).deliver
   end
 
   private

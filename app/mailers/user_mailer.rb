@@ -53,9 +53,10 @@ class UserMailer < ApplicationMailer
   end
 
   # method for sharing of Hot Candidates
-  def share_hot_candidates(to,to_emails,candidates_ids ,current_company,message)
+  def share_hot_candidates(to,to_emails,candidates_ids ,current_company,message, subject)
     @link_list = []
     @message = message
+    @subject = subject
     candidates_ids.each do |cid|
       candidate = current_company.candidates.find(cid)
       @link_list.push({
@@ -64,13 +65,15 @@ class UserMailer < ApplicationMailer
                           roles: candidate.try(:roles).present? ? candidate.roles.pluck(:name).to_sentence : '',
                           skills: candidate.skills.pluck(:name).to_sentence,
                           location: candidate.try(:location),
-                          visa: candidate.visa,
+                          visa: candidate.candidate_visa,
                           recuiter_name: candidate.invited_by_user.present? ? candidate.invited_by_user.full_name + ' ' + candidate.invited_by_user.email.to_s + ' ' + candidate.invited_by_user.phone.to_s : ''
                       })
     end
     @candidates_ids = candidates_ids
     @company = current_company
-    mail(to: to,bcc: to_emails, subject: "#{current_company.name.titleize} Shared Hot Candidates Link",from: "Etyme <no-reply@etyme.com>")
+    # mail(to: to,bcc: to_emails, subject: "#{current_company.name.titleize} Shared Hot Candidates Link",from: "Etyme <no-reply@etyme.com>")
+    mail(to: to,bcc: to_emails, subject: "#{current_company.name.titleize} #{subject}",from: "Etyme <no-reply@etyme.com>")
+
   end
 
   def send_message_to_candidate(name,subject,message,to ,sender_email)

@@ -10,9 +10,10 @@ class JobMailer < ApplicationMailer
     mail(to: @vendor.email,  subject: "Job Invitation" , from: "Etyme <no-reply@etyme.com>")
   end
 
-  def share_jobs(to, to_emails, job_ids, current_company, message)
+  def share_jobs(to, to_emails, job_ids, current_company, message, subject)
     @link_list = []
     @message = message
+    @subject = subject
     jobs = Job.where("id IN (?) AND end_date >= ? ",job_ids, Date.today)
 
     jobs.each do |job|
@@ -27,7 +28,7 @@ class JobMailer < ApplicationMailer
                       })
     end
     @company = current_company
-    mail(to: to,bcc: to_emails, subject: "#{current_company.name.titleize} Shared Jobs", from: "Etyme <no-reply@etyme.com>")
+    mail(to: to,bcc: to_emails, subject: "#{current_company.name.titleize} #{subject}", from: "Etyme <no-reply@etyme.com>")
   end
 
 end

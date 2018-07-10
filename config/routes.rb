@@ -104,7 +104,13 @@ Rails.application.routes.draw do
     get 'make_primary_resume',    to: 'candidates#make_primary_resume'
     post 'update_mobile_number',    to: 'candidates#update_mobile_number'
 
-
+    resources :public_jobs, only: [:index, :destroy] do
+      get :job, on: :member
+      get :apply_job_candidate, on: :member
+      post :create_batch_job, on: :member
+      post :create_own_job, on: :member
+      post :apply, on: :member
+    end
 
     resources :educations, only:[:create,:update]
     resources :experiences, only: [:create,:update]
@@ -172,6 +178,8 @@ Rails.application.routes.draw do
         post :create_bulk_companies
       end
     end
+    post 'update_mobile_number',    to: 'companies#update_mobile_number'
+
     get 'companies/edit'
     resources :users, only: [:show,:update, :destroy] do
       get  :add_reminder

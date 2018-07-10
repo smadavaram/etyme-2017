@@ -1117,5 +1117,13 @@ input:checked + .slider1:before {
   margin-top: 10px;
   }  
   .legal-document-file-upload-btn a{
-    float: right;
+    float: right; 
   }  
+
+  #share-candidates .modal-dialog{width: 60%;}
+  #share-candidates #emailsubject{height: 35px;border: 1px solid #cccccc;}
+
+  #share-jobs .modal-dialog{width: 60%;}
+  #share-jobs #emailsubject{height: 35px;border: 1px solid #cccccc;}
+
+  .mr-left-10{margin-left: 10px;}

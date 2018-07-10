@@ -194,7 +194,19 @@ class Company::CandidatesController < Company::BaseController
       email = e.include?('[') ? JSON.parse(e) : e
       emails << email
     end
-    User.share_candidates(current_user.email ,emails.flatten.uniq.split(","),c_ids,current_company,params[:message])
+    params[:emails_bcc].each do |e|
+      company = User.where(email: e).first
+      if company.present?
+        c_ids.each do |id|
+          current_company.active_relationships.create(candidate_id: id, shared_to_id: company.company_id)
+        end
+      end
+
+      email = e.include?('[') ? JSON.parse(e) : e
+      emails << email
+    end
+
+    User.share_candidates(current_user.email ,emails.flatten.uniq.split(","),c_ids,current_company,params[:message],params[:subject])
     # CandidateMailer.share_hot_candidates(params[:emails].split(","),c_ids,current_company,params[:message]).deliver
     flash[:success] = "Candidates shared successfully."
     redirect_back fallback_location: root_path

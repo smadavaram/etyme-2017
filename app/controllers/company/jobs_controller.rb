@@ -86,7 +86,12 @@ class Company::JobsController < Company::BaseController
         email = e.include?('[') ? JSON.parse(e) : e
         emails << email
       end
-      Job.share_jobs(current_user.email, emails.flatten.uniq.split(","), j_ids, current_company, params[:message])
+      params[:emails_bcc].each do |e|
+        email = e.include?('[') ? JSON.parse(e) : e
+        emails << email
+      end
+
+      Job.share_jobs(current_user.email, emails.flatten.uniq.split(","), j_ids, current_company, params[:message], params[:subject])
       flash[:success] = "job shared successfully."
     else
       flash[:errors] = "There is no one active job."

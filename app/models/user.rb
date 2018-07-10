@@ -118,8 +118,8 @@ class User < ApplicationRecord
     self.save
   end
 
-  def self.share_candidates(to,to_emails,c_ids,current_company,message)
-    UserMailer.share_hot_candidates(to,to_emails,c_ids,current_company,message).deliver
+  def self.share_candidates(to,to_emails,c_ids,current_company,message, subject)
+    UserMailer.share_hot_candidates(to,to_emails,c_ids,current_company,message,subject).deliver
   end
 
   def go_available
