@@ -1,3 +1,11 @@
+- content_for :head do
+  %meta{content: "#{candidate_job_url(@job.id)}", property: "og:url"}/
+  %meta{content: "#{@job.company.name}", property: "og:title"}/
+  %meta{content: "summary", name: "twitter:card"}/
+  %meta{content: "#{@job.title}", name: "twitter:title"}/
+  %meta{content: " ", property: "fb:app_id"}/
+  %meta{content: "#{@job.description}", property: "og:description"}/
+  %meta{content: "article", property: "og:type"}/
 %body
   %header.header-jobpost
     .container
@@ -78,7 +86,27 @@
                 %span.badge $10K
           .list
             .list-group
-              %div.sharethis-inline-share-buttons
+            / / %div.sharethis-inline-share-buttons
+              %div.row
+                %ul.social
+                  %li
+                    %a{href: "https://twitter.com/share?url=#{candidate_job_url(@job.id)}", target: "_blank"}
+                      = image_tag "twitter.png", class: "twitter-btn"
+                      %script{src: "http://platform.twitter.com/widgets.js", type: "text/javascript"}
+                  %li
+                    %a.fb-xfbml-parse-ignore{href: "https://www.facebook.com/sharer/sharer.php?u=#{candidate_job_url(@job.id)}", target: "_blank"}
+                      = image_tag "facebook.png", class: "facebook-btn"
+                  %li
+                    %a{href: "https://web.whatsapp.com/send?text=#{candidate_job_url(@job.id)}", target: "_blank", "data-action"=>"share/whatsapp/share"}
+                      = image_tag "whatsapp.png", class: " whatsapp-btn"
+                  %li
+                    %a{href: "https://www.linkedin.com/shareArticle?mini=true&url=#{candidate_job_url(@job.id)}&source=LinkedIn", target: "_blank"}
+                      = image_tag "linkedin.png", class: "linkedin-btn"
+                  %li
+                    %a{href: "https://plus.google.com/share?url=#{candidate_job_url(@job.id)}", target: "_blank"}
+                      = image_tag "google-plus.png", class: "google-plus-btn"
+
+
 
 -content_for :body_class, 'greybg'
 - content_for :modals do
