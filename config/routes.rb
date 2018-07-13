@@ -487,6 +487,30 @@ Rails.application.routes.draw do
       get :find_jobs, on: :collection
       get :find_commission_user, on: :collection
     end
+
+    namespace :candidate do
+      resources :candidates, only: :index do
+        post :add_candidate, on: :collection
+      end
+    end 
+
+    namespace :company do
+      resources :companies, only: [:index, :create] do
+        post :add_company, on: :collection
+      end
+    end  
+    
+    namespace :company do
+      resources :jobs, only: [:index, :create] do
+        post :add_job, on: :collection
+      end
+    end  
+    
+    resources :job_applications, only: [:index, :create] do
+      post :job_applications, on: :collection
+    end
+
+    # post 'add_candidate',    to: 'candidates#add_candidate'
   end
 
   resources :conversations do

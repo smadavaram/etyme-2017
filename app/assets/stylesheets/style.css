@@ -1127,3 +1127,5 @@ input:checked + .slider1:before {
   #share-jobs #emailsubject{height: 35px;border: 1px solid #cccccc;}
 
   .mr-left-10{margin-left: 10px;}
+
+  #new_group .modal-dialog{width: 850px;}
