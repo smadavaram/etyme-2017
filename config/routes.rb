@@ -26,6 +26,9 @@ Rails.application.routes.draw do
   get 'signup' ,to: 'static#signup'
   post 'check_for_domain' ,to: 'static#check_for_domain'
 
+  get 'feed' => 'job_rss#feed'
+
+
   concern :paginatable do
     get '(page/:page)', action: :index, on: :collection, as: ''
     match :search, action: :index, via: [:get , :post], on: :collection
