@@ -179,6 +179,7 @@ Rails.application.routes.draw do
       collection do
         post :create_bulk_candidates
         post :create_bulk_companies
+        post :create_bulk_contacts
       end
     end
     post 'update_mobile_number',    to: 'companies#update_mobile_number'
@@ -291,6 +292,7 @@ Rails.application.routes.draw do
       collection do
         post :create_bulk_candidates
         post :create_bulk_companies
+        post :create_bulk_contacts
       end
     end
     resources :admins           ,concerns: :paginatable

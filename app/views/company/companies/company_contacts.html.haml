@@ -114,7 +114,8 @@
     = render 'company/companies/partials/new_company'
     = render 'company/reminders/partials/bulk_reminder_companies_form'
     = render 'company/statuses/partials/assign_bulk_companies'
-    = render 'company/groups/partial/assign_bulk_companies'
+    / = render 'company/groups/partial/assign_bulk_companies'
+    = render 'company/groups/partial/assign_bulk_contacts'
 
 :css
   .form-control
@@ -153,7 +154,7 @@
 
         });
 
-      $("div.toolbar").html('<div class="text-right">#{ button_tag 'NEW' ,class: 'btn btn-success btn-md pull-right header-btn ' , "data-toggle": "modal" , "data-target":"#new-contract-company"} <a href="#"  data-toggle= "modal"  data-target= "#add-reminder-companies" class = "btn btn-success bulk btn-md pull-right margin-right-5 header-btn margin-top-5 "><i class="fa fa-bell">  </i></a> <a href="#"  data-toggle= "modal"  data-target= "#assign-status-companies" class = "btn btn-success bulk btn-md pull-right margin-right-5 header-btn margin-top-5 "><i class="fa fa-sticky-note">  </i></a><a href="#"  data-toggle= "modal"  data-target= "#assign-bulk-group-companies" class = "btn bulk btn-success btn-md pull-right margin-right-5 header-btn margin-top-5 "><i class="fa fa-users"> </i></a></div>');
+      $("div.toolbar").html('<div class="text-right">#{ button_tag 'NEW' ,class: 'btn btn-success btn-md pull-right header-btn ' , "data-toggle": "modal" , "data-target":"#new-contract-company"} <a href="#"  data-toggle= "modal"  data-target= "#add-reminder-companies" class = "btn btn-success bulk btn-md pull-right margin-right-5 header-btn margin-top-5 "><i class="fa fa-bell">  </i></a> <a href="#"  data-toggle= "modal"  data-target= "#assign-status-companies" class = "btn btn-success bulk btn-md pull-right margin-right-5 header-btn margin-top-5 "><i class="fa fa-sticky-note">  </i></a><a href="#"  data-toggle= "modal" rel="tooltip" data-placement="top" title="Assign Groups"  data-target= "#assign-bulk-group-candidates" class = "btn btn-success bulk btn-md pull-right margin-right-5 header-btn margin-top-5 "><i class="fa fa-users">  </i></a></div>');
       // $("div.toolbar").html(#{ button_tag 'NEW' ,class: 'btn btn-success btn-md pull-right header-btn margin-top-5' , "data-toggle": "modal" , "data-target":"#new-job"}'</div>');
 
       // Apply the filter
@@ -165,25 +166,41 @@
 
       } );
      // share hide and show on base of checked checkboxes
-      // for share of checked rows
-      var checkedRows = new Array();
-        $(".bulk" ).on( "click", function() {
-          $('input[name="ids[]"]:checkbox:checked').each(function(){
-          checkedRows.push($(this).val());
-          });
-          if(checkedRows.length>0)
-          {
-            $('.company_ids').val(checkedRows);
-
-          }
-          if($( ".table-check:checked" ).length <= 0){
-              alert("Make a selection first.")
-              return false;
-          }
-      });
-
+     
       $("#select_all_" ).on( "click", function() {
         $("input[name='ids[]']").prop('checked', this.checked);
       });
 
+      // for share of checked rows
+        var checkedRows = new Array();
+          $(".bulk" ).on( "click", function(e) {
+            $('input[name="ids[]"]:checkbox:checked').each(function(){
+            checkedRows.push($(this).val());
+            });
+            if(checkedRows.length>0)
+            {
+              $('.candidates_ids').val(checkedRows);
+            }
+            if($( ".table-check:checked" ).length <= 0){
+              alert("Make a selection first.")
+              return false;
+            }
+        });
+
+
     });
+
+
+    $(".table-check").on("click", function(){
+        var checkedRows_new = new Array();
+        $('input[name="ids[]"]:checkbox:checked').each(function(){
+          checkedRows_new.push($(this).val());
+        });
+
+        if(checkedRows_new.length>0){
+          $("#datatable_fixed_column_paginate").css("display", "none");
+        }else{
+          $("#datatable_fixed_column_paginate").css("display", "");
+        }
+
+      })
