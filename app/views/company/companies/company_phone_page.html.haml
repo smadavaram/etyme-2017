@@ -10,7 +10,7 @@
         .col-sm-1
         .col-sm-1
           .form-group
-            %input#country_code.form-control.input-lg{:name => "country_code", :type => "text", :value=>"+91"}/  
+            %input#country_code.form-control.input-lg{:name => "country_code", :type => "text", :value=>"+1"}/  
               
         .col-sm-6
           .form-group
@@ -23,6 +23,10 @@
           .form-group
             .input-group
               %a.btn.btn-primary.btn-lg{:href => "javascript:void(0);", :onclick => "smsLogin();"} Send OTP
+              -if current_company.is_number_verify == true
+                %span{:style=>"font-size: 25px;color: green;"}
+                  %i.fa.fa-check-circle.fa-lg.fa-fw  
+              
 
 
 - content_for :scripts do
@@ -52,7 +56,7 @@
         var phoneNumber = document.getElementById("phone_no").value;
 
         $.ajax({
-         url: '/candidate/update_mobile_number',
+         url: '/company/update_mobile_number',
          type: "POST",
          contentType:"application/json",
          data: JSON.stringify({phone_number:phoneNumber, id:"#{current_company.id}"}),

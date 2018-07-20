@@ -1,5 +1,6 @@
 class Candidate::CandidatesController < Candidate::BaseController
 
+  require 'will_paginate/array'
   respond_to :html,:json,:js
 
   before_action :set_candidate ,only: [:show,:update]
@@ -11,6 +12,11 @@ class Candidate::CandidatesController < Candidate::BaseController
     add_breadcrumb current_candidate.full_name.titleize, profile_path, :title => ""
     @chat = @chats.try(:last)
     @messages = @chat.try(:messages)
+
+    # @jobs = Job.joins("INNER JOIN experiences on jobs.industry = experiences.industry AND jobs.department = experiences.department INNER JOIN candidates on experiences.user_id = candidates.id").order("id DESC").uniq.paginate(page: params[:page], per_page: 10) || []
+    @jobs = Job.order("id DESC").uniq.paginate(page: params[:page], per_page: 10) || []
+
+
   end
 
   def show

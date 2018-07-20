@@ -1,8 +1,8 @@
 = form_for group,html:{ class:'form-horizontal',id: 'group-val'} do |f|
   %br/
   .form-group
-    %label.col-md-3.control-label
-      Group Name
+    %label.col-md-3.control-label#group_name_lbl
+      Group Name/Email
       %sup.text-danger *
     .col-md-8
       =f.text_field :group_name , required: true ,class:'form-control'
@@ -17,6 +17,11 @@
       = f.label :member_type, "Contact", :value => "Contact"
       = f.radio_button :member_type, "Directory", class: "set-checkbox"
       = f.label :member_type, "Directory", :value => "Directory"
+      = f.radio_button :member_type, "Google Group Email", class: "set-checkbox"
+      = f.label :member_type, "Google Group Email", :value => "Google Group"
+      = f.radio_button :member_type, "Facebook Group Email", class: "set-checkbox"
+      = f.label :member_type, "Facebook Group Email", :value => "Facebook Group"
+
 
       =# f.select :candidate_ids, current_company.candidates.collect { |c| [c.first_name,c.id] },{},class: 'form-control select2',:multiple => true
   .modal-footer
@@ -27,4 +32,5 @@
   .select2{
     width: 389px;
     }
+
 

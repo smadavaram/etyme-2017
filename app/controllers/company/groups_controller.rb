@@ -62,6 +62,26 @@ class Company::GroupsController < Company::BaseController
     redirect_back fallback_location: root_path
   end
 
+  def create_bulk_contacts
+    params[:candidates_ids].split(',').each do |c_id|
+      # @candidate = current_company.candidates.find(c_id.to_i)
+      # @candidate.update_attribute(:group_ids, params[:group_ids])
+      @company_contact = CompanyContact.find(c_id.to_i)
+      @company_contact.update_attribute(:group_ids, params[:group_ids])
+
+    end
+    flash[:success] = "Groups Assigned"
+    redirect_back fallback_location: root_path
+  end
+
+  def destroy
+    group = Group.find(params["id"])rescue nil
+
+    group.destroy
+    flash[:success] = "Groups Deleted"
+    redirect_back fallback_location: root_path
+  end  
+
   private
 
  def  set_and_find_group

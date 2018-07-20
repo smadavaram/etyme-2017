@@ -1,13 +1,13 @@
 require "net/http"
-class Company::CompaniesController < Company::BaseController
+class Api::Company::CompaniesController < ApplicationController 
 
-  before_action :find_admin, only: :change_owner
-  before_action :authorized_user , only: [:show,:create ,:hot_candidates, :index, :network_contacts, :new, :company_contacts]
-  before_action :find_company , only: [:edit,:update,:destroy ,:add_reminder ,:assign_status ,:create_chat]
-  before_action :set_hot_candidates ,only: [:hot_candidates]
-  before_action :set_company_contacts , only:  [:contacts]
-  before_action :find_user , only: [:create_chat]
-  has_scope :search_by , only: [:index, :network_contacts, :company_contacts]
+  # before_action :find_admin, only: :change_owner
+  # before_action :authorized_user , only: [:show,:create ,:hot_candidates, :index, :network_contacts, :new, :company_contacts]
+  # before_action :find_company , only: [:edit,:update,:destroy ,:add_reminder ,:assign_status ,:create_chat]
+  # before_action :set_hot_candidates ,only: [:hot_candidates]
+  # before_action :set_company_contacts , only:  [:contacts]
+  # before_action :find_user , only: [:create_chat]
+  # has_scope :search_by , only: [:index, :network_contacts, :company_contacts]
   respond_to :html,:json
 
   add_breadcrumb 'Companies', :companies_path, :title => ""
@@ -70,24 +70,18 @@ class Company::CompaniesController < Company::BaseController
   end
 
   def create
+
     pass = get_uniq_identifier
     # @company = Company.new(create_params)
 
     if params["company"]["domain"] && !params["company"]["domain"].blank? 
-
       companies = Company.where(domain: params["company"]["domain"])
-
       if !companies.blank?
         if !params["company"]["company_contacts_attributes"].blank?
           params["company"]["company_contacts_attributes"].each do |key, val|
             company_contact = CompanyContact.create(:company_id=> companies.first.id, :email=>val["email"], :first_name=>val["first_name"] , :last_name=>val["last_name"] , :phone=>val["phone"] , :title=>val["title"] )
           end  
-
-          respond_to do |format|
-            format.html {flash[:success] = "successfully Created."; redirect_back fallback_location: root_path}
-            format.js{ flash.now[:success] = "successfully Created." }
-          end
-
+          render json: {message: "Contact created sucessfully", data: {params: companies}}
         end  
       else
         total_slug = Company.where("slug like ?", "#{params["company"]["domain"].split('.')[0].gsub(/[^0-9A-Za-z.]/, '').downcase}_").count
@@ -100,30 +94,14 @@ class Company::CompaniesController < Company::BaseController
         end  
 
         # @company.slug = total_slug == 0 ? "#{params["company"]["domain"].split('.')[0].gsub(/[^0-9A-Za-z.]/, '').downcase}" : "#{params["company"]["domain"].split('.')[0].gsub(/[^0-9A-Za-z.]/, '').downcase}" + "#{total_slug - 1}" 
-        respond_to do |format|
-          if @company.valid? && @company.save
-
-            format.html {flash[:success] = "successfully Created."; redirect_back fallback_location: root_path}
-            format.js{ flash.now[:success] = "successfully Created." }
-          else
-
-            format.js{ flash.now[:errors] =  @company.errors.full_messages }
-            format.html{ flash[:errors] =  @company.errors.full_messages; redirect_back fallback_location: root_path }
-          end
+        if @company.valid? && @company.save
+          render json: {message: "Company created sucessfully", data: {company:  @company}}
+        else
+          render json: {message: "Somthing went Wrong", data: {company:  @company.errors.full_messages}}
         end
+
       end  
     end  
-
-
-    # respond_to do |format|
-    #   if @company.valid? && @company.save
-    #     format.html {flash[:success] = "successfully Created."; redirect_back fallback_location: root_path}
-    #     format.js{ flash.now[:success] = "successfully Created." }
-    #   else
-    #     format.js{ flash.now[:errors] =  @company.errors.full_messages }
-    #     format.html{ flash[:errors] =  @company.errors.full_messages; redirect_back fallback_location: root_path }
-    #   end
-    # end
   end
 
   def update

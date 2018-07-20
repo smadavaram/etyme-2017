@@ -1119,53 +1119,64 @@ input:checked + .slider1:before {
   .legal-document-file-upload-btn a{
     float: right;
   }
+
+  #share-candidates .modal-dialog{width: 60%;}
+  #share-candidates #emailsubject{height: 35px;border: 1px solid #cccccc;}
+
+  #share-jobs .modal-dialog{width: 60%;}
+  #share-jobs #emailsubject{height: 35px;border: 1px solid #cccccc;}
+
+  .mr-left-10{margin-left: 10px;}
+
+  #new_group .modal-dialog{width: 850px;}
   
-.contract_box {
-  background: #fff none repeat scroll 0 0;
-  border: 1px solid #ddd;
-  padding: 8px;
-  text-align: center; 
-}
+  .contract_box {
+    background: #fff none repeat scroll 0 0;
+    border: 1px solid #ddd;
+    padding: 8px;
+    text-align: center; 
+  }
 
-.text-break{
-  word-wrap: break-word;
-  display: inline-block;
-  max-width: 90%;
-}
+  .text-break{
+    word-wrap: break-word;
+    display: inline-block;
+    max-width: 90%;
+  }
 
-.divided {
-  display: flex;
-  align-items: center;
-  position: relative;
-}
+  .divided {
+    display: flex;
+    align-items: center;
+    position: relative;
+  }
 
-.divider {
-  flex-grow: 1;
-  border-bottom: 1px solid black;
-  margin: 5px
-}
+  .divider {
+    flex-grow: 1;
+    border-bottom: 1px solid black;
+    margin: 5px
+  }
 
-.date_box{
-  background: #fff none repeat scroll 0 0;
-  border: 1px solid #ddd;
-  padding: 8px;
-  text-align: center; 
-  width: 100px;
-  height: 60px;
-}
-.contract_progress{
-  position: absolute;
-  left:10%;
-  height: 20px;
-  width: 20px;
-  background:green;
-  top:0;
-  bottom: 0;
-  margin: auto 0;
-  border-radius: 50%;
-}
-.contract_progress:before{
-  content: "0%";
-  position: absolute;
-  top:-18px;
-}
+  .date_box{
+    background: #fff none repeat scroll 0 0;
+    border: 1px solid #ddd;
+    padding: 8px;
+    text-align: center; 
+    width: 100px;
+    height: 60px;
+  }
+  .contract_progress{
+    position: absolute;
+    left:10%;
+    height: 20px;
+    width: 20px;
+    background:green;
+    top:0;
+    bottom: 0;
+    margin: auto 0;
+    border-radius: 50%;
+  }
+  .contract_progress:before{
+    content: "0%";
+    position: absolute;
+    top:-18px;
+  }
+  

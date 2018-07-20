@@ -1,0 +1,33 @@
+.modal.fade{id: "assign-bulk-group-candidates"}
+  .modal-dialog
+    .modal-content
+      .modal-header
+        %button.close{"aria-hidden" => "true", "data-dismiss" => "modal", :type => "button"}
+          ×
+        %h4.modal-title
+          %strong Assign Groups
+      .modal-body.no-padding
+        = form_for Group.new, url: create_bulk_contacts_groups_path, method: :post ,html:{ class:'form-horizontal',id: 'group-val'} do |f|
+          %br/
+          = hidden_field_tag 'candidates_ids',value ='',{class: "candidates_ids"}
+          .form-group
+            %label.col-md-3.control-label
+              Select Groups
+              %sup.text-danger *
+            .col-md-8.mr-bottom-20
+              = select_tag 'group_ids[]', options_for_select(current_company.groups.collect { |g| [g.group_name,g.id] }),class: 'form-control select2',:multiple => true
+          -#.form-group
+            %label.col-md-3.control-label
+              Select Candidates
+              %sup.text-danger *
+            .col-md-8
+              = select_tag 'candidate_ids[]', options_for_select(current_company.candidates.collect { |c| [c.first_name,c.id] }),class: 'form-control select2',:multiple => true ,required: true
+          .modal-footer
+            = f.button "submit".html_safe , class: 'btn btn-primary btn-sm' , data: {disable_with: ("Submitting...")} ,id: 'form_id'
+            %button.btn.btn-default{"data-dismiss" => "modal", :type => "button"}
+              Cancel
+:css
+  .select2{
+    width: 389px;
+    }
+

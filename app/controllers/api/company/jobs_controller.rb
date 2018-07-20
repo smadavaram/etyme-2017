@@ -1,11 +1,12 @@
-class Company::JobsController < Company::BaseController
+class Api::Company::JobsController < ApplicationController
 
-  before_action :set_company_job, only: [:show, :edit, :update, :destroy , :send_invitation]
-  # before_action :set_locations  , only: [:new , :index, :edit , :create,:show]
-  before_action :set_preferred_vendors , only: [:send_invitation]
-  before_action :set_candidates,only: :send_invitation
-  before_action :authorize_user, only: [:show, :edit, :update, :destroy ]
+  # before_action :set_company_job, only: [:show, :edit, :update, :destroy , :send_invitation]
+  # # before_action :set_locations  , only: [:new , :index, :edit , :create,:show]
+  # before_action :set_preferred_vendors , only: [:send_invitation]
+  # before_action :set_candidates,only: :send_invitation
+  # before_action :authorize_user, only: [:show, :edit, :update, :destroy ]
 
+  respond_to :json
   add_breadcrumb "JOBS", :jobs_path, options: { title: "JOBS" }
 
 
@@ -33,17 +34,27 @@ class Company::JobsController < Company::BaseController
   def create
     params[:job][:start_date] = Time.strptime(params[:job][:start_date], "%m/%d/%Y") if params[:job][:start_date].present?
     params[:job][:end_date] = params[:job][:end_date].present? ? Time.strptime(params[:job][:end_date], "%m/%d/%Y") : Time.parse("31/12/9999")
-    @job = current_company.jobs.new(company_job_params.merge!(created_by_id: current_user.id))
+    
+    company = Company.find(params["company_id"]) rescue nil
+    user = User.find(params["user_id"]) rescue nil
 
-    respond_to do |format|
-      if @job.save
-        format.html { redirect_to @job, success: 'Job was successfully created.' }
-        format.js{ flash.now[:success] = "successfully Created." }
-      else
-        format.html { flash[:errors] = @job.errors.full_messages; render :new}
-        format.js{ flash.now[:errors] =  @job.errors.full_messages }
-      end
+    @job = company.jobs.new(company_job_params.merge!(created_by_id: user.id))
+
+    if @job.valid? && @job.save
+      render json: {message: "Job created sucessfully", data: {company:  @job}}
+    else
+      render json: {message: "Somthing went Wrong", data: {company:  @job.errors.full_messages}}
     end
+
+    # respond_to do |format|
+    #   if @job.save
+    #     format.html { redirect_to @job, success: 'Job was successfully created.' }
+    #     format.js{ flash.now[:success] = "successfully Created." }
+    #   else
+    #     format.html { flash[:errors] = @job.errors.full_messages; render :new}
+    #     format.js{ flash.now[:errors] =  @job.errors.full_messages }
+    #   end
+    # end
   end
 
   def update

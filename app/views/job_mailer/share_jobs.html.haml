@@ -18,7 +18,7 @@
         %td.container{:bgcolor => "#FFFFFF"}
           %h4 Hi, #{@company.name.titleize} has shared following Job with you.
           %p{style: "font-size:20px"}
-            Message : "#{@message.html_safe}"
+            Message : #{@message.html_safe}
           %br
           %br
           %table{style:"border-collapse: collapse;", border: '1'}

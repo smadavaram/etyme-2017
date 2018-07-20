@@ -26,6 +26,9 @@ Rails.application.routes.draw do
   get 'signup' ,to: 'static#signup'
   post 'check_for_domain' ,to: 'static#check_for_domain'
 
+  get 'feed' => 'job_rss#feed'
+
+
   concern :paginatable do
     get '(page/:page)', action: :index, on: :collection, as: ''
     match :search, action: :index, via: [:get , :post], on: :collection
@@ -104,7 +107,13 @@ Rails.application.routes.draw do
     get 'make_primary_resume',    to: 'candidates#make_primary_resume'
     post 'update_mobile_number',    to: 'candidates#update_mobile_number'
 
-
+    resources :public_jobs, only: [:index, :destroy] do
+      get :job, on: :member
+      get :apply_job_candidate, on: :member
+      post :create_batch_job, on: :member
+      post :create_own_job, on: :member
+      post :apply, on: :member
+    end
 
     resources :educations, only:[:create,:update]
     resources :experiences, only: [:create,:update]
@@ -170,8 +179,11 @@ Rails.application.routes.draw do
       collection do
         post :create_bulk_candidates
         post :create_bulk_companies
+        post :create_bulk_contacts
       end
     end
+    post 'update_mobile_number',    to: 'companies#update_mobile_number'
+
     get 'companies/edit'
     resources :users, only: [:show,:update, :destroy] do
       get  :add_reminder
@@ -280,6 +292,7 @@ Rails.application.routes.draw do
       collection do
         post :create_bulk_candidates
         post :create_bulk_companies
+        post :create_bulk_contacts
       end
     end
     resources :admins           ,concerns: :paginatable
@@ -479,6 +492,30 @@ Rails.application.routes.draw do
       get :find_jobs, on: :collection
       get :find_commission_user, on: :collection
     end
+
+    namespace :candidate do
+      resources :candidates, only: :index do
+        post :add_candidate, on: :collection
+      end
+    end 
+
+    namespace :company do
+      resources :companies, only: [:index, :create] do
+        post :add_company, on: :collection
+      end
+    end  
+    
+    namespace :company do
+      resources :jobs, only: [:index, :create] do
+        post :add_job, on: :collection
+      end
+    end  
+    
+    resources :job_applications, only: [:index, :create] do
+      post :job_applications, on: :collection
+    end
+
+    # post 'add_candidate',    to: 'candidates#add_candidate'
   end
 
   resources :conversations do

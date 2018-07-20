@@ -49,12 +49,13 @@
                           %td= group.created_at.try(:strftime,'%B %d, %Y')
                           %td
                             =# link_to raw("<i class='fa fa-edit'></i>"),edit_group_path(group) ,remote:true,class: "btn btn-default btn-xs" ,title: "Edit #{group.group_name.titleize}",'data-toggle'=>"tooltip" ,'data-placement'=>"top"
-                            = link_to raw("<i class='fa fa-comment'></i>"), "#", class: "btn btn-xs btn-default margin-bottom-5 start-conversation", title: "Chat",
+                            = link_to raw("<i class='fa fa-comment'></i>"), "#", class: "btn btn-xs btn-default  start-conversation", title: "Chat",
                                 "data-chattopic" => "Group",
                                 "data-cid" => group.id,
                                 "data-ctype" => group.class.to_s,
                                 "data-rid" => nil,
                                 "data-rtype" => nil
+                            = link_to "", group_path(:id=>group.id), :title=>"Delete", class: "btn btn-xs btn-default  fa fa-trash-o fa-lg fa-fw margin-bottom-5", method: :delete, data: { confirm: 'Are you sure?' }, :style=>"padding: 4px;"    
                   - if @groups.count > 15
                     .dt-toolbar-footer
                       = digg_pagination(@groups)
