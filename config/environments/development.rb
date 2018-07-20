@@ -61,6 +61,11 @@ Rails.application.configure do
   COMPANY_URL = 'etymedev.com'
 
   config.action_mailer.default_url_options = {host: 'etymedev.com'}
+
+  # HOSTNAME='http://localhost:3000'
+  # COMPANY_URL = 'localhost:3000'
+
+  # config.action_mailer.default_url_options = {host: 'localhost:3000'}
   config.action_mailer.delivery_method = :letter_opener
 
 end

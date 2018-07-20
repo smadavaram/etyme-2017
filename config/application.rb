@@ -16,6 +16,6 @@ module Etyme
     # -- all .rb files in that directory are automatically loaded.
     config.active_job.queue_adapter = :delayed_job
     config.filepicker_rails.api_key = ENV['filepicker_api_key'] # "AR0LrQ7ZBRbaL4HN6BMTDz"
-
+    # config.filepicker_rails.api_key = ENV['filepicker_api_key'] || "AR0LrQ7ZBRbaL4HN6BMTDz"
   end
 end

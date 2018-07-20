@@ -6,6 +6,7 @@ class Admin < User
 
   has_many          :invoices,class_name:"Invoice",:foreign_key => "submitted_by"
   has_many          :job_invitations , as: :recipient
+  has_many          :csc_accounts, as: :accountable
 
   after_create                  :send_invitation ,if: Proc.new { |admin| admin.company.present? }
 

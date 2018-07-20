@@ -15,14 +15,16 @@
     .row
       .col-md-6
         .form-group
-          %label.control-label  Contract Type
-          .contract-fild.radio-group.contract-type-radio
-            = bc.radio_button :contract_type, "W2", class: "form-control"
-            W2
-            = bc.radio_button :contract_type, "1099", class: "form-control"
-            1099
-            = bc.radio_button :contract_type, "C2C", class: "form-control"
-            C2C
+          %label.control-label
+            %b Contract Type :     
+
+          %label W2
+          = bc.radio_button :contract_type, "W2" 
+          %labe 1099 
+          = bc.radio_button :contract_type, "1099"  
+          %label C2C
+          = bc.radio_button :contract_type, "C2C"
+            
     .row.c2c-type.hidden
       .col-md-12
         .form-group

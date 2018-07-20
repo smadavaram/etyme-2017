@@ -550,6 +550,12 @@ class Contract < ApplicationRecord
     # end
   end
 
+  def contract_progress
+    if Date.today > self.start_date && Date.today <= self.end_date
+      ((((Date.today - self.start_date).to_f*100).to_f/(self.end_date - self.start_date).to_f)*78).to_f/100
+    end
+  end
+
   private
 
   def appraiser

@@ -1,4 +1,3 @@
-# encoding: UTF-8
 # This file is auto-generated from the current state of the database. Instead
 # of editing this file, please use the migrations feature of Active Record to
 # incrementally modify your database, and then regenerate this schema definition.
@@ -11,493 +10,1027 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema.define(version: 20170421083622) do
+ActiveRecord::Schema.define(version: 20180626104529) do
 
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
+  enable_extension "hstore"
 
-  create_table "activities", force: :cascade do |t|
-    t.integer  "trackable_id"
-    t.string   "trackable_type"
-    t.integer  "owner_id"
-    t.string   "owner_type"
-    t.string   "key"
-    t.text     "parameters"
-    t.integer  "recipient_id"
-    t.string   "recipient_type"
+  create_table "activities", id: :serial, force: :cascade do |t|
+    t.integer "trackable_id"
+    t.string "trackable_type"
+    t.integer "owner_id"
+    t.string "owner_type"
+    t.string "key"
+    t.text "parameters"
+    t.integer "recipient_id"
+    t.string "recipient_type"
     t.datetime "created_at"
     t.datetime "updated_at"
+    t.index ["owner_id", "owner_type"], name: "index_activities_on_owner_id_and_owner_type"
+    t.index ["recipient_id", "recipient_type"], name: "index_activities_on_recipient_id_and_recipient_type"
+    t.index ["trackable_id", "trackable_type"], name: "index_activities_on_trackable_id_and_trackable_type"
   end
 
-  add_index "activities", ["owner_id", "owner_type"], name: "index_activities_on_owner_id_and_owner_type", using: :btree
-  add_index "activities", ["recipient_id", "recipient_type"], name: "index_activities_on_recipient_id_and_recipient_type", using: :btree
-  add_index "activities", ["trackable_id", "trackable_type"], name: "index_activities_on_trackable_id_and_trackable_type", using: :btree
-
-  create_table "addresses", force: :cascade do |t|
-    t.string   "address_1"
-    t.string   "address_2"
-    t.string   "country"
-    t.string   "city"
-    t.string   "state"
-    t.string   "zip_code"
+  create_table "addresses", id: :serial, force: :cascade do |t|
+    t.string "address_1"
+    t.string "address_2"
+    t.string "country"
+    t.string "city"
+    t.string "state"
+    t.string "zip_code"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.date "from_date"
+    t.date "to_date"
+    t.string "addressable_type"
+    t.bigint "addressable_id"
+    t.index ["addressable_type", "addressable_id"], name: "index_addresses_on_addressable_type_and_addressable_id"
   end
 
-  create_table "attachable_docs", force: :cascade do |t|
-    t.integer  "company_doc_id"
-    t.string   "orignal_file"
-    t.integer  "documentable_id"
-    t.string   "documentable_type"
-    t.datetime "created_at",        null: false
-    t.datetime "updated_at",        null: false
-    t.string   "file"
+  create_table "attachable_docs", id: :serial, force: :cascade do |t|
+    t.integer "company_doc_id"
+    t.string "orignal_file"
+    t.integer "documentable_id"
+    t.string "documentable_type"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.string "file"
+    t.index ["company_doc_id"], name: "index_attachable_docs_on_company_doc_id"
+    t.index ["documentable_type", "documentable_id"], name: "index_attachable_docs_on_documentable_type_and_documentable_id"
   end
 
-  add_index "attachable_docs", ["company_doc_id"], name: "index_attachable_docs_on_company_doc_id", using: :btree
-  add_index "attachable_docs", ["documentable_type", "documentable_id"], name: "index_attachable_docs_on_documentable_type_and_documentable_id", using: :btree
-
-  create_table "attachments", force: :cascade do |t|
-    t.string   "file"
-    t.string   "file_name"
-    t.integer  "file_size"
-    t.string   "file_type"
-    t.string   "attachable_type"
-    t.integer  "attachable_id"
-    t.datetime "created_at",      null: false
-    t.datetime "updated_at",      null: false
-    t.integer  "company_id"
+  create_table "attachments", id: :serial, force: :cascade do |t|
+    t.string "file"
+    t.string "file_name"
+    t.integer "file_size"
+    t.string "file_type"
+    t.string "attachable_type"
+    t.integer "attachable_id"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.integer "company_id"
   end
 
-  create_table "candidates", force: :cascade do |t|
-    t.string   "first_name",             default: ""
-    t.string   "last_name",              default: ""
-    t.integer  "gender"
-    t.string   "email",                  default: "", null: false
-    t.string   "phone"
-    t.string   "time_zone"
-    t.integer  "primary_address_id"
-    t.string   "photo"
-    t.json     "signature"
-    t.integer  "status",                 default: 0
-    t.date     "dob"
-    t.string   "encrypted_password",     default: "", null: false
-    t.string   "reset_password_token"
+  create_table "billing_infos", force: :cascade do |t|
+    t.bigint "company_id"
+    t.string "address"
+    t.string "city"
+    t.string "country"
+    t.string "zip"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["company_id"], name: "index_billing_infos_on_company_id"
+  end
+
+  create_table "branches", force: :cascade do |t|
+    t.bigint "company_id"
+    t.string "branch_name"
+    t.string "address"
+    t.string "city"
+    t.string "country"
+    t.string "zip"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["company_id"], name: "index_branches_on_company_id"
+  end
+
+  create_table "buy_contracts", force: :cascade do |t|
+    t.string "number"
+    t.bigint "contract_id"
+    t.integer "candidate_id"
+    t.text "encrypted_ssn"
+    t.string "contract_type"
+    t.decimal "payrate"
+    t.string "payrate_type"
+    t.string "time_sheet"
+    t.string "payment_term"
+    t.boolean "show_accounting_to_employee"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.date "first_date_of_timesheet"
+    t.date "first_date_of_invoice"
+    t.date "ts_date_1"
+    t.date "ts_date_2"
+    t.boolean "ts_end_of_month", default: false
+    t.string "ts_day_of_week"
+    t.integer "max_day_allow_for_timesheet"
+    t.integer "max_day_allow_for_invoice"
+    t.integer "uscis_rate"
+    t.integer "company_id"
+    t.time "ts_day_time"
+    t.date "pr_start_date"
+    t.date "pr_end_date"
+    t.string "ts_approve"
+    t.time "ta_day_time"
+    t.date "ta_date_1"
+    t.date "ta_date_2"
+    t.boolean "ta_end_of_month", default: false
+    t.string "ta_day_of_week"
+    t.string "salary_calculation"
+    t.time "sc_day_time"
+    t.date "sc_date_1"
+    t.date "sc_date_2"
+    t.boolean "sc_end_of_month", default: false
+    t.string "sc_day_of_week"
+    t.integer "commission_payment_term"
+    t.string "invoice_recepit"
+    t.time "ir_day_time"
+    t.date "ir_date_1"
+    t.date "ir_date_2"
+    t.boolean "ir_end_of_month", default: false
+    t.string "ir_day_of_week"
+    t.date "payroll_date"
+    t.index ["candidate_id"], name: "index_buy_contracts_on_candidate_id"
+    t.index ["contract_id"], name: "index_buy_contracts_on_contract_id"
+  end
+
+  create_table "buy_emp_req_docs", force: :cascade do |t|
+    t.bigint "buy_contract_id"
+    t.string "number"
+    t.string "doc_file"
+    t.date "when_expire"
+    t.boolean "is_sign_required", default: false
+    t.string "creatable_type"
+    t.bigint "creatable_id"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.string "file_name"
+    t.integer "file_size"
+    t.integer "file_type"
+    t.index ["buy_contract_id"], name: "index_buy_emp_req_docs_on_buy_contract_id"
+    t.index ["creatable_type", "creatable_id"], name: "index_buy_emp_req_docs_on_creatable_type_and_creatable_id"
+  end
+
+  create_table "buy_send_documents", force: :cascade do |t|
+    t.bigint "buy_contract_id"
+    t.string "number"
+    t.string "doc_file"
+    t.date "when_expire"
+    t.boolean "is_sign_required", default: false
+    t.string "creatable_type"
+    t.bigint "creatable_id"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.string "file_name"
+    t.integer "file_size"
+    t.integer "file_type"
+    t.index ["buy_contract_id"], name: "index_buy_send_documents_on_buy_contract_id"
+    t.index ["creatable_type", "creatable_id"], name: "index_buy_send_documents_on_creatable_type_and_creatable_id"
+  end
+
+  create_table "buy_ven_req_docs", force: :cascade do |t|
+    t.bigint "buy_contract_id"
+    t.string "number"
+    t.string "doc_file"
+    t.date "when_expire"
+    t.boolean "is_sign_required", default: false
+    t.string "creatable_type"
+    t.bigint "creatable_id"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.string "file_name"
+    t.integer "file_size"
+    t.integer "file_type"
+    t.index ["buy_contract_id"], name: "index_buy_ven_req_docs_on_buy_contract_id"
+    t.index ["creatable_type", "creatable_id"], name: "index_buy_ven_req_docs_on_creatable_type_and_creatable_id"
+  end
+
+  create_table "candidates", id: :serial, force: :cascade do |t|
+    t.string "first_name", default: ""
+    t.string "last_name", default: ""
+    t.integer "gender"
+    t.string "email", default: "", null: false
+    t.string "phone"
+    t.string "time_zone"
+    t.integer "primary_address_id"
+    t.string "photo"
+    t.json "signature"
+    t.integer "status", default: 0
+    t.date "dob"
+    t.string "encrypted_password", default: "", null: false
+    t.string "reset_password_token"
     t.datetime "reset_password_sent_at"
     t.datetime "remember_created_at"
-    t.integer  "sign_in_count",          default: 0,  null: false
+    t.integer "sign_in_count", default: 0, null: false
     t.datetime "current_sign_in_at"
     t.datetime "last_sign_in_at"
-    t.string   "current_sign_in_ip"
-    t.string   "last_sign_in_ip"
-    t.string   "confirmation_token"
+    t.string "current_sign_in_ip"
+    t.string "last_sign_in_ip"
+    t.string "confirmation_token"
     t.datetime "confirmed_at"
     t.datetime "confirmation_sent_at"
-    t.string   "unconfirmed_email"
-    t.datetime "created_at",                          null: false
-    t.datetime "updated_at",                          null: false
-    t.string   "invitation_token"
+    t.string "unconfirmed_email"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.string "invitation_token"
     t.datetime "invitation_created_at"
     t.datetime "invitation_sent_at"
     t.datetime "invitation_accepted_at"
-    t.integer  "invitation_limit"
-    t.integer  "invited_by_id"
-    t.string   "invited_by_type"
-    t.integer  "invitations_count",      default: 0
-    t.string   "resume"
-    t.string   "skills"
-    t.string   "description"
-    t.integer  "visa"
+    t.integer "invitation_limit"
+    t.integer "invited_by_id"
+    t.string "invited_by_type"
+    t.integer "invitations_count", default: 0
+    t.string "resume"
+    t.string "skills"
+    t.string "description"
+    t.integer "visa"
+    t.string "location"
+    t.string "video"
+    t.string "category"
+    t.string "subcategory"
+    t.string "dept_name"
+    t.string "industry_name"
+    t.string "video_type"
+    t.string "chat_status"
+    t.boolean "is_number_verify", default: false
+    t.boolean "is_personal_info_update", default: false
+    t.boolean "is_social_media", default: false
+    t.boolean "is_education_detail_update", default: false
+    t.boolean "is_skill_update", default: false
+    t.boolean "is_client_info_update", default: false
+    t.boolean "is_designate_update", default: false
+    t.boolean "is_documents_submit", default: false
+    t.boolean "is_profile_active", default: false
+    t.string "selected_from_resume"
+    t.string "ever_worked_with_company"
+    t.string "designation_status"
+    t.string "candidate_visa"
+    t.string "candidate_title"
+    t.string "candidate_roal"
+    t.index ["invitation_token"], name: "index_candidates_on_invitation_token", unique: true
+    t.index ["invitations_count"], name: "index_candidates_on_invitations_count"
+    t.index ["invited_by_id"], name: "index_candidates_on_invited_by_id"
+    t.index ["reset_password_token"], name: "index_candidates_on_reset_password_token", unique: true
   end
-
-  add_index "candidates", ["invitation_token"], name: "index_candidates_on_invitation_token", unique: true, using: :btree
-  add_index "candidates", ["invitations_count"], name: "index_candidates_on_invitations_count", using: :btree
-  add_index "candidates", ["invited_by_id"], name: "index_candidates_on_invited_by_id", using: :btree
-  add_index "candidates", ["reset_password_token"], name: "index_candidates_on_reset_password_token", unique: true, using: :btree
 
   create_table "candidates_companies", id: false, force: :cascade do |t|
     t.integer "candidate_id"
     t.integer "company_id"
-    t.integer "status",       default: 0
+    t.integer "status", default: 0
+    t.integer "candidate_status", default: 0
+    t.index ["candidate_id", "company_id"], name: "index_candidates_companies_on_candidate_id_and_company_id", unique: true
   end
-
-  add_index "candidates_companies", ["candidate_id", "company_id"], name: "index_candidates_companies_on_candidate_id_and_company_id", unique: true, using: :btree
 
   create_table "candidates_groups", id: false, force: :cascade do |t|
     t.integer "group_id"
     t.integer "candidate_id"
+    t.index ["candidate_id"], name: "index_candidates_groups_on_candidate_id"
+    t.index ["group_id"], name: "index_candidates_groups_on_group_id"
   end
 
-  add_index "candidates_groups", ["candidate_id"], name: "index_candidates_groups_on_candidate_id", using: :btree
-  add_index "candidates_groups", ["group_id"], name: "index_candidates_groups_on_group_id", using: :btree
-
-  create_table "chat_users", force: :cascade do |t|
-    t.integer  "chat_id"
-    t.integer  "status"
-    t.integer  "userable_id"
-    t.string   "userable_type"
-    t.datetime "created_at",    null: false
-    t.datetime "updated_at",    null: false
-  end
-
-  add_index "chat_users", ["chat_id", "userable_id", "userable_type"], name: "index_chat_users_on_chat_id_and_userable_id_and_userable_type", unique: true, using: :btree
-  add_index "chat_users", ["userable_type", "userable_id"], name: "index_chat_users_on_userable_type_and_userable_id", using: :btree
-
-  create_table "chats", force: :cascade do |t|
-    t.string   "slug"
-    t.integer  "chatable_id"
-    t.string   "chatable_type"
-    t.datetime "created_at",    null: false
-    t.datetime "updated_at",    null: false
-    t.integer  "company_id"
-  end
-
-  add_index "chats", ["chatable_type", "chatable_id"], name: "index_chats_on_chatable_type_and_chatable_id", using: :btree
-
-  create_table "comments", force: :cascade do |t|
-    t.string   "body"
-    t.integer  "commentable_id"
-    t.string   "commentable_type"
-    t.integer  "created_by_id"
-    t.datetime "created_at",       null: false
-    t.datetime "updated_at",       null: false
-  end
-
-  add_index "comments", ["created_by_id"], name: "index_comments_on_created_by_id", using: :btree
-
-  create_table "companies", force: :cascade do |t|
-    t.integer  "owner_id"
-    t.string   "name"
-    t.string   "website"
-    t.string   "logo"
-    t.text     "description"
-    t.string   "phone"
-    t.string   "email"
-    t.string   "slug"
-    t.string   "tag_line"
-    t.string   "linkedin_url"
-    t.string   "facebook_url"
-    t.string   "twitter_url"
-    t.string   "google_url"
-    t.string   "time_zone"
-    t.boolean  "is_activated",             default: false
-    t.string   "dba"
-    t.integer  "status"
-    t.date     "established_date"
-    t.integer  "entity_type"
-    t.integer  "hr_manager_id"
-    t.integer  "billing_contact_id"
-    t.string   "accountant_contact_email"
-    t.datetime "created_at",                               null: false
-    t.datetime "updated_at",                               null: false
-    t.integer  "company_type"
-    t.integer  "currency_id"
-    t.string   "domain"
-  end
-
-  add_index "companies", ["owner_id"], name: "index_companies_on_owner_id", using: :btree
-
-  create_table "company_contacts", force: :cascade do |t|
-    t.integer  "company_id"
-    t.string   "first_name"
-    t.string   "last_name"
-    t.string   "email",      default: "", null: false
-    t.string   "phone"
-    t.integer  "status"
-    t.datetime "created_at",              null: false
-    t.datetime "updated_at",              null: false
-    t.string   "title"
-    t.string   "photo"
-  end
-
-  add_index "company_contacts", ["company_id", "email"], name: "index_company_contacts_on_company_id_and_email", unique: true, using: :btree
-
-  create_table "company_docs", force: :cascade do |t|
-    t.string   "name"
-    t.integer  "doc_type"
-    t.integer  "created_by"
-    t.integer  "company_id"
-    t.string   "file"
-    t.boolean  "is_required_signature"
-    t.datetime "created_at",            null: false
-    t.datetime "updated_at",            null: false
-  end
-
-  create_table "consultant_profiles", force: :cascade do |t|
-    t.integer  "consultant_id"
-    t.string   "designation"
-    t.date     "joining_date"
-    t.integer  "location_id"
-    t.integer  "employment_type"
-    t.integer  "salary_type"
-    t.float    "salary"
-    t.datetime "created_at",      null: false
-    t.datetime "updated_at",      null: false
-  end
-
-  add_index "consultant_profiles", ["consultant_id"], name: "index_consultant_profiles_on_consultant_id", using: :btree
-
-  create_table "contract_terms", force: :cascade do |t|
-    t.decimal  "rate"
-    t.text     "note"
-    t.text     "terms_condition"
-    t.integer  "created_by"
-    t.integer  "status",          default: 0
-    t.integer  "contract_id"
-    t.datetime "created_at",                  null: false
-    t.datetime "updated_at",                  null: false
-  end
-
-  add_index "contract_terms", ["created_by"], name: "index_contract_terms_on_created_by", using: :btree
-
-  create_table "contracts", force: :cascade do |t|
-    t.integer  "job_application_id"
-    t.integer  "job_id"
-    t.date     "start_date"
-    t.date     "end_date"
-    t.string   "message_from_hiring"
-    t.string   "response_from_vendor"
-    t.integer  "created_by_id"
-    t.integer  "respond_by_id"
-    t.string   "responed_at"
-    t.integer  "status",                default: 0
-    t.integer  "assignee_id"
-    t.datetime "created_at",                            null: false
-    t.datetime "updated_at",                            null: false
-    t.integer  "billing_frequency"
-    t.integer  "time_sheet_frequency"
-    t.integer  "company_id"
-    t.date     "next_invoice_date"
-    t.boolean  "is_commission",         default: false
-    t.integer  "commission_type"
-    t.float    "commission_amount",     default: 0.0
-    t.float    "max_commission"
-    t.integer  "commission_for_id"
-    t.json     "received_by_signature"
-    t.string   "received_by_name"
-    t.json     "sent_by_signature"
-    t.string   "sent_by_name"
-    t.integer  "contractable_id"
-    t.string   "contractable_type"
-    t.integer  "parent_contract_id"
-    t.integer  "contract_type"
-  end
-
-  create_table "currencies", force: :cascade do |t|
-    t.string   "name"
+  create_table "candidates_resumes", force: :cascade do |t|
+    t.integer "candidate_id"
+    t.string "resume"
+    t.boolean "is_primary", default: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
   end
 
-  create_table "custom_fields", force: :cascade do |t|
-    t.string   "name"
-    t.string   "value"
-    t.integer  "status"
-    t.integer  "customizable_id"
-    t.string   "customizable_type"
-    t.datetime "created_at",                        null: false
-    t.datetime "updated_at",                        null: false
-    t.boolean  "required",          default: false
+  create_table "certificates", force: :cascade do |t|
+    t.bigint "candidate_id"
+    t.string "title"
+    t.string "institute"
+    t.date "start_date"
+    t.date "end_date"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["candidate_id"], name: "index_certificates_on_candidate_id"
   end
 
-  create_table "delayed_jobs", force: :cascade do |t|
-    t.integer  "priority",   default: 0, null: false
-    t.integer  "attempts",   default: 0, null: false
-    t.text     "handler",                null: false
-    t.text     "last_error"
+  create_table "chat_users", id: :serial, force: :cascade do |t|
+    t.integer "chat_id"
+    t.integer "status"
+    t.integer "userable_id"
+    t.string "userable_type"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["chat_id", "userable_id", "userable_type"], name: "index_chat_users_on_chat_id_and_userable_id_and_userable_type", unique: true
+    t.index ["userable_type", "userable_id"], name: "index_chat_users_on_userable_type_and_userable_id"
+  end
+
+  create_table "chats", id: :serial, force: :cascade do |t|
+    t.string "slug"
+    t.integer "chatable_id"
+    t.string "chatable_type"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.integer "company_id"
+    t.index ["chatable_type", "chatable_id"], name: "index_chats_on_chatable_type_and_chatable_id"
+  end
+
+  create_table "clients", force: :cascade do |t|
+    t.bigint "candidate_id"
+    t.string "name"
+    t.string "industry"
+    t.date "start_date"
+    t.date "end_date"
+    t.string "project_description"
+    t.string "role"
+    t.string "refrence_name"
+    t.string "refrence_phone"
+    t.string "refrence_email"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["candidate_id"], name: "index_clients_on_candidate_id"
+  end
+
+  create_table "comments", id: :serial, force: :cascade do |t|
+    t.string "body"
+    t.integer "commentable_id"
+    t.string "commentable_type"
+    t.integer "created_by_id"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["created_by_id"], name: "index_comments_on_created_by_id"
+  end
+
+  create_table "companies", id: :serial, force: :cascade do |t|
+    t.integer "owner_id"
+    t.string "name"
+    t.string "website"
+    t.string "logo"
+    t.text "description"
+    t.string "phone"
+    t.string "email"
+    t.string "slug"
+    t.string "tag_line"
+    t.string "linkedin_url"
+    t.string "facebook_url"
+    t.string "twitter_url"
+    t.string "google_url"
+    t.string "time_zone"
+    t.boolean "is_activated", default: false
+    t.string "dba"
+    t.integer "status"
+    t.date "established_date"
+    t.integer "entity_type"
+    t.integer "hr_manager_id"
+    t.integer "billing_contact_id"
+    t.string "accountant_contact_email"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.integer "company_type"
+    t.integer "currency_id"
+    t.string "domain"
+    t.string "video"
+    t.string "company_file"
+    t.string "video_type"
+    t.string "company_sub_type"
+    t.string "fax_number"
+    t.boolean "owner_verified", default: false
+    t.string "verification_code"
+    t.index ["owner_id"], name: "index_companies_on_owner_id"
+  end
+
+  create_table "company_candidate_docs", force: :cascade do |t|
+    t.integer "company_id"
+    t.string "title"
+    t.string "file"
+    t.date "exp_date"
+    t.boolean "is_required_signature", default: false
+    t.integer "created_by"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.string "title_type"
+    t.string "is_require"
+    t.string "document_for"
+  end
+
+  create_table "company_contacts", id: :serial, force: :cascade do |t|
+    t.integer "company_id"
+    t.string "first_name"
+    t.string "last_name"
+    t.string "email", default: "", null: false
+    t.string "phone"
+    t.integer "status"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.string "title"
+    t.string "photo"
+    t.string "department"
+    t.index ["company_id", "email"], name: "index_company_contacts_on_company_id_and_email", unique: true
+  end
+
+  create_table "company_customer_docs", force: :cascade do |t|
+    t.integer "company_id"
+    t.string "title"
+    t.string "file"
+    t.date "exp_date"
+    t.boolean "is_required_signature"
+    t.integer "created_by"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.string "title_type"
+    t.string "is_require"
+  end
+
+  create_table "company_departments", force: :cascade do |t|
+    t.bigint "company_id"
+    t.bigint "department_id"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["company_id"], name: "index_company_departments_on_company_id"
+    t.index ["department_id"], name: "index_company_departments_on_department_id"
+  end
+
+  create_table "company_docs", id: :serial, force: :cascade do |t|
+    t.string "name"
+    t.integer "doc_type"
+    t.integer "created_by"
+    t.integer "company_id"
+    t.string "file"
+    t.boolean "is_required_signature"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+  end
+
+  create_table "company_employee_docs", force: :cascade do |t|
+    t.integer "company_id"
+    t.string "title"
+    t.string "file"
+    t.date "exp_date"
+    t.boolean "is_required_signature"
+    t.integer "created_by"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.string "title_type"
+    t.string "is_require"
+  end
+
+  create_table "company_legal_docs", force: :cascade do |t|
+    t.integer "company_id"
+    t.string "title"
+    t.string "file"
+    t.date "exp_date"
+    t.string "custome_name"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+  end
+
+  create_table "company_vendor_docs", force: :cascade do |t|
+    t.integer "company_id"
+    t.string "title"
+    t.string "file"
+    t.date "exp_date"
+    t.boolean "is_required_signature", default: false
+    t.integer "created_by"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.string "title_type"
+    t.string "is_require"
+  end
+
+  create_table "company_videos", force: :cascade do |t|
+    t.integer "company_id"
+    t.string "video"
+    t.string "video_type"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+  end
+
+  create_table "consultant_profiles", id: :serial, force: :cascade do |t|
+    t.integer "consultant_id"
+    t.string "designation"
+    t.date "joining_date"
+    t.integer "location_id"
+    t.integer "employment_type"
+    t.integer "salary_type"
+    t.float "salary"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["consultant_id"], name: "index_consultant_profiles_on_consultant_id"
+  end
+
+  create_table "contract_buy_business_details", force: :cascade do |t|
+    t.bigint "buy_contract_id"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.integer "company_contact_id"
+    t.index ["buy_contract_id"], name: "index_contract_buy_business_details_on_buy_contract_id"
+  end
+
+  create_table "contract_customer_rate_histories", force: :cascade do |t|
+    t.bigint "sell_contract_id"
+    t.decimal "customer_rate"
+    t.date "change_date"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["sell_contract_id"], name: "index_contract_customer_rate_histories_on_sell_contract_id"
+  end
+
+  create_table "contract_cycles", force: :cascade do |t|
+    t.bigint "contract_id"
+    t.bigint "company_id"
+    t.bigint "candidate_id"
+    t.text "note"
+    t.string "cycle_type"
+    t.datetime "cycle_date"
+    t.string "cyclable_type"
+    t.bigint "cyclable_id"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.string "status", default: "pending"
+    t.datetime "completed_at"
+    t.datetime "start_date"
+    t.datetime "end_date"
+    t.datetime "next_date"
+    t.string "next_action"
+    t.datetime "next_action_date"
+    t.index ["candidate_id"], name: "index_contract_cycles_on_candidate_id"
+    t.index ["company_id"], name: "index_contract_cycles_on_company_id"
+    t.index ["contract_id"], name: "index_contract_cycles_on_contract_id"
+    t.index ["cyclable_type", "cyclable_id"], name: "index_contract_cycles_on_cyclable_type_and_cyclable_id"
+  end
+
+  create_table "contract_salary_histories", force: :cascade do |t|
+    t.bigint "contract_id"
+    t.bigint "company_id"
+    t.bigint "candidate_id"
+    t.decimal "amount"
+    t.decimal "final_amount"
+    t.text "description"
+    t.string "salary_type"
+    t.string "salable_type"
+    t.bigint "salable_id"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["candidate_id"], name: "index_contract_salary_histories_on_candidate_id"
+    t.index ["company_id"], name: "index_contract_salary_histories_on_company_id"
+    t.index ["contract_id"], name: "index_contract_salary_histories_on_contract_id"
+    t.index ["salable_type", "salable_id"], name: "index_contract_salary_histories_on_salable_type_and_salable_id"
+  end
+
+  create_table "contract_sale_commisions", force: :cascade do |t|
+    t.bigint "buy_contract_id"
+    t.string "name"
+    t.decimal "rate"
+    t.string "frequency"
+    t.decimal "limit"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["buy_contract_id"], name: "index_contract_sale_commisions_on_buy_contract_id"
+  end
+
+  create_table "contract_sell_business_details", force: :cascade do |t|
+    t.bigint "sell_contract_id"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.integer "company_contact_id"
+    t.index ["sell_contract_id"], name: "index_contract_sell_business_details_on_sell_contract_id"
+  end
+
+  create_table "contract_terms", id: :serial, force: :cascade do |t|
+    t.decimal "rate"
+    t.text "note"
+    t.text "terms_condition"
+    t.integer "created_by"
+    t.integer "status", default: 0
+    t.integer "contract_id"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["created_by"], name: "index_contract_terms_on_created_by"
+  end
+
+  create_table "contracts", id: :serial, force: :cascade do |t|
+    t.integer "job_application_id"
+    t.integer "job_id"
+    t.date "start_date"
+    t.date "end_date"
+    t.string "message_from_hiring"
+    t.string "response_from_vendor"
+    t.integer "created_by_id"
+    t.integer "respond_by_id"
+    t.string "responed_at"
+    t.integer "status", default: 0
+    t.integer "assignee_id"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.integer "billing_frequency"
+    t.integer "time_sheet_frequency"
+    t.integer "company_id"
+    t.date "next_invoice_date"
+    t.boolean "is_commission", default: false
+    t.integer "commission_type"
+    t.float "commission_amount", default: 0.0
+    t.float "max_commission"
+    t.integer "commission_for_id"
+    t.json "received_by_signature"
+    t.string "received_by_name"
+    t.json "sent_by_signature"
+    t.string "sent_by_name"
+    t.integer "contractable_id"
+    t.string "contractable_type"
+    t.integer "parent_contract_id"
+    t.integer "contract_type"
+    t.string "work_location"
+    t.integer "candidate_id"
+    t.integer "client_id"
+    t.string "number"
+    t.decimal "salary_to_pay", default: "0.0"
+  end
+
+  create_table "conversation_messages", force: :cascade do |t|
+    t.text "body"
+    t.boolean "is_read", default: false
+    t.bigint "conversation_id"
+    t.string "userable_type"
+    t.bigint "userable_id"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.string "attachment_file"
+    t.string "file_name"
+    t.string "file_size"
+    t.string "file_type"
+    t.index ["conversation_id"], name: "index_conversation_messages_on_conversation_id"
+    t.index ["userable_type", "userable_id"], name: "index_conversation_messages_on_userable_type_and_userable_id"
+  end
+
+  create_table "conversations", force: :cascade do |t|
+    t.string "senderable_type"
+    t.bigint "senderable_id"
+    t.string "recipientable_type"
+    t.bigint "recipientable_id"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.integer "topic", default: 0
+    t.string "chatable_type"
+    t.bigint "chatable_id"
+    t.index ["chatable_type", "chatable_id"], name: "index_conversations_on_chatable_type_and_chatable_id"
+    t.index ["recipientable_type", "recipientable_id"], name: "index_conversations_on_recipientable_type_and_recipientable_id"
+    t.index ["senderable_type", "senderable_id"], name: "index_conversations_on_senderable_type_and_senderable_id"
+  end
+
+  create_table "criminal_checks", force: :cascade do |t|
+    t.integer "candidate_id"
+    t.string "state"
+    t.string "address"
+    t.date "start_date"
+    t.date "end_date"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+  end
+
+  create_table "csc_accounts", force: :cascade do |t|
+    t.bigint "contract_sale_commision_id"
+    t.string "accountable_type"
+    t.bigint "accountable_id"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["accountable_type", "accountable_id"], name: "index_csc_accounts_on_accountable_type_and_accountable_id"
+    t.index ["contract_sale_commision_id"], name: "index_csc_accounts_on_contract_sale_commision_id"
+  end
+
+  create_table "currencies", id: :serial, force: :cascade do |t|
+    t.string "name"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+  end
+
+  create_table "custom_fields", id: :serial, force: :cascade do |t|
+    t.string "name"
+    t.string "value"
+    t.integer "status"
+    t.integer "customizable_id"
+    t.string "customizable_type"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.boolean "required", default: false
+  end
+
+  create_table "delayed_jobs", id: :serial, force: :cascade do |t|
+    t.integer "priority", default: 0, null: false
+    t.integer "attempts", default: 0, null: false
+    t.text "handler", null: false
+    t.text "last_error"
     t.datetime "run_at"
     t.datetime "locked_at"
     t.datetime "failed_at"
-    t.string   "locked_by"
-    t.string   "queue"
+    t.string "locked_by"
+    t.string "queue"
     t.datetime "created_at"
     t.datetime "updated_at"
+    t.index ["priority", "run_at"], name: "delayed_jobs_priority"
   end
 
-  add_index "delayed_jobs", ["priority", "run_at"], name: "delayed_jobs_priority", using: :btree
-
-  create_table "educations", force: :cascade do |t|
-    t.string   "degree_title"
-    t.string   "grade"
-    t.date     "completion_year"
-    t.date     "start_year"
-    t.string   "institute"
-    t.integer  "status"
-    t.text     "description"
-    t.integer  "user_id"
-    t.datetime "created_at",      null: false
-    t.datetime "updated_at",      null: false
-  end
-
-  create_table "experiences", force: :cascade do |t|
-    t.string   "experience_title"
-    t.date     "start_date"
-    t.date     "end_date"
-    t.string   "institute"
-    t.integer  "status"
-    t.text     "description"
-    t.integer  "user_id"
-    t.datetime "created_at",       null: false
-    t.datetime "updated_at",       null: false
-  end
-
-  create_table "groupables", force: :cascade do |t|
-    t.integer  "group_id"
-    t.integer  "groupable_id"
-    t.string   "groupable_type"
-    t.datetime "created_at",     null: false
-    t.datetime "updated_at",     null: false
-  end
-
-  add_index "groupables", ["groupable_type", "groupable_id"], name: "index_groupables_on_groupable_type_and_groupable_id", using: :btree
-
-  create_table "groups", force: :cascade do |t|
-    t.string   "group_name"
-    t.integer  "company_id"
+  create_table "departments", force: :cascade do |t|
+    t.string "name"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
   end
 
-  add_index "groups", ["company_id"], name: "index_groups_on_company_id", using: :btree
-
-  create_table "invited_companies", force: :cascade do |t|
-    t.integer  "user_id"
-    t.integer  "invited_company_id"
-    t.integer  "invited_by_company_id"
-    t.datetime "created_at",            null: false
-    t.datetime "updated_at",            null: false
+  create_table "designations", force: :cascade do |t|
+    t.bigint "candidate_id"
+    t.string "comp_name"
+    t.string "recruiter_name"
+    t.string "recruiter_phone"
+    t.string "recruiter_email"
+    t.string "status"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.string "company_role"
+    t.index ["candidate_id"], name: "index_designations_on_candidate_id"
   end
 
-  add_index "invited_companies", ["invited_by_company_id"], name: "index_invited_companies_on_invited_by_company_id", using: :btree
-  add_index "invited_companies", ["invited_company_id"], name: "index_invited_companies_on_invited_company_id", using: :btree
-  add_index "invited_companies", ["user_id"], name: "index_invited_companies_on_user_id", using: :btree
+  create_table "document_signs", force: :cascade do |t|
+    t.string "documentable_type"
+    t.bigint "documentable_id"
+    t.string "signable_type"
+    t.bigint "signable_id"
+    t.boolean "is_sign_done", default: false
+    t.datetime "sign_time"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["documentable_type", "documentable_id"], name: "index_document_signs_on_documentable_type_and_documentable_id"
+    t.index ["signable_type", "signable_id"], name: "index_document_signs_on_signable_type_and_signable_id"
+  end
 
-  create_table "invoices", force: :cascade do |t|
-    t.integer  "contract_id"
-    t.date     "start_date"
-    t.date     "end_date"
-    t.datetime "created_at",                       null: false
-    t.datetime "updated_at",                       null: false
-    t.decimal  "total_amount",       default: 0.0
-    t.decimal  "commission_amount",  default: 0.0
-    t.decimal  "billing_amount",     default: 0.0
-    t.float    "consultant_amount",  default: 0.0
-    t.integer  "submitted_by"
+  create_table "documents", force: :cascade do |t|
+    t.integer "candidate_id"
+    t.string "title"
+    t.string "file"
+    t.date "exp_date"
+    t.boolean "is_education", default: false
+    t.boolean "is_legal_doc", default: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+  end
+
+  create_table "educations", id: :serial, force: :cascade do |t|
+    t.string "degree_title"
+    t.string "grade"
+    t.date "completion_year"
+    t.date "start_year"
+    t.string "institute"
+    t.integer "status"
+    t.text "description"
+    t.integer "user_id"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.string "degree_level"
+  end
+
+  create_table "experiences", id: :serial, force: :cascade do |t|
+    t.string "experience_title"
+    t.date "start_date"
+    t.date "end_date"
+    t.string "institute"
+    t.integer "status"
+    t.text "description"
+    t.integer "user_id"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.string "industry"
+    t.string "department"
+  end
+
+  create_table "group_msg_notifies", force: :cascade do |t|
+    t.bigint "group_id"
+    t.bigint "conversation_message_id"
+    t.string "member_type"
+    t.bigint "member_id"
+    t.boolean "is_read", default: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["conversation_message_id"], name: "index_group_msg_notifies_on_conversation_message_id"
+    t.index ["group_id"], name: "index_group_msg_notifies_on_group_id"
+    t.index ["member_type", "member_id"], name: "index_group_msg_notifies_on_member_type_and_member_id"
+  end
+
+  create_table "groupables", id: :serial, force: :cascade do |t|
+    t.integer "group_id"
+    t.integer "groupable_id"
+    t.string "groupable_type"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["groupable_type", "groupable_id"], name: "index_groupables_on_groupable_type_and_groupable_id"
+  end
+
+  create_table "groups", id: :serial, force: :cascade do |t|
+    t.string "group_name"
+    t.integer "company_id"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.string "member_type"
+    t.index ["company_id"], name: "index_groups_on_company_id"
+  end
+
+  create_table "invited_companies", id: :serial, force: :cascade do |t|
+    t.integer "user_id"
+    t.integer "invited_company_id"
+    t.integer "invited_by_company_id"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["invited_by_company_id"], name: "index_invited_companies_on_invited_by_company_id"
+    t.index ["invited_company_id"], name: "index_invited_companies_on_invited_company_id"
+    t.index ["user_id"], name: "index_invited_companies_on_user_id"
+  end
+
+  create_table "invoice_infos", force: :cascade do |t|
+    t.bigint "company_id"
+    t.string "invoice_term"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["company_id"], name: "index_invoice_infos_on_company_id"
+  end
+
+  create_table "invoices", id: :serial, force: :cascade do |t|
+    t.integer "contract_id"
+    t.date "start_date"
+    t.date "end_date"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.decimal "total_amount", default: "0.0"
+    t.decimal "commission_amount", default: "0.0"
+    t.decimal "billing_amount", default: "0.0"
+    t.float "consultant_amount", default: 0.0
+    t.integer "submitted_by"
     t.datetime "submitted_on"
-    t.integer  "status",             default: 0
-    t.integer  "total_approve_time", default: 0
-    t.integer  "parent_id"
-    t.decimal  "rate",               default: 0.0
+    t.integer "status", default: 0
+    t.integer "total_approve_time", default: 0
+    t.integer "parent_id"
+    t.decimal "rate", default: "0.0"
+    t.integer "ig_cycle_id"
+    t.string "number"
+    t.decimal "balance", default: "0.0"
   end
 
-  create_table "job_applications", force: :cascade do |t|
-    t.integer  "job_invitation_id"
-    t.text     "cover_letter"
-    t.string   "message"
-    t.integer  "status",               default: 0
-    t.datetime "created_at",                       null: false
-    t.datetime "updated_at",                       null: false
-    t.integer  "job_id"
-    t.integer  "application_type"
-    t.integer  "company_id"
-    t.integer  "applicationable_id"
-    t.string   "applicationable_type"
-    t.string   "applicant_resume"
-    t.string   "share_key"
+  create_table "job_applicant_reqs", force: :cascade do |t|
+    t.bigint "job_application_id"
+    t.bigint "job_requirement_id"
+    t.text "applicant_ans"
+    t.string "app_multi_ans"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["job_application_id"], name: "index_job_applicant_reqs_on_job_application_id"
+    t.index ["job_requirement_id"], name: "index_job_applicant_reqs_on_job_requirement_id"
   end
 
-  create_table "job_invitations", force: :cascade do |t|
-    t.integer  "recipient_id"
-    t.string   "email"
-    t.string   "recipient_type"
-    t.integer  "created_by_id"
-    t.integer  "job_id"
-    t.integer  "status",           default: 0
-    t.datetime "created_at",                   null: false
-    t.datetime "updated_at",                   null: false
-    t.date     "expiry"
-    t.string   "message"
-    t.integer  "company_id"
-    t.integer  "invitation_type"
-    t.text     "response_message"
-  end
-
-  create_table "jobs", force: :cascade do |t|
-    t.string   "title"
-    t.text     "description"
-    t.string   "location"
-    t.date     "start_date"
-    t.date     "end_date"
-    t.integer  "parent_job_id"
-    t.integer  "company_id"
-    t.integer  "created_by_id"
-    t.datetime "created_at",                          null: false
-    t.datetime "updated_at",                          null: false
-    t.boolean  "is_public",           default: true
-    t.string   "job_category"
-    t.boolean  "is_system_generated", default: false
-    t.datetime "deleted_at"
-  end
-
-  add_index "jobs", ["deleted_at"], name: "index_jobs_on_deleted_at", using: :btree
-
-  create_table "leaves", force: :cascade do |t|
-    t.date     "from_date"
-    t.date     "till_date"
-    t.string   "reason"
-    t.string   "response_message"
-    t.integer  "status",           default: 0
-    t.string   "leave_type"
-    t.integer  "user_id"
-    t.datetime "created_at",                   null: false
-    t.datetime "updated_at",                   null: false
-  end
-
-  create_table "locations", force: :cascade do |t|
-    t.string   "name"
-    t.integer  "address_id"
-    t.integer  "company_id"
-    t.integer  "status"
+  create_table "job_application_without_registrations", force: :cascade do |t|
+    t.string "first_name"
+    t.string "last_name"
+    t.string "email"
+    t.string "phone"
+    t.string "location"
+    t.string "skill"
+    t.string "visa"
+    t.string "title"
+    t.string "roal"
+    t.string "resume"
+    t.integer "job_application_id"
+    t.boolean "is_registerd"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
   end
 
-  create_table "messages", force: :cascade do |t|
-    t.string   "body"
-    t.integer  "chat_id"
-    t.integer  "messageable_id"
-    t.string   "messageable_type"
-    t.datetime "created_at",                   null: false
-    t.datetime "updated_at",                   null: false
-    t.integer  "company_doc_id"
-    t.integer  "file_status",      default: 0
+  create_table "job_applications", id: :serial, force: :cascade do |t|
+    t.integer "job_invitation_id"
+    t.text "cover_letter"
+    t.string "message"
+    t.integer "status", default: 0
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.integer "job_id"
+    t.integer "application_type"
+    t.integer "company_id"
+    t.integer "applicationable_id"
+    t.string "applicationable_type"
+    t.string "applicant_resume"
+    t.string "share_key"
   end
 
-  add_index "messages", ["messageable_type", "messageable_id"], name: "index_messages_on_messageable_type_and_messageable_id", using: :btree
-
-  create_table "notifications", force: :cascade do |t|
-    t.integer  "notifiable_id"
-    t.string   "notifiable_type"
-    t.text     "message"
-    t.integer  "status",            default: 0
-    t.string   "title"
-    t.integer  "notification_type", default: 0
-    t.datetime "created_at",                    null: false
-    t.datetime "updated_at",                    null: false
+  create_table "job_invitations", id: :serial, force: :cascade do |t|
+    t.integer "recipient_id"
+    t.string "email"
+    t.string "recipient_type"
+    t.integer "created_by_id"
+    t.integer "job_id"
+    t.integer "status", default: 0
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.date "expiry"
+    t.string "message"
+    t.integer "company_id"
+    t.integer "invitation_type"
+    t.text "response_message"
   end
 
-  create_table "packages", force: :cascade do |t|
-    t.string   "name"
-    t.text     "description"
-    t.integer  "duration"
-    t.float    "price"
-    t.string   "slug"
-    t.datetime "created_at",  null: false
-    t.datetime "updated_at",  null: false
+  create_table "job_requirements", force: :cascade do |t|
+    t.bigint "job_id"
+    t.text "questions"
+    t.string "ans_type"
+    t.boolean "ans_mandatroy"
+    t.boolean "multiple_ans"
+    t.string "multiple_option"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["job_id"], name: "index_job_requirements_on_job_id"
   end
 
-  create_table "permissions", force: :cascade do |t|
-    t.string   "name"
+  create_table "jobs", id: :serial, force: :cascade do |t|
+    t.string "title"
+    t.text "description"
+    t.string "location"
+    t.date "start_date"
+    t.date "end_date"
+    t.integer "parent_job_id"
+    t.integer "company_id"
+    t.integer "created_by_id"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.boolean "is_public", default: true
+    t.string "job_category"
+    t.boolean "is_system_generated", default: false
+    t.datetime "deleted_at"
+    t.string "video_file"
+    t.string "industry"
+    t.string "department"
+    t.decimal "price"
+    t.string "job_type"
+    t.integer "ref_job_id"
+    t.boolean "is_bench_job"
+    t.string "comp_video"
+    t.string "listing_type", default: "Job"
+    t.index ["deleted_at"], name: "index_jobs_on_deleted_at"
+  end
+
+  create_table "leaves", id: :serial, force: :cascade do |t|
+    t.date "from_date"
+    t.date "till_date"
+    t.string "reason"
+    t.string "response_message"
+    t.integer "status", default: 0
+    t.string "leave_type"
+    t.integer "user_id"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+  end
+
+  create_table "legal_documents", force: :cascade do |t|
+    t.integer "candidate_id"
+    t.string "title"
+    t.string "file"
+    t.date "exp_date"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+  end
+
+  create_table "locations", id: :serial, force: :cascade do |t|
+    t.string "name"
+    t.integer "address_id"
+    t.integer "company_id"
+    t.integer "status"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+  end
+
+  create_table "messages", id: :serial, force: :cascade do |t|
+    t.string "body"
+    t.integer "chat_id"
+    t.integer "messageable_id"
+    t.string "messageable_type"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.integer "company_doc_id"
+    t.integer "file_status", default: 0
+    t.index ["messageable_type", "messageable_id"], name: "index_messages_on_messageable_type_and_messageable_id"
+  end
+
+  create_table "notifications", id: :serial, force: :cascade do |t|
+    t.integer "notifiable_id"
+    t.string "notifiable_type"
+    t.text "message"
+    t.integer "status", default: 0
+    t.string "title"
+    t.integer "notification_type", default: 0
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+  end
+
+  create_table "packages", id: :serial, force: :cascade do |t|
+    t.string "name"
+    t.text "description"
+    t.integer "duration"
+    t.float "price"
+    t.string "slug"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+  end
+
+  create_table "payroll_infos", force: :cascade do |t|
+    t.bigint "company_id"
+    t.string "payroll_term"
+    t.string "payroll_type"
+    t.date "sal_cal_date"
+    t.date "payroll_date"
+    t.string "weekend_sch"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["company_id"], name: "index_payroll_infos_on_company_id"
+  end
+
+  create_table "permissions", id: :serial, force: :cascade do |t|
+    t.string "name"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
   end
@@ -507,40 +1040,54 @@ ActiveRecord::Schema.define(version: 20170421083622) do
     t.integer "permission_id"
   end
 
-  create_table "portfolios", force: :cascade do |t|
-    t.string   "name"
-    t.text     "description"
-    t.string   "cover_photo"
-    t.integer  "portfolioable_id"
-    t.string   "portfolioable_type"
-    t.datetime "created_at",         null: false
-    t.datetime "updated_at",         null: false
+  create_table "portfolios", id: :serial, force: :cascade do |t|
+    t.string "name"
+    t.text "description"
+    t.string "cover_photo"
+    t.integer "portfolioable_id"
+    t.string "portfolioable_type"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
   end
 
-  create_table "prefer_vendors", force: :cascade do |t|
-    t.integer  "company_id"
-    t.integer  "vendor_id"
-    t.integer  "status",     default: 0
-    t.datetime "created_at",             null: false
-    t.datetime "updated_at",             null: false
+  create_table "prefer_vendors", id: :serial, force: :cascade do |t|
+    t.integer "company_id"
+    t.integer "vendor_id"
+    t.integer "status", default: 0
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
   end
 
-  create_table "reminders", force: :cascade do |t|
-    t.string   "title"
+  create_table "receive_payments", force: :cascade do |t|
+    t.bigint "invoice_id"
+    t.datetime "payment_date"
+    t.string "payment_method"
+    t.string "reference_no"
+    t.string "deposit_to"
+    t.decimal "amount_received", default: "0.0"
+    t.text "memo"
+    t.boolean "posted_as_discount", default: false
+    t.string "attachment"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["invoice_id"], name: "index_receive_payments_on_invoice_id"
+  end
+
+  create_table "reminders", id: :serial, force: :cascade do |t|
+    t.string "title"
     t.datetime "remind_at"
-    t.integer  "status",            default: 0
-    t.integer  "user_id"
-    t.integer  "reminderable_id"
-    t.string   "reminderable_type"
-    t.datetime "created_at",                    null: false
-    t.datetime "updated_at",                    null: false
+    t.integer "status", default: 0
+    t.integer "user_id"
+    t.integer "reminderable_id"
+    t.string "reminderable_type"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["reminderable_type", "reminderable_id"], name: "index_reminders_on_reminderable_type_and_reminderable_id"
   end
 
-  add_index "reminders", ["reminderable_type", "reminderable_id"], name: "index_reminders_on_reminderable_type_and_reminderable_id", using: :btree
-
-  create_table "roles", force: :cascade do |t|
-    t.string   "name"
-    t.integer  "company_id"
+  create_table "roles", id: :serial, force: :cascade do |t|
+    t.string "name"
+    t.integer "company_id"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
   end
@@ -550,158 +1097,265 @@ ActiveRecord::Schema.define(version: 20170421083622) do
     t.integer "user_id"
   end
 
-  create_table "statuses", force: :cascade do |t|
-    t.integer  "statusable_id"
-    t.string   "statusable_type"
-    t.integer  "user_id"
-    t.string   "note"
-    t.integer  "status_type"
-    t.datetime "created_at",      null: false
-    t.datetime "updated_at",      null: false
+  create_table "sell_contracts", force: :cascade do |t|
+    t.string "number"
+    t.bigint "contract_id"
+    t.integer "company_id"
+    t.decimal "customer_rate", default: "0.0"
+    t.string "customer_rate_type"
+    t.string "time_sheet"
+    t.string "invoice_terms_period"
+    t.boolean "show_accounting_to_employee"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.date "first_date_of_timesheet"
+    t.date "first_date_of_invoice"
+    t.date "ts_date_1"
+    t.date "ts_date_2"
+    t.boolean "ts_end_of_month", default: false
+    t.string "ts_day_of_week"
+    t.integer "max_day_allow_for_timesheet"
+    t.integer "max_day_allow_for_invoice"
+    t.date "invoice_date_1"
+    t.date "invoice_date_2"
+    t.boolean "invoice_end_of_month", default: false
+    t.string "invoice_day_of_week", default: "f"
+    t.decimal "payment_term", default: "0.0"
+    t.time "ts_day_time"
+    t.time "invoice_day_time"
+    t.date "cr_start_date"
+    t.date "cr_end_date"
+    t.string "ts_approve"
+    t.time "ta_day_time"
+    t.date "ta_date_1"
+    t.date "ta_date_2"
+    t.boolean "ta_end_of_month", default: false
+    t.string "ta_day_of_week"
+    t.index ["company_id"], name: "index_sell_contracts_on_company_id"
+    t.index ["contract_id"], name: "index_sell_contracts_on_contract_id"
   end
 
-  create_table "subscriptions", force: :cascade do |t|
-    t.integer  "company_id"
-    t.integer  "package_id"
-    t.datetime "expiry"
-    t.integer  "status"
-    t.float    "amount"
+  create_table "sell_request_documents", force: :cascade do |t|
+    t.bigint "sell_contract_id"
+    t.string "number"
+    t.string "doc_file"
+    t.date "when_expire"
+    t.boolean "is_sign_required", default: false
+    t.string "creatable_type"
+    t.bigint "creatable_id"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.string "file_name"
+    t.integer "file_size"
+    t.integer "file_type"
+    t.index ["creatable_type", "creatable_id"], name: "index_sell_request_documents_on_creatable_type_and_creatable_id"
+    t.index ["sell_contract_id"], name: "index_sell_request_documents_on_sell_contract_id"
+  end
+
+  create_table "sell_send_documents", force: :cascade do |t|
+    t.bigint "sell_contract_id"
+    t.string "number"
+    t.string "doc_file"
+    t.date "when_expire"
+    t.boolean "is_sign_required", default: false
+    t.string "creatable_type"
+    t.bigint "creatable_id"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.string "file_name"
+    t.integer "file_size"
+    t.integer "file_type"
+    t.index ["creatable_type", "creatable_id"], name: "index_sell_send_documents_on_creatable_type_and_creatable_id"
+    t.index ["sell_contract_id"], name: "index_sell_send_documents_on_sell_contract_id"
+  end
+
+  create_table "shared_candidates", id: :serial, force: :cascade do |t|
+    t.integer "candidate_id"
+    t.integer "shared_by_id"
+    t.integer "shared_to_id"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["candidate_id"], name: "index_shared_candidates_on_candidate_id"
+    t.index ["shared_by_id"], name: "index_shared_candidates_on_shared_by_id"
+    t.index ["shared_to_id"], name: "index_shared_candidates_on_shared_to_id"
+  end
+
+  create_table "statuses", id: :serial, force: :cascade do |t|
+    t.integer "statusable_id"
+    t.string "statusable_type"
+    t.integer "user_id"
+    t.string "note"
+    t.integer "status_type"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
   end
 
-  create_table "taggings", force: :cascade do |t|
-    t.integer  "tag_id"
-    t.integer  "taggable_id"
-    t.string   "taggable_type"
-    t.integer  "tagger_id"
-    t.string   "tagger_type"
-    t.string   "context",       limit: 128
+  create_table "subscriptions", id: :serial, force: :cascade do |t|
+    t.integer "company_id"
+    t.integer "package_id"
+    t.datetime "expiry"
+    t.integer "status"
+    t.float "amount"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+  end
+
+  create_table "taggings", id: :serial, force: :cascade do |t|
+    t.integer "tag_id"
+    t.integer "taggable_id"
+    t.string "taggable_type"
+    t.integer "tagger_id"
+    t.string "tagger_type"
+    t.string "context", limit: 128
     t.datetime "created_at"
+    t.index ["context"], name: "index_taggings_on_context"
+    t.index ["tag_id", "taggable_id", "taggable_type", "context", "tagger_id", "tagger_type"], name: "taggings_idx", unique: true
+    t.index ["tag_id"], name: "index_taggings_on_tag_id"
+    t.index ["taggable_id", "taggable_type", "context"], name: "index_taggings_on_taggable_id_and_taggable_type_and_context"
+    t.index ["taggable_id", "taggable_type", "tagger_id", "context"], name: "taggings_idy"
+    t.index ["taggable_id"], name: "index_taggings_on_taggable_id"
+    t.index ["taggable_type"], name: "index_taggings_on_taggable_type"
+    t.index ["tagger_id", "tagger_type"], name: "index_taggings_on_tagger_id_and_tagger_type"
+    t.index ["tagger_id"], name: "index_taggings_on_tagger_id"
   end
 
-  add_index "taggings", ["context"], name: "index_taggings_on_context", using: :btree
-  add_index "taggings", ["tag_id", "taggable_id", "taggable_type", "context", "tagger_id", "tagger_type"], name: "taggings_idx", unique: true, using: :btree
-  add_index "taggings", ["tag_id"], name: "index_taggings_on_tag_id", using: :btree
-  add_index "taggings", ["taggable_id", "taggable_type", "context"], name: "index_taggings_on_taggable_id_and_taggable_type_and_context", using: :btree
-  add_index "taggings", ["taggable_id", "taggable_type", "tagger_id", "context"], name: "taggings_idy", using: :btree
-  add_index "taggings", ["taggable_id"], name: "index_taggings_on_taggable_id", using: :btree
-  add_index "taggings", ["taggable_type"], name: "index_taggings_on_taggable_type", using: :btree
-  add_index "taggings", ["tagger_id", "tagger_type"], name: "index_taggings_on_tagger_id_and_tagger_type", using: :btree
-  add_index "taggings", ["tagger_id"], name: "index_taggings_on_tagger_id", using: :btree
-
-  create_table "tags", force: :cascade do |t|
-    t.string  "name"
+  create_table "tags", id: :serial, force: :cascade do |t|
+    t.string "name"
     t.integer "taggings_count", default: 0
+    t.index ["name"], name: "index_tags_on_name", unique: true
   end
 
-  add_index "tags", ["name"], name: "index_tags_on_name", unique: true, using: :btree
-
-  create_table "timesheet_approvers", force: :cascade do |t|
-    t.integer  "user_id"
-    t.integer  "timesheet_id"
-    t.datetime "created_at",   null: false
-    t.datetime "updated_at",   null: false
-    t.integer  "status"
+  create_table "tax_infos", force: :cascade do |t|
+    t.bigint "payroll_info_id"
+    t.string "tax_term"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["payroll_info_id"], name: "index_tax_infos_on_payroll_info_id"
   end
 
-  add_index "timesheet_approvers", ["user_id", "timesheet_id"], name: "index_timesheet_approvers_on_user_id_and_timesheet_id", using: :btree
-
-  create_table "timesheet_logs", force: :cascade do |t|
-    t.integer  "timesheet_id"
-    t.date     "transaction_day"
-    t.integer  "status",           default: 0
-    t.datetime "created_at",                   null: false
-    t.datetime "updated_at",                   null: false
-    t.integer  "contract_term_id"
+  create_table "timesheet_approvers", id: :serial, force: :cascade do |t|
+    t.integer "user_id"
+    t.integer "timesheet_id"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.integer "status"
+    t.index ["user_id", "timesheet_id"], name: "index_timesheet_approvers_on_user_id_and_timesheet_id"
   end
 
-  add_index "timesheet_logs", ["timesheet_id"], name: "index_timesheet_logs_on_timesheet_id", using: :btree
-
-  create_table "timesheets", force: :cascade do |t|
-    t.integer  "job_id"
-    t.integer  "user_id"
-    t.integer  "company_id"
-    t.integer  "contract_id"
-    t.integer  "status",                      default: 0
-    t.float    "total_time"
-    t.date     "start_date"
-    t.date     "end_date"
-    t.date     "submitted_date"
-    t.date     "next_timesheet_created_date"
-    t.datetime "created_at",                              null: false
-    t.datetime "updated_at",                              null: false
-    t.integer  "invoice_id"
+  create_table "timesheet_logs", id: :serial, force: :cascade do |t|
+    t.integer "timesheet_id"
+    t.date "transaction_day"
+    t.integer "status", default: 0
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.integer "contract_term_id"
+    t.index ["timesheet_id"], name: "index_timesheet_logs_on_timesheet_id"
   end
 
-  add_index "timesheets", ["job_id"], name: "index_timesheets_on_job_id", using: :btree
+  create_table "timesheets", id: :serial, force: :cascade do |t|
+    t.integer "job_id"
+    t.integer "user_id"
+    t.integer "company_id"
+    t.integer "contract_id"
+    t.integer "status", default: 0
+    t.float "total_time"
+    t.date "start_date"
+    t.date "end_date"
+    t.date "submitted_date"
+    t.date "next_timesheet_created_date"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.integer "invoice_id"
+    t.hstore "days"
+    t.string "timesheet_attachment"
+    t.string "candidate_name"
+    t.integer "candidate_id"
+    t.integer "ts_cycle_id"
+    t.integer "ta_cycle_id"
+    t.text "inv_numbers", default: [], array: true
+    t.index ["job_id"], name: "index_timesheets_on_job_id"
+  end
 
-  create_table "transactions", force: :cascade do |t|
-    t.integer  "timesheet_log_id"
+  create_table "transactions", id: :serial, force: :cascade do |t|
+    t.integer "timesheet_log_id"
     t.datetime "start_time"
     t.datetime "end_time"
-    t.integer  "total_time",       default: 0
-    t.integer  "status",           default: 0
-    t.text     "memo"
-    t.datetime "created_at",                   null: false
-    t.datetime "updated_at",                   null: false
-    t.string   "file"
+    t.integer "total_time", default: 0
+    t.integer "status", default: 0
+    t.text "memo"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.string "file"
+    t.index ["timesheet_log_id"], name: "index_transactions_on_timesheet_log_id"
   end
 
-  add_index "transactions", ["timesheet_log_id"], name: "index_transactions_on_timesheet_log_id", using: :btree
-
-  create_table "users", force: :cascade do |t|
-    t.integer  "company_id"
-    t.string   "first_name",             default: ""
-    t.string   "last_name",              default: ""
-    t.integer  "gender"
-    t.string   "email",                  default: "",    null: false
-    t.string   "type"
-    t.string   "phone"
-    t.integer  "primary_address_id"
-    t.string   "photo"
-    t.json     "signature"
-    t.integer  "status"
-    t.date     "dob"
-    t.string   "encrypted_password",     default: "",    null: false
-    t.string   "reset_password_token"
+  create_table "users", id: :serial, force: :cascade do |t|
+    t.integer "company_id"
+    t.string "first_name", default: ""
+    t.string "last_name", default: ""
+    t.integer "gender"
+    t.string "email", default: "", null: false
+    t.string "type"
+    t.string "phone"
+    t.integer "primary_address_id"
+    t.string "photo"
+    t.json "signature"
+    t.integer "status"
+    t.date "dob"
+    t.string "encrypted_password", default: "", null: false
+    t.string "reset_password_token"
     t.datetime "reset_password_sent_at"
     t.datetime "remember_created_at"
-    t.integer  "sign_in_count",          default: 0,     null: false
+    t.integer "sign_in_count", default: 0, null: false
     t.datetime "current_sign_in_at"
     t.datetime "last_sign_in_at"
-    t.string   "current_sign_in_ip"
-    t.string   "last_sign_in_ip"
-    t.string   "confirmation_token"
+    t.string "current_sign_in_ip"
+    t.string "last_sign_in_ip"
+    t.string "confirmation_token"
     t.datetime "confirmed_at"
     t.datetime "confirmation_sent_at"
-    t.string   "unconfirmed_email"
-    t.datetime "created_at",                             null: false
-    t.datetime "updated_at",                             null: false
-    t.string   "invitation_token"
+    t.string "unconfirmed_email"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.string "invitation_token"
     t.datetime "invitation_created_at"
     t.datetime "invitation_sent_at"
     t.datetime "invitation_accepted_at"
-    t.integer  "invitation_limit"
-    t.integer  "invited_by_id"
-    t.string   "invited_by_type"
-    t.integer  "invitations_count",      default: 0
-    t.string   "skills"
-    t.string   "ssn"
-    t.integer  "max_working_hours",      default: 28800
-    t.string   "time_zone"
-    t.integer  "candidate_id"
+    t.integer "invitation_limit"
+    t.integer "invited_by_id"
+    t.string "invited_by_type"
+    t.integer "invitations_count", default: 0
+    t.string "skills"
+    t.string "ssn"
+    t.integer "max_working_hours", default: 28800
+    t.string "time_zone"
+    t.integer "candidate_id"
     t.datetime "deleted_at"
-    t.integer  "visa_status"
-    t.date     "availability"
-    t.integer  "relocation",             default: 0
+    t.integer "visa_status"
+    t.date "availability"
+    t.integer "relocation", default: 0
+    t.integer "age"
+    t.string "video"
+    t.string "resume"
+    t.string "video_type"
+    t.string "chat_status"
+    t.string "temp_pass"
+    t.index ["deleted_at"], name: "index_users_on_deleted_at"
+    t.index ["email"], name: "index_users_on_email", unique: true
+    t.index ["invitation_token"], name: "index_users_on_invitation_token", unique: true
+    t.index ["invitations_count"], name: "index_users_on_invitations_count"
+    t.index ["invited_by_id"], name: "index_users_on_invited_by_id"
+    t.index ["reset_password_token"], name: "index_users_on_reset_password_token", unique: true
   end
 
-  add_index "users", ["deleted_at"], name: "index_users_on_deleted_at", using: :btree
-  add_index "users", ["email"], name: "index_users_on_email", unique: true, using: :btree
-  add_index "users", ["invitation_token"], name: "index_users_on_invitation_token", unique: true, using: :btree
-  add_index "users", ["invitations_count"], name: "index_users_on_invitations_count", using: :btree
-  add_index "users", ["invited_by_id"], name: "index_users_on_invited_by_id", using: :btree
-  add_index "users", ["reset_password_token"], name: "index_users_on_reset_password_token", unique: true, using: :btree
+  create_table "visas", force: :cascade do |t|
+    t.integer "candidate_id"
+    t.string "title"
+    t.string "file"
+    t.date "exp_date"
+    t.string "status"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+  end
 
 end

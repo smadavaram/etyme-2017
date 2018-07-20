@@ -61,6 +61,7 @@ class ApplicationController < ActionController::Base
 
   def current_company
     @current_company ||= Company.where(slug: request.subdomain).first if request.subdomain.present?
+    # @current_company ||= Company.where(domain: request.subdomain).first if request.subdomain.present?
   end
   helper_method :current_company
 
