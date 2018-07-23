@@ -179,34 +179,38 @@
               %b
                 %i.fa.fa-user
                 =@contract.client.try(:full_name)
-          %p.divided
-            %span.date_box
-              %span
-                Start Date
-              %span
-                = @contract.start_date.strftime('%d %B %Y')
-            %span.contract_progress
-            %span.divider
-            %span.date_box
-              %span
-                End Date
-              %span
-                = @contract.end_date.strftime('%d %B %Y')
-          .job-location
-            %p.job_title
-              =@contract.job.title
-            %span
-              %i.fa.fa-map-marker
-              =@contract.work_location
-            %span
-              %i.fa.fa-user
-              =@contract.candidate.try(:full_name)
-            %span
-              %i.fa.fa-calendar-o
-              =@contract.start_date
-              To
-              %i.fa.fa-calendar-o
-              =@contract.end_date
+          %br
+          %div.row
+            %div.col-sm-6.col-md-6.col-lg-6
+              .job-location
+                %p.job_title
+                  =@contract.job.title
+                %span
+                  %i.fa.fa-map-marker
+                  =@contract.work_location
+                %span
+                  %i.fa.fa-user
+                  =@contract.candidate.try(:full_name)
+                %span
+                  %i.fa.fa-calendar-o
+                  =@contract.start_date
+                  To
+                  %i.fa.fa-calendar-o
+                  =@contract.end_date
+            %div.col-sm-6.col-md-6.col-lg-6
+              %div.divided
+                %span.date_box
+                  %span
+                    Start Date
+                  %span
+                    = @contract.start_date.strftime('%d %B %Y')
+                %span.contract_progress
+                %span.divider
+                %span.date_box
+                  %span
+                    End Date
+                  %span
+                    = @contract.end_date.strftime('%d %B %Y')
         .col-sm-6.col-md-6.col-lg-6
           %h3
             sell
@@ -298,7 +302,7 @@
                     %span
                       %b 
                         Show Accounting to employee:
-                        = @contract.sell_contracts.first.show_accounting_to_employee == "true" ? "Yes" : "No" 
+                        = @contract.sell_contracts.first.show_accounting_to_employee == true ? "Yes" : "No" 
             %div.contract-custome-details.line-bottom
               %h5
                 Send Documents
@@ -377,7 +381,7 @@
            
         .col-sm-6.col-md-6.col-lg-6
           %h3
-            buy side
+            Buy
           %div.contract-custome-details.box
             %h5.text-center
               = @contract.candidate.full_name+' ($'+@contract.buy_contracts.first.payrate.to_i.to_s+' / '+@contract.buy_contracts.first.payrate_type+')'
@@ -395,16 +399,16 @@
                   =@contract.candidate.addresses.first.address_1 if @contract.candidate && @contract.candidate.addresses.present?
 
               %h6
-                Company Name : #{@contract.buy_contracts.first.candidate.companies.first.full_name}
+                Company Name : #{@contract.buy_contracts&.first&.candidate&.companies&.first&.full_name}
               %strong
                 Website:
               %span
-                =@contract.buy_contracts.first.candidate.companies.first.website
+                =@contract.buy_contracts&.first&.candidate&.companies&.first&.website
               %br
               %strong
                 Location :
               %span
-                =@contract.buy_contracts.first.candidate.companies.first.addresses.first.address_1
+                =@contract.buy_contracts&.first&.candidate&.companies&.first&.addresses&.first&.address_1
 
             %div.contract-custome-details.line-bottom
               %h5
@@ -603,7 +607,9 @@
       });
 - content_for :scripts do
   :javascript
-    $('.contract_progress').css('left', '#{@contract.contract_progress.to_i+10}%');
+    $('.contract_progress').attr('data-content','0%');
+    $('.contract_progress').css('left', '#{(((@contract.contract_progress.to_f*54)/100).to_f+21).round}%');
+    $('.contract_progress').attr('data-content','#{@contract.contract_progress.to_f.round}%');
 
       
 

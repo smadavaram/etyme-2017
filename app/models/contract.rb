@@ -551,8 +551,12 @@ class Contract < ApplicationRecord
   end
 
   def contract_progress
-    if Date.today > self.start_date && Date.today <= self.end_date
-      ((((Date.today - self.start_date).to_f*100).to_f/(self.end_date - self.start_date).to_f)*78).to_f/100
+    if (Date.today > self.start_date && Date.today <= self.end_date) || (Date.today == self.start_date && Date.today == self.end_date)
+      (((Date.today - self.start_date)+1).to_f*100).to_f/((self.end_date - self.start_date)+1).to_f
+    elsif Date.today == self.start_date && Date.today <= self.end_date
+      ((Date.today - self.start_date).to_f*100).to_f/((self.end_date - self.start_date)+1).to_f
+    elsif Date.today > self.start_date && Date.today >= end_date
+      100.00
     end
   end
 

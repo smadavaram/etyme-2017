@@ -1175,7 +1175,7 @@ input:checked + .slider1:before {
     border-radius: 50%;
   }
   .contract_progress:before{
-    content: "0%";
+    content: attr(data-content);
     position: absolute;
     top:-18px;
   }
