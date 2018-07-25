@@ -149,6 +149,3 @@ gem 'facebook-account-kit'
 gem 'nokogiri'
 
 gem 'markio'
-
-gem "better_errors"
-gem "binding_of_caller"
