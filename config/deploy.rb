@@ -6,9 +6,11 @@ require 'mina/rvm'
 
 # Manually new these paths in shared/ (eg: shared/config/database.yml) in your server.
 # They will be linked in the 'deploy:link_shared_paths' step.
+set :repository, 'git@github.com:smadavaram/etyme-2017.git'
+set :branch, 'update_rails_version'
 set :shared_paths, ['config/application.yml','config/database.yml', 'log','tmp']
 
-task :setup => :environment do
+task :setup => :remote_environment do
   queue! %[mkdir -p "#{deploy_to}/shared/log"]
   queue! %[chmod g+rx,u+rwx "#{deploy_to}/shared/log"]
 
@@ -34,10 +36,10 @@ task :setup => :environment do
 end
 
 desc "Deploys the current version to the server."
-task :environment do
-  invoke :'rvm:use[2.3.1@etyme]'
+task :remote_environment do
+  invoke :'rvm:use', 'ruby-2.3.1@etyme'
 end
-task :deploy => :environment do
+task :deploy => :remote_environment do
   deploy do
     # invoke :'cron:clear'
     # invoke :'delayed_job:stop'
@@ -47,8 +49,8 @@ task :deploy => :environment do
     invoke :'rails:db_migrate'
     invoke :'rails:assets_precompile'
 
-    to :launch do
-      invoke :'puma:restart'
+    on :launch do
+      # invoke :'puma:restart'
       # invoke :'cron:update'
       # invoke :'delayed_job:start'
     end
@@ -91,26 +93,26 @@ end
 
 namespace :delayed_job do
   desc 'Starts delayed job threads'
-  task :start => :environment do
+  task :start => :remote_environment do
     queue "cd #{deploy_to}/#{current_path} && RAILS_ENV=production bin/delayed_job -n 3 start"
   end
 
   desc 'Stops delayed job threads'
-  task :stop => :environment do
+  task :stop => :remote_environment do
     queue "cd #{deploy_to}/#{current_path} &&  RAILS_ENV=production bin/delayed_job stop"
   end
 end
 
 ### Connect Rails Console###########
 desc 'RUN Console Locally'
-task "rails:console" => :environment do
+task "rails:console" => :remote_environment do
   invoke :'rvm:use[2.3.1@etyme]'
   queue! "cd #{deploy_to}/#{current_path} ; RAILS_ENV=production bundle exec rails c"
 end
 
 ### Check Logs ################
 desc 'Tail Logs'
-task "rails:log" => :environment do
+task "rails:log" => :remote_environment do
   invoke :'rvm:use[2.3.1@etyme]'
   queue! "cd #{deploy_to}/#{current_path} ; less log/production.log"
 end

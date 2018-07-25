@@ -20,6 +20,5 @@
 /log/
 /public/assets/
 /public/uploads/
-/config/database.yml
 /config/application.yml
 *.DS_Store
