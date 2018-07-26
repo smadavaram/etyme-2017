@@ -20,6 +20,6 @@
 /log/
 /public/assets/
 /public/uploads/
-/config/application.yml
+/config/secrets.yml
 /config/database.yml
 *.DS_Store
