@@ -12,7 +12,7 @@ class BuyVenReqDoc < ApplicationRecord
 
   def set_number
     # self.number = self.buy_contract.number
-    self.number = "BVRD_" + self.buy_contract.only_number.to_s
+    self.number = "BVRD_" + self.buy_contract&.number&.split("_")[1].to_s
   end
 
   # def display_number

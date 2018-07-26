@@ -12,7 +12,7 @@ class SellSendDocument < ApplicationRecord
 
   def set_number
     # self.number = self.sell_contract.number
-    self.number = "SSD_" + self.sell_contract.only_number.to_s
+    self.number = "SSD_" + self.sell_contract&.number&.split("_")[1].to_s
   end
 
   # def display_number

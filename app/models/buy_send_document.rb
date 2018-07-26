@@ -11,7 +11,7 @@ class BuySendDocument < ApplicationRecord
 
   def set_number
     # self.number = self.buy_contract.number
-    self.number = "BSD_" + self.buy_contract.only_number.to_s
+    self.number = "BSD_" + self.buy_contract&.number&.split("_")[1].to_s
   end
 
   # def display_number
