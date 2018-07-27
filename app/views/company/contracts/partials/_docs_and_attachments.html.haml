@@ -17,13 +17,13 @@
         .form-group
           %label.control-label
             %b Contract Type :     
-
-          %label W2
-          = bc.radio_button :contract_type, "W2" 
-          %labe 1099 
-          = bc.radio_button :contract_type, "1099"  
-          %label C2C
-          = bc.radio_button :contract_type, "C2C"
+          %span.contract-type-radio
+            %label W2
+            = bc.radio_button :contract_type, "W2" 
+            %labe 1099 
+            = bc.radio_button :contract_type, "1099"  
+            %label Corp-Corp
+            = bc.radio_button :contract_type, "C2C"
             
     .row.c2c-type.hidden
       .col-md-12
@@ -86,11 +86,11 @@
           %li.c2c-type.hidden
             %a{"data-toggle" => "tab", :href => "#tab-buy-ir"}
               %span.badge.bg-color-blueDark.txt-color-white
-              Invoice Receipt
+              Vendor Payment
           %li
             %a{"data-toggle" => "tab", :href => "#tab-buy-sc"}
               %span.badge.bg-color-blueDark.txt-color-white
-              Salary Calculation
+              %span.corp-corp Salary Calculation
           %li
             %a{"data-toggle" => "tab", :href => "#tab-buy-cc"}
               %span.badge.bg-color-blue.txt-color-white

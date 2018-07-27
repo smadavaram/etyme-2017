@@ -2,7 +2,7 @@ class Company::ContractsController < Company::BaseController
 
   before_action :find_job              , only: [:create]
   before_action :find_receive_contract , only: [:open_contract , :update_contract_response , :create_sub_contract ]
-  before_action :find_contract         , only: [:show , :update_attachable_doc , :change_invoice_date,:update,:edit]
+  before_action :find_contract         , only: [:show , :download, :update_attachable_doc , :change_invoice_date,:update,:edit]
   before_action :set_contracts         , only: [:index]
   before_action :find_attachable_doc   , only: [:update_attachable_doc]
   before_action :authorize_user_for_new_contract  , only: :new
@@ -19,6 +19,13 @@ class Company::ContractsController < Company::BaseController
   end
 
   def show
+    add_breadcrumb "#{@contract.number}"
+  end
+
+  def download
+    html = render_to_string( :layout => false)
+    pdf = WickedPdf.new.pdf_from_string(html)
+    send_data(pdf, :filename    => "#{@contract.title}.pdf", :type => "application/pdf", :disposition => 'attachment')
   end
 
   def new

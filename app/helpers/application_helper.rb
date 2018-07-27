@@ -1076,9 +1076,9 @@ module ApplicationHelper
     elsif pay_type == 'time_sheet' && pay_schedule == 'biweekly'
       "Every " + Date.parse(@contract.buy_contracts&.first&.ts_day_of_week&.titleize).try(:strftime, '%A')
     elsif pay_type == 'time_sheet' && pay_schedule == 'twice a month'
-      "On " + @contract.buy_contracts&.first&.ts_date_1&.try(:strftime, '%e %B %Y').to_s+' and '+@contract.buy_contracts&.first&.ts_date_2&.try(:strftime, '%e %B %Y').to_s
+      "On " + @contract.buy_contracts&.first&.ts_date_1&.try(:strftime, '%e').to_i.ordinalize.to_s+' and '+(@contract.buy_contracts&.first&.ts_date_2&.try(:strftime, '%e').to_i.ordinalize.to_s if @contract.buy_contracts&.first&.ts_date_2.present?).to_s+ (' End of month' if @contract.buy_contracts&.first&.ts_end_of_month).to_s
     elsif pay_type == 'time_sheet' && pay_schedule == 'monthly'
-      "On " + @contract.buy_contracts&.first&.ts_date_1&.try(:strftime, '%e %B %Y').to_s
+      "On " + (@contract.buy_contracts&.first&.ts_date_1&.try(:strftime, '%e').to_i.ordinalize.to_s if @contract.buy_contracts&.first&.ts_date_1.present?).to_s+ (' End of month' if @contract.buy_contracts&.first&.ts_end_of_month).to_s
 
     # for time sheet approve
     elsif pay_type == 'ts_approve' && pay_schedule == 'immediately'
@@ -1090,9 +1090,9 @@ module ApplicationHelper
     elsif pay_type == 'ts_approve' && pay_schedule == 'biweekly'
       "Every " + Date.parse(@contract.buy_contracts&.first&.ta_day_of_week&.titleize).try(:strftime, '%A')
     elsif pay_type == 'ts_approve' && pay_schedule == 'twice a month'
-      "On " + @contract.buy_contracts&.first&.ta_date_1&.try(:strftime, '%e %B %Y').to_s+' and '+@contract.buy_contracts&.first&.ta_date_2&.try(:strftime, '%e %B %Y').to_s
+      "On " + @contract.buy_contracts&.first&.ta_date_1&.try(:strftime, '%e').to_i.ordinalize.to_s+' and '+(@contract.buy_contracts&.first&.ta_date_2&.try(:strftime, '%e').to_i.ordinalize.to_s if @contract.buy_contracts&.first&.ta_date_2.present?).to_s+(' End of month' if @contract.buy_contracts&.first&.ta_end_of_month).to_s
     elsif pay_type == 'ts_approve' && pay_schedule == 'monthly'
-      "On " + @contract.buy_contracts&.first&.ta_date_1&.try(:strftime, '%e %B %Y').to_s
+      "On " + (@contract.buy_contracts&.first&.ta_date_1&.try(:strftime, '%e').to_i.ordinalize.to_s if @contract.buy_contracts&.first&.ta_date_1.present?).to_s+(' End of month' if @contract.buy_contracts&.first&.ta_end_of_month).to_s
 
     # for salary calculation
     elsif pay_type == 'salary_calculation' && pay_schedule == 'immediately'
@@ -1104,9 +1104,9 @@ module ApplicationHelper
     elsif pay_type == 'salary_calculation' && pay_schedule == 'biweekly'
       "Every " + Date.parse(@contract.buy_contracts&.first&.sc_day_of_week&.titleize).try(:strftime, '%A')
     elsif pay_type == 'salary_calculation' && pay_schedule == 'twice a month'
-      "On " + @contract.buy_contracts&.first&.sc_date_1&.try(:strftime, '%e %B %Y').to_s+' and '+@contract.buy_contracts&.first&.sc_date_2&.try(:strftime, '%e %B %Y').to_s
+      "On " + @contract.buy_contracts&.first&.sc_date_1&.try(:strftime, '%e').to_i.ordinalize.to_s+' and '+(@contract.buy_contracts&.first&.sc_date_2&.try(:strftime, '%e').to_i.ordinalize.to_s if @contract.buy_contracts&.first&.sc_date_2).to_s+(' End of month' if @contract.buy_contracts&.first&.sc_end_of_month )
     elsif pay_type == 'salary_calculation' && pay_schedule == 'monthly'
-      "On " + @contract.buy_contracts&.first&.sc_date_1&.try(:strftime ,'%e %B %Y').to_s
+      "On " + (@contract.buy_contracts&.first&.sc_date_1&.try(:strftime, '%e').to_i.ordinalize.to_s if @contract.buy_contracts&.first&.sc_date_1).to_s+ (' End of month' if @contract.buy_contracts&.first&.sc_end_of_month).to_s
 
     else
       ''
@@ -1124,9 +1124,9 @@ module ApplicationHelper
     elsif pay_type == 'time_sheet' && pay_schedule == 'biweekly'
       "Every " + Date.parse(@contract.sell_contracts&.first&.ts_day_of_week&.titleize).try(:strftime, '%A')
     elsif pay_type == 'time_sheet' && pay_schedule == 'twice a month'
-      "On " + @contract.sell_contracts&.first&.ts_date_1&.try(:strftime, '%e %B %Y').to_s+' and '+@contract.sell_contracts&.first&.ts_date_2&.tyr(:strftime, '%e %B %Y').to_s
+      "On " + @contract.sell_contracts&.first&.ts_date_1&.try(:strftime, '%e').to_i.ordinalize.to_s+' and '+(@contract.sell_contracts&.first&.ts_date_2&.try(:strftime, '%e').to_i.ordinalize.to_s if @contract.sell_contracts&.first&.ts_date_2.present? ).to_s+ (' End of month' if @contract.sell_contracts&.first&.ts_end_of_month).to_s
     elsif pay_type == 'time_sheet' && pay_schedule == 'monthly'
-      "On " + @contract.sell_contracts&.first&.ts_date_1&.try(:strftime, '%e %B %Y').to_s
+      "On " + (@contract.sell_contracts&.first&.ts_date_1&.try(:strftime, '%e').to_i.ordinalize.to_s if @contract.sell_contracts&.first&.ts_date_1).to_s+(' End of month' if @contract.sell_contracts&.first&.ts_end_of_month).to_s
 
     # for time sheet approve
     elsif pay_type == 'ts_approve' && pay_schedule == 'immediately'
@@ -1138,9 +1138,9 @@ module ApplicationHelper
     elsif pay_type == 'ts_approve' && pay_schedule == 'biweekly'
       "Every " + Date.parse(@contract.sell_contracts&.first&.ta_day_of_week&.titleize).try(:strftime, '%A')
     elsif pay_type == 'ts_approve' && pay_schedule == 'twice a month'
-      "On " + @contract.sell_contracts&.first&.ta_date_1&.try(:strftime, '%e %B %Y').to_s+' and '+@contract.sell_contracts&.first&.ta_date_2&.try(:strftime, '%e %B %Y').to_s
+      "On " + @contract.sell_contracts&.first&.ta_date_1&.try(:strftime, '%e').to_i.ordinalize.to_s+' and '+(@contract.sell_contracts&.first&.ta_date_2&.try(:strftime, '%e').to_i.ordinalize.to_s if @contract.sell_contracts&.first&.ta_date_2).to_s+(' End of month' if @contract.sell_contracts&.first&.ta_end_of_month).to_s
     elsif pay_type == 'ts_approve' && pay_schedule == 'monthly'
-      "On " + @contract.sell_contracts&.first&.ta_date_1&.try(:strftime, '%e %B %Y').to_s
+      "On " + (@contract.sell_contracts&.first&.ta_date_1&.try(:strftime, '%e').to_i.ordinalize.to_s if @contract.sell_contracts&.first&.ta_date_1).to_s+(' End of month' if @contract.sell_contracts&.first&.ta_end_of_month).to_s
 
     # for salary calculation
     elsif pay_type == 'invoice_terms_period' && pay_schedule == 'immediately'
@@ -1152,9 +1152,9 @@ module ApplicationHelper
     elsif pay_type == 'invoice_terms_period' && pay_schedule == 'biweekly'
       "Every " + Date.parse(@contract.sell_contracts&.first&.invoice_day_of_week&.titleize).try(:strftime, '%A')
     elsif pay_type == 'invoice_terms_period' && pay_schedule == 'twice a month'
-      "On " + @contract.sell_contracts&.first&.invoice_date_1&.try(:strftime, '%e %B %Y').to_s+' and '+@contract.sell_contracts&.first&.invoice_date_2&.try(:strftime, '%e %B %Y').to_s
+      "On " + @contract.sell_contracts&.first&.invoice_date_1&.try(:strftime, '%e').to_i.ordinalize.to_s+' and '+(@contract.sell_contracts&.first&.invoice_date_2&.try(:strftime, '%e').to_i.ordinalize.to_s if @contract.sell_contracts&.first&.invoice_date_2).to_s+(' End of month' if @contract.sell_contracts&.first&.invoice_end_of_month).to_s
     elsif pay_type == 'invoice_terms_period' && pay_schedule == 'monthly'
-      "On " + @contract.sell_contracts&.first&.invoice_date_1&.try(:strftime ,'%e %B %Y').to_s
+      "On " + (@contract.sell_contracts&.first&.invoice_date_1&.try(:strftime, '%e').to_i.ordinalize.to_s if @contract.sell_contracts&.first&.invoice_date_1).to_s+(' End of month' if @contract.sell_contracts&.first&.invoice_end_of_month).to_s
 
     else
       ''

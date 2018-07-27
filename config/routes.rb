@@ -359,6 +359,7 @@ Rails.application.routes.draw do
         get :set_job_application
       end
       member do
+        get :download
         post :update_attachable_doc
         get :tree_view
         get :received_contract

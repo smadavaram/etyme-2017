@@ -317,8 +317,8 @@ body.smart-style-6 #content.newsfeed.contracts {
 }
 .line-bottom {
     border-bottom: 1px solid #eee;
-    margin-bottom: 20px;
-    padding-bottom: 20px;
+    margin-bottom: 10px;
+    padding-bottom: 10px;
 }
 .contracts h3 {
     background: rgb(33,150,243);
@@ -1156,12 +1156,12 @@ input:checked + .slider1:before {
   }
 
   .date_box{
-    background: #fff none repeat scroll 0 0;
-    border: 1px solid #ddd;
+    background-color: #afe0f3;
+    border: 1px solid #cccc;
     padding: 8px;
     text-align: center; 
     width: 100px;
-    height: 60px;
+    height: 65px;
   }
   .contract_progress{
     position: absolute;
@@ -1179,4 +1179,9 @@ input:checked + .slider1:before {
     position: absolute;
     top:-18px;
   }
-  
+
+.rate_info{
+  background-color: #e5f2fd;
+  border: 1px solid #cccc;
+  padding: 10px;
+}
