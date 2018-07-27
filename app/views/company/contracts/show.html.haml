@@ -4,20 +4,26 @@
       .newsfeed-right
         .job-title
           .contract-top.clearfix.row
-            %div.col-sm-4
+            %div.col-sm-2
               %b
                 %span Contract ID: 
                 =@contract.number
               %h1.clearfix
                 =@contract.job.title
-            %div.col-sm-4.text-center
+            %div.col-sm-8.text-center
               %h5.text-success
                 = @contract.status&.titleize
-            %div.col-sm-4.text-right
+              %span
+                =link_to_if !@contract.accepted?, "Activate", update_contract_status_contract_path(@contract, status: "accepted"), method: :patch, class: "btn btn-default" do; end
+                =link_to_if @contract.accepted?, "End Contract", update_contract_status_contract_path(@contract, status: "is_ended"),method: :patch, class: "btn btn-default" do; end
+                =link_to_if @contract.accepted?, "Cancel Contract", update_contract_status_contract_path(@contract, status: "cancelled"),method: :patch, class: "btn btn-success" do; end
+                =link_to_if @contract.accepted?, "Pause Contract", update_contract_status_contract_path(@contract, status: "paused"),method: :patch, class: "btn btn-primary" do; end
+                =link_to "Timeline", "#", class: "btn btn-success"
+                =link_to "Tree View", tree_view_contract_path(@contract.number), class: "btn btn-primary"
+            %div.col-sm-2.text-right
               %h6
                 =@contract.created_at.strftime("%d/%m/%Y")
-              =link_to "Tree View", tree_view_contract_path(@contract.number)
-              %br
+              / =link_to "Tree View", tree_view_contract_path(@contract.number)
               =link_to 'Download', download_contract_path(@contract), class: 'btn btn-primary'
           %div.job-header.clearfix
             = image_tag "avatars/m_sunny_big.png"
@@ -280,7 +286,7 @@
                 %strong
                   Period :
                 %span
-                  = @contract.buy_contracts.try(:first).pr_start_date.strftime("#{@contract&.buy_contracts.try(:first).pr_start_date&.day&.ordinalize} %b %Y ").to_s+' to '+@contract&.buy_contracts.try(:first).pr_end_date&.strftime("#{@contract.buy_contracts.try(:first).pr_end_date&.day&.ordinalize} %b %Y ").to_s
+                  = @contract.buy_contracts.try(:first).pr_start_date&.try(:strftime, "#{@contract&.buy_contracts.try(:first).pr_start_date&.day&.ordinalize} %b %Y ").to_s+' to '+@contract&.buy_contracts.try(:first).pr_end_date&.strftime("#{@contract.buy_contracts.try(:first).pr_end_date&.day&.ordinalize} %b %Y ").to_s
               %br
               %div
                 %strong
