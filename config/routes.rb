@@ -362,6 +362,7 @@ Rails.application.routes.draw do
         post :update_attachable_doc
         get :tree_view
         get :received_contract
+        patch :update_contract_status
       end
 
       post :change_invoice_date

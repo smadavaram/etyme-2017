@@ -17,10 +17,10 @@
           %a{"data-toggle" => "tab", :href => "#tab3"}
             %span.step 3
             %span.title Buy Contract
-        %li{"data-target" => "#step4"}
-          %a{"data-toggle" => "tab", :href => "#tab4"}
-            %span.step 4
-            %span.title Activation
+        / %li{"data-target" => "#step4"}
+        /   %a{"data-toggle" => "tab", :href => "#tab4"}
+        /     %span.step 4
+        /     %span.title Activation
       .clearfix
     .tab-content
       #tab1.tab-pane.active
@@ -42,12 +42,12 @@
           %strong Step 3
           \- Buy Contract
         = render 'company/contracts/partials/docs_and_attachments' , f: contract
-      #tab4.tab-pane
-        %br/
-        %h3
-          %strong Step 4
-          \- Activation
-        = render 'company/contracts/partials/teams_and_commission', f: contract
+      / #tab4.tab-pane
+      /   %br/
+      /   %h3
+      /     %strong Step 4
+      /     \- Activation
+      /   = render 'company/contracts/partials/teams_and_commission', f: contract
 
       -##tab4.tab-pane
       -#  %br/

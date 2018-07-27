@@ -152,6 +152,9 @@ class Company::ContractsController < Company::BaseController
     @preferred_vendors_companies = Company.vendors - [current_company] || []
   end
 
+  def update_contract_status
+  end
+
   private
 
   def find_contract
@@ -260,7 +263,7 @@ class Company::ContractsController < Company::BaseController
     if @job.present? && params.has_key?(:job_id)
       contract_params.merge!(job_id: @job.id , created_by_id: current_user.id)
     else
-      contract_params.merge!(respond_by_id: current_user.id, created_by_id: current_user.id, status: Contract.statuses["accepted"])
+      contract_params.merge!(respond_by_id: current_user.id, created_by_id: current_user.id)
     end
   end
 
