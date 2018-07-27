@@ -328,8 +328,8 @@ class Contract < ApplicationRecord
 
   def set_on_seq
     ledger = Sequence::Client.new(
-      ledger_name: 'tanay-dev',
-      credential: 'WA2XJGNKMH4BCZCISRF7IA6DPDT7FGKI'
+      ledger_name: ENV['seq_ledgers'],
+      credential: ENV['seq_token']
     )
 
     com_key = ledger.keys.query({aliases: ['company']}).first
