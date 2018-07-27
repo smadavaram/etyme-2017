@@ -1185,3 +1185,14 @@ input:checked + .slider1:before {
   border: 1px solid #cccc;
   padding: 10px;
 }
+.contract_heading{
+  font-size: 28px !important;
+  font-weight: 500 !important;
+  text-align: left !important;
+  padding-left: 18px !important;
+  background: none !important;
+  border-bottom: none !important;
+}
+.contract_sub_heading{
+  font-size: 18px;
+}
