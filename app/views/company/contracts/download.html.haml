@@ -1,0 +1,464 @@
+!!!
+%html.app{:lang => "en"}
+  %head
+    %meta{:content => "text/html; charset=UTF-8", "http-equiv" => "Content-Type"}/
+    %meta{:charset => "utf-8"}/
+    %meta{:content => "width=device-width, initial-scale=1, maximum-scale=1", :name => "viewport"}/
+    %title
+    = stylesheet_link_tag wicked_pdf_asset_base64("style.css")
+%body
+  #content.newsfeed.contracts
+    %container
+      %section#widget-grid.clearfix
+
+        .job-title
+          .contract-top.clearfix
+            %span.pull-left
+              %b
+                %span Contract ID: 
+                =@contract.number
+              %h1.clearfix
+                =@contract.job.title
+            %span.pull-right
+              %i.fa.fa-calendar-o
+              =@contract.created_at.strftime("%d/%m/%Y")
+              %br
+              =link_to "Tree View", tree_view_contract_path(@contract.number)
+              %br
+                =@contract.status&.titleize
+          %div.job-header.clearfix
+            = image_tag "avatars/m_sunny_big.png"
+            %p.job_title
+              %b
+                =@contract.client.try(:full_name)
+          %br
+          %div.row
+            %div.col-sm-6.col-md-6.col-lg-6
+              .job-location
+                %span
+                  %i.fa.fa-map-marker
+                  =@contract.work_location
+                %span
+                  %i.fa.fa-user
+                  =@contract.candidate.try(:full_name)
+            %div.col-sm-6.col-md-6.col-lg-6
+              %div.divided
+                %span.date_box
+                  %span
+                    Start Date
+                  %span
+                    = @contract.start_date.strftime('%d %B %Y')
+                %span.contract_progress
+                %span.divider
+                %span.date_box
+                  %span
+                    End Date
+                  %span
+                    = @contract.end_date.strftime('%d %B %Y')
+        .col-sm-6.col-md-6.col-lg-6
+          %h3
+            sell
+          %div.sell-side.box
+            %div.contract-custome-details.line-bottom
+              %h5
+                Company Name : #{@contract.sell_contracts.first.try(:company).try(:full_name)}
+              %div.row
+                .col-sm-6.col-md-6.col-lg-6
+                  %strong
+                    Website :
+                  %span
+                    =@contract.sell_contracts&.first&.company&.website
+                  %strong
+                    Location :
+                    %span
+                      - @contract.sell_contracts&.first&.company&.addresses.each do |address|
+                        =address.address_1
+                .col-sm-6.col-md-6.col-lg-6.text-center
+                  %div.rate_info
+                    %h5 
+                      Customer Rate
+                    %span
+                      = @contract.sell_contracts&.first&.customer_rate.present? ? '$' + @contract.sell_contracts.first.customer_rate.to_s + " / " + @contract.sell_contracts.first.customer_rate_type.to_s : ""
+            %div
+              %div.contract-custome-details.line-bottom
+                %h5
+                  Business Contact Name
+                %div.row
+                  -@contract.sell_contracts.first.contract_sell_business_details.each do |contract_sell_business_detail|
+                    .col-sm-6.col-md-6.col-lg-6
+                      %div
+                        %b
+                          =contract_sell_business_detail.company_contact&.full_name
+                        %div
+                          =contract_sell_business_detail.company_contact&.department
+                        %div
+                          =contract_sell_business_detail.company_contact&.phone
+                        %div
+                          =contract_sell_business_detail.company_contact&.email
+            %div
+              %div.contract-custome-details.line-bottom
+                %h5
+                  Accounting & Work hours terms
+                %div.row
+                  .col-sm-12.col-md-12.col-lg-12
+                    %div
+                      %span
+                        Customer Rate:
+                      %span
+                        =@contract.sell_contracts&.first&.customer_rate.present? ? '$' + @contract.sell_contracts.first.customer_rate.to_s + " / " + @contract.sell_contracts.first.customer_rate_type.to_s : ""
+
+                %div.row
+                  .col-sm-12.col-md-12.col-lg-12
+                    %div
+                      %span
+                        Payment Terms:
+                      %span
+                        =@contract.sell_contracts&.first&.payment_term
+                %br
+                %div.row
+                  .col-sm-4.col-md-4.col-lg-4
+                    %div.sell-side.contract_box
+                      %p
+                        Submit Timesheet
+                      %h5
+                        =@contract.sell_contracts&.first&.time_sheet
+                      %p
+                        =sell_contract_time_sheet('time_sheet', @contract.sell_contracts&.first&.time_sheet)
+                  .col-sm-4.col-md-4.col-lg-4
+                    %div.sell-side.contract_box
+                      %p
+                        Approve Timesheet
+                      %h5
+                        =@contract.sell_contracts&.first&.ts_approve
+                      %p
+                        =sell_contract_time_sheet('ts_approve', @contract.sell_contracts&.first&.ts_approve)
+
+                  .col-sm-4.col-md-4.col-lg-4
+                    %div.sell-side.contract_box
+                      %p
+                        Invoice Timesheet
+                      %h5
+                        =@contract.sell_contracts&.first&.invoice_terms_period
+                      %p
+                        =sell_contract_time_sheet('invoice_terms_period', @contract.sell_contracts&.first&.invoice_terms_period)
+                %div.row
+                  .col-sm-12.col-md-12.col-lg-12
+                    %span
+                      %b 
+                        Show Accounting to employee:
+                        = @contract.sell_contracts.first.show_accounting_to_employee == true ? "Yes" : "No" 
+            %div.contract-custome-details.line-bottom
+              %h5
+                Send Documents
+              %div.row
+                .col-sm-6.col-md-6.col-lg-6
+                  %span
+                    %b
+                      Documents
+                .col-sm-2.col-md-2.col-lg-2
+                  %span
+                    %b
+                      Expire
+                .col-sm-2.col-md-2.col-lg-2
+                  %span
+                    %b
+                      Owner
+                .col-sm-2.col-md-2.col-lg-2
+                  %span
+                    %b
+                      Signature
+              %br
+              %div.row
+                -@contract.sell_contracts.first.sell_send_documents.each do |ssd|
+                  .col-sm-6.col-md-6.col-lg-6
+                    %span
+                      %i.fa.fa-paperclip
+                      =link_to ssd.file_name, ssd.doc_file, target: "_blank", class: 'text-break'
+                  .col-sm-2.col-md-2.col-lg-2
+                    %span
+                      =ssd.when_expire&.strftime('%d/%m/%Y')
+                  .col-sm-2.col-md-2.col-lg-2
+                    %span
+                      =ssd.creatable.full_name
+                  .col-sm-2.col-md-2.col-lg-2
+                    %span
+                      - ssd.document_signs.each do |ds|
+                        = ds.signable.full_name
+            
+            %div.contract-custome-details.line-bottom
+              %h5
+                Request Documents
+              %div.row
+                .col-sm-6.col-md-6.col-lg-6
+                  %span
+                    %b 
+                      Documents
+                .col-sm-2.col-md-2.col-lg-2
+                  %span
+                    %b
+                      Expire
+                .col-sm-2.col-md-2.col-lg-2
+                  %span
+                    %b
+                      Owner
+                .col-sm-2.col-md-2.col-lg-2
+                  %span
+                    %b
+                      Signature
+              %br
+              -@contract.sell_contracts.first.sell_request_documents.each do |srd|
+                %div.row
+                  .col-sm-6.col-md-6.col-lg-6
+                    %span
+                      %i.fa.fa-paperclip
+                      =link_to srd.file_name, srd.doc_file, target: "_blank", class: 'text-break'
+                  .col-sm-2.col-md-2.col-lg-2
+                    %span
+                      =srd.when_expire&.strftime('%d/%m/%Y')
+                  .col-sm-2.col-md-2.col-lg-2
+                    %span
+                      =srd.creatable.full_name
+                  .col-sm-2.col-md-2.col-lg-2
+                    %span
+                      - srd.document_signs.each do |ds|
+                        = ds.signable.full_name
+           
+        .col-sm-6.col-md-6.col-lg-6
+          %h3
+            Buy
+          %div.contract-custome-details.box
+            %h5
+              = @contract.candidate.full_name+' ($'+@contract.buy_contracts&.first&.payrate&.to_i.to_s+' / '+@contract.buy_contracts&.first&.payrate_type+')'
+            %div.contract-custome-details.line-bottom
+              .row
+                .col-sm-6.col-md-6.col-lg-6
+                  .col-sm-12
+                    %strong
+                      Contract type :
+                    %span
+                      =@contract.buy_contracts.first.try(:contract_type)
+                  .col-sm-12
+                    %strong
+                      Candidate Address :
+                    %span
+                      =@contract.candidate&.addresses&.first&.address_1 if @contract.candidate && @contract.candidate.addresses.present?
+                .col-sm-6.col-md-6.col-lg-6.rate_info.text-center
+                  %h5
+                    Freelancer rate
+                  %span
+                    = '$'+@contract.buy_contracts&.first&.payrate.to_i.to_s+' / '+@contract.buy_contracts&.first&.payrate_type
+              %h6
+                Company Name : #{@contract.buy_contracts&.first&.candidate&.companies&.first&.full_name}
+              %strong
+                Website:
+              %span
+                =@contract.buy_contracts&.first&.candidate&.companies&.first&.website
+              %br
+              %strong
+                Location :
+              %span
+                =@contract.buy_contracts&.first&.candidate&.companies&.first&.addresses&.first&.address_1
+
+            %div.contract-custome-details.line-bottom
+              %h5
+                Business Contact Name
+              %div.row
+                -@contract.sell_contracts.first.contract_sell_business_details.each do |csbd|
+                  .col-sm-6.col-md-6.col-lg-6
+                    %b
+                      =csbd.company_contact.full_name
+                    %div
+                      =csbd.company_contact.phone
+                    %div
+                      =csbd.company_contact.email
+                    %div
+                      =csbd.company_contact.department
+            
+            %div.contract-accounting
+              %h5
+                Accounting & Work hours terms
+              %div
+                %strong
+                  FreeLancer Rate :
+                %span
+                  = '$ '+@contract.buy_contracts.try(:first).payrate.to_s+' / '+@contract.buy_contracts.try(:first).payrate_type
+              %br
+              %div
+                %strong
+                  Period :
+                %span
+                  = @contract.buy_contracts.try(:first).pr_start_date.strftime("#{@contract.buy_contracts.try(:first).pr_start_date.day.ordinalize} %b %Y ").to_s+' to '+@contract.buy_contracts.try(:first).pr_end_date.strftime("#{@contract.buy_contracts.try(:first).pr_end_date.day.ordinalize} %b %Y ").to_s
+              %br
+              %div
+                %strong
+                  USCIS Rate :
+                %span
+                  = '$'+@contract.buy_contracts.try(:first).uscis_rate.to_s
+              %div.row
+                .col-sm-4.col-md-4.col-lg-4
+                  %div.sell-side.contract_box
+                    %p
+                      Submit Timesheet
+                    %h5
+                      =@contract.buy_contracts&.first&.time_sheet
+                    %p
+                      =buy_contract_time_sheet('time_sheet', @contract.buy_contracts&.first&.time_sheet)
+                .col-sm-4.col-md-4.col-lg-4
+                  %div.buy-side.contract_box
+                    %p
+                      Approve Timesheet
+                    %h5
+                      =@contract.buy_contracts&.first&.ts_approve
+                    %p
+                      =buy_contract_time_sheet('ts_approve',@contract.buy_contracts&.first&.ts_approve)
+
+                .col-sm-4.col-md-4.col-lg-4
+                  %div.buy-side.contract_box
+                    %p
+                      Salary Calculation
+                    %h5
+                      =@contract.buy_contracts&.first&.salary_calculation
+                    %p
+                      =buy_contract_time_sheet('salary_calculation', @contract.buy_contracts&.first&.salary_calculation)
+            %hr
+            %div.table-responsive
+              Comission:
+              %table.table.table-bordered
+                %thead
+                  %tr
+                    %th Name
+                    %th Rate
+                    %th Frequency
+                    %th Limit
+                  -@contract.buy_contracts.first.contract_sale_commisions.each do |csc|
+                    %tr
+                      %td
+                        =csc.csc_accounts.map{ |a|  a.accountable.full_name}.join(', ')
+                      %td
+                        =csc.rate
+                      %td
+                        =csc.frequency
+                      %td
+                        =csc.limit
+            %div.contract-custome-details.line-bottom
+              %strong
+                Payroll date:
+              %span
+                = @contract.buy_contracts.try(:first).payroll_date&.try(:strftime, '%e').to_s+' of each month'
+            %div.contract-custome-details.line-bottom
+              %strong
+                Comissiom Payment terms:
+              %span
+                = @contract.buy_contracts.try(:first).commission_payment_term
+            %div.contract-custome-details.line-bottom
+              %h5
+                Send Documents
+              %div.row
+                .col-sm-6.col-md-6.col-lg-6
+                  %span
+                    %b
+                      Documents
+                .col-sm-2.col-md-2.col-lg-2
+                  %span
+                    %b
+                      Expire
+                .col-sm-2.col-md-2.col-lg-2
+                  %span
+                    %b
+                      Owner
+                .col-sm-2.col-md-2.col-lg-2
+                  %span
+                    %b
+                      Signature
+              %br
+              %div.row
+                -@contract.buy_contracts.first.buy_send_documents.each do |bsd|
+                  .col-sm-6.col-md-6.col-lg-6
+                    %span
+                      %i.fa.fa-paperclip
+                      =link_to bsd.file_name, bsd.doc_file, target: "_blank", class: 'text-break'
+                  .col-sm-2.col-md-2.col-lg-2
+                    %span
+                      =bsd.creatable.full_name
+                  .col-sm-2.col-md-2.col-lg-2
+                    %span
+                      - bsd.document_signs.each do |ds|
+                        = ds.signable.full_name
+
+
+            %div.contract-custome-details.line-bottom
+              %h5
+                Request Documents
+              %div.row
+                .col-sm-6.col-md-6.col-lg-6
+                  %span
+                    %b 
+                      Documents
+                .col-sm-2.col-md-2.col-lg-2
+                  %span
+                    %b
+                      Expire
+                .col-sm-2.col-md-2.col-lg-2
+                  %span
+                    %b
+                      Owner
+                .col-sm-2.col-md-2.col-lg-2
+                  %span
+                    %b
+                      Signature
+              %br
+              %div.row
+                -@contract.buy_contracts.first.buy_emp_req_docs.each do |berd|
+                  .col-sm-6.col-md-6.col-lg-6
+                    %span
+                      %i.fa.fa-paperclip
+                      =link_to berd.file_name, berd.doc_file, target: "_blank", class: 'text-break'
+                  .col-sm-2.col-md-2.col-lg-2
+                    %span
+                      =berd.creatable.full_name
+                  .col-sm-2.col-md-2.col-lg-2
+                    %span
+                      - berd.document_signs.each do |ds|
+                        = ds.signable.full_name
+
+            %div.row 
+              -@contract.buy_contracts.first.buy_ven_req_docs.each do |bvrd|
+                .col-sm-6.col-md-6.col-lg-6
+                  %span
+                    %i.fa.fa-paperclip
+                    =link_to bvrd.file_name, bvrd.doc_file, target: "_blank", class: 'text-break'
+                .col-sm-2.col-md-2.col-lg-2
+                  %span
+                    =bvrd.creatable.full_name
+                .col-sm-2.col-md-2.col-lg-2
+                  %span
+                    - bvrd.document_signs.each do |ds|
+                      = ds.signable.full_name
+
+                    
+- if @contract.pending? && !@contract.is_sent?(current_company)
+  - content_for :modals do
+    #ajax-modal
+    = render 'company/contracts/partials/accept_contract_modal' , contract: @contract , status: 'accept'
+    = render 'company/contracts/partials/accept_contract_modal' , contract: @contract , status: 'reject'
+  - content_for :scripts do
+    :javascript
+      function openAccept(){
+        $("#contract-accept-#{@contract.id}").modal('show');
+      }
+      $(".upload-doc-button").click(function(){
+        file = '.'+$(this).attr('id');
+        filepicker.setKey("#{ENV['filepicker_api_key']}");
+        filepicker.pick({},function(blob){
+          $(file).val(blob.url);
+          $(file).parent().submit();
+        });
+      });
+- content_for :scripts do
+  :javascript
+    $('.contract_progress').attr('data-content','0%');
+    $('.contract_progress').css('left', '#{(((@contract.contract_progress.to_f*54)/100).to_f+21).round}%');
+    $('.contract_progress').attr('data-content','#{@contract.contract_progress.to_f.round}%');
+
+      
+
