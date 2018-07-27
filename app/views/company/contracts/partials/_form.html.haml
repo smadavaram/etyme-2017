@@ -229,8 +229,10 @@
       $(".contract-type-radio input[type='radio']").on("change", function(){
         if($(this).val() == "C2C"){
           $(".c2c-type").removeClass('hidden');
+          $('.corp-corp').text('Vendor Bill');
         } else {
           $(".c2c-type").addClass('hidden');
+          $('.corp-corp').text('Salary Calculation');
         }
       });
 

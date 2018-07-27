@@ -187,7 +187,7 @@ var set_commission_user_select = function(selector, palce_holder){
                 cache: true
             },
             placeholder: palce_holder,
-            multiple: true,
+            multiple: false,
             escapeMarkup: function (markup) { return markup; },
             templateResult: formatRepo,
             templateSelection: formatRepoSelection
