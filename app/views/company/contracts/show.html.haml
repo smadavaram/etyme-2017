@@ -4,32 +4,36 @@
       .newsfeed-right
         .job-title
           .contract-top.clearfix.row
-            %div.col-sm-2
+            %div.col-sm-6
               %b
                 %span Contract ID: 
                 =@contract.number
               %h1.clearfix
-                =@contract.job.title
-            %div.col-sm-8.text-center
-              %span
-                =link_to_if !@contract.accepted?, "Activate", update_contract_status_contract_path(@contract, status: "accepted"), method: :patch, class: "btn btn-success" do; end
-                =link_to_if @contract.accepted?, "End Contract", update_contract_status_contract_path(@contract, status: "is_ended"),method: :patch, class: "btn btn-danger" do; end
-                =link_to_if @contract.accepted?, "Cancel Contract", update_contract_status_contract_path(@contract, status: "cancelled"),method: :patch, class: "btn btn-primary" do; end
-                =link_to_if @contract.accepted?, "Pause Contract", update_contract_status_contract_path(@contract, status: "paused"),method: :patch, class: "btn btn-primary" do; end
-                =link_to "Timeline", "#", class: "btn btn-primary"
-                =link_to "Tree View", tree_view_contract_path(@contract.number), class: "btn btn-primary"
-            %div.col-sm-2.text-right
+                %b
+                  =@contract.job.title
+              %h5
+                %b Contract type:
+                %span
+                  = @contract&.contract_type
+            %div.col-sm-6.text-right
               %h5{:class => "#{@contract.status=='is_ended' ? 'text-danger' : 'text-success'}"}
-                = @contract.status == "is_ended" ? "Ended" : @contract.status&.titleize
+                = @contract.status == "is_ended" ? "Ended" : @contract.status == 'pending'  ? 'Pending Activation'  :  @contract.status == 'accepted'  ? 'Active' : @contract.status&.titleize 
               %h6
-                =@contract.created_at.strftime("%d/%m/%Y")
+                %span Contract Date:
+                =@contract.created_at.strftime("%d %B %Y")
               / =link_to "Tree View", tree_view_contract_path(@contract.number)
               =link_to 'Download', download_contract_path(@contract), class: 'btn btn-primary'
-          %div.job-header.clearfix
-            = image_tag "avatars/m_sunny_big.png"
-            %p.job_title
-              %b
-                =@contract.client.try(:full_name)
+          .row
+            %div.job-header.clearfix.col-sm-4
+              = image_tag "avatars/m_sunny_big.png"
+              %p.job_title
+                %b
+                  =@contract.client.try(:full_name)
+            %div.col-sm-4.job-header
+              = image_tag "avatars/m_sunny_big.png"
+              %p.job_title
+                %b
+                  =@contract.candidate.try(:full_name)
           %br
           %div.row
             %div.col-sm-6.col-md-6.col-lg-6
@@ -37,14 +41,12 @@
                 %span
                   %i.fa.fa-map-marker
                   =@contract.work_location
-                %span
-                  %i.fa.fa-user
-                  =@contract.candidate.try(:full_name)
             %div.col-sm-6.col-md-6.col-lg-6
               %div.divided
                 %span.date_box
                   %span
                     Start Date
+                  %br
                   %span
                     = @contract.start_date.strftime('%d %B %Y')
                 %span.contract_progress
@@ -52,8 +54,17 @@
                 %span.date_box
                   %span
                     End Date
+                  %br
                   %span
                     = @contract.end_date.strftime('%d %B %Y')
+        %div.text-center.col-sm-12
+          =link_to_if @contract.pending?, "Activate", update_contract_status_contract_path(@contract, status: "accepted"), method: :patch, class: "btn btn-success" do; end
+          =link_to_if @contract.is_ended?, "Re-Activate Now", update_contract_status_contract_path(@contract, status: "accepted"), method: :patch, class: "btn btn-success" do; end
+          =link_to_if @contract.accepted? || @contract.in_progress? , "End Contract", update_contract_status_contract_path(@contract, status: "is_ended"),method: :patch, class: "btn btn-danger" do; end
+          =link_to_if @contract.accepted? || @contract.in_progress?, "Cancel Contract", update_contract_status_contract_path(@contract, status: "cancelled"),method: :patch, class: "btn btn-primary" do; end
+          / =link_to_if @contract.accepted?, "Pause Contract", update_contract_status_contract_path(@contract, status: "paused"),method: :patch, class: "btn btn-primary" do; end
+          =link_to "Timeline", "#", class: "btn btn-primary"
+          =link_to "Tree View", tree_view_contract_path(@contract.number), class: "btn btn-primary"
         .col-sm-6.col-md-6.col-lg-6
           %h2.contract_heading
             sell
@@ -70,11 +81,12 @@
                     Website :
                   %span
                     =@contract.sell_contracts&.first&.company&.website
+                  %br
                   %strong
                     Location :
-                    %span
-                      - @contract.sell_contracts&.first&.company&.addresses.each do |address|
-                        =address.address_1
+                  %span
+                    - @contract.sell_contracts&.first&.company&.addresses.each do |address|
+                      =address.address_1
                 .col-sm-6.col-md-6.col-lg-6.text-center
                   %div.rate_info
                     %h5 
@@ -113,11 +125,7 @@
 
                   %div.row
                     .col-sm-12.col-md-12.col-lg-12
-                      %div
-                        %span
-                          Payment Terms:
-                        %span
-                          =@contract.sell_contracts&.first&.payment_term
+
                   %br
                   %div.row
                     .col-sm-4.col-md-4.col-lg-4
@@ -145,6 +153,10 @@
                           =@contract.sell_contracts&.first&.invoice_terms_period
                         %p
                           =sell_contract_time_sheet('invoice_terms_period', @contract.sell_contracts&.first&.invoice_terms_period)
+                        %strong
+                          Payment Terms:
+                        %span
+                          =@contract.sell_contracts&.first&.payment_term
                   %div.row
                     .col-sm-12.col-md-12.col-lg-12
                       %span
@@ -242,16 +254,15 @@
             %div.contract-custome-details.line-bottom
               .row
                 .col-sm-6.col-md-6.col-lg-6
-                  .col-sm-12
-                    %strong
-                      Contract type :
-                    %span
-                      =@contract.buy_contracts.first.try(:contract_type)
-                  .col-sm-12
-                    %strong
-                      Candidate Address :
-                    %span
-                      =@contract.candidate&.addresses&.first&.address_1 if @contract.candidate && @contract.candidate.addresses.present?
+                  %strong
+                    Contract type :
+                  %span
+                    =@contract.buy_contracts.first.try(:contract_type)
+                  %br
+                  %strong
+                    Candidate Address :
+                  %span
+                    =@contract.candidate&.addresses&.first&.address_1 if @contract.candidate && @contract.candidate.addresses.present?
                 .col-sm-6.col-md-6.col-lg-6.rate_info.text-center
                   %h5
                     Freelancer rate
@@ -332,6 +343,9 @@
                         =@contract.buy_contracts&.first&.salary_calculation
                       %p
                         =buy_contract_time_sheet('salary_calculation', @contract.buy_contracts&.first&.salary_calculation)
+                %h5
+                  Salary Date:
+                  = @contract&.company&.payroll_infos&.first&.payroll_date.try(:strftime, '%d %B %Y')
             %br
             %div.table-responsive
               %h3.contract_sub_heading

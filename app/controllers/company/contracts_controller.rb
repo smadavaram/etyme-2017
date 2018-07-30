@@ -61,7 +61,7 @@ class Company::ContractsController < Company::BaseController
       if @contract.save
         format.html {
           flash[:success] = "successfully Send."
-          redirect_to tree_view_contract_path(@contract.number) #contract_path(@contract)
+          redirect_to contract_path(@contract)
         }
         format.js{ flash.now[:success] = "successfully Send." }
       else
