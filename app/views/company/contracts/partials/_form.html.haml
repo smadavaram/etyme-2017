@@ -13,7 +13,7 @@
           %a{"data-toggle" => "tab", :href => "#tab2"}
             %span.step 2
             %span.title Sell Contract
-        %li{"data-target" => "#step3"}
+        %li.step3{"data-target" => "#step3"}
           %a{"data-toggle" => "tab", :href => "#tab3"}
             %span.step 3
             %span.title Buy Contract
@@ -21,6 +21,12 @@
         /   %a{"data-toggle" => "tab", :href => "#tab4"}
         /     %span.step 4
         /     %span.title Activation
+      .form-bootstrapWizard
+        %ul.bootstrapWizard.form-wizard
+          %li.step4{"data-target" => "#step4"}
+            %a{"data-toggle" => "tab", :href => "#tab4"}
+              %span.step 4
+              %span.title Activation
       .clearfix
     .tab-content
       #tab1.tab-pane.active

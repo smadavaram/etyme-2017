@@ -10,7 +10,9 @@
         -f.object.csc_accounts.build
         =f.fields_for :csc_accounts do |csca|
           = link_to_add_fields 'available_tour_fields', f, :csc_accounts, {partial: 'company/contracts/csc_accounts_fields'}, {class: 'com-user-generater hidden'}
-          = csca.select :accountable, {}, {}, class: "form-control commission-user" , placeholder: ""
+          / = csca.select :accountable, {}, {}, class: "form-control commission-user" , placeholder: ""
+          = csca.select :accountable_id, current_company.admins.collect { |x| [x.full_name, x.id.to_i]}, {}, class: "form-control" , placeholder: ""
+          = csca.hidden_field :accountable_type, value: 'Admin'
 
     .col-md-3
       .form-group

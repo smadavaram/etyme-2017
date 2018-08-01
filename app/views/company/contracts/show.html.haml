@@ -25,12 +25,12 @@
           .row
             %div.job-header.clearfix.col-sm-4
               = image_tag "avatars/m_sunny_big.png"
-              %p.job_title
+              %p.job_title.thumb_name
                 %b
                   =@contract.client.try(:full_name)
             %div.col-sm-4.job-header
               = image_tag "avatars/m_sunny_big.png"
-              %p.job_title
+              %p.job_title.thumb_name
                 %b
                   =@contract.candidate.try(:full_name)
           %br
