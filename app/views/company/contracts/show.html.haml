@@ -14,15 +14,14 @@
               %h5
                 %b Contract type:
                 %span
-                  = @contract&.contract_type
+                  = @contract&.buy_contracts&.first&.contract_type
             %div.col-sm-6.text-right
-              %h5{:class => "#{@contract.status=='is_ended' ? 'text-danger' : 'text-success'}"}
+              %h5{:class => "#{@contract.status=='is_ended' || @contract.status == 'pending' || @contract.status == 'cancelled' ? 'text-danger' : 'text-success'}"}
                 = @contract.status == "is_ended" ? "Ended" : @contract.status == 'pending'  ? 'Pending Activation'  :  @contract.status == 'accepted'  ? 'Active' : @contract.status&.titleize 
               %h6
                 %span Contract Date:
                 =@contract.created_at.strftime("%d %B %Y")
               / =link_to "Tree View", tree_view_contract_path(@contract.number)
-              =link_to 'Download', download_contract_path(@contract), class: 'btn btn-primary'
           .row
             %div.job-header.clearfix.col-sm-4
               = image_tag "avatars/m_sunny_big.png"
@@ -65,6 +64,7 @@
           / =link_to_if @contract.accepted?, "Pause Contract", update_contract_status_contract_path(@contract, status: "paused"),method: :patch, class: "btn btn-primary" do; end
           =link_to "Timeline", "#", class: "btn btn-primary"
           =link_to "Tree View", tree_view_contract_path(@contract.number), class: "btn btn-primary"
+          =link_to 'Download', download_contract_path(@contract), class: 'btn btn-primary'
         .col-sm-6.col-md-6.col-lg-6
           %h2.contract_heading
             sell
@@ -409,6 +409,9 @@
                         =link_to bsd.file_name, bsd.doc_file, target: "_blank", class: 'text-break'
                     .col-sm-2.col-md-2.col-lg-2
                       %span
+                        = bsd.when_expire&.strftime('%d/%m/%Y')
+                    .col-sm-2.col-md-2.col-lg-2
+                      %span
                         =bsd.creatable.full_name
                     .col-sm-2.col-md-2.col-lg-2
                       %span
@@ -446,6 +449,9 @@
                         =link_to berd.file_name, berd.doc_file, target: "_blank", class: 'text-break'
                     .col-sm-2.col-md-2.col-lg-2
                       %span
+                        = berd.when_expire&.strftime('%d/%m/%Y')
+                    .col-sm-2.col-md-2.col-lg-2
+                      %span
                         =berd.creatable.full_name
                     .col-sm-2.col-md-2.col-lg-2
                       %span
@@ -457,6 +463,9 @@
                       %span
                         %i.fa.fa-paperclip
                         =link_to bvrd.file_name, bvrd.doc_file, target: "_blank", class: 'text-break'
+                    .col-sm-2.col-md-2.col-lg-2
+                      %span
+                        = bvrd.when_expire&.strftime('%d/%m/%Y')
                     .col-sm-2.col-md-2.col-lg-2
                       %span
                         =bvrd.creatable.full_name
