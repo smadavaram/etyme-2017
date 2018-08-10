@@ -151,7 +151,11 @@ Rails.application.routes.draw do
       resources :conversation_messages
     end
 
-    resources :contracts, only: [:index]
+    resources :contracts, only: [:index] do
+      collection do
+        get :timeline
+      end
+    end
     resources :timesheets, only: [:index, :new, :create, :update] do
       post :get_timesheets, on: :collection
       get :submitted_timesheets, on: :collection
@@ -357,6 +361,8 @@ Rails.application.routes.draw do
       collection do
         post :nested_create
         get :set_job_application
+        get :timeline
+        get :filter_timeline
       end
       member do
         get :download

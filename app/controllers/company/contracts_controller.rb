@@ -164,6 +164,21 @@ class Company::ContractsController < Company::BaseController
     redirect_back fallback_location: root_path
   end
 
+
+  def timeline
+    @contracts = current_company.contracts
+    @candidates = current_company.candidates.uniq
+    @todo_contract_cycles = current_company.contract_cycles.where(status: 'pending').where('DATE(contract_cycles.end_date) BETWEEN ? AND ?', Date.today, 11.days.from_now.to_date).order(start_date: :asc)
+    @completed_contract_cycles = current_company.contract_cycles.where(status: 'completed').order(id: :asc)
+    @overdue_contract_cycles = current_company.contract_cycles.where(status: 'pending').where("DATE(contract_cycles.end_date) < ?", DateTime.now.end_of_day.to_date).order(start_date: :desc)
+  end
+
+  def filter_timeline
+    @contract = current_company.contracts.filter(params.slice(:candidate, :contract))
+    @candidates = current_company.candidates.uniq
+  end
+
+
   private
 
   def find_contract

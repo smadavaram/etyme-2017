@@ -49,7 +49,7 @@
 - @temp = []
 -@timesheets.each do |ts|
   -@temp.push({ timesheet_id: ts.id,
-                creation_date: ts.created_at,
+                creation_date: ts.created_at.strftime('%Y-%m-%d'),
                 contract: ts.contract.number,
                 client: ts.contract.client.full_name,
                 tax_type: ts.contract.buy_contracts.first.contract_type,
@@ -59,9 +59,10 @@
                 timesheet_clyver: "#{ts.start_date} - #{ts.end_date}",
                 date: ts.submitted_date,
                 hours: ts.total_time,
-                amount: (ts.total_time * ts.contract.buy_contracts.first.payrate),
+                amount: (ts.total_time * (ts&.contract&.buy_contracts&.first.payrate.present? ? ts&.contract&.buy_contracts&.first.payrate : 0 )),
                 attachment: ts.timesheet_attachment,
-                status: ts.status})
+                status: ts.status,
+                act: time_sheet_approve_date(ts&.contract&.buy_contracts&.first)})
 
 -# var ajqgrid_data = #{raw(@temp.to_json)};
 
@@ -157,13 +158,14 @@
         for (var i = 0; i < ids.length; i++) {
           var cl = ids[i];
           var id = $("#jqgrid").jqGrid('getCell', cl, "timesheet_id");
+          var message = $("#jqgrid").jqGrid('getCell', cl, "act");
 
           be = "<button class='btn btn-xs btn-default' data-original-title='Edit Row' onclick=\"jQuery('#jqgrid').editRow('" + cl + "');\"><i class='fa fa-pencil'></i></button>";
           se = "<button class='btn btn-xs btn-default' data-original-title='Save Row' onclick=\"jQuery('#jqgrid').saveRow('" + cl + "');\"><i class='fa fa-save'></i></button>";
           ca = "<button class='btn btn-xs btn-default' data-original-title='Cancel' onclick=\"jQuery('#jqgrid').restoreRow('" + cl + "');\"><i class='fa fa-times'></i></button>";
 
-          ta = "<a href='/timesheets/" + id + "/approve' class='btn btn-xs btn-default' title='Approve Timesheet' rel='tooltip' 'data-placement'= 'top' data-confirm = 'Are you sure?' verify='Approve' verify_text=\" Type 'Approve' to confirm\"> <i class='fa fa-check '></i> </a> " ;
-          tr = "<a href='/timesheets/" + id + "/approve' class='btn btn-xs btn-default' title='Approve Timesheet' rel='tooltip' 'data-placement'= 'top' data-confirm = 'Are you sure?' verify='Approve' verify_text=\" Type 'Approve' to confirm\"> <i class='fa fa-check '></i> </a> " ;
+          ta = "<a href='/timesheets/" + id + "/approve' class='btn btn-xs btn-default' title='Approve Timesheet' rel='tooltip' 'data-placement'= 'top' data-confirm ="+ JSON.stringify(message) +"  verify='Approve' verify_text=\" Type 'Approve' to confirm\"> <i class='fa fa-check '></i> </a> " ;
+          tr = "" ;
 
 
           jQuery("#jqgrid").jqGrid('setRowData', ids[i], {

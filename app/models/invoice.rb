@@ -192,4 +192,74 @@ class Invoice < ApplicationRecord
     self.contract.created_by.notifications.create(message: "Your <a href='http://#{self.contract.created_by.company.etyme_url + contract_invoice_path(self.contract , self)}'>Invoice</a> for <a href='http://#{self.contract.created_by.company.etyme_url + contract_path(self.contract)}'>contract</a>",title: "Invoice# #{self.id}")
   end
 
+  def self.set_con_cycle_invoice_date(sell_contract, con_cycle)
+    @invoice_type = sell_contract&.invoice_terms_period
+    @invoice_day_of_week = Date.parse(sell_contract&.invoice_day_of_week&.titleize).try(:strftime, '%A')
+    @invoice_date_1 = sell_contract&.invoice_date_1.try(:strftime, '%e')
+    @invoice_date_2 = sell_contract&.invoice_date_2.try(:strftime, '%e')
+    @invoice_end_of_month = sell_contract&.invoice_end_of_month
+    @invoice_day_time = sell_contract&.invoice_day_time.try(:strftime, '%H:%M')
+    # binding.pry
+    case @invoice_type
+    when 'daily'
+      con_cycle_invoice_start_date = con_cycle&.start_date
+    when 'weekly'   
+      con_cycle_invoice_start_date = date_of_next(@invoice_day_of_week,con_cycle)
+      # binding.pry 
+    when 'monthly'
+      if @invoice_end_of_month
+        con_cycle_invoice_start_date = con_cycle.start_date.end_of_month
+      else
+        con_cycle_invoice_start_date = montly_approval_date(con_cycle)
+      end 
+    when 'twice a month'
+      con_cycle_invoice_start_date = twice_a_month_approval_date(con_cycle)
+    else
+    end 
+    return con_cycle_invoice_start_date
+  end
+
+  def self.date_of_next(day_of_week,con_cycle)
+    day_of_week = DateTime.parse(day_of_week).wday
+    date = con_cycle.start_date.to_date + ((day_of_week - con_cycle.start_date.to_date.wday) % 7)
+    date == con_cycle.start_date.to_date ? date+7.days : date
+  end
+
+  def self.montly_approval_date(con_cycle)
+    # binding.pry
+    day = @invoice_date_1&.to_i.present? ? @invoice_date_1&.to_i : 0
+    next_month_year = DateTime.now.strftime("%d").to_i <= day ? DateTime.now : (DateTime.now+1.month)
+    month = next_month_year&.strftime("%m").to_i
+    year = next_month_year&.strftime("%Y").to_i
+    con_cycle_invoice_start_date = DateTime.new(year, month, day)
+  end
+
+  def self.twice_a_month_approval_date(con_cycle)
+    # binding.pry
+    day_1 = @invoice_date_1&.to_i
+    day_2 = @invoice_date_2&.to_i.present? ? @invoice_date_2&.to_i : 0
+    if con_cycle.start_date.strftime("%d").to_i <= day_1
+      day = @invoice_date_1&.to_i
+      next_month_year = con_cycle.start_date
+      month = next_month_year&.strftime("%m").to_i
+      year = next_month_year&.strftime("%Y").to_i
+    elsif con_cycle.start_date.strftime("%d").to_i > day_1 && con_cycle.start_date.strftime("%d").to_i <= day_2
+      day = @invoice_date_2&.to_i
+      next_month_year = con_cycle.start_date
+      month = next_month_year&.strftime("%m").to_i
+      year = next_month_year&.strftime("%Y").to_i
+    elsif con_cycle.start_date.strftime("%d").to_i > day_2 && !@ta_end_of_month
+      day = @invoice_date_1&.to_i
+      next_month_year = con_cycle.start_date+1.month
+      month = next_month_year&.strftime("%m").to_i
+      year = next_month_year&.strftime("%Y").to_i
+    elsif @ta_end_of_month
+      next_month_year = con_cycle.start_date.end_of_month
+      day = next_month_year.strftime('%e').to_i
+      month = next_month_year&.strftime("%m").to_i
+      year = next_month_year&.strftime("%Y").to_i
+    end
+    con_cycle_ta_start_date = DateTime.new(year, month, day)
+  end
+
 end

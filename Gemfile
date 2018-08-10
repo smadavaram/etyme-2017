@@ -128,6 +128,7 @@ group :development, :test do
   gem 'test-unit'
   gem 'letter_opener', '1.4.1'
   gem 'byebug'
+  gem 'pry'
   gem 'hirb'#, '~> 0.7.3'
   gem 'annotate'#, '~> 2.7'
   gem 'listen', '>= 3.0.5', '< 3.2'

@@ -1,0 +1,101 @@
+%section
+  .container
+    .row
+      %hr
+      / / = form_tag filter_timeline_contracts_path, remote: true, method: :get do
+      /   .col-md-2
+      /     .form-group.mt-10
+      /       / = select_tag "Contracts", options_from_collection_for_select(@contracts, 'id', 'title'),{class: "form-control contract_list", prompt: "All", onchange: "this.form.submit();"}
+      /   .col-md-2
+      /     .form-group.mt-10
+      /       / = select_tag "Contracts", options_from_collection_for_select(@candidates, 'id', 'full_name'),{class: "form-control candidate_list", prompt: "All"}
+      /   .col-md-2
+      /     .form-group.mt-10
+      /       %select.form-control
+      /         %option All Actions
+      /         %option 2
+      /         %option 3
+      /         %option 4
+      /         %option 5
+    .row
+      .col-xs-12
+        %p.mb-0
+          Showing Tasks for you from : All Contracts, All Freelancers and All Actions
+    .row
+      .col-md-4
+        .timeline-blockwrap.overdue-blockwrap
+          %h3.timeline-title
+            Overdue 
+          
+          - @overdue_contract_cycles.each do |cc|
+            - cy = ContractCycle.find_by(contract_id: cc.contract_id, end_date: cc.end_date, candidate_id: cc.candidate_id)
+            - if cc == cy
+              .timeline-block
+                #{cc.contract.title} - Cycle ID #{cc.id}
+                %p.mb-0.submitted-name
+                  Submission expected by:
+                  %b #{cc.candidate.present? ? cc.candidate.full_name : cc.company.full_name}
+                  %b
+                    = link_to 'submit', timesheets_path, class: 'btn' if cc.note == 'Timesheet Approve'
+                %p.info-text
+                  started on #{cc.start_date.utc.strftime("%d %B, %Y")}
+                  %br
+                  You supposed to complete on #{cc.end_date.utc.strftime("%d %B, %Y")}
+                %span.badge.status-badge.red-badge
+                  #{cc.note}
+                %span.due-txt
+                  Due on #{cc.end_date.utc.strftime("%A")}
+
+
+      .col-md-4
+        .timeline-blockwrap
+          %h3.timeline-title
+            To Do 
+          %p.small-text (Next 10 Days)
+
+          - @todo_contract_cycles.each do |cc|
+            - cy = ContractCycle.find_by(contract_id: cc.contract_id, end_date: cc.end_date, candidate_id: cc.candidate_id)
+            
+            - if cc == cy
+              .timeline-block
+                #{cc.contract.title} - Cycle ID #{cc.id}
+                %p.mb-0.submitted-name
+                  Submission expected by:
+                  %b #{cc.candidate.present? ? cc.candidate.full_name : cc.company.full_name}
+                %p.info-text
+                  
+                  %br
+                  ending on: #{cc.end_date.utc.strftime('%d %B, %Y')}
+                  / Hardik has not Submitted timesheet yet which is due today. Please remider him. &amp; click on
+                  / Done here so your task will appear.
+                .row
+                  .col-xs-12
+                    %span.badge.status-badge.yellow-badge
+                      #{cc.note}
+                    %span.due-txt
+                      Due on #{cc.end_date.utc.strftime('%A')}
+                  %hr
+      
+      .col-md-4
+        .timeline-blockwrap
+          %h3.timeline-title
+            Completed 
+          %p.small-text (Past 10 Days including today)
+          
+          - @completed_contract_cycles.each do |cc|
+            - cy = ContractCycle.find_by(contract_id: cc.contract_id, end_date: cc.end_date, candidate_id: cc.candidate_id)
+            - if cc == cy
+              .timeline-block
+                #{cc.contract.title} - Cycle ID #{cc.id}
+                %p.mb-0.submitted-name
+                  Submitted by:
+                  %b #{cc.candidate.present? ? cc.candidate.full_name : cc.company.full_name}
+                %p.info-text
+                  =cc.end_date.utc.strftime('%d %B, %Y')
+                .row
+                  .col-xs-12
+                    %span.badge.status-badge.skyblue-badge
+                      = cc.note
+                    %span.due-txt Due Today | Done Today
+
+

@@ -83,8 +83,20 @@ class Company::TimesheetsController < Company::BaseController
 
     if @timesheet.update_attributes(status: "approved")
       con_cycle = ContractCycle.find(@timesheet.ta_cycle_id)
-      con_cycle.update_attributes(completed_at: Time.now, status: "completed")
-      @timesheet.contract.invoice_generate
+      # binding.pry
+      arr = Timesheet.where(ta_cycle_id: @timesheet.ta_cycle_id).pluck(:ta_cycle_id).uniq.compact.first
+      
+      total_count = Timesheet.where(ta_cycle_id: arr).count
+      approved_count = Timesheet.where(ta_cycle_id: arr, status: 'approved').count
+      if total_count == approved_count
+        con_cycle.update_attributes(completed_at: Time.now, status: "completed")
+      end
+
+
+      # if con_cycle.end_date.utc.to_date-1.day == @timesheet.end_date
+      #   con_cycle.update_attributes(completed_at: Time.now, status: "completed")
+      # end
+      # @timesheet.contract.invoice_generate(con_cycle)
 
       invoices = @timesheet.contract.invoices.where("(start_date <= ? AND end_date >= ?) OR (start_date <= ? AND end_date >= ?)", @timesheet.start_date, @timesheet.start_date, @timesheet.end_date, @timesheet.end_date)
       invoices.each do |i|
