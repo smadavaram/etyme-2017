@@ -1,7 +1,7 @@
 class Static::JobsController < ApplicationController
 
   before_action :set_jobs,only: [:index]
-  before_action :find_job,only: [:show,:apply,:job_appication_without_registeration]
+  before_action :find_job,only: [:show,:apply,:job_appication_without_registeration, :job_appication_with_recruiter]
 
   layout 'static'
   add_breadcrumb "Home",'/'
@@ -29,6 +29,14 @@ class Static::JobsController < ApplicationController
   end
 
    def job_appication_without_registeration
+    @job_application = @job.job_applications.new
+    @job_application.job_applicant_reqs.build
+    @job.custom_fields.each do |cf|
+      @job_application.custom_fields.new(name: cf.name)
+    end
+  end
+
+  def job_appication_with_recruiter
     @job_application = @job.job_applications.new
     @job_application.job_applicant_reqs.build
     @job.custom_fields.each do |cf|

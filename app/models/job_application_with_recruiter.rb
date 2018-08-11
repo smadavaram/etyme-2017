@@ -1,0 +1,2 @@
+class JobApplicationWithRecruiter < ApplicationRecord
+end

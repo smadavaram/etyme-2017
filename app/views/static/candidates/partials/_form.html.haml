@@ -62,12 +62,15 @@
                     %input.btn.btn-primary.pull-right{:name => "commit", :onclick => "if ($('#terms').is(':checked')){$('#new_applicant').submit();}", :type => "submit", :value => "Sign Up"}/
           .col-sm-12
             %hr
-            .col-sm-4
-            .col-sm-4
+            .col-sm-3
+            .col-sm-3
               = link_to "Apply Without Registration.", static_job_job_appication_without_registeration_path(@job,status: candidate_signed_in?),  method: :post , remote: true, :class=>"button btn btn-primary pull-right"
+
               / %button.btn.btn-primary.pull-right{:type => "submit"}
               /   Apply Without Registration.
-            .col-sm-4      
+            .col-sm-3     
+              = link_to "Apply With Recruiter.", static_job_job_appication_with_recruiter_path(@job,status: candidate_signed_in?),  method: :post , remote: true, :class=>"button btn btn-primary pull-right"
+            .col-sm-3  
 
         %section.panel-default
       .modal-footer{:style => "border-top:0px;"}

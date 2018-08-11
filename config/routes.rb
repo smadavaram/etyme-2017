@@ -43,6 +43,7 @@ Rails.application.routes.draw do
       resources :job_applications ,only:[:create]
       # get 'job_appication_without_registeration' ,to: 'job_applications#job_appication_without_registeration'
       post :job_appication_without_registeration
+      post :job_appication_with_recruiter
     end
     resources :companies , only: [] do
       resources :candidates  do
