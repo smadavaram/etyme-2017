@@ -207,6 +207,7 @@ class Invoice < ApplicationRecord
       con_cycle_invoice_start_date = date_of_next(@invoice_day_of_week,con_cycle)
       # binding.pry 
     when 'monthly'
+      # binding.pry
       if @invoice_end_of_month
         con_cycle_invoice_start_date = con_cycle.start_date.end_of_month
       else
@@ -223,7 +224,11 @@ class Invoice < ApplicationRecord
   def self.date_of_next(day_of_week,con_cycle)
     day_of_week = DateTime.parse(day_of_week).wday
     date = con_cycle.start_date.to_date + ((day_of_week - con_cycle.start_date.to_date.wday) % 7)
-    date == con_cycle.start_date.to_date ? date+7.days : date
+    if day_of_week >= con_cycle.start_date.wday
+      (date - con_cycle.start_date.to_date <= 5) && con_cycle.start_date.wday != 0 ? date+7.days : date
+    else
+      date
+    end
   end
 
   def self.montly_approval_date(con_cycle)

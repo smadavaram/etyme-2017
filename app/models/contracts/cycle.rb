@@ -29,7 +29,6 @@ module Contracts
         cycle = add_cycle("Timesheet submit", next_date, start_date, end_date, "TimesheetSubmit", buy_contract.candidate_id, next_next_date, "TimesheetApprove", ta_next_date)
         add_timesheet(start_date, next_date, buy_contract.candidate.full_name, buy_contract.candidate_id, cycle.id)
         con_cycle_ta_start_date = Timesheet.set_con_cycle_ta_date(buy_contract, cycle)
-        # binding.pry
         set_timesheet_approve(cycle,con_cycle_ta_start_date)
         invoice_generate(cycle)
         next_date = next_next_date
@@ -150,10 +149,9 @@ module Contracts
     def add_invoice(start_date, end_date, cycle_id)
       invoice = Invoice.find_by(
                   contract_id: contract_id,
-                  end_date: end_date.in_time_zone("Chennai"),
+                  end_date: end_date.to_date,
                   ig_cycle_id: cycle_id,
                 )
-      # binding.pry
       unless invoice
         Invoice.create(
             contract_id: contract_id,
@@ -276,7 +274,11 @@ module Contracts
     def ts_date_of_next(day_of_week,start_date)
       day_of_week = DateTime.parse(day_of_week).wday
       date = start_date.to_date + ((day_of_week - start_date.to_date.wday) % 7)
-      date == start_date.to_date ? date+7.days : date
+      if day_of_week >= start_date.wday
+        (date - start_date.to_date <= 5) && start_date.wday != 0 ? date+7.days : date
+      else
+        date
+      end
     end
 
     def twice_a_month_submit_date(ts_date_1, ts_date_2, start_date)

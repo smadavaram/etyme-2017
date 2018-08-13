@@ -217,8 +217,19 @@ class Timesheet < ApplicationRecord
   def self.date_of_next(day_of_week,con_cycle)
     # binding.pry
     day_of_week = DateTime.parse(day_of_week).wday
+    ts_day_of_week = DateTime.parse(con_cycle&.contract&.buy_contracts&.first&.ts_day_of_week).wday if con_cycle.contract.buy_contracts.first.time_sheet == 'weekly'
     date = con_cycle.start_date.to_date + ((day_of_week - con_cycle.start_date.to_date.wday) % 7)
-    date == con_cycle.start_date.to_date ? date+7.days : date
+    if day_of_week >= con_cycle.start_date.wday
+      date = (date - con_cycle.start_date.to_date <= 5) && con_cycle.start_date.wday != 0 ? date+7.days : date
+    else
+      date
+    end
+    if ts_day_of_week > day_of_week
+      date = date+7.days
+    else
+      date
+    end 
+
   end
 
   def self.montly_approval_date(con_cycle)

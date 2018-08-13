@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema.define(version: 20180626104529) do
+ActiveRecord::Schema.define(version: 20180811085241) do
 
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
@@ -380,6 +380,7 @@ ActiveRecord::Schema.define(version: 20180626104529) do
     t.string "fax_number"
     t.boolean "owner_verified", default: false
     t.string "verification_code"
+    t.boolean "is_number_verify", default: false
     t.index ["owner_id"], name: "index_companies_on_owner_id"
   end
 
@@ -864,6 +865,24 @@ ActiveRecord::Schema.define(version: 20180626104529) do
     t.datetime "updated_at", null: false
     t.index ["job_application_id"], name: "index_job_applicant_reqs_on_job_application_id"
     t.index ["job_requirement_id"], name: "index_job_applicant_reqs_on_job_requirement_id"
+  end
+
+  create_table "job_application_with_recruiters", force: :cascade do |t|
+    t.string "first_name"
+    t.string "last_name"
+    t.string "email"
+    t.string "phone"
+    t.string "location"
+    t.string "skill"
+    t.string "visa"
+    t.string "title"
+    t.string "roal"
+    t.string "resume"
+    t.integer "job_application_id"
+    t.boolean "is_registerd"
+    t.string "recruiter_email"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
   end
 
   create_table "job_application_without_registrations", force: :cascade do |t|
