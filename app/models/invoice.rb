@@ -215,6 +215,7 @@ class Invoice < ApplicationRecord
     when 'twice a month'
       con_cycle_invoice_start_date = twice_a_month_approval_date(con_cycle)
     else
+      con_cycle_invoice_start_date = con_cycle&.start_date
     end 
     return con_cycle_invoice_start_date
   end

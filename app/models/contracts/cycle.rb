@@ -41,7 +41,7 @@ module Contracts
       # binding.pry
       con_cycle_ta = ContractCycle.find_by(contract_id: con_cycle.contract_id,
                                           start_date: con_cycle_ta_start_date,
-                                          end_date: con_cycle_ta_start_date.end_of_day.in_time_zone("Chennai"),
+                                          end_date: con_cycle_ta_start_date&.end_of_day&.in_time_zone("Chennai"),
                                           company_id: sell_contract.company_id,
                                           note: "Timesheet Approve",
                                           cycle_type: "TimesheetApprove",

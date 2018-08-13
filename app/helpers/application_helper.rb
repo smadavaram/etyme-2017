@@ -313,6 +313,11 @@ module ApplicationHelper
                     href: company_buy_contracts_path,
                     title: 'Buy',
                     content: "<span class='menu-item-parent'> Buy </span>",
+                },
+                {
+                    href: timeline_contracts_path,
+                    title: 'Timeline',
+                    content: "<span class='menu-item-parent'> Timeline </span>",
                 }
             ]
         },

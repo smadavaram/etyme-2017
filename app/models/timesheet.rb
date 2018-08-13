@@ -195,6 +195,7 @@ class Timesheet < ApplicationRecord
     @ta_day_time = buy_contract&.ta_day_time.try(:strftime, '%H:%M')
     case @ta_type
     when 'daily'
+      # binding.pry
       con_cycle_ta_start_date = con_cycle.start_date
     when 'weekly'
       # binding.pry   
@@ -208,6 +209,7 @@ class Timesheet < ApplicationRecord
     when 'twice a month'
       con_cycle_ta_start_date = twice_a_month_approval_date(con_cycle)
     else
+      con_cycle_ta_start_date = con_cycle.start_date
     end 
     return con_cycle_ta_start_date
   end
