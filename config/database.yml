@@ -1,17 +1,10 @@
 default: &default
  adapter: postgresql
  encoding: utf8
- user: postgres
- password: postgres
+ user: deployer
+ password: eTyme2017@525
  host: localhost
-
-development:
- <<: *default
- database: etyme_development
-test:
- <<: *default
- database: etyme_test
 
 production:
  <<: *default
- database: etyme_production
+ database: etyme_production1
