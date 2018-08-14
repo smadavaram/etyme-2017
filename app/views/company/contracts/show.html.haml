@@ -2,6 +2,8 @@
   %container
     %section#widget-grid.clearfix
       .newsfeed-right
+        %h1.text-center
+          %b Client
         .job-title
           .contract-top.clearfix.row
             %div.col-sm-6
@@ -67,10 +69,10 @@
           =link_to 'Download', download_contract_path(@contract), class: 'btn btn-primary'
         .col-sm-6.col-md-6.col-lg-6
           %h2.contract_heading
-            sell
+            sell-  #{@contract.sell_contracts.first.number}
           %br
           %h3.contract_sub_heading
-            Company Details
+            Customer Details
           %div.sell-side.box
             %div.contract-custome-details.line-bottom
               %h5
@@ -244,10 +246,10 @@
            
         .col-sm-6.col-md-6.col-lg-6
           %h2.contract_heading
-            Buy
+            Buy-  #{@contract.buy_contracts.first.number} 
           %br
           %h3.contract_sub_heading
-            Company Details
+            Vendor Details
           %div.contract-custome-details.box
             %h5
               = @contract.candidate.full_name+' ($'+@contract.buy_contracts&.first&.payrate&.to_i.to_s+' / '+@contract.buy_contracts&.first&.payrate_type+')'
@@ -338,11 +340,22 @@
                   .col-sm-4.col-md-4.col-lg-4
                     %div.buy-side.contract_box
                       %p
-                        Salary Calculation
+                        =@contract&.buy_contracts&.first&.contract_type == 'C2C' ? 'Vendor Bill' : 'Salary Calculation' 
                       %h5
                         =@contract.buy_contracts&.first&.salary_calculation
                       %p
                         =buy_contract_time_sheet('salary_calculation', @contract.buy_contracts&.first&.salary_calculation)
+                - if @contract&.buy_contracts&.first&.contract_type == 'C2C'
+                  %div.row
+                    .col-sm-4.col-md-4.col-lg-4
+                      %div.sell-side.contract_box
+                        %p
+                          Vendor Payment
+                        %h5
+                          =@contract.buy_contracts&.first&.invoice_recepit
+                        %p
+                          =buy_contract_time_sheet('invoice_recepit', @contract.buy_contracts&.first&.invoice_recepit)
+
                 %h5
                   Salary Date:
                   = @contract&.company&.payroll_infos&.first&.payroll_date.try(:strftime, '%d %B %Y')
