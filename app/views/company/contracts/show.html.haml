@@ -345,7 +345,7 @@
                         =buy_contract_time_sheet('salary_calculation', @contract.buy_contracts&.first&.salary_calculation)
                 %h5
                   Salary Date:
-                  = @contract&.company&.payroll_infos&.first&.payroll_date.try(:strftime, '%d %B %Y')
+                  = @contract&.company&.payroll_infos&.first&.payroll_date.try(:strftime, '%d').to_s+ ' of each month'
             %br
             %div.table-responsive
               %h3.contract_sub_heading
