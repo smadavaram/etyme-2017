@@ -76,6 +76,18 @@
                 %b Name: #{cc.candidate.present? ? cc.candidate.full_name : cc.company.full_name}
               %p Client: #{cc&.contract&.company&.full_name}
               %p Tax type: #{cc.contract.buy_contracts.first.contract_type}
+              - if cc.note == 'Timesheet submit'
+                %hr
+                .row
+                  .col-sm-2.text-center Plan
+                  .col-sm-8.text-center Cycle
+                  .col-sm-2.text-center Actual
+                .row
+                  .col-sm-2.text-center 8
+                  .col-sm-8.text-center
+                    #{cc.start_date.strftime("%d/%m/%Y").to_s+' - '+cc.end_date.strftime("%d/%m/%Y")}
+                  .col-sm-2.text-center #{cc.ts_submitteds&.first&.total_time}
+
 
       
       .col-md-4
@@ -109,6 +121,6 @@
                   .col-sm-2.text-center 8
                   .col-sm-8.text-center
                     #{cc.start_date.strftime("%d/%m/%Y").to_s+' - '+cc.end_date.strftime("%d/%m/%Y")}
-                  .col-sm-2.text-center #{cc.ts_submitteds.first.total_time}
+                  .col-sm-2.text-center #{cc.ts_submitteds&.first&.total_time}
 
 
