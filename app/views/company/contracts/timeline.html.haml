@@ -50,7 +50,7 @@
                   .col-sm-8.text-center Cycle
                   .col-sm-2.text-center Actual
                 .row
-                  .col-sm-2.text-center 8
+                  .col-sm-2.text-center #{cc&.contract&.sell_contracts&.first&.expected_hour}
                   .col-sm-8.text-center
                     #{cc.start_date.strftime("%d/%m/%Y").to_s+' - '+cc.end_date.strftime("%d/%m/%Y")}
                   .col-sm-2.text-center #{cc.ts_submitteds.first.total_time}
@@ -83,7 +83,7 @@
                   .col-sm-8.text-center Cycle
                   .col-sm-2.text-center Actual
                 .row
-                  .col-sm-2.text-center 8
+                  .col-sm-2.text-center #{cc&.contract&.sell_contracts&.first&.expected_hour}
                   .col-sm-8.text-center
                     #{cc.start_date.strftime("%d/%m/%Y").to_s+' - '+cc.end_date.strftime("%d/%m/%Y")}
                   .col-sm-2.text-center #{cc.ts_submitteds&.first&.total_time}
@@ -118,7 +118,7 @@
                   .col-sm-8.text-center Cycle
                   .col-sm-2.text-center Actual
                 .row
-                  .col-sm-2.text-center 8
+                  .col-sm-2.text-center #{cc&.contract&.sell_contracts&.first&.expected_hour}
                   .col-sm-8.text-center
                     #{cc.start_date.strftime("%d/%m/%Y").to_s+' - '+cc.end_date.strftime("%d/%m/%Y")}
                   .col-sm-2.text-center #{cc.ts_submitteds&.first&.total_time}

@@ -21,7 +21,17 @@
       // DO NOT REMOVE : GLOBAL FUNCTIONS!
 
       $(document).ready(function() {
+        
+        
+        $('#contract_sell_contracts_attributes_0_time_sheet').on('click', function(event){
+          $('#contract_buy_contracts_attributes_0_time_sheet').val($('#contract_sell_contracts_attributes_0_time_sheet').val());
+        });
+
+        $('#contract_sell_contracts_attributes_0_ts_approve').on('click', function(event){
+          $('#contract_buy_contracts_attributes_0_ts_approve').val($('#contract_sell_contracts_attributes_0_ts_approve').val());
+        });
         pageSetUp();
+
 
         // Joining Date
           $('#consultant_consultant_profile_attributes_joining_date').datepicker({
@@ -140,3 +150,4 @@
           }
         }
       });
+

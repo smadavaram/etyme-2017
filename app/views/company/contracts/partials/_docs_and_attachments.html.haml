@@ -13,16 +13,16 @@
           .contract-fild
             = bc.password_field :ssn, class: "form-control", placeholder: "SNN"
     .row
-      .col-md-6
+      .col-md-8
         .form-group
           %label.control-label
             %b Contract Type :     
           %span.contract-type-radio
-            %label W2
+            %label W2 (Fulltime)
             = bc.radio_button :contract_type, "W2" 
-            %labe 1099 
+            %labe 1099 (Freelancers)
             = bc.radio_button :contract_type, "1099"  
-            %label Corp-Corp
+            %label Corp-Corp (Third Party)
             = bc.radio_button :contract_type, "C2C"
             
     .row.c2c-type.hidden

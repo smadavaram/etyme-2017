@@ -160,11 +160,28 @@
           $(".s-ts-set").find('.daily').removeClass("hidden");
         } else if($(this).val() == "weekly" || $(this).val() == "biweekly"){
           $(".s-ts-set").find('.week').removeClass("hidden");
+          $('#contract_buy_contracts_attributes_0_ts_day_of_week').val($('#contract_sell_contracts_attributes_0_ts_day_of_week').val());
         } else if($(this).val() == "twice a month"){
           $(".s-ts-set").find('.twice-month, .month').removeClass("hidden");
         } else if($(this).val() == "monthly"){
           $(".s-ts-set").find('.month').removeClass("hidden");
         }
+
+        $(".b-ts-set").children().addClass("hidden");
+        if($(this).val() == "daily"){
+          $(".b-ts-set").find('.daily').removeClass("hidden");
+          $(".b-ts-set").find('.con-time').val($(".s-ts-set").find('.con-time').val());
+        } else if($(this).val() == "weekly" || $(this).val() == "biweekly"){
+          $(".b-ts-set").find('.week').removeClass("hidden");
+        } else if($(this).val() == "twice a month"){
+          $(".b-ts-set").find('.twice-month, .month').removeClass("hidden");
+          $('#contract_buy_contracts_attributes_0_ts_date_1').val($('#contract_sell_contracts_attributes_0_ts_date_1').val());
+          $('#contract_buy_contracts_attributes_0_ts_date_2').val($('#contract_sell_contracts_attributes_0_ts_date_2').val());
+        } else if($(this).val() == "monthly"){
+          $(".b-ts-set").find('.month').removeClass("hidden");
+          $('#contract_buy_contracts_attributes_0_ts_date_1').val($('#contract_sell_contracts_attributes_0_ts_date_1').val());
+        }
+
       });
 
       $(".sell-time-sheet-approve").on("change", function(){
@@ -178,7 +195,45 @@
         } else if($(this).val() == "monthly"){
           $(".s-ts-apv-set").find('.month').removeClass("hidden");
         }
+
+        $(".b-ts-apv-set").children().addClass("hidden");
+        if($(this).val() == "daily"){
+          $(".b-ts-apv-set").find('.daily').removeClass("hidden");
+          $(".b-ts-apv-set").find('.con-time').val($(".s-ts-apv-set").find('.con-time').val());
+        } else if($(this).val() == "weekly" || $(this).val() == "biweekly"){
+          $(".b-ts-apv-set").find('.week').removeClass("hidden");
+          $('#contract_buy_contracts_attributes_0_ta_day_of_week').val($('#contract_sell_contracts_attributes_0_ta_day_of_week').val());
+        } else if($(this).val() == "twice a month"){
+          $(".b-ts-apv-set").find('.twice-month, .month').removeClass("hidden");
+          $('#contract_buy_contracts_attributes_0_ta_date_1').val($('#contract_sell_contracts_attributes_0_ta_date_1').val());
+          $('#contract_buy_contracts_attributes_0_ta_date_2').val($('#contract_sell_contracts_attributes_0_ta_date_2').val());
+        } else if($(this).val() == "monthly"){
+          $(".b-ts-apv-set").find('.month').removeClass("hidden");
+          $('#contract_buy_contracts_attributes_0_ta_date_1').val($('#contract_sell_contracts_attributes_0_ta_date_1').val());
+        }
+
       });
+
+      $(".s-ts-set").on("change", function(){
+        $(".b-ts-set").find('.con-time').val($(".s-ts-set").find('.con-time').val());
+        $('#contract_buy_contracts_attributes_0_ts_date_1').val($('#contract_sell_contracts_attributes_0_ts_date_1').val());
+        $('#contract_buy_contracts_attributes_0_ts_date_2').val($('#contract_sell_contracts_attributes_0_ts_date_2').val());
+      });
+
+      $(".s-ts-apv-set").on("change", function(){
+        $(".b-ts-apv-set").find('.con-time').val($(".s-ts-apv-set").find('.con-time').val());
+        $('#contract_buy_contracts_attributes_0_ta_date_1').val($('#contract_sell_contracts_attributes_0_ta_date_1').val());
+        $('#contract_buy_contracts_attributes_0_ta_date_2').val($('#contract_sell_contracts_attributes_0_ta_date_2').val());
+      });
+
+      $('#contract_sell_contracts_attributes_0_ta_day_of_week').on("change", function(){
+        $('#contract_buy_contracts_attributes_0_ta_day_of_week').val($('#contract_sell_contracts_attributes_0_ta_day_of_week').val());
+      });
+
+      $('#contract_sell_contracts_attributes_0_ts_day_of_week').on("change", function(){
+        $('#contract_buy_contracts_attributes_0_ts_day_of_week').val($('#contract_sell_contracts_attributes_0_ts_day_of_week').val());
+      });      
+
 
       $(".buy-time-sheet").on("change", function(){
         $(".b-ts-set").children().addClass("hidden");

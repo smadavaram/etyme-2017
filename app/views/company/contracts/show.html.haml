@@ -1,3 +1,5 @@
+%h2.text-center
+  %b Client
 #content.newsfeed.contracts{style:"overflow-y: hidden;"}
   %container
     %section#widget-grid.clearfix
@@ -24,19 +26,22 @@
               / =link_to "Tree View", tree_view_contract_path(@contract.number)
           .row
             %div.job-header.clearfix.col-sm-4
-              = image_tag "avatars/m_sunny_big.png"
+              = image_tag @contract.company.logo
               %p.job_title.thumb_name
+                %b Client:
                 %b
                   =@contract.client.try(:full_name)
             %div.col-sm-4.job-header
               = image_tag "avatars/m_sunny_big.png"
               %p.job_title.thumb_name
+                %b Candidate:
                 %b
                   =@contract.candidate.try(:full_name)
           %br
           %div.row
             %div.col-sm-6.col-md-6.col-lg-6
               .job-location
+                %b Work location:
                 %span
                   %i.fa.fa-map-marker
                   =@contract.work_location
@@ -62,9 +67,10 @@
           =link_to_if @contract.accepted? || @contract.in_progress? , "End Contract", update_contract_status_contract_path(@contract, status: "is_ended"),method: :patch, class: "btn btn-danger" do; end
           =link_to_if @contract.accepted? || @contract.in_progress?, "Cancel Contract", update_contract_status_contract_path(@contract, status: "cancelled"),method: :patch, class: "btn btn-primary" do; end
           / =link_to_if @contract.accepted?, "Pause Contract", update_contract_status_contract_path(@contract, status: "paused"),method: :patch, class: "btn btn-primary" do; end
-          =link_to "Timeline", "#", class: "btn btn-primary"
+          =link_to "Timeline", timeline_contracts_path, class: "btn btn-primary"
           =link_to "Tree View", tree_view_contract_path(@contract.number), class: "btn btn-primary"
           =link_to 'Download', download_contract_path(@contract), class: 'btn btn-primary'
+          =link_to 'Edit', '#', class: 'btn btn-primary'
         .col-sm-6.col-md-6.col-lg-6
           %h2.contract_heading
             sell
@@ -148,15 +154,19 @@
                     .col-sm-4.col-md-4.col-lg-4
                       %div.sell-side.contract_box
                         %p
-                          Invoice Timesheet
+                          Invoice
                         %h5
                           =@contract.sell_contracts&.first&.invoice_terms_period
                         %p
                           =sell_contract_time_sheet('invoice_terms_period', @contract.sell_contracts&.first&.invoice_terms_period)
-                        %strong
-                          Payment Terms:
-                        %span
-                          =@contract.sell_contracts&.first&.payment_term
+                  %div.row
+                    .col-sm-4.col-md-4.col-lg-4
+                      %div.sell-side.contract_box
+                        %p
+                          Receive Payment
+                        %h5
+                          = @contract.sell_contracts&.first&.payment_term.to_i > 1 ? @contract.sell_contracts&.first&.payment_term.to_i.to_s+' Days' : @contract.sell_contracts&.first&.payment_term.to_i.to_s+' Day'
+
                   %div.row
                     .col-sm-12.col-md-12.col-lg-12
                       %span

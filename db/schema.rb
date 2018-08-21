@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema.define(version: 20180811085241) do
+ActiveRecord::Schema.define(version: 20180821062753) do
 
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
@@ -1181,6 +1181,7 @@ ActiveRecord::Schema.define(version: 20180811085241) do
     t.date "ta_date_2"
     t.boolean "ta_end_of_month", default: false
     t.string "ta_day_of_week"
+    t.float "expected_hour", default: 0.0
     t.index ["company_id"], name: "index_sell_contracts_on_company_id"
     t.index ["contract_id"], name: "index_sell_contracts_on_contract_id"
   end

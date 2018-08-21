@@ -215,6 +215,7 @@ class Company::ContractsController < Company::BaseController
            :payment_term, :b_time_sheet, :payrate, :contract_type, :end_date,
            :message_from_hiring, :status, :company_id, company_doc_ids: [],
            sell_contracts_attributes: [
+               :expected_hour, 
                :company_id, :customer_rate, :customer_rate_type, :invoice_terms_period,
                :show_accounting_to_employee, :first_date_of_timesheet,
                :payment_term, :invoice_day_of_week, :invoice_end_of_month, :invoice_date_2, :invoice_date_1,
