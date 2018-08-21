@@ -167,7 +167,7 @@ class Company::ContractsController < Company::BaseController
 
   def timeline
     @contracts = current_company.contracts.where.not(status: "pending")
-    @candidates = current_company.candidates.uniq
+    @candidates = Candidate.all
     get_all_filter_data
   end
 
