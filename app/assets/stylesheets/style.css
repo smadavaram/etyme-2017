@@ -1189,12 +1189,23 @@ input:checked + .slider1:before {
   font-size: 28px !important;
   font-weight: 500 !important;
   text-align: left !important;
-  padding-left: 18px !important;
+  /*padding-left: 18px !important;*/
   background: none !important;
   border-bottom: none !important;
+  padding: 10px 0px 10px 18px !important;
 }
 .contract_sub_heading{
   font-size: 18px;
+}
+.thumb_name{
+  margin-top: 12px !important;
+}
+.bootstrapWizard li.step4:first-child:before{
+  left: 0%;
+}
+.bootstrapWizard li.step3:before{
+  width: 101%;
+  max-width: 101%;
 }
 
 /*timeline css start*/
