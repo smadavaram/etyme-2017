@@ -9,14 +9,6 @@
         .col-md-2
           .form-group.mt-10
             = select_tag "Contracts", options_from_collection_for_select(@candidates, 'id', 'full_name'),{class: "form-control candidate_list", prompt: "All"}
-        .col-md-2
-          .form-group.mt-10
-            %select.form-control
-              %option All Actions
-              %option 2
-              %option 3
-              %option 4
-              %option 5
     .row
       .col-xs-12
         %p.mb-0

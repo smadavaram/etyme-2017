@@ -148,7 +148,7 @@
                         .select
                           .plain-select
                             = text_field_tag :bc_timesheet, '', class: 'form-control',readonly: true
-                            = bc.hidden_field :time_sheet
+                            = bc.hidden_field :time_sheet, value: 'immediately'
                       .col-md-6
                         .b-ts-set
                           %div{:class => "form-group daily #{bc.object.time_sheet != 'daily' ? 'hidden' : ''}"}
@@ -172,8 +172,11 @@
                             .select
                               = bc.text_field :ts_date_2, class: "form-control", readonly: true
                           %span{:class => "form-group month #{['twice a month', 'monthly'].include?(bc.object.time_sheet) ? '' : 'hidden'}"} OR
-                          = bc.check_box :ts_end_of_month, class: "month #{['twice a month', 'monthly'].include?(bc.object.time_sheet) ? '' : 'hidden'}"
+                          / = bc.check_box :ts_end_of_month, class: "month #{['twice a month', 'monthly'].include?(bc.object.time_sheet) ? '' : 'hidden'}"
+
+                          = check_box_tag :sc_ts_end_of_month, '1', false, class: 'month hidden', disabled: true
                           = bc.label :ts_end_of_month, "End of month", class: "month #{['twice a month', 'monthly'].include?(bc.object.time_sheet) ? '' : 'hidden'}"
+                          = bc.hidden_field :ts_end_of_month
             #tab-buy-ta.tab-pane.padding-top-15
               .row
                 .col-md-12
@@ -185,7 +188,7 @@
                         .select
                           .plain-select
                             = text_field_tag :sc_ts_approve, '', class: 'form-control', readonly: true 
-                            = bc.hidden_field :ts_approve
+                            = bc.hidden_field :ts_approve, value: 'immediately'
                       .col-md-6
                         .b-ts-apv-set
                           %div{:class => "form-group daily #{bc.object.ts_approve != 'daily' ? 'hidden' : ''}"}
@@ -210,8 +213,9 @@
                             .select
                               = bc.text_field :ta_date_2, class: "form-control", readonly: true
                           %span{:class => "form-group month #{['twice a month', 'monthly'].include?(bc.object.ts_approve) ? '' : 'hidden'}"} OR
-                          = bc.check_box :ta_end_of_month, class: "month #{['twice a month', 'monthly'].include?(bc.object.ts_approve) ? '' : 'hidden'}"
+                          = check_box_tag :sc_ta_end_of_month, '1', false, class: 'month hidden', disabled: true
                           = bc.label :ta_end_of_month, "End of month", class: "month #{['twice a month', 'monthly'].include?(bc.object.ts_approve) ? '' : 'hidden'}"
+                          = bc.hidden_field :ta_end_of_month
             #tab-buy-ir.tab-pane.padding-top-15
               .row
                 .col-md-12

@@ -180,6 +180,7 @@
         } else if($(this).val() == "monthly"){
           $(".b-ts-set").find('.month').removeClass("hidden");
           $('#contract_buy_contracts_attributes_0_ts_date_1').val($('#contract_sell_contracts_attributes_0_ts_date_1').val());
+          $(".b-ts-set").find('#sc_ts_end_of_month').removeClass('hidden');
         }
         $('#bc_timesheet').val($('#contract_sell_contracts_attributes_0_time_sheet option:selected').text());
 
@@ -213,6 +214,7 @@
         } else if($(this).val() == "monthly"){
           $(".b-ts-apv-set").find('.month').removeClass("hidden");
           $('#contract_buy_contracts_attributes_0_ta_date_1').val($('#contract_sell_contracts_attributes_0_ta_date_1').val());
+          $(".b-ts-apv-set").find('#sc_ta_end_of_month').removeClass('hidden');
         }
 
         $('#sc_ts_approve').val($('#contract_sell_contracts_attributes_0_ts_approve option:selected').text());
@@ -408,19 +410,23 @@
     //});
     function check_sc_ts_end_of_month(){
       if($('#contract_sell_contracts_attributes_0_ts_end_of_month').is(':checked')){
-       $('#contract_buy_contracts_attributes_0_ts_end_of_month').prop('checked', true);
+       $('#sc_ts_end_of_month').prop('checked', true);
+       $('#contract_buy_contracts_attributes_0_ts_end_of_month').val(true);
       }
       else{
-        $('#contract_buy_contracts_attributes_0_ts_end_of_month').prop('checked', false);
+        $('#sc_ts_end_of_month').prop('checked', false);
+        $('#contract_buy_contracts_attributes_0_ts_end_of_month').val(false);
       }
     }
 
     function check_sc_ta_end_of_month(){
       if($('#contract_sell_contracts_attributes_0_ta_end_of_month').is(':checked')){
-       $('#contract_buy_contracts_attributes_0_ta_end_of_month').prop('checked', true);
+        $('#sc_ta_end_of_month').prop('checked', true);
+        $('#contract_buy_contracts_attributes_0_ta_end_of_month').val(true);
       }
       else{
-        $('#contract_buy_contracts_attributes_0_ta_end_of_month').prop('checked', false);
+        $('#sc_ta_end_of_month').prop('checked', true);
+        $('#contract_buy_contracts_attributes_0_ta_end_of_month').val(true);
       }
     }
 
