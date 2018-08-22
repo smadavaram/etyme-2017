@@ -181,8 +181,11 @@
           $(".b-ts-set").find('.month').removeClass("hidden");
           $('#contract_buy_contracts_attributes_0_ts_date_1').val($('#contract_sell_contracts_attributes_0_ts_date_1').val());
         }
+        $('#bc_timesheet').val($('#contract_sell_contracts_attributes_0_time_sheet option:selected').text());
 
       });
+
+      $('#bc_timesheet').val($('#contract_sell_contracts_attributes_0_time_sheet option:selected').text());
 
       $(".sell-time-sheet-approve").on("change", function(){
         $(".s-ts-apv-set").children().addClass("hidden");
@@ -212,19 +215,35 @@
           $('#contract_buy_contracts_attributes_0_ta_date_1').val($('#contract_sell_contracts_attributes_0_ta_date_1').val());
         }
 
+        $('#sc_ts_approve').val($('#contract_sell_contracts_attributes_0_ts_approve option:selected').text());
+
       });
+
+      $('#sc_ts_approve').val($('#contract_sell_contracts_attributes_0_ts_approve option:selected').text());
 
       $(".s-ts-set").on("change", function(){
         $(".b-ts-set").find('.con-time').val($(".s-ts-set").find('.con-time').val());
         $('#contract_buy_contracts_attributes_0_ts_date_1').val($('#contract_sell_contracts_attributes_0_ts_date_1').val());
         $('#contract_buy_contracts_attributes_0_ts_date_2').val($('#contract_sell_contracts_attributes_0_ts_date_2').val());
+
+        $('#bc_ts_day_of_week').val($('#contract_sell_contracts_attributes_0_ts_day_of_week option:selected').text());
+
+        check_sc_ts_end_of_month()
       });
+
+      $('#bc_ts_day_of_week').val($('#contract_sell_contracts_attributes_0_ts_day_of_week option:selected').text());
 
       $(".s-ts-apv-set").on("change", function(){
         $(".b-ts-apv-set").find('.con-time').val($(".s-ts-apv-set").find('.con-time').val());
         $('#contract_buy_contracts_attributes_0_ta_date_1').val($('#contract_sell_contracts_attributes_0_ta_date_1').val());
         $('#contract_buy_contracts_attributes_0_ta_date_2').val($('#contract_sell_contracts_attributes_0_ta_date_2').val());
+
+        $('#sc_ta_day_of_week').val($('#contract_sell_contracts_attributes_0_ta_day_of_week option:selected').text());
+
+        check_sc_ta_end_of_month()
       });
+
+      $('#sc_ta_day_of_week').val($('#contract_sell_contracts_attributes_0_ta_day_of_week option:selected').text());
 
       $('#contract_sell_contracts_attributes_0_ta_day_of_week').on("change", function(){
         $('#contract_buy_contracts_attributes_0_ta_day_of_week').val($('#contract_sell_contracts_attributes_0_ta_day_of_week').val());
@@ -232,7 +251,7 @@
 
       $('#contract_sell_contracts_attributes_0_ts_day_of_week').on("change", function(){
         $('#contract_buy_contracts_attributes_0_ts_day_of_week').val($('#contract_sell_contracts_attributes_0_ts_day_of_week').val());
-      });      
+      });  
 
 
       $(".buy-time-sheet").on("change", function(){
@@ -387,6 +406,24 @@
     //    });
     //  });
     //});
+    function check_sc_ts_end_of_month(){
+      if($('#contract_sell_contracts_attributes_0_ts_end_of_month').is(':checked')){
+       $('#contract_buy_contracts_attributes_0_ts_end_of_month').prop('checked', true);
+      }
+      else{
+        $('#contract_buy_contracts_attributes_0_ts_end_of_month').prop('checked', false);
+      }
+    }
+
+    function check_sc_ta_end_of_month(){
+      if($('#contract_sell_contracts_attributes_0_ta_end_of_month').is(':checked')){
+       $('#contract_buy_contracts_attributes_0_ta_end_of_month').prop('checked', true);
+      }
+      else{
+        $('#contract_buy_contracts_attributes_0_ta_end_of_month').prop('checked', false);
+      }
+    }
+
     function toggleFields() {
         if($('#contract_is_commission').val() == "true")
           $("#contract-commision").show();
