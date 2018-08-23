@@ -33,7 +33,11 @@ module CompaniesHelper
   end
    def time_sheet_approve_date buy_contract
     ta_type = buy_contract&.ts_approve
-    ta_day_of_week = Date.parse(buy_contract&.ta_day_of_week&.titleize).try(:strftime, '%A')
+    if buy_contract&.ta_day_of_week.present?
+      ta_day_of_week = Date.parse(buy_contract&.ta_day_of_week&.titleize).try(:strftime, '%A')
+    else
+      ta_day_of_week = 'mon'
+    end
     ta_date_1 = buy_contract&.ta_date_1.try(:strftime, '%e').to_i.ordinalize.to_s
     ta_date_2 = buy_contract&.ta_date_2.try(:strftime, '%e').to_i.ordinalize.to_s
     ta_end_of_month = buy_contract&.ta_end_of_month

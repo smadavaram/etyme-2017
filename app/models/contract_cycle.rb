@@ -14,8 +14,15 @@ class ContractCycle < ApplicationRecord
             presence: true,
             inclusion: { in: CYCLETYPES }
 
-  scope :incomplete, -> {where(status: 'pending')}
+  scope :pending, -> {where(status: 'pending')}
+
+  scope :candidate_id, -> (candidate_id) { where candidate_id: candidate_id }
+  scope :contract_id, -> (contract_id) { where contract_id: contract_id }
+  scope :note, -> (note) {where note: note}
+
   scope :completed, -> {where(status: 'completed')}
+  scope :overdue, -> {where('DATE(contract_cycles.end_date) < ?', DateTime.now.end_of_day.to_date)}
+  scope :todo, -> {where('DATE(contract_cycles.end_date) BETWEEN ? AND ?', Date.today, 11.days.from_now.to_date)}
 
   def next_action=(new_next_action)
     write_attribute(:next_action, new_next_action)

@@ -118,7 +118,7 @@
                   .form-group
                     .select
                       .row
-                        .col-md-6
+                        .col-md-4
                           %label.control-label
                             Time sheet
                           .plain-select
@@ -155,7 +155,7 @@
                   .form-group
                     .select
                       .row
-                        .col-md-6
+                        .col-md-4
                           %label.control-label
                             Timesheet Approve
                           .plain-select
@@ -187,7 +187,7 @@
                             = sc.label :ta_end_of_month, "End of month", class: "month #{['twice a month', 'monthly'].include?(sc.object.ts_approve) ? '' : 'hidden'}"
             #tab-sell-bi.tab-pane.padding-top-15
               .row
-                .col-md-6
+                .col-md-4
                   .form-group
                     %label.control-label
                       Invoice Terms
@@ -229,14 +229,14 @@
                       Payment Terms
                     .select
                       = sc.number_field :payment_term , class: "form-control", min: 0, max: 365
-    .row
-      .col-md-6
-        .form-group
-          %label.control-label
-          .select
-            = sc.check_box :show_accounting_to_employee
-            %span
-              Show Accounting term to employee ?
+    / .row
+    /   .col-md-6
+    /     .form-group
+    /       %label.control-label
+    /       .select
+    /         / = sc.check_box :show_accounting_to_employee
+    /         %span
+    /           Show Accounting term to employee ?
 
 - content_for :scripts do
   :javascript

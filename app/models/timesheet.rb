@@ -23,11 +23,11 @@ class Timesheet < ApplicationRecord
 
   # before_validation :set_recurring_timesheet_cycle
   after_update  :set_ts_on_seq, if: Proc.new{|t| t.status_changed? && t.submitted? && t.total_time.to_f > 0}
-  after_update  :set_ta_on_seq, if: Proc.new{|t| t.status_changed? && t.approved? && t.total_time.to_f > 0}
+  # after_update  :set_ta_on_seq, if: Proc.new{|t| t.status_changed? && t.approved? && t.total_time.to_f > 0}
 
   # after_create  :create_timesheet_logs
   # after_create  :notify_timesheet_created
-  # after_update :update_pending_timesheet_logs, if: Proc.new{|t| t.status_changed? && t.approved?}
+  after_update :update_pending_timesheet_logs, if: Proc.new{|t| t.status_changed? && t.approved?}
 
   after_update :set_contract_salary_histories, if: Proc.new{|t| t.status_changed? && t.approved?}
 
@@ -133,7 +133,7 @@ class Timesheet < ApplicationRecord
   end
 
   def set_contract_salary_histories
-    amoount = (self.total_time * self.contract.buy_contracts.first.payrate)
+    amoount = self.contract.buy_contracts.first.payrate.present? ? (self.total_time * self.contract.buy_contracts.first.payrate) : 0
     contract_amount = self.contract.salary_to_pay
     ContractSalaryHistory.create(contract_id: self.contract_id,
                                  company_id: self.contract.company_id,
@@ -149,7 +149,11 @@ class Timesheet < ApplicationRecord
   end
 
   def get_total_amount
-    self.total_time * self.contract.buy_contracts.first.payrate
+    if self.contract.buy_contracts.first.payrate
+      self.total_time * self.contract.buy_contracts.first.payrate
+    else
+      self.total_time * 0
+    end
   end
 
   def submitted(timesheet_params, days, total_time)
@@ -188,17 +192,19 @@ class Timesheet < ApplicationRecord
 
   def self.set_con_cycle_ta_date(buy_contract, con_cycle)
     @ta_type = buy_contract&.ts_approve
-    @ta_day_of_week = Date.parse(buy_contract&.ta_day_of_week&.titleize).try(:strftime, '%A')
+    if buy_contract&.ta_day_of_week.present?
+      @ta_day_of_week = Date.parse(buy_contract&.ta_day_of_week&.titleize).try(:strftime, '%A')
+    else
+      @ta_day_of_week = 'mon'
+    end
     @ta_date_1 = buy_contract&.ta_date_1.try(:strftime, '%e')
     @ta_date_2 = buy_contract&.ta_date_2.try(:strftime, '%e')
     @ta_end_of_month = buy_contract&.ta_end_of_month
     @ta_day_time = buy_contract&.ta_day_time.try(:strftime, '%H:%M')
     case @ta_type
     when 'daily'
-      # binding.pry
       con_cycle_ta_start_date = con_cycle.start_date
-    when 'weekly'
-      # binding.pry   
+    when 'weekly'  
       con_cycle_ta_start_date = date_of_next(@ta_day_of_week,con_cycle)
     when 'monthly'
       if @ta_end_of_month

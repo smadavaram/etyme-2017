@@ -3,7 +3,7 @@
     %h3.timeline-title
       Overdue 
     
-    - overdue_contract_cycles.each do |cc|
+    - @contract_cycles.pending.overdue.order(start_date: :desc).each do |cc|
       / - cy = ContractCycle.find_by(contract_id: cc.contract_id, end_date: cc.end_date, candidate_id: cc.candidate_id)
       .timeline-block
         %span.badge.status-badge.red-badge
@@ -38,7 +38,7 @@
       To Do 
     %p.small-text (Next 10 Days)
 
-    - todo_contract_cycles.each do |cc|
+    - @contract_cycles.includes(:company).pending.todo.order(start_date: :asc).each do |cc|
       / - cy = ContractCycle.find_by(contract_id: cc.contract_id, end_date: cc.end_date, candidate_id: cc.candidate_id)
       .timeline-block
         %span.badge.status-badge.yellow-badge
@@ -72,7 +72,7 @@
       Completed 
     %p.small-text (Past 10 Days including today)
     
-    - completed_contract_cycles.each do |cc|
+    - @contract_cycles.includes(:company).completed.order(id: :asc).each do |cc|
       / - cy = ContractCycle.find_by(contract_id: cc.contract_id, end_date: cc.end_date, candidate_id: cc.candidate_id, status: 'completed')
 
       .timeline-block

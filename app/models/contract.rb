@@ -1,6 +1,5 @@
 class Contract < ApplicationRecord
 
-  include Filterable
   include PublicActivity::Model
   tracked params:{ "obj"=> proc {|controller, model_instance| model_instance.changes}}
 
@@ -94,10 +93,6 @@ class Contract < ApplicationRecord
 
   # include NumberGenerator.new({prefix: 'C', length: 7})
   default_scope  -> {order(created_at: :desc)}
-
-  scope :candidate, -> (candidate_id) { where status: candidate_id }
-  scope :contract, -> (id) { where id: id }
-  # scope :starts_with, -> (name) { where("name like ?", "#{name}%")}
 
   delegate :set_timesheet_submit, :invoice_generate, :find_next_date, :to => :appraiser
 

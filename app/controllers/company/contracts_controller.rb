@@ -166,25 +166,25 @@ class Company::ContractsController < Company::BaseController
 
 
   def timeline
-    @contracts = current_company.contracts.where.not(status: "pending")
+    @contracts = current_company.contracts.includes(:job).where.not(status: "pending")
     @candidates = Candidate.all
-    get_all_filter_data
+    filter_timeline
   end
 
   def filter_timeline
-    if params[:contract_id].blank? && params[:candidate_id].blank?
-      get_all_filter_data
-    elsif !params[:contract_id].blank? && params[:candidate_id].blank?
-      get_contract_filter_data
-      elsif !params[:candidate_id].blank? && params[:contract_id].blank?
-      get_candidate_filter_data
-    else
-      get_contract_candidate_filter_data
+    @contract_cycles = current_company.contract_cycles.includes(:candidate,contract: [:sell_contracts, :buy_contracts, :company]).where(nil)
+    filtering_params(params).each do |key, value|
+      @contract_cycles = @contract_cycles.public_send(key, value) if value.present?
     end
   end
 
 
   private
+
+  def filtering_params(params)
+    params.slice(:contract_id, :candidate_id, :note)
+  end
+
 
   def find_contract
     @contract = Contract.find(params[:id] || params[:contract_id]) #  , current_company).first || []
@@ -299,29 +299,5 @@ class Company::ContractsController < Company::BaseController
 
   def update_contract_response_params
     params.require(:contract).permit(:is_commission , :response_from_vendor , :received_by_signature,:received_by_name, :commission_type,:commission_amount , :max_commission , :commission_for_id, :assignee_id)
-  end
-
-  def get_all_filter_data
-    @todo_contract_cycles = current_company.contract_cycles.where(status: 'pending').where('DATE(contract_cycles.end_date) BETWEEN ? AND ?', Date.today, 11.days.from_now.to_date).order(start_date: :asc)
-    @completed_contract_cycles = current_company.contract_cycles.where(status: 'completed').order(id: :asc)
-    @overdue_contract_cycles = current_company.contract_cycles.where(status: 'pending').where("DATE(contract_cycles.end_date) < ?", DateTime.now.end_of_day.to_date).order(start_date: :desc)
-  end
-
-  def get_contract_filter_data
-    @todo_contract_cycles = current_company.contract_cycles.where(status: 'pending').where('contract_id = (?) AND DATE(contract_cycles.end_date) BETWEEN ? AND ?', params[:contract_id],Date.today, 11.days.from_now.to_date).order(start_date: :asc)
-    @completed_contract_cycles = @completed_contract_cycles = current_company.contract_cycles.where(status: 'completed', contract_id: params[:contract_id]).order(id: :asc)
-    @overdue_contract_cycles = current_company.contract_cycles.where(status: 'pending').where("contract_id = (?) AND DATE(contract_cycles.end_date) < ?", params[:contract_id], DateTime.now.end_of_day.to_date).order(start_date: :desc)
-  end
-
-  def get_candidate_filter_data
-    @todo_contract_cycles = current_company.contract_cycles.where(status: 'pending', candidate_id: params[:candidate_id]).where('DATE(contract_cycles.end_date) BETWEEN ? AND ?', Date.today, 11.days.from_now.to_date).order(start_date: :asc)
-    @completed_contract_cycles = @completed_contract_cycles = current_company.contract_cycles.where(status: 'completed', candidate_id: params[:candidate_id]).order(id: :asc)
-    @overdue_contract_cycles = current_company.contract_cycles.where(status: 'pending', candidate_id: params[:candidate_id]).where("DATE(contract_cycles.end_date) < ?", DateTime.now.end_of_day.to_date).order(start_date: :desc)
-  end
-
-  def get_contract_candidate_filter_data
-    @todo_contract_cycles = current_company.contract_cycles.where(status: 'pending', candidate_id: params[:candidate_id], contract_id: params[:contract_id]).where('DATE(contract_cycles.end_date) BETWEEN ? AND ?', Date.today, 11.days.from_now.to_date).order(start_date: :asc)
-    @completed_contract_cycles = @completed_contract_cycles = current_company.contract_cycles.where(status: 'completed', contract_id: params[:contract_id], candidate_id: params[:candidate_id]).order(id: :asc)
-    @overdue_contract_cycles = current_company.contract_cycles.where(status: 'pending', candidate_id: params[:candidate_id], contract_id: params[:contract_id]).where("DATE(contract_cycles.end_date) < ?", DateTime.now.end_of_day.to_date).order(start_date: :desc)
   end
 end
