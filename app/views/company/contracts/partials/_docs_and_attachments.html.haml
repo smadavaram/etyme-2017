@@ -161,7 +161,7 @@
                           .plain-select
                             = text_field_tag :bc_timesheet, '', class: 'form-control',readonly: true
                             = bc.hidden_field :time_sheet, value: 'immediately'
-                      .col-md-6
+                      .col-md-4
                         .b-ts-set
                           %div{:class => "form-group daily #{bc.object.time_sheet != 'daily' ? 'hidden' : ''}"}
                             %label.control-label
@@ -189,6 +189,11 @@
                           = check_box_tag :sc_ts_end_of_month, '1', false, class: 'month hidden', disabled: true
                           = bc.label :ts_end_of_month, "End of month", class: "month #{['twice a month', 'monthly'].include?(bc.object.time_sheet) ? '' : 'hidden'}"
                           = bc.hidden_field :ts_end_of_month
+
+                      .col-md-4
+                        %label.control-label
+                          Assign to
+                        = select_tag 'assign_to', options_from_collection_for_select(current_company.company_contacts, "id", 'full_name'), include_blank: 'Please select',class: 'form-control'
             #tab-buy-ta.tab-pane.padding-top-15
               .row
                 .col-md-12
@@ -201,7 +206,7 @@
                           .plain-select
                             = text_field_tag :sc_ts_approve, '', class: 'form-control', readonly: true 
                             = bc.hidden_field :ts_approve, value: 'immediately'
-                      .col-md-6
+                      .col-md-4
                         .b-ts-apv-set
                           %div{:class => "form-group daily #{bc.object.ts_approve != 'daily' ? 'hidden' : ''}"}
                             %label.control-label
@@ -228,6 +233,11 @@
                           = check_box_tag :sc_ta_end_of_month, '1', false, class: 'month hidden', disabled: true
                           = bc.label :ta_end_of_month, "End of month", class: "month #{['twice a month', 'monthly'].include?(bc.object.ts_approve) ? '' : 'hidden'}"
                           = bc.hidden_field :ta_end_of_month
+                      
+                      .col-md-4
+                        %label.control-label
+                          Assign to
+                        = select_tag 'assign_to', options_from_collection_for_select(current_company.company_contacts, "id", 'full_name'), include_blank: 'Please select',class: 'form-control'
 
             #tab-buy-ir.tab-pane.padding-top-15
               .row
@@ -240,7 +250,7 @@
                         .select
                           .plain-select
                             = bc.select :invoice_recepit, Contract.time_sheet_frequencies.map { |key, value| [key.humanize, key] }, {},{class: "form-control buy-invoice-recepit" }
-                      .col-md-6
+                      .col-md-4
                         .b-in-re-set
                           %div{:class => "form-group daily #{bc.object.invoice_recepit != 'daily' ? 'hidden' : ''}"}
                             %label.control-label
@@ -265,6 +275,11 @@
                           %span{:class => "form-group month #{['twice a month', 'monthly'].include?(bc.object.invoice_recepit) ? '' : 'hidden'}"} OR
                           = bc.check_box :ir_end_of_month, class: "month #{['twice a month', 'monthly'].include?(bc.object.invoice_recepit) ? '' : 'hidden'}"
                           = bc.label :ir_end_of_month, "End of month", class: "month #{['twice a month', 'monthly'].include?(bc.object.invoice_recepit) ? '' : 'hidden'}"
+
+                      .col-md-4
+                        %label.control-label
+                          Assign to
+                        = select_tag 'assign_to', options_from_collection_for_select(current_company.company_contacts, "id", 'full_name'), include_blank: 'Please select',class: 'form-control'
                 .col-md-6
                   .form-group
                     %label.control-label
@@ -283,7 +298,7 @@
                         .select
                           .plain-select
                             = bc.select :salary_calculation, Contract.time_sheet_frequencies.map { |key, value| [key.humanize, key] }, {},{class: "form-control buy-sal-cal" }
-                      .col-md-6
+                      .col-md-4
                         .b-sal-cal
                           %div{:class => "form-group daily #{bc.object.salary_calculation != 'daily' ? 'hidden' : ''}"}
                             %label.control-label
@@ -308,6 +323,11 @@
                           %span{:class => "form-group month #{['twice a month', 'monthly'].include?(bc.object.salary_calculation) ? '' : 'hidden'}"} OR
                           = bc.check_box :sc_end_of_month, class: "month #{['twice a month', 'monthly'].include?(bc.object.salary_calculation) ? '' : 'hidden'}"
                           = bc.label :sc_end_of_month, "End of month", class: "month #{['twice a month', 'monthly'].include?(bc.object.salary_calculation) ? '' : 'hidden'}"
+
+                      .col-md-4
+                        %label.control-label
+                          Assign to
+                        = select_tag 'assign_to', options_from_collection_for_select(current_company.company_contacts, "id", 'full_name'), include_blank: 'Please select',class: 'form-control'
             #tab-buy-cc.tab-pane.padding-top-15
               .row
                 .col-md-12.add-commission
@@ -338,7 +358,7 @@
                         .select
                           .plain-select
                             = bc.select :vendor_bill, Contract.time_sheet_frequencies.map { |key, value| [key.humanize, key] }, {},{class: "form-control buy-vendor-bill" }
-                      .col-md-6
+                      .col-md-4
                         .b-vb-set
                           %div{:class => "form-group daily #{bc.object.vendor_bill != 'daily' ? 'hidden' : ''}"}
                             %label.control-label
@@ -364,6 +384,11 @@
                           = bc.check_box :vb_end_of_month, class: "month #{['twice a month', 'monthly'].include?(bc.object.vendor_bill) ? '' : 'hidden'}"
                           = bc.label :vb_end_of_month, "End of month", class: "month #{['twice a month', 'monthly'].include?(bc.object.vendor_bill) ? '' : 'hidden'}"
 
+                      .col-md-4
+                        %label.control-label
+                          Assign to
+                        = select_tag 'assign_to', options_from_collection_for_select(current_company.company_contacts, "id", 'full_name'), include_blank: 'Please select',class: 'form-control'
+
             #tab-buy-cp.tab-pane.padding-top-15
               .row
                 .col-md-12
@@ -375,7 +400,7 @@
                         .select
                           .plain-select
                             = bc.select :client_bill_payment, Contract.time_sheet_frequencies.map { |key, value| [key.humanize, key] }, {},{class: "form-control buy-client-bill-payment" }
-                      .col-md-6
+                      .col-md-4
                         .b-cp-set
                           %div{:class => "form-group daily #{bc.object.client_bill_payment != 'daily' ? 'hidden' : ''}"}
                             %label.control-label
@@ -401,6 +426,11 @@
                           = bc.check_box :cp_end_of_month, class: "month #{['twice a month', 'monthly'].include?(bc.object.client_bill_payment) ? '' : 'hidden'}"
                           = bc.label :cp_end_of_month, "End of month", class: "month #{['twice a month', 'monthly'].include?(bc.object.client_bill_payment) ? '' : 'hidden'}"
 
+                      .col-md-4
+                        %label.control-label
+                          Assign to
+                        = select_tag 'assign_to', options_from_collection_for_select(current_company.company_contacts, "id", 'full_name'), include_blank: 'Please select',class: 'form-control'
+
             #tab-buy-cb.tab-pane.padding-top-15
               .row
                 .col-md-12
@@ -412,7 +442,7 @@
                         .select
                           .plain-select
                             = bc.select :client_bill, Contract.time_sheet_frequencies.map { |key, value| [key.humanize, key] }, {},{class: "form-control buy-client-bill" }
-                      .col-md-6
+                      .col-md-4
                         .b-cb-set
                           %div{:class => "form-group daily #{bc.object.client_bill != 'daily' ? 'hidden' : ''}"}
                             %label.control-label
@@ -437,6 +467,11 @@
                           %span{:class => "form-group month #{['twice a month', 'monthly'].include?(bc.object.client_bill) ? '' : 'hidden'}"} OR
                           = bc.check_box :cb_end_of_month, class: "month #{['twice a month', 'monthly'].include?(bc.object.client_bill) ? '' : 'hidden'}"
                           = bc.label :cb_end_of_month, "End of month", class: "month #{['twice a month', 'monthly'].include?(bc.object.client_bill) ? '' : 'hidden'}"
+
+                      .col-md-4
+                        %label.control-label
+                          Assign to
+                        = select_tag 'assign_to', options_from_collection_for_select(current_company.company_contacts, "id", 'full_name'), include_blank: 'Please select',class: 'form-control'
 
             / #tab-buy-cp.tab-pane.padding-top-15
             /   .row

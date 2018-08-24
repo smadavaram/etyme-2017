@@ -123,7 +123,7 @@
                             Time sheet
                           .plain-select
                             = sc.select :time_sheet, Contract.time_sheet_frequencies.map { |key, value| [key.humanize, key] }, {},{class: "form-control sell-time-sheet" }
-                        .col-md-6
+                        .col-md-4
                           .s-ts-set
                             %div{:class => "form-group daily #{sc.object.time_sheet != 'daily' ? 'hidden' : ''}"}
                               %label.control-label
@@ -148,6 +148,11 @@
                             %span{:class => "form-group month #{['twice a month', 'monthly'].include?(sc.object.time_sheet) ? '' : 'hidden'}"} OR
                             = sc.check_box :ts_end_of_month, class: "month #{['twice a month', 'monthly'].include?(sc.object.time_sheet) ? '' : 'hidden'}"
                             = sc.label :ts_end_of_month, "End of month", class: "month #{['twice a month', 'monthly'].include?(sc.object.time_sheet) ? '' : 'hidden'}"
+
+                        .col-md-4
+                          %label.control-label
+                            Assign to
+                          = select_tag 'assign_to', options_from_collection_for_select(current_company.company_contacts, "id", 'full_name'), include_blank: 'Please select',class: 'form-control'
 
                       .row
                         .col-md-4
@@ -235,7 +240,7 @@
                             Timesheet Approve
                           .plain-select
                             = sc.select :ts_approve, Contract.time_sheet_frequencies.map { |key, value| [key.humanize, key] }, {},{class: "form-control sell-time-sheet-approve" }
-                        .col-md-6
+                        .col-md-4
                           .s-ts-apv-set
                             %div{:class => "form-group daily #{sc.object.ts_approve != 'daily' ? 'hidden' : ''}"}
                               %label.control-label
@@ -260,6 +265,11 @@
                             %span{:class => "form-group month #{['twice a month', 'monthly'].include?(sc.object.ts_approve) ? '' : 'hidden'}"} OR
                             = sc.check_box :ta_end_of_month, class: "month #{['twice a month', 'monthly'].include?(sc.object.ts_approve) ? '' : 'hidden'}"
                             = sc.label :ta_end_of_month, "End of month", class: "month #{['twice a month', 'monthly'].include?(sc.object.ts_approve) ? '' : 'hidden'}"
+
+                        .col-md-4
+                          %label.control-label
+                            Assign to
+                          = select_tag 'assign_to', options_from_collection_for_select(current_company.company_contacts, "id", 'full_name'), include_blank: 'Please select',class: 'form-control'
             #tab-sell-bi.tab-pane.padding-top-15
               .row
                 .col-md-4
@@ -270,7 +280,7 @@
                       .plain-select
                         = sc.select :invoice_terms_period, Contract.time_sheet_frequencies.map { |key, value| [key.humanize, key] }, {},{class: "form-control sell-invoice " }
                 -#= sc.select :invoice_terms_period , (0..60).map{|a| ["Net " + a.to_s + " days",a]}, {},{class: "form-control" }
-                .col-md-6
+                .col-md-4
                   .sell-invoice-setting
                     %div{:class => "form-group daily #{sc.object.invoice_terms_period != 'daily' ? 'hidden' : ''}"}
                       %label.control-label
@@ -295,6 +305,11 @@
                     %span{:class => "form-group month #{['twice a month', 'monthly'].include?(sc.object.invoice_terms_period) ? '' : 'hidden'}"} OR
                     = sc.check_box :invoice_end_of_month, class: "month #{['twice a month', 'monthly'].include?(sc.object.invoice_terms_period) ? '' : 'hidden'}"
                     = sc.label :invoice_end_of_month, "End of month", class: "month #{['twice a month', 'monthly'].include?(sc.object.invoice_terms_period) ? '' : 'hidden'}"
+
+                .col-md-4
+                  %label.control-label
+                    Assign to
+                  = select_tag 'assign_to', options_from_collection_for_select(current_company.company_contacts, "id", 'full_name'), include_blank: 'Please select',class: 'form-control'
 
             #tab-sell-pr.tab-pane.padding-top-15
               .row
