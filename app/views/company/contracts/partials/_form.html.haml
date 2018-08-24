@@ -255,30 +255,68 @@
         $('#contract_buy_contracts_attributes_0_ts_day_of_week').val($('#contract_sell_contracts_attributes_0_ts_day_of_week').val());
       });  
 
-
-      $(".buy-time-sheet").on("change", function(){
-        $(".b-ts-set").children().addClass("hidden");
+      $(".sell-client-expense").on("change", function(){
+        $(".s-ce-set").children().addClass("hidden");
         if($(this).val() == "daily"){
-          $(".b-ts-set").find('.daily').removeClass("hidden");
+          $(".s-ce-set").find('.daily').removeClass("hidden");
         } else if($(this).val() == "weekly" || $(this).val() == "biweekly"){
-          $(".b-ts-set").find('.week').removeClass("hidden");
+          $(".s-ce-set").find('.week').removeClass("hidden");
         } else if($(this).val() == "twice a month"){
-          $(".b-ts-set").find('.twice-month, .month').removeClass("hidden");
+          $(".s-ce-set").find('.twice-month, .month').removeClass("hidden");
         } else if($(this).val() == "monthly"){
-          $(".b-ts-set").find('.month').removeClass("hidden");
+          $(".s-ce-set").find('.month').removeClass("hidden");
         }
       });
 
-      $(".buy-time-approve-sheet").on("change", function(){
-        $(".b-ts-apv-set").children().addClass("hidden");
+      $(".sell-performance-review").on("change", function(){
+        $(".s-pr-set").children().addClass("hidden");
         if($(this).val() == "daily"){
-          $(".b-ts-apv-set").find('.daily').removeClass("hidden");
+          $(".s-pr-set").find('.daily').removeClass("hidden");
         } else if($(this).val() == "weekly" || $(this).val() == "biweekly"){
-          $(".b-ts-apv-set").find('.week').removeClass("hidden");
+          $(".s-pr-set").find('.week').removeClass("hidden");
         } else if($(this).val() == "twice a month"){
-          $(".b-ts-apv-set").find('.twice-month, .month').removeClass("hidden");
+          $(".s-pr-set").find('.twice-month, .month').removeClass("hidden");
         } else if($(this).val() == "monthly"){
-          $(".b-ts-apv-set").find('.month').removeClass("hidden");
+          $(".s-pr-set").find('.month').removeClass("hidden");
+        }
+      });
+
+      $(".buy-vendor-bill").on("change", function(){
+        $(".b-vb-set").children().addClass("hidden");
+        if($(this).val() == "daily"){
+          $(".b-vb-set").find('.daily').removeClass("hidden");
+        } else if($(this).val() == "weekly" || $(this).val() == "biweekly"){
+          $(".b-vb-set").find('.week').removeClass("hidden");
+        } else if($(this).val() == "twice a month"){
+          $(".b-vb-set").find('.twice-month, .month').removeClass("hidden");
+        } else if($(this).val() == "monthly"){
+          $(".b-vb-set").find('.month').removeClass("hidden");
+        }
+      });
+
+      $(".buy-client-bill-payment").on("change", function(){
+        $(".b-cp-set").children().addClass("hidden");
+        if($(this).val() == "daily"){
+          $(".b-cp-set").find('.daily').removeClass("hidden");
+        } else if($(this).val() == "weekly" || $(this).val() == "biweekly"){
+          $(".b-cp-set").find('.week').removeClass("hidden");
+        } else if($(this).val() == "twice a month"){
+          $(".b-cp-set").find('.twice-month, .month').removeClass("hidden");
+        } else if($(this).val() == "monthly"){
+          $(".b-cp-set").find('.month').removeClass("hidden");
+        }
+      });
+
+      $(".buy-client-bill").on("change", function(){
+        $(".b-cb-set").children().addClass("hidden");
+        if($(this).val() == "daily"){
+          $(".b-cb-set").find('.daily').removeClass("hidden");
+        } else if($(this).val() == "weekly" || $(this).val() == "biweekly"){
+          $(".b-cb-set").find('.week').removeClass("hidden");
+        } else if($(this).val() == "twice a month"){
+          $(".b-cb-set").find('.twice-month, .month').removeClass("hidden");
+        } else if($(this).val() == "monthly"){
+          $(".b-cb-set").find('.month').removeClass("hidden");
         }
       });
 
@@ -311,10 +349,10 @@
       $(".contract-type-radio input[type='radio']").on("change", function(){
         if($(this).val() == "C2C"){
           $(".c2c-type").removeClass('hidden');
-          $('.corp-corp').text('Vendor Bill');
+          $('.salary-calculation').hide();
         } else {
           $(".c2c-type").addClass('hidden');
-          $('.corp-corp').text('Salary Calculation');
+          $('.salary-calculation').show();
         }
       });
 
@@ -471,4 +509,26 @@
       if (event.keyCode === 13) {
         event.preventDefault();
       }
+    });
+
+    $( document ).ready(function() {
+      $('.client_expense').hide();
+      $('#contract_sell_contracts_attributes_0_is_client_expense').on("change", function(){
+        if (this.checked){
+          $('.client_expense').show();
+          }
+        else{
+          $('.client_expense').hide();
+        }
+      });
+
+      $('.performance_review').hide();
+      $('#contract_sell_contracts_attributes_0_is_performance_review').on("change", function(){
+        if (this.checked){
+          $('.performance_review').show();
+          }
+        else{
+          $('.performance_review').hide();
+        }
+      });
     });

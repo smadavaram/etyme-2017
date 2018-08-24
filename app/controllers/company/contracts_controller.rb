@@ -220,7 +220,11 @@ class Company::ContractsController < Company::BaseController
            :payment_term, :b_time_sheet, :payrate, :contract_type, :end_date,
            :message_from_hiring, :status, :company_id, company_doc_ids: [],
            sell_contracts_attributes: [
-               :expected_hour, 
+               :expected_hour,
+
+               :is_performance_review, :performance_review, :pr_day_time, :pr_date_1, :pr_date_2, :pr_day_of_week, :pr_end_of_month,
+               :is_client_expense, :client_expense, :ce_day_time, :ce_date_1, :ce_date_2, :ce_day_of_week, :ce_end_of_month,
+
                :company_id, :customer_rate, :customer_rate_type, :invoice_terms_period,
                :show_accounting_to_employee, :first_date_of_timesheet,
                :payment_term, :invoice_day_of_week, :invoice_end_of_month, :invoice_date_2, :invoice_date_1,
@@ -242,6 +246,13 @@ class Company::ContractsController < Company::BaseController
                                                    document_signs_attributes: [:id, :signable_type, :signable_id, :_destroy] ]
                                       ],
            buy_contracts_attributes: [
+            
+               :vendor_bill, :vb_day_time, :vb_date_1, :vb_date_2, :vb_day_of_week, :vb_end_of_month,
+
+               :client_bill, :cb_day_time, :cb_date_1, :cb_date_2, :cb_day_of_week, :cb_end_of_month,
+
+               :client_bill_payment, :cp_day_time, :cp_date_1, :cp_date_2, :cp_day_of_week, :cp_end_of_month, :client_bill_payment_term,
+
                :candidate_id, :ssn, :contract_type, :payrate, :payrate_type,
                :payment_term, :show_accounting_to_employee, :first_date_of_timesheet,
                :time_sheet, :ts_day_of_week, :ts_date_1, :ts_date_2, :ts_end_of_month,

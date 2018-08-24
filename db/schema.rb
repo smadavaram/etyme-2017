@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema.define(version: 20180821062753) do
+ActiveRecord::Schema.define(version: 20180824065334) do
 
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
@@ -172,6 +172,25 @@ ActiveRecord::Schema.define(version: 20180821062753) do
     t.boolean "ir_end_of_month", default: false
     t.string "ir_day_of_week"
     t.date "payroll_date"
+    t.string "vendor_bill"
+    t.time "vb_day_time"
+    t.date "vb_date_1"
+    t.date "vb_date_2"
+    t.string "vb_day_of_week"
+    t.boolean "vb_end_of_month", default: false
+    t.string "client_bill"
+    t.time "cb_day_time"
+    t.date "cb_date_1"
+    t.date "cb_date_2"
+    t.string "cb_day_of_week"
+    t.boolean "cb_end_of_month", default: false
+    t.string "client_bill_payment"
+    t.time "cp_day_time"
+    t.date "cp_date_1"
+    t.date "cp_date_2"
+    t.string "cp_day_of_week"
+    t.boolean "cp_end_of_month", default: false
+    t.integer "client_bill_payment_term"
     t.index ["candidate_id"], name: "index_buy_contracts_on_candidate_id"
     t.index ["contract_id"], name: "index_buy_contracts_on_contract_id"
   end
@@ -1182,6 +1201,20 @@ ActiveRecord::Schema.define(version: 20180821062753) do
     t.boolean "ta_end_of_month", default: false
     t.string "ta_day_of_week"
     t.float "expected_hour", default: 0.0
+    t.boolean "is_performance_review", default: false
+    t.string "performance_review"
+    t.time "pr_day_time"
+    t.date "pr_date_1"
+    t.date "pr_date_2"
+    t.string "pr_day_of_week"
+    t.boolean "pr_end_of_month", default: false
+    t.boolean "is_client_expense", default: false
+    t.string "client_expense"
+    t.time "ce_day_time"
+    t.date "ce_date_1"
+    t.date "ce_date_2"
+    t.string "ce_day_of_week"
+    t.boolean "ce_end_of_month", default: false
     t.index ["company_id"], name: "index_sell_contracts_on_company_id"
     t.index ["contract_id"], name: "index_sell_contracts_on_contract_id"
   end
