@@ -230,7 +230,7 @@ class Timesheet < ApplicationRecord
     else
       date
     end
-    if ts_day_of_week > day_of_week
+    if ts_day_of_week.present? && ts_day_of_week > day_of_week  
       date = date+7.days
     else
       date

@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema.define(version: 20180824065334) do
+ActiveRecord::Schema.define(version: 20180827112639) do
 
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
@@ -191,6 +191,18 @@ ActiveRecord::Schema.define(version: 20180824065334) do
     t.string "cp_day_of_week"
     t.boolean "cp_end_of_month", default: false
     t.integer "client_bill_payment_term"
+    t.string "salary_process"
+    t.time "sp_day_time"
+    t.date "sp_date_1"
+    t.date "sp_date_2"
+    t.string "sp_day_of_week"
+    t.boolean "sp_end_of_month", default: false
+    t.string "salary_clear"
+    t.time "sclr_day_time"
+    t.date "sclr_date_1"
+    t.date "sclr_date_2"
+    t.string "sclr_day_of_week"
+    t.boolean "sclr_end_of_month", default: false
     t.index ["candidate_id"], name: "index_buy_contracts_on_candidate_id"
     t.index ["contract_id"], name: "index_buy_contracts_on_contract_id"
   end
@@ -1164,6 +1176,20 @@ ActiveRecord::Schema.define(version: 20180824065334) do
   create_table "roles_users", id: false, force: :cascade do |t|
     t.integer "role_id"
     t.integer "user_id"
+  end
+
+  create_table "salaries", force: :cascade do |t|
+    t.integer "contract_id"
+    t.integer "company_id"
+    t.integer "candidate_id"
+    t.date "start_date"
+    t.date "end_date"
+    t.integer "status"
+    t.integer "sc_cycle_id"
+    t.integer "sp_cycle_id"
+    t.integer "sclr_cycle_id"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
   end
 
   create_table "sell_contracts", force: :cascade do |t|

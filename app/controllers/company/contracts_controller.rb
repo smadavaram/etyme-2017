@@ -253,6 +253,10 @@ class Company::ContractsController < Company::BaseController
 
                :client_bill_payment, :cp_day_time, :cp_date_1, :cp_date_2, :cp_day_of_week, :cp_end_of_month, :client_bill_payment_term,
 
+               :salary_process, :sp_day_time, :sp_date_1, :sp_date_2, :sp_day_of_week, :sp_end_of_month,
+               
+               :salary_clear, :sclr_day_time, :sclr_date_1, :sclr_date_2, :sclr_day_of_week, :sclr_end_of_month,
+
                :candidate_id, :ssn, :contract_type, :payrate, :payrate_type,
                :payment_term, :show_accounting_to_employee, :first_date_of_timesheet,
                :time_sheet, :ts_day_of_week, :ts_date_1, :ts_date_2, :ts_end_of_month,

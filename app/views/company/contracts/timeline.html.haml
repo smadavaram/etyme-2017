@@ -14,7 +14,7 @@
         .col-md-2
           .form-group
             %label Action
-            = select_tag 'cycle_actions', options_for_select(['Timesheet submit', 'Timesheet Approve', 'Invoice Generate']), {class: 'form-control cycle_action', prompt: 'All'}
+            = select_tag 'cycle_actions', options_for_select(['Timesheet submit', 'Timesheet Approve', 'Invoice Generate', 'Salary calculation']), {class: 'form-control cycle_action', prompt: 'All'}
         .col-md-2
           .form-group
             %label Search by relevance
@@ -39,7 +39,7 @@
       var contract_id = $(this).val();
       var candidate_id = $('.candidate_list').val();
       var note = $('.cycle_action').val();
-      filter_timeline(contract_id, candidate_id)
+      filter_timeline(contract_id, candidate_id, note)
     })
 
     $('.candidate_list').on('change', function(){
