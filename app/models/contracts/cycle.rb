@@ -32,11 +32,15 @@ module Contracts
         cycle = add_cycle("Timesheet submit", next_date, start_date, end_date, "TimesheetSubmit", buy_contract.candidate_id, next_next_date, "TimesheetApprove", ta_next_date)
         add_timesheet(start_date, next_date, buy_contract.candidate.full_name, buy_contract.candidate_id, cycle.id)
         con_cycle_ta_start_date = Timesheet.set_con_cycle_ta_date(buy_contract, cycle)
+        # binding.pry
         set_timesheet_approve(cycle,con_cycle_ta_start_date)
         invoice_generate(cycle)
         salary_cycle = add_salary_cycle
   
         add_salary(salary_cycle)
+        con_cycle_sp_start_date = Salary.set_con_cycle_sp_date(buy_contract, salary_cycle)
+        # binding.pry
+        set_salary_process(salary_cycle,con_cycle_sp_start_date)
         next_date = next_next_date
         start_date = cycle.end_date + 1.day
         @count += 1
@@ -75,7 +79,7 @@ module Contracts
 
 
     def set_timesheet_approve(con_cycle,con_cycle_ta_start_date)
-
+      con_cycle_ta_start_date = contract.end_date if con_cycle_ta_start_date > contract.end_date
       con_cycle_ta = ContractCycle.find_by(contract_id: con_cycle.contract_id,
                                           start_date: con_cycle_ta_start_date,
                                           end_date: con_cycle_ta_start_date&.end_of_day&.in_time_zone("Chennai"),
@@ -94,6 +98,31 @@ module Contracts
                                             cycle_date: Time.now,
                                             cycle_type: "TimesheetApprove",
                                             next_action: "InvoiceGenerate"
+        )
+      end
+    end
+
+    def set_salary_process(con_cycle,con_cycle_sp_start_date)
+
+      con_cycle_sp_start_date = contract.end_date if con_cycle_sp_start_date > contract.end_date
+      con_cycle_sp = ContractCycle.find_by(contract_id: con_cycle.contract_id,
+                                          start_date: con_cycle_sp_start_date,
+                                          end_date: con_cycle_sp_start_date&.end_of_day&.in_time_zone("Chennai"),
+                                          company_id: sell_contract.company_id,
+                                          note: "Salary process",
+                                          cycle_type: "SalaryProcess",
+                                          next_action: "SalaryClear"
+      )
+
+      unless con_cycle_sp
+        con_cycle_sp = ContractCycle.create(contract_id: con_cycle.contract_id,
+                                            start_date: con_cycle_sp_start_date,
+                                            end_date: con_cycle_sp_start_date.end_of_day,
+                                            company_id: sell_contract.company_id,
+                                            note: "Salary process",
+                                            cycle_date: Time.now,
+                                            cycle_type: "SalaryProcess",
+                                            next_action: "SalaryClear"
         )
       end
     end
