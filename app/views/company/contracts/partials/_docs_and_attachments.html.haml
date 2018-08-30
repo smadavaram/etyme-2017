@@ -377,34 +377,10 @@
                       .col-md-4
                         %label.control-label
                           Salary Clear
-                        .select
-                          .plain-select
-                            = bc.select :salary_clear, Contract.time_sheet_frequencies.map { |key, value| [key.humanize, key] }, {},{class: "form-control buy-sal-clr" }
+
                       .col-md-4
-                        .b-sal-clr
-                          %div{:class => "form-group daily #{bc.object.salary_clear != 'daily' ? 'hidden' : ''}"}
-                            %label.control-label
-                              Select Time
-                              = bc.text_field :sclr_day_time, class: "form-contro con-time"
-                          %div{:class => "form-group week #{bc.object.salary_clear != 'weekly' ? 'hidden' : ''}"}
-                            %label.control-label
-                              Select day of week
-                            .select
-                              .plain-select
-                                = bc.select :sclr_day_of_week, [["Every Monday", "mon"], ["Every Tuesday", "tue"], ["Every Wednesday", "wed"], ["Every Thursday", "thu"], ["Every Friday", "fri"], ["Every Saturday", "sat"], ["Every Sunday", "sun"]], {},{class: "form-contro" }
-                          %div{:class => "form-group month #{['twice a month', 'monthly'].include?(bc.object.salary_clear) ? '' : 'hidden'}"}
-                            %label.control-label
-                              Select date
-                            .select
-                              = bc.text_field :sclr_date_1, class: "date_1", placeholder: "DD/MM/YYYY"
-                          %div{:class => "form-group twice-month #{bc.object.salary_clear != 'twice a month' ? 'hidden' : ''}"}
-                            %label.control-label
-                              Select second date
-                            .select
-                              = bc.text_field :sclr_date_2, class: "date_1", placeholder: "DD/MM/YYYY"
-                          %span{:class => "form-group month #{['twice a month', 'monthly'].include?(bc.object.salary_clear) ? '' : 'hidden'}"} OR
-                          = bc.check_box :sclr_end_of_month, class: "month #{['twice a month', 'monthly'].include?(bc.object.salary_clear) ? '' : 'hidden'}"
-                          = bc.label :sclr_end_of_month, "End of month", class: "month #{['twice a month', 'monthly'].include?(bc.object.salary_clear) ? '' : 'hidden'}"
+                        %label.control-label
+                          3 days after Salary processing
 
                       .col-md-4
                         %label.control-label
@@ -428,6 +404,108 @@
                     .select
                       .row
                         = bc.text_field :payroll_date, class: "date_1"
+
+              .row
+                .col-md-12
+                  .form-group
+                    .row
+                      .col-md-4
+                        %label.control-label
+                          Commission Calculation
+                        .select
+                          .plain-select
+                            = bc.select :commission_calculation, Contract.time_sheet_frequencies.map { |key, value| [key.humanize, key] }, {},{class: "form-control buy-com-cal" }
+                      .col-md-4
+                        .b-com-cal
+                          %div{:class => "form-group daily #{bc.object.commission_calculation != 'daily' ? 'hidden' : ''}"}
+                            %label.control-label
+                              Select Time
+                              = bc.text_field :com_cal_day_time, class: "form-contro con-time"
+                          %div{:class => "form-group week #{bc.object.commission_calculation != 'weekly' ? 'hidden' : ''}"}
+                            %label.control-label
+                              Select day of week
+                            .select
+                              .plain-select
+                                = bc.select :com_cal_day_of_week, [["Every Monday", "mon"], ["Every Tuesday", "tue"], ["Every Wednesday", "wed"], ["Every Thursday", "thu"], ["Every Friday", "fri"], ["Every Saturday", "sat"], ["Every Sunday", "sun"]], {},{class: "form-contro" }
+                          %div{:class => "form-group month #{['twice a month', 'monthly'].include?(bc.object.commission_calculation) ? '' : 'hidden'}"}
+                            %label.control-label
+                              Select date
+                            .select
+                              = bc.text_field :com_cal_date_1, class: "date_1", placeholder: "DD/MM/YYYY"
+                          %div{:class => "form-group twice-month #{bc.object.commission_calculation != 'twice a month' ? 'hidden' : ''}"}
+                            %label.control-label
+                              Select second date
+                            .select
+                              = bc.text_field :com_cal_date_2, class: "date_1", placeholder: "DD/MM/YYYY"
+                          %span{:class => "form-group month #{['twice a month', 'monthly'].include?(bc.object.commission_calculation) ? '' : 'hidden'}"} OR
+                          = bc.check_box :com_cal_end_of_month, class: "month #{['twice a month', 'monthly'].include?(bc.object.commission_calculation) ? '' : 'hidden'}"
+                          = bc.label :com_cal_end_of_month, "End of month", class: "month #{['twice a month', 'monthly'].include?(bc.object.commission_calculation) ? '' : 'hidden'}"
+
+                      .col-md-4
+                        %label.control-label
+                          Assign to
+                        = select_tag 'assign_to', options_from_collection_for_select(current_company.company_contacts, "id", 'full_name'), include_blank: 'Please select',class: 'form-control'
+
+              .row
+                .col-md-12
+                  .form-group
+                    .row
+                      .col-md-4
+                        %label.control-label
+                          Commission Process
+                        .select
+                          .plain-select
+                            = bc.select :commission_process, Contract.time_sheet_frequencies.map { |key, value| [key.humanize, key] }, {},{class: "form-control buy-com-pro" }
+                      .col-md-4
+                        .b-com-pro
+                          %div{:class => "form-group daily #{bc.object.commission_process != 'daily' ? 'hidden' : ''}"}
+                            %label.control-label
+                              Select Time
+                              = bc.text_field :com_pro_day_time, class: "form-contro con-time"
+                          %div{:class => "form-group week #{bc.object.commission_process != 'weekly' ? 'hidden' : ''}"}
+                            %label.control-label
+                              Select day of week
+                            .select
+                              .plain-select
+                                = bc.select :com_pro_day_of_week, [["Every Monday", "mon"], ["Every Tuesday", "tue"], ["Every Wednesday", "wed"], ["Every Thursday", "thu"], ["Every Friday", "fri"], ["Every Saturday", "sat"], ["Every Sunday", "sun"]], {},{class: "form-contro" }
+                          %div{:class => "form-group month #{['twice a month', 'monthly'].include?(bc.object.commission_process) ? '' : 'hidden'}"}
+                            %label.control-label
+                              Select date
+                            .select
+                              = bc.text_field :com_pro_date_1, class: "date_1", placeholder: "DD/MM/YYYY"
+                          %div{:class => "form-group twice-month #{bc.object.commission_process != 'twice a month' ? 'hidden' : ''}"}
+                            %label.control-label
+                              Select second date
+                            .select
+                              = bc.text_field :com_pro_date_2, class: "date_1", placeholder: "DD/MM/YYYY"
+                          %span{:class => "form-group month #{['twice a month', 'monthly'].include?(bc.object.commission_process) ? '' : 'hidden'}"} OR
+                          = bc.check_box :com_pro_end_of_month, class: "month #{['twice a month', 'monthly'].include?(bc.object.commission_process) ? '' : 'hidden'}"
+                          = bc.label :com_pro_end_of_month, "End of month", class: "month #{['twice a month', 'monthly'].include?(bc.object.commission_process) ? '' : 'hidden'}"
+
+                      .col-md-4
+                        %label.control-label
+                          Assign to
+                        = select_tag 'assign_to', options_from_collection_for_select(current_company.company_contacts, "id", 'full_name'), include_blank: 'Please select',class: 'form-control'
+
+              .row
+                .col-md-12
+                  .form-group
+                    .row
+                      .col-md-4
+                        %label.control-label
+                          Commission Clear
+
+                      .col-md-4
+                        %label.control-label
+                          3 days after commission processing
+                      .col-md-4
+                        %label.control-label
+                          Assign to
+                        = select_tag 'assign_to', options_from_collection_for_select(current_company.company_contacts, "id", 'full_name'), include_blank: 'Please select',class: 'form-control'
+
+
+
+
 
             #tab-buy-vb.tab-pane.padding-top-15
               .row

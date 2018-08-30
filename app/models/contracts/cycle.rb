@@ -32,15 +32,19 @@ module Contracts
         cycle = add_cycle("Timesheet submit", next_date, start_date, end_date, "TimesheetSubmit", buy_contract.candidate_id, next_next_date, "TimesheetApprove", ta_next_date)
         add_timesheet(start_date, next_date, buy_contract.candidate.full_name, buy_contract.candidate_id, cycle.id)
         con_cycle_ta_start_date = Timesheet.set_con_cycle_ta_date(buy_contract, cycle)
-        # binding.pry
+
         set_timesheet_approve(cycle,con_cycle_ta_start_date)
         invoice_generate(cycle)
+        
+        #salary cycles
         salary_cycle = add_salary_cycle
-  
         add_salary(salary_cycle)
         con_cycle_sp_start_date = Salary.set_con_cycle_sp_date(buy_contract, salary_cycle)
-        # binding.pry
         set_salary_process(salary_cycle,con_cycle_sp_start_date)
+
+        #commission cycles
+        commission_cycle = add_commission_cycle
+        
         next_date = next_next_date
         start_date = cycle.end_date + 1.day
         @count += 1
@@ -70,6 +74,36 @@ module Contracts
           start_date = monthly_submit_date(sc_date_1, contract.start_date)
         elsif sc_frequency == 'twice a month'
           start_date = twice_a_month_submit_date(sc_date_1, sc_date_2, contract.start_date)
+        else
+          start_date = contract.start_date
+        end  
+      end
+      return start_date
+    end
+
+    def set_commission_calculation_date
+      if contract_cycle_com_cal.present?
+        if com_cal_frequency == 'daily'
+          start_date = contract_cycle_com_cal.start_date +  1.day
+        elsif com_cal_frequency == 'weekly'
+    
+          start_date = ts_date_of_next(com_cal_day_of_week, contract.start_date+@count)
+        elsif com_cal_frequency == 'monthly'
+          start_date = monthly_submit_date(com_cal_date_1, contract.start_date+@count)
+        elsif com_cal_frequency == 'twice a month'
+          start_date = twice_a_month_submit_date(com_cal_date_1, com_cal_date_2, contract.start_date+@count)
+        else
+          start_date = contract_cycle_com_cal.start_date +  1.day
+        end
+      else
+        if com_cal_frequency == 'daily'
+          start_date = contract.start_date
+        elsif com_cal_frequency == 'weekly'
+          start_date = ts_date_of_next(com_cal_day_of_week,contract.start_date)
+        elsif com_cal_frequency == 'monthly'
+          start_date = monthly_submit_date(com_cal_date_1, contract.start_date)
+        elsif com_cal_frequency == 'twice a month'
+          start_date = twice_a_month_submit_date(com_cal_date_1, com_cal_date_2, contract.start_date)
         else
           start_date = contract.start_date
         end  
@@ -261,6 +295,37 @@ module Contracts
       return salary_cal
     end
 
+    def add_commission_cycle
+      start_date =  set_commission_calculation_date
+
+      commission_cal = ContractCycle.find_by(
+                    contract_id: contract_id,
+                    end_date: start_date.to_date,
+                    candidate_id: buy_contract.candidate_id,
+                    company_id: sell_contract.company_id,
+                    cycle_type: 'CommissionCalculation',
+                    note: 'Commission calculation'
+
+                  )
+      unless commission_cal
+        commission_cal =ContractCycle.create(
+                    contract_id: contract_id,
+                    start_date: start_date.to_date,
+                    end_date: start_date.to_date,
+                    candidate_id: buy_contract.candidate_id,
+                    company_id: sell_contract.company_id,
+                    status: 'pending',
+                    cycle_type: 'CommissionCalculation',
+                    next_action: 'CommissionProcessing',
+                    note: 'Commission calculation'
+
+                  )
+        
+      end
+
+      return commission_cal
+    end
+
     def add_salary(cycle)
 
       salary = Salary.find_by(
@@ -298,6 +363,10 @@ module Contracts
 
     def contract_cycle_sc
       contract_cycles.where(cycle_type: "SalaryCalculation").order("created_at DESC").first
+    end
+
+    def contract_cycle_com_cal
+      contract_cycles.where(cycle_type: "CommissionCalculation").order("created_at DESC").first
     end
 
     def buy_contract
@@ -386,6 +455,26 @@ module Contracts
 
     def sc_end_of_month
       buy_contract.sc_end_of_month
+    end
+
+    def com_cal_frequency
+      buy_contract.commission_calculation
+    end
+
+    def com_cal_day_of_week
+      buy_contract.com_cal_day_of_week
+    end
+
+    def com_cal_date_1
+      buy_contract.com_cal_date_1
+    end
+
+    def com_cal_date_2
+      buy_contract.com_cal_date_2
+    end
+
+    def com_cal_end_of_month
+      buy_contract.com_cal_end_of_month
     end
 
     def buy_payrate

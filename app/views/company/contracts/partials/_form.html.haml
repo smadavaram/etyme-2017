@@ -346,18 +346,32 @@
         }
       });
 
-      $(".buy-sal-clr").on("change", function(){
-        $(".b-sal-clr").children().addClass("hidden");
+      $(".buy-com-cal").on("change", function(){
+        $(".b-com-cal").children().addClass("hidden");
         if($(this).val() == "daily"){
-          $(".b-sal-clr").find('.daily').removeClass("hidden");
+          $(".b-com-cal").find('.daily').removeClass("hidden");
         } else if($(this).val() == "weekly" || $(this).val() == "biweekly"){
-          $(".b-sal-clr").find('.week').removeClass("hidden");
+          $(".b-com-cal").find('.week').removeClass("hidden");
         } else if($(this).val() == "twice a month"){
-          $(".b-sal-clr").find('.twice-month, .month').removeClass("hidden");
+          $(".b-com-cal").find('.twice-month, .month').removeClass("hidden");
         } else if($(this).val() == "monthly"){
-          $(".b-sal-clr").find('.month').removeClass("hidden");
+          $(".b-com-cal").find('.month').removeClass("hidden");
         }
       });
+
+      $(".buy-com-pro").on("change", function(){
+        $(".b-com-pro").children().addClass("hidden");
+        if($(this).val() == "daily"){
+          $(".b-com-pro").find('.daily').removeClass("hidden");
+        } else if($(this).val() == "weekly" || $(this).val() == "biweekly"){
+          $(".b-com-pro").find('.week').removeClass("hidden");
+        } else if($(this).val() == "twice a month"){
+          $(".b-com-pro").find('.twice-month, .month').removeClass("hidden");
+        } else if($(this).val() == "monthly"){
+          $(".b-com-pro").find('.month').removeClass("hidden");
+        }
+      });
+
 
       $(".buy-invoice-recepit").on("change", function(){
         $(".b-in-re-set").children().addClass("hidden");

@@ -257,6 +257,10 @@ class Company::ContractsController < Company::BaseController
                
                :salary_clear, :sclr_day_time, :sclr_date_1, :sclr_date_2, :sclr_day_of_week, :sclr_end_of_month,
 
+               :commission_calculation, :com_cal_day_time, :com_cal_date_1, :com_cal_date_2, :com_cal_day_of_week, :com_cal_end_of_month,
+
+               :commission_process, :com_pro_day_time, :com_pro_date_1, :com_pro_date_2, :com_pro_day_of_week, :com_pro_end_of_month,
+               
                :candidate_id, :ssn, :contract_type, :payrate, :payrate_type,
                :payment_term, :show_accounting_to_employee, :first_date_of_timesheet,
                :time_sheet, :ts_day_of_week, :ts_date_1, :ts_date_2, :ts_end_of_month,
