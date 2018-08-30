@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema.define(version: 20180829125656) do
+ActiveRecord::Schema.define(version: 20180830111023) do
 
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
@@ -644,6 +644,9 @@ ActiveRecord::Schema.define(version: 20180829125656) do
     t.decimal "limit"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.integer "com_cal_cycle_id"
+    t.integer "com_pro_cycle_id"
+    t.integer "com_clr_cycle_id"
     t.index ["buy_contract_id"], name: "index_contract_sale_commisions_on_buy_contract_id"
   end
 

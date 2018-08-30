@@ -36,6 +36,7 @@ class Contract < ApplicationRecord
   has_many   :contract_terms , dependent: :destroy
   has_many   :timesheets     , dependent: :destroy
   has_many   :invoices       , dependent: :destroy
+  has_many   :salaries       , dependent: :destroy
   has_many   :timesheet_logs , through: :timesheets
   has_many   :transactions   , through: :timesheets
   has_many   :timesheet_approvers   , through: :timesheets
@@ -282,6 +283,7 @@ class Contract < ApplicationRecord
       # contract.invoice_generate
     end
     Salary.set_salary_clear
+    ContractSaleCommision.set_commission_clear
   end
 
   # def check_for_ts_approve

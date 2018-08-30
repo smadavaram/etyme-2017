@@ -44,7 +44,10 @@ module Contracts
 
         #commission cycles
         commission_cycle = add_commission_cycle
-        
+        con_cycle_com_pro_start_date = ContractSaleCommision.set_con_cycle_com_pro_date(buy_contract, commission_cycle)
+        # binding.pry
+        set_commission_process(commission_cycle, con_cycle_com_pro_start_date)
+
         next_date = next_next_date
         start_date = cycle.end_date + 1.day
         @count += 1
@@ -157,6 +160,31 @@ module Contracts
                                             cycle_date: Time.now,
                                             cycle_type: "SalaryProcess",
                                             next_action: "SalaryClear"
+        )
+      end
+    end
+
+    def set_commission_process(con_cycle,con_cycle_com_pro_start_date)
+
+      con_cycle_com_pro_start_date = contract.end_date if con_cycle_com_pro_start_date > contract.end_date
+      con_cycle_com_pro = ContractCycle.find_by(contract_id: con_cycle.contract_id,
+                                          start_date: con_cycle_com_pro_start_date,
+                                          end_date: con_cycle_com_pro_start_date&.end_of_day&.in_time_zone("Chennai"),
+                                          company_id: sell_contract.company_id,
+                                          note: "Commission process",
+                                          cycle_type: "CommissionProcess",
+                                          next_action: "CommissionClear"
+      )
+
+      unless con_cycle_com_pro
+        con_cycle_com_pro = ContractCycle.create(contract_id: con_cycle.contract_id,
+                                            start_date: con_cycle_com_pro_start_date,
+                                            end_date: con_cycle_com_pro_start_date.end_of_day,
+                                            company_id: sell_contract.company_id,
+                                            note: "Commission process",
+                                            cycle_date: Time.now,
+                                            cycle_type: "CommissionProcess",
+                                            next_action: "CommissionClear"
         )
       end
     end
@@ -322,7 +350,7 @@ module Contracts
                   )
         
       end
-
+      buy_contract.contract_sale_commisions.update(com_cal_cycle_id: commission_cal.id)
       return commission_cal
     end
 
