@@ -14,7 +14,7 @@
         .col-md-2
           .form-group
             %label Action
-            = select_tag 'cycle_actions', options_for_select(['Timesheet submit', 'Timesheet Approve', 'Invoice Generate', 'Salary calculation', 'Salary process', 'Salary clear', 'Commission calculation', 'Commission process', 'Commission clear']), {class: 'form-control cycle_action', prompt: 'All'}
+            = select_tag 'cycle_actions', options_for_select(['Timesheet submit', 'Timesheet Approve', 'Invoice Generate', 'Salary calculation', 'Salary process', 'Salary clear', 'Commission calculation', 'Commission process', 'Commission clear', 'VendorBill calculation', 'VendorPayment process', 'VendorBill clear', 'ClientBill calculation']), {class: 'form-control cycle_action', prompt: 'All'}
         .col-md-2
           .form-group
             %label Search by relevance

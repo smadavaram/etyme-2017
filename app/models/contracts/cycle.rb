@@ -45,8 +45,15 @@ module Contracts
         #commission cycles
         commission_cycle = add_commission_cycle
         con_cycle_com_pro_start_date = ContractSaleCommision.set_con_cycle_com_pro_date(buy_contract, commission_cycle)
-        # binding.pry
         set_commission_process(commission_cycle, con_cycle_com_pro_start_date)
+
+        #vendor bill cyles
+        vendor_bill_cycle = add_vendor_bill_cycle
+        con_cycle_vp_pro_start_date = VendorBill.set_con_cycle_vp_pro_date(buy_contract, vendor_bill_cycle)
+        set_vendor_payment_process(vendor_bill_cycle, con_cycle_vp_pro_start_date )
+
+        #client bill cycles
+        client_bill = add_client_bill_cycle
 
         next_date = next_next_date
         start_date = cycle.end_date + 1.day
@@ -114,6 +121,65 @@ module Contracts
       return start_date
     end
 
+    def set_vendor_bill_calculation_date
+      if contract_cycle_vendor_bill_cal.present?
+        if vendor_bill_frequency == 'daily'
+          start_date = contract_cycle_vb.start_date +  1.day
+        elsif vendor_bill_frequency == 'weekly'
+          # binding.pry
+          start_date = ts_date_of_next(vb_day_of_week, contract.start_date+@count)
+        elsif vendor_bill_frequency == 'monthly'
+          start_date = monthly_submit_date(vb_date_1, contract.start_date+@count)
+        elsif vendor_bill_frequency == 'twice a month'
+          start_date = twice_a_month_submit_date(vb_date_1, vb_date_2, contract.start_date+@count)
+        else
+          start_date = contract_cycle_vb.start_date +  1.day
+        end
+      else
+        if vendor_bill_frequency == 'daily'
+          start_date = contract.start_date
+        elsif vendor_bill_frequency == 'weekly'
+          start_date = ts_date_of_next(vb_day_of_week,contract.start_date)
+        elsif vendor_bill_frequency == 'monthly'
+          start_date = monthly_submit_date(vb_date_1, contract.start_date)
+        elsif vendor_bill_frequency == 'twice a month'
+          start_date = twice_a_month_submit_date(vb_date_1, vb_date_2, contract.start_date)
+        else
+          start_date = contract.start_date
+        end  
+      end
+      return start_date
+    end
+
+    def set_client_bill_calculation_date
+      if contract_cycle_client_bill_cal.present?
+        if client_bill_frequency == 'daily'
+          start_date = contract_cycle_vb.start_date +  1.day
+        elsif client_bill_frequency == 'weekly'
+          # binding.pry
+          start_date = ts_date_of_next(vb_day_of_week, contract.start_date+@count)
+        elsif client_bill_frequency == 'monthly'
+          start_date = monthly_submit_date(vb_date_1, contract.start_date+@count)
+        elsif client_bill_frequency == 'twice a month'
+          start_date = twice_a_month_submit_date(vb_date_1, vb_date_2, contract.start_date+@count)
+        else
+          start_date = contract_cycle_vb.start_date +  1.day
+        end
+      else
+        if client_bill_frequency == 'daily'
+          start_date = contract.start_date
+        elsif client_bill_frequency == 'weekly'
+          start_date = ts_date_of_next(vb_day_of_week,contract.start_date)
+        elsif client_bill_frequency == 'monthly'
+          start_date = monthly_submit_date(vb_date_1, contract.start_date)
+        elsif client_bill_frequency == 'twice a month'
+          start_date = twice_a_month_submit_date(vb_date_1, vb_date_2, contract.start_date)
+        else
+          start_date = contract.start_date
+        end  
+      end
+      return start_date
+    end
 
     def set_timesheet_approve(con_cycle,con_cycle_ta_start_date)
       con_cycle_ta_start_date = contract.end_date if con_cycle_ta_start_date > contract.end_date
@@ -185,6 +251,31 @@ module Contracts
                                             cycle_date: Time.now,
                                             cycle_type: "CommissionProcess",
                                             next_action: "CommissionClear"
+        )
+      end
+    end
+
+    def set_vendor_payment_process(con_cycle,con_cycle_vp_pro_start_date)
+
+      con_cycle_vp_pro_start_date = contract.end_date if con_cycle_vp_pro_start_date > contract.end_date
+      con_cycle_vp_pro = ContractCycle.find_by(contract_id: con_cycle.contract_id,
+                                          start_date: con_cycle_vp_pro_start_date,
+                                          end_date: con_cycle_vp_pro_start_date&.end_of_day&.in_time_zone("Chennai"),
+                                          company_id: sell_contract.company_id,
+                                          note: "VendorPayment process",
+                                          cycle_type: "VendorPaymentProcess",
+                                          next_action: "VendorPaymentClear"
+      )
+
+      unless con_cycle_vp_pro
+        con_cycle_vp_pro = ContractCycle.create(contract_id: con_cycle.contract_id,
+                                            start_date: con_cycle_vp_pro_start_date,
+                                            end_date: con_cycle_vp_pro_start_date.end_of_day,
+                                            company_id: sell_contract.company_id,
+                                            note: "VendorPayment process",
+                                            cycle_date: Time.now,
+                                            cycle_type: "VendorPaymentProcess",
+                                            next_action: "VendorPaymentClear"
         )
       end
     end
@@ -354,6 +445,66 @@ module Contracts
       return commission_cal
     end
 
+    def add_vendor_bill_cycle
+      start_date =  set_vendor_bill_calculation_date
+
+      vendor_bill_cal = ContractCycle.find_by(
+                    contract_id: contract_id,
+                    end_date: start_date.to_date,
+                    candidate_id: buy_contract.candidate_id,
+                    company_id: sell_contract.company_id,
+                    cycle_type: 'VendorBillCalculation',
+                    note: 'VendorBill calculation'
+
+                  )
+      unless vendor_bill_cal
+        vendor_bill_cal =ContractCycle.create(
+                    contract_id: contract_id,
+                    start_date: start_date.to_date,
+                    end_date: start_date.to_date,
+                    candidate_id: buy_contract.candidate_id,
+                    company_id: sell_contract.company_id,
+                    status: 'pending',
+                    cycle_type: 'VendorBillCalculation',
+                    next_action: 'VendorBillProcessing',
+                    note: 'VendorBill calculation'
+
+                  )
+        
+      end
+      return vendor_bill_cal
+    end
+
+    def add_client_bill_cycle
+      start_date =  set_client_bill_calculation_date
+
+      client_bill_cal = ContractCycle.find_by(
+                    contract_id: contract_id,
+                    end_date: start_date.to_date,
+                    candidate_id: buy_contract.candidate_id,
+                    company_id: sell_contract.company_id,
+                    cycle_type: 'ClientBillCalculation',
+                    note: 'ClientBill calculation'
+
+                  )
+      unless client_bill_cal
+        client_bill_cal =ContractCycle.create(
+                    contract_id: contract_id,
+                    start_date: start_date.to_date,
+                    end_date: start_date.to_date,
+                    candidate_id: buy_contract.candidate_id,
+                    company_id: sell_contract.company_id,
+                    status: 'pending',
+                    cycle_type: 'ClientBillCalculation',
+                    next_action: 'ClientBillProcessing',
+                    note: 'ClientBill calculation'
+
+                  )
+        
+      end
+      return client_bill_cal
+    end
+
     def add_salary(cycle)
 
       salary = Salary.find_by(
@@ -395,6 +546,14 @@ module Contracts
 
     def contract_cycle_com_cal
       contract_cycles.where(cycle_type: "CommissionCalculation").order("created_at DESC").first
+    end
+
+    def contract_cycle_vendor_bill_cal
+      contract_cycles.where(cycle_type: "VendorBillCalculation").order("created_at DESC").first
+    end
+
+    def contract_cycle_client_bill_cal
+      contract_cycles.where(cycle_type: "ClientBillCalculation").order("created_at DESC").first
     end
 
     def buy_contract
@@ -503,6 +662,54 @@ module Contracts
 
     def com_cal_end_of_month
       buy_contract.com_cal_end_of_month
+    end
+
+    def vendor_bill_frequency
+      buy_contract.vendor_bill
+    end
+
+    def vb_day_time
+      buy_contract.vb_day_time
+    end
+
+    def vb_date_1
+      buy_contract.vb_date_1
+    end
+
+    def vb_date_2
+      buy_contract.vb_date_2
+    end
+
+    def vb_day_of_week
+      buy_contract.vb_day_of_week
+    end
+
+    def vb_end_of_month
+      buy_contract.vb_end_of_month
+    end
+
+    def client_bill_frequency
+      buy_contract.client_bill
+    end
+
+    def cb_day_time
+      buy_contract.cb_day_time
+    end
+
+    def cb_date_1
+      buy_contract.cb_date_1
+    end
+
+    def cb_date_2
+      buy_contract.cb_date_2
+    end
+
+    def cb_day_of_week
+      buy_contract.cb_day_of_week
+    end
+
+    def cb_end_of_month
+      buy_contract.cb_end_of_month
     end
 
     def buy_payrate

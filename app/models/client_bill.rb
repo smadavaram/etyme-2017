@@ -1,0 +1,2 @@
+class ClientBill < ApplicationRecord
+end

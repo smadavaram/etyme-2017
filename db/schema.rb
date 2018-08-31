@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema.define(version: 20180830111023) do
+ActiveRecord::Schema.define(version: 20180831133225) do
 
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
@@ -391,6 +391,14 @@ ActiveRecord::Schema.define(version: 20180830111023) do
     t.datetime "updated_at", null: false
     t.integer "company_id"
     t.index ["chatable_type", "chatable_id"], name: "index_chats_on_chatable_type_and_chatable_id"
+  end
+
+  create_table "client_bills", force: :cascade do |t|
+    t.integer "cb_cal_cycle_id"
+    t.integer "cp_pro_cycle_id"
+    t.integer "cb_clr_cycle_id"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
   end
 
   create_table "clients", force: :cascade do |t|
@@ -1471,6 +1479,14 @@ ActiveRecord::Schema.define(version: 20180830111023) do
     t.index ["invitations_count"], name: "index_users_on_invitations_count"
     t.index ["invited_by_id"], name: "index_users_on_invited_by_id"
     t.index ["reset_password_token"], name: "index_users_on_reset_password_token", unique: true
+  end
+
+  create_table "vendor_bills", force: :cascade do |t|
+    t.integer "vb_cal_cycle_id"
+    t.integer "vp_pro_cycle_id"
+    t.integer "vb_clr_cycle_id"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
   end
 
   create_table "visas", force: :cascade do |t|

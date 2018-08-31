@@ -284,6 +284,7 @@ class Contract < ApplicationRecord
     end
     Salary.set_salary_clear
     ContractSaleCommision.set_commission_clear
+    VendorBill.set_vendor_bill_clear
   end
 
   # def check_for_ts_approve

@@ -1,5 +1,5 @@
 class ContractCycle < ApplicationRecord
-  CYCLETYPES = [ "TimesheetSubmit", "TimesheetApprove", "InvoiceGenerate", "SalaryCalculation", 'SalaryProcess', 'SalaryClear', 'CommissionCalculation', 'CommissionProcess', 'CommissionClear' ]
+  CYCLETYPES = [ "TimesheetSubmit", "TimesheetApprove", "InvoiceGenerate", "SalaryCalculation", 'SalaryProcess', 'SalaryClear', 'CommissionCalculation', 'CommissionProcess', 'CommissionClear', 'VendorBillCalculation', 'ClientBillCalculation', 'VendorPaymentProcess', 'VendorBillClear'  ]
 
   belongs_to :contract, optional: true
   belongs_to :company, optional: true
