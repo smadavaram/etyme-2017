@@ -53,7 +53,9 @@ module Contracts
         set_vendor_payment_process(vendor_bill_cycle, con_cycle_vp_pro_start_date )
 
         #client bill cycles
-        client_bill = add_client_bill_cycle
+        client_bill_cycle = add_client_bill_cycle
+        con_cycle_cp_pro_start_date = ClientBill.set_con_cycle_cp_pro_date(buy_contract, client_bill_cycle)
+        set_client_payment_process(client_bill_cycle, con_cycle_cp_pro_start_date )        
 
         next_date = next_next_date
         start_date = cycle.end_date + 1.day
@@ -276,6 +278,32 @@ module Contracts
                                             cycle_date: Time.now,
                                             cycle_type: "VendorPaymentProcess",
                                             next_action: "VendorPaymentClear"
+        )
+      end
+    end
+
+
+    def set_client_payment_process(con_cycle,con_cycle_cp_pro_start_date)
+
+      con_cycle_cp_pro_start_date = contract.end_date if con_cycle_cp_pro_start_date > contract.end_date
+      con_cycle_cp_pro = ContractCycle.find_by(contract_id: con_cycle.contract_id,
+                                          start_date: con_cycle_cp_pro_start_date,
+                                          end_date: con_cycle_cp_pro_start_date&.end_of_day&.in_time_zone("Chennai"),
+                                          company_id: sell_contract.company_id,
+                                          note: "ClientPayment process",
+                                          cycle_type: "ClientPaymentProcess",
+                                          next_action: "ClientPaymentClear"
+      )
+
+      unless con_cycle_cp_pro
+        con_cycle_cp_pro = ContractCycle.create(contract_id: con_cycle.contract_id,
+                                            start_date: con_cycle_cp_pro_start_date,
+                                            end_date: con_cycle_cp_pro_start_date.end_of_day,
+                                            company_id: sell_contract.company_id,
+                                            note: "ClientPayment process",
+                                            cycle_date: Time.now,
+                                            cycle_type: "ClientPaymentProcess",
+                                            next_action: "ClientPaymentClear"
         )
       end
     end
