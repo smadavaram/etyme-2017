@@ -178,6 +178,9 @@ class Company::ContractsController < Company::BaseController
     end
   end
 
+  def add_expense
+    
+  end
 
   private
 
