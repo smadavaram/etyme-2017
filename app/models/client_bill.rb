@@ -33,7 +33,7 @@ class ClientBill < ApplicationRecord
   def self.date_of_next(day_of_week,con_cycle)
     # binding.pry
     day_of_week = DateTime.parse(day_of_week).wday
-    vb_day_of_week = DateTime.parse(con_cycle&.contract&.buy_contracts&.first&.vb_day_of_week).wday if con_cycle.contract.buy_contracts.first.client_bill == 'weekly'
+    cb_day_of_week = DateTime.parse(con_cycle&.contract&.buy_contracts&.first&.cb_day_of_week).wday if con_cycle.contract.buy_contracts.first.client_bill == 'weekly'
     date = con_cycle.start_date.to_date + ((day_of_week - con_cycle.start_date.to_date.wday) % 7)
     if day_of_week <= con_cycle.start_date.wday
       date = (date - con_cycle.start_date.to_date <= 5) && con_cycle.start_date.wday != 0 ? date+7.days : date
