@@ -184,6 +184,12 @@ class Company::ContractsController < Company::BaseController
   def add_bill
   end
 
+  def add_invoice
+  end
+
+  def pay_bill
+  end
+
   private
 
   def filtering_params(params)

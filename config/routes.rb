@@ -366,6 +366,8 @@ Rails.application.routes.draw do
         get :filter_timeline
         get :add_expense
         get :add_bill
+        get :add_invoice
+        get :pay_bill
       end
       member do
         get :download

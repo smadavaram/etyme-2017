@@ -1,0 +1,132 @@
+#content
+  .row
+  %section
+    .row
+      %article.col-sm-12.col-md-12.col-lg-12
+        #wid-id-0.jarviswidget{"data-widget-deletebutton" => "false", "data-widget-editbutton" => "false"}
+          %header
+            %span.widget-icon
+              %i.fa.fa-check
+            %h2 Adding New Customer Invoice
+          %div
+            .jarviswidget-editbox
+            .widget-body
+              .row
+                .col-md-3
+                  %label Invoice Type
+                .col-md-4
+                  .radio
+                    %label
+                      %input{:checked => "checked", :name => "optradio", :type => "radio"}>/
+                      Customer Invoice
+
+                .col-md-4
+                  .radio
+                    %label
+                      %input{:checked => "checked", :name => "optradio", :type => "radio"}>/
+                      Client Expense Invoice
+              %br
+              .row
+                .col-md-4
+                  = select_tag "contracts",options_for_select(Contract.all.map{|c| [c.title,c.id] }),{class: 'form-control select2',required: true, prompt: 'Choose a contract - Customer' }
+                .col-md-4
+                  = text_field_tag "email", '', class: 'form-control', placeholder: 'Email (Seperate emails with a comma)'
+
+                .col-md-4
+                  = text_field_tag "Consultant_name", '', class: 'form-control', placeholder: 'Client/Consultant name'
+
+              %br
+              .row
+                .col-md-3.form-group
+                  %label{:for => "mailing_address"} Billing Address:
+                  %textarea#comment.form-control{:rows => "5"}
+
+                .col-md-2
+                  %label{:for => "terms"} Terms:
+                  = select_tag 'terms', options_for_select((1..10).to_a.map{ |e| 'Net '+e.to_s}), {class: 'form-control select2',required: true, prompt: 'Select terms' }
+
+                .col-md-2
+                  %label{:for => 'bill_date'} Invoice Date:
+                  = date_field_tag 'bill_date', '', class: 'form-control'
+
+                .col-md-2
+                  %label{:for => 'due_date'} Due Date:
+                  = date_field_tag 'due_date', '', class: 'form-control'
+
+                .col-md-2
+                  %label{:for => 'bill_no'} Bill no.
+                  = text_field_tag 'bill_no', '', class: 'form-control'
+              %br
+              .row
+                .col-md-3
+                  %label{:for => 'cycle_ids'} Cycle Id
+                  = select_tag 'cycle_ids', options_for_select(Timesheet.first(10).map{|t| [t.id,t.id] }), {class: 'form-control select2', prompt: 'Select Cycle'}
+                
+                .col-md-2
+                  %label{:for => 'bill_date'} Cycle Period:
+                  = text_field_tag 'cycle_period', '', class: 'form-control'
+
+              %br
+              .row
+                .col-md-2
+                  %label Account details
+
+              %br
+              .row
+                .col-md-10
+                  %table.table.table-bordered.account_detail
+                    %thead
+                      %tr
+                        %th Cycle - Timesheet
+                        %th Client
+                        %th Consultant Name
+                        %th Hours
+                        %th Per Unit Rate
+                        %th Total
+                    %tbody
+                      %tr
+                        %td C1 - 1 Aug - 5 Aug
+                        %td 
+                        %td 
+                        %td
+                        %td
+                        %td
+                      %tr
+                        %td C2 - 5 Aug - 10 Aug
+                        %td 
+                        %td 
+                        %td
+                        %td
+                        %td
+                      %tr
+                        %td C3 - 10 Aug - 15 Aug
+                        %td 
+                        %td 
+                        %td
+                        %td
+                        %td
+
+              %br
+              .row
+                .col-md-3
+                  %label Attachments
+                  %input{:name => "attachments", :type => "file"}/
+
+              %br
+              .row
+                .col-md-3.form-group
+                  %label{:for => "memo"} Message displayed on Invoice:
+                  %textarea#comment.form-control{:rows => "6"}
+              %br
+              .row
+                .col-md-3.form-group
+                  %label{:for => "memo"} Statement Memo:
+                  %textarea#comment.form-control{:rows => "6"}
+
+                .col-md-4 
+
+                .col-md-4
+                  Total    $0.00
+
+              %br
+              %button.btn-secondary Submit
