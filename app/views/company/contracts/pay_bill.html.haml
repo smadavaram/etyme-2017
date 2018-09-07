@@ -7,7 +7,7 @@
           %header
             %span.widget-icon
               %i.fa.fa-check
-            %h2 Pay New Bill
+            %h2 Pay Bill
           %div
             .jarviswidget-editbox
             .widget-body
@@ -21,6 +21,8 @@
                   %label
                     %b Balance:
                     $542,123.50
+                    %br
+                    = link_to 'Bank Reconciliation', bank_reconciliation_contracts_path 
                 .col-md-3
                   %label  Payment Date
                   = date_field_tag 'pay_date', Date.today, class: 'form-control' 
@@ -34,12 +36,14 @@
 
               %br
               .row
-                .col-md-10
+                .col-md-12 
                   %table.table.table-bordered.account_detail
                     %thead
                       %tr
                         %th Contract
-                        %th Invoice number
+                        %th Bill number
+                        %th Action
+                        %th Status
                         %th Due date
                         %th Open Balance
                         %th Credit applied
@@ -56,6 +60,8 @@
                         %td
                         %td
                         %td
+                        %td
+                        %td
                       %tr
                         %td C2 
                         %td 
@@ -65,10 +71,14 @@
                         %td
                         %td
                         %td
+                        %td
+                        %td
                       %tr
                         %td C3 
                         %td 
                         %td 
+                        %td
+                        %td
                         %td
                         %td
                         %td

@@ -1376,3 +1376,7 @@ input:checked + .slider1:before {
 }
 
 /*timeline css end*/
+
+.float-right{
+  float: right;
+}

@@ -11,7 +11,11 @@ class Company::ContractsController < Company::BaseController
   before_action :main_authorized_user  , only: :show
 
 
-  add_breadcrumb "CONTRACTS", :contracts_path, options: { title: "CONTRACTS" }
+  add_breadcrumb "CONTRACTS", :contracts_path, options: { title: "CONTRACTS" }, :except => %w(add_expense add_bill add_invoice bank_reconciliation receive_payment)
+  add_breadcrumb "Expenses", :add_expense_contracts_path, only: %w(add_expense)
+  add_breadcrumb "Cient Expense Bill / Vendor Bill", :add_bill_contracts_path, only: %w(add_bill)
+  add_breadcrumb "Add Invoice", :add_invoice_contracts_path, only: %w(add_invoice)
+  add_breadcrumb 'Bank reconciliation', :bank_reconciliation_contracts_path, only: %w(bank_reconciliation)
 
   def index
     @contract_activity = PublicActivity::Activity.where(trackable: current_company.contracts).order('created_at DESC').paginate(page: params[:page], per_page: 15 )
@@ -188,6 +192,27 @@ class Company::ContractsController < Company::BaseController
   end
 
   def pay_bill
+  end
+
+  def bank_reconciliation
+  end
+
+  def receive_payment
+  end
+
+  def client_expense_submit
+    @dates = Time.now-1.month
+    @time_cycle = [((@dates.beginning_of_week-1.day).strftime("%m/%d/%Y") +" - " + (@dates.end_of_week - 1.day).strftime("%m/%d/%Y")),
+                   ((@dates.end_of_week ).strftime("%m/%d/%Y") +" - " + (@dates.end_of_week + 6.day).strftime("%m/%d/%Y")),
+                   ((@dates.end_of_week + 7.day).strftime("%m/%d/%Y") +" - " + (@dates.end_of_week + 13.day).strftime("%m/%d/%Y")),
+                   ((@dates.end_of_week + 14.day).strftime("%m/%d/%Y") +" - " + (@dates.end_of_week + 20.day).strftime("%m/%d/%Y")),
+                   ((@dates.end_of_week + 21.day).strftime("%m/%d/%Y") +" - " + (@dates.end_of_week + 27.day).strftime("%m/%d/%Y")),
+                   ((@dates.end_of_week + 28.day).strftime("%m/%d/%Y") +" - " + (@dates.end_of_week + 34.day).strftime("%m/%d/%Y")),
+                   ((@dates.end_of_week + 35.day).strftime("%m/%d/%Y") +" - " + (@dates.end_of_week + 41.day).strftime("%m/%d/%Y")),
+                   ((@dates.end_of_week + 42.day).strftime("%m/%d/%Y") +" - " + (@dates.end_of_week + 48.day).strftime("%m/%d/%Y")),
+                   ((@dates.end_of_week + 49.day).strftime("%m/%d/%Y") +" - " + (@dates.end_of_week + 55.day).strftime("%m/%d/%Y")),
+                   ((@dates.end_of_week + 56.day).strftime("%m/%d/%Y") +" - " + (@dates.end_of_week + 62.day).strftime("%m/%d/%Y"))]
+
   end
 
   private

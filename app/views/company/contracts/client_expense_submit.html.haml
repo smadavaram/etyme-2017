@@ -1,0 +1,190 @@
+.timesheet
+  .row
+    .col-md-12
+      %h2 Client Expense submit
+      .timesheet-select-date
+        = form_for '', url: '#', html:{ class:'form-horizontal', method: :post, remote: true} do |f|
+          %select.select-time-cycle{name: "date_range"}
+            -@time_cycle.each do |t|
+              %option=t
+      .clearfix.set-timesheet-form
+        .table
+          %table.table.table-bordred
+            %thead
+              %tr
+                %th{:width => "3%"}
+                  %input.all-select{:id => "", :name => "", :type => "checkbox"}/
+                %th{:width => "20%"} Contract Id-Desc
+                %th.text-titles{:width => "20%"} Candidate
+                %th{:width => "7%"} Sun 02
+                %th{:width => "7%"} Mon 03
+                %th{:width => "7%"} Tue 04
+                %th{:width => "7%"} Wed 05
+                %th{:width => "7%"} Thu 06
+                %th{:width => "7%"} Fri 07
+                %th{:width => "7%"} Sat 08
+                %th{:width => "13%"} Status
+                %th Action
+            %tbody
+          %form#tms_2497.form-horizontal{"accept-charset" => "UTF-8", :action => "/candidate/timesheets/2497", "data-remote" => "true", :method => "post"}
+            %input{:name => "utf8", :type => "hidden", :value => "✓"}/
+            %input{:name => "_method", :type => "hidden", :value => "patch"}/
+            .table-responsive
+              %table.table.table-bordred
+                %thead
+                  %tr
+                    %th{:width => "3%"}
+                    %th{:width => "20%"}
+                    %th{:width => "20%"}
+                    %th{:width => "7%"}
+                    %th{:width => "7%"}
+                    %th{:width => "7%"}
+                    %th{:width => "7%"}
+                    %th{:width => "7%"}
+                    %th{:width => "7%"}
+                    %th{:width => "7%"}
+                    %th{:width => "13%"}
+                    %th
+                %tbody
+                  %tr
+                    %td{:width => "3%"}
+                      %input#sin_select.sin-select{:name => "sin_select", :type => "checkbox"}/
+                    %td{:width => "20%"}
+                      c_052-Oracle DBA Cons
+                    %td.text-boxes{:width => "20%"}
+                      .candiate-name
+                        %input#timesheet_candidate_name{:name => "timesheet[candidate_name]", :type => "text", :value => "RAVI PONNAIAH P"}/
+                    %td.dyno{:style => "width: 7%"}
+                      %input#timesheet_days_09_02_2018.form-control{:name => "timesheet[days][09/02/2018]", :required => "required", :style => " ", :type => "text", :value => "0"}/
+                    %td.dyno{:style => "width: 7%"}
+                      %input#timesheet_days_09_03_2018.form-control{:disabled => "disabled", :name => "timesheet[days][09/03/2018]", :required => "required", :style => " 2px solid #000; background-color: #eeeeee !important;", :type => "text", :value => "0"}/
+                    %td.dyno{:style => "width: 7%"}
+                      %input#timesheet_days_09_04_2018.form-control{:disabled => "disabled", :name => "timesheet[days][09/04/2018]", :required => "required", :style => " 2px solid #000; background-color: #eeeeee !important;", :type => "text", :value => "0"}/
+                    %td.dyno{:style => "width: 7%"}
+                      %input#timesheet_days_09_05_2018.form-control{:disabled => "disabled", :name => "timesheet[days][09/05/2018]", :required => "required", :style => " 2px solid #000; background-color: #eeeeee !important;", :type => "text", :value => "0"}/
+                    %td.dyno{:style => "width: 7%"}
+                      %input#timesheet_days_09_06_2018.form-control{:disabled => "disabled", :name => "timesheet[days][09/06/2018]", :required => "required", :style => " 2px solid #000; background-color: #eeeeee !important;", :type => "text", :value => "0"}/
+                    %td.dyno{:style => "width: 7%"}
+                      %input#timesheet_days_09_07_2018.form-control{:disabled => "disabled", :name => "timesheet[days][09/07/2018]", :required => "required", :style => " 2px solid #000; background-color: #eeeeee !important;", :type => "text", :value => "0"}/
+                    %td.dyno{:style => "width: 7%"}
+                      %input#timesheet_days_09_08_2018.form-control{:disabled => "disabled", :name => "timesheet[days][09/08/2018]", :required => "required", :style => " 2px solid #000; background-color: #eeeeee !important;", :type => "text", :value => "0"}/
+                    %td{:width => "13%"} Not submitted
+                    %td
+                      %input#timesheet_timesheet_attachment.file-pick.timesheet-filepicker-attachment{"data-fp-apikey" => "AR0LrQ7ZBRbaL4HN6BMTDz", "data-fp-button-text" => "<i class='fa fa-file-pdf-o'> </i>", :disable => "true", :name => "timesheet[timesheet_attachment]", :style => "display: none;", :type => "filepicker"}/
+                      %button.button_green{:name => "button", :type => "submit"}
+                        %i.fa.fa-save
+          %form#tms_2498.form-horizontal{"accept-charset" => "UTF-8", :action => "/candidate/timesheets/2498", "data-remote" => "true", :method => "post"}
+            %input{:name => "utf8", :type => "hidden", :value => "✓"}/
+            %input{:name => "_method", :type => "hidden", :value => "patch"}/
+            .table-responsive
+              %table.table.table-bordred
+                %thead
+                  %tr
+                    %th{:width => "3%"}
+                    %th{:width => "20%"}
+                    %th{:width => "20%"}
+                    %th{:width => "7%"}
+                    %th{:width => "7%"}
+                    %th{:width => "7%"}
+                    %th{:width => "7%"}
+                    %th{:width => "7%"}
+                    %th{:width => "7%"}
+                    %th{:width => "7%"}
+                    %th{:width => "13%"}
+                    %th
+                %tbody
+                  %tr
+                    %td{:width => "3%"}
+                      %input#sin_select.sin-select{:name => "sin_select", :type => "checkbox"}/
+                    %td{:width => "20%"}
+                      c_052-Oracle DBA Cons
+                    %td.text-boxes{:width => "20%"}
+                      .candiate-name
+                        %input#timesheet_candidate_name{:name => "timesheet[candidate_name]", :type => "text", :value => "RAVI PONNAIAH P"}/
+                    %td.dyno{:style => "width: 7%"}
+                      %input#timesheet_days_09_02_2018.form-control{:disabled => "disabled", :name => "timesheet[days][09/02/2018]", :required => "required", :style => " 2px solid #000; background-color: #eeeeee !important;", :type => "text", :value => "0"}/
+                    %td.dyno{:style => "width: 7%"}
+                      %input#timesheet_days_09_03_2018.form-control{:name => "timesheet[days][09/03/2018]", :required => "required", :style => " ", :type => "text", :value => "0"}/
+                    %td.dyno{:style => "width: 7%"}
+                      %input#timesheet_days_09_04_2018.form-control{:disabled => "disabled", :name => "timesheet[days][09/04/2018]", :required => "required", :style => " 2px solid #000; background-color: #eeeeee !important;", :type => "text", :value => "0"}/
+                    %td.dyno{:style => "width: 7%"}
+                      %input#timesheet_days_09_05_2018.form-control{:disabled => "disabled", :name => "timesheet[days][09/05/2018]", :required => "required", :style => " 2px solid #000; background-color: #eeeeee !important;", :type => "text", :value => "0"}/
+                    %td.dyno{:style => "width: 7%"}
+                      %input#timesheet_days_09_06_2018.form-control{:disabled => "disabled", :name => "timesheet[days][09/06/2018]", :required => "required", :style => " 2px solid #000; background-color: #eeeeee !important;", :type => "text", :value => "0"}/
+                    %td.dyno{:style => "width: 7%"}
+                      %input#timesheet_days_09_07_2018.form-control{:disabled => "disabled", :name => "timesheet[days][09/07/2018]", :required => "required", :style => " 2px solid #000; background-color: #eeeeee !important;", :type => "text", :value => "0"}/
+                    %td.dyno{:style => "width: 7%"}
+                      %input#timesheet_days_09_08_2018.form-control{:disabled => "disabled", :name => "timesheet[days][09/08/2018]", :required => "required", :style => " 2px solid #000; background-color: #eeeeee !important;", :type => "text", :value => "0"}/
+                    %td{:width => "13%"} Not submitted
+                    %td
+                      %input#timesheet_timesheet_attachment.file-pick.timesheet-filepicker-attachment{"data-fp-apikey" => "AR0LrQ7ZBRbaL4HN6BMTDz", "data-fp-button-text" => "<i class='fa fa-file-pdf-o'> </i>", :disable => "true", :name => "timesheet[timesheet_attachment]", :style => "display: none;", :type => "filepicker"}/
+                      %button.button_green{:name => "button", :type => "submit"}
+                        %i.fa.fa-save
+          %form#tms_2499.form-horizontal{"accept-charset" => "UTF-8", :action => "/candidate/timesheets/2499", "data-remote" => "true", :method => "post"}
+            %input{:name => "utf8", :type => "hidden", :value => "✓"}/
+            %input{:name => "_method", :type => "hidden", :value => "patch"}/
+            .table-responsive
+              %table.table.table-bordred
+                %thead
+                  %tr
+                    %th{:width => "3%"}
+                    %th{:width => "20%"}
+                    %th{:width => "20%"}
+                    %th{:width => "7%"}
+                    %th{:width => "7%"}
+                    %th{:width => "7%"}
+                    %th{:width => "7%"}
+                    %th{:width => "7%"}
+                    %th{:width => "7%"}
+                    %th{:width => "7%"}
+                    %th{:width => "13%"}
+                    %th
+                %tbody
+                  %tr
+                    %td{:width => "3%"}
+                      %input#sin_select.sin-select{:name => "sin_select", :type => "checkbox"}/
+                    %td{:width => "20%"}
+                      c_052-Oracle DBA Cons
+                    %td.text-boxes{:width => "20%"}
+                      .candiate-name
+                        %input#timesheet_candidate_name{:name => "timesheet[candidate_name]", :type => "text", :value => "RAVI PONNAIAH P"}/
+                    %td.dyno{:style => "width: 7%"}
+                      %input#timesheet_days_09_02_2018.form-control{:disabled => "disabled", :name => "timesheet[days][09/02/2018]", :required => "required", :style => " 2px solid #000; background-color: #eeeeee !important;", :type => "text", :value => "0"}/
+                    %td.dyno{:style => "width: 7%"}
+                      %input#timesheet_days_09_03_2018.form-control{:disabled => "disabled", :name => "timesheet[days][09/03/2018]", :required => "required", :style => " 2px solid #000; background-color: #eeeeee !important;", :type => "text", :value => "0"}/
+                    %td.dyno{:style => "width: 7%"}
+                      %input#timesheet_days_09_04_2018.form-control{:name => "timesheet[days][09/04/2018]", :required => "required", :style => " ", :type => "text", :value => "0"}/
+                    %td.dyno{:style => "width: 7%"}
+                      %input#timesheet_days_09_05_2018.form-control{:disabled => "disabled", :name => "timesheet[days][09/05/2018]", :required => "required", :style => " 2px solid #000; background-color: #eeeeee !important;", :type => "text", :value => "0"}/
+                    %td.dyno{:style => "width: 7%"}
+                      %input#timesheet_days_09_06_2018.form-control{:disabled => "disabled", :name => "timesheet[days][09/06/2018]", :required => "required", :style => " 2px solid #000; background-color: #eeeeee !important;", :type => "text", :value => "0"}/
+                    %td.dyno{:style => "width: 7%"}
+                      %input#timesheet_days_09_07_2018.form-control{:disabled => "disabled", :name => "timesheet[days][09/07/2018]", :required => "required", :style => " 2px solid #000; background-color: #eeeeee !important;", :type => "text", :value => "0"}/
+                    %td.dyno{:style => "width: 7%"}
+                      %input#timesheet_days_09_08_2018.form-control{:disabled => "disabled", :name => "timesheet[days][09/08/2018]", :required => "required", :style => " 2px solid #000; background-color: #eeeeee !important;", :type => "text", :value => "0"}/
+                    %td{:width => "13%"} Not submitted
+                    %td
+                      %input#timesheet_timesheet_attachment.file-pick.timesheet-filepicker-attachment{"data-fp-apikey" => "AR0LrQ7ZBRbaL4HN6BMTDz", "data-fp-button-text" => "<i class='fa fa-file-pdf-o'> </i>", :disable => "true", :name => "timesheet[timesheet_attachment]", :style => "display: none;", :type => "filepicker"}/
+                      %button.button_green{:name => "button", :type => "submit"}
+                        %i.fa.fa-save
+          %button.save-all-btn{:name => "button", :type => "submit"} Save All
+
+- content_for :scripts do
+  :javascript
+    $(document).ready(function() {
+      pageSetUp();
+
+      $('.select-time-cycle').on("change", function(){
+        $(this).closest('form').submit();
+      });
+
+      $(".all-select").on("change", function(){
+        $( '.sin-select' ).prop('checked', this.checked)
+      });
+
+      $(".save-all-btn").on("click", function(){
+        $('input[name=sin_select]:checked').each(function(){
+          $(this).closest('form').submit();
+        });
+      })
+    });

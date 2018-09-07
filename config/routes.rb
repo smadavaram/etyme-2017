@@ -368,6 +368,10 @@ Rails.application.routes.draw do
         get :add_bill
         get :add_invoice
         get :pay_bill
+        get :bank_reconciliation
+        get :receive_payment
+        get :client_expense_submit
+        get :client_expense_approve
       end
       member do
         get :download

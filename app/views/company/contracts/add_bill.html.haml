@@ -7,24 +7,28 @@
           %header
             %span.widget-icon
               %i.fa.fa-check
-            %h2 Adding New Bill
+            %h2 Add Bill
           %div
             .jarviswidget-editbox
             .widget-body
               .row
                 .col-md-3
                   %label Bill Type
-                .col-md-4
+                .col-md-3
                   .radio
                     %label
                       %input{:checked => "checked", :name => "optradio", :type => "radio"}>/
                       Vendor
 
-                .col-md-4
+                .col-md-3
                   .radio
                     %label
                       %input{:checked => "checked", :name => "optradio", :type => "radio"}>/
                       Client Exp Bill
+
+                .col-md-2
+                  %label{:for => 'bill_no'} Bill no.
+                  = text_field_tag 'bill_no', '', class: 'form-control'
               %br
               .row
                 .col-md-3
@@ -57,9 +61,6 @@
                   %label{:for => 'due_date'} Due Date:
                   = date_field_tag 'due_date', '', class: 'form-control'
 
-                .col-md-2
-                  %label{:for => 'bill_no'} Bill no.
-                  = text_field_tag 'bill_no', '', class: 'form-control'
               
 
               %br
@@ -69,13 +70,15 @@
 
               %br
               .row
-                .col-md-10
+                .col-md-12
                   %table.table.table-bordered.account_detail
                     %thead
                       %tr
                         %th Cycle - Timesheet
                         %th Client
                         %th Consultant Name
+                        %th Action
+                        %th Status
                         %th Hours
                         %th Per Unit Rate
                         %th Total
@@ -87,6 +90,8 @@
                         %td
                         %td
                         %td
+                        %td
+                        %td
                       %tr
                         %td C2 - 5 Aug - 10 Aug
                         %td 
@@ -94,10 +99,14 @@
                         %td
                         %td
                         %td
+                        %td
+                        %td
                       %tr
                         %td C3 - 10 Aug - 15 Aug
                         %td 
                         %td 
+                        %td
+                        %td
                         %td
                         %td
                         %td
