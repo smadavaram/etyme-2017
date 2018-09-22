@@ -44,6 +44,15 @@ class Static::JobsController < ApplicationController
     end
   end
 
+  def import_job
+
+    p "3333333333333333333333333333333333"
+    p "3333333333333333333333333333333333"
+    p "3333333333333333333333333333333333"
+
+  end
+
+
   private
 
   def set_jobs

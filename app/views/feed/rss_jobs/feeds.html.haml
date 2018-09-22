@@ -1,0 +1,51 @@
+%body.bg_white
+  .container-fluid.bg_white
+    .row{style: "padding: 0px 15px 15px 15px;"}
+      .form-group
+        .multi-field-wrapper
+          .multi-fields
+            %br
+            .row
+              .col-md-12
+                %h4
+                  %b Job Feeds 
+                .form-group.candidate-association
+                .col-md-12{:style=>"margin-top: 25px;"}
+                  .form-group
+                    .col-md-2
+                      %p Click to find a  job feed
+                    .col-md-2
+                      = link_to "Job Feed", feed_job_feed_path(:format => :rss), class: "btn btn-primary"
+                    
+              .col-md-12
+                %h4
+                  %b Product Feeds 
+                .form-group.candidate-association
+                .col-md-12{:style=>"margin-top: 25px;"}
+                  .form-group
+                    .col-md-2
+                      %p Click to find a  Product feed
+                    .col-md-2
+                      = link_to "Product Feed", feed_product_feed_path(:format => :rss), class: "btn btn-primary"
+
+              .col-md-12
+                %h4
+                  %b Service Feeds 
+                .form-group.candidate-association
+                .col-md-12{:style=>"margin-top: 25px;"}
+                  .form-group
+                    .col-md-2
+                      %p Click to find a  Service feed
+                    .col-md-2
+                      = link_to "Service Feed", feed_service_feed_path(:format => :rss), class: "btn btn-primary"
+                    
+              .col-md-12
+                %h4
+                  %b Training Feeds 
+                .form-group.candidate-association
+                .col-md-12{:style=>"margin-top: 25px;"}
+                  .form-group
+                    .col-md-2
+                      %p Click to find a  Trining feed
+                    .col-md-2
+                      = link_to "Training Feed", feed_trining_feed_path(:format => :rss), class: "btn btn-primary"

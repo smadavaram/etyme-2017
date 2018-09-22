@@ -26,7 +26,16 @@ Rails.application.routes.draw do
   get 'signup' ,to: 'static#signup'
   post 'check_for_domain' ,to: 'static#check_for_domain'
 
-  get 'feed' => 'job_rss#feed'
+
+  namespace :feed do
+    get 'job_feed' => 'rss_jobs#job_feed'
+    get 'product_feed' => 'rss_jobs#product_feed'
+    get 'service_feed' => 'rss_jobs#service_feed'
+    get 'trining_feed' => 'rss_jobs#trining_feed'
+    get 'feeds' => 'rss_jobs#feeds'
+
+
+  end  
 
 
   concern :paginatable do
@@ -44,6 +53,8 @@ Rails.application.routes.draw do
       # get 'job_appication_without_registeration' ,to: 'job_applications#job_appication_without_registeration'
       post :job_appication_without_registeration
       post :job_appication_with_recruiter
+
+      # post :import_job
     end
     resources :companies , only: [] do
       resources :candidates  do
@@ -236,6 +247,24 @@ Rails.application.routes.draw do
         match :share_message ,via: [:get , :post]
       end
     end
+
+    get "import_job" , to: "jobs#import_job"  
+    post "upload_job" , to: "jobs#upload_job"
+    post "upload_candidate" , to: "jobs#upload_candidate"
+    post "upload_company" , to: "jobs#upload_company"
+    post "upload_contacts" , to: "jobs#upload_contacts"
+    
+
+    get "download_job_template", to: "jobs#download_job_template"
+    get "download_product_template", to: "jobs#download_product_template"
+    get "download_service_template", to: "jobs#download_service_template"
+    get "download_trining_template", to: "jobs#download_trining_template"
+    get "download_candidate_template", to: "jobs#download_candidate_template"
+    get "download_company_template", to: "jobs#download_company_template"
+    get "download_contacts_template", to: "jobs#download_contacts_template"
+
+
+
 
     resources :bench_jobs, only: [:index, :destroy]
     resources :job_receives, only: [:index, :destroy]
@@ -523,6 +552,13 @@ Rails.application.routes.draw do
     resources :job_applications, only: [:index, :create] do
       post :job_applications, on: :collection
     end
+
+    #  resources :rss_jobs, only: [:index, :create] do
+    #   get :job_feed, on: :collection
+    #   # resources :rss_jobs, only: [:index, :create] do
+    #   #   get :job_feed, on: :collection
+    #   # end
+    # end
 
     # post 'add_candidate',    to: 'candidates#add_candidate'
   end
