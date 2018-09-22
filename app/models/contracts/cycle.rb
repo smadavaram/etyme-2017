@@ -2,42 +2,222 @@ module Contracts
   class Cycle < Struct.new(:contract)
     delegate :contract_cycles, :timesheets, :invoices, :sell_contracts, :buy_contracts, :contract_salary_histories, :to => :contract
 
-    def set_timesheet_submit
-      # binding.pry
+    def set_timesheet_submit(count)
+
+      @count = count
       if contract_cycle_ts.present?
         next_date =  get_next_date(ts_time_sheet_frequency, ts_date_1, ts_date_2, ts_end_of_month, ts_day_of_week, contract_cycle_ts.cycle_date )
-        start_date = contract_cycle_ts.end_date + 1.day
+        start_date = contract.start_date+ @count
       else
-        # binding.pry
+  
         next_date =  get_next_date(ts_time_sheet_frequency, ts_date_1, ts_date_2, ts_end_of_month, ts_day_of_week, contract.start_date-1.day)
         start_date = contract.start_date
       end
-      # binding.pry
+
       ta_next_date =  get_next_date(ta_time_sheet_frequency, ta_date_1, ta_date_2, ta_end_of_month, ta_day_of_week, Time.now-1.day)
       while next_date <= Time.now+10.days && next_date <= contract.end_date
-        # binding.pry
+  
         next_next_date =  get_next_date(ts_time_sheet_frequency, ts_date_1, ts_date_2, ts_end_of_month, ts_day_of_week, next_date)
         if ts_time_sheet_frequency == 'weekly'
           end_date = ts_date_of_next(ts_day_of_week, next_date).end_of_day
         elsif ts_time_sheet_frequency == 'twice a month'
           end_date = twice_a_month_submit_date(ts_date_1, ts_date_2, start_date) 
+        elsif ts_time_sheet_frequency == 'monthly'
+          end_date = monthly_submit_date(ts_date_1, contract.start_date+ @count)  
         else
           end_date = next_date
         end
         start_date = next_date
-        # binding.pry
+  
         cycle = add_cycle("Timesheet submit", next_date, start_date, end_date, "TimesheetSubmit", buy_contract.candidate_id, next_next_date, "TimesheetApprove", ta_next_date)
         add_timesheet(start_date, next_date, buy_contract.candidate.full_name, buy_contract.candidate_id, cycle.id)
         con_cycle_ta_start_date = Timesheet.set_con_cycle_ta_date(buy_contract, cycle)
+
         set_timesheet_approve(cycle,con_cycle_ta_start_date)
         invoice_generate(cycle)
+        
+        #salary cycles
+        salary_cycle = add_salary_cycle
+        add_salary(salary_cycle)
+        con_cycle_sp_start_date = Salary.set_con_cycle_sp_date(buy_contract, salary_cycle)
+        set_salary_process(salary_cycle,con_cycle_sp_start_date)
+
+        #commission cycles
+        commission_cycle = add_commission_cycle
+        con_cycle_com_pro_start_date = ContractSaleCommision.set_con_cycle_com_pro_date(buy_contract, commission_cycle)
+        set_commission_process(commission_cycle, con_cycle_com_pro_start_date)
+
+        #vendor bill cyles
+        vendor_bill_cycle = add_vendor_bill_cycle
+        con_cycle_vp_pro_start_date = VendorBill.set_con_cycle_vp_pro_date(buy_contract, vendor_bill_cycle)
+        set_vendor_payment_process(vendor_bill_cycle, con_cycle_vp_pro_start_date )
+
+        #client bill cycles
+        client_bill_cycle = add_client_bill_cycle
+        con_cycle_cp_pro_start_date = ClientBill.set_con_cycle_cp_pro_date(buy_contract, client_bill_cycle)
+        set_client_payment_process(client_bill_cycle, con_cycle_cp_pro_start_date )
+
+        #client expense cycles
+        client_expense  = add_client_expense_cycle       
+
         next_date = next_next_date
         start_date = cycle.end_date + 1.day
+        @count += 1
       end
     end
 
+    def set_salary_calculation_date
+      if contract_cycle_sc.present?
+        if sc_frequency == 'daily'
+          start_date = contract_cycle_sc.start_date +  1.day
+        elsif sc_frequency == 'weekly'
+    
+          start_date = ts_date_of_next(sc_day_of_week, contract.start_date+@count)
+        elsif sc_frequency == 'monthly'
+          start_date = monthly_submit_date(sc_date_1, contract.start_date+@count)
+        elsif sc_frequency == 'twice a month'
+          start_date = twice_a_month_submit_date(sc_date_1, sc_date_2, contract.start_date+@count)
+        else
+          start_date = contract_cycle_sc.start_date +  1.day
+        end
+      else
+        if sc_frequency == 'daily'
+          start_date = contract.start_date
+        elsif sc_frequency == 'weekly'
+          start_date = ts_date_of_next(sc_day_of_week,contract.start_date)
+        elsif sc_frequency == 'monthly'
+          start_date = monthly_submit_date(sc_date_1, contract.start_date)
+        elsif sc_frequency == 'twice a month'
+          start_date = twice_a_month_submit_date(sc_date_1, sc_date_2, contract.start_date)
+        else
+          start_date = contract.start_date
+        end  
+      end
+      return start_date
+    end
+
+    def set_commission_calculation_date
+      if contract_cycle_com_cal.present?
+        if com_cal_frequency == 'daily'
+          start_date = contract_cycle_com_cal.start_date +  1.day
+        elsif com_cal_frequency == 'weekly'
+    
+          start_date = ts_date_of_next(com_cal_day_of_week, contract.start_date+@count)
+        elsif com_cal_frequency == 'monthly'
+          start_date = monthly_submit_date(com_cal_date_1, contract.start_date+@count)
+        elsif com_cal_frequency == 'twice a month'
+          start_date = twice_a_month_submit_date(com_cal_date_1, com_cal_date_2, contract.start_date+@count)
+        else
+          start_date = contract_cycle_com_cal.start_date +  1.day
+        end
+      else
+        if com_cal_frequency == 'daily'
+          start_date = contract.start_date
+        elsif com_cal_frequency == 'weekly'
+          start_date = ts_date_of_next(com_cal_day_of_week,contract.start_date)
+        elsif com_cal_frequency == 'monthly'
+          start_date = monthly_submit_date(com_cal_date_1, contract.start_date)
+        elsif com_cal_frequency == 'twice a month'
+          start_date = twice_a_month_submit_date(com_cal_date_1, com_cal_date_2, contract.start_date)
+        else
+          start_date = contract.start_date
+        end  
+      end
+      return start_date
+    end
+
+    def set_vendor_bill_calculation_date
+      if contract_cycle_vendor_bill_cal.present?
+        if vendor_bill_frequency == 'daily'
+          start_date = contract_cycle_vendor_bill_cal.start_date +  1.day
+        elsif vendor_bill_frequency == 'weekly'
+          # binding.pry
+          start_date = ts_date_of_next(vb_day_of_week, contract.start_date+@count)
+        elsif vendor_bill_frequency == 'monthly'
+          start_date = monthly_submit_date(vb_date_1, contract.start_date+@count)
+        elsif vendor_bill_frequency == 'twice a month'
+          start_date = twice_a_month_submit_date(vb_date_1, vb_date_2, contract.start_date+@count)
+        else
+          start_date = contract_cycle_vendor_bill_cal.start_date +  1.day
+        end
+      else
+        if vendor_bill_frequency == 'daily'
+          start_date = contract.start_date
+        elsif vendor_bill_frequency == 'weekly'
+          start_date = ts_date_of_next(vb_day_of_week,contract.start_date)
+        elsif vendor_bill_frequency == 'monthly'
+          start_date = monthly_submit_date(vb_date_1, contract.start_date)
+        elsif vendor_bill_frequency == 'twice a month'
+          start_date = twice_a_month_submit_date(vb_date_1, vb_date_2, contract.start_date)
+        else
+          start_date = contract.start_date
+        end  
+      end
+      return start_date
+    end
+
+    def set_client_bill_calculation_date
+      if contract_cycle_client_bill_cal.present?
+        if client_bill_frequency == 'daily'
+          start_date = contract_cycle_client_bill_cal.start_date +  1.day
+        elsif client_bill_frequency == 'weekly'
+          # binding.pry
+          start_date = ts_date_of_next(cb_day_of_week, contract.start_date+@count)
+        elsif client_bill_frequency == 'monthly'
+          start_date = monthly_submit_date(cb_date_1, contract.start_date+@count)
+        elsif client_bill_frequency == 'twice a month'
+          start_date = twice_a_month_submit_date(cb_date_1, cb_date_2, contract.start_date+@count)
+        else
+          start_date = contract_cycle_client_bill_cal.start_date +  1.day
+        end
+      else
+        if client_bill_frequency == 'daily'
+          start_date = contract.start_date
+        elsif client_bill_frequency == 'weekly'
+          start_date = ts_date_of_next(cb_day_of_week,contract.start_date)
+        elsif client_bill_frequency == 'monthly'
+          start_date = monthly_submit_date(cb_date_1, contract.start_date)
+        elsif client_bill_frequency == 'twice a month'
+          start_date = twice_a_month_submit_date(cb_date_1, cb_date_2, contract.start_date)
+        else
+          start_date = contract.start_date
+        end  
+      end
+      return start_date
+    end
+
+    def set_client_expense_calculation_date
+      if contract_cycle_client_expense_cal.present?
+        if client_expense_frequency == 'daily'
+          start_date = contract_cycle_client_expense_cal.start_date +  1.day
+        elsif client_expense_frequency == 'weekly'
+          # binding.pry
+          start_date = ts_date_of_next(ce_day_of_week, contract.start_date+@count)
+        elsif client_expense_frequency == 'monthly'
+          start_date = monthly_submit_date(ce_date_1, contract.start_date+@count)
+        elsif client_expense_frequency == 'twice a month'
+          start_date = twice_a_month_submit_date(ce_date_1, ce_date_2, contract.start_date+@count)
+        else
+          start_date = contract_cycle_client_expense_cal.start_date +  1.day
+        end
+      else
+        if client_expense_frequency == 'daily'
+          start_date = contract.start_date
+        elsif client_expense_frequency == 'weekly'
+          start_date = ts_date_of_next(ce_day_of_week,contract.start_date)
+        elsif client_expense_frequency == 'monthly'
+          start_date = monthly_submit_date(ce_date_1, contract.start_date)
+        elsif client_expense_frequency == 'twice a month'
+          start_date = twice_a_month_submit_date(ce_date_1, ce_date_2, contract.start_date)
+        else
+          start_date = contract.start_date
+        end  
+      end
+      return start_date
+    end
+
     def set_timesheet_approve(con_cycle,con_cycle_ta_start_date)
-      # binding.pry
+      con_cycle_ta_start_date = contract.end_date if con_cycle_ta_start_date > contract.end_date
       con_cycle_ta = ContractCycle.find_by(contract_id: con_cycle.contract_id,
                                           start_date: con_cycle_ta_start_date,
                                           end_date: con_cycle_ta_start_date&.end_of_day&.in_time_zone("Chennai"),
@@ -46,7 +226,7 @@ module Contracts
                                           cycle_type: "TimesheetApprove",
                                           next_action: "InvoiceGenerate"
       )
-      # binding.pry
+
       unless con_cycle_ta
         con_cycle_ta = ContractCycle.create(contract_id: con_cycle.contract_id,
                                             start_date: con_cycle_ta_start_date,
@@ -56,6 +236,107 @@ module Contracts
                                             cycle_date: Time.now,
                                             cycle_type: "TimesheetApprove",
                                             next_action: "InvoiceGenerate"
+        )
+      end
+    end
+
+    def set_salary_process(con_cycle,con_cycle_sp_start_date)
+
+      con_cycle_sp_start_date = contract.end_date if con_cycle_sp_start_date > contract.end_date
+      con_cycle_sp = ContractCycle.find_by(contract_id: con_cycle.contract_id,
+                                          start_date: con_cycle_sp_start_date,
+                                          end_date: con_cycle_sp_start_date&.end_of_day&.in_time_zone("Chennai"),
+                                          company_id: sell_contract.company_id,
+                                          note: "Salary process",
+                                          cycle_type: "SalaryProcess",
+                                          next_action: "SalaryClear"
+      )
+
+      unless con_cycle_sp
+        con_cycle_sp = ContractCycle.create(contract_id: con_cycle.contract_id,
+                                            start_date: con_cycle_sp_start_date,
+                                            end_date: con_cycle_sp_start_date.end_of_day,
+                                            company_id: sell_contract.company_id,
+                                            note: "Salary process",
+                                            cycle_date: Time.now,
+                                            cycle_type: "SalaryProcess",
+                                            next_action: "SalaryClear"
+        )
+      end
+    end
+
+    def set_commission_process(con_cycle,con_cycle_com_pro_start_date)
+
+      con_cycle_com_pro_start_date = contract.end_date if con_cycle_com_pro_start_date > contract.end_date
+      con_cycle_com_pro = ContractCycle.find_by(contract_id: con_cycle.contract_id,
+                                          start_date: con_cycle_com_pro_start_date,
+                                          end_date: con_cycle_com_pro_start_date&.end_of_day&.in_time_zone("Chennai"),
+                                          company_id: sell_contract.company_id,
+                                          note: "Commission process",
+                                          cycle_type: "CommissionProcess",
+                                          next_action: "CommissionClear"
+      )
+
+      unless con_cycle_com_pro
+        con_cycle_com_pro = ContractCycle.create(contract_id: con_cycle.contract_id,
+                                            start_date: con_cycle_com_pro_start_date,
+                                            end_date: con_cycle_com_pro_start_date.end_of_day,
+                                            company_id: sell_contract.company_id,
+                                            note: "Commission process",
+                                            cycle_date: Time.now,
+                                            cycle_type: "CommissionProcess",
+                                            next_action: "CommissionClear"
+        )
+      end
+    end
+
+    def set_vendor_payment_process(con_cycle,con_cycle_vp_pro_start_date)
+
+      con_cycle_vp_pro_start_date = contract.end_date if con_cycle_vp_pro_start_date > contract.end_date
+      con_cycle_vp_pro = ContractCycle.find_by(contract_id: con_cycle.contract_id,
+                                          start_date: con_cycle_vp_pro_start_date,
+                                          end_date: con_cycle_vp_pro_start_date&.end_of_day&.in_time_zone("Chennai"),
+                                          company_id: sell_contract.company_id,
+                                          note: "VendorPayment process",
+                                          cycle_type: "VendorPaymentProcess",
+                                          next_action: "VendorPaymentClear"
+      )
+
+      unless con_cycle_vp_pro
+        con_cycle_vp_pro = ContractCycle.create(contract_id: con_cycle.contract_id,
+                                            start_date: con_cycle_vp_pro_start_date,
+                                            end_date: con_cycle_vp_pro_start_date.end_of_day,
+                                            company_id: sell_contract.company_id,
+                                            note: "VendorPayment process",
+                                            cycle_date: Time.now,
+                                            cycle_type: "VendorPaymentProcess",
+                                            next_action: "VendorPaymentClear"
+        )
+      end
+    end
+
+
+    def set_client_payment_process(con_cycle,con_cycle_cp_pro_start_date)
+
+      con_cycle_cp_pro_start_date = contract.end_date if con_cycle_cp_pro_start_date > contract.end_date
+      con_cycle_cp_pro = ContractCycle.find_by(contract_id: con_cycle.contract_id,
+                                          start_date: con_cycle_cp_pro_start_date,
+                                          end_date: con_cycle_cp_pro_start_date&.end_of_day&.in_time_zone("Chennai"),
+                                          company_id: sell_contract.company_id,
+                                          note: "ClientPayment process",
+                                          cycle_type: "ClientPaymentProcess",
+                                          next_action: "ClientPaymentClear"
+      )
+
+      unless con_cycle_cp_pro
+        con_cycle_cp_pro = ContractCycle.create(contract_id: con_cycle.contract_id,
+                                            start_date: con_cycle_cp_pro_start_date,
+                                            end_date: con_cycle_cp_pro_start_date.end_of_day,
+                                            company_id: sell_contract.company_id,
+                                            note: "ClientPayment process",
+                                            cycle_date: Time.now,
+                                            cycle_type: "ClientPaymentProcess",
+                                            next_action: "ClientPaymentClear"
         )
       end
     end
@@ -84,7 +365,7 @@ module Contracts
     def invoice_generate(con_cycle)
       end_date = Invoice.set_con_cycle_invoice_date(sell_contract, con_cycle).end_of_day
       cycle = add_invoice_cycle("Invoice Generate", end_date, con_cycle.start_date, end_date, "InvoiceGenerate", nil, end_date, "InvoicePaid", end_date, sell_contract.company_id)
-      # binding.pry
+
       add_invoice(con_cycle.start_date, end_date, cycle.id)
     end
 
@@ -116,7 +397,7 @@ module Contracts
           candidate_id: candidate_id,
           ts_cycle_id: cycle_id
       )
-      # binding.pry
+
     end
 
     def add_invoice_cycle(note, cycle_date, start_date, end_date, cycle_type, candidate_id, next_date, next_action, next_action_date, company_id)
@@ -128,7 +409,7 @@ module Contracts
                         next_action: next_action,
                         contract_id: contract_id
                         )
-      # binding.pry
+
       unless contract_cycle
        contract_cycle = contract_cycles.create(note: note,
                          cycle_date: cycle_date,
@@ -143,7 +424,7 @@ module Contracts
                       )
       end
       return contract_cycle
-      # binding.pry
+
     end
 
     def add_invoice(start_date, end_date, cycle_id)
@@ -163,6 +444,206 @@ module Contracts
       end
     end
 
+    def add_salary_cycle
+      start_date =  set_salary_calculation_date
+
+      salary_cal = ContractCycle.find_by(
+                    contract_id: contract_id,
+                    end_date: start_date.to_date,
+                    candidate_id: buy_contract.candidate_id,
+                    company_id: sell_contract.company_id,
+                    cycle_type: 'SalaryCalculation',
+                    note: 'Salary calculation'
+
+                  )
+      unless salary_cal
+        salary_cal =ContractCycle.create(
+                    contract_id: contract_id,
+                    start_date: start_date.to_date,
+                    end_date: start_date.to_date,
+                    candidate_id: buy_contract.candidate_id,
+                    company_id: sell_contract.company_id,
+                    status: 'pending',
+                    cycle_type: 'SalaryCalculation',
+                    next_action: 'SalaryProcessing',
+                    note: 'Salary calculation'
+
+                  )
+        
+      end
+
+      return salary_cal
+    end
+
+    def add_commission_cycle
+      start_date =  set_commission_calculation_date
+
+      commission_cal = ContractCycle.find_by(
+                    contract_id: contract_id,
+                    end_date: start_date.to_date,
+                    candidate_id: buy_contract.candidate_id,
+                    company_id: sell_contract.company_id,
+                    cycle_type: 'CommissionCalculation',
+                    note: 'Commission calculation'
+
+                  )
+      unless commission_cal
+        commission_cal =ContractCycle.create(
+                    contract_id: contract_id,
+                    start_date: start_date.to_date,
+                    end_date: start_date.to_date,
+                    candidate_id: buy_contract.candidate_id,
+                    company_id: sell_contract.company_id,
+                    status: 'pending',
+                    cycle_type: 'CommissionCalculation',
+                    next_action: 'CommissionProcessing',
+                    note: 'Commission calculation'
+
+                  )
+        
+      end
+      buy_contract.contract_sale_commisions.update(com_cal_cycle_id: commission_cal.id)
+      return commission_cal
+    end
+
+    def add_vendor_bill_cycle
+      start_date =  set_vendor_bill_calculation_date
+
+      vendor_bill_cal = ContractCycle.find_by(
+                    contract_id: contract_id,
+                    end_date: start_date.to_date,
+                    candidate_id: buy_contract.candidate_id,
+                    company_id: sell_contract.company_id,
+                    cycle_type: 'VendorBillCalculation',
+                    note: 'VendorBill calculation'
+
+                  )
+      unless vendor_bill_cal
+        vendor_bill_cal =ContractCycle.create(
+                    contract_id: contract_id,
+                    start_date: start_date.to_date,
+                    end_date: start_date.to_date,
+                    candidate_id: buy_contract.candidate_id,
+                    company_id: sell_contract.company_id,
+                    status: 'pending',
+                    cycle_type: 'VendorBillCalculation',
+                    next_action: 'VendorBillProcessing',
+                    note: 'VendorBill calculation'
+
+                  )
+        
+      end
+      return vendor_bill_cal
+    end
+
+    def add_client_bill_cycle
+      start_date =  set_client_bill_calculation_date
+
+      client_bill_cal = ContractCycle.find_by(
+                    contract_id: contract_id,
+                    end_date: start_date.to_date,
+                    candidate_id: buy_contract.candidate_id,
+                    company_id: sell_contract.company_id,
+                    cycle_type: 'ClientBillCalculation',
+                    note: 'ClientBill calculation'
+
+                  )
+      unless client_bill_cal
+        client_bill_cal =ContractCycle.create(
+                    contract_id: contract_id,
+                    start_date: start_date.to_date,
+                    end_date: start_date.to_date,
+                    candidate_id: buy_contract.candidate_id,
+                    company_id: sell_contract.company_id,
+                    status: 'pending',
+                    cycle_type: 'ClientBillCalculation',
+                    next_action: 'ClientBillProcessing',
+                    note: 'ClientBill calculation'
+
+                  )
+        
+      end
+      return client_bill_cal
+    end
+
+    def add_client_expense_cycle
+      start_date =  set_client_expense_calculation_date
+
+      client_expense_cal = ContractCycle.find_by(
+                    contract_id: contract_id,
+                    end_date: start_date.to_date,
+                    candidate_id: buy_contract.candidate_id,
+                    company_id: sell_contract.company_id,
+                    cycle_type: 'ClientExpenseCalculation',
+                    note: 'ClientExpense calculation'
+                  )
+
+      unless client_expense_cal
+        client_expense_cal = ContractCycle.create(
+                    contract_id: contract_id,
+                    start_date: start_date.to_date,
+                    end_date: start_date.to_date,
+                    candidate_id: buy_contract.candidate_id,
+                    company_id: sell_contract.company_id,
+                    status: 'pending',
+                    cycle_type: 'ClientExpenseCalculation',
+                    next_action: 'ClientExpenseProcessing',
+                    note: 'ClientExpense calculation'
+                  )
+
+        # client expense processing
+        client_expense_pro = ContractCycle.create(
+                    contract_id: contract_id,
+                    start_date: client_expense_cal.start_date.to_date+3.days,
+                    end_date: client_expense_cal.start_date.to_date+3.days,
+                    candidate_id: buy_contract.candidate_id,
+                    company_id: sell_contract.company_id,
+                    status: 'pending',
+                    cycle_type: 'ClientExpenseProcess',
+                    next_action: 'ClientExpenseClear',
+                    note: 'ClientExpense process'
+                  )
+
+        # client expense clear
+        client_expense_clear = ContractCycle.create(
+                    contract_id: contract_id,
+                    start_date: client_expense_pro.start_date.to_date+3.days,
+                    end_date: client_expense_pro.start_date.to_date+3.days,
+                    candidate_id: buy_contract.candidate_id,
+                    company_id: sell_contract.company_id,
+                    status: 'pending',
+                    cycle_type: 'ClientExpenseClear',
+                    next_action: '',
+                    note: 'ClientExpense clear'
+                  )
+        
+      end
+      return client_expense_cal
+    end
+
+    def add_salary(cycle)
+
+      salary = Salary.find_by(
+                contract_id: contract_id,
+                end_date: cycle.end_date,
+                candidate_id: buy_contract.candidate_id,
+                company_id: sell_contract.company_id,
+                status: 'open',
+                sc_cycle_id: cycle.id
+              )
+      unless salary
+        Salary.create(
+                contract_id: contract_id,
+                start_date: cycle.start_date,
+                end_date: cycle.end_date,
+                candidate_id: buy_contract.candidate_id,
+                company_id: sell_contract.company_id,
+                status: 'open',
+                sc_cycle_id: cycle.id
+              )
+      end
+    end
+
     def contract_id
       contract.id
     end
@@ -173,6 +654,26 @@ module Contracts
 
     def contract_cycle_ig
       contract_cycles.where(cycle_type: "InvoiceGenerate").order("created_at DESC").first
+    end
+
+    def contract_cycle_sc
+      contract_cycles.where(cycle_type: "SalaryCalculation").order("created_at DESC").first
+    end
+
+    def contract_cycle_com_cal
+      contract_cycles.where(cycle_type: "CommissionCalculation").order("created_at DESC").first
+    end
+
+    def contract_cycle_vendor_bill_cal
+      contract_cycles.where(cycle_type: "VendorBillCalculation").order("created_at DESC").first
+    end
+
+    def contract_cycle_client_bill_cal
+      contract_cycles.where(cycle_type: "ClientBillCalculation").order("created_at DESC").first
+    end
+
+    def contract_cycle_client_expense_cal
+      contract_cycles.where(cycle_type: "ClientExpenseCalculation").order("created_at DESC").first
     end
 
     def buy_contract
@@ -243,6 +744,118 @@ module Contracts
       sell_contract.invoice_day_of_week
     end
 
+    def sc_frequency
+      buy_contract.salary_calculation
+    end
+
+    def sc_day_of_week
+      buy_contract.sc_day_of_week
+    end
+
+    def sc_date_1
+      buy_contract.sc_date_1
+    end
+
+    def sc_date_2
+      buy_contract.sc_date_2
+    end
+
+    def sc_end_of_month
+      buy_contract.sc_end_of_month
+    end
+
+    def com_cal_frequency
+      buy_contract.commission_calculation
+    end
+
+    def com_cal_day_of_week
+      buy_contract.com_cal_day_of_week
+    end
+
+    def com_cal_date_1
+      buy_contract.com_cal_date_1
+    end
+
+    def com_cal_date_2
+      buy_contract.com_cal_date_2
+    end
+
+    def com_cal_end_of_month
+      buy_contract.com_cal_end_of_month
+    end
+
+    def vendor_bill_frequency
+      buy_contract.vendor_bill
+    end
+
+    def vb_day_time
+      buy_contract.vb_day_time
+    end
+
+    def vb_date_1
+      buy_contract.vb_date_1
+    end
+
+    def vb_date_2
+      buy_contract.vb_date_2
+    end
+
+    def vb_day_of_week
+      buy_contract.vb_day_of_week
+    end
+
+    def vb_end_of_month
+      buy_contract.vb_end_of_month
+    end
+
+    def client_bill_frequency
+      buy_contract.client_bill
+    end
+
+    def cb_day_time
+      buy_contract.cb_day_time
+    end
+
+    def cb_date_1
+      buy_contract.cb_date_1
+    end
+
+    def cb_date_2
+      buy_contract.cb_date_2
+    end
+
+    def cb_day_of_week
+      buy_contract.cb_day_of_week
+    end
+
+    def cb_end_of_month
+      buy_contract.cb_end_of_month
+    end
+
+    def client_expense_frequency
+      sell_contract.client_expense
+    end
+
+    def ce_day_of_week
+      sell_contract.ce_day_of_week
+    end
+
+    def ce_day_time
+      sell_contract.ce_day_time
+    end
+
+    def ce_date_1
+      sell_contract.ce_date_1
+    end
+
+    def ce_date_2
+      sell_contract.ce_date_2
+    end
+
+    def ce_end_of_month
+      sell_contract.ce_end_of_month
+    end
+
     def buy_payrate
       buy_contract.payrate
     end
@@ -252,7 +865,7 @@ module Contracts
     end
 
     def get_next_date(time_sheet_frequency, date_1, date_2, end_of_month, day_of_week, last_date = Date.today - 1.day )
-      # binding.pry
+
       # if time_sheet_frequency == "daily" || time_sheet_frequency == "immediately"
         time_sheet_date = last_date + 1.days
       # elsif time_sheet_frequency == "weekly"
@@ -274,6 +887,7 @@ module Contracts
     def ts_date_of_next(day_of_week,start_date)
       day_of_week = DateTime.parse(day_of_week).wday
       date = start_date.to_date + ((day_of_week - start_date.to_date.wday) % 7)
+
       if day_of_week >= start_date.wday
         (date - start_date.to_date <= 5) && start_date.wday != 0 ? date+7.days : date
       else
@@ -282,21 +896,21 @@ module Contracts
     end
 
     def twice_a_month_submit_date(ts_date_1, ts_date_2, start_date)
-      # binding.pry
+
       day_1 = ts_date_1.strftime("%d").to_i
       day_2 = ts_date_2.strftime("%d").to_i.present? ? ts_date_2.strftime("%d").to_i : 0
       if start_date.strftime("%d").to_i <= day_1
-        day = ts_date_1&.to_i
+        day = day_1&.to_i
         next_month_year = start_date
         month = next_month_year&.strftime("%m").to_i
         year = next_month_year&.strftime("%Y").to_i
       elsif start_date.strftime("%d").to_i > day_1 && start_date.strftime("%d").to_i <= day_2
-        day = ts_date_2&.to_i
+        day = day_2&.to_i
         next_month_year = start_date
         month = next_month_year&.strftime("%m").to_i
         year = next_month_year&.strftime("%Y").to_i
       elsif start_date.strftime("%d").to_i > day_2 && !ts_end_of_month
-        day = ts_date_1&.to_i
+        day = day_1&.to_i
         next_month_year = start_date+1.month
         month = next_month_year&.strftime("%m").to_i
         year = next_month_year&.strftime("%Y").to_i
@@ -307,6 +921,29 @@ module Contracts
         year = next_month_year&.strftime("%Y").to_i
       end
       con_cycle_ta_start_date = DateTime.new(year, month, day)
+    end
+
+    def monthly_submit_date(date_1, start_date)
+
+      day_1 = date_1.strftime("%d").to_i
+      
+      if start_date.strftime("%d").to_i <= day_1
+        day = day_1&.to_i
+        next_month_year = start_date
+        month = next_month_year&.strftime("%m").to_i
+        year = next_month_year&.strftime("%Y").to_i
+      elsif start_date.strftime("%d").to_i > day_1 && !ts_end_of_month
+        day = day_1&.to_i
+        next_month_year = start_date+1.month
+        month = next_month_year&.strftime("%m").to_i
+        year = next_month_year&.strftime("%Y").to_i
+      elsif end_of_month
+        next_month_year = start_date.end_of_month
+        day = next_month_year.strftime('%e').to_i
+        month = next_month_year&.strftime("%m").to_i
+        year = next_month_year&.strftime("%Y").to_i
+      end
+      return DateTime.new(year, month, day)
     end
 
 

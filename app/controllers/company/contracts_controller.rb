@@ -11,7 +11,11 @@ class Company::ContractsController < Company::BaseController
   before_action :main_authorized_user  , only: :show
 
 
-  add_breadcrumb "CONTRACTS", :contracts_path, options: { title: "CONTRACTS" }
+  add_breadcrumb "CONTRACTS", :contracts_path, options: { title: "CONTRACTS" }, :except => %w(add_expense add_bill add_invoice bank_reconciliation receive_payment)
+  add_breadcrumb "Expenses", :add_expense_contracts_path, only: %w(add_expense)
+  add_breadcrumb "Cient Expense Bill / Vendor Bill", :add_bill_contracts_path, only: %w(add_bill)
+  add_breadcrumb "Add Invoice", :add_invoice_contracts_path, only: %w(add_invoice)
+  add_breadcrumb 'Bank reconciliation', :bank_reconciliation_contracts_path, only: %w(bank_reconciliation)
 
   def index
     @contract_activity = PublicActivity::Activity.where(trackable: current_company.contracts).order('created_at DESC').paginate(page: params[:page], per_page: 15 )
@@ -166,20 +170,57 @@ class Company::ContractsController < Company::BaseController
 
 
   def timeline
-    @contracts = current_company.contracts
-    @candidates = current_company.candidates.uniq
-    @todo_contract_cycles = current_company.contract_cycles.where(status: 'pending').where('DATE(contract_cycles.end_date) BETWEEN ? AND ?', Date.today, 11.days.from_now.to_date).order(start_date: :asc)
-    @completed_contract_cycles = current_company.contract_cycles.where(status: 'completed').order(id: :asc)
-    @overdue_contract_cycles = current_company.contract_cycles.where(status: 'pending').where("DATE(contract_cycles.end_date) < ?", DateTime.now.end_of_day.to_date).order(start_date: :desc)
+    @contracts = current_company.contracts.includes(:job).where.not(status: "pending")
+    @candidates = Candidate.all
+    filter_timeline
   end
 
   def filter_timeline
-    @contract = current_company.contracts.filter(params.slice(:candidate, :contract))
-    @candidates = current_company.candidates.uniq
+    @contract_cycles = current_company.contract_cycles.includes(:candidate,contract: [:sell_contracts, :buy_contracts, :company]).where(nil)
+    filtering_params(params).each do |key, value|
+      @contract_cycles = @contract_cycles.public_send(key, value) if value.present?
+    end
   end
 
+  def add_expense
+  end
+
+  def add_bill
+  end
+
+  def add_invoice
+  end
+
+  def pay_bill
+  end
+
+  def bank_reconciliation
+  end
+
+  def receive_payment
+  end
+
+  def client_expense_submit
+    @dates = Time.now-1.month
+    @time_cycle = [((@dates.beginning_of_week-1.day).strftime("%m/%d/%Y") +" - " + (@dates.end_of_week - 1.day).strftime("%m/%d/%Y")),
+                   ((@dates.end_of_week ).strftime("%m/%d/%Y") +" - " + (@dates.end_of_week + 6.day).strftime("%m/%d/%Y")),
+                   ((@dates.end_of_week + 7.day).strftime("%m/%d/%Y") +" - " + (@dates.end_of_week + 13.day).strftime("%m/%d/%Y")),
+                   ((@dates.end_of_week + 14.day).strftime("%m/%d/%Y") +" - " + (@dates.end_of_week + 20.day).strftime("%m/%d/%Y")),
+                   ((@dates.end_of_week + 21.day).strftime("%m/%d/%Y") +" - " + (@dates.end_of_week + 27.day).strftime("%m/%d/%Y")),
+                   ((@dates.end_of_week + 28.day).strftime("%m/%d/%Y") +" - " + (@dates.end_of_week + 34.day).strftime("%m/%d/%Y")),
+                   ((@dates.end_of_week + 35.day).strftime("%m/%d/%Y") +" - " + (@dates.end_of_week + 41.day).strftime("%m/%d/%Y")),
+                   ((@dates.end_of_week + 42.day).strftime("%m/%d/%Y") +" - " + (@dates.end_of_week + 48.day).strftime("%m/%d/%Y")),
+                   ((@dates.end_of_week + 49.day).strftime("%m/%d/%Y") +" - " + (@dates.end_of_week + 55.day).strftime("%m/%d/%Y")),
+                   ((@dates.end_of_week + 56.day).strftime("%m/%d/%Y") +" - " + (@dates.end_of_week + 62.day).strftime("%m/%d/%Y"))]
+
+  end
 
   private
+
+  def filtering_params(params)
+    params.slice(:contract_id, :candidate_id, :note)
+  end
+
 
   def find_contract
     @contract = Contract.find(params[:id] || params[:contract_id]) #  , current_company).first || []
@@ -215,6 +256,11 @@ class Company::ContractsController < Company::BaseController
            :payment_term, :b_time_sheet, :payrate, :contract_type, :end_date,
            :message_from_hiring, :status, :company_id, company_doc_ids: [],
            sell_contracts_attributes: [
+               :expected_hour,
+
+               :is_performance_review, :performance_review, :pr_day_time, :pr_date_1, :pr_date_2, :pr_day_of_week, :pr_end_of_month,
+               :is_client_expense, :client_expense, :ce_day_time, :ce_date_1, :ce_date_2, :ce_day_of_week, :ce_end_of_month,
+
                :company_id, :customer_rate, :customer_rate_type, :invoice_terms_period,
                :show_accounting_to_employee, :first_date_of_timesheet,
                :payment_term, :invoice_day_of_week, :invoice_end_of_month, :invoice_date_2, :invoice_date_1,
@@ -236,6 +282,21 @@ class Company::ContractsController < Company::BaseController
                                                    document_signs_attributes: [:id, :signable_type, :signable_id, :_destroy] ]
                                       ],
            buy_contracts_attributes: [
+            
+               :vendor_bill, :vb_day_time, :vb_date_1, :vb_date_2, :vb_day_of_week, :vb_end_of_month,
+
+               :client_bill, :cb_day_time, :cb_date_1, :cb_date_2, :cb_day_of_week, :cb_end_of_month,
+
+               :client_bill_payment, :cp_day_time, :cp_date_1, :cp_date_2, :cp_day_of_week, :cp_end_of_month, :client_bill_payment_term,
+
+               :salary_process, :sp_day_time, :sp_date_1, :sp_date_2, :sp_day_of_week, :sp_end_of_month,
+               
+               :salary_clear, :sclr_day_time, :sclr_date_1, :sclr_date_2, :sclr_day_of_week, :sclr_end_of_month,
+
+               :commission_calculation, :com_cal_day_time, :com_cal_date_1, :com_cal_date_2, :com_cal_day_of_week, :com_cal_end_of_month,
+
+               :commission_process, :com_pro_day_time, :com_pro_date_1, :com_pro_date_2, :com_pro_day_of_week, :com_pro_end_of_month,
+               
                :candidate_id, :ssn, :contract_type, :payrate, :payrate_type,
                :payment_term, :show_accounting_to_employee, :first_date_of_timesheet,
                :time_sheet, :ts_day_of_week, :ts_date_1, :ts_date_2, :ts_end_of_month,
@@ -294,5 +355,4 @@ class Company::ContractsController < Company::BaseController
   def update_contract_response_params
     params.require(:contract).permit(:is_commission , :response_from_vendor , :received_by_signature,:received_by_name, :commission_type,:commission_amount , :max_commission , :commission_for_id, :assignee_id)
   end
-
 end

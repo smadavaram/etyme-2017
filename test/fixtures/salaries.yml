@@ -1,0 +1,23 @@
+# Read about fixtures at http://api.rubyonrails.org/classes/ActiveRecord/FixtureSet.html
+
+one:
+  contract_id: 1
+  company_id: 1
+  candidate_id: 1
+  start_date: 2018-08-27
+  end_date: 2018-08-27
+  status: 1
+  scal_cycle_id: 1
+  sp_cycle_id: 1
+  sc_cycle_id: 1
+
+two:
+  contract_id: 1
+  company_id: 1
+  candidate_id: 1
+  start_date: 2018-08-27
+  end_date: 2018-08-27
+  status: 1
+  scal_cycle_id: 1
+  sp_cycle_id: 1
+  sc_cycle_id: 1

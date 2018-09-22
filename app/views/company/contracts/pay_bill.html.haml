@@ -1,0 +1,99 @@
+#content
+  .row
+  %section
+    .row
+      %article.col-sm-12.col-md-12.col-lg-12
+        #wid-id-0.jarviswidget{"data-widget-deletebutton" => "false", "data-widget-editbutton" => "false"}
+          %header
+            %span.widget-icon
+              %i.fa.fa-check
+            %h2 Pay Bill
+          %div
+            .jarviswidget-editbox
+            .widget-body
+              .row
+                .col-md-3
+                  %label Treasury Account
+                  = select_tag "contracts",options_for_select(['Bank of America', 'Texas Bank']),{class: 'form-control select2',required: true, prompt: 'Select a Bank' }
+
+                .col-md-3
+                  %br
+                  %label
+                    %b Balance:
+                    $542,123.50
+                    %br
+                    = link_to 'Bank Reconciliation', bank_reconciliation_contracts_path 
+                .col-md-3
+                  %label  Payment Date
+                  = date_field_tag 'pay_date', Date.today, class: 'form-control' 
+
+  
+
+              %br
+              .row
+                .col-md-2
+                  %label Account details
+
+              %br
+              .row
+                .col-md-12 
+                  %table.table.table-bordered.account_detail
+                    %thead
+                      %tr
+                        %th Contract
+                        %th Bill number
+                        %th Action
+                        %th Status
+                        %th Due date
+                        %th Open Balance
+                        %th Credit applied
+                        %th Payment
+                        %th Balance due
+                        %th Check/Transaction no.
+                    %tbody
+                      %tr
+                        %td C1 
+                        %td 
+                        %td 
+                        %td
+                        %td
+                        %td
+                        %td
+                        %td
+                        %td
+                        %td
+                      %tr
+                        %td C2 
+                        %td 
+                        %td 
+                        %td
+                        %td
+                        %td
+                        %td
+                        %td
+                        %td
+                        %td
+                      %tr
+                        %td C3 
+                        %td 
+                        %td 
+                        %td
+                        %td
+                        %td
+                        %td
+                        %td
+                        %td
+                        %td
+
+              %br
+              .row
+                .col-md-3
+                  %label Attachments
+                  %input{:name => "attachments", :type => "file"}/
+
+
+                .col-md-4
+                  Total    $0.00
+
+              %br
+              %button.btn-secondary Submit

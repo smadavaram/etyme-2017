@@ -1,0 +1,11 @@
+# Read about fixtures at http://api.rubyonrails.org/classes/ActiveRecord/FixtureSet.html
+
+one:
+  vb_cal_cycle_id: 1
+  vp_pro_cycle_id: 1
+  vb_clr_cycle_id: 1
+
+two:
+  vb_cal_cycle_id: 1
+  vp_pro_cycle_id: 1
+  vb_clr_cycle_id: 1

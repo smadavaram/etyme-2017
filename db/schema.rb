@@ -10,11 +10,25 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema.define(version: 20180811085241) do
+ActiveRecord::Schema.define(version: 20180831133225) do
 
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
   enable_extension "hstore"
+
+  create_table "active_admin_comments", id: :serial, force: :cascade do |t|
+    t.string "namespace"
+    t.text "body"
+    t.integer "resource_id"
+    t.string "resource_type"
+    t.integer "author_id"
+    t.string "author_type"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["author_type", "author_id"], name: "index_active_admin_comments_on_author_type_and_author_id"
+    t.index ["namespace"], name: "index_active_admin_comments_on_namespace"
+    t.index ["resource_type", "resource_id"], name: "index_active_admin_comments_on_resource_type_and_resource_id"
+  end
 
   create_table "activities", id: :serial, force: :cascade do |t|
     t.integer "trackable_id"
@@ -46,6 +60,23 @@ ActiveRecord::Schema.define(version: 20180811085241) do
     t.string "addressable_type"
     t.bigint "addressable_id"
     t.index ["addressable_type", "addressable_id"], name: "index_addresses_on_addressable_type_and_addressable_id"
+  end
+
+  create_table "admin_users", id: :serial, force: :cascade do |t|
+    t.string "email", default: "", null: false
+    t.string "encrypted_password", default: "", null: false
+    t.string "reset_password_token"
+    t.datetime "reset_password_sent_at"
+    t.datetime "remember_created_at"
+    t.integer "sign_in_count", default: 0, null: false
+    t.datetime "current_sign_in_at"
+    t.datetime "last_sign_in_at"
+    t.inet "current_sign_in_ip"
+    t.inet "last_sign_in_ip"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["email"], name: "index_admin_users_on_email", unique: true
+    t.index ["reset_password_token"], name: "index_admin_users_on_reset_password_token", unique: true
   end
 
   create_table "attachable_docs", id: :serial, force: :cascade do |t|
@@ -141,6 +172,49 @@ ActiveRecord::Schema.define(version: 20180811085241) do
     t.boolean "ir_end_of_month", default: false
     t.string "ir_day_of_week"
     t.date "payroll_date"
+    t.string "vendor_bill"
+    t.time "vb_day_time"
+    t.date "vb_date_1"
+    t.date "vb_date_2"
+    t.string "vb_day_of_week"
+    t.boolean "vb_end_of_month", default: false
+    t.string "client_bill"
+    t.time "cb_day_time"
+    t.date "cb_date_1"
+    t.date "cb_date_2"
+    t.string "cb_day_of_week"
+    t.boolean "cb_end_of_month", default: false
+    t.string "client_bill_payment"
+    t.time "cp_day_time"
+    t.date "cp_date_1"
+    t.date "cp_date_2"
+    t.string "cp_day_of_week"
+    t.boolean "cp_end_of_month", default: false
+    t.integer "client_bill_payment_term"
+    t.string "salary_process"
+    t.time "sp_day_time"
+    t.date "sp_date_1"
+    t.date "sp_date_2"
+    t.string "sp_day_of_week"
+    t.boolean "sp_end_of_month", default: false
+    t.string "salary_clear"
+    t.time "sclr_day_time"
+    t.date "sclr_date_1"
+    t.date "sclr_date_2"
+    t.string "sclr_day_of_week"
+    t.boolean "sclr_end_of_month", default: false
+    t.string "commission_calculation"
+    t.time "com_cal_day_time"
+    t.date "com_cal_date_1"
+    t.date "com_cal_date_2"
+    t.string "com_cal_day_of_week"
+    t.boolean "com_cal_end_of_month", default: false
+    t.string "commission_process"
+    t.time "com_pro_day_time"
+    t.date "com_pro_date_1"
+    t.date "com_pro_date_2"
+    t.string "com_pro_day_of_week"
+    t.boolean "com_pro_end_of_month", default: false
     t.index ["candidate_id"], name: "index_buy_contracts_on_candidate_id"
     t.index ["contract_id"], name: "index_buy_contracts_on_contract_id"
   end
@@ -317,6 +391,14 @@ ActiveRecord::Schema.define(version: 20180811085241) do
     t.datetime "updated_at", null: false
     t.integer "company_id"
     t.index ["chatable_type", "chatable_id"], name: "index_chats_on_chatable_type_and_chatable_id"
+  end
+
+  create_table "client_bills", force: :cascade do |t|
+    t.integer "cb_cal_cycle_id"
+    t.integer "cp_pro_cycle_id"
+    t.integer "cb_clr_cycle_id"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
   end
 
   create_table "clients", force: :cascade do |t|
@@ -570,6 +652,9 @@ ActiveRecord::Schema.define(version: 20180811085241) do
     t.decimal "limit"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.integer "com_cal_cycle_id"
+    t.integer "com_pro_cycle_id"
+    t.integer "com_clr_cycle_id"
     t.index ["buy_contract_id"], name: "index_contract_sale_commisions_on_buy_contract_id"
   end
 
@@ -1116,6 +1201,20 @@ ActiveRecord::Schema.define(version: 20180811085241) do
     t.integer "user_id"
   end
 
+  create_table "salaries", force: :cascade do |t|
+    t.integer "contract_id"
+    t.integer "company_id"
+    t.integer "candidate_id"
+    t.date "start_date"
+    t.date "end_date"
+    t.integer "status"
+    t.integer "sc_cycle_id"
+    t.integer "sp_cycle_id"
+    t.integer "sclr_cycle_id"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+  end
+
   create_table "sell_contracts", force: :cascade do |t|
     t.string "number"
     t.bigint "contract_id"
@@ -1150,6 +1249,21 @@ ActiveRecord::Schema.define(version: 20180811085241) do
     t.date "ta_date_2"
     t.boolean "ta_end_of_month", default: false
     t.string "ta_day_of_week"
+    t.float "expected_hour", default: 0.0
+    t.boolean "is_performance_review", default: false
+    t.string "performance_review"
+    t.time "pr_day_time"
+    t.date "pr_date_1"
+    t.date "pr_date_2"
+    t.string "pr_day_of_week"
+    t.boolean "pr_end_of_month", default: false
+    t.boolean "is_client_expense", default: false
+    t.string "client_expense"
+    t.time "ce_day_time"
+    t.date "ce_date_1"
+    t.date "ce_date_2"
+    t.string "ce_day_of_week"
+    t.boolean "ce_end_of_month", default: false
     t.index ["company_id"], name: "index_sell_contracts_on_company_id"
     t.index ["contract_id"], name: "index_sell_contracts_on_contract_id"
   end
@@ -1365,6 +1479,14 @@ ActiveRecord::Schema.define(version: 20180811085241) do
     t.index ["invitations_count"], name: "index_users_on_invitations_count"
     t.index ["invited_by_id"], name: "index_users_on_invited_by_id"
     t.index ["reset_password_token"], name: "index_users_on_reset_password_token", unique: true
+  end
+
+  create_table "vendor_bills", force: :cascade do |t|
+    t.integer "vb_cal_cycle_id"
+    t.integer "vp_pro_cycle_id"
+    t.integer "vb_clr_cycle_id"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
   end
 
   create_table "visas", force: :cascade do |t|

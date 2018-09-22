@@ -1,6 +1,5 @@
 class Contract < ApplicationRecord
 
-  include Filterable
   include PublicActivity::Model
   tracked params:{ "obj"=> proc {|controller, model_instance| model_instance.changes}}
 
@@ -37,6 +36,7 @@ class Contract < ApplicationRecord
   has_many   :contract_terms , dependent: :destroy
   has_many   :timesheets     , dependent: :destroy
   has_many   :invoices       , dependent: :destroy
+  has_many   :salaries       , dependent: :destroy
   has_many   :timesheet_logs , through: :timesheets
   has_many   :transactions   , through: :timesheets
   has_many   :timesheet_approvers   , through: :timesheets
@@ -94,10 +94,6 @@ class Contract < ApplicationRecord
 
   # include NumberGenerator.new({prefix: 'C', length: 7})
   default_scope  -> {order(created_at: :desc)}
-
-  scope :candidate, -> (candidate_id) { where status: candidate_id }
-  scope :contract, -> (id) { where id: id }
-  # scope :starts_with, -> (name) { where("name like ?", "#{name}%")}
 
   delegate :set_timesheet_submit, :invoice_generate, :find_next_date, :to => :appraiser
 
@@ -280,10 +276,16 @@ class Contract < ApplicationRecord
   end
 
   def self.set_cycle
+    count = 0
     self.in_progress.each do |contract|
-      contract.set_timesheet_submit
+      contract.set_timesheet_submit(count)
+      contract.contract_cycles.where('end_date > ?', contract.end_date).where.not(cycle_type: ['SalaryClear', 'ClientExpenseProcess', 'ClientExpenseClear']).update_all(end_date: contract.end_date)
       # contract.invoice_generate
     end
+    Salary.set_salary_clear
+    ContractSaleCommision.set_commission_clear
+    VendorBill.set_vendor_bill_clear
+    ClientBill.set_client_bill_clear
   end
 
   # def check_for_ts_approve

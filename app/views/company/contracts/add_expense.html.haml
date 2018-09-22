@@ -1,0 +1,119 @@
+#content
+  .row
+  %section
+    .row
+      %article.col-sm-12.col-md-12.col-lg-12
+        #wid-id-0.jarviswidget{"data-widget-deletebutton" => "false", "data-widget-editbutton" => "false"}
+          %header
+            %span.widget-icon
+              %i.fa.fa-check
+            %h2 Adding New Expense
+          %div
+            .jarviswidget-editbox
+            .widget-body
+              .row
+                .col-md-3
+                  %label Expense Type
+                .col-md-4
+                  .radio
+                    %label
+                      %input{:checked => "checked", :name => "optradio", :type => "radio"}>/
+                      Salary Advanced
+
+                .col-md-4
+                  .radio
+                    %label
+                      %input{:checked => "checked", :name => "optradio", :type => "radio"}>/
+                      Company Expense
+              %br
+              .row
+                .col-md-3
+                  %label Contract
+                .col-md-4
+                  = select_tag "contracts",options_for_select(Contract.all.map{|c| [c.title,c.id] }),{class: 'form-control select2',required: true, prompt: 'Select Contract' }
+
+              %br
+              .row
+                .col-md-3
+                  %label Select Account
+                .col-md-4
+                  = select_tag "account",options_for_select(Candidate.all.map{|c| [c.full_name,c.id] }),{class: 'form-control select2',required: true, prompt: 'Choose Consultant/Vendor' }
+
+              %br
+              .row
+                .col-md-3.form-group
+                  %label{:for => "mailing_address"} Mailing Address:
+                  %textarea#comment.form-control{:rows => "5"}
+
+                .col-md-2
+                  %label{:for => "terms"} Terms:
+                  = select_tag 'terms', options_for_select((1..10).to_a.map{ |e| 'Net '+e.to_s}), {class: 'form-control select2',required: true, prompt: 'Select terms' }
+
+                .col-md-2
+                  %label{:for => 'bill_date'} Bill Date:
+                  = date_field_tag 'bill_date', '', class: 'form-control'
+
+                .col-md-2
+                  %label{:for => 'due_date'} Due Date:
+                  = date_field_tag 'due_date', '', class: 'form-control'
+
+                .col-md-2
+                  %label{:for => 'bill_no'} Bill no.
+                  = text_field_tag 'bill_no', '', class: 'form-control'
+              
+
+              %br
+              .row
+                .col-md-2
+                  %label Account details
+
+              %br
+              .row
+                .col-md-10
+                  %table.table.table-bordered.account_detail
+                    %thead
+                      %tr
+                        %th Expense type
+                        %th Description
+                        %th Action
+                        %th Status
+                        %th Amount
+                    %tbody
+                      %tr
+                        %td Bill
+                        %td Test Description
+                        %td
+                        %td
+                        %td 10
+                      %tr
+                        %td Bill
+                        %td Test Description
+                        %td
+                        %td
+                        %td 20
+                      %tr
+                        %td Bill
+                        %td Test Description
+                        %td
+                        %td
+                        %td 30
+
+              %br
+              .row
+                .col-md-3
+                  %label Attachments
+                  %input{:name => "attachments", :type => "file"}/
+
+              %br
+              .row
+                .col-md-3.form-group
+                  %label{:for => "memo"} Memo:
+                  %textarea#comment.form-control{:rows => "5"}
+
+                .col-md-4 
+
+                .col-md-4
+                  Total    $0.00
+
+              %br
+              %button.btn-secondary Submit
