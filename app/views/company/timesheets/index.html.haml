@@ -47,6 +47,7 @@
       %table#jqgrid
 
 - @temp = []
+= @timesheets.count
 -@timesheets.each do |ts|
   -@temp.push({ timesheet_id: ts.id,
                 creation_date: ts.created_at.strftime('%Y-%m-%d'),

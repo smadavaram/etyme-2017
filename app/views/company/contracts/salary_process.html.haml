@@ -1,0 +1,50 @@
+#content
+  .row
+  %section
+    .row
+      %article.col-sm-12.col-md-12.col-lg-12
+        #wid-id-0.jarviswidget{"data-widget-deletebutton" => "false", "data-widget-editbutton" => "false"}
+          %header
+            %span.widget-icon
+              %i.fa.fa-check
+            %h2 Salary Process
+          %div
+            .jarviswidget-editbox
+            .widget-body
+              .row
+                .col-md-3
+                  %label Contract
+                .col-md-4
+                  = select_tag "contracts",options_for_select(Contract.all.map{|c| [c.title,c.id] }),{class: 'form-control select2',required: true, prompt: 'Select Contract' }
+
+              %br
+              .row
+                .col-md-3
+                  %label Select Consultant
+                .col-md-4
+                  = select_tag "account",options_for_select(Candidate.all.map{|c| [c.full_name,c.id] }),{class: 'form-control select2',required: true, prompt: 'Choose Consultant/Vendor' }
+
+              %br
+              .row
+                .col-md-3
+                  %label USIC Rate:
+                  = text_field_tag 'usic_rate', '', class: 'form-control'
+
+                .col-md-3
+                  %label Total Pending
+                  = text_field_tag 'total_pending', '', class: 'form-control'
+
+              %br
+              .row
+                .col-md-3
+                  %label Attachments
+                  %input{:name => "attachments", :type => "file"}/
+
+              %br
+              .row
+                .col-md-3.form-group
+                  %label{:for => "memo"} Memo:
+                  %textarea#comment.form-control{:rows => "5"}
+
+              %br
+              %button.btn-secondary Submit

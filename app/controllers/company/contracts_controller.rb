@@ -11,7 +11,7 @@ class Company::ContractsController < Company::BaseController
   before_action :main_authorized_user  , only: :show
 
 
-  add_breadcrumb "CONTRACTS", :contracts_path, options: { title: "CONTRACTS" }, :except => %w(add_expense add_bill add_invoice bank_reconciliation receive_payment)
+  add_breadcrumb "CONTRACTS", :contracts_path, options: { title: "CONTRACTS" }, :except => %w(add_expense add_bill add_invoice bank_reconciliation receive_payment salary_settlement salary_process)
   add_breadcrumb "Expenses", :add_expense_contracts_path, only: %w(add_expense)
   add_breadcrumb "Cient Expense Bill / Vendor Bill", :add_bill_contracts_path, only: %w(add_bill)
   add_breadcrumb "Add Invoice", :add_invoice_contracts_path, only: %w(add_invoice)
@@ -198,6 +198,12 @@ class Company::ContractsController < Company::BaseController
   end
 
   def receive_payment
+  end
+
+  def salary_settlement
+  end
+
+  def salary_process
   end
 
   def client_expense_submit
