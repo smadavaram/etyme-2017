@@ -372,6 +372,8 @@ Rails.application.routes.draw do
         get :receive_payment
         get :client_expense_submit
         get :client_expense_approve
+        get :salary_settlement
+        get :salary_process
       end
       member do
         get :download

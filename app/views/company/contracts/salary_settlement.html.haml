@@ -1,0 +1,89 @@
+#content
+  .row
+  %section
+    .row
+      %article.col-sm-12.col-md-12.col-lg-12
+        #wid-id-0.jarviswidget{"data-widget-deletebutton" => "false", "data-widget-editbutton" => "false"}
+          %header
+            %span.widget-icon
+              %i.fa.fa-check
+            %h2 Salary Settlement
+          %div
+            .jarviswidget-editbox
+            .widget-body
+              .row
+              %table.table.table-bordered
+                %thead
+                  %tr
+                    %th{:scope => "col"} No.
+                    %th{:scope => "col"} Consultant
+                    %th{:scope => "col"} Payrate/hr
+                    %th{:scope => "col"} From
+                    %th{:scope => "col"} To
+                    %th{:scope => "col"} Total hours
+                    %th{:scope => "col"} Previous settlement
+                    %th{:scope => "col"} Total Paid
+                    %th{:scope => "col"} Total Expense
+                    %th{:scope => "col"} Total Payable
+                    %th{:scope => "col"} New settlement amount
+                %tbody
+                  - for i in 0..9
+                    %tr
+                      %td
+                        = i+1
+                      %td
+                        = text_field_tag 'consultant_name', '', class: 'form-control'
+                      %td 
+                        = text_field_tag 'payrate', '', class: 'form-control'
+                      %td 
+                        = date_field_tag 'from_date', (Date.today - 15.days ), class: 'form-control'
+                      %td
+                        = date_field_tag 'to_date', Date.today, class: 'form-control'
+                      %td
+                        = text_field_tag 'total_hours', '', class: 'form-control'
+                      %td
+                        = text_field_tag 'previous_settlement', '', class: 'form-control'
+                      %td
+                        = text_field_tag 'total_paid', '', class: 'form-control'
+                      %td
+                        = text_field_tag 'total_expense', '', class: 'form-control'
+                      %td
+                        = text_field_tag 'total_payable', '', class: 'form-control'
+                      %td
+                        = text_field_tag 'new_settlement_amount', '', class: 'form-control'
+
+              %br
+              %button.btn.btn-primary Submit
+
+
+
+              %table.table.table-bordered
+                %thead
+                  %tr
+                    %th{:scope => "col"} No.
+                    %th{:scope => "col"} Consultant
+                    %th{:scope => "col"} Contract
+                    %th{:scope => "col"} Payrate/hr
+                    %th{:scope => "col"} Total hours
+                    %th{:scope => "col"} Total Amount
+
+                %tbody
+                  - current_company.contracts.includes(:candidate, :timesheets, :buy_contracts).each_with_index do |con, i|
+                    %tr
+                      %td
+                        = i + 1
+                        
+                      %td
+                        = con.candidate.full_name
+                      %td
+                        = con.title
+                      %td
+                        = (con&.buy_contracts&.first.payrate.present? ? con&.buy_contracts&.first.payrate : 0 )
+                      %td
+                        = salary_settlement_monthly_time(con)
+                      %td
+                        = (salary_settlement_monthly_time(con) * (con&.buy_contracts&.first.payrate.present? ? con&.buy_contracts&.first.payrate : 0 ))
+
+
+
+
