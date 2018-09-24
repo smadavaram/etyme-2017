@@ -1,0 +1,162 @@
+
+%body.bg_white
+  .container-fluid.bg_white
+    .row{style: "padding: 0px 15px 15px 15px;"}
+      .form-group
+        .multi-field-wrapper
+          .multi-fields
+            = form_tag company_upload_job_path do 
+              %br
+              .row
+                .col-md-12
+                  %h4
+                    %b Import Jobs 
+                  .form-group.candidate-association
+                  .col-md-12{:style=>"margin-top: 25px;"}
+                    .form-group
+                      .col-md-2
+                        %p Select job File
+                      .col-md-2
+                        = filepicker_field_tag :file, :button_text => " Select File", disable: true , class: 'file-pick btn btn-primary filepicker-attach filepicker-attach-doc fa fa-paperclip'  
+                      .col-md-2  
+                        / = file_field_tag :file 
+                        = submit_tag "Import", class: "btn btn-primary"
+                      .col-md-2  
+                        = link_to "Download Template" , company_download_job_template_path(), class: 'btn btn-md btn-primary mr-bottom-10'
+
+    .row{style: "padding: 0px 15px 15px 15px;"}
+      .form-group
+        .multi-field-wrapper
+          .multi-fields
+            = form_tag company_upload_job_path do 
+              %br
+              .row
+                .col-md-12
+                  %h4
+                    %b Import Products 
+                  .form-group.candidate-association
+                  .col-md-12{:style=>"margin-top: 25px;"}
+                    .form-group
+                      .col-md-2
+                        %p Select Products File
+                      .col-md-2
+                        = filepicker_field_tag :file, :button_text => " Select File", disable: true , class: 'file-pick btn btn-primary filepicker-attach filepicker-attach-doc fa fa-paperclip'  
+                      .col-md-2  
+                        / = file_field_tag :file 
+                        = submit_tag "Import", class: "btn btn-primary"
+                      .col-md-2  
+                        = link_to "Download Template" , company_download_product_template_path(), class: 'btn btn-md btn-primary mr-bottom-10'  
+
+    .row{style: "padding: 0px 15px 15px 15px;"}
+      .form-group
+        .multi-field-wrapper
+          .multi-fields
+            = form_tag company_upload_job_path do 
+              %br
+              .row
+                .col-md-12
+                  %h4
+                    %b Import Services 
+                  .form-group.candidate-association
+                  .col-md-12{:style=>"margin-top: 25px;"}
+                    .form-group
+                      .col-md-2
+                        %p Select Services File
+                      .col-md-2
+                        = filepicker_field_tag :file, :button_text => " Select File", disable: true , class: 'file-pick btn btn-primary filepicker-attach filepicker-attach-doc fa fa-paperclip'  
+                      .col-md-2  
+                        / = file_field_tag :file 
+                        = submit_tag "Import", class: "btn btn-primary"
+                      .col-md-2  
+                        = link_to "Download Template" , company_download_service_template_path(), class: 'btn btn-md btn-primary mr-bottom-10'  
+    .row{style: "padding: 0px 15px 15px 15px;"}
+      .form-group
+        .multi-field-wrapper
+          .multi-fields
+            = form_tag company_upload_job_path do 
+              %br
+              .row
+                .col-md-12
+                  %h4
+                    %b Import Training 
+                  .form-group.candidate-association
+                  .col-md-12{:style=>"margin-top: 25px;"}
+                    .form-group
+                      .col-md-2
+                        %p Select Training File
+                      .col-md-2
+                        = filepicker_field_tag :file, :button_text => " Select File", disable: true , class: 'file-pick btn btn-primary filepicker-attach filepicker-attach-doc fa fa-paperclip'  
+                      .col-md-2  
+                        / = file_field_tag :file 
+                        = submit_tag "Import", class: "btn btn-primary"      
+                      .col-md-2  
+                        = link_to "Download Template" , company_download_trining_template_path(), class: 'btn btn-md btn-primary mr-bottom-10'                    
+
+    .row{style: "padding: 0px 15px 15px 15px;"}
+      .form-group
+        .multi-field-wrapper
+          .multi-fields
+            = form_tag company_upload_candidate_path do 
+              %br
+              .row
+                .col-md-12
+                  %h4
+                    %b Import Candidate 
+                  .form-group.candidate-association
+                  .col-md-12{:style=>"margin-top: 25px;"}
+                    .form-group
+                      .col-md-2
+                        %p Select Candidate File
+                      .col-md-2
+                        = filepicker_field_tag :file, :button_text => " Select File", disable: true , class: 'file-pick btn btn-primary filepicker-attach filepicker-attach-doc fa fa-paperclip'  
+                      .col-md-2  
+                        / = file_field_tag :file 
+                        = submit_tag "Import", class: "btn btn-primary"      
+                      .col-md-2  
+                        = link_to "Download Template" , company_download_candidate_template_path(), class: 'btn btn-md btn-primary mr-bottom-10'                        
+
+    .row{style: "padding: 0px 15px 15px 15px;"}
+      .form-group
+        .multi-field-wrapper
+          .multi-fields
+            = form_tag company_upload_company_path do 
+              %br
+              .row
+                .col-md-12
+                  %h4
+                    %b Import Company 
+                  .form-group.candidate-association
+                  .col-md-12{:style=>"margin-top: 25px;"}
+                    .form-group
+                      .col-md-2
+                        %p Select Company File
+                      .col-md-2
+                        = filepicker_field_tag :file, :button_text => " Select File", disable: true , class: 'file-pick btn btn-primary filepicker-attach filepicker-attach-doc fa fa-paperclip'  
+                      .col-md-2  
+                        / = file_field_tag :file 
+                        = submit_tag "Import", class: "btn btn-primary"      
+                      .col-md-2  
+                        = link_to "Download Template" , company_download_company_template_path(), class: 'btn btn-md btn-primary mr-bottom-10'                                                
+
+    .row{style: "padding: 0px 15px 15px 15px;"}
+      .form-group
+        .multi-field-wrapper
+          .multi-fields
+            = form_tag company_upload_contacts_path do 
+              %br
+              .row
+                .col-md-12
+                  %h4
+                    %b Import Contacts 
+                  .form-group.candidate-association
+                  .col-md-12{:style=>"margin-top: 25px;"}
+                    .form-group
+                      .col-md-2
+                        %p Select Contacts File
+                      .col-md-2
+                        = filepicker_field_tag :file, :button_text => " Select File", disable: true , class: 'file-pick btn btn-primary filepicker-attach filepicker-attach-doc fa fa-paperclip'  
+                      .col-md-2  
+                        / = file_field_tag :file 
+                        = submit_tag "Import", class: "btn btn-primary"      
+                      .col-md-2  
+                        = link_to "Download Template" , company_download_contacts_template_path(), class: 'btn btn-md btn-primary mr-bottom-10'                         
