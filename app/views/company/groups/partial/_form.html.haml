@@ -17,13 +17,7 @@
       = f.label :member_type, "Contact", :value => "Contact"
       = f.radio_button :member_type, "Directory", class: "set-checkbox"
       = f.label :member_type, "Directory", :value => "Directory"
-      = f.radio_button :member_type, "Google Group Email", class: "set-checkbox"
-      = f.label :member_type, "Google Group Email", :value => "Google Group"
-      = f.radio_button :member_type, "Facebook Group Email", class: "set-checkbox"
-      = f.label :member_type, "Facebook Group Email", :value => "Facebook Group"
 
-
-      =# f.select :candidate_ids, current_company.candidates.collect { |c| [c.first_name,c.id] },{},class: 'form-control select2',:multiple => true
   .modal-footer
     = f.button "submit".html_safe , class: 'btn btn-primary btn-sm' , data: {disable_with: ("Submitting...")} ,id: 'form_id'
     %button.btn.btn-default{"data-dismiss" => "modal", :type => "button"}
