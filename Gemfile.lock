@@ -200,6 +200,10 @@ GEM
     multi_json (1.12.2)
     multi_xml (0.6.0)
     multipart-post (2.0.0)
+    nested_form_fields (0.8.2)
+      coffee-rails (>= 3.2.1)
+      jquery-rails
+      rails (>= 3.2.0)
     netrc (0.11.0)
     nio4r (2.2.0)
     nokogiri (1.8.1)
@@ -434,6 +438,7 @@ DEPENDENCIES
   mina
   mina-multistage
   mini_magick
+  nested_form_fields
   nokogiri
   omniauth
   omniauth-facebook

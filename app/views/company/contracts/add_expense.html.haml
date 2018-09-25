@@ -13,21 +13,6 @@
             .widget-body
               .row
                 .col-md-3
-                  %label Expense Type
-                .col-md-4
-                  .radio
-                    %label
-                      %input{:checked => "checked", :name => "optradio", :type => "radio"}>/
-                      Salary Advanced
-
-                .col-md-4
-                  .radio
-                    %label
-                      %input{:checked => "checked", :name => "optradio", :type => "radio"}>/
-                      Company Expense
-              %br
-              .row
-                .col-md-3
                   %label Contract
                 .col-md-4
                   = select_tag "contracts",options_for_select(Contract.all.map{|c| [c.title,c.id] }),{class: 'form-control select2',required: true, prompt: 'Select Contract' }
@@ -47,7 +32,7 @@
 
                 .col-md-2
                   %label{:for => "terms"} Terms:
-                  = select_tag 'terms', options_for_select((1..10).to_a.map{ |e| 'Net '+e.to_s}), {class: 'form-control select2',required: true, prompt: 'Select terms' }
+                  = select_tag 'terms', options_for_select((0..10).to_a.map{ |e| 'Net '+e.to_s}), {class: 'form-control select2',required: true }
 
                 .col-md-2
                   %label{:for => 'bill_date'} Bill Date:
@@ -65,7 +50,9 @@
               %br
               .row
                 .col-md-2
-                  %label Account details
+                  %label
+                    %b
+                      Account details:
 
               %br
               .row
@@ -75,28 +62,28 @@
                       %tr
                         %th Expense type
                         %th Description
-                        %th Action
                         %th Status
                         %th Amount
+                        %th Action
                     %tbody
                       %tr
                         %td Bill
                         %td Test Description
                         %td
-                        %td
                         %td 10
+                        %td
                       %tr
                         %td Bill
                         %td Test Description
-                        %td
                         %td
                         %td 20
+                        %td
                       %tr
                         %td Bill
                         %td Test Description
                         %td
-                        %td
                         %td 30
+                        %td
 
               %br
               .row

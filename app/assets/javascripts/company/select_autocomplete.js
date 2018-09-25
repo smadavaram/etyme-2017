@@ -195,6 +195,39 @@ var set_commission_user_select = function(selector, palce_holder){
     }
 }
 
+var set_expense_type_select = function(selector, place_holder){
+    if ($(selector).length > 0) {
+        $(selector).select2({
+            ajax: {
+                url: "/api/select_searches/find_expense_type",
+                dataType: 'json',
+                delay: 250,
+                data: function (params) {
+                    return {
+                        // per_page: 10,
+                        q: params.term//, // search term
+                        // page: params.page
+                    };  
+                },
+                processResults: function (data, params) {
+                    // params.page = params.page || 1;
+                    return {
+                        results: data
+                    };
+                },
+                cache: true
+            },
+            language: {
+                noResults: function() {return "No results <a class='pull-right header-btn hidden-mobile' data-toggle='modal' data-target='#new_expense_type' href='#'>Add New</a>"; }
+            },
+            placeholder: place_holder,
+            escapeMarkup: function (markup) { return markup; },
+            templateResult: formatRepo,
+            templateSelection: formatRepoSelection
+        });
+    }
+}
+
 function formatCompanyContact (contact) {
     if (contact.loading) {
         return contact.text;

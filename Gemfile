@@ -154,3 +154,5 @@ gem 'markio'
 
 gem "better_errors"
 gem "binding_of_caller"
+
+gem 'nested_form_fields'

@@ -388,7 +388,7 @@
                         = select_tag 'assign_to', options_from_collection_for_select(current_company.company_contacts, "id", 'full_name'), include_blank: 'Please select',class: 'form-control'
             #tab-buy-cc.tab-pane.padding-top-15
               .row
-                .col-md-12.add-commission
+                .col-md-12
                   .form-group
                     =bc.fields_for :contract_sale_commisions do |custom_field|
                       = render 'company/contracts/contract_sale_commisions_fields', f: custom_field

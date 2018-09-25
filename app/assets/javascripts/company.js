@@ -174,3 +174,5 @@
 //= require conversation/chat
 //= require conversation/users
 //= require bootstrap/bootstrap-switch
+
+//= require nested_form_fields

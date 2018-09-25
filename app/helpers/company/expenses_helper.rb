@@ -1,0 +1,2 @@
+module Company::ExpensesHelper
+end

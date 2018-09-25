@@ -22,7 +22,7 @@ class Company::GroupsController < Company::BaseController
   end
 
   def index
-    @groups = current_company.groups || []
+    @groups = current_company.groups.paginate(page: params[:page], per_page: 30) || []
   end
 
 

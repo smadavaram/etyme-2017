@@ -386,6 +386,9 @@ Rails.application.routes.draw do
         post :hire
       end # End of member
     end
+
+    resources :expenses
+
     resources :contracts        ,concerns: :paginatable , except:[:destroy] do
       resources :contracts
       collection do
@@ -539,6 +542,7 @@ Rails.application.routes.draw do
       get :find_user_sign, on: :collection
       get :find_jobs, on: :collection
       get :find_commission_user, on: :collection
+      get :find_expense_type, on: :collection
     end
 
     namespace :candidate do

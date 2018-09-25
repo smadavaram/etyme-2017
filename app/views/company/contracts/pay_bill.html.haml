@@ -42,7 +42,6 @@
                       %tr
                         %th Contract
                         %th Bill number
-                        %th Action
                         %th Status
                         %th Due date
                         %th Open Balance
@@ -50,40 +49,24 @@
                         %th Payment
                         %th Balance due
                         %th Check/Transaction no.
+                        %th Action
                     %tbody
-                      %tr
-                        %td C1 
-                        %td 
-                        %td 
-                        %td
-                        %td
-                        %td
-                        %td
-                        %td
-                        %td
-                        %td
-                      %tr
-                        %td C2 
-                        %td 
-                        %td 
-                        %td
-                        %td
-                        %td
-                        %td
-                        %td
-                        %td
-                        %td
-                      %tr
-                        %td C3 
-                        %td 
-                        %td 
-                        %td
-                        %td
-                        %td
-                        %td
-                        %td
-                        %td
-                        %td
+                      - ExpenseAccount.includes(expense: :contract).all.each do |ex|
+                        %tr
+                          %td
+                            = ex.expense.contract.id
+                          %td
+                            = ex.expense.bill_no
+                          %td
+                            = Expense.statuses.key(ex.status)
+                          %td
+                            = ex.expense.due_date
+                          %td
+                          %td
+                          %td
+                          %td
+                          %td
+                          %td
 
               %br
               .row

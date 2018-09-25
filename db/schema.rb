@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema.define(version: 20180831133225) do
+ActiveRecord::Schema.define(version: 20180925064848) do
 
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
@@ -854,6 +854,35 @@ ActiveRecord::Schema.define(version: 20180831133225) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.string "degree_level"
+  end
+
+  create_table "expense_accounts", force: :cascade do |t|
+    t.string "expense_id"
+    t.string "expense_type"
+    t.text "description"
+    t.integer "status"
+    t.string "amount"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+  end
+
+  create_table "expense_types", force: :cascade do |t|
+    t.string "name"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+  end
+
+  create_table "expenses", force: :cascade do |t|
+    t.integer "contract_id"
+    t.integer "account_id"
+    t.text "mailing_address"
+    t.string "terms"
+    t.date "bill_date"
+    t.date "due_date"
+    t.string "bill_no"
+    t.string "total_amount"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
   end
 
   create_table "experiences", id: :serial, force: :cascade do |t|

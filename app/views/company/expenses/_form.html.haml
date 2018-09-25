@@ -1,0 +1,140 @@
+
+.plain-select
+  / = select_tag 'contract[job_id]', nil, id: "select_expense_types", class: "form-control"
+#content
+  .row
+  %section
+    .row
+      = form_for @expense , html:{class: 'form-horizontal'}  do |f|
+        %article.col-sm-12.col-md-12.col-lg-12
+          #wid-id-0.jarviswidget{"data-widget-deletebutton" => "false", "data-widget-editbutton" => "false"}
+            %header
+              %span.widget-icon
+                %i.fa.fa-check
+              %h2 Adding New Expense
+            %div
+              .jarviswidget-editbox
+              .widget-body
+                .row
+                  .col-md-3
+                    %label Contract
+                  .col-md-4
+                    = f.select :contract_id, options_for_select(Contract.all.map{|c| [c.title,c.id] }),{required: true, prompt: 'Select Contract' }
+
+                %br
+                .row
+                  .col-md-3
+                    %label Select Account
+                  .col-md-4
+                    = f.select :account_id, options_for_select(Candidate.all.map{|c| [c.full_name,c.id] }),{required: true, prompt: 'Choose Consultant/Vendor' }
+
+                %br
+                .row
+                  .col-md-3.form-group
+                    %label{:for => "mailing_address"} Mailing Address:
+                    = f.text_area :mailing_address, class: 'form-control'
+
+                  .col-md-2
+                    %label{:for => "terms"} Terms:
+                    = f.select :terms, options_for_select((0..10).to_a.map{ |e| 'Net '+e.to_s}), {required: true }
+
+                  .col-md-2
+                    %label{:for => 'bill_date'} Bill Date:
+                    = f.date_field :bill_date, class: 'form-control'
+
+                  .col-md-2
+                    %label{:for => 'due_date'} Due Date:
+                    = f.date_field :due_date , class: 'form-control'
+
+                  .col-md-2
+                    %label{:for => 'bill_no'} Bill no.
+                    = f.text_field :bill_no, class: 'form-control'
+                
+
+                %br
+                .row
+                  .col-md-2
+                    %label
+                      %b
+                        Account details:
+
+                %br
+                .row
+                  .col-md-2.text-center
+                    Expense type
+                  .col-md-2.text-center
+                    Description
+                  .col-md-2.text-center
+                    Status
+                  .col-md-2.text-center
+                    Amount
+                  .col-md-2.text-center
+                    Action
+                  .col-md-2.text-center
+
+                = f.nested_fields_for :expense_accounts do |ff|
+                  .row.mt-2
+                    .col-md-2
+                      .plain-select
+                        = ff.select  :expense_type, '', {}, class: "form-control select_expense_types"
+                    .col-md-2
+                      = ff.text_area :description, class: 'form-control', cols: "2", rows: "2"
+                    .col-md-2
+                      = ff.select :status, Expense.statuses.map { |key, value| [key.titleize, key] } , {class: "form-control" , required: true}
+                    .col-md-2
+                      = ff.text_field :amount, class: 'form-control'
+                    .col-md-2
+                    .col-md-2
+                      = ff.remove_nested_fields_link 'Remove'
+                %br
+                = f.add_nested_fields_link :expense_accounts, 'Add row', class: 'btn btn-primary add_row'
+                %br
+                %br
+                .row
+                  .col-md-3
+                    %label Attachments
+                    %input{:name => "attachments", :type => "file"}/
+
+                %br
+                .row
+                  .col-md-3.form-group
+                    %label{:for => "memo"} Memo:
+                    %textarea#comment.form-control{:rows => "5"}
+
+                  .col-md-4 
+
+                  .col-md-4
+                    Total    $0.00
+
+                %br
+                = f.submit 'Submit', class: 'btn btn-primary'
+
+
+
+- content_for :scripts do
+  :javascript 
+
+    $(document).ready(function() {
+      $('.add_row').click();
+      set_expense_type_select('.select_expense_types', "Please select");
+      var expense_terms = $( "#expense_terms option:selected" ).val().split("Net")[1];
+      var bill_date = $( "#expense_bill_date option:selected" ).val();
+      var due_date = "";
+      $('#expense_terms').on('change', function() {
+        expense_terms = $( "#expense_terms option:selected" ).val().split("Net")[1];
+      });
+
+      $('#expense_bill_date').on('change', function() {
+        bill_date = $( "#expense_bill_date" ).val();
+        console.log(bill_date);
+      });
+
+      $('.add_row').on('click', function(){
+
+        setTimeout(
+            function() {
+              set_expense_type_select('.select_expense_types', "Please select");  
+            },
+            500);
+      })
+    }); 

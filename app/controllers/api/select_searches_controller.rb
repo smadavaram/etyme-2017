@@ -39,4 +39,9 @@ class Api::SelectSearchesController < ApplicationController
     respond_with @commission_users
   end
 
+  def find_expense_type
+    @expense_types = ExpenseType.like_any([:name], params[:q].to_s.split)
+    respond_with @expense_types
+  end
+
 end

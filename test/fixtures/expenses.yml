@@ -1,0 +1,21 @@
+# Read about fixtures at http://api.rubyonrails.org/classes/ActiveRecord/FixtureSet.html
+
+one:
+  contract_id: 1
+  account_id: 1
+  mailing_address: MyText
+  terms: MyString
+  bill_date: 2018-09-24
+  due_date: 2018-09-24
+  bill_no: MyString
+  total_amount: MyString
+
+two:
+  contract_id: 1
+  account_id: 1
+  mailing_address: MyText
+  terms: MyString
+  bill_date: 2018-09-24
+  due_date: 2018-09-24
+  bill_no: MyString
+  total_amount: MyString
