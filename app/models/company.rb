@@ -78,6 +78,7 @@ class Company < ApplicationRecord
   has_many :contract_cycles, through: :contracts
   has_many :candidates, through: :contracts 
 
+  has_many :bank_details
 
 
 

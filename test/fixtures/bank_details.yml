@@ -1,0 +1,19 @@
+# Read about fixtures at http://api.rubyonrails.org/classes/ActiveRecord/FixtureSet.html
+
+one:
+  company_id: MyString
+  bank_name: MyString
+  balance: MyString
+  new_balance: MyString
+  recon_date: 2018-09-26
+  unidentified_bal: MyString
+  current_unidentified_bal: MyString
+
+two:
+  company_id: MyString
+  bank_name: MyString
+  balance: MyString
+  new_balance: MyString
+  recon_date: 2018-09-26
+  unidentified_bal: MyString
+  current_unidentified_bal: MyString

@@ -197,6 +197,7 @@ var set_commission_user_select = function(selector, palce_holder){
 
 var set_expense_type_select = function(selector, place_holder){
     if ($(selector).length > 0) {
+        debugger
         $(selector).select2({
             ajax: {
                 url: "/api/select_searches/find_expense_type",
@@ -218,7 +219,7 @@ var set_expense_type_select = function(selector, place_holder){
                 cache: true
             },
             language: {
-                noResults: function() {return "No results <a class='pull-right header-btn hidden-mobile' data-toggle='modal' data-target='#new_expense_type' href='#'>Add New</a>"; }
+                noResults: function() {return "No results <a class='pull-right header-btn hidden-mobile' data-toggle='modal' data-target='#new-expense-type' href='#'>Add New</a>"; }
             },
             placeholder: place_holder,
             escapeMarkup: function (markup) { return markup; },

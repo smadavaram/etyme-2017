@@ -1,6 +1,3 @@
-
-.plain-select
-  / = select_tag 'contract[job_id]', nil, id: "select_expense_types", class: "form-control"
 #content
   .row
   %section
@@ -73,6 +70,7 @@
                   .col-md-2.text-center
 
                 = f.nested_fields_for :expense_accounts do |ff|
+                  = ff.object.expense_type
                   .row.mt-2
                     .col-md-2
                       .plain-select
@@ -109,32 +107,57 @@
                 %br
                 = f.submit 'Submit', class: 'btn btn-primary'
 
-
+.remote_container_contract
+= render "company/expenses/new_expense_type", for_remote: true
 
 - content_for :scripts do
   :javascript 
 
     $(document).ready(function() {
       $('.add_row').click();
-      set_expense_type_select('.select_expense_types', "Please select");
+      var count = 0;
+      set_expense_type_select('#expense_expense_accounts_attributes_0_expense_type', "Please select");
       var expense_terms = $( "#expense_terms option:selected" ).val().split("Net")[1];
-      var bill_date = $( "#expense_bill_date option:selected" ).val();
       var due_date = "";
       $('#expense_terms').on('change', function() {
         expense_terms = $( "#expense_terms option:selected" ).val().split("Net")[1];
+        var date = new Date($( "#expense_bill_date" ).val()),
+        days = parseInt(expense_terms, 10);
+        if(!isNaN(date.getTime())){
+            dd = new Date(date.setDate(date.getDate() + days));
+            debugger
+            due_date =  dd.getFullYear() + "-" + ("0" + (dd.getMonth() + 1)).slice(-2)+ "-" + ("0" + dd.getDate()).slice(-2)
+
+            $("#expense_due_date").val(due_date);
+        }
       });
 
       $('#expense_bill_date').on('change', function() {
-        bill_date = $( "#expense_bill_date" ).val();
-        console.log(bill_date);
+
+        var date = new Date($( "#expense_bill_date" ).val()),
+        days = parseInt(expense_terms, 10);
+        if(!isNaN(date.getTime())){
+            dd = new Date(date.setDate(date.getDate() + days));
+            debugger
+            due_date =  dd.getFullYear() + "-" + ("0" + (dd.getMonth() + 1)).slice(-2)+ "-" + ("0" + dd.getDate()).slice(-2)
+
+            $("#expense_due_date").val(due_date);
+        }
+
       });
 
       $('.add_row').on('click', function(){
-
+        count = count + 1;
+        select_id = "#expense_expense_accounts_attributes_"+count+"_expense_type"
         setTimeout(
             function() {
-              set_expense_type_select('.select_expense_types', "Please select");  
+              set_expense_type_select(select_id, "Please select");  
             },
             500);
       })
+
+      $('.remove_nested_fields_link').on('click', function(){
+        count = count -1;
+      })
+
     }); 

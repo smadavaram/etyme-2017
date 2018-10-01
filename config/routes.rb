@@ -387,7 +387,19 @@ Rails.application.routes.draw do
       end # End of member
     end
 
-    resources :expenses
+    resources :expenses do
+      collection do
+        post :create_expense_type
+      end
+    end
+
+    resources :bank_details, only: [] do
+      collection do
+        get :acc_info
+        get :bank_reconciliation
+        post :update_acc_info
+      end
+    end
 
     resources :contracts        ,concerns: :paginatable , except:[:destroy] do
       resources :contracts
