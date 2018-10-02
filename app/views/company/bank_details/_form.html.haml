@@ -83,10 +83,13 @@
 
       debugger
 
-      balance = $('#bank_detail_balance').val();
-      new_bal = $('#bank_detail_new_balance').val();
-      unidentified_bal =  (balance - new_bal)
-      if (unidentified_bal > 0){
+      var balance = $('#bank_detail_balance').val();
+      var new_bal = $('#bank_detail_new_balance').val();
+      var unidentified_bal =  (balance - new_bal)
+      if (unidentified_bal > 0 && new_bal > 0){
         $('#bank_detail_unidentified_bal').val(unidentified_bal);
+      }
+      if (new_bal > balance){
+        $('#bank_detail_unidentified_bal').val(0);
       }
     }

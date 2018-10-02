@@ -3,7 +3,6 @@ class BankDetail < ApplicationRecord
   belongs_to :company
 
   BANK_NAME = [ 'bank_of_america', 'texas_bank', 'wells_fargo' ]
-  after_update  :update_seq_bal
 
   def init_ledger
     @ledger = Sequence::Client.new(
@@ -55,7 +54,7 @@ class BankDetail < ApplicationRecord
   end
 
 
-  def update_seq_bal
+  def update_seq_bal(params)
     puts 'connecting to sequence'
     @ledger = Sequence::Client.new(
         ledger_name: 'bank-details',
@@ -64,28 +63,31 @@ class BankDetail < ApplicationRecord
     sleep 1
     puts 'update start'
     @ledger.transactions.transact do |builder|
-      builder.issue(
-        flavor_id: 'usd',
-        amount: self.balance.to_i,
-        destination_account_id: 'balance',
-        action_tags: {
-          type: 'deposit',
-          company: 'cloudepa',
-          bank: self.bank_name
-        }
-      )
+      if params[:new_balance] < params[:balance]
+        builder.transfer(
+          flavor_id: 'usd',
+          amount: params[:unidentified_bal].to_i,
+          source_account_id: 'balance',
+          destination_account_id: 'unidentified_balance',
+          action_tags: {
+            type: 'transfer',
+            company: 'cloudepa',
+            bank: params[:bank_name]
+          }
+        )
+      else
+        builder.issue(
+          flavor_id: 'usd',
+          amount: params[:balance].to_i,
+          destination_account_id: 'balance',
+          action_tags: {
+            type: 'deposit',
+            company: 'cloudepa',
+            bank: params[:bank_name]
+          }
+        )
+      end
 
-      builder.transfer(
-        flavor_id: 'usd',
-        amount: self.unidentified_bal.to_i,
-        source_account_id: 'balance',
-        destination_account_id: 'unidentified_balance',
-        action_tags: {
-          type: 'transfer',
-          company: 'cloudepa',
-          bank: self.bank_name
-        }
-      )
     end
     puts 'update done'
   end
