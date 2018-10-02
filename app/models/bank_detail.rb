@@ -56,15 +56,16 @@ class BankDetail < ApplicationRecord
 
 
   def update_acc(params)
-    puts 'connecting to sequence'
-    init_ledger
-    puts 'update start'
     update_seq_bal(params)
-    update_seq_unidentified_bal(params)
-    puts 'update done'
   end
 
   def update_seq_bal(params)
+    puts 'connecting to sequence'
+    @ledger = Sequence::Client.new(
+        ledger_name: 'bank-details',
+        credential: 'OUUY4ZFYQO4P3YNC5JC3GMY7ZQJCSNTH'
+    )
+    puts 'update start'
     @ledger.transactions.transact do |builder|
       builder.issue(
         flavor_id: 'usd',
@@ -76,7 +77,19 @@ class BankDetail < ApplicationRecord
           bank: params[:bank_name]
         }
       )
+
+      builder.issue(
+        flavor_id: 'usd',
+        amount: params[:unidentified_bal].to_i,
+        destination_account_id: 'unidentified_balance',
+        action_tags: {
+          type: 'deposit',
+          company: 'cloudepa',
+          bank: params[:bank_name]
+        }
+      )
     end
+    puts 'update done'
   end
 
   def update_seq_unidentified_bal(params)
