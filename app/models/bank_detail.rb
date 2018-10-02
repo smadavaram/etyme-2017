@@ -3,7 +3,7 @@ class BankDetail < ApplicationRecord
   belongs_to :company
 
   BANK_NAME = [ 'bank_of_america', 'texas_bank', 'wells_fargo' ]
-
+  after_update  :update_seq_bal
 
   def init_ledger
     @ledger = Sequence::Client.new(
@@ -56,10 +56,10 @@ class BankDetail < ApplicationRecord
 
 
   def update_acc(params)
-    update_seq_bal(params)
+    # update_seq_bal(params)
   end
 
-  def update_seq_bal(params)
+  def update_seq_bal
     puts 'connecting to sequence'
     @ledger = Sequence::Client.new(
         ledger_name: 'bank-details',
@@ -69,23 +69,24 @@ class BankDetail < ApplicationRecord
     @ledger.transactions.transact do |builder|
       builder.issue(
         flavor_id: 'usd',
-        amount: params[:balance].to_i,
+        amount: self.balance.to_i,
         destination_account_id: 'balance',
         action_tags: {
           type: 'deposit',
           company: 'cloudepa',
-          bank: params[:bank_name]
+          bank: self.bank_name
         }
       )
 
-      builder.issue(
+      builder.transfer(
         flavor_id: 'usd',
-        amount: params[:unidentified_bal].to_i,
+        amount: self.unidentified_bal.to_i,
+        source_account_id: 'balance',
         destination_account_id: 'unidentified_balance',
         action_tags: {
-          type: 'deposit',
+          type: 'transfer',
           company: 'cloudepa',
-          bank: params[:bank_name]
+          bank: self.bank_name
         }
       )
     end
