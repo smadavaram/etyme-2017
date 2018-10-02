@@ -67,7 +67,6 @@
                     Amount
                   .col-md-2.text-center
                     Action
-                  .col-md-2.text-center
 
                 = f.nested_fields_for :expense_accounts do |ff|
                   = ff.object.expense_type
@@ -80,9 +79,8 @@
                     .col-md-2
                       = ff.select :status, Expense.statuses.map { |key, value| [key.titleize, key] } , {class: "form-control" , required: true}
                     .col-md-2
-                      = ff.text_field :amount, class: 'form-control'
-                    .col-md-2
-                    .col-md-2
+                      = ff.number_field :amount, class: 'form-control expense_amount'
+                    .col-md-2.text-center
                       = ff.remove_nested_fields_link 'Remove'
                 %br
                 = f.add_nested_fields_link :expense_accounts, 'Add row', class: 'btn btn-primary add_row'
@@ -101,7 +99,7 @@
 
                   .col-md-4 
 
-                  .col-md-4
+                  .col-md-4.total-amount
                     Total    $0.00
 
                 %br
@@ -125,7 +123,6 @@
         days = parseInt(expense_terms, 10);
         if(!isNaN(date.getTime())){
             dd = new Date(date.setDate(date.getDate() + days));
-            debugger
             due_date =  dd.getFullYear() + "-" + ("0" + (dd.getMonth() + 1)).slice(-2)+ "-" + ("0" + dd.getDate()).slice(-2)
 
             $("#expense_due_date").val(due_date);
@@ -138,7 +135,6 @@
         days = parseInt(expense_terms, 10);
         if(!isNaN(date.getTime())){
             dd = new Date(date.setDate(date.getDate() + days));
-            debugger
             due_date =  dd.getFullYear() + "-" + ("0" + (dd.getMonth() + 1)).slice(-2)+ "-" + ("0" + dd.getDate()).slice(-2)
 
             $("#expense_due_date").val(due_date);
@@ -159,5 +155,13 @@
       $('.remove_nested_fields_link').on('click', function(){
         count = count -1;
       })
+     
+      $(document).on("change",".expense_amount", function() {
+        var sum = 0;
+        $('.expense_amount').each(function(){
+            sum += parseFloat(this.value);
+        });
+        $('.total-amount').text('Total  $'+sum)
+      });
 
     }); 

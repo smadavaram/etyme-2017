@@ -7,6 +7,6 @@ class Expense < ApplicationRecord
 
   accepts_nested_attributes_for :expense_accounts, allow_destroy: true ,reject_if: :all_blank
 
-  enum status:                [ :cleared, :opened , :cancelled]
+  enum status:                [:opened, :cleared, :cancelled]
 
 end

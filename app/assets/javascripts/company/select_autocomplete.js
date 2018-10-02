@@ -197,7 +197,6 @@ var set_commission_user_select = function(selector, palce_holder){
 
 var set_expense_type_select = function(selector, place_holder){
     if ($(selector).length > 0) {
-        debugger
         $(selector).select2({
             ajax: {
                 url: "/api/select_searches/find_expense_type",

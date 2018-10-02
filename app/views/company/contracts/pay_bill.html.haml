@@ -45,7 +45,7 @@
                         %th Status
                         %th Due date
                         %th Open Balance
-                        %th Credit applied
+                        %th Expense Type
                         %th Payment
                         %th Balance due
                         %th Check/Transaction no.
@@ -62,21 +62,15 @@
                           %td
                             = ex.expense.due_date
                           %td
+                            = ex.amount
+                          %td
+                            = ex.expense_type
                           %td
                           %td
                           %td
                           %td
-                          %td
-
-              %br
-              .row
-                .col-md-3
-                  %label Attachments
-                  %input{:name => "attachments", :type => "file"}/
 
 
                 .col-md-4
                   Total    $0.00
 
-              %br
-              %button.btn-secondary Submit
