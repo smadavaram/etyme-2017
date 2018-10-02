@@ -55,16 +55,13 @@ class BankDetail < ApplicationRecord
   end
 
 
-  def update_acc(params)
-    # update_seq_bal(params)
-  end
-
   def update_seq_bal
     puts 'connecting to sequence'
     @ledger = Sequence::Client.new(
         ledger_name: 'bank-details',
         credential: 'OUUY4ZFYQO4P3YNC5JC3GMY7ZQJCSNTH'
     )
+    sleep 1
     puts 'update start'
     @ledger.transactions.transact do |builder|
       builder.issue(
