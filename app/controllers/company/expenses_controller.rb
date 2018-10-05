@@ -32,10 +32,37 @@ class Company::ExpensesController < Company::BaseController
     end
   end
 
+  def pay_expense
+  end
+
+  def submit_bill
+    # binding.pry
+    bd = BankDetail.find_by(id: params[:bank_id].to_i)
+    if bd.balance.to_i >= params[:expense_account][:payment].to_i
+      ex = ExpenseAccount.find_by(id: params[:pay_bill_id])
+      ex.status = 'cleared' if ex.amount.to_i == ex.payment.to_i + params[:expense_account][:payment].to_i
+      ex.status = 'cancelled' if params[:pay_type] == 'reject'
+      ex.payment = ex.payment.to_i + params[:expense_account][:payment].to_i
+      ex.balance_due = params[:expense_account][:balance_due]
+      ex.pay_type = params[:pay_type]
+      ex.save
+      bd.update(balance: bd.balance.to_i - params[:expense_account][:payment].to_i)
+      flash[:success] = 'Payment done successfully'
+    else
+      flash[:alert] = 'Insufficient balance in your account please try with another account.'
+    end
+    redirect_to pay_expense_expenses_path
+  end
+
+  def get_bank_balance
+    bank_bal = BankDetail.find_by(id: params[:bank_id].to_i, company_id: current_company.id)
+    render json: { bank_bal: bank_bal }
+  end
+
   private
 
   def expense_params
-    params.require(:expense).permit( :contract_id, :account_id, :mailing_address, :terms, :bill_date, :due_date, :bill_no, :total_amount, expense_accounts_attributes: [:id, :expense_type, :description, :status, :amount])
+    params.require(:expense).permit( :contract_id, :account_id, :mailing_address, :terms, :bill_date, :due_date, :bill_no, :total_amount, :bill_type, expense_accounts_attributes: [:id, :expense_type_id, :description, :status, :amount, :_destroy])
   end
 
   def expense_type_params

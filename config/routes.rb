@@ -390,6 +390,9 @@ Rails.application.routes.draw do
     resources :expenses do
       collection do
         post :create_expense_type
+        get :get_bank_balance
+        get :pay_expense
+        post :submit_bill
       end
     end
 
@@ -555,6 +558,7 @@ Rails.application.routes.draw do
       get :find_jobs, on: :collection
       get :find_commission_user, on: :collection
       get :find_expense_type, on: :collection
+      get :find_contract_candidate, on: :collection
     end
 
     namespace :candidate do

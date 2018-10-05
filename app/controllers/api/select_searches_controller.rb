@@ -44,4 +44,9 @@ class Api::SelectSearchesController < ApplicationController
     respond_with @expense_types
   end
 
+  def find_contract_candidate
+    @contract =  Contract.find_by(id: params[:contract_id].to_i)
+    respond_with @contract, :include => [{ buy_contracts: {:include => :company}}, :candidate]
+  end
+
 end

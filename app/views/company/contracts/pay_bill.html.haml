@@ -14,15 +14,15 @@
               .row
                 .col-md-3
                   %label Treasury Account
-                  = select_tag "contracts",options_for_select(['Bank of America', 'Texas Bank']),{class: 'form-control select2',required: true, prompt: 'Select a Bank' }
+                  = select_tag "bank_names",options_for_select((BankDetail.where(company_id: current_company.id).collect{|u| [u.bank_name.titleize, u.id]})),{class: 'form-control select2 bank_names'}
 
                 .col-md-3
                   %br
-                  %label
+                  %div
                     %b Balance:
-                    $542,123.50
+                    %div.bank-balance $ 0
                     %br
-                    = link_to 'Bank Reconciliation', bank_reconciliation_contracts_path 
+                    = link_to 'Bank Reconciliation', bank_reconciliation_bank_details_path 
                 .col-md-3
                   %label  Payment Date
                   = date_field_tag 'pay_date', Date.today, class: 'form-control' 
@@ -44,8 +44,8 @@
                         %th Bill no/ Item description
                         %th Status
                         %th Due date
-                        %th Open Balance
                         %th Expense Type
+                        %th Open Balance
                         %th Payment
                         %th Balance due
                         %th Check/Transaction no.
@@ -62,15 +62,39 @@
                           %td
                             = ex.expense.due_date
                           %td
+                            = ex.expense_type.name
+                          %td
                             = ex.amount
                           %td
-                            = ex.expense_type
-                          %td
-                          %td
-                          %td
-                          %td
+                          = form_for @pay_bill url: submit_bill_expenses_path do |f|
+                            %td
+                              = f.number_field :payment
+                            %td
+                              = f.number_field :balance_due
+                            %td
 
 
-                .col-md-4
-                  Total    $0.00
+- content_for :scripts do
+  :javascript
+
+    $(document).ready(function() {
+      get_bank_bal()
+    });
+
+    $('.bank_names').on('change', function(){
+      get_bank_bal()      
+    })
+
+    function get_bank_bal(){
+      var bank_id = $('.bank_names option:selected').val();
+      $.ajax({
+        url: "#{get_bank_balance_expenses_path}",
+        type: 'GET',
+        data: {bank_id: bank_id},
+        dataType: 'JSON'
+      }).done(function(data){
+        $('.bank-balance').text('$'+data.bank_bal.balance);
+      });
+    }
+
 

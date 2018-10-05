@@ -11,7 +11,6 @@ class BankDetail < ApplicationRecord
     )
   end
 
-
   def get_acc_balance
     init_ledger
     banks = []
@@ -56,22 +55,70 @@ class BankDetail < ApplicationRecord
 
   def update_seq_bal(params)
     puts 'connecting to sequence'
-    @ledger = Sequence::Client.new(
-        ledger_name: 'bank-details',
+    ledger = Sequence::Client.new(
+        ledger_name: 'company-dev',
         credential: 'OUUY4ZFYQO4P3YNC5JC3GMY7ZQJCSNTH'
     )
+
+    # create company account
+    company_key = ledger.keys.query({aliases: [self.company.name]}).first
+    unless company_key 
+      company_key = ledger.keys.create(id: self.company.name)
+    end
+
+    
+    ta = ledger.accounts.list(
+        filter: 'id=$1',
+        filter_params: ["comp_#{self.company.id}_treasury"]).first
+
+    treasury_account = ledger.accounts.create({
+                                        keys: [company_key],
+                                        quorum: 1,
+                                        id: "comp_#{self.company.id}_treasury",
+                                        tags: {
+                                          name: self.company&.name.gsub(' ', '_') + '_treasury'
+                                        }
+                                     }) unless ta.present?
+
+    ea = ledger.accounts.list(
+        filter: 'id=$1',
+        filter_params: ["comp_#{self.company.id}_expense"]).first
+
+    expense_account = ledger.accounts.create({
+                                        keys: [company_key],
+                                        quorum: 1,
+                                        id: "comp_#{self.company.id}_expense",
+                                        tags: {
+                                          name: self.company&.name.gsub(' ', '_') + '_expense'
+                                        }
+                                     }) unless ea.present?
+
+    ue = ledger.accounts.list(
+        filter: 'id=$1',
+        filter_params: ["comp_#{self.company.id}_unidentified_expense"]).first
+
+    unidentified_account = ledger.accounts.create({
+                                        keys: [company_key],
+                                        quorum: 1,
+                                        id: "comp_#{self.company.id}_unidentified_expense",
+                                        tags: {
+                                          name: self.company&.name.gsub(' ', '_') + '_unidentified_expense'
+                                        }
+                                     }) unless ue.present?
+
+
     sleep 1
     puts 'update start'
-    @ledger.transactions.transact do |builder|
-      if params[:new_balance] < params[:balance]
+    ledger.transactions.transact do |builder|
+      if params[:new_balance].to_i < params[:balance].to_i && params[:new_balance].to_i > 0
         builder.transfer(
           flavor_id: 'usd',
           amount: params[:unidentified_bal].to_i,
-          source_account_id: 'balance',
-          destination_account_id: 'unidentified_balance',
+          source_account_id: 'comp_'+self.company_id.to_s+'_treasury',
+          destination_account_id: 'comp_'+self.company_id.to_s+'_unidentified_expense',
           action_tags: {
             type: 'transfer',
-            company: 'cloudepa',
+            company: self.company.name,
             bank: params[:bank_name]
           }
         )
@@ -79,32 +126,16 @@ class BankDetail < ApplicationRecord
         builder.issue(
           flavor_id: 'usd',
           amount: params[:balance].to_i,
-          destination_account_id: 'balance',
+          destination_account_id: 'comp_'+self.company_id.to_s+'_treasury',
           action_tags: {
             type: 'deposit',
-            company: 'cloudepa',
+            company: self.company.name,
             bank: params[:bank_name]
           }
         )
       end
-
     end
     puts 'update done'
-  end
-
-  def update_seq_unidentified_bal(params)
-    @ledger.transactions.transact do |builder|
-      builder.issue(
-        flavor_id: 'usd',
-        amount: params[:unidentified_bal].to_i,
-        destination_account_id: 'unidentified_balance',
-        action_tags: {
-          type: 'deposit',
-          company: 'cloudepa',
-          bank: params[:bank_name]
-        }
-      )
-    end
   end
 
 end

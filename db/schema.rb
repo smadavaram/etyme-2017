@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema.define(version: 20180926054417) do
+ActiveRecord::Schema.define(version: 20181005053333) do
 
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
@@ -870,12 +870,15 @@ ActiveRecord::Schema.define(version: 20180926054417) do
 
   create_table "expense_accounts", force: :cascade do |t|
     t.string "expense_id"
-    t.string "expense_type"
     t.text "description"
     t.integer "status"
     t.string "amount"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.integer "payment"
+    t.integer "balance_due"
+    t.string "check_no"
+    t.integer "expense_type_id"
   end
 
   create_table "expense_types", force: :cascade do |t|
@@ -895,6 +898,7 @@ ActiveRecord::Schema.define(version: 20180926054417) do
     t.string "total_amount"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.integer "bill_type"
   end
 
   create_table "experiences", id: :serial, force: :cascade do |t|

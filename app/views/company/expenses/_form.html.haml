@@ -14,16 +14,22 @@
               .widget-body
                 .row
                   .col-md-3
+                    %label Bill Type
+                  .col-md-4
+                    = f.select :bill_type, Expense.bill_types.map { |key, value| [key.titleize, key] } , {class: "form-control"}
+
+                .row
+                  .col-md-3
                     %label Contract
                   .col-md-4
-                    = f.select :contract_id, options_for_select(Contract.all.map{|c| [c.title,c.id] }),{required: true, prompt: 'Select Contract' }
+                    = f.select :contract_id, options_for_select(Contract.where(status: 'in_progress').map{|c| [c.title,c.id] }),{required: true, prompt: 'Select Contract' }
 
                 %br
                 .row
                   .col-md-3
-                    %label Select Account
+                    %label.contract_type Consultant
                   .col-md-4
-                    = f.select :account_id, options_for_select(Candidate.all.map{|c| [c.full_name,c.id] }),{required: true, prompt: 'Choose Consultant/Vendor' }
+                    = f.text_field :account_id, readonly: true
 
                 %br
                 .row
@@ -73,11 +79,11 @@
                   .row.mt-2
                     .col-md-2
                       .plain-select
-                        = ff.select  :expense_type, '', {}, class: "form-control select_expense_types"
+                        = ff.select  :expense_type_id, '', {}, class: "form-control select_expense_types"
                     .col-md-2
                       = ff.text_area :description, class: 'form-control', cols: "2", rows: "2"
                     .col-md-2
-                      = ff.select :status, Expense.statuses.map { |key, value| [key.titleize, key] } , {class: "form-control" , required: true}
+                      = ff.select :status, ExpenseAccount.statuses.map { |key, value| [key.titleize, key] } , {class: "form-control" , required: true}
                     .col-md-2
                       = ff.number_field :amount, class: 'form-control expense_amount'
                     .col-md-2.text-center
@@ -114,7 +120,7 @@
     $(document).ready(function() {
       $('.add_row').click();
       var count = 0;
-      set_expense_type_select('#expense_expense_accounts_attributes_0_expense_type', "Please select");
+      set_expense_type_select('#expense_expense_accounts_attributes_0_expense_type_id', "Please select");
       var expense_terms = $( "#expense_terms option:selected" ).val().split("Net")[1];
       var due_date = "";
       $('#expense_terms').on('change', function() {
@@ -144,7 +150,7 @@
 
       $('.add_row').on('click', function(){
         count = count + 1;
-        select_id = "#expense_expense_accounts_attributes_"+count+"_expense_type"
+        select_id = "#expense_expense_accounts_attributes_"+count+"_expense_type_id"
         setTimeout(
             function() {
               set_expense_type_select(select_id, "Please select");  
@@ -164,4 +170,24 @@
         $('.total-amount').text('Total  $'+sum)
       });
 
+      $(document).on("change","#expense_contract_id", function() {
+        $.ajax({
+          url: "/api/select_searches/find_contract_candidate",
+          type: 'GET',
+          data: {contract_id: $('#expense_contract_id option:selected').val()},
+          dataType: 'JSON'
+        }).done(function(data){         
+          if (data.buy_contracts[0].contract_type == 'C2C'){
+            $('.contract_type').text('Vendor Company');
+            $('#expense_account_id').val(data.buy_contracts[0].company_id);
+            $('#expense_account_id').val(data.buy_contracts[0].company.name);
+          }
+          else{
+            $('#expense_account_id').val(data.candidate.id);
+            $('#expense_account_id').val(data.candidate.first_name + ' ' +data.candidate.last_name);
+            $('.contract_type').text('Consultant');
+          }
+        });
+
+      });
     }); 

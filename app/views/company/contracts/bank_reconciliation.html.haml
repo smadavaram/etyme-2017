@@ -14,7 +14,7 @@
               .row
                 .col-md-3
                   %label Treasury Account
-                  = select_tag "contracts",options_for_select(Expense.bank_names.map { |key| [key, key] }),{class: 'form-control select2',required: true, prompt: 'Select a Bank' }
+                  = select_tag "bank_names",options_for_select(BankDetail::BANK_NAME.map { |key| [key, key] }),{class: 'form-control select2',required: true, prompt: 'Select a Bank' }
 
                 .col-md-3
                   %br
