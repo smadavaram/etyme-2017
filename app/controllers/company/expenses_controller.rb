@@ -33,6 +33,7 @@ class Company::ExpensesController < Company::BaseController
   end
 
   def pay_expense
+    @expense_accounts = ExpenseAccount.joins(:expense).where("expenses.contract_id in (?)", current_company&.in_progress_contracts&.ids)
   end
 
   def submit_bill

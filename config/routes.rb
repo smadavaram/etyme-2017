@@ -173,6 +173,11 @@ Rails.application.routes.draw do
       get :submitted_timesheets, on: :collection
       get :approve_timesheets, on: :collection
     end
+    resources :client_expenses, only: [:index, :update] do
+      post :get_client_expenses, on: :collection
+      get :submitted_client_expense, on: :collection
+      get :approve_client_expense, on: :collection
+    end
   end
 
 

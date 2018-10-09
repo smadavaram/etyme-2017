@@ -49,7 +49,7 @@
                       %th Balance due
                       %th Action
                   %tbody
-                    - ExpenseAccount.includes(:expense).where(status: '0').each do |ex|
+                    - @expense_accounts.each do |ex|
                       %tr
                         %td
                           = ex.expense.contract_id
