@@ -937,7 +937,7 @@ module Contracts
         next_month_year = start_date+1.month
         month = next_month_year&.strftime("%m").to_i
         year = next_month_year&.strftime("%Y").to_i
-      elsif end_of_month
+      elsif ts_end_of_month
         next_month_year = start_date.end_of_month
         day = next_month_year.strftime('%e').to_i
         month = next_month_year&.strftime("%m").to_i

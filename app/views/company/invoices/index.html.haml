@@ -611,7 +611,7 @@
                           %td= invoice.start_date.to_s + " - " + invoice.end_date.to_s
                           %td= invoice.total_approve_time
                           %td= invoice.rate
-                          %td
+                          %td= invoice.total_approve_time.to_i *  invoice.rate.to_i
                           %td
                           %td= invoice.status.humanize
                           %td

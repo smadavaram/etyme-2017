@@ -57,10 +57,10 @@ Rails.application.configure do
   # Raises helpful error messages.
   # config.assets.raise_runtime_errors = true
 
-  HOSTNAME='http://etymedev.com'
-  COMPANY_URL = 'etymedev.com'
+  HOSTNAME='http://lvh.me:3000'
+  COMPANY_URL = 'lvh.me:3000'
 
-  config.action_mailer.default_url_options = {host: 'etymedev.com'}
+  config.action_mailer.default_url_options = {host: 'lvh.me:3000'}
 
   # HOSTNAME='http://localhost:3000'
   # COMPANY_URL = 'localhost:3000'

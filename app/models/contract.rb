@@ -371,10 +371,9 @@ class Contract < ApplicationRecord
 
 
     #Create Company/Client
-
-    company_key = ledger.keys.query({aliases: [self.company.name]}).first
+    company_key = ledger.keys.query({aliases: [self.company.name.split(',').first.gsub(' ',"_")]}).first
     unless company_key 
-      company_key = ledger.keys.create(id: self.company.name)
+      company_key = ledger.keys.create(id: self.company.name.split(',').first.gsub(' ',"_"))
     end
 
 
@@ -419,9 +418,9 @@ class Contract < ApplicationRecord
 
     # Create Customer Account
 
-    cust_key = ledger.keys.query({aliases: [self.sell_contracts.first.company.name]}).first
+    cust_key = ledger.keys.query({aliases: [self.sell_contracts.first.company.name.split(',').first.gsub(' ',"_")]}).first
     unless cust_key 
-      cust_key = ledger.keys.create(id: self.sell_contracts.first.company.name)
+      cust_key = ledger.keys.create(id: self.sell_contracts.first.company.name.split(',').first.gsub(' ',"_"))
     end
     ta = ledger.accounts.list(
         filter: 'id=$1',
@@ -467,9 +466,9 @@ class Contract < ApplicationRecord
 
     # Create Vendor Account
     if self.buy_contracts.first.contract_type == 'C2C'
-      vendor_key = ledger.keys.query({aliases: [self.buy_contracts.first.company.name]}).first
+      vendor_key = ledger.keys.query({aliases: [self.buy_contracts.first.company.name.split(',').first.gsub(' ',"_")]}).first
       unless vendor_key 
-        vendor_key = ledger.keys.create(id: self&.buy_contracts.first.company.name)
+        vendor_key = ledger.keys.create(id: self&.buy_contracts.first.company.name.split(',').first.gsub(' ',"_"))
       end
       la = ledger.accounts.list(
           filter: 'id=$1',
