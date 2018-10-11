@@ -268,6 +268,32 @@
         }
       });
 
+      $(".sell-client-expense-approve").on("change", function(){
+        $(".s-ce-ap-set").children().addClass("hidden");
+        if($(this).val() == "daily"){
+          $(".s-ce-ap-set").find('.daily').removeClass("hidden");
+        } else if($(this).val() == "weekly" || $(this).val() == "biweekly"){
+          $(".s-ce-ap-set").find('.week').removeClass("hidden");
+        } else if($(this).val() == "twice a month"){
+          $(".s-ce-ap-set").find('.twice-month, .month').removeClass("hidden");
+        } else if($(this).val() == "monthly"){
+          $(".s-ce-ap-set").find('.month').removeClass("hidden");
+        }
+      });
+
+      $(".sell-client-expense-invoice").on("change", function(){
+        $(".s-ce-in-set").children().addClass("hidden");
+        if($(this).val() == "daily"){
+          $(".s-ce-in-set").find('.daily').removeClass("hidden");
+        } else if($(this).val() == "weekly" || $(this).val() == "biweekly"){
+          $(".s-ce-in-set").find('.week').removeClass("hidden");
+        } else if($(this).val() == "twice a month"){
+          $(".s-ce-in-set").find('.twice-month, .month').removeClass("hidden");
+        } else if($(this).val() == "monthly"){
+          $(".s-ce-in-set").find('.month').removeClass("hidden");
+        }
+      });
+
       $(".sell-performance-review").on("change", function(){
         $(".s-pr-set").children().addClass("hidden");
         if($(this).val() == "daily"){

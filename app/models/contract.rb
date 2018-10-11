@@ -54,7 +54,7 @@ class Contract < ApplicationRecord
   # has_many :contract_sell_business_details
   # has_many :contract_sale_commisions
 
-  after_create :set_on_seq
+  # after_create :set_on_seq
   after_create :insert_attachable_docs
   after_create :set_next_invoice_date
   after_create :notify_recipient , if: Proc.new{ |contract| contract.not_system_generated? }
@@ -281,7 +281,7 @@ class Contract < ApplicationRecord
     count = 0
     self.in_progress.each do |contract|
       contract.set_timesheet_submit(count)
-      contract.contract_cycles.where('end_date > ?', contract.end_date).where.not(cycle_type: ['SalaryClear', 'ClientExpenseProcess', 'ClientExpenseClear']).update_all(end_date: contract.end_date)
+      contract.contract_cycles.where('end_date > ?', contract.end_date).where.not(cycle_type: ['SalaryClear', 'ClientExpenseApprove', 'ClientExpenseInvoice']).update_all(end_date: contract.end_date)
       # contract.invoice_generate
     end
     Salary.set_salary_clear

@@ -267,6 +267,9 @@ class Company::ContractsController < Company::BaseController
                :is_performance_review, :performance_review, :pr_day_time, :pr_date_1, :pr_date_2, :pr_day_of_week, :pr_end_of_month,
                :is_client_expense, :client_expense, :ce_day_time, :ce_date_1, :ce_date_2, :ce_day_of_week, :ce_end_of_month,
 
+               :ce_approve, :ce_ap_day_time, :ce_ap_date_1, :ce_ap_date_2, :ce_ap_day_of_week, :ce_ap_end_of_month,
+               :ce_invoice, :ce_in_day_time, :ce_in_date_1, :ce_in_date_2, :ce_in_day_of_week, :ce_in_end_of_month,
+
                :company_id, :customer_rate, :customer_rate_type, :invoice_terms_period,
                :show_accounting_to_employee, :first_date_of_timesheet,
                :payment_term, :invoice_day_of_week, :invoice_end_of_month, :invoice_date_2, :invoice_date_1,

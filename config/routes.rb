@@ -502,6 +502,10 @@ Rails.application.routes.draw do
       end
 
     end
+
+    resources :client_expenses, only: [:index] do
+      get 'approve'
+    end
     # get 'configuration' ,   to: 'companies#edit' ,              as: :configuration
     resources :companies , concerns: :paginatable ,only: [:update,:show , :index,:edit,:destroy] do
       get  :contacts
