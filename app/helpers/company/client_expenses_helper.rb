@@ -1,0 +1,2 @@
+module Company::ClientExpensesHelper
+end

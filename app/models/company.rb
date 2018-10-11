@@ -80,6 +80,7 @@ class Company < ApplicationRecord
   # has_many :candidates, through: :contracts
 
   has_many :bank_details
+  has_many :client_expenses
 
 
 

@@ -58,8 +58,11 @@ module Contracts
         set_client_payment_process(client_bill_cycle, con_cycle_cp_pro_start_date )
 
         #client expense cycles
-        client_expense  = add_client_expense_cycle  
-        add_client_expense(start_date, next_date, buy_contract.candidate_id, client_expense.id)     
+        client_expense_cycle  = add_client_expense_cycle  
+        add_client_expense(start_date, next_date, buy_contract.candidate_id, client_expense_cycle.id)     
+        con_cycle_ce_ap_start_date = ClientExpense.set_con_cycle_ce_ap_date(sell_contract, client_expense_cycle)
+        set_client_expense_approve(cycle,con_cycle_ce_ap_start_date)
+
 
         next_date = next_next_date
         start_date = cycle.end_date + 1.day
@@ -342,6 +345,29 @@ module Contracts
       end
     end
 
+    def set_client_expense_approve(con_cycle,con_cycle_ce_ap_start_date)
+      con_cycle_ce_ap_start_date = contract.end_date if con_cycle_ce_ap_start_date > contract.end_date
+      con_cycle_ce_ap = ContractCycle.find_by(contract_id: con_cycle.contract_id,
+                                          start_date: con_cycle_ce_ap_start_date,
+                                          end_date: con_cycle_ce_ap_start_date&.end_of_day&.in_time_zone("Chennai"),
+                                          company_id: sell_contract.company_id,
+                                          note: "ClientExpense Approve",
+                                          cycle_type: "ClientExpenseApprove",
+                                          next_action: "CleintExpenseInvoice"
+      )
+      unless con_cycle_ce_ap
+        con_cycle_ce_ap = ContractCycle.create(contract_id: con_cycle.contract_id,
+                                            start_date: con_cycle_ce_ap_start_date,
+                                            end_date: con_cycle_ce_ap_start_date.end_of_day,
+                                            company_id: sell_contract.company_id,
+                                            note: "ClientExpense Approve",
+                                            cycle_date: Time.now,
+                                            cycle_type: "ClientExpenseApprove",
+                                            next_action: "CleintExpenseInvoice"
+        )
+      end
+    end
+
     # def invoice_generate
     #   if contract_cycle_ig.present?
     #     next_date =  get_next_date(ig_frequency, ig_date_1, ig_date_2, ig_end_of_month, ig_day_of_week, contract_cycle_ig.cycle_date )
@@ -398,7 +424,6 @@ module Contracts
           candidate_id: candidate_id,
           ts_cycle_id: cycle_id
       )
-
     end
 
     def add_client_expense(start_date, next_date, candidate_id, cycle_id)
@@ -407,7 +432,8 @@ module Contracts
           start_date: start_date,
           end_date: next_date,
           candidate_id: candidate_id,
-          ce_cycle_id: cycle_id
+          ce_cycle_id: cycle_id,
+          company_id: contract.company_id
       )
 
     end
@@ -601,32 +627,6 @@ module Contracts
                     cycle_type: 'ClientExpenseCalculation',
                     next_action: 'ClientExpenseProcessing',
                     note: 'ClientExpense calculation'
-                  )
-
-        # client expense processing
-        client_expense_pro = ContractCycle.create(
-                    contract_id: contract_id,
-                    start_date: client_expense_cal.start_date.to_date+3.days,
-                    end_date: client_expense_cal.start_date.to_date+3.days,
-                    candidate_id: buy_contract.candidate_id,
-                    company_id: sell_contract.company_id,
-                    status: 'pending',
-                    cycle_type: 'ClientExpenseProcess',
-                    next_action: 'ClientExpenseClear',
-                    note: 'ClientExpense process'
-                  )
-
-        # client expense clear
-        client_expense_clear = ContractCycle.create(
-                    contract_id: contract_id,
-                    start_date: client_expense_pro.start_date.to_date+3.days,
-                    end_date: client_expense_pro.start_date.to_date+3.days,
-                    candidate_id: buy_contract.candidate_id,
-                    company_id: sell_contract.company_id,
-                    status: 'pending',
-                    cycle_type: 'ClientExpenseClear',
-                    next_action: '',
-                    note: 'ClientExpense clear'
                   )
         
       end
@@ -937,7 +937,7 @@ module Contracts
 
     def monthly_submit_date(date_1, start_date)
 
-      day_1 = date_1.strftime("%d").to_i
+      day_1 = date_1&.strftime("%d").to_i
       
       if start_date.strftime("%d").to_i <= day_1
         day = day_1&.to_i

@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema.define(version: 20181009062648) do
+ActiveRecord::Schema.define(version: 20181009062649) do
 
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
@@ -1297,6 +1297,18 @@ ActiveRecord::Schema.define(version: 20181009062648) do
     t.date "ce_date_2"
     t.string "ce_day_of_week"
     t.boolean "ce_end_of_month", default: false
+    t.string "ce_approve"
+    t.time "ce_ap_day_time"
+    t.date "ce_ap_date_1"
+    t.date "ce_ap_date_2"
+    t.string "ce_ap_day_of_week"
+    t.boolean "ce_ap_end_of_month", default: false
+    t.string "ce_invoice"
+    t.time "ce_in_day_time"
+    t.date "ce_in_date_1"
+    t.date "ce_in_date_2"
+    t.string "ce_in_day_of_week"
+    t.boolean "ce_in_end_of_month", default: false
     t.index ["company_id"], name: "index_sell_contracts_on_company_id"
     t.index ["contract_id"], name: "index_sell_contracts_on_contract_id"
   end

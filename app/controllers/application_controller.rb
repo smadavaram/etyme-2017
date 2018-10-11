@@ -46,7 +46,7 @@ class ApplicationController < ActionController::Base
   def render_exception(status = 500, message = 'An Error Occurred', exception)
     @status = status
     @message = message
-    UserMailer.exception_notify(exception,exception.backtrace[0..25].join('\n'),params.inspect).deliver if Rails.env.production?
+    # UserMailer.exception_notify(exception,exception.backtrace[0..25].join('\n'),params.inspect).deliver if Rails.env.production?
     render template: "shared/404", formats: [:html], layout: false
   end
 
