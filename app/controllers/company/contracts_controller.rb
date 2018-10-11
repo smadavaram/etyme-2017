@@ -182,9 +182,6 @@ class Company::ContractsController < Company::BaseController
     end
   end
 
-  def add_expense
-  end
-
   def add_bill
   end
 
@@ -192,9 +189,6 @@ class Company::ContractsController < Company::BaseController
   end
 
   def pay_bill
-  end
-
-  def bank_reconciliation
   end
 
   def receive_payment

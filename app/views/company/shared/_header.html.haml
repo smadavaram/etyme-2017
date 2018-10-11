@@ -35,34 +35,95 @@
     #quick-add.btn-header.transparent.pull-right
       %span.project-selector.dropdown-toggle{"data-toggle" => "dropdown"}
         %a.fa.fa-plus-square
-      %ul.dropdown-menu
+      %ul.dropdown-menu.project-dropdown
         %li
-          %a{:href => new_job_path } Add Job
+          .sub-title
+            Master
+          %ul
+            %li
+              %a{:href => new_company_candidate_path } Add Candidate(s)
+            %li
+              %a{:href => new_company_company_path } Add Company(s)
+            %li
+              %a{:href => new_company_company_contact_path } Add Contact(s)
+            %li
+              %a{:href => new_group_path } Add Group(s)
+            
         %li
-          %a{:href => new_contract_path } Add Contract(s)
-        %li.divider
+          .sub-title
+            Offerings
+          %ul
+            %li
+              %a{:href => new_job_path } Jobs
+            %li
+              %a{:href => '#' } Products
+            %li
+              %a{:href => '#' } Services
+            %li
+              %a{:href => '#' } Trainings
+            %li
+              %a{:href => '#' } Blogs
+            %li
+              %a{:href => '#' } Book An Event
+            %li
+              %a{:href => '#' } Survey
+            
         %li
-          %a{:href => new_company_candidate_path } Add Candidate(s)
+          .sub-title
+            Orders
+          %ul
+            %li
+              %a{:href => new_contract_path } Add Contract(s)
+            %li
+              %a{:href => candidate_timesheets_path } Submit Timesheet(s)
+            %li
+              %a{:href => timesheets_path } Approve Timesheet(s)
         %li
-          %a{:href => new_company_company_path } Add Company(s)
+          .sub-title
+            Payments
+          %ul
+            %li
+              %a{:href => '#' } Vendor Bills
+            %li
+              %a{:href => '#' } Pay Vendor
+            %li
+              %a{:href => "#" } Salary Settlement
+            %li
+              %a{:href => "#" } Salary Processing
+            %li
+              %a{:href => "#" } Salary Clearing
         %li
-          %a{:href => new_company_company_contact_path } Add Contact(s)
+          .sub-title
+            Recievables
+          %ul
+            %li
+              %a{:href => invoices_path } Invoices
+            %li
+              %a{:href => "#" } Received Payment(s)
         %li
-          %a{:href => new_group_path } Add Group(s)
-        %li.divider
-        %li
-          %a{:href => "#" } Received Payment(s)
-        %li
-          %a{:href => "#" } Sent Payment(s)
-        %li
-          %a{:href => "#" } Add Timesheet(s)
-        %li.divider
-        %li
-          %a{:href => add_expense_contracts_path } Add Expense
-        %li
-          %a{:href => add_bill_contracts_path } Add Bill
-        %li
-          %a{:href => "#" } Pay Bill/Expense
+          .sub-title
+            Expenses
+          %ul
+
+            %li
+              %a{:href => bank_reconciliation_bank_details_path } Bank Reconcilliation
+            %li
+              %a{:href => new_expense_path } Request Expenses
+            %li
+              Pay Expense
+              %ul
+                %li
+                  / %a{:href => pay_expense_expenses_path } Salary Advance
+                %li
+                  / %a{:href => pay_expense_expenses_path } Company expense
+            %li
+              / %a{:href => candidate_client_expenses_path } Submit Client expenses
+            %li
+              / %a{:href => client_expenses_path } Approve client expenses
+            %li
+              %a{:href => '#' } Create Bill - Client Expenses
+            %li
+              %a{:href => '#' } Pay Client expense
 
     #logo-group.pull-right
       %span#activity.activity-dropdown
