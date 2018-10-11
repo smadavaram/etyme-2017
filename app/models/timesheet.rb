@@ -23,7 +23,7 @@ class Timesheet < ApplicationRecord
 
   # before_validation :set_recurring_timesheet_cycle
   after_update  :set_ts_on_seq, if: Proc.new{|t| t.status_changed? && t.submitted? && t.total_time.to_f > 0}
-  # after_update  :set_ta_on_seq, if: Proc.new{|t| t.status_changed? && t.approved? && t.total_time.to_f > 0}
+  after_update  :set_ta_on_seq, if: Proc.new{|t| t.status_changed? && t.approved? && t.total_time.to_f > 0}
 
   # after_create  :create_timesheet_logs
   # after_create  :notify_timesheet_created
@@ -276,15 +276,15 @@ class Timesheet < ApplicationRecord
 
   def set_ts_on_seq
     ledger = Sequence::Client.new(
-        ledger_name: ENV['seq_ledgers'],
-        credential: ENV['seq_token']
+      ledger_name: 'company-dev',
+      credential: 'OUUY4ZFYQO4P3YNC5JC3GMY7ZQJCSNTH'
     )
 
     tx = ledger.transactions.transact do |builder|
       builder.issue(
-          flavor_id: 'min',
+          flavor_id: 'time',
           amount: (self.total_time.to_f * 60).to_i,
-          destination_account_id: "#{self.contract.buy_contracts.first.candidate.full_name.parameterize + self.contract.buy_contracts.first.candidate.id.to_s}_q",
+          destination_account_id: "cons_#{self.contract.buy_contracts.first.candidate.id}",
           action_tags: {
             "Fixed" => "false",
             "Status" => "open",
@@ -302,18 +302,18 @@ class Timesheet < ApplicationRecord
     end
   end
 
-  def set_ta_on_seq
+ def set_ta_on_seq
     ledger = Sequence::Client.new(
-        ledger_name: ENV['seq_ledgers'],
-        credential: ENV['seq_token']
+      ledger_name: 'company-dev',
+      credential: 'OUUY4ZFYQO4P3YNC5JC3GMY7ZQJCSNTH'
     )
 
     tx = ledger.transactions.transact do |builder|
       builder.transfer(
-          flavor_id: 'min',
+          flavor_id: 'time',
           amount: (self.total_time.to_f * 60).to_i,
-          destination_account_id: "#{self.contract.sell_contracts.first.company.slug.to_s + self.contract.sell_contracts.first.company.id.to_s}_q",
-          source_account_id: "#{self.contract.buy_contracts.first.candidate.full_name.parameterize + self.contract.buy_contracts.first.candidate.id.to_s}_q",
+          destination_account_id: "cust_#{self.contract.sell_contracts.first.company.id}_treasury",
+          source_account_id: "cons_#{self.contract.buy_contracts.first.candidate.id}",
           action_tags: {
               "Fixed" => "false",
               "Status" => "open",
@@ -326,13 +326,13 @@ class Timesheet < ApplicationRecord
               "CycleTo" => self.end_date.strftime("%m/%d/%Y"),
               "Documentdate" => Time.now.strftime("%m/%d/%Y"),
               "TransactionType" => self.contract.buy_contracts.first.contract_type == "C2C" ? "C2C" : "W2"
-          },
+          }
       )
 
       builder.issue(
-          flavor_id: 'tym',
+          flavor_id: 'usd',
           amount: get_total_amount.to_i * 100,
-          destination_account_id: "#{self.contract.buy_contracts.first.candidate.full_name.parameterize + self.contract.buy_contracts.first.candidate.id.to_s}_q",
+          destination_account_id: "cons_#{self.contract.buy_contracts.first.candidate.id}",
           action_tags: {
               "Fixed" => "false",
               "Status" => "open",
