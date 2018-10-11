@@ -164,7 +164,7 @@
                           %label.control-label
                             Client Expenses
                           .plain-select
-                            = sc.select :client_expense, Contract.time_sheet_frequencies.map { |key, value| [key.humanize, key] }, {},{class: "form-control sell-client-expense" }
+                            = sc.text_field :client_expense, value: 'daily', class: "form-control sell-client-expense" 
                         .col-md-6
                           .s-ce-set
                             %div{:class => "form-group daily #{sc.object.client_expense != 'daily' ? 'hidden' : ''}"}

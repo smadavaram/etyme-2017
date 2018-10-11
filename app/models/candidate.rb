@@ -64,6 +64,7 @@ class Candidate < ApplicationRecord
   has_many   :criminal_check, dependent: :destroy
   has_many   :visas, dependent: :destroy
   has_many   :legal_documents, dependent: :destroy
+  has_many   :client_expenses, dependent: :destroy
 
 
 

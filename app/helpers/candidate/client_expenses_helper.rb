@@ -1,0 +1,2 @@
+module Candidate::ClientExpensesHelper
+end

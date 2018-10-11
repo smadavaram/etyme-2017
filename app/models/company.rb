@@ -16,6 +16,7 @@ class Company < ApplicationRecord
   has_many :users                     , dependent: :destroy
   has_many :admins                    , dependent: :destroy
   has_many :contracts               , dependent: :destroy
+  has_many :in_progress_contracts, -> { where(status: 'in_progress') }, class_name: 'Contract'
   has_many :consultants               , dependent: :destroy
   has_many :roles                     , dependent: :destroy
   has_many :company_docs              , dependent: :destroy

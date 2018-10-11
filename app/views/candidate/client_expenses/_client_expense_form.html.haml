@@ -1,0 +1,46 @@
+- sh_date = start_date
+.table
+  %table.table.table-bordred
+    %thead
+      %th{:width => "3%"}=check_box_tag "", nil, nil, class: "all-select"
+      %th{:width => "20%"} Contract Id-Desc
+      - while sh_date <= end_date
+        %th{:width => "8%"}#{sh_date.strftime('%a %d')}
+        - sh_date += 1.day
+      %th{:width => "13%"} Status
+      %th Action
+    %tbody
+  - @client_expenses.each do |ts|
+    - s_date = start_date
+    = form_for [:candidate, ts], html:{ class:'form-horizontal', remote: true, id: "tms_#{ts.id}"} do |f|
+      .table-responsive
+        %table.table.table-bordred
+          %thead
+            %th{:width => "3%"}
+            %th{:width => "20%"}
+            %th{:width => "8%"}
+            %th{:width => "8%"}
+            %th{:width => "8%"}
+            %th{:width => "8%"}
+            %th{:width => "8%"}
+            %th{:width => "8%"}
+            %th{:width => "8%"}
+            %th{:width => "13%"}
+            %th
+          %tbody
+            %tr
+              %td{:width => "3%"}=check_box_tag "sin_select", nil, nil, class: "sin-select"
+              %td{:width => "20%"}
+                = ts.contract.number+"-" + ts.contract.title[0..14]
+              - while s_date <= end_date
+                %td.dyno{:style => "width: 8%"}
+                  = text_field_tag "client_expense[days][#{s_date.strftime("%m/%d/%Y")}]", 0, :required => "required", :type => "text", :disabled => !(ts.start_date <= s_date && ts.end_date >= s_date), class: 'form-control', style: " #{(!(ts.start_date <= s_date && ts.end_date >= s_date) ? '2px solid #000; background-color: #eeeeee !important;' : '' )}"
+                  -#%input.form-control{:name => "timesheet[days][#{s_date.strftime("%m/%d/%Y")}]", :required => "required", :type => "text", :value => "0", :disabled => "#{ts.start_date <= s_date && ts.end_date >= s_date }"}/
+                - s_date += 1.day
+              %td{:width => "13%"} Not submitted
+              %td
+                = button_tag( :class => "button_green", :type => "submit") do
+                  %i.fa.fa-save
+
+  %tfoot
+    %td{colspan: 10}=button_tag "Save All", class: "save-all-btn"

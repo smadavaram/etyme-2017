@@ -1,0 +1,30 @@
+.timesheet
+  .row
+    .col-md-12
+      %h2 Submit Client Expenses
+      .timesheet-select-date
+        = form_for '', url: get_client_expenses_candidate_client_expenses_path, html:{ class:'form-horizontal', method: :post, remote: true} do |f|
+          %select.select-time-cycle{name: "date_range"}
+            -@time_cycle.each do |t|
+              %option=t
+    .clearfix.set-timesheet-form
+      = render 'client_expense_form', start_date: (@dates.beginning_of_week-1.day), end_date: @dates.end_of_week - 1.day
+- content_for :scripts do
+  :javascript
+    $(document).ready(function() {
+      pageSetUp();
+
+      $('.select-time-cycle').on("change", function(){
+        $(this).closest('form').submit();
+      });
+
+      $(".all-select").on("change", function(){
+        $( '.sin-select' ).prop('checked', this.checked)
+      });
+
+      $(".save-all-btn").on("click", function(){
+        $('input[name=sin_select]:checked').each(function(){
+          $(this).closest('form').submit();
+        });
+      })
+    });

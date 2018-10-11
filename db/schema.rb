@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema.define(version: 20181005053333) do
+ActiveRecord::Schema.define(version: 20181009062648) do
 
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
@@ -380,6 +380,24 @@ ActiveRecord::Schema.define(version: 20181005053333) do
     t.integer "cb_clr_cycle_id"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+  end
+
+  create_table "client_expenses", force: :cascade do |t|
+    t.integer "job_id"
+    t.integer "user_id"
+    t.integer "company_id"
+    t.integer "contract_id"
+    t.integer "status", default: 0
+    t.float "amount"
+    t.date "start_date"
+    t.date "end_date"
+    t.date "submitted_date"
+    t.integer "candidate_id"
+    t.integer "ce_cycle_id"
+    t.integer "ce_ap_cycle_id"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["job_id"], name: "index_client_expenses_on_job_id"
   end
 
   create_table "clients", force: :cascade do |t|
@@ -838,7 +856,6 @@ ActiveRecord::Schema.define(version: 20181005053333) do
   end
 
   create_table "expense_accounts", force: :cascade do |t|
-    t.string "expense_id"
     t.text "description"
     t.integer "status"
     t.string "amount"
@@ -848,6 +865,8 @@ ActiveRecord::Schema.define(version: 20181005053333) do
     t.integer "balance_due"
     t.string "check_no"
     t.integer "expense_type_id"
+    t.bigint "expense_id"
+    t.index ["expense_id"], name: "index_expense_accounts_on_expense_id"
   end
 
   create_table "expense_types", force: :cascade do |t|
@@ -1513,4 +1532,5 @@ ActiveRecord::Schema.define(version: 20181005053333) do
     t.datetime "updated_at", null: false
   end
 
+  add_foreign_key "expense_accounts", "expenses"
 end

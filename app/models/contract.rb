@@ -35,6 +35,7 @@ class Contract < ApplicationRecord
   has_one    :job_invitation , through: :job_application
   has_many   :contract_terms , dependent: :destroy
   has_many   :timesheets     , dependent: :destroy
+  has_many   :client_expenses, dependent: :destroy
   has_many   :invoices       , dependent: :destroy
   has_many   :salaries       , dependent: :destroy
   has_many   :timesheet_logs , through: :timesheets
@@ -45,6 +46,7 @@ class Contract < ApplicationRecord
   has_many   :sell_contracts, dependent: :destroy
   has_many   :buy_contracts, dependent: :destroy
   has_many   :contract_salary_histories, dependent: :destroy
+  has_many   :expenses, dependent: :destroy
 
   has_many   :contract_cycles, dependent: :destroy
 

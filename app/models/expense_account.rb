@@ -1,7 +1,7 @@
 class ExpenseAccount < ApplicationRecord
 
-  belongs_to :expense, optional: true
-  belongs_to :expense_type, optional: true
+  belongs_to :expense
+  belongs_to :expense_type
   attr_accessor :pay_type
 
   enum status:                [:opened, :cleared, :cancelled]
@@ -87,7 +87,7 @@ class ExpenseAccount < ApplicationRecord
         builder.issue(
           flavor_id: 'usd',
           amount: self&.amount,
-          destination_account_id: 'cons_'+self&.expense&.contract.buy_contracts.first.company_id.to_s,
+          destination_account_id: 'cust_'+self&.expense&.contract.buy_contracts.first.company_id.to_s,
           action_tags: {
             type: 'issue',
             expense_type: self.expense_type,

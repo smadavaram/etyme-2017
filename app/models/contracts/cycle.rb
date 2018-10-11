@@ -58,7 +58,8 @@ module Contracts
         set_client_payment_process(client_bill_cycle, con_cycle_cp_pro_start_date )
 
         #client expense cycles
-        client_expense  = add_client_expense_cycle       
+        client_expense  = add_client_expense_cycle  
+        add_client_expense(start_date, next_date, buy_contract.candidate_id, client_expense.id)     
 
         next_date = next_next_date
         start_date = cycle.end_date + 1.day
@@ -396,6 +397,17 @@ module Contracts
           candidate_name: candidate_name,
           candidate_id: candidate_id,
           ts_cycle_id: cycle_id
+      )
+
+    end
+
+    def add_client_expense(start_date, next_date, candidate_id, cycle_id)
+      t = ClientExpense.create(
+          contract_id: contract_id,
+          start_date: start_date,
+          end_date: next_date,
+          candidate_id: candidate_id,
+          ce_cycle_id: cycle_id
       )
 
     end
