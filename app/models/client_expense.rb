@@ -8,7 +8,7 @@ class ClientExpense < ApplicationRecord
   belongs_to :user, optional: true
   belongs_to :job, optional: true
 
-  # after_update :set_ce_on_seq
+  after_update :set_ce_on_seq
   
   scope :open_expenses, -> {where(status: 0)}
   scope :submitted_client_expenses, -> {where(status: :submitted)}
@@ -19,7 +19,6 @@ class ClientExpense < ApplicationRecord
     self.assign_attributes(client_expense_params)
     self.amount = total_amount
     self.status = 1
-    self.save
     con_cycle = ContractCycle.find(self.ce_cycle_id)
     con_cycle.update_attributes(completed_at: Time.now, status: "completed")
     con_cycle_ce_ap_start_date = ClientExpense.set_con_cycle_ce_ap_date(con_cycle&.contract&.sell_contracts.first, con_cycle)
@@ -29,11 +28,13 @@ class ClientExpense < ApplicationRecord
                                         cycle_type: "ClientExpenseApprove",
                                         next_action: "CleintExpenseInvoice"
     ).where("DATE(end_date) = ?", con_cycle_ce_ap_start_date.end_of_day.to_date).first
-    self.update_attributes(ce_ap_cycle_id: con_cycle_ce_ap.id)
+    self.ce_ap_cycle_id = con_cycle_ce_ap.id
+    self.save
   end
 
 
   def set_ce_on_seq
+    self.contract.set_on_seq
     if self&.amount.to_i > 0
       ledger = Sequence::Client.new(
           ledger_name: 'company-dev',
@@ -54,6 +55,30 @@ class ClientExpense < ApplicationRecord
           }
         )
       end
+    end
+  end
+
+  def self.transfer_after_approve_on_seq(client_expense, amount)
+    ledger = Sequence::Client.new(
+        ledger_name: 'company-dev',
+        credential: 'OUUY4ZFYQO4P3YNC5JC3GMY7ZQJCSNTH'
+    )
+    client_expense.contract.set_on_seq
+    ce_issue = ledger.transactions.transact do |builder|
+      builder.transfer(
+        flavor_id: 'usd',
+        amount: amount.to_i,
+        source_account_id: 'cons_'+client_expense&.contract.buy_contracts.first.candidate_id.to_s,
+        destination_account_id: 'cont_'+client_expense.contract_id.to_s,
+        action_tags: {
+          type: 'transfer',
+          contract: client_expense.contract_id,
+          candidate: client_expense.contract.buy_contracts.first.candidate_id.to_s,
+          cycle_id: client_expense.ce_cycle_id,
+          start_date: client_expense.start_date,
+          end_date: client_expense.end_date
+        }
+      )
     end
   end
 

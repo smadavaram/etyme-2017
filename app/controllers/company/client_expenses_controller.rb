@@ -8,6 +8,7 @@ class Company::ClientExpensesController < Company::BaseController
   def approve
     client_expenses = ClientExpense.where(ce_ap_cycle_id: params[:approve_cycle_id])
     client_expenses.update_all(status: 2)
+    ClientExpense.transfer_after_approve_on_seq(client_expenses.first, params[:total_amount])
     redirect_to client_expenses_path
   end  
 

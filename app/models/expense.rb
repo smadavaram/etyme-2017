@@ -9,4 +9,30 @@ class Expense < ApplicationRecord
 
   enum bill_type:     [:salary_advanced, :company_expense, :client_expense]
 
+  after_create :set_expense_on_seq
+
+
+  def set_expense_on_seq
+    ledger = Sequence::Client.new(
+        ledger_name: 'company-dev',
+        credential: 'OUUY4ZFYQO4P3YNC5JC3GMY7ZQJCSNTH'
+    )
+    self.contract.set_on_seq
+    ce_issue = ledger.transactions.transact do |builder|
+      builder.transfer(
+        flavor_id: 'usd',
+        amount: self.total_amount.to_i,
+        source_account_id:  'cont_'+self.contract_id.to_s,
+        destination_account_id: 'cons_'+self&.contract.buy_contracts.first.candidate_id.to_s,
+        action_tags: {
+          type: 'transfer',
+          contract: self.contract_id,
+          candidate: self.contract.buy_contracts.first.candidate_id.to_s,
+          due_date: self.due_date,
+          bill_type: self.bill_type
+        }
+      )
+    end
+  end
+
 end

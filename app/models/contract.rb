@@ -54,7 +54,7 @@ class Contract < ApplicationRecord
   # has_many :contract_sell_business_details
   # has_many :contract_sale_commisions
 
-  # after_create :set_on_seq
+  after_create :set_on_seq
   after_create :insert_attachable_docs
   after_create :set_next_invoice_date
   after_create :notify_recipient , if: Proc.new{ |contract| contract.not_system_generated? }
@@ -485,6 +485,9 @@ class Contract < ApplicationRecord
 
 
     # Create Commision Account
+    la = ledger.accounts.list(
+          filter: 'id=$1',
+          filter_params: ["comm_#{self.id}"]).first
     ledger.accounts.create(
       id: "comm_#{self.id}",
       keys: [comp_key],
@@ -492,9 +495,12 @@ class Contract < ApplicationRecord
       tags: {
         contract_id: self.id
       }
-    )
+    ) unless la.present?
 
     #Create Contract Account
+    la = ledger.accounts.list(
+          filter: 'id=$1',
+          filter_params: ["cont_#{self.id}"]).first
 
     ledger.accounts.create(
       id: "cont_#{self.id}",
@@ -508,7 +514,7 @@ class Contract < ApplicationRecord
         contract_type: self&.buy_contracts&.first&.contract_type,
         consulant_id: self.candidate.id
       }
-    )  
+    ) unless la.present?  
   end
 
   def contract_progress
