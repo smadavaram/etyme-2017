@@ -419,11 +419,9 @@ Rails.application.routes.draw do
         get :set_job_application
         get :timeline
         get :filter_timeline
-        get :add_expense
         get :add_bill
         get :add_invoice
         get :pay_bill
-        get :bank_reconciliation
         get :receive_payment
         get :client_expense_submit
         get :client_expense_approve
