@@ -1,0 +1,31 @@
+- if @client_expenses
+  %br
+  .row
+    .col-md-2
+      %label Account details
+  %br
+  .row
+    .col-md-12
+      %table.table.table-bordered.account_detail
+        %thead
+          %tr
+            %th Contract number
+            %th Cycle - Timesheet
+            %th Client
+            %th Consultant Name
+            %th Status
+            %th Total
+        %tbody
+          - @client_expenses.each do |ce|
+            %tr
+              %td
+                = ce['number']
+              %td.ce_ap_ids
+                = ce['ce_ap_cycle_id']
+              %td 
+                = ce['name']
+              %td
+                = ce['first_name']+' '+ce['last_name'] 
+              %td Approved
+              %td.expense_amount
+                = ce['total_amount']

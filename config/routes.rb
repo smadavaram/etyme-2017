@@ -398,6 +398,9 @@ Rails.application.routes.draw do
         get :get_bank_balance
         get :pay_expense
         post :submit_bill
+        get :client_expense_bill
+        post :create_client_expense_bill
+        get :filter_approved_client_expense
       end
     end
 
@@ -504,7 +507,7 @@ Rails.application.routes.draw do
     end
 
     resources :client_expenses, only: [:index] do
-      get 'approve'
+      get 'approve', on: :collection
     end
     # get 'configuration' ,   to: 'companies#edit' ,              as: :configuration
     resources :companies , concerns: :paginatable ,only: [:update,:show , :index,:edit,:destroy] do

@@ -6,18 +6,13 @@
 - @temp = []
 / - binding.pry
 -@client_expenses.each do |ce|
-  / - binding.pry
-  -@temp.push({ client_expense_id: ce.id,
-                approve_cycle_id: ce.ce_ap_cycle_id,
-                creation_date: ce.created_at.strftime('%Y-%m-%d'),
-                contract: ce.contract.number,
-                client: ce.contract.client.full_name,
-                tax_type: ce.contract.buy_contracts.first.contract_type,
-                candidate: ce.contract.buy_contracts.first.candidate.full_name,
-                company_vender: ce.contract.buy_contracts.first.company.present? ? ce.contract.buy_contracts.first.company.full_name : '',
-                date: ce.submitted_date,
-                amount: (ce.amount),
-                status: ce.status,
+  -@temp.push({ approve_cycle_id: ce['ce_ap_cycle_id'],
+                contract: ce['number'],
+                client: ce['name'],
+                tax_type: ce['contract_type'],
+                candidate: ce['first_name']+' '+ce['last_name'],
+                total_amount: ce["total_amount"],
+                status: 'Submitted',
                 act: ''})
 
 -# var ajqgrid_data = #{raw(@temp.to_json)};
@@ -36,20 +31,12 @@
       data : jqgrid_data,
       datatype : "local",
       height : 'auto',
-      colNames : ['Client Expense ID', 'Approve Cycle ID' ,'Creation Date', 'Contract', 'Client', 'Tax Type',
-                  'candidate', 'Amount',
+      colNames : ['Approve Cycle ID','Contract', 'Client', 'Tax Type',
+                  'candidate', 'Total Amount',
                   'status', 'Actions'],
       colModel : [ {
-        name : 'client_expense_id',
-        index : 'client_expense_id'
-      }, {
         name : 'approve_cycle_id',
-        index : 'approve_cycle_id',
-        editable : true
-      }, {
-        name : 'creation_date',
-        index : 'creation_date',
-        editable : true
+        index : 'approve_cycle_id'
       }, {
         name : 'contract',
         index : 'contract',
@@ -70,8 +57,8 @@
         align : "right",
         editable : true
       },{
-        name : 'amount',
-        index : 'amount',
+        name : 'total_amount',
+        index : 'total_amount',
         sortable : false
       },{
         name : 'status',
@@ -93,14 +80,15 @@
         var ids = jQuery("#jqgrid").jqGrid('getDataIDs');
         for (var i = 0; i < ids.length; i++) {
           var cl = ids[i];
-          var id = $("#jqgrid").jqGrid('getCell', cl, "client_expense_id");
+          var id = $("#jqgrid").jqGrid('getCell', cl, "approve_cycle_id");
           var message = $("#jqgrid").jqGrid('getCell', cl, "act");
+          var total_amount = $("#jqgrid").jqGrid('getCell', cl, "total_amount");
 
           be = "<button class='btn btn-xs btn-default' data-original-title='Edit Row' onclick=\"jQuery('#jqgrid').editRow('" + cl + "');\"><i class='fa fa-pencil'></i></button>";
           se = "<button class='btn btn-xs btn-default' data-original-title='Save Row' onclick=\"jQuery('#jqgrid').saveRow('" + cl + "');\"><i class='fa fa-save'></i></button>";
           ca = "<button class='btn btn-xs btn-default' data-original-title='Cancel' onclick=\"jQuery('#jqgrid').restoreRow('" + cl + "');\"><i class='fa fa-times'></i></button>";
 
-          ta = "<a href='/client_expenses/" + id + "/approve' class='btn btn-xs btn-default' title='Approve Timesheet' rel='tooltip' 'data-placement'= 'top' data-confirm ="+ JSON.stringify(message) +"  verify='Approve' verify_text=\" Type 'Approve' to confirm\"> <i class='fa fa-check '></i> </a> " ;
+          ta = "<a href='/client_expenses/approve?approve_cycle_id="+id+"&total_amount="+total_amount+"' class='btn btn-xs btn-default' title='Approve Timesheet' rel='tooltip' 'data-placement'= 'top' data-confirm ="+ JSON.stringify(message) +"  verify='Approve' verify_text=\" Type 'Approve' to confirm\"> <i class='fa fa-check '></i> </a> " ;
           tr = "" ;
 
 

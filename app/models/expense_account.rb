@@ -6,8 +6,8 @@ class ExpenseAccount < ApplicationRecord
 
   enum status:                [:opened, :cleared, :cancelled]
 
-  after_create :issue_bal_on_seq
-  after_update :set_expense_on_seq
+  # after_create :issue_bal_on_seq
+  # after_update :set_expense_on_seq
 
 
   def set_expense_on_seq

@@ -23,7 +23,7 @@ module Contracts
         elsif ts_time_sheet_frequency == 'twice a month'
           end_date = twice_a_month_submit_date(ts_date_1, ts_date_2, start_date) 
         elsif ts_time_sheet_frequency == 'monthly'
-          end_date = monthly_submit_date(ts_date_1, contract.start_date+ @count)  
+          end_date = monthly_submit_date(ts_date_1, contract.start_date+ @count, ts_end_of_month)  
         else
           end_date = next_date
         end
@@ -78,7 +78,7 @@ module Contracts
     
           start_date = ts_date_of_next(sc_day_of_week, contract.start_date+@count)
         elsif sc_frequency == 'monthly'
-          start_date = monthly_submit_date(sc_date_1, contract.start_date+@count)
+          start_date = monthly_submit_date(sc_date_1, contract.start_date+@count, sc_end_of_month)
         elsif sc_frequency == 'twice a month'
           start_date = twice_a_month_submit_date(sc_date_1, sc_date_2, contract.start_date+@count)
         else
@@ -90,7 +90,7 @@ module Contracts
         elsif sc_frequency == 'weekly'
           start_date = ts_date_of_next(sc_day_of_week,contract.start_date)
         elsif sc_frequency == 'monthly'
-          start_date = monthly_submit_date(sc_date_1, contract.start_date)
+          start_date = monthly_submit_date(sc_date_1, contract.start_date, sc_end_of_month)
         elsif sc_frequency == 'twice a month'
           start_date = twice_a_month_submit_date(sc_date_1, sc_date_2, contract.start_date)
         else
@@ -108,7 +108,7 @@ module Contracts
     
           start_date = ts_date_of_next(com_cal_day_of_week, contract.start_date+@count)
         elsif com_cal_frequency == 'monthly'
-          start_date = monthly_submit_date(com_cal_date_1, contract.start_date+@count)
+          start_date = monthly_submit_date(com_cal_date_1, contract.start_date+@count, com_cal_end_of_month)
         elsif com_cal_frequency == 'twice a month'
           start_date = twice_a_month_submit_date(com_cal_date_1, com_cal_date_2, contract.start_date+@count)
         else
@@ -120,7 +120,7 @@ module Contracts
         elsif com_cal_frequency == 'weekly'
           start_date = ts_date_of_next(com_cal_day_of_week,contract.start_date)
         elsif com_cal_frequency == 'monthly'
-          start_date = monthly_submit_date(com_cal_date_1, contract.start_date)
+          start_date = monthly_submit_date(com_cal_date_1, contract.start_date,com_cal_end_of_month)
         elsif com_cal_frequency == 'twice a month'
           start_date = twice_a_month_submit_date(com_cal_date_1, com_cal_date_2, contract.start_date)
         else
@@ -138,7 +138,7 @@ module Contracts
           # binding.pry
           start_date = ts_date_of_next(vb_day_of_week, contract.start_date+@count)
         elsif vendor_bill_frequency == 'monthly'
-          start_date = monthly_submit_date(vb_date_1, contract.start_date+@count)
+          start_date = monthly_submit_date(vb_date_1, contract.start_date+@count, vb_end_of_month)
         elsif vendor_bill_frequency == 'twice a month'
           start_date = twice_a_month_submit_date(vb_date_1, vb_date_2, contract.start_date+@count)
         else
@@ -150,7 +150,7 @@ module Contracts
         elsif vendor_bill_frequency == 'weekly'
           start_date = ts_date_of_next(vb_day_of_week,contract.start_date)
         elsif vendor_bill_frequency == 'monthly'
-          start_date = monthly_submit_date(vb_date_1, contract.start_date)
+          start_date = monthly_submit_date(vb_date_1, contract.start_date, vb_end_of_month)
         elsif vendor_bill_frequency == 'twice a month'
           start_date = twice_a_month_submit_date(vb_date_1, vb_date_2, contract.start_date)
         else
@@ -168,7 +168,7 @@ module Contracts
           # binding.pry
           start_date = ts_date_of_next(cb_day_of_week, contract.start_date+@count)
         elsif client_bill_frequency == 'monthly'
-          start_date = monthly_submit_date(cb_date_1, contract.start_date+@count)
+          start_date = monthly_submit_date(cb_date_1, contract.start_date+@count, cb_end_of_month)
         elsif client_bill_frequency == 'twice a month'
           start_date = twice_a_month_submit_date(cb_date_1, cb_date_2, contract.start_date+@count)
         else
@@ -180,7 +180,7 @@ module Contracts
         elsif client_bill_frequency == 'weekly'
           start_date = ts_date_of_next(cb_day_of_week,contract.start_date)
         elsif client_bill_frequency == 'monthly'
-          start_date = monthly_submit_date(cb_date_1, contract.start_date)
+          start_date = monthly_submit_date(cb_date_1, contract.start_date, cb_end_of_month)
         elsif client_bill_frequency == 'twice a month'
           start_date = twice_a_month_submit_date(cb_date_1, cb_date_2, contract.start_date)
         else
@@ -198,7 +198,7 @@ module Contracts
           # binding.pry
           start_date = ts_date_of_next(ce_day_of_week, contract.start_date+@count)
         elsif client_expense_frequency == 'monthly'
-          start_date = monthly_submit_date(ce_date_1, contract.start_date+@count)
+          start_date = monthly_submit_date(ce_date_1, contract.start_date+@count, ce_end_of_month)
         elsif client_expense_frequency == 'twice a month'
           start_date = twice_a_month_submit_date(ce_date_1, ce_date_2, contract.start_date+@count)
         else
@@ -210,7 +210,7 @@ module Contracts
         elsif client_expense_frequency == 'weekly'
           start_date = ts_date_of_next(ce_day_of_week,contract.start_date)
         elsif client_expense_frequency == 'monthly'
-          start_date = monthly_submit_date(ce_date_1, contract.start_date)
+          start_date = monthly_submit_date(ce_date_1, contract.start_date, ce_end_of_month)
         elsif client_expense_frequency == 'twice a month'
           start_date = twice_a_month_submit_date(ce_date_1, ce_date_2, contract.start_date)
         else
@@ -935,26 +935,26 @@ module Contracts
       con_cycle_ta_start_date = DateTime.new(year, month, day)
     end
 
-    def monthly_submit_date(date_1, start_date)
-
+    def monthly_submit_date(date_1, start_date,end_of_month)
       day_1 = date_1&.strftime("%d").to_i
       
-      if start_date.strftime("%d").to_i <= day_1
+      if day_1.present? && start_date.strftime("%d").to_i <= day_1
         day = day_1&.to_i
         next_month_year = start_date
         month = next_month_year&.strftime("%m").to_i
         year = next_month_year&.strftime("%Y").to_i
-      elsif start_date.strftime("%d").to_i > day_1 && !ts_end_of_month
+      elsif day_1.present? && start_date.strftime("%d").to_i > day_1 && !end_of_month
         day = day_1&.to_i
         next_month_year = start_date+1.month
         month = next_month_year&.strftime("%m").to_i
         year = next_month_year&.strftime("%Y").to_i
-      elsif ts_end_of_month
+      elsif end_of_month
         next_month_year = start_date.end_of_month
         day = next_month_year.strftime('%e').to_i
         month = next_month_year&.strftime("%m").to_i
         year = next_month_year&.strftime("%Y").to_i
       end
+
       return DateTime.new(year, month, day)
     end
 

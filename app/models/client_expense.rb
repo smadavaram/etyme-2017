@@ -1,6 +1,6 @@
 class ClientExpense < ApplicationRecord
 
-  enum status: [:open, :submitted, :approved , :partially_approved, :rejected, :invoiced]
+  enum status: [:open, :submitted, :approved, :bill_generated, :invoiced]
 
   belongs_to :candidate
   belongs_to :company, optional: true
@@ -12,6 +12,7 @@ class ClientExpense < ApplicationRecord
   
   scope :open_expenses, -> {where(status: 0)}
   scope :submitted_client_expenses, -> {where(status: :submitted)}
+  scope :approved_client_expenses, -> {where(status: :approved)}
 
 
   def submitted(client_expense_params, days, total_amount)

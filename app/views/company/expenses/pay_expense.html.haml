@@ -43,6 +43,7 @@
                       %th Status
                       %th Due date
                       %th Expense Type
+                      %th Bill Type
                       %th Open Balance
                       %th Remaining Balance
                       %th Payment
@@ -62,6 +63,8 @@
                         %td
                           = ex.expense_type.name
                         %td
+                          = ex.expense.bill_type.titleize
+                        %td
                           =  ex.amount
                         %td
                           =  ex.amount.to_i - ex.payment.to_i
@@ -75,6 +78,37 @@
                             = f.submit 'Pay' , name: 'pay_type',value: 'pay'
                             = f.submit 'Reject' , name: 'pay_type',value: 'reject'
 
+
+              %br
+              .row
+                .col-md-2
+                  %label Client Expense Bill
+              %br
+              %div.table-responsive
+                %table.table.table-bordered.account_detail
+                  %thead
+                    %tr
+                      %th Contract
+                      %th Bill no/ Item description
+                      %th Status
+                      %th Due date
+                      %th Bill Type
+                      %th Open Balance
+                      %th Action
+                  %tbody
+                    - @client_expenses.each do |ex|
+                      %tr
+                        %td
+                          = ex.contract_id
+                        %td
+                          = ex.bill_no
+                        %td Open
+                        %td
+                          = ex.due_date
+                        %td
+                          = ex.bill_type.titleize
+                        %td
+                          =  ex.total_amount
 
 - content_for :scripts do
   :javascript

@@ -8,7 +8,11 @@ class Company::ExpensesController < Company::BaseController
   def create
     @expense = Expense.new(expense_params)
     if @expense.save
-      redirect_to root_path
+      if params[:expense][:bill_type] == 'client_expense'
+        params[:ce_ap_ids][0].split(',').map(&:to_i)
+        ClientExpense.where(ce_ap_cycle_id: params[:ce_ap_ids][0].split(',').map(&:to_i)).update_all(status: 3)
+      end
+      redirect_to pay_expense_expenses_path
     else
       render 'new'
     end
@@ -34,6 +38,7 @@ class Company::ExpensesController < Company::BaseController
 
   def pay_expense
     @expense_accounts = ExpenseAccount.joins(:expense).where("expenses.contract_id in (?)", current_company&.in_progress_contracts&.ids)
+    @client_expenses = Expense.where(bill_type: 2)
   end
 
   def submit_bill
@@ -53,6 +58,14 @@ class Company::ExpensesController < Company::BaseController
       flash[:alert] = 'Insufficient balance in your account please try with another account.'
     end
     redirect_to pay_expense_expenses_path
+  end
+
+  def client_expense_bill
+    @expense = Expense.new
+  end
+
+  def filter_approved_client_expense
+    @client_expenses = current_company.client_expenses.joins(contract: [:client, [buy_contracts: :candidate]]).approved_client_expenses.where(contract_id: params[:contract_id]).select("DISTINCT(client_expenses.ce_ap_cycle_id), contracts.number, companies.name, buy_contracts.contract_type, candidates.first_name, candidates.last_name, sum(amount) as total_amount").group('client_expenses.ce_ap_cycle_id', 'contracts.number', 'companies.name', 'buy_contracts.contract_type', 'candidates.first_name', 'candidates.last_name').map(&:attributes)
   end
 
   def get_bank_balance

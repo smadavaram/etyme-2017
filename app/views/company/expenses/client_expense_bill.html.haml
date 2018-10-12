@@ -3,21 +3,17 @@
   %section
     .row
       = form_for @expense , html:{class: 'form-horizontal'}  do |f|
+        = f.hidden_field :bill_type, value: 'client_expense'
+        = text_field_tag 'ce_ap_ids[]', '', class: 'ce_ap_ids'
         %article.col-sm-12.col-md-12.col-lg-12
           #wid-id-0.jarviswidget{"data-widget-deletebutton" => "false", "data-widget-editbutton" => "false"}
             %header
               %span.widget-icon
                 %i.fa.fa-check
-              %h2 Adding New Expense
+              %h2 Add New Client Expense Bill
             %div
               .jarviswidget-editbox
               .widget-body
-                .row
-                  .col-md-3
-                    %label Bill Type
-                  .col-md-4
-                    = f.select :bill_type, Expense.bill_types.take(2).map { |key, value| [key.titleize, key] } , {class: "form-control"}
-
                 .row
                   .col-md-3
                     %label Contract
@@ -29,8 +25,7 @@
                   .col-md-3
                     %label.contract_type Consultant
                   .col-md-4
-                    = f.hidden_field :account_id
-                    = text_field_tag :account_name, '', class: 'expense_account_name', readonly: true
+                    = f.text_field :account_id, readonly: true
 
                 %br
                 .row
@@ -48,81 +43,28 @@
 
                   .col-md-2
                     %label{:for => 'due_date'} Due Date:
-                    = f.date_field :due_date , class: 'form-control'
+                    = f.date_field :due_date , class: 'form-control' 
 
                   .col-md-2
                     %label{:for => 'bill_no'} Bill no.
-                    = f.text_field :bill_no, class: 'form-control'
-                
+                    = f.text_field :bill_no, class: 'form-control'               
+
+                .approved_client_expense
+                  = render partial: 'approved_client_expense'
+                %br
 
                 %br
                 .row
-                  .col-md-2
-                    %label
-                      %b
-                        Account details:
-
-                %br
-                .row
-                  .col-md-2.text-center
-                    Expense type
-                  .col-md-2.text-center
-                    Description
-                  .col-md-2.text-center
-                    Status
-                  .col-md-2.text-center
-                    Amount
-                  .col-md-2.text-center
-                    Action
-
-                = f.nested_fields_for :expense_accounts do |ff|
-                  = ff.object.expense_type
-                  .row.mt-2
-                    .col-md-2
-                      .plain-select
-                        = ff.select  :expense_type_id, '', {}, class: "form-control select_expense_types"
-                    .col-md-2
-                      = ff.text_area :description, class: 'form-control', cols: "2", rows: "2"
-                    .col-md-2
-                      = ff.select :status, ExpenseAccount.statuses.map { |key, value| [key.titleize, key] } , {class: "form-control" , required: true}
-                    .col-md-2
-                      = ff.number_field :amount, class: 'form-control expense_amount'
-                    .col-md-2.text-center
-                      = ff.remove_nested_fields_link 'Remove'
-                %br
-                = f.add_nested_fields_link :expense_accounts, 'Add row', class: 'btn btn-primary add_row'
-                %br
-                %br
-                .row
-                  .col-md-3
-                    %label Attachments
-                    %input{:name => "attachments", :type => "file"}/
-
-                %br
-                .row
-                  .col-md-3.form-group
-                    %label{:for => "memo"} Memo:
-                    %textarea#comment.form-control{:rows => "5"}
-
                   .col-md-4 
 
                   .col-md-4.total-amount
                     %label{:for => 'total_amount'} Total amount:
                     = f.text_field :total_amount, readonly: true
-
-                %br
                 = f.submit 'Submit', class: 'btn btn-primary'
-
-.remote_container_contract
-= render "company/expenses/new_expense_type", for_remote: true
 
 - content_for :scripts do
   :javascript 
-
     $(document).ready(function() {
-      $('.add_row').click();
-      var count = 0;
-      set_expense_type_select('#expense_expense_accounts_attributes_0_expense_type_id', "Please select");
       var expense_terms = $( "#expense_terms option:selected" ).val().split("Net")[1];
       var due_date = "";
       $('#expense_terms').on('change', function() {
@@ -150,28 +92,6 @@
 
       });
 
-      $('.add_row').on('click', function(){
-        count = count + 1;
-        select_id = "#expense_expense_accounts_attributes_"+count+"_expense_type_id"
-        setTimeout(
-            function() {
-              set_expense_type_select(select_id, "Please select");  
-            },
-            500);
-      })
-
-      $('.remove_nested_fields_link').on('click', function(){
-        count = count -1;
-      })
-     
-      $(document).on("change",".expense_amount", function() {
-        var sum = 0;
-        $('.expense_amount').each(function(){
-            sum += parseFloat(this.value);
-        });
-        $('#expense_total_amount').val(sum)
-      });
-
       $(document).on("change","#expense_contract_id", function() {
         $.ajax({
           url: "/api/select_searches/find_contract_candidate",
@@ -182,14 +102,44 @@
           if (data.buy_contracts[0].contract_type == 'C2C'){
             $('.contract_type').text('Vendor Company');
             $('#expense_account_id').val(data.buy_contracts[0].company_id);
-            $('.expense_account_name').val(data.buy_contracts[0].company.name);
+            $('#expense_account_id').val(data.buy_contracts[0].company.name);
           }
           else{
             $('#expense_account_id').val(data.candidate.id);
-            $('.expense_account_name').val(data.candidate.first_name + ' ' +data.candidate.last_name);
+            $('#expense_account_id').val(data.candidate.first_name + ' ' +data.candidate.last_name);
             $('.contract_type').text('Consultant');
           }
         });
 
       });
+
+      function getSum(total, num) {
+          return parseFloat(total) + parseFloat(num);
+      }
+
+      $(document).on("change","#expense_contract_id", function() {
+        $.ajax({
+          url: "#{filter_approved_client_expense_expenses_path}",
+          type: 'GET',
+          data: {contract_id: $('#expense_contract_id option:selected').val()},
+          dataType: 'script'
+        }).done(function(data){
+        var values = $('td.expense_amount').map(function() {
+            return $(this).text();
+        }).get();
+        var ce_ap_ids = $('td.ce_ap_ids').map(function() {
+            return $(this).text();
+        }).get();
+        $('#expense_total_amount').val(values.reduce(getSum));
+        $('.ce_ap_ids').val(ce_ap_ids);
+
+        });    
+      });
+
     }); 
+
+
+
+
+
+
