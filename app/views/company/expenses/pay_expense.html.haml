@@ -66,7 +66,7 @@
                           = ex.expense.bill_type.titleize
                         %td
                           =  ex.amount
-                        %td
+                        %td.remaining_balance
                           =  ex.amount.to_i - ex.payment.to_i
                         = form_for ex, url: submit_bill_expenses_path(pay_bill_id: ex.id), method: :post do |f| 
                           = hidden_field_tag :bank_id, '' , class: 'bank_id'    
@@ -76,7 +76,7 @@
                             = f.number_field :balance_due, value: '', class: 'balance_due'
                           %td
                             = f.submit 'Pay' , name: 'pay_type',value: 'pay'
-                            = f.submit 'Reject' , name: 'pay_type',value: 'reject'
+                            = f.submit 'Reject' , name: 'pay_type',value: 'reject' if ex.expense.bill_type != 'company_expense'
 
 
               %br
@@ -113,6 +113,14 @@
 - content_for :scripts do
   :javascript
 
+    $(document).on('input', '#expense_account_payment', function () {
+      var total_balance = $(this).parent().parent().find('td.remaining_balance').text()
+      var payment = $(this).val()
+      var remaining_payment = total_balance - payment
+      $(this).parents("tr").find(".balance_due").val(remaining_payment)
+
+    })
+
     $(document).ready(function() {
       get_bank_bal()
     });
@@ -145,5 +153,3 @@
       var balance_due = 0;
       console.log(payment)
     }
-
-
