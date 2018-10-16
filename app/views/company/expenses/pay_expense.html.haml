@@ -41,6 +41,7 @@
                       %th Contract
                       %th Bill no/ Item description
                       %th Status
+                      %th Attachment
                       %th Due date
                       %th Expense Type
                       %th Bill Type
@@ -58,6 +59,8 @@
                           = ex.expense.bill_no + '-' + ex.description
                         %td
                           = ex.status
+                        %td
+                          =link_to 'Bill', ex.expense.attachment, target: "_blank", class: 'text-break'
                         %td
                           = ex.expense.due_date
                         %td

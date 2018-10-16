@@ -95,14 +95,9 @@
                 %br
                 .row
                   .col-md-3
-                    %label Attachments
-                    %input{:name => "attachments", :type => "file"}/
-
-                %br
-                .row
-                  .col-md-3.form-group
-                    %label{:for => "memo"} Memo:
-                    %textarea#comment.form-control{:rows => "5"}
+                    = f.label :attachment
+                    %br
+                    = f.filepicker_field :attachment, class: 'file-pick timesheet-filepicker-attachment'
 
                   .col-md-4 
 

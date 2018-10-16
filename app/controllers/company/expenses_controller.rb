@@ -93,6 +93,10 @@ class Company::ExpensesController < Company::BaseController
     redirect_to pay_expense_expenses_path
   end
 
+  def paid_invoice_list
+    @client_expense_invoices = Expense.where(status: 'paid', contract_id: current_company&.contracts&.ids)
+  end
+
   private
 
   def expense_params

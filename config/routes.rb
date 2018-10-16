@@ -395,14 +395,15 @@ Rails.application.routes.draw do
     resources :expenses do
       collection do
         post :create_expense_type
-        get :get_bank_balance
-        get :pay_expense
+        get  :get_bank_balance
+        get  :pay_expense
         post :submit_bill
-        get :client_expense_bill
+        get  :client_expense_bill
         post :create_client_expense_bill
-        get :filter_approved_client_expense
+        get  :filter_approved_client_expense
         post :client_expense_generate_invoice
         post :invoice_payment
+        get  :paid_invoice_list
       end
     end
 
