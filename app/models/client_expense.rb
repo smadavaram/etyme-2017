@@ -1,6 +1,6 @@
 class ClientExpense < ApplicationRecord
 
-  enum status: [:open, :submitted, :approved, :bill_generated, :invoiced]
+  enum status: [:open, :submitted, :approved, :bill_generated, :invoice_generated]
 
   belongs_to :candidate
   belongs_to :company, optional: true
@@ -83,45 +83,74 @@ class ClientExpense < ApplicationRecord
   end
 
   def self.set_con_cycle_ce_ap_date(sell_contract, con_cycle)
-    @ce_ap_type = sell_contract&.ce_approve
+    @ce_type = sell_contract&.ce_approve
     if sell_contract&.ce_ap_day_of_week.present?
-      @ce_ap_day_of_week = Date.parse(sell_contract&.ce_ap_day_of_week&.titleize).try(:strftime, '%A')
+      @ce_day_of_week = Date.parse(sell_contract&.ce_ap_day_of_week&.titleize).try(:strftime, '%A')
     else
       @ce_ap_day_of_week = 'mon'
     end
-    @ce_ap_date_1 = sell_contract&.ce_ap_date_1.try(:strftime, '%e')
-    @ce_ap_date_2 = sell_contract&.ce_ap_date_2.try(:strftime, '%e')
-    @ce_ap_end_of_month = sell_contract&.ce_ap_end_of_month
-    @ce_ap_day_time = sell_contract&.ce_ap_day_time.try(:strftime, '%H:%M')
-    case @ce_ap_type
+    @ce_date_1 = sell_contract&.ce_ap_date_1.try(:strftime, '%e')
+    @ce_date_2 = sell_contract&.ce_ap_date_2.try(:strftime, '%e')
+    @ce_end_of_month = sell_contract&.ce_ap_end_of_month
+    @ce_day_time = sell_contract&.ce_ap_day_time.try(:strftime, '%H:%M')
+    case @ce_type
     when 'daily'
-      con_cycle_ce_ap_start_date = con_cycle.start_date
+      con_cycle_ce_start_date = con_cycle.start_date
     when 'weekly'  
-      con_cycle_ce_ap_start_date = date_of_next(@ce_ap_day_of_week,con_cycle)
+      con_cycle_ce_start_date = date_of_next(@ce_day_of_week,con_cycle)
     when 'monthly'
-      if @ce_ap_end_of_month
-        con_cycle_ce_ap_start_date = DateTime.now.end_of_month
+      if @ce_end_of_month
+        con_cycle_ce_start_date = DateTime.now.end_of_month
       else
-        con_cycle_ce_ap_start_date = montly_approval_date(con_cycle)
+        con_cycle_ce_start_date = montly_approval_date(con_cycle)
       end
     when 'twice a month'
-      con_cycle_ce_ap_start_date = twice_a_month_approval_date(con_cycle)
+      con_cycle_ce_start_date = twice_a_month_approval_date(con_cycle)
     else
-      con_cycle_ce_ap_start_date = con_cycle.start_date
+      con_cycle_ce_start_date = con_cycle.start_date
     end 
-    return con_cycle_ce_ap_start_date    
+    return con_cycle_ce_start_date    
+  end
+
+  def self.set_con_cycle_ce_in_date(sell_contract, con_cycle)
+    @ce_type = sell_contract&.ce_invoice
+    if sell_contract&.ce_in_day_of_week.present?
+      @ce_day_of_week = Date.parse(sell_contract&.ce_in_day_of_week&.titleize).try(:strftime, '%A')
+    else
+      @ce_day_of_week = 'mon'
+    end
+    @ce_date_1 = sell_contract&.ce_in_date_1.try(:strftime, '%e')
+    @ce_date_2 = sell_contract&.ce_in_date_2.try(:strftime, '%e')
+    @ce_end_of_month = sell_contract&.ce_in_end_of_month
+    @ce_day_time = sell_contract&.ce_in_day_time.try(:strftime, '%H:%M')
+    case @ce_type
+    when 'daily'
+      con_cycle_ce_start_date = con_cycle.start_date
+    when 'weekly'  
+      con_cycle_ce_start_date = date_of_next(@ce_day_of_week,con_cycle)
+    when 'monthly'
+      if @ce_end_of_month
+        con_cycle_ce_start_date = DateTime.now.end_of_month
+      else
+        con_cycle_ce_start_date = montly_approval_date(con_cycle)
+      end
+    when 'twice a month'
+      con_cycle_ce_start_date = twice_a_month_approval_date(con_cycle)
+    else
+      con_cycle_ce_start_date = con_cycle.start_date
+    end 
+    return con_cycle_ce_start_date
   end
 
   def self.montly_approval_date(con_cycle)
-    day = @ce_ap_date_1&.to_i.present? ? @ce_ap_date_1&.to_i : 0
+    day = @ce_date_1&.to_i.present? ? @ce_date_1&.to_i : 0
     next_month_year = con_cycle.start_date.strftime("%d").to_i <= day ? con_cycle.start_date : (con_cycle.start_date+1.month)
     month = next_month_year&.strftime("%m").to_i
     year = next_month_year&.strftime("%Y").to_i
-    con_cycle_ce_ap_start_date = DateTime.new(year, month, day)
+    con_cycle_ce_start_date = DateTime.new(year, month, day)
   end
 
   def self.date_of_next(day_of_week,con_cycle)
-    # binding.pry
     day_of_week = DateTime.parse(day_of_week).wday
     ce_day_of_week = DateTime.parse(con_cycle&.contract&.sell_contracts&.first&.ce_day_of_week).wday if con_cycle.contract.sell_contracts.first.time_sheet == 'weekly'
     date = con_cycle.start_date.to_date + ((day_of_week - con_cycle.start_date.to_date.wday) % 7)

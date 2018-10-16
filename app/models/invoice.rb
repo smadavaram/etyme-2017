@@ -3,6 +3,7 @@ class Invoice < ApplicationRecord
   include Rails.application.routes.url_helpers
 
   enum status: [:pending_invoice, :open, :paid , :partially_paid , :cancelled ]
+  enum invoice_type: [:timesheet_invoice, :client_expense_invoice]
 
   belongs_to  :contract, optional: true
   belongs_to  :submitted_by   , class_name:"Admin", foreign_key: :submitted_by, optional: true

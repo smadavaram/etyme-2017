@@ -401,6 +401,8 @@ Rails.application.routes.draw do
         get :client_expense_bill
         post :create_client_expense_bill
         get :filter_approved_client_expense
+        post :client_expense_generate_invoice
+        post :invoice_payment
       end
     end
 

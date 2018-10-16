@@ -62,6 +62,7 @@ module Contracts
         add_client_expense(start_date, next_date, buy_contract.candidate_id, client_expense_cycle.id)     
         con_cycle_ce_ap_start_date = ClientExpense.set_con_cycle_ce_ap_date(sell_contract, client_expense_cycle)
         set_client_expense_approve(cycle,con_cycle_ce_ap_start_date)
+        client_expense_invoice_generate(client_expense_cycle)
 
 
         next_date = next_next_date
@@ -393,7 +394,14 @@ module Contracts
       end_date = Invoice.set_con_cycle_invoice_date(sell_contract, con_cycle).end_of_day
       cycle = add_invoice_cycle("Invoice Generate", end_date, con_cycle.start_date, end_date, "InvoiceGenerate", nil, end_date, "InvoicePaid", end_date, sell_contract.company_id)
 
-      add_invoice(con_cycle.start_date, end_date, cycle.id)
+      add_invoice(con_cycle.start_date, end_date, cycle.id, 0)
+    end
+
+    def client_expense_invoice_generate(con_cycle)
+      end_date = ClientExpense.set_con_cycle_ce_in_date(sell_contract, con_cycle).end_of_day
+      cycle = add_invoice_cycle("ClientExpense Invoice", end_date, con_cycle.start_date, end_date, "ClientExpenseInvoice", nil, end_date, "ClientExpense Paid", end_date, sell_contract.company_id)
+
+      add_invoice(con_cycle.start_date, end_date, cycle.id, 1)
     end
 
     def find_next_date(ts_time_sheet_frequency, ts_date_1, ts_date_2, ts_end_of_month, ts_day_of_week, next_date)
@@ -448,6 +456,7 @@ module Contracts
                         contract_id: contract_id
                         )
 
+      # binding.pry
       unless contract_cycle
        contract_cycle = contract_cycles.create(note: note,
                          cycle_date: cycle_date,
@@ -461,15 +470,17 @@ module Contracts
                          company_id: company_id
                       )
       end
+      # binding.pry
       return contract_cycle
 
     end
 
-    def add_invoice(start_date, end_date, cycle_id)
+    def add_invoice(start_date, end_date, cycle_id, type)
       invoice = Invoice.find_by(
                   contract_id: contract_id,
                   end_date: end_date.to_date,
                   ig_cycle_id: cycle_id,
+                  invoice_type: type
                 )
       unless invoice
         Invoice.create(
@@ -477,7 +488,8 @@ module Contracts
             start_date: start_date,
             end_date: end_date,
             ig_cycle_id: cycle_id,
-            rate: sell_payrate
+            rate: sell_payrate,
+            invoice_type: type
         )
       end
     end

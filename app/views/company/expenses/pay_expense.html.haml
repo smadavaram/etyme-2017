@@ -102,13 +102,53 @@
                           = ex.contract_id
                         %td
                           = ex.bill_no
-                        %td Open
+                        %td
+                          = ex.status.titleize
                         %td
                           = ex.due_date
                         %td
                           = ex.bill_type.titleize
                         %td
                           =  ex.total_amount
+                        %td
+                          = form_for ex, url: client_expense_generate_invoice_expenses_path(ex_id: ex.id), method: :post do |f|
+                            = f.submit 'Generate Invoice'
+
+              %br
+              .row
+                .col-md-2
+                  %label Client Expense Invoices
+              %br
+              %div.table-responsive
+                %table.table.table-bordered.account_detail
+                  %thead
+                    %tr
+                      %th Contract
+                      %th Bill no/ Item description
+                      %th Status
+                      %th Due date
+                      %th Bill Type
+                      %th Open Balance
+                      %th Action
+                  %tbody
+                    - @client_expenses_invoice.each do |ex|
+                      %tr
+                        %td
+                          = ex.contract_id
+                        %td
+                          = ex.bill_no
+                        %td
+                          = ex.status.titleize
+                        %td
+                          = ex.due_date
+                        %td
+                          = ex.bill_type.titleize
+                        %td
+                          =  ex.total_amount
+                        %td
+                          = form_for ex, url: invoice_payment_expenses_path(ex_id: ex.id), method: :post do |f|
+                            = f.filepicker_field :attachment, :button_text => "<i class='fa fa-file-pdf-o'> </i>".html_safe, disable: true , class: 'file-pick timesheet-filepicker-attachment'
+                            = f.submit 'Invoice Payment'
 
 - content_for :scripts do
   :javascript
@@ -137,13 +177,6 @@
       }).done(function(data){
         $('.bank-balance').text('$'+data.bank_bal.balance);
       });
-    }
-
-    function get_balance_due(thiss){
-      var payment = thiss.value;
-      $(thiss).closest('td').find('.balance_due:input').val(5);
-      var balance_due = 0;
-      console.log(payment)
     }
 
 
