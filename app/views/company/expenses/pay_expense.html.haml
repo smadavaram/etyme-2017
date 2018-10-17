@@ -85,41 +85,6 @@
               %br
               .row
                 .col-md-2
-                  %label Client Expense Bill
-              %br
-              %div.table-responsive
-                %table.table.table-bordered.account_detail
-                  %thead
-                    %tr
-                      %th Contract
-                      %th Bill no/ Item description
-                      %th Status
-                      %th Due date
-                      %th Bill Type
-                      %th Open Balance
-                      %th Action
-                  %tbody
-                    - @client_expenses.each do |ex|
-                      %tr
-                        %td
-                          = ex.contract_id
-                        %td
-                          = ex.bill_no
-                        %td
-                          = ex.status.titleize
-                        %td
-                          = ex.due_date
-                        %td
-                          = ex.bill_type.titleize
-                        %td
-                          =  ex.total_amount
-                        %td
-                          = form_for ex, url: client_expense_generate_invoice_expenses_path(ex_id: ex.id), method: :post do |f|
-                            = f.submit 'Generate Invoice'
-
-              %br
-              .row
-                .col-md-2
                   %label Client Expense Invoices
               %br
               %div.table-responsive

@@ -642,6 +642,24 @@ module ApplicationHelper
                   }
               ]
           },
+{
+              href: '#',
+              title: 'Client Expense ',
+              content: "<i class='fa fa-lg fa-fw fa-money'></i> <span class='menu-item-parent'>" + 'Client Expense' + "</span>",
+              children: [
+
+                  {
+                      href: candidate_client_expenses_path,
+                      title: 'Client Expenses',
+                      content: "<i class='fa fa-lg fa-fw fa-calendar'></i> <span class='menu-item-parent'>" + 'Expenses' + "</span>",
+                  },
+                  {
+                      href: submitted_client_expenses_candidate_client_expenses_path,
+                      title: 'Submitted Client Expense',
+                      content: "<i class='fa fa-lg fa-fw fa-calendar'></i> <span class='menu-item-parent'>" + 'Submitted' + "</span>",
+                  }
+              ]
+          },
           {
               href: '#',
               title: 'Accounting ',

@@ -6,13 +6,14 @@
 - @temp = []
 / - binding.pry
 -@client_expenses.each do |ce|
-  -@temp.push({ approve_cycle_id: ce['ce_ap_cycle_id'],
-                contract: ce['number'],
-                client: ce['name'],
-                tax_type: ce['contract_type'],
-                candidate: ce['first_name']+' '+ce['last_name'],
-                total_amount: ce["total_amount"],
-                status: 'Submitted',
+  -@temp.push({ cycle_id: ce.id,
+                approve_cycle_id: ce.ce_ap_cycle_id,
+                contract: ce.contract.number,
+                client: ce.contract.sell_contracts.first.company.full_name,
+                tax_type: ce.contract.buy_contracts.first.contract_type,
+                candidate: ce.candidate.full_name,
+                total_amount: ce.amount,
+                status: ce.status.titleize,
                 act: ''})
 
 -# var ajqgrid_data = #{raw(@temp.to_json)};
@@ -31,10 +32,13 @@
       data : jqgrid_data,
       datatype : "local",
       height : 'auto',
-      colNames : ['Approve Cycle ID','Contract', 'Client', 'Tax Type',
+      colNames : ['Cycle ID', 'Approve Cycle ID','Contract', 'Client', 'Tax Type',
                   'candidate', 'Total Amount',
                   'status', 'Actions'],
-      colModel : [ {
+      colModel : [{
+        name : 'cycle_id',
+        index : 'cycle_id'
+      }, {
         name : 'approve_cycle_id',
         index : 'approve_cycle_id'
       }, {
@@ -80,7 +84,7 @@
         var ids = jQuery("#jqgrid").jqGrid('getDataIDs');
         for (var i = 0; i < ids.length; i++) {
           var cl = ids[i];
-          var id = $("#jqgrid").jqGrid('getCell', cl, "approve_cycle_id");
+          var id = $("#jqgrid").jqGrid('getCell', cl, "cycle_id");
           var message = $("#jqgrid").jqGrid('getCell', cl, "act");
           var total_amount = $("#jqgrid").jqGrid('getCell', cl, "total_amount");
 
@@ -88,12 +92,15 @@
           se = "<button class='btn btn-xs btn-default' data-original-title='Save Row' onclick=\"jQuery('#jqgrid').saveRow('" + cl + "');\"><i class='fa fa-save'></i></button>";
           ca = "<button class='btn btn-xs btn-default' data-original-title='Cancel' onclick=\"jQuery('#jqgrid').restoreRow('" + cl + "');\"><i class='fa fa-times'></i></button>";
 
-          ta = "<a href='/client_expenses/approve?approve_cycle_id="+id+"&total_amount="+total_amount+"' class='btn btn-xs btn-default' title='Approve Timesheet' rel='tooltip' 'data-placement'= 'top' data-confirm ="+ JSON.stringify(message) +"  verify='Approve' verify_text=\" Type 'Approve' to confirm\"> <i class='fa fa-check '></i> </a> " ;
+          ta = "<a href='/client_expenses/approve?cycle_id="+id+"' class='btn btn-xs btn-default' title='Approve Timesheet' rel='tooltip' 'data-placement'= 'top' data-confirm ="+ JSON.stringify(message) +"  verify='Approve' verify_text=\" Type 'Approve' to confirm\"> <i class='fa fa-check '></i> </a> " ;
+          tr = "" ;
+
+          trr = "<a href='/client_expenses/reject?cycle_id="+id+"' class='btn btn-xs btn-default' title='Reject Timesheet' rel='tooltip' 'data-placement'= 'top' data-confirm ="+ JSON.stringify(message) +"  verify='Reject' verify_text=\" Type 'Rejct' to confirm\"> <i class='fa fa-times-circle '></i> </a> " ;
           tr = "" ;
 
 
           jQuery("#jqgrid").jqGrid('setRowData', ids[i], {
-            act : ta
+            act : ta+trr
           });
         }
       },

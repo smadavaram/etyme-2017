@@ -40,7 +40,6 @@ class Company::ExpensesController < Company::BaseController
 
   def pay_expense
     @expense_accounts = ExpenseAccount.joins(:expense).where("expenses.contract_id in (?)", current_company&.in_progress_contracts&.ids)
-    @client_expenses = Expense.where(bill_type: 'client_expense', status: 'bill_generated').where(contract_id: current_company&.in_progress_contracts&.ids)
     @client_expenses_invoice = Expense.where(bill_type: 'client_expense', status: 'invoice_generated').where(contract_id: current_company&.in_progress_contracts&.ids)
   end
 
@@ -63,13 +62,19 @@ class Company::ExpensesController < Company::BaseController
     redirect_to pay_expense_expenses_path
   end
 
+
+
   def client_expense_generate_invoice
     expense = Expense.find_by(id: params[:ex_id])
     expense.set_ce_invoice_on_seq(expense)
     expense.update(status: 'invoice_generated')
-    ClientExpense.where(ce_ap_cycle_id: expense.ce_ap_cycle_id).update_all(status: 4)
+    ClientExpense.where(ce_ap_cycle_id: expense.ce_ap_cycle_id, status: 'bill_generated').update_all(status: 4)
     flash[:success] = 'Invoice generated successfully'
     redirect_to pay_expense_expenses_path
+  end
+
+  def client_expense_invoices
+    @client_expenses = Expense.where(bill_type: 'client_expense', status: 'bill_generated').where(contract_id: current_company&.in_progress_contracts&.ids)
   end
 
   def client_expense_bill
@@ -88,6 +93,7 @@ class Company::ExpensesController < Company::BaseController
   def invoice_payment
     expense = Expense.find_by(id: params[:ex_id])
     expense.update(status: 'paid', attachment: params[:expense][:attachment] )
+    ClientExpense.where(ce_ap_cycle_id: expense.ce_ap_cycle_id, status: 'invoice_generated').update_all(status: 'paid')
     expense.set_ce_invoice_payment_on_seq(expense)
     flash[:success] = 'Payment done successfully'
     redirect_to pay_expense_expenses_path

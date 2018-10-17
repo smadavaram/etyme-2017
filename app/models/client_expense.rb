@@ -1,16 +1,18 @@
 class ClientExpense < ApplicationRecord
 
-  enum status: [:open, :submitted, :approved, :bill_generated, :invoice_generated]
+  enum status: [:not_submitted, :submitted, :approved, :bill_generated, :invoice_generated, :paid]
 
   belongs_to :candidate
   belongs_to :company, optional: true
   belongs_to :contract, optional: true
   belongs_to :user, optional: true
   belongs_to :job, optional: true
+  belongs_to :ce_cycle, optional: true, foreign_key: :ce_cycle_id, class_name: 'ContractCycle'
+  belongs_to :ce_ap_cycle, optional: true, foreign_key: :ce_ap_cycle_id, class_name: 'ContractCycle'
 
   after_update :set_ce_on_seq
   
-  scope :open_expenses, -> {where(status: 0)}
+  scope :not_submitted_expenses, -> {where(status: 0)}
   scope :submitted_client_expenses, -> {where(status: :submitted)}
   scope :approved_client_expenses, -> {where(status: :approved)}
 
@@ -35,7 +37,7 @@ class ClientExpense < ApplicationRecord
 
   def set_ce_on_seq
     self.contract.set_on_seq
-    if self&.amount.to_i > 0
+    if self&.amount.to_i > 0 && self.status == 'submitted'
       ledger = Sequence::Client.new(
           ledger_name: 'company-dev',
           credential: 'OUUY4ZFYQO4P3YNC5JC3GMY7ZQJCSNTH'
@@ -72,6 +74,29 @@ class ClientExpense < ApplicationRecord
         destination_account_id: 'cont_'+client_expense.contract_id.to_s,
         action_tags: {
           type: 'transfer',
+          contract: client_expense.contract_id,
+          candidate: client_expense.contract.buy_contracts.first.candidate_id.to_s,
+          cycle_id: client_expense.ce_cycle_id,
+          start_date: client_expense.start_date,
+          end_date: client_expense.end_date
+        }
+      )
+    end
+  end
+
+  def self.retire_after_reject_on_seq(client_expense, amount)
+    ledger = Sequence::Client.new(
+        ledger_name: 'company-dev',
+        credential: 'OUUY4ZFYQO4P3YNC5JC3GMY7ZQJCSNTH'
+    )
+    client_expense.contract.set_on_seq
+    ce_issue = ledger.transactions.transact do |builder|
+      builder.retire(
+        flavor_id: 'usd',
+        amount: amount.to_i,
+        source_account_id: 'cons_'+client_expense&.contract.buy_contracts.first.candidate_id.to_s,
+        action_tags: {
+          type: 'retire-rejected',
           contract: client_expense.contract_id,
           candidate: client_expense.contract.buy_contracts.first.candidate_id.to_s,
           cycle_id: client_expense.ce_cycle_id,

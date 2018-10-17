@@ -175,7 +175,7 @@ Rails.application.routes.draw do
     end
     resources :client_expenses, only: [:index, :update] do
       post :get_client_expenses, on: :collection
-      get :submitted_client_expense, on: :collection
+      get :submitted_client_expenses, on: :collection
       get :approve_client_expense, on: :collection
     end
   end
@@ -402,6 +402,7 @@ Rails.application.routes.draw do
         post :create_client_expense_bill
         get  :filter_approved_client_expense
         post :client_expense_generate_invoice
+        get  :client_expense_invoices
         post :invoice_payment
         get  :paid_invoice_list
       end
@@ -509,6 +510,7 @@ Rails.application.routes.draw do
 
     resources :client_expenses, only: [:index] do
       get 'approve', on: :collection
+      get 'reject', on: :collection
     end
     # get 'configuration' ,   to: 'companies#edit' ,              as: :configuration
     resources :companies , concerns: :paginatable ,only: [:update,:show , :index,:edit,:destroy] do

@@ -340,9 +340,11 @@ class Contract < ApplicationRecord
       ledger_name: 'company-dev',
       credential: 'OUUY4ZFYQO4P3YNC5JC3GMY7ZQJCSNTH'
     )
-    comp_key = ledger.keys.query({aliases: [self.company.name]}).first
+    company_name = self.company&.name
+    
+    comp_key = ledger.keys.query({aliases: [company_name]}).first
     unless comp_key.present?
-      comp_key = ledger.keys.create(id: self.company.name)
+      comp_key = ledger.keys.create(id: company_name)
     end
 
 
@@ -373,9 +375,9 @@ class Contract < ApplicationRecord
 
 
     #Create Company/Client
-    company_key = ledger.keys.query({aliases: [self.company.name.split(',').first.gsub(' ',"_")]}).first
+    company_key = ledger.keys.query({aliases: [company_name.split(',').first.gsub(' ',"_")]}).first
     unless company_key 
-      company_key = ledger.keys.create(id: self.company.name.split(',').first.gsub(' ',"_"))
+      company_key = ledger.keys.create(id: company_name.split(',').first.gsub(' ',"_"))
     end
 
 
@@ -388,7 +390,7 @@ class Contract < ApplicationRecord
                                         quorum: 1,
                                         id: "comp_#{self.company.id}_treasury",
                                         tags: {
-                                          name: self.company&.name.gsub(' ', '_') + '_treasury'
+                                          name: company_name.gsub(' ', '_') + '_treasury'
                                         }
                                      }) unless ta.present?
 
@@ -401,7 +403,7 @@ class Contract < ApplicationRecord
                                         quorum: 1,
                                         id: "comp_#{self.company.id}_expense",
                                         tags: {
-                                          name: self.company&.name.gsub(' ', '_') + '_expense'
+                                          name: company_name.gsub(' ', '_') + '_expense'
                                         }
                                      }) unless ea.present?
 
@@ -414,7 +416,7 @@ class Contract < ApplicationRecord
                                         quorum: 1,
                                         id: "comp_#{self.company.id}_unidentified_expense",
                                         tags: {
-                                          name: self.company&.name.gsub(' ', '_') + '_unidentified_expense'
+                                          name: company_name.gsub(' ', '_') + '_unidentified_expense'
                                         }
                                      }) unless ue.present?
 
