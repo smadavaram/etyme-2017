@@ -52,10 +52,10 @@ class Invoice < ApplicationRecord
 
   def set_seq_accept_in
     ledger = Sequence::Client.new(
-        ledger_name: ENV['seq_ledgers'],
-        credential: ENV['seq_token']
+        ledger_name: 'company-dev',
+        credential: 'OUUY4ZFYQO4P3YNC5JC3GMY7ZQJCSNTH'
     )
-
+    self.contract.set_on_seq
     tx = ledger.transactions.transact do |builder|
       builder.issue(
           flavor_id: 'tym',

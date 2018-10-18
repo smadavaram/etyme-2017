@@ -11,7 +11,7 @@ class Company::TimesheetsController < Company::BaseController
   include CandidateHelper
 
   def index
-    @timesheets = current_company.timesheets.submitted_timesheets.paginate(page: params[:page], per_page: 10)
+    @timesheets = current_company.timesheets.includes(contract: [buy_contracts: [:company, :candidate]]).submitted_timesheets.paginate(page: params[:page], per_page: 10)
 
     # @rec_search = current_company.received_timesheets.search(params[:q])
     # @received_timesheets   = @rec_search.result(distinct: true).paginate(page: params[:page], per_page: 10) || []
@@ -59,23 +59,27 @@ class Company::TimesheetsController < Company::BaseController
   end
 
   def submit
-      @timesheet_approver = current_user.timesheet_approvers.new(timesheet_id: @timesheet.id , status: Timesheet.statuses[:submitted].to_i)
-      if @timesheet_approver.save
-        flash[:success] = "Successfully Submitted"
-      else
-        flash[:errors] = @timesheet_approver.errors.full_messages
-      end
-      redirect_back fallback_location: root_path
+    @timesheet_approver = current_user.timesheet_approvers.new(timesheet_id: @timesheet.id , status: Timesheet.statuses[:submitted].to_i)
+    if @timesheet_approver.save
+      flash[:success] = "Successfully Submitted"
+    else
+      flash[:errors] = @timesheet_approver.errors.full_messages
+    end
+    redirect_back fallback_location: root_path
   end
 
   def reject
-    if current_user.timesheet_approvers.create!(timesheet_id: @timesheet.id , status: Timesheet.statuses[:rejected].to_i)
-      @timesheet.rejected!
-      flash[:success] = "Successfully Approved"
-    else
-      flash[:errors] = @timesheet.errors.full_messages
-    end
+    @timesheet.update_attributes(status: 'open')
+    @timesheet.retire_on_seq
+    flash[:errors] = 'Timesheet rejected !'
     redirect_back fallback_location: root_path
+    # if current_user.timesheet_approvers.create!(timesheet_id: @timesheet.id , status: Timesheet.statuses[:rejected].to_i)
+    #   @timesheet.rejected!
+    #   flash[:success] = "Successfully Approved"
+    # else
+    #   flash[:errors] = @timesheet.errors.full_messages
+    # end
+    # redirect_back fallback_location: root_path
   end
 
   def approve
@@ -83,7 +87,6 @@ class Company::TimesheetsController < Company::BaseController
 
     if @timesheet.update_attributes(status: "approved")
       con_cycle = ContractCycle.find(@timesheet.ta_cycle_id)
-      # binding.pry
       arr = Timesheet.where(ta_cycle_id: @timesheet.ta_cycle_id).pluck(:ta_cycle_id).uniq.compact.first
       
       total_count = Timesheet.where(ta_cycle_id: arr).count
@@ -98,7 +101,7 @@ class Company::TimesheetsController < Company::BaseController
       # end
       # @timesheet.contract.invoice_generate(con_cycle)
 
-      invoices = @timesheet.contract.invoices.where("(start_date <= ? AND end_date >= ?) OR (start_date <= ? AND end_date >= ?)", @timesheet.start_date, @timesheet.start_date, @timesheet.end_date, @timesheet.end_date)
+      invoices = @timesheet.contract.invoices.where(invoice_type: 'timesheet_invoice').where("(start_date <= ? AND end_date >= ?) OR (start_date <= ? AND end_date >= ?)", @timesheet.start_date, @timesheet.start_date, @timesheet.end_date, @timesheet.end_date)
       invoices.each do |i|
         hours = 0
         if @timesheet.start_date >= i.start_date && @timesheet.end_date <= i.end_date
@@ -142,7 +145,7 @@ class Company::TimesheetsController < Company::BaseController
   def check_invoice
     @invoice = Invoice.where(id: (params[:id] || params[:timesheet_id])).first
     if @invoice.present?
-      @timesheets = current_company.timesheets.approved_timesheets.where("start_date >= ? AND end_date <= ?", @invoice.start_date, @invoice.end_date)
+      @timesheets = current_company.timesheets.includes(contract: :sell_contracts).approved_timesheets.where(contract_id: @invoice.contract_id).where("start_date >= ? AND end_date <= ?", @invoice.start_date, @invoice.end_date)
     else
       @errors = true
     end

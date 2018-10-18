@@ -22,8 +22,8 @@ class Timesheet < ApplicationRecord
   belongs_to :ta_cycle, optional: true, foreign_key: :ta_cycle_id, class_name: 'ContractCycle'
 
   # before_validation :set_recurring_timesheet_cycle
-  # after_update  :set_ts_on_seq, if: Proc.new{|t| t.status_changed? && t.submitted? && t.total_time.to_f > 0}
-  # after_update  :set_ta_on_seq, if: Proc.new{|t| t.status_changed? && t.approved? && t.total_time.to_f > 0}
+  after_update  :set_ts_on_seq, if: Proc.new{|t| t.status_changed? && t.submitted? && t.total_time.to_f > 0}
+  after_update  :set_ta_on_seq, if: Proc.new{|t| t.status_changed? && t.approved? && t.total_time.to_f > 0}
 
   # after_create  :create_timesheet_logs
   # after_create  :notify_timesheet_created
@@ -279,10 +279,10 @@ class Timesheet < ApplicationRecord
       ledger_name: 'company-dev',
       credential: 'OUUY4ZFYQO4P3YNC5JC3GMY7ZQJCSNTH'
     )
-
+    self.contract.set_on_seq
     tx = ledger.transactions.transact do |builder|
       builder.issue(
-          flavor_id: 'time',
+          flavor_id: 'min',
           amount: (self.total_time.to_f * 60).to_i,
           destination_account_id: "cons_#{self.contract.buy_contracts.first.candidate.id}",
           action_tags: {
@@ -302,18 +302,46 @@ class Timesheet < ApplicationRecord
     end
   end
 
+  def retire_on_seq
+    ledger = Sequence::Client.new(
+      ledger_name: 'company-dev',
+      credential: 'OUUY4ZFYQO4P3YNC5JC3GMY7ZQJCSNTH'
+    )
+    self.contract.set_on_seq
+    tx = ledger.transactions.transact do |builder|
+      builder.retire(
+          flavor_id: 'min',
+          amount: (self.total_time.to_f * 60).to_i,
+          source_account_id: "cons_#{self.contract.buy_contracts.first.candidate.id}",
+          action_tags: {
+            "Fixed" => "false",
+            "Status" => "open",
+            "Account" => "",
+            "CycleId" => self.ts_cycle_id.to_s,
+            "ObjType" => "TS",
+            "ContractId" => self.contract_id.to_s,
+            "PostingDate" => Time.now.strftime("%m/%d/%Y"),
+            "CycleFrom" => self.start_date.strftime("%m/%d/%Y"),
+            "CycleTo" => self.end_date.strftime("%m/%d/%Y"),
+            "Documentdate" => Time.now.strftime("%m/%d/%Y"),
+            "TransactionType" => self.contract.buy_contracts.first.contract_type == "C2C" ? "C2C" : "W2"
+          },
+      )
+    end    
+  end
+
  def set_ta_on_seq
     ledger = Sequence::Client.new(
       ledger_name: 'company-dev',
       credential: 'OUUY4ZFYQO4P3YNC5JC3GMY7ZQJCSNTH'
     )
-
+    self.contract.set_on_seq
     tx = ledger.transactions.transact do |builder|
       builder.transfer(
-          flavor_id: 'time',
+          flavor_id: 'min',
           amount: (self.total_time.to_f * 60).to_i,
-          destination_account_id: "cust_#{self.contract.sell_contracts.first.company.id}_treasury",
           source_account_id: "cons_#{self.contract.buy_contracts.first.candidate.id}",
+          destination_account_id: "comp_#{self.contract.company_id}_treasury",
           action_tags: {
               "Fixed" => "false",
               "Status" => "open",

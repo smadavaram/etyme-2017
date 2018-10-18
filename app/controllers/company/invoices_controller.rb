@@ -9,7 +9,7 @@ class Company::InvoicesController < Company::BaseController
   add_breadcrumb "INVOICES", '#', options: { title: "INVOICES" }
 
   def index
-    @invoices = Invoice.open_invoices.joins(:contract).where(contracts: {company_id: current_company.id}).order("created_at DESC")
+    @invoices = Invoice.open_invoices.joins(:contract).where(contracts: {company_id: current_company.id}, invoice_type: 'timesheet_invoice').order("created_at DESC")
   end
 
   def cleared_invoice

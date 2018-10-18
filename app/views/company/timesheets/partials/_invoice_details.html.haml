@@ -10,6 +10,8 @@
             %th Start Date
             %th End Date
             %th Status
+            %th Time
+            %th Amount
         %tbody
           -  @timesheets.each_with_index do |tms , index|
             %tr
@@ -18,3 +20,5 @@
               %td= tms.start_date
               %td= tms.end_date
               %td= tms.status.humanize
+              %td= tms.total_time
+              %td= tms.total_time * tms.contract.sell_contracts.first.customer_rate.to_i

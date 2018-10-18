@@ -4,7 +4,7 @@ class Candidate::TimesheetsController < Candidate::BaseController
 
   def index
     @dates = Time.now-1.month
-    @timesheets = current_candidate.timesheets.open_timesheets.where("(start_date >= ? AND start_date <= ?) OR (end_date >= ? AND end_date <= ?) ",(@dates.beginning_of_week-1.day), (@dates.end_of_week - 1.day), (@dates.beginning_of_week-1.day), (@dates.end_of_week - 1.day))
+    @timesheets = current_candidate.timesheets.includes(:contract).open_timesheets.where("(start_date >= ? AND start_date <= ?) OR (end_date >= ? AND end_date <= ?) ",(@dates.beginning_of_week-1.day), (@dates.end_of_week - 1.day), (@dates.beginning_of_week-1.day), (@dates.end_of_week - 1.day))
     @time_cycle = [((@dates.beginning_of_week-1.day).strftime("%m/%d/%Y") +" - " + (@dates.end_of_week - 1.day).strftime("%m/%d/%Y")),
                    ((@dates.end_of_week ).strftime("%m/%d/%Y") +" - " + (@dates.end_of_week + 6.day).strftime("%m/%d/%Y")),
                    ((@dates.end_of_week + 7.day).strftime("%m/%d/%Y") +" - " + (@dates.end_of_week + 13.day).strftime("%m/%d/%Y")),
@@ -22,7 +22,7 @@ class Candidate::TimesheetsController < Candidate::BaseController
     dates = params[:date_range].split(" - ")
     @start_date = Date.strptime(dates[0].gsub('/', '-'), '%m-%d-%Y')
     @end_date = Date.strptime(dates[1].gsub('/', '-'), '%m-%d-%Y')
-    @timesheets = current_candidate.timesheets.open_timesheets.where("(start_date >= ? AND start_date <= ?) OR (end_date >= ? AND end_date <= ?) ",@start_date, @end_date, @start_date, @end_date)
+    @timesheets = current_candidate.timesheets.includes(:contract).open_timesheets.where("(start_date >= ? AND start_date <= ?) OR (end_date >= ? AND end_date <= ?) ",@start_date, @end_date, @start_date, @end_date)
   end
 
   def new

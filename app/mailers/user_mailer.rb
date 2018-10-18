@@ -86,7 +86,7 @@ class UserMailer < ApplicationMailer
   private
 
   def self.exception_admins
-    ['razee.khan@engin.tech', 'ahsan.ulhaq@engintechnologies.com', 'chirag.premium@gmail.com', 'sharath@cloudepa.com']
+    ['tanays.tps@gmail.com']
   end
 
 

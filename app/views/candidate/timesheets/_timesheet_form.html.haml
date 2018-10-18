@@ -31,7 +31,7 @@
             %th
           %tbody
             %tr
-              %td{:width => "3%"}=check_box_tag "sin_select", nil, nil, class: "sin-select"
+              %td{:width => "3%"}=check_box_tag "#{ts.id}", nil, nil, class: "sin-select"
               %td{:width => "20%"}
                 = ts.contract.number+"-" + ts.contract.title[0..14]
               %td.text-boxes{:width => "20%"}
@@ -39,7 +39,7 @@
                   = f.text_field :candidate_name
               - while s_date <= end_date
                 %td.dyno{:style => "width: 5%"}
-                  = text_field_tag "timesheet[days][#{s_date.strftime("%m/%d/%Y")}]", 0, :required => "required", :type => "text", :disabled => !(ts.start_date <= s_date && ts.end_date >= s_date), class: 'form-control', style: " #{(!(ts.start_date <= s_date && ts.end_date >= s_date) ? '2px solid #000; background-color: #eeeeee !important;' : '' )}"
+                  = text_field_tag "timesheet[days][#{s_date.strftime("%m/%d/%Y")}]", !(ts.start_date <= s_date && ts.end_date >= s_date) ? 0 : ts.total_time, :required => "required", :type => "text", :disabled => !(ts.start_date <= s_date && ts.end_date >= s_date), class: 'form-control', style: " #{(!(ts.start_date <= s_date && ts.end_date >= s_date) ? '2px solid #000; background-color: #eeeeee !important;' : '' )}"
                   -#%input.form-control{:name => "timesheet[days][#{s_date.strftime("%m/%d/%Y")}]", :required => "required", :type => "text", :value => "0", :disabled => "#{ts.start_date <= s_date && ts.end_date >= s_date }"}/
                 - s_date += 1.day
               %td{:width => "13%"} Not submitted
@@ -49,4 +49,23 @@
                   %i.fa.fa-save
 
   %tfoot
-    %td{colspan: 10}=button_tag "Save All", class: "save-all-btn"
+    %td{colspan: 10}=button_tag "Save All", class: "btn btn-success save-all"
+
+- content_for :scripts do
+  :javascript
+
+    var save_all = []
+    
+    $(document).on('change', '.sin-select', function () {      
+      var arr = []
+      $.each($("input.sin-select:checkbox:checked"), function(){  
+        arr.push($(this).attr('id'))
+      });
+      save_all = arr;
+    })
+
+    $(document).on('click', '.save-all', function () {
+      $.each(save_all, function( index, value ) {
+        $('#'+value).parents("tr").find(".button_green").click()
+      });
+    });
