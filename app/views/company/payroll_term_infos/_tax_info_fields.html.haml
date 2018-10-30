@@ -3,6 +3,6 @@
     .col-md-6
       .form-group
         = f.text_field :tax_term, class: 'form-control input'
+    
     .col-md-2	
-      %a.bttn.btn-add.remove-multi-fields.delete_icon
-        %i.fa.fa-trash
+      = link_to_remove_association "", f , class: 'delete_icon fa fa-trash'

@@ -122,6 +122,10 @@ GEM
       rails (>= 3.2)
     font-awesome-rails (4.7.0.2)
       railties (>= 3.2, < 5.2)
+    fullcalendar-rails (3.9.0.0)
+      jquery-rails (>= 4.0.5, < 5.0.0)
+      jquery-ui-rails (>= 5.0.2)
+      momentjs-rails (>= 2.9.0)
     globalid (0.4.1)
       activesupport (>= 4.2.0)
     haml (5.0.4)
@@ -197,6 +201,8 @@ GEM
     mini_mime (1.0.0)
     mini_portile2 (2.3.0)
     minitest (5.11.1)
+    momentjs-rails (2.20.1)
+      railties (>= 3.1)
     multi_json (1.12.2)
     multi_xml (0.6.0)
     multipart-post (2.0.0)
@@ -425,6 +431,7 @@ DEPENDENCIES
   figaro
   filepicker-rails
   font-awesome-rails
+  fullcalendar-rails
   haml-rails
   has_scope
   hirb
@@ -438,6 +445,7 @@ DEPENDENCIES
   mina
   mina-multistage
   mini_magick
+  momentjs-rails
   nested_form_fields
   nokogiri
   omniauth

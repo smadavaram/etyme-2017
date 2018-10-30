@@ -1,5 +1,5 @@
 class ContractSaleCommision < ApplicationRecord
-  belongs_to :contract, optional: true
+  belongs_to :buy_contract, optional: true
   has_many :csc_accounts, dependent: :destroy
 
   accepts_nested_attributes_for :csc_accounts, allow_destroy: true,reject_if: :all_blank

@@ -156,3 +156,7 @@ gem "better_errors"
 gem "binding_of_caller"
 
 gem 'nested_form_fields'
+
+
+gem 'fullcalendar-rails'
+gem 'momentjs-rails'

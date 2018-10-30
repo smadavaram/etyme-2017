@@ -71,6 +71,7 @@
           =link_to "Tree View", tree_view_contract_path(@contract.number), class: "btn btn-primary"
           =link_to 'Download', download_contract_path(@contract), class: 'btn btn-primary'
           =link_to 'Edit', '#', class: 'btn btn-primary'
+          =link_to 'Generate Salary Cycle', generate_salary_cycles_company_accountings_path, class: 'btn btn-primary'
         .col-sm-6.col-md-6.col-lg-6
           %h2.contract_heading
             sell-  #{@contract.sell_contracts.first.number}
@@ -366,7 +367,7 @@
 
                 %h5
                   Salary Date:
-                  = @contract&.company&.payroll_infos&.first&.payroll_date.try(:strftime, '%d').to_s+ ' of each month'
+                  = @contract&.company&.payroll_infos&.first&.sal_cal_date.try(:strftime, '%d').to_s+ ' of each month'
             %br
             %div.table-responsive
               %h3.contract_sub_heading

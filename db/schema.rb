@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema.define(version: 20181015120424) do
+ActiveRecord::Schema.define(version: 20181025100450) do
 
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
@@ -651,6 +651,8 @@ ActiveRecord::Schema.define(version: 20181015120424) do
     t.datetime "next_date"
     t.string "next_action"
     t.datetime "next_action_date"
+    t.date "doc_date"
+    t.date "post_date"
     t.index ["candidate_id"], name: "index_contract_cycles_on_candidate_id"
     t.index ["company_id"], name: "index_contract_cycles_on_company_id"
     t.index ["contract_id"], name: "index_contract_cycles_on_contract_id"
@@ -794,6 +796,8 @@ ActiveRecord::Schema.define(version: 20181015120424) do
     t.bigint "accountable_id"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.decimal "total_amount", default: "0.0"
+    t.integer "contract_id"
     t.index ["accountable_type", "accountable_id"], name: "index_csc_accounts_on_accountable_type_and_accountable_id"
     t.index ["contract_sale_commision_id"], name: "index_csc_accounts_on_contract_sale_commision_id"
   end
@@ -1200,6 +1204,21 @@ ActiveRecord::Schema.define(version: 20181015120424) do
     t.string "weekend_sch"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.time "scal_day_time"
+    t.date "scal_date_1"
+    t.date "scal_date_2"
+    t.string "scal_day_of_week"
+    t.boolean "scal_end_of_month", default: false
+    t.time "sp_day_time"
+    t.date "sp_date_1"
+    t.date "sp_date_2"
+    t.string "sp_day_of_week"
+    t.boolean "sp_end_of_month", default: false
+    t.time "sclr_day_time"
+    t.date "sclr_date_1"
+    t.date "sclr_date_2"
+    t.string "sclr_day_of_week"
+    t.boolean "sclr_end_of_month", default: false
     t.index ["company_id"], name: "index_payroll_infos_on_company_id"
   end
 
@@ -1283,6 +1302,12 @@ ActiveRecord::Schema.define(version: 20181015120424) do
     t.integer "sclr_cycle_id"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.decimal "total_amount", default: "0.0"
+    t.decimal "commission_amount", default: "0.0"
+    t.decimal "billing_amount", default: "0.0"
+    t.integer "total_approve_time", default: 0
+    t.decimal "rate", default: "0.0"
+    t.decimal "balance", default: "0.0"
   end
 
   create_table "sell_contracts", force: :cascade do |t|

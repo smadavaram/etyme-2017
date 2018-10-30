@@ -281,13 +281,13 @@ class Contract < ApplicationRecord
     count = 0
     self.in_progress.each do |contract|
       contract.set_timesheet_submit(count)
-      contract.contract_cycles.where('end_date > ?', contract.end_date).where.not(cycle_type: ['SalaryClear', 'ClientExpenseApprove', 'ClientExpenseInvoice']).update_all(end_date: contract.end_date)
+      # contract.contract_cycles.where('end_date > ?', contract.end_date).where.not(cycle_type: ['SalaryClear', 'ClientExpenseApprove', 'ClientExpenseInvoice']).update_all(end_date: contract.end_date)
       # contract.invoice_generate
     end
-    Salary.set_salary_clear
-    ContractSaleCommision.set_commission_clear
-    VendorBill.set_vendor_bill_clear
-    ClientBill.set_client_bill_clear
+    # Salary.set_salary_clears
+    # ContractSaleCommision.set_commission_clear
+    # VendorBill.set_vendor_bill_clear
+    # ClientBill.set_client_bill_clear
   end
 
   # def check_for_ts_approve

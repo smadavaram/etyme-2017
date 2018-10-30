@@ -17,7 +17,7 @@ class Invoice < ApplicationRecord
   # before_validation :set_rate , on: :create
   # before_validation :set_consultant_and_total_amount, on: :create , if: Proc.new{|invoice| !invoice.contract.has_child?}
     # before_validation :set_total_amount , on: :create , if: Proc.new{|invoice| !invoice.contract.has_child?}
-  # before_validation :set_commissions , on: :create , if: Proc.new{|invoice| !invoice.contract.has_child?}
+  before_validation :set_commissions , on: :create , if: Proc.new{|invoice| !invoice.contract.has_child?}
   # before_validation :set_start_date_and_end_date , on: :create , if: Proc.new{|invoice| !invoice.contract.has_child?}
 
   # after_create      :set_next_invoice_date , if: Proc.new{|invoice| !invoice.contract.has_child?}

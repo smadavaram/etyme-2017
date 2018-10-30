@@ -1,200 +1,108 @@
-%section#widget-grid
-  .row
-    %article.col-xs-12.col-sm-12.col-md-12.col-lg-12
-      %table#jqgrid
-      #pjqgrid
+#content
+  %body
+    %section#widget-grid
+      .row
+        %article.col-xs-12.col-sm-12.col-md-12.col-lg-12.sortable-grid.ui-sortable
+          #wid-id-1.jarviswidget.jarviswidget-color-blueDark.jarviswidget-sortable{"data-widget-editbutton" => "false", :role => "widget"}
+            %header{:role => "heading"}
+              %span.widget-icon
+                %i.fa.fa-table
+              %h2 Open Bill (Salary)
+            / widget div
+            %div{:role => "content"}
+              .jarviswidget-editbox
+              .widget-body.no-padding
+                #datatable_fixed_column_wrapper.dataTables_wrapper.form-inline.dt-bootstrap.no-footer
+                  .dt-toolbar
+                    .col-xs-12.col-sm-6.hidden-xs
+                      #datatable_fixed_column_filter.dataTables_filter
+                        %label
+                          %span.input-group-addon{style: "background-color:#eee;"}
+                            %i.glyphicon.glyphicon-search
+                          %input.form-control{"aria-controls" => "datatable_fixed_column", :placeholder => "", :type => "search"}/
+                    .col-sm-6.col-xs-12.hidden-xs
+                      .toolbar
+                        .text-right
+                  -#= button_tag 'NEW' ,class: 'btn btn-success btn-md pull-right header-btn margin-top-5' , "data-toggle": "modal" , "data-target":"#new-job"
+                  %table#datatable_fixed_column.table.table-striped.table-bordered.dataTable.no-footer{"aria-describedby" => "datatable_fixed_column_info", :role => "grid", :style => "width: 100%;", :width => "100%"}
+                    %thead
+                      -#%tr{:role => "row"}
+                      -#  %th.hasinput{ :style => "width:10%"}
+                      -#    %input.form-control{:placeholder => "id", :type => "text"}/
+                      -#  %th.hasinput{ :style => "width:10%"}
+                      -#    %input.form-control{:placeholder => "Contract", :type => "text"}/
+                      -#  %th.hasinput{ :style => "width:10%"}
+                      -#    %input.form-control{:placeholder => "Start Date", :type => "text"}/
+                      -#  %th.hasinput{ :style => "width:10%"}
+                      -#    %input.form-control{:placeholder => "End Date", :type => "text"}/
+                      -#  %th.hasinput{ :style => "width:10%"}
+                      -#    %input.form-control{:placeholder => "Hours", :type => "text"}/
+                      -#  %th.hasinput{ :style => "width:10%"}
+                      -#    %input.form-control{:placeholder => "Rate", :type => "text"}/
+                      -#  %th.hasinput{ :style => "width:10%"}
+                      -#    %input.form-control{:placeholder => "Status", :type => "text"}/
+                      -#  %th.hasinput{ :style => "width:10%"}
+                      -#    %input.form-control{:placeholder => "Actions", :type => "text"}/
+                      %tr{:role => "row"}
+                        %th id
+                        %th Contract
+                        %th Customer
+                        %th Salary Calculation Cycle
+                        %th Hours
+                        %th Rate
+                        %th Total
+                        %th Attachment
+                        %th Status
+                        %th Actions
+                    %tbody
+                      -  @salaries.each_with_index do |salary , index|
+                        %tr
+                          %td= salary.id
+                          %td
+                            = link_to "#"+salary.contract.id.to_s, contract_path(salary. contract)
+                            %br
+                            = "-"+salary.contract.title[0..10]
+                            %br
+                            = "-"+salary.contract.client.full_name[0..10]
+                            %br
+                            = "-"+salary.contract.buy_contracts.first.contract_type
+                            %br
+                            = "-"+salary.contract.buy_contracts.first.candidate.full_name[0..10]
+                          %td= salary.contract.sell_contracts.first.company.full_name
+                          %td= salary.start_date.to_s + " - " + salary.end_date.to_s
+                          %td= salary.total_approve_time
+                          %td= salary.rate
+                          %td= salary.total_approve_time.to_i *  salary.rate.to_i
+                          %td
+                          %td= salary.status.humanize
+                          %td
+                            = link_to raw("<i class='fa fa-eye'></i>"), check_salary_company_accountings_path(id: salary.id), remote: true, class: 'btn btn-md btn-default btn-primary',title: "Details"
+                            =# link_to raw("<i class='fa fa-fax'></i>"), accept_salary_contract_salary_path(salary.contract, salary), class: 'btn btn-md btn-default btn-primary',title: "Submit salary", method: "POST", data: {confirm:  'Are you sure?'} if salary.pending_salary?
+                            =# link_to raw("<i class='fa fa-dollar'></i>"), new_salary_receive_payment_path(salary), class: 'btn btn-md btn-default btn-primary',title: "Paid salary", data: {confirm:  'Are you sure?'} if salary.open?
+                            =# link_to raw("<i class='fa  fa-camera'></i>"), edit_salary_path( salary), class: 'btn btn-md btn-default btn-primary',title: "Change end date" if salary.open?
+                            =# link_to raw("<i class='fa fa-calendar'></i>"), edit_salary_path( salary), class: 'btn btn-md btn-default btn-primary',title: "Change end date" if salary.pending_salary?
+                            =# link_to raw("<i class='fa fa-fax'></i>") , timesheet_check_salary_path(salary), target: '_blank', class: 'btn btn-md btn-default btn-primary',title: "Submit salary"
 
-- @temp = []
-- @temp = []
--(0..20).each do |i|
-  -@temp.push({transaction_id: "#{rand(999)}", creation_date: "02/02/2018", contract: "Contract#{i}",
-               client: "Client#{i}", tax_type: "1099_w2", candidate: "Candidate#{i}",
-               company_vendor: "company#{i}", buy_rate: "#{rand(999)}", uscis_rate: rand(999),
-               per_hour: rand(999), hours: "#{rand(9)}", expense_type: ['rent', 'food', 'transport'][rand(3)],
-               amount: rand(999),  current_to_pay: rand(999), attachment: "NULL", status: "Pending" } )
+.modal.fade{id: "salary-confirmation-model"}
+  .modal-dialog
+    .modal-content
+      .modal-header
+        %button.close{"aria-hidden" => "true", "data-dismiss" => "modal", :type => "button"}
+          ×
+        %h4.modal-title
+          %strong Salary Details
+      #salary-confirmation-model-body.modal-body
 
 
-/ END SHORTCUT AREA
-/ ==================================================
-%script{"data-pace-options" => "{ \"restartOnRequestAfter\": true }", :src => "js/plugin/pace/pace.min.js"}
-%script{:src => "https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"}
-%script{:src => "https://ajax.googleapis.com/ajax/libs/jqueryui/1.12.1/jquery-ui.min.js"}
-:javascript
-  $(document).ready(function() {
-    pageSetUp();
-    var jqgrid_data = #{raw(@temp.to_json)};
+:css
+  .form-control
+  {
+    background-color: white !important;
+  }
 
-    jQuery("#jqgrid").jqGrid({
-      data : jqgrid_data,
-      datatype : "local",
-      height : 'auto',
-      colNames : ['Transaction ID', 'Creation Date', 'Contract', 'Client', 'Tax Type', 'candidate',
-                  'Company Vendor', 'Buy Rate', 'USCIS Rate', 'Per Hour', 'Hours', 'Expense type', 'Amount',
-                  'Current To Pay', 'Attachment', 'Status', 'Actions'],
-      colModel : [ {
-        name : 'transaction_id',
-        index : 'transaction_id'
-      }, {
-        name : 'creation_date',
-        index : 'creation_date'
-      }, {
-        name : 'contract',
-        index : 'contract',
-        editable : true
-      }, {
-        name : 'client',
-        index : 'client',
-        editable : true
-      }, {
-        name : 'tax_type',
-        index : 'tax_type',
-        align : "right",
-        editable : true
-      }, {
-        name : 'candidate',
-        index : 'candidate',
-        align : "right",
-        editable : true
-      }, {
-        name : 'company_vendor',
-        index : 'company_vendor',
-        align : "right",
-        editable : true
-      },{
-        name : 'buy_rate',
-        index : 'buy_rate',
-        sortable : false
-      },{
-        name : 'uscis_rate',
-        index : 'uscis_rate',
-        sortable : false
-      },{
-        name : 'per_hour',
-        index : 'per_hour',
-        sortable : false
-      },{
-        name : 'hours',
-        index : 'hours',
-        sortable : false
-      },{
-        name : 'expense_type',
-        index : 'expense_type',
-        sortable : false
-      },{
-        name : 'amount',
-        index : 'amount',
-        sortable : false
-      },{
-        name : 'current_to_pay',
-        index : 'current_to_pay',
-        sortable : false
-      },{
-        name : 'attachment',
-        index : 'attachment',
-        sortable : false
-      },{
-        name : 'status',
-        index : 'status',
-        sortable : false
-      },{
-        name : 'act',
-        index : 'act',
-        sortable : false
-      }],
-      rowNum : 10,
-      rowList : [10, 20, 30],
-      pager : '#pjqgrid',
-      sortname : 'id',
-      toolbarfilter : true,
-      viewrecords : true,
-      sortorder : "asc",
-      gridComplete : function() {
-        var ids = jQuery("#jqgrid").jqGrid('getDataIDs');
-        for (var i = 0; i < ids.length; i++) {
-          var cl = ids[i];
-          be = "<button class='btn btn-xs btn-default' data-original-title='Edit Row' onclick=\"jQuery('#jqgrid').editRow('" + cl + "');\"><i class='fa fa-pencil'></i></button>";
-          se = "<button class='btn btn-xs btn-default' data-original-title='Save Row' onclick=\"jQuery('#jqgrid').saveRow('" + cl + "');\"><i class='fa fa-save'></i></button>";
-          ca = "<button class='btn btn-xs btn-default' data-original-title='Cancel' onclick=\"jQuery('#jqgrid').restoreRow('" + cl + "');\"><i class='fa fa-times'></i></button>";
-          //ce = "<button class='btn btn-xs btn-default' onclick=\"jQuery('#jqgrid').restoreRow('"+cl+"');\"><i class='fa fa-times'></i></button>";
-          //jQuery("#jqgrid").jqGrid('setRowData',ids[i],{act:be+se+ce});
-          jQuery("#jqgrid").jqGrid('setRowData', ids[i], {
-            act : be + se + ca
-          });
-        }
-      },
-      editurl : "dummy.html",
-      caption : "Timesheet",
-      multiselect : true,
-      autowidth : true,
-
+- content_for :scripts do
+  :javascript
+    $(document).ready(function() {
+      $(".best_in_place").best_in_place();
+      $(".best_in_place").bind("ajax:success", function(){ location.reload() });
     });
-    jQuery("#jqgrid").jqGrid('navGrid', "#pjqgrid", {
-      edit : false,
-      add : false,
-      del : true
-    });
-    jQuery("#jqgrid").jqGrid('inlineNav', "#pjqgrid");
-    /* Add tooltips */
-    $('.navtable .ui-pg-button').tooltip({
-      container : 'body'
-    });
-
-    jQuery("#m1").click(function() {
-      var s;
-      s = jQuery("#jqgrid").jqGrid('getGridParam', 'selarrrow');
-      alert(s);
-    });
-    jQuery("#m1s").click(function() {
-      jQuery("#jqgrid").jqGrid('setSelection', "13");
-    });
-
-    // remove classes
-    $(".ui-jqgrid").removeClass("ui-widget ui-widget-content");
-    $(".ui-jqgrid-view").children().removeClass("ui-widget-header ui-state-default");
-    $(".ui-jqgrid-labels, .ui-search-toolbar").children().removeClass("ui-state-default ui-th-column ui-th-ltr");
-    $(".ui-jqgrid-pager").removeClass("ui-state-default");
-    $(".ui-jqgrid").removeClass("ui-widget-content");
-
-    // add classes
-    $(".ui-jqgrid-htable").addClass("table table-bordered table-hover");
-    $(".ui-jqgrid-btable").addClass("table table-bordered table-striped");
-
-    $(".ui-pg-div").removeClass().addClass("btn btn-sm btn-primary");
-    $(".ui-icon.ui-icon-plus").removeClass().addClass("fa fa-plus");
-    $(".ui-icon.ui-icon-pencil").removeClass().addClass("fa fa-pencil");
-    $(".ui-icon.ui-icon-trash").removeClass().addClass("fa fa-trash-o");
-    $(".ui-icon.ui-icon-search").removeClass().addClass("fa fa-search");
-    $(".ui-icon.ui-icon-refresh").removeClass().addClass("fa fa-refresh");
-    $(".ui-icon.ui-icon-disk").removeClass().addClass("fa fa-save").parent(".btn-primary").removeClass("btn-primary").addClass("btn-success");
-    $(".ui-icon.ui-icon-cancel").removeClass().addClass("fa fa-times").parent(".btn-primary").removeClass("btn-primary").addClass("btn-danger");
-
-    $(".ui-icon.ui-icon-seek-prev").wrap("<div class='btn btn-sm btn-default'></div>");
-    $(".ui-icon.ui-icon-seek-prev").removeClass().addClass("fa fa-backward");
-
-    $(".ui-icon.ui-icon-seek-first").wrap("<div class='btn btn-sm btn-default'></div>");
-    $(".ui-icon.ui-icon-seek-first").removeClass().addClass("fa fa-fast-backward");
-
-    $(".ui-icon.ui-icon-seek-next").wrap("<div class='btn btn-sm btn-default'></div>");
-    $(".ui-icon.ui-icon-seek-next").removeClass().addClass("fa fa-forward");
-
-    $(".ui-icon.ui-icon-seek-end").wrap("<div class='btn btn-sm btn-default'></div>");
-    $(".ui-icon.ui-icon-seek-end").removeClass().addClass("fa fa-fast-forward");
-
-  })
-
-  $(window).on('resize.jqGrid', function() {
-    $("#jqgrid").jqGrid('setGridWidth', $("#content").width());
-  })
-:javascript
-  var _gaq = _gaq || [];
-  _gaq.push(['_setAccount', 'UA-XXXXXXXX-X']);
-  _gaq.push(['_trackPageview']);
-
-  (function() {
-    var ga = document.createElement('script');
-    ga.type = 'text/javascript';
-    ga.async = true;
-    ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
-    var s = document.getElementsByTagName('script')[0];
-    s.parentNode.insertBefore(ga, s);
-  })();

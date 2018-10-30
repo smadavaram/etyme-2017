@@ -9,8 +9,7 @@ class Candidate::InvitationsController < Devise::InvitationsController
   def edit
     # resource.build_consultant_profile
     # @document = resource.build_document
-
-    resource.build_address
+    # resource.build_address
     super
   end
 

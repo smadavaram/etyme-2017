@@ -16,6 +16,7 @@ class BuyContract < ApplicationRecord
 
   before_create :set_number
   before_create :set_first_timesheet_date
+  after_create  :set_salary_frequency
 
   accepts_nested_attributes_for :contract_buy_business_details, allow_destroy: true,reject_if: :all_blank
   accepts_nested_attributes_for :contract_sale_commisions, allow_destroy: true,reject_if: :all_blank
@@ -49,6 +50,12 @@ class BuyContract < ApplicationRecord
       end
     end
     self.first_date_of_timesheet = time_sheet_date
+  end
+
+  def set_salary_frequency
+    self.salary_process = self.salary_calculation
+    self.salary_clear = self.salary_calculation
+    self.save
   end
 
   # def display_number

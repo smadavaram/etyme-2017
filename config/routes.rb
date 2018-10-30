@@ -302,6 +302,8 @@ Rails.application.routes.draw do
       get :salary_to_pay, on: :collection
       get :salary_advance, on: :collection
       get :salary_calculation, on: :collection
+      get :check_salary, on: :collection
+      get :generate_salary_cycles, on: :collection
     end
 
   end
