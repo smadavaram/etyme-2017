@@ -504,11 +504,20 @@ module Contracts
         doc_date =  set_salary_clear_date
         end_date = doc_date - buy_contract.payment_term.to_i
         start_date = end_date - (sclr_frequency == 'weekly' ? 6.days : 13.days)
-      elsif ['monthly'].include? sclr_frequency
+      elsif  sclr_frequency == 'monthly'
         date = set_salary_clear_date
-        start_date = date.beginning_of_month.to_date
-        end_date = date.end_of_month.to_date
-        doc_date = date + buy_contract.payment_term.to_i.months
+        # binding.pry
+        doc_date = date + 1.months
+        # binding.pry
+        puts "-----------------------#{@count}-------------------"
+        end_date = Date.new( date.year, (doc_date-buy_contract.payment_term.to_i.months).month, buy_contract.term_no.to_i )
+        # binding.pry
+        start_date = end_date - 1.month+1
+      elsif sclr_frequency == 'twice a month'
+        date = set_salary_clear_date
+        doc_date = date
+        end_date = date - buy_contract.term_no.to_i
+        start_date = end_date - 15
       end
       # binding.pry
       salary_clear = ContractCycle.find_by(
@@ -524,7 +533,7 @@ module Contracts
         salary_clear = ContractCycle.create(
                     contract_id: contract_id,
                     start_date: start_date.to_date,
-                    end_date: end_date,
+                    end_date: end_date.to_date,
                     candidate_id: buy_contract.candidate_id,
                     company_id: sell_contract.company_id,
                     status: 'pending',
@@ -996,7 +1005,8 @@ module Contracts
         month = next_month_year&.strftime("%m").to_i
         year = next_month_year&.strftime("%Y").to_i
       end
-      con_cycle_ta_start_date = DateTime.new(year, month, day)
+      date = DateTime.new(year, month, day)
+      return date
     end
 
     def monthly_submit_date(date_1, start_date,end_of_month)

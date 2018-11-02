@@ -49,7 +49,7 @@ class Company::PayrollTermInfosController < Company::BaseController
   end
 
   def payroll_params
-    params.require(:payroll_info).permit(:id, :payroll_term, :payroll_type,:sal_cal_date, :payroll_date,
+    params.require(:payroll_info).permit(:id, :payroll_term, :term_no, :payroll_type,:sal_cal_date, :payroll_date,
       :weekend_sch,
       :scal_day_time, :scal_date_1, :scal_date_2, :scal_day_of_week, :scal_end_of_month,
       :sp_day_time, :sp_date_1, :sp_date_2, :sp_day_of_week, :sp_end_of_month,

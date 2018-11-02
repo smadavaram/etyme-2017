@@ -102,7 +102,6 @@ class Salary < ApplicationRecord
       month = next_month_year&.strftime("%m").to_i+2
     end
     year = next_month_year&.strftime("%Y").to_i
-    # binding.pry
     con_cycle_start_date = DateTime.new(year, month, day)
   end
 

@@ -307,7 +307,7 @@ class Company::ContractsController < Company::BaseController
                :salary_calculation, :sc_day_of_week, :sc_date_1, :sc_date_2, :sc_end_of_month,
                :commission_payment_term, :pr_start_date, :pr_end_date,
                :first_date_of_invoice, :company_id, :uscis_rate,
-               :ts_day_time, :ta_day_time, :sc_day_time, :payroll_date,
+               :ts_day_time, :ta_day_time, :sc_day_time, :payroll_date, :term_no,
                :invoice_recepit, :ir_day_time, :ir_date_1, :ir_date_2, :ir_end_of_month, :ir_day_of_week,
                contract_buy_business_details_attributes: [
                    :id, :company_contact_id, :_destroy
