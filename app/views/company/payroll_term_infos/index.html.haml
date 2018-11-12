@@ -103,7 +103,7 @@
                           .col-md-4
                             %label.control-label
                               Payroll Clear
-                          .col-md-4
+                          .col-md-3
                             .b-sal-cal
                               %div{:class => "form-group daily #{f.object.payroll_type != 'daily' ? 'hidden' : ''}"}
                                 %label.control-label
@@ -127,33 +127,35 @@
                                   = f.text_field :sclr_date_2, class: "date_1 form-control", placeholder: "DD/MM/YYYY"
                               %span{:class => "form-group month #{['twice a month', 'monthly'].include?(f.object.payroll_type) ? '' : 'hidden'}"} OR
                               = f.check_box :sclr_end_of_month, class: "month #{['twice a month', 'monthly'].include?(f.object.payroll_type) ? '' : 'hidden'}"
-                              = f.label :sclr_end_of_month, "End of month", class: "month #{['twice a month', 'monthly'].include?(f.object.payroll_type) ? '' : 'hidden'}"                                      
-
-                  .row
-                    .col-md-4
-                      %label.control-label
-                        Payroll Terms
-
-
-                    .col-md-2
-                      .b-sal-cal.term-no
-                        %div{:class => "form-group month"}
-                        %label.control-label
-                          Select
-                        .select
-                          = f.select :term_no, options_for_select( (0..31).to_a,f.object.term_no), {}, {class: 'form-control'}
+                              = f.label :sclr_end_of_month, "End of month", class: "month #{['twice a month', 'monthly'].include?(f.object.payroll_type) ? '' : 'hidden'}"
+                          .col-md-2
+                            .b-sal-cal.term-no
+                              %div{:class => "month"}
+                              %label.control-label
+                                Select Term 1
+                              .select.form-group
+                                = f.select :term_no, options_for_select( (0..31).to_a,f.object.term_no), {}, {class: 'form-control'}
+                              %div{:class => "form-group twice-month #{f.object.payroll_type != 'twice a month' ? 'hidden' : ''}"}
+                                %label.control-label
+                                  Select Term 2
+                                .select
+                                  = f.select :term_no_2, options_for_select( (0..31).to_a,f.object.term_no_2), {}, {class: 'form-control'}
 
 
-                    .col-md-4
-                      .b-sal-cal1
-                        %div{:class => "form-group week"}
+                          .col-md-3
+                            .b-sal-cal1
+                              %div{:class => "month"}
+                              %label.control-label
+                                Select Payroll 1
+                              .select.payrol
+                                .plain-select.payroll-term
 
-
-                        %div{:class => "form-group month"}
-                        %label.control-label
-                          Select
-                        .select.payroll
-                          .plain-select.payroll-term
+                            .b-sal-cal
+                              %div{:class => "form-group twice-month #{f.object.payroll_type != 'twice a month' ? 'hidden' : ''}"}
+                                %label.control-label
+                                  Select Payroll 2
+                                .select.payrol-2
+                                  .plain-select.payroll-term-2
 
 
                     %hr
@@ -216,11 +218,17 @@
       if($('#payroll_info_payroll_type').val() == 'weekly' || $('#payroll_info_payroll_type').val() == 'biweekly' ){
         $('.plain-select.payroll-term').html("<select class='form-control' name='payroll_info[payroll_term]' id='payroll_info_payroll_term'><option value='1'>1 Day</option> <option value='2'>1 Days</option> <option value='3'>3 Days</option> <option value='4'>4 Days</option> <option value='5'>5 Days</option> <option value='6'>6 Days</option> <option value='7'>7 Days</option> <option value='14'>14 Days</option></select>")
 
-      } else if($('#payroll_info_payroll_type').val() == 'monthly' || $('#payroll_info_payroll_type').val() == 'twice a month' ){
-        $('.plain-select.payroll-term').html("<select class='form-control month-term' name='payroll_info[payroll_term]' id='payroll_info_payroll_term'><option value='0'>End of current month</option> <option value='1'>End of 1 previous month</option> <option value='2'>End of 2 previous month</option></select>")
+      } else if($('#payroll_info_payroll_type').val() == 'monthly'){
+        $('.plain-select.payroll-term').html("<select class='form-control month-term' name='payroll_info[payroll_term]' id='payroll_info_payroll_term'><option value='0'>Current month</option> <option value='1'>1 previous month</option> <option value='2'>2 previous month</option></select>")
+      }else if($('#payroll_info_payroll_type').val() == 'twice a month'){
+
+        $('.plain-select.payroll-term').html("<select class='form-control month-term' name='payroll_info[payroll_term]' id='payroll_info_payroll_term'><option value='0'>Current month</option> <option value='1'>1 previous month</option> <option value='2'>2 previous month</option></select>")
+
+        $('.plain-select.payroll-term-2').html("<select class='form-control month-term' name='payroll_info[payroll_term_2]' id='payroll_info_payroll_term_2'><option value='0'>Current month</option> <option value='1'>1 previous month</option> <option value='2'>2 previous month</option></select>")
       }
 
       $('#payroll_info_payroll_term').val(#{@payroll_detail&.payroll_term})
+      $('#payroll_info_payroll_term_2').val(#{@payroll_detail&.payroll_term_2})
 
       $(".buy-sal-cal").on("change", function(){
         $('.plain-select.payroll-term').find('.month-terms').remove();
@@ -234,7 +242,7 @@
           $(".b-sal-cal").find('.twice-month, .month').removeClass("hidden");
           $(".term-no").find('.select').removeClass('hidden')
           $(".term-no").find('.control-label').removeClass('hidden')
-          $('.plain-select.payroll-term').html("<select class='form-control month-term' name='payroll_info[payroll_term]' id='payroll_info_payroll_term'><option value='0'>End of current month</option> <option value='1'>End of 1 previous month</option> <option value='2'>End of 2 previous month</option></select>")
+          $('.plain-select.payroll-term').html("<select class='form-control month-term' name='payroll_info[payroll_term]' id='payroll_info_payroll_term'><option value='0'>Current month</option> <option value='1'>1 previous month</option> <option value='2'>2 previous month</option></select>")
         }
       });
 

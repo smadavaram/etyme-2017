@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema.define(version: 20181101091923) do
+ActiveRecord::Schema.define(version: 20181112064413) do
 
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
@@ -228,6 +228,8 @@ ActiveRecord::Schema.define(version: 20181101091923) do
     t.string "com_pro_day_of_week"
     t.boolean "com_pro_end_of_month", default: false
     t.string "term_no"
+    t.string "term_no_2"
+    t.string "payment_term_2"
     t.index ["candidate_id"], name: "index_buy_contracts_on_candidate_id"
     t.index ["contract_id"], name: "index_buy_contracts_on_contract_id"
   end
@@ -1221,6 +1223,8 @@ ActiveRecord::Schema.define(version: 20181101091923) do
     t.string "sclr_day_of_week"
     t.boolean "sclr_end_of_month", default: false
     t.string "term_no"
+    t.string "term_no_2"
+    t.string "payroll_term_2"
     t.index ["company_id"], name: "index_payroll_infos_on_company_id"
   end
 

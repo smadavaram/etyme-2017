@@ -292,31 +292,6 @@
                         .select
                           .plain-select
                             = bc.select :salary_calculation, Contract.time_sheet_frequencies.map { |key, value| [key.humanize, key] }, {selected: current_company&.payroll_infos&.first&.payroll_type},{class: "form-control buy-sal-cal" }
-                    .row
-                      .col-md-4
-                        %label.control-label
-                          Payroll Terms                  
-
-                      .col-md-2
-                        .term-no
-                          %div{:class => "form-group month"}
-                          %label.control-label
-                            Select
-                          .select
-                            = bc.select :term_no, options_for_select( (0..31).to_a,current_company.payroll_infos.first.term_no), {}, {class: 'form-control'}
-                      
-
-                      .col-md-4
-                        .b-sal-cal1
-                          %div{:class => "form-group week"}
-
-
-                          %div{:class => "form-group month"}
-                          %label.control-label
-                            Select
-                          .select.payroll
-                            .plain-select.payroll-term
-
 
                     .row
                       .col-md-4
@@ -400,7 +375,7 @@
                         %label.control-label
                           Salary Clear
                         = bc.hidden_field :salary_process, value: bc.object.salary_calculation
-                      .col-md-4
+                      .col-md-3
                         .b-sal-cal
                           %div{:class => "form-group daily #{bc.object.salary_calculation != 'daily' ? 'hidden' : ''}"}
                             %label.control-label
@@ -424,14 +399,40 @@
                               = bc.text_field :sclr_date_2, class: "date_1", placeholder: "DD/MM/YYYY"
                           %span{:class => "form-group month #{['twice a month', 'monthly'].include?(bc.object.salary_calculation) ? '' : 'hidden'}"} OR
                           = bc.check_box :sclr_end_of_month, class: "month #{['twice a month', 'monthly'].include?(bc.object.salary_calculation) ? '' : 'hidden'}"
-                          = bc.label :sclr_end_of_month, "End of month", class: "month #{['twice a month', 'monthly'].include?(bc.object.salary_calculation) ? '' : 'hidden'}"
+                          = bc.label :sclr_end_of_month, "End of month", class: "month #{['twice a month', 'monthly'].include?(bc.object.salary_calculation) ? '' : 'hidden'}"               
+
+                      .col-md-2
+                        .term-no
+                          %div{:class => "form-group month"}
+                          %label.control-label
+                            Select Term 
+                          .select
+                            = bc.select :term_no, options_for_select( (0..31).to_a,current_company.payroll_infos.first.term_no), {}, {class: 'form-control'}
+                          .b-sal-cal
+                            %div{:class => "form-group twice-month #{bc.object.salary_calculation != 'twice a month' ? 'hidden' : ''}"}
+                              %label.control-label
+                                Select Term 2
+                              .select
+                                = bc.select :term_no_2, options_for_select( (0..31).to_a,bc.object.term_no_2), {}, {class: 'form-control'}
+
+                      .col-md-3
+                        .b-sal-cal1
+                          %div{:class => "form-group week"}
+                          %div{:class => "form-group month"}
+                          %label.control-label
+                            Select Payroll
+                          .select.payroll
+                            .plain-select.payroll-term
+
+                        .b-sal-cal
+                          %div{:class => "form-group twice-month #{bc.object.salary_calculation != 'twice a month' ? 'hidden' : ''}"}
+                            %label.control-label
+                              Select Payroll 2
+                            .select.payrol-2
+                              .plain-select.payroll-term-2
 
 
 
-                      .col-md-4
-                        %label.control-label
-                          Assign to
-                        = select_tag 'assign_to', options_from_collection_for_select(current_company.company_contacts, "id", 'full_name'), include_blank: 'Please select',class: 'form-control'
               .row
                 .col-md-6
                   %span.btn.btn-primary#show-calendar Show Calendar
@@ -715,8 +716,14 @@
     if($('#contract_buy_contracts_attributes_0_salary_calculation').val() == 'weekly'){
       $('.plain-select.payroll-term').html("<select class='form-control' name='contract[buy_contracts_attributes][0][payment_term]' id='contract_buy_contracts_attributes_0_payment_term'><option value='1'>1 Day</option> <option value='2'>1 Days</option> <option value='3'>3 Days</option> <option value='4'>4 Days</option> <option value='5'>5 Days</option> <option value='6'>6 Days</option> <option value='7'>7 Days</option> <option value='14'>14 Days</option></select>")
 
-    } else if($('#contract_buy_contracts_attributes_0_salary_calculation').val() == 'monthly' || $('#contract_buy_contracts_attributes_0_salary_calculation').val() == 'twice a month'){
-      $('.plain-select.payroll-term').html("<select class='form-control month-term' name='contract[buy_contracts_attributes][0][payment_term]' id='contract_buy_contracts_attributes_0_payment_term'><option value='0'>End of current month</option> <option value='1'>End of 1 previous month</option> <option value='2'>End of 2 previous month</option></select>")
+    } else if($('#contract_buy_contracts_attributes_0_salary_calculation').val() == 'monthly'){
+      $('.plain-select.payroll-term').html("<select class='form-control month-term' name='contract[buy_contracts_attributes][0][payment_term]' id='contract_buy_contracts_attributes_0_payment_term'><option value='0'>Current month</option> <option value='1'>1 previous month</option> <option value='2'>2 previous month</option></select>")
+    }else if($('#contract_buy_contracts_attributes_0_salary_calculation').val() == 'twice a month'){
+
+      $('.plain-select.payroll-term').html("<select class='form-control month-term' name='contract[buy_contracts_attributes][0][payment_term]' id='contract_buy_contracts_attributes_0_payment_term'><option value='0'>Current month</option> <option value='1'>1 previous month</option> <option value='2'>2 previous month</option></select>")
+
+      $('.plain-select.payroll-term-2').html("<select class='form-control month-term' name='contract[buy_contracts_attributes][0][payment_term_2]' id='contract_buy_contracts_attributes_0_payment_term_2'><option value='0'>Current month</option> <option value='1'>1 previous month</option> <option value='2'>2 previous month</option></select>")
+
     }
 
     $(".buy-sal-cal").on("change", function(){
@@ -732,7 +739,7 @@
         $(".b-sal-cal").find('.twice-month, .month').removeClass("hidden");
         $(".term-no").find('.select').removeClass('hidden')
         $(".term-no").find('.control-label').removeClass('hidden')
-        $('.plain-select.payroll-term').html("<select class='form-control month-term' name='contract[buy_contracts_attributes][0][payment_term]' id='contract_buy_contracts_attributes_0_payment_term'><option value='0'>End of current month</option> <option value='1'>End of 1 previous month</option> <option value='2'>End of 2 previous month</option></select>")
+        $('.plain-select.payroll-term').html("<select class='form-control month-term' name='contract[buy_contracts_attributes][0][payment_term]' id='contract_buy_contracts_attributes_0_payment_term'><option value='0'>Current month</option> <option value='1'>1 previous month</option> <option value='2'>2 previous month</option></select>")
       }
     });
 

@@ -54,7 +54,7 @@ class Contract < ApplicationRecord
   # has_many :contract_sell_business_details
   # has_many :contract_sale_commisions
 
-  after_create :set_on_seq
+  # after_create :set_on_seq
   after_create :insert_attachable_docs
   after_create :set_next_invoice_date
   after_create :notify_recipient , if: Proc.new{ |contract| contract.not_system_generated? }
