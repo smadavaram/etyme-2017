@@ -1,0 +1,29 @@
+#content
+  .row
+  %section
+#content
+  .row
+  %section
+    .row
+      %article.col-sm-12.col-md-12.col-lg-12
+        #wid-id-0.jarviswidget{"data-widget-deletebutton" => "false", "data-widget-editbutton" => "false"}
+          %header
+            %span.widget-icon
+              %i.fa.fa-check
+            %h2 Salary Clear Cycles 
+          %div.table-responsive
+            %table.table.table-bordered.account_detail
+              %thead
+                %tr
+                  %th Start Date
+                  %th End date
+                  %th Doc date
+              %tbody
+                - @dates.each do |x,y|
+                  %tr
+                    %td
+                      = y[:start_date]
+                    %td
+                      = y[:end_date]
+                    %td
+                      = y[:doc_date]

@@ -160,3 +160,5 @@ gem 'nested_form_fields'
 
 gem 'fullcalendar-rails'
 gem 'momentjs-rails'
+
+gem 'holidays'

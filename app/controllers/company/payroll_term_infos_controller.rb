@@ -42,6 +42,82 @@ class Company::PayrollTermInfosController < Company::BaseController
     redirect_back fallback_location: root_path
   end
 
+  def generate_payroll_dates
+    @payroll = current_company.payroll_infos.first
+    @dates = Hash.new
+    if @payroll.payroll_type == 'monthly'
+      month_cycle
+    elsif @payroll.payroll_type == 'weekly'
+      week_cycle
+    elsif @payroll.payroll_type == 'biweekly'
+      biweek_cycle
+    elsif @payroll.payroll_type == 'twice a month'
+      twice_month
+    end
+  end
+
+  def month_cycle
+    12.times do |i|
+      @dates[i+1] = {'end_date': Date.new(Date.today.year, i+1, @payroll.term_no.to_i )}
+    end
+    @dates.each do |x,y|
+      @dates[x][:start_date] = @dates[x][:end_date]- 1.month+1
+      @dates[x][:doc_date] = Date.new((@dates[x][:end_date]+@payroll.payroll_term.to_i.months).year,(@dates[x][:end_date]+@payroll.payroll_term.to_i.months).month, @payroll.sclr_date_1.day)
+    end
+  end
+
+  def week_cycle
+    sd = Date.today.beginning_of_year
+    ed = sd.end_of_year
+    doc_dates = []
+    sd.upto(ed) do |date| 
+      day_of_week = DateTime.parse(@payroll.sclr_day_of_week).wday
+      doc_dates <<  date + ((day_of_week - date.wday) % 7 )
+    end
+    doc_dates.uniq.each_with_index do |x,i|
+      @dates[i+1] = {'doc_date': x}
+      @dates[i+1][:end_date] =  x - @payroll&.payroll_term.to_i
+      @dates[i+1][:start_date] = @dates[i+1][:end_date] - (@payroll.payroll_type == 'weekly' ? 6.days : 13.days)
+    end
+  end
+
+  def biweek_cycle
+    sd = Date.today.beginning_of_year
+    ed = sd.end_of_year
+    doc_dates = []
+    
+    day_of_week = DateTime.parse(@payroll.sclr_day_of_week).wday
+    doc_dates << sd + ((day_of_week - sd.wday) % 14 )
+
+    (ed - sd).to_i.times do |i|
+      doc_dates << doc_dates[i] + 14
+      break if doc_dates[i] > ed
+    end
+    doc_dates.uniq.each_with_index do |x,i|
+      @dates[i+1] = {'doc_date': x}
+      @dates[i+1][:end_date] =  x - @payroll&.payroll_term.to_i
+      @dates[i+1][:start_date] = @dates[i+1][:end_date] - (@payroll.payroll_type == 'weekly' ? 6.days : 13.days)      
+    end
+  end
+
+  def twice_month
+    12.times do |i|
+      @dates[2*i] = {'doc_date': Date.new(Date.today.year, i+1, @payroll&.sclr_date_1.day )}
+
+      @dates[2*i][:end_date] =  Date.new((@dates[2*i][:doc_date]- @payroll.payroll_term.to_i.months).year, (@dates[2*i][:doc_date]- @payroll.payroll_term.to_i.months).month, @payroll.term_no.to_i)
+      #start date 1
+      @dates[2*i][:start_date] = Date.new( (@dates[2*i][:end_date] -  @payroll.payroll_term.to_i.months).year, ((@dates[2*i][:end_date]- @payroll.payroll_term.to_i.months).month), @payroll.term_no_2.to_i+1  ) 
+
+
+      @dates[2*i+1] = {'doc_date': Date.new(Date.today.year, i+1, @payroll&.sclr_date_2.day )}
+
+      @dates[2*i+1][:end_date] =  Date.new( (@dates[2*i+1][:doc_date]- @payroll.payroll_term_2.to_i.months).year, (@dates[2*i+1][:doc_date]- @payroll.payroll_term_2.to_i.months).month, @payroll.term_no_2.to_i)
+      #start date 2
+      @dates[2*i+1][:start_date] = Date.new( (@dates[2*i+1][:end_date] -  @payroll.payroll_term_2.to_i.months).year, (@dates[2*i+1][:end_date].month), @payroll.term_no.to_i+1  ) 
+    end
+
+  end
+
   private
 
   def set_department

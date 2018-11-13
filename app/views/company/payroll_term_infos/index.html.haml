@@ -198,11 +198,15 @@
 
             
 
-                      .row
-                        .col-lg-12
-                          .form-actions
-                            %button.btn.btn-primary.pull-right{:type => "submit"}
-                              Save
+                        .row
+                          .col-lg-12
+                            .form-actions
+                              %button.btn.btn-primary.pull-right{:type => "submit"}
+                                Save
+
+                .row
+                  .col-md-4
+                    = link_to 'Generate Payroll Cycle', generate_payroll_dates_payroll_term_infos_path, class: 'btn btn-primary' if current_company&.payroll_infos&.first&.present?
 - content_for :scripts do
   :javascript
     $(document).on("click",".remove-tax-fields", function(){
@@ -216,6 +220,9 @@
 
 
       if($('#payroll_info_payroll_type').val() == 'weekly' || $('#payroll_info_payroll_type').val() == 'biweekly' ){
+        $(".b-sal-cal").find('.week').removeClass("hidden")
+        $(".term-no").find('.select').addClass('hidden')
+        $(".term-no").find('.control-label').addClass('hidden')
         $('.plain-select.payroll-term').html("<select class='form-control' name='payroll_info[payroll_term]' id='payroll_info_payroll_term'><option value='1'>1 Day</option> <option value='2'>1 Days</option> <option value='3'>3 Days</option> <option value='4'>4 Days</option> <option value='5'>5 Days</option> <option value='6'>6 Days</option> <option value='7'>7 Days</option> <option value='14'>14 Days</option></select>")
 
       } else if($('#payroll_info_payroll_type').val() == 'monthly'){
@@ -238,11 +245,18 @@
         } else if($(this).val() == "weekly" || $(this).val() == "biweekly"){
           $(".b-sal-cal").find('.week').removeClass("hidden");
           $('.plain-select.payroll-term').html("<select class='form-control' name='payroll_info[payroll_term]' id='payroll_info_payroll_term'><option value='1'>1 Day</option> <option value='2'>1 Days</option> <option value='3'>3 Days</option> <option value='4'>4 Days</option> <option value='5'>5 Days</option> <option value='6'>6 Days</option> <option value='7'>7 Days</option> <option value='14'>14 Days</option></select>")
-        } else if($(this).val() == "monthly" || $(this).val() == "twice a month"){
+        } else if($(this).val() == "monthly"){
+          $(".b-sal-cal").find('.month').removeClass("hidden");
+          $(".term-no").find('.select').removeClass('hidden')
+          $(".term-no").find('.control-label').removeClass('hidden')
+          $('.plain-select.payroll-term').html("<select class='form-control month-term' name='payroll_info[payroll_term]' id='payroll_info_payroll_term'><option value='0'>Current month</option> <option value='1'>1 previous month</option> <option value='2'>2 previous month</option></select>")
+        }else if($(this).val() == "twice a month"){
           $(".b-sal-cal").find('.twice-month, .month').removeClass("hidden");
           $(".term-no").find('.select').removeClass('hidden')
           $(".term-no").find('.control-label').removeClass('hidden')
           $('.plain-select.payroll-term').html("<select class='form-control month-term' name='payroll_info[payroll_term]' id='payroll_info_payroll_term'><option value='0'>Current month</option> <option value='1'>1 previous month</option> <option value='2'>2 previous month</option></select>")
+          $('.plain-select.payroll-term-2').html("<select class='form-control month-term' name='payroll_info[payroll_term_2]' id='payroll_info_payroll_term_2'><option value='0'>Current month</option> <option value='1'>1 previous month</option> <option value='2'>2 previous month</option></select>")
+
         }
       });
 

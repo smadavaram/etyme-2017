@@ -363,7 +363,11 @@ Rails.application.routes.draw do
       end
     end
     resources :invoice_term_infos
-    resources :payroll_term_infos
+    resources :payroll_term_infos do
+      collection do
+        get :generate_payroll_dates
+      end
+    end
     resources :prefer_vendors   ,concerns: :paginatable  do
       # end
     end
