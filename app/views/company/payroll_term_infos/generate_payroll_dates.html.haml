@@ -15,15 +15,19 @@
             %table.table.table-bordered.account_detail
               %thead
                 %tr
-                  %th Start Date
-                  %th End date
-                  %th Doc date
+                  %th
+                    Start Date - End date
+                  %th Doc date (Payroll date)
+                  %th Calculation date
+                  %th Process date
               %tbody
                 - @dates.each do |x,y|
                   %tr
                     %td
-                      = y[:start_date]
+                      = y[:start_date].to_s+'  - '+y[:end_date].to_s
                     %td
-                      = y[:end_date]
+                      = y[:doc_date].inspect
                     %td
-                      = y[:doc_date]
+                      = y[:cal_date].inspect
+                    %td
+                      = y[:pro_date].inspect

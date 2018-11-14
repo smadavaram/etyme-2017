@@ -518,8 +518,6 @@ module Contracts
           doc_date = date + buy_contract.payment_term.to_i.months
           end_date = Date.new((doc_date-buy_contract.payment_term.to_i.months).year, (doc_date-buy_contract.payment_term.to_i.months).month, buy_contract.term_no.to_i )
 
-          puts "-----------------------#{@count}-------------------"
-          # binding.pry if end_date.year == 2019
           start_date = Date.new((end_date.year > contract.start_date.year && end_date.month == 1) ? end_date.year-1 : end_date.year, end_date.month == 1 ? 12 : end_date.month-1, buy_contract.term_no_2.to_i+1)
         elsif date.day == sclr_date_2.day
           # binding.pry

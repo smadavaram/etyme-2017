@@ -52,7 +52,9 @@ class Company::PayrollTermInfosController < Company::BaseController
     elsif @payroll.payroll_type == 'biweekly'
       biweek_cycle
     elsif @payroll.payroll_type == 'twice a month'
-      twice_month
+      twice_month_cycle
+    else
+      daily_cycle
     end
   end
 
@@ -63,6 +65,8 @@ class Company::PayrollTermInfosController < Company::BaseController
     @dates.each do |x,y|
       @dates[x][:start_date] = @dates[x][:end_date]- 1.month+1
       @dates[x][:doc_date] = Date.new((@dates[x][:end_date]+@payroll.payroll_term.to_i.months).year,(@dates[x][:end_date]+@payroll.payroll_term.to_i.months).month, @payroll.sclr_date_1.day)
+      @dates[x][:cal_date] = @dates[x][:doc_date] - (@payroll.sclr_date_1 - @payroll&.scal_date_1).to_i
+      @dates[x][:pro_date] = @dates[x][:doc_date] - (@payroll.sclr_date_1 - @payroll&.sp_date_1).to_i
     end
   end
 
@@ -78,6 +82,8 @@ class Company::PayrollTermInfosController < Company::BaseController
       @dates[i+1] = {'doc_date': x}
       @dates[i+1][:end_date] =  x - @payroll&.payroll_term.to_i
       @dates[i+1][:start_date] = @dates[i+1][:end_date] - (@payroll.payroll_type == 'weekly' ? 6.days : 13.days)
+      @dates[i+1][:cal_date] = @dates[i+1][:doc_date] - (Date.parse(@payroll.sclr_day_of_week).wday - Date.parse(@payroll.scal_day_of_week).wday)
+       @dates[i+1][:pro_date] = @dates[i+1][:doc_date] - (Date.parse(@payroll.sclr_day_of_week).wday - Date.parse(@payroll.sp_day_of_week).wday)
     end
   end
 
@@ -96,26 +102,42 @@ class Company::PayrollTermInfosController < Company::BaseController
     doc_dates.uniq.each_with_index do |x,i|
       @dates[i+1] = {'doc_date': x}
       @dates[i+1][:end_date] =  x - @payroll&.payroll_term.to_i
-      @dates[i+1][:start_date] = @dates[i+1][:end_date] - (@payroll.payroll_type == 'weekly' ? 6.days : 13.days)      
+      @dates[i+1][:start_date] = @dates[i+1][:end_date] - (@payroll.payroll_type == 'weekly' ? 6.days : 13.days)  
+      @dates[i+1][:cal_date] = @dates[i+1][:doc_date] - (Date.parse(@payroll.sclr_day_of_week).wday - Date.parse(@payroll.scal_day_of_week).wday)
+       @dates[i+1][:pro_date] = @dates[i+1][:doc_date] - (Date.parse(@payroll.sclr_day_of_week).wday - Date.parse(@payroll.sp_day_of_week).wday)
+
     end
   end
 
-  def twice_month
+  def twice_month_cycle
     12.times do |i|
       @dates[2*i] = {'doc_date': Date.new(Date.today.year, i+1, @payroll&.sclr_date_1.day )}
 
       @dates[2*i][:end_date] =  Date.new((@dates[2*i][:doc_date]- @payroll.payroll_term.to_i.months).year, (@dates[2*i][:doc_date]- @payroll.payroll_term.to_i.months).month, @payroll.term_no.to_i)
       #start date 1
-      @dates[2*i][:start_date] = Date.new( (@dates[2*i][:end_date] -  @payroll.payroll_term.to_i.months).year, ((@dates[2*i][:end_date]- @payroll.payroll_term.to_i.months).month), @payroll.term_no_2.to_i+1  ) 
+      @dates[2*i][:start_date] = Date.new( (@dates[2*i][:end_date] -  @payroll.payroll_term.to_i.months).year, ((@dates[2*i][:end_date]- @payroll.payroll_term.to_i.months).month), @payroll.term_no_2.to_i+1  )
+
+      @dates[2*i][:cal_date] = @dates[2*i][:doc_date] - ((@payroll&.sclr_date_1 - @payroll&.scal_date_1).to_i)
+      @dates[2*i][:pro_date] = @dates[2*i][:doc_date] - ((@payroll&.sclr_date_1 - @payroll&.sp_date_1).to_i)
 
 
       @dates[2*i+1] = {'doc_date': Date.new(Date.today.year, i+1, @payroll&.sclr_date_2.day )}
 
-      @dates[2*i+1][:end_date] =  Date.new( (@dates[2*i+1][:doc_date]- @payroll.payroll_term_2.to_i.months).year, (@dates[2*i+1][:doc_date]- @payroll.payroll_term_2.to_i.months).month, @payroll.term_no_2.to_i)
+      @dates[2*i+1][:end_date] =  Date.new( (@dates[2*i+1][:doc_date]- @payroll.payroll_term_2.to_i.months).year, (@dates[2*i+1][:doc_date]- @payroll.payroll_term_2.to_i.months).month, @payroll&.term_no_2.to_i)
       #start date 2
       @dates[2*i+1][:start_date] = Date.new( (@dates[2*i+1][:end_date] -  @payroll.payroll_term_2.to_i.months).year, (@dates[2*i+1][:end_date].month), @payroll.term_no.to_i+1  ) 
+
+      @dates[2*i+1][:cal_date] = @dates[2*i+1][:doc_date] - ((@payroll&.sclr_date_2 - @payroll&.scal_date_2).to_i)
+      @dates[2*i+1][:pro_date] = @dates[2*i+1][:doc_date] - ((@payroll&.sclr_date_2 - @payroll&.sp_date_2).to_i)
     end
 
+  end
+
+  def daily_cycle
+    25.times do |i|
+      @dates[i] = {'doc_date': Date.new(Date.today.year, Date.today.month, i+1)}
+      @dates[i][:end_date], @dates[i][:start_date], @dates[i][:cal_date], @dates[i][:pro_date] = @dates[i][:doc_date], @dates[i][:doc_date], @dates[i][:doc_date], @dates[i][:doc_date] 
+    end
   end
 
   private
