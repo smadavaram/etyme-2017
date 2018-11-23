@@ -49,4 +49,10 @@ class Api::SelectSearchesController < ApplicationController
     respond_with @contract, :include => [{ buy_contracts: {:include => :company}}, :candidate]
   end
 
+  def find_contract_salary_cycles
+    @salary_cycles = ContractCycle.where(contract_id: params[:contract_id].to_i, note: 'Salary clear').pluck("date(start_date), date(end_date), id")
+    respond_with @salary_cycles
+
+  end
+
 end

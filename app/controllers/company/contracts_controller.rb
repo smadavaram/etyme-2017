@@ -45,6 +45,7 @@ class Company::ContractsController < Company::BaseController
     @new_company.build_owner
     @new_company.build_invited_by
   end
+
   def edit
 
   end

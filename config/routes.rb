@@ -414,6 +414,13 @@ Rails.application.routes.draw do
       end
     end
 
+    resources :salaries do
+      collection do
+        get :salary_list
+        get :filter_salary_cycles
+      end
+    end
+
     resources :bank_details, only: [] do
       collection do
         get :acc_info
@@ -580,6 +587,7 @@ Rails.application.routes.draw do
       get :find_commission_user, on: :collection
       get :find_expense_type, on: :collection
       get :find_contract_candidate, on: :collection
+      get :find_contract_salary_cycles, on: :collection
     end
 
     namespace :candidate do

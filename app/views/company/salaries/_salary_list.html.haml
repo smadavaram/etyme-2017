@@ -1,0 +1,34 @@
+%div.table-responsive
+  %table.table.table-bordered.account_detail
+    %thead
+      %tr
+        %th Contract
+        %th Cycle ID
+        %th Salary cycle
+        %th Total time
+        %th Amount
+        %th Expense
+        %th Total amount
+    %tbody
+      - @timesheets.each_with_index do |ts,i|
+        - amount = ts[1].present? ? ts[1].sum(:total_time)*ts[1].first&.contract&.buy_contracts&.first&.payrate : 0 
+        - total_expense = Expense.select { |m| m.salary_ids.include? @salary_cycles[i][3].to_s }.map{|x| x.total_amount.to_i / x.salary_ids.length}.sum(&:to_i)
+        %tr
+          %td
+            = @salary_cycles[i][2]
+          %td
+            = '#'+@salary_cycles[i][3].to_s
+          %td
+            = @salary_cycles[i][0].to_s+' - '+@salary_cycles[i][1].to_s
+          %td
+            =  ts[1].present? ? ts[1].sum(:total_time) : 0
+          %td
+            =  amount
+          %td
+            = total_expense
+          %td
+            = total_expense + amount
+
+        
+
+

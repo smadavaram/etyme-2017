@@ -11,6 +11,7 @@ class Expense < ApplicationRecord
   enum status: [:bill_generated, :invoice_generated, :paid]
 
   serialize :ce_ap_cycle_id
+  serialize :salary_ids
 
   after_create :set_expense_on_seq
 

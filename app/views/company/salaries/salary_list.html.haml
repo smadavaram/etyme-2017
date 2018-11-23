@@ -1,0 +1,42 @@
+#content
+  .row
+  %section
+    .row
+      %article.col-sm-12.col-md-12.col-lg-12
+        #wid-id-0.jarviswidget{"data-widget-deletebutton" => "false", "data-widget-editbutton" => "false"}
+          %header
+            %span.widget-icon
+              %i.fa.fa-check
+            %h2 Salary Clear Cycles 
+          .row
+            .col-md-3
+              %label Contract
+            .col-md-4.form-group
+              = select_tag :contract_id, options_for_select(Contract.where(status: 'in_progress').map{|c| [c.title,c.id] }),{required: true, prompt: 'Select Contract' }
+          
+          .salary-cycle-wrap
+            %div.table-responsive
+              %table.table.table-bordered.account_detail
+                %thead
+                  %tr
+                    %th Contract
+                    %th Cycle ID
+                    %th Salary cycle
+                    %th Total time
+                    %th Amount
+                    %th Expense
+                    %th Total amount
+
+- content_for :scripts do
+  :javascript 
+
+    $(document).ready(function() {
+      $(document).on("change","#contract_id", function() {
+        $.ajax({
+          url: "/salaries/filter_salary_cycles",
+          type: 'GET',
+          data: {contract_id: $('#contract_id option:selected').val()},
+          dataType: 'script'
+        })
+      });
+    });

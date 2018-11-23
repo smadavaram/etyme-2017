@@ -14,7 +14,7 @@ class Company::AccountingsController < Company::BaseController
   end
 
   def generate_salary_cycles
-    Contract.first.in_progress!
+    Contract.find(params[:contract_id]).in_progress!
     Contract.set_cycle
     redirect_to salary_advance_company_accountings_path
   end
