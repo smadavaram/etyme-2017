@@ -84,7 +84,6 @@ class Company::TimesheetsController < Company::BaseController
 
   def approve
     # if current_user.timesheet_approvers.create!(timesheet_id: @timesheet.id , status: Timesheet.statuses[:approved].to_i)
-
     if @timesheet.update_attributes(status: "approved")
       con_cycle = ContractCycle.find(@timesheet.ta_cycle_id)
       arr = Timesheet.where(ta_cycle_id: @timesheet.ta_cycle_id).pluck(:ta_cycle_id).uniq.compact.first

@@ -405,12 +405,12 @@ module ApplicationHelper
                             content: "<span class='menu-item-parent'> Salary To Pay</span>"
                         },
                         {
-                            href: salary_advance_company_accountings_path,
+                            href: salary_list_salaries_path,
                             title: 'Salary Payment(s)',
                             content: "<span class='menu-item-parent'> Salary Adavance</span>"
                         },
                         {
-                            href: salary_calculation_company_accountings_path,
+                            href: salary_process_salaries_path,
                             title: 'Salary Payment(s)',
                             content: "<span class='menu-item-parent'> Salary Calculation </span>"
                         },

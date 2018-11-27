@@ -418,6 +418,8 @@ Rails.application.routes.draw do
       collection do
         get :salary_list
         get :filter_salary_cycles
+        get :salary_process
+        get :open_salary_process
       end
     end
 

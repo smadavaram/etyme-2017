@@ -1,0 +1,78 @@
+#content
+  .row
+  %section
+    .row
+      %article.col-sm-12.col-md-12.col-lg-12
+        #wid-id-0.jarviswidget{"data-widget-deletebutton" => "false", "data-widget-editbutton" => "false"}
+          %header
+            %span.widget-icon
+              %i.fa.fa-check
+            %h2 Salary Process
+          
+          .salary-cycle-wrap
+            %div.table-responsive
+              %table.table.table-bordered.account_detail
+                %thead
+                  %tr
+                    %th Candidate
+                    %th Status
+                    %th Living state
+                    %th City
+                    %th Address
+                    %th Zip
+                    %th Working State
+                    - @salaries.each do |s|
+                      %th
+                        = s[0][0].to_s+' - '+s[0][1].to_s
+                %tbody
+                  - @contracts.each do |c|
+                    %tr
+                      %th
+                        = c&.candidate&.full_name.to_s+' - '+c.id.to_s
+                      %th
+                        = c&.candidate&.visas&.first&.title
+                      %th
+                        = c&.candidate&.addresses&.first&.state
+                      %th
+                        = c&.candidate&.addresses&.first&.city
+                      %th
+                        = c&.candidate&.addresses&.first&.address_1
+                      %th
+                        = c&.candidate&.addresses&.first&.zip_code
+                      %th
+                        = c&.client&.addresses&.first&.city
+                      - @salaries.each do |s|
+                        %th
+                          - s[1].each do |ss|
+                            - if c.id == ss[0]
+                              - amount = Timesheet.includes(contract: :buy_contracts).where(status: 'approved', start_date: s[0][0]..s[0][1], contract_id: ss[0], candidate_id: c.candidate_id).sum(:total_time)* c&.buy_contracts&.first&.payrate
+                              = amount 
+                              = link_to 'Salary Process', open_salary_process_salaries_path(sc_cycle_id: ss[1], amount: amount), remote: true, class: 'btn btn-md btn-default btn-primary',title: "Details"
+
+                              .span.salary-clear.btn.btn-warning Salary clear
+
+
+.modal.fade{id: "salary-confirmation-model"}
+  .modal-dialog
+    .modal-content
+      .modal-header
+        %button.close{"aria-hidden" => "true", "data-dismiss" => "modal", :type => "button"}
+          ×
+        %h4.modal-title
+          %strong Salary
+      #salary-confirmation-model-body.modal-body
+
+
+- content_for :scripts do
+  :javascript 
+
+    $(document).ready(function() {
+      $(document).on("change","#contract_id", function() {
+        $.ajax({
+          / url: "",
+          / type: '',
+          / data: {contract_id: $('#contract_id option:selected').val()},
+          / dataType: 'script'
+        })
+      });
+    });

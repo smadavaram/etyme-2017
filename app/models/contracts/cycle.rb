@@ -34,7 +34,7 @@ module Contracts
         con_cycle_ta_start_date = Timesheet.set_con_cycle_ta_date(buy_contract, cycle)
 
         set_timesheet_approve(cycle,con_cycle_ta_start_date)
-        invoice_generate(cycle)
+        # invoice_generate(cycle)
         
         #salary cycles
         # binding.pry
@@ -44,26 +44,26 @@ module Contracts
         # set_salary_process(salary_cycle,con_cycle_sp_start_date)
 
         #commission cycles
-        commission_cycle = add_commission_cycle
-        con_cycle_com_pro_start_date = ContractSaleCommision.set_con_cycle_com_pro_date(buy_contract, commission_cycle)
-        set_commission_process(commission_cycle, con_cycle_com_pro_start_date)
+        # commission_cycle = add_commission_cycle
+        # con_cycle_com_pro_start_date = ContractSaleCommision.set_con_cycle_com_pro_date(buy_contract, commission_cycle)
+        # set_commission_process(commission_cycle, con_cycle_com_pro_start_date)
 
-        # #vendor bill cyles
-        vendor_bill_cycle = add_vendor_bill_cycle
-        con_cycle_vp_pro_start_date = VendorBill.set_con_cycle_vp_pro_date(buy_contract, vendor_bill_cycle)
-        set_vendor_payment_process(vendor_bill_cycle, con_cycle_vp_pro_start_date )
+        # # #vendor bill cyles
+        # vendor_bill_cycle = add_vendor_bill_cycle
+        # con_cycle_vp_pro_start_date = VendorBill.set_con_cycle_vp_pro_date(buy_contract, vendor_bill_cycle)
+        # set_vendor_payment_process(vendor_bill_cycle, con_cycle_vp_pro_start_date )
 
-        # #client bill cycles
-        client_bill_cycle = add_client_bill_cycle
-        con_cycle_cp_pro_start_date = ClientBill.set_con_cycle_cp_pro_date(buy_contract, client_bill_cycle)
-        set_client_payment_process(client_bill_cycle, con_cycle_cp_pro_start_date )
+        # # #client bill cycles
+        # client_bill_cycle = add_client_bill_cycle
+        # con_cycle_cp_pro_start_date = ClientBill.set_con_cycle_cp_pro_date(buy_contract, client_bill_cycle)
+        # set_client_payment_process(client_bill_cycle, con_cycle_cp_pro_start_date )
 
-        # #client expense cycles
-        client_expense_cycle  = add_client_expense_cycle  
-        add_client_expense(start_date, next_date, buy_contract.candidate_id, client_expense_cycle.id)     
-        con_cycle_ce_ap_start_date = ClientExpense.set_con_cycle_ce_ap_date(sell_contract, client_expense_cycle)
-        set_client_expense_approve(cycle,con_cycle_ce_ap_start_date)
-        client_expense_invoice_generate(client_expense_cycle)
+        # # #client expense cycles
+        # client_expense_cycle  = add_client_expense_cycle  
+        # add_client_expense(start_date, next_date, buy_contract.candidate_id, client_expense_cycle.id)     
+        # con_cycle_ce_ap_start_date = ClientExpense.set_con_cycle_ce_ap_date(sell_contract, client_expense_cycle)
+        # set_client_expense_approve(cycle,con_cycle_ce_ap_start_date)
+        # client_expense_invoice_generate(client_expense_cycle)
 
 
         next_date = next_next_date

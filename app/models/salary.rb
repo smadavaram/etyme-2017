@@ -11,7 +11,6 @@ class Salary < ApplicationRecord
   scope :open_salaries, -> {where(status: :open)}
   scope :processed_salaries, -> {where(status: :processed)}
   scope :cleared_salaries, -> {where(status: [:paid])}
-  
 
 
   def self.set_con_cycle_sp_date(buy_contract, con_cycle)

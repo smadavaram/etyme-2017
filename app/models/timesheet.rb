@@ -187,6 +187,7 @@ class Timesheet < ApplicationRecord
     #   )
     # end
     # con_cycle_ta.update_attributes(cycle_date: Time.now)
+    # binding.pry
     self.update_attributes(ta_cycle_id: con_cycle_ta.id)
   end
 
