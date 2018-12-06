@@ -34,7 +34,7 @@ module Contracts
         con_cycle_ta_start_date = Timesheet.set_con_cycle_ta_date(buy_contract, cycle)
 
         set_timesheet_approve(cycle,con_cycle_ta_start_date)
-        # invoice_generate(cycle)
+        invoice_generate(cycle)
         
         #salary cycles
         # binding.pry

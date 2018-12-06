@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema.define(version: 20181122101540) do
+ActiveRecord::Schema.define(version: 20181206083022) do
 
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
@@ -660,6 +660,24 @@ ActiveRecord::Schema.define(version: 20181122101540) do
     t.index ["company_id"], name: "index_contract_cycles_on_company_id"
     t.index ["contract_id"], name: "index_contract_cycles_on_contract_id"
     t.index ["cyclable_type", "cyclable_id"], name: "index_contract_cycles_on_cyclable_type_and_cyclable_id"
+  end
+
+  create_table "contract_expense_types", force: :cascade do |t|
+    t.string "name"
+    t.integer "status"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+  end
+
+  create_table "contract_expenses", force: :cascade do |t|
+    t.integer "contract_id"
+    t.integer "expense_type_id"
+    t.integer "cycle_id"
+    t.integer "candidate_id"
+    t.float "amount"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.string "con_ex_type"
   end
 
   create_table "contract_salary_histories", force: :cascade do |t|
@@ -1315,6 +1333,9 @@ ActiveRecord::Schema.define(version: 20181122101540) do
     t.integer "total_approve_time", default: 0
     t.decimal "rate", default: "0.0"
     t.decimal "balance", default: "0.0"
+    t.float "pending_amount"
+    t.float "salary_advance"
+    t.float "approved_amount"
   end
 
   create_table "sell_contracts", force: :cascade do |t|

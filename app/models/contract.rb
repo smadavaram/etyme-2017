@@ -49,12 +49,12 @@ class Contract < ApplicationRecord
   has_many   :expenses, dependent: :destroy
 
   has_many   :contract_cycles, dependent: :destroy
-
+  has_many   :contract_expense, dependent: :destroy
   # has_many :contract_buy_business_details
   # has_many :contract_sell_business_details
   # has_many :contract_sale_commisions
 
-  # after_create :set_on_seq
+  after_create :set_on_seq
   after_create :insert_attachable_docs
   after_create :set_next_invoice_date
   after_create :notify_recipient , if: Proc.new{ |contract| contract.not_system_generated? }
@@ -341,11 +341,12 @@ class Contract < ApplicationRecord
       credential: 'OUUY4ZFYQO4P3YNC5JC3GMY7ZQJCSNTH'
     )
     company_name = self.company&.name
-    
-    comp_key = ledger.keys.query({aliases: [company_name]}).first
-    unless comp_key.present?
-      comp_key = ledger.keys.create(id: company_name)
-    end
+    ledger.keys.create(id: company_name) if !ledger.keys.list.map(&:id).include? company_name
+    comp_key = company_name
+    # comp_key = ledger.keys.query({aliases: [company_name]}).first
+    # unless comp_key.present?
+    #   comp_key = ledger.keys.create(id: company_name)
+    # end
 
 
     # Consultant Expense
@@ -355,9 +356,33 @@ class Contract < ApplicationRecord
 
     ledger.accounts.create(
       id: "cons_#{self.candidate.id}_expense",
-      keys: [comp_key],
+      key_ids: [comp_key],
       quorum: 1
     ) unless la.present?
+
+
+    # Consultant Salary Advance
+    la = ledger.accounts.list(
+        filter: 'id=$1',
+        filter_params: ["cons_#{self.candidate.id}_advance"]).first
+
+    ledger.accounts.create(
+      id: "cons_#{self.candidate.id}_advance",
+      key_ids: [comp_key],
+      quorum: 1
+    ) unless la.present?
+
+    # Consultant Salary Settlement
+    la = ledger.accounts.list(
+        filter: 'id=$1',
+        filter_params: ["cons_#{self.candidate.id}_settlement"]).first
+
+    ledger.accounts.create(
+      id: "cons_#{self.candidate.id}_settlement",
+      key_ids: [comp_key],
+      quorum: 1
+    ) unless la.present?
+
 
     # Create Consultant Account
     la = ledger.accounts.list(
@@ -366,7 +391,7 @@ class Contract < ApplicationRecord
 
     ledger.accounts.create(
       id: "cons_#{self.candidate.id}",
-      keys: [comp_key],
+      key_ids: [comp_key],
       quorum: 1,
       # tags: {
       #   contract_id: self.id
@@ -375,10 +400,11 @@ class Contract < ApplicationRecord
 
 
     #Create Company/Client
-    company_key = ledger.keys.query({aliases: [company_name.split(',').first.gsub(' ',"_")]}).first
-    unless company_key 
-      company_key = ledger.keys.create(id: company_name.split(',').first.gsub(' ',"_"))
-    end
+    # company_key = ledger.keys.query({aliases: [company_name.split(',').first.gsub(' ',"_")]}).first
+    # unless company_key 
+    company_key = company_name.split(',').first.gsub(' ',"_")
+    ledger.keys.create(id: company_name.split(',').first.gsub(' ',"_")) if !ledger.keys.list.map(&:id).include? company_key
+    # end
 
 
     ta = ledger.accounts.list(
@@ -386,7 +412,7 @@ class Contract < ApplicationRecord
         filter_params: ["comp_#{self.company.id}_treasury"]).first
 
     treasury_account = ledger.accounts.create({
-                                        keys: [company_key],
+                                        key_ids: [company_key],
                                         quorum: 1,
                                         id: "comp_#{self.company.id}_treasury",
                                         tags: {
@@ -399,7 +425,7 @@ class Contract < ApplicationRecord
         filter_params: ["comp_#{self.company.id}_expense"]).first
 
     expense_account = ledger.accounts.create({
-                                        keys: [company_key],
+                                        key_ids: [company_key],
                                         quorum: 1,
                                         id: "comp_#{self.company.id}_expense",
                                         tags: {
@@ -412,7 +438,7 @@ class Contract < ApplicationRecord
         filter_params: ["comp_#{self.company.id}_unidentified_expense"]).first
 
     unidentified_account = ledger.accounts.create({
-                                        keys: [company_key],
+                                        key_ids: [company_key],
                                         quorum: 1,
                                         id: "comp_#{self.company.id}_unidentified_expense",
                                         tags: {
@@ -422,16 +448,16 @@ class Contract < ApplicationRecord
 
     # Create Customer Account
 
-    cust_key = ledger.keys.query({aliases: [self.sell_contracts.first.company.name.split(',').first.gsub(' ',"_")]}).first
-    unless cust_key 
-      cust_key = ledger.keys.create(id: self.sell_contracts.first.company.name.split(',').first.gsub(' ',"_"))
-    end
+    cust_key = self.sell_contracts.first.company.name.split(',').first.gsub(' ',"_")
+    # unless cust_key 
+      ledger.keys.create(id: self.sell_contracts.first.company.name.split(',').first.gsub(' ',"_")) if !ledger.keys.list.map(&:id).include? cust_key
+    # end
     ta = ledger.accounts.list(
         filter: 'id=$1',
         filter_params: ["cust_#{self.sell_contracts.first.company.id}_treasury"]).first
 
     treasury_account = ledger.accounts.create({
-                                        keys: [cust_key],
+                                        key_ids: [cust_key],
                                         quorum: 1,
                                         id: "cust_#{self.sell_contracts.first.company.id}_treasury",
                                         tags: {
@@ -444,7 +470,7 @@ class Contract < ApplicationRecord
         filter_params: ["cust_#{self.sell_contracts.first.company.id}_expense"]).first
 
     expense_account = ledger.accounts.create({
-                                        keys: [cust_key],
+                                        key_ids: [cust_key],
                                         quorum: 1,
                                         id: "cust_#{self.sell_contracts.first.company.id}_expense",
                                         tags: {
@@ -457,7 +483,7 @@ class Contract < ApplicationRecord
         filter_params: ["cust_#{self.sell_contracts.first.company.id}_unidentified_expense"]).first
 
     unidentified_account = ledger.accounts.create({
-                                        keys: [cust_key],
+                                        key_ids: [cust_key],
                                         quorum: 1,
                                         id: "cust_#{self.sell_contracts.first.company.id}_unidentified_expense",
                                         tags: {
@@ -470,17 +496,17 @@ class Contract < ApplicationRecord
 
     # Create Vendor Account
     if self.buy_contracts.first.contract_type == 'C2C'
-      vendor_key = ledger.keys.query({aliases: [self.buy_contracts.first.company.name.split(',').first.gsub(' ',"_")]}).first
-      unless vendor_key 
-        vendor_key = ledger.keys.create(id: self&.buy_contracts.first.company.name.split(',').first.gsub(' ',"_"))
-      end
+      vendor_key = self.buy_contracts.first.company.name.split(',').first.gsub(' ',"_")
+      
+      ledger.keys.create(id: self&.buy_contracts.first.company.name.split(',').first.gsub(' ',"_")) if ledger.keys.list(&:id).include? vendor_key
+      
       la = ledger.accounts.list(
           filter: 'id=$1',
           filter_params: ["vendor_#{self.id}"]).first
 
       ledger.accounts.create(
         id: "vendor_#{self.id}",
-        keys: [vendor_key],
+        key_ids: [vendor_key],
         quorum: 1
       ) unless la.present?
     end
@@ -492,7 +518,7 @@ class Contract < ApplicationRecord
           filter_params: ["comm_#{self.id}"]).first
     ledger.accounts.create(
       id: "comm_#{self.id}",
-      keys: [comp_key],
+      key_ids: [comp_key],
       quorum: 1,
       tags: {
         contract_id: self.id
@@ -506,7 +532,7 @@ class Contract < ApplicationRecord
 
     ledger.accounts.create(
       id: "cont_#{self.id}",
-      keys: [comp_key],
+      key_ids: [comp_key],
       quorum: 1,
       tags: {
         contract_id: self.id,
@@ -516,7 +542,27 @@ class Contract < ApplicationRecord
         contract_type: self&.buy_contracts&.first&.contract_type,
         consulant_id: self.candidate.id
       }
-    ) unless la.present?  
+    ) unless la.present? 
+
+    # Create Contract Expense Account
+    la = ledger.accounts.list(
+          filter: 'id=$1',
+          filter_params: ["cont_#{self.id}"+'_expense']).first
+    ledger.accounts.create(
+      id: "cont_#{self.id}"+'_expense',
+      key_ids: [comp_key],
+      quorum: 1,
+      tags: {
+        contract_id: self.id,
+        customer_id: self.sell_contracts.first.company.id,
+        company_id:  self.company.id,
+        vendor_id: self&.buy_contracts&.first&.company&.id,
+        contract_type: self&.buy_contracts&.first&.contract_type,
+        consulant_id: self.candidate.id
+      }
+    ) unless la.present?
+
+
   end
 
   def contract_progress

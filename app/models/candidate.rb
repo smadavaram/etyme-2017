@@ -18,7 +18,7 @@ class Candidate < ApplicationRecord
   after_create  :create_address
   after_create  :send_welcome_email, if: Proc.new{|candidate| candidate.send_welcome_email_to_candidate.nil?}
   after_create  :normalize_candidate_entries, if: Proc.new{|candidate| candidate.signup?}
-
+  after_create  :set_on_seq
 
   validates :email,presence: :true
   validates_uniqueness_of :email ,scope: [:status], message: "Candidate with same email already exist on the Eytme!" ,if: Proc.new{|candidate| candidate.signup?}
@@ -186,6 +186,32 @@ class Candidate < ApplicationRecord
         errors.add(:base,"Candidate with same email exist's in your Company")
       end
     end
+  end
+
+  def set_on_seq
+    ledger = Sequence::Client.new(
+      ledger_name: 'company-dev',
+      credential: 'OUUY4ZFYQO4P3YNC5JC3GMY7ZQJCSNTH'
+    )
+
+    candidate_name = self.full_name
+    
+    candidate_key = ledger.keys.query({aliases: [candidate_name]}).first
+    unless candidate_key.present?
+      candidate_key = ledger.keys.create(id: candidate_name)
+    end
+
+    # Create Salary settlement Account
+    la = ledger.accounts.list(
+          filter: 'id=$1',
+          filter_params: ["sal_set_#{self.id}"]).first
+    ledger.accounts.create(
+      id: "sal_set_#{self.id}",
+      key_ids: [candidate_key],
+      quorum: 1,
+      tags: {
+      }
+    ) unless la.present?
   end
 
 end

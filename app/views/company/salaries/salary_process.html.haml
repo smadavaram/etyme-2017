@@ -1,3 +1,31 @@
+%br
+%br
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+- sc_cycle_ids = nil
+= link_to 'Salary Calculate', '', class: 'btn btn-md btn-default btn-primary salary-calculate',title: "Salary Calculate", :onclick => 'calculate_salary();'
+
+&nbsp;&nbsp;&nbsp;
+= link_to 'Salary Process' , '', class: 'btn btn-md btn-default btn-primary salary-process',title: "Salary Process", :onclick => 'process_salary();'
+
+&nbsp;&nbsp;&nbsp;
+=# link_to 'Salary Aggregate and email' , '', class: 'btn btn-md btn-default btn-warning salary-aggregate', title: "Salary Aggregate and email", remote: true
+%span
+  %a.btn.btn-default.csv_btn.salary-aggregate.btn-default.btn-warning{:href => "javascript:;"} Salary Aggregate and email
+
+
+&nbsp;&nbsp;&nbsp;
+= link_to 'Salary Clear' , '', class: 'btn btn-md btn-default btn-warning salary-clear',title: "Salary Clear", onclick: 'clear_salary()'
+
+&nbsp;&nbsp;&nbsp;
+%span.btn.btn-md.btn-default.btn-primary.salary-clear.add-expense Add Expense
+
+&nbsp;&nbsp;&nbsp;
+= form_for :contract_expense_type, url:add_contract_expense_type_salaries_path, method: :post ,html:{class: 'contract-expense-type', id: 'contract-expense-type'} do |f|
+
+  = f.text_field :name
+  = hidden_field_tag :sc_cycle_id, ''
+  = f.submit 'Save', class: 'btn btn-primary'
+
 #content
   .row
   %section
@@ -7,7 +35,7 @@
           %header
             %span.widget-icon
               %i.fa.fa-check
-            %h2 Salary Process
+            %h2 Monthly Salary      
           
           .salary-cycle-wrap
             %div.table-responsive
@@ -15,43 +43,311 @@
                 %thead
                   %tr
                     %th Candidate
+                    %th Tax Type
+                    %th Customer Rate
+                    %th Salary rate
                     %th Status
                     %th Living state
                     %th City
                     %th Address
                     %th Zip
                     %th Working State
-                    - @salaries.each do |s|
-                      %th
+                    - @monthly_salaries.each do |s|
+                      %th.show-salary{:id => "#{s[1][0][1]}"}
                         = s[0][0].to_s+' - '+s[0][1].to_s
+                        &nbsp;&nbsp;&nbsp;
+                        = check_box_tag :active, '', false , class: 'salary_check'
+                    - @contract_expense_types.each do |cet|
+                      %th.expense-type.salary-clear{:id => cet.id}
+                        &nbsp;&nbsp;&nbsp;
+                        = link_to '<i class="fa fa-times-circle"></i>'.html_safe, delete_contract_expense_type_salaries_path(id: cet.id, sc_cycle_id: params[:sc_cycle_id]), method: :delete, data: { confirm: 'Are you sure?' }, title: 'Delete'
+                        &nbsp;&nbsp;&nbsp;
+                        %span
+                          = cet.name
                 %tbody
                   - @contracts.each do |c|
+                    - if c.buy_contracts.first.salary_clear == 'monthly'
+                      %tr
+                        %td
+                          = c&.candidate&.full_name.to_s+' - '+c.id.to_s
+                        %td
+                          = c&.buy_contracts&.first&.contract_type
+                        %td
+                          = c&.sell_contracts&.first&.customer_rate.to_i
+                        %td
+                          = c&.buy_contracts&.first&.payrate.to_i
+                        %td
+                          = c&.candidate&.visas&.first&.title
+                        %td
+                          = c&.candidate&.addresses&.first&.state
+                        %td
+                          = c&.candidate&.addresses&.first&.city
+                        %td
+                          = c&.candidate&.addresses&.first&.address_1
+                        %td
+                          = c&.candidate&.addresses&.first&.zip_code
+                        %td
+                          = c&.client&.addresses&.first&.city
+                        - @monthly_salaries.each do |s|
+                          %td.show-salary
+                            - s[1].each do |ss|
+                              - if c.id == ss[0]
+                                - salary = Salary.find_by(sc_cycle_id: ss[1])
+                                %span{:id => "#{ss[1]}"}
+                                -if salary.status == 'open'
+                                  - amount = Timesheet.includes(contract: :buy_contracts).where(status: 'approved', start_date: s[0][0]..s[0][1], contract_id: ss[0], candidate_id: c.candidate_id).sum(:total_time)* c&.buy_contracts&.first&.payrate
+                                  Pending
+                                  %span.pending_amount
+                                    = salary.pending_amount.to_i
+                                  &nbsp;&nbsp;&nbsp;
+                                  Approved
+                                  %span.approved_amount
+                                    = amount
+                                  &nbsp;&nbsp;&nbsp;
+                                  Advance
+                                  %span.salary_advance
+                                    = Expense.select { |m| m.salary_ids.include? ss[1].to_s }.map{|x| x.total_amount.to_i / x.salary_ids.length}.sum(&:to_i)
+                                -elsif salary.status == 'calculated'
+                                  Calculated Amount:
+                                  %span.salary_calculated
+                                    = salary.total_amount
+                                    %br
+                                    %br
+                                    Enter amount to process
+                                    = text_field_tag "#{salary.id}[amount]", '', value: salary.total_amount
+                                - elsif salary.status == 'processed'
+                                  Processed amount:
+                                  %span.salary_processed
+                                    = salary.total_amount
+                                - elsif salary.status == 'aggregated'
+                                  %span.salary_aggregated
+                                    = salary.total_amount
+                        - @contract_expense_types.each do |cet|
+                          %td.salary-clear
+                            = text_field_tag 'ct_ex_amount', '', class: "form-control ct_ex_amount #{cet.id.to_s+'_'+cet.name}", id: cet.name
+
+
+#content
+  .row
+  %section
+    .row
+      %article.col-sm-12.col-md-12.col-lg-12
+        #wid-id-0.jarviswidget{"data-widget-deletebutton" => "false", "data-widget-editbutton" => "false"}
+          %header
+            %span.widget-icon
+              %i.fa.fa-check
+            %h2 Weekly Salary 
+          
+          .salary-cycle-wrap
+            %div.table-responsive
+              %table.table.table-bordered.account_detail
+                %thead
+                  %tr
+                    %th Candidate
+                    %th Tax Type
+                    %th Customer Rate
+                    %th Salary rate
+                    %th Status
+                    %th Living state
+                    %th City
+                    %th Address
+                    %th Zip
+                    %th Working State
+                    - @weekly_salaries.each do |s|
+                      %th.show-salary{:id => "#{s[1][0][1]}"}
+                        = s[0][0].to_s+' - '+s[0][1].to_s
+                        &nbsp;&nbsp;&nbsp;
+                        = check_box_tag :active, '', false , class: 'salary_check'
+                %tbody
+                  - @contracts.each do |c|
+                    - if c.buy_contracts.first.salary_clear == 'weekly'
+                      %tr
+                        %td
+                          = c&.candidate&.full_name.to_s+' - '+c.id.to_s
+                        %td
+                          = c&.buy_contracts&.first&.contract_type
+                        %td
+                          = c&.sell_contracts&.first&.customer_rate.to_i
+                        %td
+                          = c&.buy_contracts&.first&.payrate.to_i
+                        %td
+                          = c&.candidate&.visas&.first&.title
+                        %td
+                          = c&.candidate&.addresses&.first&.state
+                        %td
+                          = c&.candidate&.addresses&.first&.city
+                        %td
+                          = c&.candidate&.addresses&.first&.address_1
+                        %td
+                          = c&.candidate&.addresses&.first&.zip_code
+                        %td
+                          = c&.client&.addresses&.first&.city
+                        - @weekly_salaries.each do |s|
+                          %td.show-salary
+                            - s[1].each do |ss|
+                              - if c.id == ss[0]
+                                - salary = Salary.find_by(sc_cycle_id: ss[1])
+                                %span{:id => "#{ss[1]}"}
+                                -if salary.status == 'open'
+                                  - amount = Timesheet.includes(contract: :buy_contracts).where(status: 'approved', start_date: s[0][0]..s[0][1], contract_id: ss[0], candidate_id: c.candidate_id).sum(:total_time)* c&.buy_contracts&.first&.payrate
+                                  Pending
+                                  %span.pending_amount
+                                    = salary.pending_amount.to_i
+                                  &nbsp;&nbsp;&nbsp;
+                                  Approved
+                                  %span.approved_amount
+                                    = amount
+                                  &nbsp;&nbsp;&nbsp;
+                                  Advance
+                                  %span.salary_advance
+                                    = Expense.select { |m| m.salary_ids.include? ss[1].to_s }.map{|x| x.total_amount.to_i / x.salary_ids.length}.sum(&:to_i)
+                                - elsif salary.status == 'calculated'
+                                  %span.salary_calculated
+                                    = salary.total_amount
+                                    = text_field_tag "#{salary.id}[:amount]"
+                                - elsif salary.status == 'processed'
+                                  Processed amount:
+                                  %span.salary_processed
+                                    = salary.total_amount
+
+#content
+  .row
+  %section
+    .row
+      %article.col-sm-12.col-md-12.col-lg-12
+        #wid-id-0.jarviswidget{"data-widget-deletebutton" => "false", "data-widget-editbutton" => "false"}
+          %header
+            %span.widget-icon
+              %i.fa.fa-check
+            %h2 Profit      
+          
+          .salary-cycle-wrap
+            %div.table-responsive
+              %table.table.table-bordered.account_detail
+                %thead
+                  %tr
+                    %th Contract
+                    %th Candidate
+                    - @months.each do |mon|
+                      %th.show-profit
+                        = mon.to_s+'  '+ Date.today.year.to_s
+                        &nbsp;&nbsp;&nbsp;
+                        = check_box_tag :active, '', false , class: 'profit_check'
+                %tbody
+                  - current_company.in_progress_contracts.includes(:candidate, :buy_contracts, :sell_contracts).each do |con|
                     %tr
-                      %th
-                        = c&.candidate&.full_name.to_s+' - '+c.id.to_s
-                      %th
-                        = c&.candidate&.visas&.first&.title
-                      %th
-                        = c&.candidate&.addresses&.first&.state
-                      %th
-                        = c&.candidate&.addresses&.first&.city
-                      %th
-                        = c&.candidate&.addresses&.first&.address_1
-                      %th
-                        = c&.candidate&.addresses&.first&.zip_code
-                      %th
-                        = c&.client&.addresses&.first&.city
-                      - @salaries.each do |s|
-                        %th
-                          - s[1].each do |ss|
-                            - if c.id == ss[0]
-                              - amount = Timesheet.includes(contract: :buy_contracts).where(status: 'approved', start_date: s[0][0]..s[0][1], contract_id: ss[0], candidate_id: c.candidate_id).sum(:total_time)* c&.buy_contracts&.first&.payrate
-                              = amount 
-                              = link_to 'Salary Process', open_salary_process_salaries_path(sc_cycle_id: ss[1], amount: amount), remote: true, class: 'btn btn-md btn-default btn-primary',title: "Details"
-
-                              .span.salary-clear.btn.btn-warning Salary clear
-
-
+                      %td
+                        = con.number
+                      %td
+                        = con.candidate.full_name
+                      %td
+                        - total_time = Timesheet.where(contract_id: con.id, status: 'approved').where('extract(month from start_date) = ?', 1).where('extract(year from start_date) = ?', Date.today.year).sum(:total_time)
+                        Income
+                        &nbsp;&nbsp;&nbsp
+                        = total_time*con&.sell_contracts&.first&.customer_rate
+                        %br    
+                        Expense
+                        &nbsp;&nbsp;&nbsp
+                        = total_time*con&.buy_contracts&.first&.payrate
+                      %td
+                        - total_time = Timesheet.where(contract_id: con.id, status: 'approved').where('extract(month from start_date) = ?', 2).where('extract(year from start_date) = ?', Date.today.year).sum(:total_time)
+                        Income
+                        &nbsp;&nbsp;&nbsp;
+                        = total_time*con&.sell_contracts&.first&.customer_rate
+                        %br    
+                        Expense
+                        &nbsp;&nbsp;&nbsp
+                        = total_time*con&.buy_contracts&.first&.payrate
+                      %td
+                        - total_time = Timesheet.where(contract_id: con.id, status: 'approved').where('extract(month from start_date) = ?', 3).where('extract(year from start_date) = ?', Date.today.year).sum(:total_time)
+                        Income
+                        &nbsp;&nbsp;&nbsp;
+                        = total_time*con&.sell_contracts&.first&.customer_rate
+                        %br    
+                        Expense
+                        &nbsp;&nbsp;&nbsp
+                        = total_time*con&.buy_contracts&.first&.payrate
+                      %td
+                        - total_time = Timesheet.where(contract_id: con.id, status: 'approved').where('extract(month from start_date) = ?', 4).where('extract(year from start_date) = ?', Date.today.year).sum(:total_time)
+                        Income
+                        &nbsp;&nbsp;&nbsp;
+                        = total_time*con&.sell_contracts&.first&.customer_rate
+                        %br    
+                        Expense
+                        &nbsp;&nbsp;&nbsp
+                        = total_time*con&.buy_contracts&.first&.payrate
+                      %td
+                        - total_time = Timesheet.where(contract_id: con.id, status: 'approved').where('extract(month from start_date) = ?', 5).where('extract(year from start_date) = ?', Date.today.year).sum(:total_time)
+                        Income
+                        &nbsp;&nbsp;&nbsp;
+                        = total_time*con&.sell_contracts&.first&.customer_rate
+                        %br    
+                        Expense
+                        &nbsp;&nbsp;&nbsp
+                        = total_time*con&.buy_contracts&.first&.payrate
+                      %td
+                        - total_time = Timesheet.where(contract_id: con.id, status: 'approved').where('extract(month from start_date) = ?', 6).where('extract(year from start_date) = ?', Date.today.year).sum(:total_time)
+                        Income
+                        &nbsp;&nbsp;&nbsp;
+                        = total_time*con&.sell_contracts&.first&.customer_rate
+                        %br    
+                        Expense
+                        &nbsp;&nbsp;&nbsp
+                        = total_time*con&.buy_contracts&.first&.payrate
+                      %td
+                        - total_time = Timesheet.where(contract_id: con.id, status: 'approved').where('extract(month from start_date) = ?', 7).where('extract(year from start_date) = ?', Date.today.year).sum(:total_time)
+                        Income
+                        &nbsp;&nbsp;&nbsp;
+                        = total_time*con&.sell_contracts&.first&.customer_rate
+                        %br    
+                        Expense
+                        &nbsp;&nbsp;&nbsp
+                        = total_time*con&.buy_contracts&.first&.payrate
+                      %td
+                        - total_time = Timesheet.where(contract_id: con.id, status: 'approved').where('extract(month from start_date) = ?', 8).where('extract(year from start_date) = ?', Date.today.year).sum(:total_time)
+                        Income
+                        &nbsp;&nbsp;&nbsp;
+                        = total_time*con&.sell_contracts&.first&.customer_rate
+                        %br    
+                        Expense
+                        &nbsp;&nbsp;&nbsp
+                        = total_time*con&.buy_contracts&.first&.payrate
+                      %td
+                        - total_time = Timesheet.where(contract_id: con.id, status: 'approved').where('extract(month from start_date) = ?', 9).where('extract(year from start_date) = ?', Date.today.year).sum(:total_time)
+                        Income
+                        &nbsp;&nbsp;&nbsp;
+                        = total_time*con&.sell_contracts&.first&.customer_rate
+                        %br    
+                        Expense
+                        &nbsp;&nbsp;&nbsp
+                        = total_time*con&.buy_contracts&.first&.payrate
+                      %td
+                        - total_time = Timesheet.where(contract_id: con.id, status: 'approved').where('extract(month from start_date) = ?', 10).where('extract(year from start_date) = ?', Date.today.year).sum(:total_time)
+                        Income
+                        &nbsp;&nbsp;&nbsp;
+                        = total_time*con&.sell_contracts&.first&.customer_rate
+                        %br    
+                        Expense
+                        &nbsp;&nbsp;&nbsp
+                        = total_time*con&.buy_contracts&.first&.payrate
+                      %td
+                        - total_time = Timesheet.where(contract_id: con.id, status: 'approved').where('extract(month from start_date) = ?', 11).where('extract(year from start_date) = ?', Date.today.year).sum(:total_time)
+                        Income
+                        &nbsp;&nbsp;&nbsp;
+                        = total_time*con&.sell_contracts&.first&.customer_rate
+                        %br    
+                        Expense
+                        &nbsp;&nbsp;&nbsp
+                        = total_time*con&.buy_contracts&.first&.payrate
+                      %td
+                        - total_time = Timesheet.where(contract_id: con.id, status: 'approved').where('extract(month from start_date) = ?', 12).where('extract(year from start_date) = ?', Date.today.year).sum(:total_time)
+                        Income
+                        &nbsp;&nbsp;&nbsp;
+                        = total_time*con&.sell_contracts&.first&.customer_rate
+                        %br    
+                        Expense
+                        &nbsp;&nbsp;&nbsp
+                        = total_time*con&.buy_contracts&.first&.payrate
 .modal.fade{id: "salary-confirmation-model"}
   .modal-dialog
     .modal-content
@@ -66,13 +362,156 @@
 - content_for :scripts do
   :javascript 
 
-    $(document).ready(function() {
-      $(document).on("change","#contract_id", function() {
-        $.ajax({
-          / url: "",
-          / type: '',
-          / data: {contract_id: $('#contract_id option:selected').val()},
-          / dataType: 'script'
-        })
+    $('.salary-calculate').hide();
+    $('.salary-process').hide();
+    $('.salary-clear').hide();
+    $('.salary-aggregate').hide();
+    $('.contract-expense-type').hide();
+
+    function check_salary_status(sc_cycle_id){
+      $.ajax({
+        url: '#{check_salary_status_salaries_path}',
+        type: 'GET',
+        data: {sc_cycle_id: sc_cycle_id},
+        dataType: 'JSON'
+      }).done(function(data){
+        if(data.status == 'open'){
+          $('.salary-calculate').show();
+        }else if(data.status == 'calculated'){
+          $('.salary-process').show();
+        }else if(data.status == 'processed'){
+          $('.salary-aggregate').show();
+        }else if(data.status == 'aggregated'){
+          $('.salary-clear').show();
+        }
       });
+    }
+
+    $(document).on('change', '.salary_check', function() {
+      if (this.checked) {
+        var sc_cycle_id = this.parentElement.id
+        $(this).parent().addClass('active');
+        $(this).parent().removeClass('show-salary');
+        $("table tr td").each(function(){
+          if ($(this).attr('class') == 'show-salary'){          
+            var $cell = $(this);
+
+            if($cell.closest('table').find('th').eq($cell.index()).attr('class') == 'active'){
+              $cell.addClass('active');
+              $cell.removeClass('show-salary');
+
+            }
+          }
+        });
+        check_salary_status(sc_cycle_id);
+        $('.show-salary').hide();
+      }
+      else{
+        $(this).parent().removeClass('active');
+        $(this).parent().addClass('show-salary');
+        $("table tr td").each(function(){
+          if ($(this).attr('class') == 'active'){          
+              $(this).removeClass('active');
+              $(this).addClass('show-salary');            
+          }
+        });
+
+        $('.show-salary').show();
+        $('.salary-calculate').hide();
+        $('.salary-process').hide();
+        $('.salary-clear').hide();
+        $('.salary-aggregate').hide();
+
+      }
+    })
+
+    function calculate_salary(){    
+      var sc_cycle_ids = {};
+      $('td.active').each(function () {
+        sc_cycle_ids[$(this).find('span').attr('id')] = {'pending_amount': $(this).find('span.pending_amount').text(), 'approved_amount': $(this).find('span.approved_amount').text(), 'salary_advance': $(this).find('span.salary_advance').text()}
+      });
+
+      $.ajax({
+        url: '#{calculate_salary_salaries_path}',
+        type: 'GET',
+        data: {sc_cycle_ids: sc_cycle_ids},
+        dataType: 'script'
+      })
+    }
+
+
+    function process_salary(){    
+      var sc_cycle_ids = {};
+      $('td.active').each(function () {
+        sc_cycle_ids[$(this).find('span').attr('id')] = {'salary_calculated': $(this).find('span.salary_calculated').find('input').val()}
+      });
+
+      $.ajax({
+        url: '#{process_salary_salaries_path}',
+        type: 'GET',
+        data: {sc_cycle_ids: sc_cycle_ids},
+        dataType: 'script'
+      })
+    }
+
+
+
+    $(document).on('click', '.salary-aggregate', function(){   
+      var sc_cycle_ids = [];
+      $('td.active').each(function () {
+        sc_cycle_ids.push($(this).find('span').attr('id'))
+      });
+      var csv_url = '';
+      $.ajax({
+        url: '/salaries/aggregate_salary.csv',
+        type: 'GET',
+        data: {sc_cycle_ids: sc_cycle_ids},
+        dataType: 'CSV',
+        beforeSend: function (jqXHR, settings) {
+          debugger
+          window.location.href = window.location.origin + settings.url+'&send_mail=true'
+        },
+      })
+    })
+
+    function clear_salary(){    
+      var sc_cycle_ids = [];
+      $('td.active').each(function () {
+        sc_cycle_ids.push($(this).find('span').attr('id'))
+      });
+
+      $.ajax({
+        url: '#{clear_salary_salaries_path}',
+        type: 'GET',
+        data: {sc_cycle_ids: sc_cycle_ids},
+        dataType: 'script'
+      })
+    }
+
+    $(document).on('click', '.add-expense', function(){
+      $('.contract-expense-type').toggle();
+      $('#sc_cycle_id').val($('table tr th.active').attr('id'));
     });
+
+    '<haml_silent> if params[:sc_cycle_id].present? </haml_silent><haml_block>'
+      var id = #{params[:sc_cycle_id]}
+      $('#'+id).find('input').click(); 
+    '</haml_block>'
+
+
+    $(".ct_ex_amount").on("blur", function(){
+      debugger
+      var sc_cycle_id = $(this).closest('tr').find('td.active').find('span').attr('id')
+      $.ajax({
+        url: '#{add_contract_expense_amount_salaries_path}',
+        type: 'POST',
+        data: {amount: $(this).val(), sc_cycle_id: sc_cycle_id, cet_id: $(this).attr('id')},
+        dataType: 'JSON'
+      }).done(function(data){
+        $(this).val($(this).val());
+      });
+    })
+    
+  
+    
+

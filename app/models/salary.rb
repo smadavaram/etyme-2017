@@ -1,6 +1,7 @@
 class Salary < ApplicationRecord
+  require 'sequence'
   include Rails.application.routes.url_helpers
-  enum status: [:open, :processed, :cleared]
+  enum status: [:open, :calculated, :processed, :aggregated, :cleared]
   belongs_to :company, optional: true
   belongs_to :contract, optional: true
   belongs_to :candidate, optional: true
@@ -9,9 +10,28 @@ class Salary < ApplicationRecord
   has_many :sclr_cleareds, foreign_key: :sclr_cycle_id, class_name: 'Salary'
 
   scope :open_salaries, -> {where(status: :open)}
+  scope :calculated_salaries, -> {where(status: :calculated)}
   scope :processed_salaries, -> {where(status: :processed)}
   scope :cleared_salaries, -> {where(status: [:paid])}
 
+  # after_update :set_salary_settlement_on_seq, :if => proc {|obj| obj.status == 'calculated' }
+
+
+  def self.generate_csv(sc_cycle_ids)
+
+    attributes = %w{ Name Status Living_State City Address Zip Amount}
+    salaries = Salary.where(sc_cycle_id: sc_cycle_ids)
+    amounts = salaries.group(:candidate_id).sum(:total_amount)
+    salaries.update_all(status: 'aggregated')
+
+    CSV.generate(headers: true) do |csv|
+      csv << attributes
+      amounts.each do |s|
+        can = Candidate.find_by(id: s[0])
+        csv << [can&.full_name, can&.visas&.first&.title, can&.addresses&.first&.state, can&.addresses&.first&.city, can&.addresses&.first&.address_1, can&.addresses&.first&.zip_code, s[1].to_i]
+      end     
+    end
+  end
 
   def self.set_con_cycle_sp_date(buy_contract, con_cycle)
     @sp_type = buy_contract&.salary_process
@@ -130,6 +150,41 @@ class Salary < ApplicationRecord
     end
     # binding.pry
     con_cycle_sp_start_date = DateTime.new(year, month, day)
+  end
+
+
+  def set_salary_settlement_on_seq
+    ledger = Sequence::Client.new(
+        ledger_name: 'company-dev',
+        credential: 'OUUY4ZFYQO4P3YNC5JC3GMY7ZQJCSNTH'
+    )
+    if self.approved_amount > 0 && self.salary_advance > 0 && self.total_amount > 0
+      tx = ledger.transactions.transact do |builder|
+        builder.retire(
+          flavor_id: 'usd',
+          amount: self.approved_amount.to_i ,
+          source_account_id: 'cons_'+self.candidate_id.to_s,
+          action_tags: {type: 'approved amount'}
+        )
+      
+        builder.retire(
+          flavor_id: 'usd',
+          amount: self.salary_advance.to_i,
+          source_account_id: 'cons_'+self.candidate_id.to_s+'_advance',
+          action_tags: {type: 'salary advance'}
+        )
+        builder.issue(
+          flavor_id: 'usd',
+          amount: self&.total_amount.to_i,
+          destination_account_id: 'cons_'+self.candidate_id.to_s+'_settlement',
+          action_tags: {
+            type: 'issue',
+            contract: self.contract_id,
+            salary_id: self.id
+          }
+        )
+      end
+    end
   end
 
 end

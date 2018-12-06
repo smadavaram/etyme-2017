@@ -1,0 +1,2 @@
+class ContractExpenseType < ApplicationRecord
+end

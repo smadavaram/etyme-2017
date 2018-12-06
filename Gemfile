@@ -144,16 +144,14 @@ gem 'redis', '~> 3.3.3'
 gem "select2-rails", '~> 3.5.9.1'
 gem 'therubyracer'
 
-gem 'sequence-sdk', '~> 1.5', require: 'sequence'
+# gem 'sequence-sdk', '~> 1.5', require: 'sequence'
+gem 'sequence-sdk'
 
 gem 'facebook-account-kit'
 
 gem 'nokogiri'
 
 gem 'markio'
-
-gem "better_errors"
-gem "binding_of_caller"
 
 gem 'nested_form_fields'
 

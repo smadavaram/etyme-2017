@@ -420,6 +420,14 @@ Rails.application.routes.draw do
         get :filter_salary_cycles
         get :salary_process
         get :open_salary_process
+        get :calculate_salary
+        get :check_salary_status
+        get :process_salary
+        get :aggregate_salary
+        post :add_contract_expense_type
+        post :add_contract_expense_amount
+        get :clear_salary
+        delete :delete_contract_expense_type
       end
     end
 

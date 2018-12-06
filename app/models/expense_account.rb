@@ -101,13 +101,14 @@ class ExpenseAccount < ApplicationRecord
         customer_expense = ledger.transactions.transact do |builder|
           builder.issue(
             flavor_id: 'usd',
-            amount: self&.amount.to_i,
-            destination_account_id: 'cons_'+self&.expense&.contract&.candidate_id.to_s,
+            amount: self&.amount.to_i/self.expense.salary_ids.length,
+            destination_account_id: 'cons_'+self&.expense&.contract&.candidate_id.to_s+'_advance',
             action_tags: {
               type: 'issue',
               expense_type: self.expense_type.name,
               contract_id: self.expense.contract_id,
-              bill_type: self.expense.bill_type
+              bill_type: self.expense.bill_type,
+              expense_id: self.expense.id
             }
           )
         end  
