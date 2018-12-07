@@ -14,7 +14,7 @@ class Salary < ApplicationRecord
   scope :processed_salaries, -> {where(status: :processed)}
   scope :cleared_salaries, -> {where(status: [:paid])}
 
-  # after_update :set_salary_settlement_on_seq, :if => proc {|obj| obj.status == 'calculated' }
+  after_update :set_salary_settlement_on_seq, :if => proc {|obj| obj.status == 'calculated' }
 
 
   def self.generate_csv(sc_cycle_ids)

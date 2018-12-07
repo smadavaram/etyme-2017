@@ -201,14 +201,24 @@
                                   Advance
                                   %span.salary_advance
                                     = Expense.select { |m| m.salary_ids.include? ss[1].to_s }.map{|x| x.total_amount.to_i / x.salary_ids.length}.sum(&:to_i)
-                                - elsif salary.status == 'calculated'
+                                -elsif salary.status == 'calculated'
+                                  Calculated Amount:
                                   %span.salary_calculated
                                     = salary.total_amount
-                                    = text_field_tag "#{salary.id}[:amount]"
+                                    %br
+                                    %br
+                                    Enter amount to process
+                                    = text_field_tag "#{salary.id}[amount]", '', value: salary.total_amount
                                 - elsif salary.status == 'processed'
                                   Processed amount:
                                   %span.salary_processed
                                     = salary.total_amount
+                                - elsif salary.status == 'aggregated'
+                                  %span.salary_aggregated
+                                    = salary.total_amount
+                        - @contract_expense_types.each do |cet|
+                          %td.salary-clear
+                            = text_field_tag 'ct_ex_amount', '', class: "form-control ct_ex_amount #{cet.id.to_s+'_'+cet.name}", id: cet.name
 
 #content
   .row

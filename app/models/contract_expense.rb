@@ -3,7 +3,7 @@ class ContractExpense < ApplicationRecord
 
   belongs_to :contract
 
-  after_update :set_cont_expense_on_seq 
+  after_save :set_cont_expense_on_seq 
   
   def set_cont_expense_on_seq
     ledger = Sequence::Client.new(
@@ -12,7 +12,6 @@ class ContractExpense < ApplicationRecord
     )
     self.contract.set_on_seq
     if self.amount > 0
-      binding.pry
       tx = ledger.transactions.transact do |builder|
         builder.issue(
           flavor_id: 'usd',
