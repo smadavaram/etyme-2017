@@ -16,6 +16,8 @@ class Salary < ApplicationRecord
 
   after_update :set_salary_settlement_on_seq, :if => proc {|obj| obj.status == 'calculated' }
 
+  after_update :set_salary_process_on_seq, :if => proc {|obj| obj.status == 'processed' }
+
 
   def self.generate_csv(sc_cycle_ids)
 
@@ -198,6 +200,39 @@ class Salary < ApplicationRecord
         )
       end
     end
+  end
+
+  def set_salary_process_on_seq
+    ledger = Sequence::Client.new(
+      ledger_name: 'company-dev',
+      credential: 'OUUY4ZFYQO4P3YNC5JC3GMY7ZQJCSNTH'
+    )
+    if self.contract.buy_contracts.first.contract_type == 'C2C'
+      source = "vendor_#{self.contract.buy_contracts.first.company_id}_settlement"
+      destination = "vendor_#{self.contract.buy_contracts.first.company_id}_process"
+    else
+      source = "cons_#{self.contract.buy_contracts.first.candidate.id}_settlement"
+      destination = "cons_#{self.contract.buy_contracts.first.candidate.id}_process"
+    end
+    self.contract.set_on_seq
+    if self.total_amount > 0
+      tx = ledger.transactions.transact do |builder|
+        builder.transfer(
+            flavor_id: 'usd',
+            amount: (self.total_amount).to_i,
+            source_account_id: source,
+            destination_account_id: destination,
+            action_tags: {
+              type: 'transfer',
+              contract: self.contract_id,
+              salary_id: self.id,
+              "TransactionType" => self.contract.buy_contracts.first.contract_type
+            }
+        )
+      end
+    end
+
+
   end
 
 end

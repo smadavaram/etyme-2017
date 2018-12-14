@@ -383,6 +383,17 @@ class Contract < ApplicationRecord
       quorum: 1
     ) unless la.present?
 
+    # Consultant Salary Process
+    la = ledger.accounts.list(
+        filter: 'id=$1',
+        filter_params: ["cons_#{self.candidate.id}_process"]).first
+
+    ledger.accounts.create(
+      id: "cons_#{self.candidate.id}_process",
+      key_ids: [comp_key],
+      quorum: 1
+    ) unless la.present?
+
 
     # Create Consultant Account
     la = ledger.accounts.list(
@@ -534,13 +545,23 @@ class Contract < ApplicationRecord
       ) unless la.present?
 
       # create vendor advance
-
       la = ledger.accounts.list(
         filter: 'id=$1',
         filter_params: ["vendor_#{self.buy_contracts.first.company_id}_advance"]).first
 
       ledger.accounts.create(
         id: "vendor_#{self.buy_contracts.first.company_id}_advance",
+        key_ids: [vendor_key],
+        quorum: 1
+      ) unless la.present?
+
+      # create vendor process
+      la = ledger.accounts.list(
+        filter: 'id=$1',
+        filter_params: ["vendor_#{self.buy_contracts.first.company_id}_process"]).first
+
+      ledger.accounts.create(
+        id: "vendor_#{self.buy_contracts.first.company_id}_process",
         key_ids: [vendor_key],
         quorum: 1
       ) unless la.present?
