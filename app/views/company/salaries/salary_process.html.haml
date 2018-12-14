@@ -95,7 +95,7 @@
                                 - salary = Salary.find_by(sc_cycle_id: ss[1])
                                 %span{:id => "#{ss[1]}"}
                                 -if salary.status == 'open'
-                                  - amount = Timesheet.includes(contract: :buy_contracts).where(status: 'approved', start_date: s[0][0]..s[0][1], contract_id: ss[0], candidate_id: c.candidate_id).sum(:total_time)* c&.buy_contracts&.first&.payrate
+                                  - amount = @timesheets.where(status: 'approved', start_date: s[0][0]..s[0][1], contract_id: ss[0], candidate_id: c.candidate_id).sum(:total_time)* c&.buy_contracts&.first&.payrate
                                   Pending
                                   %span.pending_amount
                                     = salary.pending_amount.to_i
@@ -106,7 +106,7 @@
                                   &nbsp;&nbsp;&nbsp;
                                   Advance
                                   %span.salary_advance
-                                    = Expense.select { |m| m.salary_ids.include? ss[1].to_s }.map{|x| x.total_amount.to_i / x.salary_ids.length}.sum(&:to_i)
+                                    = @expenses.present? ? @expenses.select { |m| m.salary_ids.include? ss[1].to_s }.map{|x| x.total_amount.to_i / x.salary_ids.length}.sum(&:to_i) : 0
                                 -elsif salary.status == 'calculated'
                                   Calculated Amount:
                                   %span.salary_calculated
@@ -189,7 +189,7 @@
                                 - salary = Salary.find_by(sc_cycle_id: ss[1])
                                 %span{:id => "#{ss[1]}"}
                                 -if salary.status == 'open'
-                                  - amount = Timesheet.includes(contract: :buy_contracts).where(status: 'approved', start_date: s[0][0]..s[0][1], contract_id: ss[0], candidate_id: c.candidate_id).sum(:total_time)* c&.buy_contracts&.first&.payrate
+                                  - amount = @timesheets.where(status: 'approved', start_date: s[0][0]..s[0][1], contract_id: ss[0], candidate_id: c.candidate_id).sum(:total_time)* c&.buy_contracts&.first&.payrate
                                   Pending
                                   %span.pending_amount
                                     = salary.pending_amount.to_i
@@ -200,7 +200,7 @@
                                   &nbsp;&nbsp;&nbsp;
                                   Advance
                                   %span.salary_advance
-                                    = Expense.select { |m| m.salary_ids.include? ss[1].to_s }.map{|x| x.total_amount.to_i / x.salary_ids.length}.sum(&:to_i)
+                                    = @expenses.present? ? @expenses.select { |m| m.salary_ids.include? ss[1].to_s }.map{|x| x.total_amount.to_i / x.salary_ids.length}.sum(&:to_i) : 0
                                 -elsif salary.status == 'calculated'
                                   Calculated Amount:
                                   %span.salary_calculated

@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema.define(version: 20181206083022) do
+ActiveRecord::Schema.define(version: 20181212130918) do
 
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
@@ -230,6 +230,16 @@ ActiveRecord::Schema.define(version: 20181206083022) do
     t.string "term_no"
     t.string "term_no_2"
     t.string "payment_term_2"
+    t.string "vendor_clear"
+    t.date "ven_clr_date_1"
+    t.date "ven_clr_date_2"
+    t.string "ven_clr_day_of_week"
+    t.boolean "ven_clr_end_of_month"
+    t.time "ven_clr_day_time"
+    t.string "ven_term_1"
+    t.string "ven_term_2"
+    t.string "ven_term_num_1"
+    t.string "ven_term_num_2"
     t.index ["candidate_id"], name: "index_buy_contracts_on_candidate_id"
     t.index ["contract_id"], name: "index_buy_contracts_on_contract_id"
   end
@@ -1244,6 +1254,28 @@ ActiveRecord::Schema.define(version: 20181206083022) do
     t.string "term_no"
     t.string "term_no_2"
     t.string "payroll_term_2"
+    t.string "ven_term_no_1"
+    t.string "ven_term_no_2"
+    t.date "ven_bill_date_1"
+    t.date "ven_bill_date_2"
+    t.date "ven_pay_date_1"
+    t.date "ven_pay_date_2"
+    t.date "ven_clr_date_1"
+    t.date "ven_clr_date_2"
+    t.time "ven_bill_day_time"
+    t.time "ven_pay_day_time"
+    t.time "ven_clr_day_time"
+    t.boolean "ven_bill_end_of_month"
+    t.boolean "ven_pay_end_of_month"
+    t.boolean "ven_clr_end_of_month"
+    t.string "ven_payroll_type"
+    t.string "ven_term_num_1"
+    t.string "ven_term_num_2"
+    t.string "ven_term_1"
+    t.string "ven_term_2"
+    t.string "ven_bill_day_of_week"
+    t.string "ven_pay_day_of_week"
+    t.string "ven_clr_day_of_week"
     t.index ["company_id"], name: "index_payroll_infos_on_company_id"
   end
 

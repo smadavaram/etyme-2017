@@ -8,42 +8,56 @@
     .content
       .row
         %h1.name.revealOnScroll{"data-animation" => "fadeInDown"}
-          =image_tag('etyme-m-logo.png', height: 70, style: 'margin-right: -16px;')
-          %span ETYME.
-        %p.temp The Plateform For Manage Jobs, Contracts and Timesheets.
-        %h2.hire.revealOnScroll{"data-animation" => "fadeInUp", "data-timeout" => "400"} Hire the best Candidates for your work.
+          %div.animated_img-wrap
+            %div.d-inline-block
+              %div
+                =image_tag('etyme_logo_with_round.png',:class => "first_hand", height: 70, style: '')
+                %div.second_hand
+                  %div
+            %span ETYME.
+        %p.temp find, hire, contract, Doc mgmt, Timesheets and payments made easy even when you have no HR and CRM background.
+        %h2.hire.revealOnScroll{"data-animation" => "fadeInUp", "data-timeout" => "400"} Re-imagine Contracting with AI & Automation.
         .form-row
           .radio.radio-left
             %a{:href => signin_path} HIRE
           .radio.radio-right
             %a{:href => new_candidate_session_path} WORK
 
-%section#services.services
+%section#resources.resources
   .container.text-center
     .row
       .col-lg-12
         %h2.section_title
-          Browse
+          Find relevant
           %span
-            Freelance
-          Services
-          %p.top-p View over #{@count} available services by category.
-    .row
-      .col-lg-12
-        - @jobs.each do |category,jobs|
-          .col-lg-4.col-md-4.col-sm-6
-            %a{:href => static_jobs_path(category: category)}
-              .features.four
-                %span.fa-stack.fa-3x
-                  %i.fa.fa-circle.fa-stack-2x
-                  %i.fa.fa-briefcase.fa-stack-1x.fa-inverse
-                / /span
-                %h4 #{truncate(category,length: 20)}
-              / /.features
-              .spacer
-                %p= truncate(jobs.map{|j| j.title.humanize}.join(", "),length: 100)
-                %p
-                  %b Over  #{jobs.count} jobs
+            Onsite Resources
+          today.
+    .row.flex-row
+      .col-lg-4.col-md-4
+        %a{:href => ''}
+          .single_resource
+            %div.img-wrap
+              =image_tag('shield.png')
+            / /span
+            %h4 Track compliance
+            %p.item-desc immigration to insurance, background check in transaction. 
+      .col-lg-4.col-md-4
+        %a{:href => ''}
+          .single_resource
+            %div.img-wrap
+              =image_tag('support.png')
+            / /span
+            %h4 Easy communication  
+            %p.item-desc chat,call, email Integrated path from hiring to contract and doc mgmt to payments.Get/give review.
+      .col-lg-4.col-md-4
+        %a{:href => ''}
+          .single_resource
+            %div.img-wrap
+              =image_tag('handshake.png')
+            / /span
+            %h4 Businesses support   
+            %p.item-desc Enterprise IT Departments, Consulting and Staffing Agencies, Coachings.
+              
 
 %section.banner-comment
   .container

@@ -1,5 +1,5 @@
 class Contract < ApplicationRecord
-
+  require 'sequence'
   include PublicActivity::Model
   tracked params:{ "obj"=> proc {|controller, model_instance| model_instance.changes}}
 
@@ -497,18 +497,55 @@ class Contract < ApplicationRecord
     # Create Vendor Account
     if self.buy_contracts.first.contract_type == 'C2C'
       vendor_key = self.buy_contracts.first.company.name.split(',').first.gsub(' ',"_")
-      
-      ledger.keys.create(id: self&.buy_contracts.first.company.name.split(',').first.gsub(' ',"_")) if ledger.keys.list(&:id).include? vendor_key
-      
+      ledger.keys.create(id: self&.buy_contracts.first.company.name.split(',').first.gsub(' ',"_")) if !ledger.keys.list.map(&:id).include? vendor_key
+
       la = ledger.accounts.list(
-          filter: 'id=$1',
-          filter_params: ["vendor_#{self.id}"]).first
+        filter: 'id=$1',
+        filter_params: ["vendor_#{self.buy_contracts.first.company_id}"]).first
 
       ledger.accounts.create(
-        id: "vendor_#{self.id}",
+        id: "vendor_#{self.buy_contracts.first.company_id}",
         key_ids: [vendor_key],
         quorum: 1
       ) unless la.present?
+
+      # create vendor expense
+
+      la = ledger.accounts.list(
+        filter: 'id=$1',
+        filter_params: ["vendor_#{self.buy_contracts.first.company_id}_expense"]).first
+
+      ledger.accounts.create(
+        id: "vendor_#{self.buy_contracts.first.company_id}_expense",
+        key_ids: [vendor_key],
+        quorum: 1
+      ) unless la.present?
+
+      # create vendor settlement
+
+      la = ledger.accounts.list(
+        filter: 'id=$1',
+        filter_params: ["vendor_#{self.buy_contracts.first.company_id}_settlement"]).first
+
+      ledger.accounts.create(
+        id: "vendor_#{self.buy_contracts.first.company_id}_settlement",
+        key_ids: [vendor_key],
+        quorum: 1
+      ) unless la.present?
+
+      # create vendor advance
+
+      la = ledger.accounts.list(
+        filter: 'id=$1',
+        filter_params: ["vendor_#{self.buy_contracts.first.company_id}_advance"]).first
+
+      ledger.accounts.create(
+        id: "vendor_#{self.buy_contracts.first.company_id}_advance",
+        key_ids: [vendor_key],
+        quorum: 1
+      ) unless la.present?
+
+
     end
 
 

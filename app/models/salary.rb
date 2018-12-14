@@ -158,25 +158,38 @@ class Salary < ApplicationRecord
         ledger_name: 'company-dev',
         credential: 'OUUY4ZFYQO4P3YNC5JC3GMY7ZQJCSNTH'
     )
-    if self.approved_amount > 0 && self.salary_advance > 0 && self.total_amount > 0
+
+    if self.contract.buy_contracts.first.contract_type == 'C2C'
+      receiver = 'vendor_'+self.contract.buy_contracts.first.company_id.to_s
+      receiver_advance = 'vendor_'+self.contract.buy_contracts.first.company_id.to_s+'_advance'
+      receiver_settlement = 'vendor_'+self.contract.buy_contracts.first.company_id.to_s+'_settlement'
+    elsif
+      receiver = 'cons_'+self.candidate_id.to_s
+      receiver_advance = 'cons_'+self.candidate_id.to_s+'_advance'
+      receiver_settlement = 'cons_'+self.candidate_id.to_s+'_settlement'
+    end
+    # binding.pry
+    if self.approved_amount > 0  && self.total_amount > 0
       tx = ledger.transactions.transact do |builder|
         builder.retire(
           flavor_id: 'usd',
           amount: self.approved_amount.to_i ,
-          source_account_id: 'cons_'+self.candidate_id.to_s,
+          source_account_id: receiver,
           action_tags: {type: 'approved amount'}
         )
-      
-        builder.retire(
-          flavor_id: 'usd',
-          amount: self.salary_advance.to_i,
-          source_account_id: 'cons_'+self.candidate_id.to_s+'_advance',
-          action_tags: {type: 'salary advance'}
-        )
+
+        if self.salary_advance > 0    
+          builder.retire(
+            flavor_id: 'usd',
+            amount: self.salary_advance.to_i,
+            source_account_id: receiver_advance,
+            action_tags: {type: 'salary advance'}
+          )
+        end
         builder.issue(
           flavor_id: 'usd',
           amount: self&.total_amount.to_i,
-          destination_account_id: 'cons_'+self.candidate_id.to_s+'_settlement',
+          destination_account_id: receiver_settlement,
           action_tags: {
             type: 'issue',
             contract: self.contract_id,

@@ -154,6 +154,8 @@ class Company::PayrollTermInfosController < Company::BaseController
       :sp_day_time, :sp_date_1, :sp_date_2, :sp_day_of_week, :sp_end_of_month,
                
       :sclr_day_time, :sclr_date_1, :sclr_date_2, :sclr_day_of_week, :sclr_end_of_month,
+
+      :ven_term_no_1, :ven_term_no_2, :ven_bill_date_1, :ven_bill_date_2, :ven_pay_date_1, :ven_pay_date_2, :ven_clr_date_1, :ven_clr_date_2, :ven_bill_day_time, :ven_pay_day_time, :ven_clr_day_time, :ven_bill_end_of_month, :ven_pay_end_of_month, :ven_clr_end_of_month, :ven_payroll_type, :ven_term_num_1, :ven_term_num_2, :ven_term_1, :ven_term_2,
                                          tax_infos_attributes: [:id,:tax_term, :_destroy])
   end
 end

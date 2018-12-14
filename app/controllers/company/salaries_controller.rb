@@ -1,4 +1,5 @@
 class Company::SalariesController < Company::BaseController
+  require 'sequence'
   def salary_list
       filter_salary_cycles
   end
@@ -15,10 +16,16 @@ class Company::SalariesController < Company::BaseController
   end
 
   def salary_process
+    @ledger = Sequence::Client.new(
+        ledger_name: 'company-dev',
+        credential: 'OUUY4ZFYQO4P3YNC5JC3GMY7ZQJCSNTH'
+    )
     @monthly_salaries = ContractCycle.includes(:candidate, contract: [:buy_contracts]).where(note: 'Salary clear', contract_id: current_company.contracts.ids).where('buy_contracts.salary_clear =?', 'monthly').order(start_date: :asc).pluck("date(contract_cycles.start_date), date(contract_cycles.end_date), contract_cycles.contract_id, contract_cycles.id").group_by{|e| [e[0], e[1]]}.map { |c, xs| [c, xs.map{|x| [x[2], x[3]]}] }
 
     @weekly_salaries = ContractCycle.includes(:candidate, contract: [:buy_contracts]).where(note: 'Salary clear', contract_id: current_company.contracts.ids).where('buy_contracts.salary_clear =?', 'weekly').order(start_date: :asc).pluck("date(contract_cycles.start_date), date(contract_cycles.end_date), contract_cycles.contract_id, contract_cycles.id").group_by{|e| [e[0], e[1]]}.map { |c, xs| [c, xs.map{|x| [x[2], x[3]]}] }
     @contracts = current_company.in_progress_contracts.includes(:buy_contracts, candidate: [:addresses])
+    @timesheets = Timesheet.includes(contract: :buy_contracts)
+    @expenses = Expense.where(contract_id: current_company.in_progress_contracts.ids )
     @contract_expense_types = ContractExpenseType.all
     @months = Date::ABBR_MONTHNAMES.dup.slice(1,12)
 

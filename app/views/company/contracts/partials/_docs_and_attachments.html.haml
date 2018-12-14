@@ -83,22 +83,6 @@
             %a{"data-toggle" => "tab", :href => "#tab-buy-ta"}
               %span.badge.bg-color-blue.txt-color-white
               Timesheet Approve
-          %li.c2c-type.hidden
-            %a{"data-toggle" => "tab", :href => "#tab-buy-vb"}
-              %span.badge.bg-color-blueDark.txt-color-white
-              Vendor Bill
-          %li.c2c-type.hidden
-            %a{"data-toggle" => "tab", :href => "#tab-buy-ir"}
-              %span.badge.bg-color-blueDark.txt-color-white
-              Vendor Payment
-          %li.c2c-type.hidden
-            %a{"data-toggle" => "tab", :href => "#tab-buy-cb"}
-              %span.badge.bg-color-blueDark.txt-color-white
-              Client Bill
-          %li.c2c-type.hidden
-            %a{"data-toggle" => "tab", :href => "#tab-buy-cp"}
-              %span.badge.bg-color-blueDark.txt-color-white
-              Client Payment
           %li.salary-calculation
             %a{"data-toggle" => "tab", :href => "#tab-buy-sc"}
               %span.badge.bg-color-blueDark.txt-color-white
@@ -239,47 +223,6 @@
                           Assign to
                         = select_tag 'assign_to', options_from_collection_for_select(current_company.company_contacts, "id", 'full_name'), include_blank: 'Please select',class: 'form-control'
 
-            #tab-buy-ir.tab-pane.padding-top-15
-              .row
-                .col-md-12
-                  .form-group
-                    .row
-                      .col-md-4
-                        %label.control-label
-                          Invoice Receipt
-                        .select
-                          .plain-select
-                            = bc.select :invoice_recepit, Contract.time_sheet_frequencies.map { |key, value| [key.humanize, key] }, {},{class: "form-control buy-invoice-recepit" }
-                      .col-md-4
-                        .b-in-re-set
-                          %div{:class => "form-group daily #{bc.object.invoice_recepit != 'daily' ? 'hidden' : ''}"}
-                            %label.control-label
-                              Select Time
-                              = bc.text_field :ir_day_time, class: "form-contro con-time"
-                          %div{:class => "form-group week #{bc.object.invoice_recepit != 'weekly' ? 'hidden' : ''}"}
-                            %label.control-label
-                              Select day of week
-                            .select
-                              .plain-select
-                                = bc.select :ir_day_of_week, [["Every Monday", "mon"], ["Every Tuesday", "tue"], ["Every Wednesday", "wed"], ["Every Thursday", "thu"], ["Every Friday", "fri"], ["Every Saturday", "sat"], ["Every Sunday", "sun"]], {},{class: "form-contro" }
-                          %div{:class => "form-group month #{['twice a month', 'monthly'].include?(bc.object.invoice_recepit) ? '' : 'hidden'}"}
-                            %label.control-label
-                              Select date
-                            .select
-                              = bc.text_field :ir_date_1, class: "date_1", placeholder: "DD/MM/YYYY"
-                          %div{:class => "form-group twice-month #{bc.object.invoice_recepit != 'twice a month' ? 'hidden' : ''}"}
-                            %label.control-label
-                              Select second date
-                            .select
-                              = bc.text_field :ir_date_2, class: "date_1", placeholder: "DD/MM/YYYY"
-                          %span{:class => "form-group month #{['twice a month', 'monthly'].include?(bc.object.invoice_recepit) ? '' : 'hidden'}"} OR
-                          = bc.check_box :ir_end_of_month, class: "month #{['twice a month', 'monthly'].include?(bc.object.invoice_recepit) ? '' : 'hidden'}"
-                          = bc.label :ir_end_of_month, "End of month", class: "month #{['twice a month', 'monthly'].include?(bc.object.invoice_recepit) ? '' : 'hidden'}"
-
-                      .col-md-4
-                        %label.control-label
-                          Assign to
-                        = select_tag 'assign_to', options_from_collection_for_select(current_company.company_contacts, "id", 'full_name'), include_blank: 'Please select',class: 'form-control'
 
             #tab-buy-sc.tab-pane.padding-top-15
               .row
@@ -287,7 +230,7 @@
                   .form-group
                     .row
                       .col-md-4
-                        %label.control-label
+                        %label.control-label.corp-corp-frequency
                           Salary Frequency
                         .select
                           .plain-select
@@ -295,7 +238,7 @@
 
                     .row
                       .col-md-4
-                        %label.control-label
+                        %label.control-label.corp-corp-bill
                           Salary Calculation
                       .col-md-4
                         .b-sal-cal
@@ -333,7 +276,7 @@
                   .form-group
                     .row
                       .col-md-4
-                        %label.control-label
+                        %label.control-label.corp-corp-payment
                           Salary Process
                         = bc.hidden_field :salary_process, value: bc.object.salary_calculation
                       .col-md-4
@@ -372,7 +315,7 @@
                   .form-group
                     .row
                       .col-md-4
-                        %label.control-label
+                        %label.control-label.corp-corp-clear
                           Salary Clear
                         = bc.hidden_field :salary_process, value: bc.object.salary_calculation
                       .col-md-3
@@ -433,11 +376,6 @@
 
 
 
-              .row
-                .col-md-6
-                  %span.btn.btn-primary#show-calendar Show Calendar
-                  %br
-                  %span#view-calendar
             #tab-buy-cc.tab-pane.padding-top-15
               .row
                 .col-md-12
@@ -557,153 +495,6 @@
 
 
 
-
-
-            #tab-buy-vb.tab-pane.padding-top-15
-              .row
-                .col-md-12
-                  .form-group
-                    .row
-                      .col-md-4
-                        %label.control-label
-                          Vendor Bill
-                        .select
-                          .plain-select
-                            = bc.select :vendor_bill, Contract.time_sheet_frequencies.map { |key, value| [key.humanize, key] }, {},{class: "form-control buy-vendor-bill" }
-                      .col-md-4
-                        .b-vb-set
-                          %div{:class => "form-group daily #{bc.object.vendor_bill != 'daily' ? 'hidden' : ''}"}
-                            %label.control-label
-                              Select Time
-                              = bc.text_field :vb_day_time, class: "form-contro con-time"
-                          %div{:class => "form-group week #{bc.object.vendor_bill != 'weekly' ? 'hidden' : ''}"}
-                            %label.control-label
-                              Select day of week
-                            .select
-                              .plain-select
-                                = bc.select :vb_day_of_week, [["Every Monday", "mon"], ["Every Tuesday", "tue"], ["Every Wednesday", "wed"], ["Every Thursday", "thu"], ["Every Friday", "fri"], ["Every Saturday", "sat"], ["Every Sunday", "sun"]], {},{class: "form-contro" }
-                          %div{:class => "form-group month #{['twice a month', 'monthly'].include?(bc.object.vendor_bill) ? '' : 'hidden'}"}
-                            %label.control-label
-                              Select date
-                            .select
-                              = bc.text_field :vb_date_1, class: "date_1", placeholder: "DD/MM/YYYY"
-                          %div{:class => "form-group twice-month #{bc.object.vendor_bill != 'twice a month' ? 'hidden' : ''}"}
-                            %label.control-label
-                              Select second date
-                            .select
-                              = bc.text_field :vb_date_2, class: "date_1", placeholder: "DD/MM/YYYY"
-                          %span{:class => "form-group month #{['twice a month', 'monthly'].include?(bc.object.vendor_bill) ? '' : 'hidden'}"} OR
-                          = bc.check_box :vb_end_of_month, class: "month #{['twice a month', 'monthly'].include?(bc.object.vendor_bill) ? '' : 'hidden'}"
-                          = bc.label :vb_end_of_month, "End of month", class: "month #{['twice a month', 'monthly'].include?(bc.object.vendor_bill) ? '' : 'hidden'}"
-
-                      .col-md-4
-                        %label.control-label
-                          Assign to
-                        = select_tag 'assign_to', options_from_collection_for_select(current_company.company_contacts, "id", 'full_name'), include_blank: 'Please select',class: 'form-control'
-
-            #tab-buy-cb.tab-pane.padding-top-15
-              .row
-                .col-md-12
-                  .form-group
-                    .row
-                      .col-md-4
-                        %label.control-label
-                          Client Bill
-                        .select
-                          .plain-select
-                            = bc.select :client_bill, Contract.time_sheet_frequencies.map { |key, value| [key.humanize, key] }, {},{class: "form-control buy-client-bill" }
-                      .col-md-4
-                        .b-cb-set
-                          %div{:class => "form-group daily #{bc.object.client_bill != 'daily' ? 'hidden' : ''}"}
-                            %label.control-label
-                              Select Time
-                              = bc.text_field :cb_day_time, class: "form-contro con-time"
-                          %div{:class => "form-group week #{bc.object.client_bill != 'weekly' ? 'hidden' : ''}"}
-                            %label.control-label
-                              Select day of week
-                            .select
-                              .plain-select
-                                = bc.select :cb_day_of_week, [["Every Monday", "mon"], ["Every Tuesday", "tue"], ["Every Wednesday", "wed"], ["Every Thursday", "thu"], ["Every Friday", "fri"], ["Every Saturday", "sat"], ["Every Sunday", "sun"]], {},{class: "form-contro" }
-                          %div{:class => "form-group month #{['twice a month', 'monthly'].include?(bc.object.client_bill) ? '' : 'hidden'}"}
-                            %label.control-label
-                              Select date
-                            .select
-                              = bc.text_field :cb_date_1, class: "date_1", placeholder: "DD/MM/YYYY"
-                          %div{:class => "form-group twice-month #{bc.object.client_bill != 'twice a month' ? 'hidden' : ''}"}
-                            %label.control-label
-                              Select second date
-                            .select
-                              = bc.text_field :cb_date_2, class: "date_1", placeholder: "DD/MM/YYYY"
-                          %span{:class => "form-group month #{['twice a month', 'monthly'].include?(bc.object.client_bill) ? '' : 'hidden'}"} OR
-                          = bc.check_box :cb_end_of_month, class: "month #{['twice a month', 'monthly'].include?(bc.object.client_bill) ? '' : 'hidden'}"
-                          = bc.label :cb_end_of_month, "End of month", class: "month #{['twice a month', 'monthly'].include?(bc.object.client_bill) ? '' : 'hidden'}"
-
-                      .col-md-4
-                        %label.control-label
-                          Assign to
-                        = select_tag 'assign_to', options_from_collection_for_select(current_company.company_contacts, "id", 'full_name'), include_blank: 'Please select',class: 'form-control'
-
-            #tab-buy-cp.tab-pane.padding-top-15
-              .row
-                .col-md-12
-                  .form-group
-                    .row
-                      .col-md-4
-                        %label.control-label
-                          Client Bill Payment
-                        .select
-                          .plain-select
-                            = bc.select :client_bill_payment, Contract.time_sheet_frequencies.map { |key, value| [key.humanize, key] }, {},{class: "form-control buy-client-bill-payment" }
-                      .col-md-4
-                        .b-cp-set
-                          %div{:class => "form-group daily #{bc.object.client_bill_payment != 'daily' ? 'hidden' : ''}"}
-                            %label.control-label
-                              Select Time
-                              = bc.text_field :cp_day_time, class: "form-contro con-time"
-                          %div{:class => "form-group week #{bc.object.client_bill_payment != 'weekly' ? 'hidden' : ''}"}
-                            %label.control-label
-                              Select day of week
-                            .select
-                              .plain-select
-                                = bc.select :cp_day_of_week, [["Every Monday", "mon"], ["Every Tuesday", "tue"], ["Every Wednesday", "wed"], ["Every Thursday", "thu"], ["Every Friday", "fri"], ["Every Saturday", "sat"], ["Every Sunday", "sun"]], {},{class: "form-contro" }
-                          %div{:class => "form-group month #{['twice a month', 'monthly'].include?(bc.object.client_bill_payment) ? '' : 'hidden'}"}
-                            %label.control-label
-                              Select date
-                            .select
-                              = bc.text_field :cp_date_1, class: "date_1", placeholder: "DD/MM/YYYY"
-                          %div{:class => "form-group twice-month #{bc.object.client_bill_payment != 'twice a month' ? 'hidden' : ''}"}
-                            %label.control-label
-                              Select second date
-                            .select
-                              = bc.text_field :cp_date_2, class: "date_1", placeholder: "DD/MM/YYYY"
-                          %span{:class => "form-group month #{['twice a month', 'monthly'].include?(bc.object.client_bill_payment) ? '' : 'hidden'}"} OR
-                          = bc.check_box :cp_end_of_month, class: "month #{['twice a month', 'monthly'].include?(bc.object.client_bill_payment) ? '' : 'hidden'}"
-                          = bc.label :cp_end_of_month, "End of month", class: "month #{['twice a month', 'monthly'].include?(bc.object.client_bill_payment) ? '' : 'hidden'}"
-
-                      .col-md-4
-                        %label.control-label
-                          Assign to
-                        = select_tag 'assign_to', options_from_collection_for_select(current_company.company_contacts, "id", 'full_name'), include_blank: 'Please select',class: 'form-control'
-
-            / #tab-buy-cp.tab-pane.padding-top-15
-            /   .row
-            /     .col-md-6
-            /       .form-group
-            /         %label.control-label
-            /           Commission payment term
-            /           %sup.text-danger *
-            /         .select
-            /           .row
-            /             / = bc.number_field :commission_payment_term
-    / .row.contract-Accounting
-    /   .col-md-6
-    /     .form-group
-    /       %label.control-label
-    /       .select
-    /         / = bc.check_box :show_accounting_to_employee
-    /         %span
-    /           Show Accounting term to employee ?
-
 - content_for :scripts do
   :javascript
     $('#bc_timesheet').val($('#contract_buy_contracts_attributes_0_time_sheet').val());
@@ -745,31 +536,4 @@
         $(".term-no").find('.control-label').removeClass('hidden')
         $('.plain-select.payroll-term').html("<select class='form-control month-term' name='contract[buy_contracts_attributes][0][payment_term]' id='contract_buy_contracts_attributes_0_payment_term'><option value='0'>Current month</option> <option value='1'>1 previous month</option> <option value='2'>2 previous month</option></select>")
       }
-    });
-
-    $("#show-calendar").on("click", function(){
-      debugger
-      $('#view-calendar').fullCalendar('destroy');
-      var sc_date_1 = $('#contract_buy_contracts_attributes_0_sc_date_1').val();
-      var sp_date_1 = $('#contract_buy_contracts_attributes_0_sp_date_1').val();
-      var sclr_date_1 = $('#contract_buy_contracts_attributes_0_sclr_date_1').val();
-      var start_date = $('#contract_start_date').val().split('/');
-      start_date = new Date(start_date[2], start_date[1] - 1, start_date[0])
-      var end_date = $('#contract_end_date').val().split('/');
-      end_date = new Date(end_date[2], end_date[1] - 1, end_date[0])
-      debugger
-      $('#view-calendar').fullCalendar({
-        defaultView: 'month',
-        displayEventTime : false,
-        events: [
-          {
-            title  : 'Contract start',
-            start  : start_date
-          },
-          {
-            title  : 'Contract end',
-            start  : end_date
-          }
-        ]
-      });
     });

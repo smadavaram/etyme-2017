@@ -413,10 +413,18 @@
       $(".contract-type-radio input[type='radio']").on("change", function(){
         if($(this).val() == "C2C"){
           $(".c2c-type").removeClass('hidden');
-          $('.salary-calculation').hide();
+          $('.corp-corp').text('Vendor');
+          $('.corp-corp-frequency').text('Vendor Frequency');
+          $('.corp-corp-bill').text('Vendor Bill');
+          $('.corp-corp-payment').text('Vendor Payment');
+          $('.corp-corp-clear').text('Vendor Clear');
         } else {
           $(".c2c-type").addClass('hidden');
-          $('.salary-calculation').show();
+          $('.corp-corp').text('Salary Calculation');
+          $('.corp-corp-frequency').text('Salary Frequency');
+          $('.corp-corp-bill').text('Salary Calculation');
+          $('.corp-corp-payment').text('Salary Process');
+          $('.corp-corp-clear').text('Salary Clear');
         }
       });
 

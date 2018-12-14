@@ -301,6 +301,8 @@ class Company::ContractsController < Company::BaseController
 
                :commission_process, :com_pro_day_time, :com_pro_date_1, :com_pro_date_2, :com_pro_day_of_week, :com_pro_end_of_month,
                
+               :vendor_clear, :ven_clr_date_1, :ven_clr_date_2, :ven_clr_day_of_week, :ven_clr_end_of_month, :ven_clr_day_time, :ven_term_1, :ven_term_2, :ven_term_num_1, :ven_term_num_2,
+               
                :candidate_id, :ssn, :contract_type, :payrate, :payrate_type,
                :payment_term, :show_accounting_to_employee, :first_date_of_timesheet,
                :time_sheet, :ts_day_of_week, :ts_date_1, :ts_date_2, :ts_end_of_month,
