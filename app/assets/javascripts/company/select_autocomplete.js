@@ -17,7 +17,7 @@ function formatRepoSelection (company) {
     return company.name || company.text;
 }
 
-var set_company_select = function(selector, palce_holder){
+var set_company_select = function(selector, place_holder){
     if ($(selector).length > 0) {
         $(selector).select2({
             ajax: {
@@ -45,7 +45,7 @@ var set_company_select = function(selector, palce_holder){
             language: {
                 noResults: function() {return "No results <a class='pull-right header-btn hidden-mobile' data-toggle='modal' data-target='#new-contract-company' href='#'>Add New</a>"; }
             },
-            placeholder: palce_holder,
+            placeholder: place_holder,
             escapeMarkup: function (markup) { return markup; },
             templateResult: formatRepo,
             templateSelection: formatRepoSelection
@@ -53,7 +53,7 @@ var set_company_select = function(selector, palce_holder){
     }
 }
 
-var set_job_select = function(selector, palce_holder){
+var set_job_select = function(selector, place_holder){
     if ($(selector).length > 0) {
         $(selector).select2({
             ajax: {
@@ -81,7 +81,7 @@ var set_job_select = function(selector, palce_holder){
             language: {
                 noResults: function() {return "No results <a class='pull-right header-btn hidden-mobile' data-toggle='modal' data-target='#new-job' href='#'>Add New</a>"; }
             },
-            placeholder: palce_holder,
+            placeholder: place_holder,
             escapeMarkup: function (markup) { return markup; },
             templateResult: formatRepo,
             templateSelection: formatRepoSelection
@@ -89,7 +89,7 @@ var set_job_select = function(selector, palce_holder){
     }
 }
 
-var set_job_candidate_select = function(selector, palce_holder){
+var set_job_candidate_select = function(selector, place_holder){
     if ($(selector).length > 0) {
         $(selector).select2({
             ajax: {
@@ -118,7 +118,7 @@ var set_job_candidate_select = function(selector, palce_holder){
             language: {
                 noResults: function() {return "No one <a class='pull-right header-btn hidden-mobile' onclick='set_job_application();' >Add New</a>"; }
             },
-            placeholder: palce_holder,
+            placeholder: place_holder,
             escapeMarkup: function (markup) { return markup; },
             templateResult: formatRepo,
             templateSelection: formatRepoSelection
@@ -126,7 +126,7 @@ var set_job_candidate_select = function(selector, palce_holder){
     }
 }
 
-var set_user_select = function(selector, palce_holder){
+var set_user_select = function(selector, place_holder){
     if ($(selector).length > 0) {
         $(selector).select2({
             ajax: {
@@ -151,7 +151,7 @@ var set_user_select = function(selector, palce_holder){
                 },
                 cache: true
             },
-            placeholder: palce_holder,
+            placeholder: place_holder,
             multiple: true,
             escapeMarkup: function (markup) { return markup; },
             templateResult: formatRepo,
@@ -161,7 +161,7 @@ var set_user_select = function(selector, palce_holder){
 }
 
 
-var set_commission_user_select = function(selector, palce_holder){
+var set_commission_user_select = function(selector, place_holder){
     if ($(selector).length > 0) {
         $(selector).select2({
             ajax: {
@@ -186,7 +186,7 @@ var set_commission_user_select = function(selector, palce_holder){
                 },
                 cache: true
             },
-            placeholder: palce_holder,
+            placeholder: place_holder,
             multiple: false,
             escapeMarkup: function (markup) { return markup; },
             templateResult: formatRepo,
@@ -228,6 +228,90 @@ var set_expense_type_select = function(selector, place_holder){
     }
 }
 
+
+var set_company_admin = function(selector){
+    if ($(selector).length > 0) {
+        $(selector).select2({
+          placeholderOption: 'first',
+
+            ajax: {
+                url: "/api/select_searches/find_company_admin",
+                dataType: 'json',
+                delay: 250,
+                data: function (params) {
+                    return {
+                        // per_page: 10,
+                        q: params.term//, // search term
+                        // page: params.page
+                    };  
+                },
+                processResults: function (data, params) {
+                    // params.page = params.page || 1;
+                    return {
+                        results: data
+                    };
+                },
+                cache: true
+            },
+            language: {
+                noResults: function() {return "No results <a class='btn btn-success btn-md pull-right header-btn hidden-mobile' data-remote='true' href='/admins/new'>Add new</a>"; }
+            },
+             placeholderOption: 'first',
+
+            escapeMarkup: function (markup) { return markup; },
+            templateResult: formatCompanyAdmin,
+            templateSelection: formatCompanyAdminSelection,
+
+        });
+    }
+}
+
+var set_company_candidate = function(selector){
+    if ($(selector).length > 0) {
+        $(selector).select2({
+            ajax: {
+                url: "/api/select_searches/find_commission_candidates",
+                dataType: 'json',
+                delay: 250,
+                data: function (params) {
+                    return {
+                        // per_page: 10,
+                        q: params.term//, // search term
+                        // page: params.page
+                    };  
+                },
+                processResults: function (data, params) {
+                    // params.page = params.page || 1;
+                    return {
+                        results: data
+                    };
+                },
+                cache: true
+            },
+            language: {
+                noResults: function() {return "No results <a class='pull-right header-btn hidden-mobile' data-toggle='modal' data-target='#candidate-new-modal' href='#''>Add New</a>"; }
+            },
+             placeholderOption: 'first',
+            
+            escapeMarkup: function (markup) { return markup; },
+            templateResult: formatCompanyAdmin,
+            templateSelection: formatCompanyAdminSelection,
+        });
+    }
+}
+
+function formatCompanyAdmin (candidate) {
+    if (candidate.loading) {
+        return candidate.text;
+    }
+    var markup = "<p>"+ candidate.first_name+' '+ candidate.last_name+"</p>"
+    return markup;
+}
+function formatCompanyAdminSelection (candidate) {
+    return candidate.first_name+' '+ candidate.last_name || candidate.text;
+}
+
+
 function formatCompanyContact (contact) {
     if (contact.loading) {
         return contact.text;
@@ -239,7 +323,7 @@ function formatCompanyContactSelection (contact) {
     return contact.name || contact.text;
 }
 
-var set_company_contacts_select = function(selector, palce_holder, company_type){
+var set_company_contacts_select = function(selector, place_holder, company_type){
     if ($(selector).length > 0) {
         $(selector).select2({
             ajax: {
@@ -264,7 +348,7 @@ var set_company_contacts_select = function(selector, palce_holder, company_type)
                 },
                 cache: true
             },
-            placeholder: palce_holder,
+            placeholder: place_holder,
             language: {
                 noResults: function() {return "No results <a class='pull-right header-btn hidden-mobile' data-toggle='modal' data-target='#new-company-contacts-modal' href='#'>Add New</a>"; }
             },
@@ -276,7 +360,7 @@ var set_company_contacts_select = function(selector, palce_holder, company_type)
     }
 }
 
-var set_candidate_select = function(selector, palce_holder){
+var set_candidate_select = function(selector, place_holder){
     if ($(selector).length > 0) {
         $(selector).select2({
             ajax: {
@@ -304,7 +388,7 @@ var set_candidate_select = function(selector, palce_holder){
             language: {
                 noResults: function() {return "No results <a class='pull-right header-btn hidden-mobile' data-toggle='modal' data-target='#candidate-new-modal' href='#'>Add New</a>"; }
             },
-            placeholder: palce_holder,
+            placeholder: place_holder,
             escapeMarkup: function (markup) { return markup; },
             templateResult: formatRepo,
             templateSelection: formatRepoSelection
