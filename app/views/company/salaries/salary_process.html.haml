@@ -92,10 +92,11 @@
                           %td.show-salary
                             - s[1].each do |ss|
                               - if c.id == ss[0]
+                                - total_time = @timesheets.where(status: 'approved', start_date: s[0][0]..s[0][1], contract_id: ss[0], candidate_id: c.candidate_id).sum(:total_time)
                                 - salary = Salary.find_by(sc_cycle_id: ss[1])
                                 %span{:id => "#{ss[1]}"}
                                 -if salary.status == 'open'
-                                  - amount = @timesheets.where(status: 'approved', start_date: s[0][0]..s[0][1], contract_id: ss[0], candidate_id: c.candidate_id).sum(:total_time)* c&.buy_contracts&.first&.payrate
+                                  - amount = total_time* c&.buy_contracts&.first&.payrate
                                   Pending
                                   %span.pending_amount
                                     = salary.pending_amount.to_i
@@ -107,6 +108,7 @@
                                   Advance
                                   %span.salary_advance
                                     = @expenses.present? ? @expenses.select { |m| m.salary_ids.include? ss[1].to_s }.map{|x| x.total_amount.to_i / x.salary_ids.length}.sum(&:to_i) : 0
+
                                 -elsif salary.status == 'calculated'
                                   Calculated Amount:
                                   %span.salary_calculated
@@ -115,6 +117,16 @@
                                     %br
                                     Enter amount to process
                                     = text_field_tag "#{salary.id}[amount]", '', value: salary.total_amount
+                                  &nbsp;&nbsp;&nbsp;
+                                  %br
+                                  Commission:
+                                  %br 
+                                  %span.commission
+                                    - ContractSaleCommision.where(buy_contract_id: c.buy_contracts.first.id).each do |csc|
+                                      - csc.csc_accounts.each do |csca|
+                                        = csca.accountable.full_name+': '
+                                        %span{:id => "#{csca.id}"}
+                                          = csc.rate.to_i.*total_time
                                 - elsif salary.status == 'processed'
                                   Processed amount:
                                   %span.salary_processed
@@ -258,16 +270,16 @@
                         %br    
                         Expense
                         &nbsp;&nbsp;&nbsp
-                        = total_time*con&.buy_contracts&.first&.payrate
+                        = total_time > 0  ? total_time*con&.buy_contracts&.first&.payrate : 0
                       %td
                         - total_time = Timesheet.where(contract_id: con.id, status: 'approved').where('extract(month from start_date) = ?', 2).where('extract(year from start_date) = ?', Date.today.year).sum(:total_time)
                         Income
                         &nbsp;&nbsp;&nbsp;
-                        = total_time*con&.sell_contracts&.first&.customer_rate
+                        = total_time > 0  ? total_time*con&.sell_contracts&.first&.customer_rate : 0
                         %br    
                         Expense
                         &nbsp;&nbsp;&nbsp
-                        = total_time*con&.buy_contracts&.first&.payrate
+                        = total_time > 0  ? total_time*con&.buy_contracts&.first&.payrate : 0
                       %td
                         - total_time = Timesheet.where(contract_id: con.id, status: 'approved').where('extract(month from start_date) = ?', 3).where('extract(year from start_date) = ?', Date.today.year).sum(:total_time)
                         Income
@@ -276,7 +288,7 @@
                         %br    
                         Expense
                         &nbsp;&nbsp;&nbsp
-                        = total_time*con&.buy_contracts&.first&.payrate
+                        = total_time > 0  ? total_time*con&.buy_contracts&.first&.payrate : 0
                       %td
                         - total_time = Timesheet.where(contract_id: con.id, status: 'approved').where('extract(month from start_date) = ?', 4).where('extract(year from start_date) = ?', Date.today.year).sum(:total_time)
                         Income
@@ -285,79 +297,79 @@
                         %br    
                         Expense
                         &nbsp;&nbsp;&nbsp
-                        = total_time*con&.buy_contracts&.first&.payrate
+                        = total_time > 0  ? total_time*con&.buy_contracts&.first&.payrate : 0
                       %td
                         - total_time = Timesheet.where(contract_id: con.id, status: 'approved').where('extract(month from start_date) = ?', 5).where('extract(year from start_date) = ?', Date.today.year).sum(:total_time)
                         Income
                         &nbsp;&nbsp;&nbsp;
-                        = total_time*con&.sell_contracts&.first&.customer_rate
+                        = total_time > 0  ? total_time*con&.sell_contracts&.first&.customer_rate : 0
                         %br    
                         Expense
                         &nbsp;&nbsp;&nbsp
-                        = total_time*con&.buy_contracts&.first&.payrate
+                        = total_time > 0  ? total_time*con&.buy_contracts&.first&.payrate : 0
                       %td
                         - total_time = Timesheet.where(contract_id: con.id, status: 'approved').where('extract(month from start_date) = ?', 6).where('extract(year from start_date) = ?', Date.today.year).sum(:total_time)
                         Income
                         &nbsp;&nbsp;&nbsp;
-                        = total_time*con&.sell_contracts&.first&.customer_rate
+                        = total_time > 0  ? total_time*con&.sell_contracts&.first&.customer_rate : 0
                         %br    
                         Expense
                         &nbsp;&nbsp;&nbsp
-                        = total_time*con&.buy_contracts&.first&.payrate
+                        = total_time > 0  ? total_time*con&.buy_contracts&.first&.payrate : 0
                       %td
                         - total_time = Timesheet.where(contract_id: con.id, status: 'approved').where('extract(month from start_date) = ?', 7).where('extract(year from start_date) = ?', Date.today.year).sum(:total_time)
                         Income
                         &nbsp;&nbsp;&nbsp;
-                        = total_time*con&.sell_contracts&.first&.customer_rate
+                        = total_time > 0  ? total_time*con&.sell_contracts&.first&.customer_rate : 0
                         %br    
                         Expense
                         &nbsp;&nbsp;&nbsp
-                        = total_time*con&.buy_contracts&.first&.payrate
+                        = total_time > 0  ? total_time*con&.buy_contracts&.first&.payrate : 0
                       %td
                         - total_time = Timesheet.where(contract_id: con.id, status: 'approved').where('extract(month from start_date) = ?', 8).where('extract(year from start_date) = ?', Date.today.year).sum(:total_time)
                         Income
                         &nbsp;&nbsp;&nbsp;
-                        = total_time*con&.sell_contracts&.first&.customer_rate
+                        = total_time > 0  ? total_time*con&.sell_contracts&.first&.customer_rate : 0
                         %br    
                         Expense
                         &nbsp;&nbsp;&nbsp
-                        = total_time*con&.buy_contracts&.first&.payrate
+                        = total_time > 0  ? total_time*con&.buy_contracts&.first&.payrate : 0
                       %td
                         - total_time = Timesheet.where(contract_id: con.id, status: 'approved').where('extract(month from start_date) = ?', 9).where('extract(year from start_date) = ?', Date.today.year).sum(:total_time)
                         Income
                         &nbsp;&nbsp;&nbsp;
-                        = total_time*con&.sell_contracts&.first&.customer_rate
+                        = total_time > 0  ? total_time*con&.sell_contracts&.first&.customer_rate : 0
                         %br    
                         Expense
                         &nbsp;&nbsp;&nbsp
-                        = total_time*con&.buy_contracts&.first&.payrate
+                        = total_time > 0  ? total_time*con&.buy_contracts&.first&.payrate : 0
                       %td
                         - total_time = Timesheet.where(contract_id: con.id, status: 'approved').where('extract(month from start_date) = ?', 10).where('extract(year from start_date) = ?', Date.today.year).sum(:total_time)
                         Income
                         &nbsp;&nbsp;&nbsp;
-                        = total_time*con&.sell_contracts&.first&.customer_rate
+                        = total_time > 0  ? total_time*con&.sell_contracts&.first&.customer_rate : 0
                         %br    
                         Expense
                         &nbsp;&nbsp;&nbsp
-                        = total_time*con&.buy_contracts&.first&.payrate
+                        = total_time > 0  ? total_time*con&.buy_contracts&.first&.payrate : 0
                       %td
                         - total_time = Timesheet.where(contract_id: con.id, status: 'approved').where('extract(month from start_date) = ?', 11).where('extract(year from start_date) = ?', Date.today.year).sum(:total_time)
                         Income
                         &nbsp;&nbsp;&nbsp;
-                        = total_time*con&.sell_contracts&.first&.customer_rate
+                        = total_time > 0  ? total_time*con&.sell_contracts&.first&.customer_rate : 0
                         %br    
                         Expense
                         &nbsp;&nbsp;&nbsp
-                        = total_time*con&.buy_contracts&.first&.payrate
+                        = total_time > 0  ? total_time*con&.buy_contracts&.first&.payrate : 0
                       %td
                         - total_time = Timesheet.where(contract_id: con.id, status: 'approved').where('extract(month from start_date) = ?', 12).where('extract(year from start_date) = ?', Date.today.year).sum(:total_time)
                         Income
                         &nbsp;&nbsp;&nbsp;
-                        = total_time*con&.sell_contracts&.first&.customer_rate
+                        = total_time > 0  ? total_time*con&.sell_contracts&.first&.customer_rate : 0
                         %br    
                         Expense
                         &nbsp;&nbsp;&nbsp
-                        = total_time*con&.buy_contracts&.first&.payrate
+                        = total_time > 0  ? total_time*con&.buy_contracts&.first&.payrate : 0
 .modal.fade{id: "salary-confirmation-model"}
   .modal-dialog
     .modal-content
@@ -452,14 +464,18 @@
 
     function process_salary(){    
       var sc_cycle_ids = {};
+      var comm_ids = {};
       $('td.active').each(function () {
         sc_cycle_ids[$(this).find('span').attr('id')] = {'salary_calculated': $(this).find('span.salary_calculated').find('input').val()}
+        for (i = 0; i < $(this).find('span.commission').find('span').length; i++) { 
+          comm_ids[$($(this).find('span.commission').find('span')[i]).attr('id')] = {'commission': parseInt($($(this).find('span.commission').find('span')[i]).text())}
+        }
       });
 
       $.ajax({
         url: '#{process_salary_salaries_path}',
         type: 'GET',
-        data: {sc_cycle_ids: sc_cycle_ids},
+        data: {sc_cycle_ids: sc_cycle_ids, comm_ids: comm_ids},
         dataType: 'script'
       })
     }

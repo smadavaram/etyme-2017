@@ -183,6 +183,9 @@ class Company::ContractsController < Company::BaseController
     end
   end
 
+  def set_commission_user
+  end
+
   def add_bill
   end
 

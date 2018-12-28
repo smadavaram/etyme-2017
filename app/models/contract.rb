@@ -47,6 +47,7 @@ class Contract < ApplicationRecord
   has_many   :buy_contracts, dependent: :destroy
   has_many   :contract_salary_histories, dependent: :destroy
   has_many   :expenses, dependent: :destroy
+  has_many   :csc_accounts
 
   has_many   :contract_cycles, dependent: :destroy
   has_many   :contract_expense, dependent: :destroy
@@ -570,18 +571,24 @@ class Contract < ApplicationRecord
     end
 
 
-    # Create Commision Account
-    la = ledger.accounts.list(
-          filter: 'id=$1',
-          filter_params: ["comm_#{self.id}"]).first
-    ledger.accounts.create(
-      id: "comm_#{self.id}",
-      key_ids: [comp_key],
-      quorum: 1,
-      tags: {
-        contract_id: self.id
-      }
-    ) unless la.present?
+    # Create Commission Account
+    self.csc_accounts.each do |csc|
+  
+      la = ledger.accounts.list(
+            filter: 'id=$1',
+            filter_params: ["comm_#{csc.id}"]).first
+      
+      ledger.accounts.create(
+        id: "comm_#{csc.id}",
+        key_ids: [comp_key],
+        quorum: 1,
+        tags: {
+          contract_id: self.id,
+          accountable_type: csc.accountable_type,
+          accountable_id: csc.accountable_id
+        }
+      ) unless la.present?
+    end
 
     #Create Contract Account
     la = ledger.accounts.list(

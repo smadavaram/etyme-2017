@@ -1,31 +1,45 @@
 .contract_box
   .row
-    .col-md-3
+    .col-md-2
+      %br
+      .form-group
+        %label.control-label
+      .contract-fild
+        =# link_to 'Select user' , set_commission_user_contracts_path , remote: true , class: 'btn btn-success btn-md pull-right header-btn hidden-mobile'
+        %button.btn.btn-primary#commission-user-modal{"data-target" => "#commissionUserModal", "data-toggle" => "modal", :type => "button"}
+          Select user
+
+    .col-md-3.assign_commission_user
       .form-group
         %label.control-label
           Name
         .contract-fild
           =# f.text_field :name ,class: "form-control" , placeholder: ""
-      .form-group.assign_commission_user
+      .form-group
         -f.object.csc_accounts.build
-        =f.fields_for :csc_accounts do |csca|
-          = link_to_add_fields 'available_tour_fields', f, :csc_accounts, {partial: 'company/contracts/csc_accounts_fields'}, {class: 'com-user-generater hidden'}
-          / = csca.select :accountable, {}, {}, class: "form-control commission-user" , placeholder: ""
-          = csca.select :accountable_id, current_company.admins.collect { |x| [x.full_name, x.id.to_i]}, {}, class: "form-control" , placeholder: ""
-          = csca.hidden_field :accountable_type, value: 'Admin'
+        =f.nested_fields_for :csc_accounts do |csca|
 
-    .col-md-3
+          =# link_to_add_fields 'available_tour_fields', f, :csc_accounts, {partial: 'company/contracts/csc_accounts_fields'}, {class: 'com-user-generater hidden'}
+          / = csca.select :accountable, {}, {}, class: "form-control commission-user" , placeholder: ""
+          =# csca.select :accountable_id, current_company.admins.collect { |x| [x.full_name, x.id.to_i]}, {}, class: "form-control contract_commission" , placeholder: "Please select"
+          %div.accountable_user
+            %div.set_commission_user
+            = text_field_tag :accountable_user, ''
+            = csca.hidden_field :accountable_id, value: ''
+            = csca.hidden_field :accountable_type, value: ''
+
+    .col-md-2
       .form-group
         %label.control-label
           Rate
         .contract-fild
-          = f.text_field :rate, class: "form-control" , placeholder: ""
-    .col-md-3
+          = f.text_field :rate, class: "form-control"
+    .col-md-2
       .form-group
         %label.control-label
           Frequency
         .contract-fild
-          = f.select :frequency , Contract.commission_types.map { |key, value| [key.humanize, key] }, {include_blank: '-- Select Frequency Type --'} , {class: "form-control" }
+          = f.select :frequency , Contract.commission_types.map { |key, value| [key.humanize, key] }, {include_blank: 'Select Frequency Type'} , {class: "form-control" }
     .col-md-3
       .form-group
         %label.control-label
@@ -34,4 +48,34 @@
           = f.text_field :limit ,class: "form-control" , placeholder: ""
 
 
+
+#commissionUserModal.modal.fade{"aria-hidden" => "true", "aria-labelledby" => "commissionUserModalLabel", :role => "dialog" }
+  .modal-dialog{:role => "document"}
+    .modal-content
+      .modal-header
+        %h5#commissionUserModalLabel.modal-title Commission User
+        %button.close.close-modal{"aria-label" => "Close", "data-dismiss" => "modal", :type => "button"}
+          %span{"aria-hidden" => "true"} ×
+      .modal-body
+        .row
+          .col-md-4
+            Select type of User
+          .col-md-4
+            = label :commission_user, 'Admin'
+            = radio_button_tag 'commission_user', 'Admin', false, class: 'commission-user-type'
+
+          .col-md-4
+            = label :commission_user, 'Candidate'
+            = radio_button_tag 'commission_user', 'Candidate', false, class: 'commission-user-type'
+        %br
+        .row
+          .col-md-4
+            Select User
+          .col-md-4
+            =# select_tag "commission_user", options_from_collection_for_select(Candidate.where(id: current_company.contracts.where("end_date < ?", Date.today).pluck(:candidate_id)), 'id', 'full_name'), class: 'form-control select_candidate_user commission_user', prompt: "Please select"
+            = select_tag "commission_user", '', class: 'form-control commission_user'
+
+
+      .modal-footer
+        %button.btn.btn-secondary.close-modal{"data-dismiss" => "modal", :type => "button"} Done
 

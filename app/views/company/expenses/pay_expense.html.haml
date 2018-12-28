@@ -75,7 +75,7 @@
                           = hidden_field_tag :bank_id, '' , class: 'bank_id'    
                           %td
                             = f.number_field :payment, value: '', class: 'payment'
-                          %td.qwerty
+                          %td.balance_due
                             = f.number_field :balance_due, value: '', class: 'balance_due'
                           %td
                             = f.submit 'Pay' , name: 'pay_type',value: 'pay'
@@ -139,7 +139,7 @@
     })
 
     $(document).on('change', '.payment', function () {
-      $(this).closest('td').next('.qwerty').val(5);
+      $(this).closest('td').next('.balance_due').val(5);
     })
 
     function get_bank_bal(){

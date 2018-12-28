@@ -454,6 +454,7 @@ Rails.application.routes.draw do
         get :client_expense_approve
         get :salary_settlement
         get :salary_process
+        get :set_commission_user
       end
       member do
         get :download
@@ -598,6 +599,8 @@ Rails.application.routes.draw do
       get :find_expense_type, on: :collection
       get :find_contract_candidate, on: :collection
       get :find_contract_salary_cycles, on: :collection
+      get :find_commission_candidates, on: :collection
+      get :find_company_admin, on: :collection
     end
 
     namespace :candidate do

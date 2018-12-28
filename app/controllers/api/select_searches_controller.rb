@@ -55,4 +55,14 @@ class Api::SelectSearchesController < ApplicationController
 
   end
 
+  def find_company_admin
+    @company_admins = current_company.admins.like_any([:first_name], params[:q].to_s.split)
+    respond_with @company_admins
+  end
+
+  def find_commission_candidates
+    @commission_candidates = Candidate.where(id: current_company.contracts.includes(:candidate).pluck(:candidate_id).uniq).like_any([:first_name], params[:q].to_s.split)
+    respond_with @commission_candidates
+  end
+
 end

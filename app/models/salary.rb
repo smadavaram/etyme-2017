@@ -170,7 +170,6 @@ class Salary < ApplicationRecord
       receiver_advance = 'cons_'+self.candidate_id.to_s+'_advance'
       receiver_settlement = 'cons_'+self.candidate_id.to_s+'_settlement'
     end
-    # binding.pry
     if self.approved_amount > 0  && self.total_amount > 0
       tx = ledger.transactions.transact do |builder|
         builder.retire(

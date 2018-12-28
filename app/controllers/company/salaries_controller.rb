@@ -47,12 +47,14 @@ class Company::SalariesController < Company::BaseController
   def calculate_salary
     params[:sc_cycle_ids].each do |key,value|
       salary = Salary.find_by(sc_cycle_id: key)
-      salary.approved_amount = value[:approved_amount].to_i
-      salary.pending_amount = value[:pending_amount].to_i
-      salary.salary_advance = value[:salary_advance].to_i
-      salary.total_amount = value[:approved_amount].to_i + value[:pending_amount].to_i - value[:salary_advance].to_i
-      salary.status = 'calculated'
-      salary.save
+      if salary
+        salary.approved_amount = value[:approved_amount].to_i
+        salary.pending_amount = value[:pending_amount].to_i
+        salary.salary_advance = value[:salary_advance].to_i
+        salary.total_amount = value[:approved_amount].to_i + value[:pending_amount].to_i - value[:salary_advance].to_i
+        salary.status = 'calculated'
+        salary.save
+      end
     end
     flash[:notice] = 'Salary Calculated'
     render :js => "window.location = '#{salary_process_salaries_path}'"
@@ -67,8 +69,17 @@ class Company::SalariesController < Company::BaseController
       salary.status = 'processed'
       salary.save
     end
-    # flash[:notice] = 'Salary Processed'
-    # render :js => "window.location = '#{salary_process_salaries_path}'"
+    params[:comm_ids].each do |key, value|
+      csca = CscAccount.find_by(id: key.to_i)
+      if csca.total_amount.to_i + value[:commission].to_i <= csca.contract_sale_commision.limit.to_i
+        csca.update(total_amount: value[:commission].to_i + csca.total_amount)
+      else
+        csca.update(total_amount: csca.contract_sale_commision.limit.to_i)
+      end
+      csca.set_commission_on_seq
+    end
+    flash[:notice] = 'Salary Processed'
+    render :js => "window.location = '#{salary_process_salaries_path}'"
   end
 
   def aggregate_salary

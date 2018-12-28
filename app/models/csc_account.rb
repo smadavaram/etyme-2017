@@ -10,4 +10,25 @@ class CscAccount < ApplicationRecord
     self.contract_id = self.contract_sale_commision.buy_contract.contract_id
     self.save
   end
+
+  def set_commission_on_seq
+    ledger = Sequence::Client.new(
+      ledger_name: 'company-dev',
+      credential: 'OUUY4ZFYQO4P3YNC5JC3GMY7ZQJCSNTH'
+    )
+    tx = ledger.transactions.transact do |builder|
+      builder.issue(
+        flavor_id: 'usd',
+        amount: self&.total_amount.to_i,
+        destination_account_id: "comm_#{self.id}",
+        action_tags: {
+          type: 'issue',
+          contract: self.contract_id,
+        }
+      )
+    end    
+
+  end
+
+
 end

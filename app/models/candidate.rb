@@ -18,7 +18,7 @@ class Candidate < ApplicationRecord
   after_create  :create_address
   after_create  :send_welcome_email, if: Proc.new{|candidate| candidate.send_welcome_email_to_candidate.nil?}
   after_create  :normalize_candidate_entries, if: Proc.new{|candidate| candidate.signup?}
-  after_create  :set_on_seq
+  # after_create  :set_on_seq
 
   validates :email,presence: :true
   validates_uniqueness_of :email ,scope: [:status], message: "Candidate with same email already exist on the Eytme!" ,if: Proc.new{|candidate| candidate.signup?}
@@ -39,6 +39,7 @@ class Candidate < ApplicationRecord
   has_many   :candidates_companies , dependent: :destroy
   has_many   :companies            , through: :candidates_companies ,dependent: :destroy
   has_many :candidates_resumes, dependent: :destroy
+  has_many          :csc_accounts, as: :accountable
 
 
   has_many :addresses, as:  :addressable
@@ -105,7 +106,7 @@ class Candidate < ApplicationRecord
   end
 
   def etyme_url
-    Rails.env.development? ? "#{ENV['domain']}:3000" : "#{ENV['domain']}"
+    Rails.env.development? ? "#{ENV['domain']}" : "#{ENV['domain']}"
   end
 
   def photo

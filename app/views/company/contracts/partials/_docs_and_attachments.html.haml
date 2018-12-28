@@ -380,7 +380,7 @@
               .row
                 .col-md-12
                   .form-group
-                    =bc.fields_for :contract_sale_commisions do |custom_field|
+                    =bc.nested_fields_for :contract_sale_commisions do |custom_field|
                       = render 'company/contracts/contract_sale_commisions_fields', f: custom_field
                   %strong
                     .links

@@ -24,12 +24,16 @@ class Company::AdminsController < Company::BaseController
 
   def create
     @admin = current_company.admins.new(admin_params)
-    if @admin.save
-      flash[:success] =  "Successfull Added."
-    else
-      flash.now[:errors] = @admin.errors.full_messages
+    respond_to do |format|
+      if @admin.save
+        format.html { redirect_to redirect_back fallback_location: root_path, success: 'Successfull Added.' }
+        format.js{ flash.now[:success] = "successfully Created." }
+      else
+        format.html { flash[:errors] = @admin.errors.full_messages; render :new}
+        format.js{ flash.now[:errors] =  @admin.errors.full_messages }
+      end
     end
-    redirect_back fallback_location: root_path
+
 
   end
 
