@@ -70,6 +70,7 @@ class Company::SalariesController < Company::BaseController
       salary.save
     end
     params[:comm_ids].each do |key, value|
+      # binding.pry
       csca = CscAccount.find_by(id: key.to_i)
       if csca.total_amount.to_i + value[:commission].to_i <= csca.contract_sale_commision.limit.to_i
         csca.update(total_amount: value[:commission].to_i + csca.total_amount)
@@ -117,12 +118,16 @@ class Company::SalariesController < Company::BaseController
   end
 
   def add_contract_expense_amount
+
     salary = Salary.find_by(sc_cycle_id: params[:sc_cycle_id])
-    ce = ContractExpense.find_by(contract_id: salary.contract_id, candidate_id: salary.candidate_id, cycle_id: params[:sc_cycle_id], con_ex_type: params[:cet_id])
-    unless ce
-      ce = ContractExpense.create(contract_id: salary.contract_id, candidate_id: salary.candidate_id, amount: params[:amount], cycle_id: params[:sc_cycle_id], con_ex_type: params[:cet_id])
-    else
-      ce.update(amount: params[:amount])
+    if salary.present?
+      ce = ContractExpense.find_by(contract_id: salary.contract_id, candidate_id: salary.candidate_id, cycle_id: params[:sc_cycle_id], con_ex_type: params[:cet_id])
+      binding.pry
+      unless ce
+        ce = ContractExpense.create(contract_id: salary.contract_id, candidate_id: salary.candidate_id, amount: params[:amount], cycle_id: params[:sc_cycle_id], con_ex_type: params[:cet_id])
+      else
+        ce.update(amount: params[:amount])
+      end
     end
     flash[:notice] = 'Expense saved.'
     render json: flash

@@ -131,9 +131,16 @@
                                   Processed amount:
                                   %span.salary_processed
                                     = salary.total_amount
+                                  %span.commission_amount 
+                                    Commission:
+                                    %br
+                                    - c.csc_accounts.each do |csca|
+                                      = csca.accountable.full_name+': '+csca.total_amount.to_s 
                                 - elsif salary.status == 'aggregated'
                                   %span.salary_aggregated
                                     = salary.total_amount
+                                    Commission Earned:
+                                    = CscAccount.where(accountable_id: c.candidate_id, accountable_type: 'Candidate').sum(:total_amount)
                         - @contract_expense_types.each do |cet|
                           %td.salary-clear
                             = text_field_tag 'ct_ex_amount', '', class: "form-control ct_ex_amount #{cet.id.to_s+'_'+cet.name}", id: cet.name
