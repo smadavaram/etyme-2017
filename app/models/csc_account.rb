@@ -16,18 +16,19 @@ class CscAccount < ApplicationRecord
       ledger_name: 'company-dev',
       credential: 'OUUY4ZFYQO4P3YNC5JC3GMY7ZQJCSNTH'
     )
-    tx = ledger.transactions.transact do |builder|
-      builder.issue(
-        flavor_id: 'usd',
-        amount: self&.total_amount.to_i,
-        destination_account_id: "comm_#{self.id}",
-        action_tags: {
-          type: 'issue',
-          contract: self.contract_id,
-        }
-      )
-    end    
-
+    if self.total_amount.present? && self.total_amount > 0
+      tx = ledger.transactions.transact do |builder|
+        builder.issue(
+          flavor_id: 'usd',
+          amount: self&.total_amount.to_i,
+          destination_account_id: "comm_#{self.id}",
+          action_tags: {
+            type: 'issue',
+            contract: self.contract_id,
+          }
+        )
+      end
+    end   
   end
 
 
