@@ -50,6 +50,8 @@
         Contract ID - #{cc.contract.id} - Cycle ID #{cc.id}
         %p.mb-0.submitted-name
           %b Name: #{cc.candidate.present? ? cc.candidate.full_name : cc.company.full_name}
+          %b
+            = link_to 'submit', timesheets_path, class: 'btn' if cc.note == 'Timesheet Approve'
         %p Client: #{cc&.contract&.company&.full_name}
         %p Tax type: #{cc.contract.buy_contracts.first.contract_type}
         - if cc.note == 'Timesheet submit'

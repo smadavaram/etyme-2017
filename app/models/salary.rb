@@ -55,7 +55,7 @@ class Salary < ApplicationRecord
       if @end_of_month
         con_cycle_start_date = DateTime.now.end_of_month
       else
-        con_cycle_start_date = montly_approval_date(con_cycle)
+        con_cycle_start_date = montly_approval_date(con_cycle, buy_contract)
       end
     when 'twice a month'
       con_cycle_start_date = twice_a_month_approval_date(con_cycle)
@@ -114,7 +114,7 @@ class Salary < ApplicationRecord
     # end 
   end
 
-  def self.montly_approval_date(con_cycle)
+  def self.montly_approval_date(con_cycle, buy_contract)
     day = @date_1&.to_i.present? ? @date_1&.to_i : 0
     next_month_year = con_cycle.start_date.strftime("%d").to_i <= day ? con_cycle.start_date : (con_cycle.start_date+1.month)
     if buy_contract.payment_term = 'end_of_mon'
@@ -126,7 +126,7 @@ class Salary < ApplicationRecord
     con_cycle_start_date = DateTime.new(year, month, day)
   end
 
-  def self.twice_a_month_approval_date(con_cycle)
+  def self.twice_a_month_approval_date(con_cycle, buy_contract)
     day_1 = @date_1&.to_i
     day_2 = @date_2&.to_i.present? ? @date_2&.to_i : 0
     if con_cycle.start_date.strftime("%d").to_i <= day_1

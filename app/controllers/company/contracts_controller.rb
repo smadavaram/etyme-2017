@@ -172,7 +172,7 @@ class Company::ContractsController < Company::BaseController
 
   def timeline
     @contracts = current_company.contracts.includes(:job).where.not(status: "pending")
-    @candidates = Candidate.all
+    @candidates = Candidate.where(id: @contracts.pluck(:candidate_id).uniq)
     filter_timeline
   end
 

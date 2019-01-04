@@ -65,8 +65,8 @@ class Company::PayrollTermInfosController < Company::BaseController
     @dates.each do |x,y|
       @dates[x][:start_date] = @dates[x][:end_date]- 1.month+1
       @dates[x][:doc_date] = Date.new((@dates[x][:end_date]+@payroll.payroll_term.to_i.months).year,(@dates[x][:end_date]+@payroll.payroll_term.to_i.months).month, @payroll.sclr_date_1.day)
-      @dates[x][:cal_date] = @dates[x][:doc_date] - (@payroll.sclr_date_1 - @payroll&.scal_date_1).to_i
-      @dates[x][:pro_date] = @dates[x][:doc_date] - (@payroll.sclr_date_1 - @payroll&.sp_date_1).to_i
+      @dates[x][:cal_date] = @dates[x][:doc_date] - (@payroll.sclr_date_1.day - @payroll&.scal_date_1.day).to_i
+      @dates[x][:pro_date] = @dates[x][:doc_date] - (@payroll.sclr_date_1.day - @payroll&.sp_date_1.day).to_i
     end
   end
 

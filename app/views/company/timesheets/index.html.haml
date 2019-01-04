@@ -49,6 +49,7 @@
 - @temp = []
 -@timesheets.each do |ts|
   -@temp.push({ timesheet_id: ts.id,
+                cycle_id: ts.ts_cycle_id,
                 creation_date: ts.created_at.strftime('%Y-%m-%d'),
                 contract: ts.contract.number,
                 client: ts.contract.client.full_name,
@@ -83,12 +84,16 @@
       data : jqgrid_data,
       datatype : "local",
       height : 'auto',
-      colNames : ['Timesheet ID', 'Creation Date', 'Contract', 'Client', 'Tax Type',
+      colNames : ['Timesheet ID', 'Cycle ID', 'Creation Date', 'Contract', 'Client', 'Tax Type',
                   'candidate', 'Company Vendor', 'Buy Rate', 'Timesheet Cycle', 'Date', 'Hours', 'Amount', 'Attachment',
                   'status', 'Actions'],
       colModel : [ {
         name : 'timesheet_id',
         index : 'timesheet_id'
+      },{
+        name : 'cycle_id',
+        index : 'cycle_id'
+
       }, {
         name : 'creation_date',
         index : 'creation_date',
