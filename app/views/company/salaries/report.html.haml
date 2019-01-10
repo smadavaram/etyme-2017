@@ -1,7 +1,7 @@
 %br
 %br
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-- sc_cycle_ids = nil
+- sclr_cycle_ids = nil
 = link_to 'Salary Calculate', '', class: 'btn btn-md btn-default btn-primary salary-calculate',title: "Salary Calculate", :onclick => 'calculate_salary();'
 
 &nbsp;&nbsp;&nbsp;
@@ -23,8 +23,23 @@
 = form_for :contract_expense_type, url:add_contract_expense_type_salaries_path, method: :post ,html:{class: 'contract-expense-type', id: 'contract-expense-type'} do |f|
 
   = f.text_field :name
-  = hidden_field_tag :sc_cycle_id, ''
+  = hidden_field_tag :sclr_cycle_id, ''
   = f.submit 'Save', class: 'btn btn-primary'
+
+#content
+  .row
+    .col-md-3.text-center
+      %a{:href => "#"}
+        %u Salary Calculate
+    .col-md-3.text-center
+      %a{:href => "#"}
+        %u Commission
+    .col-md-3.text-center
+      %a{:href => "#"}
+        %u Salary Process
+    .col-md-3.text-center
+      %a{:href => "#"}
+        %u Salary Clear
 
 #content
   .row
@@ -60,7 +75,7 @@
                     - @contract_expense_types.each do |cet|
                       %th.expense-type.salary-clear{:id => cet.id}
                         &nbsp;&nbsp;&nbsp;
-                        = link_to '<i class="fa fa-times-circle"></i>'.html_safe, delete_contract_expense_type_salaries_path(id: cet.id, sc_cycle_id: params[:sc_cycle_id]), method: :delete, data: { confirm: 'Are you sure?' }, title: 'Delete'
+                        = link_to '<i class="fa fa-times-circle"></i>'.html_safe, delete_contract_expense_type_salaries_path(id: cet.id, sclr_cycle_id: params[:sclr_cycle_id]), method: :delete, data: { confirm: 'Are you sure?' }, title: 'Delete'
                         &nbsp;&nbsp;&nbsp;
                         %span
                           = cet.name
@@ -93,7 +108,7 @@
                             - s[1].each do |ss|
                               - if c.id == ss[0]
                                 - total_time = @timesheets.where(status: 'approved', start_date: s[0][0]..s[0][1], contract_id: ss[0], candidate_id: c.candidate_id).sum(:total_time)
-                                - salary = Salary.find_by(sc_cycle_id: ss[1])
+                                - salary = Salary.find_by(sclr_cycle_id: ss[1])
                                 %span{:id => "#{ss[1]}"}
                                 -if salary.status == 'open'
                                   - amount = total_time* c&.buy_contracts&.first&.payrate
@@ -110,6 +125,7 @@
                                     = @expenses.present? ? @expenses.select { |m| m.salary_ids.include? ss[1].to_s }.map{|x| x.total_amount.to_i / x.salary_ids.length}.sum(&:to_i) : 0
 
                                 -elsif salary.status == 'calculated'
+                                  = salary.id
                                   Calculated Amount:
                                   %span.salary_calculated
                                     = salary.total_amount
@@ -205,7 +221,7 @@
                           %td.show-salary
                             - s[1].each do |ss|
                               - if c.id == ss[0]
-                                - salary = Salary.find_by(sc_cycle_id: ss[1])
+                                - salary = Salary.find_by(sclr_cycle_id: ss[1])
                                 %span{:id => "#{ss[1]}"}
                                 -if salary.status == 'open'
                                   - amount = @timesheets.where(status: 'approved', start_date: s[0][0]..s[0][1], contract_id: ss[0], candidate_id: c.candidate_id).sum(:total_time)* c&.buy_contracts&.first&.payrate
@@ -397,11 +413,11 @@
     $('.salary-aggregate').hide();
     $('.contract-expense-type').hide();
 
-    function check_salary_status(sc_cycle_id){
+    function check_salary_status(sclr_cycle_id){
       $.ajax({
         url: '#{check_salary_status_salaries_path}',
         type: 'GET',
-        data: {sc_cycle_id: sc_cycle_id},
+        data: {sclr_cycle_id: sclr_cycle_id},
         dataType: 'JSON'
       }).done(function(data){
         if(data.status == 'open'){
@@ -418,7 +434,7 @@
 
     $(document).on('change', '.salary_check', function() {
       if (this.checked) {
-        var sc_cycle_id = this.parentElement.id
+        var sclr_cycle_id = this.parentElement.id
         $(this).parent().addClass('active');
         $(this).parent().removeClass('show-salary');
         $("table tr td").each(function(){
@@ -432,7 +448,7 @@
             }
           }
         });
-        check_salary_status(sc_cycle_id);
+        check_salary_status(sclr_cycle_id);
         $('.show-salary').hide();
       }
       else{
@@ -455,25 +471,25 @@
     })
 
     function calculate_salary(){    
-      var sc_cycle_ids = {};
+      var sclr_cycle_ids = {};
       $('td.active').each(function () {
-        sc_cycle_ids[$(this).find('span').attr('id')] = {'pending_amount': $(this).find('span.pending_amount').text(), 'approved_amount': $(this).find('span.approved_amount').text(), 'salary_advance': $(this).find('span.salary_advance').text()}
+        sclr_cycle_ids[$(this).find('span').attr('id')] = {'pending_amount': $(this).find('span.pending_amount').text(), 'approved_amount': $(this).find('span.approved_amount').text(), 'salary_advance': $(this).find('span.salary_advance').text()}
       });
 
       $.ajax({
         url: '#{calculate_salary_salaries_path}',
         type: 'GET',
-        data: {sc_cycle_ids: sc_cycle_ids},
+        data: {sclr_cycle_ids: sclr_cycle_ids},
         dataType: 'script'
       })
     }
 
 
     function process_salary(){    
-      var sc_cycle_ids = {};
+      var sclr_cycle_ids = {};
       var comm_ids = {};
       $('td.active').each(function () {
-        sc_cycle_ids[$(this).find('span').attr('id')] = {'salary_calculated': $(this).find('span.salary_calculated').find('input').val()}
+        sclr_cycle_ids[$(this).find('span').attr('id')] = {'salary_calculated': $(this).find('span.salary_calculated').find('input').val()}
         for (i = 0; i < $(this).find('span.commission').find('span').length; i++) { 
           comm_ids[$($(this).find('span.commission').find('span')[i]).attr('id')] = {'commission': parseInt($($(this).find('span.commission').find('span')[i]).text())}
         }
@@ -482,7 +498,7 @@
       $.ajax({
         url: '#{process_salary_salaries_path}',
         type: 'GET',
-        data: {sc_cycle_ids: sc_cycle_ids, comm_ids: comm_ids},
+        data: {sclr_cycle_ids: sclr_cycle_ids, comm_ids: comm_ids},
         dataType: 'script'
       })
     }
@@ -490,15 +506,15 @@
 
 
     $(document).on('click', '.salary-aggregate', function(){   
-      var sc_cycle_ids = [];
+      var sclr_cycle_ids = [];
       $('td.active').each(function () {
-        sc_cycle_ids.push($(this).find('span').attr('id'))
+        sclr_cycle_ids.push($(this).find('span').attr('id'))
       });
       var csv_url = '';
       $.ajax({
         url: '/salaries/aggregate_salary.csv',
         type: 'GET',
-        data: {sc_cycle_ids: sc_cycle_ids},
+        data: {sclr_cycle_ids: sclr_cycle_ids},
         dataType: 'CSV',
         beforeSend: function (jqXHR, settings) {
           debugger
@@ -508,37 +524,37 @@
     })
 
     function clear_salary(){    
-      var sc_cycle_ids = [];
+      var sclr_cycle_ids = [];
       $('td.active').each(function () {
-        sc_cycle_ids.push($(this).find('span').attr('id'))
+        sclr_cycle_ids.push($(this).find('span').attr('id'))
       });
 
       $.ajax({
         url: '#{clear_salary_salaries_path}',
         type: 'GET',
-        data: {sc_cycle_ids: sc_cycle_ids},
+        data: {sclr_cycle_ids: sclr_cycle_ids},
         dataType: 'script'
       })
     }
 
     $(document).on('click', '.add-expense', function(){
       $('.contract-expense-type').toggle();
-      $('#sc_cycle_id').val($('table tr th.active').attr('id'));
+      $('#sclr_cycle_id').val($('table tr th.active').attr('id'));
     });
 
-    '<haml_silent> if params[:sc_cycle_id].present? </haml_silent><haml_block>'
-      var id = #{params[:sc_cycle_id]}
+    '<haml_silent> if params[:sclr_cycle_id].present? </haml_silent><haml_block>'
+      var id = #{params[:sclr_cycle_id]}
       $('#'+id).find('input').click(); 
     '</haml_block>'
 
 
     $(".ct_ex_amount").on("blur", function(){
       debugger
-      var sc_cycle_id = $(this).closest('tr').find('td.active').find('span').attr('id')
+      var sclr_cycle_id = $(this).closest('tr').find('td.active').find('span').attr('id')
       $.ajax({
         url: '#{add_contract_expense_amount_salaries_path}',
         type: 'POST',
-        data: {amount: $(this).val(), sc_cycle_id: sc_cycle_id, cet_id: $(this).attr('id')},
+        data: {amount: $(this).val(), sclr_cycle_id: sclr_cycle_id, cet_id: $(this).attr('id')},
         dataType: 'JSON'
       }).done(function(data){
         $(this).val($(this).val());

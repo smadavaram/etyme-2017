@@ -410,7 +410,7 @@ module ApplicationHelper
                             content: "<span class='menu-item-parent'> Salary Adavance</span>"
                         },
                         {
-                            href: salary_process_salaries_path,
+                            href: report_salaries_path,
                             title: 'Salary Payment(s)',
                             content: "<span class='menu-item-parent'> Salary Calculation </span>"
                         },

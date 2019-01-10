@@ -15,7 +15,25 @@ class Company::SalariesController < Company::BaseController
     end
   end
 
-  def salary_process
+  def final_salary
+    if params[:note].present? && params[:cycle_id].present?
+      case params[:note]
+      when 'Salary clear'
+        @salary = Salary.find_by(sclr_cycle_id: params[:cycle_id])
+      when 'Salary process'
+        @salary = Salary.find_by(sp_cycle_id: params[:cycle_id])
+      when 'Salary calculation'
+        @salary = Salary.find_by(sc_cycle_id: params[:cycle_id])
+      end
+      @contracts = current_company.in_progress_contracts.includes(:sell_contracts, :buy_contracts, :candidate)
+      @timesheets = Timesheet.includes(contract: [:buy_contracts, :sell_contracts])
+      @expenses = Expense.where(contract_id: current_company.in_progress_contracts.ids )
+    else
+      redirect_to timeline_contracts_path
+    end
+  end
+
+  def report
     @ledger = Sequence::Client.new(
         ledger_name: 'company-dev',
         credential: 'OUUY4ZFYQO4P3YNC5JC3GMY7ZQJCSNTH'
@@ -41,12 +59,13 @@ class Company::SalariesController < Company::BaseController
     @salary.save
     @salary.update(salary_params)
     flash[:notice] = 'Salary Updated'
-    redirect_to salary_process_salaries_path
+    redirect_to report_salaries_path
   end
 
   def calculate_salary
-    params[:sc_cycle_ids].each do |key,value|
-      salary = Salary.find_by(sc_cycle_id: key)
+    # binding.pry
+    params[:sclr_cycle_ids].each do |key,value|
+      salary = Salary.find_by(sclr_cycle_id: key)
       if salary
         salary.approved_amount = value[:approved_amount].to_i
         salary.pending_amount = value[:pending_amount].to_i
@@ -57,34 +76,33 @@ class Company::SalariesController < Company::BaseController
       end
     end
     flash[:notice] = 'Salary Calculated'
-    render :js => "window.location = '#{salary_process_salaries_path}'"
+    render :js => "window.location = '#{request.headers["HTTP_REFERER"]}'"
   end
 
   def process_salary
-    params[:sc_cycle_ids].each do |key,value|
-      salary = Salary.find_by(sc_cycle_id: key)
+    params[:sclr_cycle_ids].each do |key,value|
+      salary = Salary.find_by(sclr_cycle_id: key)
       salary.balance = salary.total_amount  - value[:salary_calculated].to_i 
       Salary.where(end_date: salary.end_date+1.month, contract_id: salary.contract_id).first.update(pending_amount: salary.balance)
       salary.total_amount = value[:salary_calculated].to_i
       salary.status = 'processed'
       salary.save
     end
-    params[:comm_ids].each do |key, value|
-      # binding.pry
-      csca = CscAccount.find_by(id: key.to_i)
-      if csca.total_amount.to_i + value[:commission].to_i <= csca.contract_sale_commision.limit.to_i
-        csca.update(total_amount: value[:commission].to_i + csca.total_amount)
-      else
-        csca.update(total_amount: csca.contract_sale_commision.limit.to_i)
-      end
-      csca.set_commission_on_seq
-    end
+    # params[:comm_ids].each do |key, value|
+    #   # binding.pry
+    #   csca = CscAccount.find_by(id: key.to_i)
+    #   if csca.total_amount.to_i + value[:commission].to_i <= csca.contract_sale_commision.limit.to_i
+    #     csca.update(total_amount: value[:commission].to_i + csca.total_amount)
+    #   else
+    #     csca.update(total_amount: csca.contract_sale_commision.limit.to_i)
+    #   end
+    # end
     flash[:notice] = 'Salary Processed'
-    render :js => "window.location = '#{salary_process_salaries_path}'"
+    render :js => "window.location = '#{request.headers["HTTP_REFERER"]}'"
   end
 
   def aggregate_salary
-    csv = Salary.generate_csv(params[:sc_cycle_ids])
+    csv = Salary.generate_csv(params[:sclr_cycle_ids])
     respond_to do |format|
       format.csv {send_data csv, file_name: 'aggregate_salary.csv' }
     end
@@ -94,12 +112,32 @@ class Company::SalariesController < Company::BaseController
   def clear_salary
     params[:sc_cycle_ids].each do |cycle_id|
       ce_amount =  ContractExpense.where(cycle_id: cycle_id).sum(:amount)
-      salary = Salary.find_by(sc_cycle_id: cycle_id)
+      salary = Salary.find_by(sclr_cycle_id: cycle_id)
     end
   end
 
+  def calculate_commission
+    # binding.pry
+    if params[:comm_ids].present?
+      params[:comm_ids].each do |key, value|
+        csca = CscAccount.find_by(id: key.to_i)
+        csca.set_commission_calculate_on_seq
+      end
+    end
+    if params[:sclr_cycle_ids].present?
+      params[:sclr_cycle_ids].each do |cycle_id|
+        salary = Salary.find_by(sclr_cycle_id: cycle_id.to_i)
+        salary.update(status: 'commission_calculated') if salary
+        # salary.set_commission_calculate_on_seq
+      end
+    end
+    flash[:notice] = 'Commission calculated'
+    render :js => "window.location = '#{request.headers["HTTP_REFERER"]}'"
+  end
+
+
   def check_salary_status
-    salary = Salary.find_by(sc_cycle_id: params[:sc_cycle_id])
+    salary = Salary.find_by(sclr_cycle_id: params[:sclr_cycle_id])
     respond_to do |format|
       format.html
       format.json { render json: salary }
@@ -108,23 +146,23 @@ class Company::SalariesController < Company::BaseController
 
   def add_contract_expense_type
     ContractExpenseType.create(contract_expense_type_params)
-    redirect_to salary_process_salaries_path(sc_cycle_id: params[:sc_cycle_id])
+    redirect_to report_salaries_path(sclr_cycle_id: params[:sclr_cycle_id])
   end
 
   def delete_contract_expense_type
     ContractExpenseType.find_by(id: params[:id]).destroy
-    redirect_to salary_process_salaries_path(sc_cycle_id: params[:sc_cycle_id])
+    redirect_to report_salaries_path(sclr_cycle_id: params[:sclr_cycle_id])
 
   end
 
   def add_contract_expense_amount
 
-    salary = Salary.find_by(sc_cycle_id: params[:sc_cycle_id])
+    salary = Salary.find_by(sclr_cycle_id: params[:sclr_cycle_id])
     if salary.present?
-      ce = ContractExpense.find_by(contract_id: salary.contract_id, candidate_id: salary.candidate_id, cycle_id: params[:sc_cycle_id], con_ex_type: params[:cet_id])
+      ce = ContractExpense.find_by(contract_id: salary.contract_id, candidate_id: salary.candidate_id, cycle_id: params[:sclr_cycle_id], con_ex_type: params[:cet_id])
       binding.pry
       unless ce
-        ce = ContractExpense.create(contract_id: salary.contract_id, candidate_id: salary.candidate_id, amount: params[:amount], cycle_id: params[:sc_cycle_id], con_ex_type: params[:cet_id])
+        ce = ContractExpense.create(contract_id: salary.contract_id, candidate_id: salary.candidate_id, amount: params[:amount], cycle_id: params[:sclr_cycle_id], con_ex_type: params[:cet_id])
       else
         ce.update(amount: params[:amount])
       end

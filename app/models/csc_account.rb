@@ -11,16 +11,16 @@ class CscAccount < ApplicationRecord
     self.save
   end
 
-  def set_commission_on_seq
+  def set_commission_on_seq(amount)
     ledger = Sequence::Client.new(
       ledger_name: 'company-dev',
       credential: 'OUUY4ZFYQO4P3YNC5JC3GMY7ZQJCSNTH'
     )
-    if self.total_amount.present? && self.total_amount > 0
+    if amount.present? && amount > 0
       tx = ledger.transactions.transact do |builder|
         builder.issue(
           flavor_id: 'usd',
-          amount: self&.total_amount.to_i,
+          amount: amount.to_i,
           destination_account_id: "comm_#{self.id}",
           action_tags: {
             type: 'issue',
@@ -31,5 +31,26 @@ class CscAccount < ApplicationRecord
     end   
   end
 
+  def set_commission_calculate_on_seq
+    ledger = Sequence::Client.new(
+      ledger_name: 'company-dev',
+      credential: 'OUUY4ZFYQO4P3YNC5JC3GMY7ZQJCSNTH'
+    )
+    # self.contract.set_on_seq
+    if self.total_amount > 0 && self.accountable_type == 'Candidate'
+      tx = ledger.transactions.transact do |builder|
+        builder.transfer(
+          flavor_id: 'usd',
+          amount: self.total_amount.to_i,
+          source_account_id: "comm_#{self.id}",
+          destination_account_id: 'cons_'+self.accountable_id.to_s+'_settlement',
+          action_tags: {
+            type: 'transfer',
+            contract: self.contract_id,
+          }
+        )
+      end
+    end     
+  end
 
 end

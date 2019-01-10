@@ -39,9 +39,9 @@ module Contracts
         #salary cycles
         # binding.pry
         salary_cycle = add_salary_cycle
-        add_salary(salary_cycle)
-        # con_cycle_sp_start_date = Salary.set_con_cycle_sp_date(buy_contract, salary_cycle)
-        # set_salary_process(salary_cycle,con_cycle_sp_start_date)
+        con_cycle_start_date = Salary.set_con_cycle_sp_date(buy_contract, salary_cycle)
+        salary_cal_process = set_salary_process(salary_cycle, con_cycle_start_date)
+        add_salary(salary_cycle, salary_cal_process[0], salary_cal_process[1])
 
         #commission cycles
         # commission_cycle = add_commission_cycle
@@ -249,29 +249,87 @@ module Contracts
       end
     end
 
-    def set_salary_process(con_cycle,con_cycle_sp_start_date)
+    def set_salary_process(con_cycle, con_cycle_start_date)
+      con_cycle_scal_start_date = con_cycle_start_date[0]
+      con_cycle_sp_start_date = con_cycle_start_date[1]
+      # binding.pry
 
-      con_cycle_sp_start_date = contract.end_date if con_cycle_sp_start_date > contract.end_date
-      con_cycle_sp = ContractCycle.find_by(contract_id: con_cycle.contract_id,
-                                          start_date: con_cycle_sp_start_date,
-                                          end_date: con_cycle_sp_start_date&.end_of_day&.in_time_zone("Chennai"),
-                                          company_id: sell_contract.company_id,
-                                          note: "Salary process",
-                                          cycle_type: "SalaryProcess",
-                                          next_action: "SalaryClear"
-      )
+      salary_cal = ContractCycle.find_by(
+                    contract_id: contract_id,
+                    candidate_id: buy_contract.candidate_id,
+                    company_id: sell_contract.company_id,
+                    cycle_type: 'SalaryCalculation',
+                    note: 'Salary calculation',
+                    doc_date: con_cycle_scal_start_date
 
-      unless con_cycle_sp
-        con_cycle_sp = ContractCycle.create(contract_id: con_cycle.contract_id,
-                                            start_date: con_cycle_sp_start_date,
-                                            end_date: con_cycle_sp_start_date.end_of_day,
-                                            company_id: sell_contract.company_id,
-                                            note: "Salary process",
-                                            cycle_date: Time.now,
-                                            cycle_type: "SalaryProcess",
-                                            next_action: "SalaryClear"
-        )
+                  )
+      # binding.pry
+      unless salary_cal
+        salary_cal = ContractCycle.create(
+                    contract_id: contract_id,
+                    start_date: con_cycle.start_date.to_date,
+                    end_date: con_cycle.end_date.to_date,
+                    candidate_id: buy_contract.candidate_id,
+                    company_id: sell_contract.company_id,
+                    status: 'pending',
+                    cycle_type: 'SalaryCalculation',
+                    next_action: '',
+                    note: 'Salary calculation',
+                    doc_date: con_cycle_scal_start_date,
+                    post_date: con_cycle_scal_start_date
+                  )
+        
       end
+
+      salary_process = ContractCycle.find_by(
+                    contract_id: contract_id,
+                    candidate_id: buy_contract.candidate_id,
+                    company_id: sell_contract.company_id,
+                    cycle_type: 'SalaryProcess',
+                    note: 'Salary process',
+                    doc_date: con_cycle_sp_start_date
+
+                  )
+      # binding.pry
+      unless salary_process
+        salary_process = ContractCycle.create(
+                    contract_id: contract_id,
+                    start_date: con_cycle.start_date.to_date,
+                    end_date: con_cycle.end_date.to_date,
+                    candidate_id: buy_contract.candidate_id,
+                    company_id: sell_contract.company_id,
+                    status: 'pending',
+                    cycle_type: 'SalaryProcess',
+                    next_action: '',
+                    note: 'Salary process',
+                    doc_date: con_cycle_sp_start_date,
+                    post_date: con_cycle_sp_start_date
+                  )
+        
+      end
+      return salary_cal.id, salary_process.id
+
+      # con_cycle_sp_start_date = contract.end_date if con_cycle_sp_start_date > contract.end_date
+      # con_cycle_sp = ContractCycle.find_by(contract_id: con_cycle.contract_id,
+      #                                     start_date: con_cycle_sp_start_date,
+      #                                     end_date: con_cycle_sp_start_date&.end_of_day&.in_time_zone("Chennai"),
+      #                                     company_id: sell_contract.company_id,
+      #                                     note: "Salary process",
+      #                                     cycle_type: "SalaryProcess",
+      #                                     next_action: "SalaryClear"
+      # )
+
+      # unless con_cycle_sp
+      #   con_cycle_sp = ContractCycle.create(contract_id: con_cycle.contract_id,
+      #                                       start_date: con_cycle_sp_start_date,
+      #                                       end_date: con_cycle_sp_start_date.end_of_day,
+      #                                       company_id: sell_contract.company_id,
+      #                                       note: "Salary process",
+      #                                       cycle_date: Time.now,
+      #                                       cycle_type: "SalaryProcess",
+      #                                       next_action: "SalaryClear"
+      #   )
+      # end
     end
 
     def set_commission_process(con_cycle,con_cycle_com_pro_start_date)
@@ -681,26 +739,30 @@ module Contracts
       return client_expense_cal
     end
 
-    def add_salary(cycle)
+    def add_salary(sclr_cycle, sc_cycle_id, sp_cycle_id)
 
       salary = Salary.find_by(
                 contract_id: contract_id,
-                end_date: cycle.end_date,
+                end_date: sclr_cycle.end_date,
                 candidate_id: buy_contract.candidate_id,
                 company_id: sell_contract.company_id,
                 status: 'open',
-                sc_cycle_id: cycle.id,
+                sclr_cycle_id: sclr_cycle.id,
+                sp_cycle_id: sp_cycle_id,
+                sc_cycle_id: sc_cycle_id,
                 rate: buy_contract.payrate
               )
       unless salary
         Salary.create(
                 contract_id: contract_id,
-                start_date: cycle.start_date,
-                end_date: cycle.end_date,
+                start_date: sclr_cycle.start_date,
+                end_date: sclr_cycle.end_date,
                 candidate_id: buy_contract.candidate_id,
                 company_id: sell_contract.company_id,
                 status: 'open',
-                sc_cycle_id: cycle.id,
+                sclr_cycle_id: sclr_cycle.id,
+                sp_cycle_id: sp_cycle_id,
+                sc_cycle_id: sc_cycle_id,
                 rate: buy_contract.payrate
               )
       end

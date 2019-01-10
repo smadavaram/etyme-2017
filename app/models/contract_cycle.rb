@@ -22,7 +22,7 @@ class ContractCycle < ApplicationRecord
 
   scope :completed, -> {where(status: 'completed')}
   scope :overdue, -> {where('DATE(contract_cycles.end_date) < ?', DateTime.now.end_of_day.to_date)}
-  scope :todo, -> {where('DATE(contract_cycles.end_date) BETWEEN ? AND ?', Date.today, 11.days.from_now.to_date)}
+  scope :todo, -> {where('DATE(contract_cycles.end_date) BETWEEN ? AND ?', Date.today, 365.days.from_now.to_date)}
 
   def next_action=(new_next_action)
     write_attribute(:next_action, new_next_action)

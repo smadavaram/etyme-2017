@@ -1,0 +1,250 @@
+#content
+  .row
+    #bootstrap-wizard-1.col-sm-12
+      .form-bootstrapWizard
+        %ul.bootstrapWizard.form-wizard
+          %li.active{"data-target" => "#step1", :id => 'wiz_tab1'}
+            %a{"data-toggle" => "tab", :href => "#tab1"}
+              %span.step 1
+              %span.title Salary calculate
+          %li{"data-target" => "#step2", :id => 'wiz_tab2'}
+            %a{"data-toggle" => "tab", :href => "#tab2"}
+              %span.step 2
+              %span.title Commission Calculate
+          %li.step3{"data-target" => "#step3", :id => 'wiz_tab3'}
+            %a{"data-toggle" => "tab", :href => "#tab3"}
+              %span.step 3
+              %span.title Salary process
+          %li.step4{"data-target" => "#step4", :id => 'wiz_tab4'}
+            %a{"data-toggle" => "tab", :href => "#tab4"}
+              %span.step 4
+              %span.title Salary clear
+  .row
+  %section
+    .row
+      %article.col-sm-12.col-md-12.col-lg-12
+        #wid-id-0.jarviswidget{"data-widget-deletebutton" => "false", "data-widget-editbutton" => "false"}
+          %header
+            %span.widget-icon
+              %i.fa.fa-check
+            %h2 Salary &nbsp;&nbsp;&nbsp; (#{@salary&.start_date.to_date&.to_s+ ' -  '+ @salary&.end_date.to_date&.to_s})   
+          
+          .salary-cycle-wrap
+            %div.table-responsive
+              %table.table.table-bordered.account_detail
+                %thead
+                  %tr
+                    %th Candidate
+                    %th Tax Type
+                    %th Customer Rate
+                    %th Salary rate
+                    %th Status
+                    %th.address Residence Address
+                    %th.address Working Address
+                    %th.calculation.tab-content Calculation
+                %tbody
+                  - @contracts.each do |c|
+                    - salary = Salary.find_by(start_date: @salary.start_date, end_date: @salary.end_date, contract_id: c.id)
+                    %tr
+                      %td
+                        = c&.candidate&.full_name
+                      %td
+                        = c&.buy_contracts&.first.contract_type
+                      %td
+                        = c&.sell_contracts&.first&.customer_rate.to_i
+                      %td
+                        = c&.buy_contracts&.first&.payrate.to_i
+                      %td
+                        = c&.candidate&.visas&.first&.title
+                      %td
+                        = c&.candidate&.addresses&.first&.full_address
+
+                      %td
+                        = c&.client&.addresses&.first&.full_address
+                      %td.active
+                        - total_time = @timesheets.where(status: 'approved', start_date: @salary.start_date..@salary.end_date, contract_id: c.id, candidate_id: c.candidate_id).sum(:total_time)
+                        - commission_earned = CscAccount.where(accountable_id: c.candidate_id, accountable_type: 'Candidate').sum(:total_amount)
+                        - advance = @expenses.present? ? @expenses.select { |m| m.salary_ids.include? salary.sclr_cycle_id.to_s }.map{|x| x.total_amount.to_i / x.salary_ids.length}.sum(&:to_i) : 0
+                        - amount = total_time* c&.buy_contracts&.first&.payrate
+                        %span{:id => salary.sclr_cycle_id}
+                        Previous pending:
+                        %span.pending_amount
+                          = salary.pending_amount.to_i
+                        %br
+                        %br
+                        Current payable:
+                        %span.approved_amount
+                          = amount
+                        %br
+                        %br
+                        Advance
+                        %span.salary_advance
+                          = advance
+                        %br
+                        %br
+                        -if salary.status == 'open'
+                          Total:
+                          %span.total_amount
+                            = salary.pending_amount.to_i + amount.to_i - advance.to_i
+
+                        -elsif salary.status == 'calculated'
+                          Calculated Amount:
+                          %span.salary_calculated
+                            = salary.total_amount
+                            %br
+                            %br
+                          %span.commission
+                            - ContractSaleCommision.where(buy_contract_id: c.buy_contracts.first.id).each do |csc|
+                              - csc.csc_accounts.each do |csca|
+                                %span.csca_id{:id => "#{csca.id}"}
+                                  %span.csca_amount{:id => "#{csca.total_amount}"}
+                        - elsif salary.status == 'commission_calculated'
+                          %span.commission_calculated
+                            Commission given:
+                            %br
+                            - c.csc_accounts.each do |csca|
+                              = csca.accountable.full_name+': '+csca.total_amount.to_s 
+                          %br
+                          %br
+                          Commission earned:
+                          %span
+                            = commission_earned
+                          %br
+                          %br
+                          = 'Total:    '+(salary.total_amount.to_i+commission_earned.to_i).to_s
+                          %br
+                          %br
+                          %span.sp_amount
+                            Enter amount to process
+                            = text_field_tag "#{salary.id}[amount]", '', value: (salary.total_amount.to_i+commission_earned.to_i) 
+                        - elsif salary.status == 'processed'
+                          Commission given:
+                          %br
+                          - c.csc_accounts.each do |csca|
+                            = csca.accountable.full_name+': '+csca.total_amount.to_s 
+                          %br
+                          %br
+                          Commission earned:
+                          %span
+                            = commission_earned  
+                          %br
+                          %br                        
+                          Total Processed amount:
+                          %span.salary_processed
+                            = salary.total_amount
+                          
+                        - elsif salary.status == 'aggregated'
+                          %span.salary_aggregated
+
+                  = link_to 'Proceed', '#', class: 'btn btn-md btn-default btn-primary salary-calculate', :onclick => salary_status(@salary), data: { disable_with: "Please wait..."}
+                %br
+                %br
+
+= @salary.status
+
+- content_for :scripts do
+  :javascript 
+
+    function calculate_salary(){
+    debugger
+      $('.salary-calculate').addClass("disabled");  
+      var sclr_cycle_ids = {};
+      $('td.active').each(function () {
+        sclr_cycle_ids[$(this).find('span').attr('id')] = {'pending_amount': $(this).find('span.pending_amount').text(), 'approved_amount': $(this).find('span.approved_amount').text(), 'salary_advance': $(this).find('span.salary_advance').text()}
+      });
+
+      $.ajax({
+        url: '#{calculate_salary_salaries_path}',
+        type: 'GET',
+        data: {sclr_cycle_ids: sclr_cycle_ids},
+        dataType: 'script'
+      })
+    }
+
+
+    function process_salary(){ 
+      $('.salary-calculate').addClass("disabled");   
+      var sclr_cycle_ids = {};
+      $('td.active').each(function () {
+        debugger
+        sclr_cycle_ids[$(this).find('span').attr('id')] = {'salary_calculated': $(this).find('span.sp_amount').find('input').val()}
+      });
+
+      $.ajax({
+        url: '#{process_salary_salaries_path}',
+        type: 'GET',
+        data: {sclr_cycle_ids: sclr_cycle_ids},
+        dataType: 'script'
+      })
+    }
+
+
+    function commission_calculate(){ 
+      $('.salary-calculate').addClass("disabled");
+      var sclr_cycle_ids = [];
+      var comm_ids = {};
+      $('td.active').each(function () {
+        sclr_cycle_ids.push($(this).find('span').attr('id'))
+        for (i = 0; i < $(this).find('span.commission').find('span.csca_id').length; i++) { 
+          comm_ids[$($(this).find('span.commission').find('span.csca_id')[i]).attr('id')] = {'commission': parseInt($($($(this).find('span.commission').find('span.csca_id')[i])).find('span.csca_amount').attr('id'))}
+        }
+      });
+
+      $.ajax({
+        url: '#{calculate_commission_salaries_path}',
+        type: 'GET',
+        data: {sclr_cycle_ids: sclr_cycle_ids, comm_ids: comm_ids},
+        dataType: 'script'
+      })
+    }
+
+    if(#{@salary.status == 'calculated'}){
+      $('#bootstrap-wizard-1').find('.form-wizard').children('li').eq(0).addClass(
+            'complete');
+      $('#bootstrap-wizard-1').find('.form-wizard').children('li').eq(0
+      ).find('.step')
+      .html('<i class="fa fa-check"></i>');
+      $("#wiz_tab2 a").click();
+    }else if (#{@salary.status == 'commission_calculated'}) {
+      $('#bootstrap-wizard-1').find('.form-wizard').children('li').eq(0).addClass(
+            'complete');
+      $('#bootstrap-wizard-1').find('.form-wizard').children('li').eq(0
+      ).find('.step')
+      .html('<i class="fa fa-check"></i>');
+
+      $('#bootstrap-wizard-1').find('.form-wizard').children('li').eq(1).addClass(
+            'complete');
+      $('#bootstrap-wizard-1').find('.form-wizard').children('li').eq(1
+      ).find('.step')
+      .html('<i class="fa fa-check"></i>');
+      $("#wiz_tab3 a").click();
+    }else if (#{@salary.status == 'processed'}) {
+      $('#bootstrap-wizard-1').find('.form-wizard').children('li').eq(0).addClass(
+            'complete');
+      $('#bootstrap-wizard-1').find('.form-wizard').children('li').eq(0
+      ).find('.step')
+      .html('<i class="fa fa-check"></i>');
+
+      $('#bootstrap-wizard-1').find('.form-wizard').children('li').eq(1).addClass(
+            'complete');
+      $('#bootstrap-wizard-1').find('.form-wizard').children('li').eq(1
+      ).find('.step')
+      .html('<i class="fa fa-check"></i>');
+
+      $('#bootstrap-wizard-1').find('.form-wizard').children('li').eq(2).addClass(
+            'complete');
+      $('#bootstrap-wizard-1').find('.form-wizard').children('li').eq(2
+      ).find('.step')
+      .html('<i class="fa fa-check"></i>');
+      debugger
+      $("#wiz_tab4 a").click();
+    } 
+
+:css
+  .address {
+    width: 200px;
+  }
+
+  .calculation {
+    width: 200px;
+  }

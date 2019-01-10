@@ -116,6 +116,15 @@ class Company::TimesheetsController < Company::BaseController
           @timesheet.update(inv_numbers: (@timesheet.inv_numbers+[i.id]))
         end
       end
+      csca_accounts = CscAccount.where(contract_id: @timesheet.contract_id)
+      # binding.pry
+      csca_accounts.each do |csca|
+        if csca.contract_sale_commision.limit.to_i > (csca.total_amount.to_i+@timesheet&.total_time*csca&.contract_sale_commision&.rate.to_i)
+          # binding.pry
+          csca.update(total_amount: (csca&.total_amount+@timesheet&.total_time*csca&.contract_sale_commision&.rate.to_i).to_i)
+          csca.set_commission_on_seq(@timesheet&.total_time*csca&.contract_sale_commision&.rate.to_i)     
+        end
+      end
 
 
       # salaries = @timesheet.contract.salaries.where("(start_date <= ? AND end_date >= ?) OR (start_date <= ? AND end_date >= ?)", @timesheet.start_date, @timesheet.start_date, @timesheet.end_date, @timesheet.end_date)

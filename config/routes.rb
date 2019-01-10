@@ -418,7 +418,7 @@ Rails.application.routes.draw do
       collection do
         get :salary_list
         get :filter_salary_cycles
-        get :salary_process
+        get :final_salary
         get :open_salary_process
         get :calculate_salary
         get :check_salary_status
@@ -428,6 +428,8 @@ Rails.application.routes.draw do
         post :add_contract_expense_amount
         get :clear_salary
         delete :delete_contract_expense_type
+        get :report
+        get :calculate_commission
       end
     end
 

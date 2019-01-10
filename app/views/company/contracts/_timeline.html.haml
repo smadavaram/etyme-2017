@@ -16,7 +16,7 @@
         %p.mb-0.submitted-name
           %b Name: #{cc.candidate.present? ? cc.candidate.full_name : cc&.contract&.sell_contracts&.first&.company&.full_name}
           %b
-            = link_to 'submit', timesheets_path, class: 'btn' if cc.note == 'Timesheet Approve'
+            = link_to 'Approve', timesheets_path, class: 'btn' if cc.note == 'Timesheet Approve'
         %p Client: #{cc&.contract&.company&.full_name}
         %p Tax type: #{cc.contract.buy_contracts.first.contract_type}
         - if cc.note == 'Timesheet submit'
@@ -41,17 +41,22 @@
     - @contract_cycles.includes(:company).pending.todo.order(start_date: :asc).each do |cc|
       / - cy = ContractCycle.find_by(contract_id: cc.contract_id, end_date: cc.end_date, candidate_id: cc.candidate_id)
       .timeline-block
+        = cc&.start_date&.utc&.strftime("%d %B %Y").to_s+' - '+cc&.end_date&.utc&.strftime("%d %B %Y").to_s
+        %br
         %span.badge.status-badge.yellow-badge
-          #{cc.note}
+          - if ['Salary clear', 'Salary process', 'Salary calculation'].include? cc.note
+            = link_to cc.note, final_salary_salaries_path(cycle_id: cc.id, note: cc.note)
+          - else
+            = cc.note
         %span.due-txt
-          #{cc.end_date.utc.strftime("%d %B %Y")}
+          #{cc&.doc_date&.strftime("%d %B %Y")}
         %br
         %br
         Contract ID - #{cc.contract.id} - Cycle ID #{cc.id}
         %p.mb-0.submitted-name
           %b Name: #{cc.candidate.present? ? cc.candidate.full_name : cc.company.full_name}
           %b
-            = link_to 'submit', timesheets_path, class: 'btn' if cc.note == 'Timesheet Approve'
+            = link_to 'Approve', timesheets_path, class: 'btn' if cc.note == 'Timesheet Approve'
         %p Client: #{cc&.contract&.company&.full_name}
         %p Tax type: #{cc.contract.buy_contracts.first.contract_type}
         - if cc.note == 'Timesheet submit'

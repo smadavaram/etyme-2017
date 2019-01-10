@@ -1,5 +1,5 @@
 class Expense < ApplicationRecord
-
+  include PublicActivity::Model
   belongs_to :contract, optional: true
   belongs_to :company_contact, optional: true, foreign_key: :account_id
 

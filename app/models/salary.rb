@@ -1,7 +1,7 @@
 class Salary < ApplicationRecord
   require 'sequence'
   include Rails.application.routes.url_helpers
-  enum status: [:open, :calculated, :processed, :aggregated, :cleared]
+  enum status: [:open, :calculated, :commission_calculated, :processed, :aggregated, :cleared]
   belongs_to :company, optional: true
   belongs_to :contract, optional: true
   belongs_to :candidate, optional: true
@@ -42,21 +42,41 @@ class Salary < ApplicationRecord
     else
       @sp_day_of_week = 'mon'
     end
-    @date_1 = buy_contract&.sp_date_1.try(:strftime, '%e')
-    @date_2 = buy_contract&.sp_date_2.try(:strftime, '%e')
-    @end_of_month = buy_contract&.sp_end_of_month
-    @day_time = buy_contract&.sp_day_time.try(:strftime, '%H:%M')
+    
+
+    if buy_contract&.sc_day_of_week.present?
+      @sc_day_of_week = Date.parse(buy_contract&.sc_day_of_week&.titleize).try(:strftime, '%A')
+    else
+      @sc_day_of_week = 'mon'
+    end
+
+    @sclr_date_1 = buy_contract&.sclr_date_1
+    @sclr_date_2 = buy_contract&.sclr_date_2
+    @sclr_end_of_month = buy_contract&.sclr_end_of_month
+    @sclr_day_time = buy_contract&.sclr_day_time.try(:strftime, '%H:%M')
+
+    @sp_date_1 = buy_contract&.sp_date_1
+    @sp_date_2 = buy_contract&.sp_date_2
+    @sp_end_of_month = buy_contract&.sp_end_of_month
+    @sp_day_time = buy_contract&.sp_day_time.try(:strftime, '%H:%M')
+
+    @sc_date_1 = buy_contract&.sc_date_1
+    @sc_date_2 = buy_contract&.sc_date_2
+    @sc_end_of_month = buy_contract&.sc_end_of_month
+    @sc_day_time = buy_contract&.sc_day_time.try(:strftime, '%H:%M')
+
     case @sp_type
     when 'daily'
       con_cycle_start_date = con_cycle.start_date
     when 'weekly'  
       con_cycle_start_date = date_of_next(@sp_day_of_week,con_cycle)
     when 'monthly'
-      if @end_of_month
-        con_cycle_start_date = DateTime.now.end_of_month
-      else
-        con_cycle_start_date = montly_approval_date(con_cycle, buy_contract)
-      end
+      # if @end_of_month
+      #   con_cycle_start_date = DateTime.now.end_of_month
+      # else
+      #   con_cycle_start_date = montly_approval_date(con_cycle, buy_contract)
+      # end
+      con_cycle_start_date = montly_approval_date(con_cycle)
     when 'twice a month'
       con_cycle_start_date = twice_a_month_approval_date(con_cycle)
     else
@@ -65,35 +85,35 @@ class Salary < ApplicationRecord
     return con_cycle_start_date
   end
 
-  def self.set_con_cycle_sclr_date(buy_contract, con_cycle)
-    @sclr_type = buy_contract&.salary_process
-    if buy_contract&.sclr_day_of_week.present?
-      @sclr_day_of_week = Date.parse(buy_contract&.sclr_day_of_week&.titleize).try(:strftime, '%A')
-    else
-      @sclr_day_of_week = 'mon'
-    end
-    @date_1 = buy_contract&.sclr_date_1.try(:strftime, '%e')
-    @date_2 = buy_contract&.sclr_date_2.try(:strftime, '%e')
-    @end_of_month = buy_contract&.sclr_end_of_month
-    @day_time = buy_contract&.sclr_day_time.try(:strftime, '%H:%M')
-    case @sclr_type
-    when 'daily'
-      con_cycle_start_date = con_cycle.start_date
-    when 'weekly'  
-      con_cycle_start_date = date_of_next(@sclr_day_of_week,con_cycle)
-    when 'monthly'
-      if @end_of_month
-        con_cycle_start_date = DateTime.now.end_of_month
-      else
-        con_cycle_start_date = montly_approval_date(con_cycle, buy_contract)
-      end
-    when 'twice a month'
-      con_cycle_start_date = twice_a_month_approval_date(con_cycle)
-    else
-      con_cycle_start_date = con_cycle.start_date
-    end 
-    return con_cycle_start_date
-  end
+  # def self.set_con_cycle_sclr_date(buy_contract, con_cycle)
+  #   @sclr_type = buy_contract&.salary_process
+  #   if buy_contract&.sclr_day_of_week.present?
+  #     @sclr_day_of_week = Date.parse(buy_contract&.sclr_day_of_week&.titleize).try(:strftime, '%A')
+  #   else
+  #     @sclr_day_of_week = 'mon'
+  #   end
+  #   @date_1 = buy_contract&.sclr_date_1.try(:strftime, '%e')
+  #   @date_2 = buy_contract&.sclr_date_2.try(:strftime, '%e')
+  #   @end_of_month = buy_contract&.sclr_end_of_month
+  #   @day_time = buy_contract&.sclr_day_time.try(:strftime, '%H:%M')
+  #   case @sclr_type
+  #   when 'daily'
+  #     con_cycle_start_date = con_cycle.start_date
+  #   when 'weekly'  
+  #     con_cycle_start_date = date_of_next(@sclr_day_of_week,con_cycle)
+  #   when 'monthly'
+  #     if @end_of_month
+  #       con_cycle_start_date = DateTime.now.end_of_month
+  #     else
+  #       con_cycle_start_date = montly_approval_date(con_cycle, buy_contract)
+  #     end
+  #   when 'twice a month'
+  #     con_cycle_start_date = twice_a_month_approval_date(con_cycle)
+  #   else
+  #     con_cycle_start_date = con_cycle.start_date
+  #   end 
+  #   return con_cycle_start_date
+  # end
 
 
 
@@ -114,16 +134,20 @@ class Salary < ApplicationRecord
     # end 
   end
 
-  def self.montly_approval_date(con_cycle, buy_contract)
-    day = @date_1&.to_i.present? ? @date_1&.to_i : 0
-    next_month_year = con_cycle.start_date.strftime("%d").to_i <= day ? con_cycle.start_date : (con_cycle.start_date+1.month)
-    if buy_contract.payment_term = 'end_of_mon'
-      month = next_month_year&.strftime("%m").to_i+1
-    elsif buy_contract.payment_term = 'end_of_pre_mon'
-      month = next_month_year&.strftime("%m").to_i+2
-    end
-    year = next_month_year&.strftime("%Y").to_i
-    con_cycle_start_date = DateTime.new(year, month, day)
+  def self.montly_approval_date(con_cycle)
+    # day = @date_1&.to_i.present? ? @date_1&.to_i : 0
+    # next_month_year = con_cycle.start_date.strftime("%d").to_i <= day ? con_cycle.start_date : (con_cycle.start_date+1.month)
+    # if buy_contract.payment_term = 'end_of_mon'
+    #   month = next_month_year&.strftime("%m").to_i+1
+    # elsif buy_contract.payment_term = 'end_of_pre_mon'
+    #   month = next_month_year&.strftime("%m").to_i+2
+    # end
+    # year = next_month_year&.strftime("%Y").to_i
+    # con_cycle_start_date = DateTime.new(year, month, day)
+    # binding.pry
+    con_cycle_sc_start_date = con_cycle.doc_date - (@sclr_date_1&.day - @sc_date_1&.day).to_i
+    con_cycle_sp_start_date =con_cycle.doc_date - (@sclr_date_1&.day - @sp_date_1&.day).to_i
+    return con_cycle_sc_start_date, con_cycle_sp_start_date
   end
 
   def self.twice_a_month_approval_date(con_cycle, buy_contract)
@@ -171,6 +195,7 @@ class Salary < ApplicationRecord
       receiver_settlement = 'cons_'+self.candidate_id.to_s+'_settlement'
     end
     if self.approved_amount > 0  && self.total_amount > 0
+      # binding.pry
       tx = ledger.transactions.transact do |builder|
         builder.retire(
           flavor_id: 'usd',
@@ -227,11 +252,15 @@ class Salary < ApplicationRecord
               salary_id: self.id,
               "TransactionType" => self.contract.buy_contracts.first.contract_type
             }
-        )
+        )         
+        # builder.retire(
+        #   flavor_id: 'usd',
+        #   amount: self.salary_advance.to_i,
+        #   source_account_id: "comp_"+self.contract.company_id.to_s+"_treasury",
+        #   action_tags: {type: 'processed amount'}
+        # )
       end
     end
-
-
   end
 
 end
