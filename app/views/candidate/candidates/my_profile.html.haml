@@ -43,245 +43,124 @@
     / end col
   / end row
   / row
-  .row
-    .col-sm-12
-      .well.well-sm
-        .row
-          .col-sm-12.col-md-12.col-lg-12
-            .well.well-light.well-sm.no-margin.no-padding
-              .row
-                .col-sm-12
-                  #myCarousel.carousel.fade.profile-carousel
-                    .air.air-bottom-right.padding-10
-                      %a.btn.txt-color-white.bg-color-teal.btn-sm{:href => "javascript:void(0);"}>
-                        %i.fa.fa-check
-                        Follow
-                       
-                      %a.btn.txt-color-white.bg-color-pinkDark.btn-sm{:href => "javascript:void(0);"}
-                        %i.fa.fa-link
-                        Connect
-                    .air.air-top-left.padding-10
-                      %h4.txt-color-white.font-md Jan 1, 2014
-                    %ol.carousel-indicators
-                      %li.active{"data-slide-to" => "0", "data-target" => "#myCarousel"}
-                      %li{"data-slide-to" => "1", "data-target" => "#myCarousel"}
-                      %li{"data-slide-to" => "2", "data-target" => "#myCarousel"}
-                    .carousel-inner
-                      / Slide 1
-                      .item.active
-                        %img{:alt => "demo user", :src => "img/demo/s1.jpg"}/
-                      / Slide 2
-                      .item
-                        %img{:alt => "demo user", :src => "img/demo/s2.jpg"}/
-                      / Slide 3
-                      .item
-                        %img{:alt => "demo user", :src => "img/demo/m3.jpg"}/
-                .col-sm-12
-                  .row
-                    .col-sm-3.profile-pic
-                      %img{:alt => "demo user", :src => "img/avatars/sunny-big.png"}/
-                      .padding-10
-                        %h4.font-md
-                          %strong 1,543
-                          %br/
-                          %small Followers
-                        %br/
-                        %h4.font-md
-                          %strong 419
-                          %br/
-                          %small Connections
-                    .col-sm-6
-                      %h1
-                        John
-                        %span.semi-bold Doe
-                        %br/
-                        %small CEO, SmartAdmin
-                      %ul.list-unstyled
-                        %li
-                          %p.text-muted
-                            %i.fa.fa-phone>
-                              (
-                            %span.txt-color-darken> 313
-                            )
-                            %span.txt-color-darken 464
-                            \-
-                            %span.txt-color-darken 6473
-                        %li
-                          %p.text-muted
-                            %i.fa.fa-envelope>
-                              
-                            %a{:href => "mailto:simmons@smartadmin"} ceo@smartadmin.com
-                        %li
-                          %p.text-muted
-                            %i.fa.fa-skype>
-                              
-                            %span.txt-color-darken john12
-                        %li
-                          %p.text-muted
-                            %i.fa.fa-calendar>
-                              
-                            %span.txt-color-darken
-                              Free after
-                              %a{"data-original-title" => "Create an Appointment", "data-placement" => "top", :href => "javascript:void(0);", :rel => "tooltip", :title => ""} 4:30 PM
-                      %br/
-                      %p.font-md
-                        %i A little about me...
-                      %p
-                        Et harum quidem rerum facilis est et expedita distinctio. Nam libero tempore, cum soluta nobis est eligendi optio
-                        cumque nihil impedit quo minus id quod maxime placeat facere
-                      %br/
-                      %a.btn.btn-default.btn-xs{:href => "javascript:void(0);"}
-                        %i.fa.fa-envelope-o
-                        Send Message
-                      %br/
-                      %br/
-                    .col-sm-3
-                      %h1
-                        %small Connections
-                      %ul.list-inline.friends-list
-                        %li
-                          %img{:alt => "friend-1", :src => "img/avatars/1.png"}/
-                        %li
-                          %img{:alt => "friend-2", :src => "img/avatars/2.png"}/
-                        %li
-                          %img{:alt => "friend-3", :src => "img/avatars/3.png"}/
-                        %li
-                          %img{:alt => "friend-4", :src => "img/avatars/4.png"}/
-                        %li
-                          %img{:alt => "friend-5", :src => "img/avatars/5.png"}/
-                        %li
-                          %img{:alt => "friend-6", :src => "img/avatars/male.png"}/
-                        %li
-                          %a{:href => "javascript:void(0);"} 413 more
-                      %h1
-                        %small Recent visitors
-                      %ul.list-inline.friends-list
-                        %li
-                          %img{:alt => "friend-1", :src => "img/avatars/male.png"}/
-                        %li
-                          %img{:alt => "friend-2", :src => "img/avatars/female.png"}/
-                        %li
-                          %img{:alt => "friend-3", :src => "img/avatars/female.png"}/
-              .row
-                .col-sm-12
-                  %hr/
-                  .padding-10
-                    %ul.nav.nav-tabs.tabs-pull-right
-                      %li.active
-                        %a{"data-toggle" => "tab", :href => "#a1"} Recent Articles
-                      %li
-                        %a{"data-toggle" => "tab", :href => "#a2"} New Members
-                      %li.pull-left
-                        %span.margin-top-10.display-inline
-                          %i.fa.fa-rss.text-success
-                          Activity
-                    .tab-content.padding-top-10
-                      #a1.tab-pane.fade.in.active
-                        .row
-                          .col-xs-2.col-sm-1
-                            %time.icon{:datetime => "2014-09-20"}
-                              %strong Jan
-                              %span 10
-                          .col-xs-10.col-sm-11
-                            %h6.no-margin
-                              %a{:href => "javascript:void(0);"} Allice in Wonderland
-                            %p
-                              Etiam ultricies nisi vel augue. Curabitur ullamcorper ultricies nisi Nam eget dui.
-                              Etiam rhoncus. Maecenas tempus, tellus eget condimentum rhoncus, sem quam semper libero,
-                              sit amet adipiscing sem neque sed ipsum. Nam quam nunc, blandit vel.
-                          .col-sm-12
-                            %hr/
-                          .col-xs-2.col-sm-1
-                            %time.icon{:datetime => "2014-09-20"}
-                              %strong Jan
-                              %span 10
-                          .col-xs-10.col-sm-11
-                            %h6.no-margin
-                              %a{:href => "javascript:void(0);"} World Report
-                            %p
-                              Morning our be dry. Life also third land after first beginning to evening cattle created let subdue you'll winged don't Face firmament.
-                              You winged you're was Fruit divided signs lights i living cattle yielding over light life life sea, so deep.
-                              Abundantly given years bring were after. Greater you're meat beast creeping behold he unto She'd doesn't. Replenish brought kind gathering Meat.
-                          .col-sm-12
-                            %br/
-                      #a2.tab-pane.fade
-                        .alert.alert-info.fade.in
-                          %button.close{"data-dismiss" => "alert"}
-                            ×
-                          %i.fa-fw.fa.fa-info
-                          = succeed "joined" do
-                            %strong 51 new members
-                        .user{:title => "email@company.com"}
-                          %img{:alt => "demo user", :src => "img/avatars/female.png"}/
-                          %a{:href => "javascript:void(0);"} Jenn Wilson
-                          .email
-                            travis@company.com
-                        .user{:title => "email@company.com"}
-                          %img{:alt => "demo user", :src => "img/avatars/male.png"}/
-                          %a{:href => "javascript:void(0);"} Marshall Hitt
-                          .email
-                            marshall@company.com
-                        .user{:title => "email@company.com"}
-                          %img{:alt => "demo user", :src => "img/avatars/male.png"}/
-                          %a{:href => "javascript:void(0);"} Joe Cadena
-                          .email
-                            joe@company.com
-                        .user{:title => "email@company.com"}
-                          %img{:alt => "demo user", :src => "img/avatars/male.png"}/
-                          %a{:href => "javascript:void(0);"} Mike McBride
-                          .email
-                            mike@company.com
-                        .user{:title => "email@company.com"}
-                          %img{:alt => "demo user", :src => "img/avatars/male.png"}/
-                          %a{:href => "javascript:void(0);"} Travis Wilson
-                          .email
-                            travis@company.com
-                        .user{:title => "email@company.com"}
-                          %img{:alt => "demo user", :src => "img/avatars/male.png"}/
-                          %a{:href => "javascript:void(0);"} Marshall Hitt
-                          .email
-                            marshall@company.com
-                        .user{:title => "Joe Cadena joe@company.com"}
-                          %img{:alt => "demo user", :src => "img/avatars/male.png"}/
-                          %a{:href => "javascript:void(0);"} Joe Cadena
-                          .email
-                            joe@company.com
-                        .user{:title => "email@company.com"}
-                          %img{:alt => "demo user", :src => "img/avatars/male.png"}/
-                          %a{:href => "javascript:void(0);"} Mike McBride
-                          .email
-                            mike@company.com
-                        .user{:title => "email@company.com"}
-                          %img{:alt => "demo user", :src => "img/avatars/male.png"}/
-                          %a{:href => "javascript:void(0);"} Marshall Hitt
-                          .email
-                            marshall@company.com
-                        .user{:title => "email@company.com"}
-                          %img{:alt => "demo user", :src => "img/avatars/male.png"}/
-                          %a{:href => "javascript:void(0);"} Joe Cadena
-                          .email
-                            joe@company.com
-                        .user{:title => "email@company.com"}
-                          %img{:alt => "demo user", :src => "img/avatars/male.png"}/
-                          %a{:href => "javascript:void(0);"} Mike McBride
-                          .email
-                            mike@company.com
-                        .text-center
-                          %ul.pagination.pagination-sm
-                            %li.disabled
-                              %a{:href => "javascript:void(0);"} Prev
-                            %li.active
-                              %a{:href => "javascript:void(0);"} 1
-                            %li
-                              %a{:href => "javascript:void(0);"} 2
-                            %li
-                              %a{:href => "javascript:void(0);"} 3
-                            %li
-                              %a{:href => "javascript:void(0);"} ...
-                            %li
-                              %a{:href => "javascript:void(0);"} 99
-                            %li
-                              %a{:href => "javascript:void(0);"} Next
-                      / end tab
-              / end row
-          
+  
+  .profile_container
+    .intro_section
+      .row
+        .col-sm-12.col-md-2.col-lg-2
+          .profile_image
+            %img{:alt => "friend-1", :src => "assets/avatars/m_sunny_big.png"}/
+        .col-sm-12.col-md-6.col-lg-6
+          .name_block
+            .name M Shoaib Masood
+            .department Computer Science Engineer
+        .col-sm-12.col-md-4.col-lg-4
+          .action_block
+            .row
+              .col-sm-12.col-md-3.col-lg-3
+                .action_button
+                  %img{:alt => "friend-1", :src => "assets/avatars/m_sunny_big.png"}/
+                .action_label Message
+              .col-sm-12.col-md-3.col-lg-3
+                .action_button
+                  %img{:alt => "friend-1", :src => "assets/avatars/m_sunny_big.png"}/
+                .action_label Save
+              .col-sm-12.col-md-3.col-lg-3
+                .action_button
+                  %img{:alt => "friend-1", :src => "assets/avatars/m_sunny_big.png"}/
+                .action_label Share
+              .col-sm-12.col-md-3.col-lg-3
+                .action_button
+                  %img{:alt => "friend-1", :src => "assets/avatars/m_sunny_big.png"}/
+                .action_label More
+
+    .about_section
+      .heading About me
+      %p “People find me to be an upbeat, self-motivated team player with excellent communication skills. For the past several years I have worked in lead qualification, telemarketing, and customer service in the technology industry. My experience includes successfully calling people in director-level positions of technology departments and developing viable leads. I have a track record of maintaining a consistent call and activity volume and consistently achieving the top 10 percent in sales, and I can do the same thing for your company.”
+
+    .education_section
+      .heading Education
+      .education_timeline_block
+        .user_school St. Stephen's H.sc school
+        .user_class Jr. KG - Class 12
+        .block_pointer
+      .education_timeline_block
+        .user_school St. Stephen's H.sc school
+        .user_class Jr. KG - Class 12
+        .block_pointer
+
+    .experience_section
+      .heading Experience
+      .experience_timeline_block
+        .company_name St. Stephen's H.sc school
+        .technology Jr. KG - Class 12
+        .time_limit 6 Months
+        .block_pointer
+      .experience_timeline_block
+        .company_name St. Stephen's H.sc school
+        .technology Jr. KG - Class 12
+        .time_limit 6 Months
+        .block_pointer
+      .experience_timeline_block
+        .company_name St. Stephen's H.sc school
+        .technology Jr. KG - Class 12
+        .time_limit 6 Months
+        .block_pointer
+      .experience_timeline_block
+        .company_name St. Stephen's H.sc school
+        .technology Jr. KG - Class 12
+        .time_limit 6 Months
+        .block_pointer
+
+    .skills_section
+      .heading Skills
+      .skills_set
+        .skill_block
+          %img{:alt => "friend-1", :src => "assets/avatars/m_sunny_big.png"}/
+        .skill_block
+          %img{:alt => "friend-1", :src => "assets/avatars/m_sunny_big.png"}/
+        .skill_block
+          %img{:alt => "friend-1", :src => "assets/avatars/m_sunny_big.png"}/
+        .skill_block
+          %img{:alt => "friend-1", :src => "assets/avatars/m_sunny_big.png"}/
+        .skill_block
+          %img{:alt => "friend-1", :src => "assets/avatars/m_sunny_big.png"}/
+        .skill_block
+          %img{:alt => "friend-1", :src => "assets/avatars/m_sunny_big.png"}/
+        .skill_block
+          %img{:alt => "friend-1", :src => "assets/avatars/m_sunny_big.png"}/
+        .skill_block
+          %img{:alt => "friend-1", :src => "assets/avatars/m_sunny_big.png"}/
+
+    .projects_section
+      .heading Projects
+      .row
+        .col-sm-12.col-md-6.col-lg-6
+          .project_title Near to know
+          .technology Android Application
+          .description this android app which is used to know the location, shops current notification around locality.
+        .col-sm-12.col-md-6.col-lg-6
+          .project_title Assure Associates
+          .technology Website
+          .description this android app which is used to know the location, shops current notification around locality.
+      .row
+        .col-sm-12.col-md-6.col-lg-6
+          .project_title Twitter Sentiment Analysis
+          .technology Python NLP Project
+          .description this android app which is used to know the location, shops current notification around locality.
+        .col-sm-12.col-md-6.col-lg-6
+          .project_title Projection'17
+          .technology Website/Graphics
+          .description this android app which is used to know the location, shops current notification around locality.
+
+    .social_links_section
+      .row
+        .col-sm-12.col-md-4.col-lg-4
+          %img{:alt => "friend-1", :src => "assets/avatars/m_sunny_big.png"}/
+          .link www.google.com
+        .col-sm-12.col-md-4.col-lg-4
+          %img{:alt => "friend-1", :src => "assets/avatars/m_sunny_big.png"}/
+          .link www.google.com
+        .col-sm-12.col-md-4.col-lg-4
+          %img{:alt => "friend-1", :src => "assets/avatars/m_sunny_big.png"}/
+          .link www.google.com
