@@ -549,7 +549,6 @@
 
 
     $(".ct_ex_amount").on("blur", function(){
-      debugger
       var sclr_cycle_id = $(this).closest('tr').find('td.active').find('span').attr('id')
       $.ajax({
         url: '#{add_contract_expense_amount_salaries_path}',

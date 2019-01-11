@@ -7,9 +7,12 @@
       / - cy = ContractCycle.find_by(contract_id: cc.contract_id, end_date: cc.end_date, candidate_id: cc.candidate_id)
       .timeline-block
         %span.badge.status-badge.red-badge
-          #{cc.note}
+          - if ['Salary clear', 'Salary process', 'Salary calculation'].include? cc.note
+            = link_to cc.note, final_salary_salaries_path(cycle_id: cc.id, note: cc.note), :style=>'color:#FFFFFF;'
+          - else
+            = cc.note
         %span.due-txt
-          #{cc.end_date.utc.strftime("%d %B %Y")}
+          #{cc&.doc_date&.strftime("%d %B %Y")}
         %br
         %br
         Contract ID - #{cc.contract.id} - Cycle ID #{cc.id}

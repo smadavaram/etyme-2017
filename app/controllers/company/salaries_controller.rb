@@ -28,6 +28,7 @@ class Company::SalariesController < Company::BaseController
       @contracts = current_company.in_progress_contracts.includes(:sell_contracts, :buy_contracts, :candidate)
       @timesheets = Timesheet.includes(contract: [:buy_contracts, :sell_contracts])
       @expenses = Expense.where(contract_id: current_company.in_progress_contracts.ids )
+      @contract_expense_types = ContractExpenseType.all
     else
       redirect_to timeline_contracts_path
     end
@@ -82,7 +83,7 @@ class Company::SalariesController < Company::BaseController
   def process_salary
     params[:sclr_cycle_ids].each do |key,value|
       salary = Salary.find_by(sclr_cycle_id: key)
-      salary.balance = salary.total_amount  - value[:salary_calculated].to_i 
+      salary.balance = (salary.total_amount.to_i + CscAccount.where(accountable_id: salary.candidate_id, accountable_type: 'Candidate').sum(:total_amount).to_i)  - value[:salary_calculated].to_i
       Salary.where(end_date: salary.end_date+1.month, contract_id: salary.contract_id).first.update(pending_amount: salary.balance)
       salary.total_amount = value[:salary_calculated].to_i
       salary.status = 'processed'
@@ -107,12 +108,17 @@ class Company::SalariesController < Company::BaseController
       format.csv {send_data csv, file_name: 'aggregate_salary.csv' }
     end
     NotificationMailer.send_csv(csv).deliver if params[:send_mail] == 'true'
+    flash[:notice] = 'Salary Aggregated'
+    render :js => "window.location = '#{request.headers["HTTP_REFERER"]}'"
   end
 
   def clear_salary
     params[:sc_cycle_ids].each do |cycle_id|
       ce_amount =  ContractExpense.where(cycle_id: cycle_id).sum(:amount)
       salary = Salary.find_by(sclr_cycle_id: cycle_id)
+      salary.total_amount = salary.total_amount.to_i - ce_amount.to_i
+      salary.save
+      salary.update(status: 'cleared')
     end
   end
 
@@ -160,7 +166,7 @@ class Company::SalariesController < Company::BaseController
     salary = Salary.find_by(sclr_cycle_id: params[:sclr_cycle_id])
     if salary.present?
       ce = ContractExpense.find_by(contract_id: salary.contract_id, candidate_id: salary.candidate_id, cycle_id: params[:sclr_cycle_id], con_ex_type: params[:cet_id])
-      binding.pry
+      # binding.pry
       unless ce
         ce = ContractExpense.create(contract_id: salary.contract_id, candidate_id: salary.candidate_id, amount: params[:amount], cycle_id: params[:sclr_cycle_id], con_ex_type: params[:cet_id])
       else

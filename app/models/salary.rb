@@ -19,10 +19,10 @@ class Salary < ApplicationRecord
   after_update :set_salary_process_on_seq, :if => proc {|obj| obj.status == 'processed' }
 
 
-  def self.generate_csv(sc_cycle_ids)
-
+  def self.generate_csv(sclr_cycle_ids)
+    # binding.pry
     attributes = %w{ Name Status Living_State City Address Zip Amount}
-    salaries = Salary.where(sc_cycle_id: sc_cycle_ids)
+    salaries = Salary.where(sclr_cycle_id: sclr_cycle_ids)
     amounts = salaries.group(:candidate_id).sum(:total_amount)
     salaries.update_all(status: 'aggregated')
 
