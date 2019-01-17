@@ -62,7 +62,7 @@
                   %span
                     = @contract.end_date.strftime('%d %B %Y')
         %div.text-center.col-sm-12
-          =link_to_if @contract.pending?, "Activate", update_contract_status_contract_path(@contract, status: "accepted"), method: :patch, class: "btn btn-success" do; end
+          =link_to_if @contract.pending?, "Activate", update_contract_status_contract_path(@contract, status: "in_progress"), method: :patch, class: "btn btn-success" do; end
           =link_to_if @contract.is_ended?, "Re-Activate Now", update_contract_status_contract_path(@contract, status: "accepted"), method: :patch, class: "btn btn-success" do; end
           =link_to_if @contract.accepted? || @contract.in_progress? , "End Contract", update_contract_status_contract_path(@contract, status: "is_ended"),method: :patch, class: "btn btn-danger" do; end
           =link_to_if @contract.accepted? || @contract.in_progress?, "Cancel Contract", update_contract_status_contract_path(@contract, status: "cancelled"),method: :patch, class: "btn btn-primary" do; end

@@ -27,7 +27,8 @@ class Company::SalariesController < Company::BaseController
       end
       @contracts = current_company.in_progress_contracts.includes(:sell_contracts, :buy_contracts, :candidate)
       @timesheets = Timesheet.includes(contract: [:buy_contracts, :sell_contracts])
-      @expenses = Expense.where(contract_id: current_company.in_progress_contracts.ids )
+      @salary_expenses = Expense.where(contract_id: current_company.in_progress_contracts.ids, bill_type: 'salary_advanced' ).where('bill_date BETWEEN ? AND ?', @salary.start_date, @salary.end_date)
+      @company_expenses = Expense.where(contract_id: current_company.in_progress_contracts.ids, bill_type: 'company_expense' ).where('bill_date BETWEEN ? AND ?', @salary.start_date, @salary.end_date)
       @contract_expense_types = ContractExpenseType.all
     else
       redirect_to timeline_contracts_path
@@ -109,17 +110,22 @@ class Company::SalariesController < Company::BaseController
     end
     NotificationMailer.send_csv(csv).deliver if params[:send_mail] == 'true'
     flash[:notice] = 'Salary Aggregated'
-    render :js => "window.location = '#{request.headers["HTTP_REFERER"]}'"
+    # render :js => "window.location = '#{request.headers["HTTP_REFERER"]}'"
   end
 
   def clear_salary
-    params[:sc_cycle_ids].each do |cycle_id|
+    params[:sclr_cycle_ids].each do |cycle_id|
       ce_amount =  ContractExpense.where(cycle_id: cycle_id).sum(:amount)
       salary = Salary.find_by(sclr_cycle_id: cycle_id)
-      salary.total_amount = salary.total_amount.to_i - ce_amount.to_i
+      commission_amount = CscAccount.where(contract_id: salary.contract_id).sum(:total_amount).to_i
+      company_expense = Expense.where(bill_type: 'company_expense').select { |m| m.salary_ids.include? salary.sclr_cycle_id.to_s }.map{|x| x.total_amount.to_i / x.salary_ids.length}.sum(&:to_i)
+      # binding.pry
+      salary.total_amount = salary.total_amount.to_i - (ce_amount.to_i + commission_amount + company_expense.to_i)
       salary.save
       salary.update(status: 'cleared')
     end
+    flash[:notice] = 'Salary cleared'
+    render :js => "window.location = '#{request.headers["HTTP_REFERER"]}'"
   end
 
   def calculate_commission

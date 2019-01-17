@@ -86,7 +86,7 @@ class ExpenseAccount < ApplicationRecord
       vendor_issue = ledger.transactions.transact do |builder|
         builder.issue(
           flavor_id: 'usd',
-          amount: self&.amount,
+          amount: (self&.amount)*100,
           destination_account_id: 'cust_'+self&.expense&.contract.buy_contracts.first.company_id.to_s,
           action_tags: {
             type: 'issue',
@@ -101,7 +101,7 @@ class ExpenseAccount < ApplicationRecord
         customer_expense = ledger.transactions.transact do |builder|
           builder.issue(
             flavor_id: 'usd',
-            amount: self&.amount.to_i/self.expense.salary_ids.length,
+            amount: (self&.amount.to_i/self.expense.salary_ids.length)*100,
             destination_account_id: 'cons_'+self&.expense&.contract&.candidate_id.to_s+'_advance',
             action_tags: {
               type: 'issue',

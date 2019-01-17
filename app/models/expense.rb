@@ -23,7 +23,7 @@ class Expense < ApplicationRecord
           ledger_name: 'company-dev',
           credential: 'OUUY4ZFYQO4P3YNC5JC3GMY7ZQJCSNTH'
       )
-      self.contract.set_on_seq
+      # self.contract.set_on_seq
       ce_issue = ledger.transactions.transact do |builder|
         builder.transfer(
           flavor_id: 'usd',

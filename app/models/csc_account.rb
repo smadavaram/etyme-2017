@@ -20,7 +20,7 @@ class CscAccount < ApplicationRecord
       tx = ledger.transactions.transact do |builder|
         builder.issue(
           flavor_id: 'usd',
-          amount: amount.to_i,
+          amount: (amount.to_i*100),
           destination_account_id: "comm_#{self.id}",
           action_tags: {
             type: 'issue',
@@ -41,7 +41,7 @@ class CscAccount < ApplicationRecord
       tx = ledger.transactions.transact do |builder|
         builder.transfer(
           flavor_id: 'usd',
-          amount: self.total_amount.to_i,
+          amount: (self.total_amount.to_i*100),
           source_account_id: "comm_#{self.id}",
           destination_account_id: 'cons_'+self.accountable_id.to_s+'_settlement',
           action_tags: {
@@ -49,6 +49,17 @@ class CscAccount < ApplicationRecord
             contract: self.contract_id,
           }
         )
+
+        builder.issue(
+          flavor_id: 'usd',
+          amount: (self.total_amount.to_i*100),
+          destination_account_id: "cont_#{self.contract_id}_expense",
+          action_tags: {
+            type: 'issue',
+            contract: self.contract_id,
+          }
+        )
+
       end
     end     
   end

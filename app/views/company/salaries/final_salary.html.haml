@@ -46,6 +46,8 @@
                     %th Status
                     %th.address Residence Address
                     %th.address Working Address
+                    - if @salary.status == 'aggregated'
+                      %th Company Expense
                     %th.calculation.tab-content Calculation
                     - if @salary.status == 'aggregated'
                       - @contract_expense_types.each do |cet|
@@ -74,10 +76,14 @@
 
                       %td
                         = c&.client&.addresses&.first&.full_address
+                      - if @salary.status == 'aggregated'
+                        %td
+                          = @company_expenses.where(contract_id: c.id).select { |m| m.salary_ids.include? salary.sclr_cycle_id.to_s }.map{|x| x.total_amount.to_i / x.salary_ids.length}.sum(&:to_i)
+
                       %td.active
                         - total_time = @timesheets.where(status: 'approved', start_date: @salary.start_date..@salary.end_date, contract_id: c.id, candidate_id: c.candidate_id).sum(:total_time)
                         - commission_earned = CscAccount.where(accountable_id: c.candidate_id, accountable_type: 'Candidate').sum(:total_amount)
-                        - advance = @expenses.present? ? @expenses.select { |m| m.salary_ids.include? salary.sclr_cycle_id.to_s }.map{|x| x.total_amount.to_i / x.salary_ids.length}.sum(&:to_i) : 0
+                        - advance = @salary_expenses.present? ? @salary_expenses.select { |m| m.salary_ids.include? salary.sclr_cycle_id.to_s }.map{|x| x.total_amount.to_i / x.salary_ids.length}.sum(&:to_i) : 0
                         - amount = total_time* c&.buy_contracts&.first&.payrate
                         %span{:id => salary.sclr_cycle_id}
                         Previous pending:
@@ -165,7 +171,11 @@
                           - @contract_expense_types.each do |cet|
                             %td.salary-clear
                               = text_field_tag 'ct_ex_amount', '', class: "form-control ct_ex_amount #{cet.id.to_s+'_'+cet.name}", id: cet.name
-                  = link_to 'Proceed', '#', class: 'btn btn-md btn-default btn-primary salary-calculate', :onclick => salary_status(@salary), data: { disable_with: "Please wait..."}
+                        - elsif salary.status == 'cleared'                       
+                          Final amount:
+                          = salary.total_amount
+
+                  = link_to 'Proceed', '#', class: 'btn btn-md btn-default btn-primary salary-calculate', :onclick => salary_status(@salary), data: { disable_with: " Please wait..."}
                   &nbsp;&nbsp;&nbsp;
                   %span.btn.btn-md.btn-default.btn-primary.salary-clear.add-expense Add Expense
 
@@ -186,6 +196,7 @@
   :javascript 
 
     $('.contract-expense-type').hide();
+    $('.add-expense').hide();
     
     $(document).on('click', '.add-expense', function(){
       $('.contract-expense-type').toggle();
@@ -243,6 +254,25 @@
       })
     }
 
+    function aggregate_salary(){
+      $('.salary-calculate').addClass("disabled");
+      var sclr_cycle_ids = [];
+      $('td.active').each(function () {
+        sclr_cycle_ids.push($(this).find('span').attr('id'))
+      });
+      var csv_url = '';
+      $.ajax({
+        url: '/salaries/aggregate_salary.csv',
+        type: 'GET',
+        data: {sclr_cycle_ids: sclr_cycle_ids},
+        dataType: 'CSV',
+        beforeSend: function (jqXHR, settings) {
+          window.location.href = window.location.origin + settings.url+'&send_mail=true'
+        },
+      })
+    }
+
+
     $(".ct_ex_amount").on("blur", function(){
       var sclr_cycle_id = $(this).closest('tr').find('td.active').find('span').attr('id')
       $.ajax({
@@ -254,6 +284,21 @@
         $(this).val($(this).val());
       });
     })
+
+    function clear_salary(){ 
+      $('.salary-calculate').addClass("disabled");   
+      var sclr_cycle_ids = [];
+      $('td.active').each(function () {
+        sclr_cycle_ids.push($(this).find('span').attr('id'))
+      });
+
+      $.ajax({
+        url: '#{clear_salary_salaries_path}',
+        type: 'GET',
+        data: {sclr_cycle_ids: sclr_cycle_ids},
+        dataType: 'script'
+      })
+    }
 
     if(#{@salary.status == 'calculated'}){
       $('#bootstrap-wizard-1').find('.form-wizard').children('li').eq(0).addClass(
@@ -318,7 +363,38 @@
       ).find('.step')
       .html('<i class="fa fa-check"></i>');
       $("#wiz_tab5 a").click();
-    } 
+      $('.add-expense').show();
+    }else if (#{@salary.status == 'cleared'}) {
+      $('#bootstrap-wizard-1').find('.form-wizard').children('li').eq(0).addClass(
+            'complete');
+      $('#bootstrap-wizard-1').find('.form-wizard').children('li').eq(0).removeClass(
+            'active');
+      $('#bootstrap-wizard-1').find('.form-wizard').children('li').eq(0
+      ).find('.step')
+      .html('<i class="fa fa-check"></i>');
+
+      $('#bootstrap-wizard-1').find('.form-wizard').children('li').eq(1).addClass(
+            'complete');
+      $('#bootstrap-wizard-1').find('.form-wizard').children('li').eq(1
+      ).find('.step')
+      .html('<i class="fa fa-check"></i>');
+
+      $('#bootstrap-wizard-1').find('.form-wizard').children('li').eq(2).addClass(
+            'complete');
+      $('#bootstrap-wizard-1').find('.form-wizard').children('li').eq(2
+      ).find('.step')
+      .html('<i class="fa fa-check"></i>');
+      $('#bootstrap-wizard-1').find('.form-wizard').children('li').eq(3).addClass(
+            'complete');
+      $('#bootstrap-wizard-1').find('.form-wizard').children('li').eq(3
+      ).find('.step')
+      .html('<i class="fa fa-check"></i>');
+      $('#bootstrap-wizard-1').find('.form-wizard').children('li').eq(4).addClass(
+            'complete');
+      $('#bootstrap-wizard-1').find('.form-wizard').children('li').eq(4
+      ).find('.step')
+      .html('<i class="fa fa-check"></i>');
+    }  
 
 :css
   .address {

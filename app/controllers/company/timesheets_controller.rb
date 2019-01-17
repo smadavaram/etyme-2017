@@ -70,7 +70,7 @@ class Company::TimesheetsController < Company::BaseController
 
   def reject
     @timesheet.update_attributes(status: 'open')
-    @timesheet.retire_on_seq
+    @timesheet.retire_on_reject_seq
     flash[:errors] = 'Timesheet rejected !'
     redirect_back fallback_location: root_path
     # if current_user.timesheet_approvers.create!(timesheet_id: @timesheet.id , status: Timesheet.statuses[:rejected].to_i)
@@ -83,8 +83,13 @@ class Company::TimesheetsController < Company::BaseController
   end
 
   def approve
+    i = 0
     # if current_user.timesheet_approvers.create!(timesheet_id: @timesheet.id , status: Timesheet.statuses[:approved].to_i)
     if @timesheet.update_attributes(status: "approved")
+      # binding.pry
+      puts "---------qwerty------#{i}-----hello-----world!--------"
+      i += 1
+      # binding.pry 
       con_cycle = ContractCycle.find(@timesheet.ta_cycle_id)
       arr = Timesheet.where(ta_cycle_id: @timesheet.ta_cycle_id).pluck(:ta_cycle_id).uniq.compact.first
       
@@ -100,22 +105,22 @@ class Company::TimesheetsController < Company::BaseController
       # end
       # @timesheet.contract.invoice_generate(con_cycle)
 
-      invoices = @timesheet.contract.invoices.where(invoice_type: 'timesheet_invoice').where("(start_date <= ? AND end_date >= ?) OR (start_date <= ? AND end_date >= ?)", @timesheet.start_date, @timesheet.start_date, @timesheet.end_date, @timesheet.end_date)
-      invoices.each do |i|
-        hours = 0
-        if @timesheet.start_date >= i.start_date && @timesheet.end_date <= i.end_date
-          i.update_attributes(total_approve_time: (i.total_approve_time+@timesheet.total_time), balance: (i.balance + (@timesheet.total_time * i.rate)))
-          @timesheet.update(inv_numbers: (@timesheet.inv_numbers+[i.id]))
-        else
-          @timesheet.days.each do |t|
-            if i.start_date <= t[0] && t[0] <= i.end_date
-              hours += t[1].to_i
-            end
-          end
-          i.update(total_approve_time: (i.total_approve_time+hours))
-          @timesheet.update(inv_numbers: (@timesheet.inv_numbers+[i.id]))
-        end
-      end
+      # invoices = @timesheet.contract.invoices.where(invoice_type: 'timesheet_invoice').where("(start_date <= ? AND end_date >= ?) OR (start_date <= ? AND end_date >= ?)", @timesheet.start_date, @timesheet.start_date, @timesheet.end_date, @timesheet.end_date)
+      # invoices.each do |i|
+      #   hours = 0
+      #   if @timesheet.start_date >= i.start_date && @timesheet.end_date <= i.end_date
+      #     i.update_attributes(total_approve_time: (i.total_approve_time+@timesheet.total_time), balance: (i.balance + (@timesheet.total_time * i.rate)))
+      #     @timesheet.update(inv_numbers: (@timesheet.inv_numbers+[i.id]))
+      #   else
+      #     @timesheet.days.each do |t|
+      #       if i.start_date <= t[0] && t[0] <= i.end_date
+      #         hours += t[1].to_i
+      #       end
+      #     end
+      #     i.update(total_approve_time: (i.total_approve_time+hours))
+      #     @timesheet.update(inv_numbers: (@timesheet.inv_numbers+[i.id]))
+      #   end
+      # end
       csca_accounts = CscAccount.where(contract_id: @timesheet.contract_id)
       # binding.pry
       csca_accounts.each do |csca|
@@ -123,6 +128,9 @@ class Company::TimesheetsController < Company::BaseController
           # binding.pry
           csca.update(total_amount: (csca&.total_amount+@timesheet&.total_time*csca&.contract_sale_commision&.rate.to_i).to_i)
           csca.set_commission_on_seq(@timesheet&.total_time*csca&.contract_sale_commision&.rate.to_i)     
+        else
+          csca.set_commission_on_seq(csca.contract_sale_commision.limit.to_i - csca&.total_amount.to_i)
+          csca.update(total_amount: (csca.contract_sale_commision.limit.to_i))
         end
       end
 
@@ -156,6 +164,7 @@ class Company::TimesheetsController < Company::BaseController
       # end
 
 
+      @timesheet.set_ta_on_seq
       flash[:success] = "Successfully Approved"
     else
       flash[:errors] = @timesheet.errors.full_messages

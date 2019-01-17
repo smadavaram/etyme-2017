@@ -23,7 +23,7 @@ class Timesheet < ApplicationRecord
 
   # before_validation :set_recurring_timesheet_cycle
   after_update  :set_ts_on_seq, if: Proc.new{|t| t.status_changed? && t.submitted? && t.total_time.to_f > 0}
-  after_update  :set_ta_on_seq, if: Proc.new{|t| t.status_changed? && t.approved? && t.total_time.to_f > 0}
+  # after_update  :set_ta_on_seq, if: Proc.new{|t| t.status_changed? && t.approved? && t.total_time.to_f > 0}
 
   # after_create  :create_timesheet_logs
   # after_create  :notify_timesheet_created
@@ -285,30 +285,40 @@ class Timesheet < ApplicationRecord
     else
       receiver = "cons_#{self.contract.buy_contracts.first.candidate.id}"
     end
-    self.contract.set_on_seq
-    tx = ledger.transactions.transact do |builder|
-      builder.issue(
-          flavor_id: 'min',
-          amount: (self.total_time.to_f * 60).to_i,
-          destination_account_id: receiver,
-          action_tags: {
-            "Fixed" => "false",
-            "Status" => "open",
-            "Account" => "",
-            "CycleId" => self.ts_cycle_id.to_s,
-            "ObjType" => "TS",
-            "ContractId" => self.contract_id.to_s,
-            "PostingDate" => Time.now.strftime("%m/%d/%Y"),
-            "CycleFrom" => self.start_date.to_datetime + Time.parse("00:00").seconds_since_midnight.seconds,
-            "CycleTo" => self.end_date.to_datetime + Time.parse("00:00").seconds_since_midnight.seconds,
-            "Documentdate" => Time.now,
-            "TransactionType" => self.contract.buy_contracts.first.contract_type == "C2C" ? "C2C" : "W2"
-          },
-      )
+    # self.contract.set_on_seq
+    begin
+      tx = ledger.transactions.transact do |builder|
+        builder.issue(
+            flavor_id: 'min',
+            amount: (self.total_time.to_f * 60).to_i,
+            destination_account_id: receiver,
+            action_tags: {
+              "Fixed" => "false",
+              "Status" => "open",
+              "Account" => "",
+              "CycleId" => self.ts_cycle_id.to_s,
+              "ObjType" => "TS",
+              "ContractId" => self.contract_id.to_s,
+              "PostingDate" => Time.now.strftime("%m/%d/%Y"),
+              "CycleFrom" => self.start_date.to_datetime + Time.parse("00:00").seconds_since_midnight.seconds,
+              "CycleTo" => self.end_date.to_datetime + Time.parse("00:00").seconds_since_midnight.seconds,
+              "Documentdate" => Time.now,
+              "TransactionType" => self.contract.buy_contracts.first.contract_type == "C2C" ? "C2C" : "W2"
+            },
+        )
+      end
+    rescue Sequence::APIError => e
+      action_error = JSON.parse(e.response.body)['data']['actions'][0]
+
+      p action_error['message']
+
+      p action_error['seq_code']
+
+      p action_error['data']['index']
     end
   end
 
-  def retire_on_seq
+  def retire_on_reject_seq
     ledger = Sequence::Client.new(
       ledger_name: 'company-dev',
       credential: 'OUUY4ZFYQO4P3YNC5JC3GMY7ZQJCSNTH'
@@ -318,7 +328,7 @@ class Timesheet < ApplicationRecord
     else
       receiver = "cons_#{self.contract.buy_contracts.first.candidate.id}"
     end
-    self.contract.set_on_seq
+    # self.contract.set_on_seq
     tx = ledger.transactions.transact do |builder|
       builder.retire(
           flavor_id: 'min',
@@ -351,7 +361,7 @@ class Timesheet < ApplicationRecord
     else
       receiver = "cons_#{self.contract.buy_contracts.first.candidate.id}"
     end
-    self.contract.set_on_seq
+    # self.contract.set_on_seq
     tx = ledger.transactions.transact do |builder|
       builder.transfer(
           flavor_id: 'min',

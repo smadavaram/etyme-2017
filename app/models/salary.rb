@@ -199,7 +199,7 @@ class Salary < ApplicationRecord
       tx = ledger.transactions.transact do |builder|
         builder.retire(
           flavor_id: 'usd',
-          amount: self.approved_amount.to_i ,
+          amount: (self.approved_amount.to_i*100) ,
           source_account_id: receiver,
           action_tags: {type: 'approved amount'}
         )
@@ -207,14 +207,14 @@ class Salary < ApplicationRecord
         if self.salary_advance > 0    
           builder.retire(
             flavor_id: 'usd',
-            amount: self.salary_advance.to_i,
+            amount: (self.salary_advance.to_i*100),
             source_account_id: receiver_advance,
             action_tags: {type: 'salary advance'}
           )
         end
         builder.issue(
           flavor_id: 'usd',
-          amount: self&.total_amount.to_i,
+          amount: (self&.total_amount.to_i*100),
           destination_account_id: receiver_settlement,
           action_tags: {
             type: 'issue',
@@ -238,12 +238,12 @@ class Salary < ApplicationRecord
       source = "cons_#{self.contract.buy_contracts.first.candidate.id}_settlement"
       destination = "cons_#{self.contract.buy_contracts.first.candidate.id}_process"
     end
-    self.contract.set_on_seq
+    # self.contract.set_on_seq
     if self.total_amount > 0
       tx = ledger.transactions.transact do |builder|
         builder.transfer(
             flavor_id: 'usd',
-            amount: (self.total_amount).to_i,
+            amount: (self.total_amount.to_i)*100,
             source_account_id: source,
             destination_account_id: destination,
             action_tags: {

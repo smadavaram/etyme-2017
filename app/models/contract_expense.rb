@@ -11,12 +11,12 @@ class ContractExpense < ApplicationRecord
         credential: 'OUUY4ZFYQO4P3YNC5JC3GMY7ZQJCSNTH'
     )
 
-    self.contract.set_on_seq
+    # self.contract.set_on_seq
     if self.amount.present? && self.amount > 0 
       tx = ledger.transactions.transact do |builder|
         builder.issue(
           flavor_id: 'usd',
-          amount: self&.amount.to_i,
+          amount: (self&.amount.to_i*100),
           destination_account_id: 'cont_'+self.contract_id.to_s+'_expense',
           action_tags: {
             type: 'issue',

@@ -9,7 +9,7 @@ module Company::SalariesHelper
     when 'commission_calculated'
       'process_salary();'
     when 'processed'
-      'clear_salary();'
+      'aggregate_salary();'
     when 'aggregated'
       'clear_salary();'
     end
