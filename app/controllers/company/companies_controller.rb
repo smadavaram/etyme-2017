@@ -71,6 +71,7 @@ class Company::CompaniesController < Company::BaseController
 
   def create
     pass = get_uniq_identifier
+    # binding.pry
     # @company = Company.new(create_params)
 
     if params["company"]["domain"] && !params["company"]["domain"].blank? 

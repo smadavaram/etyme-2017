@@ -71,43 +71,44 @@
     function validate_email() {
       var email = $('#company_company_contacts_attributes_0_email').val();
       var split_email = email.split("@");
-      // checkDomain(split_email[1].split(".")[0])
-      checkDomain(split_email[1])
+      checkDomain(split_email[1] ,split_email[1].split(".")[0])
+      // checkDomain(split_email[1])
     }
 
     //function validate_domain() {
     //  checkDomain($("#company_domain").val())
     //}
 
-    function checkDomain(domain_name) {
+    function checkDomain(website, domain_name) {
       if(domain_name){
         $.ajax({
           url: '/check_for_domain',
           type: "POST",
-          data: {domain_name: domain_name },
+          data: {domain_name: domain_name, website: website },
           success: function (data) {
             if(data.company_slug != ""){
               $("#company_slug").val(data.company_slug);
               $("#company_domain").val(domain_name);
-              $("#company_website").val(domain_name);
-              $("#company_name").val(domain_name.split(".")[0]);
+              $("#company_website").val(website);
+              $("#company_name").val(domain_name);
+              $('#company_company_type select option[value= data.company_type]').attr("selected",true);
 
               $(".errors").text("Domain Already Register So Just Add contact to this Domain.")
             }else if(data.present_count > 0){
-              $("#company_slug").val(domain_name.split(".")[0]+data.present_count);
-              $("#company_domain").val(domain_name);
-              $("#company_website").val(domain_name);
-              $("#company_name").val(domain_name.split(".")[0]);
+              $("#company_slug").val(domain_name + data.present_count);
+              $("#company_domain").val(domain_name + data.present_count);
+              $("#company_website").val(website);
+              $("#company_name").val(domain_name);
 
               $(".errors").text("Domain Already Register So we added '" + data.present_count + "'." )
 
             }else {
 
               $(".errors").text("")
-              $("#company_slug").val(domain_name.split(".")[0]);
+              $("#company_slug").val(domain_name);
               $("#company_domain").val(domain_name);
-              $("#company_name").val(domain_name.split(".")[0]);
-              $("#company_website").val(domain_name);
+              $("#company_name").val(domain_name);
+              $("#company_website").val(website);
 
             }
           }
