@@ -45,10 +45,8 @@
             %li
               %a{:href => new_company_company_path } Add Company(s)
             %li
-              %a{:href => new_company_company_contact_path } Add Contact(s)
-            %li
               %a{:href => new_group_path } Add Group(s)
-            
+
         %li
           .sub-title
             Offerings
@@ -67,7 +65,7 @@
               %a{:href => '#' } Book An Event
             %li
               %a{:href => '#' } Survey
-            
+
         %li
           .sub-title
             Orders
@@ -160,7 +158,7 @@
           = Time.now.strftime("%D %T")
           %button.btn.btn-xs.btn-default.pull-right{"data-loading-text" => "<i class='fa fa-refresh fa-spin'></i> Loading...", :type => "button"}
             %i.fa.fa-refresh
-         
+
     / collapse menu button
     / #MOBILE
     / Top menu profile link : this shows only when top menu is active
@@ -201,7 +199,7 @@
     #active_chat_button.pull-right
       %label.switch
         %input#myonoffswitch{:type => "checkbox", :checked=>current_user.chat_status == 'available' ? true : false, :name=>""}/
-        %span.slider1.round             
+        %span.slider1.round
 
 
 - content_for :scripts do
@@ -220,4 +218,4 @@
         });
       });
     });
-            
+
