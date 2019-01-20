@@ -29,21 +29,28 @@ class StaticController < ApplicationController
 
   def check_for_domain
     company = Company.where(website: params[:website]).first()
-    # total_count = Company.where("slug like ?", "#{params[:website].split('.')[0].gsub(/[^0-9A-Za-z.]/, '').downcase}  _").count
-    total_count = Company.where("slug like ?", "#{params[:website].split('.')[0].gsub(/[^0-9A-Za-z.]/, '').downcase}%").count
-    # binding.pry
-    company_slug = !company.blank? ? company.slug : ""
-    # total_count = total_count == 0 ? 0 : total_count +1
 
-    render json: {present_count: total_count , :company_slug=>company_slug}
+    if company
+      total_count = 0
+      company_slug = company.slug
+    else
+      company_slug = ""
+      total_count = Company.where("slug like ?", "#{domain_name}%").count
+    end
+
+    render json: { present_count: total_count , company_slug: company_slug }
   end
 
   private
 
-  def set_jobs
-    @search = Job.is_public.active.search(params[:q])
-    @count = @search.result(distinct: true).count
-    @jobs = @search.result.group_by(&:job_category)
-    # puts @jobs.map(& :job_category)
-  end
+    def domain_name
+      params[:website].split('.')[0].gsub(/[^0-9A-Za-z.]/, '').downcase
+    end
+
+    def set_jobs
+      @search = Job.is_public.active.search(params[:q])
+      @count = @search.result(distinct: true).count
+      @jobs = @search.result.group_by(&:job_category)
+    end
+
 end
