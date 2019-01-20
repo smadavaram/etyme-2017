@@ -85,8 +85,6 @@
               $("#company_domain").val(domain_name);
               $("#company_website").val(website);
               $("#company_name").val(domain_name);
-              $('#company_company_type select option[value= data.company_type]').attr("selected",true);
-
               $(".errors").text("Domain Already Register So Just Add contact to this Domain.")
             }else if(data.present_count > 0){
               $("#company_slug").val(domain_name + data.present_count);
