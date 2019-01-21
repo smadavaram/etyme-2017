@@ -202,7 +202,7 @@
         var email = $('#company_owner_attributes_email').val();
         var split_email = email.split("@");
         var result = non_valid_emails.includes(split_email[1]);
-       checkDomain(split_email[1].split(".")[0])
+       checkDomain(split_email[1] ,split_email[1].split(".")[0])
 
           //if(split_email[1]){
           //  $("#domain-field").val(split_email[1].split(".")[0]);
@@ -223,12 +223,12 @@
         }
       }
 
-    function checkDomain(domain_name) {
+    function checkDomain(website ,domain_name) {
       if(domain_name){
         $.ajax({
           url: '/check_for_domain',
           type: "POST",
-          data: {domain_name: domain_name },
+          data: {domain_name: domain_name, website: website },
           success: function (data) {
             if(data.present_count > 0){
               $("#domain-field").val(domain_name+data.present_count);
