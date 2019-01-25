@@ -166,6 +166,7 @@ class Company::ContractsController < Company::BaseController
 
   def update_contract_status
     @contract.update(status: params[:status])
+    Contract.set_cycle if @contract.in_progress!
     redirect_back fallback_location: root_path
   end
 
