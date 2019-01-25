@@ -134,12 +134,12 @@
                               %label.control-label
                                 Select Term 1
                               .select.form-group
-                                = f.select :term_no, options_for_select( (0..31).to_a,f.object.term_no), {}, {class: 'form-control'}
+                                = f.select :term_no, options_for_select( (1..30).to_a+['End of month'],f.object.term_no), {}, {class: 'form-control'}
                               %div{:class => "form-group twice-month #{f.object.payroll_type != 'twice a month' ? 'hidden' : ''}"}
                                 %label.control-label
                                   Select Term 2
                                 .select
-                                  = f.select :term_no_2, options_for_select( (0..31).to_a,f.object.term_no_2), {}, {class: 'form-control'}
+                                  = f.select :term_no_2, options_for_select( (1..30).to_a+['End of month'],f.object.term_no_2), {}, {class: 'form-control'}
 
 
                           .col-md-3

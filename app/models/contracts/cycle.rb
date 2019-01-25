@@ -37,9 +37,9 @@ module Contracts
         invoice_generate(cycle)
         
         #salary cycles
-        # binding.pry
         salary_cycle = add_salary_cycle
         con_cycle_start_date = Salary.set_con_cycle_sp_date(buy_contract, salary_cycle)
+    
         salary_cal_process = set_salary_process(salary_cycle, con_cycle_start_date)
         add_salary(salary_cycle, salary_cal_process[0], salary_cal_process[1])
 
@@ -102,7 +102,7 @@ module Contracts
           start_date = contract.start_date
         end  
       end
-      # binding.pry
+  
       return start_date
     end
 
@@ -141,7 +141,7 @@ module Contracts
         if vendor_bill_frequency == 'daily'
           start_date = contract_cycle_vendor_bill_cal.start_date +  1.day
         elsif vendor_bill_frequency == 'weekly'
-          # binding.pry
+      
           start_date = ts_date_of_next(vb_day_of_week, contract.start_date+@count, vendor_bill_frequency)
         elsif vendor_bill_frequency == 'monthly'
           start_date = monthly_submit_date(vb_date_1, contract.start_date+@count, vb_end_of_month)
@@ -200,7 +200,7 @@ module Contracts
         if client_expense_frequency == 'daily'
           start_date = contract_cycle_client_expense_cal.start_date +  1.day
         elsif client_expense_frequency == 'weekly'
-          # binding.pry
+      
           start_date = ts_date_of_next(ce_day_of_week, contract.start_date+@count, client_expense_frequency)
         elsif client_expense_frequency == 'monthly'
           start_date = monthly_submit_date(ce_date_1, contract.start_date+@count, ce_end_of_month)
@@ -252,7 +252,7 @@ module Contracts
     def set_salary_process(con_cycle, con_cycle_start_date)
       con_cycle_scal_start_date = con_cycle_start_date[0]
       con_cycle_sp_start_date = con_cycle_start_date[1]
-      # binding.pry
+  
 
       salary_cal = ContractCycle.find_by(
                     contract_id: contract_id,
@@ -263,7 +263,7 @@ module Contracts
                     doc_date: con_cycle_scal_start_date
 
                   )
-      # binding.pry
+  
       unless salary_cal
         salary_cal = ContractCycle.create(
                     contract_id: contract_id,
@@ -290,7 +290,7 @@ module Contracts
                     doc_date: con_cycle_sp_start_date
 
                   )
-      # binding.pry
+  
       unless salary_process
         salary_process = ContractCycle.create(
                     contract_id: contract_id,
@@ -518,7 +518,7 @@ module Contracts
                         contract_id: contract_id
                         )
 
-      # binding.pry
+  
       unless contract_cycle
        contract_cycle = contract_cycles.create(note: note,
                          cycle_date: cycle_date,
@@ -532,7 +532,7 @@ module Contracts
                          company_id: company_id
                       )
       end
-      # binding.pry
+  
       return contract_cycle
 
     end
@@ -557,7 +557,7 @@ module Contracts
     end
 
     def add_salary_cycle
-      # binding.pry
+  
       if ['weekly', 'biweekly'].include? sclr_frequency
         doc_date =  set_salary_clear_date
         end_date = doc_date - buy_contract.payment_term.to_i
@@ -565,22 +565,36 @@ module Contracts
       elsif  sclr_frequency == 'monthly'
         date = set_salary_clear_date
         doc_date = date + buy_contract.payment_term.to_i.months
+        month = (doc_date-buy_contract.payment_term.to_i.months).month
+    
 
-        end_date = Date.new( (doc_date-buy_contract.payment_term.to_i.months).year, (doc_date-buy_contract.payment_term.to_i.months).month, buy_contract.term_no.to_i )
+        
+        end_date = Date.new( (doc_date-buy_contract.payment_term.to_i.months).year, month, ((['29', '30'].include? buy_contract.term_no) && month == 2) ? Time.days_in_month(2, Date.today.year) :  'End of month' == buy_contract.term_no ?  Time.days_in_month(month, Date.today.year) : buy_contract.term_no.to_i )
 
-        start_date = end_date - 1.month+1
+        # start_date = end_date - 1.month+1
+        start_date = Salary.last.present? ? Salary&.last&.end_date+1 : end_date - 1.month+1 
+    
       elsif sclr_frequency == 'twice a month'
         date = set_salary_clear_date
+    
         if date.day == sclr_date_1.day
-          # binding.pry
+      
           doc_date = date + buy_contract.payment_term.to_i.months
-          end_date = Date.new((doc_date-buy_contract.payment_term.to_i.months).year, (doc_date-buy_contract.payment_term.to_i.months).month, buy_contract.term_no.to_i )
+          month = (doc_date-buy_contract.payment_term.to_i.months).month
+          end_date = Date.new((doc_date-buy_contract.payment_term.to_i.months).year, month, buy_contract.term_no.to_i )
 
           start_date = Date.new((end_date.year > contract.start_date.year && end_date.month == 1) ? end_date.year-1 : end_date.year, end_date.month == 1 ? 12 : end_date.month-1, buy_contract.term_no_2.to_i+1)
         elsif date.day == sclr_date_2.day
-          # binding.pry
+      
           doc_date = date + buy_contract.payment_term.to_i.months
-          end_date = Date.new((doc_date-buy_contract.payment_term.to_i.months).year, (doc_date-buy_contract.payment_term.to_i.months).month, buy_contract.term_no_2.to_i )
+          month = (doc_date-buy_contract.payment_term.to_i.months).month
+          if month == 2 && (['30', '29'].include? buy_contract.term_no_2)
+            end_date = Date.new((doc_date-buy_contract.payment_term.to_i.months).year, month, Time.days_in_month(2, Date.today.year) )
+          elsif 'End of month' == buy_contract.term_no_2
+            end_date = Date.new((doc_date-buy_contract.payment_term.to_i.months).year, month, Time.days_in_month(month, Date.today.year) )
+          else
+            end_date = Date.new((doc_date-buy_contract.payment_term.to_i.months).year, month, buy_contract.term_no_2.to_i )
+          end
           start_date = Date.new(end_date.year, end_date.month, buy_contract.term_no.to_i+1)
         end
         # doc_date = date + 1.months
@@ -615,7 +629,7 @@ module Contracts
                   )
         
       end
-      # binding.pry
+  
       return salary_clear
     end
 
@@ -1040,7 +1054,7 @@ module Contracts
     end
 
     def date_of_next_two_week(day_of_week,start_date, frequency)
-      # binding.pry
+  
       day_of_week = DateTime.parse(day_of_week).wday
       date = ContractCycle.where(note: 'Salary clear').last&.doc_date
       if @count % 13 == 0
@@ -1049,34 +1063,34 @@ module Contracts
         date = date + 14 if start_date == contract.end_date
         date
       end
-      # binding.pry
+  
       return date      
     end
 
     def twice_a_month_submit_date(ts_date_1, ts_date_2, start_date)
-      # binding.pry
+  
       day_1 = ts_date_1.strftime("%d").to_i
       day_2 = ts_date_2.strftime("%d").to_i.present? ? ts_date_2.strftime("%d").to_i : 0
       if start_date.strftime("%d").to_i <= day_1
-        # binding.pry
+    
         day = day_1&.to_i
         next_month_year = start_date
         month = next_month_year&.strftime("%m").to_i
         year = next_month_year&.strftime("%Y").to_i
       elsif start_date.strftime("%d").to_i > day_1 && start_date.strftime("%d").to_i <= day_2
-        # binding.pry
+    
         day = day_2&.to_i
         next_month_year = start_date
         month = next_month_year&.strftime("%m").to_i
         year = next_month_year&.strftime("%Y").to_i
       elsif start_date.strftime("%d").to_i > day_2 && !ts_end_of_month
-        # binding.pry
+    
         day = day_1&.to_i
         next_month_year = start_date+1.month
         month = next_month_year&.strftime("%m").to_i
         year = next_month_year&.strftime("%Y").to_i
       elsif ts_end_of_month
-        # binding.pry
+    
         next_month_year = start_date.end_of_month
         day = next_month_year.strftime('%e').to_i
         month = next_month_year&.strftime("%m").to_i

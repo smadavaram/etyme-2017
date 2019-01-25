@@ -60,10 +60,23 @@ class Company::PayrollTermInfosController < Company::BaseController
 
   def month_cycle
     12.times do |i|
-      @dates[i+1] = {'end_date': Date.new(Date.today.year, i+1, @payroll.term_no.to_i )}
+      if i+1 == 2 && (['30', '29'].include? @payroll.term_no) 
+        @dates[i+1] = {'end_date': Date.new(Date.today.year, i+1, Time.days_in_month(2, Date.today.year)  )}
+      elsif @payroll.term_no == 'End of month'
+        @dates[i+1] = {'end_date': Date.new(Date.today.year, i+1, Time.days_in_month(i+1, Date.today.year)  )}
+      else
+        @dates[i+1] = {'end_date': Date.new(Date.today.year, i+1,  @payroll.term_no.to_i  )  }
+      end
     end
+
     @dates.each do |x,y|
-      @dates[x][:start_date] = @dates[x][:end_date]- 1.month+1
+      if x == 2 && (['30', '29'].include? @payroll.term_no)
+        @dates[x][:start_date] = @dates[x-1][:end_date] + 1
+      elsif @payroll.term_no == 'End of month'
+        @dates[x][:start_date] = @dates[x][:end_date].beginning_of_month
+      else
+        @dates[x][:start_date] = @dates[x][:end_date]- 1.month+1
+      end
       @dates[x][:doc_date] = Date.new((@dates[x][:end_date]+@payroll.payroll_term.to_i.months).year,(@dates[x][:end_date]+@payroll.payroll_term.to_i.months).month, @payroll.sclr_date_1.day)
       @dates[x][:cal_date] = @dates[x][:doc_date] - (@payroll.sclr_date_1.day - @payroll&.scal_date_1.day).to_i
       @dates[x][:pro_date] = @dates[x][:doc_date] - (@payroll.sclr_date_1.day - @payroll&.sp_date_1.day).to_i
@@ -123,7 +136,15 @@ class Company::PayrollTermInfosController < Company::BaseController
 
       @dates[2*i+1] = {'doc_date': Date.new(Date.today.year, i+1, @payroll&.sclr_date_2.day )}
 
-      @dates[2*i+1][:end_date] =  Date.new( (@dates[2*i+1][:doc_date]- @payroll.payroll_term_2.to_i.months).year, (@dates[2*i+1][:doc_date]- @payroll.payroll_term_2.to_i.months).month, @payroll&.term_no_2.to_i)
+      if i+1 == 2 && (['30', '29'].include? @payroll.term_no_2) 
+        @dates[2*i+1][:end_date] =  Date.new( (@dates[2*i+1][:doc_date]- @payroll.payroll_term_2.to_i.months).year, (@dates[2*i+1][:doc_date]- @payroll.payroll_term_2.to_i.months).month,Time.days_in_month(2, Date.today.year))
+      elsif 'End of month' == @payroll&.term_no_2
+        @dates[2*i+1][:end_date] =  Date.new( (@dates[2*i+1][:doc_date]- @payroll.payroll_term_2.to_i.months).year, (@dates[2*i+1][:doc_date]- @payroll.payroll_term_2.to_i.months).month,  Time.days_in_month((@dates[2*i+1][:doc_date]- @payroll.payroll_term_2.to_i.months).month , Date.today.year))
+      else
+      # binding.pry
+        @dates[2*i+1][:end_date] =  Date.new( (@dates[2*i+1][:doc_date]- @payroll.payroll_term_2.to_i.months).year, (@dates[2*i+1][:doc_date]- @payroll.payroll_term_2.to_i.months).month, @payroll&.term_no_2.to_i)
+        
+      end
       #start date 2
       @dates[2*i+1][:start_date] = Date.new( (@dates[2*i+1][:end_date] -  @payroll.payroll_term_2.to_i.months).year, (@dates[2*i+1][:end_date].month), @payroll.term_no.to_i+1  ) 
 

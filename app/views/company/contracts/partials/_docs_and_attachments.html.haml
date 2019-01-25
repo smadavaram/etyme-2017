@@ -350,13 +350,13 @@
                           %label.control-label
                             Select Term
                           .select
-                            = bc.select :term_no, options_for_select( (0..31).to_a,current_company&.payroll_infos&.first&.term_no), {}, {class: 'form-control'}
+                            = bc.select :term_no, options_for_select( (1..30).to_a+['End of month'],current_company&.payroll_infos&.first&.term_no), {}, {class: 'form-control'}
                           .b-sal-cal
                             %div{:class => "form-group twice-month #{bc.object.salary_calculation != 'twice a month' ? 'hidden' : ''}"}
                               %label.control-label
                                 Select Term 2
                               .select
-                                = bc.select :term_no_2, options_for_select( (0..31).to_a,current_company&.payroll_infos&.first&.term_no_2), {}, {class: 'form-control'}
+                                = bc.select :term_no_2, options_for_select( (1..30).to_a+['End of month'],current_company&.payroll_infos&.first&.term_no_2), {}, {class: 'form-control'}
 
                       .col-md-3
                         .b-sal-cal1

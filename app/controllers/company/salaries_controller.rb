@@ -75,6 +75,8 @@ class Company::SalariesController < Company::BaseController
         salary.total_amount = value[:approved_amount].to_i + value[:pending_amount].to_i - value[:salary_advance].to_i
         salary.status = 'calculated'
         salary.save
+        cc = ContractCycle.find_by(:id => salary.sc_cycle_id)
+        cc.update(status: 'completed')
       end
     end
     flash[:notice] = 'Salary Calculated'
@@ -89,6 +91,8 @@ class Company::SalariesController < Company::BaseController
       salary.total_amount = value[:salary_calculated].to_i
       salary.status = 'processed'
       salary.save
+      cc = ContractCycle.find_by(:id => salary.sp_cycle_id)
+      cc.update(status: 'completed')
     end
     # params[:comm_ids].each do |key, value|
     #   # binding.pry
@@ -123,6 +127,8 @@ class Company::SalariesController < Company::BaseController
       salary.total_amount = salary.total_amount.to_i - (ce_amount.to_i + commission_amount + company_expense.to_i)
       salary.save
       salary.update(status: 'cleared')
+      cc = ContractCycle.find_by(:id => salary.sclr_cycle_id)
+      cc.update(status: 'completed')
     end
     flash[:notice] = 'Salary cleared'
     render :js => "window.location = '#{request.headers["HTTP_REFERER"]}'"

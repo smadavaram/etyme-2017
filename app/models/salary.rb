@@ -5,6 +5,10 @@ class Salary < ApplicationRecord
   belongs_to :company, optional: true
   belongs_to :contract, optional: true
   belongs_to :candidate, optional: true
+  belongs_to :sclr_cycle , class_name: 'ContractCycle' , foreign_key: :sclr_cycle_id, optional: true
+  belongs_to :sc_cycle , class_name: 'ContractCycle' , foreign_key: :sc_cycle_id, optional: true
+  belongs_to :sp_cycle , class_name: 'ContractCycle' , foreign_key: :sp_cycle_id, optional: true
+
   has_many :sc_calculateds, foreign_key: :sc_cycle_id, class_name: 'Salary'
   has_many :sp_processeds, foreign_key: :sp_cycle_id, class_name: 'Salary'
   has_many :sclr_cleareds, foreign_key: :sclr_cycle_id, class_name: 'Salary'
@@ -20,7 +24,7 @@ class Salary < ApplicationRecord
 
 
   def self.generate_csv(sclr_cycle_ids)
-    # binding.pry
+
     attributes = %w{ Name Status Living_State City Address Zip Amount}
     salaries = Salary.where(sclr_cycle_id: sclr_cycle_ids)
     amounts = salaries.group(:candidate_id).sum(:total_amount)
@@ -78,7 +82,8 @@ class Salary < ApplicationRecord
       # end
       con_cycle_start_date = montly_approval_date(con_cycle)
     when 'twice a month'
-      con_cycle_start_date = twice_a_month_approval_date(con_cycle)
+      con_cycle_start_date = twice_a_month_approval_date(con_cycle, buy_contract)
+
     else
       con_cycle_start_date = con_cycle.start_date
     end 
@@ -118,7 +123,7 @@ class Salary < ApplicationRecord
 
 
   def self.date_of_next(day_of_week,con_cycle)
-    # binding.pry
+
     day_of_week = DateTime.parse(day_of_week).wday
     # sc_day_of_week = DateTime.parse(con_cycle&.contract&.buy_contracts&.first&.sc_day_of_week).wday if con_cycle.contract.buy_contracts.first.salary_calculation == 'weekly'
     date = con_cycle.start_date.to_date + ((day_of_week - con_cycle.start_date.to_date.wday) % 7)
@@ -144,38 +149,56 @@ class Salary < ApplicationRecord
     # end
     # year = next_month_year&.strftime("%Y").to_i
     # con_cycle_start_date = DateTime.new(year, month, day)
-    # binding.pry
+
     con_cycle_sc_start_date = con_cycle.doc_date - (@sclr_date_1&.day - @sc_date_1&.day).to_i
     con_cycle_sp_start_date =con_cycle.doc_date - (@sclr_date_1&.day - @sp_date_1&.day).to_i
     return con_cycle_sc_start_date, con_cycle_sp_start_date
   end
 
   def self.twice_a_month_approval_date(con_cycle, buy_contract)
-    day_1 = @date_1&.to_i
-    day_2 = @date_2&.to_i.present? ? @date_2&.to_i : 0
-    if con_cycle.start_date.strftime("%d").to_i <= day_1
-      day = @date_1&.to_i
-      next_month_year = con_cycle.start_date
-      month = next_month_year&.strftime("%m").to_i
-      year = next_month_year&.strftime("%Y").to_i
-    elsif con_cycle.start_date.strftime("%d").to_i > day_1 && con_cycle.start_date.strftime("%d").to_i <= day_2
-      day = @date_2&.to_i
-      next_month_year = con_cycle.start_date
-      month = next_month_year&.strftime("%m").to_i
-      year = next_month_year&.strftime("%Y").to_i
-    elsif con_cycle.start_date.strftime("%d").to_i > day_2 && !@end_of_month
-      day = @date_1&.to_i
-      next_month_year = con_cycle.start_date+1.month
-      month = next_month_year&.strftime("%m").to_i
-      year = next_month_year&.strftime("%Y").to_i
+    day_1 = @sp_date_1
+    day_2 = @sp_date_2.present? ? @sp_date_2 : 0
+
+    if con_cycle.start_date.day <= day_1.day
+
+      con_cycle_sc_start_date = con_cycle.doc_date - (@sclr_date_1&.day - @sc_date_1&.day).to_i
+      con_cycle_sp_start_date = con_cycle.doc_date - (@sclr_date_1&.day - @sp_date_1&.day).to_i
+    #   day = @date_1&.to_i
+    #   next_month_year = con_cycle.start_date
+    #   month = next_month_year&.strftime("%m").to_i
+    #   year = next_month_year&.strftime("%Y").to_i
+    elsif con_cycle.start_date.day > day_1.day && con_cycle.start_date.day <= day_2.day
+
+      con_cycle_sc_start_date = con_cycle.doc_date - (@sclr_date_2&.day - @sc_date_2&.day).to_i
+      con_cycle_sp_start_date = con_cycle.doc_date - (@sclr_date_2&.day - @sp_date_2&.day).to_i    
+    #   day = @date_2&.to_i
+    #   next_month_year = con_cycle.start_date
+    #   month = next_month_year&.strftime("%m").to_i
+    #   year = next_month_year&.strftime("%Y").to_i
+    elsif con_cycle.start_date.day > day_2.day && !@end_of_month
+
+      con_cycle_sc_start_date = con_cycle.doc_date - (@sclr_date_1&.day - @sc_date_1&.day).to_i
+      con_cycle_sp_start_date = con_cycle.doc_date - (@sclr_date_1&.day - @sp_date_1&.day).to_i
+    #   day = @date_1&.to_i
+    #   next_month_year = con_cycle.start_date+1.month
+    #   month = next_month_year&.strftime("%m").to_i
+    #   year = next_month_year&.strftime("%Y").to_i
     elsif @end_of_month
-      next_month_year = con_cycle.start_date.end_of_month
-      day = next_month_year.strftime('%e').to_i
-      month = next_month_year&.strftime("%m").to_i
-      year = next_month_year&.strftime("%Y").to_i
+
+      con_cycle_sc_start_date = con_cycle.doc_date.end_of_month 
+      con_cycle_sp_start_date = con_cycle.doc_date.end_of_month 
+    #   next_month_year = con_cycle.start_date.end_of_month
+    #   day = next_month_year.strftime('%e').to_i
+    #   month = next_month_year&.strftime("%m").to_i
+    #   year = next_month_year&.strftime("%Y").to_i
     end
-    # binding.pry
-    con_cycle_sp_start_date = DateTime.new(year, month, day)
+  
+    # con_cycle_sp_start_date = DateTime.new(year, month, day)
+
+    # con_cycle_sc_start_date = con_cycle.doc_date - (@sclr_date_1&.day - @sc_date_1&.day).to_i
+    # con_cycle_sp_start_date = con_cycle.doc_date - (@sclr_date_1&.day - @sp_date_1&.day).to_i
+
+    return con_cycle_sc_start_date, con_cycle_sp_start_date
   end
 
 
@@ -195,7 +218,7 @@ class Salary < ApplicationRecord
       receiver_settlement = 'cons_'+self.candidate_id.to_s+'_settlement'
     end
     if self.approved_amount > 0  && self.total_amount > 0
-      # binding.pry
+  
       tx = ledger.transactions.transact do |builder|
         builder.retire(
           flavor_id: 'usd',
