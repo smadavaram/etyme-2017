@@ -14,16 +14,16 @@
         .col-lg-6.col-lg-offset-3.text-center
           .form-sign
             = form_for @company , html: {id: 'smart-form-register' , class: 'vertical-form lockscreen animated flipInY',id: 'myform' }  do |f|
-              = f.fields_for :owner do |u|
+              = f.fields_for :owner, @user do |u|
                 .form-head
                   %h3 Register
                 .form-body
                   - flash.each do |key, value|
                     = flash_message(key,value)
-                  .form-row
+                  .form-row.hide
                     .form-controls
                       = f.text_field :name  ,:placeholder => "Company Name", required: true,minlength: "3",class:'field'
-                  .form-row
+                  .form-row.hide
                     .form-controls
                       .plain-select
                         = f.select :company_type , [["Staffing/Training/Vendors", 'vendor'], ["Client/Implementation Patner", 'hiring_manager']],{include_blank: '-- Select Type --'} ,:class => 'form-control company_type', required: true ,onchange: "showNote();"
@@ -34,19 +34,28 @@
                         #= f.select :company_sub_type , ["Client","Implementation Patner"],{include_blank: '-- Select Type --'} ,:class => 'form-control company_type', required: true ,onchange: "showNote();"
                   .form-row
                     .form-controls
-                      = u.email_field :email, :placeholder => "Your Email", required: true, email: true,class: 'field',onblur: 'validate_email();'
-                  .form-row
-                    .form-controls
-                      = u.password_field :password, :placeholder => "Password", required: true,minlength: "6",class: 'field'
-                  .form-row
-                    .form-controls
-                      = u.password_field :password_confirmation, :placeholder => "Confirm password", "data-rule-equalTo": "#company_owner_attributes_password",class: 'field'
-                  .form-row
-                    .form-controls
-                      = f.text_field :domain  ,:placeholder => "Domain", required: true,minlength: "3",class:'field',id: "domain-field", readonly: true
-                    .note.text-muted.errors.text-danger
-                    .note.text-muted{style: "float:left !important ;color: antiquewhite"}
-                      Please Enter Domain like https://address
+                      = u.email_field :email, :placeholder => "Your Email", required: true, email: true, class: 'field', onblur: 'validate_email();', value: params[:email]
+                  - if params[:show_input].present?
+                    .form-row
+                      .form-controls
+                        = u.text_field :first_name, :placeholder => "Firstname", required: true,class: 'field'
+
+                    .form-row
+                      .form-controls
+                        = u.text_field :last_name, :placeholder => "Lastname", required: true,class: 'field'
+
+                    .form-row
+                      .form-controls
+                        = u.password_field :password, :placeholder => "Password", required: true,minlength: "6",class: 'field'
+                    .form-row
+                      .form-controls
+                        = u.password_field :password_confirmation, :placeholder => "Confirm password", "data-rule-equalTo": "#company_owner_attributes_password",class: 'field'
+                    .form-row
+                      .form-controls
+                        = f.text_field :domain  ,:placeholder => "Domain", required: true,minlength: "3",class:'field', id: "domain-field", value: params[:domain]
+                      .note.text-muted.errors.text-danger
+                      .note.text-muted{style: "float:left !important ;color: antiquewhite"}
+                        Please Enter Domain like https://address
                   -#.form-row
                     .form-controls
                       %input#terms{:name => "terms",class:"field", :type => "checkbox" ,required: true}/

@@ -2,6 +2,9 @@ class CompaniesController < ApplicationController
 
   skip_before_action :authenticate_user!  ,          only:[:new , :create , :signup_success], raise: false
   before_action :find_company             ,          only: :profile
+  before_action :set_domain, only: %i[create]
+
+  include DomainExtractor
 
   respond_to :html,:json
 
@@ -34,18 +37,69 @@ class CompaniesController < ApplicationController
 
   private
 
-  def find_company
-    @company = Company.find(params[:id]);
-    @new_company = @company
-    if @company.invited_by.present?
-      @company_contacts = current_company.invited_companies.find_by(invited_company_id: params[:id]).try(:invited_company).try(:company_contacts).paginate(:page => params[:page], :per_page => 20) || []
+    def find_company
+      @company = Company.find(params[:id]);
+      @new_company = @company
+      if @company.invited_by.present?
+        @company_contacts = current_company.invited_companies.find_by(invited_company_id: params[:id]).try(:invited_company).try(:company_contacts).paginate(:page => params[:page], :per_page => 20) || []
+      end
     end
-  end
 
-  def company_params
-    params.require(:company).permit(:name ,:company_type,:domain,:company_sub_type, :website,:logo,:description,:phone,:email,:linkedin_url,:facebook_url,:twitter_url,:google_url,:is_activated,:status,:tag_line,
-                                    owner_attributes:[:id, :type  , :first_name, :last_name ,:email,:password, :password_confirmation],
-                                    locations_attributes:[:id,:name,:status,
-                                                          address_attributes:[:id,:address_1,:country,:city,:state,:zip_code] ] )
-  end
+    def company_params
+      params.require(:company).permit(:name ,:company_type,:domain,:company_sub_type, :website,:logo,:description,:phone,:email,:linkedin_url,:facebook_url,:twitter_url,:google_url,:is_activated,:status,:tag_line,
+                                      owner_attributes:[:id, :type  , :first_name, :last_name ,:email,:password, :password_confirmation],
+                                      locations_attributes:[:id,:name,:status,
+                                                            address_attributes:[:id,:address_1,:country,:city,:state,:zip_code] ] )
+    end
+
+    def owner_params
+      params.require(:company).require(:owner_attributes).permit(:email, :password, :password_confirmation, :first_name, :last_name)
+    end
+
+    def set_domain
+      company_domain = domain_from_email(owner_params[:email])
+      @company = Company.find_by(website: company_domain)
+
+      if @company
+        find_associated_contact
+      else
+        redirect_to register_path, error: "Company not found."
+      end
+    end
+
+    def send_activation_email
+      if @user.send_reset_password_instructions
+        redirect_to register_path, notice: 'We have sent you password reset instructions.'
+      else
+        redirect_to register_path, error: 'Something went wrong. Please try again later.'
+      end
+    end
+
+    def find_associated_contact
+      @user = @company.users.find_by(email: owner_params[:email])
+      if @user
+        send_activation_email
+      else
+        handle_user_creation_flow
+      end
+    end
+
+    def handle_user_creation_flow
+      if owner_params[:password].present?
+        # create new user
+        create_user
+      else
+        redirect_to register_path(show_input: true, email: owner_params[:email], domain: @company.domain), notice: 'Add More information to continue.'
+      end
+    end
+
+    def create_user
+      @user = @company.users.new(owner_params)
+
+      if @user.save
+        redirect_to register_path, success: 'We have sent you an email confirmation email.'
+      else
+        redirect_to register_path, error: 'Something went wrong. Please try again later'
+      end
+    end
 end

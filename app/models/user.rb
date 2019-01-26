@@ -4,7 +4,7 @@ class User < ApplicationRecord
   # Include default devise modules. Others available are:
   # :confirmable, :lockable, :timeoutable and :omniauthable
   devise :invitable, :database_authenticatable, :registerable,
-         :recoverable, :rememberable, :trackable, :omniauthable
+         :recoverable, :rememberable, :trackable, :omniauthable, :confirmable
 
   #Serializers
   # serialize :signature, JSON
@@ -63,6 +63,8 @@ class User < ApplicationRecord
   # validates_inclusion_of :time_zone, in: ActiveSupport::TimeZone.all.map { |tz| tz.tzinfo.name }
 
   validate :max_skill_size
+
+
   def max_skill_size
     errors[:skill_list] << "8 skills maximum" if skill_list.count > 8
   end
@@ -72,7 +74,7 @@ class User < ApplicationRecord
   end
 
   def etyme_url
-    self.company.etyme_url
+    company.etyme_url
   end
 
   def send_confirmation_to_company_about_onboarding

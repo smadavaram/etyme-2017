@@ -46,6 +46,7 @@ GEM
       activerecord (>= 3.2, < 6.0)
       rake (>= 10.4, < 13.0)
     arel (8.0.0)
+    awesome_print (1.8.0)
     bcrypt (3.1.11)
     best_in_place (3.1.1)
       actionpack (>= 3.2)
@@ -411,6 +412,7 @@ PLATFORMS
 DEPENDENCIES
   acts-as-taggable-on
   annotate
+  awesome_print
   best_in_place
   better_errors
   binding_of_caller

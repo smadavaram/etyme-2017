@@ -1,8 +1,10 @@
-
 class Company < ApplicationRecord
-  include PublicActivity::Model
-  tracked owner: ->(controller, model) { controller && controller.current_user }
+
   EXCLUDED_SUBDOMAINS = %w(admin www administrator admins owner etyme mail ftp)
+
+  include PublicActivity::Model
+
+  tracked owner: ->(controller, model) { controller && controller.current_user }
 
   acts_as_taggable_on :skills
 
@@ -209,7 +211,7 @@ class Company < ApplicationRecord
 
   # Call after create
   def welcome_email_to_owner
-      UserMailer.welcome_email_to_owner(self).deliver_now
+    UserMailer.welcome_email_to_owner(self).deliver_now
   end
 
   def assign_free_subscription
@@ -227,8 +229,8 @@ class Company < ApplicationRecord
 
   def set_account_on_seq
     ledger = Sequence::Client.new(
-        ledger_name: ENV['seq_ledgers'],
-        credential: ENV['seq_token']
+      ledger_name: ENV['seq_ledgers'],
+      credential: ENV['seq_token']
     )
 
     key = ledger.keys.query({aliases: ['company']}).first

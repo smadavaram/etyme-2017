@@ -107,6 +107,8 @@ gem 'mini_magick'
 gem 'roo'
 # gem 'fog'
 
+gem 'awesome_print', require: true
+
 
 # Use ActiveModel has_secure_password
 # gem 'bcrypt', '~> 3.1.7'
