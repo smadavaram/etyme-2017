@@ -107,7 +107,7 @@ gem 'mini_magick'
 gem 'roo'
 # gem 'fog'
 
-gem 'awesome_print', require: true
+gem 'awesome_print'
 
 
 # Use ActiveModel has_secure_password
