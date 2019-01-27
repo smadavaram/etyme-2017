@@ -20,13 +20,13 @@ class CompaniesController < ApplicationController
 
   def create
     params[:company][:company_type] = params[:company][:company_type].to_i
-    @company = Company.new(company_params)
+    @company = Company.new(company_params.merge(website: domain_from_email(owner_params[:email])))
+
     if @company.save
-      flash[:success] =  "Registration Successfull."
       render 'companies/signup_success' , layout: 'login'
     else
       flash.now[:errors] = @company.errors.full_messages
-      return render 'new'
+      render :new
     end
   end
 
@@ -60,11 +60,23 @@ class CompaniesController < ApplicationController
       company_domain = domain_from_email(owner_params[:email])
       @company = Company.find_by(website: company_domain)
 
-      if @company
-        find_associated_contact
+      return if params[:register_company]
+
+      if company_exist_with_contact?
+        send_activation_email
+      elsif company_exist_without_contact?
+        handle_user_creation_flow
       else
-        redirect_to register_path, error: "Company not found."
+        redirect_to register_path(email: owner_params[:email], register: true, show_selector: true, show_input: true, site: suggested_slug), notice: "Please fill in the following details."
       end
+    end
+
+    def company_exist_with_contact?
+      @company.present? && associated_contact_exists?
+    end
+
+    def company_exist_without_contact?
+      @company.present? && !associated_contact_exists?
     end
 
     def send_activation_email
@@ -75,21 +87,27 @@ class CompaniesController < ApplicationController
       end
     end
 
-    def find_associated_contact
+    def associated_contact_exists?
       @user = @company.users.find_by(email: owner_params[:email])
-      if @user
-        send_activation_email
-      else
-        handle_user_creation_flow
-      end
+      @user.present?
     end
 
     def handle_user_creation_flow
       if owner_params[:password].present?
-        # create new user
         create_user
       else
-        redirect_to register_path(show_input: true, email: owner_params[:email], domain: @company.domain), notice: 'Add More information to continue.'
+        redirect_to register_path(show_input: true, email: owner_params[:email], site: @company.slug), notice: 'Add More information to continue.'
+      end
+    end
+
+    def suggested_slug
+      similar_companies = Company.find_like("slug", domain_name(owner_params[:email]))
+      existing_companies_count = similar_companies.size
+
+      if similar_companies.present?
+        similar_companies.first.slug.concat((existing_companies_count + 1).to_s)
+      else
+        domain_name(owner_params[:email])
       end
     end
 

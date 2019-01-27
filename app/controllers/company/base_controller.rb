@@ -18,7 +18,7 @@ class Company::BaseController < ApplicationController
   private
   def verify_company
     # if request.subdomain.present? && request.subdomain !='www' && request.subdomain !='app-etyme' && Company.where(domain: request.subdomain).blank?
-    if request.subdomain.present? && request.subdomain !='www' && request.subdomain !='app-etyme' && Company.where(website: request.subdomain).blank?
+    if request.subdomain.present? && request.subdomain !='www' && request.subdomain !='app-etyme' && Company.where(domain: request.subdomain).blank?
       return redirect_to HOSTNAME
     end
   end

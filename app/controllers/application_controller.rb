@@ -61,7 +61,7 @@ class ApplicationController < ActionController::Base
   end
 
   def current_company
-    @current_company ||= Company.find_by(website: request.subdomain)
+    @current_company = Company.find_by(slug: request.subdomain)
   end
 
   helper_method :current_company

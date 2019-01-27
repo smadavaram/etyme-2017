@@ -1,5 +1,3 @@
-
-
 class User < ApplicationRecord
   # Include default devise modules. Others available are:
   # :confirmable, :lockable, :timeoutable and :omniauthable
@@ -16,6 +14,7 @@ class User < ApplicationRecord
   # validates_uniqueness_of :email
 
   # validates_numericality_of :phone
+  after_create_commit :send_confirmation_email
 
   after_create :create_address
 
@@ -74,7 +73,7 @@ class User < ApplicationRecord
   end
 
   def etyme_url
-    company.etyme_url
+    company&.etyme_url
   end
 
   def send_confirmation_to_company_about_onboarding
@@ -132,6 +131,10 @@ class User < ApplicationRecord
   def go_unavailable
     self.chat_status = "unavailable"
     self.save!
+  end
+
+  private def send_confirmation_email
+    send_confirmation_instructions
   end
 
 end

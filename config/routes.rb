@@ -35,7 +35,7 @@ Rails.application.routes.draw do
     get 'feeds' => 'rss_jobs#feeds'
 
 
-  end  
+  end
 
 
   concern :paginatable do
@@ -207,10 +207,13 @@ Rails.application.routes.draw do
 
     get 'companies/edit'
     resources :users, only: [:show,:update, :destroy] do
-      get  :add_reminder
-      get 'current_status', on: :collection
-      get 'status_update', on: :collection
-      get 'chat_status_update', on: :collection
+
+      collection do
+        get 'current_status'
+        get 'status_update'
+        get 'chat_status_update'
+        get  :add_reminder
+      end
 
       match  :assign_groups , via: [:get , :post]
       get :profile
@@ -237,7 +240,7 @@ Rails.application.routes.draw do
       get    :hot_index
       match :create_chat ,via: [:get, :post]
     end
-    resources :candidates 
+    resources :candidates
 
     get 'new_candidate_to_bench',    to: 'candidates#new_candidate_to_bench'
     # get :new_candidate_to_banch
@@ -253,12 +256,12 @@ Rails.application.routes.draw do
       end
     end
 
-    get "import_job" , to: "jobs#import_job"  
+    get "import_job" , to: "jobs#import_job"
     post "upload_job" , to: "jobs#upload_job"
     post "upload_candidate" , to: "jobs#upload_candidate"
     post "upload_company" , to: "jobs#upload_company"
     post "upload_contacts" , to: "jobs#upload_contacts"
-    
+
 
     get "download_job_template", to: "jobs#download_job_template"
     get "download_product_template", to: "jobs#download_product_template"
@@ -344,7 +347,7 @@ Rails.application.routes.draw do
     resources :company_legal_docs
     delete 'delete_company_legal_docs' ,to: 'company_legal_docs#delete_company_legal_docs'
 
-    resources :company_candidate_docs 
+    resources :company_candidate_docs
     delete 'delete_company_candidate_docs' ,to: 'company_candidate_docs#delete_company_candidate_docs'
     delete 'delete_company_customer_docs' ,to: 'company_candidate_docs#delete_company_customer_docs'
     delete 'delete_company_vendor_docs' ,to: 'company_candidate_docs#delete_company_vendor_docs'
@@ -609,20 +612,20 @@ Rails.application.routes.draw do
       resources :candidates, only: :index do
         post :add_candidate, on: :collection
       end
-    end 
+    end
 
     namespace :company do
       resources :companies, only: [:index, :create] do
         post :add_company, on: :collection
       end
-    end  
-    
+    end
+
     namespace :company do
       resources :jobs, only: [:index, :create] do
         post :add_job, on: :collection
       end
-    end  
-    
+    end
+
     resources :job_applications, only: [:index, :create] do
       post :job_applications, on: :collection
     end

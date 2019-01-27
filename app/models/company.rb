@@ -3,6 +3,7 @@ class Company < ApplicationRecord
   EXCLUDED_SUBDOMAINS = %w(admin www administrator admins owner etyme mail ftp)
 
   include PublicActivity::Model
+  include QuerySelector
 
   tracked owner: ->(controller, model) { controller && controller.current_user }
 
@@ -122,7 +123,7 @@ class Company < ApplicationRecord
 
 
 
-  # before_validation :create_slug
+  before_validation :create_slug
   after_create      :set_owner_company_id , if: Proc.new{|com| com.owner.present?}
   after_create      :welcome_email_to_owner, if: Proc.new{|comp| !comp.invited_by.present?}
   after_create      :assign_free_subscription
@@ -189,20 +190,7 @@ class Company < ApplicationRecord
   private
 
   def create_slug
-    get_host_from_domain()
-  end
-
-  def get_host_from_domain
-    if self.domain.present?
-      domain = self.domain.gsub(/[^0-9A-Za-z.]/, '')
-      url = URI.parse(domain).scheme.nil? ? "http://#{domain}" : domain
-      host = URI.parse(url).host.downcase
-      # if (!self.invited_by.present?)
-         self.slug = host.start_with?('www.') ? host[4..-1].split(".").first : host.split(".").first
-      # else
-      #    self.slug = host.start_with?('www.') ? host[4..-1].split(".").first : host.split(".").first + "#{Time.now.to_s.parameterize(separator: "_")}"
-      # end
-    end
+    self.slug = domain
   end
 
   def set_owner_company_id
