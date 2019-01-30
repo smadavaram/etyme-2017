@@ -4,73 +4,74 @@
     .modal-content
       .modal-header
         %button.close{"aria-hidden" => "true", "data-dismiss" => "modal", :type => "button"} ×
-        %h4.modal-title Sign-up or Login.
+        %h4.modal-title Apply Now
       .modal-body
         %section.panel-default
-          .col-sm-12
-            .col-sm-5
-              %h4 Login
-              %br
-              = form_for(resource, as: resource_name, url: session_path(resource_name,status: true), html: {id: 'login-form', class: 'smart-form client-form'}) do |f|
-                .col-sm-12
-                  .form-group
-                    %label E-mail
-                    = f.email_field :email, autofocus: true,class:'form-control input'
-                .col-sm-12
-                  .form-group
-                    %label Password
-                    = f.password_field :password, autocomplete: "off",class:'form-control input'
-                .col-sm-12
-                  .form-group.mr-left-20
-                    %label.checkbox
-                      = f.check_box :remember_me
-                      = succeed "Stay" do
-                        %i
-                .col-sm-12
-                  %footer
-                    %button.btn.btn-primary.pull-right{:type => "submit"}
-                      Sign in
+          .col-md-6
+            %button{ href: "javascript:",  "data-toggler" => "true", "data-show" => "apply-with-without-register", class: 'btn btn-block btn-primary' }Candidate
+          .col-md-6
+            = link_to "Recruiter", static_job_job_appication_with_recruiter_path(@job,status: candidate_signed_in?),  method: :post , remote: true, :class=>"button btn btn-primary btn-block"
 
-
-                
-            %div{:style => " height:300px; border-right: 1px solid gainsboro;float: left; position: relative;top: 0px;left: 60px "}
-            .col-sm-5{:style => "margin-left: 85px"}
-              %h4 Sign Up
-              %br
-              = simple_form_for(resource, as: resource_name, url: registration_path(resource_name), html: {id: 'smart-form-register' , class: 'smart-form client-form' }) do |f|
-                .col-sm-12
-                  .form-group
-                    %label E-mail
-                    = f.email_field :email, :placeholder => "Your Email", required: true, email: true,class:'form-control'
-                .col-sm-12
-                  .form-group
-                    %label Password
-                    = f.password_field :password, :placeholder => "Password", required: true,minlength: "6",class:'form-control'
-                .col-sm-12
-                  .form-group
-                    %label Confirm Password
-                    = f.password_field :password_confirmation, :placeholder => "Confirm password", "data-rule-equalTo": "#company_owner_attributes_password",class:'form-control'
-                .col-sm-12
-                  .form-group
-                    %label.checkbox
-                    %input#terms{:name => "terms", :type => "checkbox"}/
-                    = succeed "I agree with the " do
-                      %i
-                    %a{"data-target" => "#myModal", "data-toggle" => "modal", :href => "#"} Terms and Conditions
-                .col-sm-12
-                  .form-group
-                    %input.btn.btn-primary.pull-right{:name => "commit", :onclick => "if ($('#terms').is(':checked')){$('#new_applicant').submit();}", :type => "submit", :value => "Sign Up"}/
-          .col-sm-12
+          .col-sm-12{ style: 'display: none;', data: { apply_with_without_register: 'true' } }
             %hr
-            .col-sm-3
-            .col-sm-3
-              = link_to "Apply Without Registration.", static_job_job_appication_without_registeration_path(@job,status: candidate_signed_in?),  method: :post , remote: true, :class=>"button btn btn-primary pull-right"
+            .col-sm-6
+              %a{ class: 'btn btn-primary btn-block', data: { toggler: 'true', show: 'apply-with-register' } }Apply with Registration
+            .col-sm-6
+              = link_to "Apply Without Registration.", static_job_job_appication_without_registeration_path(@job,status: candidate_signed_in?),  method: :post , remote: true, :class=>"button btn btn-primary pull-right btn-block"
+            %hr
+            .col-sm-12{ style: "display:none;", data: { apply_with_register: 'true' } }
+              .col-sm-5
+                %h4 Login
+                %br
+                = form_for(resource, as: resource_name, url: session_path(resource_name,status: true), html: {id: 'login-form', class: 'smart-form client-form' }) do |f|
+                  .col-sm-12
+                    .form-group
+                      %label E-mail
+                      = f.email_field :email, autofocus: true,class:'form-control input'
+                  .col-sm-12
+                    .form-group
+                      %label Password
+                      = f.password_field :password, autocomplete: "off",class:'form-control input'
+                  .col-sm-12
+                    .form-group.mr-left-20
+                      %label.checkbox
+                        = f.check_box :remember_me
+                        = succeed "Stay" do
+                          %i
+                  .col-sm-12
+                    %footer
+                      %button.btn.btn-primary.pull-right{:type => "submit"}
+                        Sign in
 
-              / %button.btn.btn-primary.pull-right{:type => "submit"}
-              /   Apply Without Registration.
-            .col-sm-3     
-              = link_to "Apply With Recruiter.", static_job_job_appication_with_recruiter_path(@job,status: candidate_signed_in?),  method: :post , remote: true, :class=>"button btn btn-primary pull-right"
-            .col-sm-3  
+
+
+              %div{:style => " height:300px; border-right: 1px solid gainsboro;float: left; position: relative;top: 0px;left: 60px " }
+              .col-sm-5{:style => "margin-left: 85px"}
+                %h4 Sign Up
+                %br
+                = simple_form_for(resource, as: resource_name, url: registration_path(resource_name), html: {id: 'smart-form-register' , class: 'smart-form client-form' }) do |f|
+                  .col-sm-12
+                    .form-group
+                      %label E-mail
+                      = f.email_field :email, :placeholder => "Your Email", required: true, email: true,class:'form-control'
+                  .col-sm-12
+                    .form-group
+                      %label Password
+                      = f.password_field :password, :placeholder => "Password", required: true,minlength: "6",class:'form-control'
+                  .col-sm-12
+                    .form-group
+                      %label Confirm Password
+                      = f.password_field :password_confirmation, :placeholder => "Confirm password", "data-rule-equalTo": "#company_owner_attributes_password",class:'form-control'
+                  .col-sm-12
+                    .form-group
+                      %label.checkbox
+                      %input#terms{:name => "terms", :type => "checkbox"}/
+                      = succeed "I agree with the " do
+                        %i
+                      %a{"data-target" => "#myModal", "data-toggle" => "modal", :href => "#"} Terms and Conditions
+                  .col-sm-12
+                    .form-group
+                      %input.btn.btn-primary.pull-right{:name => "commit", :onclick => "if ($('#terms').is(':checked')){$('#new_applicant').submit();}", :type => "submit", :value => "Sign Up"}/
 
         %section.panel-default
       .modal-footer{:style => "border-top:0px;"}

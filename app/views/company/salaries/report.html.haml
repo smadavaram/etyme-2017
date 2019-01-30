@@ -50,8 +50,8 @@
           %header
             %span.widget-icon
               %i.fa.fa-check
-            %h2 Monthly Salary      
-          
+            %h2 Monthly Salary
+
           .salary-cycle-wrap
             %div.table-responsive
               %table.table.table-bordered.account_detail
@@ -136,7 +136,7 @@
                                   &nbsp;&nbsp;&nbsp;
                                   %br
                                   Commission:
-                                  %br 
+                                  %br
                                   %span.commission
                                     - ContractSaleCommision.where(buy_contract_id: c.buy_contracts.first.id).each do |csc|
                                       - csc.csc_accounts.each do |csca|
@@ -147,11 +147,11 @@
                                   Processed amount:
                                   %span.salary_processed
                                     = salary.total_amount
-                                  %span.commission_amount 
+                                  %span.commission_amount
                                     Commission:
                                     %br
                                     - c.csc_accounts.each do |csca|
-                                      = csca.accountable.full_name+': '+csca.total_amount.to_s 
+                                      = csca.accountable.full_name+': '+csca.total_amount.to_s
                                 - elsif salary.status == 'aggregated'
                                   %span.salary_aggregated
                                     = salary.total_amount
@@ -171,8 +171,8 @@
           %header
             %span.widget-icon
               %i.fa.fa-check
-            %h2 Weekly Salary 
-          
+            %h2 Weekly Salary
+
           .salary-cycle-wrap
             %div.table-responsive
               %table.table.table-bordered.account_detail
@@ -264,8 +264,8 @@
           %header
             %span.widget-icon
               %i.fa.fa-check
-            %h2 Profit      
-          
+            %h2 Profit
+
           .salary-cycle-wrap
             %div.table-responsive
               %table.table.table-bordered.account_detail
@@ -290,7 +290,7 @@
                         Income
                         &nbsp;&nbsp;&nbsp
                         = total_time*con&.sell_contracts&.first&.customer_rate
-                        %br    
+                        %br
                         Expense
                         &nbsp;&nbsp;&nbsp
                         = total_time > 0  ? total_time*con&.buy_contracts&.first&.payrate : 0
@@ -299,7 +299,7 @@
                         Income
                         &nbsp;&nbsp;&nbsp;
                         = total_time > 0  ? total_time*con&.sell_contracts&.first&.customer_rate : 0
-                        %br    
+                        %br
                         Expense
                         &nbsp;&nbsp;&nbsp
                         = total_time > 0  ? total_time*con&.buy_contracts&.first&.payrate : 0
@@ -308,7 +308,7 @@
                         Income
                         &nbsp;&nbsp;&nbsp;
                         = total_time*con&.sell_contracts&.first&.customer_rate
-                        %br    
+                        %br
                         Expense
                         &nbsp;&nbsp;&nbsp
                         = total_time > 0  ? total_time*con&.buy_contracts&.first&.payrate : 0
@@ -317,7 +317,7 @@
                         Income
                         &nbsp;&nbsp;&nbsp;
                         = total_time*con&.sell_contracts&.first&.customer_rate
-                        %br    
+                        %br
                         Expense
                         &nbsp;&nbsp;&nbsp
                         = total_time > 0  ? total_time*con&.buy_contracts&.first&.payrate : 0
@@ -326,7 +326,7 @@
                         Income
                         &nbsp;&nbsp;&nbsp;
                         = total_time > 0  ? total_time*con&.sell_contracts&.first&.customer_rate : 0
-                        %br    
+                        %br
                         Expense
                         &nbsp;&nbsp;&nbsp
                         = total_time > 0  ? total_time*con&.buy_contracts&.first&.payrate : 0
@@ -335,7 +335,7 @@
                         Income
                         &nbsp;&nbsp;&nbsp;
                         = total_time > 0  ? total_time*con&.sell_contracts&.first&.customer_rate : 0
-                        %br    
+                        %br
                         Expense
                         &nbsp;&nbsp;&nbsp
                         = total_time > 0  ? total_time*con&.buy_contracts&.first&.payrate : 0
@@ -344,7 +344,7 @@
                         Income
                         &nbsp;&nbsp;&nbsp;
                         = total_time > 0  ? total_time*con&.sell_contracts&.first&.customer_rate : 0
-                        %br    
+                        %br
                         Expense
                         &nbsp;&nbsp;&nbsp
                         = total_time > 0  ? total_time*con&.buy_contracts&.first&.payrate : 0
@@ -353,7 +353,7 @@
                         Income
                         &nbsp;&nbsp;&nbsp;
                         = total_time > 0  ? total_time*con&.sell_contracts&.first&.customer_rate : 0
-                        %br    
+                        %br
                         Expense
                         &nbsp;&nbsp;&nbsp
                         = total_time > 0  ? total_time*con&.buy_contracts&.first&.payrate : 0
@@ -362,7 +362,7 @@
                         Income
                         &nbsp;&nbsp;&nbsp;
                         = total_time > 0  ? total_time*con&.sell_contracts&.first&.customer_rate : 0
-                        %br    
+                        %br
                         Expense
                         &nbsp;&nbsp;&nbsp
                         = total_time > 0  ? total_time*con&.buy_contracts&.first&.payrate : 0
@@ -371,7 +371,7 @@
                         Income
                         &nbsp;&nbsp;&nbsp;
                         = total_time > 0  ? total_time*con&.sell_contracts&.first&.customer_rate : 0
-                        %br    
+                        %br
                         Expense
                         &nbsp;&nbsp;&nbsp
                         = total_time > 0  ? total_time*con&.buy_contracts&.first&.payrate : 0
@@ -380,7 +380,7 @@
                         Income
                         &nbsp;&nbsp;&nbsp;
                         = total_time > 0  ? total_time*con&.sell_contracts&.first&.customer_rate : 0
-                        %br    
+                        %br
                         Expense
                         &nbsp;&nbsp;&nbsp
                         = total_time > 0  ? total_time*con&.buy_contracts&.first&.payrate : 0
@@ -389,7 +389,7 @@
                         Income
                         &nbsp;&nbsp;&nbsp;
                         = total_time > 0  ? total_time*con&.sell_contracts&.first&.customer_rate : 0
-                        %br    
+                        %br
                         Expense
                         &nbsp;&nbsp;&nbsp
                         = total_time > 0  ? total_time*con&.buy_contracts&.first&.payrate : 0
@@ -405,7 +405,7 @@
 
 
 - content_for :scripts do
-  :javascript 
+  :javascript
 
     $('.salary-calculate').hide();
     $('.salary-process').hide();
@@ -438,7 +438,7 @@
         $(this).parent().addClass('active');
         $(this).parent().removeClass('show-salary');
         $("table tr td").each(function(){
-          if ($(this).attr('class') == 'show-salary'){          
+          if ($(this).attr('class') == 'show-salary'){
             var $cell = $(this);
 
             if($cell.closest('table').find('th').eq($cell.index()).attr('class') == 'active'){
@@ -455,9 +455,9 @@
         $(this).parent().removeClass('active');
         $(this).parent().addClass('show-salary');
         $("table tr td").each(function(){
-          if ($(this).attr('class') == 'active'){          
+          if ($(this).attr('class') == 'active'){
               $(this).removeClass('active');
-              $(this).addClass('show-salary');            
+              $(this).addClass('show-salary');
           }
         });
 
@@ -470,7 +470,7 @@
       }
     })
 
-    function calculate_salary(){    
+    function calculate_salary(){
       var sclr_cycle_ids = {};
       $('td.active').each(function () {
         sclr_cycle_ids[$(this).find('span').attr('id')] = {'pending_amount': $(this).find('span.pending_amount').text(), 'approved_amount': $(this).find('span.approved_amount').text(), 'salary_advance': $(this).find('span.salary_advance').text()}
@@ -485,12 +485,12 @@
     }
 
 
-    function process_salary(){    
+    function process_salary(){
       var sclr_cycle_ids = {};
       var comm_ids = {};
       $('td.active').each(function () {
         sclr_cycle_ids[$(this).find('span').attr('id')] = {'salary_calculated': $(this).find('span.salary_calculated').find('input').val()}
-        for (i = 0; i < $(this).find('span.commission').find('span').length; i++) { 
+        for (i = 0; i < $(this).find('span.commission').find('span').length; i++) {
           comm_ids[$($(this).find('span.commission').find('span')[i]).attr('id')] = {'commission': parseInt($($(this).find('span.commission').find('span')[i]).text())}
         }
       });
@@ -505,7 +505,7 @@
 
 
 
-    $(document).on('click', '.salary-aggregate', function(){   
+    $(document).on('click', '.salary-aggregate', function(){
       var sclr_cycle_ids = [];
       $('td.active').each(function () {
         sclr_cycle_ids.push($(this).find('span').attr('id'))
@@ -517,13 +517,12 @@
         data: {sclr_cycle_ids: sclr_cycle_ids},
         dataType: 'CSV',
         beforeSend: function (jqXHR, settings) {
-          debugger
           window.location.href = window.location.origin + settings.url+'&send_mail=true'
         },
       })
     })
 
-    function clear_salary(){    
+    function clear_salary(){
       var sclr_cycle_ids = [];
       $('td.active').each(function () {
         sclr_cycle_ids.push($(this).find('span').attr('id'))
@@ -544,7 +543,7 @@
 
     '<haml_silent> if params[:sclr_cycle_id].present? </haml_silent><haml_block>'
       var id = #{params[:sclr_cycle_id]}
-      $('#'+id).find('input').click(); 
+      $('#'+id).find('input').click();
     '</haml_block>'
 
 
@@ -559,7 +558,7 @@
         $(this).val($(this).val());
       });
     })
-    
-  
-    
+
+
+
 
