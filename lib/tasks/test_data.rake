@@ -15,9 +15,7 @@ namespace :test_data do
 
       (1..(number_of_vendors.to_i)).each do |number|
 
-        random_number = rand(1000)
-        domain = "cloudepa#{random_number}"
-
+        domain = generate_domain
         puts "Creating Company with domain: #{domain}"
         company = Company.vendor.new(
                                       name: 'CloudEpa',
@@ -25,7 +23,7 @@ namespace :test_data do
                                       website: "#{domain}.com"
                                     )
 
-        email = "sadmin+#{random_number}@#{domain}.com"
+        email = generate_owner_email(domain)
         puts "Creating company owner with email: #{email}"
         company.build_owner(
                             email: email,
@@ -62,11 +60,11 @@ namespace :test_data do
       end
 
       (1..(number_of_candidates.to_i)).each do |number|
-        random_number = rand(1000)
 
-        email = "smadavaram+#{random_number}@gmail.com"
 
-        puts "Creating user with email: #{email}"
+
+        puts "Creating candidate...."
+        email = generate_candidate_email
         Candidate.create!(email: email,
                           confirmed_at: Time.current,
                           password: '123456',
@@ -87,6 +85,19 @@ namespace :test_data do
 
 end
 
+def generate_domain
+  loop do
+    generated_domain = "cloudepa#{random_number}"
+    break generated_domain unless Company.exists?(domain: generated_domain)
+  end
+end
+
+def generate_candidate_email
+  loop do
+    generated_email = "smadavaram+#{random_number}@gmail.com"
+    break generated_email unless Candidate.exists?(email: generated_email)
+  end
+end
 
 def disable_email_deliveries
   puts '========DISABLE EMAIL DELIVERIES=============='
@@ -97,4 +108,15 @@ end
 def enable_email_deliveries
   puts '========ENABLE EMAIL DELIVERIES=============='
   ActionMailer::Base.perform_deliveries = true
+end
+
+def random_number
+  rand(999999999)
+end
+
+def generate_owner_email(domain)
+  loop do
+    generated_email = "sadmin+#{random_number}@#{domain}.com"
+    break generated_email unless Admin.exists?(email: generated_email)
+  end
 end
