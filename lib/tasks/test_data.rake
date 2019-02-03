@@ -2,6 +2,7 @@ namespace :test_data do
   desc "Install test data"
 
   task :install_vendors, [:number] => [:environment] do |task, args|
+
     if args.number
       number_of_vendors = args.number
     else
@@ -16,25 +17,33 @@ namespace :test_data do
       domain = "cloudepa#{random_number}"
 
       puts "Creating Company with domain: #{domain}"
-      company = Company.vendor.create!(domain: domain, website: "#{domain}.com")
+      company = Company.vendor.new(
+                                    name: 'CloudEpa',
+                                    domain: domain,
+                                    website: "#{domain}.com"
+                                  )
 
-      email = "sadmin+#{random_number}@cloudepa.com"
+      email = "sadmin+#{random_number}@#{domain}.com"
       puts "Creating company owner with email: #{email}"
-      company.create_owner!(
-                            email: email,
-                            first_name: "Sharath#{number}",
-                            last_name: "Madavaram#{number}",
-                            password: '123456',
-                            password_confirmation: '123456'
-                            )
-      puts 'Successfully Created company Owner.'
-      puts '=' * 80
+      company.build_owner(
+                          email: email,
+                          first_name: "Sharath#{random_number}",
+                          last_name: "Madavaram#{random_number}",
+                          password: '123456',
+                          password_confirmation: '123456'
+                          )
+      if company.save!
+        puts 'Successfully Created company Owner.'
+        puts '=' * 80
+      end
+
     end
     puts "Created vendors successfully!"
 
   end
 
   task :install_candidates, [:number] => [:environment] do |task, args|
+
     if args.number
       puts "Creating #{args.number}..Candidates"
       number_of_candidates = args.number
