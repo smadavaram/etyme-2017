@@ -19,7 +19,6 @@ class CompaniesController < ApplicationController
   end
 
   def create
-    params[:company][:company_type] = params[:company][:company_type].to_i
     @company = Company.new(company_params.merge(website: domain_from_email(owner_params[:email])))
 
     if @company.save
