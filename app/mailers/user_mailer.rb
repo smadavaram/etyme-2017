@@ -11,9 +11,12 @@ class UserMailer < ApplicationMailer
   def confirmation_instructions(user, token, opts = {})
     @owner = user
     @company = user.company rescue nil
-    @email =  "Etyme <no-reply@etyme.com>"
-    @link  = @company.present? ? "http://#{@company.etyme_url}/users/confirmation?confirmation_token=#{token}" : "http://#{@owner.etyme_url}/candidates/confirmation?confirmation_token=#{token}"
-    mail(:to => @owner.email, :subject => "Welcome to Etyme",:from => @email)
+
+    if @owner && @owner.etyme_url
+      @link  = @company.present? ? "http://#{@company.etyme_url}/users/confirmation?confirmation_token=#{token}" : "http://#{@owner.etyme_url}/candidates/confirmation?confirmation_token=#{token}"
+      @email =  "Etyme <no-reply@etyme.com>"
+      mail(:to => @owner.email, :subject => "Welcome to Etyme",:from => @email)
+    end
   end
 
   def reset_password_instructions(user, token, opts={})
@@ -42,7 +45,7 @@ class UserMailer < ApplicationMailer
       @company   = company
       @name      = @owner.full_name
       mail(to: @owner.email,  subject: "#{@company.name.titleize} welcome to Etyme",from: "Etyme <no-reply@etyme.com>")
-    end  
+    end
   end
 
   # method for sharing of message

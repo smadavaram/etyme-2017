@@ -4,6 +4,7 @@ class ApplicationController < ActionController::Base
 
   layout :set_devise_layout
 
+  add_flash_types :error, :success, :errors, :alert
 
   rescue_from Exception, with: :render_generic_exception if Rails.env.production?
   rescue_from ActionController::RoutingError, with: :render_not_found if Rails.env.production?
@@ -60,10 +61,9 @@ class ApplicationController < ActionController::Base
   end
 
   def current_company
-    @current_company ||= Company.where(slug: request.subdomain).first if request.subdomain.present?
-    # @current_company ||= Company.where(domain: request.subdomain).first if request.subdomain.present?
+    @current_company = Company.find_by(slug: request.subdomain)
   end
-  helper_method :current_company
 
+  helper_method :current_company
 
 end

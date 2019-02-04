@@ -20,7 +20,7 @@ module StaticHelper
     end
   end
 
-  def flash_message(key,value)
+  def flash_message(key, value)
     data = "<div role='alert' class= '#{flash_class(key.to_sym)}'><button type='button' class='close' data-dismiss='alert' aria-label='Close'>
     <span aria-hidden='true'>&times;</span>
   </button> #{value.is_a?(String) ? value : value.first} </div>"

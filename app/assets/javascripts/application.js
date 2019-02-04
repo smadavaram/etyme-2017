@@ -28,7 +28,6 @@
 //= require bootstrap/bootstrap
 
 // MAIN APP JS FILE
-//= require app.seed
 //= require plugin/select2/select2.min
 // WIZARD
 //= require plugin/bootstrap-wizard/jquery.bootstrap.wizard.min

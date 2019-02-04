@@ -5,7 +5,7 @@ class Users::SessionsController < Devise::SessionsController
   add_breadcrumb "Home",'/'
   add_breadcrumb "Company",""
   add_breadcrumb "Sign In",''
-  # before_action :check_company_user ,only: [:create]
+  before_action :set_company, only: %i[create]
 
   # GET /resource/sign_in
   def new
@@ -63,4 +63,12 @@ class Users::SessionsController < Devise::SessionsController
       end
     end
   end
+
+
+  def set_company
+    unless current_company
+      redirect_to new_user_session_path, error: "Company Not Found"
+    end
+  end
+
 end

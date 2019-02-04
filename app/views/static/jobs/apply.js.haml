@@ -1,10 +1,15 @@
-
 -if params[:status] == 'true'
   $('.modals').empty().append(("#{ j render('partials/job_application_modal' , job: @job , job_application: @job_application )}"));
   $('#job-apply-#{@job.id }').modal('toggle');
 -else
   $('.modals').empty().append(("#{ j render('static/candidates/partials/form')}"));
-  $('#new-candidate').modal('toggle')
+  $('#new-candidate').on('shown.bs.modal', function(){
+  var buttons = $("[data-toggler=true]"),
+  hideShowToggler = new HideShowToggler(buttons);
+
+  hideShowToggler.init();
+  }).modal('show');
+
 
 var element = $('#accept-filepiker');
 filepicker.constructWidget(element);
@@ -18,6 +23,5 @@ filepicker.constructWidget(reqelement);
 $( ".req-file-pick" ).on('click',function() {
 $(".fp__overlay").css({'z-index':'99999'});
 });
-
 
 
