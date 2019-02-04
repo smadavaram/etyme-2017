@@ -433,6 +433,8 @@ Rails.application.routes.draw do
       end
     end
 
+    resources :change_rates
+
     resources :bank_details, only: [] do
       collection do
         get :acc_info

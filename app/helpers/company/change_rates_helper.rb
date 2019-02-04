@@ -1,0 +1,2 @@
+module Company::ChangeRatesHelper
+end

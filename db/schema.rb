@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema.define(version: 20181212130918) do
+ActiveRecord::Schema.define(version: 20190130064718) do
 
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
@@ -395,6 +395,16 @@ ActiveRecord::Schema.define(version: 20181212130918) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.index ["candidate_id"], name: "index_certificates_on_candidate_id"
+  end
+
+  create_table "change_rates", force: :cascade do |t|
+    t.integer "contract_id"
+    t.date "from_date"
+    t.date "to_date"
+    t.string "rate_type"
+    t.float "rate"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
   end
 
   create_table "chat_users", id: :serial, force: :cascade do |t|
@@ -1573,6 +1583,7 @@ ActiveRecord::Schema.define(version: 20181212130918) do
     t.integer "ts_cycle_id"
     t.integer "ta_cycle_id"
     t.text "inv_numbers", default: [], array: true
+    t.float "amount"
     t.index ["job_id"], name: "index_timesheets_on_job_id"
   end
 

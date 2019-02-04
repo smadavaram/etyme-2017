@@ -85,10 +85,10 @@
                         - commission_earned = CscAccount.where(accountable_id: c.candidate_id, accountable_type: 'Candidate').sum(:total_amount)
                         - advance = @salary_expenses.present? ? @salary_expenses.select { |m| m.salary_ids.include? salary.sclr_cycle_id.to_s }.map{|x| x.total_amount.to_i / x.salary_ids.length}.sum(&:to_i) : 0
                         - amount = total_time* c&.buy_contracts&.first&.payrate
-                        %span{:id => salary.sclr_cycle_id}
+                        %span{:id => salary&.sclr_cycle_id}
                         Previous pending:
                         %span.pending_amount
-                          = salary.pending_amount.to_i
+                          = salary&.pending_amount.to_i
                         %br
                         %br
                         Approved amount:
@@ -101,15 +101,15 @@
                           = advance
                         %br
                         %br
-                        -if salary.status == 'open'
+                        -if salary&.status == 'open'
                           Total:
                           %span.total_amount
                             = salary.pending_amount.to_i + amount.to_i - advance.to_i
 
-                        -elsif salary.status == 'calculated'
+                        -elsif salary&.status == 'calculated'
                           Calculated Amount:
                           %span.salary_calculated
-                            = salary.total_amount
+                            = salary&.total_amount
                             %br
                             %br
                           %span.commission
@@ -117,7 +117,7 @@
                               - csc.csc_accounts.each do |csca|
                                 %span.csca_id{:id => "#{csca.id}"}
                                   %span.csca_amount{:id => "#{csca.total_amount}"}
-                        - elsif salary.status == 'commission_calculated'
+                        - elsif salary&.status == 'commission_calculated'
                           %span.commission_calculated
                             Commission given:
                             %br
@@ -130,13 +130,13 @@
                             = commission_earned
                           %br
                           %br
-                          = 'Total:    '+(salary.total_amount.to_i+commission_earned.to_i).to_s
+                          = 'Total:    '+(salary&.total_amount.to_i+commission_earned.to_i).to_s
                           %br
                           %br
                           %span.sp_amount
                             Enter amount to process
                             = text_field_tag "#{salary.id}[amount]", '', value: (salary.total_amount.to_i+commission_earned.to_i) 
-                        - elsif salary.status == 'processed'
+                        - elsif salary&.status == 'processed'
                           Commission given:
                           %br
                           - c.csc_accounts.each do |csca|
@@ -152,7 +152,7 @@
                           %span.salary_processed
                             = salary.total_amount
                           
-                        - elsif salary.status == 'aggregated'
+                        - elsif salary&.status == 'aggregated'
                           Commission given:
                           %br
                           - c.csc_accounts.each do |csca|
@@ -171,7 +171,7 @@
                           - @contract_expense_types.each do |cet|
                             %td.salary-clear
                               = text_field_tag 'ct_ex_amount', '', class: "form-control ct_ex_amount #{cet.id.to_s+'_'+cet.name}", id: cet.name
-                        - elsif salary.status == 'cleared'                       
+                        - elsif salary&.status == 'cleared'                       
                           Final amount:
                           = salary.total_amount
 

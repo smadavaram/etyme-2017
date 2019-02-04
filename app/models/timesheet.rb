@@ -385,7 +385,7 @@ class Timesheet < ApplicationRecord
 
       builder.issue(
           flavor_id: 'usd',
-          amount: get_total_amount.to_i * 100,
+          amount: self.amount.to_i * 100,
           destination_account_id: receiver,
           action_tags: {
               "Fixed" => "false",

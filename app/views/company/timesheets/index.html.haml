@@ -56,7 +56,7 @@
                 tax_type: ts.contract.buy_contracts.first.contract_type,
                 candidate: ts.contract.buy_contracts.first.candidate.full_name,
                 company_vender: ts.contract.buy_contracts.first.company.present? ? ts.contract.buy_contracts.first.company.full_name : '',
-                buy_rate: ts.contract.buy_contracts.first.payrate,
+                buy_rate: ChangeRate.rate(ts.start_date, ts.contract_id),
                 timesheet_clyver: "#{ts.start_date} - #{ts.end_date}",
                 date: ts.submitted_date,
                 hours: ts.total_time,

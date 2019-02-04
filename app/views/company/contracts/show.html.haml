@@ -278,7 +278,17 @@
                   %h5
                     Freelancer rate
                   %span
-                    = '$'+@contract.buy_contracts&.first&.payrate.to_i.to_s+' / '+@contract.buy_contracts&.first&.payrate_type
+                    = '$'+ChangeRate.rate(Date.today,@contract.id).to_s
+                    %br
+                    %span.btn.btn-primary.buy-change-rate Change rate
+                = form_for :change_rate, url: change_rates_path(contract_id: @contract.id, type: 'buy'), method: :post, html:{class: 'contract-expense-type', id: 'buy-change-rate'} do |f|
+                  = f.label :rate
+                  = f.text_field :rate
+                  %br
+                  = f.label 'From'
+                  = f.date_field :from_date
+                  %br
+                  = f.submit 'Save', class: 'btn btn-primary'
               %br
               %h5
                 Company Name : #{@contract.buy_contracts&.first&.candidate&.companies&.first&.full_name}
@@ -495,13 +505,46 @@
                       %span
                         - bvrd.document_signs.each do |ds|
                           = ds.signable.full_name
-
                     
 - if @contract.pending? && !@contract.is_sent?(current_company)
   - content_for :modals do
     #ajax-modal
     = render 'company/contracts/partials/accept_contract_modal' , contract: @contract , status: 'accept'
     = render 'company/contracts/partials/accept_contract_modal' , contract: @contract , status: 'reject'
+
+#content
+  .row
+  %section
+#content
+  .row
+  %section
+    .row
+      %article.col-sm-12.col-md-12.col-lg-12
+        #wid-id-0.jarviswidget{"data-widget-deletebutton" => "false", "data-widget-editbutton" => "false"}
+          %header
+            %span.widget-icon
+              %i.fa.fa-check
+            %h2 Rates 
+          %div.table-responsive
+            %table.table.table-bordered.account_detail
+              %thead
+                %tr
+                  %th Rate
+                  %th From
+                  %th To
+                  %th Type
+              %tbody
+                - ChangeRate.where(contract_id: @contract.id).order(id: :asc).each do |cr|
+                  %tr
+                    %td
+                      = cr.rate.to_i
+                    %td
+                      = cr.from_date.inspect
+                    %td
+                      = cr.to_date.inspect
+                    %td
+                      = cr.rate_type.capitalize
+
   - content_for :scripts do
     :javascript
       function openAccept(){
@@ -517,9 +560,14 @@
       });
 - content_for :scripts do
   :javascript
+    $('#buy-change-rate').hide();
     $('.contract_progress').attr('data-content','0%');
     $('.contract_progress').css('left', '#{(((@contract.contract_progress.to_f*54)/100).to_f+21).round}%');
     $('.contract_progress').attr('data-content','#{@contract.contract_progress.to_f.round}%');
+
+    $(document).on('click', '.buy-change-rate', function(){
+      $('#buy-change-rate').toggle();
+    });
 
       
 

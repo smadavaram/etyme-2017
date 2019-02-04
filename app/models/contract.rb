@@ -51,6 +51,7 @@ class Contract < ApplicationRecord
 
   has_many   :contract_cycles, dependent: :destroy
   has_many   :contract_expense, dependent: :destroy
+  has_many   :change_rate, dependent: :destroy
   # has_many :contract_buy_business_details
   # has_many :contract_sell_business_details
   # has_many :contract_sale_commisions
@@ -58,6 +59,7 @@ class Contract < ApplicationRecord
   after_create :set_on_seq
   after_create :insert_attachable_docs
   after_create :set_next_invoice_date
+  after_create :create_rate_change
   after_create :notify_recipient , if: Proc.new{ |contract| contract.not_system_generated? }
   # after_create :notify_company_about_contract, if: Proc.new{|contract|contract.parent_contract?}
   after_update :notify_assignee_on_status_change , if: Proc.new{ |contract| contract.status_changed? && contract.not_system_generated? && contract.assignee? && contract.respond_by.present?  && contract.accepted? }
@@ -334,7 +336,9 @@ class Contract < ApplicationRecord
   #   )
   # end
 
-
+  def create_rate_change
+    ChangeRate.create(rate: self.buy_contracts.first.payrate.to_i, from_date: self.start_date, to_date: Date.new(9999, 12, 31), rate_type: 'buy', contract: self)
+  end
 
   def set_on_seq
     ledger = Sequence::Client.new(
