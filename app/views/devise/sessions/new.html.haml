@@ -1,3 +1,4 @@
+- email_present = params[:email].present?
 %body
   %header.header-login
     .container
@@ -22,10 +23,10 @@
                     = flash_message(key,value)
                   .form-row
                     .form-controls
-                      = f.email_field :email, autofocus: true,class:' field',placeholder:"Enter Email" ,required: true
+                      = f.email_field :email, autofocus: !email_present, value: params[:email], class:' field',placeholder:"Enter Email" ,required: true
                   .form-row
                     .form-controls
-                      = f.password_field :password, autocomplete: "off",class:'field',placeholder:"Enter password" ,required: true
+                      = f.password_field :password, autofocus: email_present, autocomplete: "off",class:'field',placeholder:"Enter password" ,required: true
                 .form-foot
                   .form-actions
                     = f.submit 'Login',class:'form-btn'
