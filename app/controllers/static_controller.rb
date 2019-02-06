@@ -1,7 +1,10 @@
 class StaticController < ApplicationController
 
+  include DomainExtractor
+
   skip_before_action :authenticate_user!, raise: false
-  before_action      :set_jobs ,only: :index
+  before_action :set_jobs, only: :index
+  before_action :set_slug, only: :signin
 
   layout 'static'
   add_breadcrumb "Home",'/'
@@ -11,6 +14,7 @@ class StaticController < ApplicationController
 
   def signup
   end
+
   def signin
     if request.post?
       if params[:domain].present?
@@ -42,6 +46,10 @@ class StaticController < ApplicationController
   end
 
   private
+
+    def set_slug
+      domain = domain_from_email(params[:email])
+    end
 
     def domain_name
       params[:website].split('.')[0].gsub(/[^0-9A-Za-z.]/, '').downcase

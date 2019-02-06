@@ -57,6 +57,7 @@ class CompaniesController < ApplicationController
 
     def set_domain
       company_domain = domain_from_email(owner_params[:email])
+
       @company = Company.find_by(website: company_domain)
 
       return if params[:register_company]

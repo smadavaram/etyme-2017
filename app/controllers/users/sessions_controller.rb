@@ -1,6 +1,8 @@
 class Users::SessionsController < Devise::SessionsController
 # before_action :configure_sign_in_params, only: [:create]
 
+  include DomainExtractor
+
   layout 'static'
   add_breadcrumb "Home",'/'
   add_breadcrumb "Company",""
@@ -46,21 +48,18 @@ class Users::SessionsController < Devise::SessionsController
   def check_company_user
     if current_company.users.find_by(email: (params[:user][:email]).downcase).present?
       return true
+    elsif domain_from_email(params[:user][:email]).eql?(current_company.slug)
+      current_company.users.create(
+                                    email: params[:user][:email],
+                                    company_id: current_company.id,
+                                    password: "passpass#{rand(999)}",
+                                    password_confirmation: "passpass#{rand(999)}"
+                                  )
+      u = User.where(email: params[:user][:email]).first
+      flash[:error] = "Please check your email."
+      u.send_reset_password_instructions()
     else
-      if params[:user][:email].split("@")[1].start_with?(current_company.slug)
-        current_company.users.create(
-                                      email: params[:user][:email],
-                                      company_id: current_company.id,
-                                      password: "passpass#{rand(999)}",
-                                      password_confirmation: "passpass#{rand(999)}"
-                                    )
-        u = User.where(email: params[:user][:email]).first
-        flash[:error] = "Please check your email."
-        u.send_reset_password_instructions()
-        return true
-      else
-        return false
-      end
+      false
     end
   end
 
