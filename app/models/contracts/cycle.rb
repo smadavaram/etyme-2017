@@ -81,7 +81,9 @@ module Contracts
         elsif sclr_frequency == 'biweekly'
           start_date = date_of_next_two_week(sclr_day_of_week, contract.start_date+@count, sclr_frequency)
         elsif sclr_frequency == 'monthly'
+          # binding.pry
           start_date = monthly_submit_date(sclr_date_1, contract.start_date+@count, sclr_end_of_month)
+          # binding.pry
         elsif sclr_frequency == 'twice a month'
           start_date = twice_a_month_submit_date(sclr_date_1, sclr_date_2, contract.start_date+@count)
         else
@@ -564,15 +566,14 @@ module Contracts
         start_date = end_date - (sclr_frequency == 'weekly' ? 6.days : 13.days)
       elsif  sclr_frequency == 'monthly'
         date = set_salary_clear_date
+        # binding.pry
         doc_date = date + buy_contract.payment_term.to_i.months
         month = (doc_date-buy_contract.payment_term.to_i.months).month
-    
 
-        
         end_date = Date.new( (doc_date-buy_contract.payment_term.to_i.months).year, month, ((['29', '30'].include? buy_contract.term_no) && month == 2) ? Time.days_in_month(2, Date.today.year) :  'End of month' == buy_contract.term_no ?  Time.days_in_month(month, Date.today.year) : buy_contract.term_no.to_i )
 
         # start_date = end_date - 1.month+1
-        start_date = Salary.last.present? ? Salary&.last&.end_date+1 : end_date - 1.month+1 
+        start_date = Salary.last.present? ? Salary&.last&.end_date+1 : 'End of month' == buy_contract.term_no ? end_date.beginning_of_month : end_date - 1.month+1 
     
       elsif sclr_frequency == 'twice a month'
         date = set_salary_clear_date
@@ -1101,6 +1102,7 @@ module Contracts
     end
 
     def monthly_submit_date(date_1, start_date,end_of_month)
+      # binding.pry
       day_1 = date_1&.strftime("%d").to_i
       if day_1.present? && start_date.strftime("%d").to_i <= day_1
         day = day_1&.to_i
@@ -1124,6 +1126,7 @@ module Contracts
         start_date = DateTime.new(year, month, day)
         end_date = start_date.end_of_month
       end
+      # binding.pry
       return start_date
     end
 
