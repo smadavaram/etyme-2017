@@ -33,11 +33,13 @@ class StaticController < ApplicationController
   private
 
     def set_company
-      domain = domain_from_email(params[:email])
-      @company = Company.find_by(website: domain)
+      if params[:email].present?
+        domain = domain_from_email(params[:email])
+        @company = Company.find_by(website: domain)
 
-      unless @company
-        redirect_to signin_path, error: 'Company Not Found'
+        unless @company
+          redirect_to signin_path, error: 'Company Not Found'
+        end
       end
     end
 
