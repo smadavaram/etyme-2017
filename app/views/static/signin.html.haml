@@ -18,9 +18,11 @@
                   %h3 Sign in to your team
                 / /.form-head
                 .form-body
+                  - flash.each do |key, value|
+                    = flash_message(key,value)
                   .form-row
                     .form-controls
-                      %input.field{:name => "email", :placeholder => "Enter Your Email", :type => "email"}/
+                      %input.field{:name => "email", :placeholder => "Enter Your Email", :type => "email", required: true }/
                 .form-foot
                   .form-actions
                     %input.form-btn{:type => "submit", :value => "Continue"}/
