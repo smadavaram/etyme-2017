@@ -152,7 +152,7 @@
                         .col-md-4
                           %label.control-label
                             Assign to
-                          = select_tag 'assign_to', options_from_collection_for_select(current_company.company_contacts, "id", 'full_name'), include_blank: 'Please select',class: 'form-control'
+                          = select_tag 'assign_to', options_from_collection_for_select(current_company&.company_contacts, "id", 'full_name'), include_blank: 'Please select',class: 'form-control'
 
                       .row
                         .col-md-4
@@ -335,7 +335,7 @@
                         .col-md-4
                           %label.control-label
                             Assign to
-                          = select_tag 'assign_to', options_from_collection_for_select(current_company.company_contacts, "id", 'full_name'), include_blank: 'Please select',class: 'form-control'
+                          = select_tag 'assign_to', options_from_collection_for_select(current_company&.company_contacts, "id", 'full_name'), include_blank: 'Please select',class: 'form-control'
             #tab-sell-bi.tab-pane.padding-top-15
               .row
                 .col-md-4
@@ -375,7 +375,7 @@
                 .col-md-4
                   %label.control-label
                     Assign to
-                  = select_tag 'assign_to', options_from_collection_for_select(current_company.company_contacts, "id", 'full_name'), include_blank: 'Please select',class: 'form-control'
+                  = select_tag 'assign_to', options_from_collection_for_select(current_company&.company_contacts, "id", 'full_name'), include_blank: 'Please select',class: 'form-control'
 
             #tab-sell-pr.tab-pane.padding-top-15
               .row
