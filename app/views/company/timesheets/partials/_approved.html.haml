@@ -1,4 +1,4 @@
-
+  
 %body
   %section#widget-grid
     .row
@@ -45,6 +45,8 @@
                       %th Id
                       %th Description
                       %th Hours
+                      %th Rate
+                      %th Amount
                       %th Start Date
                       %th End Date
                       %th Next Timesheet
@@ -52,6 +54,7 @@
                       
                   %tbody
                     - data.each_with_index do |timesheet , index|
+                      - rate = ChangeRate.rate(timesheet.start_date, timesheet.contract_id, 'buy')
                       - content_for :modals do
                         = render 'company/timesheets/partials/histroy_modal' , timesheet: timesheet
                       %tr.even{:role => "row"}
@@ -67,6 +70,8 @@
                           %br
                           = "-"+timesheet.contract.buy_contracts.first.candidate.full_name[0..10]
                         %td= timesheet.total_time
+                        %td= rate
+                        %td= rate * timesheet.total_time
                         %td= timesheet.start_date
                         %td= timesheet.end_date
                         %td= timesheet.ts_cycle.next_date.strftime("%m/%d/%Y")

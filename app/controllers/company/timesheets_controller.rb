@@ -85,7 +85,7 @@ class Company::TimesheetsController < Company::BaseController
   def approve
     i = 0
     # if current_user.timesheet_approvers.create!(timesheet_id: @timesheet.id , status: Timesheet.statuses[:approved].to_i)
-    rate = ChangeRate.rate(@timesheet.start_date, @timesheet.contract_id)
+    rate = ChangeRate.rate(@timesheet.start_date, @timesheet.contract_id, 'buy')
     if @timesheet.update_attributes(status: "approved", amount: rate*@timesheet.total_time)
       # binding.pry
       puts "---------qwerty------#{i}-----hello-----world!--------"
