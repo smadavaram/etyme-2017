@@ -99,7 +99,17 @@
                     %h5 
                       Customer Rate
                     %span
-                      = @contract.sell_contracts&.first&.customer_rate.present? ? '$' + @contract.sell_contracts.first.customer_rate.to_s + " / " + @contract.sell_contracts.first.customer_rate_type.to_s : ""
+                      = '$'+ChangeRate.rate(Date.today,@contract.id,'sell').to_s
+                      %br
+                      %span.btn.btn-primary.sell-change-rate Change rate
+                = form_for :change_rate, url: change_rates_path(contract_id: @contract.id, type: 'sell'), method: :post, html:{class: 'contract-expense-type', id: 'sell-change-rate'} do |f|
+                  = f.label :rate
+                  = f.text_field :rate
+                  %br
+                  = f.label 'From'
+                  = f.date_field :from_date
+                  %br
+                  = f.submit 'Save', class: 'btn btn-primary'
             %div
               %div.contract-custome-details
                 %h5
@@ -278,7 +288,7 @@
                   %h5
                     Freelancer rate
                   %span
-                    = '$'+ChangeRate.rate(Date.today,@contract.id).to_s
+                    = '$'+ChangeRate.rate(Date.today,@contract.id, 'buy').to_s
                     %br
                     %span.btn.btn-primary.buy-change-rate Change rate
                 = form_for :change_rate, url: change_rates_path(contract_id: @contract.id, type: 'buy'), method: :post, html:{class: 'contract-expense-type', id: 'buy-change-rate'} do |f|
@@ -561,12 +571,18 @@
 - content_for :scripts do
   :javascript
     $('#buy-change-rate').hide();
+    $('#sell-change-rate').hide();
+
     $('.contract_progress').attr('data-content','0%');
     $('.contract_progress').css('left', '#{(((@contract.contract_progress.to_f*54)/100).to_f+21).round}%');
     $('.contract_progress').attr('data-content','#{@contract.contract_progress.to_f.round}%');
 
     $(document).on('click', '.buy-change-rate', function(){
       $('#buy-change-rate').toggle();
+    });
+
+    $(document).on('click', '.sell-change-rate', function(){
+      $('#sell-change-rate').toggle();
     });
 
       

@@ -338,6 +338,7 @@ class Contract < ApplicationRecord
 
   def create_rate_change
     ChangeRate.create(rate: self.buy_contracts.first.payrate.to_i, from_date: self.start_date, to_date: Date.new(9999, 12, 31), rate_type: 'buy', contract: self)
+    ChangeRate.create(rate: self.sell_contracts.first.customer_rate.to_i, from_date: self.start_date, to_date: Date.new(9999, 12, 31), rate_type: 'sell', contract: self)
   end
 
   def set_on_seq

@@ -48,6 +48,7 @@
 
 - @temp = []
 -@timesheets.each do |ts|
+  - rate = ChangeRate.rate(ts.start_date, ts.contract_id, 'buy')
   -@temp.push({ timesheet_id: ts.id,
                 cycle_id: ts.ts_cycle_id,
                 creation_date: ts.created_at.strftime('%Y-%m-%d'),
@@ -56,11 +57,11 @@
                 tax_type: ts.contract.buy_contracts.first.contract_type,
                 candidate: ts.contract.buy_contracts.first.candidate.full_name,
                 company_vender: ts.contract.buy_contracts.first.company.present? ? ts.contract.buy_contracts.first.company.full_name : '',
-                buy_rate: ChangeRate.rate(ts.start_date, ts.contract_id),
+                buy_rate: rate,
                 timesheet_clyver: "#{ts.start_date} - #{ts.end_date}",
                 date: ts.submitted_date,
                 hours: ts.total_time,
-                amount: (ts.total_time * (ts&.contract&.buy_contracts&.first.payrate.present? ? ts&.contract&.buy_contracts&.first.payrate : 0 )),
+                amount: (ts.total_time * rate),
                 attachment: ts.timesheet_attachment,
                 status: ts.status,
                 act: time_sheet_approve_date(ts&.contract&.buy_contracts&.first)})
