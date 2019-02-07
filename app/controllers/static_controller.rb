@@ -30,6 +30,19 @@ class StaticController < ApplicationController
 
   end
 
+  def check_for_domain
+    company = Company.where(website: params[:website]).first()
+
+    if company
+      total_count = 0
+      company_slug = company.slug
+    else
+      company_slug = ""
+      total_count = Company.where("slug like ?", "#{domain_from_email(params[:email])}%").count
+    end
+    render json: { present_count: total_count , company_slug: company_slug }
+  end
+
   private
 
     def set_company
