@@ -20,7 +20,6 @@ class CompaniesController < ApplicationController
 
   def create
     @company = Company.new(company_params.merge(website: domain_from_email(owner_params[:email])))
-
     if @company.save
       render 'companies/signup_success' , layout: 'login'
     else

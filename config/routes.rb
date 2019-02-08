@@ -4,8 +4,6 @@ Rails.application.routes.draw do
     get 'activities/index'
   end
 
-  mount ActionCable.server => '/cable'
-
   concern :commentable do
     resources :comments
   end
@@ -24,7 +22,7 @@ Rails.application.routes.draw do
   get  'signin' ,to: 'static#signin'
   post 'signin' ,to: 'static#signin'
   get 'signup' ,to: 'static#signup'
-  post 'check_for_domain' ,to: 'static#check_for_domain'
+  get 'domain_suggestion', to: 'static#domain_suggestion'
 
 
   namespace :feed do
@@ -33,8 +31,6 @@ Rails.application.routes.draw do
     get 'service_feed' => 'rss_jobs#service_feed'
     get 'trining_feed' => 'rss_jobs#trining_feed'
     get 'feeds' => 'rss_jobs#feeds'
-
-
   end
 
 

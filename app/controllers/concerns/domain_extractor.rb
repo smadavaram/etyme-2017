@@ -14,6 +14,16 @@ module DomainExtractor
         domain_from_email(email).split(".").first
       end
     end
+
+    private def valid_email(email)
+      if valid_email?(email)
+        domain_from_email(email)
+      end
+    end
+
+    private def valid_email?(email)
+      domain_from_email(email).present?
+    end
   end
 
 end

@@ -36,7 +36,7 @@ class Company::CompaniesController < Company::BaseController
   def company_contacts
 
     @search = current_company.invited_companies.joins(:invited_company).includes(:invited_company).search(params[:q])
-    
+
     company_ids = @search.result.map{|data| data.invited_company_id}.uniq
 
     @company_contacts = CompanyContact.where("company_id IN (?)", company_ids ).order("created_at DESC")
@@ -71,10 +71,8 @@ class Company::CompaniesController < Company::BaseController
 
   def create
     pass = get_uniq_identifier
-    # binding.pry
-    # @company = Company.new(create_params)
 
-    if params["company"]["domain"] && !params["company"]["domain"].blank? 
+    if params["company"]["domain"] && !params["company"]["domain"].blank?
 
       companies = Company.where(domain: params["company"]["domain"])
 
@@ -82,29 +80,28 @@ class Company::CompaniesController < Company::BaseController
         if !params["company"]["company_contacts_attributes"].blank?
           params["company"]["company_contacts_attributes"].each do |key, val|
             company_contact = CompanyContact.create(:company_id=> companies.first.id, :email=>val["email"], :first_name=>val["first_name"] , :last_name=>val["last_name"] , :phone=>val["phone"] , :title=>val["title"] )
-          end  
+          end
 
           respond_to do |format|
             format.html {flash[:success] = "successfully Created."; redirect_back fallback_location: root_path}
             format.js{ flash.now[:success] = "successfully Created." }
           end
 
-        end  
+        end
       else
         total_slug = Company.where("slug like ?", "#{params["company"]["domain"].split('.')[0].gsub(/[^0-9A-Za-z.]/, '').downcase}_").count
         @company = Company.new(create_params)
-       
+
         if total_slug == 0
           @company.slug = "#{params["company"]["domain"].split('.')[0].gsub(/[^0-9A-Za-z.]/, '').downcase}"
         else
           @company.slug = "#{params["company"]["domain"].split('.')[0].gsub(/[^0-9A-Za-z.]/, '').downcase}" + "#{total_slug +1}"
-        end  
+        end
 
-        # @company.slug = total_slug == 0 ? "#{params["company"]["domain"].split('.')[0].gsub(/[^0-9A-Za-z.]/, '').downcase}" : "#{params["company"]["domain"].split('.')[0].gsub(/[^0-9A-Za-z.]/, '').downcase}" + "#{total_slug - 1}" 
+        # @company.slug = total_slug == 0 ? "#{params["company"]["domain"].split('.')[0].gsub(/[^0-9A-Za-z.]/, '').downcase}" : "#{params["company"]["domain"].split('.')[0].gsub(/[^0-9A-Za-z.]/, '').downcase}" + "#{total_slug - 1}"
         respond_to do |format|
-          if @company.valid? && @company.save
-
-            format.html {flash[:success] = "successfully Created."; redirect_back fallback_location: root_path}
+          if @company.save
+            format.html { flash[:success] = "successfully Created."; redirect_back fallback_location: root_path}
             format.js{ flash.now[:success] = "successfully Created." }
           else
 
@@ -112,8 +109,8 @@ class Company::CompaniesController < Company::BaseController
             format.html{ flash[:errors] =  @company.errors.full_messages; redirect_back fallback_location: root_path }
           end
         end
-      end  
-    end  
+      end
+    end
 
 
     # respond_to do |format|
@@ -179,11 +176,11 @@ class Company::CompaniesController < Company::BaseController
   def company_profile_page
 
   end
-  
+
   def company_user_profile_page
 
-  end  
-    
+  end
+
 
   def destroy
     if @company.destroy
@@ -215,23 +212,23 @@ class Company::CompaniesController < Company::BaseController
 
   def update_candidate_docs
     document = CompanyCandidateDoc.find(params["doc_id"] )
-    document.update_attributes(:file=>document.file+","+ params["file"]) 
+    document.update_attributes(:file=>document.file+","+ params["file"])
     flash.now[:success] = "File Successfully Updated"
     # redirect_back fallback_location: root_path
 
     # redirect_to company_path(current_company)
     render :json=>document
-  end  
+  end
 
   def update_legal_docs
     document = CompanyLegalDoc.find(params["doc_id"] )
-    document.update_attributes(:file=>document.file+","+ params["file"]) 
+    document.update_attributes(:file=>document.file+","+ params["file"])
     flash.now[:success] = "File Successfully Updated"
     # redirect_back fallback_location: root_path
 
     # redirect_to company_path(current_company)
     render :json=>document
-  end  
+  end
 
   def get_admins_list
     @users = Company.find_by_id(params[:id]).admins || []
@@ -298,7 +295,7 @@ class Company::CompaniesController < Company::BaseController
 
     send_file "#{Rails.root.join('app', 'assets', 'images', 'verifyetyme.html')}",
       :type => 'text/html'
-  end  
+  end
 
   def verify_website
     require 'openssl'
@@ -313,16 +310,16 @@ class Company::CompaniesController < Company::BaseController
         else
           flash[:success] = "Verification code dose not match."
           redirect_back fallback_location: root_path
-        end  
+        end
       else
         flash[:success] = "File not found."
         redirect_back fallback_location: root_path
-      end 
+      end
 
     rescue
       flash[:success] = "File not found."
       redirect_back fallback_location: root_path
-    end  
+    end
   end
 
 
@@ -357,7 +354,7 @@ class Company::CompaniesController < Company::BaseController
       @chat = @company.chats.find_by(chatable: current_company)
       if !@chat.present?
         @chat = current_company.chats.find_or_initialize_by(chatable: @company)
-      end  
+      end
       if @chat.new_record?
         @chat.save
         @chat.chat_users.create(userable: current_user)
@@ -377,8 +374,8 @@ class Company::CompaniesController < Company::BaseController
 
     if @company
       @company.update_attributes(:phone=>params["phone_number"], :is_number_verify=> true)
-    end  
-  end   
+    end
+  end
 
   private
 
