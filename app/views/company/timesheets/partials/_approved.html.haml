@@ -54,7 +54,7 @@
                       
                   %tbody
                     - data.each_with_index do |timesheet , index|
-                      - rate = ChangeRate.rate(timesheet.start_date, timesheet.contract_id, 'buy')
+                      - rate = get_rate(timesheet.start_date, timesheet.contract_id, 'buy')
                       - content_for :modals do
                         = render 'company/timesheets/partials/histroy_modal' , timesheet: timesheet
                       %tr.even{:role => "row"}

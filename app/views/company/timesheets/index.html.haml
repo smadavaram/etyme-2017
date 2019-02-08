@@ -48,7 +48,7 @@
 
 - @temp = []
 -@timesheets.each do |ts|
-  - rate = ChangeRate.rate(ts.start_date, ts.contract_id, 'buy')
+  - rate = get_rate(ts.start_date, ts.contract_id, 'buy')
   -@temp.push({ timesheet_id: ts.id,
                 cycle_id: ts.ts_cycle_id,
                 creation_date: ts.created_at.strftime('%Y-%m-%d'),
