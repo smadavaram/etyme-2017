@@ -1,0 +1,11 @@
+@import 'bullettrain-legacy/public';
+@import 'bullettrain-legacy/homepage';
+
+// required at the moment for plans.
+$body-color: #3E4B5B !default;
+$os-font-weight-bold: 500;
+$font-weight-bold: $os-font-weight-bold !default;
+$font-size-base: 0.9rem !default; // Assumes the browser default, typically `16px`
+
+//@import 'plans';
+@import 'global';
