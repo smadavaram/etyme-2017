@@ -1,0 +1,49 @@
+.intro-buttons {
+  line-height: 80px;
+
+  // this only takes affect on smaller browsers. see below.
+  .intro-buttons-keep-together {
+    display: block;
+  }
+
+  i {
+    display: inline-block;
+    vertical-align: -7px !important;
+    margin-right: 15px !important;
+  }
+  .btn-primary {
+    i {
+      line-height: 25px;
+    }
+  }
+  .btn-link {
+    margin-left: 25px;
+    margin-right: 25px;
+    i {
+      line-height: 40px;
+    }
+  }
+}
+
+// Medium devices (tablets, 768px and up)
+@media (min-width: 768px) {
+  .intro-buttons {
+    .intro-buttons-keep-together {
+      display: inline;
+      white-space: nowrap;
+      margin-left: -25px;
+      margin-right: -25px;
+    }
+  }
+}
+
+.feature-cell {
+  position: relative;
+  .bottom-aligned-link {
+    min-height: 50px;
+    a {
+      position: absolute;
+      bottom: 35px;
+    }
+  }
+}

@@ -1,0 +1,242 @@
+// required for this file.
+$body-color: #3E4B5B !default;
+$body-color-light: #868686;
+$brand-primary: #047bf8 !default;
+$font-size-base: 0.9rem !default; // Assumes the browser default, typically `16px`
+$font-size-h1: 2.5rem !default;
+$font-weight-bold: 500 !default;
+$font-weight-light: 300;
+$global-border-radius: 4px;
+
+.os-container {
+  max-width: 1600px;
+  margin: 0px auto;
+  padding-left: 40px;
+  padding-right: 40px;
+}
+
+.section-header-w {
+  position: relative;
+}
+.section-header {
+  max-width: 700px;
+  padding: 100px 0px 70px 0px;
+  .section-sub-title {
+    text-transform: uppercase;
+    letter-spacing: 2px;
+  }
+  .section-title {
+    color: $brand-primary;
+    font-size: $font-size-h1 * 1.3;
+    margin: 30px 0px;
+    margin-top: 10px;
+    position: relative;
+    &:before {
+      content: "";
+      width: <%= image_width_for_height('etyme-logo-dark.png', 15) %>px;
+      height: 15px;
+      background: none;
+      background-image: url(image-path('etyme-logo-dark.png'));
+      background-size: <%= image_width_for_height('etyme-logo-dark.png', 15) %>px 15px;
+      top: -29px;
+      left: -52px;
+      position: absolute;
+    }
+    // &:before {
+    //   left: -52px;
+    //   background-color: lighten($brand-primary, 30%);
+    // }
+    // &:after {
+    //   left: -40px;
+    //   background-color: $brand-primary;
+    // }
+  }
+  .section-desc {
+    color: $body-color-light;
+    font-weight: $font-weight-light;
+    font-size: $font-size-base * 1.2;
+  }
+  &.dark {
+    .section-sub-title {
+      color: #f8c52a;
+    }
+    .section-title {
+      color: #fff;
+      &:before {
+        background-image: url(image-path('logo/logo-inverted.png'));
+      }
+    }
+    .section-desc {
+      color: rgba(255,255,255,0.6);
+    }
+  }
+}
+.section-header-w.centered {
+  text-align: center;
+  .section-header {
+    margin: 0px auto;
+    .section-title {
+      &:before, &:after {
+        width: <%= image_width_for_height('etyme-logo-dark.png', 42) %>px;
+        height: 42px;
+        background: none;
+        background-image: url(image-path('etyme-logo-dark.png'));
+        background-size: <%= image_width_for_height('etyme-logo-dark.png', 42) %>px 42px;
+        top: -60px;
+        left: 50%;
+        transform: translateX(-50%);
+        border-radius: 0;
+      }
+      // &:before, &:after {
+      //   width: 26px;
+      //   height: 26px;
+      //   border-radius: 13px;
+      //   top: -60px;
+      //   left: 50%;
+      // }
+      // &:before {
+      //   transform: translateX(-90%);
+      //   background-color: lighten($brand-primary, 30%);
+      // }
+      // &:after {
+      //   transform: translateX(-10%);
+      //   background-color: $brand-primary;
+      // }
+    }
+  }
+}
+
+.testimonials-w {
+  background-color: #0a1a3d;
+  padding-bottom: 100px;
+  padding-top: 100px;
+  margin-top: 100px;
+  .testimonials-i {
+    position: relative;
+    z-index: 2;
+  }
+}
+
+.testimonials-slider-w {
+  .slick-arrow {
+    position: absolute;
+    right: 40px;
+    top: -50px;
+    color: rgba(255,255,255,0.3);
+    background-color: transparent;
+    border: none;
+    font-size: 0px;
+    &:before {
+      @include osfont();
+      display: block;
+      font-size: 16px;
+    }
+    &:hover {
+      color: #fff;
+    }
+  }
+  .slick-next {
+    transform: translateX(15px);
+    &:before {
+      content: "\e910";
+    }
+  }
+  .slick-prev {
+    transform: translateX(-35px);
+    &:before {
+      content: "\e919";
+    }
+  }
+  .testimonials-slider {
+
+  }
+  .slide-w {
+    display: inline-block;
+    width: 540px;
+    padding: 20px;
+    height: auto;
+  }
+  .slide {
+    background-color: #fff;
+    border-radius: $global-border-radius;
+    padding: 50px 60px;
+    padding-bottom: 30px;
+    box-shadow: 0px 4px 30px rgba(0,0,0,0.8);
+    transition: all 0.2s ease;
+    position: relative;
+    &:before {
+      content: "\e966";
+      @include osfont();
+      font-size: 120px;
+      color: rgba($brand-primary, 0.1);
+      position: absolute;
+      top: 10px;
+      left: 20px;
+    }
+    &.slick-active {
+    }
+  }
+  .testimonial-title {
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    color: $brand-primary;
+    margin-bottom: 10px;
+    font-weight: $font-weight-bold;
+  }
+  .testimonial-content {
+    color: $body-color-light;
+    font-weight: $font-weight-light;
+  }
+  .testimonial-by {
+    text-align: right;
+    color: $body-color-light;
+    font-weight: $font-weight-light;
+    font-size: $font-size-base * 0.9;
+    margin-top: 20px;
+    strong {
+      color: $body-color;
+      display: inline-block;
+      vertical-align: middle;
+      margin-right: 5px;
+    }
+    span {
+      display: inline-block;
+      vertical-align: middle;
+    }
+    .avatar {
+      display: inline-block;
+      vertical-align: middle;
+      margin-left: 20px;
+      img {
+        width: 50px;
+        height: auto;
+        border-radius: 30px;
+      }
+    }
+  }
+}
+
+.fade4 {
+  position: absolute;
+  top: 0px;
+  left: 0px;
+  width: 800px;
+  height: 600px;
+  background-image: linear-gradient(-90deg, rgba(237,240,243,0) 0%, rgba(54, 51, 175, 0.57) 100%);
+  z-index: 1;
+  transform: translate(-360px, 0px) rotate(-45deg);
+  &:before {
+    content: "";
+    position: absolute;
+    right: 200px;
+    top: -200px;
+    width: 800px;
+    height: 600px;
+    background-image: linear-gradient(-90deg, rgba(227,231,248,0) 0%, rgba(236, 218, 255, 0.43) 100%);
+    z-index: -1;
+  }
+  & + .container {
+    z-index: 2;
+    position: relative;
+  }
+}

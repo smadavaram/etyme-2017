@@ -39,6 +39,23 @@ gem 'wkhtmltopdf-binary'
 gem 'breadcrumbs_on_rails'
 gem 'public_activity'
 
+
+#****************************
+# BulletTrain
+#****************************
+# BulletTrain: "bootstrap and other ui stuff."
+gem 'bootstrap', '~> 4.0.0'
+gem 'popper_js', '~> 1.12.9'
+source 'https://rails-assets.org' do
+  # this is for bootstrap's tooltip positioning.
+  gem 'rails-assets-tether', '>= 1.1.0'
+  gem 'rails-assets-jsTimezoneDetect'
+end
+# Bullettrain uses this to detect the size of the logo assets.
+gem 'fastimage'
+
+
+
 #****************************
 # DataBase
 #****************************
@@ -144,7 +161,7 @@ end
 
 gem 'redis', '~> 3.3.3'
 gem "select2-rails", '~> 3.5.9.1'
-gem 'therubyracer'
+gem 'mini_racer' # changed from therubyracer, since Bullettrain (or one of its dependencies) requires mini_racer
 
 # gem 'sequence-sdk', '~> 1.5', require: 'sequence'
 gem 'sequence-sdk'

@@ -1,0 +1,111 @@
+<% provide(:body_class, 'full-screen') %>
+
+<% @title = t('application.tagline') %>
+<div class="intro-w layout-v1" id="sectionIntro">
+  <div class="os-container">
+    <div class="fade2">
+    </div>
+    <div class="intro-i">
+      <div class="intro-description">
+        <h1 class="intro-heading">Close more <span>Contracts.</span></h1>
+
+        <div class="intro-text">eTyme is a simple, free and powerful way to manage your Contracting, SubContracting, and Staffing business.</div>
+
+        <div class="intro-buttons">
+          <a class="btn btn-primary" href="/signin"><span>Hire</span></a>
+          <a class="btn btn-primary" href="/candidates/sign_in"><span>Work</span></a>
+        </div>
+      </div>
+      <div class="intro-media">
+        <div class="shot shot1">
+          <div class="shot-i" style="background-image: url('<%= image_path('homepage/pricing-small.png') %>')">
+          </div>
+        </div>
+        <div class="shot shot2">
+          <div class="shot-i" style="background-image: url('<%= image_path('homepage/sign-up-small.png') %>')">
+          </div>
+        </div>
+        <div class="shot shot3">
+          <div class="shot-i" style="background-image: url('<%= image_path('clean_admin/front/intro_dash.jpg') %>')">
+          </div>
+        </div>
+
+        <div class="hidden-md-up" style="margin-bottom: 40px;"></div>
+
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="call-to-action" style="margin-top: 60px;">
+  <h3 class="cta-header">Single platform for all your On-Demand contract workflows.</h3>
+  <div class="cta-desc">eTyme is a suite of tools that focuses on every step of recruiting, bidding, contracting, bench-building, vendor management, document management, timesheets, and payment workflows for the gig economy.</div>
+</div>
+
+<% try_it_now = {icon: 'ti-desktop', label: 'Try It Now', url: '/users/sign_in'} %>
+<% features = [
+
+  # Gorgeous UI Template
+  # Pricing Page & Subscriptions
+  # User Account Management
+  #
+  # Security & Permissions
+  # Onboarding Workflows
+  # Teams
+  #
+  # Analytics Integrations
+  # Complete Test Coverage
+  # Future Updates
+  {title: 'Powerful Organization', border_classes: 'b-l', icon: 'ti-bolt', description: "Get your business organized and get a head start with setting up the master copy of information for your company and candidates."},
+  {title: 'Manage Candidates', border_classes: 'b-l b-t', icon: 'icon-diamond', description: "Keep a full bench of candidates and vendors for backup with a powerful directory, and share information and negotiate deals with them quickly."},
+  {title: 'Complete Payment Life-Cycle', border_classes: 'b-r b-l b-t', icon: 'icon-credit-card', description: "Manage your jobs and contracts through their whole lifecycle, from searching for candidates, to signing contracts, to overseeing work, all the way to payments, all in one place."},
+  {title: 'Instant Collaboration', border_classes: 'b-r b-t', icon: 'icon-mailbox', description: "Instant messaging, call automation, bulk notifications, and collaboration all integrated into one service."},
+  {title: 'Third-Party Integrations', border_classes: 'b-r', icon: 'icon-directions', description: "Connect eTyme to your favorite apps and boost productivity by connecting to various integrations."},
+  {title: 'Caring Customer Support', border_classes: 'b-l', icon: 'icon-telephone', description: "We're always here to help you, so if you have any questions, you can always contact us and we'll be happy to help you use eTyme."},
+] %>
+
+<div class="section-header-w" id="sectionFeatures">
+  <div class="fade3">
+  </div>
+  <div class="os-container">
+    <div class="section-header">
+      <h5 class="section-sub-title">We help your business excel</h5>
+      <h2 class="section-title">Optimize your contract work.</h2>
+      <div class="section-desc"></div>
+    </div>
+  </div>
+</div>
+<div class="features-table">
+  <div class="os-container">
+    <div class="row no-gutters">
+
+      <% features.each do |feature| %>
+      <div class="col-xl-4 col-sm-6 <%= feature[:border_classes] %> feature-cell">
+        <div class="feature-icon">
+          <i class="<%= feature[:icon] %>">
+          </i></div>
+        <h6 class="feature-title"><%= feature[:title] %></h6>
+        <% if feature[:coming] %>
+          <span class="badge badge-primary" style="background-color: #868686; margin-bottom: 10px; text-transform: uppercase;">Coming Soon</span>
+        <% end %>
+        <div class="feature-text"><%= feature[:description] %></div>
+        <% if cta = feature[:cta] %>
+          <div class="bottom-aligned-link">
+          <%= link_to cta[:url], class: 'btn btn-primary', style: 'margin-top: 20px;', target: ('_blank' if cta[:offsite]) do %>
+            <i class="<%= cta[:icon] %>"></i>
+            <span><%= cta[:label] %></span>
+          <% end %>
+          </div>
+        <% end %>
+      </div>
+      <% end %>
+
+    </div>
+  </div>
+</div>
+
+<div style="margin-top: 60px;">
+</div>
+
+<div class="display-type">
+</div>
