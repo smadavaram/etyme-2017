@@ -12,10 +12,9 @@
     = yield :head
   %body{class: "#{yield :body_class}"}
 
-    .all-wrapper
-      = render 'static/shared/header'
-      = yield
-      = render 'static/shared/footer'
+    = render 'static/shared/header'
+    = yield
+    = render 'static/shared/footer'
     = javascript_include_tag 'static'
     = filepicker_js_include_tag
     -#= tinymce_assets
