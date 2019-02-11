@@ -21,7 +21,7 @@
 .idea/*
 /log/
 /public/uploads/
+/public/assets/
 /config/secrets.yml
 config/database.yml
 *.DS_Store
-node_modules/
