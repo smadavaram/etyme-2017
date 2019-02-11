@@ -20,8 +20,8 @@
 .idea
 .idea/*
 /log/
-/public/assets/
 /public/uploads/
 /config/secrets.yml
 config/database.yml
 *.DS_Store
+node_modules/
