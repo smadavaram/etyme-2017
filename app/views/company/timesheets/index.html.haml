@@ -59,7 +59,6 @@
                 company_vender: ts.contract.buy_contracts.first.company.present? ? ts.contract.buy_contracts.first.company.full_name : '',
                 buy_rate: rate,
                 timesheet_clyver: "#{ts.start_date} - #{ts.end_date}",
-                date: ts.submitted_date,
                 hours: ts.total_time,
                 amount: (ts.total_time * rate),
                 attachment: ts.timesheet_attachment,
@@ -86,7 +85,7 @@
       datatype : "local",
       height : 'auto',
       colNames : ['Timesheet ID', 'Cycle ID', 'Creation Date', 'Contract', 'Client', 'Tax Type',
-                  'candidate', 'Company Vendor', 'Buy Rate', 'Timesheet Cycle', 'Date', 'Hours', 'Amount', 'Attachment',
+                  'candidate', 'Company Vendor', 'Buy Rate', 'Timesheet Cycle', 'Hours', 'Amount', 'Attachment',
                   'status', 'Actions'],
       colModel : [ {
         name : 'timesheet_id',
@@ -129,10 +128,6 @@
       },{
         name : 'timesheet_clyver',
         index : 'timesheet_clyver',
-        sortable : false
-      },{
-        name : 'date',
-        index : 'date',
         sortable : false
       },{
         name : 'hours',

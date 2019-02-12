@@ -228,7 +228,7 @@ class Company::ContractsController < Company::BaseController
 
 
   def find_contract
-    @contract = Contract.find(params[:id] || params[:contract_id]) #  , current_company).first || []
+    @contract = Contract.includes(:sell_contracts, :buy_contracts).find(params[:id] || params[:contract_id]) #  , current_company).first || []
   end
 
   def find_attachable_doc

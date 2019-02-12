@@ -12,14 +12,14 @@ class Company::TimesheetsController < Company::BaseController
   include Company::ChangeRatesHelper
 
   def index
-    @timesheets = current_company.timesheets.includes(contract: [buy_contracts: [:company, :candidate]]).submitted_timesheets.paginate(page: params[:page], per_page: 10)
+    @timesheets = current_company.timesheets.includes(contract: [:change_rates ,buy_contracts: [:company, :candidate]]).submitted_timesheets.paginate(page: params[:page], per_page: 10).order(id: :desc)
 
     # @rec_search = current_company.received_timesheets.search(params[:q])
     # @received_timesheets   = @rec_search.result(distinct: true).paginate(page: params[:page], per_page: 10) || []
   end
 
   def approved
-    @timesheets = current_company.timesheets.approved_timesheets.paginate(page: params[:page], per_page: 10)
+    @timesheets = current_company.timesheets.approved_timesheets.paginate(page: params[:page], per_page: 10).order(id: :desc)
   end
 
   def show
