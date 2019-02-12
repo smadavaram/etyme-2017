@@ -55,8 +55,7 @@
                       .form-controls
                         = f.text_field :domain  ,:placeholder => "Domain", required: true,minlength: "3",class:'field', id: "domain-field", value: params[:site], readonly: true
                       .note.text-muted.errors.text-danger
-                      .note.text-muted{style: "float:left !important ;color: antiquewhite"}
-                        Please Enter Domain like https://address
+
                   -#.form-row
                     .form-controls
                       %input#terms{:name => "terms",class:"field", :type => "checkbox" ,required: true}/
