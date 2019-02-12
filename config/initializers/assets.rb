@@ -23,7 +23,6 @@ Rails.application.config.assets.precompile += %w( resume.js )
 Rails.application.config.assets.precompile += %w( static.css )
 Rails.application.config.assets.precompile += %w( static.js )
 Rails.application.config.assets.precompile += %w( libs/jquery-2.1.1.min.js )
-Rails.application.config.assets.precompile += %w( shared/hide_show_toggler.js )
 
 # Needed for BulletTrain, since it uses helpers in scss.erb files
 Rails.application.config.assets.configure do |env|
@@ -31,3 +30,10 @@ Rails.application.config.assets.configure do |env|
     include BullettrainHelper
   end
 end
+
+Rails.application.config.assets.precompile += %w(
+  shared/hide_show_toggler.js
+  shared/domain_checker.js
+  shared/flash_manager.js
+)
+

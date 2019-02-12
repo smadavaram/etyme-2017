@@ -5,7 +5,7 @@ module QuerySelector
   class_methods do
 
     def find_like(attribute, value)
-      where("#{attribute} LIKE ?", value)
+      where("#{attribute} LIKE ?", "%#{value}%")
     end
 
   end

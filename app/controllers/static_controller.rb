@@ -5,6 +5,7 @@ class StaticController < ApplicationController
   skip_before_action :authenticate_user!, raise: false
   before_action :set_jobs, only: :index
   before_action :set_company, :set_slug, only: :signin
+  before_action :find_user, :set_website, :find_similar_companies, only: :domain_suggestion
 
   layout 'static'
   add_breadcrumb "Home",'/'
@@ -30,20 +31,61 @@ class StaticController < ApplicationController
 
   end
 
-  def check_for_domain
-    company = Company.where(website: params[:website]).first()
-
-    if company
-      total_count = 0
-      company_slug = company.slug
-    else
-      company_slug = ""
-      total_count = Company.where("slug like ?", "#{domain_from_email(params[:email])}%").count
+  def domain_suggestion
+    @company = Company.find_by(website: @website)
+    respond_to do |format|
+      if @company
+        format.html {}
+        format.json do
+          render json: { message: 'Looks like company already registered. Just add it as contact.', slug: @company.slug, website: domain_from_email(params[:email]), status: :ok }
+        end
+      else
+        format.html {}
+        format.json do
+          render json: { message: 'Company domain is available.', slug: suggested_slug, website: domain_from_email(params[:email]), status: :ok }
+        end
+      end
     end
-    render json: { present_count: total_count , company_slug: company_slug }
   end
 
   private
+
+    def find_user
+      @user = User.find_by(email: params[:email])
+      if @user
+        respond_to do |format|
+          format.html { }
+          format.json do
+            render json: { message: 'User already registered.', status: :unprocessible_entity }
+          end
+        end
+      end
+    end
+
+    def set_website
+      @website = valid_email(params[:email])
+
+      unless @website
+        respond_to do |format|
+          format.html {}
+          format.json do
+            render json: { message: 'Email is Invalid', status: :unprocessible_entity }
+          end
+        end
+      end
+    end
+
+    def find_similar_companies
+      @similar_companies = Company.find_like(:slug, domain_name(params[:email]))
+    end
+
+    def suggested_slug
+      if @similar_companies.size > 1
+        domain_name(params[:email]).concat((@similar_companies.size + 1).to_s)
+      else
+        domain_name(params[:email])
+      end
+    end
 
     def set_company
       if params[:email].present?
@@ -51,7 +93,9 @@ class StaticController < ApplicationController
         @company = Company.find_by(website: domain)
 
         unless @company
-          redirect_to signin_path, error: 'Company Not Found'
+          respond_to do |format|
+            redirect_to signin_path, error: 'Company Not Found'
+          end
         end
       end
     end
