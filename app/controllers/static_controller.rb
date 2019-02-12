@@ -37,7 +37,7 @@ class StaticController < ApplicationController
       if @company
         format.html {}
         format.json do
-          render json: { message: 'Looks like company already registered. Continue to register with new slug', slug: suggested_slug, website: domain_from_email(params[:email]), status: :ok }
+          render json: { message: 'Looks like company already registered. Just add it as contact.', slug: @company.slug, website: domain_from_email(params[:email]), status: :ok }
         end
       else
         format.html {}
@@ -93,7 +93,9 @@ class StaticController < ApplicationController
         @company = Company.find_by(website: domain)
 
         unless @company
-          redirect_to signin_path, error: 'Company Not Found'
+          respond_to do |format|
+            redirect_to signin_path, error: 'Company Not Found'
+          end
         end
       end
     end
