@@ -534,7 +534,7 @@
           %header
             %span.widget-icon
               %i.fa.fa-check
-            %h2 Rates 
+            %h2 Sell Rates 
           %div.table-responsive
             %table.table.table-bordered.account_detail
               %thead
@@ -544,7 +544,37 @@
                   %th To
                   %th Type
               %tbody
-                - ChangeRate.where(contract_id: @contract.id).order(id: :asc).each do |cr|
+                - @contract.change_rates.sell_rates.each do |cr|
+                  %tr
+                    %td
+                      = cr.rate.to_i
+                    %td
+                      = cr.from_date.inspect
+                    %td
+                      = cr.to_date.inspect
+                    %td
+                      = cr.rate_type.capitalize
+
+#content
+  .row
+  %section
+    .row
+      %article.col-sm-12.col-md-12.col-lg-12
+        #wid-id-0.jarviswidget{"data-widget-deletebutton" => "false", "data-widget-editbutton" => "false"}
+          %header
+            %span.widget-icon
+              %i.fa.fa-check
+            %h2 Buy Rates 
+          %div.table-responsive
+            %table.table.table-bordered.account_detail
+              %thead
+                %tr
+                  %th Rate
+                  %th From
+                  %th To
+                  %th Type
+              %tbody
+                - @contract.change_rates.buy_rates.each do |cr|
                   %tr
                     %td
                       = cr.rate.to_i
