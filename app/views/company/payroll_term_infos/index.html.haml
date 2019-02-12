@@ -22,6 +22,8 @@
                     .col-md-4
                       %label.control-label
                         Payroll Frequency
+
+                    .col-md-4
                       .select
                         .plain-select
                           = f.select :payroll_type, Contract.time_sheet_frequencies.map { |key, value| [key.humanize, key] }, {selected: @payroll_detail&.payroll_type},{class: "form-control buy-sal-cal" }
@@ -49,8 +51,7 @@
                             .plain-select
                               = f.select :scal_day_of_week, [["Every Monday", "mon"], ["Every Tuesday", "tue"], ["Every Wednesday", "wed"], ["Every Thursday", "thu"], ["Every Friday", "fri"], ["Every Saturday", "sat"], ["Every Sunday", "sun"]], {},{class: "form-control" }
                         %div{:class => "form-group month #{['twice a month', 'monthly'].include?(f.object.payroll_type) ? '' : 'hidden'}"}
-                          %label.control-label
-                            Select date
+
                           .select
                             = f.text_field :scal_date_1, class: "date_1 form-control", placeholder: "DD/MM/YYYY"
                         %div{:class => "form-group twice-month #{f.object.payroll_type != 'twice a month' ? 'hidden' : ''}"}
@@ -83,8 +84,7 @@
                                   .plain-select
                                     = f.select :sp_day_of_week, [["Every Monday", "mon"], ["Every Tuesday", "tue"], ["Every Wednesday", "wed"], ["Every Thursday", "thu"], ["Every Friday", "fri"], ["Every Saturday", "sat"], ["Every Sunday", "sun"]], {},{class: "form-control" }
                               %div{:class => "form-group month #{['twice a month', 'monthly'].include?(f.object.payroll_type) ? '' : 'hidden'}"}
-                                %label.control-label
-                                  Select date
+          
                                 .select
                                   = f.text_field :sp_date_1, class: "date_1 form-control", placeholder: "DD/MM/YYYY"
                               %div{:class => "form-group twice-month #{f.object.payroll_type != 'twice a month' ? 'hidden' : ''}"}
@@ -116,8 +116,7 @@
                                   .plain-select
                                     = f.select :sclr_day_of_week, [["Every Monday", "mon"], ["Every Tuesday", "tue"], ["Every Wednesday", "wed"], ["Every Thursday", "thu"], ["Every Friday", "fri"], ["Every Saturday", "sat"], ["Every Sunday", "sun"]], {},{class: "form-control" }
                               %div{:class => "form-group month #{['twice a month', 'monthly'].include?(f.object.payroll_type) ? '' : 'hidden'}"}
-                                %label.control-label
-                                  Select date
+          
                                 .select
                                   = f.text_field :sclr_date_1, class: "date_1 form-control", placeholder: "DD/MM/YYYY"
                               %div{:class => "form-group twice-month #{f.object.payroll_type != 'twice a month' ? 'hidden' : ''}"}

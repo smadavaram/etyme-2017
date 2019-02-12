@@ -9,16 +9,17 @@ class Company::TimesheetsController < Company::BaseController
   add_breadcrumb "TIMESHEETS", :timesheets_path, options: { title: "TIMESHEETS" }
 
   include CandidateHelper
+  include Company::ChangeRatesHelper
 
   def index
-    @timesheets = current_company.timesheets.includes(contract: [buy_contracts: [:company, :candidate]]).submitted_timesheets.paginate(page: params[:page], per_page: 10)
+    @timesheets = current_company.timesheets.includes(contract: [:change_rates ,buy_contracts: [:company, :candidate]]).submitted_timesheets.paginate(page: params[:page], per_page: 10).order(id: :desc)
 
     # @rec_search = current_company.received_timesheets.search(params[:q])
     # @received_timesheets   = @rec_search.result(distinct: true).paginate(page: params[:page], per_page: 10) || []
   end
 
   def approved
-    @timesheets = current_company.timesheets.approved_timesheets.paginate(page: params[:page], per_page: 10)
+    @timesheets = current_company.timesheets.approved_timesheets.paginate(page: params[:page], per_page: 10).order(id: :desc)
   end
 
   def show
@@ -85,15 +86,12 @@ class Company::TimesheetsController < Company::BaseController
   def approve
     i = 0
     # if current_user.timesheet_approvers.create!(timesheet_id: @timesheet.id , status: Timesheet.statuses[:approved].to_i)
-    rate = ChangeRate.rate(@timesheet.start_date, @timesheet.contract_id)
+    rate = get_rate(@timesheet.start_date, @timesheet.contract_id, 'buy')
     if @timesheet.update_attributes(status: "approved", amount: rate*@timesheet.total_time)
-      # binding.pry
-      puts "---------qwerty------#{i}-----hello-----world!--------"
       i += 1
-      # binding.pry 
       con_cycle = ContractCycle.find(@timesheet.ta_cycle_id)
       arr = Timesheet.where(ta_cycle_id: @timesheet.ta_cycle_id).pluck(:ta_cycle_id).uniq.compact.first
-      
+
       total_count = Timesheet.where(ta_cycle_id: arr).count
       approved_count = Timesheet.where(ta_cycle_id: arr, status: 'approved').count
       if total_count == approved_count
