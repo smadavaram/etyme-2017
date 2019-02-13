@@ -78,7 +78,7 @@
                         = c&.client&.addresses&.first&.full_address
                       - if @salary.status == 'aggregated'
                         %td
-                          = @company_expenses.where(contract_id: c.id).select { |m| m.salary_ids.include? salary.sclr_cycle_id.to_s }.map{|x| x.total_amount.to_i / x.salary_ids.length}.sum(&:to_i)
+                          = company_expense(@company_expense, c, salary) if @company_expense
 
                       %td.active
                         - total_time = @timesheets.where(status: 'approved', start_date: @salary.start_date..@salary.end_date, contract_id: c.id, candidate_id: c.candidate_id).sum(:total_time)
