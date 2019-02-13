@@ -9,28 +9,47 @@
     </ul>
     <ul class="small-menu">
       <% if user_signed_in? %>
-      <li>
-        <%= link_to "Logout".html_safe, main_app.destroy_user_session_path, method: 'delete' %>
-      </li>
-      <li>
-        <%= link_to "Dashboard".html_safe, main_app.account_dashboard_path, class: 'highlight' %>
-      </li>
+        <li>
+          <%= link_to "Logout".html_safe, main_app.destroy_user_session_path, method: 'delete' %>
+        </li>
+        <li>
+          <%= link_to "Dashboard".html_safe, main_app.account_dashboard_path, class: 'highlight' %>
+        </li>
       <% else %>
-      <li>
-        <%= link_to "Home".html_safe, main_app.root_path %>
-      </li>
-      <li>
-        <%= link_to "Jobs".html_safe, main_app.static_jobs_path %>
-      </li>
-      <li>
-        <%= link_to "Login".html_safe, "/signin" %>
-      </li>
-      <li>
-        <%= link_to "Register".html_safe, "/register" %>
-      </li>
+        <li>
+          <%= link_to "Home".html_safe, main_app.root_path %>
+        </li>
+        <li>
+          <%= link_to "Jobs".html_safe, main_app.static_jobs_path %>
+        </li>
+        <li>
+          <div class="dropdown">
+            <a class="dropdown-toggle" href="#" id="dropdownMenuLink" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+              Login
+            </a>
+
+            <div class="dropdown-menu" aria-labelledby="dropdownMenuLink">
+              <a class="dropdown-item" href="/signin">Company</a>
+              <a class="dropdown-item" href="/candidates/sign_in">Candidate</a>
+            </div>
+          </div>
+        </li>
+        <li>
+          <div class="dropdown">
+            <a class="dropdown-toggle" href="#" id="dropdownMenuLink" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+              Register
+            </a>
+
+            <div class="dropdown-menu" aria-labelledby="dropdownMenuLink">
+              <a class="dropdown-item" href="/register">Company</a>
+              <a class="dropdown-item" href="/candidates/sign_up">Candidate</a>
+            </div>
+          </div>
+        </li>
       <% end %>
     </ul>
   </div>
+
   <div class="mobile-menu-w menu-mobile">
     <div class="mobile-menu-holder color-scheme-dark menu-and-user">
       <ul class="mobile-menu">

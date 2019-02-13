@@ -24,9 +24,11 @@
 //= require jstz
 //= require browser_timezone_rails/set_time_zone
 
-// BOOTSTRAP JS
-//= require bootstrap/bootstrap
-
+// BOOTSTRAP 4 JS
+//= require jquery3
+//= require popper
+//= require bootstrap
+  
 // MAIN APP JS FILE
 //= require plugin/select2/select2.min
 // WIZARD
