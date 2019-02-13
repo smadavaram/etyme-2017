@@ -16,7 +16,7 @@ class Company::ContractsController < Company::BaseController
   add_breadcrumb "Cient Expense Bill / Vendor Bill", :add_bill_contracts_path, only: %w(add_bill)
   add_breadcrumb "Add Invoice", :add_invoice_contracts_path, only: %w(add_invoice)
   add_breadcrumb 'Bank reconciliation', :bank_reconciliation_contracts_path, only: %w(bank_reconciliation)
-
+  include Company::ChangeRatesHelper
   def index
     @contract_activity = PublicActivity::Activity.where(trackable: current_company.contracts).order('created_at DESC').paginate(page: params[:page], per_page: 15 )
     @buy_contracts = Contract.joins(:buy_contracts).where(buy_contracts: {candidate_id: current_company.id}).order('created_at DESC').paginate(page: params[:page], per_page: 15 )
@@ -228,7 +228,7 @@ class Company::ContractsController < Company::BaseController
 
 
   def find_contract
-    @contract = Contract.find(params[:id] || params[:contract_id]) #  , current_company).first || []
+    @contract = Contract.includes(:sell_contracts, :buy_contracts).find(params[:id] || params[:contract_id]) #  , current_company).first || []
   end
 
   def find_attachable_doc

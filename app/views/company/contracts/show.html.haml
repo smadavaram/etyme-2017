@@ -99,7 +99,17 @@
                     %h5 
                       Customer Rate
                     %span
-                      = @contract.sell_contracts&.first&.customer_rate.present? ? '$' + @contract.sell_contracts.first.customer_rate.to_s + " / " + @contract.sell_contracts.first.customer_rate_type.to_s : ""
+                      = '$'+get_rate(Date.today,@contract.id,'sell').to_s
+                      %br
+                      %span.btn.btn-primary.sell-change-rate Change rate
+                = form_for :change_rate, url: change_rates_path(contract_id: @contract.id, type: 'sell'), method: :post, html:{class: 'contract-expense-type hidden', id: 'sell-change-rate'} do |f|
+                  = f.label :rate
+                  = f.text_field :rate
+                  %br
+                  = f.label 'From'
+                  = f.date_field :from_date
+                  %br
+                  = f.submit 'Save', class: 'btn btn-primary'
             %div
               %div.contract-custome-details
                 %h5
@@ -278,10 +288,10 @@
                   %h5
                     Freelancer rate
                   %span
-                    = '$'+ChangeRate.rate(Date.today,@contract.id).to_s
+                    = number_to_currency(get_rate(Date.today,@contract.id, 'buy'))
                     %br
                     %span.btn.btn-primary.buy-change-rate Change rate
-                = form_for :change_rate, url: change_rates_path(contract_id: @contract.id, type: 'buy'), method: :post, html:{class: 'contract-expense-type', id: 'buy-change-rate'} do |f|
+                = form_for :change_rate, url: change_rates_path(contract_id: @contract.id, type: 'buy'), method: :post, html:{class: 'contract-expense-type hidden', id: 'buy-change-rate'} do |f|
                   = f.label :rate
                   = f.text_field :rate
                   %br
@@ -524,7 +534,7 @@
           %header
             %span.widget-icon
               %i.fa.fa-check
-            %h2 Rates 
+            %h2 Sell Rates 
           %div.table-responsive
             %table.table.table-bordered.account_detail
               %thead
@@ -534,7 +544,37 @@
                   %th To
                   %th Type
               %tbody
-                - ChangeRate.where(contract_id: @contract.id).order(id: :asc).each do |cr|
+                - @contract.change_rates.sell_rates.each do |cr|
+                  %tr
+                    %td
+                      = cr.rate.to_i
+                    %td
+                      = cr.from_date.inspect
+                    %td
+                      = cr.to_date.inspect
+                    %td
+                      = cr.rate_type.capitalize
+
+#content
+  .row
+  %section
+    .row
+      %article.col-sm-12.col-md-12.col-lg-12
+        #wid-id-0.jarviswidget{"data-widget-deletebutton" => "false", "data-widget-editbutton" => "false"}
+          %header
+            %span.widget-icon
+              %i.fa.fa-check
+            %h2 Buy Rates 
+          %div.table-responsive
+            %table.table.table-bordered.account_detail
+              %thead
+                %tr
+                  %th Rate
+                  %th From
+                  %th To
+                  %th Type
+              %tbody
+                - @contract.change_rates.buy_rates.each do |cr|
                   %tr
                     %td
                       = cr.rate.to_i
@@ -560,13 +600,17 @@
       });
 - content_for :scripts do
   :javascript
-    $('#buy-change-rate').hide();
+
     $('.contract_progress').attr('data-content','0%');
     $('.contract_progress').css('left', '#{(((@contract.contract_progress.to_f*54)/100).to_f+21).round}%');
     $('.contract_progress').attr('data-content','#{@contract.contract_progress.to_f.round}%');
 
     $(document).on('click', '.buy-change-rate', function(){
-      $('#buy-change-rate').toggle();
+      $('#buy-change-rate').toggleClass('hidden');
+    });
+
+    $(document).on('click', '.sell-change-rate', function(){
+      $('#sell-change-rate').toggleClass('hidden');
     });
 
       

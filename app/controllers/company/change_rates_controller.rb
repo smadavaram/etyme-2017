@@ -1,13 +1,18 @@
 class Company::ChangeRatesController  < Company::BaseController
+  before_action :load_contract, only: :create
 
   def create
-    change_rates = ChangeRate.where(contract_id: params[:contract_id].to_i)
-    if change_rates.present?
-      change_rates.last.update(to_date: change_rate_params[:from_date].to_date-1)
-      new_rate = ChangeRate.create(change_rate_params.merge(contract_id: params[:contract_id].to_i, to_date: Date.new(9999, 12, 31), rate_type: params[:type]))
+    if @contract
+      date_range = ChangeRate.get_date_range(Contract.first.id, 'buy').map{|x| [x[0], x[1] ]  if (params[:change_rate][:from_date].to_date).between?(x[0], x[1])}.compact.first
+      old_rate = ChangeRate.find_by(from_date: date_range[0], to_date: date_range[1], rate_type: change_rate_params[:type])
+      if old_rate
+        new_to_date = old_rate.to_date
+        old_rate.update(to_date: change_rate_params[:from_date].to_date-1)
+        new_rate = ChangeRate.create(change_rate_params.merge(contract_id: params[:contract_id], to_date: new_to_date, rate_type: params[:type]))
+      end
+      flash[:notice] = 'Rate changed successfully.'
+      redirect_to contract_path(params[:contract_id])
     end
-    flash[:notice] = 'Rate changed successfully.'
-    redirect_to contract_path(params[:contract_id])
 
   end
 
@@ -15,4 +20,12 @@ class Company::ChangeRatesController  < Company::BaseController
     params.require(:change_rate).permit(:rate, :from_date)
   end
 
+  private
+
+  def load_contract
+    @contract = Contract.find_by(id: params[:contract_id])
+    unless @contract
+      redirect_back fallback_location: root_path, error: "Contract not found."
+    end
+  end
 end
