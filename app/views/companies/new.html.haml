@@ -24,6 +24,9 @@
                     = flash_message(key,value)
 
                   - if params[:show_selector].present?
+                    .form-row.hide
+                      .form-controls
+                        = f.text_field :name, placeholder: 'Company Name', required: true,minlength: "3", class: 'field'
                     .form-row
                       .form-controls
                         .plain-select
