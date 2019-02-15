@@ -4,23 +4,55 @@
   <div class="menu-top-i os-container">
     <ul class="main-menu">
       <li>
-        <%= link_to image_tag(image_path('etyme-logo-dark.png'),  style:"width:62px ;height:30px"), main_app.root_path %>
+        <%= link_to image_tag(image_path('etyme-logo-dark.png'),  style:"width:62px ;height:30px"), root_path %>
       </li>
     </ul>
     <ul class="small-menu">
-      <% if user_signed_in? %>
+      <li>
+        <%= link_to "Home", root_path %>
+      </li>
+      <li>
+        <%= link_to "Jobs", static_jobs_path %>
+      </li>
+      <li>
+        <div class="dropdown">
+          <a class="dropdown-toggle" href="#" id="dropdownMenuLink" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+            Login
+          </a>
+
+          <div class="dropdown-menu" aria-labelledby="dropdownMenuLink">
+            <a class="dropdown-item" href="<%= signin_path %>">Company</a>
+            <% if candidate_signed_in? %>
+              <%= link_to  current_candidate.full_name.present?  ? current_candidate.full_name : 'Dashboard',candidate_candidate_dashboard_path %>
+            <% else %>
+              <a class="dropdown-item" href="<%= new_candidate_session_path %>">Candidate</a>
+            <% end %>
+          </div>
+        </div>
+      </li>
+      <li>
+        <div class="dropdown">
+          <a class="dropdown-toggle" href="#" id="dropdownMenuLink" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+            Register
+          </a>
+
+          <div class="dropdown-menu" aria-labelledby="dropdownMenuLink">
+            <a class="dropdown-item" href="<%= register_path %>">Company</a>
+            <a class="dropdown-item" href="<%= new_candidate_registration_path %>">Candidate</a>
+          </div>
+        </div>
+      </li>
+    </ul>
+  </div>
+
+  <div class="mobile-menu-w menu-mobile">
+    <div class="mobile-menu-holder color-scheme-dark menu-and-user">
+      <ul class="mobile-menu">
         <li>
-          <%= link_to "Logout".html_safe, main_app.destroy_user_session_path, method: 'delete' %>
+          <%= link_to "Home", root_path %>
         </li>
         <li>
-          <%= link_to "Dashboard".html_safe, main_app.account_dashboard_path, class: 'highlight' %>
-        </li>
-      <% else %>
-        <li>
-          <%= link_to "Home".html_safe, main_app.root_path %>
-        </li>
-        <li>
-          <%= link_to "Jobs".html_safe, main_app.static_jobs_path %>
+          <%= link_to "Jobs", static_jobs_path %>
         </li>
         <li>
           <div class="dropdown">
@@ -29,8 +61,12 @@
             </a>
 
             <div class="dropdown-menu" aria-labelledby="dropdownMenuLink">
-              <a class="dropdown-item" href="/signin">Company</a>
-              <a class="dropdown-item" href="/candidates/sign_in">Candidate</a>
+              <a class="dropdown-item" href="<%= signin_path %>">Company</a>
+              <% if candidate_signed_in? %>
+                <%= link_to  current_candidate.full_name.present?  ? current_candidate.full_name : 'Dashboard',candidate_candidate_dashboard_path %>
+              <% else %>
+                <a class="dropdown-item" href="<%= new_candidate_session_path %>">Candidate</a>
+              <% end %>
             </div>
           </div>
         </li>
@@ -41,36 +77,11 @@
             </a>
 
             <div class="dropdown-menu" aria-labelledby="dropdownMenuLink">
-              <a class="dropdown-item" href="/register">Company</a>
-              <a class="dropdown-item" href="/candidates/sign_up">Candidate</a>
+              <a class="dropdown-item" href="<%= register_path %>">Company</a>
+              <a class="dropdown-item" href="<%= new_candidate_registration_path %>">Candidate</a>
             </div>
           </div>
         </li>
-      <% end %>
-    </ul>
-  </div>
-
-  <div class="mobile-menu-w menu-mobile">
-    <div class="mobile-menu-holder color-scheme-dark menu-and-user">
-      <ul class="mobile-menu">
-        <li class="<%= 'active' if request.path == main_app.root_path %>">
-          <%= link_to 'Home', main_app.root_path %>
-        </li>
-        <% if user_signed_in? %>
-        <li>
-          <%= link_to "Dashboard".html_safe, main_app.account_dashboard_path, class: 'highlight' %>
-        </li>
-        <li>
-          <%= link_to "Logout".html_safe, main_app.destroy_user_session_path, method: 'delete' %>
-        </li>
-        <% else %>
-        <li>
-          <%= link_to "Login#{demo}".html_safe, main_app.new_user_session_path %>
-        </li>
-        <li>
-          <%= link_to "Sign Up#{demo}".html_safe, main_app.new_user_registration_path, class: 'highlight' %>
-        </li>
-        <% end %>
       </ul>
     </div>
     <div class="mobile-menu-i">
