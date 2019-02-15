@@ -8,7 +8,7 @@ class Admin < User
   has_many          :job_invitations , as: :recipient
   has_many          :csc_accounts, as: :accountable
 
-  after_create                  :send_invitation ,if: Proc.new { |admin| admin.company.present? }
+  after_create :send_invitation ,if: Proc.new { |admin| admin.company.present? }
 
   accepts_nested_attributes_for :address , reject_if: :all_blank
 
