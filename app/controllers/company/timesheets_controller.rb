@@ -1,5 +1,6 @@
 class Company::TimesheetsController < Company::BaseController
 
+  include Company::ChangeRatesHelper
   before_action :find_timesheet , except: [:index]
   # before_action :received_timesheet , only: [:approve]
   # before_action :set_timesheets , only: [:index]
@@ -108,7 +109,7 @@ class Company::TimesheetsController < Company::BaseController
       invoices.each do |i|
         hours = 0
         if @timesheet.start_date >= i.start_date && @timesheet.end_date <= i.end_date
-          i.update_attributes(total_approve_time: (i.total_approve_time+@timesheet.total_time), balance: (i.balance + (@timesheet.total_time * i.rate)))
+          i.update_attributes(total_approve_time: (i.total_approve_time+@timesheet.total_time), balance: (i.balance + (@timesheet.total_time * get_rate(@timesheet.start_date , @timesheet.contract_id, 'sell' ))))
           @timesheet.update(inv_numbers: (@timesheet.inv_numbers+[i.id]))
         else
           @timesheet.days.each do |t|
@@ -178,7 +179,7 @@ class Company::TimesheetsController < Company::BaseController
   def check_invoice
     @invoice = Invoice.where(id: (params[:id] || params[:timesheet_id])).first
     if @invoice.present?
-      @timesheets = current_company.timesheets.includes(contract: :sell_contracts).approved_timesheets.where(contract_id: @invoice.contract_id).where("start_date >= ? AND end_date <= ?", @invoice.start_date, @invoice.end_date)
+      @timesheets = current_company.timesheets.includes(contract: :sell_contracts).approved_timesheets.where(contract_id: @invoice.contract_id).where("start_date >= ? AND end_date <= ?", @invoice.start_date, @invoice.end_date).order(id: :desc)
     else
       @errors = true
     end

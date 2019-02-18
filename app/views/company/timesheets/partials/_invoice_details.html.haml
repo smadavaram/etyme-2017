@@ -11,9 +11,11 @@
             %th End Date
             %th Status
             %th Time
+            %th Rate
             %th Amount
         %tbody
           -  @timesheets.each_with_index do |tms , index|
+            - rate = get_rate(tms.start_date, tms.contract_id, 'sell')
             %tr
               %td= index+1
               %td= tms.contract.title.humanize
@@ -21,4 +23,5 @@
               %td= tms.end_date
               %td= tms.status.humanize
               %td= tms.total_time
-              %td= tms.total_time * tms.contract.sell_contracts.first.customer_rate.to_i
+              %th= rate
+              %td= tms.total_time * rate
