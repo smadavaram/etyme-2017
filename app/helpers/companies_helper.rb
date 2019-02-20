@@ -31,7 +31,8 @@ module CompaniesHelper
     end
   raw(color)
   end
-   def time_sheet_approve_date buy_contract
+
+  def time_sheet_approve_date buy_contract
     ta_type = buy_contract&.ts_approve
     if buy_contract&.ta_day_of_week.present?
       ta_day_of_week = Date.parse(buy_contract&.ta_day_of_week&.titleize).try(:strftime, '%A')
@@ -55,6 +56,10 @@ module CompaniesHelper
     else
       message = "Are you sure ?"
     end  
+  end
+
+  def payroll_infos company
+    company&.payroll_infos&.first&.present?
   end
 
 end

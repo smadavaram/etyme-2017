@@ -48,7 +48,7 @@
                           %td= admin.type
                           %td= admin.roles.map(&:name).join(", ").gsub("_"," ").upcase
                           %td
-                            = link_to raw("<i class='fa fa-bell '></i>"),company_user_add_reminder_path(admin)  ,class: 'btn  btn-xs btn-default margin-bottom-5', remote: :true,title: "Remind Me",'data-toggle'=>"tooltip" ,'data-placement'=>"top"
+                            = link_to raw("<i class='fa fa-bell '></i>"),company_company_add_reminder_path(admin)  ,class: 'btn  btn-xs btn-default margin-bottom-5', remote: :true,title: "Remind Me",'data-toggle'=>"tooltip" ,'data-placement'=>"top"
                             = link_to raw("<i class='fa fa-edit '></i>") , edit_admin_path(admin) , class: 'btn btn-xs btn-default  margin-bottom-5' ,remote: true,title: "Edit #{admin.full_name}",'data-toggle'=>"tooltip" ,'data-placement'=>"top"
                             = link_to raw("<i class='fa fa-users '></i>"), company_user_assign_groups_path(admin) , remote:true,class: 'btn btn-xs btn-default margin-bottom-5',title: "Manage Groups",'data-toggle'=>"tooltip" ,'data-placement'=>"top"
                             = link_to raw("<i class='fa fa-trash-o '></i>"), company_user_path(admin) ,class: 'btn btn-xs btn-default margin-bottom-5',title: "Manage Groups",'data-toggle'=>"tooltip" ,'data-placement'=>"top", :method=>:delete

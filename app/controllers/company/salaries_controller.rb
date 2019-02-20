@@ -84,10 +84,12 @@ class Company::SalariesController < Company::BaseController
   end
 
   def process_salary
+
     params[:sclr_cycle_ids].each do |key,value|
       salary = Salary.find_by(sclr_cycle_id: key)
       salary.balance = (salary.total_amount.to_i + CscAccount.where(accountable_id: salary.candidate_id, accountable_type: 'Candidate').sum(:total_amount).to_i)  - value[:salary_calculated].to_i
-      Salary.where(end_date: salary.end_date+1.month, contract_id: salary.contract_id).first.update(pending_amount: salary.balance)
+      next_salary = Salary.where(end_date: salary.end_date+1.month, contract_id: salary.contract_id).first
+      next_salary.update(pending_amount: salary.balance) if next_salary
       salary.total_amount = value[:salary_calculated].to_i
       salary.status = 'processed'
       salary.save

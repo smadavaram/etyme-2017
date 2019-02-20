@@ -14,7 +14,7 @@ class User < ApplicationRecord
   # validates_uniqueness_of :email
 
   # validates_numericality_of :phone
-  after_create_commit :send_confirmation_email
+  after_create_commit :send_confirmation_email, if: :user?
 
   after_create :create_address
 
@@ -63,6 +63,10 @@ class User < ApplicationRecord
 
   validate :max_skill_size
 
+
+  def user?
+    instance_of? User
+  end
 
   def max_skill_size
     errors[:skill_list] << "8 skills maximum" if skill_list.count > 8
