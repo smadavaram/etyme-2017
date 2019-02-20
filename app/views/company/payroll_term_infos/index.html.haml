@@ -198,14 +198,13 @@
                               = f.radio_button :weekend_sch, "Payroll After Holiday", checked:!@payroll_detail.blank? ? @payroll_detail.weekend_sch == "Payroll After Holiday" ? true :false : "", class: 'set-checkbox payroll-schedule-btn'
                               %span.radio-checkmark
 
-                %br
-                .row
-                  .col-md-6
-                    %button.btn.btn-primary{:type => "submit"}
-                      Save
+                  %br
+                  .row
+                    .col-md-6
+                      = f.submit 'Save', class: 'btn btn-primary'
 
-                  .col-md-6
-                    = link_to 'Generate Payroll Cycle', generate_payroll_dates_payroll_term_infos_path, class: 'btn btn-primary float-right' if payroll_infos(current_company)
+                    .col-md-6
+                      = link_to 'Generate Payroll Cycle', generate_payroll_dates_payroll_term_infos_path, class: 'btn btn-primary float-right' if payroll_infos(current_company)
 - content_for :scripts do
   :javascript
     $(document).on("click",".remove-tax-fields", function(){
