@@ -48,41 +48,6 @@
           %strong Step 3
           \- Buy Contract
         = render 'company/contracts/partials/docs_and_attachments' , f: contract
-      / #tab4.tab-pane
-      /   %br/
-      /   %h3
-      /     %strong Step 4
-      /     \- Activation
-      /   = render 'company/contracts/partials/teams_and_commission', f: contract
-
-      -##tab4.tab-pane
-      -#  %br/
-      -#  %h3
-      -#    %strong Step 4
-      -#    \- Save Form
-      -#  %br/
-      -#  %h1.text-center.text-success
-      -#    %strong
-      -#      %i.fa.fa-check.fa-lg
-      -#      Complete
-      -#  %h4.text-center Click next to finish
-      -#  %br/
-      -#  %br/
-      -##tab4.tab-pane
-      -#  %br/
-      -#  %h3
-      -#    %strong Step 4
-      -#    \- Teams & Commission
-      -#  .row
-      -#    .col-sm-12
-      -#      .form-group
-      -#        #custom_fields
-      -#          .col-sm-12
-      -#            = render 'company/contracts/partials/teams_and_commission', f: contract
-      -#        %strong
-      -#          .links.col-sm-12
-      -#            = #link_to_add_association '+ Add Custom Field', e, :custom_fields, class: 'text-info pull-right', partial: 'shared/custom_fields'
-      -#            %br/
       .form-actions
         .row
           .col-sm-12
@@ -486,6 +451,10 @@
        }
     });
 
+    $( document ).on("change", '#select_candidates', function(event){
+      $('#contract_buy_contracts_attributes_0_candidate_id').val($('#select_candidates').select2('data')[0]['name'])
+    })
+
     $( document ).on( "select2:unselect", ".select_company_contacts", function( e ) {
       $(this).closest('.company_contacts').find('div.contact-nested-fields').find(':input.contact-id[value=' + e.params.data.id + ']').closest('div.contact-nested-fields').remove();
     });
@@ -543,17 +512,6 @@
       $(this).closest('.assign_commission_user').find('div.account-nested-fields:last').find("input.accountable-type").val(e.params.data.id.split("_")[1]);
     });
 
-    //$('#contract-attachment').on('cocoon:after-insert', function(e, insertedItem) {
-    //  insertedItem.find('.filepicker-attachment').each(function(i,e){
-    //    filepicker.constructWidget(e);
-    //    $(".filepicker-attachment").on('click',function() {
-    //      $('.fp__overlay').css({'z-index':'99999'})
-    //    });
-    //    $('.filepicker-attachment').on('click',function() {
-    //      $(this).hide();
-    //    });
-    //  });
-    //});
     function check_sc_ts_end_of_month(){
       if($('#contract_sell_contracts_attributes_0_ts_end_of_month').is(':checked')){
        $('#sc_ts_end_of_month').prop('checked', true);
