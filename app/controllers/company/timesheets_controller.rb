@@ -179,7 +179,7 @@ class Company::TimesheetsController < Company::BaseController
   def check_invoice
     @invoice = Invoice.where(id: (params[:id] || params[:timesheet_id])).first
     if @invoice.present?
-      @timesheets = current_company.timesheets.includes(contract: :sell_contracts).approved_timesheets.where(contract_id: @invoice.contract_id).where("start_date >= ? AND end_date <= ?", @invoice.start_date, @invoice.end_date).order(id: :desc)
+      @timesheets = current_company.timesheets.includes(contract: :sell_contracts).approved_timesheets.invoice_timesheets(@invoice)
     else
       @errors = true
     end

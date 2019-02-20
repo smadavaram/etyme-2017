@@ -21,9 +21,9 @@
                       .form-group.candidate-association  
                         .multi-fields
                           .links
-                          = f.fields_for :tax_infos, f.object.tax_infos do |b|
-                            = render 'company/payroll_term_infos/tax_info_fields', f: b
-                            %strong
+                            = f.fields_for :tax_infos, f.object.tax_infos do |b|
+                              = render 'company/payroll_term_infos/tax_info_fields', f: b
+                              %strong
                           = link_to_add_association '+ Add Tax', f, :tax_infos, class: 'btn btn-success', partial: 'company/payroll_term_infos/tax_info_fields'                  
 
          
@@ -198,12 +198,6 @@
                               = f.radio_button :weekend_sch, "Payroll After Holiday", checked:!@payroll_detail.blank? ? @payroll_detail.weekend_sch == "Payroll After Holiday" ? true :false : "", class: 'set-checkbox payroll-schedule-btn'
                               %span.radio-checkmark
 
-
-
-                            / = link_to_add_fields 'company/payroll_term_infos/tax_info_fields', f, :tax_infos
-
-            
-
                 %br
                 .row
                   .col-md-6
@@ -211,7 +205,7 @@
                       Save
 
                   .col-md-6
-                    = link_to 'Generate Payroll Cycle', generate_payroll_dates_payroll_term_infos_path, class: 'btn btn-primary float-right' if current_company&.payroll_infos&.first&.present?
+                    = link_to 'Generate Payroll Cycle', generate_payroll_dates_payroll_term_infos_path, class: 'btn btn-primary float-right' if payroll_infos(current_company)
 - content_for :scripts do
   :javascript
     $(document).on("click",".remove-tax-fields", function(){
