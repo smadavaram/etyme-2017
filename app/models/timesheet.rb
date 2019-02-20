@@ -42,6 +42,7 @@ class Timesheet < ApplicationRecord
   scope :open_timesheets, -> {where(status: :open)}
   scope :submitted_timesheets, -> {where(status: :submitted)}
   scope :approved_timesheets, -> {where(status: :approved)}
+  scope :invoice_timesheets, -> (invoice) {where(contract_id: invoice.contract_id).where("start_date >= ? AND end_date <= ?", invoice.start_date, invoice.end_date).order(id: :desc)}
 
   def assignee
     self.contract.assignee

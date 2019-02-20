@@ -10,27 +10,27 @@
           %header
             %span.widget-icon
               %i.fa.fa-check
-            %h2 Salary Clear Cycles 
+            %h2 Salary Cycles 
           %div.table-responsive
             %table.table.table-bordered.account_detail
               %thead
                 %tr
                   %th
-                    Start Date - End date
-                  %th Payroll date
+                    Pay Period (Start - End) 
                   %th Calculation date
                   %th Process date
+                  %th Payroll date (clear)
               %tbody
                 - @dates.each do |x,y|
                   %tr
                     %td
                       = y[:start_date].to_s+'  - '+y[:end_date].to_s
                     %td
-                      = y[:doc_date].inspect
-                    %td
                       = y[:cal_date].inspect
                     %td
                       = y[:pro_date].inspect
+                    %td
+                      = y[:doc_date].inspect
 
 
 #content
@@ -45,24 +45,24 @@
           %header
             %span.widget-icon
               %i.fa.fa-check
-            %h2 Salary Clear Cycles 
+            %h2 Salary Cycles 
           %div.table-responsive
             %table.table.table-bordered.account_detail
               %thead
                 %tr
                   %th
-                    Start Date - End date
-                  %th Payroll date
+                    Pay Period (Start - End)
                   %th Calculation date
                   %th Process date
+                  %th Payroll date (clear)
               %tbody
                 - Salary.all.order(id: :asc).each do |s|
                   %tr
                     %td
                       = s.start_date.to_s+'  - '+s.end_date.to_s
                     %td
-                      = s.sclr_cycle.doc_date.inspect
-                    %td
                       = s.sc_cycle.doc_date.inspect
                     %td
                       = s.sp_cycle.doc_date.inspect
+                    %td
+                      = s.sclr_cycle.doc_date.inspect

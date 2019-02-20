@@ -1,8 +1,6 @@
-.row.multi-field-container{style: "padding: 15px;"}
-  .row
+.nested-fields
+  .row.multi-field-container{style: "padding: 15px;"}
     .col-md-6
-      .form-group
-        = f.text_field :tax_term, class: 'form-control input'
-    
-    .col-md-2	
+      = f.text_field :tax_term, class: 'form-control input'
+    .col-md-2
       = link_to_remove_association "", f , class: 'delete_icon fa fa-trash'
