@@ -1,17 +1,10 @@
 %fieldset
   =f.fields_for :buy_contracts do |bc|
     .row
-      .col-md-6
+      .col-md-4
         .form-group
           %label.control-label  Candidate
-          .contract-fild
-            .plain-select
-              = bc.select :candidate_id, {}, {}, id: "buy_contract_candidate", required: true
-      / .col-md-6
-      /   .form-group
-      /     %label.control-label  SSN
-      /     .contract-fild
-      /       / = bc.password_field :ssn, class: "form-control", placeholder: "SNN"
+          = bc.text_field :candidate_id, required: true, readonly: true
     .row
       .col-md-8
         .form-group
