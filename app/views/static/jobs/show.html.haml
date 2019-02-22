@@ -1,3 +1,5 @@
+- provide(:body_class, 'full-screen')
+
 - content_for :head do
   %meta{content: "#{candidate_job_url(@job.id)}", property: "og:url"}/
   %meta{content: "#{@job.company.name}", property: "og:title"}/
@@ -7,108 +9,107 @@
   %meta{content: "#{@job.description}", property: "og:description"}/
   %meta{content: "article", property: "og:type"}/
 
-%body
-  %header.header-jobpost
-    .container
-      .content
+#sectionIntro.intro-w.layout-v1
+  .os-container
+    .fade2
+    .call-to-action
+      .h3.cta-header
+        Jobs
+%section.jobpost
+  .container
+    .row
+      .col-lg-9.offset-lg-1.element-box.gray-background
         .row
-          .col-lg-4.col-lg-offset-8.col-md-4.col-md-offset-8.col-sm-6.col-xs-12
-            = link_to raw("<i class= 'fa fa-align-left'> Apply</i>") ,static_job_apply_path(@job,status: candidate_signed_in?)   , method: :post , remote: true  ,class: " kafe-btn kafe-btn-mint full-width revealOnScroll   #{current_candidate.present? ? (current_candidate.is_already_applied?(@job.id) ? "disabled " : "" ) : "" } "
-  %section.jobpost
-    .container
-      .row
-        .col-lg-8.white
-          .row
-            .col-lg-12
-              %h6
-                %a{:href => "#"} Categories / #{@job.job_category}
-              %h4= @job.title.humanize
-              %hr.small-hr/
-          .row.post-top-sec
-            .col-lg-3
-              %h5 Posted
-              %p #{time_ago_in_words(@job.created_at)} ago
-            .col-lg-3
-              %h5 Location
-              %p
-                %i.fa.fa-map-marker
-                #{@job.location}
-            / /.col-lg-3
-            .col-lg-3
-              %h5 Company
-              %p= @job.company.name.humanize
-            -#.col-lg-3
-              %h5 Applicants
-              %p 15
-            .col-lg-12
-              %hr.small-hr/
-          .post-bottom-sec
-            %h4 Job Description
-            %p= raw(@job.description)
-            %h4 Skills
-            -@job.tags.each do |tag|
-              %span.label.label-success= tag.name
-          %br/
-        .col-lg-4
-          .panel.user.revealOnScroll{"data-animation" => "slideInUp", "data-timeout" => "200"}
-            .row.text-center
-              %a{:href => "#"}
-                = image_tag image_path("static/img/bg/2.jpg") ,class: "img-responsive panel-img"
-                .col-xs-12.user-avatar
-                  %img.img-thumbnail.img-responsive{:alt => "Logo", :src => @job.created_by.photo}/
-                  %h4= @job.company.name.humanize
-                  %p= @job.company.email
-                / /.col-xs-12
-            / /.row
-            -#.list-group
-              .list-group-item
-                   Paid
-                %span.badge $10K
-              / /.list-group-item
-              .list-group-item
-                   Feedback (4)
-                %span.badge
-                  %i.fa.fa-star
-                  %i.fa.fa-star
-                  %i.fa.fa-star
-                  %i.fa.fa-star
-                  %i.fa.fa-star
-              / /.list-group-item
-              .list-group-item
-                   Unpaid Invoices
-                %span.badge 1
-              / /.list-group-item
-              .list-group-item
-                   Paid Job
-                %span.badge 5
-              / /.list-group-item
-              .list-group-item
-                   Amount Paid Job
-                %span.badge $10K
-          .list
-            .list-group
-              / / %div.sharethis-inline-share-buttons
-              %div.row
-                %ul.social
-                  %li
-                    %a{href: "https://twitter.com/share?url=#{candidate_job_url(@job.id)}", target: "_blank"}
-                      = image_tag "twitter.png", class: "twitter-btn"
-                      %script{src: "http://platform.twitter.com/widgets.js", type: "text/javascript"}
-                  %li
-                    %a.fb-xfbml-parse-ignore{href: "https://www.facebook.com/sharer/sharer.php?u=#{candidate_job_url(@job.id)}", target: "_blank"}
-                      = image_tag "facebook.png", class: "facebook-btn"
-                  %li
-                    %a{href: "https://web.whatsapp.com/send?text=#{candidate_job_url(@job.id)}", target: "_blank", "data-action"=>"share/whatsapp/share"}
-                      = image_tag "whatsapp.png", class: " whatsapp-btn"
-                  %li
-                    %a{href: "https://www.linkedin.com/shareArticle?mini=true&url=#{candidate_job_url(@job.id)}&source=LinkedIn", target: "_blank"}
-                      = image_tag "linkedin.png", class: "linkedin-btn"
-                  %li
-                    %a{href: "https://plus.google.com/share?url=#{candidate_job_url(@job.id)}", target: "_blank"}
-                      = image_tag "google-plus.png", class: "google-plus-btn"
+          .col-lg-12
+            %h6
+              %a{:href => "#"} Categories / #{@job.job_category}
+            %h4= @job.title.humanize
+            %hr.small-hr/
+        .row.post-top-sec
+          .col-lg-3
+            %h5 Posted
+            %p #{time_ago_in_words(@job.created_at)} ago
+          .col-lg-3
+            %h5 Location
+            %p
+              %i.fa.fa-map-marker
+              #{@job.location}
+          / /.col-lg-3
+          .col-lg-3
+            %h5 Company
+            %p= @job.company.name.humanize
+          -#.col-lg-3
+            %h5 Applicants
+            %p 15
+          .col-lg-12
+            %hr.small-hr/
+        .post-bottom-sec
+          %h4 Job Description
+          %p= raw(@job.description)
+          %h4 Skills
+          -@job.tags.each do |tag|
+            %span.label.label-success= tag.name
+        %br/
+        = link_to raw("<i class= 'fa fa-align-left'> Apply</i>") ,static_job_apply_path(@job,status: candidate_signed_in?)   , method: :post , remote: true  ,class: " btn btn-success full-width   #{current_candidate.present? ? (current_candidate.is_already_applied?(@job.id) ? "disabled " : "" ) : "" } "
+      .col-lg-2
+        -#.panel.user.revealOnScroll{"data-animation" => "slideInUp", "data-timeout" => "200"}
+          .row.text-center
+            %a{:href => "#"}
+              = image_tag image_path("static/img/bg/2.jpg") ,class: "img-responsive panel-img"
+              .col-xs-12.user-avatar
+                %img.img-thumbnail.img-responsive{:alt => "Logo", :src => @job.created_by.photo}/
+                %h4= @job.company.name.humanize
+                %p= @job.company.email
+              / /.col-xs-12
+          / /.row
+          -#.list-group
+            .list-group-item
+                 Paid
+              %span.badge $10K
+            / /.list-group-item
+            .list-group-item
+                 Feedback (4)
+              %span.badge
+                %i.fa.fa-star
+                %i.fa.fa-star
+                %i.fa.fa-star
+                %i.fa.fa-star
+                %i.fa.fa-star
+            / /.list-group-item
+            .list-group-item
+                 Unpaid Invoices
+              %span.badge 1
+            / /.list-group-item
+            .list-group-item
+                 Paid Job
+              %span.badge 5
+            / /.list-group-item
+            .list-group-item
+                 Amount Paid Job
+              %span.badge $10K
+        .list
+          .list-group
+            / / %div.sharethis-inline-share-buttons
+            %div.row
+              %ul.social
+                %li
+                  %a{href: "https://twitter.com/share?url=#{candidate_job_url(@job.id)}", target: "_blank"}
+                    = image_tag "twitter.png", class: "twitter-btn"
+                    %script{src: "http://platform.twitter.com/widgets.js", type: "text/javascript"}
+                %li
+                  %a.fb-xfbml-parse-ignore{href: "https://www.facebook.com/sharer/sharer.php?u=#{candidate_job_url(@job.id)}", target: "_blank"}
+                    = image_tag "facebook.png", class: "facebook-btn"
+                %li
+                  %a{href: "https://web.whatsapp.com/send?text=#{candidate_job_url(@job.id)}", target: "_blank", "data-action"=>"share/whatsapp/share"}
+                    = image_tag "whatsapp.png", class: "whatsapp-btn"
+                %li
+                  %a{href: "https://www.linkedin.com/shareArticle?mini=true&url=#{candidate_job_url(@job.id)}&source=LinkedIn", target: "_blank"}
+                    = image_tag "linkedin.png", class: "linkedin-btn"
+                -#%li
+                  %a{href: "https://plus.google.com/share?url=#{candidate_job_url(@job.id)}", target: "_blank"}
+                    = image_tag "google-plus.png", class: "google-plus-btn"
 
 
--content_for :body_class, 'greybg'
 - content_for :modals do
   #job_application
 -content_for :scripts do

@@ -1,34 +1,31 @@
-%body
-  %header.header-login
-    .container
-      .content
-        .row
-          %h1.revealOnScroll{"data-animation" => "fadeInDown"}
-            %i.fa.fa-coffee
-            Register
-          %p New Here? Create Account.
+- provide(:body_class, 'full-screen')
+
+#sectionIntro.intro-w.layout-v1
+  .os-container
+    .fade2
+    .call-to-action
+      .h3.cta-header
+        %i.fa.fa-coffee
+        Register
+      .h3.cta-header
+        %p New to eTyme? Create an account now.
 
 %section.banner-login
   .container
     .row
       %main.main.main-signup.col-lg-12
-        .col-lg-6.col-lg-offset-3.text-center
+        .col-lg-6.offset-lg-3.text-center
           .form-sign
             = simple_form_for(resource, as: resource_name, url: registration_path(resource_name), html: {id: 'candidateRegister' , class: 'lockscreen animated flipInY' }) do |f|
-              .form-head
-                %h3 Register
               .form-body
                 - flash.each do |key, value|
                   = flash_message(key,value)
                 .form-row
-                  .form-controls
-                    = f.email_field :email, :placeholder => "Your Email", required: true, email: true,class: 'field',onblur: 'validate_email();'
+                  = f.email_field :email, :placeholder => "Your Email", required: true, email: true,class: 'field',onblur: 'validate_email();'
                 .form-row
-                  .form-controls
-                    = f.password_field :password, :placeholder => "Password", required: true,minlength: "6",class: 'field',id: "password"
+                  = f.password_field :password, :placeholder => "Password", required: true,minlength: "6",class: 'field',id: "password"
                 .form-row
-                  .form-controls
-                    = f.password_field :password_confirmation, :placeholder => "Confirm password", "data-rule-equalTo": "#password",class: 'field'
+                  = f.password_field :password_confirmation, :placeholder => "Confirm password", "data-rule-equalTo": "#password",class: 'field'
                 -#.form-row
                   .form-controls
                     %input#terms{:name => "terms",class:"field", :type => "checkbox" ,required: true}/
