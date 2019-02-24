@@ -92,58 +92,6 @@ class Company::CompaniesController < Company::BaseController
     else
       create_new_company
     end
-    # pass = get_uniq_identifier
-
-    # if params["company"]["domain"] && !params["company"]["domain"].blank?
-
-    #   companies = Company.where(domain: params["company"]["domain"])
-
-    #   if !companies.blank?
-    #     if !params["company"]["company_contacts_attributes"].blank?
-    #       params["company"]["company_contacts_attributes"].each do |key, val|
-    #         company_contact = CompanyContact.create(:company_id=> companies.first.id, :email=>val["email"], :first_name=>val["first_name"] , :last_name=>val["last_name"] , :phone=>val["phone"] , :title=>val["title"] )
-    #       end
-
-    #       respond_to do |format|
-    #         format.html {flash[:success] = "successfully Created."; redirect_back fallback_location: root_path}
-    #         format.js{ flash.now[:success] = "successfully Created." }
-    #       end
-
-    #     end
-    #   else
-    #     total_slug = Company.where("slug like ?", "#{params["company"]["domain"].split('.')[0].gsub(/[^0-9A-Za-z.]/, '').downcase}_").count
-    #     @company = Company.new(create_params)
-
-    #     if total_slug == 0
-    #       @company.slug = "#{params["company"]["domain"].split('.')[0].gsub(/[^0-9A-Za-z.]/, '').downcase}"
-    #     else
-    #       @company.slug = "#{params["company"]["domain"].split('.')[0].gsub(/[^0-9A-Za-z.]/, '').downcase}" + "#{total_slug +1}"
-    #     end
-
-    #     # @company.slug = total_slug == 0 ? "#{params["company"]["domain"].split('.')[0].gsub(/[^0-9A-Za-z.]/, '').downcase}" : "#{params["company"]["domain"].split('.')[0].gsub(/[^0-9A-Za-z.]/, '').downcase}" + "#{total_slug - 1}"
-    #     respond_to do |format|
-    #       if @company.save
-    #         format.html { flash[:success] = "successfully Created."; redirect_back fallback_location: root_path}
-    #         format.js{ flash.now[:success] = "successfully Created." }
-    #       else
-
-    #         format.js{ flash.now[:errors] =  @company.errors.full_messages }
-    #         format.html{ flash[:errors] =  @company.errors.full_messages; redirect_back fallback_location: root_path }
-    #       end
-    #     end
-    #   end
-    # end
-
-
-    # respond_to do |format|
-    #   if @company.valid? && @company.save
-    #     format.html {flash[:success] = "successfully Created."; redirect_back fallback_location: root_path}
-    #     format.js{ flash.now[:success] = "successfully Created." }
-    #   else
-    #     format.js{ flash.now[:errors] =  @company.errors.full_messages }
-    #     format.html{ flash[:errors] =  @company.errors.full_messages; redirect_back fallback_location: root_path }
-    #   end
-    # end
   end
 
   def update
