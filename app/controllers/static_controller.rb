@@ -33,6 +33,7 @@ class StaticController < ApplicationController
 
   def domain_suggestion
     @company = Company.find_by(website: @website)
+    handle_invalid_email
     respond_to do |format|
       if @company
         format.html {}
@@ -49,6 +50,16 @@ class StaticController < ApplicationController
   end
 
   private
+
+    def handle_invalid_email
+      unless ::EMAIL_REGEX =~ params[:email]
+        respond_to do |format|
+          format.json do
+            render json: { message: 'Invalid email entered.', status: :unprocessible_entity }
+          end
+        end
+      end
+    end
 
     def find_user
       @user = User.find_by(email: params[:email])

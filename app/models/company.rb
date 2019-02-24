@@ -12,7 +12,7 @@ class Company < ApplicationRecord
   enum company_type: [:hiring_manager, :vendor]
 
   #Note: Do not change the through association order.
-  belongs_to :owner                   , class_name: 'Admin'         , foreign_key: "owner_id", optional: true
+  belongs_to :owner, class_name: 'Admin', foreign_key: "owner_id", optional: true
   belongs_to :currency, optional: true
   has_many :locations                 , dependent: :destroy
   has_many :jobs                      , dependent: :destroy
@@ -42,7 +42,6 @@ class Company < ApplicationRecord
   has_many :received_invoices         , through:   :sent_contracts ,source:  :invoices
   has_many :groups
   # has_many :invoices                  , through:   :timesheets
-  has_one  :subscription              , dependent: :destroy
   has_one  :package                   , through:   :subscription
   has_many :candidates_companies      ,dependent: :destroy
   has_many :candidates                , through: :candidates_companies
@@ -87,7 +86,6 @@ class Company < ApplicationRecord
 
 
 
-
   # validates           :company_type, inclusion: { in: [0, 1] } , presence: true
   # validates           :company_type, inclusion: {in: %w(0 , 1)}
   # validates           :name,  presence:   true
@@ -104,7 +102,7 @@ class Company < ApplicationRecord
   validates_format_of :slug, with: /\A[\w\-]+\Z/i, allow_blank: true, message: "is not allowed. Please choose another subdomain."
 
   accepts_nested_attributes_for :owner    , allow_destroy: true
-  accepts_nested_attributes_for :company_contacts    , allow_destroy: true
+  accepts_nested_attributes_for :company_contacts, allow_destroy: true
   accepts_nested_attributes_for :locations, allow_destroy: true,reject_if: :all_blank
   accepts_nested_attributes_for :company_contacts, allow_destroy: true,reject_if: :all_blank
   accepts_nested_attributes_for :invited_by    , allow_destroy: true
@@ -127,7 +125,6 @@ class Company < ApplicationRecord
   before_validation :create_slug
   after_create      :set_owner_company_id , if: Proc.new{|com| com.owner.present?}
   after_create      :welcome_email_to_owner, if: Proc.new{|comp| !comp.invited_by.present?}
-  after_create      :assign_free_subscription
   after_create      :create_defult_roles
   # after_create  :set_account_on_seq
 
@@ -201,10 +198,6 @@ class Company < ApplicationRecord
   # Call after create
   def welcome_email_to_owner
     UserMailer.welcome_email_to_owner(self).deliver_now
-  end
-
-  def assign_free_subscription
-    self.build_subscription(package: Package.free).save
   end
 
   def create_defult_roles

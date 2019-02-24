@@ -85,7 +85,7 @@
 
         });
 
-      $("div.toolbar").html('<div class="text-right">#{ link_to 'NEW' , new_admin_path , remote: true , class: 'btn btn-success btn-md pull-right header-btn hidden-mobile'}</div>');
+      $("div.toolbar").html('<div class="text-right">#{ link_to 'NEW' , new_company_company_path , local: true , class: 'btn btn-success btn-md pull-right header-btn hidden-mobile', target: '_blank'}</div>');
 
       // Apply the filter
       $("#datatable_fixed_column thead th input[type=text]").on( 'keyup change', function () {

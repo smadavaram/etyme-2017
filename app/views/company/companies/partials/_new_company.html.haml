@@ -5,10 +5,10 @@
         %button.close{"aria-hidden" => "true", "data-dismiss" => "modal", :type => "button"}
           ×
         %h2#myModalLabel.modal-title
-          %strong= @new_company.new_record? ? "New Contact/Company" : "Edit or Add Contacts"
+          %strong= @company.new_record? ? "New Contact/Company" : "Edit or Add Contacts"
       .modal-body
-        = form_for [:company,@new_company] , html:{ class:'form-horizontal', remote: ((defined? for_remote) ? true :false)} do |f|
-          - if @new_company.new_record?
+        = form_for [:company,@company] , html:{ class:'form-horizontal', remote: ((defined? for_remote) ? true :false)} do |f|
+          - if @company.new_record?
             = f.fields_for :invited_by do |i|
               = i.hidden_field :user_id , value: current_user.id
               = i.hidden_field :invited_by_company_id , value: current_company.id
@@ -32,12 +32,12 @@
                   %br/
               .col-md-6
                 %h3 company
-                - if @new_company.new_record?
+                - if @company.new_record?
                   .form-group
                     %label.control-label
                       Sub Domain
                       %sup.text-danger *
-                    = f.text_field :slug  ,:placeholder => "Domain", required: true,minlength: "3",class:'form-control', readonly: true  
+                    = f.text_field :slug  ,:placeholder => "Domain", required: true,minlength: "3",class:'form-control', readonly: true
                     = f.hidden_field :domain  ,:placeholder => "Domain", required: true,minlength: "3",class:'form-control', readonly: true
                     .note.text-muted.errors.text-danger
                     .note.text-muted
@@ -45,11 +45,11 @@
                   .form-group
                     %label.control-label
                       Name
-                    = f.text_field :name , class: 'form-control' , placeholder: 'Enter Company Name' 
+                    = f.text_field :name , class: 'form-control' , placeholder: 'Enter Company Name'
                   .form-group
                     %label.control-label
                       Website
-                    = f.text_field :website , class: 'form-control' , placeholder: 'Enter Website'   
+                    = f.text_field :website , class: 'form-control' , placeholder: 'Enter Website'
                   .form-group
                     %label.control-label
                       Phone

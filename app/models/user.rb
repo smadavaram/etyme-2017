@@ -1,4 +1,8 @@
 class User < ApplicationRecord
+
+  include DomainExtractor
+
+  EXCLUDED_EMAIL_DOMAINS = %w[gmail yahoo rediff].freeze
   # Include default devise modules. Others available are:
   # :confirmable, :lockable, :timeoutable and :omniauthable
   devise :invitable, :database_authenticatable, :registerable,
@@ -58,7 +62,8 @@ class User < ApplicationRecord
   #Tags Input
   acts_as_taggable_on :skills
 
-  validates_uniqueness_of :email
+  validates :email, uniqueness: { case_sensitive: false }, format: { with: ::EMAIL_REGEX }, presence: true
+  validate :user_email_domain
   # validates_inclusion_of :time_zone, in: ActiveSupport::TimeZone.all.map { |tz| tz.tzinfo.name }
 
   validate :max_skill_size
@@ -139,6 +144,13 @@ class User < ApplicationRecord
 
   private def send_confirmation_email
     send_confirmation_instructions
+  end
+
+  private def user_email_domain
+    email_domain = domain_name(email)
+    if email_domain.in?(EXCLUDED_EMAIL_DOMAINS)
+      errors.add(:email, "cannot be your #{email_domain} id.")
+    end
   end
 
 end
