@@ -11,6 +11,7 @@ class CompaniesController < ApplicationController
   layout 'static'
 
   add_breadcrumb "Home",'/'
+
   def new
     add_breadcrumb "Company",""
     add_breadcrumb "Sign Up",''

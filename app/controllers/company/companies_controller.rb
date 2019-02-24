@@ -38,15 +38,9 @@ class Company::CompaniesController < Company::BaseController
   end
 
   def company_contacts
-
-    @search = current_company.invited_companies.joins(:invited_company).includes(:invited_company).search(params[:q])
-
-    company_ids = @search.result.map{|data| data.invited_company_id}.uniq
-
-    @company_contacts = CompanyContact.where("company_id IN (?)", company_ids ).order("created_at DESC")
-
+    @search = current_company.company_contacts.search(params[:q])
+    @company_contacts = @search.result.order(:created_at)
     @company = Company.new
-    @company.build_invited_by
   end
 
   def network_contacts
