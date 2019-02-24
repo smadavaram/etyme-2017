@@ -2,7 +2,7 @@ class User < ApplicationRecord
 
   include DomainExtractor
 
-  EXCLUDED_EMAIL_DOMAINS = %w[gmail yahoo rediff]
+  EXCLUDED_EMAIL_DOMAINS = %w[gmail yahoo rediff].freeze
   # Include default devise modules. Others available are:
   # :confirmable, :lockable, :timeoutable and :omniauthable
   devise :invitable, :database_authenticatable, :registerable,
