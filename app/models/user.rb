@@ -62,7 +62,7 @@ class User < ApplicationRecord
   #Tags Input
   acts_as_taggable_on :skills
 
-  validates :email, uniqueness: { case_sensitive: false }, presence: true
+  validates :email, uniqueness: { case_sensitive: false }, format: { with: ::EMAIL_REGEX }, presence: true
   validate :user_email_domain
   # validates_inclusion_of :time_zone, in: ActiveSupport::TimeZone.all.map { |tz| tz.tzinfo.name }
 

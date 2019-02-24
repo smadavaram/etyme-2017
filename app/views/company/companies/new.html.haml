@@ -1,6 +1,8 @@
 = render 'shared/alert_message'
-= form_for [:company, @new_company] , html:{ class:'form-horizontal', data: { domain_checker_form: true, default_error_message: 'Something went wrong', url: domain_suggestion_path } } do |f|
-  - if @new_company.new_record?
+= render partial: 'shared/errors', locals: { object: @company }
+
+= form_for [:company, @company] , html:{ class:'form-horizontal', data: { domain_checker_form: true, default_error_message: 'Something went wrong', url: domain_suggestion_path } } do |f|
+  - if @company.new_record?
     = f.fields_for :invited_by do |i|
       = i.hidden_field :user_id , value: current_user.id
       = i.hidden_field :invited_by_company_id , value: current_company.id
@@ -22,7 +24,7 @@
         %br/
     .col-md-6
       %fieldset
-        - if @new_company.new_record?
+        - if @company.new_record?
           .form-group
             %label.control-label
               Website
