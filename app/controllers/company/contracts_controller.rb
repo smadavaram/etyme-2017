@@ -39,11 +39,11 @@ class Company::ContractsController < Company::BaseController
     @contract.buy_contracts.build
     # @contract.contract_sale_commisions.build
 
-    @new_company = Company.new
+    @company = Company.new
     @candidate = Candidate.new
     @job = current_company.jobs.new
-    @new_company.build_owner
-    @new_company.build_invited_by
+    @company.build_owner
+    @company.build_invited_by
   end
 
   def edit
@@ -149,11 +149,11 @@ class Company::ContractsController < Company::BaseController
     @contract.sell_contracts = contract.sell_contracts
     @contract.buy_contracts = contract.buy_contracts
 
-    @new_company = Company.new
+    @company = Company.new
     @candidate = Candidate.new
     @job = current_company.jobs.new
-    @new_company.build_owner
-    @new_company.build_invited_by
+    @company.build_owner
+    @company.build_invited_by
 
     render 'new'
   end
