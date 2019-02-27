@@ -30,7 +30,7 @@ module Contracts
         start_date = next_date
   
         cycle = add_cycle("Timesheet submit", next_date, start_date, end_date, "TimesheetSubmit", buy_contract.candidate_id, next_next_date, "TimesheetApprove", ta_next_date)
-        add_timesheet(start_date, next_date, buy_contract.candidate.full_name, buy_contract.candidate_id, cycle.id)
+        add_timesheet(start_date, next_date, contract.candidate.full_name, buy_contract.candidate_id, cycle.id)
         con_cycle_ta_start_date = Timesheet.set_con_cycle_ta_date(buy_contract, cycle)
 
         set_timesheet_approve(cycle,con_cycle_ta_start_date)
