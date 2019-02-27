@@ -18,7 +18,7 @@ class User < ApplicationRecord
   # validates_uniqueness_of :email
 
   # validates_numericality_of :phone
-  after_create_commit :send_confirmation_email, if: :user?
+  after_create_commit :send_confirmation_email, if: -> {user? || is_admin?}
 
   after_create :create_address
 
