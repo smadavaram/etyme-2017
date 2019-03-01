@@ -11,7 +11,7 @@
  * It is generally better to create a new file per style scope.
  *
  * Basic Styles
- *= require bootstrap
+ * require bootstrap
  *= require font-awesome
  *
  * SmartAdmin Styles : Caution! DO NOT change the order
@@ -42,6 +42,8 @@
  *= require custom
  *= require Job
  *= require style
+ *= require bullettrain-global
+ *= require bullettrain-public
  */
 
 

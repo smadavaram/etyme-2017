@@ -1,37 +1,34 @@
+- provide(:body_class, 'full-screen')
 - email_present = params[:email].present?
-%body
-  %header.header-login
-    .container
-      .content
-        .row
-          %h1.revealOnScroll{"data-animation" => "fadeInDown"}
-            %i.fa.fa-coffee
-            Login
-          %p Log in and get to work.
-  %section.banner-login
-    .container
-      .row
-        %main.main.main-signup.col-lg-12
-          .col-lg-6.col-lg-offset-3.text-center
-            .form-sign
-              = form_for(resource, as: resource_name, url: session_path(resource_name), html: {id: 'login-form', class: 'client-form',role:'form'}) do |f|
+
+#sectionIntro.intro-w.layout-v1
+  .os-container
+    .fade2
+    .call-to-action
+      .h3.cta-header
+        %i.fa.fa-coffee
+        Login
+      .h3.cta-header
+        %p Log in and get to work.
+%section.banner-login
+  .container
+    .row
+      %main.main.main-signup.col-lg-12
+        .col-lg-6.offset-lg-3.text-center
+          .form-sign
+            = form_for(resource, as: resource_name, url: session_path(resource_name), html: {id: 'login-form', class: 'client-form',role:'form'}) do |f|
+              .form-body
+                - flash.each do |key, value|
+                  = flash_message(key,value)
+                .form-row
+                  = f.email_field :email, autofocus: !email_present, value: params[:email], class:' field',placeholder:"Enter Email" ,required: true
+                .form-row
+                  = f.password_field :password, autofocus: email_present, autocomplete: "off",class:'field',placeholder:"Enter password" ,required: true
+              .form-foot
+                .form-actions
+                  = f.submit 'Login',class:'form-btn'
                 .form-head
-                  %h3 Login
-                / /.form-head
-                .form-body
-                  - flash.each do |key, value|
-                    = flash_message(key,value)
-                  .form-row
-                    .form-controls
-                      = f.email_field :email, autofocus: !email_present, value: params[:email], class:' field',placeholder:"Enter Email" ,required: true
-                  .form-row
-                    .form-controls
-                      = f.password_field :password, autofocus: email_present, autocomplete: "off",class:'field',placeholder:"Enter password" ,required: true
-                .form-foot
-                  .form-actions
-                    = f.submit 'Login',class:'form-btn'
-                  .form-head
-                    = link_to 'Forgot password?', new_user_password_path ,class: "more-link", style: "color:black"
+                  = link_to 'Forgot password?', new_user_password_path ,class: "more-link", style: "color:black"
 
 - content_for :scripts do
   :javascript

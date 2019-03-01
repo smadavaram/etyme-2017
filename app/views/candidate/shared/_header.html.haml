@@ -1,8 +1,5 @@
 %header#header
   #logo-group
-    / PLACE YOUR LOGO HERE
-    %span#logo{style: 'margin-top: 3px;'}
-      = image_tag 'etyme-logo.png', alt: 'SmartAdmin', style: 'width: 80px;'
   = yield :top_right
   / %input{"data-off-text" => "Unavailable", "data-on-text" => "Available", :name => "candidate-status-toggle", :type => "checkbox", :checked => current_candidate.chat_status == 'available' ? true : false}
   

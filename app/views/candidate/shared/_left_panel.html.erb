@@ -1,0 +1,159 @@
+<div class="menu-w color-scheme-light color-style-default menu-position-side menu-side-left menu-layout-compact sub-menu-style-flyout sub-menu-color-light selected-menu-color-light menu-activated-on-hover menu-has-selected-link">
+  <div class="logo-w">
+    <a class="logo" href="/dashboard">
+      <div class="logo-element"></div>
+      <div class="logo-label">eTyme</div>
+    </a>
+  </div>
+  <div class="logged-user-w avatar-inline">
+    <div class="logged-user-i">
+      <div class="avatar-w">
+        <%= link_to image_tag((current_candidate.photo.present? ? current_candidate.photo : 'default_user.png'), alt: 'me'), my_profile_path %>
+      </div>
+      <div class="logged-user-info-w">
+        <div class="logged-user-name">
+          <% candidate_name = (current_candidate.full_name.present? ? current_candidate.full_name : "Candidate") %>
+          <%= link_to candidate_name, my_profile_path, class: "text-muted" %>
+        </div>
+        <!--div class="logged-user-role">My Team</div-->
+      </div>
+    </div>
+    <h1 class="menu-page-header">eTyme</h1>
+    <ul class="main-menu">
+      <li>
+        <a href="/candidate">
+          <div class="icon-w">
+            <i class="ti-home"></i>
+          </div>
+          <span>Dashboard</span>
+        </a>
+      </li>
+      <li>
+        <a href="<%= candidate_conversations_path %>">
+          <div class="icon-w">
+            <i class="ti-email"></i>
+          </div>
+          <span>Inbox</span>
+        </a>
+      </li>
+      <li class="sub-header"><span>Network</span></li>
+      <li class="has-sub-menu">
+        <a class="team-menu" href="#">
+          <div class="icon-w">
+            <i class="ti-world"></i>
+          </div>
+          <span>Network</span>
+        </a>
+        <div class="sub-menu-w">
+          <div class="sub-menu-header">Network</div>
+          <div class="sub-menu-icon"><i class="icon-people"></i></div>
+          <div class="sub-menu-i">
+            <ul class="sub-menu">
+              <li><a href="#">Groups</a></li>
+              <li><a href="#">My Directory</a></li>
+              <li><a href="#">Candidates</a></li>
+              <li><a href="#">Companies</a></li>
+              <li><a href="#">Contacts</a></li>
+            </ul>
+          </div>
+        </div>
+      </li>
+      <li class="has-sub-menu">
+        <a class="team-menu" href="#">
+          <div class="icon-w">
+            <i class="icon-graduation"></i>
+          </div>
+          <span>Bench</span>
+        </a>
+        <div class="sub-menu-w">
+          <div class="sub-menu-header">Bench</div>
+          <div class="sub-menu-icon"><i class="icon-people"></i></div>
+          <div class="sub-menu-i">
+            <ul class="sub-menu">
+              <li><a href="<%= benchs_path %>">My Bench</a></li>
+            </ul>
+          </div>
+        </div>
+      </li>
+      <li class="sub-header"><span>Jobs</span></li>
+      <li class="has-sub-menu">
+        <a class="team-menu" href="#">
+          <div class="icon-w">
+            <i class="icon-people"></i>
+          </div>
+          <span>Jobs</span>
+        </a>
+        <div class="sub-menu-w">
+          <div class="sub-menu-header">Jobs</div>
+          <div class="sub-menu-icon"><i class="icon-people"></i></div>
+          <div class="sub-menu-i">
+            <ul class="sub-menu">
+              <li><a href="<%= candidate_jobs_path %>">All Posted Jobs</a></li>
+              <li><a href="<%= candidate_job_invitations_path %>">Invitations</a></li>
+              <li><a href="<%= candidate_job_applications_path %>">Applicants</a></li>
+            </ul>
+          </div>
+        </div>
+      </li>
+      <li class="has-sub-menu">
+        <a class="team-menu" href="#">
+          <div class="icon-w">
+            <i class="os-icon os-icon-hierarchy-structure-2"></i>
+          </div>
+          <span>HR</span>
+        </a>
+        <div class="sub-menu-w">
+          <div class="sub-menu-header">HR</div>
+          <div class="sub-menu-icon"><i class="icon-people"></i></div>
+          <div class="sub-menu-i">
+            <ul class="sub-menu">
+              <li><a href="#">Contracts</a></li>
+              <li><a href="#">Sell</a></li>
+              <li><a href="#">Buy</a></li>
+            </ul>
+          </div>
+        </div>
+      </li>
+      <li class="has-sub-menu">
+        <a class="team-menu" href="/account/teams/1">
+          <div class="icon-w">
+            <i class="ti-timer"></i>
+          </div>
+          <span>Timesheets</span>
+        </a>
+        <div class="sub-menu-w">
+          <div class="sub-menu-header">Timesheets</div>
+          <div class="sub-menu-icon"><i class="icon-people"></i></div>
+          <div class="sub-menu-i">
+            <ul class="sub-menu">
+              <li><a href="<%= candidate_timesheets_path %>">Timesheets</a></li>
+              <li><a href="<%= submitted_timesheets_candidate_timesheets_path %>">Submitted</a></li>
+              <li><a href="<%= approve_timesheets_candidate_timesheets_path %>">Approved</a></li>
+              <li><a href="#">Leaves</a></li>
+            </ul>
+          </div>
+        </div>
+      </li>
+      <li class="has-sub-menu">
+        <a class="team-menu" href="#">
+          <div class="icon-w">
+            <i class="icon-plane"></i>
+          </div>
+          <span>Client Expenses</span>
+        </a>
+        <div class="sub-menu-w">
+          <div class="sub-menu-header">Client Expenses</div>
+          <div class="sub-menu-icon"><i class="icon-people"></i></div>
+          <div class="sub-menu-i">
+            <ul class="sub-menu">
+              <li><a href="<%= candidate_client_expenses_path %>">Expenses</a></li>
+              <li><a href="<%= submitted_client_expenses_candidate_client_expenses_path %>">Submitted</a></li>
+            </ul>
+          </div>
+        </div>
+      </li>
+      <li><br/></li>
+      <li><br/></li>
+    </ul>
+  </div>
+</div>

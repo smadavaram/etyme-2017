@@ -34,20 +34,23 @@
     -#= favicon_link_tag 'splash/iphone.png', type: 'image/png', rel: 'apple-touch-startup-image', media: 'screen and (max-device-width: 320px)'
     = yield :head
 
-  %body.smart-style-6{class: "#{yield :body_class}"}
-    = render partial: 'company/shared/header'
-    = render partial: 'company/shared/left_panel'
-    #main{:role => "main" ,style: "min-height: 750px !important"}
-      #ribbon
-        %ol.breadcrumb
-          = render_breadcrumbs tag: :li, separator: ""
-      -#= yield :ribbon
-      = yield
-    -#.remote_container
-    = yield :modals
-    .remote_container
-    = render partial: 'company/shared/footer'
-    = render partial: 'company/shared/tiles'
+  %body.smart-style-6{class: "#{yield :body_class} menu-position-side menu-side-left full-screen"}
+    .all-wrapper
+      .layout-w
+        = render partial: 'company/shared/left_panel'
+        .content-w
+          = render partial: 'company/shared/header'
+          #main{:role => "main" ,style: "min-height: 750px !important"}
+            #ribbon
+              %ol.breadcrumb
+                = render_breadcrumbs tag: :li, separator: " / "
+            -#= yield :ribbon
+            = yield
+          -#.remote_container
+          = yield :modals
+          .remote_container
+          = render partial: 'company/shared/footer'
+          = render partial: 'company/shared/tiles'
     = javascript_include_tag 'company'
     = filepicker_js_include_tag
 
