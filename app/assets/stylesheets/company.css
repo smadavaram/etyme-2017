@@ -11,7 +11,7 @@
  * It is generally better to create a new file per style scope.
  *
  * Basic Styles
- *= require bootstrap
+ * require bootstrap
  *= require bootstarp-year-calendar
  *= require font-awesome
  *
@@ -50,4 +50,6 @@
  *= require style
  *= require bootstrap-switch
  *= require company/companies
+ *= require bullettrain-global
+ *= require bullettrain-public
  */

@@ -34,18 +34,21 @@
     -#= favicon_link_tag 'splash/iphone.png', type: 'image/png', rel: 'apple-touch-startup-image', media: 'screen and (max-device-width: 320px)'
     = yield :head
 
-  %body.smart-style-6{class: "#{yield :body_class}"}
-    = render partial: 'candidate/shared/header'
-    = render partial: 'candidate/shared/left_panel'
-    #main{:role => "main"}
-      #ribbon
-        %ol.breadcrumb
-          = render_breadcrumbs tag: :li, separator: ""
-      -#= yield :ribbon
-      = yield
-    = yield :modals
-    = render partial: 'candidate/shared/footer'
-    = render partial: 'candidate/shared/tiles'
+  %body.smart-style-6{class: "#{yield :body_class} menu-position-side menu-side-left full-screen"}
+    .all-wrapper
+      .layout-w
+        = render partial: 'candidate/shared/left_panel'
+        .content-w
+          = render partial: 'candidate/shared/header'
+          #main{:role => "main"}
+            #ribbon
+              %ol.breadcrumb
+                = render_breadcrumbs tag: :li, separator: " / "
+            -#= yield :ribbon
+            = yield
+          = yield :modals
+          = render partial: 'candidate/shared/footer'
+          = render partial: 'candidate/shared/tiles'
     / END SHORTCUT AREA
     / ==================================================
     / PACE LOADER - turn this on if you want ajax loading to show (caution: uses lots of memory on iDevices)
