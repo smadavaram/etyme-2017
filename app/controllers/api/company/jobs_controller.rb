@@ -130,7 +130,7 @@ class Api::Company::JobsController < ApplicationController
 
 
     def company_job_params
-      params.require(:job).permit([:title,:description,:location,:job_category, :is_public , :start_date , :end_date , :tag_list, :video_file, :industry, :department, :job_type, :price, :education_list, :comp_video, :listing_type, custom_fields_attributes:
+      params.require(:job).permit([:status, :title,:description,:location,:job_category, :is_public , :start_date , :end_date , :tag_list, :video_file, :industry, :department, :job_type, :price, :education_list, :comp_video, :listing_type, custom_fields_attributes:
           [
               :id,
               :name,

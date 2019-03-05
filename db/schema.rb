@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema.define(version: 20190130064718) do
+ActiveRecord::Schema.define(version: 20190305012757) do
 
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
@@ -151,6 +151,7 @@ ActiveRecord::Schema.define(version: 20190130064718) do
     t.boolean "show_accounting_to_employee"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.integer "company_id"
     t.date "first_date_of_timesheet"
     t.date "first_date_of_invoice"
     t.date "ts_date_1"
@@ -160,7 +161,6 @@ ActiveRecord::Schema.define(version: 20190130064718) do
     t.integer "max_day_allow_for_timesheet"
     t.integer "max_day_allow_for_invoice"
     t.integer "uscis_rate"
-    t.integer "company_id"
     t.time "ts_day_time"
     t.date "pr_start_date"
     t.date "pr_end_date"
@@ -1171,6 +1171,7 @@ ActiveRecord::Schema.define(version: 20190130064718) do
     t.boolean "is_bench_job"
     t.string "comp_video"
     t.string "listing_type", default: "Job"
+    t.string "status"
     t.index ["deleted_at"], name: "index_jobs_on_deleted_at"
   end
 

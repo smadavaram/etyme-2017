@@ -23,6 +23,14 @@
       .col-md-6
         .form-group
           %label.control-label
+            Job status
+            %sup.text-danger *
+          .plain-select
+            = f.select :status, job_status, {include_blank: "Select a Status for this job"},{class: "form-control", required: true }
+    .row
+      .col-md-6
+        .form-group
+          %label.control-label
             Job Location
             %sup.text-danger *
           = f.text_field :location , class: 'form-control' , placeholder: 'Enter Job Location' , required: true
