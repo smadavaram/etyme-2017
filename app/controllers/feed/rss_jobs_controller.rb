@@ -25,7 +25,7 @@ class Feed::RssJobsController < ApplicationController
     end
   end
 
-  def trining_feed
+  def training_feed
     @jobs = Job.where(:listing_type=>"Training").where(:status =>"Published")
     respond_to do |format|
       format.rss { render :layout => false }

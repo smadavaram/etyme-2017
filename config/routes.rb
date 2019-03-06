@@ -29,7 +29,7 @@ Rails.application.routes.draw do
     get 'job_feed' => 'rss_jobs#job_feed'
     get 'product_feed' => 'rss_jobs#product_feed'
     get 'service_feed' => 'rss_jobs#service_feed'
-    get 'trining_feed' => 'rss_jobs#trining_feed'
+    get 'training_feed' => 'rss_jobs#training_feed'
     get 'feeds' => 'rss_jobs#feeds'
   end
 
