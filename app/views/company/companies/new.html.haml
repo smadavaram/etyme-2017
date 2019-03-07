@@ -15,7 +15,6 @@
       .col-md-12{style: "margin-left:15px"}
         = link_to_add_association 'Add Contact', f, :company_contacts , partial: 'company/companies/partials/company_contact_fields',class:'btn btn-primary pull-right'
 
-
         -#.form-group
         -#  %label.col-md-4.control-label
         -#    Send Email for On-Boarding
@@ -40,11 +39,11 @@
           .form-group
             %label.control-label
               Select type
-            = f.select :company_type , [["Staffing/Training/Vendors", 'vendor'], ["Client/Implementation Patner", 'hiring_manager']],{include_blank: '-- Select Type --'} ,:class => 'form-control company_type', required: true
+            = f.select :company_type , [["Staffing/Training/Vendors", 'vendor'], ["Client/Implementation Patner", 'hiring_manager']],{include_blank: '-- Select Type --'} ,:class => 'form-control company_type', required: true, data: { company_type_field: true }
           .form-group
             %label.control-label
               Name
-            = f.text_field :name , class: 'form-control' , placeholder: 'Enter Company Name'
+            = f.text_field :name , class: 'form-control' , placeholder: 'Enter Company Name', data: { name_field: true }
           .form-group
             %label.control-label
               Phone
