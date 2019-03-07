@@ -67,7 +67,7 @@ class StaticController < ApplicationController
         respond_to do |format|
           format.html { }
           format.json do
-            render json: { message: 'User already registered.', status: :unprocessible_entity }
+            render json: { message: 'User already registered.', status: :unprocessible_entity, slug: @user.company.slug, website: domain_from_email(params[:email]), name: @user.company.name, company_type: @user.company.company_type }
           end
         end
       end

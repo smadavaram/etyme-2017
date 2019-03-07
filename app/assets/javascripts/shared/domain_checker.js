@@ -10,6 +10,8 @@ function DomainChecker(options, container) {
   this.websiteField          = this.container.find(options.websiteFieldSelector);
   this.alertMessageContainer = this.container.find(options.alertMessageContainer);
   this.defaultErrorMessage   = this.container.data(options.errorMessageAttribute);
+  this.nameField             = this.container.find(options.nameFieldSelector);
+  this.companyTypeField      = this.container.find(options.companyTypeSelector);
   this.flashManager          = new FlashManager();
 }
 
@@ -26,8 +28,20 @@ DomainChecker.prototype.checkForAvailableDomain = function(emailFieldValue) {
       if(response.status == "ok"){
         _this.domainField.val(response.slug);
         _this.websiteField.val(response.website);
+        _this.domainField.prop('disabled', 'disabled');
+        _this.websiteField.prop('disabled', 'disabled');
         _this.flashManager.show(response.message, 'alert-success');
-      } else {
+      }else if(response.status == "unprocessible_entity"){
+        _this.domainField.val(response.slug);
+        _this.websiteField.val(response.website);
+        _this.nameField.val(response.name);
+        _this.companyTypeField.val(response.company_type);
+        _this.domainField.prop('disabled', 'disabled');
+        _this.websiteField.prop('disabled', 'disabled');
+        _this.nameField.prop('disabled', 'disabled');
+        _this.companyTypeField.prop('disabled', 'disabled');
+        _this.flashManager.show(response.message, 'alert-danger');
+      }else {
         _this.domainField.val('');
         _this.flashManager.show(response.message, 'alert-danger');
       }
@@ -60,6 +74,8 @@ $(document).ready(function(){
     emailFieldSelector    : '[data-email-field=true]',
     alertMessageContainer : '[data-alert-message=true]',
     websiteFieldSelector  : '[data-website-field=true]',
+    nameFieldSelector     : '[data-name-field=true]',
+    companyTypeSelector   : '[data-company-type-field=true]',
     errorMessageAttribute : 'default-error-message'
   },
     container = $('[data-domain-checker-form=true]');
