@@ -86,6 +86,7 @@ class Company::CompaniesController < Company::BaseController
     else
       create_new_company
     end
+    create_new_user
   end
 
   def update
@@ -353,6 +354,15 @@ class Company::CompaniesController < Company::BaseController
       redirect_to new_company_company_path, success: 'Successfully Created company.'
     else
       render :new
+    end
+  end
+
+  def create_new_user
+    company_contact_params.each do |index,params|
+      if User.find_by_email(params[:email]).nil?
+        user = current_company.admins.new(first_name: params[:first_name], last_name: params[:last_name], email: params[:email], phone: params[:phone])
+        user.save
+      end
     end
   end
 
