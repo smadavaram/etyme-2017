@@ -593,6 +593,7 @@ Rails.application.routes.draw do
   namespace :api do
     resources :select_searches, only: :index do
       get :find_companies, on: :collection
+      get :find_client_companies, on: :collection
       get :find_candidates, on: :collection
       get :find_contacts, on: :collection
       get :find_job_applicants, on: :collection

@@ -348,7 +348,7 @@ class Company::CompaniesController < Company::BaseController
   end
 
   def create_new_company
-    @company = Company.new(company_params)
+    @company = Company.new(create_params)
     if @company.save
       redirect_to new_company_company_path, success: 'Successfully Created company.'
     else
