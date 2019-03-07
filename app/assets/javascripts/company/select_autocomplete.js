@@ -53,6 +53,43 @@ var set_company_select = function(selector, place_holder){
     }
 }
 
+var set_client_company_select = function(selector, place_holder){
+    if ($(selector).length > 0) {
+        $(selector).select2({
+            ajax: {
+                url: "/api/select_searches/find_client_companies",
+                dataType: 'json',
+                delay: 250,
+                data: function (params) {
+                    return {
+                        per_page: 10,
+                        q: params.term, // search term
+                        page: params.page
+                    };
+                },
+                processResults: function (data, params) {
+                  debugger;
+                    params.page = params.page || 1;
+                    return {
+                        results: data.companies,
+                        pagination: {
+                            more: (params.page * 10) < data.total_count
+                        }
+                    };
+                },
+                cache: true
+            },
+            language: {
+                noResults: function() {return "No results <a class='pull-right header-btn hidden-mobile' data-toggle='modal' data-target='#new-contract-company' href='#'>Add New</a>"; }
+            },
+            placeholder: place_holder,
+            escapeMarkup: function (markup) { return markup; },
+            templateResult: formatRepo,
+            templateSelection: formatRepoSelection
+        });
+    }
+}
+
 var set_job_select = function(selector, place_holder){
     if ($(selector).length > 0) {
         $(selector).select2({
