@@ -70,7 +70,7 @@ class User < ApplicationRecord
 
 
   def user?
-    instance_of? User
+    instance_of? User if invited_by_id.nil?
   end
 
   def max_skill_size
@@ -98,7 +98,7 @@ class User < ApplicationRecord
   end
 
   def is_admin?
-    self.class.name == "Admin"
+    self.class.name == "Admin" if invited_by_id.nil?
   end
 
   def is_consultant?

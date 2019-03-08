@@ -47,7 +47,7 @@
           .form-group
             %label.control-label
               Phone
-            = f.phone_field :phone , class: 'form-control' , placeholder: 'Phone'
+            = f.phone_field :phone , class: 'form-control' , placeholder: 'Phone', data: { phone_field: true }
           .form-group
             = f.fields_for :custom_fields do |lt|
               = render 'shared/custom_fields', f: lt
