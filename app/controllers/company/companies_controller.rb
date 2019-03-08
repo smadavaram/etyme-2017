@@ -75,16 +75,29 @@ class Company::CompaniesController < Company::BaseController
         end
       end
     elsif @company
-      if create_company_contacts_and_admins && create_current_company_contact
-        respond_to do |format|
-          format.html { redirect_to new_company_company_path, success: 'Contact has been added to existing company.' }
-          format.js { flash[:succes] = 'Contact has been added to existing company.' }
+      if @company != current_company
+        if create_current_company_contact
+          redirect_to_new_company
+        else
+          redirect_to new_company_company_path, errors: 'Error Occured while creating contacts.'
         end
       else
-        redirect_to new_company_company_path, errors: 'Error Occured while creating contacts.'
+        if create_company_contacts_and_admins && create_current_company_contact
+          redirect_to_new_company
+        else
+          redirect_to new_company_company_path, errors: 'Error Occured while creating contacts.'
+        end
       end
     else
       create_new_company
+    end
+    create_new_user
+  end
+
+  def redirect_to_new_company
+    respond_to do |format|
+      format.html { redirect_to new_company_company_path, success: 'Contact has been added to existing company.' }
+      format.js { flash[:succes] = 'Contact has been added to existing company.' }
     end
   end
 
@@ -344,7 +357,8 @@ class Company::CompaniesController < Company::BaseController
   private
 
   def find_company_by_email
-    @company = Company.find_by(website: domain_from_email(company_contact_params["0"][:email]))
+    # @company = Company.find_by(website: domain_from_email(company_contact_params["0"][:email]))
+    @company = User.find_by(email: company_contact_params["0"][:email])&.company
   end
 
   def create_new_company
@@ -353,6 +367,15 @@ class Company::CompaniesController < Company::BaseController
       redirect_to new_company_company_path, success: 'Successfully Created company.'
     else
       render :new
+    end
+  end
+
+  def create_new_user
+    company_contact_params.each do |index,params|
+      if User.find_by_email(params[:email]).nil?
+        user = current_company.admins.new(first_name: params[:first_name], last_name: params[:last_name], email: params[:email], phone: params[:phone], invited_by_id: current_user.id)
+        user.save
+      end
     end
   end
 
@@ -420,7 +443,7 @@ class Company::CompaniesController < Company::BaseController
   end
 
   def create_params
-    params.require(:company).permit([:name, :email, :domain,:currency_id,:phone ,:fax_number,:send_email, :slug, :website ,group_ids:[],
+    params.require(:company).permit([:name, :email, :domain, :company_type, :currency_id,:phone ,:fax_number,:send_email, :slug, :website ,group_ids:[],
          company_contacts_attributes:[:id, :type  , :first_name, :last_name ,:email,:company_id,:phone, :title ,:_destroy],
          invited_by_attributes: [:invited_by_company_id , :user_id],
          custom_fields_attributes: [
