@@ -622,7 +622,7 @@
                             = link_to raw("<i class='fa fa-calendar'></i>"), edit_invoice_path( invoice), class: 'btn btn-md btn-default btn-primary',title: "Chnage end date" if invoice.pending_invoice?
                             =# link_to raw("<i class='fa fa-fax'></i>") , timesheet_check_invoice_path(invoice), target: '_blank', class: 'btn btn-md btn-default btn-primary',title: "Submit Invoice"
 
-.modal.fade{id: "invoice-confirmation-model"}
+.modal{id: "invoice-confirmation-model"}
   .modal-dialog
     .modal-content
       .modal-header

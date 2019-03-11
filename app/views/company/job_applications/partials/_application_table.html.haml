@@ -58,9 +58,9 @@
                           %td
                             %span.label.label-success= application.status.humanize
                           %td
-                            = link_to raw("<i class='fa fa-eye '></i>"),job_application_path(application) ,class: 'btn btn-default btn-xs margin-bottom-5',title: "View Detail",'data-toggle'=>"tooltip" ,'data-placement'=>"top"
+                            = link_to raw("<i class='fa fa-eye '></i>"),job_application_path(application) ,class: '',title: "View Detail",'data-toggle'=>"tooltip" ,'data-placement'=>"top"
                             =# link_to raw("<i class='fa fa-comment '></i>"), candidate_create_chat_path(application.user) ,class: 'btn btn-default btn-xs margin-bottom-5',method: :post,title: "Chat With Applicant",'data-toggle'=>"tooltip" ,'data-placement'=>"top"
-                            = link_to raw("<i class='fa fa-comment'></i>"), "#", class: "btn btn-xs btn-default margin-bottom-5 start-conversation", title: "Chat",
+                            = link_to raw("<i class='fa fa-comment'></i>"), "#", class: "start-conversation", title: "Chat",
                                 "data-chattopic" => "Job",
                                 "data-cid" => application.job.id,
                                 "data-ctype" => application.job.class.to_s,

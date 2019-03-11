@@ -19,3 +19,5 @@
 //= require tinymce-jquery
 //= require plugin/jquery-validate/jquery.validate.min
 //= require notification/SmartNotification.min.js
+
+//= require_tree ./clean_admin/.

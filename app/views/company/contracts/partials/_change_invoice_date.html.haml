@@ -1,5 +1,5 @@
 
-#change_invoice.modal.fade{:role => "dialog"}
+#change_invoice.modal{:role => "dialog"}
   .modal-dialog
     .modal-content
       = form_for contract,url: contract_change_invoice_date_path(contract),method: :post , html: {class: 'form-horizontal'}  do |f|

@@ -83,7 +83,7 @@
                             =# link_to raw("<i class='fa fa-calendar'></i>"), edit_salary_path( salary), class: 'btn btn-md btn-default btn-primary',title: "Change end date" if salary.pending_salary?
                             =# link_to raw("<i class='fa fa-fax'></i>") , timesheet_check_salary_path(salary), target: '_blank', class: 'btn btn-md btn-default btn-primary',title: "Submit salary"
 
-.modal.fade{id: "salary-confirmation-model"}
+.modal{id: "salary-confirmation-model"}
   .modal-dialog
     .modal-content
       .modal-header
