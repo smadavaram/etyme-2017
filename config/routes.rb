@@ -26,11 +26,11 @@ Rails.application.routes.draw do
 
 
   namespace :feed do
-    get 'job_feed' => 'rss_jobs#job_feed'
-    get 'product_feed' => 'rss_jobs#product_feed'
-    get 'service_feed' => 'rss_jobs#service_feed'
-    get 'training_feed' => 'rss_jobs#training_feed'
-    get 'feeds' => 'rss_jobs#feeds'
+    get 'job_feed' => 'rss_jobs#job_feed', format: 'rss'
+    get 'product_feed' => 'rss_jobs#product_feed', format: 'rss'
+    get 'service_feed' => 'rss_jobs#service_feed', format: 'rss'
+    get 'trining_feed' => 'rss_jobs#trining_feed', format: 'rss'
+    get 'feeds' => 'rss_jobs#feeds', format: 'rss'
   end
 
 
