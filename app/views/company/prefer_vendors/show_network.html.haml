@@ -50,7 +50,7 @@
                           %td= d.company.phone rescue "  --"
 
                           %td
-                            = link_to raw("<i class='fa fa-comment '></i>"), company_company_create_chat_path(d.company),remote: true,method: :get,class: 'btn btn-default btn-xs',title:"Chat with Company  #{d.prefer_vendor.name}",'data-toggle'=>"tooltip" ,'data-placement'=>"top"
+                            = link_to raw("<i class='fa fa-comment '></i>"), company_company_create_chat_path(d.company),remote: true,method: :get,class: '',title:"Chat with Company  #{d.prefer_vendor.name}",'data-toggle'=>"tooltip" ,'data-placement'=>"top"
 
                             = link_to 'HOT Candidates', company_company_hot_candidates_path(d.company) , class: 'btn btn-xs btn-danger btn-Danger' ,title:"Show Hot Candidates of  #{d.company.name}",'data-toggle'=>"tooltip" ,'data-placement'=>"top"
                         -elsif d.company == current_company
@@ -61,7 +61,7 @@
                           %td= d.prefer_vendor.domain rescue "  --"
                           %td= d.prefer_vendor.phone rescue "  --"
                           %td
-                            = link_to raw("<i class='fa fa-comment '></i>"), company_company_create_chat_path(d.prefer_vendor),remote: true,method: :get,class: 'btn btn-default btn-xs',title:"Chat with Company  #{d.prefer_vendor.name}",'data-toggle'=>"tooltip" ,'data-placement'=>"top"
+                            = link_to raw("<i class='fa fa-comment '></i>"), company_company_create_chat_path(d.prefer_vendor),remote: true,method: :get,class: '',title:"Chat with Company  #{d.prefer_vendor.name}",'data-toggle'=>"tooltip" ,'data-placement'=>"top"
                             = link_to 'HOT Candidates', company_company_hot_candidates_path(d.prefer_vendor) , class: 'btn btn-xs btn-danger btn-Danger' ,title:"Show Hot Candidates of  #{d.prefer_vendor.name}",'data-toggle'=>"tooltip" ,'data-placement'=>"top"
                             -#  = link_to raw("<i class='fa fa-times '></i>") , company_path(d.invited_company) ,method: :delete, class: 'btn btn-xs btn-default btn-danger' ,title:"Delete #{d.invited_company.name}",data: {confirm: "Are you sure you want to Delete this Company ?", verify: 'Confirm', verify_text: "Type 'Confirm' to Continue"}
 
