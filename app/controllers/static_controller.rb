@@ -38,7 +38,7 @@ class StaticController < ApplicationController
       if @company
         format.html {}
         format.json do
-          render json: { message: 'Looks like company already registered. Just add it as contact.', slug: @company.slug, website: domain_from_email(params[:email]), status: :ok }
+          render json: { message: 'Looks like company already registered. Just add it as contact.', slug: @company.try(:slug), website: domain_from_email(params[:email]), name: @company.try(:name), company_type: @company.try(:company_type), status: :ok }
         end
       else
         format.html {}
@@ -62,12 +62,19 @@ class StaticController < ApplicationController
     end
 
     def find_user
+      @website = valid_email(params[:email])
+      @find_company = Company.find_by(website: @website)
       @user = User.find_by(email: params[:email])
       if @user
         respond_to do |format|
           format.html { }
           format.json do
-            render json: { message: 'User already registered.', status: :unprocessible_entity }
+            if @user.company.domain != current_user.company.domain
+              render json: { status: :ok, slug: @find_company.try(:slug), website: domain_from_email(params[:email]), name: @find_company.try(:name), company_type: @find_company.try(:company_type), registred_in_company: false }
+            else
+              render json: { message: 'User already registered.', status: :unprocessible_entity, slug: @find_company.try(:slug), website: domain_from_email(params[:email]), name: @find_company.try(:name), company_type: @find_company.try(:company_type) }
+            end
+            
           end
         end
       end
