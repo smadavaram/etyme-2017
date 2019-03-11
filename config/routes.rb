@@ -157,6 +157,9 @@ Rails.application.routes.draw do
     resources :conversations do
       get :search, on: :collection
       resources :conversation_messages
+      collection do
+        get :chats
+      end
     end
 
     resources :contracts, only: [:index] do

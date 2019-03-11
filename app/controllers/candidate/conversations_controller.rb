@@ -15,6 +15,9 @@ class Candidate::ConversationsController < Candidate::BaseController
     @unread_message_count = Conversation.joins(:conversation_messages).where("(senderable_type = ? AND senderable_id = ? ) OR (recipientable_type = ? AND recipientable_id = ?)", current_candidate.class.to_s, current_candidate.id, current_candidate.class.to_s, current_candidate.id).where.not(conversation_messages: {is_read: true, userable: current_candidate}).uniq.count
   end
 
+  def chats
+  end
+
   def create
     if params[:user_type] == "Candidate"
       user = Candidate.where(id: params[:user_id]).first
