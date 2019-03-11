@@ -1,0 +1,283 @@
+<div class="menu-w color-scheme-light color-style-default menu-position-side menu-side-left menu-layout-compact sub-menu-style-flyout sub-menu-color-light selected-menu-color-light menu-activated-on-hover menu-has-selected-link">
+  <div class="logo-w">
+    <a class="logo" href="/dashboard">
+      <div class="logo-element"></div>
+      <div class="logo-label">eTyme</div>
+    </a>
+  </div>
+  <div class="logged-user-w avatar-inline">
+    <div class="logged-user-i">
+      <div class="avatar-w">
+        <%= link_to image_tag((current_user.photo.present? ? current_user.photo : "https://www.gravatar.com/avatar/a693bdf2780036ebcbb5f3757e2956ef?d=mm"), alt: 'me'), company_profile_page_companies_path %>
+      </div>
+      <div class="logged-user-info-w">
+        <div class="logged-user-name">
+          <%= link_to current_user.full_name, company_user_profile_page_companies_path, class: "text-muted" %>
+        </div>
+        <!--div class="logged-user-role">My Team</div-->
+      </div>
+    </div>
+    <h1 class="menu-page-header">eTyme</h1>
+    <ul class="main-menu">
+      <li>
+        <a href="/dashboard">
+          <div class="icon-w">
+            <i class="ti-home"></i>
+          </div>
+          <span>Dashboard</span>
+        </a>
+      </li>
+      <li>
+        <a href="<%= company_conversations_path %>">
+          <div class="icon-w">
+            <i class="ti-email"></i>
+          </div>
+          <span>Inbox</span>
+        </a>
+      </li>
+      <li>
+        <a href="<%= activities_path(index:true) %>">
+          <div class="icon-w">
+            <i class="ti-pulse"></i>
+          </div>
+          <span>Activity Log</span>
+        </a>
+      </li>
+      <li>
+        <a href="#">
+          <div class="icon-w">
+            <i class="ti-bell"></i>
+          </div>
+          <span>Notifications</span>
+        </a>
+      </li>
+      <li class="sub-header"><span>Network</span></li>
+      <li class="has-sub-menu">
+        <a class="team-menu" href="#">
+          <div class="icon-w">
+            <i class="ti-world"></i>
+          </div>
+          <span>Network</span>
+        </a>
+        <div class="sub-menu-w">
+          <div class="sub-menu-header">Network</div>
+          <div class="sub-menu-icon"><i class="icon-people"></i></div>
+          <div class="sub-menu-i">
+            <ul class="sub-menu">
+              <li><a href="<%= groups_path %>">Groups</a></li>
+              <li><a href="<%= directories_path %>">My Directory</a></li>
+              <li><a href="<%= candidates_path %>">Candidates</a></li>
+              <li><a href="<%= companies_path %>">Companies</a></li>
+              <li><a href="<%= company_contacts_company_companies_path %>">Contacts</a></li>
+            </ul>
+          </div>
+        </div>
+      </li>
+      <li class="has-sub-menu">
+        <a class="team-menu" href="#">
+          <div class="icon-w">
+            <i class="icon-puzzle"></i>
+          </div>
+          <span>Supplier Mgmt</span>
+        </a>
+        <div class="sub-menu-w">
+          <div class="sub-menu-header">Supplier Management</div>
+          <div class="sub-menu-icon"><i class="icon-people"></i></div>
+          <div class="sub-menu-i">
+            <ul class="sub-menu">
+              <li><a href="<%= companies_path(status: 'all') %>">All Companies</a></li>
+              <li><a href="<%= prefer_vendors_path %>">Network Requests</a></li>
+              <li><a href="<%= network_path %>">Clients / Vendors</a></li>
+            </ul>
+          </div>
+        </div>
+      </li>
+      <li class="has-sub-menu">
+        <a class="team-menu" href="#">
+          <div class="icon-w">
+            <i class="icon-graduation"></i>
+          </div>
+          <span>Bench</span>
+        </a>
+        <div class="sub-menu-w">
+          <div class="sub-menu-header">Bench</div>
+          <div class="sub-menu-icon"><i class="icon-people"></i></div>
+          <div class="sub-menu-i">
+            <ul class="sub-menu">
+              <li><a href="<%= company_bench_jobs_path %>">My Bench</a></li>
+              <li><a href="<%= company_job_receives_path %>">Received</a></li>
+              <li><a href="<%= company_public_jobs_path %>">Public</a></li>
+              <li><a href="<%= company_owen_jobs_path %>">Bench Jobs</a></li>
+            </ul>
+          </div>
+        </div>
+      </li>
+      <li class="sub-header"><span>Jobs</span></li>
+      <li class="has-sub-menu">
+        <a class="team-menu" href="#">
+          <div class="icon-w">
+            <i class="icon-people"></i>
+          </div>
+          <span>Jobs / Offers</span>
+        </a>
+        <div class="sub-menu-w">
+          <div class="sub-menu-header">Jobs</div>
+          <div class="sub-menu-icon"><i class="icon-people"></i></div>
+          <div class="sub-menu-i">
+            <ul class="sub-menu">
+              <li><a href="<%= jobs_path %>">All Posted Jobs</a></li>
+              <li><a href="<%= job_invitations_path %>">Invitations</a></li>
+            </ul>
+          </div>
+        </div>
+      </li>
+      <li class="">
+        <a class="team-menu" href="<%= job_applications_path %>">
+          <div class="icon-w">
+            <i class="ti-user"></i>
+          </div>
+          <span>Applicants</span>
+        </a>
+      </li>
+      <li class="has-sub-menu">
+        <a class="team-menu" href="#">
+          <div class="icon-w">
+            <i class="os-icon os-icon-hierarchy-structure-2"></i>
+          </div>
+          <span>HR</span>
+        </a>
+        <div class="sub-menu-w">
+          <div class="sub-menu-header">HR</div>
+          <div class="sub-menu-icon"><i class="icon-people"></i></div>
+          <div class="sub-menu-i">
+            <ul class="sub-menu">
+              <li><a href="<%= contracts_path %>">Contracts</a></li>
+              <li><a href="<%= company_sell_contracts_path %>">Sell</a></li>
+              <li><a href="<%= company_buy_contracts_path %>">Buy</a></li>
+              <li><a href="<%= timeline_contracts_path %>">Timeline</a></li>
+            </ul>
+          </div>
+        </div>
+      </li>
+      <li class="has-sub-menu">
+        <a class="team-menu" href="#">
+          <div class="icon-w">
+            <i class="ti-timer"></i>
+          </div>
+          <span>Timesheets</span>
+        </a>
+        <div class="sub-menu-w">
+          <div class="sub-menu-header">Timesheets</div>
+          <div class="sub-menu-icon"><i class="icon-people"></i></div>
+          <div class="sub-menu-i">
+            <ul class="sub-menu">
+              <li><a href="<%= timesheets_path %>">Submitted</a></li>
+              <li><a href="<%= approved_timesheets_path %>">Approved</a></li>
+              <li><a href="<%= current_user.is_owner? ? employees_leaves_path : (current_user.is_consultant? ? consultant_leaves_path(current_user) : '#') %>">Leaves</a></li>
+            </ul>
+          </div>
+        </div>
+      </li>
+      
+      <!-- Accounting -->
+      <li class="sub-header"><span>Accounting</span></li>
+      <li class="has-sub-menu">
+        <a class="team-menu" href="#">
+          <div class="icon-w">
+            <i class="icon-handbag"></i>
+          </div>
+          <span>Sales</span>
+        </a>
+        <div class="sub-menu-w">
+          <div class="sub-menu-header">Sales</div>
+          <div class="sub-menu-icon"><i class="icon-people"></i></div>
+          <div class="sub-menu-i">
+            <ul class="sub-menu">
+              <% if has_permission?('show_invoices') || has_permission?('manage_contracts') %>
+                <li><a href="<%= invoices_path %>">Open Invoices</a></li>
+                <li><a href="<%= cleared_invoice_invoices_path %>">Cleared Invoices</a></li>
+              <% end %>
+              <li><a href="<%= recieved_payment_company_accountings_path %>">Payments</a></li>
+            </ul>
+          </div>
+        </div>
+      </li>
+      <li class="has-sub-menu">
+        <a class="team-menu" href="#">
+          <div class="icon-w">
+            <i class="ti-shopping-cart"></i>
+          </div>
+          <span>Purchasing</span>
+        </a>
+        <div class="sub-menu-w">
+          <div class="sub-menu-header">Purchasing</div>
+          <div class="sub-menu-icon"><i class="icon-people"></i></div>
+          <div class="sub-menu-i">
+            <ul class="sub-menu">
+              <li><a href="<%= bill_to_pay_company_accountings_path %>">Open Bills</a></li>
+              <li><a href="<%= bill_received_company_accountings_path %>">Vendor Bills</a></li>
+              <li><a href="<%= bill_pay_company_accountings_path %>">Bill Pay</a></li>
+            </ul>
+          </div>
+        </div>
+      </li>
+      <li class="has-sub-menu">
+        <a class="team-menu" href="#">
+          <div class="icon-w">
+            <i class="picons-thin-icon-thin-0420_money_cash_coins_payment_dollars"></i>
+          </div>
+          <span>Salaries</span>
+        </a>
+        <div class="sub-menu-w">
+          <div class="sub-menu-header">Salaries</div>
+          <div class="sub-menu-icon"><i class="icon-people"></i></div>
+          <div class="sub-menu-i">
+            <ul class="sub-menu">
+              <li><a href="<%= salary_to_pay_company_accountings_path %>">Salary to Pay</a></li>
+              <li><a href="<%= salary_list_salaries_path %>">Salary Advance</a></li>
+              <li><a href="<%= report_salaries_path %>">Salary Calculations</a></li>
+              <li><a href="#">Salary Payments</a></li>
+            </ul>
+          </div>
+        </div>
+      </li>
+      <li class="has-sub-menu">
+        <a class="team-menu" href="#">
+          <div class="icon-w">
+            <i class="icon-plane"></i>
+          </div>
+          <span>Expenses</span>
+        </a>
+        <div class="sub-menu-w">
+          <div class="sub-menu-header">Expenses</div>
+          <div class="sub-menu-icon"><i class="icon-people"></i></div>
+          <div class="sub-menu-i">
+            <ul class="sub-menu">
+              <li><a href="#">Open Bills</a></li>
+              <li><a href="#">Bill Payments</a></li>
+              <li><a href="#">Expense Payments</a></li>
+            </ul>
+          </div>
+        </div>
+      </li>
+      <li class="has-sub-menu">
+        <a class="team-menu" href="#">
+          <div class="icon-w">
+            <i class="ti-bar-chart"></i>
+          </div>
+          <span>Reporting</span>
+        </a>
+        <div class="sub-menu-w">
+          <div class="sub-menu-header">Reporting</div>
+          <div class="sub-menu-icon"><i class="icon-people"></i></div>
+          <div class="sub-menu-i">
+            <ul class="sub-menu">
+              <li><a href="#">All Reports</a></li>
+            </ul>
+          </div>
+        </div>
+      </li>
+      
+    </ul>
+  </div>
+</div>

@@ -168,3 +168,6 @@
 
 //= require candidate/chat_status
 //= require bootstrap/bootstrap-switch
+
+// BulletTrain
+//= require_tree ./clean_admin
