@@ -76,7 +76,7 @@ class Company::CompaniesController < Company::BaseController
       end
     elsif @company
       if @company != current_company
-        if create_current_company_contact
+        if create_current_company_contact && add_current_company_admins
           redirect_to_new_company
         else
           redirect_to new_company_company_path, errors: 'Error Occured while creating contacts.'
@@ -90,8 +90,9 @@ class Company::CompaniesController < Company::BaseController
       end
     else
       create_new_company
+      add_current_company_admins
     end
-    create_new_user
+    # create_new_user
   end
 
   def redirect_to_new_company
@@ -357,8 +358,8 @@ class Company::CompaniesController < Company::BaseController
   private
 
   def find_company_by_email
-    # @company = Company.find_by(website: domain_from_email(company_contact_params["0"][:email]))
-    @company = User.find_by(email: company_contact_params["0"][:email])&.company
+    @company = Company.find_by(website: domain_from_email(company_contact_params["0"][:email]))
+    # @company = User.find_by(email: company_contact_params["0"][:email])&.company
   end
 
   def create_new_company
@@ -372,8 +373,13 @@ class Company::CompaniesController < Company::BaseController
 
   def create_new_user
     company_contact_params.each do |index,params|
+      email_domain = valid_email(params[:email])
       if User.find_by_email(params[:email]).nil?
-        user = current_company.admins.new(first_name: params[:first_name], last_name: params[:last_name], email: params[:email], phone: params[:phone], invited_by_id: current_user.id)
+        if current_company.try(:website) == email_domain
+          user = current_company.admins.new(first_name: params[:first_name], last_name: params[:last_name], email: params[:email], phone: params[:phone], invited_by_id: current_user.id)
+        else
+          user = current_company.users.new(first_name: params[:first_name], last_name: params[:last_name], email: params[:email], phone: params[:phone], invited_by_id: current_user.id)
+        end
         user.save
       end
     end
