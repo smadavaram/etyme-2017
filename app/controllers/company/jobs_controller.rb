@@ -317,8 +317,8 @@ class Company::JobsController < Company::BaseController
       :type => 'text/html'
   end  
   
-  def download_trining_template
-    send_file "#{Rails.root.join('app', 'assets', 'images', 'trining_example_template.xlsx')}",
+  def download_training_template
+    send_file "#{Rails.root.join('app', 'assets', 'images', 'training_example_template.xlsx')}",
       :type => 'text/html'
   end  
 

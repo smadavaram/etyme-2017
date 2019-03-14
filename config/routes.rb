@@ -29,7 +29,7 @@ Rails.application.routes.draw do
     get 'job_feed' => 'rss_jobs#job_feed', format: 'rss'
     get 'product_feed' => 'rss_jobs#product_feed', format: 'rss'
     get 'service_feed' => 'rss_jobs#service_feed', format: 'rss'
-    get 'trining_feed' => 'rss_jobs#trining_feed', format: 'rss'
+    get 'training_feed' => 'rss_jobs#training_feed', format: 'rss'
     get 'feeds' => 'rss_jobs#feeds'
   end
 
@@ -262,7 +262,7 @@ Rails.application.routes.draw do
     get "download_job_template", to: "jobs#download_job_template"
     get "download_product_template", to: "jobs#download_product_template"
     get "download_service_template", to: "jobs#download_service_template"
-    get "download_trining_template", to: "jobs#download_trining_template"
+    get "download_training_template", to: "jobs#download_training_template"
     get "download_candidate_template", to: "jobs#download_candidate_template"
     get "download_company_template", to: "jobs#download_company_template"
     get "download_contacts_template", to: "jobs#download_contacts_template"
