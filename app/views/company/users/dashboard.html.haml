@@ -35,7 +35,7 @@
                 = render "company/users/partials/#{d.class.name.downcase}_show" ,data: d
         .col-sm-12.col-md-4
 
-          .panel.panel-default
+          .element-box.el-tablo.centered
             .panel-body.status
               .who.clearfix
                 %h4 Company Candidates (#{current_company.candidates.count})
@@ -51,7 +51,7 @@
                 .text
                   .font-md.text-center
                     No Candidate in  Company Right now.
-          .panel.panel-default
+          .element-box.el-tablo.centered
             .panel-body.status
               .who.clearfix
                 %h4 Company Contacts (#{current_company.invited_companies_contacts.count})
@@ -66,7 +66,7 @@
                 .text
                   .font-md.text-center
                     No Contact in Company Right now.
-          .panel.panel-default
+          .element-box.el-tablo.centered
             .panel-body.status
               .who.clearfix
                 %h4 Company Consultants (#{current_company.consultants.count})
@@ -81,7 +81,7 @@
                 .text
                   .font-md.text-center
                     No Consultant in Company Right now.
-          .panel.panel-default
+          .element-box.el-tablo.centered
             .panel-body.status
               .who.clearfix
                 %h4 My Vendors (#{current_company.send_or_received_network.count})
@@ -97,7 +97,7 @@
                 .text
                   .font-md.text-center
                     No Vendor Right now.
-          .panel.panel-default
+          .element-box.el-tablo.centered
             .panel-body.status
               .who.clearfix
                 %h4 Companies 3rd Party (#{current_company.invited_companies.count})
@@ -117,56 +117,57 @@
 
         %hr
     - if current_company.hiring_manager? && !current_user.is_consultant?
-      .col-sm-12.col-md-6
-        .panel.panel-default
-          .panel-body.status
-            .who.clearfix
-              %h4 Company Consultant(s)
-            .row
-              -if current_company.consultants.present?
-                .text
-                  - current_company.consultants.last(3).each do |d|
-                    .col-sm-12.col-md-6.col-lg-4
-                      .well.text-center.connect
-                        -#%img.margin-bottom-5.margin-top-5{:alt => "img", :src => "img/avatars/female.png"}/
-                        = image_tag d.photo ,class:"margin-bottom-5 margin-top-5",alt:'img',width: '20px;',height: '20px;'
-                        %br/
-                        %span.font-xs
-                          %b
-                            = d.first_name
-              -else
-                .text
-                  .font-md.text-center
-                    No Consultant in  Company Right now.
-      .col-sm-12.col-md-6
-        .panel.panel-default
-          .panel-body.status
-            .who.clearfix
-              %h4 Latest Job Opening
-            - if current_company.jobs.present?
-              - current_company.jobs.last(3).each do |j|
-                .who.clearfix
-                  = image_tag 'jobs.png',class:'',alt: "job"
-                  -#%img.busy{:alt => "img", :src => "img/avatars/2.png"}/
-                  %span.name.font-sm
-                    %span.text-muted Posted by
-                    %b
-                      =j.company.owner.first_name
-                      %br/
-                      %span.pull-right.font-xs.text-muted
-                        %i
-                          = time_ago_in_words(j.try(:created_at).try(:localtime))
-                    .font-md
-                      = link_to "#{truncate(j.title)}",job_path(j)
-            -else
+      .row
+        .col-md-6
+          .element-box.el-tablo.centered
+            .panel-body.status
               .who.clearfix
-                .text
-                  .font-md.text-center
-                    No Jobs in  Company Right now.
-      %hr
+                %h4 Company Consultant(s)
+              .row
+                -if current_company.consultants.present?
+                  .text
+                    - current_company.consultants.last(3).each do |d|
+                      .col-sm-12.col-md-6.col-lg-4
+                        .well.text-center.connect
+                          -#%img.margin-bottom-5.margin-top-5{:alt => "img", :src => "img/avatars/female.png"}/
+                          = image_tag d.photo ,class:"margin-bottom-5 margin-top-5",alt:'img',width: '20px;',height: '20px;'
+                          %br/
+                          %span.font-xs
+                            %b
+                              = d.first_name
+                -else
+                  .text
+                    .font-md.text-center
+                      No Consultant in  Company Right now.
+        .col-md-6
+          .element-box.el-tablo.centered
+            .panel-body.status
+              .who.clearfix
+                %h4 Latest Job Opening
+              - if current_company.jobs.present?
+                - current_company.jobs.last(3).each do |j|
+                  .who.clearfix
+                    = image_tag 'jobs.png',class:'',alt: "job"
+                    -#%img.busy{:alt => "img", :src => "img/avatars/2.png"}/
+                    %span.name.font-sm
+                      %span.text-muted Posted by
+                      %b
+                        =j.company.owner.first_name
+                        %br/
+                        %span.pull-right.font-xs.text-muted
+                          %i
+                            = time_ago_in_words(j.try(:created_at).try(:localtime))
+                      .font-md
+                        = link_to "#{truncate(j.title)}",job_path(j)
+              -else
+                .who.clearfix
+                  .text
+                    .font-md.text-center
+                      No Jobs in  Company Right now.
+        %hr
       .row
         .col-sm-12.col-md-6
-          .panel.panel-default
+          .element-box.el-tablo.centered
             .panel-body.status
               .who.clearfix
                 %h4 Company Candidates
@@ -191,7 +192,7 @@
                     .font-md.text-center
                       No Candidates in  Company Right now.
         .col-sm-12.col-md-6
-          .panel.panel-default
+          .element-box.el-tablo.centered
             .panel-body.status
               .who.clearfix
                 %h4 Latest Activities

@@ -176,3 +176,6 @@
 //= require bootstrap/bootstrap-switch
 
 //= require nested_form_fields
+
+// BulletTrain
+//= require_tree ./clean_admin

@@ -7,7 +7,7 @@
             %header{:role => "heading"}
               %span.widget-icon
                 %i.fa.fa-table
-              %h2 Jobs
+              %h2.text-white Jobs
               %span.jarviswidget-loader
                 %i.fa.fa-refresh.fa-spin
             / widget div
@@ -20,6 +20,8 @@
                       %tr{:role => "row"}
                         %th.hasinput{ :style => "width:2%"}
                           = check_box_tag "select_all[]", ""
+                        %th.hasinput{ :style => "width:13%"}
+                          %input.form-control{:placeholder => "Filter Type", :type => "text"}/
                         %th.hasinput{ :style => "width:17%"}
                           %input.form-control{:placeholder => "Filter Title", :type => "text"}/
                         %th.hasinput{ :style => "width:18%"}
@@ -29,11 +31,12 @@
                         %th.hasinput{ :style => "width:17%"}
                           %input.form-control{:placeholder => "Filter Location", :type => "text"}/
                         %th.hasinput
-                          %input.form-control{:placeholder => "Filter Date", :type => "text"}/
+                          %input.form-control{:placeholder => "Filter Posted By", :type => "text"}/
                         %th.hasinput{ :style => "width:16%"}
-                          %input.form-control{:placeholder => "Filter Actions", :type => "text"}/
+                          %input.form-control{:placeholder => "Filter Status", :type => "text"}/
                       %tr{:role => "row"}
                         %th Select
+                        %th Type
                         %th Title
                         %th Category
                         %th Last date
@@ -45,12 +48,13 @@
                       - @company_jobs.each_with_index do |job , index|
                         %tr.even{:role => "row"}
                           %td= check_box_tag "ids[]", job.id
+                          %td= job.listing_type
                           %td= link_to_if(has_permission?("manage_job"), truncate(job.title,length: 50) , job_path(job) , target: '_blank')
                           %td= job.job_category
                           %td= job.end_date
                           %td= job.location
                           %td= job.created_by.full_name  rescue "  --"
-                          %td= job.is_active? ? "Active" : "Deactive"
+                          %td= job.is_active? ? job.status : "Job expired"
                           %td
                             - if job.try(:chat).present? && job.try(:chat).is_chat_user?(current_user)
                               = link_to raw("<i class='fa fa-comment '></i>") , company_chat_path(job.try(:chat) ) ,target: '_blank' , class: 'btn btn-xs btn-default  margin-bottom-5',title: "Chat of  #{truncate(job.title.titleize,length:50)}",'data-toggle'=>"tooltip" ,'data-placement'=>"top"
@@ -93,7 +97,7 @@
                     "<'dt-toolbar-footer'<'col-sm-6 col-xs-12 hidden-xs'i><'col-xs-12 col-sm-6'p>>",
             "autoWidth" : true,
             "oLanguage": {
-                "sSearch": '<span class="input-group-addon"><i class="glyphicon glyphicon-search"></i></span>'
+                "sSearch": '<span class="input-group-addon"><i class="icon-feather-search"></i></span>'
             },
             "lengthMenu": [[20,30, 50, 100, 500, 1000, -1], [20,30, 50, 100, 500, 1000]]
 
@@ -123,7 +127,7 @@
                     "<'dt-toolbar-footer'<'col-sm-6 col-xs-12 hidden-xs'i><'col-sm-6 col-xs-12'p>>",
             "autoWidth" : true,
             "oLanguage": {
-                "sSearch": '<span class="input-group-addon"><i class="glyphicon glyphicon-search"></i></span>'
+                "sSearch": '<span class="input-group-addon"><i class="icon-feather-search"></i></span>'
             },
             "preDrawCallback" : function() {
                 // Initialize the responsive datatables helper once.
