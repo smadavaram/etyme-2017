@@ -79,7 +79,7 @@
                             %td= link_to "#{d.try(:first_name)} #{d.try(:last_name)}" ,"#"
                             -#%td= d.invited_company.try(:company_contact).try(:full_name)  rescue "  --"
                             -#%td= d.invited_company.company_contact.try(:email)
-                            %td= link_to d.company.try(:name)
+                            %td= link_to CompanyContact.own_company(d.email).try(:company).try(:name)
                             %td= d.try(:email)
                             %td= d.try(:phone)
                             %td
