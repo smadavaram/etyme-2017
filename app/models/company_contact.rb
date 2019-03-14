@@ -11,6 +11,8 @@ class CompanyContact < ApplicationRecord
 
   scope :search_by ,->(term) { CompanyContact.where('lower(first_name) like :term or lower(last_name) like :term or title like :term ' ,{term: "%#{term.downcase}%" })}
 
+  scope :own_company ,->(email) {User.where('email IN (?)', email).first }
+
   def self.like_any(fields, values)
     conditions = fields.product(values).map do |(field, value)|
       [arel_table[field].matches("#{value}%"), arel_table[field].matches("% #{value}%")]
