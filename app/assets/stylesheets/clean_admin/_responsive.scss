@@ -579,10 +579,11 @@ Contents:
     flex-direction: row;
   }
   .menu-mobile {
-    width: $mobile-menu-tablet-width;
+    /* width: $mobile-menu-tablet-width; */
+    width: 100%;
     display: table-cell;
     .menu-and-user {
-      display: block;
+      display: none;
     }
     ul.sub-menu {
       padding: 1rem 1.5rem;
