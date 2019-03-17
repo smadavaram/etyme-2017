@@ -1,0 +1,111 @@
+<div class="top-bar color-scheme-transparent" style="z-index: 10000;">
+  <!--------------------START - Top Menu Controls-------------------->
+  <div class="top-menu-controls">
+    <div class="element-search autosuggest-search-activator">
+      <input placeholder="Find reports and more" type="text">
+    </div>
+    <!--------------------START - Messages Link in secondary top menu-------------------->
+    <div class="messages-notifications os-dropdown-trigger os-dropdown-position-left">
+      <i class="os-icon os-icon-mail-14"></i>
+      <!-- Below is message count icon. Uncomment to add back in. -->
+      <!--div class="new-messages-count">1</div-->
+      <div class="os-dropdown light message-list">
+        <ul>
+          <li>
+            <a href="#">
+              <div class="user-avatar-w">
+                <%= image_tag "avatars/m_sunny_big.png" %>
+              </div>
+              <div class="message-content">
+                <h6 class="message-from">John Mayers</h6>
+                <h6 class="message-title">Sample Message</h6>
+              </div>
+            </a>
+          </li>
+        </ul>
+      </div>
+    </div>
+    <!--------------------END - Messages Link in secondary top menu-------------------->
+    <!--------------------START - Features Link in secondary top menu-------------------->
+    <div class="top-icon top-settings os-dropdown-trigger os-dropdown-position-left">
+      <i class="os-icon os-icon-ui-92"></i>
+      <div class="os-dropdown">
+        <div class="icon-w">
+          <i class="os-icon os-icon-ui-46"></i>
+        </div>
+        <ul>
+          <li>
+            <a href="<%= new_company_company_path %>">
+              <span>Add Companies</span>
+            </a>
+          </li>
+          <li>
+            <a href="<%= new_company_company_contact_path %>">
+              <span>Add Contacts</span>
+            </a>
+          </li>
+          <li>
+            <a href="<%= new_group_path %>">
+              <span>Add Groups</span>
+            </a>
+          </li>
+          <br/>
+          <li class="sub-header"></li>
+          <li>
+            <a href="<%= nil %>">
+              <span>Received Payments</span>
+            </a>
+          </li>
+          <li>
+            <a href="<%= nil %>">
+              <span>Send Payments</span>
+            </a>
+          </li>
+          <li>
+            <a href="<%= nil %>">
+              <span>Add Timesheets</span>
+            </a>
+          </li>
+          <li>
+            <a href="<%= candidate_client_expenses_path %>">
+              <span>Submit Client Expenses</span>
+            </a>
+          </li>
+        </ul>
+      </div>
+    </div>
+    <!--------------------END - Features Link in secondary top menu-------------------->
+    <!--------------------START - User Link in secondary top menu-------------------->
+    <div class="top-icon top-settings os-dropdown-trigger os-dropdown-position-left">
+      <div class="logged-user-w" style="padding-left: 0px; padding-right: 0px;">
+        <div class="logged-user-i">
+          <div class="avatar-w">
+            <%= image_tag "avatars/m_sunny_big.png" %>
+          </div>
+          <div class="os-dropdown">
+            <div class="icon-w">
+              <i class="os-icon os-icon-ui-46"></i>
+            </div>
+            <ul>
+              <li>
+                <a href="<%= onboarding_profile_path %>">
+                  <i class="icon-user-female"></i>
+                  <span>Onboarding</span>
+                </a>
+              </li>
+              <li>
+                <%= link_to "", destroy_candidate_session_path, method: :delete , class: 'hidden' , id: 'logout-hidden' %>
+                <%= link_to(destroy_candidate_session_path, title: 'Sign Out', data: {action: 'userLogout', 'logout-msg' => 'You can improve your security further after logging out by closing this opened browser'}) do %>
+                  <i class="os-icon os-icon-signs-11"></i>
+                  <span>Logout</span>
+                <% end %>
+              </li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+    <!--------------------END - User Link in secondary top menu-------------------->
+  </div>
+  <!--------------------END - Top Menu Controls-------------------->
+</div>
