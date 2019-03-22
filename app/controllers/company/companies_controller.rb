@@ -90,7 +90,7 @@ class Company::CompaniesController < Company::BaseController
       end
     else
       create_new_company
-      add_current_company_admins
+      add_new_company_admins
     end
     # create_new_user
   end
@@ -411,10 +411,36 @@ class Company::CompaniesController < Company::BaseController
     end
   end
 
+  def add_new_company_admins
+    if @company && company_contact_params.present?
+      company_contact_params.to_h.map do |key, contact_hash|
+        add_new_company_admin(contact_hash)
+      end.all?
+    end
+  end
+
   def add_company_admin(admin_hash)
+    contact_hash = admin_hash.slice(:first_name, :last_name, :email, :phone, :title)
     admin_hash = admin_hash.slice(:first_name, :last_name, :email)
     company_admin = @company.admins.build(admin_hash)
     company_admin.save
+  end
+
+  def add_new_company_admin(admin_hash)
+    contact_hash = admin_hash.slice(:first_name, :last_name, :email, :phone, :title)
+    admin_hash = admin_hash.slice(:first_name, :last_name, :email)
+    company_admin = @company.admins.build(admin_hash)
+    company_admin.save
+    if @company.try(:owner_id) == nil && @company.try(:admins).count == 1
+      @company.update(owner_id: company_admin.id)
+      add_contact_to_current_company(contact_hash)
+    end
+  end
+
+  def add_contact_to_current_company(contact_hash)
+    contact_hash = contact_hash.slice(:first_name, :last_name, :email, :phone, :title)
+    @company_contact = current_company.company_contacts.build(contact_hash)
+    @company_contact.save
   end
 
   def add_contact_to_company(contact_hash)
