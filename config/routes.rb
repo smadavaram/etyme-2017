@@ -31,6 +31,7 @@ Rails.application.routes.draw do
     get 'service_feed' => 'rss_jobs#service_feed', format: 'rss'
     get 'training_feed' => 'rss_jobs#training_feed', format: 'rss'
     get 'feeds' => 'rss_jobs#feeds'
+    get ':company_id/job_feed' => 'rss_jobs#job_feed', format: 'json'
   end
 
 
