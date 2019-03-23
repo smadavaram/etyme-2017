@@ -6,8 +6,12 @@ class Feed::RssJobsController < ApplicationController
 
  def job_feed
     @jobs = Job.where(:listing_type=>"Job").where(:status =>"Published")
+    if params[:company_id].present?
+      @jobs = @jobs.where(company_id: params[:company_id])
+    end
     respond_to do |format|
       format.rss { render :layout => false }
+      format.json { render :json => @jobs }
     end
   end
 
