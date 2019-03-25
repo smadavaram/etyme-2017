@@ -1,1 +1,0 @@
-"use strict";function HideShowToggler(t){this.triggerButtons=t}HideShowToggler.prototype.divSelector=function(t){return"[data-"+t+"=true]"},HideShowToggler.prototype.bindEvents=function(){var t=this;this.triggerButtons.on("click",function(){var o=$(this).data("show");$(t.divSelector(o)).toggle()})},HideShowToggler.prototype.init=function(){this.bindEvents()};
