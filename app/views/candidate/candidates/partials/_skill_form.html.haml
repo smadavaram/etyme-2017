@@ -5,11 +5,11 @@
         .col-sm-6
           .form-group
             %p Category
-            =f.select :category, WORK_CATEGORIES.keys,{include_blank: "Select Category"},{class: "form-control p-location input", required: true }
+            =f.select :category, WORK_CATEGORIES.keys,{include_blank: "Select Category"},{class: "form-control input", required: true }
         .col-sm-6
           .form-
             %p Sub Category
-            =f.select :subcategory, '', {include_blank: "Select Category"},{class: "form-control p-location input", required: true }
+            =f.select :subcategory, '', {include_blank: "Select Category"},{class: "form-control input", required: true }
       .row
         .col-sm-6
           .form-group
@@ -24,11 +24,11 @@
         .col-sm-6
           .form-group
             %p Department
-            = f.select :dept_name, department_list, {include_blank: "Select Department"},{class: "form-control p-location input", required: true}
+            = f.select :dept_name, department_list, {include_blank: "Select Department"},{class: "form-control input", required: true}
         .col-sm-6
           .form-group
             %p Industry
-            = f.select :industry_name, industry_list, {include_blank: "Select Industry"},{class: "form-control p-location input", required: true}
+            = f.select :industry_name, industry_list, {include_blank: "Select Industry"},{class: "form-control input", required: true}
       .row
         .col-lg-12
           %button.btn.btn-primary.pull-right{:type => "submit"}
