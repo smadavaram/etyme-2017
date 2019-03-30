@@ -39,7 +39,7 @@
         %div.profile-hover
           %div.pictureContainer
             = filepicker_field_tag "" ,class: "hidden resume_file", onchange:"uploadResume(event)"
-            = link_to "Upload CV" ,"#",class: 'col-lg-12 resume btn btn-md btn-primary', style: "margin-bottom: 10px"
+            = link_to "Upload CV" ,"#",class: 'resume btn btn-md btn-primary', style: "margin-bottom: 10px"
 
     -if(current_candidate.candidates_resumes)
       -index = 1
@@ -47,9 +47,9 @@
         .row
           .col-sm-2
             .form-group.resume_div
-              .input-group
-                %span.input-group-addon
-                  %i.fa.fa-file-text-o.fa-lg.fa-fw 
+              .input-group-prepend
+                .input-group-text
+                  %i.fa.fa-file-text-o.fa-lg.fa-fw
                   = "Resume #{index}"
           -if resume.is_primary        
             .col-sm-1.primary_doc

@@ -17,7 +17,7 @@
  * SmartAdmin Styles : Caution! DO NOT change the order
  *= require smartadmin-production-plugins
  *= require smartadmin-production
- *= require smartadmin-skins
+
  *= require smartadmin-rtl
  *
  * We recommend you use "your_style.scss" to override SmartAdmin
@@ -39,7 +39,7 @@
  *= require amaran.min
  *= require custom
  *= require candidate/jobs
- *= require company_override
+
  *= require global
  *= require chat_box
  *= require conversation/chat

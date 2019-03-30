@@ -39,7 +39,7 @@
                     %li{"data-target" => "#step3" , :id=>"wiz_tab3"}
                       %a{"data-toggle" => "tab", :href => "#tab3"}
                         %span.step 3
-                        %span.title Social Media     
+                        %span.title Social Media
                     %li{"data-target" => "#step4" , :id=>"wiz_tab4"}
                       %a{"data-toggle" => "tab", :href => "#tab4"}
                         %span.step 4
@@ -76,15 +76,16 @@
                         .row
                           .col-sm-1
                             .form-group
-                              %input#country_code.form-control.input-lg{:name => "country_code", :type => "text", :value=>"+91"}/  
-                                
+                              %input#country_code.form-control.input-lg{:name => "country_code", :type => "text", :value=>"+91"}/
+
                           .col-sm-6
                             .form-group
                               .input-group
-                                %span.input-group-addon
-                                  %i.fa.fa-mobile-phone.fa-lg.fa-fw
+                                .input-group-prepend
+                                  .input-group-text
+                                    %i.fa.fa-mobile-phone.fa-lg.fa-fw
                                 %input#phone_no.form-control.input-lg{:name => "phone_no", :placeholder => "Enter Phone number", :type => "text", :value=>current_candidate.phone}/
-                                
+
 
                           .col-sm-4
                             .form-group
@@ -93,11 +94,11 @@
 
                           .col-sm-4
                             .form-group
-                              = form_for @user,url: candidate_candidate_path(@user.id, tab: "basic_info"),method: :put do |f|      
+                              = form_for @user,url: candidate_candidate_path(@user.id, tab: "basic_info"),method: :put do |f|
 
                                 .col-sm-4
                                   .form-group
-                      
+
                   #tab2.tab-pane
                     %br/
                     %h3
@@ -159,10 +160,10 @@
                                             /   %i.glyphicon.glyphicon-fullscreen
                                             /   %i.glyphicon.glyphicon-chevron-right
                                       .row{style: "padding: 15px;"}
-                
+
                                       =render partial: 'candidate/candidates/partials/basic_info_form',locals: {candidate: current_candidate}
                                       / =render partial: 'candidate/candidates/partials/basic_info_form',locals: {candidate: current_candidate}
-                                      
+
 
 
                   #tab3.tab-pane
@@ -177,8 +178,8 @@
                       \- Update Education
                     .row
                       .col-sm-12.col-md-12.col-lg-12
-                        =render partial: 'candidate/candidates/partials/education_form',locals:{education: current_candidate.educations}  
-                      
+                        =render partial: 'candidate/candidates/partials/education_form',locals:{education: current_candidate.educations}
+
                   #tab5.tab-pane
                     %br/
                     %h3
@@ -186,8 +187,8 @@
                       \- Update Skills
                     .row
                       .col-sm-12.col-md-12.col-lg-12
-                        = render partial: 'candidate/candidates/partials/skill_form',locals: {user: current_candidate}  
-                        
+                        = render partial: 'candidate/candidates/partials/skill_form',locals: {user: current_candidate}
+
                   #tab6.tab-pane
                     %br/
                     %h3
@@ -196,7 +197,7 @@
                     .row
                       .col-sm-12.col-md-12.col-lg-12
                         = render partial: 'candidate/candidates/partials/client_form',locals: {user: current_candidate}
-                          
+
                   #tab7.tab-pane
                     %br/
                     %h3
@@ -205,16 +206,16 @@
                     .row
                       .col-sm-12.col-md-12.col-lg-12
                         = render partial: 'candidate/candidates/partials/designate_form',locals: {user: current_candidate}
-                        
+
                   #tab8.tab-pane
                     %br/
                     %h3
                       %strong Step 8
-                      \- Background Check 
+                      \- Background Check
                     .row
                       .col-sm-12.col-md-12.col-lg-12
-                        = render partial: 'candidate/candidates/partials/submit_doc_form',locals: {user: current_candidate}                     
-                    
+                        = render partial: 'candidate/candidates/partials/submit_doc_form',locals: {user: current_candidate}
+
                   #tab9.tab-pane
                     %br/
                     %h3
