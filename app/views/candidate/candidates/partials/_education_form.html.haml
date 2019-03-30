@@ -24,32 +24,32 @@
           / = link_to_add_fields 'candidate/candidates/certificate_fields', f, :certificates  
     %br
     %hr
-    .row
-      .col-md-12 
-        %h4
-          %b Education Document 
-        %br  
-        .form-group.candidate-association
-          = f.fields_for :documents, f.object.documents do |b|
-            / = render 'candidate/candidates/document_fields', f: b
-          %strong
-            .links.pull-right
-              = link_to_add_association '+ Add Document', f, :documents, class: 'btn btn-success add_education_btn', partial: 'candidate/candidates/document_fields'  
-    .row
-      .col-md-6
-        - if current_candidate.documents
-          %table.table.table-bordered
-            %tr
-              %th Title
-              %th Expiry Date
-              %th Attachments
-            - current_candidate.documents.each do |doc|
-              %tr
-                %td= doc.title
-                %td= doc.exp_date
-                %td
-                  %a.delete_icon
-                    %i.fa.fa-paperclip
+    -#.row
+    -#  .col-md-12
+    -#    %h4
+    -#      %b Education Document
+    -#    %br
+    -#    .form-group.candidate-association
+    -#      = f.fields_for :documents, f.object.documents do |b|
+    -#        / = render 'candidate/candidates/document_fields', f: b
+    -#      %strong
+    -#        .links.pull-right
+    -#          = link_to_add_association '+ Add Document', f, :documents, class: 'btn btn-success add_education_btn', partial: 'candidate/candidates/document_fields'
+    -#.row
+    -#  .col-md-6
+    -#    - if current_candidate.documents
+    -#      %table.table.table-bordered
+    -#        %tr
+    -#          %th Title
+    -#          %th Expiry Date
+    -#          %th Attachments
+    -#        - current_candidate.documents.each do |doc|
+    -#          %tr
+    -#            %td= doc.title
+    -#            %td= doc.exp_date
+    -#            %td
+    -#              %a.delete_icon
+    -#                %i.fa.fa-paperclip
 
     .row
       .col-lg-12
