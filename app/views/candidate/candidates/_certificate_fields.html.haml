@@ -19,13 +19,13 @@
       .form-group
         %p End Date
         = f.text_field :end_date,placeholder:"YYYY-MM-DD",class: 'form-control cer_end_date input'
-  .row
-    .col-md-12
-      .form-group
-        = f.fields_for :candidate_certificate_document, f.object.candidate_certificate_document do |b|
-          = render 'candidate/candidates/candidate_certificate_document_fields', f: b
-        .links.education_links.pull-right
-          = link_to_add_association '+ Add Document', f, :candidate_certificate_document, class: 'btn btn-success add_education_btn', partial: 'candidate/candidates/candidate_certificate_document_fields'
+.row
+  .col-md-12
+    .form-group
+      = f.fields_for :candidate_certificate_document, f.object.candidate_certificate_document do |b|
+        = render 'candidate/candidates/candidate_certificate_document_fields', f: b
+      .links.education_links
+        = link_to_add_association '+ Add Document', f, :candidate_certificate_document, class: 'btn btn-success add_education_btn', partial: 'candidate/candidates/candidate_certificate_document_fields'
   / .row
   /   .col-md-12
   /     %a.bttn.btn-add.remove-multi-fields.pull-right.delete_icon
