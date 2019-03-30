@@ -13,7 +13,7 @@
       .element-box
         %form#wizard-1{:novalidate => "novalidate"}
           #bootstrap-wizard-1.col-sm-12
-            .form-bootstrapWizard
+            .form-bootstrapWizard.margin-bottom-20
               %ul.bootstrapWizard.form-wizard
                 %li.active{"data-target" => "#step1", :id=>"wiz_tab1"}
                   %a{"data-toggle" => "tab", :href => "#tab1"}
@@ -55,9 +55,10 @@
             .tab-content
               #tab1.tab-pane.active
                 %br/
-                %h3
-                  %strong Step 1
-                  \- Veryfy Phone Number
+                %h5.form-header
+                  Verify phone number
+                .form-desc
+                  Enter your phone number and click on verify.
                 .row
                   .col-sm-12
                     .row
@@ -88,9 +89,10 @@
 
               #tab2.tab-pane
                 %br/
-                %h3
-                  %strong Step 2
-                  \- Personal Information
+                %h5.form-header
+                  Personal Information
+                .form-desc
+                  Enter your Personal Information.
                 .row
                   #content.candidate-profile
                     .col-sm-12.col-md-12.col-lg-12
@@ -224,13 +226,13 @@
                         <li class="previous first disabled">
                         <a href="javascript:void(0);" class="btn btn-lg btn-default"> First </a>
                         </li>
-                      %li.previous.disabled
+                      %li.previous.disabled.pull-left
                         %a.btn.btn-lg.btn-default{:href => "javascript:void(0);"} Previous
                       /
                         <li class="next last">
                         <a href="javascript:void(0);" class="btn btn-lg btn-primary"> Last </a>
                         </li>
-                      %li.next
+                      %li.next.pull-right
                         %a.btn.btn-lg.txt-color-darken{:href => "javascript:void(0);"} Next
         / end widget content
       / end widget div
