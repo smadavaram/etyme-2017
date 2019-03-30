@@ -226,11 +226,11 @@ class Candidate::CandidatesController < Candidate::BaseController
                                         addresses_attributes: [:id,:address_1,:address_2,:country,:city,:state,:zip_code, :from_date, :to_date],
                                         educations_attributes: [:id,:degree_level,:degree_title,:grade,:completion_year,:start_year,:institute,:description,
                                                                 :candidate_education_document_attributes => [
-                                                                    :id, :education_id, :title, :file, :exp_date
+                                                                    :id, :education_id, :title, :file, :exp_date, :_destroy
                                                                 ]],
                                         certificates_attributes: [:id,:title,:start_date,:end_date,:institute,
                                                                   :candidate_certificate_document_attributes => [
-                                                                      :id, :certificate_id, :title, :file, :exp_date
+                                                                      :id, :certificate_id, :title, :file, :exp_date, :_destroy
                                                                   ]],
                                         clients_attributes: [:id, :name, :industry, :start_date, :end_date, :project_description, :role, :refrence_name, :refrence_phone, :refrence_email],
                                         documents_attributes: [:id, :candidate_id, :title, :file, :exp_date, :is_education, :is_legal_doc],
