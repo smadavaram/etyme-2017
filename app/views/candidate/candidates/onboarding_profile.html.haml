@@ -8,243 +8,230 @@
 
 
 %body
-  %article.col-sm-12.col-md-12.col-lg-12
-    / Widget ID (each widget will need unique ID)
-    #wid-id-0.jarviswidget.jarviswidget-color-darken{"data-widget-deletebutton" => "false", "data-widget-editbutton" => "false"}
-      %header
-        %span.widget-icon
-          %i.fa.fa-check
-        %h2 On Boarding Profile Set Up
-      / widget div
-      %div
-        / widget edit box
-        .jarviswidget-editbox
-          / This area used as dropdown edit box
-        / end widget edit box
-        / widget content
-        .widget-body
-          .row
-            %form#wizard-1{:novalidate => "novalidate"}
-              #bootstrap-wizard-1.col-sm-12
-                .form-bootstrapWizard
-                  %ul.bootstrapWizard.form-wizard
-                    %li.active{"data-target" => "#step1", :id=>"wiz_tab1"}
-                      %a{"data-toggle" => "tab", :href => "#tab1"}
-                        %span.step 1
-                        %span.title Veryfy Number
-                    %li{"data-target" => "#step2" , :id=>"wiz_tab2"}
-                      %a{"data-toggle" => "tab", :href => "#tab2"}
-                        %span.step 2
-                        %span.title Personal information
-                    %li{"data-target" => "#step3" , :id=>"wiz_tab3"}
-                      %a{"data-toggle" => "tab", :href => "#tab3"}
-                        %span.step 3
-                        %span.title Social Media
-                    %li{"data-target" => "#step4" , :id=>"wiz_tab4"}
-                      %a{"data-toggle" => "tab", :href => "#tab4"}
-                        %span.step 4
-                        %span.title Update Education
-                    %li{"data-target" => "#step5" , :id=>"wiz_tab5"}
-                      %a{"data-toggle" => "tab", :href => "#tab5"}
-                        %span.step 5
-                        %span.title Update Skills
-                    %li{"data-target" => "#step6" , :id=>"wiz_tab6"}
-                      %a{"data-toggle" => "tab", :href => "#tab6"}
-                        %span.step 6
-                        %span.title Client Information
-                    %li{"data-target" => "#step7" , :id=>"wiz_tab7"}
-                      %a{"data-toggle" => "tab", :href => "#tab7"}
-                        %span.step 7
-                        %span.title Employer Information
-                    %li{"data-target" => "#step8" , :id=>"wiz_tab8"}
-                      %a{"data-toggle" => "tab", :href => "#tab8"}
-                        %span.step 8
-                        %span.title Background Check
-                    %li{"data-target" => "#step9" , :id=>"wiz_tab9"}
-                      %a{"data-toggle" => "tab", :href => "#tab9"}
-                        %span.step 9
-                        %span.title Save Form
-                  .clearfix
-                .tab-content
-                  #tab1.tab-pane.active
-                    %br/
-                    %h3
-                      %strong Step 1
-                      \- Veryfy Phone Number
+  .content-box
+    .element-wrapper
+      .element-box
+        %form#wizard-1{:novalidate => "novalidate"}
+          #bootstrap-wizard-1.col-sm-12
+            .form-bootstrapWizard
+              %ul.bootstrapWizard.form-wizard
+                %li.active{"data-target" => "#step1", :id=>"wiz_tab1"}
+                  %a{"data-toggle" => "tab", :href => "#tab1"}
+                    %span.step 1
+                    %span.title Veryfy Number
+                %li{"data-target" => "#step2" , :id=>"wiz_tab2"}
+                  %a{"data-toggle" => "tab", :href => "#tab2"}
+                    %span.step 2
+                    %span.title Personal information
+                %li{"data-target" => "#step3" , :id=>"wiz_tab3"}
+                  %a{"data-toggle" => "tab", :href => "#tab3"}
+                    %span.step 3
+                    %span.title Social Media
+                %li{"data-target" => "#step4" , :id=>"wiz_tab4"}
+                  %a{"data-toggle" => "tab", :href => "#tab4"}
+                    %span.step 4
+                    %span.title Update Education
+                %li{"data-target" => "#step5" , :id=>"wiz_tab5"}
+                  %a{"data-toggle" => "tab", :href => "#tab5"}
+                    %span.step 5
+                    %span.title Update Skills
+                %li{"data-target" => "#step6" , :id=>"wiz_tab6"}
+                  %a{"data-toggle" => "tab", :href => "#tab6"}
+                    %span.step 6
+                    %span.title Client Information
+                %li{"data-target" => "#step7" , :id=>"wiz_tab7"}
+                  %a{"data-toggle" => "tab", :href => "#tab7"}
+                    %span.step 7
+                    %span.title Employer Information
+                %li{"data-target" => "#step8" , :id=>"wiz_tab8"}
+                  %a{"data-toggle" => "tab", :href => "#tab8"}
+                    %span.step 8
+                    %span.title Background Check
+                %li{"data-target" => "#step9" , :id=>"wiz_tab9"}
+                  %a{"data-toggle" => "tab", :href => "#tab9"}
+                    %span.step 9
+                    %span.title Save Form
+              .clearfix
+            .tab-content
+              #tab1.tab-pane.active
+                %br/
+                %h3
+                  %strong Step 1
+                  \- Veryfy Phone Number
+                .row
+                  .col-sm-12
                     .row
-                      .col-sm-12
-                        .row
-                          .col-sm-1
-                            .form-group
-                              %input#country_code.form-control.input-lg{:name => "country_code", :type => "text", :value=>"+91"}/
+                      .col-sm-1
+                        .form-group
+                          %input#country_code.form-control.input-lg{:name => "country_code", :type => "text", :value=>"+91"}/
 
-                          .col-sm-6
-                            .form-group
-                              .input-group
-                                .input-group-prepend
-                                  .input-group-text
-                                    %i.fa.fa-mobile-phone.fa-lg.fa-fw
-                                %input#phone_no.form-control.input-lg{:name => "phone_no", :placeholder => "Enter Phone number", :type => "text", :value=>current_candidate.phone}/
+                      .col-sm-6
+                        .form-group
+                          .input-group
+                            .input-group-prepend
+                              .input-group-text
+                                %i.fa.fa-mobile-phone.fa-lg.fa-fw
+                            %input#phone_no.form-control.input-lg{:name => "phone_no", :placeholder => "Enter Phone number", :type => "text", :value=>current_candidate.phone}/
 
 
-                          .col-sm-4
-                            .form-group
-                              .input-group
-                                %a.btn.btn-primary.btn-lg{:href => "javascript:void(0);", :onclick => "smsLogin();"} Send OTP
+                      .col-sm-4
+                        .form-group
+                          .input-group
+                            %a.btn.btn-primary.btn-lg{:href => "javascript:void(0);", :onclick => "smsLogin();"} Send OTP
 
-                          .col-sm-4
-                            .form-group
-                              = form_for @user,url: candidate_candidate_path(@user.id, tab: "basic_info"),method: :put do |f|
+                      .col-sm-4
+                        .form-group
+                          = form_for @user,url: candidate_candidate_path(@user.id, tab: "basic_info"),method: :put do |f|
 
-                                .col-sm-4
-                                  .form-group
+                            .col-sm-4
+                              .form-group
 
-                  #tab2.tab-pane
-                    %br/
-                    %h3
-                      %strong Step 2
-                      \- Personal Information
-                    .row
-                      #content.candidate-profile
-                        .col-sm-12.col-md-12.col-lg-12
-                          #wid-id-7.jarviswidget.jarviswidget-color-teal{"data-widget-attstyle" => "jarviswidget-color-teal", "data-widget-custombutton" => "false", "data-widget-editbutton" => "false", "data-widget-fullscreenbutton" => "false", "data-widget-sortable" => "false", :role => "widget", :style => ""}
-                            %header{:role => "heading"}
-                              %ul.nav.nav-tabs.pull-left.in#myTab
-                                %li{class: ("active" if params[:tab] == 'basic_info' || params[:tab].nil?)}
-                                  %a{"aria-expanded" => "true", "data-toggle" => "tab", :href => "#hr1"}
-                                    %span.hidden-mobile.hidden-tablet Personal Information
-                              %span.jarviswidget-loader
-                                %i.fa.fa-refresh.fa-spin
-                            / widget div
-                            %div{:role => "content"}
-                              .jarviswidget-editbox
+              #tab2.tab-pane
+                %br/
+                %h3
+                  %strong Step 2
+                  \- Personal Information
+                .row
+                  #content.candidate-profile
+                    .col-sm-12.col-md-12.col-lg-12
+                      #wid-id-7.jarviswidget.jarviswidget-color-teal{"data-widget-attstyle" => "jarviswidget-color-teal", "data-widget-custombutton" => "false", "data-widget-editbutton" => "false", "data-widget-fullscreenbutton" => "false", "data-widget-sortable" => "false", :role => "widget", :style => ""}
+                        %header{:role => "heading"}
+                          %ul.nav.nav-tabs.pull-left.in#myTab
+                            %li{class: ("active" if params[:tab] == 'basic_info' || params[:tab].nil?)}
+                              %a{"aria-expanded" => "true", "data-toggle" => "tab", :href => "#hr1"}
+                                %span.hidden-mobile.hidden-tablet Personal Information
+                          %span.jarviswidget-loader
+                            %i.fa.fa-refresh.fa-spin
+                        / widget div
+                        %div{:role => "content"}
+                          .jarviswidget-editbox
 
-                              .widget-body
-                                .tab-content
-                                  #hr1.tab-pane{class: ("active" if params[:tab] == 'basic_info' || !params[:tab].present?)}
-                                    .tabbable.tabs-below
-                                      .row
-                                        .col-sm-12.col-md-12.col-lg-2
-                                          .panel-body.status.profile-margin
-                                            .text
-                                              %div.profile-hover
-                                                %div.pictureContainer
-                                                  = filepicker_field_tag "" ,class: "hidden candi-logo", onchange:"candidateLogoUpload(event)","data-fp-crop-ratio" => "2/2",mimetypes: "image/*"
-                                                  -if(current_candidate.photo.present?)
-                                                    = image_tag current_candidate.photo,  style:"width:100px;height:100px", fit: 'clip',:class =>"candi-profile-pic img_pic"
+                          .widget-body
+                            .tab-content
+                              #hr1.tab-pane{class: ("active" if params[:tab] == 'basic_info' || !params[:tab].present?)}
+                                .tabbable.tabs-below
+                                  .row
+                                    .col-sm-12.col-md-12.col-lg-2
+                                      .panel-body.status.profile-margin
+                                        .text
+                                          %div.profile-hover
+                                            %div.pictureContainer
+                                              = filepicker_field_tag "" ,class: "hidden candi-logo", onchange:"candidateLogoUpload(event)","data-fp-crop-ratio" => "2/2",mimetypes: "image/*"
+                                              -if(current_candidate.photo.present?)
+                                                = image_tag current_candidate.photo,  style:"width:100px;height:100px", fit: 'clip',:class =>"candi-profile-pic img_pic"
 
-                                                  -else
-                                                    = image_tag image_path('avatars/m_sunny_big.png'),  style: "width:100px;height:100px", fit: 'clip', class: "img_pic"
-                                            / %p.text-center
-                                            /   %i.fa.fa-camera
-                                            /   %i.fa.fa-upload
-                                        .col-sm-12.col-md-12.col-lg-10
-                                          .panel-body.status.profile-margin
-                                            .text
-                                              %div.profile-hover
-                                                %div.pictureContainer.col-md-offset-2
-                                                  = filepicker_field_tag "" ,class: "hidden file", onchange:"employeevideoUpload(event)","data-fp-crop-ratio" => "2/2",mimetypes: "video/*"
-                                                  -if(current_candidate.video.present?)
-                                                    %video{:controls => "", :width => "100", :height=> "100"}
-                                                      %source{:src => current_candidate.video, :type => "#{current_candidate.video_type}"}
-                                                  -else
-                                                    = image_tag image_path('avatars/m_sunny_big.png'),  style: "width:100px;height:100px", fit: 'clip',:class =>"video-pic"
-                                            -#= button_tag "Upload Video", fit: 'clip',:class =>"video-pic img1"
-                                            / %p.text-center
-                                            /   %i.glyphicon.glyphicon-chevron-left
-                                            /   %i.fa.fa-video-camera
-                                            /   %i.fa.fa-file-pdf-o
-                                            /   %i.fa.fa-file-powerpoint-o
-                                            /   %i.fa.fa-file-image-o
-                                            /   %i.fa.fa-upload
-                                            /   %i.glyphicon.glyphicon-fullscreen
-                                            /   %i.glyphicon.glyphicon-chevron-right
-                                      .row{style: "padding: 15px;"}
+                                              -else
+                                                = image_tag image_path('avatars/m_sunny_big.png'),  style: "width:100px;height:100px", fit: 'clip', class: "img_pic"
+                                        / %p.text-center
+                                        /   %i.fa.fa-camera
+                                        /   %i.fa.fa-upload
+                                    .col-sm-12.col-md-12.col-lg-10
+                                      .panel-body.status.profile-margin
+                                        .text
+                                          %div.profile-hover
+                                            %div.pictureContainer.col-md-offset-2
+                                              = filepicker_field_tag "" ,class: "hidden file", onchange:"employeevideoUpload(event)","data-fp-crop-ratio" => "2/2",mimetypes: "video/*"
+                                              -if(current_candidate.video.present?)
+                                                %video{:controls => "", :width => "100", :height=> "100"}
+                                                  %source{:src => current_candidate.video, :type => "#{current_candidate.video_type}"}
+                                              -else
+                                                = image_tag image_path('avatars/m_sunny_big.png'),  style: "width:100px;height:100px", fit: 'clip',:class =>"video-pic"
+                                        -#= button_tag "Upload Video", fit: 'clip',:class =>"video-pic img1"
+                                        / %p.text-center
+                                        /   %i.glyphicon.glyphicon-chevron-left
+                                        /   %i.fa.fa-video-camera
+                                        /   %i.fa.fa-file-pdf-o
+                                        /   %i.fa.fa-file-powerpoint-o
+                                        /   %i.fa.fa-file-image-o
+                                        /   %i.fa.fa-upload
+                                        /   %i.glyphicon.glyphicon-fullscreen
+                                        /   %i.glyphicon.glyphicon-chevron-right
+                                  .row{style: "padding: 15px;"}
 
-                                      =render partial: 'candidate/candidates/partials/basic_info_form',locals: {candidate: current_candidate}
-                                      / =render partial: 'candidate/candidates/partials/basic_info_form',locals: {candidate: current_candidate}
+                                  =render partial: 'candidate/candidates/partials/basic_info_form',locals: {candidate: current_candidate}
+                                  / =render partial: 'candidate/candidates/partials/basic_info_form',locals: {candidate: current_candidate}
 
 
 
-                  #tab3.tab-pane
-                    %br/
-                    %h3
-                      %strong Step 3
-                      \- Social Media
-                  #tab4.tab-pane
-                    %br/
-                    %h3
-                      %strong Step 4
-                      \- Update Education
-                    .row
-                      .col-sm-12.col-md-12.col-lg-12
-                        =render partial: 'candidate/candidates/partials/education_form',locals:{education: current_candidate.educations}
+              #tab3.tab-pane
+                %br/
+                %h3
+                  %strong Step 3
+                  \- Social Media
+              #tab4.tab-pane
+                %br/
+                %h3
+                  %strong Step 4
+                  \- Update Education
+                .row
+                  .col-sm-12.col-md-12.col-lg-12
+                    =render partial: 'candidate/candidates/partials/education_form',locals:{education: current_candidate.educations}
 
-                  #tab5.tab-pane
-                    %br/
-                    %h3
-                      %strong Step 5
-                      \- Update Skills
-                    .row
-                      .col-sm-12.col-md-12.col-lg-12
-                        = render partial: 'candidate/candidates/partials/skill_form',locals: {user: current_candidate}
+              #tab5.tab-pane
+                %br/
+                %h3
+                  %strong Step 5
+                  \- Update Skills
+                .row
+                  .col-sm-12.col-md-12.col-lg-12
+                    = render partial: 'candidate/candidates/partials/skill_form',locals: {user: current_candidate}
 
-                  #tab6.tab-pane
-                    %br/
-                    %h3
-                      %strong Step 6
-                      \- Client Information
-                    .row
-                      .col-sm-12.col-md-12.col-lg-12
-                        = render partial: 'candidate/candidates/partials/client_form',locals: {user: current_candidate}
+              #tab6.tab-pane
+                %br/
+                %h3
+                  %strong Step 6
+                  \- Client Information
+                .row
+                  .col-sm-12.col-md-12.col-lg-12
+                    = render partial: 'candidate/candidates/partials/client_form',locals: {user: current_candidate}
 
-                  #tab7.tab-pane
-                    %br/
-                    %h3
-                      %strong Step 7
-                      \- Employer Information
-                    .row
-                      .col-sm-12.col-md-12.col-lg-12
-                        = render partial: 'candidate/candidates/partials/designate_form',locals: {user: current_candidate}
+              #tab7.tab-pane
+                %br/
+                %h3
+                  %strong Step 7
+                  \- Employer Information
+                .row
+                  .col-sm-12.col-md-12.col-lg-12
+                    = render partial: 'candidate/candidates/partials/designate_form',locals: {user: current_candidate}
 
-                  #tab8.tab-pane
-                    %br/
-                    %h3
-                      %strong Step 8
-                      \- Background Check
-                    .row
-                      .col-sm-12.col-md-12.col-lg-12
-                        = render partial: 'candidate/candidates/partials/submit_doc_form',locals: {user: current_candidate}
+              #tab8.tab-pane
+                %br/
+                %h3
+                  %strong Step 8
+                  \- Background Check
+                .row
+                  .col-sm-12.col-md-12.col-lg-12
+                    = render partial: 'candidate/candidates/partials/submit_doc_form',locals: {user: current_candidate}
 
-                  #tab9.tab-pane
-                    %br/
-                    %h3
-                      %strong Step 9
-                      \- Save Form
-                    %br/
-                    %h1.text-center.text-success
-                      %strong
-                        %i.fa.fa-check.fa-lg
-                        Complete
-                    %h4.text-center Click next to finish
-                    %br/
-                    %br/
-                  .form-actions
-                    .row
-                      .col-sm-12
-                        %ul.pager.wizard.no-margin
-                          /
-                            <li class="previous first disabled">
-                            <a href="javascript:void(0);" class="btn btn-lg btn-default"> First </a>
-                            </li>
-                          %li.previous.disabled
-                            %a.btn.btn-lg.btn-default{:href => "javascript:void(0);"} Previous
-                          /
-                            <li class="next last">
-                            <a href="javascript:void(0);" class="btn btn-lg btn-primary"> Last </a>
-                            </li>
-                          %li.next
-                            %a.btn.btn-lg.txt-color-darken{:href => "javascript:void(0);"} Next
+              #tab9.tab-pane
+                %br/
+                %h3
+                  %strong Step 9
+                  \- Save Form
+                %br/
+                %h1.text-center.text-success
+                  %strong
+                    %i.fa.fa-check.fa-lg
+                    Complete
+                %h4.text-center Click next to finish
+                %br/
+                %br/
+              .form-actions
+                .row
+                  .col-sm-12
+                    %ul.pager.wizard.no-margin
+                      /
+                        <li class="previous first disabled">
+                        <a href="javascript:void(0);" class="btn btn-lg btn-default"> First </a>
+                        </li>
+                      %li.previous.disabled
+                        %a.btn.btn-lg.btn-default{:href => "javascript:void(0);"} Previous
+                      /
+                        <li class="next last">
+                        <a href="javascript:void(0);" class="btn btn-lg btn-primary"> Last </a>
+                        </li>
+                      %li.next
+                        %a.btn.btn-lg.txt-color-darken{:href => "javascript:void(0);"} Next
         / end widget content
       / end widget div
     / end widget
@@ -359,4 +346,3 @@
 
 
 
-   
