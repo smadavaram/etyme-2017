@@ -8,7 +8,6 @@
         = f.fields_for :educations, f.object.educations do |b|
           = render 'candidate/candidates/education_fields', f: b
         .links.education_links.pull-right
-          / = link_to_add_fields 'candidate/candidates/education_fields', f, :educations
           = link_to_add_association '+ Add Education', f, :educations, class: 'btn btn-success', partial: 'candidate/candidates/education_fields'  
       %br 
       %hr
@@ -20,8 +19,7 @@
         = f.fields_for :certificates, f.object.certificates do |b|
           = render 'candidate/candidates/certificate_fields', f: b
         .links.education_links.pull-right  
-          = link_to_add_association '+ Add Certificates', f, :certificates, class: 'btn btn-success', partial: 'candidate/candidates/certificate_fields' 
-          / = link_to_add_fields 'candidate/candidates/certificate_fields', f, :certificates  
+          = link_to_add_association '+ Add Certificates', f, :certificates, class: 'btn btn-success', partial: 'candidate/candidates/certificate_fields'
     %br
     %hr
     -#.row

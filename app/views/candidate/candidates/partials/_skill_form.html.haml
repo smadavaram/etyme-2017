@@ -10,6 +10,7 @@
           .form-
             %p Sub Category
             =f.select :subcategory, '', {include_blank: "Select Category"},{class: "form-control input", required: true }
+
       .row
         .col-sm-6
           .form-group
@@ -29,11 +30,11 @@
           .form-group
             %p Industry
             = f.select :industry_name, industry_list, {include_blank: "Select Industry"},{class: "form-control input", required: true}
+
       .row
         .col-lg-12
           %button.btn.btn-primary.pull-right{:type => "submit"}
             Saved
-
 
 -content_for :scripts do
   :javascript
@@ -42,24 +43,21 @@
       setcategories($(this).val());
     });
     function setcategories(cat){
-        $.ajax({
-          type: 'POST',
-          dataType: "json",
-          data: {category: cat},
-          url: "#{get_sub_category_candidates_path}",
-          success: function(data){
-            $('#candidate_subcategory').empty();
-            $.each(data, function(i, value) {
-              
-              if(value == "#{@user.subcategory}")
-              {
-                $('#candidate_subcategory').append($('<option selected="selected">').text(value).attr('value', value));
-              }else{
-                $('#candidate_subcategory').append($('<option>').text(value).attr('value', value));
+      $.ajax({
+        type: 'POST',
+        dataType: "json",
+        data: {category: cat},
+        url: "#{get_sub_category_candidates_path}",
+        success: function(data){
+          $('#candidate_subcategory').empty();
+          $.each(data, function(i, value) {
 
-              }
+            if(value == "#{@user.subcategory}"){
+              $('#candidate_subcategory').append($('<option selected="selected">').text(value).attr('value', value));
+            }else{
+              $('#candidate_subcategory').append($('<option>').text(value).attr('value', value));
+            }
           });
-
-          }
-        });
+        }
+      });
     }

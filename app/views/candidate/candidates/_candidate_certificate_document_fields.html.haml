@@ -10,7 +10,6 @@
         %p Expiry Date
         = f.text_field :exp_date,placeholder: "YYYY-MM-DD",class: 'form-control education_doc_expiry_date p-location input'
 
-    / = filepicker_field_tag "" ,class: "resume_file", onchange:"uploadResume(event)"
     .col-sm-3
       .form-group
         %p Select Document
@@ -34,9 +33,3 @@
       document_url = event.fpfile.url
       $("#"+file_el.attr("id")).val(document_url)
     }
-
-
-
-
-
-

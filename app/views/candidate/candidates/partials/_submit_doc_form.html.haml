@@ -3,8 +3,6 @@
     .multi-field-wrapper
       .multi-fields
         = form_for @user,url: candidate_candidate_path(@user.id, tab: "client"),method: :put do |f|
-          / - if @user.ever_worked_with_company == 'Yes'
-          
           %br
           %hr        
           .row
@@ -99,7 +97,7 @@
       $(".client_information_main_div").hide();
     })     
 
-     $(document).ready(function () {
+    $(document).ready(function () {
       addressLookup();
     });
 
@@ -122,7 +120,7 @@
     $('.candidate-association').on('cocoon:after-insert', function(e, insertedItem) {
       addressLookup();
 
-     $(".education_doc_expiry_date, .visa_exp_date, .legal_doc_exp_date, .creminal_check_start_year, .creminal_check_end_year").datepicker({
+      $(".education_doc_expiry_date, .visa_exp_date, .legal_doc_exp_date, .creminal_check_start_year, .creminal_check_end_year").datepicker({
         dateFormat : 'yy-mm-dd'
       });
     });

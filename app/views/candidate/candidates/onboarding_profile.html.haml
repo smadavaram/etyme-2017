@@ -2,11 +2,6 @@
 %script{:src => "https://sdk.accountkit.com/en_EN/sdk.js"}
 %script{:src => "https://maps.googleapis.com/maps/api/js?key=AIzaSyD_faX-g1fbUqz_ecgZ0nXuw_Z6T1rBuSU"}
 
-/ %script{:src => "https://ajax.googleapis.com/ajax/libs/jquery/1.8.3/jquery.min.js"}
-/ %script{:src => "https://maps.googleapis.com/maps/api/js?v=3.exp&sensor=false&callback=initialize"}
-
-
-
 %body
   .content-box
     .element-wrapper
@@ -74,7 +69,6 @@
                                 %i.fa.fa-mobile-phone.fa-lg.fa-fw
                             %input#phone_no.form-control.input-lg{:name => "phone_no", :placeholder => "Enter Phone number", :type => "text", :value=>current_candidate.phone}/
 
-
                       .col-sm-4
                         .form-group
                           .input-group
@@ -83,7 +77,6 @@
                       .col-sm-4
                         .form-group
                           = form_for @user,url: candidate_candidate_path(@user.id, tab: "basic_info"),method: :put do |f|
-
                             .col-sm-4
                               .form-group
 
@@ -121,12 +114,8 @@
                                               = filepicker_field_tag "" ,class: "hidden candi-logo", onchange:"candidateLogoUpload(event)","data-fp-crop-ratio" => "2/2",mimetypes: "image/*"
                                               -if(current_candidate.photo.present?)
                                                 = image_tag current_candidate.photo,  style:"width:100px;height:100px", fit: 'clip',:class =>"candi-profile-pic img_pic"
-
                                               -else
                                                 = image_tag image_path('avatars/m_sunny_big.png'),  style: "width:100px;height:100px", fit: 'clip', class: "img_pic"
-                                        / %p.text-center
-                                        /   %i.fa.fa-camera
-                                        /   %i.fa.fa-upload
                                     .col-sm-12.col-md-12.col-lg-10
                                       .panel-body.status.profile-margin
                                         .text
@@ -138,22 +127,9 @@
                                                   %source{:src => current_candidate.video, :type => "#{current_candidate.video_type}"}
                                               -else
                                                 = image_tag image_path('avatars/m_sunny_big.png'),  style: "width:100px;height:100px", fit: 'clip',:class =>"video-pic"
-                                        -#= button_tag "Upload Video", fit: 'clip',:class =>"video-pic img1"
-                                        / %p.text-center
-                                        /   %i.glyphicon.glyphicon-chevron-left
-                                        /   %i.fa.fa-video-camera
-                                        /   %i.fa.fa-file-pdf-o
-                                        /   %i.fa.fa-file-powerpoint-o
-                                        /   %i.fa.fa-file-image-o
-                                        /   %i.fa.fa-upload
-                                        /   %i.glyphicon.glyphicon-fullscreen
-                                        /   %i.glyphicon.glyphicon-chevron-right
                                   .row{style: "padding: 15px;"}
 
                                   =render partial: 'candidate/candidates/partials/basic_info_form',locals: {candidate: current_candidate}
-                                  / =render partial: 'candidate/candidates/partials/basic_info_form',locals: {candidate: current_candidate}
-
-
 
               #tab3.tab-pane
                 %br/
@@ -222,22 +198,10 @@
                 .row
                   .col-sm-12
                     %ul.pager.wizard.no-margin
-                      /
-                        <li class="previous first disabled">
-                        <a href="javascript:void(0);" class="btn btn-lg btn-default"> First </a>
-                        </li>
                       %li.previous.disabled.pull-left
                         %a.btn.btn-lg.btn-default{:href => "javascript:void(0);"} Previous
-                      /
-                        <li class="next last">
-                        <a href="javascript:void(0);" class="btn btn-lg btn-primary"> Last </a>
-                        </li>
                       %li.next.pull-right
                         %a.btn.btn-lg.txt-color-darken{:href => "javascript:void(0);"} Next
-        / end widget content
-      / end widget div
-    / end widget
-  / WIDGET END
 
 
 - content_for :scripts do
@@ -296,21 +260,14 @@
     //Bootstrap Wizard
     $(document).ready(function() {
       //Bootstrap Wizard Validations
-        
-        
+
         $('#bootstrap-wizard-1').bootstrapWizard({
           'tabClass': 'form-wizard',
           'onNext': function (tab, navigation, index) {
-            // var $valid = $("#wizard-1").valid();
-            // if (!$valid) {
-            //   $validator.focusInvalid();
-            //   return false;
-            // } else {
               $('#bootstrap-wizard-1').find('.form-wizard').children('li').eq(index - 1).addClass(
                 'complete');
               $('#bootstrap-wizard-1').find('.form-wizard').children('li').eq(index - 1).find('.step')
               .html('<i class="fa fa-check"></i>');
-            //}
           }
         });
 
@@ -332,7 +289,6 @@
         
         wizard.on('finished', function (e, data) {
           //$("#fuelux-wizard").submit();
-          //console.log("submitted!");
           $.smallBox({
             title: "Congratulations! Your form was submitted",
             content: "<i class='fa fa-clock-o'></i> <i>1 seconds ago...</i>",
@@ -343,8 +299,3 @@
           
         });
     })
-
-
-
-
-

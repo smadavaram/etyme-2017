@@ -26,11 +26,6 @@
         = render 'candidate/candidates/candidate_certificate_document_fields', f: b
       .links.education_links
         = link_to_add_association '+ Add Document', f, :candidate_certificate_document, class: 'btn btn-success add_education_btn', partial: 'candidate/candidates/candidate_certificate_document_fields'
-  / .row
-  /   .col-md-12
-  /     %a.bttn.btn-add.remove-multi-fields.pull-right.delete_icon
-  /       %i.fa.fa-trash
-
 
 - content_for :scripts do
   :javascript 
