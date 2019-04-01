@@ -72,50 +72,62 @@
   background-color: #ff5a5f !important;
 }
 
+.layout-w{
+  min-height: 100vh;
+}
 
-ul.wizard{
-  li{
-    list-style: none;
-    a{
-      border: none;
-      background-color: transparent;
-      font-weight: 500;
-      font-size: 0.9rem;
-      color: #046fdf;
-      cursor: pointer;
-      letter-spacing: 1px;
-      position: relative;
-      &:after{
-        font-family: 'osfont' !important;
-        speak: none;
-        font-style: normal;
-        font-weight: normal;
-        font-variant: normal;
-        text-transform: none;
-        line-height: 1;
-        -webkit-font-smoothing: antialiased;
-        -moz-osx-font-smoothing: grayscale;
-        font-size: 15px;
-        color: #047bf8;
-        position: absolute;
-        top: 50%;
-        -webkit-transform: translateY(-50%);
-        transform: translateY(-50%);
-      }
-    }
-    &.previous{
+.wizard-action{
+  background: no-repeat;
+  margin: 0;
+  border: none;
+  ul.wizard{
+    li{
+      list-style: none;
       a{
+        border: none;
+        background-color: transparent;
+        font-weight: 600;
+        font-size: 0.9rem;
+        color: #046fdf;
+        cursor: pointer;
+        letter-spacing: 1px;
+        position: relative;
+        text-decoration: none;
         &:after{
-          content: "\e987";
-          left: -20px;
+          font-family: 'osfont' !important;
+          speak: none;
+          font-style: normal;
+          font-weight: normal;
+          font-variant: normal;
+          text-transform: none;
+          line-height: 1;
+          -webkit-font-smoothing: antialiased;
+          -moz-osx-font-smoothing: grayscale;
+          font-size: 15px;
+          color: #047bf8;
+          position: absolute;
+          top: 50%;
+          -webkit-transform: translateY(-50%);
+          transform: translateY(-50%);
+        }
+        &:hover{
+          color:#334152;
         }
       }
-    }
-    &.next{
-      a{
-        &:after{
-          content: "\e986";
-          right: -20px;
+      &.previous{
+        a{
+          &:after{
+            content: "\e987";
+            left: -20px;
+          }
+        }
+      }
+      &.next{
+        a{
+          &:after{
+            content: "\e986";
+            right: -20px;
+          }
         }
       }
     }
