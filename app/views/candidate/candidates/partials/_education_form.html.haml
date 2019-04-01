@@ -1,19 +1,16 @@
 .col-sm-12.col-md-12.col-lg-12
   = form_for @user,url: candidate_candidate_path(@user.id, tab: "edu"),method: :put do |f|
-    .row
-      %h4
-        %b Education Details 
-      %br  
-      .form-group.candidate-association
-        = f.fields_for :educations, f.object.educations do |b|
-          = render 'candidate/candidates/education_fields', f: b
-        .links.education_links.pull-right
-          = link_to_add_association '+ Add Education', f, :educations, class: 'btn btn-success', partial: 'candidate/candidates/education_fields'  
+    .form-group.candidate-association
+      = f.fields_for :educations, f.object.educations do |b|
+        = render 'candidate/candidates/education_fields', f: b
+      .links.education_links.pull-right
+        = link_to_add_association '+ Add Education', f, :educations, class: 'btn btn-success', partial: 'candidate/candidates/education_fields'
       %br 
       %hr
-    .row
-      %h4
-        %b Certificate Details 
+    %h5.form-header
+      Certificate Details
+      .form-desc
+        Enter your Certificate Details.
       %br 
       .form-group.candidate-association
         = f.fields_for :certificates, f.object.certificates do |b|

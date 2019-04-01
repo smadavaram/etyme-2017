@@ -1,24 +1,23 @@
-.row.multi-field-container{style: "padding: 0px 15px 15px 15px;"}
-  .row
-    .col-sm-3
-      .form-group
-        %p Certificate Title
-        = f.text_field :title,placeholder: "Certificate Title",class: 'form-control input'
-  
-    .col-sm-3
-      .form-group
-        %p Institute
-        = f.select :institute, industry_list,{},{class: 'form-control  input',style: "width:100% !important"}
+.row.multi-field-container
+  .col-sm-3
+    .form-group
+      %label Certificate Title
+      = f.text_field :title,placeholder: "Certificate Title",class: 'form-control input'
 
-    .col-sm-3
-      .form-group 
-        %p Start Date
-        = f.text_field :start_date,placeholder: "YYYY-MM-DD",class: 'form-control cer_start_date input'
-  
-    .col-sm-3
-      .form-group
-        %p End Date
-        = f.text_field :end_date,placeholder:"YYYY-MM-DD",class: 'form-control cer_end_date input'
+  .col-sm-3
+    .form-group
+      %label Institute
+      = f.select :institute, industry_list,{},{class: 'form-control  input',style: "width:100% !important"}
+
+  .col-sm-3
+    .form-group
+      %label Start Date
+      = f.text_field :start_date,placeholder: "YYYY-MM-DD",class: 'form-control cer_start_date input'
+
+  .col-sm-3
+    .form-group
+      %label End Date
+      = f.text_field :end_date,placeholder:"YYYY-MM-DD",class: 'form-control cer_end_date input'
 .row
   .col-md-12
     .form-group
