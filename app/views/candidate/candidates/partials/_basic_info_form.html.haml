@@ -1,53 +1,50 @@
-.row{style: "padding: 15px;"}
-  = form_for @user,url: candidate_candidate_path(@user.id, tab: "basic_info"),method: :put do |f|
-    .row
-      .col-sm-6
-        .form-group
-          = f.text_field :first_name  ,:placeholder => "Enter First Name",class:'form-control input'
-      .col-sm-6
-        .form-group
-          = f.text_field :last_name  ,:placeholder => "Enter last Name",class:'form-control input'
+= form_for @user,url: candidate_candidate_path(@user.id, tab: "basic_info"),method: :put do |f|
+  .row
+    .col-sm-6
+      .form-group
+        = f.text_field :first_name  ,:placeholder => "Enter First Name",class:'form-control input'
+    .col-sm-6
+      .form-group
+        = f.text_field :last_name  ,:placeholder => "Enter last Name",class:'form-control input'
+  .row
+    =f.fields_for :addresses do |custom_field|
+      = render 'candidate/candidates/partials/address_fields', f: custom_field
+    .links.col-md-12.text-right
+      = link_to_add_association '+ Add Addresses', f, :addresses, class: 'btn btn-primary btn-sm', partial: 'candidate/candidates/partials/address_fields'
+      %br/
 
-    .form-group.candidate-association
-      =f.fields_for :addresses do |custom_field|
-        = render 'candidate/candidates/partials/address_fields', f: custom_field
-      %strong.pull-right
-        .links.pull-right
-          = link_to_add_association '+ Add Addresses', f, :addresses, class: 'btn btn-success', partial: 'candidate/candidates/partials/address_fields'
-          %br/
-      
-    .row
-      .col-sm-12.col-md-12.col-lg-2
-        %div.profile-hover
-          %div.pictureContainer
-            = filepicker_field_tag "" ,class: "hidden resume_file", onchange:"uploadResume(event)"
-            = link_to "Upload CV" ,"#",class: 'resume btn btn-md btn-primary', style: "margin-bottom: 10px"
+  .row
+    .col-sm-12.col-md-12.col-lg-2
+      %div.profile-hover
+        %div.pictureContainer
+          = filepicker_field_tag "" ,class: "hidden resume_file", onchange:"uploadResume(event)"
+          = link_to "Upload CV" ,"#",class: 'resume btn btn-md btn-primary', style: "margin-bottom: 10px"
 
-    -if(current_candidate.candidates_resumes)
-      -index = 1
-      -current_candidate.candidates_resumes.order(:created_at).each do |resume|
-        .row
-          .col-sm-2
-            .form-group.resume_div
-              .input-group-prepend
-                .input-group-text
-                  %i.fa.fa-file-text-o.fa-lg.fa-fw
-                  = "Resume #{index}"
-          -if resume.is_primary        
-            .col-sm-1.primary_doc
-              %i.fa.fa-check-circle-o.fa-lg.fa-fw{:title=>"Primary Resume"}
-              = link_to "", candidate_delete_resume_path(:id=>resume.id), :title=>"Delete", class: "fa fa-trash-o fa-lg fa-fw delete_primary_doc", method: :delete, data: { confirm: 'Are you sure?' } 
-          -else
-            .col-sm-1
-              = link_to "", candidate_make_primary_resume_path(:id=>resume.id), :title=>"Make This to Primary Resume", class: "fa fa-check-circle-o fa-lg fa-fw make_primary_doc", data: { confirm: 'Are you sure?' }
-              = link_to "", candidate_delete_resume_path(:id=>resume.id), :title=>"Delete", class: "fa fa-trash-o fa-lg fa-fw delete_primary_doc", method: :delete, data: { confirm: 'Are you sure?' }
-                  
-        - index = index + 1          
-                  
-    .row
-      .col-lg-12
-        %button.btn.btn-primary.pull-right{:type => "submit"}
-          Saved          
+  -if(current_candidate.candidates_resumes)
+    -index = 1
+    -current_candidate.candidates_resumes.order(:created_at).each do |resume|
+      .row
+        .col-sm-2
+          .form-group.resume_div
+            .input-group-prepend
+              .input-group-text
+                %i.fa.fa-file-text-o.fa-lg.fa-fw
+                = "Resume #{index}"
+        -if resume.is_primary
+          .col-sm-1.primary_doc
+            %i.fa.fa-check-circle-o.fa-lg.fa-fw{:title=>"Primary Resume"}
+            = link_to "", candidate_delete_resume_path(:id=>resume.id), :title=>"Delete", class: "fa fa-trash-o fa-lg fa-fw delete_primary_doc", method: :delete, data: { confirm: 'Are you sure?' }
+        -else
+          .col-sm-1
+            = link_to "", candidate_make_primary_resume_path(:id=>resume.id), :title=>"Make This to Primary Resume", class: "fa fa-check-circle-o fa-lg fa-fw make_primary_doc", data: { confirm: 'Are you sure?' }
+            = link_to "", candidate_delete_resume_path(:id=>resume.id), :title=>"Delete", class: "fa fa-trash-o fa-lg fa-fw delete_primary_doc", method: :delete, data: { confirm: 'Are you sure?' }
+
+      - index = index + 1
+
+  .row
+    .col-lg-12
+      %button.btn.btn-primary.pull-right{:type => "submit"}
+        Saved
         
 %script{:src => "https://maps.google.com/maps/api/js?key=AIzaSyDk4kWlA522W3T4oGwdug5nKPXYMhU6rCE&sensor=false&libraries=places"}
 - content_for :scripts do
