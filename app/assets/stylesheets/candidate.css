@@ -45,6 +45,6 @@
  *= require conversation/chat
  *= require style
  *= require bootstrap-switch
- *= require bullettrain-global
  *= require bullettrain-public
+ *= require bullettrain-global
  */
