@@ -1,5 +1,5 @@
 .col-sm-12.col-md-12.col-lg-12
-  = form_for @user,url: candidate_candidate_path(@user.id, tab: "edu"),method: :put do |f|
+  = form_for @user,url: candidate_candidate_path(@user.id, tab: "edu"),method: :put, remote: true do |f|
     .form-group.candidate-association
       = f.fields_for :educations, f.object.educations do |b|
         = render 'candidate/candidates/education_fields', f: b

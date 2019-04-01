@@ -1,5 +1,5 @@
 .row{style: "padding: 0px 15px 15px 15px;"}
-  = form_for @user,url: candidate_candidate_path(@user.id, tab: "des"),method: :put do |f|
+  = form_for @user,url: candidate_candidate_path(@user.id, tab: "des"),method: :put, remote: true do |f|
     .row
       .col-md-12
         .form-group

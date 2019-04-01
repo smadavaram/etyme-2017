@@ -67,12 +67,14 @@ class Candidate::CandidatesController < Candidate::BaseController
         format.json {respond_with current_candidate}
         format.html {
           flash[:success] = "Candidate Updated"
-          redirect_to onboarding_profile_path
+          redirect_to onboarding_profile_path(tag: params["tab"])
         }
+        format.js {render json: :ok}
 
       else
         format.html{redirect_back fallback_location: root_path}
         format.json{redirect_back fallback_location: root_path}
+        format.js {render json: :ok}
       end
     end
   end
@@ -192,7 +194,6 @@ class Candidate::CandidatesController < Candidate::BaseController
   end  
 
   def onboarding_profile
-
     @user = Candidate.find(current_candidate.id)
     @user.addresses.build unless @user.addresses.present?
     @user.educations.build unless @user.educations.present?
@@ -200,12 +201,12 @@ class Candidate::CandidatesController < Candidate::BaseController
     @user.clients.build unless @user.clients.present?
     @user.designations.build unless @user.designations.present?
     @sub_cat = WORK_CATEGORIES[@user.category]
-
-  end  
+    @tab = params["tag"]
+  end
 
   def update_mobile_number
     @candidate=Candidate.find_by_id(params[:id])
-
+    @tab = "verify-phone"
     if @candidate
       @candidate.update_attributes(:phone=>params["phone_number"], :is_number_verify=> true)
     end  

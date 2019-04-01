@@ -2,7 +2,7 @@
   .form-group
     .multi-field-wrapper
       .multi-fields
-        = form_for @user,url: candidate_candidate_path(@user.id, tab: "client"),method: :put do |f|
+        = form_for @user,url: candidate_candidate_path(@user.id, tab: "designate"),method: :put, remote: true do |f|
           %br
           %hr        
           .row

@@ -1,4 +1,4 @@
-= form_for @user,url: candidate_candidate_path(@user.id, tab: "basic_info"),method: :put do |f|
+= form_for @user, url: candidate_candidate_path(@user.id, tab: "basic_info"),method: :put, remote: true do |f|
   .row
     .col-sm-6
       .form-group
@@ -47,7 +47,7 @@
         
 %script{:src => "https://maps.google.com/maps/api/js?key=AIzaSyDk4kWlA522W3T4oGwdug5nKPXYMhU6rCE&sensor=false&libraries=places"}
 - content_for :scripts do
-  :javascript        
+  :javascript
 
     $(document).ready(function() {
       $(".select2").select2({placeholder: "Select a User(s)"});
@@ -58,15 +58,15 @@
       });
       var chatBody = $('#chat-body') ;
       chatBody.scrollTop(5000000000);
-      
+
       $('.resume').on("click",function(){
           $(".resume_file").trigger("click");
       });
-      
+
       $( ".video-pic" ).click(function() {
         $( ".file" ).trigger( "click" );
       });
-      
+
       $( ".candi-profile-pic" ).click(function()
       {
         $( ".candi-logo" ).trigger( "click" );
