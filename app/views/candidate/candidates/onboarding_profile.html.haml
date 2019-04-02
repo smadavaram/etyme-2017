@@ -79,34 +79,56 @@
                 .row
                   .col-4.col-sm-3.col-xxl-2
                     .profile-tile.profile-tile-inlined
-                      .profile-tile-box.faded
-                        .pt-new-icon
-                          %i.os-icon.os-icon-plus
-                        .pt-user-name
-                          Add
-                          %br/
-                          Profile Picture
-                  .col-sm-12.col-md-12.col-lg-2
-                    .panel-body.status.profile-margin
-                      .text
-                        %div.profile-hover
-                          %div.pictureContainer
-                            = filepicker_field_tag "" ,class: "hidden candi-logo", onchange:"candidateLogoUpload(event)","data-fp-crop-ratio" => "2/2",mimetypes: "image/*"
-                            -if(current_candidate.photo.present?)
-                              = image_tag current_candidate.photo,  style:"width:100px;height:100px", fit: 'clip',:class =>"candi-profile-pic img_pic"
-                            -else
-                              = image_tag image_path('avatars/m_sunny_big.png'),  style: "width:100px;height:100px", fit: 'clip', class: "img_pic"
-                  .col-sm-12.col-md-12.col-lg-10
-                    .panel-body.status.profile-margin
-                      .text
-                        %div.profile-hover
-                          %div.pictureContainer.col-md-offset-2
-                            = filepicker_field_tag "" ,class: "hidden file", onchange:"employeevideoUpload(event)","data-fp-crop-ratio" => "2/2",mimetypes: "video/*"
-                            -if(current_candidate.video.present?)
-                              %video{:controls => "", :width => "100", :height=> "100"}
-                                %source{:src => current_candidate.video, :type => "#{current_candidate.video_type}"}
-                            -else
-                              = image_tag image_path('avatars/m_sunny_big.png'),  style: "width:100px;height:100px", fit: 'clip',:class =>"video-pic"
+                      = filepicker_field_tag "" ,class: "hidden candi-logo", onchange:"candidateLogoUpload(event)","data-fp-crop-ratio" => "2/2",mimetypes: "image/*"
+                      .profile-tile-box.faded.candi-profile-pic
+                        -unless(current_candidate.photo.present?)
+                          = image_tag current_candidate.photo,  style:"width:100px;height:100px", fit: 'clip',:class =>"img_pic"
+                        -else
+                          = image_tag current_candidate.photo,  style:"width:100px;height:100px", fit: 'clip',:class =>"hidden img_pic"
+                          .pt-new-icon.img_pic_r
+                            %i.os-icon.os-icon-plus
+                          .pt-user-name.img_pic_r
+                            Add
+                            %br/
+                            Profile Picture
+                .row
+                  .col-4.col-sm-3.col-xxl-2
+                    .profile-tile.profile-tile-inlined
+                      = filepicker_field_tag "" ,class: "hidden file", onchange:"employeevideoUpload(event)","data-fp-crop-ratio" => "2/2",mimetypes: "video/*"
+                      .profile-tile-box.faded.video-pic
+                        -if(current_candidate.video.present?)
+                          .pt-new-icon
+                            %i.os-icon.os-icon-plus
+                          %video{:controls => "", :width => "100", :height=> "100"}
+                            %source{:src => current_candidate.video, :type => "#{current_candidate.video_type}"}
+                        -else
+                          .pt-new-icon
+                            %i.os-icon.os-icon-plus
+                          .pt-user-name
+                            Add
+                            %br/
+                            Profile Video
+                  -#.col-sm-12.col-md-12.col-lg-2
+                  -#  .panel-body.status.profile-margin
+                  -#    .text
+                  -#      %div.profile-hover
+                  -#        %div.pictureContainer
+                  -#          = filepicker_field_tag "" ,class: "hidden candi-logo", onchange:"candidateLogoUpload(event)","data-fp-crop-ratio" => "2/2",mimetypes: "image/*"
+                  -#          -if(current_candidate.photo.present?)
+                  -#            = image_tag current_candidate.photo,  style:"width:100px;height:100px", fit: 'clip',:class =>"candi-profile-pic img_pic"
+                  -#          -else
+                  -#            = image_tag image_path('avatars/m_sunny_big.png'),  style: "width:100px;height:100px", fit: 'clip', class: "img_pic"
+                  -#.col-sm-12.col-md-12.col-lg-10
+                  -#  .panel-body.status.profile-margin
+                  -#    .text
+                  -#      %div.profile-hover
+                  -#        %div.pictureContainer.col-md-offset-2
+                  -#          = filepicker_field_tag "" ,class: "hidden file", onchange:"employeevideoUpload(event)","data-fp-crop-ratio" => "2/2",mimetypes: "video/*"
+                  -#          -if(current_candidate.video.present?)
+                  -#            %video{:controls => "", :width => "100", :height=> "100"}
+                  -#              %source{:src => current_candidate.video, :type => "#{current_candidate.video_type}"}
+                  -#          -else
+                  -#            = image_tag image_path('avatars/m_sunny_big.png'),  style: "width:100px;height:100px", fit: 'clip',:class =>"video-pic"
                 .row{style: "padding: 15px;"}
 
                 =render partial: 'candidate/candidates/partials/basic_info_form',locals: {candidate: current_candidate}

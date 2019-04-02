@@ -89,8 +89,9 @@
        url: "#{ candidate_update_photo_path }",
        data: { photo: photo_url,authenticity_token: window._token },
        success: function (data) {
-        $('.text.img_pic').attr("src",photo_url);
-        location.reload();
+        $('.img_pic').removeClass('hidden').attr("src",photo_url);
+        $('.img_pic_r').remove();
+        // location.reload();
        }
      });
     }
