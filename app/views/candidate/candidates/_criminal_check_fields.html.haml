@@ -1,29 +1,30 @@
-.row.multi-field-container{style: "padding: 0px 15px 15px 15px;"}
+.multi-field-container
   .row
-    .col-sm-3
+    .col-sm-4
       .form-group
-        %p State
+        %label State
         = f.text_field :state, placeholder: "State",class: 'form-control input'
 
     .col-sm-3
       .form-group
-        %p Address
+        %label Address
         = f.text_field :address,placeholder: "Address",class: 'form-control education_start_year p-location input'
 
-    .col-sm-3
+    .col-sm-2
       .form-group
-        %p Start Date
+        %label Start Date
         = f.text_field :start_date,placeholder: "YYYY-MM-DD",class: 'form-control creminal_check_start_year input'
 
-    .col-sm-3
+    .col-sm-2
       .form-group
-        %p End Date
+        %label End Date
         = f.text_field :end_date,placeholder: "YYYY-MM-DD",class: 'form-control creminal_check_end_year input'
+    .col-md-1
+      .form-group
+        %label Delete
+        %a.bttn.btn-add.remove-multi-fields.pull-left.delete_icon
+          %i.fa.fa-trash
 
-  .row
-    .col-md-12
-      %a.bttn.btn-add.remove-multi-fields.pull-right.delete_icon
-        %i.fa.fa-trash
         
 - content_for :scripts do
   :javascript 
