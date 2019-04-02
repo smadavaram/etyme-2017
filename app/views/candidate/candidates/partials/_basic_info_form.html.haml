@@ -98,15 +98,18 @@
     function employeevideoUpload(event){
       video_url = event.fpfile.url
       video_type=event.fpfile.mimetype
-      $('.video-pic').html('');
+      // $('.video-pic').html('');
       $.ajax({
        type: 'POST',
        dataType: 'json',
        url: "#{ update_video_candidates_path }",
        data: { video: video_url,authenticity_token: window._token, video_type: video_type },
        success: function (data) {
-        $('.text img1').attr("src",video_url);
-        location.reload();
+        // $('.text img1').attr("src",video_url);
+        $('.can_vid').removeClass('hidden');
+        $('.can_vid_src').attr("src", video_url);
+        $('.can_vid_r').remove();
+        // location.reload();
        }
      });
     }
