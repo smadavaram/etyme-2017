@@ -23,7 +23,7 @@
     = render 'candidate/candidates/designations_fields', f: b
   .links.education_links.pull-right
     = link_to_add_association '+ Add Designations', f, :designations, class: 'btn btn-success', partial: 'candidate/candidates/designations_fields'
-  .row
-  .col-lg-12
-    %button.btn.btn-primary.pull-right{:type => "submit"}
-      Saved
+  -#.row
+  -#.col-lg-12
+  -#  %button.btn.btn-primary.pull-right{:type => "submit"}
+  -#    Saved
