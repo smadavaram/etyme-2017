@@ -97,7 +97,7 @@ class Candidate::CandidatesController < Candidate::BaseController
     # else
     #   flash[:errors] = 'Resume not updated'
     # end
-    redirect_back fallback_location: root_path
+    # redirect_back fallback_location: root_path
   end
 
   def delete_resume
@@ -112,8 +112,9 @@ class Candidate::CandidatesController < Candidate::BaseController
       end  
     else  
       resume.destroy()
-    end  
-    redirect_back fallback_location: root_path
+    end
+    render 'upload_resume'
+    # redirect_back fallback_location: root_path
   end  
 
   def make_primary_resume
@@ -126,7 +127,8 @@ class Candidate::CandidatesController < Candidate::BaseController
     end  
     resume.update_attributes(:is_primary=>true)
 
-    redirect_back fallback_location: root_path
+    render 'upload_resume'
+    # redirect_back fallback_location: root_path
   end  
 
   def update_photo
