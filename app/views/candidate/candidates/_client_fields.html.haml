@@ -1,34 +1,34 @@
-.row.multi-field-container{style: "padding: 0px 15px 15px 15px;"}
+.multi-field-container
   .row
-    .col-sm-3
+    .col-sm-12
       .form-group
         %p Name
         = f.text_field :name,placeholder: "Client Name",class: 'form-control input'
 
-    .col-sm-3
+    .col-sm-4
       .form-group
         %p Industry
         = f.select :industry, industry_list,{},{class: 'form-control input'}
-    .col-sm-3
+    .col-sm-4
       .form-group
         %p Start Date
         = f.text_field :start_date,placeholder: "YYYY-MM-DD",class: 'form-control cl_start_year input'
-    .col-sm-3
+    .col-sm-4
       .form-group
         %p End Date
         = f.text_field :end_date,placeholder:"YYYY-MM-DD",class: 'form-control cl_end_year input'
 
   .row
-    .col-sm-3
+    .col-sm-4
       .form-group
         %p Refrence name
         = f.text_field :refrence_name,placeholder: "Degree level",class: 'form-control input'
 
-    .col-sm-3
+    .col-sm-4
       .form-group
         %p Refrence Phone
         = f.text_field :refrence_phone, class: 'form-control input'
-    .col-sm-3
+    .col-sm-4
       .form-group
         %p Refrence Email
         = f.text_field :refrence_email,placeholder: "Email",class: 'form-control input'

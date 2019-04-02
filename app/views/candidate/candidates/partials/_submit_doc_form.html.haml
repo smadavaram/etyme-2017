@@ -1,86 +1,80 @@
-.row{style: "padding: 0px 15px 15px 15px;"}
-  .form-group
-    .multi-field-wrapper
-      .multi-fields
-        = form_for @user,url: candidate_candidate_path(@user.id, tab: "client"),method: :put do |f|
-          / - if @user.ever_worked_with_company == 'Yes'
-          
-          %br
-          %hr        
-          .row
-            .col-md-12 
-              %h4
-                %b Visa Document 
-              %br  
-              .form-group.candidate-association
-                = f.fields_for :visas, f.object.visas do |b|
-                  / = render 'candidate/candidates/visas_fields', f: b
-                %strong
-                  .links.pull-right
-                    = link_to_add_association '+ Add Visa', f, :visas, class: 'btn btn-success', partial: 'candidate/candidates/visas_fields'     
-          .row
-            .col-md-6
-              - if current_candidate.visas &&  current_candidate.visas.count != 0
-                %table.table.table-bordered
+.form-group
+  .multi-field-wrapper
+    .multi-fields
+      = form_for @user,url: candidate_candidate_path(@user.id, tab: "designate"),method: :put, remote: true do |f|
+        %br
+        .row
+          .col-md-12
+            %h4.element-header
+              Visa Document
+            .form-group.candidate-association
+              = f.fields_for :visas, f.object.visas do |b|
+                / = render 'candidate/candidates/visas_fields', f: b
+              %strong
+                .links.pull-right
+                  = link_to_add_association '+ Add Visa', f, :visas, class: 'btn btn-success', partial: 'candidate/candidates/visas_fields'
+        .row
+          .col-md-12
+            - if current_candidate.visas &&  current_candidate.visas.count != 0
+              %table.table.table-bordered
+                %tr
+                  %th Title
+                  %th Status
+                  %th Expiry Date
+                  %th Attachments
+                - current_candidate.visas.each do |doc|
                   %tr
-                    %th Title
-                    %th Status
-                    %th Expiry Date
-                    %th Attachments
-                  - current_candidate.visas.each do |doc|
-                    %tr
-                      %td= doc.title
-                      %td= doc.status
-                      %td= doc.exp_date
-                      %td
-                        %a.delete_icon
-                          %i.fa.fa-paperclip         
-          %br
-          %hr 
-          .row
-            .col-md-12 
-              %h4
-                %b Legal Document 
-              %br  
-              .form-group.candidate-association
-                = f.fields_for :legal_documents, f.object.legal_documents do |b|
-                  / = render 'candidate/candidates/legal_document_fields', f: b
-                %strong
-                  .links.pull-right
-                    = link_to_add_association '+ Add Legal Documents', f, :legal_documents, class: 'btn btn-success', partial: 'candidate/candidates/legal_document_fields' 
-                    
-          .row
-            .col-md-6
-              - if current_candidate.legal_documents &&  current_candidate.legal_documents.count != 0
-                %table.table.table-bordered
+                    %td= doc.title
+                    %td= doc.status
+                    %td= doc.exp_date
+                    %td
+                      %a.delete_icon
+                        %i.fa.fa-paperclip
+        %br
+        %br
+        .row
+          .col-md-12
+            %h4.element-header
+              Legal Document
+            .form-group.candidate-association
+              = f.fields_for :legal_documents, f.object.legal_documents do |b|
+                / = render 'candidate/candidates/legal_document_fields', f: b
+              %strong
+                .links.pull-right
+                  = link_to_add_association '+ Add Legal Documents', f, :legal_documents, class: 'btn btn-success', partial: 'candidate/candidates/legal_document_fields'
+        .row
+          .col-md-12
+            - if current_candidate.legal_documents &&  current_candidate.legal_documents.count != 0
+              %table.table.table-bordered
+                %tr
+                  %th Title
+                  %th Expiry Date
+                  %th Attachments
+                - current_candidate.legal_documents.each do |doc|
                   %tr
-                    %th Title
-                    %th Expiry Date
-                    %th Attachments
-                  - current_candidate.legal_documents.each do |doc|
-                    %tr
-                      %td= doc.title
-                      %td= doc.exp_date
-                      %td
-                        %a.delete_icon
-                          %i.fa.fa-paperclip 
+                    %td= doc.title
+                    %td= doc.exp_date
+                    %td
+                      %a.delete_icon
+                        %i.fa.fa-paperclip
 
-          %hr        
-          .row
-            .col-md-12 
-              %h4
-                %b Criminal Check 
-              %br  
-              .form-group.candidate-association
-                = f.fields_for :criminal_check, f.object.criminal_check do |b|
-                  = render 'candidate/candidates/criminal_check_fields', f: b
-                %strong
-                  .links.pull-right
-                    = link_to_add_association '+ Add Criminal Check Docs', f, :criminal_check, class: 'btn btn-success', partial: 'candidate/candidates/criminal_check_fields'           
-              .row
-              .col-lg-12
-                %button.btn.btn-primary.pull-right{:type => "submit"}
-                  Saved
+
+        %br
+        %br
+        .row
+          .col-md-12
+            %h4.element-header
+              Criminal Check
+            .form-group.candidate-association
+              = f.fields_for :criminal_check, f.object.criminal_check do |b|
+                = render 'candidate/candidates/criminal_check_fields', f: b
+              %strong
+                .links.pull-right
+                  = link_to_add_association '+ Add Criminal Check Docs', f, :criminal_check, class: 'btn btn-success', partial: 'candidate/candidates/criminal_check_fields'
+            -#.row
+            -#.col-lg-12
+            -#  %button.btn.btn-primary.pull-right{:type => "submit"}
+            -#    Saved
 
 -content_for :scripts do
   :javascript
@@ -99,7 +93,7 @@
       $(".client_information_main_div").hide();
     })     
 
-     $(document).ready(function () {
+    $(document).ready(function () {
       addressLookup();
     });
 
@@ -122,7 +116,7 @@
     $('.candidate-association').on('cocoon:after-insert', function(e, insertedItem) {
       addressLookup();
 
-     $(".education_doc_expiry_date, .visa_exp_date, .legal_doc_exp_date, .creminal_check_start_year, .creminal_check_end_year").datepicker({
+      $(".education_doc_expiry_date, .visa_exp_date, .legal_doc_exp_date, .creminal_check_start_year, .creminal_check_end_year").datepicker({
         dateFormat : 'yy-mm-dd'
       });
     });

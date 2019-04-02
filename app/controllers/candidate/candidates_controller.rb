@@ -67,12 +67,14 @@ class Candidate::CandidatesController < Candidate::BaseController
         format.json {respond_with current_candidate}
         format.html {
           flash[:success] = "Candidate Updated"
-          redirect_to onboarding_profile_path
+          redirect_to onboarding_profile_path(tag: params["tab"])
         }
+        format.js {render json: :ok}
 
       else
         format.html{redirect_back fallback_location: root_path}
         format.json{redirect_back fallback_location: root_path}
+        format.js {render json: :ok}
       end
     end
   end
@@ -95,7 +97,7 @@ class Candidate::CandidatesController < Candidate::BaseController
     # else
     #   flash[:errors] = 'Resume not updated'
     # end
-    redirect_back fallback_location: root_path
+    # redirect_back fallback_location: root_path
   end
 
   def delete_resume
@@ -110,8 +112,9 @@ class Candidate::CandidatesController < Candidate::BaseController
       end  
     else  
       resume.destroy()
-    end  
-    redirect_back fallback_location: root_path
+    end
+    render 'upload_resume'
+    # redirect_back fallback_location: root_path
   end  
 
   def make_primary_resume
@@ -124,7 +127,8 @@ class Candidate::CandidatesController < Candidate::BaseController
     end  
     resume.update_attributes(:is_primary=>true)
 
-    redirect_back fallback_location: root_path
+    render 'upload_resume'
+    # redirect_back fallback_location: root_path
   end  
 
   def update_photo
@@ -192,7 +196,6 @@ class Candidate::CandidatesController < Candidate::BaseController
   end  
 
   def onboarding_profile
-
     @user = Candidate.find(current_candidate.id)
     @user.addresses.build unless @user.addresses.present?
     @user.educations.build unless @user.educations.present?
@@ -200,12 +203,12 @@ class Candidate::CandidatesController < Candidate::BaseController
     @user.clients.build unless @user.clients.present?
     @user.designations.build unless @user.designations.present?
     @sub_cat = WORK_CATEGORIES[@user.category]
-
-  end  
+    @tab = params["tag"]
+  end
 
   def update_mobile_number
     @candidate=Candidate.find_by_id(params[:id])
-
+    @tab = "verify-phone"
     if @candidate
       @candidate.update_attributes(:phone=>params["phone_number"], :is_number_verify=> true)
     end  
@@ -224,8 +227,14 @@ class Candidate::CandidatesController < Candidate::BaseController
     def candidate_params
       params.require(:candidate).permit(:first_name, :last_name, :invited_by ,:job_id,:description, :last_nam,:dob,:email,:phone,:visa, :skill_list,:designate_list, :primary_address_id,:category,:subcategory,:dept_name,:industry_name, :selected_from_resume, :ever_worked_with_company, :designation_status,
                                         addresses_attributes: [:id,:address_1,:address_2,:country,:city,:state,:zip_code, :from_date, :to_date],
-                                        educations_attributes: [:id,:degree_level,:degree_title,:grade,:completion_year,:start_year,:institute,:description],
-                                        certificates_attributes: [:id,:title,:start_date,:end_date,:institute],
+                                        educations_attributes: [:id,:degree_level,:degree_title,:grade,:completion_year,:start_year,:institute,:description,
+                                                                :candidate_education_document_attributes => [
+                                                                    :id, :education_id, :title, :file, :exp_date, :_destroy
+                                                                ]],
+                                        certificates_attributes: [:id,:title,:start_date,:end_date,:institute,
+                                                                  :candidate_certificate_document_attributes => [
+                                                                      :id, :certificate_id, :title, :file, :exp_date, :_destroy
+                                                                  ]],
                                         clients_attributes: [:id, :name, :industry, :start_date, :end_date, :project_description, :role, :refrence_name, :refrence_phone, :refrence_email],
                                         documents_attributes: [:id, :candidate_id, :title, :file, :exp_date, :is_education, :is_legal_doc],
                                         legal_documents_attributes: [:id, :candidate_id, :title, :file, :exp_date],

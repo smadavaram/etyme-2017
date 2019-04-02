@@ -1,25 +1,24 @@
-.row.multi-field-container{style: "padding: 0px 15px 15px 15px;"}
-  
+.multi-field-container
   .row
-    .col-md-3
+    .col-md-4
       .form-group
-        %p Title
+        %label Title
         = f.text_field :title, placeholder: "Title",class: 'form-control  input'
        
-    .col-md-3
+    .col-md-4
       .form-group
-        %p Status
+        %label Status
         = f.text_field :status, placeholder: "Status",class: 'form-control  input'
            
-    .col-md-3
+    .col-md-2
       .form-group
-        %p Expiry Date
+        %label Expiry Date
         = f.text_field :exp_date, placeholder: "YYYY-MM-DD",class: 'form-control input visa_exp_date'    
     
     
-    .col-md-3
+    .col-md-2
       .form-group
-        %p Select File
+        %label Select File
         = f.text_field :file, class: 'hidden file_education_document'
         = filepicker_field_tag "" , class: " hidden education_file filepicker-attach", onchange:"uploadVisaDoc(event, $(this).prev())"
         = link_to "Select Document" ,"#",class: 'col-lg-12 education_doc btn btn-md btn-primary', style: "margin-bottom: 10px", onclick:"select_visa_file($(this).prev())"

@@ -71,3 +71,84 @@
 .bg-color-blueDark {
   background-color: #ff5a5f !important;
 }
+
+.layout-w{
+  min-height: 100vh;
+}
+
+.wizard-action{
+  background: no-repeat;
+  margin: 0;
+  border: none;
+  ul.wizard{
+    li{
+      list-style: none;
+      a{
+        border: none;
+        background-color: transparent;
+        font-weight: 600;
+        font-size: 0.9rem;
+        color: #046fdf;
+        cursor: pointer;
+        letter-spacing: 1px;
+        position: relative;
+        text-decoration: none;
+        &:after{
+          font-family: 'osfont' !important;
+          speak: none;
+          font-style: normal;
+          font-weight: normal;
+          font-variant: normal;
+          text-transform: none;
+          line-height: 1;
+          -webkit-font-smoothing: antialiased;
+          -moz-osx-font-smoothing: grayscale;
+          font-size: 15px;
+          color: #047bf8;
+          position: absolute;
+          top: 50%;
+          -webkit-transform: translateY(-50%);
+          transform: translateY(-50%);
+        }
+        &:hover{
+          color:#334152;
+        }
+      }
+      &.previous{
+        a{
+          &:after{
+            content: "\e987";
+            left: -20px;
+          }
+        }
+      }
+      &.next{
+        a{
+          &:after{
+            content: "\e986";
+            right: -20px;
+          }
+        }
+      }
+    }
+  }
+}
+
+.form-group{
+  label {
+    display: block;
+    font-size: 14px;
+    font-weight: 400;
+    color: #999;
+    margin-bottom: 5px;
+  }
+  .radio-container {
+    display: inline-block !important;
+    line-height: 30px;
+    margin-left: 20px;
+  }
+}
+
+.fade.in{
+  opacity: 1 !important;
+}
