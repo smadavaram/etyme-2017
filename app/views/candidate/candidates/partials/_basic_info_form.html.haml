@@ -10,7 +10,9 @@
     =f.fields_for :addresses do |custom_field|
       = render 'candidate/candidates/partials/address_fields', f: custom_field
     .links.col-md-12.text-right
-      = link_to_add_association '+ Add Addresses', f, :addresses, class: 'btn btn-primary btn-sm', partial: 'candidate/candidates/partials/address_fields'
+      = link_to_add_association  f, :addresses, class: 'btn btn-gray', partial: 'candidate/candidates/partials/address_fields' do
+        %i.os-icon.os-icon-ui-22
+        %span Add Account
       %br/
 
   .row
