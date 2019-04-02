@@ -1,39 +1,35 @@
-.row{style: "padding: 0px 15px 15px 15px;"}
-  .form-group
-    .multi-field-wrapper
-      .multi-fields
-        = form_for @user,url: candidate_candidate_path(@user.id, tab: "client"),method: :put, remote: true do |f|
-          / %h2{style: "margin: 15px 0"}
-          /   %b Client Information
-          .row
-            .col-md-4
-              %h5
-                %b Have you ever worked with a company?
-            .col-md-2
-              .form-group.mr-top-10
-                %label.radio-container
-                  Yes
-                  = f.radio_button :ever_worked_with_company, "Yes"
-                  %span.radio-checkmark
-            .col-md-2
-              .form-group.mr-top-10
-                %label.radio-container
-                  No
-                  = f.radio_button :ever_worked_with_company, "No"
-                  %span.radio-checkmark
-          %br
-          .row.client_information_main_div
-            .col-md-12 
-              .form-group.candidate-association
-                = f.fields_for :clients, f.object.clients do |b|
-                  = render 'candidate/candidates/client_fields', f: b
-                %strong
-                  .links.pull-right
-                    = link_to_add_association '+ Add Client', f, :clients, class: 'btn btn-success', partial: 'candidate/candidates/client_fields'
-              .row
-              .col-lg-12
-                %button.btn.btn-primary.pull-right{:type => "submit"}
-                  Saved
+.form-group
+  .multi-field-wrapper
+    .multi-fields
+      = form_for @user,url: candidate_candidate_path(@user.id, tab: "client"),method: :put, remote: true do |f|
+        / %h2{style: "margin: 15px 0"}
+        /   %b Client Information
+        .row
+          .col-md-12
+            %h5
+              %b Have you ever worked with a company?
+              %label.radio-container
+                Yes
+                = f.radio_button :ever_worked_with_company, "Yes"
+                %span.radio-checkmark
+              %label.radio-container
+                No
+                = f.radio_button :ever_worked_with_company, "No"
+                %span.radio-checkmark
+
+        %br
+        .row.client_information_main_div
+          .col-md-12
+            .form-group.candidate-association
+              = f.fields_for :clients, f.object.clients do |b|
+                = render 'candidate/candidates/client_fields', f: b
+              %strong
+                .links.pull-right
+                  = link_to_add_association '+ Add Client', f, :clients, class: 'btn btn-success', partial: 'candidate/candidates/client_fields'
+            .row
+            .col-lg-12
+              %button.btn.btn-primary.pull-right{:type => "submit"}
+                Saved
 
 -content_for :scripts do
   :javascript

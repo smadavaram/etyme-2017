@@ -8,7 +8,7 @@
       .element-box
         %div#wizard-1{:novalidate => "novalidate"}
           #bootstrap-wizard-1.col-sm-12
-            .form-bootstrapWizard.margin-bottom-20
+            .form-bootstrapWizard.mb-5
               %ul.bootstrapWizard.form-wizard
                 %li{"data-target" => "#step1", :id=>"wiz_tab1", class: @tab.blank? ? "active" : ""}
                   %a{"data-toggle" => "tab", :href => "#tab1"}
@@ -50,10 +50,8 @@
             .tab-content
               #tab1.tab-pane{class: @tab.blank? ? "active" : "" }
                 %br/
-                %h5.form-header
+                %h4.element-header
                   Verify phone number
-                .form-desc
-                  Enter your phone number and click on verify.
                 .row
                   .col-sm-12
                     .row
@@ -76,10 +74,8 @@
 
               #tab2.tab-pane{class: @tab == "verify-phone" ? "active" : "" }
                 %br/
-                %h5.form-header
+                %h4.element-header
                   Personal Information
-                .form-desc
-                  Enter your Personal Information.
                 .row
                   .col-sm-12.col-md-12.col-lg-2
                     .panel-body.status.profile-margin
@@ -113,55 +109,46 @@
                   \- Social Media
               #tab4.tab-pane{class: @tab == "basic_info1" ? "active" : "" }
                 %br/
-                %h5.form-header
+                %h5.element-header
                   Education Details
-                .form-desc
-                  Enter your Education Details.
                 .row
                   .col-sm-12.col-md-12.col-lg-12
                     =render partial: 'candidate/candidates/partials/education_form',locals:{education: current_candidate.educations}
 
               #tab5.tab-pane{class: @tab == "edu" ? "active" : "" }
                 %br/
-                %h3
-                  %strong Step 5
-                  \- Update Skills
-                .row
-                  .col-sm-12.col-md-12.col-lg-12
-                    = render partial: 'candidate/candidates/partials/skill_form',locals: {user: current_candidate}
+                %h4.element-header
+                  Update Skills
+                = render partial: 'candidate/candidates/partials/skill_form',locals: {user: current_candidate}
 
               #tab6.tab-pane{class: @tab == "skill" ? "active" : "" }
                 %br/
-                %h3
-                  %strong Step 6
-                  \- Client Information
+                %h4.element-header
+                  Client Information
                 .row
                   .col-sm-12.col-md-12.col-lg-12
                     = render partial: 'candidate/candidates/partials/client_form',locals: {user: current_candidate}
 
               #tab7.tab-pane{class: @tab == "client" ? "active" : "" }
                 %br/
-                %h3
-                  %strong Step 7
-                  \- Employer Information
+                %h4.element-header
+                  Employer Information
                 .row
                   .col-sm-12.col-md-12.col-lg-12
                     = render partial: 'candidate/candidates/partials/designate_form',locals: {user: current_candidate}
 
               #tab8.tab-pane{class: @tab == "des" ? "active" : "" }
                 %br/
-                %h3
-                  %strong Step 8
-                  \- Background Check
+                %h4.element-header
+                  Background Check
                 .row
                   .col-sm-12.col-md-12.col-lg-12
                     = render partial: 'candidate/candidates/partials/submit_doc_form',locals: {user: current_candidate}
 
               #tab9.tab-pane{class: @tab == "designate" ? "active" : "" }
                 %br/
-                %h3
-                  %strong Step 9
-                  \- Save Form
+                %h4.element-header
+                  Save Form
                 %br/
                 %h1.text-center.text-success
                   %strong

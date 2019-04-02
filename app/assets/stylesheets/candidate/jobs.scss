@@ -133,3 +133,18 @@
     }
   }
 }
+
+.form-group{
+  label {
+    display: block;
+    font-size: 14px;
+    font-weight: 400;
+    color: #999;
+    margin-bottom: 5px;
+  }
+  .radio-container {
+    display: inline-block !important;
+    line-height: 30px;
+    margin-left: 20px;
+  }
+}

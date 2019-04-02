@@ -2,30 +2,30 @@
 .row
   .col-sm-4
     .form-group
-      %p Degree level
+      %label Degree level
       = f.text_field :degree_level, placeholder: "Degree level", class: 'form-control input'
 
   .col-sm-4
     .form-group
-      %p Institute
+      %label Institute
       = f.select :institute, industry_list,{},{class: 'form-control input',style: "width:100% !important"}
   .col-sm-4
     .form-group
-      %p Degree Title
+      %label Degree Title
       = f.text_field :degree_title, placeholder: "Degree Title",class: 'form-control input'
 .row
   .col-sm-4
     .form-group
-      %p CGPA
+      %label CGPA
       = f.text_field :degree_title, placeholder: "CGPA", class: 'form-control input'
   .col-md-4
     .form-group
-      %p Start Year
+      %label Start Year
       = f.text_field :start_year, placeholder: "YYYY-MM-DD", class: 'form-control ed_start_year'
 
   .col-md-4
     .form-group
-      %p End Year
+      %label End Year
       = f.text_field :completion_year, placeholder:"YYYY-MM-DD", class: 'form-control ed_end_year input'
 
 
