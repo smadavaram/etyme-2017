@@ -25,7 +25,7 @@
                 .tab-pane{id: "hb#{app_type_value}" , class: app_type_key == 0 ? 'active' : ''}
                   %ul.nav.nav-tabs.tabs-pull-right.sub-tab{id: "internal-tab-#{app_type_value}"}
                   .tab-content.padding-10
-                    .tab-pane.fade.active.in{id: "is#{app_type_value}-all"}
+                    .tab-pane.in.active{id: "is#{app_type_value}-all"}
                       = render  'company/job_applications/partials/application_table' ,data: @received_job_applications.where(application_type: app_type_key)
 - content_for :modals do
   #ajax-modal
