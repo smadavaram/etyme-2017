@@ -225,7 +225,7 @@ class Candidate::CandidatesController < Candidate::BaseController
     end
 
     def candidate_params
-      params.require(:candidate).permit(:first_name, :last_name, :invited_by ,:job_id,:description, :last_nam,:dob,:email,:phone,:visa, :skill_list,:designate_list, :primary_address_id,:category,:subcategory,:dept_name,:industry_name, :selected_from_resume, :ever_worked_with_company, :designation_status,
+      params.require(:candidate).permit(:first_name, :last_name, :invited_by ,:job_id,:description, :last_nam,:dob,:email,:phone,:visa, :skill_list,:designate_list, :primary_address_id,:category,:subcategory,:dept_name,:industry_name, :selected_from_resume, :ever_worked_with_company, :designation_status, :facebook_url, :twitter_url, :linkedin_url, :gtalk_url, :skypeid,
                                         addresses_attributes: [:id,:address_1,:address_2,:country,:city,:state,:zip_code, :from_date, :to_date],
                                         educations_attributes: [:id,:degree_level,:degree_title,:grade,:completion_year,:start_year,:institute,:description,
                                                                 :candidate_education_document_attributes => [

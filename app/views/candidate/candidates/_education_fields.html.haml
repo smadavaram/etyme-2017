@@ -8,7 +8,8 @@
   .col-sm-4
     .form-group
       %label Institute
-      = f.select :institute, industry_list,{},{class: 'form-control input',style: "width:100% !important"}
+      -#= f.select :institute, industry_list,{},{class: 'form-control input',style: "width:100% !important"}
+      = f.text_field :institute, class: 'form-control input'
   .col-sm-4
     .form-group
       %label Degree Title

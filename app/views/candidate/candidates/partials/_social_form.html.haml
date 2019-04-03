@@ -1,0 +1,24 @@
+= form_for @user, url: candidate_candidate_path(@user.id, tab: "social"),method: :put, remote: true do |f|
+  .row
+    .col-sm-6
+      .form-group
+        %label Facebook
+        = f.text_field :facebook_url  ,:placeholder => "Enter facebook profile url",class:'form-control input'
+    .col-sm-6
+      .form-group
+        %label Twitter
+        = f.text_field :twitter_url  ,:placeholder => "Enter twitter profile url",class:'form-control input'
+  .row
+    .col-sm-6
+      .form-group
+        %label LinkedIn
+        = f.text_field :linkedin_url  ,:placeholder => "Enter linkedin profile url",class:'form-control input'
+    .col-sm-6
+      .form-group
+        %label Start Date
+        = f.text_field :gtalk_url  ,:placeholder => "Enter gtalk profile url",class:'form-control input'
+  .row
+    .col-sm-12
+      .form-group
+        %label Skype
+        = f.text_field :skypeid  ,:placeholder => "Enter skype id",class:'form-control input'

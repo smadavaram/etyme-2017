@@ -22,7 +22,7 @@
                   %a{"data-toggle" => "tab", :href => "#tab3"}
                     %span.step 3
                     %span.title Social Media
-                %li{"data-target" => "#step4" , :id=>"wiz_tab4", class: @tab == "basic_info1" ? "active" : ""}
+                %li{"data-target" => "#step4" , :id=>"wiz_tab4", class: @tab == "social" ? "active" : ""}
                   %a{"data-toggle" => "tab", :href => "#tab4"}
                     %span.step 4
                     %span.title Update Education
@@ -137,10 +137,13 @@
 
               #tab3.tab-pane{class: @tab == "basic_info" ? "active" : "" }
                 %br/
-                %h3
-                  %strong Step 3
+                %h5.element-header
                   \- Social Media
-              #tab4.tab-pane{class: @tab == "basic_info1" ? "active" : "" }
+                .row
+                  .col-sm-12.col-md-12.col-lg-12
+                    =render partial: 'candidate/candidates/partials/social_form'
+
+              #tab4.tab-pane{class: @tab == "social" ? "active" : "" }
                 %br/
                 %h5.element-header
                   Education Details
