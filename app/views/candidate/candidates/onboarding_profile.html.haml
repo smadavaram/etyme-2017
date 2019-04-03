@@ -26,7 +26,7 @@
                   %a{"data-toggle" => "tab", :href => "#tab4"}
                     %span.step 4
                     %span.title Update Education
-                %li{"data-target" => "#step5" , :id=>"wiz_tab5", class: @tab == "edu" ? "active" : ""}
+                %li{"data-target" => "#step5" , :id=>"wiz_tab5", class: @tab == "education" ? "active" : ""}
                   %a{"data-toggle" => "tab", :href => "#tab5"}
                     %span.step 5
                     %span.title Update Skills
@@ -38,11 +38,11 @@
                   %a{"data-toggle" => "tab", :href => "#tab7"}
                     %span.step 7
                     %span.title Employer Information
-                %li{"data-target" => "#step8" , :id=>"wiz_tab8", class: @tab == "des" ? "active" : ""}
+                %li{"data-target" => "#step8" , :id=>"wiz_tab8", class: @tab == "designate" ? "active" : ""}
                   %a{"data-toggle" => "tab", :href => "#tab8"}
                     %span.step 8
                     %span.title Background Check
-                %li{"data-target" => "#step9" , :id=>"wiz_tab9", class: @tab == "designate" ? "active" : ""}
+                %li{"data-target" => "#step9" , :id=>"wiz_tab9", class: @tab == "submit_doc" ? "active" : ""}
                   %a{"data-toggle" => "tab", :href => "#tab9"}
                     %span.step 9
                     %span.title Save Form
@@ -132,15 +132,15 @@
                   -#          -else
                   -#            = image_tag image_path('avatars/m_sunny_big.png'),  style: "width:100px;height:100px", fit: 'clip',:class =>"video-pic"
                 .row{style: "padding: 15px;"}
-
-                =render partial: 'candidate/candidates/partials/basic_info_form',locals: {candidate: current_candidate}
+                #basic-info-form
+                  =render partial: 'candidate/candidates/partials/basic_info_form' #,locals: {candidate: current_candidate}
 
               #tab3.tab-pane{class: @tab == "basic_info" ? "active" : "" }
                 %br/
                 %h5.element-header
                   \- Social Media
                 .row
-                  .col-sm-12.col-md-12.col-lg-12
+                  .col-sm-12.col-md-12.col-lg-12#social-form
                     =render partial: 'candidate/candidates/partials/social_form'
 
               #tab4.tab-pane{class: @tab == "social" ? "active" : "" }
@@ -148,21 +148,23 @@
                 %h5.element-header
                   Education Details
                 .row
-                  .col-sm-12.col-md-12.col-lg-12
+                  .col-sm-12.col-md-12.col-lg-12#education-form
                     =render partial: 'candidate/candidates/partials/education_form',locals:{education: current_candidate.educations}
 
-              #tab5.tab-pane{class: @tab == "edu" ? "active" : "" }
+              #tab5.tab-pane{class: @tab == "education" ? "active" : "" }
                 %br/
                 %h4.element-header
                   Update Skills
-                = render partial: 'candidate/candidates/partials/skill_form',locals: {user: current_candidate}
+                .row
+                  .col-sm-12.col-md-12.col-lg-12#skill-form
+                    = render partial: 'candidate/candidates/partials/skill_form',locals: {user: current_candidate}
 
               #tab6.tab-pane{class: @tab == "skill" ? "active" : "" }
                 %br/
                 %h4.element-header
                   Client Information
                 .row
-                  .col-sm-12.col-md-12.col-lg-12
+                  .col-sm-12.col-md-12.col-lg-12#client-form
                     = render partial: 'candidate/candidates/partials/client_form',locals: {user: current_candidate}
 
               #tab7.tab-pane{class: @tab == "client" ? "active" : "" }
@@ -170,16 +172,16 @@
                 %h4.element-header
                   Employer Information
                 .row
-                  .col-sm-12.col-md-12.col-lg-12
+                  .col-sm-12.col-md-12.col-lg-12#designate-form
                     = render partial: 'candidate/candidates/partials/designate_form',locals: {user: current_candidate}
 
-              #tab8.tab-pane{class: @tab == "des" ? "active" : "" }
+              #tab8.tab-pane{class: @tab == "designate" ? "active" : "" }
                 %br/
                 .row
-                  .col-sm-12.col-md-12.col-lg-12
+                  .col-sm-12.col-md-12.col-lg-12#submit-doc-form
                     = render partial: 'candidate/candidates/partials/submit_doc_form',locals: {user: current_candidate}
 
-              #tab9.tab-pane{class: @tab == "designate" ? "active" : "" }
+              #tab9.tab-pane{class: @tab == "submit_doc" ? "active" : "" }
                 %br/
                 %h4.element-header
                   Save Form
@@ -217,7 +219,7 @@
           }
         );
       };
-     
+
     }); 
 
     function loginCallback(response) {
@@ -279,7 +281,7 @@
         });
 
         var wizard = $('.wizard').wizard();
-        
+
         wizard.on('finished', function (e, data) {
           //$("#fuelux-wizard").submit();
           $.smallBox({

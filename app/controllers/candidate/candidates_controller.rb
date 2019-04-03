@@ -49,6 +49,7 @@ class Candidate::CandidatesController < Candidate::BaseController
   end
 
   def update
+    @tab = params[:tab]
     respond_to do  |format|
       if current_candidate.update_attributes candidate_params
         if params[:candidate][:educations_attributes].present?
@@ -69,7 +70,7 @@ class Candidate::CandidatesController < Candidate::BaseController
           flash[:success] = "Candidate Updated"
           redirect_to onboarding_profile_path(tag: params["tab"])
         }
-        format.js {render json: :ok}
+        format.js
 
       else
         format.html{redirect_back fallback_location: root_path}
@@ -196,7 +197,7 @@ class Candidate::CandidatesController < Candidate::BaseController
   end  
 
   def onboarding_profile
-    @user = Candidate.find(current_candidate.id)
+    @user = current_candidate
     @user.addresses.build unless @user.addresses.present?
     @user.educations.build unless @user.educations.present?
     @user.certificates.build unless @user.certificates.present?
