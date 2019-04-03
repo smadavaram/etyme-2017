@@ -99,7 +99,7 @@ class Company < ApplicationRecord
   validates_uniqueness_of :slug, :website, message: "This company is already registered on etyme."
   # validates_uniqueness_of    :domain,  message: "This company is already registered on etyme. In order to invited to the company; Please talk to the admin / owner of the company.  Or you can register a new company with a different name"
   validates_exclusion_of :slug, in: EXCLUDED_SUBDOMAINS, message: "is not allowed. Please choose another subdomain"
-  # validates_format_of :slug, with: /\A[\w\-]+\Z/i, allow_blank: true, message: "is not allowed. Please choose another subdomain."
+  validates_format_of :slug, with: /\A[\w\-]+\Z/i, allow_blank: true, message: "is not allowed. Please choose another subdomain."
 
   accepts_nested_attributes_for :owner    , allow_destroy: true
   accepts_nested_attributes_for :company_contacts, allow_destroy: true
