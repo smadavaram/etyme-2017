@@ -2,47 +2,47 @@
   .row
     .col-sm-12
       .form-group
-        %p Name
+        %label Name
         = f.text_field :name,placeholder: "Client Name",class: 'form-control input'
 
     .col-sm-4
       .form-group
-        %p Industry
+        %label Industry
         = f.text_field :industry, placeholder: "Industry",class: 'form-control input'
         -#= f.select :industry, industry_list,{},{class: 'form-control input'}
     .col-sm-4
       .form-group
-        %p Start Date
+        %label Start Date
         = f.text_field :start_date,placeholder: "YYYY-MM-DD",class: 'form-control p_date cl_start_year input'
     .col-sm-4
       .form-group
-        %p End Date
+        %label End Date
         = f.text_field :end_date,placeholder:"YYYY-MM-DD",class: 'form-control p_date cl_end_year input'
 
   .row
     .col-sm-4
       .form-group
-        %p Refrence name
+        %label Refrence name
         = f.text_field :refrence_name,placeholder: "Degree level",class: 'form-control input'
 
     .col-sm-4
       .form-group
-        %p Refrence Phone
+        %label Refrence Phone
         = f.text_field :refrence_phone, class: 'form-control input'
     .col-sm-4
       .form-group
-        %p Refrence Email
+        %label Refrence Email
         = f.text_field :refrence_email,placeholder: "Email",class: 'form-control input'
 
 
   .row
     .col-md-6
       .form-group
-        %p Project Description
+        %label Project Description
         = f.text_area :project_description,placeholder: "Project Description",class: 'form-control input'
     .col-md-6
       .form-group
-        %p Role
+        %label Role
         = f.text_area :role,placeholder: "My Role",class: 'form-control input'
  
 
