@@ -6,7 +6,10 @@
   $(".file").trigger("click");
   $('.fp__overlay').css({'z-index':'99999'});
   });
-  $('.ba_info_start_date, .ba_info_end_date, .creminal_check_start_year, .creminal_check_end_year, .cl_start_year, .cl_end_year, .ed_start_year, .ed_end_year, .cer_start_date, .cer_end_date').datepicker({
+  $('.can-filepicker-attach').each(function(e){
+  filepicker.constructWidget($(this));
+  });
+  $('.p_date').datepicker({
   dateFormat: "yy-mm-dd"
   });
   addressLookup();

@@ -271,7 +271,7 @@
       var hash = window.location.hash;
       $('#myTab a[href="' + hash + '"]').tab('show');
 
-      $('.ba_info_start_date, .ba_info_end_date, .creminal_check_start_year, .creminal_check_end_year, .cl_start_year, .cl_end_year, .ed_start_year, .ed_end_year, .cer_start_date, .cer_end_date').datepicker({
+      $('.p_date').datepicker({
         dateFormat: "yy-mm-dd"
       });
 
@@ -279,7 +279,7 @@
     });
 
     $(document).on("click", ".resume", function(){
-      console.log("trigger click");
+      alert("okokok");
       $(".resume_file").trigger("click");
     });
 
@@ -399,7 +399,7 @@
     $(document).on('cocoon:after-insert', '.candidate-association', function(e, insertedItem) {
       addressLookup();
 
-      $(".education_doc_expiry_date, .visa_exp_date, .legal_doc_exp_date, .creminal_check_start_year, .creminal_check_end_year, .cl_start_year, .cl_end_year, .ba_info_start_date, .ba_info_end_date, .ed_start_year, .ed_end_year, .cer_start_date, .cer_end_date").datepicker({
+      $(".p_date").datepicker({
         dateFormat : 'yy-mm-dd'
       });
 
@@ -495,28 +495,29 @@
     }
 
     function select_file(prev){
+      alert("okok");
       prev.trigger("click");
     }
 
-    function uploadEducationDoc(event, file_el){
+    function uploadFileDoc(event, file_el){
       document_url = event.fpfile.url
       $("#"+file_el.attr("id")).val(document_url)
     }
 
-    function select_visa_file(prev){
-      prev.trigger("click");
-    }
-
-    function uploadVisaDoc(event, file_el){
-      document_url = event.fpfile.url
-      $("#"+file_el.attr("id")).val(document_url)
-    }
-
-    function select_legal_file(prev){
-      prev.trigger("click");
-    }
-
-    function uploadLegalDoc(event, file_el){
-      document_url = event.fpfile.url
-      $("#"+file_el.attr("id")).val(document_url)
-    }
+    // function select_visa_file(prev){
+    //   prev.trigger("click");
+    // }
+    //
+    // function uploadVisaDoc(event, file_el){
+    //   document_url = event.fpfile.url
+    //   $("#"+file_el.attr("id")).val(document_url)
+    // }
+    //
+    // function select_legal_file(prev){
+    //   prev.trigger("click");
+    // }
+    //
+    // function uploadLegalDoc(event, file_el){
+    //   document_url = event.fpfile.url
+    //   $("#"+file_el.attr("id")).val(document_url)
+    // }
