@@ -3,31 +3,31 @@
     .row
       .col-sm-6
         .form-group
-          %p Category
+          %label Category
           =f.select :category, WORK_CATEGORIES.keys,{include_blank: "Select Category"},{class: "form-control input", required: true }
       .col-sm-6
         .form-
-          %p Sub Category
+          %label Sub Category
           =f.select :subcategory, '', {include_blank: "Select Category"},{class: "form-control input", required: true }
 
     .row
       .col-sm-6
         .form-group
-          %p Skills
+          %label Skills
           = f.text_field :skill_list,placeholder: "Add Skills Comma seperated",class: 'form-control p-location input', 'data-role'=>'tagsinput',value: current_candidate.skill_list.join(", ")
       .col-sm-6
         .form-group
-          %p Selected From Resume
+          %label Selected From Resume
           = f.text_field :selected_from_resume,placeholder: "Selected From Resume",class: 'form-control p-location input'
 
     .row
       .col-sm-6
         .form-group
-          %p Department
+          %label Department
           = f.select :dept_name, department_list, {include_blank: "Select Department"},{class: "form-control input", required: true}
       .col-sm-6
         .form-group
-          %p Industry
+          %label Industry
           = f.select :industry_name, industry_list, {include_blank: "Select Industry"},{class: "form-control input", required: true}
 
     -#.row
