@@ -22,14 +22,14 @@
       = link_to_remove_association "X", f , wrapper_class: "nested-fields"
 
 
-- content_for :scripts do
-  :javascript  
-
-    function select_file(prev){
-      prev.trigger("click");
-    }  
-
-    function uploadEducationDoc(event, file_el){
-      document_url = event.fpfile.url
-      $("#"+file_el.attr("id")).val(document_url)
-    }
+-#- content_for :scripts do
+-#  :javascript
+-#
+-#    function select_file(prev){
+-#      prev.trigger("click");
+-#    }
+-#
+-#    function uploadEducationDoc(event, file_el){
+-#      document_url = event.fpfile.url
+-#      $("#"+file_el.attr("id")).val(document_url)
+-#    }

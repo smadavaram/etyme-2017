@@ -37,12 +37,12 @@
     = link_to_add_association '+ Add Document', f, :candidate_education_document, class: 'btn btn-success add_education_btn', partial: 'candidate/candidates/candidate_education_document_fields'
 
 
-- content_for :scripts do
-  :javascript 
-
-    $(document).ready(function() {
-      $('.ed_start_year, .ed_end_year').datepicker({
-       dateFormat: "yy-mm-dd"
-      });  
-    });
+-#- content_for :scripts do
+-#  :javascript
+-#
+-#    $(document).ready(function() {
+-#      $('.ed_start_year, .ed_end_year').datepicker({
+-#       dateFormat: "yy-mm-dd"
+-#      });
+-#    });
           

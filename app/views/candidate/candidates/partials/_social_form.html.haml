@@ -1,4 +1,4 @@
-= form_for @user, url: candidate_candidate_path(@user.id, tab: "social"),method: :put, remote: true do |f|
+= form_for current_candidate, url: candidate_candidate_path(current_candidate.id, tab: "social"),method: :put, remote: true do |f|
   .row
     .col-sm-6
       .form-group

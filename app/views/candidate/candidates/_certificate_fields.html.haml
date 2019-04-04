@@ -26,11 +26,11 @@
       .links.education_links
         = link_to_add_association '+ Add Document', f, :candidate_certificate_document, class: 'btn btn-success add_education_btn', partial: 'candidate/candidates/candidate_certificate_document_fields'
 
-- content_for :scripts do
-  :javascript 
-
-    $(document).ready(function() {
-      $('.cer_start_date, .cer_end_date').datepicker({
-       dateFormat: "yy-mm-dd"
-      });  
-    });       
+-#- content_for :scripts do
+-#  :javascript
+-#
+-#    $(document).ready(function() {
+-#      $('.cer_start_date, .cer_end_date').datepicker({
+-#       dateFormat: "yy-mm-dd"
+-#      });
+-#    });

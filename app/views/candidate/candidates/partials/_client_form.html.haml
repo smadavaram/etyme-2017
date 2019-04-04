@@ -1,7 +1,7 @@
 .form-group
   .multi-field-wrapper
     .multi-fields
-      = form_for @user,url: candidate_candidate_path(@user.id, tab: "client"),method: :put, remote: true do |f|
+      = form_for current_candidate,url: candidate_candidate_path(current_candidate.id, tab: "client"),method: :put, remote: true do |f|
         / %h2{style: "margin: 15px 0"}
         /   %b Client Information
         .row
@@ -31,24 +31,24 @@
             -#  %button.btn.btn-primary.pull-right{:type => "submit"}
             -#    Saved
 
--content_for :scripts do
-  :javascript
-
-    if("#{@user.ever_worked_with_company}" == "Yes"){
-      $(".client_information_main_div").show();
-    }else{
-      $(".client_information_main_div").hide();
-    }
-  
-    $("#candidate_ever_worked_with_company_yes").on("click", function(){
-      $(".client_information_main_div").show();
-    }) 
-    $("#candidate_ever_worked_with_company_no").on("click", function(){
-      $(".client_information_main_div").hide();
-    })                  
-
-    $('.candidate-association').on('cocoon:after-insert', function(e, insertedItem) {
-      $(".cl_start_year, .cl_end_year").datepicker({
-        dateFormat : 'yy-mm-dd'
-      });
-    });
+-#-content_for :scripts do
+-#  :javascript
+-#
+-#    if("#{@user.ever_worked_with_company}" == "Yes"){
+-#      $(".client_information_main_div").show();
+-#    }else{
+-#      $(".client_information_main_div").hide();
+-#    }
+-#
+-#    $("#candidate_ever_worked_with_company_yes").on("click", function(){
+-#      $(".client_information_main_div").show();
+-#    })
+-#    $("#candidate_ever_worked_with_company_no").on("click", function(){
+-#      $(".client_information_main_div").hide();
+-#    })
+-#
+-#    $('.candidate-association').on('cocoon:after-insert', function(e, insertedItem) {
+-#      $(".cl_start_year, .cl_end_year").datepicker({
+-#        dateFormat : 'yy-mm-dd'
+-#      });
+-#    });

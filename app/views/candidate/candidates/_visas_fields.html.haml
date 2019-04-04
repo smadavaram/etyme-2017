@@ -24,14 +24,14 @@
         = link_to "Select Document" ,"#",class: 'col-lg-12 education_doc btn btn-md btn-primary', style: "margin-bottom: 10px", onclick:"select_visa_file($(this).prev())"
   
 
-- content_for :scripts do
-  :javascript  
-
-    function select_visa_file(prev){
-      prev.trigger("click");
-    }  
-
-    function uploadVisaDoc(event, file_el){
-      document_url = event.fpfile.url
-      $("#"+file_el.attr("id")).val(document_url)
-    }      
+-#- content_for :scripts do
+-#  :javascript
+-#
+-#    function select_visa_file(prev){
+-#      prev.trigger("click");
+-#    }
+-#
+-#    function uploadVisaDoc(event, file_el){
+-#      document_url = event.fpfile.url
+-#      $("#"+file_el.attr("id")).val(document_url)
+-#    }

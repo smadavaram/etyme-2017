@@ -24,14 +24,14 @@
   /   .col-md-12
   /     %a.bttn.btn-add.remove-multi-fields.pull-right.delete_icon
   /       %i.fa.fa-trash
-- content_for :scripts do
-  :javascript  
-
-    function select_legal_file(prev){
-      prev.trigger("click");
-    }  
-
-    function uploadLegalDoc(event, file_el){
-      document_url = event.fpfile.url
-      $("#"+file_el.attr("id")).val(document_url)
-    }        
+-#- content_for :scripts do
+-#  :javascript
+-#
+-#    function select_legal_file(prev){
+-#      prev.trigger("click");
+-#    }
+-#
+-#    function uploadLegalDoc(event, file_el){
+-#      document_url = event.fpfile.url
+-#      $("#"+file_el.attr("id")).val(document_url)
+-#    }

@@ -1,5 +1,6 @@
+- education = current_candidate.educations
 .col-sm-12.col-md-12.col-lg-12
-  = form_for @user,url: candidate_candidate_path(@user.id, tab: "edu"),method: :put, remote: true do |f|
+  = form_for current_candidate,url: candidate_candidate_path(current_candidate.id, tab: "education"),method: :put, remote: true do |f|
     .form-group.candidate-association
       = f.fields_for :educations, f.object.educations do |b|
         = render 'candidate/candidates/education_fields', f: b
@@ -51,27 +52,27 @@
     -#    %button.btn.btn-primary.pull-right{:type => "submit"}
     -#      Saved
       
-
-- content_for :scripts do
-  :javascript 
-
-    $('.candidate-association').on('cocoon:after-insert', function(e, insertedItem) {
-
-      insertedItem.find('.filepicker-attach').each(function(i,e){
-        filepicker.constructWidget(e);
-        $(".filepicker-attach").on('click',function() {
-          $('.fp__overlay').css({'z-index':'99999'})
-        });
-        $('.filepicker-attach').on('click',function() {
-          //$(this).hide();
-         });
-      });
-
-      $(".ed_start_year, .ed_end_year").datepicker({
-        dateFormat : 'yy-mm-dd'
-      });
-
-      $('.cer_start_date, .cer_end_date').datepicker({
-       dateFormat: "yy-mm-dd"
-      }); 
-    });
+-#
+-#- content_for :scripts do
+-#  :javascript
+-#
+-#    $('.candidate-association').on('cocoon:after-insert', function(e, insertedItem) {
+-#
+-#      insertedItem.find('.filepicker-attach').each(function(i,e){
+-#        filepicker.constructWidget(e);
+-#        $(".filepicker-attach").on('click',function() {
+-#          $('.fp__overlay').css({'z-index':'99999'})
+-#        });
+-#        $('.filepicker-attach').on('click',function() {
+-#          //$(this).hide();
+-#         });
+-#      });
+-#
+-#      $(".ed_start_year, .ed_end_year").datepicker({
+-#        dateFormat : 'yy-mm-dd'
+-#      });
+-#
+-#      $('.cer_start_date, .cer_end_date').datepicker({
+-#       dateFormat: "yy-mm-dd"
+-#      });
+-#    });

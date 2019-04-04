@@ -1,2 +1,12 @@
--#- if @tab.present?
--#  $("##{@tab}-form").html("#{j render 'candidate/candidates/partials/'+@tab.gsub('-', '_')+'_form'}")
+- if @tab.present?
+  $("##{@tab.gsub('_', '-')}-form").html("#{j render 'candidate/candidates/partials/'+@tab.gsub('-', '_')+'_form'}")
+  $(".select2").select2({placeholder: "Select a User(s)"});
+  $(".file_select").select2({placeholder: "Select Company Document"});
+  $('.fileUpload').on("click",function(){
+  $(".file").trigger("click");
+  $('.fp__overlay').css({'z-index':'99999'});
+  });
+  $('.ba_info_start_date, .ba_info_end_date, .creminal_check_start_year, .creminal_check_end_year, .cl_start_year, .cl_end_year, .ed_start_year, .ed_end_year, .cer_start_date, .cer_end_date').datepicker({
+  dateFormat: "yy-mm-dd"
+  });
+  addressLookup();
