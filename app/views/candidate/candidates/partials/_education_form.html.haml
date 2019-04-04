@@ -1,4 +1,6 @@
 - education = current_candidate.educations
+- current_candidate.educations.build unless current_candidate.educations.present?
+- current_candidate.certificates.build unless current_candidate.certificates.present?
 .col-sm-12.col-md-12.col-lg-12
   = form_for current_candidate,url: candidate_candidate_path(current_candidate.id, tab: "education"),method: :put, remote: true do |f|
     .form-group.candidate-association

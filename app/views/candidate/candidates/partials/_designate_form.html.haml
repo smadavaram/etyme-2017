@@ -1,3 +1,4 @@
+- current_candidate.designations.build unless current_candidate.designations.present?
 = form_for current_candidate,url: candidate_candidate_path(current_candidate.id, tab: "designate"),method: :put, remote: true do |f|
   .row
     .col-md-12
