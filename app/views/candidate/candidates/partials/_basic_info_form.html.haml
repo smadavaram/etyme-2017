@@ -9,7 +9,7 @@
       %label Last Name
       .form-group
         = f.text_field :last_name  ,:placeholder => "Enter last Name",class:'form-control input'
-  .row.candidate-association
+  .candidate-association
     =f.fields_for :addresses do |custom_field|
       = render 'candidate/candidates/partials/address_fields', f: custom_field
     .links.col-md-12.text-right

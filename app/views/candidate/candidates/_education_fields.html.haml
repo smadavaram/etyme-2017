@@ -1,41 +1,44 @@
-.row.multi-field-container{style: "padding: 0px 15px 15px 15px;"}
-.row
-  .col-sm-4
-    .form-group
-      %label Degree level
-      = f.text_field :degree_level, placeholder: "Degree level", class: 'form-control input'
+.nested-fields8
+  .row
+    .col-sm-4
+      .form-group
+        %label Degree level
+        = f.text_field :degree_level, placeholder: "Degree level", class: 'form-control input'
 
-  .col-sm-4
-    .form-group
-      %label Institute
-      -#= f.select :institute, industry_list,{},{class: 'form-control input',style: "width:100% !important"}
-      = f.text_field :institute, class: 'form-control input'
-  .col-sm-4
-    .form-group
-      %label Degree Title
-      = f.text_field :degree_title, placeholder: "Degree Title",class: 'form-control input'
-.row
-  .col-sm-4
-    .form-group
-      %label CGPA
-      = f.text_field :degree_title, placeholder: "CGPA", class: 'form-control input'
-  .col-md-4
-    .form-group
-      %label Start Year
-      = f.text_field :start_year, placeholder: "YYYY-MM-DD", class: 'form-control p_date ed_start_year'
+    .col-sm-4
+      .form-group
+        %label Institute
+        -#= f.select :institute, industry_list,{},{class: 'form-control input',style: "width:100% !important"}
+        = f.text_field :institute, class: 'form-control input'
+    .col-sm-4
+      .form-group
+        %label Degree Title
+        = f.text_field :degree_title, placeholder: "Degree Title",class: 'form-control input'
+  .row
+    .col-sm-4
+      .form-group
+        %label CGPA
+        = f.text_field :degree_title, placeholder: "CGPA", class: 'form-control input'
+    .col-md-4
+      .form-group
+        %label Start Year
+        = f.text_field :start_year, placeholder: "YYYY-MM-DD", class: 'form-control p_date ed_start_year'
 
-  .col-md-4
-    .form-group
-      %label End Year
-      = f.text_field :completion_year, placeholder:"YYYY-MM-DD", class: 'form-control p_date ed_end_year input'
+    .col-md-4
+      .form-group
+        %label End Year
+        = f.text_field :completion_year, placeholder:"YYYY-MM-DD", class: 'form-control p_date ed_end_year input'
 
 
-.form-group
-  = f.fields_for :candidate_education_document, f.object.candidate_education_document do |b|
-    = render 'candidate/candidates/candidate_education_document_fields', f: b
-  .links.education_links
-    = link_to_add_association '+ Add Document', f, :candidate_education_document, class: 'btn btn-success add_education_btn', partial: 'candidate/candidates/candidate_education_document_fields'
-
+  .form-group
+    = f.fields_for :candidate_education_documents do |b|
+      = render 'candidate/candidates/candidate_education_document_fields', f: b
+    .links.education_links
+      = link_to_add_association '+ Add Document', f, :candidate_education_documents, class: 'btn btn-success add_education_btn', partial: 'candidate/candidates/candidate_education_document_fields'
+  .row
+    .col-md-12
+      = link_to_remove_association f , wrapper_class: "nested-fields8", class: "bttn btn-add pull-right delete_icon" do
+        %i.fa.fa-trash
 
 -#- content_for :scripts do
 -#  :javascript

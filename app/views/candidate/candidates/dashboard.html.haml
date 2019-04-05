@@ -4,15 +4,15 @@
     .row
       .col-sm-4
         .user-profile.compact
-          .up-head-w{:style => "background-image:url(img/profile_bg1.jpg)"}
+          .up-head-w{:style => "background-image:url(#{current_candidate.photo})"}
             .up-social
-              %a{:href => "#"}
+              %a{:href => current_candidate.twitter_url, target: "_blank"}
                 %i.os-icon.os-icon-twitter
-              %a{:href => "#"}
+              %a{:href => current_candidate.facebook_url, target: "_blank"}
                 %i.os-icon.os-icon-facebook
             .up-main-info
               %h2.up-header
-                John Mayers
+                = current_candidate.full_name
               %h6.up-sub-header
                 Product Designer at Facebook
             %svg.decor{:height => "219px", :preserveaspectratio => "xMaxYMax meet", :version => "1.1", :viewbox => "0 0 842 219", :width => "842px", :xmlns => "http://www.w3.org/2000/svg", "xmlns:xlink" => "http://www.w3.org/1999/xlink"}
@@ -27,9 +27,16 @@
                   .value.badge.badge-pill.badge-success
                     Online
               .col-sm-6.text-right
-                %a.btn.btn-primary.btn-sm{:href => ""}
-                  %i.os-icon.os-icon-arrow-down6
-                  %span Download Resume
+                - if current_candidate.candidates_resumes.present?
+                  -#%a.btn.btn-primary.btn-sm{:href => ""}
+                  = link_to current_candidate.candidates_resumes.primary_resume.resume, class: "btn btn-primary btn-sm", target: "_blank" do
+                    %i.os-icon.os-icon-arrow-down6
+                    %span Download Resume
+                - else
+                  %a.btn.btn-primary.btn-sm{:href => "/onboarding_profile?tag=verify-phone"}
+                    %i.os-icon.os-icon-arrow-up6
+                    %span Upload Resume
+
           .up-contents
             .m-b
               .row.m-b
@@ -57,7 +64,8 @@
                     .bar-label-left
                       %span Phone
                     .bar-label-right
-                      %span.text-success verified
+                      %span.text-success
+                        =current_candidate.is_number_verify ? 'verified' : 'unverified'
                 .os-progress-bar.primary
                   .bar-labels
                     .bar-label-left
@@ -77,56 +85,29 @@
               Education
             .element-info.border-0
               .element-info-text
-                .mb-2
-                  %h6.element-inner-header.m-0
-                    M.D. - master of computer applications mca
-                  .element-inner-desc
-                    uka tarsadia university, India, Graduated 2013
-                .mb-2
-                  %h6.element-inner-header.m-0
-                    M.D. - master of computer applications mca
-                  .element-inner-desc
-                    uka tarsadia university, India, Graduated 2013
-                .mb-2
-                  %h6.element-inner-header.m-0
-                    M.D. - master of computer applications mca
-                  .element-inner-desc
-                    uka tarsadia university, India, Graduated 2013
+                - current_candidate.educations.each do |edu|
+                  .mb-2
+                    %h6.element-inner-header.m-0
+                      =edu.degree_level
+                    .element-inner-desc
+                      =edu.degree_title
             %h4.element-header
               Certification
             .element-info.border-0
               .element-info-text
-                .mb-2
-                  %h6.element-inner-header.m-0
-                    M.D. - master of computer applications mca
-                  .element-inner-desc
-                    uka tarsadia university, India, Graduated 2013
-                .mb-2
-                  %h6.element-inner-header.m-0
-                    M.D. - master of computer applications mca
-                  .element-inner-desc
-                    uka tarsadia university, India, Graduated 2013
-                .mb-2
-                  %h6.element-inner-header.m-0
-                    M.D. - master of computer applications mca
-                  .element-inner-desc
-                    uka tarsadia university, India, Graduated 2013
+                - current_candidate.certificates.each do |cert|
+                  .mb-2
+                    %h6.element-inner-header.m-0
+                      =cert.title
+                    .element-inner-desc
+                      =cert.institute
             %h4.element-header
               Skills
             .element-info.border-0
               .element-info-text
-                .badge.badge-primary.p-2.mb-1
-                  RUby on rails
-                .badge.badge-primary.p-2.mb-1
-                  java
-                .badge.badge-primary.p-2.mb-1
-                  C++
-                .badge.badge-primary.p-2.mb-1
-                  Android
-                .badge.badge-primary.p-2.mb-1
-                  IOs
-                .badge.badge-primary.p-2.mb-1
-                  Nodejs
+                - current_candidate.skill_list.each do |sl|
+                  .badge.badge-primary.p-2.mb-1
+                    =sl
       .col-sm-8
         .element-wrapper
           .element-box
@@ -139,63 +120,28 @@
                     Work history
                   .element-inner-desc
                     Validation of the form is made possible using powerful validator plugin for bootstrap.
-            .element-info
-              .element-info-text
-                .mb-2
-                  %div
-                    %h5.mb-1.text-primary Senior Frontend Developer
-                    %span.mb-1.h6.d-block.text-secondary at Google - SF, US
-                    %strong.font-weight-bold.font-sm.text-capitalize
-                      march-2017 - april 2017
-                  .element-inner-desc
-                    %P
-                      It is a long established fact that a reader will be distracted by the readable content of a page when looking at its layout. The point of using Lorem Ipsum is that it has a more-or-less normal distribution of letters, as opposed to using 'Content here, content here', making it look like readable English. Many desktop publishing packages and web page editors now use Lorem Ipsum as their default model text, and a search for 'lorem ipsum' will uncover many web sites still in their infancy. Various versions have evolved over the years, sometimes by accident, sometimes on purpose (injected humour and the like).
-            .element-info
-              .element-info-text
-                .mb-2
-                  %div
-                    %h5.mb-1.text-primary Senior Frontend Developer
-                    %span.mb-1.h6.d-block.text-secondary at Google - SF, US
-                    %strong.font-weight-bold.font-sm.text-capitalize
-                      march-2017 - april 2017
-                  .element-inner-desc
-                    %P
-                      It is a long established fact that a reader will be distracted by the readable content of a page when looking at its layout. The point of using Lorem Ipsum is that it has a more-or-less normal distribution of letters, as opposed to using 'Content here, content here', making it look like readable English. Many desktop publishing packages and web page editors now use Lorem Ipsum as their default model text, and a search for 'lorem ipsum' will uncover many web sites still in their infancy. Various versions have evolved over the years, sometimes by accident, sometimes on purpose (injected humour and the like).
-            .element-info
-              .element-info-text
-                .mb-2
-                  %div
-                    %h5.mb-1.text-primary Junior Frontend Developer
-                    %span.mb-1.h6.d-block.text-secondary at Slack Inc - London, UK
-                    %strong.font-weight-bold.font-sm.text-capitalize
-                      march-2017 - april 2017
-                  .element-inner-desc
-                    %P.m-0
-                      It is a long established fact that a reader will be distracted by the readable content of a page when looking at its layout. The point of using Lorem Ipsum is that it has a more-or-less normal distribution of letters, as opposed to using 'Content here, content here', making it look like readable English. Many desktop publishing packages and web page editors now use Lorem Ipsum as their default model text, and a search for 'lorem ipsum' will uncover many web sites still in their infancy. Various versions have evolved over the years, sometimes by accident, sometimes on purpose (injected humour and the like).
-            .element-info
-              .element-info-text
-                .mb-2
-                  %div
-                    %h5.mb-1.text-primary IT business manager
-                    %span.mb-1.h6.d-block.text-secondary at Google - London, UK
-                    %strong.font-weight-bold.font-sm.text-capitalize
-                      march-2017 - april 2017
-                  .element-inner-desc
-                    %P.m-0
-                      It is a long established fact that a reader will be distracted by the readable content of a page when looking at its layout. The point of using Lorem Ipsum is that it has a more-or-less normal distribution of letters, as opposed to using 'Content here, content here', making it look like readable English. Many desktop publishing packages and web page editors now use Lorem Ipsum as their default model text, and a search for 'lorem ipsum' will uncover many web sites still in their infancy. Various versions have evolved over the years, sometimes by accident, sometimes on purpose (injected humour and the like).
-            .element-info
-              .element-info-text
-                .mb-2
-                  %div
-                    %h5.mb-1.text-primary Senior Frontend Developer
-                    %span.mb-1.h6.d-block.text-secondary at Google - SF, US
-                    %strong.font-weight-bold.font-sm.text-capitalize
-                      march-2017 - april 2017
-                  .element-inner-desc
-                    %P.m-0
-                      It is a long established fact that a reader will be distracted by the readable content of a page when looking at its layout. The point of using Lorem Ipsum is that it has a more-or-less normal distribution of letters, as opposed to using 'Content here, content here', making it look like readable English. Many desktop publishing packages and web page editors now use Lorem Ipsum as their default model text, and a search for 'lorem ipsum' will uncover many web sites still in their infancy. Various versions have evolved over the years, sometimes by accident, sometimes on purpose (injected humour and the like).
-
-
+            - if current_candidate.ever_worked_with_company && current_candidate.clients.present?
+              - current_candidate.clients.each do |c|
+                .element-info
+                  .element-info-text
+                    .mb-2
+                      %div
+                        %h5.mb-1.text-primary #{c.name}
+                        %span.mb-1.h6.d-block.text-secondary at #{c.industry}
+                        %strong.font-weight-bold.font-sm.text-capitalize
+                          #{c.start_date&.strftime('%B-%Y')} - #{c.end_date&.strftime('%B-%Y')}
+                      .element-inner-desc
+                        %P
+                          #{c.project_description}
+            - else
+              .element-info
+                .element-info-text
+                  .mb-2
+                    %div
+                      %span.mb-1.h6.d-block.text-secondary There is no work history
+                    .element-inner-desc
+                      %P
+                        = link_to "Add New One", '/onboarding_profile?tag=skill'
 
 #content.newsfeed
   %body
@@ -427,6 +373,6 @@
 
 /     });
 
-    
+
 
 

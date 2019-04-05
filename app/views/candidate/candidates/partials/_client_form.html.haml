@@ -22,7 +22,7 @@
         .row.client_information_main_div
           .col-md-12
             .form-group.candidate-association
-              = f.fields_for :clients, f.object.clients do |b|
+              = f.fields_for :clients do |b|
                 = render 'candidate/candidates/client_fields', f: b
               %strong
                 .links.pull-right

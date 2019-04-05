@@ -1,28 +1,35 @@
-.col-sm-6
-  .form-group
-    %label Address
-    .input-group
-      .input-group-prepend
-        .input-group-text
-          %i.fa.fa-map-marker.fa.fa-fw
-      = f.text_field :address_1  ,:placeholder => "Current Address",class:'form-control p-location input'
-.col-sm-3
-  .form-groups
-    %label Start Year
-    .input-group
-      .input-group-prepend
-        .input-group-text
-          %i.fa.fa-calendar.fa.fa-fw
-      = f.text_field :from_date, placeholder:"YYYY-MM-DD", class: 'form-control p_date ba_info_start_date input'
+.nested-fields1
+  .row
+    .col-sm-6
+      .form-group
+        %label Address
+        .input-group
+          .input-group-prepend
+            .input-group-text
+              %i.fa.fa-map-marker.fa.fa-fw
+          = f.text_field :address_1  ,:placeholder => "Current Address",class:'form-control p-location input'
+    .col-sm-3
+      .form-groups
+        %label Start Year
+        .input-group
+          .input-group-prepend
+            .input-group-text
+              %i.fa.fa-calendar.fa.fa-fw
+          = f.text_field :from_date, placeholder:"YYYY-MM-DD", class: 'form-control p_date ba_info_start_date input'
 
-.col-sm-3
-  .form-group
-    %label End Year
-    .input-group
-      .input-group-prepend
-        .input-group-text
-          %i.fa.fa-calendar.fa.fa-fw
-      = f.text_field :to_date, placeholder:"YYYY-MM-DD", class: 'form-control p_date ba_info_end_date input'
+    .col-sm-3
+      .form-group
+        %label End Year
+        .input-group
+          .input-group-prepend
+            .input-group-text
+              %i.fa.fa-calendar.fa.fa-fw
+          = f.text_field :to_date, placeholder:"YYYY-MM-DD", class: 'form-control p_date ba_info_end_date input'
+
+  .row
+    .col-md-12
+      = link_to_remove_association f , wrapper_class: "nested-fields1", class: "bttn btn-add pull-right delete_icon" do
+        %i.fa.fa-trash
 
 
 -#- content_for :scripts do

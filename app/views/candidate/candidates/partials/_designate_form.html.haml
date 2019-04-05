@@ -3,8 +3,8 @@
   .row
     .col-md-12
       .form-group
-        %p Skills
-        = f.text_field :designate_list,placeholder: "Add Skills Comma seperated", class: 'form-control start_date input', 'data-role'=>'tagsinput',value: current_candidate.designate_list.join(", ")
+        %p Designates
+        = f.text_field :designate_list,placeholder: "Add Designates Comma seperated", class: 'form-control start_date input', 'data-role'=>'tagsinput',value: current_candidate.designate_list.join(", ")
   %hr
   .row
     .col-md-12

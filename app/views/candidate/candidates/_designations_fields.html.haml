@@ -1,4 +1,4 @@
-.multi-field-container
+.nested-fields7.multi-field-container
   .row
     .col-md-6
       .form-group
@@ -21,12 +21,15 @@
         %label Recruiter Phone
         = f.text_field :recruiter_phone, placeholder: "Recruiter Phone",class: 'form-control  input'
 
-
-
   .row
     .col-md-12
-      %a.bttn.btn-add.remove-multi-fields.pull-right.delete_icon
+      = link_to_remove_association f , wrapper_class: "nested-fields7", class: "bttn btn-add pull-right delete_icon" do
         %i.fa.fa-trash
+
+  -#.row
+  -#  .col-md-12
+  -#    %a.bttn.btn-add.remove-multi-fields.pull-right.delete_icon
+  -#      %i.fa.fa-trash
 :javascript
   //$('.education_start_year, .education_completion_year').datepicker({
   // autoclose: true,
