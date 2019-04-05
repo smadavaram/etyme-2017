@@ -120,7 +120,6 @@ class Static::JobApplicationsController < ApplicationController
               flash[:errors] = @job_application.errors.full_messages
             end 
           else
-            total_slug = Company.where("slug like ?", "#{domain.split('.')[0].gsub(/[^0-9A-Za-z.]/, '').downcase}_").count
             @company = Company.new()
 
             @company.name = domain.split(".")[0]
