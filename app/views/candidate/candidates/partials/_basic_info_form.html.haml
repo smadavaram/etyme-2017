@@ -22,7 +22,7 @@
     .col-sm-12.col-md-12.col-lg-2
       %div.profile-hover
         %div.pictureContainer
-          = filepicker_field_tag "" ,class: "hidden1 can-filepicker-attach resume_file", onchange:"uploadResume(event)"
+          = filepicker_field_tag "" ,class: "hidden can-filepicker-attach resume_file", onchange:"uploadResume(event)"
           = link_to "Upload CV" ,"#",class: 'resume mr-2 mb-2 btn btn-primary btn-rounded btn-lg', style: "margin-bottom: 10px"
   #uploaded-resumes
     = render 'candidate/candidates/partials/resumes'

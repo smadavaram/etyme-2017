@@ -2,11 +2,8 @@
   $("##{@tab.gsub('_', '-')}-form").html("#{j render 'candidate/candidates/partials/'+@tab.gsub('-', '_')+'_form'}")
   $(".select2").select2({placeholder: "Select a User(s)"});
   $(".file_select").select2({placeholder: "Select Company Document"});
-  $('.fileUpload').on("click",function(){
-  $(".file").trigger("click");
-  $('.fp__overlay').css({'z-index':'99999'});
-  });
-  $('.can-filepicker-attach').each(function(e){
+  $("##{@tab.gsub('_', '-')}-form .can-filepicker-attach").each(function(e){
+  $(this).unbind();
   filepicker.constructWidget($(this));
   });
   $('.p_date').datepicker({
