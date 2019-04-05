@@ -127,12 +127,6 @@ class Static::JobApplicationsController < ApplicationController
             @company.website = domain
             @company.phone = params["job_application"]["candidate_with_recruiter"]["phone"]
             @company.domain = domain 
-           
-            if total_slug == 0
-              @company.slug = "#{domain.split('.')[0].gsub(/[^0-9A-Za-z.]/, '').downcase}"
-            else
-              @company.slug = "#{domain.split('.')[0].gsub(/[^0-9A-Za-z.]/, '').downcase}" + "#{total_slug +1}"
-            end  
 
             # respond_to do |format|
               if @company.valid? && @company.save
