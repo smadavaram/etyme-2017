@@ -1,4 +1,4 @@
-class CreateCompanyCustomerDocs < ActiveRecord::Migration[5.1]
+class CreateCompanyCustomerDocs < ActiveRecord::Migration[4.2][5.1]
   def change
     create_table :company_customer_docs do |t|
       t.integer :company_id

@@ -1,4 +1,4 @@
-class CreateJobApplicantReqs < ActiveRecord::Migration[5.1]
+class CreateJobApplicantReqs < ActiveRecord::Migration[4.2][5.1]
   def change
     create_table :job_applicant_reqs do |t|
       t.belongs_to :job_application, index: true

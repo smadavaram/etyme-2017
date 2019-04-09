@@ -1,4 +1,4 @@
-class CreateInvitedCompanies < ActiveRecord::Migration
+class CreateInvitedCompanies < ActiveRecord::Migration[4.2]
   def change
     create_table :invited_companies do |t|
       t.integer :user_id , index: true , foreign_key: true

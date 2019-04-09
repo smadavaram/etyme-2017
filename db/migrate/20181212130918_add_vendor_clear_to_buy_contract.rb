@@ -1,4 +1,4 @@
-class AddVendorClearToBuyContract < ActiveRecord::Migration[5.1]
+class AddVendorClearToBuyContract < ActiveRecord::Migration[4.2][5.1]
   def change
     add_column :buy_contracts, :vendor_clear, :string
     add_column :buy_contracts, :ven_clr_date_1, :date

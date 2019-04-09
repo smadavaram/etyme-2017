@@ -1,4 +1,4 @@
-class CreateCompanyDocs < ActiveRecord::Migration
+class CreateCompanyDocs < ActiveRecord::Migration[4.2]
   def change
     create_table :company_docs do |t|
       t.string :name

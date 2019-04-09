@@ -179,3 +179,8 @@ gem 'fullcalendar-rails'
 gem 'momentjs-rails'
 
 gem 'holidays'
+
+#****************
+# API libs
+#****************
+gem 'rack-cors', :require => 'rack/cors'

@@ -1,4 +1,4 @@
-class CreateSalaries < ActiveRecord::Migration[5.1]
+class CreateSalaries < ActiveRecord::Migration[4.2][5.1]
   def change
     create_table :salaries do |t|
       t.integer :contract_id

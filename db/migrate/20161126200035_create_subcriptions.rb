@@ -1,4 +1,4 @@
-class CreateSubcriptions < ActiveRecord::Migration
+class CreateSubcriptions < ActiveRecord::Migration[4.2]
   def change
     create_table :subscriptions do |t|
       t.integer :company_id

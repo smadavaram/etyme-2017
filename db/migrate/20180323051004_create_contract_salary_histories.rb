@@ -1,4 +1,4 @@
-class CreateContractSalaryHistories < ActiveRecord::Migration[5.1]
+class CreateContractSalaryHistories < ActiveRecord::Migration[4.2][5.1]
   def change
     create_table :contract_salary_histories do |t|
 

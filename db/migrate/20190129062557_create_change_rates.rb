@@ -1,4 +1,4 @@
-class CreateChangeRates < ActiveRecord::Migration[5.1]
+class CreateChangeRates < ActiveRecord::Migration[4.2][5.1]
   def change
     create_table :change_rates do |t|
       t.integer :contract_id

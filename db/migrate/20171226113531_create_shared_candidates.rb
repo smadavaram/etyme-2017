@@ -1,4 +1,4 @@
-class CreateSharedCandidates < ActiveRecord::Migration[5.1]
+class CreateSharedCandidates < ActiveRecord::Migration[4.2][5.1]
   def change
     create_table :shared_candidates do |t|
       t.belongs_to :candidate, index: true

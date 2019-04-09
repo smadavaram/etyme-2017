@@ -1,4 +1,4 @@
-class AddOtherFieldsToCompanyVendorDocs < ActiveRecord::Migration[5.1]
+class AddOtherFieldsToCompanyVendorDocs < ActiveRecord::Migration[4.2][5.1]
   def change
     add_column :company_vendor_docs, :title_type, :string
     add_column :company_vendor_docs, :is_require, :string

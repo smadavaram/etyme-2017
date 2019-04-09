@@ -1,4 +1,4 @@
-class AddCommisionToContract < ActiveRecord::Migration
+class AddCommisionToContract < ActiveRecord::Migration[4.2]
   def change
     add_column :contracts, :is_commission, :boolean , default: false
     add_column :contracts, :commission_type, :integer , default: 0

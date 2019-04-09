@@ -1,4 +1,4 @@
-class CreateLegalDocuments < ActiveRecord::Migration[5.1]
+class CreateLegalDocuments < ActiveRecord::Migration[4.2][5.1]
   def change
     create_table :legal_documents do |t|
       t.integer :candidate_id

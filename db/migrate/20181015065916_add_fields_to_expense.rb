@@ -1,4 +1,4 @@
-class AddFieldsToExpense < ActiveRecord::Migration[5.1]
+class AddFieldsToExpense < ActiveRecord::Migration[4.2][5.1]
   def change
     add_column :expenses, :ce_ap_cycle_id, :integer
     add_column :expenses, :ce_in_cycle_id, :integer

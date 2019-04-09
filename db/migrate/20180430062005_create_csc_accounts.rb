@@ -1,4 +1,4 @@
-class CreateCscAccounts < ActiveRecord::Migration[5.1]
+class CreateCscAccounts < ActiveRecord::Migration[4.2][5.1]
   def change
     create_table :csc_accounts do |t|
       t.belongs_to :contract_sale_commision

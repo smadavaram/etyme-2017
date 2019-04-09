@@ -1,4 +1,4 @@
-class AddOnbordingStepsToCandidates < ActiveRecord::Migration[5.1]
+class AddOnbordingStepsToCandidates < ActiveRecord::Migration[4.2][5.1]
   def change
     add_column :candidates, :is_number_verify, :boolean, :default=> false
     add_column :candidates, :is_personal_info_update, :boolean, :default=> false

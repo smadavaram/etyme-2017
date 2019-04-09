@@ -1,4 +1,4 @@
-class CreateJobApplicationWithoutRegistrations < ActiveRecord::Migration[5.1]
+class CreateJobApplicationWithoutRegistrations < ActiveRecord::Migration[4.2][5.1]
   def change
     create_table :job_application_without_registrations do |t|
       t.string :first_name

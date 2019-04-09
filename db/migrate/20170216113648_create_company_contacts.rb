@@ -1,4 +1,4 @@
-class CreateCompanyContacts < ActiveRecord::Migration
+class CreateCompanyContacts < ActiveRecord::Migration[4.2]
   def change
     create_table :company_contacts do |t|
       t.integer :company_id

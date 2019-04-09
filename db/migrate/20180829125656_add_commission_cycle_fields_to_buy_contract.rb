@@ -1,4 +1,4 @@
-class AddCommissionCycleFieldsToBuyContract < ActiveRecord::Migration[5.1]
+class AddCommissionCycleFieldsToBuyContract < ActiveRecord::Migration[4.2][5.1]
   def change
     # commission_calculation fields
     add_column :buy_contracts, :commission_calculation, :string

@@ -1,4 +1,4 @@
-class ChangeDataTypeForFileType < ActiveRecord::Migration
+class ChangeDataTypeForFileType < ActiveRecord::Migration[4.2]
   def self.up
     change_table :attachments do |t|
       t.change :file_type, :string

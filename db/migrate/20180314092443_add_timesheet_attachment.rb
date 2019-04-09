@@ -1,4 +1,4 @@
-class AddTimesheetAttachment < ActiveRecord::Migration[5.1]
+class AddTimesheetAttachment < ActiveRecord::Migration[4.2][5.1]
   def change
     add_column :timesheets, :timesheet_attachment, :string
     add_column :timesheets, :candidate_name, :string

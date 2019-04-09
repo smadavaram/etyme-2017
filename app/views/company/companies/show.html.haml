@@ -52,6 +52,9 @@
               %source{src: "#{data.video}",type:"#{current_company.company_videos.first.video_type}"}
           -else
             = image_tag image_path(data.video),  style: "width:50px;height:50px;margin-left: 20px;    margin-top: -40px", fit: 'clip',:class =>"video-pic"
+      %br
+      .panel-body.status
+        %button.btn.btn-warning{"data-target" => "#embedModal", "data-toggle" => "modal", :type => "button"} Embed Job Board
 
 
     .col-sm-12.col-md-12.col-lg-9
@@ -76,6 +79,36 @@
               #hr1.tab-pane.active
                 .tabbable.tabs-below
                 = render partial: 'company/companies/partials/company_form_html'
+
+#embedModal.modal{:role => "dialog"}
+  .modal-dialog
+    / Modal content
+    .modal-content
+      .modal-body
+        .card
+          .card-body
+            .card-subtitle
+              Copy and paste the following code snippets inside the <code>&lt;head&gt;&lt;/head&gt;</code> at the bottom:
+            .p-4.border
+              %code
+                &lt;script src="https://cdnjs.cloudflare.com/ajax/libs/iframe-resizer/4.0.4/iframeResizer.min.js" crossorigin="anonymous"&gt;&lt;/script&gt;
+                &lt;script src="etyme.embeddable.min.js" type="text/javascript"&gt;&lt;/script&gt;
+            .card-subtitle.mt-4
+              Copy and paste the following code snippets where you want to display the job board:
+            .p-4.border
+              %code
+                &lt;div id="job-board"&gt;&lt;/div&gt;
+                %br
+                &lt;script type="text/javascript"&gt;
+                %br
+                &nbsp;$(function() {
+                %br
+                &nbsp;&nbsp;etyme("job-board",#{current_company.id});
+                %br
+                &nbsp;})
+                %br
+                &lt;/script&gt;
+
 
 #myModal.modal{:role => "dialog"}
   .modal-dialog
@@ -277,6 +310,3 @@
     $('td').on('mouseover mouseout',function(){
     $(this).find('.editprofile-pic_in_line').toggle();
     });
-
-
-
