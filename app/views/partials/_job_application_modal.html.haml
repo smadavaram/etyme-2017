@@ -2,11 +2,10 @@
   .modal-dialog.modal-lg
     .modal-content
       .modal-header
-        %button.close{"aria-hidden" => "true", "data-dismiss" => "modal", :type => "button"}
-          ×
         %h2#myModalLabel.modal-title
           %strong Job Application - #{truncate(job.title,length: 30)}
-
+        %button.close{"aria-hidden" => "true", "data-dismiss" => "modal", :type => "button"}
+          ×
       .modal-body
         = form_for [:static , job,job_application], html: {class: 'form-horizontal'} do |f|
           = hidden_field_tag 'candidate_id', candidate_id if local_assigns[:candidate_id].present?

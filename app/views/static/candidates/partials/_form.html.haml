@@ -3,20 +3,20 @@
   .modal-dialog.modal-admin.job_application_model
     .modal-content
       .modal-header
-        %button.close{"aria-hidden" => "true", "data-dismiss" => "modal", :type => "button"} ×
         %h4.modal-title Apply Now
+        %button.close{"aria-hidden" => "true", "data-dismiss" => "modal", :type => "button"} ×
       .modal-body
         %section.panel-default
-          .col-md-6
+          .col-md-6.margin-auto.mb-10
             %button{ href: "javascript:",  "data-toggler" => "true", "data-show" => "apply-with-without-register", class: 'btn btn-block btn-primary' }Candidate
-          .col-md-6
+          .col-md-6.margin-auto.mb-10
             = link_to "Recruiter", static_job_job_appication_with_recruiter_path(@job,status: candidate_signed_in?),  method: :post , remote: true, :class=>"button btn btn-primary btn-block"
 
           .col-sm-12{ style: 'display: none;', data: { apply_with_without_register: 'true' } }
             %hr
-            .col-sm-6
+            .col-sm-6.margin-auto.mb-10
               %a{ class: 'btn btn-primary btn-block', data: { toggler: 'true', show: 'apply-with-register' } }Apply with Registration
-            .col-sm-6
+            .col-sm-6.margin-auto.mb-10
               = link_to "Apply Without Registration.", static_job_job_appication_without_registeration_path(@job,status: candidate_signed_in?),  method: :post , remote: true, :class=>"button btn btn-primary pull-right btn-block"
             %hr
             .col-sm-12{ style: "display:none;", data: { apply_with_register: 'true' } }

@@ -193,7 +193,7 @@ class Company < ApplicationRecord
       if total_slug == 0
         self.slug = "#{domain.split('.')[0].gsub(/[^0-9A-Za-z.]/, '').downcase}"
       else
-        self.slug = "#{domain.split('.')[0].gsub(/[^0-9A-Za-z.]/, '').downcase}" + "#{total_slug +1}"
+        self.slug = "#{domain.split('.')[0].gsub(/[^0-9A-Za-z.]/, '').downcase} #{total_slug +1}"
       end
     end
   end
