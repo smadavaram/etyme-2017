@@ -1,166 +1,143 @@
-#content
-  / Bread crumb is created dynamically
-  / row
-  .row
-    / col
-    .col-xs-12.col-sm-7.col-md-7.col-lg-4
-      %h1.page-title.txt-color-blueDark
-        / PAGE HEADER
-        %i.fa-fw.fa.fa-puzzle-piece
-        App Views
-        %span
-          \&gt;
-          Profile
-    / end col
-    / right side of the page with the sparkline graphs
-    / col
-    .col-xs-12.col-sm-5.col-md-5.col-lg-8
-      / sparks
-      %ul#sparks
-        %li.sparks-info
-          %h5
-            My Income
-            %span.txt-color-blue $47,171
-          .sparkline.txt-color-blue.hidden-mobile.hidden-md.hidden-sm
-            1300, 1877, 2500, 2577, 2000, 2100, 3000, 2700, 3631, 2471, 2700, 3631, 2471
-        %li.sparks-info
-          %h5
-            Site Traffic
-            %span.txt-color-purple
-              %i.fa.fa-arrow-circle-up{"data-rel" => "bootstrap-tooltip", :title => "Increased"}>
-               45%
-          .sparkline.txt-color-purple.hidden-mobile.hidden-md.hidden-sm
-            110,150,300,130,400,240,220,310,220,300, 270, 210
-        %li.sparks-info
-          %h5
-            Site Orders
-            %span.txt-color-greenDark
-              %i.fa.fa-shopping-cart>
-               2447
-          .sparkline.txt-color-greenDark.hidden-mobile.hidden-md.hidden-sm
-            110,150,300,130,400,240,220,310,220,300, 270, 210
-      / end sparks
-    / end col
-  / end row
-  / row
-  
-  .profile_container
-    .intro_section
-      .row
-        .col-sm-12.col-md-2.col-lg-2
-          .profile_image
-            %img{:alt => "friend-1", :src => "assets/avatars/m_sunny_big.png"}/
-        .col-sm-12.col-md-6.col-lg-6
-          .name_block
-            .name M Shoaib Masood
-            .department Computer Science Engineer
-        .col-sm-12.col-md-4.col-lg-4
-          .action_block
+.content-i
+  .content-box
+    .row
+      .col-sm-4
+        .user-profile.compact
+          .up-head-w{:style => "background-image:url(#{current_candidate.photo})"}
+            .up-social
+              %a{:href => current_candidate.twitter_url, target: "_blank"}
+                %i.os-icon.os-icon-twitter
+              %a{:href => current_candidate.facebook_url, target: "_blank"}
+                %i.os-icon.os-icon-facebook
+            .up-main-info
+              %h2.up-header
+                = current_candidate.full_name
+              %h6.up-sub-header
+                Product Designer at Facebook
+            %svg.decor{:height => "219px", :preserveaspectratio => "xMaxYMax meet", :version => "1.1", :viewbox => "0 0 842 219", :width => "842px", :xmlns => "http://www.w3.org/2000/svg", "xmlns:xlink" => "http://www.w3.org/1999/xlink"}
+              %g{:fill => "#FFFFFF", :transform => "translate(-381.000000, -362.000000)"}
+                %path.decor-path{:d => "M1223,362 L1223,581 L381,581 C868.912802,575.666667 1149.57947,502.666667 1223,362 Z"}
+          .up-controls
             .row
-              .col-sm-12.col-md-3.col-lg-3
-                .action_button
-                  %img{:alt => "friend-1", :src => "assets/avatars/m_sunny_big.png"}/
-                .action_label Message
-              .col-sm-12.col-md-3.col-lg-3
-                .action_button
-                  %img{:alt => "friend-1", :src => "assets/avatars/m_sunny_big.png"}/
-                .action_label Save
-              .col-sm-12.col-md-3.col-lg-3
-                .action_button
-                  %img{:alt => "friend-1", :src => "assets/avatars/m_sunny_big.png"}/
-                .action_label Share
-              .col-sm-12.col-md-3.col-lg-3
-                .action_button
-                  %img{:alt => "friend-1", :src => "assets/avatars/m_sunny_big.png"}/
-                .action_label More
+              .col-sm-6
+                .value-pair
+                  .label
+                    Status:
+                  .value.badge.badge-pill.badge-success
+                    Online
+              .col-sm-6.text-right
+                - if current_candidate.candidates_resumes.present?
+                  -#%a.btn.btn-primary.btn-sm{:href => ""}
+                  = link_to current_candidate.candidates_resumes.primary_resume.resume, class: "btn btn-primary btn-sm", target: "_blank" do
+                    %i.os-icon.os-icon-arrow-down6
+                    %span Download Resume
+                - else
+                  %a.btn.btn-primary.btn-sm{:href => "/onboarding_profile?tag=verify-phone"}
+                    %i.os-icon.os-icon-arrow-up6
+                    %span Upload Resume
 
-    .about_section
-      .heading About me
-      %p “People find me to be an upbeat, self-motivated team player with excellent communication skills. For the past several years I have worked in lead qualification, telemarketing, and customer service in the technology industry. My experience includes successfully calling people in director-level positions of technology departments and developing viable leads. I have a track record of maintaining a consistent call and activity volume and consistently achieving the top 10 percent in sales, and I can do the same thing for your company.”
+          .up-contents
+            .m-b
+              .row.m-b
+                .col-sm-6.b-r.b-b
+                  .el-tablo.centered.padded-v
+                    .value
+                      25
+                    .label
+                      Products Sold
+                .col-sm-6.b-b
+                  .el-tablo.centered.padded-v
+                    .value
+                      315
+                    .label
+                      Friends
+              .padded
+                .os-progress-bar.primary
+                  .bar-labels
+                    .bar-label-left
+                      %span Email
+                    .bar-label-right
+                      %span.text-success verified
+                .os-progress-bar.primary
+                  .bar-labels
+                    .bar-label-left
+                      %span Phone
+                    .bar-label-right
+                      %span.text-success
+                        =current_candidate.is_number_verify ? 'verified' : 'unverified'
+                .os-progress-bar.primary
+                  .bar-labels
+                    .bar-label-left
+                      %span Visa
+                    .bar-label-right
+                      %span.text-success verified
+                .os-progress-bar.primary
+                  .bar-labels
+                    .bar-label-left
+                      %span Identity
+                    .bar-label-right
+                      %span.text-success verified
 
-    .education_section
-      .heading Education
-      .education_timeline_block
-        .user_school St. Stephen's H.sc school
-        .user_class Jr. KG - Class 12
-        .block_pointer
-      .education_timeline_block
-        .user_school St. Stephen's H.sc school
-        .user_class Jr. KG - Class 12
-        .block_pointer
-
-    .experience_section
-      .heading Experience
-      .experience_timeline_block
-        .company_name St. Stephen's H.sc school
-        .technology Jr. KG - Class 12
-        .time_limit 6 Months
-        .block_pointer
-      .experience_timeline_block
-        .company_name St. Stephen's H.sc school
-        .technology Jr. KG - Class 12
-        .time_limit 6 Months
-        .block_pointer
-      .experience_timeline_block
-        .company_name St. Stephen's H.sc school
-        .technology Jr. KG - Class 12
-        .time_limit 6 Months
-        .block_pointer
-      .experience_timeline_block
-        .company_name St. Stephen's H.sc school
-        .technology Jr. KG - Class 12
-        .time_limit 6 Months
-        .block_pointer
-
-    .skills_section
-      .heading Skills
-      .skills_set
-        .skill_block
-          %img{:alt => "friend-1", :src => "assets/avatars/m_sunny_big.png"}/
-        .skill_block
-          %img{:alt => "friend-1", :src => "assets/avatars/m_sunny_big.png"}/
-        .skill_block
-          %img{:alt => "friend-1", :src => "assets/avatars/m_sunny_big.png"}/
-        .skill_block
-          %img{:alt => "friend-1", :src => "assets/avatars/m_sunny_big.png"}/
-        .skill_block
-          %img{:alt => "friend-1", :src => "assets/avatars/m_sunny_big.png"}/
-        .skill_block
-          %img{:alt => "friend-1", :src => "assets/avatars/m_sunny_big.png"}/
-        .skill_block
-          %img{:alt => "friend-1", :src => "assets/avatars/m_sunny_big.png"}/
-        .skill_block
-          %img{:alt => "friend-1", :src => "assets/avatars/m_sunny_big.png"}/
-
-    .projects_section
-      .heading Projects
-      .row
-        .col-sm-12.col-md-6.col-lg-6
-          .project_title Near to know
-          .technology Android Application
-          .description this android app which is used to know the location, shops current notification around locality.
-        .col-sm-12.col-md-6.col-lg-6
-          .project_title Assure Associates
-          .technology Website
-          .description this android app which is used to know the location, shops current notification around locality.
-      .row
-        .col-sm-12.col-md-6.col-lg-6
-          .project_title Twitter Sentiment Analysis
-          .technology Python NLP Project
-          .description this android app which is used to know the location, shops current notification around locality.
-        .col-sm-12.col-md-6.col-lg-6
-          .project_title Projection'17
-          .technology Website/Graphics
-          .description this android app which is used to know the location, shops current notification around locality.
-
-    .social_links_section
-      .row
-        .col-sm-12.col-md-4.col-lg-4
-          %img{:alt => "friend-1", :src => "assets/avatars/m_sunny_big.png"}/
-          .link www.google.com
-        .col-sm-12.col-md-4.col-lg-4
-          %img{:alt => "friend-1", :src => "assets/avatars/m_sunny_big.png"}/
-          .link www.google.com
-        .col-sm-12.col-md-4.col-lg-4
-          %img{:alt => "friend-1", :src => "assets/avatars/m_sunny_big.png"}/
-          .link www.google.com
+        .element-wrapper
+          .element-box
+            %h4.element-header
+              Education
+            .element-info.border-0
+              .element-info-text
+                - current_candidate.educations.each do |edu|
+                  .mb-2
+                    %h6.element-inner-header.m-0
+                      =edu.degree_level
+                    .element-inner-desc
+                      =edu.degree_title
+            %h4.element-header
+              Certification
+            .element-info.border-0
+              .element-info-text
+                - current_candidate.certificates.each do |cert|
+                  .mb-2
+                    %h6.element-inner-header.m-0
+                      =cert.title
+                    .element-inner-desc
+                      =cert.institute
+            %h4.element-header
+              Skills
+            .element-info.border-0
+              .element-info-text
+                - current_candidate.skill_list.each do |sl|
+                  .badge.badge-primary.p-2.mb-1
+                    =sl
+      .col-sm-8
+        .element-wrapper
+          .element-box
+            .element-info
+              .element-info-with-icon
+                .element-info-icon
+                  .os-icon.os-icon-wallet-loaded
+                .element-info-text
+                  %h4.element-inner-header
+                    Work history
+                  .element-inner-desc
+                    Validation of the form is made possible using powerful validator plugin for bootstrap.
+            - if current_candidate.ever_worked_with_company && current_candidate.clients.present?
+              - current_candidate.clients.each do |c|
+                .element-info
+                  .element-info-text
+                    .mb-2
+                      %div
+                        %h5.mb-1.text-primary #{c.name}
+                        %span.mb-1.h6.d-block.text-secondary at #{c.industry}
+                        %strong.font-weight-bold.font-sm.text-capitalize
+                          #{c.start_date&.strftime('%B-%Y')} - #{c.end_date&.strftime('%B-%Y')}
+                      .element-inner-desc
+                        %P
+                          #{c.project_description}
+            - else
+              .element-info
+                .element-info-text
+                  .mb-2
+                    %div
+                      %span.mb-1.h6.d-block.text-secondary There is no work history
+                    .element-inner-desc
+                      %P
+                        = link_to "Add New One", '/onboarding_profile?tag=skill'
