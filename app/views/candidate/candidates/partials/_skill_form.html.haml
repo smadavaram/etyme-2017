@@ -13,22 +13,21 @@
     .row
       .col-sm-6
         .form-group
-          %label Skills
-          = f.text_field :skill_list,placeholder: "Add Skills Comma seperated",class: 'form-control p-location input', 'data-role'=>'tagsinput',value: current_candidate.skill_list.join(", ")
-      .col-sm-6
-        .form-group
-          %label Selected From Resume
-          = f.text_field :selected_from_resume,placeholder: "Selected From Resume",class: 'form-control p-location input'
-
-    .row
-      .col-sm-6
-        .form-group
           %label Department
           = f.select :dept_name, department_list, {include_blank: "Select Department"},{class: "form-control input", required: true}
       .col-sm-6
         .form-group
           %label Industry
           = f.select :industry_name, industry_list, {include_blank: "Select Industry"},{class: "form-control input", required: true}
+    .row
+      .col-sm-12
+        .form-group
+          %label Skills
+          = f.text_field :skill_list, placeholder: "Add Skills Comma seperated",class: 'form-control p-location input', 'data-role'=>'tagsinput',value: current_candidate.skill_list.join(", ")
+      -#.col-sm-6
+        -#  .form-group
+        -#    %label Selected From Resume
+        -#    = f.text_field :selected_from_resume,placeholder: "Selected From Resume",class: 'form-control p-location input'
 
     -#.row
     -#  .col-lg-12

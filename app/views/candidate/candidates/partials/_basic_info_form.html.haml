@@ -9,14 +9,20 @@
       %label Last Name
       .form-group
         = f.text_field :last_name  ,:placeholder => "Enter last Name",class:'form-control input'
-  .candidate-association
-    =f.fields_for :addresses do |custom_field|
-      = render 'candidate/candidates/partials/address_fields', f: custom_field
-    .links.col-md-12.text-right
-      = link_to_add_association  f, :addresses, class: 'btn btn-gray', partial: 'candidate/candidates/partials/address_fields' do
-        %i.os-icon.os-icon-ui-22
-        %span Add Account
-      %br/
+  .row
+    .col-sm-12
+      %label Address
+      .form-group
+        = f.text_field :address, :placeholder => "Enter Address", class:'form-control p-location input'
+
+  -#.candidate-association
+  -#  =f.fields_for :addresses do |custom_field|
+  -#    = render 'candidate/candidates/partials/address_fields', f: custom_field
+  -#  .links.col-md-12.text-right
+  -#    = link_to_add_association  f, :addresses, class: 'btn btn-gray', partial: 'candidate/candidates/partials/address_fields' do
+  -#      %i.os-icon.os-icon-ui-22
+  -#      %span Add Account
+  -#    %br/
 
   .row
     .col-sm-12.col-md-12.col-lg-2
