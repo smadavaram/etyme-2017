@@ -1,4 +1,4 @@
-class CreateLeaves < ActiveRecord::Migration
+class CreateLeaves < ActiveRecord::Migration[4.2]
   def change
     create_table :leaves do |t|
       t.date    :from_date

@@ -1,4 +1,4 @@
-class AddFieldsToSellContract < ActiveRecord::Migration[5.1]
+class AddFieldsToSellContract < ActiveRecord::Migration[4.2][5.1]
   def change
     # performance_review fields
     add_column :sell_contracts, :is_performance_review, :boolean, default: false

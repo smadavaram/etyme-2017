@@ -1,4 +1,4 @@
-class AddFieldsToSalary < ActiveRecord::Migration[5.1]
+class AddFieldsToSalary < ActiveRecord::Migration[4.2][5.1]
   def change
     add_column :salaries, :total_amount, :decimal, default: "0.0"
     add_column :salaries, :commission_amount, :decimal, default: "0.0"

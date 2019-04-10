@@ -1,4 +1,4 @@
-class CreateDocumentSigns < ActiveRecord::Migration[5.1]
+class CreateDocumentSigns < ActiveRecord::Migration[4.2][5.1]
   def change
     create_table :document_signs do |t|
       t.belongs_to :documentable, :polymorphic => true

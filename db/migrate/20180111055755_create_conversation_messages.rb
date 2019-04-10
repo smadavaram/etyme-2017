@@ -1,4 +1,4 @@
-class CreateConversationMessages < ActiveRecord::Migration[5.1]
+class CreateConversationMessages < ActiveRecord::Migration[4.2][5.1]
   def change
     create_table :conversation_messages do |t|
       t.text :body

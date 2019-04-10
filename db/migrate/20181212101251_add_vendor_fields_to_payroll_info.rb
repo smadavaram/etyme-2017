@@ -1,4 +1,4 @@
-class AddVendorFieldsToPayrollInfo < ActiveRecord::Migration[5.1]
+class AddVendorFieldsToPayrollInfo < ActiveRecord::Migration[4.2][5.1]
   def change
     add_column :payroll_infos, :ven_term_no_1, :string
     add_column :payroll_infos, :ven_term_no_2, :string

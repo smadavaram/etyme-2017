@@ -1,4 +1,4 @@
-class CreateGroupables < ActiveRecord::Migration
+class CreateGroupables < ActiveRecord::Migration[4.2]
   def change
     create_table :groupables do |t|
       t.belongs_to :group

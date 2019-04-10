@@ -1,4 +1,4 @@
-class CreateBuyContracts < ActiveRecord::Migration[5.1]
+class CreateBuyContracts < ActiveRecord::Migration[4.2][5.1]
   def change
     create_table :buy_contracts do |t|
       t.string :number

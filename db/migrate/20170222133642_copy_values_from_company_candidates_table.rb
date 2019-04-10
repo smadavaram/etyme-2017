@@ -1,4 +1,4 @@
-class CopyValuesFromCompanyCandidatesTable < ActiveRecord::Migration
+class CopyValuesFromCompanyCandidatesTable < ActiveRecord::Migration[4.2]
   Candidate.all.each do |c|
     if c.groups.present?
       c.groups.each do |cg|

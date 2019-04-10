@@ -1,4 +1,4 @@
-class AddColoumnToUsers < ActiveRecord::Migration
+class AddColoumnToUsers < ActiveRecord::Migration[4.2]
   def change
     add_column :users, :visa_status , :integer
     add_column :users, :availability, :date

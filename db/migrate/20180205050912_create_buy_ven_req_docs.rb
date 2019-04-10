@@ -1,4 +1,4 @@
-class CreateBuyVenReqDocs < ActiveRecord::Migration[5.1]
+class CreateBuyVenReqDocs < ActiveRecord::Migration[4.2][5.1]
   def change
     create_table :buy_ven_req_docs do |t|
       t.belongs_to :buy_contract

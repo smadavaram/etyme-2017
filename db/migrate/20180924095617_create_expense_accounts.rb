@@ -1,4 +1,4 @@
-class CreateExpenseAccounts < ActiveRecord::Migration[5.1]
+class CreateExpenseAccounts < ActiveRecord::Migration[4.2][5.1]
   def change
     create_table :expense_accounts do |t|
       t.string :expense_id

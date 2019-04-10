@@ -1,4 +1,4 @@
-class CreateVendorBills < ActiveRecord::Migration[5.1]
+class CreateVendorBills < ActiveRecord::Migration[4.2][5.1]
   def change
     create_table :vendor_bills do |t|
       t.integer :vb_cal_cycle_id

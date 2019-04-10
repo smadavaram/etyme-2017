@@ -1,4 +1,4 @@
-class CreateSellRequestDocuments < ActiveRecord::Migration[5.1]
+class CreateSellRequestDocuments < ActiveRecord::Migration[4.2][5.1]
   def change
     create_table :sell_request_documents do |t|
       t.belongs_to :sell_contract

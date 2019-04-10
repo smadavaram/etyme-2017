@@ -1,4 +1,4 @@
-class CreateContractBuyBusinessDetails < ActiveRecord::Migration[5.1]
+class CreateContractBuyBusinessDetails < ActiveRecord::Migration[4.2][5.1]
   def change
     create_table :contract_buy_business_details do |t|
       t.belongs_to :contract, index: true

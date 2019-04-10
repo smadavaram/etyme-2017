@@ -1,4 +1,4 @@
-class AddColumnForDoc < ActiveRecord::Migration[5.1]
+class AddColumnForDoc < ActiveRecord::Migration[4.2][5.1]
   def change
     add_column :sell_send_documents, :file_name, :string
     add_column :sell_send_documents, :file_size, :integer

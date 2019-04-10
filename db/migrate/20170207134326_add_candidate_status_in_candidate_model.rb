@@ -1,4 +1,4 @@
-class AddCandidateStatusInCandidateModel < ActiveRecord::Migration
+class AddCandidateStatusInCandidateModel < ActiveRecord::Migration[4.2]
   def change
     change_column :candidates ,:status ,:integer ,default: 0
     # Candidate.where(status: nil).each do |user|

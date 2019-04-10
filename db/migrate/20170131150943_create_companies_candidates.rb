@@ -1,4 +1,4 @@
-class CreateCompaniesCandidates < ActiveRecord::Migration
+class CreateCompaniesCandidates < ActiveRecord::Migration[4.2]
   def change
     create_table :candidates_companies ,id: false  do |t|
       t.belongs_to :candidate

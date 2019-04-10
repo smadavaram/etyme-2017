@@ -1,4 +1,4 @@
-class AddFieldsToPayrollInfo < ActiveRecord::Migration[5.1]
+class AddFieldsToPayrollInfo < ActiveRecord::Migration[4.2][5.1]
   def change
 
     # salary_process fields

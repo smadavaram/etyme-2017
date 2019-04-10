@@ -1,4 +1,4 @@
-class CreateJobInvitations < ActiveRecord::Migration
+class CreateJobInvitations < ActiveRecord::Migration[4.2]
   def change
     create_table :job_invitations do |t|
       t.integer :recipient_id

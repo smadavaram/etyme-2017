@@ -1,4 +1,4 @@
-class AddColumnsInCycle < ActiveRecord::Migration[5.1]
+class AddColumnsInCycle < ActiveRecord::Migration[4.2][5.1]
   def change
     add_column :contract_cycles, :status, :string, default: 'pending'
     add_column :contract_cycles, :completed_at, :datetime

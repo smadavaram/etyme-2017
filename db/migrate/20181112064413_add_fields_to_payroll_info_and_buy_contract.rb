@@ -1,4 +1,4 @@
-class AddFieldsToPayrollInfoAndBuyContract < ActiveRecord::Migration[5.1]
+class AddFieldsToPayrollInfoAndBuyContract < ActiveRecord::Migration[4.2][5.1]
   def change
     add_column :payroll_infos, :term_no_2, :string
     add_column :payroll_infos, :payroll_term_2, :string

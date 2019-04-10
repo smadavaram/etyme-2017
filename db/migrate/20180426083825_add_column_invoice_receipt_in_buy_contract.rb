@@ -1,4 +1,4 @@
-class AddColumnInvoiceReceiptInBuyContract < ActiveRecord::Migration[5.1]
+class AddColumnInvoiceReceiptInBuyContract < ActiveRecord::Migration[4.2][5.1]
   def change
     add_column :buy_contracts, :invoice_recepit, :string
     add_column :buy_contracts, :ir_day_time, :time

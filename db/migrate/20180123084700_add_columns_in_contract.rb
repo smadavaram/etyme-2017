@@ -1,4 +1,4 @@
-class AddColumnsInContract < ActiveRecord::Migration[5.1]
+class AddColumnsInContract < ActiveRecord::Migration[4.2][5.1]
   def change
     add_column :contracts, :client_name, :string
     add_column :contracts, :candidate_name, :string

@@ -1,4 +1,4 @@
-class CreateExpenses < ActiveRecord::Migration[5.1]
+class CreateExpenses < ActiveRecord::Migration[4.2][5.1]
   def change
     create_table :expenses do |t|
       t.integer :contract_id

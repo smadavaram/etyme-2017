@@ -1,4 +1,4 @@
-class AddFieldsToBuyContract < ActiveRecord::Migration[5.1]
+class AddFieldsToBuyContract < ActiveRecord::Migration[4.2][5.1]
   def change
     # vendor_bill fields
     add_column :buy_contracts, :vendor_bill, :string

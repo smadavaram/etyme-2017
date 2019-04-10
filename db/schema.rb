@@ -10,35 +10,21 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema.define(version: 20190305012757) do
+ActiveRecord::Schema.define(version: 20190330174747) do
 
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
   enable_extension "hstore"
 
-  create_table "active_admin_comments", id: :serial, force: :cascade do |t|
-    t.string "namespace"
-    t.text "body"
-    t.integer "resource_id"
-    t.string "resource_type"
-    t.integer "author_id"
-    t.string "author_type"
-    t.datetime "created_at", null: false
-    t.datetime "updated_at", null: false
-    t.index ["author_type", "author_id"], name: "index_active_admin_comments_on_author_type_and_author_id"
-    t.index ["namespace"], name: "index_active_admin_comments_on_namespace"
-    t.index ["resource_type", "resource_id"], name: "index_active_admin_comments_on_resource_type_and_resource_id"
-  end
-
   create_table "activities", id: :serial, force: :cascade do |t|
-    t.integer "trackable_id"
     t.string "trackable_type"
-    t.integer "owner_id"
+    t.integer "trackable_id"
     t.string "owner_type"
+    t.integer "owner_id"
     t.string "key"
     t.text "parameters"
-    t.integer "recipient_id"
     t.string "recipient_type"
+    t.integer "recipient_id"
     t.datetime "created_at"
     t.datetime "updated_at"
     t.index ["owner_id", "owner_type"], name: "index_activities_on_owner_id_and_owner_type"
@@ -62,28 +48,11 @@ ActiveRecord::Schema.define(version: 20190305012757) do
     t.index ["addressable_type", "addressable_id"], name: "index_addresses_on_addressable_type_and_addressable_id"
   end
 
-  create_table "admin_users", id: :serial, force: :cascade do |t|
-    t.string "email", default: "", null: false
-    t.string "encrypted_password", default: "", null: false
-    t.string "reset_password_token"
-    t.datetime "reset_password_sent_at"
-    t.datetime "remember_created_at"
-    t.integer "sign_in_count", default: 0, null: false
-    t.datetime "current_sign_in_at"
-    t.datetime "last_sign_in_at"
-    t.inet "current_sign_in_ip"
-    t.inet "last_sign_in_ip"
-    t.datetime "created_at", null: false
-    t.datetime "updated_at", null: false
-    t.index ["email"], name: "index_admin_users_on_email", unique: true
-    t.index ["reset_password_token"], name: "index_admin_users_on_reset_password_token", unique: true
-  end
-
   create_table "attachable_docs", id: :serial, force: :cascade do |t|
     t.integer "company_doc_id"
     t.string "orignal_file"
-    t.integer "documentable_id"
     t.string "documentable_type"
+    t.integer "documentable_id"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.string "file"
@@ -327,8 +296,8 @@ ActiveRecord::Schema.define(version: 20190305012757) do
     t.datetime "invitation_sent_at"
     t.datetime "invitation_accepted_at"
     t.integer "invitation_limit"
-    t.integer "invited_by_id"
     t.string "invited_by_type"
+    t.integer "invited_by_id"
     t.integer "invitations_count", default: 0
     t.string "resume"
     t.string "skills"
@@ -410,8 +379,8 @@ ActiveRecord::Schema.define(version: 20190305012757) do
   create_table "chat_users", id: :serial, force: :cascade do |t|
     t.integer "chat_id"
     t.integer "status"
-    t.integer "userable_id"
     t.string "userable_type"
+    t.integer "userable_id"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.index ["chat_id", "userable_id", "userable_type"], name: "index_chat_users_on_chat_id_and_userable_id_and_userable_type", unique: true
@@ -420,8 +389,8 @@ ActiveRecord::Schema.define(version: 20190305012757) do
 
   create_table "chats", id: :serial, force: :cascade do |t|
     t.string "slug"
-    t.integer "chatable_id"
     t.string "chatable_type"
+    t.integer "chatable_id"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.integer "company_id"
@@ -1000,8 +969,8 @@ ActiveRecord::Schema.define(version: 20190305012757) do
 
   create_table "groupables", id: :serial, force: :cascade do |t|
     t.integer "group_id"
-    t.integer "groupable_id"
     t.string "groupable_type"
+    t.integer "groupable_id"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.index ["groupable_type", "groupable_id"], name: "index_groupables_on_groupable_type_and_groupable_id"
@@ -1172,6 +1141,7 @@ ActiveRecord::Schema.define(version: 20190305012757) do
     t.string "comp_video"
     t.string "listing_type", default: "Job"
     t.string "status"
+    t.string "media_type"
     t.index ["deleted_at"], name: "index_jobs_on_deleted_at"
   end
 
@@ -1208,8 +1178,8 @@ ActiveRecord::Schema.define(version: 20190305012757) do
   create_table "messages", id: :serial, force: :cascade do |t|
     t.string "body"
     t.integer "chat_id"
-    t.integer "messageable_id"
     t.string "messageable_type"
+    t.integer "messageable_id"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.integer "company_doc_id"
@@ -1305,8 +1275,8 @@ ActiveRecord::Schema.define(version: 20190305012757) do
     t.string "name"
     t.text "description"
     t.string "cover_photo"
-    t.integer "portfolioable_id"
     t.string "portfolioable_type"
+    t.integer "portfolioable_id"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
   end
@@ -1339,8 +1309,8 @@ ActiveRecord::Schema.define(version: 20190305012757) do
     t.datetime "remind_at"
     t.integer "status", default: 0
     t.integer "user_id"
-    t.integer "reminderable_id"
     t.string "reminderable_type"
+    t.integer "reminderable_id"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.index ["reminderable_type", "reminderable_id"], name: "index_reminders_on_reminderable_type_and_reminderable_id"
@@ -1480,8 +1450,8 @@ ActiveRecord::Schema.define(version: 20190305012757) do
     t.index ["sell_contract_id"], name: "index_sell_send_documents_on_sell_contract_id"
   end
 
-  create_table "shared_candidates", id: :serial, force: :cascade do |t|
-    t.integer "candidate_id"
+  create_table "shared_candidates", force: :cascade do |t|
+    t.bigint "candidate_id"
     t.integer "shared_by_id"
     t.integer "shared_to_id"
     t.datetime "created_at", null: false
@@ -1492,8 +1462,8 @@ ActiveRecord::Schema.define(version: 20190305012757) do
   end
 
   create_table "statuses", id: :serial, force: :cascade do |t|
-    t.integer "statusable_id"
     t.string "statusable_type"
+    t.integer "statusable_id"
     t.integer "user_id"
     t.string "note"
     t.integer "status_type"
@@ -1513,10 +1483,10 @@ ActiveRecord::Schema.define(version: 20190305012757) do
 
   create_table "taggings", id: :serial, force: :cascade do |t|
     t.integer "tag_id"
-    t.integer "taggable_id"
     t.string "taggable_type"
-    t.integer "tagger_id"
+    t.integer "taggable_id"
     t.string "tagger_type"
+    t.integer "tagger_id"
     t.string "context", limit: 128
     t.datetime "created_at"
     t.index ["context"], name: "index_taggings_on_context"
@@ -1634,8 +1604,8 @@ ActiveRecord::Schema.define(version: 20190305012757) do
     t.datetime "invitation_sent_at"
     t.datetime "invitation_accepted_at"
     t.integer "invitation_limit"
-    t.integer "invited_by_id"
     t.string "invited_by_type"
+    t.integer "invited_by_id"
     t.integer "invitations_count", default: 0
     t.string "skills"
     t.string "ssn"
