@@ -148,7 +148,26 @@
     margin-left: 20px;
   }
 }
-
+.profile-tile{
+  .profile-tile-box{
+    height: 200px;
+    width: 200px !important;
+    img{
+      width: auto !important;
+      height: auto !important;
+      padding: 0 10px 10px;
+      max-width: 100%;
+      max-height: 100%;
+    }
+  }
+}
 .fade.in{
   opacity: 1 !important;
+}
+
+.document-display {
+  background: #bfd6f9;
+  padding: 10px;
+  border-radius: 5px;
+  margin-top: 10px;
 }

@@ -92,7 +92,6 @@
                             Add
                             %br/
                             Profile Picture
-                .row
                   .col-4.col-sm-3.col-xxl-2
                     .profile-tile.profile-tile-inlined
                       = filepicker_field_tag "" ,class: "hidden file", onchange:"employeevideoUpload(event)","data-fp-crop-ratio" => "2/2",mimetypes: "video/*"
@@ -111,6 +110,7 @@
                             Add
                             %br/
                             Profile Video
+                .row
                   -#.col-sm-12.col-md-12.col-lg-2
                   -#  .panel-body.status.profile-margin
                   -#    .text
