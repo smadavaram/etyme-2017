@@ -12,7 +12,7 @@
               %i.fa.fa-check-circle-o.fa-lg.fa-fw{:title=>"Primary Resume"}
               = link_to "", candidate_delete_resume_path(:id=>resume.id), :title=>"Delete", class: "fa fa-trash-o fa-lg fa-fw delete_primary_doc", remote: true, method: :delete, data: { confirm: 'Are you sure?' }
           -else
-            .col-sm-1
+            .float-right
               = link_to "", candidate_make_primary_resume_path(:id=>resume.id), :title=>"Make This to Primary Resume", class: "fa fa-check-circle-o fa-lg fa-fw make_primary_doc", remote: true, data: { confirm: 'Are you sure?' }
               = link_to "", candidate_delete_resume_path(:id=>resume.id), :title=>"Delete", class: "fa fa-trash-o fa-lg fa-fw delete_primary_doc", remote: true, method: :delete, data: { confirm: 'Are you sure?' }
     - index = index + 1

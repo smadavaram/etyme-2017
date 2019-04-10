@@ -166,8 +166,30 @@
 }
 
 .document-display {
-  background: #bfd6f9;
+  background:#E9ECF3;
   padding: 10px;
   border-radius: 5px;
   margin-top: 10px;
+  p{
+    margin: 0;
+  }
+  .float-right{
+    .make_primary_doc{
+      margin: 0 !important;
+    }
+    .delete_primary_doc{
+      margin: 0 !important;
+    }
+    a{
+      margin: 0;
+    }
+    i{
+      margin: 0;
+    }
+    .primary_doc{
+      i {
+        font-size: 20px;
+      }
+    }
+  }
 }
