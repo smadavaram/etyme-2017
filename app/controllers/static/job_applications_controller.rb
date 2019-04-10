@@ -4,12 +4,19 @@ class Static::JobApplicationsController < ApplicationController
 
   def create
     JobApplication
-    if params[:candidate_id].present?
-      @candidate = Candidate.where(id: params[:candidate_id].split(" ").map(&:to_i))
-      @candidate.each do |candidate|
-        @job_application=candidate.job_applications.new(job_application_params.merge(job_id:params[:job_id]))
-        @job_application.save
+    if params[:candidate_id].present? || current_candidate
+      @job_application = current_candidate.job_applications.new(job_application_params.merge(job_id:params[:job_id]))
+      if @job_application.save
+        flash[:success] = "Job Application Created"
+      else
+        flash[:errors] = @job_application.errors.full_messages
       end
+      # # @candidate = Candidate.where(id: params[:candidate_id].split(" ").map(&:to_i))
+      # @candidate = Candidate.where(id: current_candidate.id)
+      # @candidate.each do |candidate|
+      #   @job_application=candidate.job_applications.new(job_application_params.merge(job_id:params[:job_id]))
+      #   @job_application.save
+      # end
     else
       if params["candidate_without_registration"].present?
 
@@ -175,5 +182,4 @@ class Static::JobApplicationsController < ApplicationController
   def find_job
     @job=Job.active.is_public.where(id: params[:id]|| params[:job_id]).first
   end
-
 end
