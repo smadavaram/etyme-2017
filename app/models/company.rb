@@ -188,7 +188,14 @@ class Company < ApplicationRecord
   private
 
   def create_slug
-    self.slug = domain
+    unless domain.blank?
+      total_slug = Company.where("slug like ?", "#{domain.split('.')[0].gsub(/[^0-9A-Za-z.]/, '').downcase}_").count
+      if total_slug == 0
+        self.slug = "#{domain.split('.')[0].gsub(/[^0-9A-Za-z.]/, '').downcase}"
+      else
+        self.slug = "#{domain.split('.')[0].gsub(/[^0-9A-Za-z.]/, '').downcase} #{total_slug +1}"
+      end
+    end
   end
 
   def set_owner_company_id
