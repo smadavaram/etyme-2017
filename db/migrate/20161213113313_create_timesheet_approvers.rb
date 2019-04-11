@@ -1,4 +1,4 @@
-class CreateTimesheetApprovers < ActiveRecord::Migration
+class CreateTimesheetApprovers < ActiveRecord::Migration[4.2]
   def change
     create_table :timesheet_approvers do |t|
       t.integer :user_id

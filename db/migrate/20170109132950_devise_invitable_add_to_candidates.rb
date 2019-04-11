@@ -1,4 +1,4 @@
-class DeviseInvitableAddToCandidates < ActiveRecord::Migration
+class DeviseInvitableAddToCandidates < ActiveRecord::Migration[4.2]
   def up
     change_table :candidates do |t|
       t.string     :invitation_token

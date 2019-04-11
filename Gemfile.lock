@@ -276,6 +276,7 @@ GEM
       pusher-signature (~> 0.1.8)
     pusher-signature (0.1.8)
     rack (2.0.3)
+    rack-cors (1.0.3)
     rack-test (0.6.3)
       rack (>= 1.0)
     rails (5.1.2)
@@ -475,6 +476,7 @@ DEPENDENCIES
   public_activity
   puma
   pusher
+  rack-cors
   rails (= 5.1.2)
   rails-assets-jsTimezoneDetect!
   rails-assets-tether (>= 1.1.0)!

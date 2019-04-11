@@ -1,4 +1,4 @@
-class CreateTaxInfos < ActiveRecord::Migration[5.1]
+class CreateTaxInfos < ActiveRecord::Migration[4.2][5.1]
   def change
     create_table :tax_infos do |t|
       t.belongs_to :payroll_info

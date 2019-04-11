@@ -32,6 +32,7 @@ Rails.application.routes.draw do
     get 'training_feed' => 'rss_jobs#training_feed', format: 'rss'
     get 'feeds' => 'rss_jobs#feeds'
     get ':company_id/job_feed' => 'rss_jobs#job_feed', format: 'json'
+    get ':company_id/job_feed/:job_id' => 'rss_jobs#job_feed', format: 'json'
   end
 
 
@@ -510,6 +511,7 @@ Rails.application.routes.draw do
 
       collection do
         post :share_jobs , as: :share_jobs
+        post :update_media
       end
     end
 

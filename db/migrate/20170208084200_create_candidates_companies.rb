@@ -1,4 +1,4 @@
-class CreateCandidatesCompanies < ActiveRecord::Migration
+class CreateCandidatesCompanies < ActiveRecord::Migration[4.2]
   def change
     # create_table :candidates_companies do |t|
     #

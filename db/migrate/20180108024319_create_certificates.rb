@@ -1,4 +1,4 @@
-class CreateCertificates < ActiveRecord::Migration[5.1]
+class CreateCertificates < ActiveRecord::Migration[4.2][5.1]
   def change
     create_table :certificates do |t|
       t.belongs_to :candidate, index: true

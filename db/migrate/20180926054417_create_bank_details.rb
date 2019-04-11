@@ -1,4 +1,4 @@
-class CreateBankDetails < ActiveRecord::Migration[5.1]
+class CreateBankDetails < ActiveRecord::Migration[4.2][5.1]
   def change
     create_table :bank_details do |t|
       t.string :company_id

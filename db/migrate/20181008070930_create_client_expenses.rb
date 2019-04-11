@@ -1,4 +1,4 @@
-class CreateClientExpenses < ActiveRecord::Migration[5.1]
+class CreateClientExpenses < ActiveRecord::Migration[4.2][5.1]
   def change
     create_table :client_expenses do |t|
 

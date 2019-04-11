@@ -1,4 +1,4 @@
-class CreateAttachableDocs < ActiveRecord::Migration
+class CreateAttachableDocs < ActiveRecord::Migration[4.2]
   def change
     create_table :attachable_docs do |t|
       t.integer     :company_doc_id , index: true , foreign_key: true

@@ -1,4 +1,4 @@
-class CreateContractSaleCommisions < ActiveRecord::Migration[5.1]
+class CreateContractSaleCommisions < ActiveRecord::Migration[4.2][5.1]
   def change
     create_table :contract_sale_commisions do |t|
       t.belongs_to :contract

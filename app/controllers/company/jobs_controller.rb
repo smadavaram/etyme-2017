@@ -57,7 +57,28 @@ class Company::JobsController < Company::BaseController
       end
     end
   end
-  
+
+  def update_media
+    # current_company.id.update_attributes(video: params[:video], video_type: params[:video_type])
+    @job = Job.find(params[:job_id])
+    if @job.present?
+      @job.update_attributes(
+        comp_video: params[:media],
+        media_type: params[:media_type]
+      )
+    end
+    # CompanyVideo.create(:company_id=>current_company.id, :video=>params[:video], :video_type=> params[:video_type] )
+    flash.now[:success] = "File Successfully Updated"
+    # redirect_back fallback_location: root_path
+
+    # redirect_to job_path(params[:job_id])
+    render json: {success: "File Successfully Updated"}, status: :ok
+    # respond_to do |format|
+    #   format.html
+    #   format.json { render json: @job }
+    # end
+  end
+
   def destroy
     @job.destroy
     respond_to do |format|
@@ -105,7 +126,7 @@ class Company::JobsController < Company::BaseController
     p "222222222222222222222222222222"
     p "222222222222222222222222222222"
     p "222222222222222222222222222222"
-  end  
+  end
 
   def upload_job
     xlsx = Roo::Spreadsheet.open("#{params['file']}", extension: :xlsx)
@@ -139,16 +160,16 @@ class Company::JobsController < Company::BaseController
         #     tags_data = xlsx.sheet('Sheet1').row(data)[13].split(",")
         #     tags_data.each do |tag|
         #       @job.tags.create(:name=>tag)
-        #     end  
-        #   end  
-        end 
-      end  
+        #     end
+        #   end
+        end
+      end
 
     end
 
     redirect_to company_import_job_path , notice: 'Successfully imported.'
 
-  end  
+  end
 
   def upload_candidate
      xlsx = Roo::Spreadsheet.open("#{params['file']}", extension: :xlsx)
@@ -168,11 +189,11 @@ class Company::JobsController < Company::BaseController
 
         candidate.save
 
-      end  
+      end
     end
     redirect_to company_import_job_path , notice: 'Successfully imported.'
   end
-  
+
   def upload_company
      xlsx = Roo::Spreadsheet.open("#{params['file']}", extension: :xlsx)
 
@@ -181,20 +202,20 @@ class Company::JobsController < Company::BaseController
       if data != 1
 
 
-         if xlsx.sheet('Sheet1').row(data)[6] && !xlsx.sheet('Sheet1').row(data)[6].blank? 
+         if xlsx.sheet('Sheet1').row(data)[6] && !xlsx.sheet('Sheet1').row(data)[6].blank?
           companies = Company.where(domain: xlsx.sheet('Sheet1').row(data)[6])
           if !companies.blank?
             if !xlsx.sheet('Sheet1').row(data)[14].blank?
               company_contact = CompanyContact.create(:company_id=> companies.first.id, :email=>xlsx.sheet('Sheet1').row(data)[14], :first_name=>xlsx.sheet('Sheet1').row(data)[10] , :last_name=>xlsx.sheet('Sheet1').row(data)[11] , :phone=>xlsx.sheet('Sheet1').row(data)[12] , :title=>xlsx.sheet('Sheet1').row(data)[13] )
 
-            end  
+            end
             # render json: {message: "Contact created sucessfully", data: {params: companies}}
             # redirect_to company_import_job_path , notice: 'Successfully imported.'
 
           else
             total_slug = Company.where("slug like ?", "#{xlsx.sheet('Sheet1').row(data)[6].split('.')[0].gsub(/[^0-9A-Za-z.]/, '').downcase}_").count
             @company = Company.new()
-           
+
             @company.name = xlsx.sheet('Sheet1').row(data)[0]
             @company.website = xlsx.sheet('Sheet1').row(data)[1]
             @company.description = xlsx.sheet('Sheet1').row(data)[2]
@@ -211,13 +232,13 @@ class Company::JobsController < Company::BaseController
               @company.slug = "#{xlsx.sheet('Sheet1').row(data)[6].split('.')[0].gsub(/[^0-9A-Za-z.]/, '').downcase}"
             else
               @company.slug = "#{xlsx.sheet('Sheet1').row(data)[6].split('.')[0].gsub(/[^0-9A-Za-z.]/, '').downcase}" + "#{total_slug +1}"
-            end  
+            end
 
-            # @company.slug = total_slug == 0 ? "#{params["company"]["domain"].split('.')[0].gsub(/[^0-9A-Za-z.]/, '').downcase}" : "#{params["company"]["domain"].split('.')[0].gsub(/[^0-9A-Za-z.]/, '').downcase}" + "#{total_slug - 1}" 
+            # @company.slug = total_slug == 0 ? "#{params["company"]["domain"].split('.')[0].gsub(/[^0-9A-Za-z.]/, '').downcase}" : "#{params["company"]["domain"].split('.')[0].gsub(/[^0-9A-Za-z.]/, '').downcase}" + "#{total_slug - 1}"
             if @company.valid? && @company.save
               if !xlsx.sheet('Sheet1').row(data)[14].blank?
                 company_contact = CompanyContact.create(:company_id=> companies.first.id, :email=>xlsx.sheet('Sheet1').row(data)[14], :first_name=>xlsx.sheet('Sheet1').row(data)[10] , :last_name=>xlsx.sheet('Sheet1').row(data)[11] , :phone=>xlsx.sheet('Sheet1').row(data)[12] , :title=>xlsx.sheet('Sheet1').row(data)[13] )
-              end 
+              end
               # render json: {message: "Company created sucessfully", data: {company:  @company}}
               # redirect_to company_import_job_path , notice: 'Successfully imported.'
 
@@ -227,15 +248,15 @@ class Company::JobsController < Company::BaseController
 
             end
 
-          end  
-        end  
-      end  
+          end
+        end
+      end
 
     end
 
     redirect_to company_import_job_path , notice: 'Successfully imported.'
 
-  end  
+  end
 
    def upload_contacts
     xlsx = Roo::Spreadsheet.open("#{params['file']}", extension: :xlsx)
@@ -245,20 +266,20 @@ class Company::JobsController < Company::BaseController
       if data != 1
 
 
-         if xlsx.sheet('Sheet1').row(data)[6] && !xlsx.sheet('Sheet1').row(data)[6].blank? 
+         if xlsx.sheet('Sheet1').row(data)[6] && !xlsx.sheet('Sheet1').row(data)[6].blank?
           companies = Company.where(domain: xlsx.sheet('Sheet1').row(data)[6])
           if !companies.blank?
             if !xlsx.sheet('Sheet1').row(data)[14].blank?
               company_contact = CompanyContact.create(:company_id=> companies.first.id, :email=>xlsx.sheet('Sheet1').row(data)[14], :first_name=>xlsx.sheet('Sheet1').row(data)[10] , :last_name=>xlsx.sheet('Sheet1').row(data)[11] , :phone=>xlsx.sheet('Sheet1').row(data)[12] , :title=>xlsx.sheet('Sheet1').row(data)[13] )
 
-            end  
+            end
             # render json: {message: "Contact created sucessfully", data: {params: companies}}
             # redirect_to company_import_job_path , notice: 'Successfully imported.'
 
           else
             total_slug = Company.where("slug like ?", "#{xlsx.sheet('Sheet1').row(data)[6].split('.')[0].gsub(/[^0-9A-Za-z.]/, '').downcase}_").count
             @company = Company.new()
-           
+
             @company.name = xlsx.sheet('Sheet1').row(data)[0]
             @company.website = xlsx.sheet('Sheet1').row(data)[1]
             @company.description = xlsx.sheet('Sheet1').row(data)[2]
@@ -275,13 +296,13 @@ class Company::JobsController < Company::BaseController
               @company.slug = "#{xlsx.sheet('Sheet1').row(data)[6].split('.')[0].gsub(/[^0-9A-Za-z.]/, '').downcase}"
             else
               @company.slug = "#{xlsx.sheet('Sheet1').row(data)[6].split('.')[0].gsub(/[^0-9A-Za-z.]/, '').downcase}" + "#{total_slug +1}"
-            end  
+            end
 
-            # @company.slug = total_slug == 0 ? "#{params["company"]["domain"].split('.')[0].gsub(/[^0-9A-Za-z.]/, '').downcase}" : "#{params["company"]["domain"].split('.')[0].gsub(/[^0-9A-Za-z.]/, '').downcase}" + "#{total_slug - 1}" 
+            # @company.slug = total_slug == 0 ? "#{params["company"]["domain"].split('.')[0].gsub(/[^0-9A-Za-z.]/, '').downcase}" : "#{params["company"]["domain"].split('.')[0].gsub(/[^0-9A-Za-z.]/, '').downcase}" + "#{total_slug - 1}"
             if @company.valid? && @company.save
               if !xlsx.sheet('Sheet1').row(data)[14].blank?
                 company_contact = CompanyContact.create(:company_id=> companies.first.id, :email=>xlsx.sheet('Sheet1').row(data)[14], :first_name=>xlsx.sheet('Sheet1').row(data)[10] , :last_name=>xlsx.sheet('Sheet1').row(data)[11] , :phone=>xlsx.sheet('Sheet1').row(data)[12] , :title=>xlsx.sheet('Sheet1').row(data)[13] )
-              end  
+              end
               # render json: {message: "Company created sucessfully", data: {company:  @company}}
               # redirect_to company_import_job_path , notice: 'Successfully imported.'
 
@@ -291,51 +312,51 @@ class Company::JobsController < Company::BaseController
 
             end
 
-          end  
-        end  
-      end  
+          end
+        end
+      end
 
     end
 
     redirect_to company_import_job_path , notice: 'Successfully imported.'
 
   end
-  
+
 
   def download_job_template
     send_file "#{Rails.root.join('app', 'assets', 'images', 'Job_example_template.xlsx')}",
       :type => 'text/html'
-  end  
-  
+  end
+
   def download_product_template
     send_file "#{Rails.root.join('app', 'assets', 'images', 'product_example_template.xlsx')}",
       :type => 'text/html'
-  end  
-  
+  end
+
   def download_service_template
     send_file "#{Rails.root.join('app', 'assets', 'images', 'service_example_template.xlsx')}",
       :type => 'text/html'
-  end  
-  
+  end
+
   def download_training_template
     send_file "#{Rails.root.join('app', 'assets', 'images', 'training_example_template.xlsx')}",
       :type => 'text/html'
-  end  
+  end
 
   def download_candidate_template
     send_file "#{Rails.root.join('app', 'assets', 'images', 'candidate_example_template.xlsx')}",
       :type => 'text/html'
-  end  
+  end
 
   def download_company_template
     send_file "#{Rails.root.join('app', 'assets', 'images', 'company_example_template.xlsx')}",
       :type => 'text/html'
-  end  
+  end
 
   def download_contacts_template
     send_file "#{Rails.root.join('app', 'assets', 'images', 'contacts_example_template.xlsx')}",
       :type => 'text/html'
-  end  
+  end
 
 
   private

@@ -1,4 +1,4 @@
-class AddSalaryFieldsToBuyContract < ActiveRecord::Migration[5.1]
+class AddSalaryFieldsToBuyContract < ActiveRecord::Migration[4.2][5.1]
   def change
     # salary_process fields
     add_column :buy_contracts, :salary_process, :string

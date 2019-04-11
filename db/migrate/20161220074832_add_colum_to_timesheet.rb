@@ -1,4 +1,4 @@
-class AddColumToTimesheet < ActiveRecord::Migration
+class AddColumToTimesheet < ActiveRecord::Migration[4.2]
   def change
     add_column :timesheets, :invoice_id, :integer , index: true , foreign_key:true
     add_column :contracts, :next_invoice_date, :date

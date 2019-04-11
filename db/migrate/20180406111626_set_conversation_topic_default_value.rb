@@ -1,4 +1,4 @@
-class SetConversationTopicDefaultValue < ActiveRecord::Migration[5.1]
+class SetConversationTopicDefaultValue < ActiveRecord::Migration[4.2][5.1]
   def change
     remove_column :conversations, :topic, :string
     add_column :conversations, :topic, :integer, default: 0

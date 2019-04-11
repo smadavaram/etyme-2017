@@ -1,4 +1,4 @@
-class AddSetColumnsInCycle < ActiveRecord::Migration[5.1]
+class AddSetColumnsInCycle < ActiveRecord::Migration[4.2][5.1]
   def change
     add_column :contract_cycles, :next_date, :datetime
     add_column :contract_cycles, :next_action, :string

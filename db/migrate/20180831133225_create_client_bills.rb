@@ -1,4 +1,4 @@
-class CreateClientBills < ActiveRecord::Migration[5.1]
+class CreateClientBills < ActiveRecord::Migration[4.2][5.1]
   def change
     create_table :client_bills do |t|
       t.integer :cb_cal_cycle_id

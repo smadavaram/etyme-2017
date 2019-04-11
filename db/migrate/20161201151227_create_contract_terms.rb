@@ -1,4 +1,4 @@
-class CreateContractTerms < ActiveRecord::Migration
+class CreateContractTerms < ActiveRecord::Migration[4.2]
   def change
     create_table :contract_terms do |t|
       t.decimal :rate

@@ -1,4 +1,4 @@
-class CreateVisas < ActiveRecord::Migration[5.1]
+class CreateVisas < ActiveRecord::Migration[4.2][5.1]
   def change
     create_table :visas do |t|
       t.integer :candidate_id

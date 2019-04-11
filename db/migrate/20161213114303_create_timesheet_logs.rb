@@ -1,4 +1,4 @@
-class CreateTimesheetLogs < ActiveRecord::Migration
+class CreateTimesheetLogs < ActiveRecord::Migration[4.2]
   def change
     create_table :timesheet_logs do |t|
       t.integer :timesheet_id

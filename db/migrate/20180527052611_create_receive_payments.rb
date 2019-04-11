@@ -1,4 +1,4 @@
-class CreateReceivePayments < ActiveRecord::Migration[5.1]
+class CreateReceivePayments < ActiveRecord::Migration[4.2][5.1]
   def change
     create_table :receive_payments do |t|
       t.belongs_to :invoice

@@ -1,4 +1,4 @@
-class AddColumnInSellContract < ActiveRecord::Migration[5.1]
+class AddColumnInSellContract < ActiveRecord::Migration[4.2][5.1]
   def change
     add_column :sell_contracts, :invoice_date_1, :date
     add_column :sell_contracts, :invoice_date_2, :date

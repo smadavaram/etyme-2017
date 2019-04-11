@@ -1,4 +1,4 @@
-class CreateConversations < ActiveRecord::Migration[5.1]
+class CreateConversations < ActiveRecord::Migration[4.2][5.1]
   def change
     create_table :conversations do |t|
       t.references :senderable, polymorphic: true, index: true

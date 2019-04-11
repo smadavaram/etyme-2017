@@ -1,4 +1,4 @@
-class ChangeInContract < ActiveRecord::Migration[5.1]
+class ChangeInContract < ActiveRecord::Migration[4.2][5.1]
   def change
     remove_column :contracts, :client_name, :string
     remove_column :contracts, :candidate_name, :string

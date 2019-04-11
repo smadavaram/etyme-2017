@@ -1,4 +1,4 @@
-class AddExpenseFieldsToSellContract < ActiveRecord::Migration[5.1]
+class AddExpenseFieldsToSellContract < ActiveRecord::Migration[4.2][5.1]
   def change
     
     #client expense approve

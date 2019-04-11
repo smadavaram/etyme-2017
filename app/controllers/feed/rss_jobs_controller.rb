@@ -8,10 +8,14 @@ class Feed::RssJobsController < ApplicationController
     @jobs = Job.where(:listing_type=>"Job").where(:status =>"Published")
     if params[:company_id].present?
       @jobs = @jobs.where(company_id: params[:company_id])
+      if params[:job_id].present?
+        @jobs = @jobs.find(params[:job_id])
+      end
+      @company = Company.find(params[:company_id])
     end
     respond_to do |format|
       format.rss { render :layout => false }
-      format.json { render :json => @jobs }
+      format.json { render :json => {company: @company.as_json(include: :company_videos), jobs: @jobs} }
     end
   end
 

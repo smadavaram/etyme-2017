@@ -1,4 +1,4 @@
-class AddSubmittedByAndSubmittedOnInvoicesModel < ActiveRecord::Migration
+class AddSubmittedByAndSubmittedOnInvoicesModel < ActiveRecord::Migration[4.2]
   def change
     add_column :invoices ,:submitted_by,  :integer
     add_column :invoices ,:submitted_on, :datetime

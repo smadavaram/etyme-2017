@@ -1,4 +1,4 @@
-class AddColumnInEducation < ActiveRecord::Migration[5.1]
+class AddColumnInEducation < ActiveRecord::Migration[4.2][5.1]
   def change
     add_column :educations, :degree_level, :string
   end

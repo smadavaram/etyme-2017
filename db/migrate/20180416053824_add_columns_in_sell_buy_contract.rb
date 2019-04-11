@@ -1,4 +1,4 @@
-class AddColumnsInSellBuyContract < ActiveRecord::Migration[5.1]
+class AddColumnsInSellBuyContract < ActiveRecord::Migration[4.2][5.1]
   def change
     rename_column :sell_contracts, :date_1, :ts_date_1
     rename_column :sell_contracts, :date_2, :ts_date_2
