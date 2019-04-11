@@ -1,10 +1,11 @@
-.modal{id: group.new_record? ? "new_group" : "group-#{group.id}"}
+.modal.mt-30{id: group.new_record? ? "new_group" : "group-#{group.id}"}
   .modal-dialog
     .modal-content
       .modal-header
+        %h2.modal-title
+          %h4.modal-title
+            =group.new_record? ? "Add New Group" : "Edit #{group.group_name}"
         %button.close{"aria-hidden" => "true", "data-dismiss" => "modal", :type => "button"}
           ×
-        %h4.modal-title
-          %strong= group.new_record? ? "Add New Group" : "Edit #{group.group_name}"
-      .modal-body.no-padding
+      .modal-body
         = render 'company/groups/partial/form' , group: group

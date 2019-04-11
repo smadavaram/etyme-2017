@@ -2,7 +2,7 @@ class User < ApplicationRecord
 
   include DomainExtractor
 
-  EXCLUDED_EMAIL_DOMAINS = %w[gmail yahoo rediff].freeze
+  EXCLUDED_EMAIL_DOMAINS = %w[gmail yahoo rediff facebookmail].freeze
   # Include default devise modules. Others available are:
   # :confirmable, :lockable, :timeoutable and :omniauthable
   devise :invitable, :database_authenticatable, :registerable,
@@ -86,7 +86,7 @@ class User < ApplicationRecord
   end
 
   def send_confirmation_to_company_about_onboarding
-      self.invited_by.notifications.create!(title: "#{self.full_name} On-Boarding" , message:  "#{self.full_name} has successfully completed on-boarding on Etyme.") if self.invited_by.present?
+      # self.invited_by.notifications.create!(title: "#{self.full_name} On-Boarding" , message:  "#{self.full_name} has successfully completed on-boarding on Etyme.") if self.invited_by.present?
   end
 
   def has_submission_permission?(user)
@@ -143,7 +143,7 @@ class User < ApplicationRecord
   end
 
   private def send_confirmation_email
-    send_confirmation_instructions
+   # send_confirmation_instructions
   end
 
   private def user_email_domain
