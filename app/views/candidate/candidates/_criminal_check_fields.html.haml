@@ -1,4 +1,4 @@
-.multi-field-container
+.multi-field-container.nested-fields6
   .row
     .col-sm-4
       .form-group
@@ -13,24 +13,23 @@
     .col-sm-2
       .form-group
         %label Start Date
-        = f.text_field :start_date,placeholder: "YYYY-MM-DD",class: 'form-control creminal_check_start_year input'
+        = f.text_field :start_date,placeholder: "YYYY-MM-DD",class: 'form-control p_date creminal_check_start_year input'
 
     .col-sm-2
       .form-group
         %label End Date
-        = f.text_field :end_date,placeholder: "YYYY-MM-DD",class: 'form-control creminal_check_end_year input'
+        = f.text_field :end_date,placeholder: "YYYY-MM-DD",class: 'form-control p_date creminal_check_end_year input'
     .col-md-1
       .form-group
         %label Delete
-        %a.bttn.btn-add.remove-multi-fields.pull-left.delete_icon
+        = link_to_remove_association f , wrapper_class: "nested-fields6", class: "bttn btn-add delete_icon" do
           %i.fa.fa-trash
 
-        
-- content_for :scripts do
-  :javascript 
-
-    $(document).ready(function() {
-      $('.creminal_check_start_year, .creminal_check_end_year').datepicker({
-       dateFormat: "yy-mm-dd"
-      });  
-    });        
+-#- content_for :scripts do
+-#  :javascript
+-#
+-#    $(document).ready(function() {
+-#      $('.creminal_check_start_year, .creminal_check_end_year').datepicker({
+-#       dateFormat: "yy-mm-dd"
+-#      });
+-#    });

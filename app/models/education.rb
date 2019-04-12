@@ -4,9 +4,9 @@ class Education < ActiveRecord::Base
   # validates :completion_year , presence: true
   # validate  :completion_year_is_greater_than_start_year
   belongs_to :candidate , class_name:  "Candidate" ,foreign_key: 'user_id'
-  has_many :candidate_education_document
+  has_many :candidate_education_documents
 
-  accepts_nested_attributes_for :candidate_education_document, reject_if: :all_blank, allow_destroy: true
+  accepts_nested_attributes_for :candidate_education_documents, reject_if: :all_blank, allow_destroy: true
 
   private
 

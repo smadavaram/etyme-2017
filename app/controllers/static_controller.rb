@@ -20,7 +20,11 @@ class StaticController < ApplicationController
     if request.post?
       if params[:email].present?
         if @company.present?
-          redirect_to "http://#{@company.etyme_url}/?email=#{params[:email]}"
+          if Rails.env.production?
+            redirect_to "https://#{@company.etyme_url}/?email=#{params[:email]}"
+          else
+            redirect_to "http://#{@company.etyme_url}/?email=#{params[:email]}"
+          end
         else
           flash.now[:error] = 'No such domain in the system'
         end

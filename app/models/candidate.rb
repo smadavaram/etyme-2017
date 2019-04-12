@@ -82,7 +82,7 @@ class Candidate < ApplicationRecord
   accepts_nested_attributes_for :portfolios     ,reject_if: :all_blank, allow_destroy: true
   accepts_nested_attributes_for :experiences    ,reject_if: :all_blank, allow_destroy: true
   accepts_nested_attributes_for :educations     ,reject_if: :all_blank, allow_destroy: true
-  accepts_nested_attributes_for :addresses        , reject_if: :all_blank, update_only: true
+  accepts_nested_attributes_for :addresses        , reject_if: :all_blank, update_only: true, allow_destroy: true
   accepts_nested_attributes_for :custom_fields  , allow_destroy: true , reject_if: :all_blank
   accepts_nested_attributes_for :certificates  , allow_destroy: true , reject_if: :all_blank
   accepts_nested_attributes_for :clients  , allow_destroy: true , reject_if: :all_blank
