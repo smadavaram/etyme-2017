@@ -1,24 +1,8 @@
-.nested-fields
-  %h5.text-muted.errors.text-danger
-  .form-group
-    %label.control-label
-      Email
-      %sup.text-danger *
-    = f.email_field :email , class: 'form-control' , placeholder: 'Email' , required: true, data: { email_field: true }
-  .form-group
-    %label.control-label
-      First Name
-    = f.text_field :first_name ,class: "form-control" ,  placeholder: "First Name"
-    %label.control-label
-      Last Name
-    = f.text_field :last_name ,class: "form-control" , placeholder: "Last Name"
-  .form-group
-    %label.control-label
-      Phone
-    = f.number_field :phone , class: 'form-control' , placeholder: 'Phone Number '
-  .form-group
-    %label.control-label
-      Title
-    = f.text_field :title , class: 'form-control' , placeholder: 'Title '
-  .form-group
-    = link_to_remove_association "Remove", f , class: 'btn btn-danger pull-right'
+= f.email_field :email ,  placeholder: 'Email' , required: true, data: { email_field: true }
+.row
+  .col-md-6
+    = f.text_field :first_name ,  placeholder: "First Name"
+  .col-md-6
+    = f.text_field :last_name , placeholder: "Last Name"
+= f.text_field :title ,  placeholder: 'Title '
+= f.phone_field :phone ,  placeholder: 'Phone Number ' , data: { phone_field: true }

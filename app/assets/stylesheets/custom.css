@@ -105,3 +105,14 @@
 .edit_company .links a{
   margin-right: 87px;
 }
+select.form-control:not([size]):not([multiple]) {
+    height: calc(2.25rem + 9px) !important;
+}
+label.required:after {
+    content:" *";
+    color: red;
+}
+.intl-tel-input{
+    height: calc(2.25rem + 9px) !important;
+
+}
