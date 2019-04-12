@@ -86,6 +86,7 @@ gem 'devise_invitable'#, '~> 1.7.0'
 gem 'validates_timeliness'#, '~> 4.0'
 gem 'date_validator'
 gem 'ruby-duration'#, '~> 3.2', '>= 3.2.1'
+gem "bootstrap_form"
 
 #****************************
 # social signup & signin
