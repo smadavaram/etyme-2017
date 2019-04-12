@@ -20,11 +20,9 @@
           .up-controls
             .row
               .col-sm-6
-                .value-pair
-                  .label
-                    Status:
-                  .value.badge.badge-pill.badge-success
-                    Online
+                = link_to candidate_conversations_path, class: "btn btn-primary btn-sm" do
+                  %i.ti-email
+                  %span Contact Me
               .col-sm-6.text-right
                 - if current_candidate.candidates_resumes.present?
                   -#%a.btn.btn-primary.btn-sm{:href => ""}
