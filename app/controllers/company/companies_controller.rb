@@ -76,10 +76,10 @@ class Company::CompaniesController < Company::BaseController
       end
     elsif @company
       if @company != current_company
-        if create_current_company_contact && add_current_company_admins
+        if @company.update(create_params) #create_current_company_contact && add_current_company_admins
           redirect_to_new_company
         else
-          redirect_to new_company_company_path, errors: 'Error Occured while creating contacts.'
+          redirect_to new_company_company_path, errors: @company.errors.full_messages.first
         end
       else
         if create_company_contacts_and_admins && create_current_company_contact

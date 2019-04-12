@@ -10,7 +10,7 @@
             = i.hidden_field :invited_by_company_id, value: current_company.id
         .row
           .col-md-6
-            - f.object.company_contacts.build
+            - f.object.company_contacts.build unless f.object.company_contacts.last&.new_record?
             = f.fields_for :company_contacts do |contact|
               = render 'company/companies/partials/company_contact_fields', f: contact
             %br/

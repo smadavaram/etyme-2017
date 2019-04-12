@@ -1,7 +1,7 @@
 class Company < ApplicationRecord
 
   EXCLUDED_SUBDOMAINS = %w(admin www administrator admins owner etyme mail ftp)
-
+  EXCLUDED_DOMAINS = %w(gmail.com facebook.com reddit.com yahoo.com rediff.com facebookmail.com fb.com)
   include PublicActivity::Model
   include QuerySelector
 
@@ -100,6 +100,7 @@ class Company < ApplicationRecord
   # validates_uniqueness_of    :domain,  message: "This company is already registered on etyme. In order to invited to the company; Please talk to the admin / owner of the company.  Or you can register a new company with a different name"
   validates_exclusion_of :slug, in: EXCLUDED_SUBDOMAINS, message: "is not allowed. Please choose another subdomain"
   validates_format_of :slug, with: /\A[\w\-]+\Z/i, allow_blank: true, message: "is not allowed. Please choose another subdomain."
+  validates_exclusion_of :domain, in: EXCLUDED_DOMAINS, message: "is not allowed. Please use comapany email"
 
   accepts_nested_attributes_for :owner    , allow_destroy: true
   accepts_nested_attributes_for :company_contacts, allow_destroy: true

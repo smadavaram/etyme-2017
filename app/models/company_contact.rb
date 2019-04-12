@@ -7,7 +7,7 @@ class CompanyContact < ApplicationRecord
   has_many :groupables ,as: :groupable
   has_many :groups ,through: :groupables
 
-  # validates :email, uniqueness: { case_sensitive: false, scope: :company_id }, format: { with: EMAIL_REGEX }, presence: true
+  validates :email, uniqueness: { case_sensitive: false, scope: :company_id }, format: { with: EMAIL_REGEX }, presence: true
 
   scope :search_by ,->(term) { CompanyContact.where('lower(first_name) like :term or lower(last_name) like :term or title like :term ' ,{term: "%#{term.downcase}%" })}
 
