@@ -110,13 +110,13 @@ class Company::CompaniesController < Company::BaseController
       }
       format.html do
         if @company.update_attributes(create_params)
-          if params[:company][:branches_attributes].present?
-            params[:company][:branches_attributes].each_pair do |mul_field|
-              unless params[:company][:branches_attributes][mul_field].reject { |p| p == "id" }.present?
-                Branch.where(id: params[:company][:branches_attributes][mul_field]["id"]).destroy_all
-              end
-            end
-          end
+          # if params[:company][:branches_attributes].present?
+          #   params[:company][:branches_attributes].each_pair do |mul_field|
+          #     unless params[:company][:branches_attributes][mul_field].reject { |p| p == "id" }.present?
+          #       Branch.where(id: params[:company][:branches_attributes][mul_field]["id"]).destroy_all
+          #     end
+          #   end
+          # end
           flash[:success] = "Company Updated Successfully"
         else
           flash[:errors] = @company.errors.full_messages
@@ -478,14 +478,10 @@ class Company::CompaniesController < Company::BaseController
     params.require(:company).permit([:name, :email, :domain, :company_type, :currency_id,:phone ,:fax_number,:send_email, :slug, :website ,group_ids:[],
          company_contacts_attributes:[:id, :type  , :first_name, :last_name ,:email,:company_id,:phone, :title ,:_destroy],
          invited_by_attributes: [:invited_by_company_id , :user_id],
-         custom_fields_attributes: [
-        :id,
-        :name,
-        :value,
-        :_destroy]],
+         custom_fields_attributes: [:id, :name, :value, :_destroy]],
        addresses_attributes:[:id,:address_1,:address_2,:country,:city,:state,:zip_code],
        billing_infos_attributes: [:id,:address,:country,:city,:zip],
-       branches_attributes: [:id,:branch_name,:address,:country,:city,:zip],
+       branches_attributes: [:id,:branch_name,:address,:country,:city,:zip, :_destroy],
        departments_attributes: [:id,:name]
       )
   end

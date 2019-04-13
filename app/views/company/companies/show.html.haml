@@ -240,9 +240,17 @@
       $('input:radio[name="same_billing_addr"]').change(function() {
         if ($(this).val() == "true") {
            $(".billing_info").hide();
+           $(".b_address").val($(".a_address").val());
+           $(".b_city").val($(".a_city").val());
+           $(".b_country").val($(".a_country").val());
+           $(".b_zip").val($(".a_zip").val());
           }
         else {
            $(".billing_info").show();
+           $(".b_address").val('');
+           $(".b_city").val('');
+           $(".b_country").val('');
+           $(".b_zip").val('');
           }
       });
       $('input:radio[name="is_owner"]').change(function() {
