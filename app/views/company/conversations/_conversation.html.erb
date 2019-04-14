@@ -16,14 +16,19 @@
     </div>
   </div>
   <div class="panel-footer">
-    <%= form_tag company_conversation_conversation_messages_path(@conversation||=0), remote: true ,method: :post do %>
-      <div class="input-group">
-        <%= text_field_tag 'conversation_message[body]', nil, class: 'form-control input-sm chat_input ',autocomplete: "off",
+    <!--<%#= form_tag company_conversation_conversation_messages_path(@conversation||=0), remote: true ,method: :post do %>-->
+      <!--<div class="input-group">-->
+        <%#= text_field_tag 'conversation_message[body]', nil, class: 'form-control input-sm chat_input ',autocomplete: "off",
                            placeholder: 'Type your message here...', required: true, id: "conversation_#{@conversation.id}_#{current_user.class.to_s}_#{current_user.id}" %>
-        <span class="input-group-btn">
-          <%= submit_tag "Send", class: 'btn btn-primary btn-sm', id: "btn-chat" %>
-        </span>
-      </div>
+        <!--<span class="input-group-btn">-->
+          <!--<%#= submit_tag "Send", class: 'btn btn-primary btn-sm', id: "btn-chat" %>-->
+        <!--</span>-->
+      <!--</div>-->
+    <!--<%# end if @conversation.present?  %>-->
+
+    <%= form_for([@conversation, ConversationMessage.new], :remote => true, :html => {id: "conversation_form_#{@conversation.id}"}) do |f| %>
+        <%= f.text_field :body, class: 'form-control input-sm chat_input ', autocomplete: "off", placeholder: 'Type your message here...', required: true, "data-cid" => @conversation.id, id: "con-text-#{@conversation.id}-#{@current_user.class}-#{@current_user.id}" %>
+        <%= f.submit "Send", class: "btn btn-sm btn-success", id: "send-chat-message" %>
     <% end if @conversation.present?  %>
   </div>
 </div>
