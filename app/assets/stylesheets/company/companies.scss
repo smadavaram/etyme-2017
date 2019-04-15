@@ -35,3 +35,23 @@
 .fade.in {
   opacity: 1 !important;
 }
+
+.cmp-profile{
+  .job-table{
+    .element-wrapper{
+      padding-bottom: 1em;
+      .element-header{}
+      .element-box{
+        padding:0;
+        table.table-lightborder{
+          tr{
+            background: none;
+            td{
+              font-size: 12px;
+            }
+          }
+        }
+      }
+    }
+  }
+}
