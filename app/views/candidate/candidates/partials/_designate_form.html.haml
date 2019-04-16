@@ -1,9 +1,10 @@
-= form_for @user,url: candidate_candidate_path(@user.id, tab: "des"),method: :put, remote: true do |f|
+- current_candidate.designations.build unless current_candidate.designations.present?
+= form_for current_candidate,url: candidate_candidate_path(current_candidate.id, tab: "designate"),method: :put, remote: true do |f|
   .row
     .col-md-12
       .form-group
-        %p Skills
-        = f.text_field :designate_list,placeholder: "Add Skills Comma seperated", class: 'form-control start_date input', 'data-role'=>'tagsinput',value: current_candidate.designate_list.join(", ")
+        %p Designates
+        = f.text_field :designate_list,placeholder: "Add Designates Comma seperated", class: 'form-control start_date input', 'data-role'=>'tagsinput',value: current_candidate.designate_list.join(", ")
   %hr
   .row
     .col-md-12
@@ -18,11 +19,11 @@
             Employee
             = f.radio_button :designation_status, "Employee"
             %span.radio-checkmark
-
-  = f.fields_for :designations, f.object.designations do |b|
-    = render 'candidate/candidates/designations_fields', f: b
-  .links.education_links.pull-right
-    = link_to_add_association '+ Add Designations', f, :designations, class: 'btn btn-success', partial: 'candidate/candidates/designations_fields'
+  .candidate-association
+    = f.fields_for :designations, f.object.designations do |b|
+      = render 'candidate/candidates/designations_fields', f: b
+    .links.education_links.pull-right
+      = link_to_add_association '+ Add Designations', f, :designations, class: 'btn btn-success', partial: 'candidate/candidates/designations_fields'
   -#.row
   -#.col-lg-12
   -#  %button.btn.btn-primary.pull-right{:type => "submit"}

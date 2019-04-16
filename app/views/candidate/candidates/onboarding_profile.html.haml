@@ -1,6 +1,7 @@
 %script{:src => "https://sdk.accountkit.com/en_US/sdk.js"}
 %script{:src => "https://sdk.accountkit.com/en_EN/sdk.js"}
-%script{:src => "https://maps.googleapis.com/maps/api/js?key=AIzaSyD_faX-g1fbUqz_ecgZ0nXuw_Z6T1rBuSU"}
+%script{:src => "https://maps.google.com/maps/api/js?key=AIzaSyDk4kWlA522W3T4oGwdug5nKPXYMhU6rCE&sensor=false&libraries=places"}
+-#%script{:src => "https://maps.googleapis.com/maps/api/js?key=AIzaSyD_faX-g1fbUqz_ecgZ0nXuw_Z6T1rBuSU"}
 
 %body
   .content-box
@@ -22,11 +23,11 @@
                   %a{"data-toggle" => "tab", :href => "#tab3"}
                     %span.step 3
                     %span.title Social Media
-                %li{"data-target" => "#step4" , :id=>"wiz_tab4", class: @tab == "basic_info1" ? "active" : ""}
+                %li{"data-target" => "#step4" , :id=>"wiz_tab4", class: @tab == "social" ? "active" : ""}
                   %a{"data-toggle" => "tab", :href => "#tab4"}
                     %span.step 4
                     %span.title Update Education
-                %li{"data-target" => "#step5" , :id=>"wiz_tab5", class: @tab == "edu" ? "active" : ""}
+                %li{"data-target" => "#step5" , :id=>"wiz_tab5", class: @tab == "education" ? "active" : ""}
                   %a{"data-toggle" => "tab", :href => "#tab5"}
                     %span.step 5
                     %span.title Update Skills
@@ -38,11 +39,11 @@
                   %a{"data-toggle" => "tab", :href => "#tab7"}
                     %span.step 7
                     %span.title Employer Information
-                %li{"data-target" => "#step8" , :id=>"wiz_tab8", class: @tab == "des" ? "active" : ""}
+                %li{"data-target" => "#step8" , :id=>"wiz_tab8", class: @tab == "designate" ? "active" : ""}
                   %a{"data-toggle" => "tab", :href => "#tab8"}
                     %span.step 8
                     %span.title Background Check
-                %li{"data-target" => "#step9" , :id=>"wiz_tab9", class: @tab == "designate" ? "active" : ""}
+                %li{"data-target" => "#step9" , :id=>"wiz_tab9", class: @tab == "submit_doc" ? "active" : ""}
                   %a{"data-toggle" => "tab", :href => "#tab9"}
                     %span.step 9
                     %span.title Save Form
@@ -81,7 +82,7 @@
                     .profile-tile.profile-tile-inlined
                       = filepicker_field_tag "" ,class: "hidden candi-logo", onchange:"candidateLogoUpload(event)","data-fp-crop-ratio" => "2/2",mimetypes: "image/*"
                       .profile-tile-box.faded.candi-profile-pic
-                        -unless(current_candidate.photo.present?)
+                        -if(current_candidate.photo.present?)
                           = image_tag current_candidate.photo,  style:"width:100px;height:100px", fit: 'clip',:class =>"img_pic"
                         -else
                           = image_tag current_candidate.photo,  style:"width:100px;height:100px", fit: 'clip',:class =>"hidden img_pic"
@@ -91,7 +92,6 @@
                             Add
                             %br/
                             Profile Picture
-                .row
                   .col-4.col-sm-3.col-xxl-2
                     .profile-tile.profile-tile-inlined
                       = filepicker_field_tag "" ,class: "hidden file", onchange:"employeevideoUpload(event)","data-fp-crop-ratio" => "2/2",mimetypes: "video/*"
@@ -102,12 +102,15 @@
                           %video{:controls => "", :width => "100", :height=> "100"}
                             %source{:src => current_candidate.video, :type => "#{current_candidate.video_type}"}
                         -else
-                          .pt-new-icon
+                          %video{:controls => "", :width => "100", :height=> "100", :class => "can_vid hidden" }
+                            %source{:src => current_candidate.video, :type => "#{current_candidate.video_type}", :class => "can_vid_src"}
+                          .pt-new-icon.can_vid_r
                             %i.os-icon.os-icon-plus
-                          .pt-user-name
+                          .pt-user-name.can_vid_r
                             Add
                             %br/
                             Profile Video
+                .row
                   -#.col-sm-12.col-md-12.col-lg-2
                   -#  .panel-body.status.profile-margin
                   -#    .text
@@ -130,51 +133,56 @@
                   -#          -else
                   -#            = image_tag image_path('avatars/m_sunny_big.png'),  style: "width:100px;height:100px", fit: 'clip',:class =>"video-pic"
                 .row{style: "padding: 15px;"}
-
-                =render partial: 'candidate/candidates/partials/basic_info_form',locals: {candidate: current_candidate}
+                #basic-info-form
+                  =render partial: 'candidate/candidates/partials/basic_info_form' #,locals: {candidate: current_candidate}
 
               #tab3.tab-pane{class: @tab == "basic_info" ? "active" : "" }
                 %br/
-                %h3
-                  %strong Step 3
-                  \- Social Media
-              #tab4.tab-pane{class: @tab == "basic_info1" ? "active" : "" }
+                %h5.element-header
+                  Social Media
+                .row
+                  .col-sm-12.col-md-12.col-lg-12#social-form
+                    =render partial: 'candidate/candidates/partials/social_form'
+
+              #tab4.tab-pane{class: @tab == "social" ? "active" : "" }
                 %br/
                 %h5.element-header
                   Education Details
                 .row
-                  .col-sm-12.col-md-12.col-lg-12
-                    =render partial: 'candidate/candidates/partials/education_form',locals:{education: current_candidate.educations}
+                  .col-sm-12.col-md-12.col-lg-12#education-form
+                    =render partial: 'candidate/candidates/partials/education_form'
 
-              #tab5.tab-pane{class: @tab == "edu" ? "active" : "" }
+              #tab5.tab-pane{class: @tab == "education" ? "active" : "" }
                 %br/
                 %h4.element-header
                   Update Skills
-                = render partial: 'candidate/candidates/partials/skill_form',locals: {user: current_candidate}
+                .row
+                  .col-sm-12.col-md-12.col-lg-12#skill-form
+                    = render partial: 'candidate/candidates/partials/skill_form'
 
               #tab6.tab-pane{class: @tab == "skill" ? "active" : "" }
                 %br/
                 %h4.element-header
                   Client Information
                 .row
-                  .col-sm-12.col-md-12.col-lg-12
-                    = render partial: 'candidate/candidates/partials/client_form',locals: {user: current_candidate}
+                  .col-sm-12.col-md-12.col-lg-12#client-form
+                    = render partial: 'candidate/candidates/partials/client_form'
 
               #tab7.tab-pane{class: @tab == "client" ? "active" : "" }
                 %br/
                 %h4.element-header
                   Employer Information
                 .row
-                  .col-sm-12.col-md-12.col-lg-12
-                    = render partial: 'candidate/candidates/partials/designate_form',locals: {user: current_candidate}
+                  .col-sm-12.col-md-12.col-lg-12#designate-form
+                    = render partial: 'candidate/candidates/partials/designate_form'
 
-              #tab8.tab-pane{class: @tab == "des" ? "active" : "" }
+              #tab8.tab-pane{class: @tab == "designate" ? "active" : "" }
                 %br/
                 .row
-                  .col-sm-12.col-md-12.col-lg-12
-                    = render partial: 'candidate/candidates/partials/submit_doc_form',locals: {user: current_candidate}
+                  .col-sm-12.col-md-12.col-lg-12#submit-doc-form
+                    = render partial: 'candidate/candidates/partials/submit_doc_form'
 
-              #tab9.tab-pane{class: @tab == "designate" ? "active" : "" }
+              #tab9.tab-pane{class: @tab == "submit_doc" ? "active" : "" }
                 %br/
                 %h4.element-header
                   Save Form
@@ -195,7 +203,6 @@
                       %li.next.pull-right
                         %a{:href => "javascript:void(0);"} Next
 
-
 - content_for :scripts do
   :javascript
     // Facebook Account Kit
@@ -212,8 +219,86 @@
           }
         );
       };
-     
-    }); 
+
+      $('#bootstrap-wizard-1').bootstrapWizard({
+        'tabClass': 'form-wizard',
+        'onNext': function (tab, navigation, index) {
+          // $('#bootstrap-wizard-1').find('.tab-pane.active .next-bttn').click();
+          $('#bootstrap-wizard-1').find('.tab-pane.active form').submit();
+          $('#bootstrap-wizard-1').find('.form-wizard').children('li').eq(index - 1).addClass(
+            'complete');
+          $('#bootstrap-wizard-1').find('.form-wizard').children('li').eq(index - 1).find('.step')
+          .html('<i class="fa fa-check"></i>');
+        },
+        'onPrevious': function (tab, navigation, index) {
+          // $('#bootstrap-wizard-1').find('.tab-pane.active .prev-bttn').click();
+          $('#bootstrap-wizard-1').find('.tab-pane.active form').submit();
+        }
+      });
+
+
+      // fuelux wizard
+      // $(document).on("click", "ul.wizard li.previous", function() {
+      //   $(this).closest('.tab-content').find('.tab-pane.active form').submit();
+      // });
+      //
+      // $(document).on("click", "ul.wizard li.next", function() {
+      //   $(this).closest('.tab-content').find('.tab-pane.active form').submit();
+      // });
+
+      var wizard = $('.wizard').wizard();
+
+      wizard.on('finished', function (e, data) {
+        //$("#fuelux-wizard").submit();
+        $.smallBox({
+          title: "Congratulations! Your form was submitted",
+          content: "<i class='fa fa-clock-o'></i> <i>1 seconds ago...</i>",
+          color: "#5F895F",
+          iconSmall: "fa fa-check bounce animated",
+          timeout: 4000
+        });
+      });
+
+      $(".select2").select2({placeholder: "Select a User(s)"});
+      $(".file_select").select2({placeholder: "Select Company Document"});
+      $('.fileUpload').on("click",function(){
+        $(".file").trigger("click");
+        $('.fp__overlay').css({'z-index':'99999'});
+      });
+      var chatBody = $('#chat-body') ;
+      chatBody.scrollTop(5000000000);
+
+      var hash = window.location.hash;
+      $('#myTab a[href="' + hash + '"]').tab('show');
+
+      $('.p_date').datepicker({
+        dateFormat: "yy-mm-dd"
+      });
+
+      addressLookup();
+    });
+
+    $(document).on("click", ".resume", function(){
+      $(".resume_file").trigger("click");
+    });
+
+    $( document ).on("click", ".video-pic", function() {
+      $( ".file" ).trigger( "click" );
+    });
+
+    $(document).on("click", ".candi-profile-pic", function(){
+      $( ".candi-logo" ).trigger( "click" );
+    });
+
+    $(document).on("click", '#myTab a', function(e) {
+      e.preventDefault();
+      $(this).tab('show');
+    });
+
+    $(document).on("shown.bs.tab", "ul.nav-tabs > li > a", function(e) {
+      var id = $(e.target).attr("href").substr(1);
+      window.location.hash = id;
+    });
 
     function loginCallback(response) {
       if (response.status === "PARTIALLY_AUTHENTICATED") {
@@ -243,46 +328,194 @@
       var countryCode = document.getElementById("country_code").value;
       var phoneNumber = document.getElementById("phone_no").value;
       AccountKit.login(
-        'PHONE', 
+        'PHONE',
         {countryCode: countryCode, phoneNumber: phoneNumber}, // will use default values if not specified
         loginCallback
       );
     }
 
-    //Bootstrap Wizard
-    $(document).ready(function() {
-      //Bootstrap Wizard Validations
+    function uploadResume(event){
+      resume_url = event.fpfile.url
+      $.ajax({
+       type: 'POST',
+       dataType: 'script',
+       url: " #{ upload_resume_candidates_path } ",
+       data: { resume: resume_url,authenticity_token: window._token },
+       success: function (data) {  }
+     });
+    }
 
-        $('#bootstrap-wizard-1').bootstrapWizard({
-          'tabClass': 'form-wizard',
-          'onNext': function (tab, navigation, index) {
-              $('#bootstrap-wizard-1').find('.form-wizard').children('li').eq(index - 1).addClass(
-                'complete');
-              $('#bootstrap-wizard-1').find('.form-wizard').children('li').eq(index - 1).find('.step')
-              .html('<i class="fa fa-check"></i>');
+    function candidateLogoUpload(event){
+      photo_url = event.fpfile.url
+      $('.profile-pic').html('');
+      $.ajax({
+       type: 'POST',
+       dataType: 'json',
+       url: "#{ candidate_update_photo_path }",
+       data: { photo: photo_url,authenticity_token: window._token },
+       success: function (data) {
+        $('.img_pic').removeClass('hidden').attr("src",photo_url);
+        $('.img_pic_r').remove();
+        // location.reload();
+       }
+     });
+    }
+
+    function employeevideoUpload(event){
+      video_url = event.fpfile.url
+      video_type=event.fpfile.mimetype
+      // $('.video-pic').html('');
+      $.ajax({
+       type: 'POST',
+       dataType: 'json',
+       url: "#{ update_video_candidates_path }",
+       data: { video: video_url,authenticity_token: window._token, video_type: video_type },
+       success: function (data) {
+        // $('.text img1').attr("src",video_url);
+        $('.can_vid').removeClass('hidden');
+        $('.can_vid_src').attr("src", video_url);
+        $('.can_vid_r').remove();
+        // location.reload();
+       }
+     });
+    }
+
+    function addressLookup() {
+      var address = document.getElementsByClassName('p-location');
+
+      for(var i=0; i< address.length; i++){
+        new google.maps.places.Autocomplete(address[i]);
+
+        google.maps.event.addDomListener(address[i], 'keydown', function(event) {
+          if (event.keyCode === 13) {
+            event.preventDefault();
           }
         });
+      }
+    }
 
 
-      // fuelux wizard
-        $("ul.wizard li.previous").on("click", function() {
-          $(this).closest('.tab-content').find('.tab-pane.active form').submit();
+    $(document).on('cocoon:after-insert', '.candidate-association', function(e, insertedItem) {
+      addressLookup();
+
+      $(".p_date").datepicker({
+        dateFormat : 'yy-mm-dd'
+      });
+
+      insertedItem.find('.filepicker-attach').each(function(i,e){
+        filepicker.constructWidget(e);
+        $(".filepicker-attach").on('click',function() {
+          $('.fp__overlay').css({'z-index':'99999'})
         });
+        $('.filepicker-attach').on('click',function() {
+          //$(this).hide();
+         });
+      });
 
-        $("ul.wizard li.next").on("click", function() {
-          $(this).closest('.tab-content').find('.tab-pane.active form').submit();
-        });
+    });
 
-        var wizard = $('.wizard').wizard();
-        
-        wizard.on('finished', function (e, data) {
-          //$("#fuelux-wizard").submit();
-          $.smallBox({
-            title: "Congratulations! Your form was submitted",
-            content: "<i class='fa fa-clock-o'></i> <i>1 seconds ago...</i>",
-            color: "#5F895F",
-            iconSmall: "fa fa-check bounce animated",
-            timeout: 4000
+    setcategories($("#candidate_category").val());
+    $(document).on("change","#candidate_category", function(){
+      setcategories($(this).val());
+    });
+
+    function setcategories(cat){
+      $.ajax({
+        type: 'POST',
+        dataType: "json",
+        data: {category: cat},
+        url: "#{get_sub_category_candidates_path}",
+        success: function(data){
+          $('#candidate_subcategory').empty();
+          $.each(data, function(i, value) {
+
+            if(value == "#{current_candidate.subcategory}"){
+              $('#candidate_subcategory').append($('<option selected="selected">').text(value).attr('value', value));
+            }else{
+              $('#candidate_subcategory').append($('<option>').text(value).attr('value', value));
+            }
           });
-        });
+        }
+      });
+    }
+
+    if("#{current_candidate.ever_worked_with_company}" == "Yes"){
+      $(".client_information_main_div").show();
+    }else{
+      $(".client_information_main_div").hide();
+    }
+
+    $(document).on("click", "#candidate_ever_worked_with_company_yes", function(){
+      $(".client_information_main_div").show();
     })
+    $(document).on("click", "#candidate_ever_worked_with_company_no", function(){
+      $(".client_information_main_div").hide();
+    })
+
+
+
+
+
+
+
+
+
+
+    if("#{current_candidate.ever_worked_with_company}" == "Yes")
+    {
+      $(".client_information_main_div").show();
+    }else{
+      $(".client_information_main_div").hide();
+    }
+
+    $("#candidate_ever_worked_with_company_yes").on("click", function(){
+      $(".client_information_main_div").show();
+    })
+    $("#candidate_ever_worked_with_company_no").on("click", function(){
+      $(".client_information_main_div").hide();
+    })
+
+    $(document).ready(function () {
+      addressLookup();
+    });
+
+    function addressLookup() {
+      var address = document.getElementsByClassName('p-location');
+
+      for(var i=0; i< address.length; i++){
+        new google.maps.places.Autocomplete(address[i]);
+
+        google.maps.event.addDomListener(address[i], 'keydown', function(event) {
+          if (event.keyCode === 13) {
+            event.preventDefault();
+          }
+        });
+      }
+    }
+
+    function select_file(prev){
+      prev.trigger("click");
+    }
+
+    function uploadFileDoc(event, file_el){
+      document_url = event.fpfile.url
+      $("#"+file_el.attr("id")).val(document_url)
+    }
+
+    // function select_visa_file(prev){
+    //   prev.trigger("click");
+    // }
+    //
+    // function uploadVisaDoc(event, file_el){
+    //   document_url = event.fpfile.url
+    //   $("#"+file_el.attr("id")).val(document_url)
+    // }
+    //
+    // function select_legal_file(prev){
+    //   prev.trigger("click");
+    // }
+    //
+    // function uploadLegalDoc(event, file_el){
+    //   document_url = event.fpfile.url
+    //   $("#"+file_el.attr("id")).val(document_url)
+    // }

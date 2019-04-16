@@ -1,62 +1,61 @@
 .form-group
-  = form_for @user,url: candidate_candidate_path(@user.id, tab: "skill"),method: :put, remote: true do |f|
+  = form_for current_candidate,url: candidate_candidate_path(current_candidate.id, tab: "skill"),method: :put, remote: true do |f|
     .row
       .col-sm-6
         .form-group
-          %p Category
+          %label Category
           =f.select :category, WORK_CATEGORIES.keys,{include_blank: "Select Category"},{class: "form-control input", required: true }
       .col-sm-6
         .form-
-          %p Sub Category
+          %label Sub Category
           =f.select :subcategory, '', {include_blank: "Select Category"},{class: "form-control input", required: true }
 
     .row
       .col-sm-6
         .form-group
-          %p Skills
-          = f.text_field :skill_list,placeholder: "Add Skills Comma seperated",class: 'form-control p-location input', 'data-role'=>'tagsinput',value: current_candidate.skill_list.join(", ")
-      .col-sm-6
-        .form-group
-          %p Selected From Resume
-          = f.text_field :selected_from_resume,placeholder: "Selected From Resume",class: 'form-control p-location input'
-
-    .row
-      .col-sm-6
-        .form-group
-          %p Department
+          %label Department
           = f.select :dept_name, department_list, {include_blank: "Select Department"},{class: "form-control input", required: true}
       .col-sm-6
         .form-group
-          %p Industry
+          %label Industry
           = f.select :industry_name, industry_list, {include_blank: "Select Industry"},{class: "form-control input", required: true}
+    .row
+      .col-sm-12
+        .form-group
+          %label Skills
+          = f.text_field :skill_list, placeholder: "Add Skills Comma seperated",class: 'form-control p-location input', 'data-role'=>'tagsinput',value: current_candidate.skill_list.join(", ")
+      -#.col-sm-6
+        -#  .form-group
+        -#    %label Selected From Resume
+        -#    = f.text_field :selected_from_resume,placeholder: "Selected From Resume",class: 'form-control p-location input'
 
     -#.row
     -#  .col-lg-12
     -#    %button.btn.btn-primary.pull-right{:type => "submit"}
     -#      Saved
 
--content_for :scripts do
-  :javascript
-    setcategories($("#candidate_category").val());
-    $(document).on("change","#candidate_category", function(){
-      setcategories($(this).val());
-    });
-    function setcategories(cat){
-      $.ajax({
-        type: 'POST',
-        dataType: "json",
-        data: {category: cat},
-        url: "#{get_sub_category_candidates_path}",
-        success: function(data){
-          $('#candidate_subcategory').empty();
-          $.each(data, function(i, value) {
-
-            if(value == "#{@user.subcategory}"){
-              $('#candidate_subcategory').append($('<option selected="selected">').text(value).attr('value', value));
-            }else{
-              $('#candidate_subcategory').append($('<option>').text(value).attr('value', value));
-            }
-          });
-        }
-      });
-    }
+-#-content_for :scripts do
+-#  :javascript
+-#    setcategories($("#candidate_category").val());
+-#    $(document).on("change","#candidate_category", function(){
+-#      setcategories($(this).val());
+-#    });
+-#    function setcategories(cat){
+-#      $.ajax({
+-#        type: 'POST',
+-#        dataType: "json",
+-#        data: {category: cat},
+-#        url: "#{get_sub_category_candidates_path}",
+-#        success: function(data){
+-#          $('#candidate_subcategory').empty();
+-#          $.each(data, function(i, value) {
+-#
+-#            if(value == "#{@user.subcategory}"){
+-#              $('#candidate_subcategory').append($('<option selected="selected">').text(value).attr('value', value));
+-#            }else{
+-#              $('#candidate_subcategory').append($('<option>').text(value).attr('value', value));
+-#            }
+-#          });
+-#        }
+-#      });
+-#    }

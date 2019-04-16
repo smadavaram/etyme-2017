@@ -1,61 +1,61 @@
-.multi-field-container
+.multi-field-container.nested-fields5
   .row
     .col-sm-12
       .form-group
-        %p Name
+        %label Name
         = f.text_field :name,placeholder: "Client Name",class: 'form-control input'
 
     .col-sm-4
       .form-group
-        %p Industry
-        = f.select :industry, industry_list,{},{class: 'form-control input'}
+        %label Industry
+        = f.text_field :industry, placeholder: "Industry",class: 'form-control input'
+        -#= f.select :industry, industry_list,{},{class: 'form-control input'}
     .col-sm-4
       .form-group
-        %p Start Date
-        = f.text_field :start_date,placeholder: "YYYY-MM-DD",class: 'form-control cl_start_year input'
+        %label Start Date
+        = f.text_field :start_date,placeholder: "YYYY-MM-DD",class: 'form-control p_date cl_start_year input'
     .col-sm-4
       .form-group
-        %p End Date
-        = f.text_field :end_date,placeholder:"YYYY-MM-DD",class: 'form-control cl_end_year input'
+        %label End Date
+        = f.text_field :end_date,placeholder:"YYYY-MM-DD",class: 'form-control p_date cl_end_year input'
 
   .row
     .col-sm-4
       .form-group
-        %p Refrence name
+        %label Refrence name
         = f.text_field :refrence_name,placeholder: "Degree level",class: 'form-control input'
 
     .col-sm-4
       .form-group
-        %p Refrence Phone
+        %label Refrence Phone
         = f.text_field :refrence_phone, class: 'form-control input'
     .col-sm-4
       .form-group
-        %p Refrence Email
+        %label Refrence Email
         = f.text_field :refrence_email,placeholder: "Email",class: 'form-control input'
 
 
   .row
     .col-md-6
       .form-group
-        %p Project Description
+        %label Project Description
         = f.text_area :project_description,placeholder: "Project Description",class: 'form-control input'
     .col-md-6
       .form-group
-        %p Role
+        %label Role
         = f.text_area :role,placeholder: "My Role",class: 'form-control input'
- 
 
   .row
     .col-md-12
-      %a.bttn.btn-add.remove-multi-fields.pull-right.delete_icon
+      = link_to_remove_association f , wrapper_class: "nested-fields5", class: "bttn btn-add pull-right delete_icon" do
         %i.fa.fa-trash
 
 
-- content_for :scripts do
-  :javascript 
-
-    $(document).ready(function() {
-      $('.cl_start_year, .cl_end_year').datepicker({
-       dateFormat: "yy-mm-dd"
-      });  
-    }); 
+-#- content_for :scripts do
+-#  :javascript
+-#
+-#    $(document).ready(function() {
+-#      $('.cl_start_year, .cl_end_year').datepicker({
+-#       dateFormat: "yy-mm-dd"
+-#      });
+-#    });

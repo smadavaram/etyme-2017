@@ -1,7 +1,7 @@
 .form-group
   .multi-field-wrapper
     .multi-fields
-      = form_for @user,url: candidate_candidate_path(@user.id, tab: "designate"),method: :put, remote: true do |f|
+      = form_for current_candidate,url: candidate_candidate_path(current_candidate.id, tab: "submit_doc"),method: :put, remote: true do |f|
         %br
         .row
           .col-md-12
@@ -9,7 +9,7 @@
               Visa Document
             .form-group.candidate-association
               = f.fields_for :visas, f.object.visas do |b|
-                / = render 'candidate/candidates/visas_fields', f: b
+                -#= render 'candidate/candidates/visas_fields', f: b
               %strong
                 .links.pull-right
                   = link_to_add_association '+ Add Visa', f, :visas, class: 'btn btn-success', partial: 'candidate/candidates/visas_fields'
@@ -38,7 +38,7 @@
               Legal Document
             .form-group.candidate-association
               = f.fields_for :legal_documents, f.object.legal_documents do |b|
-                / = render 'candidate/candidates/legal_document_fields', f: b
+                -#= render 'candidate/candidates/legal_document_fields', f: b
               %strong
                 .links.pull-right
                   = link_to_add_association '+ Add Legal Documents', f, :legal_documents, class: 'btn btn-success', partial: 'candidate/candidates/legal_document_fields'
@@ -76,50 +76,50 @@
             -#  %button.btn.btn-primary.pull-right{:type => "submit"}
             -#    Saved
 
--content_for :scripts do
-  :javascript
-
-    if("#{@user.ever_worked_with_company}" == "Yes")
-    {
-      $(".client_information_main_div").show();
-    }else{
-      $(".client_information_main_div").hide();
-    }
-  
-    $("#candidate_ever_worked_with_company_yes").on("click", function(){
-      $(".client_information_main_div").show();
-    }) 
-    $("#candidate_ever_worked_with_company_no").on("click", function(){
-      $(".client_information_main_div").hide();
-    })     
-
-    $(document).ready(function () {
-      addressLookup();
-    });
-
-    function addressLookup() {
-      var address = document.getElementsByClassName('p-location');
-
-      for(var i=0; i< address.length; i++){
-        new google.maps.places.Autocomplete(address[i]);
-
-        google.maps.event.addDomListener(address[i], 'keydown', function(event) {
-          if (event.keyCode === 13) {
-            event.preventDefault();
-          }
-        });
-      }
-    }
- 
-
-    // For file Picker
-    $('.candidate-association').on('cocoon:after-insert', function(e, insertedItem) {
-      addressLookup();
-
-      $(".education_doc_expiry_date, .visa_exp_date, .legal_doc_exp_date, .creminal_check_start_year, .creminal_check_end_year").datepicker({
-        dateFormat : 'yy-mm-dd'
-      });
-    });
+-#-content_for :scripts do
+-#  :javascript
+-#
+-#    if("#{@user.ever_worked_with_company}" == "Yes")
+-#    {
+-#      $(".client_information_main_div").show();
+-#    }else{
+-#      $(".client_information_main_div").hide();
+-#    }
+-#
+-#    $("#candidate_ever_worked_with_company_yes").on("click", function(){
+-#      $(".client_information_main_div").show();
+-#    })
+-#    $("#candidate_ever_worked_with_company_no").on("click", function(){
+-#      $(".client_information_main_div").hide();
+-#    })
+-#
+-#    $(document).ready(function () {
+-#      addressLookup();
+-#    });
+-#
+-#    function addressLookup() {
+-#      var address = document.getElementsByClassName('p-location');
+-#
+-#      for(var i=0; i< address.length; i++){
+-#        new google.maps.places.Autocomplete(address[i]);
+-#
+-#        google.maps.event.addDomListener(address[i], 'keydown', function(event) {
+-#          if (event.keyCode === 13) {
+-#            event.preventDefault();
+-#          }
+-#        });
+-#      }
+-#    }
+-#
+-#
+-#    // For file Picker
+-#    $('.candidate-association').on('cocoon:after-insert', function(e, insertedItem) {
+-#      addressLookup();
+-#
+-#      $(".education_doc_expiry_date, .visa_exp_date, .legal_doc_exp_date, .creminal_check_start_year, .creminal_check_end_year").datepicker({
+-#        dateFormat : 'yy-mm-dd'
+-#      });
+-#    });
    
 
     

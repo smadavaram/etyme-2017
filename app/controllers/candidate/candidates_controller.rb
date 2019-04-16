@@ -49,6 +49,7 @@ class Candidate::CandidatesController < Candidate::BaseController
   end
 
   def update
+    @tab = params[:tab]
     respond_to do  |format|
       if current_candidate.update_attributes candidate_params
         if params[:candidate][:educations_attributes].present?
@@ -69,7 +70,7 @@ class Candidate::CandidatesController < Candidate::BaseController
           flash[:success] = "Candidate Updated"
           redirect_to onboarding_profile_path(tag: params["tab"])
         }
-        format.js {render json: :ok}
+        format.js
 
       else
         format.html{redirect_back fallback_location: root_path}
@@ -196,7 +197,7 @@ class Candidate::CandidatesController < Candidate::BaseController
   end  
 
   def onboarding_profile
-    @user = Candidate.find(current_candidate.id)
+    @user = current_candidate
     @user.addresses.build unless @user.addresses.present?
     @user.educations.build unless @user.educations.present?
     @user.certificates.build unless @user.certificates.present?
@@ -225,22 +226,22 @@ class Candidate::CandidatesController < Candidate::BaseController
     end
 
     def candidate_params
-      params.require(:candidate).permit(:first_name, :last_name, :invited_by ,:job_id,:description, :last_nam,:dob,:email,:phone,:visa, :skill_list,:designate_list, :primary_address_id,:category,:subcategory,:dept_name,:industry_name, :selected_from_resume, :ever_worked_with_company, :designation_status,
-                                        addresses_attributes: [:id,:address_1,:address_2,:country,:city,:state,:zip_code, :from_date, :to_date],
-                                        educations_attributes: [:id,:degree_level,:degree_title,:grade,:completion_year,:start_year,:institute,:description,
-                                                                :candidate_education_document_attributes => [
+      params.require(:candidate).permit(:first_name, :last_name, :invited_by ,:job_id,:description, :last_nam,:dob,:email,:phone,:visa, :skill_list,:designate_list, :primary_address_id,:category,:subcategory,:dept_name,:industry_name, :selected_from_resume, :ever_worked_with_company, :designation_status, :facebook_url, :twitter_url, :linkedin_url, :gtalk_url, :skypeid, :address,
+                                        addresses_attributes: [:id,:address_1,:address_2,:country,:city,:state,:zip_code, :from_date, :to_date, :_destroy],
+                                        educations_attributes: [:id,:degree_level,:degree_title,:grade,:completion_year,:start_year,:institute,:description, :_destroy,
+                                                                :candidate_education_documents_attributes => [
                                                                     :id, :education_id, :title, :file, :exp_date, :_destroy
                                                                 ]],
-                                        certificates_attributes: [:id,:title,:start_date,:end_date,:institute,
-                                                                  :candidate_certificate_document_attributes => [
+                                        certificates_attributes: [:id,:title,:start_date,:end_date,:institute, :_destroy,
+                                                                  :candidate_certificate_documents_attributes => [
                                                                       :id, :certificate_id, :title, :file, :exp_date, :_destroy
                                                                   ]],
-                                        clients_attributes: [:id, :name, :industry, :start_date, :end_date, :project_description, :role, :refrence_name, :refrence_phone, :refrence_email],
-                                        documents_attributes: [:id, :candidate_id, :title, :file, :exp_date, :is_education, :is_legal_doc],
-                                        legal_documents_attributes: [:id, :candidate_id, :title, :file, :exp_date],
-                                        criminal_check_attributes: [:id, :candidate_id, :state, :address, :start_date, :end_date],
-                                        visas_attributes: [:id, :candidate_id, :title, :file, :exp_date, :status],
-                                        designations_attributes: [:id, :comp_name, :recruiter_name, :recruiter_phone, :recruiter_email, :status, :company_role])
+                                        clients_attributes: [:id, :name, :industry, :start_date, :end_date, :project_description, :role, :refrence_name, :refrence_phone, :refrence_email, :_destroy],
+                                        documents_attributes: [:id, :candidate_id, :title, :file, :exp_date, :is_education, :is_legal_doc, :_destroy],
+                                        legal_documents_attributes: [:id, :candidate_id, :title, :file, :exp_date, :_destroy],
+                                        criminal_check_attributes: [:id, :candidate_id, :state, :address, :start_date, :end_date, :_destroy],
+                                        visas_attributes: [:id, :candidate_id, :title, :file, :exp_date, :status, :_destroy],
+                                        designations_attributes: [:id, :comp_name, :recruiter_name, :recruiter_phone, :recruiter_email, :start_date, :end_date, :status, :company_role, :_destroy])
     end
 
 

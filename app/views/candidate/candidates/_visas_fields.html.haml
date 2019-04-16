@@ -1,4 +1,4 @@
-.multi-field-container
+.multi-field-container.nested-fields0
   .row
     .col-md-4
       .form-group
@@ -13,25 +13,28 @@
     .col-md-2
       .form-group
         %label Expiry Date
-        = f.text_field :exp_date, placeholder: "YYYY-MM-DD",class: 'form-control input visa_exp_date'    
+        = f.text_field :exp_date, placeholder: "YYYY-MM-DD",class: 'form-control p_date input visa_exp_date'
     
     
     .col-md-2
       .form-group
         %label Select File
         = f.text_field :file, class: 'hidden file_education_document'
-        = filepicker_field_tag "" , class: " hidden education_file filepicker-attach", onchange:"uploadVisaDoc(event, $(this).prev())"
-        = link_to "Select Document" ,"#",class: 'col-lg-12 education_doc btn btn-md btn-primary', style: "margin-bottom: 10px", onclick:"select_visa_file($(this).prev())"
-  
+        = filepicker_field_tag "" , class: " hidden education_file can-filepicker-attach filepicker-attach", onchange:"uploadFileDoc(event, $(this).prev())"
+        = link_to "Select Document" ,"#",class: 'col-lg-12 education_doc btn btn-md btn-primary', style: "margin-bottom: 10px", onclick:"select_file($(this).prev())"
+  .row
+    .col-md-12
+      = link_to_remove_association f , wrapper_class: "nested-fields0", class: "bttn btn-add pull-right delete_icon" do
+        %i.fa.fa-trash
 
-- content_for :scripts do
-  :javascript  
-
-    function select_visa_file(prev){
-      prev.trigger("click");
-    }  
-
-    function uploadVisaDoc(event, file_el){
-      document_url = event.fpfile.url
-      $("#"+file_el.attr("id")).val(document_url)
-    }      
+-#- content_for :scripts do
+-#  :javascript
+-#
+-#    function select_visa_file(prev){
+-#      prev.trigger("click");
+-#    }
+-#
+-#    function uploadVisaDoc(event, file_el){
+-#      document_url = event.fpfile.url
+-#      $("#"+file_el.attr("id")).val(document_url)
+-#    }
