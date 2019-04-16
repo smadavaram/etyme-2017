@@ -76,7 +76,7 @@ class Company::CompaniesController < Company::BaseController
       end
     elsif @company
       if @company != current_company
-        if @company.update(create_params) #create_current_company_contact && add_current_company_admins
+        if create_current_company_contact && add_current_company_admins
           redirect_to_new_company
         else
           redirect_to new_company_company_path, errors: @company.errors.full_messages.first
@@ -414,7 +414,7 @@ class Company::CompaniesController < Company::BaseController
   def add_new_company_admins
     if @company && company_contact_params.present?
       company_contact_params.to_h.map do |key, contact_hash|
-        add_new_company_admin(contact_hash)
+        add_new_company_admin(contact_hash.merge(invitation_as_contact: true))
       end.all?
     end
   end

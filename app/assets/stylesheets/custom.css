@@ -116,3 +116,9 @@ label.required:after {
     height: calc(2.25rem + 9px) !important;
 
 }
+.margin-auto{
+    margin: auto;
+}
+.disable_header.element-header:after {
+    width: 0 !important;
+}

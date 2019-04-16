@@ -2,9 +2,9 @@
   .modal-dialog
     .modal-content
       .modal-header
-        %button.close{"aria-hidden" => "true", "data-dismiss" => "modal", :type => "button"}
-          ×
         %h4.modal-title
           %strong= "Manage Groups"
+        %button.close{"aria-hidden" => "true", "data-dismiss" => "modal", :type => "button"}
+          ×
       .modal-body.no-padding
         = render 'company/companies/partials/assign_groups_form' , company: company

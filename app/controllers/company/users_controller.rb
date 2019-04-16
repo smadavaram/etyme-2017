@@ -8,7 +8,7 @@ class Company::UsersController < Company::BaseController
 
   def dashboard
 
-    if current_company.vendor?
+    if current_company&.vendor?
       @data = []
       respond_to do |format|
         format.js{
