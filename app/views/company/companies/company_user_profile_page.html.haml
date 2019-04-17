@@ -12,7 +12,7 @@
                   %i.os-icon.os-icon-facebook
               .up-main-info
                 %h2.up-header
-                  John Mayers
+                  =current_user.full_name
                 %h6.up-sub-header
                   Product Designer at Facebook
               %svg.decor{:height => "219px", :preserveaspectratio => "xMaxYMax meet", :version => "1.1", :viewbox => "0 0 842 219", :width => "842px", :xmlns => "http://www.w3.org/2000/svg", "xmlns:xlink" => "http://www.w3.org/1999/xlink"}
@@ -30,13 +30,13 @@
                   .col-sm-6.b-r.b-b
                     .el-tablo.centered.padded-v
                       .value
-                        25
+                        = current_company.jobs.not_system_generated.count
                       .label
                         Job
                   .col-sm-6.b-b
                     .el-tablo.centered.padded-v
                       .value
-                        315
+                        = current_company.company_contacts.count
                       .label
                         contact
                 .padded
@@ -45,395 +45,241 @@
                       .bar-label-left
                         %span Email
                       .bar-label-right
-                        %span.text-success verified
+                        %span.text-success #{ current_user.confirmed_at.present? ? "verified" : "Unverified"}
                   .os-progress-bar.primary
                     .bar-labels
                       .bar-label-left
                         %span Phone
                       .bar-label-right
-                        %span.text-success verified
+                        %span.text-success #{ current_company.is_number_verify ? "verified" : "Unverified"}
                   .os-progress-bar.primary
                     .bar-labels
                       .bar-label-left
-                        %span Document
+                        %span Owner
                       .bar-label-right
-                        %span.text-success verified
+                        %span.text-success #{ current_company.owner_verified ? "verified" : "Unverified"}
           .element-wrapper
             .element-box
-              %h6.element-header
-                User Activity
-              .timed-activities.compact
-                .timed-activity
-                  .ta-date
-                    %span 21st Jan, 2017
-                  .ta-record-w
-                    .ta-record
-                      .ta-timestamp
-                        %strong 11:55
-                        am
-                      .ta-activity
-                        Created a post called
-                        %a{:href => "#"} Register new symbol
-                        in Rogue
-                    .ta-record
-                      .ta-timestamp
-                        %strong 2:34
-                        pm
-                      .ta-activity
-                        Commented on story
-                        %a{:href => "#"} How to be a leader
-                        in
-                        %a{:href => "#"} Financial
-                        category
-                    .ta-record
-                      .ta-timestamp
-                        %strong 7:12
-                        pm
-                      .ta-activity
-                        Added
-                        %a{:href => "#"} John Silver
-                        as a friend
-                .timed-activity
-                  .ta-date
-                    %span 3rd Feb, 2017
-                  .ta-record-w
-                    .ta-record
-                      .ta-timestamp
-                        %strong 9:32
-                        pm
-                      .ta-activity
-                        Added
-                        %a{:href => "#"} John Silver
-                        as a friend
-                    .ta-record
-                      .ta-timestamp
-                        %strong 5:14
-                        pm
-                      .ta-activity
-                        Commented on story
-                        %a{:href => "#"} How to be a leader
-                        in
-                        %a{:href => "#"} Financial
-                        catego
+              -if @activities.present?
+                %h6.element-header User Activity
+                =link_to "View All", jobs_path, class: "link-muted font-xs"
+                .timed-activities.compact
+                  .timed-activity
+                    .ta-date
+                      %span Recent Activities
+                    .ta-record-w
+                      - @activities.each do |activity|
+                        = render_activity activity, index: params[:index]
+              -else
+                %h6.element-header User Activity
+                .timed-activities.compact
+                  There is no activities.
+
         .col-sm-7.job-table
           .element-wrapper
-            .d-flex.justify-content-between.align-items-center.mb-3.element-header
-              %h6.mb-0 Job
-              %a.link-muted.font-xs{:href => "#"} View All
-            .element-box
-              .table-responsive
-                %table.table.table-lightborder
-                  %thead
-                    %tr
-                      %th
-                        Title
-                      %th
-                        Location
-                      %th.text-center
-                        Posted By
-                  %tbody
-                    %tr
-                      %td.nowrap
-                        Adobe AEM Advanced Training
-                      %td
-                        Denver, CO, USA
-                      %td.text-right
-                        Haritha Lokineni
-                    %tr
-                      %td.nowrap
-                        Adobe AEM Basic Training
-                      %td
-                        Detroit
-                      %td.text-right
-                        Haritha Lokineni
-                    %tr
-                      %td.nowrap
-                        SAP FICO Training
-                      %td
-                        Denver CO
-                      %td.text-right
-                        Haritha Lokineni
-                    %tr
-                      %td.nowrap
-                        Data Architect
-                      %td
-                        Denver
-                      %td.text-right
-                        Haritha Lokineni
-                    %tr
-                      %td.nowrap
-                        Adobe Experience Manager (AEM) Developer
-                      %td
-                        Miami
-                      %td.text-right
-                        Haritha Lokineni
+            -if @jobs.present?
+              .d-flex.justify-content-between.align-items-center.mb-3.element-header
+                %h6.mb-0 Job
+                =link_to "View All", jobs_path, class: "link-muted font-xs"
+              .element-box
+                .table-responsive
+                  %table.table.table-lightborder
+                    %thead
+                      %tr
+                        %th
+                          Title
+                        %th
+                          Location
+                        %th.text-center
+                          Posted By
+                    %tbody
+                      - @jobs.each do |j|
+                        %tr
+                          %td.nowrap
+                            =j.title
+                          %td
+                            =j.location
+                          %td.text-right
+                            =j.created_by.full_name
+            - else
+              .d-flex.justify-content-between.align-items-center.mb-3.element-header
+                %h6.mb-0 Job
+              .element-box
+                There is no Job
           .element-wrapper
-            .d-flex.justify-content-between.align-items-center.mb-3.element-header
-              %h6.mb-0 Bench
-              %a.link-muted.font-xs{:href => "#"} View All
-            .element-box
-              .table-responsive
-                %table.table.table-lightborder
-                  %thead
-                    %tr
-                      %th
-                        Title
-                      %th
-                        Name
-                      %th.text-center
-                        Location
-                  %tbody
-                    %tr
-                      %td.nowrap
-                        Ruby on Rails Developertest
-                      %td
-                        Haritha S
-                      %td.text-right
-                        Istanbul
-                    %tr
-                      %td.nowrap
-                        Adobe AEM Basic Training
-                      %td
-                        Detroit
-                      %td.text-right
-                        Haritha Lokineni
-                    %tr
-                      %td.nowrap
-                        SAP FICO Training
-                      %td
-                        Denver CO
-                      %td.text-right
-                        Haritha Lokineni
-                    %tr
-                      %td.nowrap
-                        Data Architect
-                      %td
-                        Denver
-                      %td.text-right
-                        Haritha Lokineni
-                    %tr
-                      %td.nowrap
-                        Adobe Experience Manager (AEM) Developer
-                      %td
-                        Miami
-                      %td.text-right
-                        Haritha Lokineni
+            -if @benches.present?
+              .d-flex.justify-content-between.align-items-center.mb-3.element-header
+                %h6.mb-0 Bench
+                =link_to "View All", company_bench_jobs_path, class: "link-muted font-xs"
+              .element-box
+                .table-responsive
+                  %table.table.table-lightborder
+                    %thead
+                      %tr
+                        %th
+                          Title
+                        %th
+                          Name
+                        %th.text-center
+                          Location
+                    %tbody
+                      -@benches.each do |b|
+                        %tr
+                          %td.nowrap
+                            - b.candidate.candidate_title
+                          %td
+                            - b.candidate.try(:full_name)
+                          %td.text-right
+                            - b.candidate.try(:location)
+            - else
+              .d-flex.justify-content-between.align-items-center.mb-3.element-header
+                %h6.mb-0 Bench
+              .element-box
+                There is no Bench
           .element-wrapper
-            .d-flex.justify-content-between.align-items-center.mb-3.element-header
-              %h6.mb-0 Training
-              %a.link-muted.font-xs{:href => "#"} View All
-            .element-box
-              .table-responsive
-                %table.table.table-lightborder
-                  %thead
-                    %tr
-                      %th
-                        Title
-                      %th
-                        Location
-                      %th.text-center
-                        Posted By
-                  %tbody
-                    %tr
-                      %td.nowrap
-                        Adobe AEM Advanced Training
-                      %td
-                        Denver, CO, USA
-                      %td.text-right
-                        Haritha Lokineni
-                    %tr
-                      %td.nowrap
-                        Adobe AEM Basic Training
-                      %td
-                        Detroit
-                      %td.text-right
-                        Haritha Lokineni
-                    %tr
-                      %td.nowrap
-                        SAP FICO Training
-                      %td
-                        Denver CO
-                      %td.text-right
-                        Haritha Lokineni
-                    %tr
-                      %td.nowrap
-                        Data Architect
-                      %td
-                        Denver
-                      %td.text-right
-                        Haritha Lokineni
-                    %tr
-                      %td.nowrap
-                        Adobe Experience Manager (AEM) Developer
-                      %td
-                        Miami
-                      %td.text-right
-                        Haritha Lokineni
+            -if @training.present?
+              .d-flex.justify-content-between.align-items-center.mb-3.element-header
+                %h6.mb-0 Training
+                =link_to "View All", jobs_path, class: "link-muted font-xs"
+              .element-box
+                .table-responsive
+                  %table.table.table-lightborder
+                    %thead
+                      %tr
+                        %th
+                          Title
+                        %th
+                          Location
+                        %th.text-center
+                          Posted By
+                    %tbody
+                      - @training.each do |t|
+                        %tr
+                          %td.nowrap
+                            =t.title
+                          %td
+                            =t.location
+                          %td.text-right
+                            =t.created_by.full_name
+            - else
+              .d-flex.justify-content-between.align-items-center.mb-3.element-header
+                %h6.mb-0 Training
+              .element-box
+                There is no Training
           .element-wrapper
-            .d-flex.justify-content-between.align-items-center.mb-3.element-header
-              %h6.mb-0 Products
-              %a.link-muted.font-xs{:href => "#"} View All
-            .element-box
-              .table-responsive
-                %table.table.table-lightborder
-                  %thead
-                    %tr
-                      %th
-                        Title
-                      %th
-                        Location
-                      %th.text-center
-                        Posted By
-                  %tbody
-                    %tr
-                      %td.nowrap
-                        Adobe AEM Advanced Training
-                      %td
-                        Denver, CO, USA
-                      %td.text-right
-                        Haritha Lokineni
-                    %tr
-                      %td.nowrap
-                        Adobe AEM Basic Training
-                      %td
-                        Detroit
-                      %td.text-right
-                        Haritha Lokineni
-                    %tr
-                      %td.nowrap
-                        SAP FICO Training
-                      %td
-                        Denver CO
-                      %td.text-right
-                        Haritha Lokineni
-                    %tr
-                      %td.nowrap
-                        Data Architect
-                      %td
-                        Denver
-                      %td.text-right
-                        Haritha Lokineni
-                    %tr
-                      %td.nowrap
-                        Adobe Experience Manager (AEM) Developer
-                      %td
-                        Miami
-                      %td.text-right
-                        Haritha Lokineni
+            -if @products.present?
+              .d-flex.justify-content-between.align-items-center.mb-3.element-header
+                %h6.mb-0 Products
+                =link_to "View All", jobs_path, class: "link-muted font-xs"
+              .element-box
+                .table-responsive
+                  %table.table.table-lightborder
+                    %thead
+                      %tr
+                        %th
+                          Title
+                        %th
+                          Location
+                        %th.text-center
+                          Posted By
+                    %tbody
+                      - @products.each do |p|
+                        %tr
+                          %td.nowrap
+                            =p.title
+                          %td
+                            =p.location
+                          %td.text-right
+                            =p.created_by.full_name
+            - else
+              .d-flex.justify-content-between.align-items-center.mb-3.element-header
+                %h6.mb-0 Products
+              .element-box
+                There is no Products
           .element-wrapper
-            .d-flex.justify-content-between.align-items-center.mb-3.element-header
-              %h6.mb-0 Services
-              %a.link-muted.font-xs{:href => "#"} View All
-            .element-box
-              .table-responsive
-                %table.table.table-lightborder
-                  %thead
-                    %tr
-                      %th
-                        Title
-                      %th
-                        Location
-                      %th.text-center
-                        Posted By
-                  %tbody
-                    %tr
-                      %td.nowrap
-                        Adobe AEM Advanced Training
-                      %td
-                        Denver, CO, USA
-                      %td.text-right
-                        Haritha Lokineni
-                    %tr
-                      %td.nowrap
-                        Adobe AEM Basic Training
-                      %td
-                        Detroit
-                      %td.text-right
-                        Haritha Lokineni
-                    %tr
-                      %td.nowrap
-                        SAP FICO Training
-                      %td
-                        Denver CO
-                      %td.text-right
-                        Haritha Lokineni
-                    %tr
-                      %td.nowrap
-                        Data Architect
-                      %td
-                        Denver
-                      %td.text-right
-                        Haritha Lokineni
-                    %tr
-                      %td.nowrap
-                        Adobe Experience Manager (AEM) Developer
-                      %td
-                        Miami
-                      %td.text-right
-                        Haritha Lokineni
-
+            - if @services.present?
+              .d-flex.justify-content-between.align-items-center.mb-3.element-header
+                %h6.mb-0 Services
+                =link_to "View All", jobs_path, class: "link-muted font-xs"
+              .element-box
+                .table-responsive
+                  %table.table.table-lightborder
+                    %thead
+                      %tr
+                        %th
+                          Title
+                        %th
+                          Location
+                        %th.text-center
+                          Posted By
+                    %tbody
+                      - @services.each do |s|
+                        %tr
+                          %td.nowrap
+                            =s.title
+                          %td
+                            =s.location
+                          %td.text-right
+                            =s.created_by.full_name
+            - else
+              .d-flex.justify-content-between.align-items-center.mb-3.element-header
+                %h6.mb-0 Services
+              .element-box
+                There is no Services
 
     .content-panel
       .content-panel-close
         %i.os-icon.os-icon-close
       .element-wrapper
-        .d-flex.justify-content-between.align-items-center.mb-3.element-header
-          %h6.mb-0 Office Directory
-          %a.link-muted.font-xs{:href => "#"} View All
-        .element-box-tp
-          .profile-tile
-            %a.profile-tile-box{:href => "users_profile_small.html"}
-              .pt-avatar-w
-                %img{:alt => "", :src => "img/avatar1.jpg"}/
-              .pt-user-name
-                Haritha Rao
-            .profile-tile-meta
-              %ul
-                %li
-                  hradmin@cloudepa.com
-                %li
-                  2156605084
-              .pt-btn
-                %a.btn.btn-success.btn-sm{:href => "apps_full_chat.html"} Send Message
-          .profile-tile
-            %a.profile-tile-box{:href => "users_profile_small.html"}
-              .pt-avatar-w
-                %img{:alt => "", :src => "img/avatar1.jpg"}/
-              .pt-user-name
-                Haritha Rao
-            .profile-tile-meta
-              %ul
-                %li
-                  hradmin@cloudepa.com
-                %li
-                  2156605084
-              .pt-btn
-                %a.btn.btn-success.btn-sm{:href => "apps_full_chat.html"} Send Message
-          .profile-tile
-            %a.profile-tile-box{:href => "users_profile_small.html"}
-              .pt-avatar-w
-                %img{:alt => "", :src => "img/avatar1.jpg"}/
-              .pt-user-name
-                Haritha Rao
-            .profile-tile-meta
-              %ul
-                %li
-                  hradmin@cloudepa.com
-                %li
-                  2156605084
-              .pt-btn
-                %a.btn.btn-success.btn-sm{:href => "apps_full_chat.html"} Send Message
-          .profile-tile
-            %a.profile-tile-box{:href => "users_profile_small.html"}
-              .pt-avatar-w
-                %img{:alt => "", :src => "img/avatar1.jpg"}/
-              .pt-user-name
-                Haritha Rao
-            .profile-tile-meta
-              %ul
-                %li
-                  hradmin@cloudepa.com
-                %li
-                  2156605084
-              .pt-btn
-                %a.btn.btn-success.btn-sm{:href => "apps_full_chat.html"} Send Message
+        - if @directories.present?
+          .d-flex.justify-content-between.align-items-center.mb-3.element-header
+            %h6.mb-0 Office Directory
+            = link_to "View All", directories_path, class: "link-muted font-xs"
+          .element-box-tp
+            - @directories.each do |d|
+              .profile-tile
+                %a.profile-tile-box{:href => "users_profile_small.html"}
+                  .pt-avatar-w
+                    = image_tag d.photo
+                  .pt-user-name
+                    = d.full_name
+                .profile-tile-meta
+                  %ul
+                    %li
+                      = d.email
+                    %li
+                      = d.phone
+                  .pt-btn
+                    = link_to raw("<i class='fa fa-comment '></i> Send Message"), "#", class: "btn btn-success btn-sm start-conversation",title: "Chat",
+                                "data-sid" => current_company.id, "data-rid" => d.id, "data-chattopic" => "OneToOne",
+                                "data-stype" => current_company.class, "data-rtype" => d.class.to_s
+        - else
+          .d-flex.justify-content-between.align-items-center.mb-3.element-header
+            %h6.mb-0 Office Directory
+            .element-box-tp
+              There is no directory.
+
+      .element-wrapper
+        - if @clients.present?
+          %h6.element-header Clients
+          = link_to "View All", network_path, class: "link-muted font-xs"
+          .element-box-tp
+            .users-list-w
+              - @clients.each do |c|
+                .user-w.with-status.status-green
+                  .user-avatar-w
+                    .user-avatar
+                      = image_tag show_recipient_picture(c.company.try(:logo))
+                  .user-name
+                    %h6.user-title
+                      = c.prefer_vendor.full_name rescue ""
+                    .user-role
+                      = c.prefer_vendor.phone rescue ""
+                  .user-action
+                    = link_to '', "#", class: "os-icon os-icon-email-forward start-conversation", title: "Chat",
+                                "data-sid" => current_company.id, "data-rid" => c.prefer_vendor.id, "data-chattopic" => "OneToOne",
+                                "data-stype" => current_company.class, "data-rtype" => c.prefer_vendor.class.to_s
+        - else
+          %h6.mb-0 Clients
+          .element-box-tp
+            There is no client.
