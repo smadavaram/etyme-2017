@@ -61,8 +61,9 @@
           .element-wrapper
             .element-box
               -if @activities.present?
-                %h6.element-header User Activity
-                =link_to "View All", jobs_path, class: "link-muted font-xs"
+                .d-flex.justify-content-between.align-items-center.mb-3.element-header
+                  %h6 User Activity
+                  =link_to "View All", jobs_path, class: "link-muted font-xs"
                 .timed-activities.compact
                   .timed-activity
                     .ta-date
@@ -261,8 +262,9 @@
 
       .element-wrapper
         - if @clients.present?
-          %h6.element-header Clients
-          = link_to "View All", network_path, class: "link-muted font-xs"
+          .d-flex.justify-content-between.align-items-center.mb-3.element-header
+            %h6 Clients
+            = link_to "View All", network_path, class: "link-muted font-xs"
           .element-box-tp
             .users-list-w
               - @clients.each do |c|
