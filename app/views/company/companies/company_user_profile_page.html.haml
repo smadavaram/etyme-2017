@@ -105,8 +105,9 @@
             - else
               .d-flex.justify-content-between.align-items-center.mb-3.element-header
                 %h6.mb-0 Job
-              .element-box
-                There is no Job
+                =link_to "Create New", jobs_path, class: "link-muted font-xs"
+              .element-box.p-3.text-center
+                %h6.mb-0 There is no Job Right now.
           .element-wrapper
             -if @benches.present?
               .d-flex.justify-content-between.align-items-center.mb-3.element-header
@@ -135,8 +136,9 @@
             - else
               .d-flex.justify-content-between.align-items-center.mb-3.element-header
                 %h6.mb-0 Bench
-              .element-box
-                There is no Bench
+                =link_to "Create New", jobs_path, class: "link-muted font-xs"
+              .element-box.p-3.text-center
+                %h6.mb-0 There is no Bench Right now.
           .element-wrapper
             -if @training.present?
               .d-flex.justify-content-between.align-items-center.mb-3.element-header
@@ -165,8 +167,9 @@
             - else
               .d-flex.justify-content-between.align-items-center.mb-3.element-header
                 %h6.mb-0 Training
-              .element-box
-                There is no Training
+                =link_to "Create New", jobs_path, class: "link-muted font-xs"
+              .element-box.p-3.text-center
+                %h6.mb-0 There is no Training Right now.
           .element-wrapper
             -if @products.present?
               .d-flex.justify-content-between.align-items-center.mb-3.element-header
@@ -195,8 +198,9 @@
             - else
               .d-flex.justify-content-between.align-items-center.mb-3.element-header
                 %h6.mb-0 Products
-              .element-box
-                There is no Products
+                =link_to "Create New", jobs_path, class: "link-muted font-xs"
+              .element-box.p-3.text-center
+                %h6.mb-0 There is no Products Right now.
           .element-wrapper
             - if @services.present?
               .d-flex.justify-content-between.align-items-center.mb-3.element-header
@@ -225,8 +229,9 @@
             - else
               .d-flex.justify-content-between.align-items-center.mb-3.element-header
                 %h6.mb-0 Services
-              .element-box
-                There is no Services
+                =link_to "Create New", jobs_path, class: "link-muted font-xs"
+              .element-box.p-3.text-center
+                %h6.mb-0 There is no Services Right now.
 
     .content-panel
       .content-panel-close
