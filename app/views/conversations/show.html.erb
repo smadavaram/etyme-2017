@@ -1,44 +1,124 @@
 <div class="chat_box" data-conversation-id="<%= @conversation.id if @conversation.present?%>" id="conversation-chat-box">
-  <div class="chatboxhead">
-    <div class="chatboxtitle">
-      <i class="fa fa-comments"></i>
-      <h1><%= get_conversation_title(@conversation) %> </h1>
-    </div>
-    <div class="chatboxoptions">
-      <%= link_to "<i class='fa  fa-minus'></i> ".html_safe, "#", class: "toggleChatBox", "data-cid" => @conversation.id %>
-      &nbsp;&nbsp;
-      <%= link_to "<i class='fa  fa-times'></i> ".html_safe, "#", class: "closeChat", "data-cid" => @conversation.id %>
-    </div>
-    <br clear="all"/>
-  </div>
-
-  <div class="tab-content chatboxcontent" id="conversation_<%= @conversation.id if @conversation.present? %>">
-    <div class="keystroke_msgs_box" >
-      <% @conversation_messages.each do |msg| %>
-        <div class="<%= msg.userable == @current_user ? 'send_message' : 'receive_message' %>">
-          <span>
-            <%= msg.body %>
-            <% if msg.attachment_file.present? %>
-              <br/>
-              <%= link_to msg.file_name, msg.attachment_file, target: "_blank" %>
-            <% end %>
-          </span>
+  <div class="floated-chat-w active">
+    <div class="floated-chat-i">
+      <div class="chat-head">
+        <div class="user-w with-status status-green">
+          <div class="user-name">
+            <h6 class="user-title">
+              <span>To:</span><a href="#"><%= get_conversation_title(@conversation) %></a>
+            </h6>
+          </div>
+          <div class="chatboxoptions">
+            <%= link_to "<i class='fa  fa-minus'></i> ".html_safe, "#", class: "toggleChatBox", "data-cid" => @conversation.id %>
+            <%= link_to "<i class='os-icon os-icon-close'></i> ".html_safe, "#", class: "closeChat", "data-cid" => @conversation.id %>
+          </div>
         </div>
-      <% end if @conversation_messages.present? %>
-    </div>
-  </div>
+      </div>
 
-  <div class="chatboxinput">
-    <%= form_for([@conversation, @conversation_message], :remote => true, :html => {id: "conversation_form_#{@conversation.id}"}) do |f| %>
-      <%= f.text_area :body, class: "chatboxtextarea", "data-cid" => @conversation.id, id: "con-text-#{@conversation.id}-#{@current_user.class}-#{@current_user.id}" %>
-      <%= f.filepicker_field :attachment_file, :button_text => "Pick File", disable: true , class: "file-pick btn btn-primary filepicker-attach conversation_attchment_#{@conversation.id}", id: "con-atta-#{@conversation.id}-#{@current_user.class}-#{@current_user.id}" %>
-      <%= f.hidden_field :file_name, class: "chat-file-name", id: "con-filename-#{@conversation.id}-#{@current_user.class}-#{@current_user.id}" %>
-      <%= f.hidden_field :file_size, class: "chat-file-size", id: "con-filesize-#{@conversation.id}-#{@current_user.class}-#{@current_user.id}" %>
-      <%= f.hidden_field :file_type, class: "chat-file-type", id: "con-filetype-#{@conversation.id}-#{@current_user.class}-#{@current_user.id}" %>
-      <%= f.submit "Send", class: "btn btn-sm btn-success", id: "send-chat-message" %>
-    <% end %>
+      <div class="chat-messages ps ps--theme_default ps--active-y chatboxcontent" id="conversation_<%= @conversation.id if @conversation.present? %>">
+        <% prev_date = nil %>
+        <% @conversation_messages.each do |msg| %>
+            <% if prev_date != msg.created_at.strftime('%d %b, %Y') %>
+                <% prev_date = msg.created_at.strftime('%d %b, %Y') %>
+                <div class="chat-date-separator">
+                  <span>
+                    <% if Date.parse(prev_date) == Date.today %>
+                      Today
+                    <% elsif Date.parse(prev_date) == Date.yesterday %>
+                      Yesterday
+                    <% else %>
+                      <%= prev_date %>
+                    <% end %>
+                  </span>
+                </div>
+            <% end %>
+
+            <div class="chat-message <%= msg.userable == current_candidate ? 'self' : '' %>">
+              <div class="chat-message-content-w">
+                <div class="chat-message-content">
+                  <%= msg.body %>
+                  <% if msg.attachment_file.present? %>
+                    <br/>
+                    <%= link_to msg.file_name, msg.attachment_file, target: "_blank" %>
+                  <% end %>
+                </div>
+              </div>
+              <div class="chat-message-avatar">
+                <%= image_tag msg.userable.photo %>
+              </div>
+              <div class="chat-message-date">
+                <%= msg.created_at.strftime("%l:%M%P") %>
+              </div>
+            </div>
+        <% end if @conversation_messages.present? %>
+      </div>
+
+      <div class="chat-controls chatboxinput">
+        <%= form_for([@conversation, @conversation_message], :remote => true, :html => {id: "conversation_form_#{@conversation.id}"}) do |f| %>
+          <div class="chat-input1">
+            <%= f.text_area :body, class: "chatboxtextarea", "data-cid" => @conversation.id, id: "con-text-#{@conversation.id}-#{@current_user.class}-#{@current_user.id}" %>
+            <%= f.filepicker_field :attachment_file, :button_text => " ", disable: true , class: "os-icon os-icon-ui-51 file-pick btn btn-primary filepicker-attach conversation_attchment_#{@conversation.id}", id: "con-atta-#{@conversation.id}-#{@current_user.class}-#{@current_user.id}" %>
+            <%= f.hidden_field :file_name, class: "chat-file-name", id: "con-filename-#{@conversation.id}-#{@current_user.class}-#{@current_user.id}" %>
+            <%= f.hidden_field :file_size, class: "chat-file-size", id: "con-filesize-#{@conversation.id}-#{@current_user.class}-#{@current_user.id}" %>
+            <%= f.hidden_field :file_type, class: "chat-file-type", id: "con-filetype-#{@conversation.id}-#{@current_user.class}-#{@current_user.id}" %>
+          </div>
+          <div class="chat-input-extra">
+            <div class="chat-btn">
+              <%= f.submit "Send", class: "btn btn-sm btn-success", id: "send-chat-message" %>
+            </div>
+          </div>
+        <% end %>
+      </div>
+    </div>
   </div>
 </div>
+
+
+
+
+
+<!--<div class="chat_box" data-conversation-id="<%#= @conversation.id if @conversation.present?%>" id="conversation-chat-box">-->
+  <!--<div class="chatboxhead">-->
+    <!--<div class="chatboxtitle">-->
+      <!--<i class="fa fa-comments"></i>-->
+      <!--<h1><%#= get_conversation_title(@conversation) %> </h1>-->
+    <!--</div>-->
+    <!--<div class="chatboxoptions">-->
+      <!--<%#= link_to "<i class='fa  fa-minus'></i> ".html_safe, "#", class: "toggleChatBox", "data-cid" => @conversation.id %>-->
+      <!--&nbsp;&nbsp;-->
+      <!--<%#= link_to "<i class='fa  fa-times'></i> ".html_safe, "#", class: "closeChat", "data-cid" => @conversation.id %>-->
+    <!--</div>-->
+    <!--<br clear="all"/>-->
+  <!--</div>-->
+
+
+  <!--<div class="tab-content chatboxcontent" id="conversation_<%#= @conversation.id if @conversation.present? %>">-->
+    <!--<div class="keystroke_msgs_box" >-->
+      <!--<%# @conversation_messages.each do |msg| %>-->
+        <!--<div class="<%#= msg.userable == @current_user ? 'send_message' : 'receive_message' %>">-->
+          <!--<span>-->
+            <!--<%#= msg.body %>-->
+            <!--<%# if msg.attachment_file.present? %>-->
+              <!--<br/>-->
+              <!--<%#= link_to msg.file_name, msg.attachment_file, target: "_blank" %>-->
+            <!--<%# end %>-->
+          <!--</span>-->
+        <!--</div>-->
+      <!--<%# end if @conversation_messages.present? %>-->
+    <!--</div>-->
+  <!--</div>-->
+
+  <!--<div class="chatboxinput">-->
+    <!--<%#= form_for([@conversation, @conversation_message], :remote => true, :html => {id: "conversation_form_#{@conversation.id}"}) do |f| %>-->
+      <!--<%#= f.text_area :body, class: "chatboxtextarea", "data-cid" => @conversation.id, id: "con-text-#{@conversation.id}-#{@current_user.class}-#{@current_user.id}" %>-->
+      <!--<%#= f.filepicker_field :attachment_file, :button_text => "Pick File", disable: true , class: "file-pick btn btn-primary filepicker-attach conversation_attchment_#{@conversation.id}", id: "con-atta-#{@conversation.id}-#{@current_user.class}-#{@current_user.id}" %>-->
+      <!--<%#= f.hidden_field :file_name, class: "chat-file-name", id: "con-filename-#{@conversation.id}-#{@current_user.class}-#{@current_user.id}" %>-->
+      <!--<%#= f.hidden_field :file_size, class: "chat-file-size", id: "con-filesize-#{@conversation.id}-#{@current_user.class}-#{@current_user.id}" %>-->
+      <!--<%#= f.hidden_field :file_type, class: "chat-file-type", id: "con-filetype-#{@conversation.id}-#{@current_user.class}-#{@current_user.id}" %>-->
+      <!--<%#= f.submit "Send", class: "btn btn-sm btn-success", id: "send-chat-message" %>-->
+    <!--<%# end %>-->
+  <!--</div>-->
+<!--</div>-->
 
 <script>
 
