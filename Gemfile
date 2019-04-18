@@ -38,6 +38,9 @@ gem 'wicked_pdf'
 gem 'wkhtmltopdf-binary'
 gem 'breadcrumbs_on_rails'
 gem 'public_activity'
+#ajax data tables
+gem 'ajax-datatables-rails'
+
 
 
 #****************************

@@ -1269,21 +1269,21 @@ table.dataTable thead .sorting_asc_disabled,
 table.dataTable thead .sorting_desc_disabled {
   cursor: pointer;
 }
-table.dataTable thead .sorting {
-  background: asset-url('sort_both.png') no-repeat center right;
-}
-table.dataTable thead .sorting_asc {
-  background: asset-url('sort_asc.png') no-repeat center right;
-}
-table.dataTable thead .sorting_desc {
-  background: asset-url('sort_desc.png') no-repeat center right;
-}
-table.dataTable thead .sorting_asc_disabled {
-  background: asset-url('sort_asc_disabled.png') no-repeat center right;
-}
-table.dataTable thead .sorting_desc_disabled {
-  background: asset-url('sort_desc_disabled.png') no-repeat center right;
-}
+//table.dataTable thead .sorting {
+//  background: asset-url('sort_both.png') no-repeat center right;
+//}
+//table.dataTable thead .sorting_asc {
+//  background: asset-url('sort_asc.png') no-repeat center right;
+//}
+//table.dataTable thead .sorting_desc {
+//  background: asset-url('sort_desc.png') no-repeat center right;
+//}
+//table.dataTable thead .sorting_asc_disabled {
+//  background: asset-url('sort_asc_disabled.png') no-repeat center right;
+//}
+//table.dataTable thead .sorting_desc_disabled {
+//  background: asset-url('sort_desc_disabled.png') no-repeat center right;
+//}
 table.dataTable thead > tr > th {
   padding-left: 18px;
   padding-right: 18px;
@@ -2005,24 +2005,24 @@ table.has-columns-hidden > tbody > tr.row-detail > td > ul > li > span.columnTit
 .dt-toolbar-footer > :last-child {
   padding-right: 0px !important;
 }
-table.dataTable thead .sorting {
-  background: url(data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABMAAAATAgMAAAAPPt5fAAAACVBMVEUAAADIyMjl5eVIBBP/AAAAAXRSTlMAQObYZgAAAClJREFUCNdjwAYEwGQKiGDsBJFsTA5AUoJhAqZaiDhEDVg9RC/MHEwAANsMA91AQfd/AAAAAElFTkSuQmCC) no-repeat center right;
-}
-table.dataTable thead .sorting_asc {
-  background: url(data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABMAAAATAQMAAABInqSPAAAABlBMVEUAAABVVVUT3Vn+AAAAAXRSTlMAQObYZgAAAB1JREFUCNdjwAkcgPgBAwPjBwYG5h8MDOx/GAgBAKRJBBCQbHkwAAAAAElFTkSuQmCC) no-repeat center right;
-}
-table.dataTable thead .sorting_desc {
-  background: url(data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABMAAAATAQMAAABInqSPAAAABlBMVEUAAABVVVUT3Vn+AAAAAXRSTlMAQObYZgAAABxJREFUCNdjIATY/zAwMP9gYGD8AOQ8AGIHnEoBkNkEEEbbutQAAAAASUVORK5CYII=) no-repeat center right;
-}
-table.dataTable thead .sorting_asc_disabled {
-  background: url(data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABMAAAATAQMAAABInqSPAAAABlBMVEUAAABUVFR8AzIeAAAAAnRSTlMAf7YpoZUAAAAdSURBVAjXY8AJHID4AQMD4wcGBuYfDAzsfxgIAQCkSQQQkGx5MAAAAABJRU5ErkJggg==) no-repeat center right;
-}
-table.dataTable thead .sorting_desc_disabled {
-  background: url(data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABMAAAATAQMAAABInqSPAAAABlBMVEUAAABUVFR8AzIeAAAAAnRSTlMAf7YpoZUAAAAcSURBVAjXYyAE2P8wMDD/YGBg/ADkPABiB5xKAZDZBBBG27rUAAAAAElFTkSuQmCC) no-repeat center right;
-}
+//table.dataTable thead .sorting {
+//  background: url(data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABMAAAATAgMAAAAPPt5fAAAACVBMVEUAAADIyMjl5eVIBBP/AAAAAXRSTlMAQObYZgAAAClJREFUCNdjwAYEwGQKiGDsBJFsTA5AUoJhAqZaiDhEDVg9RC/MHEwAANsMA91AQfd/AAAAAElFTkSuQmCC) no-repeat center right;
+//}
+//table.dataTable thead .sorting_asc {
+//  background: url(data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABMAAAATAQMAAABInqSPAAAABlBMVEUAAABVVVUT3Vn+AAAAAXRSTlMAQObYZgAAAB1JREFUCNdjwAkcgPgBAwPjBwYG5h8MDOx/GAgBAKRJBBCQbHkwAAAAAElFTkSuQmCC) no-repeat center right;
+//}
+//table.dataTable thead .sorting_desc {
+//  background: url(data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABMAAAATAQMAAABInqSPAAAABlBMVEUAAABVVVUT3Vn+AAAAAXRSTlMAQObYZgAAABxJREFUCNdjIATY/zAwMP9gYGD8AOQ8AGIHnEoBkNkEEEbbutQAAAAASUVORK5CYII=) no-repeat center right;
+//}
+//table.dataTable thead .sorting_asc_disabled {
+//  background: url(data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABMAAAATAQMAAABInqSPAAAABlBMVEUAAABUVFR8AzIeAAAAAnRSTlMAf7YpoZUAAAAdSURBVAjXY8AJHID4AQMD4wcGBuYfDAzsfxgIAQCkSQQQkGx5MAAAAABJRU5ErkJggg==) no-repeat center right;
+//}
+//table.dataTable thead .sorting_desc_disabled {
+//  background: url(data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABMAAAATAQMAAABInqSPAAAABlBMVEUAAABUVFR8AzIeAAAAAnRSTlMAf7YpoZUAAAAcSURBVAjXYyAE2P8wMDD/YGBg/ADkPABiB5xKAZDZBBBG27rUAAAAAElFTkSuQmCC) no-repeat center right;
+//}
 table.dataTable thead .sorting_asc,
 table.dataTable thead .sorting_desc {
-  background-color: #eeeeee;
+  background-color: transparent;
 }
 .dataTables_empty {
   padding: 20px 10px !important;

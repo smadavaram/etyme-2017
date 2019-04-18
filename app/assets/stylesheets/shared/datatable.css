@@ -1,0 +1,10 @@
+.table thead tr,
+.fc-head-container thead tr {
+    background-color: transparent;
+}
+.data-table-image{
+    height: 30px;
+}
+.data-table-icons{
+    margin-right:5px;
+}

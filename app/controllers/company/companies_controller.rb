@@ -38,9 +38,10 @@ class Company::CompaniesController < Company::BaseController
   end
 
   def company_contacts
-    @search = current_company.company_contacts.search(params[:q])
-    @company_contacts = @search.result.order(:created_at)
-    @company = Company.new
+    respond_to do |format|
+      format.html {}
+      format.json { render json: CompanyContactDatatable.new(params, view_context: view_context, current_company: current_company)}
+    end
   end
 
   def network_contacts

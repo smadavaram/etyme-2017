@@ -105,7 +105,7 @@
 .edit_company .links a{
   margin-right: 87px;
 }
-select.form-control:not([size]):not([multiple]) {
+select-height {
     height: calc(2.25rem + 9px) !important;
 }
 label.required:after {
