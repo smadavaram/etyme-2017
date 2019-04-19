@@ -16,7 +16,7 @@ class CompanyContactDatatable < ApplicationDatatable
   def data
     records.map do |record|
       {
-        logo: record.company,
+        logo: record.company.name,
         first_name: record.first_name,
         last_name: record.last_name,
         title: record.title,
@@ -28,7 +28,7 @@ class CompanyContactDatatable < ApplicationDatatable
   end
 
   def get_raw_records
-    current_company.company_contacts.joins(:company)
+    current_company.company_contacts.includes(:company)
   end
 
 
