@@ -16,7 +16,7 @@ class CompanyContactDatatable < ApplicationDatatable
   def data
     records.map do |record|
       {
-        logo: company_logo_and_name( record.company) ,
+        logo: record.company,
         first_name: record.first_name,
         last_name: record.last_name,
         title: record.title,
