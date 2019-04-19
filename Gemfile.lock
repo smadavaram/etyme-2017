@@ -276,7 +276,7 @@ GEM
     orm_adapter (0.5.0)
     paranoia (2.4.1)
       activerecord (>= 4.0, < 5.3)
-    pg (1.1.4)
+    pg (0.21.0)
     popper_js (1.12.9)
     power_assert (1.1.4)
     pry (0.12.2)
@@ -497,7 +497,7 @@ DEPENDENCIES
   omniauth-google-oauth2
   omniauth-linkedin
   paranoia
-  pg
+  pg (~> 0.18)
   popper_js (~> 1.12.9)
   pry
   public_activity
@@ -535,4 +535,4 @@ RUBY VERSION
    ruby 2.3.1p112
 
 BUNDLED WITH
-   1.16.0
+   1.16.4
