@@ -2,10 +2,12 @@ class CompanyContact < ApplicationRecord
 
   include DomainExtractor
 
-  belongs_to :company, optional: true
+  belongs_to :company, foreign_key: "company_id", class_name: 'Company'
+  belongs_to :user_company, foreign_key: "user_company_id", class_name: 'Company'
   has_many :notifications, as: :notifiable, dependent: :destroy
   has_many :groupables ,as: :groupable
   has_many :groups ,through: :groupables
+  belongs_to :user
 
   validates :email, uniqueness: { case_sensitive: false, scope: :company_id }, format: { with: EMAIL_REGEX }, presence: true
 

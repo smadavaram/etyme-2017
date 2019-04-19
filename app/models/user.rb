@@ -51,6 +51,7 @@ class User < ApplicationRecord
   has_many :chats               ,through: :chat_users
   has_many :reminders
   has_many :statuses
+  has_many :company_contacts
 
   has_many :conversation_messages ,as: :userable
   has_many :document_signs       , as: :signable
