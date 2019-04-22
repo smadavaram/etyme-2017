@@ -32,7 +32,7 @@ class CompanyContactDatatable < ApplicationDatatable
   end
 
   def get_raw_records
-    current_company.company_contacts.joins(:company)
+    current_company.company_contacts.includes(company: [:reminders,:statuses])
   end
 
   def reminder_note record
