@@ -11,7 +11,7 @@ class CompanyContactDatatable < ApplicationDatatable
         first_name: {source: "CompanyContact.first_name"},
         last_name: {source: "CompanyContact.last_name"},
         title: {source: "CompanyContact.title"},
-        email: {source: "CompanyContact.email"},
+        email: {source: "CompanyContact.email"}
     }
   end
 
@@ -36,7 +36,7 @@ class CompanyContactDatatable < ApplicationDatatable
   end
 
   def reminder_note record
-    content_tag(:span,record.user_company.reminders.last.title, class: 'label-info badge').html_safe +
+    content_tag(:span,record.user_company.reminders.last.title, class: 'label-info badge mr-1').html_safe +
     content_tag(:span,record.user_company.statuses.last.status_type, class: 'label-info badge').html_safe
   end
 
@@ -46,7 +46,7 @@ class CompanyContactDatatable < ApplicationDatatable
   end
 
   def actions record
-    link_to(content_tag(:i, nil, class: 'fa fa-comment ').html_safe, company_statuses_path(id: record.user_company, type: 'Company'), title: 'Status Log', class: 'data-table-icons') +
+    link_to(content_tag(:i, nil, class: 'fa fa-sticky-note ').html_safe, company_statuses_path(id: record.user_company, type: 'Company'), title: 'Status Log', class: 'data-table-icons') +
         link_to(content_tag(:i, nil, class: 'fa fa-sticky-note ').html_safe, company_assign_status_path(record.user_company), remote: :true, title: "Assign Status", class: 'data-table-icons') +
         link_to(content_tag(:i, nil, class: 'fa fa-phone ').html_safe, '#', title: record.phone, class: 'data-table-icons') +
         link_to(content_tag(:i, nil, class: 'fa fa-user-plus ').html_safe, '#', title: 'Follow/Unfollow', class: 'data-table-icons') +

@@ -251,17 +251,12 @@ class Company::CompaniesController < Company::BaseController
       groups_id = groups.map(&:to_i)
       @company_contact.update_attribute(:group_ids, groups_id)
       # @invited_company.update_attribute(:group_ids, groups_id)
-      respond_to do |format|
-        if @company_contact.save
-          format.js {
-            @company_contact_id = @company_contact.id
-            flash[:success] = "Groups has been assigned"
-            render 'close_assign_groups_to_contact'
-          }
-        else
-          flash[:errors] = @company_contact.errors.full_messages
-        end
+      if @company_contact.save
+        flash[:success] = "Groups has been assigned"
+      else
+        flash[:errors] = @company_contact.errors.full_messages
       end
+      redirect_back fallback_location: root_path
     end
   end
 

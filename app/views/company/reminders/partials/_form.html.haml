@@ -8,7 +8,7 @@
           ×
 
       .modal-body.no-padding
-        = form_for Reminder.new, remote: true ,html:{ class:'form-horizontal',id: 'group-val'} do |f|
+        = form_for Reminder.new,html:{ class:'form-horizontal',id: 'group-val'} do |f|
           = f.hidden_field :reminderable_id ,value: assignee.id
           = f.hidden_field :reminderable_type ,value: assignee.class
           %br
