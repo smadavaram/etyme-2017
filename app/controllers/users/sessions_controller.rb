@@ -48,7 +48,7 @@ class Users::SessionsController < Devise::SessionsController
   def check_company_user
     if current_company.users.find_by(email: (params[:user][:email]).downcase).present?
       return true
-    elsif domain_from_email(params[:user][:email]).eql?(current_company.slug)
+    elsif params[:user][:email].match(/@([a-zA-Z]+)./)[1].eql?(current_company.slug)
       current_company.users.create(
                                     email: params[:user][:email],
                                     company_id: current_company.id,

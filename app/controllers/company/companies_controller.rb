@@ -57,6 +57,7 @@ class Company::CompaniesController < Company::BaseController
   end
 
   def edit
+
   end
 
   def hot_candidates
@@ -243,7 +244,6 @@ class Company::CompaniesController < Company::BaseController
 
   def assign_groups_to_contact
     @company_contact = CompanyContact.find(params[:company_id])
-
     # @invited_company = current_company.invited_companies.find_by(invited_company_id: params[:company_id])
     if request.post?
       groups = params[:invited_company][:group_ids]
@@ -251,12 +251,17 @@ class Company::CompaniesController < Company::BaseController
       groups_id = groups.map(&:to_i)
       @company_contact.update_attribute(:group_ids, groups_id)
       # @invited_company.update_attribute(:group_ids, groups_id)
-      if @company_contact.save
-        flash[:success] = "Groups has been assigned"
-      else
-        flash[:errors] = @company_contact.errors.full_messages
+      respond_to do |format|
+        if @company_contact.save
+          format.js {
+            @company_contact_id = @company_contact.id
+            flash[:success] = "Groups has been assigned"
+            render 'close_assign_groups_to_contact'
+          }
+        else
+          flash[:errors] = @company_contact.errors.full_messages
+        end
       end
-      redirect_back fallback_location: root_path
     end
   end
 
@@ -389,8 +394,9 @@ class Company::CompaniesController < Company::BaseController
   def create_current_company_contact
     if current_company && company_contact_params.present?
       company_contact_params.to_h.map do |key, contact_hash|
-        contact_hash = contact_hash.slice(:first_name, :last_name, :email)
-        company_contact = current_company.company_contacts.build(contact_hash)
+        user_params = contact_hash.slice(:first_name, :last_name, :email)
+        user = User.find_by_email(contact_hash["email"]) || User.create(user_params.merge({company_id: @company.id}))
+        company_contact = current_company.company_contacts.build(contact_hash.merge({user_id: user.id, user_company_id: user.company.id}))
         company_contact.save
       end.all?
     end

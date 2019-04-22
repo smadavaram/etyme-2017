@@ -2,10 +2,10 @@
   .modal-dialog
     .modal-content
       .modal-header
-        %button.close{"aria-hidden" => "true", "data-dismiss" => "modal", :type => "button"}
-          ×
         %h4.modal-title
           %strong Assign Status to  #{assignee.class.name} #{assignee.class.name=='Candidate' ?  assignee.try(:full_name) :assignee.try(:name) }
+        %button.close{"aria-hidden" => "true", "data-dismiss" => "modal", :type => "button"}
+          ×
       .modal-body.no-padding
         = form_for [:company,Status.new],html:{ class:'form-horizontal',id: 'group-val'} do |f|
           = f.hidden_field :statusable_id , value: assignee.id

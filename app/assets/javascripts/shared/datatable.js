@@ -10,7 +10,8 @@ $(document).ready(function () {
             {"data": "last_name"},
             {"data": "title"},
             {"data": "email"},
-            {"data": "phone"},
+            {"data": "groups"},
+            {"data": "reminder_note"},
             {"data": "actions",
                 searchable: false,
                 orderable: false}
