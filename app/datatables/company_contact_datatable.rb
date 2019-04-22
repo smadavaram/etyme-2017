@@ -36,8 +36,8 @@ class CompanyContactDatatable < ApplicationDatatable
   end
 
   def reminder_note record
-    content_tag(:span,record.user_company.reminders.last.title, class: 'label-info badge mr-1').html_safe +
-    content_tag(:span,record.user_company.statuses.last.status_type, class: 'label-info badge').html_safe
+    content_tag(:span,record.user_company&.reminders&.last&.title, class: 'label-info badge mr-1').html_safe +
+    content_tag(:span,record.user_company&.statuses&.last&.status_type, class: 'label-info badge').html_safe
   end
 
 
