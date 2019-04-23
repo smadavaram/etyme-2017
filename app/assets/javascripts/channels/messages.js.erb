@@ -38,10 +38,16 @@ function set_conversation(data){
     }
   }
 
-  message = (data.msg_att) ? data.msg +" <br/><a href='" + data.msg_att + "' target='_blank'>" + data.msg_att_name +"</a> "  : data.msg
+//  message = (data.msg_att) ? data.msg +" <br/><a href='" + data.msg_att + "' target='_blank'>" + data.msg_att_name +"</a> "  : data.msg
+//  $(data.dom).append(
+//    "<div class='" + ((current_user_id == data.usr && current_user_type == data.usr_typ ) ? 'message self' : 'message') + "'>" +
+//      "<div class='message-content'>" + message + "</div>" +
+//    "</div>"
+//  );
+//  $(data.dom).append(data.msg);
   $(data.dom).append(
-    "<div class='" + ((current_user_id == data.usr && current_user_type == data.usr_typ ) ? 'send_message' : 'receive_message') + "'>" +
-      "<span>" + message + "</span>" +
+    "<div class='" + ((current_user_id == data.usr && current_user_type == data.usr_typ ) ? 'chat-message self' : 'chat-message') + "'>" +
+      data.msg +
     "</div>"
   );
 

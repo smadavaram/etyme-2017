@@ -105,9 +105,10 @@ var ready = function () {
             chatBoxeslength = 0;
 
             for (x in chatBoxes) {
-                if ($("#chatbox_" + chatBoxes[x]).css('display') != 'none') {
-                    chatBoxeslength++;
-                }
+                chatBox.close(chatBoxes[x]);
+                // if ($("#chatbox_" + chatBoxes[x]).css('display') != 'none') {
+                //     chatBoxeslength++;
+                // }
             }
 
             if (chatBoxeslength == 0) {

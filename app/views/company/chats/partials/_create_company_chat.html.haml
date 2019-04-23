@@ -7,7 +7,8 @@
         %h2#myModalLabel.modal-title
           %strong New Chat
       .modal-body
-        = form_for :invited_company , url: company_company_create_chat_path(company.id),method: :post ,html:{ class:'form-horizontal',id: ''} do |f|
+        -#= form_for :invited_company , url: company_company_create_chat_path(company.id),method: :post ,html:{ class:'form-horizontal',id: ''} do |f|
+        = form_for :invited_company , url: company_conversations_path(user_type: "User"), method: :post ,html:{ class:'form-horizontal',id: ''} do |f|
           %br/
           .form-group
             %label.col-md-3.control-label

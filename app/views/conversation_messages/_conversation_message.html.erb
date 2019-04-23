@@ -1,11 +1,25 @@
-<li class="<%=  self_or_other(message) %>">
-  <div class="avatar">
-    <%= image_tag message.user.profile_image %>
+<!--<li class="<%#=  self_or_other(message) %>">-->
+  <!--<div class="avatar">-->
+    <!--<%#= image_tag message.user.profile_image %>-->
+  <!--</div>-->
+  <!--<div class="chatboxmessagecontent">-->
+    <!--<p><%#= message.body %></p>-->
+    <!--<time datetime="<%#= message.created_at %>" title="<%#= message.created_at.strftime("%d %b  %Y at %I:%M%p") %>">-->
+      <!--<%#= message_interlocutor(message).username %> • <%#= message.created_at.strftime("%H:%M %p") %>-->
+    <!--</time>-->
+  <!--</div>-->
+<!--</li>-->
+
+<!--<div class="chat-message <%#= (message.userable == current_user || message.userable == current_candidate) ? 'self' : '' %>">-->
+  <div class="chat-message-content-w">
+    <div class="chat-message-content">
+      <%= message.body %>
+    </div>
   </div>
-  <div class="chatboxmessagecontent">
-    <p><%= message.body %></p>
-    <time datetime="<%= message.created_at %>" title="<%= message.created_at.strftime("%d %b  %Y at %I:%M%p") %>">
-      <%= message_interlocutor(message).username %> • <%= message.created_at.strftime("%H:%M %p") %>
-    </time>
+  <div class="chat-message-avatar">
+    <%= image_tag message.userable.photo %>
   </div>
-</li>
+  <div class="chat-message-date">
+    <%= message.created_at.strftime("%l:%M%P") %>
+  </div>
+<!--</div>-->
