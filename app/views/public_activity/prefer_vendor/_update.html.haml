@@ -1,21 +1,27 @@
-- if params[:index]
-  %li.well.margin-bottom-10
-    .smart-timeline-icon
-      - if a. owner.logo.present?
-        = image_tag a.owner.logo,class:'',alt: "Company"
-      -else
-        = image_tag 'can.png',class:'',alt: "Company"
-      -#%img{:alt => "user", :height => "32", :src => "img/avatars/sunny.png", :width => "32"}/
-    .smart-timeline-time
-      %small
-      =  time_ago_in_words(a.try(:created_at).try(:localtime))+" ago"
-    .smart-timeline-content
-      %p.font-md
-        #{a.owner.try(:name).try(:titleize) } #{a.trackable.status.titleize} vendor request of company #{a.trackable.prefer_vendor.try(:name) }
--else
-  %span.name.font-sm.well.margin-bottom-10
-    %span.text-muted #{link_to a.owner.name.titleize, a.owner if a.owner}
-    %b
-      %span.pull-right.font-xs.text-muted
-        %i= time_ago_in_words(a.try(:created_at).try(:localtime))+" ago"
-    has #{a.trackable.status.titleize} your vendor request
+.ta-record
+  .ta-timestamp
+    %strong #{a.try(:created_at).strftime('%I:%M %P')}
+  .ta-activity
+    #{a.owner.try(:name).try(:titleize) } #{a.trackable.status.titleize} vendor request of company #{a.trackable.prefer_vendor.try(:name) }
+
+-#- if params[:index]
+-#  %li.well.margin-bottom-10
+-#    .smart-timeline-icon
+-#      - if a. owner.logo.present?
+-#        = image_tag a.owner.logo,class:'',alt: "Company"
+-#      -else
+-#        = image_tag 'can.png',class:'',alt: "Company"
+-#      -#%img{:alt => "user", :height => "32", :src => "img/avatars/sunny.png", :width => "32"}/
+-#    .smart-timeline-time
+-#      %small
+-#      =  time_ago_in_words(a.try(:created_at).try(:localtime))+" ago"
+-#    .smart-timeline-content
+-#      %p.font-md
+-#        #{a.owner.try(:name).try(:titleize) } #{a.trackable.status.titleize} vendor request of company #{a.trackable.prefer_vendor.try(:name) }
+-#-else
+-#  %span.name.font-sm.well.margin-bottom-10
+-#    %span.text-muted #{link_to a.owner.name.titleize, a.owner if a.owner}
+-#    %b
+-#      %span.pull-right.font-xs.text-muted
+-#        %i= time_ago_in_words(a.try(:created_at).try(:localtime))+" ago"
+-#    has #{a.trackable.status.titleize} your vendor request

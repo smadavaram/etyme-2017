@@ -1,7 +1,0 @@
-#content
-  .row
-    .col-xs-12.col-sm-12.col-md-12.col-lg-12
-      .smart-timeline
-        %ul.smart-timeline-list
-          - @activities.where("activities.owner_id = #{current_company.id} or activities.recipient_id = #{current_company.id} ").each do |activity|
-            = render_activity activity ,index: params[:index]

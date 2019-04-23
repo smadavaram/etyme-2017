@@ -115,9 +115,9 @@ class StaticController < ApplicationController
         @company = Company.find_by(website: domain)
 
         unless @company
-          respond_to do |format|
+          # respond_to do |format|
             redirect_to signin_path, error: 'Company Not Found'
-          end
+          # end
         end
       end
     end

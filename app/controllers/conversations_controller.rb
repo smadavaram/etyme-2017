@@ -13,6 +13,8 @@ class ConversationsController < ApplicationController
       user = Group.where(id: params[:chatable_id]).first
     elsif params[:user_type] == "Candidate"
       user = Candidate.where(id: params[:user_id]).first
+    elsif params[:user_type] == "Company"
+      user = Company.where(id: params[:user_id]).first
     else
       user = User.where(id: params[:user_id]).first
     end
