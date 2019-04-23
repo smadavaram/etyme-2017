@@ -19,7 +19,6 @@
  *= require smartadmin-production-plugins
  *= require smartadmin-production
  *= require smartadmin-skins
- *= require smartadmin-rtl
  *
  * We recommend you use "your_style.scss" to override SmartAdmin
  * specific styles this will also ensure you retrain your customization with
@@ -52,4 +51,5 @@
  *= require company/companies
  *= require bullettrain-global
  *= require bullettrain-public
+ *= require shared/datatable
  */

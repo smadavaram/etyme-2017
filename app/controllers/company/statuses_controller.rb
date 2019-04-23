@@ -39,7 +39,7 @@ class Company::StatusesController < Company::BaseController
         @candidate = current_company.candidates.find(params[:id])
         @statuses = @candidate.statuses
       elsif params[:type]=='Company'
-        @company = current_company.invited_companies.find_by(invited_company: params[:id]).invited_company
+        @company = current_company.company_contacts.find_by(user_company_id: params[:id]).user_company
         @statuses = @company.statuses
       end
     end

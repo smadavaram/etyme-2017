@@ -817,7 +817,6 @@ span.css-emoticon {
   border: 1px solid rgba(0, 0, 0, 0.25);
   background-color: #ffcc00;
   background-image: -webkit-gradient(linear, right top, left top, color-stop(0.41, #ffb800), color-stop(0.56, #ffdd55), color-stop(1, #ffeeaa));
-  background-image: -moz-linear-gradient(center right, #ffb800 41%, #ffdd55 56%, #ffeeaa 100%);
   -webkit-transition-property: color, background, transform;
   -webkit-transition-duration: 1s, 1s;
   -webkit-transition-timing-function: linear, ease-in;
@@ -855,12 +854,10 @@ span.css-emoticon.small-emoticon.spaced-emoticon {
 span.css-emoticon.red-emoticon {
   background-color: #eb0542;
   background-image: -webkit-gradient(linear, right top, left top, color-stop(0.41, #ff7c7c), color-stop(0.56, #e79494), color-stop(1, #e78ba5));
-  background-image: -moz-linear-gradient(center right, #ff7c7c 41%, #e79494 56%, #e78ba5 100%);
 }
 span.css-emoticon.pink-emoticon {
   background-color: #ff8fd4;
   background-image: -webkit-gradient(linear, right top, left top, color-stop(0.41, #ff8fd4), color-stop(0.56, #ff99d8), color-stop(1, #ffade1));
-  background-image: -moz-linear-gradient(center right, #ff8fd4 41%, #ff99d8 56%, #ffade1 100%);
 }
 /* styles for emoticons that need no rotation, like O_o */
 span.css-emoticon.no-rotate {
@@ -879,15 +876,12 @@ span.css-emoticon.no-rotate {
   -webkit-border-radius: 2.2em;
   border-radius: 2.2em;
   background-image: -webkit-gradient(linear, right bottom, right top, color-stop(0.41, #ffcc00), color-stop(0.56, #ffdd55), color-stop(1, #ffeeaa));
-  background-image: -moz-linear-gradient(center bottom, #ffcc00 41%, #ffdd55 56%, #ffeeaa 100%);
 }
 span.css-emoticon.no-rotate.red-emoticon {
   background-image: -webkit-gradient(linear, right bottom, right top, color-stop(0.41, #eb0542), color-stop(0.56, #eb265a), color-stop(1, #fa376e));
-  background-image: -moz-linear-gradient(center bottom, #eb0542 41%, #eb265a 56%, #fa376e 100%);
 }
 span.css-emoticon.no-rotate.pink-emoticon {
   background-image: -webkit-gradient(linear, right bottom, right top, color-stop(0.41, #ff8fd4), color-stop(0.56, #ff99d8), color-stop(1, #ffade1));
-  background-image: -moz-linear-gradient(center bottom, #ff8fd4 41%, #ff99d8 56%, #ffade1 100%);
 }
 /* Styles for emoticons that need to be rotated counter-clockwise, like <3 */
 span.css-emoticon.counter-rotated {
@@ -899,15 +893,12 @@ span.css-emoticon.counter-rotated {
   -webkit-box-shadow: -1px 1px 2px rgba(0, 0, 0, 0.5);
   box-shadow: -1px 1px 2px rgba(0, 0, 0, 0.5);
   background-image: -webkit-gradient(linear, left top, right top, color-stop(0.41, #ffcc00), color-stop(0.56, #ffdd55), color-stop(1, #ffeeaa));
-  background-image: -moz-linear-gradient(center left, #ffcc00 41%, #ffdd55 56%, #ffeeaa 100%);
 }
 span.css-emoticon.counter-rotated.red-emoticon {
   background-image: -webkit-gradient(linear, left top, right top, color-stop(0.41, #eb0542), color-stop(0.56, #eb265a), color-stop(1, #fa376e));
-  background-image: -moz-linear-gradient(center left, #eb0542 41%, #eb265a 56%, #fa376e 100%);
 }
 span.css-emoticon.counter-rotated.pink-emoticon {
   background-image: -webkit-gradient(linear, left top, right top, color-stop(0.41, #ff8fd4), color-stop(0.56, #ff99d8), color-stop(1, #ffade1));
-  background-image: -moz-linear-gradient(center left, #ff8fd4 41%, #ff99d8 56%, #ffade1 100%);
 }
 /* Styles for animated states */
 span.css-emoticon.un-transformed-emoticon,
@@ -940,8 +931,6 @@ span.css-emoticon.nintendo-controller {
   border-radius: 0;
   -webkit-border-radius: 0;
   -moz-border-radius: 0;
-  background: -webkit-gradient(linear, left bottom, left top, color-stop(0.09, #74798c), color-stop(0.55, #a5aabd));
-  background: -moz-linear-gradient(center bottom, #74798c 9%, #a5aabd 55%);
 }
 /*!
  * ClockPicker v{package.version} for Bootstrap (http://weareoutman.github.io/clockpicker/)
@@ -1269,21 +1258,21 @@ table.dataTable thead .sorting_asc_disabled,
 table.dataTable thead .sorting_desc_disabled {
   cursor: pointer;
 }
-table.dataTable thead .sorting {
-  background: asset-url('sort_both.png') no-repeat center right;
-}
-table.dataTable thead .sorting_asc {
-  background: asset-url('sort_asc.png') no-repeat center right;
-}
-table.dataTable thead .sorting_desc {
-  background: asset-url('sort_desc.png') no-repeat center right;
-}
-table.dataTable thead .sorting_asc_disabled {
-  background: asset-url('sort_asc_disabled.png') no-repeat center right;
-}
-table.dataTable thead .sorting_desc_disabled {
-  background: asset-url('sort_desc_disabled.png') no-repeat center right;
-}
+//table.dataTable thead .sorting {
+//  background: asset-url('sort_both.png') no-repeat center right;
+//}
+//table.dataTable thead .sorting_asc {
+//  background: asset-url('sort_asc.png') no-repeat center right;
+//}
+//table.dataTable thead .sorting_desc {
+//  background: asset-url('sort_desc.png') no-repeat center right;
+//}
+//table.dataTable thead .sorting_asc_disabled {
+//  background: asset-url('sort_asc_disabled.png') no-repeat center right;
+//}
+//table.dataTable thead .sorting_desc_disabled {
+//  background: asset-url('sort_desc_disabled.png') no-repeat center right;
+//}
 table.dataTable thead > tr > th {
   padding-left: 18px;
   padding-right: 18px;
@@ -1495,18 +1484,7 @@ ul.ColVis_collection li {
   /* Generated by http://www.colorzilla.com/gradient-editor/ */
   background: #ffffff;
   /* Old browsers */
-  background: -webkit-linear-gradient(top, #ffffff 0%, #f3f3f3 89%, #f9f9f9 100%);
-  /* Chrome10+,Safari5.1+ */
-  background: -moz-linear-gradient(top, #ffffff 0%, #f3f3f3 89%, #f9f9f9 100%);
-  /* FF3.6+ */
-  background: -ms-linear-gradient(top, #ffffff 0%, #f3f3f3 89%, #f9f9f9 100%);
-  /* IE10+ */
-  background: -o-linear-gradient(top, #ffffff 0%, #f3f3f3 89%, #f9f9f9 100%);
-  /* Opera 11.10+ */
-  background: linear-gradient(top, #ffffff 0%, #f3f3f3 89%, #f9f9f9 100%);
-  /* W3C */
-  filter: progid:DXImageTransform.Microsoft.gradient(startColorstr='#ffffff', endColorstr='#f9f9f9', GradientType=0);
-  /* IE6-9 */
+
 }
 .ColVis_Button:hover,
 ul.ColVis_collection li:hover {
@@ -1518,19 +1496,7 @@ ul.ColVis_collection li:hover {
   -o-box-shadow: 1px 1px 3px #999;
   box-shadow: 1px 1px 3px #999;
   background: #f3f3f3;
-  /* Old browsers */
-  background: -webkit-linear-gradient(top, #f3f3f3 0%, #e2e2e2 89%, #f4f4f4 100%);
-  /* Chrome10+,Safari5.1+ */
-  background: -moz-linear-gradient(top, #f3f3f3 0%, #e2e2e2 89%, #f4f4f4 100%);
-  /* FF3.6+ */
-  background: -ms-linear-gradient(top, #f3f3f3 0%, #e2e2e2 89%, #f4f4f4 100%);
-  /* IE10+ */
-  background: -o-linear-gradient(top, #f3f3f3 0%, #e2e2e2 89%, #f4f4f4 100%);
-  /* Opera 11.10+ */
-  background: linear-gradient(top, #f3f3f3 0%, #e2e2e2 89%, #f4f4f4 100%);
-  /* W3C */
-  filter: progid:DXImageTransform.Microsoft.gradient(startColorstr='#f3f3f3', endColorstr='#f4f4f4', GradientType=0);
-  /* IE6-9 */
+
 }
 button.ColVis_Button {
   height: 30px;
@@ -1604,34 +1570,11 @@ ul.ColVis_collection li.ColVis_Special {
   border-color: #555;
   background: #ededed;
   /* Old browsers */
-  background: -webkit-linear-gradient(top, #ededed 0%, #d6d6d6 77%, #e8e8e8 100%);
-  /* Chrome10+,Safari5.1+ */
-  background: -moz-linear-gradient(top, #ededed 0%, #d6d6d6 77%, #e8e8e8 100%);
-  /* FF3.6+ */
-  background: -ms-linear-gradient(top, #ededed 0%, #d6d6d6 77%, #e8e8e8 100%);
-  /* IE10+ */
-  background: -o-linear-gradient(top, #ededed 0%, #d6d6d6 77%, #e8e8e8 100%);
-  /* Opera 11.10+ */
-  background: linear-gradient(to bottom, #ededed 0%, #d6d6d6 77%, #e8e8e8 100%);
-  /* W3C */
-  filter: progid:DXImageTransform.Microsoft.gradient(startColorstr='#ededed', endColorstr='#e8e8e8', GradientType=0);
-  /* IE6-9 */
+
 }
 ul.ColVis_collection li.ColVis_Special:hover {
   background: #e2e2e2;
-  /* Old browsers */
-  background: -webkit-linear-gradient(top, #d0d0d0 0%, #d5d5d5 89%, #e2e2e2 100%);
-  /* Chrome10+,Safari5.1+ */
-  background: -moz-linear-gradient(top, #d0d0d0 0%, #d5d5d5 89%, #e2e2e2 100%);
-  /* FF3.6+ */
-  background: -ms-linear-gradient(top, #d0d0d0 0%, #d5d5d5 89%, #e2e2e2 100%);
-  /* IE10+ */
-  background: -o-linear-gradient(top, #d0d0d0 0%, #d5d5d5 89%, #e2e2e2 100%);
-  /* Opera 11.10+ */
-  background: linear-gradient(top, #d0d0d0 0%, #d5d5d5 89%, #e2e2e2 100%);
-  /* W3C */
-  filter: progid:DXImageTransform.Microsoft.gradient(startColorstr='#f3f3f3', endColorstr='#e2e2e2', GradientType=0);
-  /* IE6-9 */
+
 }
 span.ColVis_radio {
   display: inline-block;
@@ -1712,21 +1655,8 @@ a.DTTT_button {
   box-shadow: 1px 1px 3px #ccc;
   /* Generated by http://www.colorzilla.com/gradient-editor/ */
   background: #ffffff;
-  /* Old browsers */
-  background: -webkit-linear-gradient(top, #ffffff 0%, #f3f3f3 89%, #f9f9f9 100%);
-  /* Chrome10+,Safari5.1+ */
-  background: -moz-linear-gradient(top, #ffffff 0%, #f3f3f3 89%, #f9f9f9 100%);
-  /* FF3.6+ */
-  background: -ms-linear-gradient(top, #ffffff 0%, #f3f3f3 89%, #f9f9f9 100%);
-  /* IE10+ */
-  background: -o-linear-gradient(top, #ffffff 0%, #f3f3f3 89%, #f9f9f9 100%);
-  /* Opera 11.10+ */
-  background: linear-gradient(top, #ffffff 0%, #f3f3f3 89%, #f9f9f9 100%);
-  /* W3C */
-  filter: progid:DXImageTransform.Microsoft.gradient(startColorstr='#ffffff', endColorstr='#f9f9f9', GradientType=0);
-  /* IE6-9 */
+
 }
-/* Buttons are cunning border-box sizing - we can't just use that for A and DIV due to IE6/7 */
 button.DTTT_button {
   height: 30px;
   padding: 3px 8px;
@@ -1739,87 +1669,17 @@ div.DTTT_button:hover,
 a.DTTT_button:hover {
   border: 1px solid #666;
   text-decoration: none !important;
-  -webkit-box-shadow: 1px 1px 3px #999;
-  -moz-box-shadow: 1px 1px 3px #999;
-  -ms-box-shadow: 1px 1px 3px #999;
-  -o-box-shadow: 1px 1px 3px #999;
   box-shadow: 1px 1px 3px #999;
   background: #f3f3f3;
-  /* Old browsers */
-  background: -webkit-linear-gradient(top, #f3f3f3 0%, #e2e2e2 89%, #f4f4f4 100%);
-  /* Chrome10+,Safari5.1+ */
-  background: -moz-linear-gradient(top, #f3f3f3 0%, #e2e2e2 89%, #f4f4f4 100%);
-  /* FF3.6+ */
-  background: -ms-linear-gradient(top, #f3f3f3 0%, #e2e2e2 89%, #f4f4f4 100%);
-  /* IE10+ */
-  background: -o-linear-gradient(top, #f3f3f3 0%, #e2e2e2 89%, #f4f4f4 100%);
-  /* Opera 11.10+ */
-  background: linear-gradient(top, #f3f3f3 0%, #e2e2e2 89%, #f4f4f4 100%);
-  /* W3C */
-  filter: progid:DXImageTransform.Microsoft.gradient(startColorstr='#f3f3f3', endColorstr='#f4f4f4', GradientType=0);
-  /* IE6-9 */
+
 }
 button.DTTT_disabled,
 div.DTTT_disabled,
 a.DTTT_disabled {
   color: #999;
   border: 1px solid #d0d0d0;
-  background: #ffffff;
-  /* Old browsers */
-  background: -webkit-linear-gradient(top, #ffffff 0%, #f9f9f9 89%, #fafafa 100%);
-  /* Chrome10+,Safari5.1+ */
-  background: -moz-linear-gradient(top, #ffffff 0%, #f9f9f9 89%, #fafafa 100%);
-  /* FF3.6+ */
-  background: -ms-linear-gradient(top, #ffffff 0%, #f9f9f9 89%, #fafafa 100%);
-  /* IE10+ */
-  background: -o-linear-gradient(top, #ffffff 0%, #f9f9f9 89%, #fafafa 100%);
-  /* Opera 11.10+ */
-  background: linear-gradient(top, #ffffff 0%, #f9f9f9 89%, #fafafa 100%);
-  /* W3C */
-  filter: progid:DXImageTransform.Microsoft.gradient(startColorstr='#ffffff', endColorstr='#fafafa', GradientType=0);
-  /* IE6-9 */
+  background: #ffffff
 }
-/*
- * BUTTON_STYLES
- * Action specific button styles
- * If you want images - comment this back in
-
-a.DTTT_button_csv,
-a.DTTT_button_xls,
-a.DTTT_button_copy,
-a.DTTT_button_pdf,
-a.DTTT_button_print {
-	padding-right: 0px;
-}
-
-a.DTTT_button_csv span,
-a.DTTT_button_xls span,
-a.DTTT_button_copy span,
-a.DTTT_button_pdf span,
-a.DTTT_button_print span {
-	display: inline-block;
-	height: 24px;
-	line-height: 24px;
-	padding-right: 30px;
-}
-
-
-a.DTTT_button_csv span { background: asset-url('csv.png') no-repeat bottom right; }
-a.DTTT_button_csv:hover span { background: asset-url('csv_hover.png') no-repeat center right; }
-
-a.DTTT_button_xls span { background: asset-url('xls.png') no-repeat center right; }
-a.DTTT_button_xls:hover span { background: #f0f0f0 asset-url('xls_hover.png') no-repeat center right; }
-
-a.DTTT_button_copy span { background: asset-url('copy.png') no-repeat center right; }
-a.DTTT_button_copy:hover span { background: #f0f0f0 asset-url('copy_hover.png') no-repeat center right; }
-
-a.DTTT_button_pdf span { background: asset-url('pdf.png') no-repeat center right; }
-a.DTTT_button_pdf:hover span { background: #f0f0f0 asset-url('pdf_hover.png') no-repeat center right; }
-
-a.DTTT_button_print span { background: asset-url('print.png') no-repeat center right; }
-a.DTTT_button_print:hover span { background: #f0f0f0 asset-url('print_hover.png') no-repeat center right; }
-
- */
 button.DTTT_button_collection span {
   padding-right: 17px;
   /*background: asset-url('collection.png') no-repeat center right;*/
@@ -1921,18 +1781,7 @@ div.DTTT_collection a.DTTT_button {
   padding: 10px 30px;
   background: #ffffff;
   /* Old browsers */
-  background: -webkit-linear-gradient(top, #ffffff 0%, #f3f3f3 89%, #f9f9f9 100%);
-  /* Chrome10+,Safari5.1+ */
-  background: -moz-linear-gradient(top, #ffffff 0%, #f3f3f3 89%, #f9f9f9 100%);
-  /* FF3.6+ */
-  background: -ms-linear-gradient(top, #ffffff 0%, #f3f3f3 89%, #f9f9f9 100%);
-  /* IE10+ */
-  background: -o-linear-gradient(top, #ffffff 0%, #f3f3f3 89%, #f9f9f9 100%);
-  /* Opera 11.10+ */
-  background: linear-gradient(top, #ffffff 0%, #f3f3f3 89%, #f9f9f9 100%);
-  /* W3C */
-  filter: progid:DXImageTransform.Microsoft.gradient(startColorstr='#ffffff', endColorstr='#f9f9f9', GradientType=0);
-  /* IE6-9 */
+
   opacity: 0.95;
   border: 1px solid black;
   border: 1px solid rgba(0, 0, 0, 0.5);
@@ -2005,24 +1854,24 @@ table.has-columns-hidden > tbody > tr.row-detail > td > ul > li > span.columnTit
 .dt-toolbar-footer > :last-child {
   padding-right: 0px !important;
 }
-table.dataTable thead .sorting {
-  background: url(data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABMAAAATAgMAAAAPPt5fAAAACVBMVEUAAADIyMjl5eVIBBP/AAAAAXRSTlMAQObYZgAAAClJREFUCNdjwAYEwGQKiGDsBJFsTA5AUoJhAqZaiDhEDVg9RC/MHEwAANsMA91AQfd/AAAAAElFTkSuQmCC) no-repeat center right;
-}
-table.dataTable thead .sorting_asc {
-  background: url(data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABMAAAATAQMAAABInqSPAAAABlBMVEUAAABVVVUT3Vn+AAAAAXRSTlMAQObYZgAAAB1JREFUCNdjwAkcgPgBAwPjBwYG5h8MDOx/GAgBAKRJBBCQbHkwAAAAAElFTkSuQmCC) no-repeat center right;
-}
-table.dataTable thead .sorting_desc {
-  background: url(data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABMAAAATAQMAAABInqSPAAAABlBMVEUAAABVVVUT3Vn+AAAAAXRSTlMAQObYZgAAABxJREFUCNdjIATY/zAwMP9gYGD8AOQ8AGIHnEoBkNkEEEbbutQAAAAASUVORK5CYII=) no-repeat center right;
-}
-table.dataTable thead .sorting_asc_disabled {
-  background: url(data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABMAAAATAQMAAABInqSPAAAABlBMVEUAAABUVFR8AzIeAAAAAnRSTlMAf7YpoZUAAAAdSURBVAjXY8AJHID4AQMD4wcGBuYfDAzsfxgIAQCkSQQQkGx5MAAAAABJRU5ErkJggg==) no-repeat center right;
-}
-table.dataTable thead .sorting_desc_disabled {
-  background: url(data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABMAAAATAQMAAABInqSPAAAABlBMVEUAAABUVFR8AzIeAAAAAnRSTlMAf7YpoZUAAAAcSURBVAjXYyAE2P8wMDD/YGBg/ADkPABiB5xKAZDZBBBG27rUAAAAAElFTkSuQmCC) no-repeat center right;
-}
+//table.dataTable thead .sorting {
+//  background: url(data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABMAAAATAgMAAAAPPt5fAAAACVBMVEUAAADIyMjl5eVIBBP/AAAAAXRSTlMAQObYZgAAAClJREFUCNdjwAYEwGQKiGDsBJFsTA5AUoJhAqZaiDhEDVg9RC/MHEwAANsMA91AQfd/AAAAAElFTkSuQmCC) no-repeat center right;
+//}
+//table.dataTable thead .sorting_asc {
+//  background: url(data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABMAAAATAQMAAABInqSPAAAABlBMVEUAAABVVVUT3Vn+AAAAAXRSTlMAQObYZgAAAB1JREFUCNdjwAkcgPgBAwPjBwYG5h8MDOx/GAgBAKRJBBCQbHkwAAAAAElFTkSuQmCC) no-repeat center right;
+//}
+//table.dataTable thead .sorting_desc {
+//  background: url(data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABMAAAATAQMAAABInqSPAAAABlBMVEUAAABVVVUT3Vn+AAAAAXRSTlMAQObYZgAAABxJREFUCNdjIATY/zAwMP9gYGD8AOQ8AGIHnEoBkNkEEEbbutQAAAAASUVORK5CYII=) no-repeat center right;
+//}
+//table.dataTable thead .sorting_asc_disabled {
+//  background: url(data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABMAAAATAQMAAABInqSPAAAABlBMVEUAAABUVFR8AzIeAAAAAnRSTlMAf7YpoZUAAAAdSURBVAjXY8AJHID4AQMD4wcGBuYfDAzsfxgIAQCkSQQQkGx5MAAAAABJRU5ErkJggg==) no-repeat center right;
+//}
+//table.dataTable thead .sorting_desc_disabled {
+//  background: url(data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABMAAAATAQMAAABInqSPAAAABlBMVEUAAABUVFR8AzIeAAAAAnRSTlMAf7YpoZUAAAAcSURBVAjXYyAE2P8wMDD/YGBg/ADkPABiB5xKAZDZBBBG27rUAAAAAElFTkSuQmCC) no-repeat center right;
+//}
 table.dataTable thead .sorting_asc,
 table.dataTable thead .sorting_desc {
-  background-color: #eeeeee;
+  background-color: transparent;
 }
 .dataTables_empty {
   padding: 20px 10px !important;
@@ -2170,12 +2019,7 @@ ul.ColVis_collection li label {
   text-align: center;
   font-size: 1.2em;
   background-color: white;
-  background: -webkit-gradient(linear, left top, right top, color-stop(0%, rgba(255, 255, 255, 0)), color-stop(25%, rgba(255, 255, 255, 0.9)), color-stop(75%, rgba(255, 255, 255, 0.9)), color-stop(100%, rgba(255, 255, 255, 0)));
-  background: -webkit-linear-gradient(left, rgba(255, 255, 255, 0) 0%, rgba(255, 255, 255, 0.9) 25%, rgba(255, 255, 255, 0.9) 75%, rgba(255, 255, 255, 0) 100%);
-  background: -moz-linear-gradient(left, rgba(255, 255, 255, 0) 0%, rgba(255, 255, 255, 0.9) 25%, rgba(255, 255, 255, 0.9) 75%, rgba(255, 255, 255, 0) 100%);
-  background: -ms-linear-gradient(left, rgba(255, 255, 255, 0) 0%, rgba(255, 255, 255, 0.9) 25%, rgba(255, 255, 255, 0.9) 75%, rgba(255, 255, 255, 0) 100%);
-  background: -o-linear-gradient(left, rgba(255, 255, 255, 0) 0%, rgba(255, 255, 255, 0.9) 25%, rgba(255, 255, 255, 0.9) 75%, rgba(255, 255, 255, 0) 100%);
-  background: linear-gradient(to right, rgba(255, 255, 255, 0) 0%, rgba(255, 255, 255, 0.9) 25%, rgba(255, 255, 255, 0.9) 75%, rgba(255, 255, 255, 0) 100%);
+
 }
 /* custom font icon */
 .dataTable tbody .details-control {
@@ -3169,12 +3013,7 @@ NOTE: use percentage font sizes or else old IE chokes
   borrowed from twitter bootstrap (http://twitter.github.com/bootstrap/)
 */
 .fc-state-default {
-  background-color: #f5f5f5;
-  background-image: -moz-linear-gradient(top, #ffffff, #e6e6e6);
-  background-image: -webkit-gradient(linear, 0 0, 0 100%, from(#ffffff), to(#e6e6e6));
-  background-image: -webkit-linear-gradient(top, #ffffff, #e6e6e6);
-  background-image: -o-linear-gradient(top, #ffffff, #e6e6e6);
-  background-image: linear-gradient(to bottom, #ffffff, #e6e6e6);
+
   background-repeat: repeat-x;
   border-color: #e6e6e6 #e6e6e6 #bfbfbf;
   border-color: rgba(0, 0, 0, 0.1) rgba(0, 0, 0, 0.1) rgba(0, 0, 0, 0.25);
@@ -5506,7 +5345,7 @@ body.nooverflow {
 }
 .jcrop-dark .jcrop-border {
   background: #000;
-  filter: alpha(opacity=70) !important;
+  fil1729ter: alpha(opacity=70) !important;
   opacity: 0.7 !important;
 }
 .jcrop-dark .jcrop-handle {
@@ -5834,11 +5673,7 @@ img.jcrop-preview {
   border-right: 0 none;
   border-top: 0 none;
   background-color: #f3f3f3;
-  background-image: -moz-linear-gradient(top, #f3f3f3, #e2e2e2);
-  background-image: -webkit-gradient(linear, 0 0, 0 100%, from(#f3f3f3), to(#e2e2e2));
-  background-image: -webkit-linear-gradient(top, #f3f3f3, #e2e2e2);
-  background-image: -o-linear-gradient(top, #f3f3f3, #e2e2e2);
-  background-image: linear-gradient(to bottom, #f3f3f3, #e2e2e2);
+
   background-repeat: repeat-x;
 }
 .ui-jqgrid .ui-jqgrid-caption {
@@ -5897,12 +5732,7 @@ img.jcrop-preview {
 }
 tr.ui-jqgrid-labels {
   background-color: #eee;
-  background-image: -webkit-gradient(linear, 0 0, 0 100%, from(#f2f2f2), to(#fafafa));
-  background-image: -webkit-linear-gradient(top, #f2f2f2 0, #fafafa 100%);
-  background-image: -moz-linear-gradient(top, #f2f2f2 0, #fafafa 100%);
-  background-image: -ms-linear-gradient(top, #f2f2f2 0, #fafafa 100%);
-  background-image: -o-linear-gradient(top, #f2f2f2 0, #fafafa 100%);
-  background-image: -linear-gradient(top, #f2f2f2 0, #fafafa 100%);
+
   font-size: 12px;
 }
 .ui-th-column,
@@ -6552,12 +6382,7 @@ a.clearsearchclass {
 }
 .ui-jqgrid .ui-jqgrid-htable th {
   background-color: #eee;
-  background-image: -webkit-gradient(linear, 0 0, 0 100%, from(#f2f2f2), to(#fafafa));
-  background-image: -webkit-linear-gradient(top, #f2f2f2 0, #fafafa 100%);
-  background-image: -moz-linear-gradient(top, #f2f2f2 0, #fafafa 100%);
-  background-image: -ms-linear-gradient(top, #f2f2f2 0, #fafafa 100%);
-  background-image: -o-linear-gradient(top, #f2f2f2 0, #fafafa 100%);
-  background-image: -linear-gradient(top, #f2f2f2 0, #fafafa 100%);
+
 }
 .ui-jqgrid .ui-jqgrid-htable th div {
   padding-right: 0px;
@@ -6930,10 +6755,7 @@ a.clearsearchclass {
   -webkit-box-shadow: none;
   box-shadow: none;
   background: #fff;
-  background: -webkit-gradient(linear, left bottom, left top, color-stop(0.85, #ffffff), color-stop(0.99, #eeeeee));
-  background: -webkit-linear-gradient(center bottom, #ffffff 85%, #eeeeee 99%);
-  background: -moz-linear-gradient(center bottom, #ffffff 85%, #eeeeee 99%);
-  background: linear-gradient(top, #ffffff 85%, #eeeeee 99%);
+
   /* rtl settings */
 }
 .smart-rtl .select2-search input {
@@ -6970,10 +6792,7 @@ a.clearsearchclass {
 }
 .select2-search input.select2-active {
   background: #ffffff asset-url('select2-spinner.gif') no-repeat 100%;
-  background: asset-url('select2-spinner.gif') no-repeat 100%, -webkit-gradient(linear, left bottom, left top, color-stop(0.85, #ffffff), color-stop(0.99, #eeeeee));
-  background: asset-url('select2-spinner.gif') no-repeat 100%, -webkit-linear-gradient(center bottom, #ffffff 85%, #eeeeee 99%);
-  background: asset-url('select2-spinner.gif') no-repeat 100%, -moz-linear-gradient(center bottom, #ffffff 85%, #eeeeee 99%);
-  background: asset-url('select2-spinner.gif') no-repeat 100%, linear-gradient(top, #ffffff 85%, #eeeeee 99%);
+
 }
 .select2-container--open .select2-selection,
 .select2-container-active .select2-choice,

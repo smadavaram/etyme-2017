@@ -24,6 +24,7 @@ class User < ApplicationRecord
 
 
   attr_accessor :temp_working_hours
+  attr_accessor :invitation_as_contact
 
   belongs_to :company, optional: true
   belongs_to :address           , foreign_key: :primary_address_id, optional: true
@@ -50,6 +51,7 @@ class User < ApplicationRecord
   has_many :chats               ,through: :chat_users
   has_many :reminders
   has_many :statuses
+  has_many :company_contacts
 
   has_many :conversation_messages ,as: :userable
   has_many :document_signs       , as: :signable

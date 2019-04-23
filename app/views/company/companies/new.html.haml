@@ -10,7 +10,7 @@
             = i.hidden_field :invited_by_company_id, value: current_company.id
         .row
           .col-md-6
-            - f.object.company_contacts.build
+            - f.object.company_contacts.build unless f.object.company_contacts.last&.new_record?
             = f.fields_for :company_contacts do |contact|
               = render 'company/companies/partials/company_contact_fields', f: contact
             %br/
@@ -25,7 +25,7 @@
                   = f.text_field :website, :placeholder => 'Website', required: true, data: {website_field: true}
                 .col-md-6
                   = f.text_field :domain, :placeholder => "https://address.com", required: true, minlength: "3", data: {domain_field: true}
-              = f.select :company_type, [["Staffing/Training/Vendors", 'vendor'], ["Client/Implementation Patner", 'hiring_manager']], {include_blank: '-- Select Type --'}, :class => 'company_type', required: true, label: "Select type", data: {company_type_field: true}
+              = f.select :company_type, [["Staffing/Training/Vendors", 'vendor'], ["Client/Implementation Patner", 'hiring_manager']], {include_blank: '-- Select Type --'}, :class => 'company_type select-height', required: true, label: "Select type", data: {company_type_field: true}
               = f.phone_field :phone, placeholder: 'Phone', data: {phone_field: true}
               = f.fields_for :custom_fields do |lt|
                 = render 'shared/custom_fields', f: lt

@@ -1,7 +1,7 @@
 class Company < ApplicationRecord
 
   EXCLUDED_SUBDOMAINS = %w(admin www administrator admins owner etyme mail ftp)
-
+  EXCLUDED_DOMAINS = %w(gmail.com facebook.com reddit.com yahoo.com rediff.com facebookmail.com fb.com)
   include PublicActivity::Model
   include QuerySelector
 
@@ -47,7 +47,8 @@ class Company < ApplicationRecord
   has_many :candidates                , through: :candidates_companies
   has_many :prefer_vendors
   has_many :perfer_vendor_companies   ,class_name: "PreferVendor" , foreign_key: 'vendor_id'
-  has_many :company_contacts          ,dependent:  :destroy
+  has_many :company_contacts, class_name: 'CompanyContact', foreign_key: "company_id", dependent:  :destroy
+  has_many :user_contacts, class_name: 'CompanyContact', foreign_key: "user_company_id"
   has_many :comments                  ,as: :commentable
   has_many :custom_fields             , as: :customizable             ,dependent: :destroy
   has_many :reminders                 ,as:  :reminderable
@@ -100,6 +101,7 @@ class Company < ApplicationRecord
   # validates_uniqueness_of    :domain,  message: "This company is already registered on etyme. In order to invited to the company; Please talk to the admin / owner of the company.  Or you can register a new company with a different name"
   validates_exclusion_of :slug, in: EXCLUDED_SUBDOMAINS, message: "is not allowed. Please choose another subdomain"
   validates_format_of :slug, with: /\A[\w\-]+\Z/i, allow_blank: true, message: "is not allowed. Please choose another subdomain."
+  validates_exclusion_of :domain, in: EXCLUDED_DOMAINS, message: "is not allowed. Please use comapany email"
 
   accepts_nested_attributes_for :owner    , allow_destroy: true
   accepts_nested_attributes_for :company_contacts, allow_destroy: true
@@ -157,7 +159,7 @@ class Company < ApplicationRecord
   end
 
   def etyme_url
-    Rails.env.development? ? "#{self.domain}.#{ENV['domain']}" : "#{self.domain}.#{ENV['domain']}"
+    Rails.env.development? ? "#{self.slug}.#{ENV['domain']}" : "#{self.slug}.#{ENV['domain']}"
   end
 
   def find_sent_or_received_invitation(invitation_id)

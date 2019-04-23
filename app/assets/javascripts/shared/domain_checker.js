@@ -27,7 +27,7 @@ DomainChecker.prototype.checkForAvailableDomain = function(emailFieldValue) {
 
     success: function(response) {
       if(response.status == "ok"){
-        _this.domainField.val(response.slug);
+        _this.domainField.val(response.website);
         _this.websiteField.val(response.website);
         _this.nameField.val(response.name);
         _this.companyTypeField.val(response.company_type);

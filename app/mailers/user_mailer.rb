@@ -9,13 +9,14 @@ class UserMailer < ApplicationMailer
   end
 
   def confirmation_instructions(user, token, opts = {})
-    @owner = user
-    @company = user.company rescue nil
-
-    if @owner && @owner.etyme_url
-      @link  = @company.present? ? "http://#{@company.etyme_url}/users/confirmation?confirmation_token=#{token}" : "http://#{@owner.etyme_url}/candidates/confirmation?confirmation_token=#{token}"
-      @email =  "Etyme <no-reply@etyme.com>"
-      mail(:to => @owner.email, :subject => "Welcome to Etyme",:from => @email)
+    unless user.invitation_as_contact.blank?
+      @owner = user
+      @company = user.company rescue nil
+      if @owner && @owner.etyme_url
+        @link = @company.present? ? "http://#{@company.etyme_url}/users/confirmation?confirmation_token=#{token}" : "http://#{@owner.etyme_url}/candidates/confirmation?confirmation_token=#{token}"
+        @email = "Etyme <no-reply@etyme.com>"
+        mail(:to => @owner.email, :subject => "Welcome to Etyme", :from => @email)
+      end
     end
   end
 
@@ -89,7 +90,7 @@ class UserMailer < ApplicationMailer
   private
 
   def self.exception_admins
-    ['tanays.tps@gmail.com']
+    ['umair.raza101@gmail.com']
   end
 
 

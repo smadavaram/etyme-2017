@@ -15,7 +15,8 @@ class Company::InvitationsController < Devise::InvitationsController
   end
 
   def update
-    self.resource = resource_class.find_by_invitation_token(update_resource_params[:invitation_token],true)
+    if params[:user][:password] == params[:user][:password_confirmation]
+    resource = resource_class.find_by_invitation_token(update_resource_params[:invitation_token],true)
     if resource.present?
       resource = resource_class.accept_invitation!(update_resource_params)
       if resource && resource.valid?
@@ -33,7 +34,10 @@ class Company::InvitationsController < Devise::InvitationsController
       flash[:errors] = resource.present? ? resource.errors.full_messages : ['Something is not right, Please try again.']
       redirect_back fallback_location: root_path
     end
-
+    else
+      flash[:notice] =  "Password Does not match"
+      redirect_to accept_user_invitation_path(invitation_token: update_resource_params[:invitation_token])
+  end
   end
 
   private

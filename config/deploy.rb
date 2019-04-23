@@ -1,118 +1,43 @@
-# require 'mina/multistage'
-# require 'mina/bundler'
-# require 'mina/rails'
-# require 'mina/git'
-# require 'mina/rvm'
+# config valid only for current version of Capistrano
+lock '3.11.0'
 
-# # Manually new these paths in shared/ (eg: shared/config/database.yml) in your server.
-# # They will be linked in the 'deploy:link_shared_paths' step.
-# set :repository, 'git@github.com:smadavaram/etyme-2017.git'
-# set :branch, 'update_rails_version'
-# set :shared_paths, ['config/application.yml','config/database.yml', 'log','tmp']
+set :application, 'etyme'
+set :repo_url, 'git@github.com:smadavaram/etyme-2017.git'
 
-# task :setup => :remote_environment do
-#   queue! %[mkdir -p "#{deploy_to}/shared/log"]
-#   queue! %[chmod g+rx,u+rwx "#{deploy_to}/shared/log"]
+# Default branch is :master
+# ask :branch, proc { `git rev-parse --abbrev-ref HEAD`.chomp }.call
 
-#   queue! %[mkdir -p "#{deploy_to}/shared/tmp"]
-#   queue! %[chmod g+rx,u+rwx "#{deploy_to}/shared/tmp"]
+# Default deploy_to directory is /var/www/my_app_name
+set :keep_releases, 5
+# Default value for :scm is :git
+# set :scm, :git
 
-#   queue! %[mkdir -p "#{deploy_to}/shared/config"]
-#   queue! %[chmod g+rx,u+rwx "#{deploy_to}/shared/config"]
+# Default value for :format is :pretty
+# set :format, :pretty
 
-#   queue! %[touch "#{deploy_to}/shared/config/database.yml"]
-#   queue  %[echo "-----> Be sure to edit 'shared/config/database.yml'."]
+# Default value for :log_level is :debug
+# set :log_level, :debug
 
-#   queue! %[mkdir -p "#{deploy_to}/shared/tmp/pids"]
-#   queue! %[chmod g+rx,u+rwx "#{deploy_to}/shared/tmp"]
-#   queue! %[chmod g+rx,u+rwx "#{deploy_to}/shared/tmp/pids"]
+# Default value for :pty is false
+# set :pty, true
 
-#   queue! %[mkdir -p "#{deploy_to}/shared/tmp/sockets"]
-#   queue! %[chmod g+rx,u+rwx "#{deploy_to}/shared/tmp/sockets"]
+set :linked_files, fetch(:linked_files, []).push('config/database.yml', 'config/application.yml')
+set :linked_dirs, fetch(:linked_dirs, []).push('log', 'tmp/pids', 'tmp/cache', 'tmp/sockets', 'vendor/bundle', 'public/system', 'public/uploads')
+# Default value for default_env is {}
+# set :default_env, { path: "/opt/ruby/bin:$PATH" }
 
-#   queue! %[touch "#{deploy_to}/shared/config/application.yml"]
-#   queue  %[echo "-----> Be sure to edit '#{deploy_to}/shared/config/application.yml'."]
+# Default value for keep_releases is 5
+# set :keep_releases, 5
 
-# end
+namespace :deploy do
 
-# desc "Deploys the current version to the server."
-# task :remote_environment do
-#   invoke :'rvm:use', 'ruby-2.3.1@etyme'
-# end
-# task :deploy => :remote_environment do
-#   deploy do
-#     # invoke :'cron:clear'
-#     # invoke :'delayed_job:stop'
-#     invoke :'git:clone'
-#     invoke :'deploy:link_shared_paths'
-#     invoke :'bundle:install'
-#     invoke :'rails:db_migrate'
-#     invoke :'rails:assets_precompile'
+  after :restart, :clear_cache do
+    on roles(:web), in: :groups, limit: 3, wait: 10 do
+      # Here we can do anything such as:
+      # within release_path do
+      #   execute :rake, 'cache:clear'
+      # end
+    end
+  end
 
-#     on :launch do
-#       # invoke :'puma:restart'
-#       # invoke :'cron:update'
-#       # invoke :'delayed_job:start'
-#     end
-#   end
-# end
-
-# namespace :cron do
-#   desc "create update cron"
-#   task :update do
-#     queue 'echo "-----> update cron"'
-#     queue "cd #{deploy_to}/#{current_path} && bundle exec whenever -i"
-#   end
-#   task :clear do
-#     queue 'echo "-----> clearing cron"'
-#     queue "cd #{deploy_to}/#{current_path} && bundle exec whenever -c"
-#   end
-# end
-
-
-# namespace :puma do
-#   desc "Start the application"
-#   task :start do
-#     queue 'echo "-----> Start Puma"'
-#     queue "cd #{deploy_to}/#{current_path} && RAILS_ENV=production bin/puma.sh start"
-#   end
-
-#   desc "Stop the application"
-#   task :stop do
-#     queue 'echo "-----> Stop Puma"'
-#     queue "cd #{deploy_to}/#{current_path} && RAILS_ENV=production bin/puma.sh stop"
-#   end
-
-#   desc "Restart the application"
-#   task :restart do
-#     queue 'echo "-----> Restart Puma"'
-#     queue "cd #{deploy_to}/#{current_path} && RAILS_ENV=production bin/puma.sh restart"
-
-#   end
-# end
-
-# namespace :delayed_job do
-#   desc 'Starts delayed job threads'
-#   task :start => :remote_environment do
-#     queue "cd #{deploy_to}/#{current_path} && RAILS_ENV=production bin/delayed_job -n 3 start"
-#   end
-
-#   desc 'Stops delayed job threads'
-#   task :stop => :remote_environment do
-#     queue "cd #{deploy_to}/#{current_path} &&  RAILS_ENV=production bin/delayed_job stop"
-#   end
-# end
-
-# ### Connect Rails Console###########
-# desc 'RUN Console Locally'
-# task "rails:console" => :remote_environment do
-#   invoke :'rvm:use[2.3.1@etyme]'
-#   queue! "cd #{deploy_to}/#{current_path} ; RAILS_ENV=production bundle exec rails c"
-# end
-
-# ### Check Logs ################
-# desc 'Tail Logs'
-# task "rails:log" => :remote_environment do
-#   invoke :'rvm:use[2.3.1@etyme]'
-#   queue! "cd #{deploy_to}/#{current_path} ; less log/production.log"
-# end
+end
