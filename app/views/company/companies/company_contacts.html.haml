@@ -8,11 +8,12 @@
             %table#company-contacts-datatable.table.table-striped.table-lightfont{"data-source" => "#{company_contacts_company_companies_path(format: :json)}"}
               %thead
                 %tr
+                  %th
+                    %input{ type:"checkbox", name:"select_all", id:"example-select-all"}
                   %th Company
-                  %th First Name
-                  %th Last Name
+                  %th Name
                   %th Title
-                  %th Email
+                  %th contact
                   %th Groups
                   %th Reminder/Note
                   %th Actions

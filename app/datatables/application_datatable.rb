@@ -8,6 +8,7 @@ class ApplicationDatatable < AjaxDatatablesRails::ActiveRecord
   def_delegator :@view, :polymorphic_path
   def_delegator :@view, :current_company
   def_delegator :@view, :image_tag
+  def_delegator :@view, :mail_to
 
   def initialize(params, opts = {})
     @view = opts[:view_context]

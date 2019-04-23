@@ -8,3 +8,8 @@
 .data-table-icons{
     margin-right:5px;
 }
+
+.dataTable th, .dataTable td, .dataTable .ellipsis {
+    white-space: nowrap;
+    overflow: hidden;
+}

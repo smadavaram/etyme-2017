@@ -7,11 +7,12 @@ class CompanyContactDatatable < ApplicationDatatable
 
   def view_columns
     @view_columns ||= {
+        id: {source: "CompanyContact.id"},
         logo: {source: "Company.name"},
         first_name: {source: "CompanyContact.first_name"},
         last_name: {source: "CompanyContact.last_name"},
         title: {source: "CompanyContact.title"},
-        email: {source: "CompanyContact.email"}
+        contact: {source: "CompanyContact.phone"}
     }
   end
 
@@ -19,11 +20,11 @@ class CompanyContactDatatable < ApplicationDatatable
   def data
     records.map do |record|
       {
+          id:  record.id,
           logo: record.try(:user_company).try(:name),
           first_name: record.first_name,
-          last_name: record.last_name,
           title: record.title,
-          email: record.email,
+          contact: contact_icon( record),
           groups: groups(record),
           reminder_note: reminder_note(record),
           actions: actions(record)
@@ -40,6 +41,11 @@ class CompanyContactDatatable < ApplicationDatatable
     content_tag(:span,record.user_company&.statuses&.last&.status_type, class: 'label-info badge').html_safe
   end
 
+  def contact_icon record
+    mail_to(record.email, content_tag(:i, nil, class: 'fa fa-envelope').html_safe, title: record.email, class: 'data-table-icons') +
+        link_to(content_tag(:i, nil, class: 'fa fa-phone ').html_safe, '#', title: record.phone, class: 'data-table-icons')
+
+  end
 
   def groups record
     record.groups.map{|group| content_tag(:span, group.group_name, class: 'badge bg-color-blue margin-bottom-5 mr-1').html_safe }.join('').html_safe
@@ -48,7 +54,6 @@ class CompanyContactDatatable < ApplicationDatatable
   def actions record
     link_to(content_tag(:i, nil, class: 'fa fa-sticky-note ').html_safe, company_statuses_path(id: record.user_company, type: 'Company'), title: 'Status Log', class: 'data-table-icons') +
         link_to(content_tag(:i, nil, class: 'fa fa-sticky-note ').html_safe, company_assign_status_path(record.user_company), remote: :true, title: "Assign Status", class: 'data-table-icons') +
-        link_to(content_tag(:i, nil, class: 'fa fa-phone ').html_safe, '#', title: record.phone, class: 'data-table-icons') +
         link_to(content_tag(:i, nil, class: 'fa fa-user-plus ').html_safe, '#', title: 'Follow/Unfollow', class: 'data-table-icons') +
         link_to(content_tag(:i, nil, class: 'fa fa-bell ').html_safe, company_company_add_reminder_path(record.user_company), remote: :true, title: "Remind Me", class: 'data-table-icons') +
         link_to(content_tag(:i, nil, class: 'fa fa-users').html_safe, company_company_assign_groups_to_contact_path(record), remote: true, title: 'Add to Group', class: 'data-table-icons')
