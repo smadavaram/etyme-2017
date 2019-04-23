@@ -1,21 +1,21 @@
-<div class="chat_box" data-conversation-id="<%= @conversation.id if @conversation.present?%>" id="conversation-chat-box">
-  <div class="key_mgs_box">
-    <div class="keys_head">
-      <h5><%= @conversation.senderable == current_candidate ? @conversation.recipientable.full_name : @conversation.senderable.full_name if @conversation.present? %></h5>
-    </div>
-  </div>
-  <div class="tab-content">
-    <div class="tab-pane active chatboxcontent-page" id="conversation_<%= @conversation.id if @conversation.present? %>">
-      <div class="keystroke_msgs_box">
-        <% @messages.each do |msg| %>
-          <div class="<%= msg.userable == current_candidate ? 'send_message' : 'receive_message' %>">
-            <span><%= msg.body %></span>
-          </div>
-        <% end if @messages.present? %>
-      </div>
-    </div>
-  </div>
-  <div class="panel-footer">
+<!--<div class="chat_box" data-conversation-id="<%#= @conversation.id if @conversation.present?%>" id="conversation-chat-box">-->
+  <!--<div class="key_mgs_box">-->
+    <!--<div class="keys_head">-->
+      <!--<h5><%#= @conversation.senderable == current_candidate ? @conversation.recipientable.full_name : @conversation.senderable.full_name if @conversation.present? %></h5>-->
+    <!--</div>-->
+  <!--</div>-->
+  <!--<div class="tab-content">-->
+    <!--<div class="tab-pane active" id="home" role="tabpanel">-->
+      <!--<div class="keystroke_msgs_box" id="conversation_<%#= @conversation.id if @conversation.present? %>">-->
+        <!--<%# @messages.each do |msg| %>-->
+          <!--<div class="<%#= msg.userable == current_candidate ? 'send_message' : 'receive_message' %>">-->
+            <!--<span><%#= msg.body %></span>-->
+          <!--</div>-->
+        <!--<%# end if @messages.present? %>-->
+      <!--</div>-->
+    <!--</div>-->
+  <!--</div>-->
+  <!--<div class="panel-footer">-->
     <!--<%#= form_tag candidate_conversation_conversation_messages_path(@conversation||=0), remote: true ,method: :post do %>-->
       <!--<div class="input-group">-->
         <%#= text_field_tag 'conversation_message[body]', nil, class: 'form-control input-sm chat_input ',autocomplete: "off",
@@ -25,12 +25,70 @@
         <!--</span>-->
       <!--</div>-->
     <!--<%# end if @conversation.present?  %>-->
+  <!--</div>-->
+<!--</div>-->
 
 
+
+<div class="chat_box" data-conversation-id="<%= @conversation.id if @conversation.present?%>" id="conversation-chat-box">
+  <div class="chat-head">
+    <div class="user-info">
+      <span>To:</span><a href="#"><%= @conversation.senderable == current_user ? @conversation.recipientable.full_name : @conversation.senderable.full_name if @conversation.present? %></a>
+    </div>
+    <!--<div class="user-actions">-->
+    <!--<a href="#"><i class="os-icon os-icon-mail-07"></i></a><a href="#"><i class="os-icon os-icon-phone-18"></i></a><a href="#"><i class="os-icon os-icon-phone-15"></i></a>-->
+    <!--</div>-->
+  </div>
+
+  <div class="chat-content-w">
+    <div class="chat-content" id="conversation_<%= @conversation.id if @conversation.present? %>">
+      <% prev_date = nil %>
+      <% @messages.each do |msg| %>
+          <% if prev_date != msg.created_at.strftime('%d %b, %Y') %>
+              <% prev_date = msg.created_at.strftime('%d %b, %Y') %>
+              <div class="chat-date-separator">
+            <span>
+              <% if Date.parse(prev_date) == Date.today %>
+                Today
+              <% elsif Date.parse(prev_date) == Date.yesterday %>
+                Yesterday
+              <% else %>
+                <%= prev_date %>
+              <% end %>
+            </span>
+              </div>
+          <% end %>
+
+          <div class="chat-message <%= msg.userable == current_candidate ? 'self' : '' %>">
+            <div class="chat-message-content-w">
+              <div class="chat-message-content">
+                <%= msg.body %>
+              </div>
+            </div>
+            <div class="chat-message-avatar">
+              <%= image_tag msg.userable.photo %>
+            </div>
+            <div class="chat-message-date">
+              <%= msg.created_at.strftime("%l:%M%P") %>
+            </div>
+          </div>
+      <% end if @messages.present? %>
+    </div>
+  </div>
+  <div class="chat-controls">
     <%= form_for([@conversation, ConversationMessage.new], :remote => true, :html => {id: "conversation_form_#{@conversation.id}"}) do |f| %>
-        <%= f.text_field :body, class: 'form-control input-sm chat_input ', autocomplete: "off", required: true, placeholder: 'Type your message here...', "data-cid" => @conversation.id, id: "con-text-#{@conversation.id}-#{current_candidate.class}-#{current_candidate.id}" %>
-        <%= f.submit "Send", class: "btn btn-sm btn-success", id: "send-chat-message" %>
+        <div class="chat-input1">
+          <%= f.text_field :body, class: 'form-control input-sm chat_input ', autocomplete: "off", required: true, placeholder: 'Type your message here...', "data-cid" => @conversation.id, id: "con-text-#{@conversation.id}-#{current_candidate.class}-#{current_candidate.id}" %>
+        </div>
+        <div class="chat-input-extra">
+          <!--<div class="chat-extra-actions">-->
+          <!--<a href="#"><i class="os-icon os-icon-mail-07"></i></a><a href="#"><i class="os-icon os-icon-phone-18"></i></a><a href="#"><i class="os-icon os-icon-phone-15"></i></a>-->
+          <!--</div>-->
+          <div class="chat-btn">
+            <%= f.submit "Send", class: "btn btn-primary btn-sm", id: "send-chat-message" %>
+            <!--<a class="btn btn-primary btn-sm" href="#">Reply</a>-->
+          </div>
+        </div>
     <% end if @conversation.present?  %>
-
   </div>
 </div>

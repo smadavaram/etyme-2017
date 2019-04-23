@@ -6,14 +6,17 @@ class ConversationMessagesController < ApplicationController
     message = ConversationMessage.new(message_params.merge({conversation_id: @conversation.id}))
     message.userable = get_current_user
     if message.save
+      message_content = render_message(message)
+
       if @conversation.chatable_type == "Group"
         @conversation.chatable.groupables.each do |gm|
           GroupMsgNotify.create(group_id: @conversation.chatable.id, member: gm.groupable, conversation_message: message)
           ActionCable.server.broadcast "Message_#{gm.groupable_type}_#{gm.groupable_id}",
                                        msg_id: message.id,
-                                       msg: message.body,
-                                       msg_att: message.attachment_file,
-                                       msg_att_name: message.file_name,
+                                       msg: message_content,
+                                       # msg: message.body,
+                                       # msg_att: message.attachment_file,
+                                       # msg_att_name: message.file_name,
                                        usr_typ: message.userable.class.to_s,
                                        usr: message.userable.id,
                                        recpt_type: gm.groupable_type,
@@ -28,12 +31,13 @@ class ConversationMessagesController < ApplicationController
           GroupMsgNotify.create(group_id: @conversation.chatable.id, member: usr, conversation_message: message)
           ActionCable.server.broadcast "Message_#{usr.class}_#{usr.id}",
                                        msg_id: message.id,
-                                       msg: message.body,
-                                       msg_att: message.attachment_file,
-                                       msg_att_name: message.file_name,
+                                       msg: message_content,
+                                       # msg: message.body,
+                                       # msg_att: message.attachment_file,
+                                       # msg_att_name: message.file_name,
                                        usr_typ: message.userable.class.to_s,
                                        usr: message.userable.id,
-                                       recpt_type: usr.class,
+                                       recpt_type: usr.class.to_s,
                                        recpt_id: usr.id,
                                        unread_msg_cnt: 0, # Conversation.joins(:conversation_messages).where("(senderable_type = ? AND senderable_id = ? ) OR (recipientable_type = ? AND recipientable_id = ?)", recipient.class.to_s, recipient.id, recipient.class.to_s, recipient.id).where.not(conversation_messages: {is_read: true, userable: recipient}).uniq.count,
                                        con_id: @conversation.id,
@@ -45,9 +49,10 @@ class ConversationMessagesController < ApplicationController
         recipient = (@conversation.recipientable == get_current_user ? @conversation.senderable : @conversation.recipientable )
         ActionCable.server.broadcast "Message_#{recipient.class.to_s}_#{recipient.id}",
                                      msg_id: message.id,
-                                     msg: message.body,
-                                     msg_att: message.attachment_file,
-                                     msg_att_name: message.file_name,
+                                     msg: message_content,
+                                     # msg: message.body,
+                                     # msg_att: message.attachment_file,
+                                     # msg_att_name: message.file_name,
                                      usr_typ: message.userable.class.to_s,
                                      usr: message.userable.id,
                                      recpt_type: recipient.class.to_s,
@@ -59,9 +64,10 @@ class ConversationMessagesController < ApplicationController
 
         ActionCable.server.broadcast "Message_#{get_current_user.class.to_s}_#{get_current_user.id}",
                                      msg_id: message.id,
-                                     msg: message.body,
-                                     msg_att: message.attachment_file,
-                                     msg_att_name: message.file_name,
+                                     msg: message_content,
+                                     # msg: message.body,
+                                     # msg_att: message.attachment_file,
+                                     # msg_att_name: message.file_name,
                                      usr_typ: message.userable.class.to_s,
                                      usr: message.userable.id,
                                      recpt_type: recipient.class.to_s,
@@ -93,6 +99,10 @@ class ConversationMessagesController < ApplicationController
 
   def message_params
     params.require(:conversation_message).permit(:body, :attachment_file, :file_name, :file_size, :file_type)
+  end
+
+  def render_message(message)
+    self.render(partial: 'conversation_messages/conversation_message', locals: {message: message})
   end
 
   def get_current_user
