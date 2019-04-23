@@ -1,7 +1,6 @@
 class AddDataToTheContacts < ActiveRecord::Migration[5.1]
   def up
     CompanyContact.all.each do |company_contact|
-      if company_contact.id == 55
         # puts company_contact.id
         user = User.find_by_email(company_contact.email)
         company = Company.find_by(slug: company_contact.email.match(/@([a-zA-Z]+)./)[1])
@@ -23,8 +22,6 @@ class AddDataToTheContacts < ActiveRecord::Migration[5.1]
 
 
         end
-      end
-
     end
   end
 

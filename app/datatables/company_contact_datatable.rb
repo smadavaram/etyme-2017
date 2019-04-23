@@ -42,7 +42,7 @@ class CompanyContactDatatable < ApplicationDatatable
 
 
   def groups record
-    record.groups.map{|group| content_tag(:span, group.group_name, class: 'badge bg-color-blue margin-bottom-5').html_safe }.join('').html_safe
+    record.groups.map{|group| content_tag(:span, group.group_name, class: 'badge bg-color-blue margin-bottom-5 mr-1').html_safe }.join('').html_safe
   end
 
   def actions record
