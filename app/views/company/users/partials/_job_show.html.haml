@@ -8,7 +8,7 @@
       = image_tag 'jobs.png',class:'',alt: "job",style: "width: 60px !important; height: 60px !important;"
       %h4 Title-#{data.title.humanize}
       %span.name.font-sm.text-muted
-        Location: #{data.location.humanize}
+        Location: #{data.location&.humanize}
       %p= raw(data.description)
       %i.fa.fa-tags
       - data.tags.each do |tag|

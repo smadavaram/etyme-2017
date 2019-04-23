@@ -5,8 +5,8 @@
     </div>
   </div>
   <div class="tab-content">
-    <div class="tab-pane active" id="home" role="tabpanel">
-      <div class="keystroke_msgs_box" id="conversation_<%= @conversation.id if @conversation.present? %>">
+    <div class="tab-pane active chatboxcontent-page" id="conversation_<%= @conversation.id if @conversation.present? %>">
+      <div class="keystroke_msgs_box">
         <% @messages.each do |msg| %>
           <div class="<%= msg.userable == current_candidate ? 'send_message' : 'receive_message' %>">
             <span><%= msg.body %></span>
@@ -16,14 +16,21 @@
     </div>
   </div>
   <div class="panel-footer">
-    <%= form_tag candidate_conversation_conversation_messages_path(@conversation||=0), remote: true ,method: :post do %>
-      <div class="input-group">
-        <%= text_field_tag 'conversation_message[body]', nil, class: 'form-control input-sm chat_input ',autocomplete: "off",
+    <!--<%#= form_tag candidate_conversation_conversation_messages_path(@conversation||=0), remote: true ,method: :post do %>-->
+      <!--<div class="input-group">-->
+        <%#= text_field_tag 'conversation_message[body]', nil, class: 'form-control input-sm chat_input ',autocomplete: "off",
                            placeholder: 'Type your message here...', required: true, id: "conversation_#{@conversation.id}_#{current_candidate.class.to_s}_#{current_candidate.id}" %>
-        <span class="input-group-btn">
-          <%= submit_tag "Send", class: 'btn btn-primary btn-sm', id: "btn-chat" %>
-        </span>
-      </div>
+        <!--<span class="input-group-btn">-->
+          <!--<%#= submit_tag "Send", class: 'btn btn-primary btn-sm', id: "btn-chat" %>-->
+        <!--</span>-->
+      <!--</div>-->
+    <!--<%# end if @conversation.present?  %>-->
+
+
+    <%= form_for([@conversation, ConversationMessage.new], :remote => true, :html => {id: "conversation_form_#{@conversation.id}"}) do |f| %>
+        <%= f.text_field :body, class: 'form-control input-sm chat_input ', autocomplete: "off", required: true, placeholder: 'Type your message here...', "data-cid" => @conversation.id, id: "con-text-#{@conversation.id}-#{current_candidate.class}-#{current_candidate.id}" %>
+        <%= f.submit "Send", class: "btn btn-sm btn-success", id: "send-chat-message" %>
     <% end if @conversation.present?  %>
+
   </div>
 </div>

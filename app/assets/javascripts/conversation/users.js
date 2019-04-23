@@ -5,7 +5,8 @@ var ready = function () {
      * send an ajax request to our rails app with the sender_id and
      * recipient_id
      */
-    $('.start-conversation').click(function (e) {
+    // $('.start-conversation').click(function (e) {
+    $(document).on('click', '.start-conversation', function (e) {
         e.preventDefault();
         //var sender_id = $(this).data('sid');
         //var recipient_id = $(this).data('stype');

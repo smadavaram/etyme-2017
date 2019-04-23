@@ -22,7 +22,7 @@
             - options.each do |data| 
               -new_options << [data, data]  
             / = new_options
-            = f.select :invoice_term, options_for_select(new_options, :selected => @invoice.last.invoice_term), {}, { :class => 'form-control input-lg multi-select2-role' }
+            = f.select :invoice_term, options_for_select(new_options, :selected => @invoice.last&.invoice_term), {}, { :class => 'form-control input-lg multi-select2-role' }
           .col-md-2 
 
       .form-actions

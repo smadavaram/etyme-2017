@@ -1,11 +1,18 @@
-%img.busy{:alt => "img", :src => "#{a.owner.try(:photo)}"}/
-%span.name.font-sm.well.margin-bottom-10.text-center
-  %span.text-muted
-  %b
-    #{link_to a.owner.full_name, a.owner if a.owner}
-    %span.pull-right.font-xs.text-muted
-      %i= a.created_at.strftime('%H:%M:%S %-d %B %Y  ago')
-  %br/
-  %p.font-md
-    updated Job
+.ta-record
+  .ta-timestamp
+    %strong #{a.try(:created_at).strftime('%I:%M %P')}
+  .ta-activity
+    #{a.owner.name.titleize} updated job
     = link_to truncate(a.trackable.title), job_path(a.trackable),class: 'font-md'
+
+-#%img.busy{:alt => "img", :src => "#{a.owner.try(:photo)}"}/
+-#%span.name.font-sm.well.margin-bottom-10.text-center
+-#  %span.text-muted
+-#  %b
+-#    #{link_to a.owner.full_name, a.owner if a.owner}
+-#    %span.pull-right.font-xs.text-muted
+-#      %i= a.created_at.strftime('%H:%M:%S %-d %B %Y  ago')
+-#  %br/
+-#  %p.font-md
+-#    updated Job
+-#    = link_to truncate(a.trackable.title), job_path(a.trackable),class: 'font-md'

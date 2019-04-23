@@ -1,0 +1,25 @@
+<div class="element-wrapper">
+  <div class="element-box">
+    <h6 class="element-header">
+      User Activity
+    </h6>
+    <div class="timed-activities compact">
+      <% prev_date = nil %>
+      <% @activities.each do |activity| %>
+        <% if prev_date.nil? || prev_date != activity.created_at.strftime("%d %b, %Y") %>
+          <% unless prev_date.nil? %>
+            </div>
+            </div>
+          <% end %>
+          <% prev_date = activity.created_at.strftime("%d %b, %Y") %>
+          <div class="timed-activity">
+            <div class="ta-date">
+              <span><%= prev_date %></span>
+            </div>
+            <div class="ta-record-w">
+        <% end %>
+        <%= render_activity activity ,index: params[:index] %>
+      <% end %>
+    </div>
+  </div>
+</div>
