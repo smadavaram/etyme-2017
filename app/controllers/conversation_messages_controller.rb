@@ -37,7 +37,7 @@ class ConversationMessagesController < ApplicationController
                                        # msg_att_name: message.file_name,
                                        usr_typ: message.userable.class.to_s,
                                        usr: message.userable.id,
-                                       recpt_type: usr.class,
+                                       recpt_type: usr.class.to_s,
                                        recpt_id: usr.id,
                                        unread_msg_cnt: 0, # Conversation.joins(:conversation_messages).where("(senderable_type = ? AND senderable_id = ? ) OR (recipientable_type = ? AND recipientable_id = ?)", recipient.class.to_s, recipient.id, recipient.class.to_s, recipient.id).where.not(conversation_messages: {is_read: true, userable: recipient}).uniq.count,
                                        con_id: @conversation.id,
