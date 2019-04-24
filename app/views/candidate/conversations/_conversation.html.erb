@@ -33,7 +33,7 @@
 <div class="chat_box" data-conversation-id="<%= @conversation.id if @conversation.present?%>" id="conversation-chat-box">
   <div class="chat-head">
     <div class="user-info">
-      <span>To:</span><a href="#"><%= @conversation.senderable == current_user ? @conversation.recipientable.full_name : @conversation.senderable.full_name if @conversation.present? %></a>
+      <span>To:</span><a href="#"><%= @conversation.senderable == current_candidate ? @conversation.recipientable.full_name : @conversation.senderable.full_name if @conversation.present? %></a>
     </div>
     <!--<div class="user-actions">-->
     <!--<a href="#"><i class="os-icon os-icon-mail-07"></i></a><a href="#"><i class="os-icon os-icon-phone-18"></i></a><a href="#"><i class="os-icon os-icon-phone-15"></i></a>-->
