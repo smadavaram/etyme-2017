@@ -17,30 +17,16 @@ class Company::CompaniesController < Company::BaseController
   add_breadcrumb 'Companies', :companies_path, :title => ""
 
   def index
-    if params[:status] == 'all'
-      respond_to do |format|
-        format.js {
-          @data = apply_scopes(Company.signup_companies.order("created_at DESC").paginate(page: params[:page], per_page: 11))
-        }
-        format.html {
-          @data = apply_scopes(Company.signup_companies.order("created_at DESC").paginate(page: params[:page], per_page: 11))
-        }
-      end
-    else
-      @search = current_company.invited_companies.joins(:invited_company).includes(:invited_company).search(params[:q])
-      # @search = current_company.invited_companies.includes(:invited_company).search(params[:q])
-      @invited_companies = @search.result.order("companies.created_at DESC") #.paginate(page: params[:page], per_page: 10)
+    respond_to do |format|
+      format.html {}
+      format.json {render json: CompanyDatatable.new(params, view_context: view_context)}
     end
-    @company = Company.new
-    @company.build_invited_by
-    # - next if d.invited_company.try(:company_contacts).try(:first).try(:full_name).present?
-
   end
 
   def company_contacts
     respond_to do |format|
       format.html {}
-      format.json {render json: CompanyContactDatatable.new(params, view_context: view_context, current_company: current_company)}
+      format.json {render json: CompanyContactDatatable.new(params, view_context: view_context)}
     end
   end
 
