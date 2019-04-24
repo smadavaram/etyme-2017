@@ -33,29 +33,49 @@
                 </div>
             <% end %>
 
-            <div class="chat-message <%= msg.userable == current_candidate ? 'self' : '' %>">
-              <div class="chat-message-content-w">
-                <div class="chat-message-content">
-                  <%= msg.body %>
-                  <% if msg.attachment_file.present? %>
-                    <br/>
-                    <%= link_to msg.file_name, msg.attachment_file, target: "_blank" %>
-                  <% end %>
+            <% if msg.userable == current_user %>
+                <div class="chat-message self">
+                  <div class="chat-message-content-w">
+                    <div class="chat-message-content">
+                      <%= msg.body %>
+                      <% if msg.attachment_file.present? %>
+                          <br/>
+                          <%= link_to msg.file_name, msg.attachment_file, target: "_blank" %>
+                      <% end %>
+                    </div>
+                  </div>
+                  <div class="chat-message-date">
+                    <%= msg.created_at.strftime("%l:%M%P") %>
+                  </div>
+                  <div class="chat-message-avatar">
+                    <%= image_tag msg.userable.photo %>
+                  </div>
                 </div>
-              </div>
-              <div class="chat-message-avatar">
-                <%= image_tag msg.userable.photo %>
-              </div>
-              <div class="chat-message-date">
-                <%= msg.created_at.strftime("%l:%M%P") %>
-              </div>
-            </div>
+            <% else %>
+                <div class="chat-message">
+                  <div class="chat-message-content-w">
+                    <div class="chat-message-content">
+                      <%= msg.body %>
+                      <% if msg.attachment_file.present? %>
+                          <br/>
+                          <%= link_to msg.file_name, msg.attachment_file, target: "_blank" %>
+                      <% end %>
+                    </div>
+                  </div>
+                  <div class="chat-message-avatar">
+                    <%= image_tag msg.userable.photo %>
+                  </div>
+                  <div class="chat-message-date">
+                    <%= msg.created_at.strftime("%l:%M%P") %>
+                  </div>
+                </div>
+            <% end %>
         <% end if @conversation_messages.present? %>
       </div>
 
       <div class="chat-controls chatboxinput">
         <%= form_for([@conversation, @conversation_message], :remote => true, :html => {id: "conversation_form_#{@conversation.id}"}) do |f| %>
-          <div class="chat-input1">
+          <div class="chat-input1 chat-input">
             <%= f.text_area :body, class: "chatboxtextarea", "data-cid" => @conversation.id, id: "con-text-#{@conversation.id}-#{@current_user.class}-#{@current_user.id}" %>
             <%= f.filepicker_field :attachment_file, :button_text => " ", disable: true , class: "os-icon os-icon-ui-51 file-pick btn btn-primary filepicker-attach conversation_attchment_#{@conversation.id}", id: "con-atta-#{@conversation.id}-#{@current_user.class}-#{@current_user.id}" %>
             <%= f.hidden_field :file_name, class: "chat-file-name", id: "con-filename-#{@conversation.id}-#{@current_user.class}-#{@current_user.id}" %>
@@ -63,8 +83,8 @@
             <%= f.hidden_field :file_type, class: "chat-file-type", id: "con-filetype-#{@conversation.id}-#{@current_user.class}-#{@current_user.id}" %>
           </div>
           <div class="chat-input-extra">
-            <div class="chat-btn">
-              <%= f.submit "Send", class: "btn btn-sm btn-success", id: "send-chat-message" %>
+            <div class="chat-btn w-100">
+              <%= f.submit "Send", class: "btn btn-sm btn-success float-right", id: "send-chat-message" %>
             </div>
           </div>
         <% end %>
