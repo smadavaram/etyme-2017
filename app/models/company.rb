@@ -59,6 +59,11 @@ class Company < ApplicationRecord
   has_many :company_departments
   has_many :addresses, through:   :locations
 
+  # company have many band resources through banned
+  has_many :banned_list, foreign_key: "company_id", class_name: 'BlackLister'
+  # company can check the black listed status through black_listers
+  has_many :black_listers, as: :blacklister
+
   has_many :statuses                  ,as:  :statusable
 
   has_many :active_relationships, class_name: "SharedCandidate",
@@ -147,6 +152,10 @@ class Company < ApplicationRecord
 
   def invited_companies_contacts
     CompanyContact.where(company_id: self.invited_companies.map(&:invited_company_id))
+  end
+
+  def get_blacklist_status(black_list_company_id)
+    self.black_listers.find_by(company_id: black_list_company_id)&.status || 'unbanned'
   end
 
   def full_name

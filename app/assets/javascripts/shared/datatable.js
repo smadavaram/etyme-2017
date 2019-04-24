@@ -54,8 +54,8 @@ $(document).ready(function () {
       }
     },
     {
-      'targets': [1,2,3],
-      render: $.fn.dataTable.render.ellipsis(5, true)
+      'targets': [3],
+      render: $.fn.dataTable.render.ellipsis(5, true,true)
     }
 
     ],
@@ -71,6 +71,7 @@ $(document).ready(function () {
       {data: "first_name"},
       {data: "title"},
       {data: "contact"},
+      {data: "status"},
       {
         data: "groups",
         searchable: false,

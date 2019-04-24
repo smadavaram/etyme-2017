@@ -21,6 +21,10 @@ class ApplicationDatatable < AjaxDatatablesRails::ActiveRecord
     super
   end
 
+  def do_ellipsis(value, length = 10)
+    content_tag(:span, "#{value[0..length].strip}..." ,class: 'ellipsis', title: value).html_safe
+  end
+
   def company_logo_and_name company
     image_tag(company.logo, class: "data-table-image").html_safe + " "+  company.name
   end
