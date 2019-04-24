@@ -1,4 +1,5 @@
 class CompanyContactDatatable < ApplicationDatatable
+  def_delegator :@view, :profile_company_path
   def_delegator :@view, :company_statuses_path
   def_delegator :@view, :company_assign_status_path
   def_delegator :@view, :company_company_add_reminder_path
@@ -8,7 +9,7 @@ class CompanyContactDatatable < ApplicationDatatable
   def view_columns
     @view_columns ||= {
         id: {source: "CompanyContact.id"},
-        logo: {source: "Company.name"},
+        name: {source: "Company.name"},
         first_name: {source: "CompanyContact.first_name"},
         last_name: {source: "CompanyContact.last_name"},
         title: {source: "CompanyContact.title"},
@@ -21,7 +22,7 @@ class CompanyContactDatatable < ApplicationDatatable
     records.map do |record|
       {
           id:  record.id,
-          logo: record.try(:user_company).try(:name),
+          name: company_profile(record.try(:user_company)),
           first_name: record.first_name,
           title: record.title,
           contact: contact_icon( record),
@@ -30,6 +31,10 @@ class CompanyContactDatatable < ApplicationDatatable
           actions: actions(record)
       }
     end
+  end
+
+  def company_profile company
+    link_to(company.name , profile_company_path(company),class: 'btn-link').html_safe
   end
 
   def get_raw_records
