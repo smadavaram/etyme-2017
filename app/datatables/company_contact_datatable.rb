@@ -1,11 +1,13 @@
 class CompanyContactDatatable < ApplicationDatatable
   def_delegator :@view, :profile_company_path
   def_delegator :@view, :company_statuses_path
+  def_delegator :@view, :ban_company_black_listers_path
+  def_delegator :@view, :unban_company_black_listers_path
+  def_delegator :@view, :company_user_profile_path
   def_delegator :@view, :company_assign_status_path
   def_delegator :@view, :company_company_add_reminder_path
   def_delegator :@view, :company_contacts_company_companies_path
   def_delegator :@view, :company_company_assign_groups_to_contact_path
-  def_delegator :@view, :company_user_profile_path
 
   def view_columns
     @view_columns ||= {
@@ -14,6 +16,7 @@ class CompanyContactDatatable < ApplicationDatatable
         first_name: {source: "CompanyContact.User.first_name"},
         last_name: {source: "CompanyContact.last_name"},
         title: {source: "CompanyContact.title"},
+        status: {source: "CompanyContact.black_list.status"},
         contact: {source: "CompanyContact.phone"}
     }
   end
@@ -27,6 +30,7 @@ class CompanyContactDatatable < ApplicationDatatable
           first_name: company_user_profile(record.user),
           title: record.title,
           contact: contact_icon(record),
+          status: record.user_company.get_blacklist_status(record.company_id),
           groups: groups(record),
           reminder_note: reminder_note(record),
           actions: actions(record)
@@ -68,9 +72,16 @@ class CompanyContactDatatable < ApplicationDatatable
     link_to(content_tag(:i, nil, class: 'fa fa-sticky-note ').html_safe, company_statuses_path(id: record.user_company, type: 'Company'), title: 'Status Log', class: 'data-table-icons') +
         link_to(content_tag(:i, nil, class: 'fa fa-sticky-note ').html_safe, company_assign_status_path(record.user_company), remote: :true, title: "Assign Status", class: 'data-table-icons') +
         link_to(content_tag(:i, nil, class: 'fa fa-user-plus ').html_safe, '#', title: 'Follow/Unfollow', class: 'data-table-icons') +
+        ban_unban_link(record) +
         link_to(content_tag(:i, nil, class: 'fa fa-bell ').html_safe, company_company_add_reminder_path(record.user_company), remote: :true, title: "Remind Me", class: 'data-table-icons') +
         link_to(content_tag(:i, nil, class: 'fa fa-users').html_safe, company_company_assign_groups_to_contact_path(record), remote: true, title: 'Add to Group', class: 'data-table-icons')
   end
 
+  def ban_unban_link(record)
+    record.user_company.get_blacklist_status(record.company_id) == 'banned' ?
+        link_to(content_tag(:i, nil, class: 'fa fa-unlock-alt ').html_safe, unban_company_black_listers_path(record.user_company_id, 'Company'), method: :post, title: 'UnBlock Company', class: 'data-table-icons')
+        :
+        link_to(content_tag(:i, nil, class: 'fa fa-lock ').html_safe, ban_company_black_listers_path(record.user_company_id, 'Company'), method: :post, title: 'Block Company ', class: 'data-table-icons')
+  end
 
 end

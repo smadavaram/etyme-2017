@@ -71,6 +71,7 @@ $(document).ready(function () {
       {data: "first_name"},
       {data: "title"},
       {data: "contact"},
+      {data: "status"},
       {
         data: "groups",
         searchable: false,

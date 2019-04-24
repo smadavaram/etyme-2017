@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema.define(version: 20190422220355) do
+ActiveRecord::Schema.define(version: 20190424173524) do
 
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
@@ -124,6 +124,16 @@ ActiveRecord::Schema.define(version: 20190422220355) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.index ["company_id"], name: "index_billing_infos_on_company_id"
+  end
+
+  create_table "black_listers", force: :cascade do |t|
+    t.bigint "company_id"
+    t.integer "status", default: 0
+    t.string "blacklister_type"
+    t.bigint "blacklister_id"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["blacklister_type", "blacklister_id"], name: "index_black_listers_on_blacklister_type_and_blacklister_id"
   end
 
   create_table "branches", force: :cascade do |t|
