@@ -4,6 +4,8 @@
 }
 .data-table-image{
     height: 30px;
+    border-radius: 50%;
+
 }
 .data-table-icons{
     margin-right:5px;
