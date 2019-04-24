@@ -54,8 +54,8 @@ $(document).ready(function () {
       }
     },
     {
-      'targets': [1,2,3],
-      render: $.fn.dataTable.render.ellipsis(5, true)
+      'targets': [3],
+      render: $.fn.dataTable.render.ellipsis(5, true,true)
     }
 
     ],
