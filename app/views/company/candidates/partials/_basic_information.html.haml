@@ -1,59 +1,46 @@
 %form
-  %fieldset
-    .form-group
-      %label.col-md-2.control-label
-        First Name
-      .col-md-4
-        = f.text_field :first_name , class: 'form-control ' , id: 'fname' , placeholder: "First Name" 
-      %label.col-md-2.control-label
-        Last Name
-      .col-md-4
-        = f.text_field :last_name , class: 'form-control ' , id: 'lname' , placeholder: "Last Name" 
-    .form-group
-      %label.col-md-2.control-label
-        Email
-        %sup.text-danger *
-      .col-md-4
+  .row
+    .col-sm-6
+      .col-md-12
+        = f.text_field :first_name , class: 'form-control ' , id: 'fname' , placeholder: "First Name"
+    .col-sm-6
+      .col-md-12
+        = f.text_field :last_name , class: 'form-control ' , id: 'lname' , placeholder: "Last Name"
+    .col-sm-6
+      -#%label.col-md-2.control-label
+      -#  Email
+      -#  %sup.text-danger *
+      .col-md-12
         = f.email_field :email , class: 'form-control ' , id: 'email' , placeholder: "email@address.com" , required: true
-      %label.col-md-2.control-label
-        Phone
-      .col-md-4
-        = f.text_field :phone , class: 'form-control ' , id: 'phone' , placeholder: "Phone Number"
-    .form-group
-      %label.col-md-2.control-label
-        Location
-      .col-md-4
-        = f.text_field :location , class: 'form-control ' , id: 'location' , placeholder: "eg.1806 Beechwood Drive, Pittsburgh" 
-      %label.col-md-2.control-label
-        Skills
-      .col-md-4
+    .col-sm-6
+      .col-md-12
+        = f.phone_field :phone , class: 'form-control ' ,data: {phone_field: true}, id: 'phone' , placeholder: "Phone Number"
+    .col-sm-6
+      .col-md-12
+        = f.text_field :location , class: 'form-control ' , id: 'location' , placeholder: "eg.1806 Beechwood Drive, Pittsburgh"
+    .col-sm-6
+      .col-md-12
         = f.text_field :skill_list,placeholder: "Add Skills Comma seperated",class: 'form-control', 'data-role'=>'tagsinput',value: (@candidate.skill_list.present? ? @candidate.skill_list.join(", ") : "")
-    .form-group
-      %label.col-md-2.control-label
-        Visa
-      .col-md-4
-        = f.text_field :candidate_visa , class: 'form-control ' , id: 'candidate_visa' , placeholder: "" 
-      %label.col-md-2.control-label
-        Title
-      .col-md-4
-        = f.text_field :candidate_title , class: 'form-control ' , id: 'candidate_title' , placeholder: "Add Title" 
-    .form-group
-      %label.col-md-2.control-label Resume
-      .col-md-4
-        = f.filepicker_field :resume , class: 'btn btn-primary file-pick'  , id: 'accept-filepiker',"data-fp-extensions" => ".pdf,.doc,.docx,.txt"
-
-    .form-group
-      = f.fields_for :custom_fields do |lt|
-        = render 'shared/custom_fields', f: lt
-      %strong
-        .links.col-sm-12
-          = link_to_add_association '+ Add Custom Field', f, :custom_fields, class: 'text-info pull-right', partial: 'shared/custom_fields'
-        %br/
+    .col-sm-6
+      .col-md-12
+        = f.text_field :candidate_visa , class: 'form-control ' , id: 'candidate_visa' , placeholder: ""
+    .col-sm-6
+      .col-md-12
+        = f.text_field :candidate_title , class: 'form-control ' , id: 'candidate_title' , placeholder: "Add Title"
     - if @candidate.new_record?
-      .form-group
-        %label.col-md-2.control-label Want to send invitation?
-        .col-md-10
-          = f.check_box :send_invitation , {}, true, false
+      .col-sm-6
+        = f.check_box :send_invitation ,{}, true, false
+        %label.col-md-2.control-label Resume
+        .col-md-12
+          = f.filepicker_field :resume , class: 'btn btn-primary file-pick'  , id: 'accept-filepiker',"data-fp-extensions" => ".pdf,.doc,.docx,.txt"
+
+    -#.col-sm-6
+    -#  = f.fields_for :custom_fields do |lt|
+    -#    = render 'shared/custom_fields', f: lt
+    -#  %strong
+    -#    .links.col-sm-12
+    -#      = link_to_add_association '+ Add Custom Field', f, :custom_fields, class: 'text-info pull-right', partial: 'shared/custom_fields'
+    -#    %br/
   /   = f.fields_for :educations do |edu|
   /     = render 'company/candidates/partials/education_fields', f: edu
 

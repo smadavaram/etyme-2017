@@ -77,6 +77,7 @@ class Candidate < ApplicationRecord
   attr_accessor :job_id , :expiry , :message , :invitation_type
   attr_accessor :send_welcome_email_to_candidate
   attr_accessor :send_invitation
+  attr_accessor :invitation_as_contact
 
 
   accepts_nested_attributes_for :portfolios     ,reject_if: :all_blank, allow_destroy: true
