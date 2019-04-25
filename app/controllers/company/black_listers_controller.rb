@@ -3,7 +3,7 @@ class Company::BlackListersController < Company::BaseController
   before_action :set_black_lister, only: [:ban,:unban]
 
   def ban
-    if @black_lister.save
+    if @black_lister.banned!
       flash[:success] = 'The company is blacklisted'
       redirect_to company_contacts_company_companies_path
     else

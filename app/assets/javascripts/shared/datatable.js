@@ -52,12 +52,7 @@ $(document).ready(function () {
       'render': function (data, type, full, meta) {
         return '<input type="checkbox" name="id[]" value="' + full.id + '">';
       }
-    },
-    {
-      'targets': [3],
-      render: $.fn.dataTable.render.ellipsis(5, true,true)
     }
-
     ],
     ajax: $('#company-contacts-datatable').data('source'),
     columns: [
