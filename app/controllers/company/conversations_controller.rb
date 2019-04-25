@@ -8,11 +8,11 @@ class Company::ConversationsController < Company::BaseController
     if message.present?
       set_conversation(message.userable)
       @current_chat = message.userable
-      @messages = @conversation.conversation_messages.last(50)
+      # @messages = @conversation.conversation_messages.last(50)
     elsif @candidates.present?
       set_conversation(@candidates.first)
       @current_chat = @candidates.first
-      @messages = @conversation.conversation_messages.last(50)
+      # @messages = @conversation.conversation_messages.last(50)
     end
     @unread_message_count = Conversation.joins(:conversation_messages).where("(senderable_type = ? AND senderable_id = ? ) OR (recipientable_type = ? AND recipientable_id = ?)", current_user.class.to_s, current_user.id, current_user.class.to_s, current_user.id).where.not(conversation_messages: {is_read: true, userable: current_user}).uniq.count
   end
@@ -25,7 +25,7 @@ class Company::ConversationsController < Company::BaseController
     end
 
     set_conversation(user)
-    @messages = @conversation.conversation_messages.last(50)
+    # @messages = @conversation.conversation_messages.last(50)
     @unread_message_count = Conversation.joins(:conversation_messages).where("(senderable_type = ? AND senderable_id = ? ) OR (recipientable_type = ? AND recipientable_id = ?)", current_user.class.to_s, current_user.id, current_user.class.to_s, current_user.id).where.not(conversation_messages: {is_read: true, userable: current_user}).uniq.count
     respond_to do |format|
       format.html {

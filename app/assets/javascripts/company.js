@@ -180,3 +180,5 @@
 
 // BulletTrain
 //= require_tree ./clean_admin
+
+//= require load_more_all_users.js.coffee

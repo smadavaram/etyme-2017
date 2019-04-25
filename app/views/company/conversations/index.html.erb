@@ -139,4 +139,15 @@
   </div>
 </div>
 
-
+<% content_for :scripts do %>
+    <script>
+        $(document).ready(function() {
+            $.ajax({
+                url: "<%= messages_conversation_conversation_messages_path(@conversation) %>",
+                type: "GET",
+                dataType: "script",
+                success:function(data){}
+            });
+        });
+    </script>
+<% end %>

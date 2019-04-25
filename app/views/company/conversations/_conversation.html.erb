@@ -42,53 +42,57 @@
 
   <div class="chat-content-w">
     <div class="chat-content" id="conversation_<%= @conversation.id if @conversation.present? %>">
-      <% prev_date = nil %>
-      <% @messages.each do |msg| %>
-          <% if prev_date != msg.created_at.strftime('%d %b, %Y') %>
-              <% prev_date = msg.created_at.strftime('%d %b, %Y') %>
-              <div class="chat-date-separator">
-            <span>
-              <% if Date.parse(prev_date) == Date.today %>
-                Today
-              <% elsif Date.parse(prev_date) == Date.yesterday %>
-                Yesterday
-              <% else %>
-                <%= prev_date %>
-              <% end %>
-            </span>
-              </div>
-          <% end %>
+      <!--<%# prev_date = nil %>-->
+      <!--<%# @messages.each do |msg| %>-->
+          <!--<%# if prev_date != msg.created_at.strftime('%d %b, %Y') %>-->
+              <!--<%# prev_date = msg.created_at.strftime('%d %b, %Y') %>-->
+              <!--<div class="chat-date-separator">-->
+            <!--<span>-->
+              <!--<%# if Date.parse(prev_date) == Date.today %>-->
+                <!--Today-->
+              <!--<%# elsif Date.parse(prev_date) == Date.yesterday %>-->
+                <!--Yesterday-->
+              <!--<%# else %>-->
+                <!--<%#= prev_date %>-->
+              <!--<%# end %>-->
+            <!--</span>-->
+              <!--</div>-->
+          <!--<%# end %>-->
 
-          <% if msg.userable == current_user %>
-            <div class="chat-message self">
-              <div class="chat-message-content-w">
-                <div class="chat-message-content">
-                  <%= msg.body %>
-                </div>
-              </div>
-              <div class="chat-message-date">
-                <%= msg.created_at.strftime("%l:%M%P") %>
-              </div>
-              <div class="chat-message-avatar">
-                <%= image_tag msg.userable.photo %>
-              </div>
-            </div>
-          <% else %>
-            <div class="chat-message">
-              <div class="chat-message-content-w">
-                <div class="chat-message-content">
-                  <%= msg.body %>
-                </div>
-              </div>
-              <div class="chat-message-avatar">
-                <%= image_tag msg.userable.photo %>
-              </div>
-              <div class="chat-message-date">
-                <%= msg.created_at.strftime("%l:%M%P") %>
-              </div>
-            </div>
-          <% end %>
-      <% end if @messages.present? %>
+          <!--<%# if msg.userable == current_user %>-->
+            <!--<div class="chat-message self">-->
+              <!--<div class="chat-message-content-w">-->
+                <!--<div class="chat-message-content">-->
+                  <!--<%#= msg.body %>-->
+                <!--</div>-->
+              <!--</div>-->
+              <!--<div class="chat-message-date">-->
+                <!--<%#= msg.created_at.strftime("%l:%M%P") %>-->
+              <!--</div>-->
+              <!--<div class="chat-message-avatar">-->
+                <!--<%#= image_tag msg.userable.photo %>-->
+              <!--</div>-->
+            <!--</div>-->
+          <!--<%# else %>-->
+            <!--<div class="chat-message">-->
+              <!--<div class="chat-message-content-w">-->
+                <!--<div class="chat-message-content">-->
+                  <!--<%#= msg.body %>-->
+                <!--</div>-->
+              <!--</div>-->
+              <!--<div class="chat-message-avatar">-->
+                <!--<%#= image_tag msg.userable.photo %>-->
+              <!--</div>-->
+              <!--<div class="chat-message-date">-->
+                <!--<%#= msg.created_at.strftime("%l:%M%P") %>-->
+              <!--</div>-->
+            <!--</div>-->
+          <!--<%# end %>-->
+      <!--<%# end if @messages.present? %>-->
+
+      <div id="all-infinite-scrolling-msg" style="display:none"></div>
+      <%= hidden_field_tag "prev_date", nil %>
+
     </div>
   </div>
   <div class="chat-controls">
