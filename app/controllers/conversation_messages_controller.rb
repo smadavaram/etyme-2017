@@ -6,15 +6,17 @@ class ConversationMessagesController < ApplicationController
     message = ConversationMessage.new(message_params.merge({conversation_id: @conversation.id}))
     message.userable = get_current_user
     if message.save
-      message_content = render_message(message)
+      # message_content = render_message(message)
 
       if @conversation.chatable_type == "Group"
         @conversation.chatable.groupables.each do |gm|
           GroupMsgNotify.create(group_id: @conversation.chatable.id, member: gm.groupable, conversation_message: message)
           ActionCable.server.broadcast "Message_#{gm.groupable_type}_#{gm.groupable_id}",
                                        msg_id: message.id,
-                                       msg: message_content,
-                                       # msg: message.body,
+                                       # msg: message_content,
+                                       msg: message.body,
+                                       msg_url: message.userable.photo,
+                                       msg_time: message.created_at.strftime("%l:%M%P"),
                                        # msg_att: message.attachment_file,
                                        # msg_att_name: message.file_name,
                                        usr_typ: message.userable.class.to_s,
@@ -31,8 +33,10 @@ class ConversationMessagesController < ApplicationController
           GroupMsgNotify.create(group_id: @conversation.chatable.id, member: usr, conversation_message: message)
           ActionCable.server.broadcast "Message_#{usr.class}_#{usr.id}",
                                        msg_id: message.id,
-                                       msg: message_content,
-                                       # msg: message.body,
+                                       # msg: message_content,
+                                       msg: message.body,
+                                       msg_url: message.userable.photo,
+                                       msg_time: message.created_at.strftime("%l:%M%P"),
                                        # msg_att: message.attachment_file,
                                        # msg_att_name: message.file_name,
                                        usr_typ: message.userable.class.to_s,
@@ -49,8 +53,10 @@ class ConversationMessagesController < ApplicationController
         recipient = (@conversation.recipientable == get_current_user ? @conversation.senderable : @conversation.recipientable )
         ActionCable.server.broadcast "Message_#{recipient.class.to_s}_#{recipient.id}",
                                      msg_id: message.id,
-                                     msg: message_content,
-                                     # msg: message.body,
+                                     # msg: message_content,
+                                     msg: message.body,
+                                     msg_url: message.userable.photo,
+                                     msg_time: message.created_at.strftime("%l:%M%P"),
                                      # msg_att: message.attachment_file,
                                      # msg_att_name: message.file_name,
                                      usr_typ: message.userable.class.to_s,
@@ -64,8 +70,10 @@ class ConversationMessagesController < ApplicationController
 
         ActionCable.server.broadcast "Message_#{get_current_user.class.to_s}_#{get_current_user.id}",
                                      msg_id: message.id,
-                                     msg: message_content,
-                                     # msg: message.body,
+                                     # msg: message_content,
+                                     msg: message.body,
+                                     msg_url: message.userable.photo,
+                                     msg_time: message.created_at.strftime("%l:%M%P"),
                                      # msg_att: message.attachment_file,
                                      # msg_att_name: message.file_name,
                                      usr_typ: message.userable.class.to_s,

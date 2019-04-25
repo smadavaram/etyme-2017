@@ -45,11 +45,36 @@ function set_conversation(data){
 //    "</div>"
 //  );
 //  $(data.dom).append(data.msg);
-  $(data.dom).append(
-    "<div class='" + ((current_user_id == data.usr && current_user_type == data.usr_typ ) ? 'chat-message self' : 'chat-message') + "'>" +
-      data.msg +
-    "</div>"
-  );
+      if(current_user_id == data.usr && current_user_type == data.usr_typ ){
+          $(data.dom).append( "<div class='chat-message self'>" +
+            "<div class='chat-message-content-w'>"+
+              "<div class='chat-message-content'>"+
+                data.msg +
+              "</div>"+
+            "</div>"+
+            "<div class=chat-message-date>"+
+              data.msg_time +
+            "</div>"+
+            "<div class='chat-message-avatar'>"+
+              "<img src='"+ data.msg_url + "' alt='Ovkjsvq7scweziqwldea'>"+
+            "</div>"+
+          "</div>");
+      } else {
+          $(data.dom).append("<div class='chat-message'>" +
+            "<div class='chat-message-content-w'>"+
+              "<div class='chat-message-content'>"+
+                data.msg +
+              "</div>"+
+            "</div>"+
+            "<div class='chat-message-avatar'>"+
+              "<img src='"+ data.msg_url + "' alt='Ovkjsvq7scweziqwldea'>"+
+            "</div>"+
+            "<div class=chat-message-date>"+
+                data.msg_time +
+            "</div>"+
+          "</div>");
+      }
+
 
   if($("#conversation_"+data.con_id)[0]){
     $("#conversation_"+data.con_id).scrollTop($("#conversation_"+data.con_id)[0].scrollHeight);
