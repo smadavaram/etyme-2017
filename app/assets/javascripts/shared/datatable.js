@@ -85,40 +85,81 @@ $(document).ready(function () {
     ]
 
   });
-    $('#companies-datatable').dataTable({
-        processing: true,
-        serverSide: true,
-        order: [[1, "desc"]],
-        columnDefs: [{
-            'targets': 0,
-            searchable: false,
-            orderable: false,
-            'render': function (data, type, full, meta) {
-                return '<input type="checkbox" name="id[]" value="' + full.id + '">';
-            }
-        },
-        ],
-        ajax: $('#companies-datatable').data('source'),
-        columns: [
-            {
-                data: "id"
-            },
-            {data: "name"},
-            {data: "users"},
-            {data: "contact"},
-            {data: "status"},
-            {
-                data: "reminder_note",
-                searchable: false,
-                orderable: false
-            },
-            {
-                data: "actions",
-                searchable: false,
-                orderable: false
-            }
-        ]
+  $('#company-candidates-datatable').dataTable({
+    processing: true,
+    serverSide: true,
+    order: [[1, "desc"]],
+    columnDefs: [{
+      'targets': 0,
+      searchable: false,
+      orderable: false,
+      'render': function (data, type, full, meta) {
+        return '<input type="checkbox" name="id[]" value="' + full.id + '">';
+      }
+    },
+    ],
+    ajax: $('#company-candidates-datatable').data('source'),
+    columns: [
+      {
+        data: "id"
+      },
+      {data: "name"},
+      {data: "contact"},
+      {
+        data: "status",
+        searchable: false,
+        orderable: false
+      },
+      {
+        data: "reminder_note",
+        searchable: false,
+        orderable: false
+      },
+      {
+        data: 'actions',
+        searchable: false,
+        orderable: false
+      }
+    ]
 
-    });
+  });
+
+
+
+  $('#companies-datatable').dataTable({
+    processing: true,
+    serverSide: true,
+    order: [[1, "desc"]],
+    columnDefs: [{
+      'targets': 0,
+      searchable: false,
+      orderable: false,
+      'render': function (data, type, full, meta) {
+        return '<input type="checkbox" name="id[]" value="' + full.id + '">';
+      }
+    },
+    ],
+    ajax: $('#companies-datatable').data('source'),
+    columns: [
+      {
+        data: "id"
+      },
+      {data: "name"},
+      {data: "users"},
+      {data: "contact"},
+      {data: "status"},
+      {
+        data: "reminder_note",
+        searchable: false,
+        orderable: false
+      },
+      {
+        data: "actions",
+        searchable: false,
+        orderable: false
+      }
+    ]
+
+  });
 
 });

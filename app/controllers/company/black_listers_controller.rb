@@ -5,20 +5,20 @@ class Company::BlackListersController < Company::BaseController
   def ban
     if @black_lister.banned!
       flash[:success] = 'The company is blacklisted'
-      redirect_to company_contacts_company_companies_path
+      redirect_back(fallback_location: root_path)
     else
       flash[:errors] = @black_lister.errors.full_messages
-      redirect_to company_contacts_company_companies_path
+      redirect_back(fallback_location: root_path)
     end
   end
 
   def unban
     if @black_lister.unbanned!
       flash[:success] = "The company's blacklisted status is removed"
-      redirect_to company_contacts_company_companies_path
+      redirect_back(fallback_location: root_path)
     else
       flash[:errors] = @black_lister.errors.full_messages
-      redirect_to company_contacts_company_companies_path
+      redirect_back(fallback_location: root_path)
     end
   end
 

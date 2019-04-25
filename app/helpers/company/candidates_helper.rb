@@ -1,5 +1,5 @@
 module Company::CandidatesHelper
   def is_hot?(can)
-    !CandidatesCompany.hot_candidate.where(candidate_id: can.id,company_id:current_company.id).present?
+    CandidatesCompany.find_by(candidate_id: can.id,company_id:current_company.id).hot_candidate?
   end
 end

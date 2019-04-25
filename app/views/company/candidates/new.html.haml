@@ -4,18 +4,6 @@
       = render 'shared/alert_message'
       -#= render partial: 'shared/errors', locals: {object: @company}
       = render 'company/candidates/partials/form'
--#
--##content
--#  #wid-id-2.jarviswidget.jarviswidget-sortable{"data-widget-colorbutton" => "false", "data-widget-editbutton" => "false", :role => "widget"}
--#    %header{:role => "heading"}
--#      %h2 Adding New Candidate
--#      %span.jarviswidget-loader
--#        %i.fa.fa-refresh.fa-spin
--#    / widget div
--#    %div{:role => "content"}
--#      / widget content
--#      .widget-body
--#        = render 'company/candidates/partials/form'
 
 
 - content_for :scripts do
