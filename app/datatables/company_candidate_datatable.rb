@@ -45,9 +45,11 @@ class CompanyCandidateDatatable < ApplicationDatatable
 
   def ban_unban_link(record)
     record.get_blacklist_status(current_company.id) == 'banned' ?
-        link_to(content_tag(:i, nil, class: 'fa fa-unlock-alt').html_safe, unban_company_black_listers_path(record.id, 'Candidate'), method: :post, title: 'UnBlock Candidate', class: 'data-table-icons')
+        link_to(content_tag(:i, nil, class: 'fa fa-times').html_safe, candidate_remove_from_comapny_path(record), remote: true, method: :post, title: "Delete #{record.full_name}", class: 'data-table-icons') +
+            link_to(content_tag(:i, nil, class: 'fa fa-unlock-alt').html_safe, unban_company_black_listers_path(record.id, 'Candidate'), method: :post, title: 'UnBlock Candidate', class: 'data-table-icons')
         :
-        link_to(content_tag(:i, nil, class: 'fa fa-lock').html_safe, ban_company_black_listers_path(record.id, 'Candidate'), method: :post, title: 'Block Candidate', class: 'data-table-icons')
+        link_to(content_tag(:i, nil, class: 'fa fa-times').html_safe, candidate_remove_from_comapny_path(record), remote: true, method: :post, title: "Delete #{record.full_name}", class: 'data-table-icons') +
+            link_to(content_tag(:i, nil, class: 'fa fa-lock').html_safe, ban_company_black_listers_path(record.id, 'Candidate'), method: :post, title: 'Block Candidate', class: 'data-table-icons')
   end
 
   def reminder_note record
@@ -61,7 +63,6 @@ class CompanyCandidateDatatable < ApplicationDatatable
         link_to(content_tag(:i, nil, class: 'fa fa-user-plus ').html_safe, '#', title: 'Follow/Unfollow', class: 'data-table-icons') +
         link_to(content_tag(:i, nil, class: 'fa fa-bell ').html_safe, candidate_add_reminder_path(record), remote: :true, title: "Remind Me", class: 'data-table-icons') +
         link_to(content_tag(:i, nil, class: 'fa fa-edit').html_safe, edit_company_candidate_path(record), title: "Edit #{record.full_name}", class: 'data-table-icons') +
-        link_to(content_tag(:i, nil, class: 'fa fa-times').html_safe, candidate_remove_from_comapny_path(record), remote: true, method: :post, title: "Delete #{record.full_name}", class: 'data-table-icons') +
         get_status_links(record)
   end
 
