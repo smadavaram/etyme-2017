@@ -5,7 +5,7 @@
         %div
           %a.m-3.pull-right.btn.btn-primary{ :href => "#{new_company_company_path}", :title => "New Contact" } New Contact
           .table-responsive
-            %table#company-contacts-datatable.table.table-striped.table-lightfont{"data-source" => "#{company_contacts_company_companies_path(format: :json)}"}
+            %table#company-contacts-datatable.table.table-bordered.table-lg.table-v2.table-striped{"data-source" => "#{company_contacts_company_companies_path(format: :json)}"}
               %thead
                 %tr
                   %th
