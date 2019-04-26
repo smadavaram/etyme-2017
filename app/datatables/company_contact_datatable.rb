@@ -40,11 +40,11 @@ class CompanyContactDatatable < ApplicationDatatable
 
   def company_user_profile user
     image_tag(user.photo, class: 'data-table-image mr-1').html_safe +
-        link_to(do_ellipsis(user.first_name), company_user_profile_path(user), class: 'btn-link')
+        link_to(do_ellipsis(user.first_name), company_user_profile_path(user), class: 'data-table-font')
   end
 
   def company_profile company
-    link_to(do_ellipsis(company.name), profile_company_path(company), class: 'btn-link').html_safe
+    link_to(do_ellipsis(company.name), profile_company_path(company), class: 'data-table-font').html_safe
   end
 
   def get_raw_records
@@ -57,9 +57,9 @@ class CompanyContactDatatable < ApplicationDatatable
   end
 
   def contact_icon record
-    mail_to(record.email, content_tag(:i, nil, class: 'fa fa-envelope').html_safe, title: record.email, class: 'data-table-icons') +
+    mail_to(record.email, content_tag(:i, nil, class: 'os-icon os-icon-email-2-at2').html_safe, title: record.email, class: 'data-table-icons') +
         link_to(content_tag(:i, nil, class: 'fa fa-phone ').html_safe, '#', title: record.phone, class: 'data-table-icons') +
-        link_to(content_tag(:i, nil, class: 'fa fa-comment ').html_safe, '#', title: 'chat', class: 'data-table-icons')
+        link_to(content_tag(:i, nil, class: 'fa fa-comment-o ').html_safe, '#', title: 'chat', class: 'data-table-icons')
 
   end
 

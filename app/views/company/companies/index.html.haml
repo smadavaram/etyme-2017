@@ -1,19 +1,26 @@
 .content-i
   .content-box
-    .element-wrapper
-      .element-box
-        %div
-          %a.m-3.pull-right.btn.btn-primary{ :href => "#{new_company_company_path}", :title => "New Contact" } New Contact
-          .table-responsive
-            %table#companies-datatable.table.table-striped.table-lightfont{"data-source" => "#{companies_path(format: :json)}",  width: "100%"}
-              %thead
-                %tr
-                  %th
-                    %input{ type:"checkbox", name:"select_all", id:"example-select-all"}
-                  %th Name
-                  %th Number of users
-                  %th contact
-                  %th Status
-                  %th Reminder/Note
-                  %th Actions
-              %tbody
+    .row
+      .col-sm-12
+        .element-wrapper
+          .element-box-tp
+            .controls-above-table
+              .row.mr-1.ml-1
+                .col-sm-6
+                  %a.btn.btn-sm.btn-secondary{ :href => "#{new_company_company_path}", :title => "New Company" } New Company
+                .col-sm-6
+                  .form-inline.justify-content-sm-end
+                    %input.form-control.form-control-sm.rounded.bright{placeholder: "Search", type: "text"}
+            .table-responsive
+              %table#companies-datatable.table.table-bordered.table-lg.table-v2.table-striped.data-table-font{"data-source" => "#{companies_path(format: :json)}",  width: "100%"}
+                %thead
+                  %tr
+                    %th
+                      %input{ type:"checkbox", name:"select_all", id:"example-select-all"}
+                    %th Name
+                    %th Number of users
+                    %th contact
+                    %th Status
+                    %th Reminder/Note
+                    %th Actions
+                %tbody
