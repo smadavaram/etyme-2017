@@ -156,6 +156,21 @@ var ready = function () {
                 }
             });
 
+            $(".chat-content-scroll").data('ajaxready', true);
+
+            setTimeout( function(){
+                $.ajax({
+                    url: "/conversations/" + conversation_id + "/conversation_messages/messages",
+                    type: "GET",
+                    dataType: "script",
+                    success:function(data){}
+                });
+            }  , 500 );
+            setTimeout( function(){
+                listenForScrollEvent($(".chat-content-scroll"));
+            }  , 700 );
+
+
             $("#chatbox_" + conversation_id).show();
 
         },

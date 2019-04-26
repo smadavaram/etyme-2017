@@ -1,12 +1,12 @@
 $("#conversation-section").html("<%= j render 'company/conversations/conversation' %>");
-$(".chat-content-w").data('ajaxready', true);
+$(".chat-content-scroll").data('ajaxready', true);
 $.ajax({
     url: "<%= messages_conversation_conversation_messages_path(@conversation) %>",
     type: "GET",
     dataType: "script",
     success:function(data){}
 });
-listenForScrollEvent($(".chat-content-w"));
+listenForScrollEvent($(".chat-content-scroll"));
 $("#unread-msg-<%= current_user.id %>").html("<%= @unread_message_count.to_i > 0 ? @unread_message_count : '' %>");
 if($("#conversation_<%= @conversation.id %>")[0]){
   $("#conversation_<%= @conversation.id %>").scrollTop($("#conversation_<%= @conversation.id %>")[0].scrollHeight);

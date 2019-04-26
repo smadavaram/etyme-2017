@@ -171,6 +171,7 @@
 //= require company/select_autocomplete
 //= require company/chat_status
 
+//= require load_more_chat
 //= require conversation/chat
 //= require conversation/users
 //= require bootstrap/bootstrap-switch
@@ -180,5 +181,3 @@
 
 // BulletTrain
 //= require_tree ./clean_admin
-
-//= require load_more_all_users.js.coffee
