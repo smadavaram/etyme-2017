@@ -16,6 +16,252 @@
 -#            Please setup some roles & permissions by
 -#            = link_to 'clicking here ' , roles_path , target: '_blank'
 -#            %br
+
+.with-side-panel
+  .content-i
+    .content-box
+      .row
+        .col-sm-12
+          .element-wrapper
+            %h6.element-header
+              Dashboard
+            .element-content
+              .row
+                .col-sm-4.col-xxxl-3
+                  .element-box.p-4
+                    .float-right
+                      %a.icon-widgets
+                        %i.fa.fa-plus
+                    %h5.text-muted.font-weight-normal.mt-0{:title => "Number of Orders"} Jobs
+                    %h3.mt-3.mb-3.font-weight-bold 5
+                    %p.mb-0.text-muted
+                      %span.text-dark.mr-2 55
+                      %span.text-nowrap Total Jobs
+                .col-sm-4.col-xxxl-3
+                  .element-box.p-4
+                    .float-right
+                      %a.icon-widgets
+                        %i.fa.fa-plus
+                    %h5.text-muted.font-weight-normal.mt-0{:title => "Number of Orders"} Bench
+                    %h3.mt-3.mb-3.font-weight-bold 15
+                    %p.mb-0.text-muted
+                      %span.text-dark.mr-2 45
+                      %span.text-nowrap Total Bench
+                .col-sm-4.col-xxxl-3
+                  .element-box.p-4
+                    .float-right
+                      %a.icon-widgets
+                        %i.fa.fa-plus
+                    %h5.text-muted.font-weight-normal.mt-0{:title => "Number of Orders"} Bench Job
+                    %h3.mt-3.mb-3.font-weight-bold 8
+                    %p.mb-0.text-muted
+                      %span.text-dark.mr-2 45
+                      %span.text-nowrap Total Bench Job
+                .col-sm-4.col-xxxl-3
+                  .element-box.p-4
+                    .float-right
+                      %a.icon-widgets
+                        %i.fa.fa-plus
+                    %h5.text-muted.font-weight-normal.mt-0{:title => "Number of Orders"} Application
+                    %h3.mt-3.mb-3.font-weight-bold 25
+                    %p.mb-0.text-muted
+                      %span.text-dark.mr-2 155
+                      %span.text-nowrap Total Application
+                .col-sm-4.col-xxxl-3
+                  .element-box.p-4
+                    .float-right
+                      %a.icon-widgets
+                        %i.fa.fa-plus
+                    %h5.text-muted.font-weight-normal.mt-0{:title => "Number of Orders"} Pre Interview
+                    %h3.mt-3.mb-3.font-weight-bold 18
+                    %p.mb-0.text-muted
+                      %span.text-dark.mr-2 35
+                      %span.text-nowrap Total Pre Interview
+                .col-sm-4.col-xxxl-3
+                  .element-box.p-4
+                    .float-right
+                      %a.icon-widgets
+                        %i.fa.fa-plus
+                    %h5.text-muted.font-weight-normal.mt-0{:title => "Number of Orders"} Interview
+                    %h3.mt-3.mb-3.font-weight-bold 3
+                    %p.mb-0.text-muted
+                      %span.text-dark.mr-2 25
+                      %span.text-nowrap Total Interview
+      .row
+        .col-sm-12
+          .element-wrapper
+            %h6.element-header
+              Accouting
+            .element-box
+              .os-tabs-w
+                .os-tabs-controls
+                  %ul.nav.nav-tabs.smaller
+                    %li.nav-item
+                      %a.nav-link.active{"data-toggle" => "tab", :href => "#profit"} Profit
+                    %li.nav-item
+                      %a.nav-link{"data-toggle" => "tab", :href => "#receivable"} Receivable
+                    %li.nav-item
+                      %a.nav-link{"data-toggle" => "tab", :href => "#payable"} Payable
+                  %ul.nav.nav-pills.smaller.d-none.d-md-flex
+                    %li.nav-item
+                      %a.nav-link{"data-toggle" => "tab", :href => "#"} Today
+                    %li.nav-item
+                      %a.nav-link.active{"data-toggle" => "tab", :href => "#"} 7 Days
+                    %li.nav-item
+                      %a.nav-link{"data-toggle" => "tab", :href => "#"} 14 Days
+                    %li.nav-item
+                      %a.nav-link{"data-toggle" => "tab", :href => "#"} Last Month
+                .tab-content
+                  #profit.tab-pane.active
+                    .el-tablo.bigger
+                      .label
+                        Profit
+                      .value
+                        12,537
+                    .el-chart-w
+                      %canvas#lineChart{:height => "150px", :width => "600px"}
+                  #receivable.tab-pane
+                    .el-tablo.bigger
+                      .label
+                        Receivable
+                      .value
+                        12,537
+                    .el-chart-w
+                      %canvas#lineChart{:height => "150px", :width => "600px"}
+                  #payable.tab-pane
+                    .el-tablo.bigger
+                      .label
+                        Payable
+                      .value
+                        12,537
+                    .el-chart-w
+                      %canvas#lineChart{:height => "150px", :width => "600px"}
+    .content-panel
+      .content-panel-close
+        %i.os-icon.os-icon-close
+      .element-wrapper
+        %h6.element-header
+          Quick Links
+        .element-box-tp
+          .el-buttons-list.full-width
+            %a.btn.btn-white.btn-sm{:href => "#"}
+              %i.os-icon.os-icon-delivery-box-2
+              %span Create New Product
+            %a.btn.btn-white.btn-sm{:href => "#"}
+              %i.os-icon.os-icon-window-content
+              %span Customer Comments
+            %a.btn.btn-white.btn-sm{:href => "#"}
+              %i.os-icon.os-icon-wallet-loaded
+              %span Store Settings
+      .element-wrapper
+        %h6.element-header
+          Team Members
+        .element-box-tp
+          .input-search-w
+            %input.form-control.rounded.bright{:placeholder => "Search team members...", :type => "search"}/
+          .users-list-w
+            .user-w
+              .user-avatar-w
+                .user-avatar
+                  = image_tag 'avatars/m_sunny_big.png'
+              .user-name
+                %h6.user-title
+                  John Mayers
+                .user-role
+                  Account Manager
+              %a.user-action{:href => "users_profile_small.html"}
+                .os-icon.os-icon-email-forward
+            .user-w
+              .user-avatar-w
+                .user-avatar
+                  = image_tag 'avatars/m_sunny_big.png'
+              .user-name
+                %h6.user-title
+                  Ben Gossman
+                .user-role
+                  Administrator
+              %a.user-action{:href => "users_profile_small.html"}
+                .os-icon.os-icon-email-forward
+            .user-w
+              .user-avatar-w
+                .user-avatar
+                  = image_tag 'avatars/m_sunny_big.png'
+              .user-name
+                %h6.user-title
+                  Phil Nokorin
+                .user-role
+                  HR Manger
+              %a.user-action{:href => "users_profile_small.html"}
+                .os-icon.os-icon-email-forward
+            .user-w
+              .user-avatar-w
+                .user-avatar
+                  = image_tag 'avatars/m_sunny_big.png'
+              .user-name
+                %h6.user-title
+                  Jenny Miksa
+                .user-role
+                  Lead Developer
+              %a.user-action{:href => "users_profile_small.html"}
+                .os-icon.os-icon-email-forward
+      .element-wrapper
+        %h6.element-header
+          User Activity
+        .timed-activities.compact
+          .timed-activity
+            .ta-date
+              %span 21st Jan, 2017
+            .ta-record-w
+              .ta-record
+                .ta-timestamp
+                  %strong 11:55
+                  am
+                .ta-activity
+                  Created a post called
+                  %a{:href => "#"} Register new symbol
+                  in Rogue
+              .ta-record
+                .ta-timestamp
+                  %strong 2:34
+                  pm
+                .ta-activity
+                  Commented on story
+                  %a{:href => "#"} How to be a leader
+                  in
+                  %a{:href => "#"} Financial
+                  category
+              .ta-record
+                .ta-timestamp
+                  %strong 7:12
+                  pm
+                .ta-activity
+                  Added
+                  %a{:href => "#"} John Silver
+                  as a friend
+          .timed-activity
+            .ta-date
+              %span 3rd Feb, 2017
+            .ta-record-w
+              .ta-record
+                .ta-timestamp
+                  %strong 9:32
+                  pm
+                .ta-activity
+                  Added
+                  %a{:href => "#"} John Silver
+                  as a friend
+              .ta-record
+                .ta-timestamp
+                  %strong 5:14
+                  pm
+                .ta-activity
+                  Commented on story
+                  %a{:href => "#"} How to be a leader
+                  in
+                  %a{:href => "#"} Financial
+                  category
+
+
 #content
   %section#widget-grid
     - if current_company.hiring_manager? || current_company.vendor?
