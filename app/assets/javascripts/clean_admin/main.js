@@ -98,7 +98,7 @@ $(function(){
     }
   });
 
-  $('.floated-chat-w .chat-messages').perfectScrollbar();
+  // $('.floated-chat-w .chat-messages').perfectScrollbar();
 
 
   // #2. CALENDAR INIT

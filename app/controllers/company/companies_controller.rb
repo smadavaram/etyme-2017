@@ -151,10 +151,6 @@ class Company::CompaniesController < Company::BaseController
   end
 
   def company_profile_page
-
-  end
-
-  def company_user_profile_page
     @jobs = current_company.jobs.not_system_generated.where(:listing_type=>"Job").order(created_at: :desc).limit(5)
     @benches = CandidatesCompany.hot_candidate.where(company_id: current_company.id ).limit(5)
     @training = current_company.jobs.not_system_generated.where(:listing_type=>"Training").order(created_at: :desc).limit(5)
@@ -163,6 +159,17 @@ class Company::CompaniesController < Company::BaseController
     @directories = current_company.admins.order(created_at: :desc).limit(5)
     @activities = PublicActivity::Activity.where("activities.owner_id = ? or activities.recipient_id = ?", current_company.id, current_company.id).limit(5)
     @clients = current_company.send_or_received_network.limit(5)
+  end
+
+  def company_user_profile_page
+    # @jobs = current_company.jobs.not_system_generated.where(:listing_type=>"Job").order(created_at: :desc).limit(5)
+    # @benches = CandidatesCompany.hot_candidate.where(company_id: current_company.id ).limit(5)
+    # @training = current_company.jobs.not_system_generated.where(:listing_type=>"Training").order(created_at: :desc).limit(5)
+    # @products = current_company.jobs.not_system_generated.where(:listing_type=>"Products").order(created_at: :desc).limit(5)
+    # @services = current_company.jobs.not_system_generated.where(:listing_type=>"Services").order(created_at: :desc).limit(5)
+    # @directories = current_company.admins.order(created_at: :desc).limit(5)
+    # @activities = PublicActivity::Activity.where("activities.owner_id = ? or activities.recipient_id = ?", current_company.id, current_company.id).limit(5)
+    # @clients = current_company.send_or_received_network.limit(5)
   end
 
 

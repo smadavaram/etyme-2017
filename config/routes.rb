@@ -644,6 +644,7 @@ Rails.application.routes.draw do
 
   resources :conversations do
     resources :conversation_messages do
+      get :messages, on: :collection
       get :mark_as_read, on: :member
     end
   end

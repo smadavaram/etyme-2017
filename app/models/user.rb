@@ -1,6 +1,7 @@
 class User < ApplicationRecord
 
   include DomainExtractor
+  include ApplicationHelper
 
   EXCLUDED_EMAIL_DOMAINS = %w[gmail yahoo rediff facebookmail].freeze
   # Include default devise modules. Others available are:
@@ -112,7 +113,7 @@ class User < ApplicationRecord
   end
 
   def photo
-    super.present? ? super : 'avatars/m_sunny_big.png'
+    super.present? ? super : ActionController::Base.helpers.asset_path('avatars/m_sunny_big.png')
   end
 
   def full_name

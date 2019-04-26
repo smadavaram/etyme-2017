@@ -171,6 +171,7 @@
 //= require company/select_autocomplete
 //= require company/chat_status
 
+//= require load_more_chat
 //= require conversation/chat
 //= require conversation/users
 //= require bootstrap/bootstrap-switch

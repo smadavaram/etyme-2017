@@ -16,22 +16,20 @@
 
 
   <% chat_user_data = set_company_chat_user_data(@current_chat, usr) %>
-  <div class="user-w" id="chat-user<%= usr.id %>">
-    <%= link_to  company_conversations_path(user_id: usr.id, user_type: usr.class.to_s), class: "nav-link", remote: true, method: :post do %>
-      <div class="avatar with-status status-green">
-        <%= image_tag usr.photo %>
+  <%= link_to  company_conversations_path(user_id: usr.id, user_type: usr.class.to_s), class: "user-w", remote: true, method: :post do %>
+    <div class="avatar with-status status-green">
+      <%= image_tag usr.photo %>
+    </div>
+    <div class="user-info">
+      <div class="user-date">
+        <%= chat_user_data[:last_msg_time]  %>
       </div>
-      <div class="user-info">
-        <div class="user-date">s
-          <%= chat_user_data[:last_msg_time]  %>
-        </div>
-        <div class="user-name">
-          <%= usr.full_name %>
-        </div>
-        <div class="last-message">
-          <%= chat_user_data[:last_msg]  %>
-        </div>
+      <div class="user-name">
+        <%= usr.full_name %>
       </div>
-    <% end %>
-  </div>
+      <div class="last-message">
+        <%= chat_user_data[:last_msg]  %>
+      </div>
+    </div>
+  <% end %>
 <% end if users.present?  %>
