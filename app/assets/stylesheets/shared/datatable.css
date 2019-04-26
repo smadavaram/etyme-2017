@@ -11,7 +11,10 @@
     margin-right:5px;
 }
 
-.dataTable th, .dataTable td, .dataTable .ellipsis {
-    white-space: nowrap;
-    overflow: hidden;
+/*.dataTable th, .dataTable td, .dataTable .ellipsis {*/
+    /*white-space: nowrap;*/
+    /*overflow: hidden;*/
+/*}*/
+.dataTables_filter, .dataTables_length{
+    display: none;
 }
