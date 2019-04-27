@@ -115,6 +115,25 @@
           }
           .avatar {
           }
+          & + {
+            .fav-btn{
+              color: #ffffff;
+            }
+          }
+        }
+      }
+      .user-fav{
+        position: relative;
+        .fav-btn{
+          position: absolute;
+          font-size: 18px;
+          right: 10px;
+          bottom: 10px;
+          text-decoration: none;
+          color: $primary;
+          &:hover{
+            transform: scale(1.2);
+          }
         }
       }
     }

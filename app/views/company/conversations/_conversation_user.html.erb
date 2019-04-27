@@ -18,10 +18,10 @@
 
 <% if current_user.favourables.where(favourabled_id: usr.id, favourabled_type: usr.class.to_s).present? %>
     <% if is_favourite %>
-        <%= link_to "", remove_from_favourite_company_conversations_path(favourabled_id: usr.id, favourabled_type: usr.class.to_s), class: "fa fa-star", remote: true %>
+        <%= link_to "", remove_from_favourite_company_conversations_path(favourabled_id: usr.id, favourabled_type: usr.class.to_s), class: "fav-btn fa fa-star", remote: true %>
     <% else %>
-        <a class="fa fa-star"></a>
+        <a class="fav-btn fa fa-star"></a>
     <% end %>
 <% else %>
-  <%= link_to "", add_to_favourite_company_conversations_path(favourabled_id: usr.id, favourabled_type: usr.class.to_s), class: "fa fa-star-o", remote: true %>
+  <%= link_to "", add_to_favourite_company_conversations_path(favourabled_id: usr.id, favourabled_type: usr.class.to_s), class: "fav-btn fa fa-star-o", remote: true %>
 <% end %>

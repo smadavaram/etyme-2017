@@ -1,10 +1,10 @@
 <% users.each do |usr| %>
-  <div class="usr_<%= usr.class.to_s+"_"+usr.id.to_s %>">
+  <div class="user-fav usr_<%= usr.class.to_s+"_"+usr.id.to_s %>">
     <%= render 'conversation_user', usr: usr, is_favourite: false %>
   </div>
 <% end if users.present?  %>
 <% candidates.each do |usr| %>
-    <div class="usr_<%= usr.class.to_s+"_"+usr.id.to_s %>">
+    <div class="user-fav usr_<%= usr.class.to_s+"_"+usr.id.to_s %>">
       <%= render 'conversation_user', usr: usr, is_favourite: false %>
     </div>
 <% end if candidates.present?  %>
