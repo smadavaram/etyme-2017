@@ -20,7 +20,7 @@
           .up-controls
             .row
               .col-sm-6
-                = link_to candidate_conversations_path, class: "btn btn-primary btn-sm" do
+                = link_to candidate_conversations_path, class: "btn btn-success btn-sm" do
                   %i.ti-email
                   %span Contact Me
 
@@ -102,12 +102,10 @@
             .element-info
               .element-info-with-icon
                 .element-info-icon
-                  .os-icon.os-icon-wallet-loaded
+                  %i.icon-badge
                 .element-info-text
                   %h4.element-inner-header
                     Work history
-                  .element-inner-desc
-                    Validation of the form is made possible using powerful validator plugin for bootstrap.
             - if current_user.user_work_clients.present?
               - current_user.user_work_clients.each do |c|
                 .element-info
