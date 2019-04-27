@@ -57,10 +57,21 @@ class User < ApplicationRecord
   has_many :conversation_messages ,as: :userable
   has_many :document_signs       , as: :signable
 
+  has_many :user_certificates, dependent: :destroy
+  has_many :user_educations, dependent: :destroy
+  has_many :user_work_clients , dependent: :destroy
+
+  has_many :favourables, as: :favourable, class_name: "FavouriteChat", dependent: :destroy
+  has_many :favourableds, as: :favourabled, class_name: "FavouriteChat", dependent: :destroy
+
   accepts_nested_attributes_for :attachable_docs , reject_if: :all_blank
   accepts_nested_attributes_for :custom_fields   , reject_if: :all_blank
   accepts_nested_attributes_for :address   , reject_if: :all_blank, update_only: true
   accepts_nested_attributes_for :attachments ,   allow_destroy: true, reject_if: :all_blank
+
+  accepts_nested_attributes_for :user_certificates, reject_if: :all_blank, allow_destroy: true
+  accepts_nested_attributes_for :user_educations, reject_if: :all_blank, allow_destroy: true
+  accepts_nested_attributes_for :user_work_clients, reject_if: :all_blank, allow_destroy: true
 
   #Tags Input
   acts_as_taggable_on :skills

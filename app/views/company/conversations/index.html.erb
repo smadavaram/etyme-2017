@@ -54,27 +54,27 @@
                   <div class="os-tabs-w">
                     <ul class="nav nav-tabs upper centered">
                       <li class="nav-item">
-                        <a class="nav-link" data-toggle="tab" href="#Company"><i class="os-icon os-icon-ui-93"></i><span>Inbox</span></a>
+                        <a class="nav-link" data-toggle="tab" href="#Company"><i class="os-icon os-icon-ui-93"></i><span>Chat</span></a>
                       </li>
                       <li class="nav-item">
-                        <a class="nav-link" data-toggle="tab" href="#Candidates"><i class="os-icon os-icon-ui-02"></i><span>Channel</span></a>
+                        <a class="nav-link" data-toggle="tab" href="#Favourites"><i class="os-icon os-icon-ui-02"></i><span>Favourite</span></a>
                       </li>
                     </ul>
                   </div>
-                  <div class="chat-search">
-                    <div class="element-search">
-                      <input type="text" class="form-control" placeholder="Search Company/Candidates" id="conversation-users-search">
-                    </div>
-                  </div>
                   <div class="tab-content user-list">
                     <div role="tabpanel" class="tab-pane active" id="Company">
+                      <div class="chat-search">
+                        <div class="element-search">
+                          <input type="text" class="form-control" placeholder="Search Company/Candidates" id="conversation-users-search">
+                        </div>
+                      </div>
                       <ul class="nav flex-column nav-tabs" role="tablist" id="company-conversation-list">
-                        <%= render 'conversation_users', users: @companies %>
+                        <%= render 'conversation_users', users: @companies, candidates: @candidates %>
                       </ul>
                     </div>
-                    <div role="tabpanel" class="tab-pane" id="Candidates">
-                      <ul class="nav flex-column nav-tabs" role="tablist" id="candidate-conversation-list">
-                        <%= render 'conversation_users', users: @candidates %>
+                    <div role="tabpanel" class="tab-pane" id="Favourites">
+                      <ul class="nav flex-column nav-tabs" role="tablist" id="favourite-conversation-list">
+                        <%= render 'conversation_favourites', favourites: @favourites %>
                       </ul>
                     </div>
                   </div>
@@ -99,7 +99,7 @@
     <script>
         $(document).ready(function() {
             $.ajax({
-                url: "<%= messages_conversation_conversation_messages_path(@conversation) %>",
+                url: "<%= messages_conversation_conversation_messages_path(@conversation||0) %>",
                 type: "GET",
                 dataType: "script",
                 success:function(data){}

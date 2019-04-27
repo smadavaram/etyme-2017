@@ -83,6 +83,10 @@
           font-size: $font-size-base * 0.9;
           transition: all 0.2s ease;
           text-decoration: none;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+          overflow: hidden;
+          width: 200px;
         }
         .user-date {
           float: right;
@@ -110,6 +114,25 @@
             color: rgba(255,255,255,0.3);
           }
           .avatar {
+          }
+          & + {
+            .fav-btn{
+              color: #ffffff;
+            }
+          }
+        }
+      }
+      .user-fav{
+        position: relative;
+        .fav-btn{
+          position: absolute;
+          font-size: 18px;
+          right: 10px;
+          bottom: 10px;
+          text-decoration: none;
+          color: $primary;
+          &:hover{
+            transform: scale(1.2);
           }
         }
       }

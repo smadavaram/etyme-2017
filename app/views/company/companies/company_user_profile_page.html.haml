@@ -20,7 +20,7 @@
           .up-controls
             .row
               .col-sm-6
-                = link_to candidate_conversations_path, class: "btn btn-primary btn-sm" do
+                = link_to candidate_conversations_path, class: "btn btn-success btn-sm" do
                   %i.ti-email
                   %span Contact Me
 
@@ -73,60 +73,58 @@
               Education
             .element-info.border-0
               .element-info-text
-                -#- current_user.educations.each do |edu|
-                -#  .mb-2
-                -#    %h6.element-inner-header.m-0
-                -#      =edu.degree_level
-                -#    .element-inner-desc
-                -#      =edu.degree_title
+                - current_user.user_educations.each do |edu|
+                  .mb-2
+                    %h6.element-inner-header.m-0
+                      =edu.degree_level
+                    .element-inner-desc
+                      =edu.degree_title
             %h4.element-header
               Certification
             .element-info.border-0
               .element-info-text
-                -#- current_user.certificates.each do |cert|
-                -#  .mb-2
-                -#    %h6.element-inner-header.m-0
-                -#      =cert.title
-                -#    .element-inner-desc
-                -#      =cert.institute
+                - current_user.user_certificates.each do |cert|
+                  .mb-2
+                    %h6.element-inner-header.m-0
+                      =cert.title
+                    .element-inner-desc
+                      =cert.institute
             %h4.element-header
               Skills
             .element-info.border-0
               .element-info-text
-                -#- current_user.skill_list.each do |sl|
-                -#  .badge.badge-primary.p-2.mb-1
-                -#    =sl
+                - current_user.skill_list.each do |sl|
+                  .badge.badge-primary.p-2.mb-1
+                    =sl
       .col-sm-8
         .element-wrapper
           .element-box
             .element-info
               .element-info-with-icon
                 .element-info-icon
-                  .os-icon.os-icon-wallet-loaded
+                  %i.icon-badge
                 .element-info-text
                   %h4.element-inner-header
                     Work history
-                  .element-inner-desc
-                    Validation of the form is made possible using powerful validator plugin for bootstrap.
-            -#- if current_user.ever_worked_with_company && current_user.clients.present?
-            -#  - current_user.clients.each do |c|
-            -#    .element-info
-            -#      .element-info-text
-            -#        .mb-2
-            -#          %div
-            -#            %h5.mb-1.text-primary #{c.name}
-            -#            %span.mb-1.h6.d-block.text-secondary at #{c.industry}
-            -#            %strong.font-weight-bold.font-sm.text-capitalize
-            -#              #{c.start_date&.strftime('%B-%Y')} - #{c.end_date&.strftime('%B-%Y')}
-            -#          .element-inner-desc
-            -#            %P
-            -#              #{c.project_description}
-            -#- else
-            -#  .element-info
-            -#    .element-info-text
-            -#      .mb-2
-            -#        %div
-            -#          %span.mb-1.h6.d-block.text-secondary There is no work history
-            -#        .element-inner-desc
-            -#          %P
-            -#            = link_to "Add New One", '/onboarding_profile?tag=skill'
+            - if current_user.user_work_clients.present?
+              - current_user.user_work_clients.each do |c|
+                .element-info
+                  .element-info-text
+                    .mb-2
+                      %div
+                        %h5.mb-1.text-primary #{c.name}
+                        %span.mb-1.h6.d-block.text-secondary at #{c.industry}
+                        %strong.font-weight-bold.font-sm.text-capitalize
+                          #{c.start_date&.strftime('%B-%Y')} - #{c.end_date&.strftime('%B-%Y')}
+                      .element-inner-desc
+                        %P
+                          #{c.project_description}
+            - else
+              .element-info
+                .element-info-text
+                  .mb-2
+                    %div
+                      %span.mb-1.h6.d-block.text-secondary There is no work history
+                    .element-inner-desc
+                      %P
+                        = link_to "Add New One", company_user_path(current_user)

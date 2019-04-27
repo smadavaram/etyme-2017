@@ -160,6 +160,8 @@ Rails.application.routes.draw do
 
     resources :conversations do
       get :search, on: :collection
+      get :add_to_favourite, on: :collection
+      get :remove_from_favourite, on: :collection
       resources :conversation_messages
     end
 
@@ -290,6 +292,8 @@ Rails.application.routes.draw do
     end
     resources :conversations do
       get :search, on: :collection
+      get :add_to_favourite, on: :collection
+      get :remove_from_favourite, on: :collection
       resources :conversation_messages do
         get :mark_as_read, on: :member
       end

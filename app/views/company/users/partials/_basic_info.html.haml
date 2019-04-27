@@ -1,46 +1,79 @@
-.row{style: "padding: 15px;"}
-  = form_for @user,as: "user",url: company_user_path(@user.id),method: :put do |f|
-    .row
-      .col-md-6
-        .form-group
-          = f.text_field :first_name ,placeholder: "first Name",class: 'form-control'
-      .col-md-6
-        .form-group
-          = f.text_field :last_name ,placeholder: "last Name",class: 'form-control'
+= form_for @user,as: "user",url: company_user_path(@user.id),method: :put do |f|
+  .row
+    .col-md-6
+      .form-group
+        %label First Name
+        = f.text_field :first_name ,placeholder: "first Name",class: 'form-control'
+    .col-md-6
+      .form-group
+        %label Last Name
+        = f.text_field :last_name ,placeholder: "last Name",class: 'form-control'
+  .row
+    .col-md-6
+      .form-group
+        %label email
+        = f.email_field :email ,placeholder: "email",class: 'form-control'
+    .col-md-4
+      .form-group
+        %label Phone
+        = f.text_field :phone ,placeholder: "Phone",class: 'form-control'
+    .col-md-2
+      .form-group
+        %label age
+        = f.number_field :age ,placeholder: "age",class: 'form-control'
+  = f.fields_for :address do |b|
     .row
       .col-md-12
         .form-group
-      %label.col-md-2.control-label Resume
-      .col-md-10
-        = f.filepicker_field :resume , class: 'btn btn-primary file-pick'  , id: 'accept-filepiker',"data-fp-extensions" => ".pdf,.doc,.docx,.txt"
-    .row
-      .col-md-9
+          %label Address 1
+          = b.text_field :address_1 ,placeholder: "Address 1",class: 'form-control'
+      .col-md-12
         .form-group
-          = f.text_field :phone ,placeholder: "first Name",class: 'form-control'
-      .col-md-3
-        .form-group
-          = f.text_field :phone ,placeholder: "last Name",class: 'form-control'
-    .row
-      .col-md-6
-        .form-group
-          = f.email_field :email ,placeholder: "email",class: 'form-control'
-      .col-md-6
-        .form-group
-          = f.number_field :age ,placeholder: "age",class: 'form-control'
-    = f.fields_for :address do |b|
-      .row
-        .col-md-12
-          .form-group
-            = b.text_field :address_1 ,placeholder: "current address",class: 'form-control'
-        .col-md-12
-          .form-group
-            = b.text_field :address_2, placeholder: "line2",class: 'form-control'
+          %label Address 2
+          = b.text_field :address_2, placeholder: "Address 2",class: 'form-control'
+  .row
+    .col-md-12
+      .form-group
+        %label Skills
+        = f.text_field :skill_list, placeholder: "Add Skills Comma seperated",class: 'form-control p-location input', 'data-role'=>'tagsinput',value: f.object.skill_list.join(", ")
+  .row
+    .col-md-12
+      .form-group
+    %label.col-md-2.control-label Resume
+    .col-md-10
+      = f.filepicker_field :resume , class: 'btn btn-primary file-pick'  , id: 'accept-filepiker',"data-fp-extensions" => ".pdf,.doc,.docx,.txt"
+  %br
+  %h5.element-header
+    Education Details
 
-    .row
-      .col-lg-12
-        %button.btn.pull-left{:type => "button"}
-          Back
-        %button.btn.btn-primary.pull-right{:type => "button", style: "margin-left: 20px"}
-          Next
-        %button.btn.btn-primary.pull-right{:type => "submit"}
-          Saved
+  .form-group.user-association
+    = f.fields_for :user_educations, f.object.user_educations do |b|
+      = render 'company/users/partials/education_fields', f: b
+    .links.education_links.pull-right
+      = link_to_add_association '+ Add Education', f, :user_educations, class: 'btn btn-success', partial: 'company/users/partials/education_fields'
+  %br
+  %h5.element-header
+    Certificate Details
+
+  .form-group.user-association
+    = f.fields_for :user_certificates, f.object.user_certificates do |b|
+      = render 'company/users/partials/certificate_fields', f: b
+    .links.education_links.pull-right
+      = link_to_add_association '+ Add Certificates', f, :user_certificates, class: 'btn btn-success', partial: 'company/users/partials/certificate_fields'
+  %br
+  %h5.element-header
+    Work Client
+  .form-group.user-association
+    = f.fields_for :user_work_clients, f.object.user_work_clients do |b|
+      = render 'company/users/partials/user_work_client_fields', f: b
+    .links.education_links.pull-right
+      = link_to_add_association '+ Add Work Clients', f, :user_work_clients, class: 'btn btn-success', partial: 'company/users/partials/user_work_client_fields'
+
+  .row
+    .col-lg-12
+      %button.btn.pull-left{:type => "button"}
+        Back
+      %button.btn.btn-primary.pull-right{:type => "button", style: "margin-left: 20px"}
+        Next
+      %button.btn.btn-primary.pull-right{:type => "submit"}
+        Saved
