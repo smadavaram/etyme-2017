@@ -83,6 +83,10 @@
           font-size: $font-size-base * 0.9;
           transition: all 0.2s ease;
           text-decoration: none;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+          overflow: hidden;
+          width: 200px;
         }
         .user-date {
           float: right;

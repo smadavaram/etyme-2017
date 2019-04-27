@@ -99,7 +99,7 @@
     <script>
         $(document).ready(function() {
             $.ajax({
-                url: "<%= messages_conversation_conversation_messages_path(@conversation) %>",
+                url: "<%= messages_conversation_conversation_messages_path(@conversation||0) %>",
                 type: "GET",
                 dataType: "script",
                 success:function(data){}
