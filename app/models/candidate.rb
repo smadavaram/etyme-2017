@@ -66,6 +66,7 @@ class Candidate < ApplicationRecord
   has_many   :visas, dependent: :destroy
   has_many   :legal_documents, dependent: :destroy
   has_many   :client_expenses, dependent: :destroy
+  has_many :black_listers, as: :blacklister
 
 
 
@@ -77,6 +78,7 @@ class Candidate < ApplicationRecord
   attr_accessor :job_id , :expiry , :message , :invitation_type
   attr_accessor :send_welcome_email_to_candidate
   attr_accessor :send_invitation
+  attr_accessor :invitation_as_contact
 
 
   accepts_nested_attributes_for :portfolios     ,reject_if: :all_blank, allow_destroy: true
@@ -115,6 +117,10 @@ class Candidate < ApplicationRecord
 
   def full_name
     self.first_name + " " + self.last_name
+  end
+
+  def get_blacklist_status(black_list_company_id)
+    self.black_listers.find_by(company_id: black_list_company_id)&.status || 'unbanned'
   end
 
   def self.like_any(fields, values)
