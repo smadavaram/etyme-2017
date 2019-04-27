@@ -61,7 +61,7 @@ class CompanyContactDatatable < ApplicationDatatable
   def contact_icon record
     mail_to(record.email, content_tag(:i, nil, class: 'os-icon os-icon-email-2-at2').html_safe, title: record.email, class: 'data-table-icons') +
         link_to(content_tag(:i, nil, class: 'fa fa-phone ').html_safe, '#', title: record.phone, class: 'data-table-icons') +
-        link_to(content_tag(:i, nil, class: 'fa fa-comment-o ').html_safe, '#', title: 'chat', class: 'data-table-icons') +
+        link_to(content_tag(:i, nil, class: 'fa fa-comment-o ').html_safe, '#',data: {sid: current_company.id,rid: record.id,chattopic: 'OneToOne',stype: current_company.class,rtype: record.class.to_s}, title: 'chat', class: 'data-table-icons') +
         link_to(content_tag(:i, nil, class: 'fa fa-calendar').html_safe, '#', title: 'Add meeting', class: 'data-table-icons')
 
   end
