@@ -1,0 +1,35 @@
+.nested-fields4
+  .row
+    .col-sm-4
+      .form-group
+        %label Degree level
+        = f.text_field :degree_level, placeholder: "Degree level", class: 'form-control input'
+
+    .col-sm-4
+      .form-group
+        %label Institute
+        -#= f.select :institute, industry_list,{},{class: 'form-control input',style: "width:100% !important"}
+        = f.text_field :institute, class: 'form-control input'
+    .col-sm-4
+      .form-group
+        %label Degree Title
+        = f.text_field :degree_title, placeholder: "Degree Title",class: 'form-control input'
+  .row
+    .col-sm-4
+      .form-group
+        %label CGPA
+        = f.text_field :cgpa_grade, placeholder: "CGPA", class: 'form-control input'
+    .col-md-4
+      .form-group
+        %label Start Year
+        = f.text_field :start_year, placeholder: "YYYY-MM-DD", class: 'form-control p_date ed_start_year'
+
+    .col-md-4
+      .form-group
+        %label End Year
+        = f.text_field :completion_year, placeholder:"YYYY-MM-DD", class: 'form-control p_date ed_end_year input'
+
+  .row
+    .col-md-12
+      = link_to_remove_association f , wrapper_class: "nested-fields4", class: "bttn btn-add pull-right delete_icon" do
+        %i.fa.fa-trash

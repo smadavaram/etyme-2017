@@ -1,1 +1,9 @@
 =render partial: 'company/users/partials/user_profile',locals: {user: current_user}
+
+- content_for :scripts do
+  :javascript
+    $(document).on('cocoon:after-insert', '.user-association', function(e, insertedItem) {
+      $(".p_date").datepicker({
+        dateFormat : 'yy-mm-dd'
+      });
+    });

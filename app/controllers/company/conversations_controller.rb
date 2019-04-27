@@ -41,6 +41,16 @@ class Company::ConversationsController < Company::BaseController
     @companies = User.joins(:company).where("companies.name ILIKE ?", "%#{params[:keyword].to_s}%")
   end
 
+  def add_to_favourite
+    @favourite = current_user.favourables.create(favourabled_type: params[:favourabled_type], favourabled_id: params[:favourabled_id])
+  end
+
+  def remove_from_favourite
+    favourable = current_user.favourables.where(favourabled_type: params[:favourabled_type], favourabled_id: params[:favourabled_id]).first
+    @user = favourable.favourabled
+    favourable.destroy
+  end
+
   private
 
   def set_conversation(user)
@@ -52,12 +62,14 @@ class Company::ConversationsController < Company::BaseController
     end
   end
 
-  def  get_conversation_users
+  def get_conversation_users
     user_ids = Conversation.where("(senderable_type = ? AND senderable_id = ? AND recipientable_type = 'Candidate') OR (recipientable_type = ? AND recipientable_id = ? AND senderable_type = 'Candidate')", "User", current_user.id, "User", current_user.id).pluck(:senderable_id, :recipientable_id).flatten
     @candidates = Candidate.where(id: user_ids).order("created_at DESC").paginate(:page => params[:page], :per_page => 10)
 
     user_ids = Conversation.where("(senderable_type = ? AND senderable_id = ? AND recipientable_type != 'Candidate') OR (recipientable_type = ? AND recipientable_id = ? AND senderable_type != 'Candidate')", "User", current_user.id, "User", current_user.id).pluck(:senderable_id, :recipientable_id).flatten
     @companies = User.where.not(id: current_user.id).where(id: user_ids).order("created_at DESC").paginate(:page => params[:page], :per_page => 10)
+
+    @favourites = current_user.favourables
   end
 
 end

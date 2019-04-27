@@ -1,38 +1,30 @@
-#sub-menu-tab
-  %ul.nav.nav-tabs.pull-left.in
-    %li
-      = link_to company_path(current_company) do
-        %i.fa.fa-lg.fa-building
-        %span.hidden-mobile.hidden-tablet Company Info
-    %li
-      = link_to departments_path do
-        %i.fa.fa-lg.fa-building
-        %span.hidden-mobile.hidden-tablet Department
-    %li
-      = link_to roles_path do
-        %i.fa.fa-lg.fa-building
-        %span.hidden-mobile.hidden-tablet Roles
-    %li
-      = link_to admins_path do
-        %i.fa.fa-lg.fa-users
-        %span.hidden-mobile.hidden-tablet Users
-    %li
-      = link_to nil do
-        %i.fa.fa-lg.fa-building
-        %span.hidden-mobile.hidden-tablet Social
-    %li
-      = link_to attachments_path do
-        %i.fa.fa-lg.fa-book
-        %span.hidden-mobile.hidden-tablet Checklist
-    %li
-      = link_to company_legal_docs_path do
-        %i.fa.fa-lg.fa-book
-        %span.hidden-mobile.hidden-tablet Legal Doc
-    %li
-      = link_to payroll_term_infos_path do
-        %i.fa.fa-lg.fa-book
-        %span.hidden-mobile.hidden-tablet Payroll
-    %li
-      = link_to invoice_term_infos_path do
-        %i.fa.fa-lg.fa-book
-        %span.hidden-mobile.hidden-tablet Billing
+.os-tabs-w.mx-4
+  .os-tabs-controls
+    %ul.nav.nav-tabs.upper
+      %li.nav-item
+        = link_to company_path(current_company), class:"nav-link" do
+          Company Info
+      %li.nav-item
+        = link_to departments_path, class:"nav-link" do
+          Department
+      %li.nav-item
+        = link_to roles_path, class:"nav-link" do
+          Roles
+      %li.nav-item
+        = link_to admins_path, class:"nav-link" do
+          Users
+      %li.nav-item
+        = link_to nil, class:"nav-link" do
+          Social
+      %li.nav-item
+        = link_to attachments_path, class:"nav-link" do
+          Checklist
+      %li.nav-item
+        = link_to company_legal_docs_path, class:"nav-link" do
+          Legal Doc
+      %li.nav-item
+        = link_to payroll_term_infos_path, class:"nav-link" do
+          Payroll
+      %li.nav-item
+        = link_to invoice_term_infos_path, class:"nav-link" do
+          Billing
