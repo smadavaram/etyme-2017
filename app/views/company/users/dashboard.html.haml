@@ -83,12 +83,42 @@
                       %a.icon-widgets
                         %i.fa.fa-plus
                     %h5.text-muted.font-weight-normal.mt-0{:title => "Number of Orders"} Interview
-                    %h3.mt-3.mb-3.font-weight-bold 3
+                    %h3.mt-3.mb-3.font-weight-bold 13
                     %p.mb-0.text-muted
-                      %span.text-dark.mr-2 25
+                      %span.text-dark.mr-2 125
+                      %span.text-nowrap Total Interview
+                .col-sm-4.col-xxxl-3
+                  .element-box.p-4
+                    .float-right
+                      %a.icon-widgets
+                        %i.fa.fa-plus
+                    %h5.text-muted.font-weight-normal.mt-0{:title => "Number of Orders"} Contracts
+                    %h3.mt-3.mb-3.font-weight-bold 23
+                    %p.mb-0.text-muted
+                      %span.text-dark.mr-2 225
+                      %span.text-nowrap Total Interview
+                .col-sm-4.col-xxxl-3
+                  .element-box.p-4
+                    .float-right
+                      %a.icon-widgets
+                        %i.fa.fa-plus
+                    %h5.text-muted.font-weight-normal.mt-0{:title => "Number of Orders"} Candidate
+                    %h3.mt-3.mb-3.font-weight-bold 33
+                    %p.mb-0.text-muted
+                      %span.text-dark.mr-2 215
+                      %span.text-nowrap Total Interview
+                .col-sm-4.col-xxxl-3
+                  .element-box.p-4
+                    .float-right
+                      %a.icon-widgets
+                        %i.fa.fa-plus
+                    %h5.text-muted.font-weight-normal.mt-0{:title => "Number of Orders"} Hire
+                    %h3.mt-3.mb-3.font-weight-bold 34
+                    %p.mb-0.text-muted
+                      %span.text-dark.mr-2 205
                       %span.text-nowrap Total Interview
       .row
-        .col-sm-12
+        .col-sm-9
           .element-wrapper
             %h6.element-header
               Accouting
@@ -136,6 +166,44 @@
                         12,537
                     .el-chart-w
                       %canvas#lineChart{:height => "150px", :width => "600px"}
+        .col-md-3
+          .element-wrapper
+            %h6.element-header
+              Jobs
+            .element-box.less-padding
+              .el-chart-w
+                %canvas#donutChart1{:height => "120", :width => "120"}
+                .inside-donut-chart-label
+                  %strong 1,248
+                  %span Jobs
+              .el-legend.condensed
+                .row
+                  .col-auto.col-xxxxl-6.ml-sm-auto.mr-sm-auto
+                    .legend-value-w
+                      .legend-pin.legend-pin-squared{:style => "background-color: #6896f9;"}
+                      .legend-value
+                        %span Jobs
+                        .legend-sub-value
+                          17%, 12 Visits
+                    .legend-value-w
+                      .legend-pin.legend-pin-squared{:style => "background-color: #85c751;"}
+                      .legend-value
+                        %span Application
+                        .legend-sub-value
+                          22%, 763 Visits
+                  .col-sm-6.d-none.d-xxxxl-block
+                    .legend-value-w
+                      .legend-pin.legend-pin-squared{:style => "background-color: #806ef9;"}
+                      .legend-value
+                        %span Interview
+                        .legend-sub-value
+                          3%, 7 Visits
+                    .legend-value-w
+                      .legend-pin.legend-pin-squared{:style => "background-color: #d97b70;"}
+                      .legend-value
+                        %span Hire
+                        .legend-sub-value
+                          15%, 45 Visits
     .content-panel
       .content-panel-close
         %i.os-icon.os-icon-close
