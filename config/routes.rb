@@ -225,7 +225,7 @@ Rails.application.routes.draw do
       end
     end
 
-    resources :company_contacts, only: [:index, :new, :create]
+    resources :company_contacts, only: [:index, :new, :create, :destroy]
 
     resources :companies, only: [:new, :create, :update] do
       get :add_reminder

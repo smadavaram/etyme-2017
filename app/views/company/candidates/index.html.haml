@@ -10,7 +10,7 @@
                   %a.btn.btn-sm.btn-secondary{ :href => "#{new_company_candidate_path}", :title => "New Candidate" } New Candidate
                 .col-sm-6
                   .form-inline.justify-content-sm-end
-                    %input.form-control.form-control-sm.rounded.bright{placeholder: "Search", type: "text"}
+                    %input.form-control.form-control-sm.rounded.bright{placeholder: "Search", type: "search", id: 'company-candidates-datatable-search'}
             .table-responsive
               %table#company-candidates-datatable.table.table-bordered.table-lg.table-v2.table-striped.data-table-font{"data-source" => "company/candidates.json"}
                 %thead
@@ -23,3 +23,11 @@
                     %th Reminder/Note
                     %th Actions
                 %tbody
+
+-content_for :scripts do
+  :javascript
+    $(document).ready(function(){
+      $('#company-candidates-datatable-search').keyup(function(){
+        $('#company-candidates-datatable').DataTable().search( $(this).val() ).draw();
+      })
+    })

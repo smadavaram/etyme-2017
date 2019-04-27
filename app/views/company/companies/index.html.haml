@@ -10,7 +10,7 @@
                   %a.btn.btn-sm.btn-secondary{ :href => "#{new_company_company_path}", :title => "New Company" } New Company
                 .col-sm-6
                   .form-inline.justify-content-sm-end
-                    %input.form-control.form-control-sm.rounded.bright{placeholder: "Search", type: "text"}
+                    %input.form-control.form-control-sm.rounded.bright{placeholder: "Search", type: 'search', id: 'companies-datatable-search'}
             .table-responsive
               %table#companies-datatable.table.table-bordered.table-lg.table-v2.table-striped.data-table-font{"data-source" => "#{companies_path(format: :json)}",  width: "100%"}
                 %thead
@@ -24,3 +24,11 @@
                     %th Reminder/Note
                     %th Actions
                 %tbody
+
+-content_for :scripts do
+  :javascript
+    $(document).ready(function(){
+      $('#companies-datatable-search').keyup(function(){
+        $('#companies-datatable').DataTable().search( $(this).val() ).draw();
+      })
+    })

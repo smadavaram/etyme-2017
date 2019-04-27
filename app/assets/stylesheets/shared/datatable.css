@@ -13,7 +13,10 @@
     margin-right: 5px;
     color: #3E4B5B;
 }
-
+.data-table-icons:link,
+.data-table-icons:visited {
+    color: currentColor;
+}
 
 .data-table-font a:hover {
     text-decoration: none;

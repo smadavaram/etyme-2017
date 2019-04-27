@@ -24,13 +24,19 @@ class CompanyCandidateDatatable < ApplicationDatatable
     records.map do |record|
       {
           id: record.id,
-          name: do_ellipsis(record.full_name),
+          name: candidate_profile(record),
           contact: contact_icon(record),
           status: ban_unban_link(record),
           reminder_note: reminder_note(record),
           actions: actions(record)
       }
     end
+  end
+
+
+  def candidate_profile user
+    image_tag(user.photo, class: 'data-table-image mr-1').html_safe +
+        link_to(do_ellipsis(user.full_name), '#', class: 'data-table-font')
   end
 
   def get_raw_records
@@ -40,7 +46,8 @@ class CompanyCandidateDatatable < ApplicationDatatable
   def contact_icon record
     mail_to(record.email, content_tag(:i, nil, class: 'os-icon os-icon-email-2-at2').html_safe, title: record.email, class: 'data-table-icons') +
         link_to(content_tag(:i, nil, class: 'fa fa-phone ').html_safe, '#', title: record.phone, class: 'data-table-icons') +
-        link_to(content_tag(:i, nil, class: 'fa fa-comment-o ').html_safe, '#', title: 'chat', class: 'data-table-icons')
+        link_to(content_tag(:i, nil, class: 'fa fa-comment-o ').html_safe, '#', title: 'chat', class: 'data-table-icons') +
+        link_to(content_tag(:i, nil, class: 'fa fa-calendar').html_safe, '#', title: 'Add meeting', class: 'data-table-icons')
   end
 
   def ban_unban_link(record)
@@ -63,14 +70,15 @@ class CompanyCandidateDatatable < ApplicationDatatable
         link_to(content_tag(:i, nil, class: 'fa fa-user-plus ').html_safe, '#', title: 'Follow/Unfollow', class: 'data-table-icons') +
         link_to(content_tag(:i, nil, class: 'fa fa-bell ').html_safe, candidate_add_reminder_path(record), remote: :true, title: "Remind Me", class: 'data-table-icons') +
         link_to(content_tag(:i, nil, class: 'fa fa-edit').html_safe, edit_company_candidate_path(record), title: "Edit #{record.full_name}", class: 'data-table-icons') +
+        link_to(content_tag(:i, nil, class: 'fa fa-file-text').html_safe, record.resume, download: true, title: "Download Resume", class: 'data-table-icons') +
         get_status_links(record)
   end
 
   def get_status_links(record)
     if is_hot?(record)
-      link_to(content_tag(:i, nil, class: 'fa fa-fire', style: 'color: #FF9933;').html_safe, candidate_make_normal_path(record), remote: true, method: :post, title: "Delete #{record.full_name}", class: 'data-table-icons', title: 'Make Normal', data: {confirm: " Do you want to make #{record.full_name} Normal?", commit: 'Continue', cancel: 'Cancel'})
+      link_to(content_tag(:i, nil, class: 'fa fa-fire', style: 'color: #FF9933;').html_safe, candidate_make_normal_path(record), remote: true, method: :post, class: 'data-table-icons', title: 'Make Normal', data: {confirm: " Do you want to make #{record.full_name} Normal?", commit: 'Continue', cancel: 'Cancel'})
     else
-      link_to(content_tag(:i, nil, class: 'fa fa-fire').html_safe, candidate_make_hot_path(record), remote: true, method: :post, title: "Delete #{record.full_name}", class: 'data-table-icons', title: 'Make Hot', data: {confirm: " Do you want to make #{record.full_name} Hot?", commit: 'Continue', cancel: 'Cancel'})
+      link_to(content_tag(:i, nil, class: 'fa fa-fire').html_safe, candidate_make_hot_path(record), remote: true, method: :post, class: 'data-table-icons', title: 'Make Hot', data: {confirm: " Do you want to make #{record.full_name} Hot?", commit: 'Continue', cancel: 'Cancel'})
     end
   end
 

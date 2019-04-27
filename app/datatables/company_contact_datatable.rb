@@ -8,6 +8,8 @@ class CompanyContactDatatable < ApplicationDatatable
   def_delegator :@view, :company_company_add_reminder_path
   def_delegator :@view, :company_contacts_company_companies_path
   def_delegator :@view, :company_company_assign_groups_to_contact_path
+  def_delegator :@view, :edit_company_path
+  def_delegator :@view, :company_company_contact_path
 
   def view_columns
     @view_columns ||= {
@@ -59,7 +61,8 @@ class CompanyContactDatatable < ApplicationDatatable
   def contact_icon record
     mail_to(record.email, content_tag(:i, nil, class: 'os-icon os-icon-email-2-at2').html_safe, title: record.email, class: 'data-table-icons') +
         link_to(content_tag(:i, nil, class: 'fa fa-phone ').html_safe, '#', title: record.phone, class: 'data-table-icons') +
-        link_to(content_tag(:i, nil, class: 'fa fa-comment-o ').html_safe, '#', title: 'chat', class: 'data-table-icons')
+        link_to(content_tag(:i, nil, class: 'fa fa-comment-o ').html_safe, '#', title: 'chat', class: 'data-table-icons') +
+        link_to(content_tag(:i, nil, class: 'fa fa-calendar').html_safe, '#', title: 'Add meeting', class: 'data-table-icons')
 
   end
 
@@ -68,18 +71,21 @@ class CompanyContactDatatable < ApplicationDatatable
   end
 
   def actions record
-    link_to(content_tag(:i, nil, class: 'fa fa-sticky-note ').html_safe, company_statuses_path(id: record.user_company, type: 'Company'), title: 'Status Log', class: 'data-table-icons') +
-        link_to(content_tag(:i, nil, class: 'fa fa-sticky-note ').html_safe, company_assign_status_path(record.user_company), remote: :true, title: "Assign Status", class: 'data-table-icons') +
-        link_to(content_tag(:i, nil, class: 'fa fa-user-plus ').html_safe, '#', title: 'Follow/Unfollow', class: 'data-table-icons') +
+    link_to(content_tag(:i, nil, class: 'fa fa-sticky-note ').html_safe, company_assign_status_path(record.user_company), remote: :true, title: "Assign Status", class: 'data-table-icons') +
         link_to(content_tag(:i, nil, class: 'fa fa-bell ').html_safe, company_company_add_reminder_path(record.user_company), remote: :true, title: "Remind Me", class: 'data-table-icons') +
-        link_to(content_tag(:i, nil, class: 'fa fa-users').html_safe, company_company_assign_groups_to_contact_path(record), remote: true, title: 'Add to Group', class: 'data-table-icons')
+        link_to(content_tag(:i, nil, class: 'fa fa-users').html_safe, company_company_assign_groups_to_contact_path(record), remote: true, title: 'Add to Group', class: 'data-table-icons') +
+        link_to(content_tag(:i, nil, class: 'fa fa-edit').html_safe, "#", remote: true, title: "Edit #{record.full_name}", class: 'data-table-icons')
   end
+
+  # company_path(d.invited_company)
 
   def ban_unban_link(record)
     record.user_company.get_blacklist_status(record.company_id) == 'banned' ?
-        link_to(content_tag(:i, nil, class: 'fa fa-unlock-alt').html_safe, unban_company_black_listers_path(record.user_company_id, 'Company'), method: :post, title: 'UnBlock Company', class: 'data-table-icons')
+        link_to(content_tag(:i, nil, class: 'os-icon os-icon-ui-15').html_safe, company_company_contact_path(record.id), method: :delete, title: "Delete #{record.full_name}", class: 'data-table-icons') +
+            link_to(content_tag(:i, nil, class: 'fa fa-unlock-alt').html_safe, unban_company_black_listers_path(record.user_company_id, 'Company'), method: :post, title: 'WhiteList Company', class: 'data-table-icons')
         :
-        link_to(content_tag(:i, nil, class: 'fa fa-lock').html_safe, ban_company_black_listers_path(record.user_company_id, 'Company'), method: :post, title: 'Block Company ', class: 'data-table-icons')
+        link_to(content_tag(:i, nil, class: 'os-icon os-icon-ui-15').html_safe, company_company_contact_path(record.id), method: :delete, title: "Delete #{record.full_name}", class: 'data-table-icons') +
+            link_to(content_tag(:i, nil, class: 'fa fa-lock').html_safe, ban_company_black_listers_path(record.user_company_id, 'Company'), method: :post, title: 'BlackList Company ', class: 'data-table-icons')
   end
 
 end
