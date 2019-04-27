@@ -2,9 +2,43 @@
 .fc-head-container thead tr {
     background-color: transparent;
 }
-.data-table-image{
+
+.data-table-image {
     height: 30px;
+    border-radius: 50%;
+
 }
-.data-table-icons{
-    margin-right:5px;
+
+.data-table-icons {
+    margin-right: 5px;
+    color: #3E4B5B;
 }
+.data-table-icons:link,
+.data-table-icons:visited {
+    color: currentColor;
+}
+
+.data-table-font a:hover {
+    text-decoration: none;
+    color: #3E4B5B;
+}
+.os-icon-ui-15{
+    color: red;
+}
+.data-table-font {
+    font-family: "Avenir Next W01";
+    font-size: .9rem;
+    font-weight: 400;
+    line-height: 1.5;
+    color: #3E4B5B;
+    text-align: left;
+}
+
+/*.dataTable th, .dataTable td, .dataTable .ellipsis {*/
+/*white-space: nowrap;*/
+/*overflow: hidden;*/
+/*}*/
+.dataTables_filter, .dataTables_length {
+    display: none;
+}
+

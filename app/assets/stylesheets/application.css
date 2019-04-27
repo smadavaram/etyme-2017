@@ -46,6 +46,12 @@
  *= require bullettrain-public
  */
 
+@font-face {
+    font-family: 'SourceSansPro';
+    src: url('../fonts/') format('truetype');
+    src: url('SourceSansPro/SourceSansPro-Bold.ttf') format('truetype');
+    src: url('SourceSansPro/SourceSansPro-Italic.ttf') format('truetype');
+}
 
 
 

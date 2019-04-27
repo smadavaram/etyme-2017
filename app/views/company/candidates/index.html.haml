@@ -1,173 +1,33 @@
-#content
-  %body
-    %section#widget-grid
-      .row
-        %article.col-xs-12.col-sm-12.col-md-12.col-lg-12.sortable-grid.ui-sortable
-          #wid-id-1.jarviswidget.jarviswidget-color-blueDark.jarviswidget-sortable{"data-widget-editbutton" => "false", :role => "widget"}
-            %header{:role => "heading"}
-              %span.widget-icon
-                %i.fa.fa-table
-              %h2.text-white Candidates
-              %span.jarviswidget-loader
-                %i.fa.fa-refresh.fa-spin
-            %div{:role => "content"}
-              .jarviswidget-editbox
-              .widget-body.no-padding
-                #datatable_fixed_column_wrapper.dataTables_wrapper.form-inline.dt-bootstrap.no-footer
-                  %table#datatable_fixed_column.table.table-striped.table-bordered.dataTable.no-footer{"aria-describedby" => "datatable_fixed_column_info", :role => "grid", :style => "width: 100%;", :width => "100%"}
-                    %thead
-                      %tr{:role => "row"}
-                        %th.hasinput{ :style => "width:2%"}
-                          = check_box_tag "select_all[]", ""
-                        %th.hasinput{ :style => "width:17%"}
-                          %input.form-control{:placeholder => "Name", :type => "text"}/
-                        %th.hasinput{ :style => "width:18%"}
-                          %input.form-control{:placeholder => "Email", :type => "text"}/
-                        %th.hasinput{ :style => "width:16%"}
-                          %input.form-control{:placeholder => "Phone ", :type => "text"}/
-                        %th.hasinput{ :style => "width:17%"}
-                          %input.form-control{:placeholder => "Skills ", :type => "text"}/
-                        %th.hasinput
-                          %input.form-control{ :placeholder => "Last Reminder", :type => "text"}/
-                        %th.hasinput
-                          %input.form-control{ :placeholder => "Note ", :type => "text"}/
-                        %th.hasinput{ :style => "width:16%"}
-                          %input.form-control{:placeholder => "Actions", :type => "text"}/
-                      %tr{:role => "row"}
-                        %th Select
-                        -#%th Pic
-                        %th Name
-                        %th Email
-                        %th Phone
-                        -#%th Role
-                        %th Skills
-                        %th Last Reminder
-                        %th Note
-                        -#%th Location
-                        -#%th Groups
-                        %th Actions
-                    %tbody
-                      - @candidates.each do |candidate|
-                        %tr.even{:role => "row"}
-                          %td= check_box_tag "ids[]", candidate.id, nil, class: "table-check"
-                          -#%td= image_tag candidate.photo, alt: '', width: '20'
-                          %td= candidate.try(:full_name).try(:titleize)
-                          %td= candidate.try(:email)
-                          %td= candidate.try(:phone)
-                          -#%td
-                            - candidate.try(:roles).each do |role|
-                              %span
-                                .label-info.badge
-                                  = role.try(:name)
-                          -#%td= candidate.try(:status).try(:titleize)
-                          %td
-                            - candidate.skills.each do |skill|
-                              %span
-                                .label-info.badge
-                                  = skill.name
-                          %td
-                            - reminder = find_reminderable_last_reminder(candidate)
-                            = reminder.present? ? reminder.try(:title).try(:titleize) : ''
-                          %td
-                            - if candidate.try(:statuses).present?
-                              %span
-                                .label-info.badge
-                                  = candidate.try(:statuses).try(:last).try(:status_type)
-                              %br
-                                = candidate.try(:statuses).try(:last).try(:note)
-                          -#%td
-                          -#  - if candidate.address.nil?
-                          -#    = candidate.address.city + ' , '+ candidate.address.state + ' , '+ candidate.address.country + ' , '+ candidate.address.zip_code
+.content-i
+  .content-box
+    .row
+      .col-sm-12
+        .element-wrapper
+          .element-box-tp
+            .controls-above-table
+              .row.mr-1.ml-1
+                .col-sm-6
+                  %a.btn.btn-sm.btn-secondary{ :href => "#{new_company_candidate_path}", :title => "New Candidate" } New Candidate
+                .col-sm-6
+                  .form-inline.justify-content-sm-end
+                    %input.form-control.form-control-sm.rounded.bright{placeholder: "Search", type: "search", id: 'company-candidates-datatable-search'}
+            .table-responsive
+              %table#company-candidates-datatable.table.table-bordered.table-lg.table-v2.table-striped.data-table-font{"data-source" => "company/candidates.json"}
+                %thead
+                  %tr
+                    %th
+                      %input{ type:"checkbox", name:"select_all", id:"example-select-all"}
+                    %th Name
+                    %th Contact
+                    %th Status
+                    %th Reminder/Note
+                    %th Actions
+                %tbody
 
-                          -#%td
-                            - candidate.groups.each do |group|
-                              %span.badge.bg-color-blue
-                                = group.try(:group_name).try(:titleize)
-                          %td
-                            = link_to raw("<i class='fa fa-sticky-note '></i>")  ,company_statuses_path(id: candidate,type: 'Candidate' )   ,class: 'btn btn-default  btn-xs margin-bottom-5 ',title: "Status Log",'data-toggle'=>"tooltip" ,'data-placement'=>"top"
-
-                            = link_to raw("<i class='fa fa-sticky-note '></i>")  ,candidate_assign_status_path(candidate)   ,class: 'btn btn-default btn-xs margin-bottom-5 ', remote: :true,title: "Assign Status",'data-toggle'=>"tooltip" ,'data-placement'=>"top"
-                            = link_to raw("<i class='fa fa-bell '></i>")     ,candidate_add_reminder_path(candidate) ,class: 'btn btn-default btn-xs margin-bottom-5', remote: :true,title:"Remind Me",'data-toggle'=>"tooltip" ,'data-placement'=>"top"
-                            -#= link_to 'Activity'     ,company_activities_index_path(index: true), class: 'btn btn-xs btn-primary  margin-bottom-5',title:"Activity Log"
-                            = link_to raw("<i class='fa fa-file-text '></i>") , candidate.resume ,download: true , class: 'btn btn-xs btn-default  margin-bottom-5',title:"Resume",'data-toggle'=>"tooltip" ,'data-placement'=>"top"
-                            = link_to raw("<i class='fa fa-eye '></i>") , static_candidate_resume_path(candidate) , class: 'btn btn-xs btn-default  margin-bottom-5',title:"Detail Show",target: '_blank','data-toggle'=>"tooltip" ,'data-placement'=>"top"
-                            = link_to raw("<i class='fa fa-users '></i>"), candidate_manage_groups_path(candidate) , remote:true,class: 'btn btn-xs btn-default   margin-bottom-5',title:"Assign Groups",'data-toggle'=>"tooltip" ,'data-placement'=>"top"
-                            - if is_hot?(candidate)
-                              = link_to raw("<i class='fa fa-fire '></i>"), candidate_make_hot_path(candidate) , remote:true,method: :post,class: 'btn btn-xs btn-default  margin-bottom-5',title:"Make Hot", data: {confirm: " Do you want to make #{candidate.full_name} Hot?",commit: 'Continue', cancel: 'Cancel'},'data-toggle'=>"tooltip" ,'data-placement'=>"top"
-                            - if !is_hot?(candidate)
-                              = link_to raw("<i class='fa fa-fire ' style='color: #FF9933;'></i>"), candidate_make_normal_path(candidate) , remote:true,method: :post,class: 'btn btn-xs btn-default   margin-bottom-5',title:"Make Normal", data: {confirm: " Do you want to make #{candidate.full_name} Normal?",commit: 'Continue', cancel: 'Cancel'},'data-toggle'=>"tooltip" ,'data-placement'=>"top"
-                            -# if candidate.campany_candidate?
-                            = link_to raw("<i class='fa fa-edit '></i>") , edit_company_candidate_path(candidate) , class: 'btn btn-xs btn-default   margin-bottom-5', title: "Edit #{candidate.full_name}",'data-toggle'=>"tooltip" ,'data-placement'=>"top"
-                            = link_to raw("<i class='fa fa-times '></i>") , candidate_remove_from_comapny_path(candidate) ,remote:true, method: :post ,  class: 'btn btn-xs btn-default  margin-bottom-5',title: "Delete  ",'data-toggle'=>"tooltip" ,'data-placement'=>"top"
-                    - if @candidates.count >30
-                      .dt-toolbar-footer
-                        = digg_pagination(@candidates)
-:css
-  .form-control
-  {
-    background-color: white !important;
-  }
-
-
-- content_for :modals do
-  = render 'company/candidates/partials/add_to_my_network'
-  = render 'company/reminders/partials/bulk_form_for_candidates'
-  = render 'company/statuses/partials/assign_bulk_candidates'
-  = render 'company/groups/partial/assign_bulk_candidates'
-  = render 'company/candidates/partials/share_hot_candidates'
-
-
-- content_for :scripts do
+-content_for :scripts do
   :javascript
-    $("#remind").datepicker({dateFormat: "yy-mm-dd"  });
-    if ("#{flash[:already_exist]}"){
-        $('#add-network').modal('toggle');
-    }
-    $(document).ready(function() {
-      $("#select_all_" ).on( "click", function() {
-        $("input[name='ids[]']").prop('checked', this.checked);
-      });
-      pageSetUp();
-      var responsiveHelper_dt_basic = undefined;
-      var responsiveHelper_datatable_fixed_column = undefined;
-      var responsiveHelper_datatable_col_reorder = undefined;
-      var responsiveHelper_datatable_tabletools = undefined;
-      var table = $('#example').DataTable();
-      var otable = $('#datatable_fixed_column').DataTable({
-            "sDom": "<'dt-toolbar'<'col-xs-12 col-sm-6 hidden-xs'f><'col-sm-6 col-xs-12 hidden-xs'<'toolbar'>>r>"+
-                    "t"+
-                    "<'dt-toolbar-footer'<'col-sm-6 col-xs-12 hidden-xs'i><'col-xs-12 col-sm-6'p>>",
-            "autoWidth" : true,
-            "oLanguage": {
-                "sSearch": '<span class="input-group-addon"><i class="icon-feather-search"></i></span>'
-            }
-
-        });
-      $("div.toolbar").html("<div class='text-right'><a href=#{new_company_candidate_path} class = 'btn btn-success btn-md pull-right header-btn margin-top-5 ' rel='tooltip' data-placement='top' title='New Candidate'><i class='fa fa-user-plus'></i> New </a><a href='#'  data-toggle= 'modal'  data-target= '#add-reminder-candidates' class = 'btn btn-success bulk btn-md pull-right margin-right-5 header-btn margin-top-5 ' rel='tooltip' data-placement='top' title='Assign Reminder'><i class='fa fa-bell'  >  </i></a> <a href='#'  data-toggle= 'modal'  data-target= '#assign-status-candidates'  rel='tooltip' data-placement='top' title='Assign Status' class = 'btn btn-success bulk btn-md pull-right margin-right-5 header-btn margin-top-5 '><i class='fa fa-sticky-note'>  </i></a><a href='#'  data-toggle= 'modal' rel='tooltip' data-placement='top' title='Assign Groups'  data-target= '#assign-bulk-group-candidates' class = 'btn btn-success bulk btn-md pull-right margin-right-5 header-btn margin-top-5 '><i class='fa fa-users'>  </i></a><a href='#' data-toggle= 'modal'  data-target= '#share-candidates' class= 'btn btn-success bulk share btn-md pull-right margin-right-5 header-btn margin-top-5' data-placement='top' title='Share Candidates' ><i class='fa fa-share-alt'></i> Share</a></div>");
-      // Apply the filter
-      $("#datatable_fixed_column thead th input[type=text]").on( 'keyup change', function () {
-        otable
-            .column( $(this).parent().index()+':visible' )
-            .search( this.value )
-            .draw();
-
-      } );
-       // share hide and show on base of checked checkboxes
-
-        // for share of checked rows
-        var checkedRows = new Array();
-          $(".bulk" ).on( "click", function(e) {
-            $('input[name="ids[]"]:checkbox:checked').each(function(){
-            checkedRows.push($(this).val());
-            });
-            if(checkedRows.length>0)
-            {
-              $('.candidates_ids').val(checkedRows);
-            }
-            if($( ".table-check:checked" ).length <= 0){
-              alert("Make a selection first.")
-              return false;
-            }
-        });
-
-    });
+    $(document).ready(function(){
+      $('#company-candidates-datatable-search').keyup(function(){
+        $('#company-candidates-datatable').DataTable().search( $(this).val() ).draw();
+      })
+    })

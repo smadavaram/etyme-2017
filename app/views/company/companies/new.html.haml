@@ -30,8 +30,8 @@
               = f.fields_for :custom_fields do |lt|
                 = render 'shared/custom_fields', f: lt
               %br/
-              .links.col-sm-12
-                = link_to_add_association '+ Add Custom Field', f, :custom_fields, class: 'text-info pull-right', partial: 'shared/custom_fields'
+              -#.links.col-sm-12
+              -#  = link_to_add_association '+ Add Custom Field', f, :custom_fields, class: 'text-info pull-right', partial: 'shared/custom_fields'
         .form-actions
           .row
             .col-md-12

@@ -16,4 +16,4 @@ set :branch, 'dev'
 # server list. The second argument is a, or duck-types, Hash and is
 # used to set extended properties on the server.
 
-server '157.230.90.106', user: 'deploy',  password: '', roles: %w{web app}
+server '157.230.90.106', user: 'deploy',  password: 'Etyme123@', roles: %w{web app}

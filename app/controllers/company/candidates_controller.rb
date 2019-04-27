@@ -8,8 +8,10 @@ class Company::CandidatesController < Company::BaseController
   before_action :authorized_user ,only:  [:new , :index,:update,:make_hot,:make_normal]
 
  def index
-   @search      = current_company.candidates.search(params[:q])
-   @candidates = @search.result.order(created_at: :desc).paginate(page: params[:page], per_page: 30) || []
+   respond_to do |format|
+     format.html {}
+     format.json {render json: CompanyCandidateDatatable.new(params, view_context: view_context)}
+   end
  end
 
   def new
