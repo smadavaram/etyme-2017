@@ -61,6 +61,9 @@ class User < ApplicationRecord
   has_many :user_educations, dependent: :destroy
   has_many :user_work_clients , dependent: :destroy
 
+  has_many :favourables, as: :favourable, class_name: "FavouriteChat", dependent: :destroy
+  has_many :favourableds, as: :favourabled, class_name: "FavouriteChat", dependent: :destroy
+
   accepts_nested_attributes_for :attachable_docs , reject_if: :all_blank
   accepts_nested_attributes_for :custom_fields   , reject_if: :all_blank
   accepts_nested_attributes_for :address   , reject_if: :all_blank, update_only: true

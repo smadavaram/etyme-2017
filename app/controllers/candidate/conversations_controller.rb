@@ -34,6 +34,16 @@ class Candidate::ConversationsController < Candidate::BaseController
     end
   end
 
+  def add_to_favourite
+    @favourite = current_candidate.favourables.create(favourabled_type: params[:favourabled_type], favourabled_id: params[:favourabled_id])
+  end
+
+  def remove_from_favourite
+    favourable = current_candidate.favourables.where(favourabled_type: params[:favourabled_type], favourabled_id: params[:favourabled_id]).first
+    @user = favourable.favourabled if favourable.present?
+    favourable.destroy if favourable.present?
+  end
+
   private
 
   def set_conversation(user)
@@ -51,6 +61,8 @@ class Candidate::ConversationsController < Candidate::BaseController
 
     user_ids = Conversation.where("(senderable_type = ? AND senderable_id = ? AND recipientable_type != 'Candidate') OR (recipientable_type = ? AND recipientable_id = ? AND senderable_type != 'Candidate')", current_candidate.class.to_s, current_candidate.id, current_candidate.class.to_s, current_candidate.id).pluck(:senderable_id, :recipientable_id).flatten
     @companies = User.where(id: user_ids).order("created_at DESC").paginate(:page => params[:page], :per_page => 10)
+
+    @favourites = current_candidate.favourables
   end
 
 end

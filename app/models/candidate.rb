@@ -67,9 +67,11 @@ class Candidate < ApplicationRecord
   has_many   :legal_documents, dependent: :destroy
   has_many   :client_expenses, dependent: :destroy
 
+  has_many :favourables, as: :favourable, class_name: "FavouriteChat", dependent: :destroy
+  has_many :favourableds, as: :favourabled, class_name: "FavouriteChat", dependent: :destroy
 
-
-
+  # has_many :partner_following, through: :partner_active_relationships, source: :partner_followed
+  # has_many :partner_followers, through: :partner_passive_relationships, source: :partner_follower
 
   belongs_to :invited_by_user, class_name: "User", foreign_key: :invited_by_id, optional: true
 
