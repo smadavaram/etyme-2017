@@ -1,0 +1,49 @@
+.multi-field-container.nested-fields6
+  .row
+    .col-sm-12
+      .form-group
+        %label Name
+        = f.text_field :name,placeholder: "Client Name",class: 'form-control input'
+
+    .col-sm-4
+      .form-group
+        %label Industry
+        = f.text_field :industry, placeholder: "Industry",class: 'form-control input'
+    .col-sm-4
+      .form-group
+        %label Start Date
+        = f.text_field :start_date,placeholder: "YYYY-MM-DD",class: 'form-control p_date cl_start_year input'
+    .col-sm-4
+      .form-group
+        %label End Date
+        = f.text_field :end_date,placeholder:"YYYY-MM-DD",class: 'form-control p_date cl_end_year input'
+
+  .row
+    .col-sm-4
+      .form-group
+        %label Reference name
+        = f.text_field :reference_name,placeholder: "Reference name",class: 'form-control input'
+
+    .col-sm-4
+      .form-group
+        %label Reference Phone
+        = f.text_field :reference_phone, class: 'form-control input'
+    .col-sm-4
+      .form-group
+        %label Reference Email
+        = f.text_field :reference_email,placeholder: "Email",class: 'form-control input'
+
+  .row
+    .col-md-6
+      .form-group
+        %label Project Description
+        = f.text_area :project_description,placeholder: "Project Description",class: 'form-control input'
+    .col-md-6
+      .form-group
+        %label Role
+        = f.text_area :role,placeholder: "My Role",class: 'form-control input'
+
+  .row
+    .col-md-12
+      = link_to_remove_association f , wrapper_class: "nested-fields6", class: "bttn btn-add pull-right delete_icon" do
+        %i.fa.fa-trash

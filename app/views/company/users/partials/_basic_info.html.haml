@@ -37,6 +37,36 @@
             = b.text_field :address_2, placeholder: "line2",class: 'form-control'
 
     .row
+      .col-md-12
+        .form-group
+          = f.text_field :skill_list, placeholder: "Add Skills Comma seperated",class: 'form-control p-location input', 'data-role'=>'tagsinput',value: f.object.skill_list.join(", ")
+
+    %h5.element-header
+      Education Details
+    %br
+    .form-group.user-association
+      = f.fields_for :user_educations, f.object.user_educations do |b|
+        = render 'company/users/partials/education_fields', f: b
+      .links.education_links.pull-right
+        = link_to_add_association '+ Add Education', f, :user_educations, class: 'btn btn-success', partial: 'company/users/partials/education_fields'
+    %h5.element-header
+      Certificate Details
+    %br
+    .form-group.user-association
+      = f.fields_for :user_certificates, f.object.user_certificates do |b|
+        = render 'company/users/partials/certificate_fields', f: b
+      .links.education_links.pull-right
+        = link_to_add_association '+ Add Certificates', f, :user_certificates, class: 'btn btn-success', partial: 'company/users/partials/certificate_fields'
+    %h5.element-header
+      Work Client
+    %br
+    .form-group.user-association
+      = f.fields_for :user_work_clients, f.object.user_work_clients do |b|
+        = render 'company/users/partials/user_work_client_fields', f: b
+      .links.education_links.pull-right
+        = link_to_add_association '+ Add Work Clients', f, :user_work_clients, class: 'btn btn-success', partial: 'company/users/partials/user_work_client_fields'
+
+    .row
       .col-lg-12
         %button.btn.pull-left{:type => "button"}
           Back

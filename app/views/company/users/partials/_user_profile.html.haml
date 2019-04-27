@@ -54,6 +54,9 @@
      $( ".resume" ).click(function() {
         $( ".resume_file" ).trigger( "click" );
      });
+      $('.p_date').datepicker({
+        dateFormat: "yy-mm-dd"
+      });
     });
     function userLogoUpload(event){
       photo_url = event.fpfile.url
