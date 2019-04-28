@@ -1,7 +1,5 @@
 <% if current_user.present? %>
-  $("#company-conversation-list").html("<%= j render 'company/conversations/conversation_users', users: @companies %>");
-  $("#candidate-conversation-list").html("<%= j render 'company/conversations/conversation_users', users: @candidates %>");
+  $("#company-conversation-list").html("<%= j render 'company/conversations/conversation_users', users: @companies, candidates: @candidates %>");
 <% else %>
-  $("#company-conversation-list").html("<%= j render 'candidate/conversations/conversation_users', users: @companies %>");
-  $("#candidate-conversation-list").html("<%= j render 'candidate/conversations/conversation_users', users: @candidates %>");
+  $("#company-conversation-list").html("<%= j render 'candidate/conversations/conversation_users', users: @companies, candidates: @candidates %>");
 <% end %>

@@ -33,6 +33,9 @@ Rails.application.routes.draw do
     get 'feeds' => 'rss_jobs#feeds'
     get ':company_id/job_feed' => 'rss_jobs#job_feed', format: 'json'
     get ':company_id/job_feed/:job_id' => 'rss_jobs#job_feed', format: 'json'
+    get ':company_id/product_feed' => 'rss_jobs#product_feed', format: 'json'
+    get ':company_id/service_feed' => 'rss_jobs#service_feed', format: 'json'
+    get ':company_id/training_feed' => 'rss_jobs#training_feed', format: 'json'
   end
 
 
@@ -157,6 +160,8 @@ Rails.application.routes.draw do
 
     resources :conversations do
       get :search, on: :collection
+      get :add_to_favourite, on: :collection
+      get :remove_from_favourite, on: :collection
       resources :conversation_messages
     end
 
@@ -287,6 +292,8 @@ Rails.application.routes.draw do
     end
     resources :conversations do
       get :search, on: :collection
+      get :add_to_favourite, on: :collection
+      get :remove_from_favourite, on: :collection
       resources :conversation_messages do
         get :mark_as_read, on: :member
       end
@@ -645,6 +652,7 @@ Rails.application.routes.draw do
 
   resources :conversations do
     resources :conversation_messages do
+      get :messages, on: :collection
       get :mark_as_read, on: :member
     end
   end

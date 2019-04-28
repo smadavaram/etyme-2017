@@ -1,5 +1,15 @@
 $("#conversation-section").html("<%= j render 'candidate/conversations/conversation' %>");
+$("#conversation-r-section").html("<%= j render 'candidate/conversations/conversation_right_side' %>");
+$(".chat-content-scroll").data('ajaxready', true);
+$.ajax({
+    url: "<%= messages_conversation_conversation_messages_path(@conversation) %>",
+    type: "GET",
+    dataType: "script",
+    success:function(data){}
+});
+listenForScrollEvent($(".chat-content-scroll"));
+
 $("#unread-msg-<%= current_candidate.id %>").html("<%= @unread_message_count.to_i > 0 ? @unread_message_count : '' %>");
 $('.messages_bs .chat_box .keystroke_msgs_box').slimScroll({
-  height: '540px'
+    height: '540px'
 });

@@ -1,0 +1,35 @@
+.nested-fields5
+  .row
+    .col-sm-3
+      .form-group
+        %label Certificate Title
+        = f.text_field :title, placeholder: "Certificate Title",class: 'form-control input'
+
+    .col-sm-3
+      .form-group
+        %label Institute
+        = f.text_field :institute, class: 'form-control input'
+
+    .col-sm-3
+      .form-group
+        %label Start Date
+        = f.text_field :start_date,placeholder: "YYYY-MM-DD",class: 'form-control p_date cer_start_date input'
+
+    .col-sm-3
+      .form-group
+        %label End Date
+        = f.text_field :end_date, placeholder:"YYYY-MM-DD",class: 'form-control p_date cer_end_date input'
+
+  .row
+    .col-md-12
+      = link_to_remove_association f , wrapper_class: "nested-fields5", class: "bttn btn-add pull-right delete_icon" do
+        %i.fa.fa-trash
+
+-#- content_for :scripts do
+-#  :javascript
+-#
+-#    $(document).ready(function() {
+-#      $('.cer_start_date, .cer_end_date').datepicker({
+-#       dateFormat: "yy-mm-dd"
+-#      });
+-#    });

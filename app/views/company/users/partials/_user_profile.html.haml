@@ -1,40 +1,40 @@
-#content
-  .row
-    .col-sm-12.col-md-12.col-lg-3
-      .panel-body.status.profile-margin
-        .text
-          %div.profile-hover
-            %p.imgDescription.col-sm-offset-4  Change Image
-            %div.pictureContainer.col-md-offset-2
-              = filepicker_field_tag "" ,class: "hidden user-logo", onchange:"userLogoUpload(event)","data-fp-crop-ratio" => "2/2",mimetypes: "image/*"
-              -if(user.photo.present?)
-                = image_tag user.photo,  style:"width:100px;height:100px", fit: 'clip',:class =>"profile-pic image-setting"
+.content-i
+  .content-box
+    .element-wrapper
+      %h6.element-header
+        User Profile
+      .element-box
+        #content
+          .row
+            .col-sm-12.col-md-12.col-lg-3
+              .panel-body.status.profile-margin
+                .text
+                  %div.profile-hover
+                    %p.imgDescription.col-sm-offset-4  Change Image
+                    %div.pictureContainer.col-md-offset-2
+                      = filepicker_field_tag "" ,class: "hidden user-logo", onchange:"userLogoUpload(event)","data-fp-crop-ratio" => "2/2",mimetypes: "image/*"
+                      -if(user.photo.present?)
+                        = image_tag user.photo,  style:"width:100px;height:100px", fit: 'clip',:class =>"profile-pic image-setting"
 
-              -else
-                = image_tag image_path('default_user.png'),  style: "width:100px;height:100px", fit: 'clip',:class =>"profile-pic image-setting"
+                      -else
+                        = image_tag image_path('default_user.png'),  style: "width:100px;height:100px", fit: 'clip',:class =>"profile-pic image-setting"
 
-        .panel-body.status.profile-margin
-          .text
-            %div.profile-hover
-              %p.imgDescription.col-sm-offset-4 Upload Video
-              %div.pictureContainer.col-md-offset-2
-                = filepicker_field_tag "" ,class: "hidden file", onchange:"usersVideoUpload(event)","data-fp-crop-ratio" => "2/2",mimetypes: "video/*"
-                -if(user.video.present?)
-                  %video{:controls => "", :width => "200", :height=> "200"}
-                    %source{:src => user.video, :type => "#{user.video_type}"}
-                -else
-                  = image_tag image_path('default_user.png'),  style: "width:100px;height:100px", fit: 'clip',:class =>"video-pic"
-                = button_tag "Upload Video", fit: 'clip',:class =>"video-pic img1"
+                .panel-body.status.profile-margin
+                  .text
+                    %div.profile-hover
+                      %p.imgDescription.col-sm-offset-4 Upload Video
+                      %div.pictureContainer.col-md-offset-2
+                        = filepicker_field_tag "" ,class: "hidden file", onchange:"usersVideoUpload(event)","data-fp-crop-ratio" => "2/2",mimetypes: "video/*"
+                        -if(user.video.present?)
+                          %video{:controls => "", :width => "200", :height=> "200"}
+                            %source{:src => user.video, :type => "#{user.video_type}"}
+                        -else
+                          = image_tag image_path('default_user.png'),  style: "width:100px;height:100px", fit: 'clip',:class =>"video-pic"
+                        = button_tag "Upload Video", fit: 'clip',:class =>"video-pic img1"
 
 
-    .col-sm-12.col-md-12.col-lg-9
-      #wid-id-7.jarviswidget.jarviswidget-color-teal{"data-widget-attstyle" => "jarviswidget-color-teal", "data-widget-custombutton" => "false", "data-widget-editbutton" => "false", "data-widget-fullscreenbutton" => "false", "data-widget-sortable" => "false", :role => "widget", :style => ""}
-        %header{:role => "heading"}
-        %div{:role => "content"}
-          .jarviswidget-editbox
-
-          .widget-body
-            =render partial: 'company/users/partials/basic_info',locals: {user: user}
+            .col-sm-12.col-md-12.col-lg-9
+              =render partial: 'company/users/partials/basic_info',locals: {user: user}
 
 - content_for :scripts do
   :javascript
@@ -54,6 +54,9 @@
      $( ".resume" ).click(function() {
         $( ".resume_file" ).trigger( "click" );
      });
+      $('.p_date').datepicker({
+        dateFormat: "yy-mm-dd"
+      });
     });
     function userLogoUpload(event){
       photo_url = event.fpfile.url

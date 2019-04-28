@@ -8,11 +8,11 @@
   <div class="logged-user-w avatar-inline">
     <div class="logged-user-i">
       <div class="avatar-w">
-        <%= link_to image_tag((current_user.photo.present? ? current_user.photo : "https://www.gravatar.com/avatar/a693bdf2780036ebcbb5f3757e2956ef?d=mm"), alt: 'me'), company_profile_page_companies_path %>
+        <%= link_to image_tag(current_company.logo, alt: 'me'), company_profile_page_companies_path %>
       </div>
       <div class="logged-user-info-w">
         <div class="logged-user-name">
-          <%= link_to current_user.full_name, company_user_profile_page_companies_path, class: "text-muted" %>
+          <%= link_to current_company.full_name, company_profile_page_companies_path, class: "text-muted" %>
         </div>
         <!--div class="logged-user-role">My Team</div-->
       </div>

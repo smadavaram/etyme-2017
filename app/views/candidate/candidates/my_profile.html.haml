@@ -111,12 +111,10 @@
             .element-info
               .element-info-with-icon
                 .element-info-icon
-                  .os-icon.os-icon-wallet-loaded
+                  %i.icon-badge
                 .element-info-text
                   %h4.element-inner-header
                     Work history
-                  .element-inner-desc
-                    Validation of the form is made possible using powerful validator plugin for bootstrap.
             - if current_candidate.ever_worked_with_company && current_candidate.clients.present?
               - current_candidate.clients.each do |c|
                 .element-info

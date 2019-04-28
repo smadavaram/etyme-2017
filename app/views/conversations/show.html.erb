@@ -15,47 +15,16 @@
         </div>
       </div>
 
-      <div class="chat-messages ps ps--theme_default ps--active-y chatboxcontent" id="conversation_<%= @conversation.id if @conversation.present? %>">
-        <% prev_date = nil %>
-        <% @conversation_messages.each do |msg| %>
-            <% if prev_date != msg.created_at.strftime('%d %b, %Y') %>
-                <% prev_date = msg.created_at.strftime('%d %b, %Y') %>
-                <div class="chat-date-separator">
-                  <span>
-                    <% if Date.parse(prev_date) == Date.today %>
-                      Today
-                    <% elsif Date.parse(prev_date) == Date.yesterday %>
-                      Yesterday
-                    <% else %>
-                      <%= prev_date %>
-                    <% end %>
-                  </span>
-                </div>
-            <% end %>
 
-            <div class="chat-message <%= msg.userable == current_candidate ? 'self' : '' %>">
-              <div class="chat-message-content-w">
-                <div class="chat-message-content">
-                  <%= msg.body %>
-                  <% if msg.attachment_file.present? %>
-                    <br/>
-                    <%= link_to msg.file_name, msg.attachment_file, target: "_blank" %>
-                  <% end %>
-                </div>
-              </div>
-              <div class="chat-message-avatar">
-                <%= image_tag msg.userable.photo %>
-              </div>
-              <div class="chat-message-date">
-                <%= msg.created_at.strftime("%l:%M%P") %>
-              </div>
-            </div>
-        <% end if @conversation_messages.present? %>
-      </div>
+      <!--<div class="chat-content-scroll" style="height: 150px; overflow: scroll;">-->
+        <div class="chat-content-scroll chat-messages  chatboxcontent" id="conversation_<%= @conversation.id if @conversation.present? %>">
+          <div id="all-infinite-scrolling-msg" style="display:none"></div>
+          <%= hidden_field_tag "prev_date", nil %>
+        </div>
 
       <div class="chat-controls chatboxinput">
         <%= form_for([@conversation, @conversation_message], :remote => true, :html => {id: "conversation_form_#{@conversation.id}"}) do |f| %>
-          <div class="chat-input1">
+          <div class="chat-input1 chat-input">
             <%= f.text_area :body, class: "chatboxtextarea", "data-cid" => @conversation.id, id: "con-text-#{@conversation.id}-#{@current_user.class}-#{@current_user.id}" %>
             <%= f.filepicker_field :attachment_file, :button_text => " ", disable: true , class: "os-icon os-icon-ui-51 file-pick btn btn-primary filepicker-attach conversation_attchment_#{@conversation.id}", id: "con-atta-#{@conversation.id}-#{@current_user.class}-#{@current_user.id}" %>
             <%= f.hidden_field :file_name, class: "chat-file-name", id: "con-filename-#{@conversation.id}-#{@current_user.class}-#{@current_user.id}" %>
@@ -63,8 +32,8 @@
             <%= f.hidden_field :file_type, class: "chat-file-type", id: "con-filetype-#{@conversation.id}-#{@current_user.class}-#{@current_user.id}" %>
           </div>
           <div class="chat-input-extra">
-            <div class="chat-btn">
-              <%= f.submit "Send", class: "btn btn-sm btn-success", id: "send-chat-message" %>
+            <div class="chat-btn w-100">
+              <%= f.submit "Send", class: "btn btn-sm btn-success float-right", id: "send-chat-message" %>
             </div>
           </div>
         <% end %>
