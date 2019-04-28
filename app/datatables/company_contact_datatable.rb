@@ -60,9 +60,9 @@ class CompanyContactDatatable < ApplicationDatatable
 
   def contact_icon record
     mail_to(record.email, content_tag(:i, nil, class: 'os-icon os-icon-email-2-at2').html_safe, title: record.email, class: 'data-table-icons') +
-        link_to(content_tag(:i, nil, class: 'fa fa-phone ').html_safe, '#', title: record.phone, class: 'data-table-icons') +
-        link_to(content_tag(:i, nil, class: 'fa fa-comment-o ').html_safe, '#',data: {sid: current_company.id,rid: record.id,chattopic: 'OneToOne',stype: current_company.class,rtype: record.class.to_s}, title: 'chat', class: 'data-table-icons') +
-        link_to(content_tag(:i, nil, class: 'fa fa-calendar').html_safe, '#', title: 'Add meeting', class: 'data-table-icons')
+        link_to(content_tag(:i, nil, class: 'os-icon os-icon-phone  ').html_safe, '#', title: record.phone, class: 'data-table-icons') +
+        link_to(content_tag(:i, nil, class: 'fa fa-comment-o ').html_safe, '#', title: 'Leave a message', class: 'data-table-icons') +
+        link_to(content_tag(:i, nil, class: 'os-icon os-icon-calendar').html_safe, '#', title: 'Add meeting', class: 'data-table-icons')
 
   end
 
@@ -82,10 +82,10 @@ class CompanyContactDatatable < ApplicationDatatable
   def ban_unban_link(record)
     record.user_company.get_blacklist_status(record.company_id) == 'banned' ?
         link_to(content_tag(:i, nil, class: 'os-icon os-icon-ui-15').html_safe, company_company_contact_path(record.id), method: :delete, title: "Delete #{record.full_name}", class: 'data-table-icons') +
-            link_to(content_tag(:i, nil, class: 'fa fa-unlock-alt').html_safe, unban_company_black_listers_path(record.user_company_id, 'Company'), method: :post, title: 'WhiteList Company', class: 'data-table-icons')
+            link_to(content_tag(:i, nil, class: 'os-icon os-icon-unlock').html_safe, unban_company_black_listers_path(record.user_company_id, 'Company'), method: :post, title: 'WhiteList Company', class: 'data-table-icons')
         :
         link_to(content_tag(:i, nil, class: 'os-icon os-icon-ui-15').html_safe, company_company_contact_path(record.id), method: :delete, title: "Delete #{record.full_name}", class: 'data-table-icons') +
-            link_to(content_tag(:i, nil, class: 'fa fa-lock').html_safe, ban_company_black_listers_path(record.user_company_id, 'Company'), method: :post, title: 'BlackList Company ', class: 'data-table-icons')
+            link_to(content_tag(:i, nil, class: 'os-icon os-icon-lock').html_safe, ban_company_black_listers_path(record.user_company_id, 'Company'), method: :post, title: 'BlackList Company ', class: 'data-table-icons')
   end
 
 end
