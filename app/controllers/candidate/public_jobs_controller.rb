@@ -25,19 +25,19 @@ class Candidate::PublicJobsController < Candidate::BaseController
   def apply_job_candidate
     @job = Job.find(params[:id])
     @job.candidate_jobs.create(candidate_id: params[:candidate_id])
-    redirect_to company_public_jobs_path
+    redirect_to candidate_public_jobs_path
   end
 
   def create_batch_job
     @job = Job.find(params[:id])
     @job.update_attribute('is_bench_job', true)
-    redirect_to company_public_jobs_path
+    redirect_to candidate_public_jobs_path
   end
 
   def create_own_job
     @job = Job.find(params[:id])
     current_company.jobs.create(@job.attributes.except("id","created_by_id").merge!(created_by_id: current_user.id, tag_list: @job.tag_list, education_list: @job.education_list, ref_job_id: @job.id))
-    redirect_to company_public_jobs_path, success: 'Job was successfully created.'
+    redirect_to candidate_public_jobs_path, success: 'Job was successfully created.'
   end
 
   def apply
