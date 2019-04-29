@@ -339,6 +339,10 @@ Rails.application.routes.draw do
     resources :company_docs
     resources :roles
     resources :groups, concerns: :paginatable do
+      member do
+        post :assign_status
+        post :add_reminder
+      end
       collection do
         post :create_bulk_candidates
         post :create_bulk_companies
