@@ -16,9 +16,7 @@ class CompanyContactDatatable < ApplicationDatatable
         id: {source: "CompanyContact.id"},
         name: {source: "Company.name"},
         first_name: {source: "User.first_name"},
-        last_name: {source: "last_name"},
         title: {source: "CompanyContact.title"},
-        status: {source: "CompanyContact.black_list.status"},
         contact: {source: "CompanyContact.phone"}
     }
   end
