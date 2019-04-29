@@ -40,7 +40,7 @@ class CompanyDirectoryDatatable < ApplicationDatatable
 
 
   def reminder_note record
-    content_tag(:span, do_ellipsis(current_user.reminders.where(reminderable_id: record.id, reminderable_type: 'Admin')&.last&.title), class: 'label-info badge mr-1').html_safe
+    content_tag(:span, do_ellipsis(current_user.reminders.where(reminderable_id: record.id, reminderable_type: 'Admin')&.last&.title), class: 'bg-info badge mr-1').html_safe
   end
 
   def contact_icon record
@@ -58,7 +58,7 @@ class CompanyDirectoryDatatable < ApplicationDatatable
   end
 
   def actions record
-    link_to(content_tag(:i, nil, class: 'fa fa-bell ').html_safe, add_reminder_company_users_path(user_id: record.id), remote: :true, title: "Remind Me", class: 'data-table-icons') +
+    link_to(content_tag(:i, nil, class: 'fa fa-bell-o ').html_safe, add_reminder_company_users_path(user_id: record.id), remote: :true, title: "Remind Me", class: 'data-table-icons') +
         link_to(content_tag(:i, nil, class: 'fa fa-edit').html_safe, '#', title: "Edit #{record.full_name}", class: 'data-table-icons') +
         delete_link_for_owner(record)
   end

@@ -52,7 +52,13 @@ $(document).ready(function () {
       'render': function (data, type, full, meta) {
         return '<input type="checkbox" name="id[]" value="' + full.id + '">';
       }
-    }
+    },
+      {
+        'targets': 2,
+        searchable: true,
+        orderable: true,
+        'createdCell': function(td, cellData, rowData, row, col) {$(td).addClass('text-left');}
+      }
     ],
     ajax: $('#company-contacts-datatable').data('source'),
     columns: [
@@ -97,6 +103,12 @@ $(document).ready(function () {
         return '<input type="checkbox" name="id[]" value="' + full.id + '">';
       }
     },
+      {
+        'targets': 1,
+        searchable: true,
+        orderable: true,
+        'createdCell': function(td, cellData, rowData, row, col) {$(td).addClass('text-left');}
+      }
     ],
     ajax: $('#company-candidates-datatable').data('source'),
     columns: [
@@ -174,6 +186,12 @@ $(document).ready(function () {
         return '<input type="checkbox" name="id[]" value="' + full.id + '">';
       }
     },
+      {
+        'targets': 2,
+        searchable: true,
+        orderable: true,
+        'createdCell': function(td, cellData, rowData, row, col) {$(td).addClass('text-left');}
+      }
     ],
     ajax: $('#company-directory-datatable').data('source'),
     columns: [
