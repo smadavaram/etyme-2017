@@ -6,12 +6,12 @@
 .data-table-image {
     height: 30px;
     border-radius: 50%;
-
 }
 
 .data-table-icons {
     margin-right: 5px;
     color: #3E4B5B;
+    margin-left: 5px;
 }
 .data-table-icons:link,
 .data-table-icons:visited {

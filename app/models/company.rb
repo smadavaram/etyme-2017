@@ -83,10 +83,8 @@ class Company < ApplicationRecord
   has_many :company_customer_docs, dependent: :destroy
   has_many :company_employee_docs, dependent: :destroy
   has_many :company_videos, dependent: :destroy
-
   has_many :contract_cycles, through: :contracts
   # has_many :candidates, through: :contracts
-
   has_many :bank_details
   has_many :client_expenses
 

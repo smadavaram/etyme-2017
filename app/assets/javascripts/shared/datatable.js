@@ -52,7 +52,13 @@ $(document).ready(function () {
       'render': function (data, type, full, meta) {
         return '<input type="checkbox" name="id[]" value="' + full.id + '">';
       }
-    }
+    },
+      {
+        'targets': 2,
+        searchable: true,
+        orderable: true,
+        'createdCell': function(td, cellData, rowData, row, col) {$(td).addClass('text-left');}
+      }
     ],
     ajax: $('#company-contacts-datatable').data('source'),
     columns: [
@@ -97,6 +103,12 @@ $(document).ready(function () {
         return '<input type="checkbox" name="id[]" value="' + full.id + '">';
       }
     },
+      {
+        'targets': 1,
+        searchable: true,
+        orderable: true,
+        'createdCell': function(td, cellData, rowData, row, col) {$(td).addClass('text-left');}
+      }
     ],
     ajax: $('#company-candidates-datatable').data('source'),
     columns: [
@@ -161,5 +173,52 @@ $(document).ready(function () {
     ]
 
   });
+
+  $('#company-directory-datatable').dataTable({
+    processing: true,
+    serverSide: true,
+    order: [[1, "desc"]],
+    columnDefs: [{
+      'targets': 0,
+      searchable: false,
+      orderable: false,
+      'render': function (data, type, full, meta) {
+        return '<input type="checkbox" name="id[]" value="' + full.id + '">';
+      }
+    },
+      {
+        'targets': 2,
+        searchable: true,
+        orderable: true,
+        'createdCell': function(td, cellData, rowData, row, col) {$(td).addClass('text-left');}
+      }
+    ],
+    ajax: $('#company-directory-datatable').data('source'),
+    columns: [
+      {
+        data: "id"
+      },
+      {data: "domain"},
+      {data: "name"},
+      {data: "contact"},
+      {data: "title"},
+      {
+        data: "roles_permissions",
+        searchable: false,
+        orderable: false
+      },
+      {
+        data: "reminder_note",
+        searchable: false,
+        orderable: false
+      },
+      {
+        data: "actions",
+        searchable: false,
+        orderable: false
+      }
+    ]
+  });
+
 
 });

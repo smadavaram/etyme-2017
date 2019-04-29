@@ -60,17 +60,17 @@ class CompanyCandidateDatatable < ApplicationDatatable
   end
 
   def reminder_note record
-    content_tag(:span, do_ellipsis(record&.reminders&.last&.title), class: 'label-info badge mr-1').html_safe +
-        content_tag(:span, record&.statuses&.last&.status_type, class: 'label-info badge').html_safe
+    content_tag(:span, do_ellipsis(record&.reminders&.last&.title), class: 'bg-info badge mr-1').html_safe +
+        content_tag(:span, record&.statuses&.last&.status_type, class: 'bg-info badge').html_safe
   end
 
   def actions record
     link_to(content_tag(:i, nil, class: 'fa fa-sticky-note ').html_safe, company_statuses_path(id: record, type: 'Candidate'), title: 'Status Log', class: 'data-table-icons') +
-        link_to(content_tag(:i, nil, class: 'fa fa-sticky-note ').html_safe, candidate_assign_status_path(record), remote: :true, title: "Assign Status", class: 'data-table-icons') +
-        link_to(content_tag(:i, nil, class: 'fa fa-user-plus ').html_safe, '#', title: 'Follow/Unfollow', class: 'data-table-icons') +
-        link_to(content_tag(:i, nil, class: 'fa fa-bell ').html_safe, candidate_add_reminder_path(record), remote: :true, title: "Remind Me", class: 'data-table-icons') +
+        link_to(content_tag(:i, nil, class: 'fa fa-sticky-note-o ').html_safe, candidate_assign_status_path(record), remote: :true, title: "Assign Status", class: 'data-table-icons') +
+        link_to(content_tag(:i, nil, class: 'icon-feather-user-plus').html_safe, '#', title: 'Follow/Unfollow', class: 'data-table-icons') +
+        link_to(content_tag(:i, nil, class: 'fa fa-bell-o ').html_safe, candidate_add_reminder_path(record), remote: :true, title: "Remind Me", class: 'data-table-icons') +
         link_to(content_tag(:i, nil, class: 'fa fa-edit').html_safe, edit_company_candidate_path(record), title: "Edit #{record.full_name}", class: 'data-table-icons') +
-        link_to(content_tag(:i, nil, class: 'fa fa-file-text').html_safe, record.resume, download: true, title: "Download Resume", class: 'data-table-icons') +
+        link_to(content_tag(:i, nil, class: 'fa fa-file-text-o').html_safe, record.resume, download: true, title: "Download Resume", class: 'data-table-icons') +
         get_status_links(record)
   end
 
