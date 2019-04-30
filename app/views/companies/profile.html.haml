@@ -1,113 +1,406 @@
-#content
-  .panel
-    .panel-heading
-      %strong
-        .row
-          .col-sm-3
-            %a
-              = image_tag @company.logo.present? ? @company.logo : asset_path('default-lcom-ogo.png'), style: "width:100px;height:100px;"
-              %h2
-                = @company.name.titleize
-          .col-sm-4.col-sm-offset-5
-            -#%b
-            -#  = @company.name.titleize
-            -#%br/
-            -#%br/
-            = "Telephone:  #{@company.phone}"
-            %br/
-            Email:
-            %a= @company.email
-            %br/
-            %a= @company.google_url
-      %hr
-      %ul{:style => "list-style: none outside none;text-align:justify;padding:10px;overflow: auto;line-height:25px;"}
-        %b About
-        %li
-          = @company.description
-        %br
-        %b Locations
-        .row
-          .col-sm-12
-            - @company.locations.each do |location|
-              .col-sm-4
-                %br
-                %b= "#{location.name}"
-                %br
-                = location.address.address_1
-                %br
-                = "#{location.address.zip_code}   #{location.address.city.try(:titleize)}   #{CS.get(location.address.country)[location.address.state.to_sym]}"
-                %br
-                = CS.countries()[location.address.country.to_sym]
-        %br/
-        .row
-          .col-sm-12
-            %hr/
-            .padding-10
-              %ul.nav.nav-tabs.tabs-pull-right
-                %li.active
-                  %a{"data-toggle" => "tab", :href => "#a1"} Comments
-                - if @company.invited_by.present?
-                  %li
-                    %a{"data-toggle" => "tab", :href => "#a2"} Contacts
-              -#%li.pull-left
-              -#  %span.margin-top-10.display-inline
-              -#    %i.fa.fa-rss.text-success
-              -#    Activity
-              .tab-content.padding-top-10
-                #a1.tab-pane.fade.in.active
-                  .row
-                    .col-sm-12.col-lg-12
-                      .panel.panel-default
-                        .panel-body.status
-                          %ul.links
-                          %ul.comments
-                            - @company.comments.each do |comment|
-                              = render 'company/comments/partials/comment_li' , comment: comment
-                            %li.message
-                              = image_tag current_user.try(:photo) , class: 'online'
-                              %span.message-text
-                                = form_for Comment.new do |c|
-                                  .col-md-10
-                                    = c.text_field :body , class: 'form-control' , placeholder: "Post your comment..."
-                                    = c.hidden_field :commentable_type , value: 'Company'
-                                    = c.hidden_field :commentable_id   , value:  @company.id
-                                  .col-md-2
-                                    = c.button "Comment".html_safe, data: {disable_with: disable_spinning("Comment...")} , class: 'btn btn-primary btn-sm'
-                                  %br/
-                                  %br/
-                - if @company.try(:invited_by).present?
-                  #a2.tab-pane.fade.in
-                    .row
-                      .col-sm-12.col-lg-12
-                        / your contents here
-                        .panel.panel-default
-                          .panel-body.status
-                            #wid-id-5.no-border
-                              %div
-                                .widget-body
-                                  .col-md-12
-                                    .row
-                                      .col-xs-12.col-sm-3.col-md-3.col-lg-3.pull-right
-                                        %button.btn.btn-success.btn-md.pull-right.header-btn.hidden-mobile.margin-bottom-5{"data-target" => "#new-contract-company", "data-toggle" => "modal", :name => "button", :type => "submit"} Add
-                                    .table{:style => "width:100"}
-                                      %table#resultTable.table.table-striped.table-bordered.table-hover
-                                        %thead
-                                          %tr
-                                            %th Name
-                                            %th Email
-                                            %th Title
-                                            %th Phone
-                                        %tbody
-                                          - @company_contacts.each_with_index do |contact , index|
-                                            %tr
-                                              -#%td= image_tag consultant.photo, alt: '', width: '20'
-                                              %td= link_to contact.try(:full_name) , "#"
-                                              %td= contact.try(:email)
-                                              %td= contact.try(:title)
-                                              %td= contact.try(:phone)
-                              -#= digg_pagination(@company_contacts)
-                              -#                      %br/
-                              -#                      %br/
-- content_for :modals do
-  #job_invitation
-  = render 'company/companies/partials/new_company'
+.with-side-panel.cmp-profile
+  .content-i
+    .content-box
+      .row
+        .col-sm-5
+          .user-profile.compact
+            .up-head-w{:style => "background-image:url(#{@company.logo })"}
+              .up-social
+                %a{:href => "#"}
+                  %i.os-icon.os-icon-twitter
+                %a{:href => "#"}
+                  %i.os-icon.os-icon-facebook
+              .up-main-info
+                %h2.up-header
+                  =@company.full_name
+                %h6.up-sub-header
+                  Product Designer at Facebook
+              %svg.decor{:height => "219px", :preserveaspectratio => "xMaxYMax meet", :version => "1.1", :viewbox => "0 0 842 219", :width => "842px", :xmlns => "http://www.w3.org/2000/svg", "xmlns:xlink" => "http://www.w3.org/1999/xlink"}
+                %g{:fill => "#FFFFFF", :transform => "translate(-381.000000, -362.000000)"}
+                  %path.decor-path{:d => "M1223,362 L1223,581 L381,581 C868.912802,575.666667 1149.57947,502.666667 1223,362 Z"}
+            .up-controls
+              .row
+                .col-sm-12.text-right
+                  %a.btn.btn-success.btn-sm{:href => ""}
+                    %i.os-icon.os-icon-email-forward
+                    %span Send Message
+            .up-contents
+              .m-b
+                .row.m-b
+                  .col-sm-6.b-r.b-b
+                    .el-tablo.centered.padded-v
+                      .value
+                        = @company.jobs.not_system_generated.count
+                      .label
+                        Job
+                  .col-sm-6.b-b
+                    .el-tablo.centered.padded-v
+                      .value
+                        = @company.company_contacts.count
+                      .label
+                        contact
+                .padded
+                  .os-progress-bar.primary
+                    .bar-labels
+                      .bar-label-left
+                        %span Email
+                      .bar-label-right
+                        %span.text-success #{ current_user.confirmed_at.present? ? "verified" : "Unverified"}
+                  .os-progress-bar.primary
+                    .bar-labels
+                      .bar-label-left
+                        %span Phone
+                      .bar-label-right
+                        %span.text-success #{ @company.is_number_verify ? "verified" : "Unverified"}
+                  .os-progress-bar.primary
+                    .bar-labels
+                      .bar-label-left
+                        %span Owner
+                      .bar-label-right
+                        %span.text-success #{ @company.owner_verified ? "verified" : "Unverified"}
+          .element-wrapper
+            .element-box
+              -if @activities.present?
+                .d-flex.justify-content-between.align-items-center.mb-3.element-header
+                  %h6 User Activity
+                  =link_to "View All", jobs_path, class: "link-muted font-xs"
+                .timed-activities.compact
+                  .timed-activity
+                    .ta-date
+                      %span Recent Activities
+                    .ta-record-w
+                      - @activities.each do |activity|
+                        = render_activity activity, index: params[:index]
+              -else
+                %h6.element-header User Activity
+                .timed-activities.compact
+                  There is no activities.
+
+        .col-sm-7.job-table
+          .element-wrapper
+            -if @jobs.present?
+              .d-flex.justify-content-between.align-items-center.mb-3.element-header
+                %h6.mb-0 Job
+                =link_to "View All", jobs_path, class: "link-muted font-xs"
+              .element-box
+                .table-responsive
+                  %table.table.table-lightborder
+                    %thead
+                      %tr
+                        %th
+                          Title
+                        %th
+                          Location
+                        %th.text-center
+                          Posted By
+                    %tbody
+                      - @jobs.each do |j|
+                        %tr
+                          %td.nowrap
+                            =j.title
+                          %td
+                            =j.location
+                          %td.text-right
+                            =j.created_by.full_name
+            - else
+              .d-flex.justify-content-between.align-items-center.mb-3.element-header
+                %h6.mb-0 Job
+                =link_to "Create New", jobs_path, class: "link-muted font-xs"
+              .element-box.p-3.text-center
+                %h6.mb-0 There is no Job Right now.
+          .element-wrapper
+            -if @benches.present?
+              .d-flex.justify-content-between.align-items-center.mb-3.element-header
+                %h6.mb-0 Bench
+                =link_to "View All", company_bench_jobs_path, class: "link-muted font-xs"
+              .element-box
+                .table-responsive
+                  %table.table.table-lightborder
+                    %thead
+                      %tr
+                        %th
+                          Title
+                        %th
+                          Name
+                        %th.text-center
+                          Location
+                    %tbody
+                      -@benches.each do |b|
+                        %tr
+                          %td.nowrap
+                            - b.candidate.candidate_title
+                          %td
+                            - b.candidate.try(:full_name)
+                          %td.text-right
+                            - b.candidate.try(:location)
+            - else
+              .d-flex.justify-content-between.align-items-center.mb-3.element-header
+                %h6.mb-0 Bench
+                =link_to "Create New", jobs_path, class: "link-muted font-xs"
+              .element-box.p-3.text-center
+                %h6.mb-0 There is no Bench Right now.
+          .element-wrapper
+            -if @training.present?
+              .d-flex.justify-content-between.align-items-center.mb-3.element-header
+                %h6.mb-0 Training
+                =link_to "View All", jobs_path, class: "link-muted font-xs"
+              .element-box
+                .table-responsive
+                  %table.table.table-lightborder
+                    %thead
+                      %tr
+                        %th
+                          Title
+                        %th
+                          Location
+                        %th.text-center
+                          Posted By
+                    %tbody
+                      - @training.each do |t|
+                        %tr
+                          %td.nowrap
+                            =t.title
+                          %td
+                            =t.location
+                          %td.text-right
+                            =t.created_by.full_name
+            - else
+              .d-flex.justify-content-between.align-items-center.mb-3.element-header
+                %h6.mb-0 Training
+                =link_to "Create New", jobs_path, class: "link-muted font-xs"
+              .element-box.p-3.text-center
+                %h6.mb-0 There is no Training Right now.
+          .element-wrapper
+            -if @products.present?
+              .d-flex.justify-content-between.align-items-center.mb-3.element-header
+                %h6.mb-0 Products
+                =link_to "View All", jobs_path, class: "link-muted font-xs"
+              .element-box
+                .table-responsive
+                  %table.table.table-lightborder
+                    %thead
+                      %tr
+                        %th
+                          Title
+                        %th
+                          Location
+                        %th.text-center
+                          Posted By
+                    %tbody
+                      - @products.each do |p|
+                        %tr
+                          %td.nowrap
+                            =p.title
+                          %td
+                            =p.location
+                          %td.text-right
+                            =p.created_by.full_name
+            - else
+              .d-flex.justify-content-between.align-items-center.mb-3.element-header
+                %h6.mb-0 Products
+                =link_to "Create New", jobs_path, class: "link-muted font-xs"
+              .element-box.p-3.text-center
+                %h6.mb-0 There is no Products Right now.
+          .element-wrapper
+            - if @services.present?
+              .d-flex.justify-content-between.align-items-center.mb-3.element-header
+                %h6.mb-0 Services
+                =link_to "View All", jobs_path, class: "link-muted font-xs"
+              .element-box
+                .table-responsive
+                  %table.table.table-lightborder
+                    %thead
+                      %tr
+                        %th
+                          Title
+                        %th
+                          Location
+                        %th.text-center
+                          Posted By
+                    %tbody
+                      - @services.each do |s|
+                        %tr
+                          %td.nowrap
+                            =s.title
+                          %td
+                            =s.location
+                          %td.text-right
+                            =s.created_by.full_name
+            - else
+              .d-flex.justify-content-between.align-items-center.mb-3.element-header
+                %h6.mb-0 Services
+                =link_to "Create New", jobs_path, class: "link-muted font-xs"
+              .element-box.p-3.text-center
+                %h6.mb-0 There is no Services Right now.
+
+    .content-panel
+      .content-panel-close
+        %i.os-icon.os-icon-close
+      .element-wrapper
+        - if @directories.present?
+          .d-flex.justify-content-between.align-items-center.mb-3.element-header
+            %h6.mb-0 Office Directory
+            = link_to "View All", directories_path, class: "link-muted font-xs"
+          .element-box-tp
+            - @directories.each do |d|
+              .profile-tile
+                %a.profile-tile-box{:href => "users_profile_small.html"}
+                  .pt-avatar-w
+                    = image_tag d.photo
+                  .pt-user-name
+                    = d.full_name
+                .profile-tile-meta
+                  %ul
+                    %li
+                      = d.email
+                    %li
+                      = d.phone
+                  .pt-btn
+                    = link_to raw("<i class='fa fa-comment '></i> Send Message"), "#", class: "btn btn-success btn-sm start-conversation",title: "Chat",
+                                "data-sid" => @company.id, "data-rid" => d.id, "data-chattopic" => "OneToOne",
+                                "data-stype" => @company.class, "data-rtype" => d.class.to_s
+        - else
+          .d-flex.justify-content-between.align-items-center.mb-3.element-header
+            %h6.mb-0 Office Directory
+            .element-box-tp
+              There is no directory.
+
+      .element-wrapper
+        - if @clients.present?
+          .d-flex.justify-content-between.align-items-center.mb-3.element-header
+            %h6 Clients
+            = link_to "View All", network_path, class: "link-muted font-xs"
+          .element-box-tp
+            .users-list-w
+              - @clients.each do |c|
+                .user-w.with-status.status-green
+                  .user-avatar-w
+                    .user-avatar
+                      = image_tag show_recipient_picture(c.company.try(:logo))
+                  .user-name
+                    %h6.user-title
+                      = c.prefer_vendor.full_name rescue ""
+                    .user-role
+                      = c.prefer_vendor.phone rescue ""
+                  .user-action
+                    = link_to '', "#", class: "os-icon os-icon-email-forward start-conversation", title: "Chat",
+                                "data-sid" => @company.id, "data-rid" => c.prefer_vendor.id, "data-chattopic" => "OneToOne",
+                                "data-stype" => @company.class, "data-rtype" => c.prefer_vendor.class.to_s
+        - else
+          %h6.mb-0 Clients
+          .element-box-tp
+            There is no client.
+
+-##content
+-#  .panel
+-#    .panel-heading
+-#      %strong
+-#        .row
+-#          .col-sm-3
+-#            %a
+-#              = image_tag @company.logo.present? ? @company.logo : asset_path('default-lcom-ogo.png'), style: "width:100px;height:100px;"
+-#              %h2
+-#                = @company.name.titleize
+-#          .col-sm-4.col-sm-offset-5
+-#            -#%b
+-#            -#  = @company.name.titleize
+-#            -#%br/
+-#            -#%br/
+-#            = "Telephone:  #{@company.phone}"
+-#            %br/
+-#            Email:
+-#            %a= @company.email
+-#            %br/
+-#            %a= @company.google_url
+-#      %hr
+-#      %ul{:style => "list-style: none outside none;text-align:justify;padding:10px;overflow: auto;line-height:25px;"}
+-#        %b About
+-#        %li
+-#          = @company.description
+-#        %br
+-#        %b Locations
+-#        .row
+-#          .col-sm-12
+-#            - @company.locations.each do |location|
+-#              .col-sm-4
+-#                %br
+-#                %b= "#{location.name}"
+-#                %br
+-#                = location.address.address_1
+-#                %br
+-#                = "#{location.address.zip_code}   #{location.address.city.try(:titleize)}   #{CS.get(location.address.country)[location.address.state.to_sym]}"
+-#                %br
+-#                = CS.countries()[location.address.country.to_sym]
+-#        %br/
+-#        .row
+-#          .col-sm-12
+-#            %hr/
+-#            .padding-10
+-#              %ul.nav.nav-tabs.tabs-pull-right
+-#                %li.active
+-#                  %a{"data-toggle" => "tab", :href => "#a1"} Comments
+-#                - if @company.invited_by.present?
+-#                  %li
+-#                    %a{"data-toggle" => "tab", :href => "#a2"} Contacts
+-#              -#%li.pull-left
+-#              -#  %span.margin-top-10.display-inline
+-#              -#    %i.fa.fa-rss.text-success
+-#              -#    Activity
+-#              .tab-content.padding-top-10
+-#                #a1.tab-pane.fade.in.active
+-#                  .row
+-#                    .col-sm-12.col-lg-12
+-#                      .panel.panel-default
+-#                        .panel-body.status
+-#                          %ul.links
+-#                          %ul.comments
+-#                            - @company.comments.each do |comment|
+-#                              = render 'company/comments/partials/comment_li' , comment: comment
+-#                            %li.message
+-#                              = image_tag current_user.try(:photo) , class: 'online'
+-#                              %span.message-text
+-#                                = form_for Comment.new do |c|
+-#                                  .col-md-10
+-#                                    = c.text_field :body , class: 'form-control' , placeholder: "Post your comment..."
+-#                                    = c.hidden_field :commentable_type , value: 'Company'
+-#                                    = c.hidden_field :commentable_id   , value:  @company.id
+-#                                  .col-md-2
+-#                                    = c.button "Comment".html_safe, data: {disable_with: disable_spinning("Comment...")} , class: 'btn btn-primary btn-sm'
+-#                                  %br/
+-#                                  %br/
+-#                - if @company.try(:invited_by).present?
+-#                  #a2.tab-pane.fade.in
+-#                    .row
+-#                      .col-sm-12.col-lg-12
+-#                        / your contents here
+-#                        .panel.panel-default
+-#                          .panel-body.status
+-#                            #wid-id-5.no-border
+-#                              %div
+-#                                .widget-body
+-#                                  .col-md-12
+-#                                    .row
+-#                                      .col-xs-12.col-sm-3.col-md-3.col-lg-3.pull-right
+-#                                        %button.btn.btn-success.btn-md.pull-right.header-btn.hidden-mobile.margin-bottom-5{"data-target" => "#new-contract-company", "data-toggle" => "modal", :name => "button", :type => "submit"} Add
+-#                                    .table{:style => "width:100"}
+-#                                      %table#resultTable.table.table-striped.table-bordered.table-hover
+-#                                        %thead
+-#                                          %tr
+-#                                            %th Name
+-#                                            %th Email
+-#                                            %th Title
+-#                                            %th Phone
+-#                                        %tbody
+-#                                          - @company_contacts.each_with_index do |contact , index|
+-#                                            %tr
+-#                                              -#%td= image_tag consultant.photo, alt: '', width: '20'
+-#                                              %td= link_to contact.try(:full_name) , "#"
+-#                                              %td= contact.try(:email)
+-#                                              %td= contact.try(:title)
+-#                                              %td= contact.try(:phone)
+-#                              -#= digg_pagination(@company_contacts)
+-#                              -#                      %br/
+-#                              -#                      %br/
+-#- content_for :modals do
+-#  #job_invitation
+-#  = render 'company/companies/partials/new_company'

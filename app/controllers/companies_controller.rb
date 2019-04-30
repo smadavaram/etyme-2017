@@ -31,6 +31,16 @@ class CompaniesController < ApplicationController
 
   def profile
     add_breadcrumb @company.name.titleize,"#"
+
+    @jobs = @company.jobs.not_system_generated.where(:listing_type=>"Job").order(created_at: :desc).limit(5)
+    @benches = CandidatesCompany.hot_candidate.where(company_id: @company.id ).limit(5)
+    @training = @company.jobs.not_system_generated.where(:listing_type=>"Training").order(created_at: :desc).limit(5)
+    @products = @company.jobs.not_system_generated.where(:listing_type=>"Products").order(created_at: :desc).limit(5)
+    @services = @company.jobs.not_system_generated.where(:listing_type=>"Services").order(created_at: :desc).limit(5)
+    @directories = @company.admins.order(created_at: :desc).limit(5)
+    @activities = PublicActivity::Activity.where("activities.owner_id = ? or activities.recipient_id = ?", @company.id, @company.id).limit(5)
+    @clients = @company.send_or_received_network.limit(5)
+
     render layout: 'company'
   end
 
