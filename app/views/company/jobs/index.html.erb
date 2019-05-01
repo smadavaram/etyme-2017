@@ -1,0 +1,99 @@
+<%= javascript_include_tag "application" %>
+<%= render 'type_tabs' %>
+<div class="element-wrapper">
+  <div class="padded-lg">
+    <div class="element-box">
+      <h5 class="form-header"><%= params[:type] || "Job" %>s</h5>
+      <div class="form-desc">Manage your company's <%= (params[:type] || "job").downcase %>s here</div>
+      <div class="table-responsive">
+        <% if @company_jobs.count > 0 %>
+          <table id="dataTable" class="table table-lightborder table-striped dataTable" data-class="Scaffolding::Thing">
+            <thead>
+              <tr>
+                <th><%= check_box_tag "select_all[]", "" %></th>
+                <th><input class="form-control" type="text" placeholder="Filter Title"></th>
+                <th><input class="form-control" type="text" placeholder="Filter Category"></th>
+                <th><input class="form-control" type="text" placeholder="Filter Last Date"></th>
+                <th><input class="form-control" type="text" placeholder="Filter Location"></th>
+                <th><input class="form-control" type="text" placeholder="Filter Posted By"></th>
+                <th><input class="form-control" type="text" placeholder="Filter Status"></th>
+                <th></th>
+              </tr>
+              <tr>
+                <th>Select</th>
+                <th>Title</th>
+                <th>Category</th>
+                <th>Last Date</th>
+                <th>Location</th>
+                <th>Posted By</th>
+                <th>Status</th>
+                <th class="">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              <% @company_jobs.each do |job| %>
+              <tr data-id="<%= job.id %>">
+                <td><%= check_box_tag "ids[]", job.id %></td>
+                <td><%= link_to job.title, job_path(job) %></td>
+                <td><%= job.job_category %></td>
+                <td><%= display_date_and_time(job.end_date || Time.now) %></td>
+                <td><%= job.location %></td>
+                <td><%= job.created_by.full_name  %></td>
+                <td><%= job.status %></td>
+                <td class="" style="white-space: nowrap;">
+                  <% if job.try(:chat).present? && job.try(:chat).is_chat_user?(current_user) %>
+                    <%= link_to company_chat_path(job.try(:chat)), class: 'btn btn-link btn-sm m-0 p-0' do %>
+                      <i class="fa fa-comment"></i>
+                    <% end %>
+                  <% end %>
+                  <% if has_permission?("manage_job") %>
+                    <%= link_to edit_job_path(job), class: 'btn btn-link btn-sm m-0 p-0' do %>
+                      <i class="fa fa-pencil"></i>
+                    <% end %>
+                    <%= link_to job_create_multiple_for_candidate_path(job), remote: true, class: 'btn btn-link btn-sm m-0 p-0' do %>
+                      <i class="fa fa-users"></i>
+                    <% end %>
+                  <% end %>
+                  <% if has_permission?("send_job_invitations") %>
+                    <%= link_to send_invitation_job_path(job), method: :post, remote: true, class: 'btn btn-link btn-sm m-0 p-0' do %>
+                      <i class="fa fa-share-alt"></i>
+                    <% end %>
+                  <% end %>
+                  <% if has_permission?("manage_job") %>
+                    <%= link_to job_path(job), method: :delete, data: { confirm: "Are you sure you want to delete this listing?" }, class: 'btn btn-link btn-sm m-0 p-0 text-danger' do %>
+                      <i class="fa fa-trash"></i>
+                    <% end %>
+                  <% end %>
+                </td>
+              </tr>
+              <% end %>
+            </tbody>
+          </table>
+        <% end %>
+
+        <%= link_to "Add a New #{params[:type] || "Job"}", new_job_path, class: 'btn btn-primary' %>
+
+      </div>
+    </div>
+  </div>
+</div>
+
+<%= render 'company/jobs/partials/share_jobs' %>
+
+<%= javascript_tag do %>
+  $(function() {
+    var table = $("#dataTable").DataTable();
+
+    // Apply the filter
+    $("#dataTable thead th input[type=text]").on( 'keyup change', function () {
+      table
+          .column( $(this).parent().index()+':visible' )
+          .search( this.value )
+          .draw();
+
+    } );
+    $("#select_all_" ).on( "click", function() {
+      $("input[name='ids[]']").prop('checked', this.checked);
+    });
+  })
+<% end %>

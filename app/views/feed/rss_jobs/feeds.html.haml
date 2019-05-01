@@ -13,7 +13,7 @@
                 .col-md-12{:style=>"margin-top: 25px;"}
                   .form-group
                     .col-md-2
-                      %p Click to find a  job feed
+                      %p Click to get a code snippet for the job feed
                     .col-md-2
                       %button.btn.btn-primary{"data-target" => "#embedModal", "data-toggle" => "modal", :type => "button"} Job Feed
 
@@ -24,9 +24,10 @@
                 .col-md-12{:style=>"margin-top: 25px;"}
                   .form-group
                     .col-md-2
-                      %p Click to find a  Product feed
+                      %p Click to get a code snippet for the Product feed
                     .col-md-2
-                      = link_to "Product Feed", feed_product_feed_path(:format => :rss), class: "btn btn-primary"
+                      / = link_to "Product Feed", feed_product_feed_path(:format => :rss), class: "btn btn-primary"
+                      %button.btn.btn-primary{"data-target" => "#embedProductModal", "data-toggle" => "modal", :type => "button"} Product Feed
 
               .col-md-12
                 %h4
@@ -35,9 +36,10 @@
                 .col-md-12{:style=>"margin-top: 25px;"}
                   .form-group
                     .col-md-2
-                      %p Click to find a  Service feed
+                      %p Click to get a code snippet for the Service feed
                     .col-md-2
-                      = link_to "Service Feed", feed_service_feed_path(:format => :rss), class: "btn btn-primary"
+                      / = link_to "Service Feed", feed_service_feed_path(:format => :rss), class: "btn btn-primary"
+                      %button.btn.btn-primary{"data-target" => "#embedServiceModal", "data-toggle" => "modal", :type => "button"} Service Feed
 
               .col-md-12
                 %h4
@@ -46,9 +48,21 @@
                 .col-md-12{:style=>"margin-top: 25px;"}
                   .form-group
                     .col-md-2
-                      %p Click to find a  Training feed
+                      %p Click to get a code snippet for the Training feed
                     .col-md-2
-                      = link_to "Training Feed", feed_training_feed_path(:format => :rss), class: "btn btn-primary"
+                      / = link_to "Training Feed", feed_training_feed_path(:format => :rss), class: "btn btn-primary"
+                      %button.btn.btn-primary{"data-target" => "#embedTrainingModal", "data-toggle" => "modal", :type => "button"} Training Feed
+
+              .col-md-12
+                %h4
+                  %b Blog Feeds
+                .form-group.candidate-association
+                .col-md-12{:style=>"margin-top: 25px;"}
+                  .form-group
+                    .col-md-2
+                      %p Click to get a code snippet for the Blog feed
+                    .col-md-2
+                      %button.btn.btn-primary{"data-target" => "#embedBlogModal", "data-toggle" => "modal", :type => "button"} Blog Feed
 
 
 #embedModal.modal{:role => "dialog"}
@@ -63,7 +77,7 @@
             .p-4.border
               %code
                 &lt;script src="https://cdnjs.cloudflare.com/ajax/libs/iframe-resizer/4.0.4/iframeResizer.min.js" crossorigin="anonymous"&gt;&lt;/script&gt;
-                &lt;script src="https://demoetyme.com/static/js/etyme.embeddable.min.js" type="text/javascript"&gt;&lt;/script&gt;
+                &lt;script src="https://etyme.club/static/js/etyme.embeddable.min.js" type="text/javascript"&gt;&lt;/script&gt;
             .card-subtitle.mt-4
               Copy and paste the following code snippets where you want to display the job board:
             .p-4.border
@@ -74,7 +88,125 @@
                 %br
                 &nbsp;$(function() {
                 %br
-                &nbsp;&nbsp;etyme("job-board",#{current_company.id});
+                &nbsp;&nbsp;etyme("job-board",#{current_company.id},"job");
+                %br
+                &nbsp;})
+                %br
+                &lt;/script&gt;
+
+#embedTrainingModal.modal{:role => "dialog"}
+  .modal-dialog
+    / Modal content
+    .modal-content
+      .modal-body
+        .card
+          .card-body
+            .card-subtitle
+              Copy and paste the following code snippets inside the <code>&lt;head&gt;&lt;/head&gt;</code> at the bottom:
+            .p-4.border
+              %code
+                &lt;script src="https://cdnjs.cloudflare.com/ajax/libs/iframe-resizer/4.0.4/iframeResizer.min.js" crossorigin="anonymous"&gt;&lt;/script&gt;
+                &lt;script src="https://etyme.club/static/js/etyme.embeddable.min.js" type="text/javascript"&gt;&lt;/script&gt;
+            .card-subtitle.mt-4
+              Copy and paste the following code snippets where you want to display the training board:
+            .p-4.border
+              %code
+                &lt;div id="training-board"&gt;&lt;/div&gt;
+                %br
+                &lt;script type="text/javascript"&gt;
+                %br
+                &nbsp;$(function() {
+                %br
+                &nbsp;&nbsp;etyme("training-board",#{current_company.id},"training");
+                %br
+                &nbsp;})
+                %br
+                &lt;/script&gt;
+
+
+#embedServiceModal.modal{:role => "dialog"}
+  .modal-dialog
+    / Modal content
+    .modal-content
+      .modal-body
+        .card
+          .card-body
+            .card-subtitle
+              Copy and paste the following code snippets inside the <code>&lt;head&gt;&lt;/head&gt;</code> at the bottom:
+            .p-4.border
+              %code
+                &lt;script src="https://cdnjs.cloudflare.com/ajax/libs/iframe-resizer/4.0.4/iframeResizer.min.js" crossorigin="anonymous"&gt;&lt;/script&gt;
+                &lt;script src="https://etyme.club/static/js/etyme.embeddable.min.js" type="text/javascript"&gt;&lt;/script&gt;
+            .card-subtitle.mt-4
+              Copy and paste the following code snippets where you want to display the service board:
+            .p-4.border
+              %code
+                &lt;div id="service-board"&gt;&lt;/div&gt;
+                %br
+                &lt;script type="text/javascript"&gt;
+                %br
+                &nbsp;$(function() {
+                %br
+                &nbsp;&nbsp;etyme("service-board",#{current_company.id},"service");
+                %br
+                &nbsp;})
+                %br
+                &lt;/script&gt;
+
+
+#embedProductModal.modal{:role => "dialog"}
+  .modal-dialog
+    / Modal content
+    .modal-content
+      .modal-body
+        .card
+          .card-body
+            .card-subtitle
+              Copy and paste the following code snippets inside the <code>&lt;head&gt;&lt;/head&gt;</code> at the bottom:
+            .p-4.border
+              %code
+                &lt;script src="https://cdnjs.cloudflare.com/ajax/libs/iframe-resizer/4.0.4/iframeResizer.min.js" crossorigin="anonymous"&gt;&lt;/script&gt;
+                &lt;script src="https://etyme.club/static/js/etyme.embeddable.min.js" type="text/javascript"&gt;&lt;/script&gt;
+            .card-subtitle.mt-4
+              Copy and paste the following code snippets where you want to display the product board:
+            .p-4.border
+              %code
+                &lt;div id="product-board"&gt;&lt;/div&gt;
+                %br
+                &lt;script type="text/javascript"&gt;
+                %br
+                &nbsp;$(function() {
+                %br
+                &nbsp;&nbsp;etyme("product-board",#{current_company.id},"product");
+                %br
+                &nbsp;})
+                %br
+                &lt;/script&gt;
+
+#embedBlogModal.modal{:role => "dialog"}
+  .modal-dialog
+    / Modal content
+    .modal-content
+      .modal-body
+        .card
+          .card-body
+            .card-subtitle
+              Copy and paste the following code snippets inside the <code>&lt;head&gt;&lt;/head&gt;</code> at the bottom:
+            .p-4.border
+              %code
+                &lt;script src="https://cdnjs.cloudflare.com/ajax/libs/iframe-resizer/4.0.4/iframeResizer.min.js" crossorigin="anonymous"&gt;&lt;/script&gt;
+                &lt;script src="https://etyme.club/static/js/etyme.embeddable.min.js" type="text/javascript"&gt;&lt;/script&gt;
+            .card-subtitle.mt-4
+              Copy and paste the following code snippets where you want to display the blog board:
+            .p-4.border
+              %code
+                &lt;div id="blog-board"&gt;&lt;/div&gt;
+                %br
+                &lt;script type="text/javascript"&gt;
+                %br
+                &nbsp;$(function() {
+                %br
+                &nbsp;&nbsp;etyme("blog-board",#{current_company.id},"blog");
                 %br
                 &nbsp;})
                 %br
