@@ -39,7 +39,7 @@ class User < ApplicationRecord
   has_many :custom_fields       , as: :customizable,dependent: :destroy
   has_many :attachable_docs     , as: :documentable , dependent: :destroy
   has_many :company_docs        , through: :attachable_docs
-  has_many :job_applications    , foreign_key: "applicationable_id", dependent: :destroy
+  # has_many :job_applications    , foreign_key: "applicationable_id", dependent: :destroy
   has_many :timesheets          , dependent: :destroy
   has_many :timesheet_approvers , dependent: :destroy
   has_many :attachments         , as: :attachable
@@ -63,6 +63,9 @@ class User < ApplicationRecord
 
   has_many :favourables, as: :favourable, class_name: "FavouriteChat", dependent: :destroy
   has_many :favourableds, as: :favourabled, class_name: "FavouriteChat", dependent: :destroy
+
+  has_many   :job_applications     , as: :applicationable
+
 
   accepts_nested_attributes_for :attachable_docs , reject_if: :all_blank
   accepts_nested_attributes_for :custom_fields   , reject_if: :all_blank

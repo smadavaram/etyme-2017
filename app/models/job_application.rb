@@ -3,19 +3,19 @@ class JobApplication < ApplicationRecord
   include Rails.application.routes.url_helpers
 
   enum status: [ :pending_review ,:rejected , :short_listed,:interviewing,:hired ]
-  enum application_type: [:direct , :candidate_direct , :vendor_direct , :invitation]
+  enum application_type: [:direct , :candidate_direct , :vendor_direct , :invitation,:with_recurator, :witout_registration]
 
   belongs_to :job_invitation, optional: true
   belongs_to :applicationable, polymorphic: true, optional: true
   belongs_to :job, optional: true
   belongs_to :company, optional: true
-  belongs_to :user , class_name: "User",foreign_key: "applicationable_id", optional: true
+  # belongs_to :user , class_name: "User",foreign_key: "applicationable_id", optional: true
   has_one    :contract
   has_many   :custom_fields ,as: :customizable
   has_many   :comments ,as: :commentable
   has_many     :chats             ,as: :chatable
   has_many :job_applicant_reqs
-  has_many :job_applicantion_without_registrations
+  # has_many :job_applicantion_without_registrations
 
 
   # validates :cover_letter , :applicant_resume ,presence: true
