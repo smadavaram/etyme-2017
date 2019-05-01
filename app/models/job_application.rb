@@ -33,7 +33,7 @@ class JobApplication < ApplicationRecord
   after_create  :send_message
   accepts_nested_attributes_for :custom_fields , reject_if: :all_blank
   accepts_nested_attributes_for :job_applicant_reqs , reject_if: :all_blank
-  accepts_nested_attributes_for :job_applicantion_without_registrations , reject_if: :all_blank
+  # accepts_nested_attributes_for :job_applicantion_without_registrations , reject_if: :all_blank
 
 
   default_scope                { order(created_at: :desc) }

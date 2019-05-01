@@ -343,8 +343,8 @@
           .element-box.el-tablo.centered
             .panel-body.status
               .who.clearfix
-                %h4 Company Candidates (#{current_company.candidates.count})
-              -if current_company.candidates.present?
+                %h4 Company Candidates (#{current_company.candidates_companies.where(applicantable_type: 'Candidate').count})
+              -if current_company.candidates_companies.where(applicantable_type: 'Candidate').present?
                 .col-sm-12
                   %ul.list-inline.friends-list
                     %br

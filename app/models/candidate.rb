@@ -76,6 +76,7 @@ class Candidate < ApplicationRecord
 
   belongs_to :invited_by_user, class_name: "User", foreign_key: :invited_by_id, optional: true
 
+  has_many :candidates_companies, as: :applicantable
 
   attr_accessor :job_id , :expiry , :message , :invitation_type
   attr_accessor :send_welcome_email_to_candidate

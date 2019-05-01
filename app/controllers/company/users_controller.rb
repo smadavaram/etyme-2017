@@ -15,13 +15,13 @@ class Company::UsersController < Company::BaseController
           if params[:value] == 'Jobs'
             @data += apply_scopes(Job.where( company_id: current_company.prefer_vendor_companies.map(&:id) ) )
           elsif(params[:value] == 'Candidates')
-            @data += apply_scopes(current_company.candidates)
+            @data += apply_scopes(current_company.candidates_companies.where(applicantable_type: 'Candidate'))
           elsif params[:value]== 'Contacts'
             @data += apply_scopes(current_company.invited_companies_contacts)
           else
-            @data += apply_scopes(Job.where( company_id: current_company.prefer_vendor_companies.map(&:id) ) )
+            @data += apply_scopes(Job.where(company_id: current_company.prefer_vendor_companies.map(&:id)))
             @data += apply_scopes(current_company.invited_companies_contacts)
-            @data += apply_scopes(current_company.candidates)
+            @data += apply_scopes(current_company.candidates_companies.where(applicantable_type: 'Candidate'))
           end
           @data = @data.sort{|y,z| z.created_at <=> y.created_at}
 
@@ -29,7 +29,7 @@ class Company::UsersController < Company::BaseController
         format.html{
           @data += apply_scopes(Job.where(company_id: current_company.prefer_vendor_companies.map(&:id)))
           @data += apply_scopes(current_company.invited_companies_contacts)
-          @data += apply_scopes(current_company.candidates)
+          @data += apply_scopes(current_company.candidates_companies.where(applicantable_type: 'Candidate'))
           @data = @data.sort{|y,z| z.created_at <=> y.created_at}
         }
       end

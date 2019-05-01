@@ -245,7 +245,7 @@ $(document).ready(function () {
       },
       {data: "name"},
       {data: "type"},
-      {data: "member",searchable:false,orderable: false},
+      {data: "member", searchable: false, orderable: false},
       {data: "created_at"},
       {
         data: "status",
@@ -265,5 +265,21 @@ $(document).ready(function () {
     ]
   });
 
+
+  $('#applicant-datatable').dataTable({
+    processing: true,
+    serverSide: true,
+    order: [[1, "desc"]],
+    columnDefs: [{
+      'targets': 0, searchable: false, orderable: false,
+      'render': function (data, type, full, meta) {return '<input type="checkbox" name="id[]" value="' + full.id + '">';}
+    },],
+    ajax: $('#applicant-datatable').data('source'),
+    columns: [
+      {data: "id"},
+      {data: "name"},
+      {data: "applicantable_type"},
+    ]
+  });
 
 });

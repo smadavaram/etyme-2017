@@ -44,7 +44,7 @@ class Company < ApplicationRecord
   # has_many :invoices                  , through:   :timesheets
   has_one  :package                   , through:   :subscription
   has_many :candidates_companies      ,dependent: :destroy
-  has_many :candidates                , through: :candidates_companies
+  # has_many :candidates                , through: :candidates_companies
   has_many :prefer_vendors
   has_many :perfer_vendor_companies   ,class_name: "PreferVendor" , foreign_key: 'vendor_id'
   has_many :company_contacts, class_name: 'CompanyContact', foreign_key: "company_id", dependent:  :destroy

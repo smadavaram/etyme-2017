@@ -65,6 +65,7 @@ class User < ApplicationRecord
   has_many :favourableds, as: :favourabled, class_name: "FavouriteChat", dependent: :destroy
 
   has_many   :job_applications     , as: :applicationable
+  has_many :candidates_companies, as: :applicantable
 
 
   accepts_nested_attributes_for :attachable_docs , reject_if: :all_blank
