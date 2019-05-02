@@ -39,7 +39,7 @@
 
     <% if @conversation.present? %>
       <div class="user-actions">
-        <a href="#" class ="add-to-conversation" data-cid=<%= opt_obj.id %> data-ctype=<%= opt_obj.class.to_s %> > <i class="fa fa-plus"></i></a>
+        <a href="#" class ="add-to-conversation" data-conid=<%= @conversation.id %> data-cid=<%= opt_obj.id %> data-ctype=<%= opt_obj.class.to_s %> > <i class="fa fa-plus"></i></a>
         <!--<a href="#"><i class="os-icon os-icon-phone-18"></i></a>-->
         <!--<a href="#"><i class="os-icon os-icon-phone-15"></i></a>-->
       </div>

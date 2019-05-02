@@ -93,6 +93,17 @@ class Company::GroupsController < Company::BaseController
     redirect_back fallback_location: root_path
   end  
 
+  def remove_from_group
+    Groupable.where(id: params[:groupable]).destroy_all
+    redirect_to company_conversations_path(conversation: params[:conversation])
+  end
+
+  def leave_group
+    grp = Group.find(params[:group])
+    grp.groupables.where(groupable: current_user).destroy_all
+    redirect_to company_conversations_path
+  end
+
   private
 
  def  set_and_find_group

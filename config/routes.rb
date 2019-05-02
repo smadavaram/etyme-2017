@@ -348,6 +348,9 @@ Rails.application.routes.draw do
         post :create_bulk_candidates
         post :create_bulk_companies
         post :create_bulk_contacts
+
+        get :remove_from_group
+        get :leave_group
       end
     end
     resources :admins, concerns: :paginatable

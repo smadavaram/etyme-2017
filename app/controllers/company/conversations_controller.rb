@@ -5,7 +5,9 @@ class Company::ConversationsController < Company::BaseController
   def index
     get_conversation_users
     message = ConversationMessage.joins(:conversation).where("(senderable_type = ? AND senderable_id = ? ) OR (recipientable_type = ? AND recipientable_id = ?)", current_user.class.to_s, current_user.id, current_user.class.to_s, current_user.id).where.not(is_read: true, userable: current_user).order("created_at DESC").first
-    if message.present?
+    if params[:conversation].present?
+      @conversation = Conversation.find(params[:conversation])
+    elsif message.present?
       # set_conversation(message.userable)
       set_conversation(message.userable, '', message.userable_id, message.userable_type)
       @current_chat = message.userable
@@ -29,9 +31,7 @@ class Company::ConversationsController < Company::BaseController
     else
       user = User.where(id: params[:user_id]).first
     end
-
     set_conversation(user, params[:chat_topic], params[:chatable_id], params[:chatable_type])
-
     # if params[:user_type] == "Candidate"
     #   user = Candidate.where(id: params[:user_id]).first
     # else
@@ -67,20 +67,26 @@ class Company::ConversationsController < Company::BaseController
 
   def add_to_chat
     user = User.find(params[:user])
+    conversation = Conversation.find(params[:chatconversation])
     if params[:chatctype] == "Group"
       group = Group.find(params[:chatcid])
       group.groupables.create(groupable: user)
     else
-      group = Group.create(group_name: "Noname Group", company_id: current_company.id, member_type: "Chat")
+      if params[:chatctype] == "Candidate"
+        user1 = Candidate.where(id: params[:chatcid]).first
+      elsif params[:chatctype] == "Company"
+        user1 = Company.where(id: params[:chatcid]).first
+      else
+        user1 = User.find(params[:chatcid])
+      end
+      name = current_user.full_name + ", " + user.full_name + ", " + user1.full_name
+      group = Group.create(group_name: name, company_id: current_company.id, member_type: "Chat")
       group.groupables.create(groupable: current_user)
       group.groupables.create(groupable: user)
-      group.groupables.create(groupable_id: params[:chatcid], groupable_type: params[:chatctype])
+      group.groupables.create(groupable: user1)
+      conversation.update(chatable: group, topic: "GroupChat")
     end
-
-    set_conversation(group, "Group", nil, nil)
-    get_conversation_users
-
-    render 'index'
+    redirect_to company_conversations_path(conversation: conversation.id)
   end
 
   private

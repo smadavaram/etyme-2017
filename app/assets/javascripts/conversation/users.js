@@ -27,9 +27,11 @@ var ready = function () {
         e.preventDefault();
         var chatable_id = $(this).data('cid');
         var chatable_type = $(this).data('ctype');
+        var con_id = $(this).data('conid');
 
         $("#chatcid").val(chatable_id);
         $("#chatctype").val(chatable_type);
+        $("#chatconversation").val(con_id);
 
         $("#addToChatModal").modal("show")
 
