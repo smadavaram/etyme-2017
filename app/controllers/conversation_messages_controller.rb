@@ -10,7 +10,7 @@ class ConversationMessagesController < ApplicationController
 
       if @conversation.chatable_type == "Group"
         @conversation.chatable.groupables.each do |gm|
-          GroupMsgNotify.create(group_id: @conversation.chatable.id, member: gm.groupable, conversation_message: message)
+          # GroupMsgNotify.create(group_id: @conversation.chatable.id, member: gm.groupable, conversation_message: message)
           ActionCable.server.broadcast "Message_#{gm.groupable_type}_#{gm.groupable_id}",
                                        msg_id: message.id,
                                        # msg: message_content,
@@ -30,7 +30,7 @@ class ConversationMessagesController < ApplicationController
                                        dom: "#conversation_#{@conversation.id}"
         end
         @conversation.chatable.company.users.each do |usr|
-          GroupMsgNotify.create(group_id: @conversation.chatable.id, member: usr, conversation_message: message)
+          # GroupMsgNotify.create(group_id: @conversation.chatable.id, member: usr, conversation_message: message)
           ActionCable.server.broadcast "Message_#{usr.class}_#{usr.id}",
                                        msg_id: message.id,
                                        # msg: message_content,

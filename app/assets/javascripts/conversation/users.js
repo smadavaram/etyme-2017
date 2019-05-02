@@ -23,6 +23,24 @@ var ready = function () {
         });
     });
 
+    $(document).on('click', '.add-to-conversation', function (e) {
+        e.preventDefault();
+        var chatable_id = $(this).data('cid');
+        var chatable_type = $(this).data('ctype');
+        var con_id = $(this).data('conid');
+
+        $("#chatcid").val(chatable_id);
+        $("#chatctype").val(chatable_type);
+        $("#chatconversation").val(con_id);
+
+        $("#addToChatModal").modal("show")
+
+        // $.post("/conversations", { user_type: recipient_type, user_id: recipient_id, chat_topic: chat_topic, chatable_id: chatable_id, chatable_type: chatable_type }, function (data) {
+        //     //$("#unread-message-notify-"+data.user_id).html(data.unread_message_count)
+        //     chatBox.chatWith(data.conversation_id);
+        // });
+    });
+
     /**
      * Used to minimize the chatbox
      */

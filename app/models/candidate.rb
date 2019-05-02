@@ -114,7 +114,7 @@ class Candidate < ApplicationRecord
   end
 
   def photo
-    super.present? ? super : 'avatars/m_sunny_big.png'
+    super.present? ? super : ActionController::Base.helpers.asset_path('avatars/m_sunny_big.png')
   end
 
   def full_name

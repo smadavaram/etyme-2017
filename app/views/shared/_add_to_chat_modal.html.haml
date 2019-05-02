@@ -1,0 +1,17 @@
+#addToChatModal.modal{:role => "dialog"}
+  .modal-dialog
+    .modal-content
+      .modal-body
+        .card
+          .card-body
+            .card-subtitle
+              Add To Chat
+            .p-4
+              = form_tag add_to_chat_company_conversations_path do
+                = select_tag :user, options_for_select(User.all.order(:first_name).map{|u| [u.full_name, u.id]}), id: 'sel-usr-to-chat', class: 'form-control'
+                = hidden_field_tag "chatcid"
+                = hidden_field_tag "chatctype"
+                = hidden_field_tag "chatconversation"
+                = submit_tag "Add"
+            .card-subtitle.mt-4
+

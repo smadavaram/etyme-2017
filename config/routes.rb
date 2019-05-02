@@ -294,6 +294,7 @@ Rails.application.routes.draw do
       get :search, on: :collection
       get :add_to_favourite, on: :collection
       get :remove_from_favourite, on: :collection
+      post :add_to_chat, on: :collection
       resources :conversation_messages do
         get :mark_as_read, on: :member
       end
@@ -347,6 +348,9 @@ Rails.application.routes.draw do
         post :create_bulk_candidates
         post :create_bulk_companies
         post :create_bulk_contacts
+
+        get :remove_from_group
+        get :leave_group
       end
     end
     resources :admins, concerns: :paginatable

@@ -1,5 +1,5 @@
 <% if @conversation.present? %>
-  <% user = (@conversation.senderable == current_user ? @conversation.recipientable : @conversation.senderable) %>
+  <% user = @conversation.chatable_type == "Group" ? @conversation.chatable :  (@conversation.senderable == current_user ? @conversation.recipientable : @conversation.senderable) %>
   <div class="user-intro">
     <div class="avatar">
       <%= image_tag user.photo %>
@@ -10,4 +10,17 @@
       </h5>
     </div>
   </div>
+  <% if @conversation.chatable_type == "Group" %>
+    <ul>
+      <% @conversation.chatable.groupables.each do |g| %>
+        <li>
+          <%= g.groupable.full_name %>
+          <%= link_to "Remove", remove_from_group_groups_path(groupable: g.id, conversation: @conversation.id) if current_company.id == @conversation.chatable.company_id %>
+        </li>
+      <% end %>
+      <% if current_company.id != @conversation.chatable.company_id %>
+        <li><%= link_to "Leave Group", leave_group_groups_path(group: @conversation.chatable_id)  %></li>
+      <% end %>
+    </ul>
+  <% end %>
 <% end %>
