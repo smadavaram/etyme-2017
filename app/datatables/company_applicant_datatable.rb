@@ -12,7 +12,7 @@ class CompanyApplicantDatatable < ApplicationDatatable
     records.map do |record|
       {
           id: record.id,
-          name: "candidate_profile(record)",
+          name: candidate_profile(record),
           applicantable_type: record.applicantable_type,
       }
     end

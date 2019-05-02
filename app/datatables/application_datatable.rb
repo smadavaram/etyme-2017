@@ -20,6 +20,10 @@ class ApplicationDatatable < AjaxDatatablesRails::ActiveRecord
     super
   end
 
+  def strip_html(html)
+    ActionController::Base.helpers.strip_tags(html)
+  end
+
   def do_ellipsis(value, length = 20)
     if value
       post_fix = value.length > length ? '...' : ''

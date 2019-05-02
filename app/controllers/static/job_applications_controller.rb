@@ -12,7 +12,7 @@ class Static::JobApplicationsController < ApplicationController
         if params["job_application"]["job_application_without_registrations"]["email"]
           data_params = params["job_application"]["job_application_without_registrations"]
           candidate = Candidate.create(:email => data_params["email"], :first_name => data_params["first_name"], :last_name => data_params["last_name"], :phone => data_params["phone"])
-          @job_application = candidate.job_applications.new(job_application_params.merge(job_id: params[:job_id], application_type: :witout_registration))
+          @job_application = candidate.job_applications.new(job_application_params.merge(job_id: params[:job_id], application_type: :witout_registration, company_id: @job.company_id))
           save_job_application(@job_application)
         end
       elsif params["candidate_with_recruiter"].present?
@@ -25,7 +25,7 @@ class Static::JobApplicationsController < ApplicationController
             @company = companies.first
             # TODO: as it as user of recruiter company
             company_user = @company.users.find_by(email: data_params["email"]) || @company.users.create(:email=>data_params["email"], :first_name=>data_params["first_name"] , :last_name=>data_params["last_name"] , :phone=>data_params["phone"] , :title=>data_params["title"] )
-            @job_application = company_user.job_applications.new(job_application_params.merge(job_id: params[:job_id],application_type: :with_recurator))
+            @job_application = company_user.job_applications.new(job_application_params.merge(job_id: params[:job_id],application_type: :with_recurator,company_id: @job.company_id))
             save_job_application(@job_application)
           else
             @company = Company.new()
@@ -35,7 +35,7 @@ class Static::JobApplicationsController < ApplicationController
             @company.domain = domain
             if @company.valid? && @company.save
               company_user = @company.users.create(:email => data_params["email"], :first_name => data_params["first_name"], :last_name => data_params["last_name"], :phone => data_params["phone"], :title => data_params["title"])
-              @job_application = company_user.job_applications.new(job_application_params.merge(job_id: params[:job_id],application_type: :with_recurator))
+              @job_application = company_user.job_applications.new(job_application_params.merge(job_id: params[:job_id],application_type: :with_recurator,company_id: @job.company_id))
               save_job_application(@job_application)
             else
               flash[:errors] = @company.errors.full_messages

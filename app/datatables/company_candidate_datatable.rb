@@ -40,6 +40,9 @@ class CompanyCandidateDatatable < ApplicationDatatable
   end
 
   def get_raw_records
+    Candidate.joins("INNER JOIN candidates_companies ON candidates_companies.applicantable_id = candidates.id AND candidates_companies.applicantable_type = 'Candidate'")
+    User.joins("INNER JOIN candidates_companies ON candidates_companies.applicantable_id = users.id AND candidates_companies.applicantable_type = 'User'")
+
     current_company.candidates.includes(:companies, :candidates_companies)
   end
 

@@ -14,7 +14,7 @@ class Company::JobApplicationsController < Company::BaseController
   def index
     respond_to do |format|
       format.html {}
-      format.json {render json: CompanyApplicantDatatable.new(params, view_context: view_context)}
+      format.json {render json: JobApplicationDatatable.new(params, view_context: view_context)}
     end
   end
 

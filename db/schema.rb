@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema.define(version: 20190501142122) do
+ActiveRecord::Schema.define(version: 20190502095702) do
 
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
@@ -397,14 +397,13 @@ ActiveRecord::Schema.define(version: 20190501142122) do
     t.index ["reset_password_token"], name: "index_candidates_on_reset_password_token", unique: true
   end
 
-  create_table "candidates_companies", id: false, force: :cascade do |t|
-    t.integer "candidate_id"
+  create_table "candidates_companies", force: :cascade do |t|
+    t.integer "applicantable_id"
     t.integer "company_id"
     t.integer "status", default: 0
     t.integer "candidate_status", default: 0
-    t.bigint "applicantable_id"
     t.string "applicantable_type"
-    t.index ["candidate_id", "company_id"], name: "index_candidates_companies_on_candidate_id_and_company_id", unique: true
+    t.index ["applicantable_id", "company_id"], name: "index_candidates_companies_on_applicantable_id_and_company_id", unique: true
   end
 
   create_table "candidates_groups", id: false, force: :cascade do |t|

@@ -266,19 +266,33 @@ $(document).ready(function () {
   });
 
 
-  $('#applicant-datatable').dataTable({
+  $('#application-datatable').dataTable({
     processing: true,
     serverSide: true,
-    order: [[1, "desc"]],
+    order: [[0, "desc"]],
     columnDefs: [{
       'targets': 0, searchable: false, orderable: false,
-      'render': function (data, type, full, meta) {return '<input type="checkbox" name="id[]" value="' + full.id + '">';}
-    },],
-    ajax: $('#applicant-datatable').data('source'),
+      'render': function (data, type, full, meta) {
+        return '<input type="checkbox" name="id[]" value="' + full.id + '">';
+      }
+    },
+      {
+        'targets': 1,
+        searchable: true,
+        orderable: true,
+        'createdCell': function (td, cellData, rowData, row, col) {
+          $(td).addClass('text-left');
+        }
+      }
+    ],
+    ajax: $('#application-datatable').data('source'),
     columns: [
       {data: "id"},
-      {data: "name"},
-      {data: "applicantable_type"},
+      {data: "name",searchable: false,orderable: false},
+      {data: "application_number"},
+      {data: "title"},
+      {data: "status"},
+      {data: "actions",searchable: false,orderable: false},
     ]
   });
 
