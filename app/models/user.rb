@@ -130,8 +130,10 @@ class User < ApplicationRecord
   def full_name
     if first_name.present? || first_name.present?
       self.first_name + " " + self.last_name
-    else
+    elsif company
       company.name
+    else
+      ""
     end
   end
 

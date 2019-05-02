@@ -294,6 +294,7 @@ Rails.application.routes.draw do
       get :search, on: :collection
       get :add_to_favourite, on: :collection
       get :remove_from_favourite, on: :collection
+      post :add_to_chat, on: :collection
       resources :conversation_messages do
         get :mark_as_read, on: :member
       end

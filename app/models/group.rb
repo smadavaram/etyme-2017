@@ -6,4 +6,11 @@ class Group < ApplicationRecord
   has_many :users       , through: :groupables, source: "groupable"  ,source_type: "User"
   has_many :company_contacts       , through: :groupables, source: "groupable"  ,source_type: "CompanyContact"
 
+  def photo
+    ActionController::Base.helpers.asset_path('default_logo.png')
+  end
+
+  def full_name
+    group_name.to_s.titleize
+  end
 end

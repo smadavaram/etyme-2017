@@ -9,7 +9,9 @@
             </h6>
           </div>
           <div class="chatboxoptions">
-            <%= link_to "<i class='fa  fa-minus'></i> ".html_safe, "#", class: "toggleChatBox", "data-cid" => @conversation.id %>
+            <% opt_obj = @conversation.chatable_type == "Group" ? @conversation.chatable : (@conversation.senderable == current_user ? @conversation.recipientable : @conversation.senderable) if @conversation.present? %>
+            <%= link_to "<i class='fa fa-plus'></i> ".html_safe, "#", class: "add-to-conversation", "data-cid" => opt_obj.id, "data-ctype" => opt_obj.class.to_s %>
+            <%= link_to "<i class='fa fa-minus'></i> ".html_safe, "#", class: "toggleChatBox", "data-cid" => @conversation.id %>
             <%= link_to "<i class='os-icon os-icon-close'></i> ".html_safe, "#", class: "closeChat", "data-cid" => @conversation.id %>
           </div>
         </div>
