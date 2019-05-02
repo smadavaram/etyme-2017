@@ -1,16 +1,16 @@
 class Company::AdminsController < Company::BaseController
 
-  add_breadcrumb "Admins", :admins_path, options: { title: "Admins" }
-  before_action :authorized_user ,only:  [:new ,:index]
-  before_action :find_admin ,only: [:edit,:update,:destroy]
+  add_breadcrumb "Admins", :admins_path, options: {title: "Admins"}
+  before_action :authorized_user, only: [:new, :index]
+  before_action :find_admin, only: [:edit, :update, :destroy]
 
   #CallBacks
-  before_action :set_new_admin , only: [:new]
-  before_action :set_roles , only: [:new , :index]
-  before_action :set_locations , only: [:new , :index]
+  before_action :set_new_admin, only: [:new]
+  before_action :set_roles, only: [:new, :index]
+  before_action :set_locations, only: [:new, :index]
 
   def index
-    @search      = current_company.admins.search(params[:q])
+    @search = current_company.admins.search(params[:q])
     @admins = @search.result.order(created_at: :desc).includes(:roles).paginate(page: params[:page], per_page: 30) || []
   end
 
@@ -26,11 +26,11 @@ class Company::AdminsController < Company::BaseController
     @admin = current_company.admins.new(admin_params)
     respond_to do |format|
       if @admin.save
-        format.html { redirect_to redirect_back fallback_location: root_path, success: 'Successfull Added.' }
-        format.js{ flash.now[:success] = "successfully Created." }
+        format.html {redirect_to redirect_back fallback_location: root_path, success: 'Successfull Added.'}
+        format.js {flash.now[:success] = "successfully Created."}
       else
-        format.html { flash[:errors] = @admin.errors.full_messages; render :new}
-        format.js{ flash.now[:errors] =  @admin.errors.full_messages }
+        format.html {flash[:errors] = @admin.errors.full_messages; render :new}
+        format.js {flash.now[:errors] = @admin.errors.full_messages}
       end
     end
 
@@ -49,6 +49,7 @@ class Company::AdminsController < Company::BaseController
     end
     redirect_back fallback_location: root_path
   end
+
   def destroy
     name = @admin.full_name
     if @admin.destroy
@@ -64,8 +65,8 @@ class Company::AdminsController < Company::BaseController
   end
 
 
-
   private
+
   def find_admin
     @admin = current_company.admins.find(params[:id])
   end
@@ -84,11 +85,11 @@ class Company::AdminsController < Company::BaseController
 
   def admin_params
     params.require(:admin).permit(:first_name,
-                                       :last_name ,
-                                       :email ,:phone,
+                                  :last_name,
+                                  :email, :phone,
                                   :primary_address_id,
-                                       role_ids: [],
-                                       company_doc_ids: [],
+                                  role_ids: [],
+                                  company_doc_ids: [],
 
     )
   end

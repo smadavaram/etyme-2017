@@ -45,32 +45,32 @@ class CompanyCandidateDatatable < ApplicationDatatable
 
   def contact_icon record
     mail_to(record.email, content_tag(:i, nil, class: 'os-icon os-icon-email-2-at2').html_safe, title: record.email, class: 'data-table-icons') +
-        link_to(content_tag(:i, nil, class: 'fa fa-phone ').html_safe, '#', title: record.phone, class: 'data-table-icons') +
-        link_to(content_tag(:i, nil, class: 'fa fa-comment-o ').html_safe, '#', title: 'chat', class: 'data-table-icons') +
-        link_to(content_tag(:i, nil, class: 'fa fa-calendar').html_safe, '#', title: 'Add meeting', class: 'data-table-icons')
+        link_to(content_tag(:i, nil, class: 'os-icon os-icon-phone ').html_safe, '#', title: record.phone, class: 'data-table-icons') +
+        link_to(content_tag(:i, nil, class: 'fa fa-comment-o').html_safe, '#', title: 'chat', class: 'data-table-icons') +
+        link_to(content_tag(:i, nil, class: 'os-icon os-icon-calendar').html_safe, '#', title: 'Add meeting', class: 'data-table-icons')
   end
 
   def ban_unban_link(record)
     record.get_blacklist_status(current_company.id) == 'banned' ?
         link_to(content_tag(:i, nil, class: 'os-icon os-icon-ui-15').html_safe, candidate_remove_from_comapny_path(record), remote: true, method: :post, title: "Delete #{record.full_name}", class: 'data-table-icons') +
-            link_to(content_tag(:i, nil, class: 'fa fa-unlock-alt').html_safe, unban_company_black_listers_path(record.id, 'Candidate'), method: :post, title: 'UnBlock Candidate', class: 'data-table-icons')
+            link_to(content_tag(:i, nil, class: 'os-icon os-icon-unlock').html_safe, unban_company_black_listers_path(record.id, 'Candidate'), method: :post, title: 'UnBlock Candidate', class: 'data-table-icons')
         :
         link_to(content_tag(:i, nil, class: 'os-icon os-icon-ui-15').html_safe, candidate_remove_from_comapny_path(record), remote: true, method: :post, title: "Delete #{record.full_name}", class: 'data-table-icons') +
-            link_to(content_tag(:i, nil, class: 'fa fa-lock').html_safe, ban_company_black_listers_path(record.id, 'Candidate'), method: :post, title: 'Block Candidate', class: 'data-table-icons')
+            link_to(content_tag(:i, nil, class: 'os-icon os-icon-lock').html_safe, ban_company_black_listers_path(record.id, 'Candidate'), method: :post, title: 'Block Candidate', class: 'data-table-icons')
   end
 
   def reminder_note record
-    content_tag(:span, do_ellipsis(record&.reminders&.last&.title), class: 'label-info badge mr-1').html_safe +
-        content_tag(:span, record&.statuses&.last&.status_type, class: 'label-info badge').html_safe
+    content_tag(:span, do_ellipsis(record&.reminders&.last&.title), class: 'bg-info badge mr-1').html_safe +
+        content_tag(:span, record&.statuses&.last&.status_type, class: 'bg-info badge').html_safe
   end
 
   def actions record
     link_to(content_tag(:i, nil, class: 'fa fa-sticky-note ').html_safe, company_statuses_path(id: record, type: 'Candidate'), title: 'Status Log', class: 'data-table-icons') +
-        link_to(content_tag(:i, nil, class: 'fa fa-sticky-note ').html_safe, candidate_assign_status_path(record), remote: :true, title: "Assign Status", class: 'data-table-icons') +
-        link_to(content_tag(:i, nil, class: 'fa fa-user-plus ').html_safe, '#', title: 'Follow/Unfollow', class: 'data-table-icons') +
-        link_to(content_tag(:i, nil, class: 'fa fa-bell ').html_safe, candidate_add_reminder_path(record), remote: :true, title: "Remind Me", class: 'data-table-icons') +
+        link_to(content_tag(:i, nil, class: 'fa fa-sticky-note-o ').html_safe, candidate_assign_status_path(record), remote: :true, title: "Assign Status", class: 'data-table-icons') +
+        link_to(content_tag(:i, nil, class: 'icon-feather-user-plus').html_safe, '#', title: 'Follow/Unfollow', class: 'data-table-icons') +
+        link_to(content_tag(:i, nil, class: 'fa fa-bell-o ').html_safe, candidate_add_reminder_path(record), remote: :true, title: "Remind Me", class: 'data-table-icons') +
         link_to(content_tag(:i, nil, class: 'fa fa-edit').html_safe, edit_company_candidate_path(record), title: "Edit #{record.full_name}", class: 'data-table-icons') +
-        link_to(content_tag(:i, nil, class: 'fa fa-file-text').html_safe, record.resume, download: true, title: "Download Resume", class: 'data-table-icons') +
+        link_to(content_tag(:i, nil, class: 'fa fa-file-text-o').html_safe, record.resume, download: true, title: "Download Resume", class: 'data-table-icons') +
         get_status_links(record)
   end
 

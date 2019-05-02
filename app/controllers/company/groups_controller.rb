@@ -1,6 +1,6 @@
 class Company::GroupsController < Company::BaseController
 
-  before_action :set_and_find_group ,only: [:update,:edit]
+  before_action :set_and_find_group ,only: [:update,:edit, :assign_status, :add_reminder]
   add_breadcrumb "Groups", :groups_path, options: { title: "COMPANY Groups" }
 
   def new
@@ -22,9 +22,20 @@ class Company::GroupsController < Company::BaseController
   end
 
   def index
-    @groups = current_company.groups.paginate(page: params[:page], per_page: 30) || []
+    respond_to do |format|
+      format.html {}
+      format.json {render json: GroupDatatable.new(params, view_context: view_context)}
+    end
   end
 
+  def add_reminder
+
+  end
+
+
+  def assign_status
+
+  end
 
   def create
     @group = current_company.groups.create(group_params)

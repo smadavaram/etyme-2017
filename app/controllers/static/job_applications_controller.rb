@@ -4,12 +4,19 @@ class Static::JobApplicationsController < ApplicationController
 
   def create
     JobApplication
-    if params[:candidate_id].present?
-      @candidate = Candidate.where(id: params[:candidate_id].split(" ").map(&:to_i))
-      @candidate.each do |candidate|
-        @job_application=candidate.job_applications.new(job_application_params.merge(job_id:params[:job_id]))
-        @job_application.save
+    if params[:candidate_id].present? || current_candidate
+      @job_application = current_candidate.job_applications.new(job_application_params.merge(job_id:params[:job_id]))
+      if @job_application.save
+        flash[:success] = "Job Application Created"
+      else
+        flash[:errors] = @job_application.errors.full_messages
       end
+      # # @candidate = Candidate.where(id: params[:candidate_id].split(" ").map(&:to_i))
+      # @candidate = Candidate.where(id: current_candidate.id)
+      # @candidate.each do |candidate|
+      #   @job_application=candidate.job_applications.new(job_application_params.merge(job_id:params[:job_id]))
+      #   @job_application.save
+      # end
     else
       if params["candidate_without_registration"].present?
 
@@ -29,22 +36,20 @@ class Static::JobApplicationsController < ApplicationController
           flash[:errors] = @job_application.errors.full_messages
         end
       elsif params["candidate_with_recruiter"].present?
-
         if params["job_application"]["candidate_with_recruiter"]["email"]
 
           data_params = params["job_application"]["candidate_with_recruiter"]
-          email = params["job_application"]["candidate_with_recruiter"]["email"]
+          email = params["job_application"]["candidate_with_recruiter"]["recruiter_email"]
 
           domain = email.split("@")[1]
 
-          companies = Company.where(domain: domain)
-
+          companies = Company.where(domain: domain.split('.').first)
           if !companies.blank?
 
             @company = companies.first
 
-            company_contact = CompanyContact.create(:company_id=> @company.id, :email=>data_params["email"], :first_name=>data_params["first_name"] , :last_name=>data_params["last_name"] , :phone=>data_params["phone"] , :title=>data_params["title"] )
-            candidate = Candidate.create(:email=>data_params["email"], :first_name=>data_params["first_name"] , :last_name=>data_params["last_name"] , :phone=>data_params["phone"] )
+            company_contact = @company.company_contacts.find_by(email: data_params["email"]) || CompanyContact.create(:company_id=> @company.id, :email=>data_params["email"], :first_name=>data_params["first_name"] , :last_name=>data_params["last_name"] , :phone=>data_params["phone"] , :title=>data_params["title"] )
+            candidate = Candidate.find_by(email: data_params["email"]) || Candidate.create(:email=>data_params["email"], :first_name=>data_params["first_name"] , :last_name=>data_params["last_name"] , :phone=>data_params["phone"] )
 
             @job_application = candidate.job_applications.new(job_application_params.merge(job_id:params[:job_id]))
 
@@ -78,11 +83,10 @@ class Static::JobApplicationsController < ApplicationController
             @company.website = domain
             @company.phone = params["job_application"]["candidate_with_recruiter"]["phone"]
             @company.domain = domain 
-
-            # respond_to do |format|
+            # respond_to do |format|r
               if @company.valid? && @company.save
                 company_contact = CompanyContact.create(:company_id=> @company.id, :email=>data_params["email"], :first_name=>data_params["first_name"] , :last_name=>data_params["last_name"] , :phone=>data_params["phone"] , :title=>data_params["title"] )
-                candidate = Candidate.create(:email=>data_params["email"], :first_name=>data_params["first_name"] , :last_name=>data_params["last_name"] , :phone=>data_params["phone"] )
+                candidate = Candidate.find_by(email: data_params["email"]) || Candidate.create(:email=>data_params["email"], :first_name=>data_params["first_name"] , :last_name=>data_params["last_name"] , :phone=>data_params["phone"] )
 
                 @job_application = candidate.job_applications.new(job_application_params.merge(job_id:params[:job_id]))
 
@@ -127,5 +131,4 @@ class Static::JobApplicationsController < ApplicationController
   def find_job
     @job=Job.active.is_public.where(id: params[:id]|| params[:job_id]).first
   end
-
 end

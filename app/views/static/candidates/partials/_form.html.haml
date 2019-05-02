@@ -8,7 +8,8 @@
       .modal-body
         %section.panel-default
           .col-md-8.margin-auto.mb-10
-            %button{ href: "javascript:",  "data-toggler" => "true", "data-show" => "apply-with-without-register", class: 'btn btn-block btn-primary' }Candidate
+            = link_to "Candidate", static_job_job_appication_without_registeration_path(@job,status: candidate_signed_in?),  method: :post , remote: true, :class=>"button btn btn-primary btn-block"
+            -#%button{ href: "javascript:",  "data-toggler" => "true", "data-show" => "apply-with-without-register", class: 'btn btn-block btn-primary' }Candidate
           .col-md-8.margin-auto.mb-10
             = link_to "Recruiter", static_job_job_appication_with_recruiter_path(@job,status: candidate_signed_in?),  method: :post , remote: true, :class=>"button btn btn-primary btn-block"
 
