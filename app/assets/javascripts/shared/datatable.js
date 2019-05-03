@@ -266,4 +266,36 @@ $(document).ready(function () {
   });
 
 
+
+
+  $('#application-datatable').dataTable({
+    processing: true,
+    serverSide: true,
+    order: [[0, "desc"]],
+    columnDefs: [{
+      'targets': 0, searchable: false, orderable: false,
+      'render': function (data, type, full, meta) {
+        return '<input type="checkbox" name="id[]" value="' + full.id + '">';
+      }
+    },
+      {
+        'targets': 1,
+        searchable: true,
+        orderable: true,
+        'createdCell': function (td, cellData, rowData, row, col) {
+          $(td).addClass('text-left');
+        }
+      }
+    ],
+    ajax: $('#application-datatable').data('source'),
+    columns: [
+      {data: "id"},
+      {data: "name",searchable: false,orderable: false},
+      {data: "application_number"},
+      {data: "title"},
+      {data: "status"},
+      {data: "actions",searchable: false,orderable: false},
+    ]
+  });
+
 });

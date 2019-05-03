@@ -12,7 +12,10 @@ class Company::JobApplicationsController < Company::BaseController
   add_breadcrumb "JOB APPLICATIONS", :job_applications_path, options: { title: "JOBS APPLICATION" }
 
   def index
-
+    respond_to do |format|
+      format.html {}
+      format.json {render json: JobApplicationDatatable.new(params, view_context: view_context)}
+    end
   end
 
   def create
