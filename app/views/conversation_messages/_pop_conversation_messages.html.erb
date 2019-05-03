@@ -18,33 +18,17 @@
 <% end %>
 
 <% if msg.userable == get_current_user %>
-  <div class="chat-message self">
-    <div class="chat-message-content-w">
-      <div class="chat-message-content">
+  <div class="message self">
+    <div class="message-content">
         <%= msg.body %>
-      </div>
-    </div>
-    <div class="chat-message-date">
-      <%= msg.created_at.strftime("%l:%M%P") %>
-    </div>
-    <div class="chat-message-avatar">
-      <%= image_tag msg.userable.photo %>
     </div>
   </div>
 <% else %>
-  <div class="chat-message">
-    <div class="chat-message-content-w">
-      <div class="chat-message-content">
+    <div class="message">
+      <div class="message-content">
         <%= msg.body %>
       </div>
     </div>
-    <div class="chat-message-avatar">
-      <%= image_tag msg.userable.photo %>
-    </div>
-    <div class="chat-message-date">
-      <%= msg.created_at.strftime("%l:%M%P") %>
-    </div>
-  </div>
 <% end %>
 
 <% if @prev_date != msg.created_at.strftime('%d %b, %Y') %>
