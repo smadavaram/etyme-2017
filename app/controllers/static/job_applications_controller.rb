@@ -24,8 +24,8 @@ class Static::JobApplicationsController < ApplicationController
           if !companies.blank?
             @company = companies.first
             # TODO: as it as user of recruiter company
-            company_user = @company.users.find_by(email: data_params["email"]) || @company.users.create(:email=>data_params["email"], :first_name=>data_params["first_name"] , :last_name=>data_params["last_name"] , :phone=>data_params["phone"] , :title=>data_params["title"] )
-            @job_application = company_user.job_applications.new(job_application_params.merge(job_id: params[:job_id],application_type: :with_recurator,company_id: @job.company_id))
+            candidate = Candidate.find_by(email: data_params["email"]) || Candidate.create(:email => data_params["email"], :first_name => data_params["first_name"], :last_name => data_params["last_name"], :phone => data_params["phone"], :company_id => @company.id)
+            @job_application = candidate.job_applications.new(job_application_params.merge(job_id: params[:job_id],application_type: :with_recurator,company_id: @job.company_id))
             save_job_application(@job_application)
           else
             @company = Company.new()
@@ -34,8 +34,8 @@ class Static::JobApplicationsController < ApplicationController
             @company.phone = params["job_application"]["candidate_with_recruiter"]["phone"]
             @company.domain = domain
             if @company.valid? && @company.save
-              company_user = @company.users.create(:email => data_params["email"], :first_name => data_params["first_name"], :last_name => data_params["last_name"], :phone => data_params["phone"], :title => data_params["title"])
-              @job_application = company_user.job_applications.new(job_application_params.merge(job_id: params[:job_id],application_type: :with_recurator,company_id: @job.company_id))
+              candidate = Candidate.create(:email => data_params["email"], :first_name => data_params["first_name"], :last_name => data_params["last_name"], :phone => data_params["phone"], :company_id => @company.id)
+              @job_application = candidate.job_applications.new(job_application_params.merge(job_id: params[:job_id],application_type: :with_recurator,company_id: @job.company_id))
               save_job_application(@job_application)
             else
               flash[:errors] = @company.errors.full_messages
@@ -65,7 +65,7 @@ class Static::JobApplicationsController < ApplicationController
             :id,
             :name,
             :value
-        ],job_applicant_reqs_attributes: [:id, :job_requirement_id, :applicant_ans, app_multi_ans: []], 
+        ],job_applicant_reqs_attributes: [:id, :job_requirement_id, :applicant_ans, app_multi_ans: []],
         job_applicantion_without_registrations_attributes: [:id, :first_name, :last_name, :email, :phone, :location, :skill, :visa, :title, :roal, :resume, :is_registerd ],
         job_applicantion_with_recruiters_attributes: [:id, :first_name, :last_name, :email, :phone, :location, :skill, :visa, :title, :roal, :resume, :is_registerd ]])
   end
