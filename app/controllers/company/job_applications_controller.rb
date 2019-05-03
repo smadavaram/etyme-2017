@@ -122,6 +122,15 @@ class Company::JobApplicationsController < Company::BaseController
     @conversation_message = ConversationMessage.new
   end
 
+  def proposal
+    user = @job_application.user
+    set_conversation(user)
+    @conversation_messages = @conversation.conversation_messages.last(50)
+    @unread_message_count = Conversation.joins(:conversation_messages).where("(senderable_type = ? AND senderable_id = ? ) OR (recipientable_type = ? AND recipientable_id = ?)", current_user.class.to_s, current_user.id, current_user.class.to_s, current_user.id).where.not(conversation_messages: {is_read: true, userable: current_user}).uniq.count
+    @conversation_message = ConversationMessage.new
+  end
+
+
   def share
     @job_application = JobApplication.where(share_key: params[:id]).first
     render layout: 'share'

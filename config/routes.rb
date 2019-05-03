@@ -405,7 +405,8 @@ Rails.application.routes.draw do
     resources :job_applications, concerns: :paginatable, only: [:index, :show] do
       resources :consultants, only: [:new, :create]
       member do
-        get :share
+        get  :share
+        get  :proposal
         post :share_application_with_companies
         post :accept
         post :reject

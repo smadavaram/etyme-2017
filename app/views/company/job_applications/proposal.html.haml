@@ -1,12 +1,3 @@
-.row
-  .col-sm-4
-    .row
-      .col-sm-12
-    .row
-      .col-sm-12
-        
-  .col-sm-8
-
 - content_for :links do
   -if @job_application.applicationable_type == 'Candidate'
     = link_to 'eTyme Resume',static_candidate_resume_path(@job_application.applicationable),class: 'btn btn-primary pull-right',target: '_blank', style: 'margin-top: 20px;margin-right: 10px;'
@@ -37,8 +28,8 @@
       - @conversation_messages.each do |msg|
         %div{class: "#{msg.userable == current_user ? 'send_message' : 'receive_message'}"}
           %span= msg.body
-      -#-if @conversation_messages.present?
-      .chatboxinput
-        = form_for([@conversation, @conversation_message], :remote => true, :html => {id: "conversation_form_#{@conversation.id}"}) do |f|
-          = f.text_area :body, class: "chatboxtextarea", "data-cid" => @conversation.id, id: "conversation_#{@conversation.id}_#{current_user.id}"
-          = f.submit "Send", class: "btn btn-sm btn-success", id: "send-chat-message"
+      - end if @conversation_messages.present?
+  .chatboxinput
+    = form_for([@conversation, @conversation_message], :remote => true, :html => {id: "conversation_form_#{@conversation.id}"}) do |f|
+      = f.text_area :body, class: "chatboxtextarea", "data-cid" => @conversation.id, id: "conversation_#{@conversation.id}_#{current_user.id}"
+      = f.submit "Send", class: "btn btn-sm btn-success", id: "send-chat-message"

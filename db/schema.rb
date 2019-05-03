@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema.define(version: 20190427083127) do
+ActiveRecord::Schema.define(version: 20190503133806) do
 
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
@@ -391,6 +391,7 @@ ActiveRecord::Schema.define(version: 20190427083127) do
     t.string "skypeid"
     t.string "gtalk_url"
     t.string "address"
+    t.bigint "company_id"
     t.index ["invitation_token"], name: "index_candidates_on_invitation_token", unique: true
     t.index ["invitations_count"], name: "index_candidates_on_invitations_count"
     t.index ["invited_by_id"], name: "index_candidates_on_invited_by_id"
