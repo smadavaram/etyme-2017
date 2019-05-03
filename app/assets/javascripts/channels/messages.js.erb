@@ -45,6 +45,21 @@ function set_conversation(data){
 //    "</div>"
 //  );
 //  $(data.dom).append(data.msg);
+    if($(data.dom).hasClass("popup-chat")){
+        if(current_user_id == data.usr && current_user_type == data.usr_typ ){
+            $(data.dom).append( "<div class='message self'>" +
+                  "<div class='message-content'>"+
+                    data.msg +
+                  "</div>"+
+                "</div>");
+        } else {
+            $(data.dom).append("<div class='message'>" +
+                  "<div class='message-content'>"+
+                    data.msg +
+                  "</div>"+
+                "</div>");
+        }
+    } else {
       if(current_user_id == data.usr && current_user_type == data.usr_typ ){
           $(data.dom).append( "<div class='chat-message self'>" +
             "<div class='chat-message-content-w'>"+
@@ -74,10 +89,13 @@ function set_conversation(data){
             "</div>"+
           "</div>");
       }
+    }
+
 
 
   if($("#conversation_"+data.con_id)[0]){
     $("#conversation_"+data.con_id).scrollTop($("#conversation_"+data.con_id)[0].scrollHeight);
+    $("#conversation_"+data.con_id).parent().scrollTop($("#conversation_"+data.con_id).parent()[0].scrollHeight);
   }
 }
 
