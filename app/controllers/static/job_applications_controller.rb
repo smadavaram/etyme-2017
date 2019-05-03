@@ -5,13 +5,17 @@ class Static::JobApplicationsController < ApplicationController
   def create
     JobApplication
     if params[:candidate_id].present? || current_candidate
+      @freelance_company = Company.find_by(company_type: :vendor, domain: 'freelancer.com')
+      current_candidate.update_attributes(company_id: @freelance_company.id)
       @job_application = current_candidate.job_applications.new(job_application_params.merge(job_id: params[:job_id], application_type: :direct))
       save_job_application(@job_application)
     else
       if params["candidate_without_registration"].present?
         if params["job_application"]["job_application_without_registrations"]["email"]
           data_params = params["job_application"]["job_application_without_registrations"]
-          candidate = Candidate.create(:email => data_params["email"], :first_name => data_params["first_name"], :last_name => data_params["last_name"], :phone => data_params["phone"])
+          @freelance_company = Company.find_by(company_type: :vendor, domain: 'freelancer.com')
+          candidate = Candidate.create(:email => data_params["email"], :first_name => data_params["first_name"], :last_name => data_params["last_name"],
+                                       :phone => data_params["phone"], :company_id => @freelance_company.id)
           @job_application = candidate.job_applications.new(job_application_params.merge(job_id: params[:job_id], application_type: :witout_registration, company_id: @job.company_id))
           save_job_application(@job_application)
         end
