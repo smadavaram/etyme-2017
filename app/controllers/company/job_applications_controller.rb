@@ -117,6 +117,8 @@ class Company::JobApplicationsController < Company::BaseController
   def show
     user = @job_application.user
     set_conversation(user)
+    # @current_user_conversations = ConversationMessage.where(conversation_id: Conversation.involving(current_user)).last(1)
+    @current_user_conversations = Conversation.involving(current_user).last(50)
     @conversation_messages = @conversation.conversation_messages.last(50)
     @unread_message_count = Conversation.joins(:conversation_messages).where("(senderable_type = ? AND senderable_id = ? ) OR (recipientable_type = ? AND recipientable_id = ?)", current_user.class.to_s, current_user.id, current_user.class.to_s, current_user.id).where.not(conversation_messages: {is_read: true, userable: current_user}).uniq.count
     @conversation_message = ConversationMessage.new
