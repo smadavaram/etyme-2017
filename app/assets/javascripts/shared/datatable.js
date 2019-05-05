@@ -40,7 +40,6 @@ $(document).ready(function () {
     };
   };
 
-
   $('#company-contacts-datatable').dataTable({
     processing: true,
     serverSide: true,
@@ -245,7 +244,7 @@ $(document).ready(function () {
       },
       {data: "name"},
       {data: "type"},
-      {data: "member",searchable:false,orderable: false},
+      {data: "member", searchable: false, orderable: false},
       {data: "created_at"},
       {
         data: "status",
@@ -264,8 +263,6 @@ $(document).ready(function () {
       }
     ]
   });
-
-
 
 
   $('#application-datatable').dataTable({
@@ -290,11 +287,11 @@ $(document).ready(function () {
     ajax: $('#application-datatable').data('source'),
     columns: [
       {data: "id"},
-      {data: "name",searchable: false,orderable: false},
+      {data: "name", searchable: false, orderable: false},
       {data: "application_number"},
       {data: "title"},
       {data: "status"},
-      {data: "actions",searchable: false,orderable: false},
+      {data: "actions", searchable: false, orderable: false},
     ]
   });
 

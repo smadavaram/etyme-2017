@@ -139,19 +139,20 @@
           .full-chat-left
             .chat-search
               .element-search
-                %input{:placeholder => "Search users by name...", :type => "text"}/
+                %input{:placeholder => "Search users by name...", :id => "self-conversation-search", :type => "text"}/
             .user-list
               - @current_user_conversations.each do |conversation|
-                .user-w
-                  .avatar.with-status.status-green
-                    %img{:alt => "", :src => conversation.recipientable.photo}/
-                  .user-info
-                    .user-date
-                      = conversation.created_at.strftime("%I:%M %p")
-                    .user-name
-                      = conversation.recipientable.full_name
-                    .last-message
-                      = conversation.conversation_messages.last.body
+                -if conversation.conversation_messages&.last
+                  .user-w#self-conversations{username: conversation.recipientable.full_name}
+                    .avatar.with-status.status-green
+                      %img{:alt => "", :src => conversation.recipientable.photo}/
+                    .user-info
+                      .user-date
+                        = conversation.created_at.strftime("%I:%M %p")
+                      .user-name
+                        = link_to conversation.recipientable.full_name, job_application_path(conversation.recipientable.job_applications.find_by_job_id(@job_application.job_id))
+                      .last-message
+                        = conversation.conversation_messages.last.body
           .full-chat-middle
             .chat-head
               .user-info
@@ -191,7 +192,7 @@
             .chat-controls
               = form_for([@conversation, @conversation_message], :remote => true, :html => {id: "conversation_form_#{@conversation.id}"}) do |f|
                 .chat-input
-                  = f.text_field :body ,placeholder: 'Type your message here...' ,class: "", "data-cid" => @conversation.id, id: "conversation_#{@conversation.id}_#{current_user.id}"
+                  = f.text_field :body ,placeholder: 'Type your message and hit enter' ,class: "chatboxtextarea", "data-cid" => @conversation.id, id: "conversation_#{@conversation.id}_#{current_user.id}"
                 .chat-input-extra
                   .chat-extra-actions
                     %a{:href => "#"}
@@ -201,7 +202,7 @@
                     %a{:href => "#"}
                       %i.os-icon.os-icon-phone-15
                 .chat-btn
-                = f.submit "Replay", class: "btn btn-primary btn-sm pull-right", id: "send-chat-message"
+                = f.submit "Replay", class: "btn btn-primary btn-sm pull-right", hidden: true,id: "send-chat-message"
           .full-chat-right
             .user-intro
               .avatar
@@ -238,6 +239,9 @@
                   %img{:alt => "", :src => "img/portfolio2.jpg"}/
                   %img{:alt => "", :src => "img/portfolio12.jpg"}/
                   %img{:alt => "", :src => "img/portfolio14.jpg"}/
+
+
+
 
 - content_for :links do
   -if @job_application.applicationable_type == 'Candidate'
