@@ -1,5 +1,5 @@
 class JobApplicationDatatable < ApplicationDatatable
-  def_delegator :@view, :job_application_path
+  def_delegator :@view, :proposal_job_application_path
 
   def view_columns
     @view_columns ||= {
@@ -24,7 +24,7 @@ class JobApplicationDatatable < ApplicationDatatable
   end
 
   def actions record
-    link_to(content_tag(:i, nil, class: 'fa fa-eye').html_safe, job_application_path(record), title: 'View Detail', class: 'data-table-icons') +
+    link_to(content_tag(:i, nil, class: 'fa fa-eye').html_safe, proposal_job_application_path(record), title: 'View Detail', class: 'data-table-icons') +
         link_to(content_tag(:i, nil, class: 'fa fa-comment-o').html_safe, '#', title: 'chat', class: 'data-table-icons', data: {chattopic: "Job", cid: record.job.id, ctype: record.job.class.to_s, rid: record.applicationable_id, rtype: record.applicationable_type}) +
         link_to(content_tag(:i, nil, class: 'fa fa-file-text-o').html_safe, record.applicant_resume, download: true, title: "Download Resume", class: 'data-table-icons')
   end

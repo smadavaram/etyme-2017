@@ -4,7 +4,7 @@ class Company::JobApplicationsController < Company::BaseController
   before_action :find_job , only: [:create,:create_multiple_For_candidate]
   before_action :find_received_job_invitation , only: [:create]
   before_action :set_job_applications , only: [:index]
-  before_action :find_received_job_application , only: [:accept , :reject ,:interview,:hire, :short_list,:show , :share_application_with_companies]
+  before_action :find_received_job_application , only: [:accept , :reject ,:interview,:hire, :short_list,:show ,:proposal, :share_application_with_companies]
   before_action :authorized_user,only: [:accept , :reject ,:interview,:hire, :short_list,:show]
   skip_before_action :authenticate_user! , :authorized_user,only: [:share], raise: false
 
