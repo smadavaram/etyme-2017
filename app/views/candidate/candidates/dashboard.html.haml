@@ -1,4 +1,172 @@
 / = javascript_include_tag 'libs/jquery-2.1.1.min.js'
+
+.with-side-panel
+  .content-i
+    .content-box
+      .row
+        .col-sm-12
+          .element-wrapper
+            %h6.element-header
+              Dashboard
+            .element-content
+              .row
+                .col-sm-4
+                  %a.element-box.el-tablo{:href => "#"}
+                    .label
+                      Job
+                    .value
+                      157
+                    .trending.trending-up-basic
+                      %span 12%
+                      %i.os-icon.os-icon-arrow-up2
+                .col-sm-4
+                  %a.element-box.el-tablo{:href => "#"}
+                    .label
+                      Applications
+                    .value
+                      27
+                    .trending.trending-up-basic
+                      %span 12%
+                      %i.os-icon.os-icon-arrow-up2
+                .col-sm-4
+                  %a.element-box.el-tablo{:href => "#"}
+                    .label
+                      Bench
+                    .value
+                      37
+                    .trending.trending-up-basic
+                      %span 12%
+                      %i.os-icon.os-icon-arrow-up2
+                .col-sm-4
+                  %a.element-box.el-tablo{:href => "#"}
+                    .label
+                      Pre Interview
+                    .value
+                      67
+                    .trending.trending-up-basic
+                      %span 12%
+                      %i.os-icon.os-icon-arrow-up2
+                .col-sm-4
+                  %a.element-box.el-tablo{:href => "#"}
+                    .label
+                      Interview
+                    .value
+                      87
+                    .trending.trending-up-basic
+                      %span 12%
+                      %i.os-icon.os-icon-arrow-up2
+                .col-sm-4
+                  %a.element-box.el-tablo{:href => "#"}
+                    .label
+                      Contract
+                    .value
+                      17
+                    .trending.trending-up-basic
+                      %span 12%
+                      %i.os-icon.os-icon-arrow-up2
+                .col-sm-4
+                  %a.element-box.el-tablo{:href => "#"}
+                    .label
+                      Time sheet
+                    .value
+                      27
+                    .trending.trending-up-basic
+                      %span 12%
+                      %i.os-icon.os-icon-arrow-up2
+                .col-sm-4
+                  %a.element-box.el-tablo{:href => "#"}
+                    .label
+                      Salary Review
+                    .value
+                      55
+                    .trending.trending-up-basic
+                      %span 12%
+                      %i.os-icon.os-icon-arrow-up2
+                .col-sm-4
+                  %a.element-box.el-tablo{:href => "#"}
+                    .label
+                      Salary Received
+                    .value
+                      51
+                    .trending.trending-up-basic
+                      %span 12%
+                      %i.os-icon.os-icon-arrow-up2
+    .content-panel
+      .content-panel-close
+        %i.os-icon.os-icon-close
+      .element-wrapper
+        %h6.element-header
+          Quick Links
+        .element-box-tp
+          .el-buttons-list.full-width
+            %a.btn.btn-white.btn-sm{:href => "#"}
+              %i.os-icon.os-icon-delivery-box-2
+              %span Create New Product
+            %a.btn.btn-white.btn-sm{:href => "#"}
+              %i.os-icon.os-icon-window-content
+              %span Customer Comments
+            %a.btn.btn-white.btn-sm{:href => "#"}
+              %i.os-icon.os-icon-wallet-loaded
+              %span Store Settings
+      .element-wrapper
+        %h6.element-header
+          User Activity
+        .timed-activities.compact
+          .timed-activity
+            .ta-date
+              %span 21st Jan, 2017
+            .ta-record-w
+              .ta-record
+                .ta-timestamp
+                  %strong 11:55
+                  am
+                .ta-activity
+                  Created a post called
+                  %a{:href => "#"} Register new symbol
+                  in Rogue
+              .ta-record
+                .ta-timestamp
+                  %strong 2:34
+                  pm
+                .ta-activity
+                  Commented on story
+                  %a{:href => "#"} How to be a leader
+                  in
+                  %a{:href => "#"} Financial
+                  category
+              .ta-record
+                .ta-timestamp
+                  %strong 7:12
+                  pm
+                .ta-activity
+                  Added
+                  %a{:href => "#"} John Silver
+                  as a friend
+          .timed-activity
+            .ta-date
+              %span 3rd Feb, 2017
+            .ta-record-w
+              .ta-record
+                .ta-timestamp
+                  %strong 9:32
+                  pm
+                .ta-activity
+                  Added
+                  %a{:href => "#"} John Silver
+                  as a friend
+              .ta-record
+                .ta-timestamp
+                  %strong 5:14
+                  pm
+                .ta-activity
+                  Commented on story
+                  %a{:href => "#"} How to be a leader
+                  in
+                  %a{:href => "#"} Financial
+                  category
+
+
+
 #content.newsfeed
   %body
     %section#widget-grid.clearfix
