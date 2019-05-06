@@ -1,164 +1,15 @@
+-#1px solid rgba(0, 0, 0, 0.2)
 .content-w
-  /
-    \------------------
-    START - Top Bar
-    \------------------
-  .top-bar.color-scheme-transparent.d-none
-    /
-      \------------------
-      START - Top Menu Controls
-      \------------------
-    .top-menu-controls
-      .element-search.autosuggest-search-activator
-        %input{:placeholder => "Start typing to search...", :type => "text"}/
-      /
-        \------------------
-        START - Messages Link in secondary top menu
-        \------------------
-      .messages-notifications.os-dropdown-trigger.os-dropdown-position-left
-        %i.os-icon.os-icon-mail-14
-        .new-messages-count 12
-        .os-dropdown.light.message-list
-          %ul
-            %li
-              %a{:href => "#"}
-                .user-avatar-w
-                  %img{:alt => "", :src => "img/avatar1.jpg"}/
-                .message-content
-                  %h6.message-from John Mayers
-                  %h6.message-title Account Update
-            %li
-              %a{:href => "#"}
-                .user-avatar-w
-                  %img{:alt => "", :src => "img/avatar2.jpg"}/
-                .message-content
-                  %h6.message-from Phil Jones
-                  %h6.message-title Secutiry Updates
-            %li
-              %a{:href => "#"}
-                .user-avatar-w
-                  %img{:alt => "", :src => "img/avatar3.jpg"}/
-                .message-content
-                  %h6.message-from Bekky Simpson
-                  %h6.message-title Vacation Rentals
-            %li
-              %a{:href => "#"}
-                .user-avatar-w
-                  %img{:alt => "", :src => "img/avatar4.jpg"}/
-                .message-content
-                  %h6.message-from Alice Priskon
-                  %h6.message-title Payment Confirmation
-      /
-        \------------------
-        END - Messages Link in secondary top menu
-        \------------------
-      /
-        \------------------
-        START - Settings Link in secondary top menu
-        \------------------
-      .top-icon.top-settings.os-dropdown-trigger.os-dropdown-position-left
-        %i.os-icon.os-icon-ui-46
-        .os-dropdown
-          .icon-w
-            %i.os-icon.os-icon-ui-46
-          %ul
-            %li
-              %a{:href => "users_profile_small.html"}
-                %i.os-icon.os-icon-ui-49
-                %span Profile Settings
-            %li
-              %a{:href => "users_profile_small.html"}
-                %i.os-icon.os-icon-grid-10
-                %span Billing Info
-            %li
-              %a{:href => "users_profile_small.html"}
-                %i.os-icon.os-icon-ui-44
-                %span My Invoices
-            %li
-              %a{:href => "users_profile_small.html"}
-                %i.os-icon.os-icon-ui-15
-                %span Cancel Account
-      /
-        \------------------
-        END - Settings Link in secondary top menu
-        \------------------
-      /
-        \------------------
-        START - User avatar and menu in secondary top menu
-        \------------------
-      .logged-user-w
-        .logged-user-i
-          .avatar-w
-            %img{:alt => "", :src => "img/avatar1.jpg"}/
-          .logged-user-menu.color-style-bright
-            .logged-user-avatar-info
-              .avatar-w
-                %img{:alt => "", :src => "img/avatar1.jpg"}/
-              .logged-user-info-w
-                .logged-user-name Maria Gomez
-                .logged-user-role Administrator
-            .bg-icon
-              %i.os-icon.os-icon-wallet-loaded
-            %ul
-              %li
-                %a{:href => "apps_email.html"}
-                  %i.os-icon.os-icon-mail-01
-                  %span Incoming Mail
-              %li
-                %a{:href => "users_profile_big.html"}
-                  %i.os-icon.os-icon-user-male-circle2
-                  %span Profile Details
-              %li
-                %a{:href => "users_profile_small.html"}
-                  %i.os-icon.os-icon-coins-4
-                  %span Billing Details
-              %li
-                %a{:href => "#"}
-                  %i.os-icon.os-icon-others-43
-                  %span Notifications
-              %li
-                %a{:href => "#"}
-                  %i.os-icon.os-icon-signs-11
-                  %span Logout
-      /
-        \------------------
-        END - User avatar and menu in secondary top menu
-        \------------------
-    /
-      \------------------
-      END - Top Menu Controls
-      \------------------
-  /
-    \------------------
-    END - Top Bar
-    \------------------
   .content-i
-    .content-box
-      .full-chat-w
+    .content-box.no_padding_bottom
+      .full-chat-w.border_bottom
         .full-chat-i
           .full-chat-left
-            .chat-search
-              .element-search
-                %input{:placeholder => "Search users by name...", :id => "self-conversation-search", :type => "text"}/
-            .user-list
-              - @current_user_conversations.each do |conversation|
-                -if conversation.conversation_messages&.last
-                  .user-w#self-conversations{username: conversation.recipientable.full_name}
-                    .avatar.with-status.status-green
-                      %img{:alt => "", :src => conversation.recipientable.photo}/
-                    .user-info
-                      .user-date
-                        = conversation.created_at.strftime("%I:%M %p")
-                      .user-name
-                        = link_to conversation.recipientable.full_name, job_application_path(conversation.recipientable.job_applications.find_by_job_id(@job_application.job_id))
-                      .last-message
-                        = conversation.conversation_messages.last.body
           .full-chat-middle
-            .chat-head
+            .chat-head.no_border_bottom
               .user-info
-                %span To:
                 %a{:href => "#"}
-                  = @job_application.applicationable.full_name
+                  =@conversation.senderable == current_user ? @conversation.recipientable.full_name : @conversation.senderable.full_name if @conversation.present?
               .user-actions
                 %a{:href => "#"}
                   %i.os-icon.os-icon-mail-07
@@ -166,6 +17,46 @@
                   %i.os-icon.os-icon-phone-18
                 %a{:href => "#"}
                   %i.os-icon.os-icon-phone-15
+          .full-chat-right
+            = link_to 'View Proposal', proposal_job_application_path(@job_application)
+
+.content-w
+  .content-i
+    .content-box.no_padding_top
+      .full-chat-w
+        .full-chat-i
+          .full-chat-left
+            .chat-search
+              .element-search
+                %input{:placeholder => "Search users by name...", :id => "self-conversation-search", :type => "text"}/
+            .users-list-w
+              - @current_user_conversations.each do |conversation|
+                -if conversation.conversation_messages&.last
+                  .user-w#self-conversations{username: conversation.recipientable.full_name}
+                    .user-avatar-w
+                      .user-avatar
+                        %img{:alt => "", :src => conversation.recipientable.photo}/
+                    .user-name
+                      %h6.user-title
+                        = link_to conversation.recipientable.full_name, job_application_path(conversation.recipientable.job_applications.find_by_job_id(@job_application.job_id))
+                        .date-message_sent
+                          = conversation.created_at.strftime("%I:%M %p")
+                      .user-role
+                        = conversation.conversation_messages.last.body
+
+          .full-chat-middle
+            -#.chat-head
+              -#.user-info
+              -#  %span To:
+              -#  %a{:href => "#"}
+              -#    =@conversation.senderable == current_user ? @conversation.recipientable.full_name : @conversation.senderable.full_name if @conversation.present?
+              -#.user-actions
+              -#  %a{:href => "#"}
+              -#    %i.os-icon.os-icon-mail-07
+              -#  %a{:href => "#"}
+              -#    %i.os-icon.os-icon-phone-18
+              -#  %a{:href => "#"}
+              -#    %i.os-icon.os-icon-phone-15
             .chat-content-w
               .chat-content
                 %div{id: "conversation_#{@conversation.id}"}
@@ -204,48 +95,43 @@
                 .chat-btn
                 = f.submit "Replay", class: "btn btn-primary btn-sm pull-right", hidden: true,id: "send-chat-message"
           .full-chat-right
-            .user-intro
-              .avatar
-                %img{:alt => "", :src => @job_application.applicationable.photo}/
-              .user-intro-info
-                %h5.user-name
-                  = @job_application.applicationable.full_name
-                .user-sub San Francisco, CA
-                .user-social
-                  %a{:href => "#"}
-                    %i.os-icon.os-icon-twitter
-                  %a{:href => "#"}
-                    %i.os-icon.os-icon-facebook
-            .chat-info-section
-              .ci-header
-                %i.os-icon.os-icon-documents-03
-                %span Shared Files
-              .ci-content
-                .ci-file-list
-                  %ul
-                    %li
-                      %a{:href => "#"} Annual Revenue.pdf
-                    %li
-                      %a{:href => "#"} Expenses.xls
-                    %li
-                      %a{:href => "#"} Business Plan.doc
-            .chat-info-section
-              .ci-header
-                %i.os-icon.os-icon-documents-07
-                %span Shared Photos
-              .ci-content
-                .ci-photos-list
-                  %img{:alt => "", :src => "img/portfolio9.jpg"}/
-                  %img{:alt => "", :src => "img/portfolio2.jpg"}/
-                  %img{:alt => "", :src => "img/portfolio12.jpg"}/
-                  %img{:alt => "", :src => "img/portfolio14.jpg"}/
-
+            .element-wrapper
+              .element-header
+                %p.d-inline-block.mb-0 Team Members
+                .d-inline-block
+                = link_to content_tag(:i, '  Member', class: 'fa fa-plus') , '#', class: 'pull-right'
+              .element-box-tp
+                .users-list-w
+                  .user-w
+                    .user-avatar-w
+                      .user-avatar
+                        %img{:alt => "", :src => @conversation.senderable.photo}/
+                    .user-name
+                      %h6.user-title
+                        =@conversation.senderable.full_name
+                      .user-role
+                        = @conversation.senderable&.type ? @conversation.senderable&.type : @conversation.senderable.class.to_s
+                    .user-action
+                      -#.os-icon.os-icon-email-forward
+                -if @conversation.chatable
+                  -@conversation.chatable.each do |group|
+                    .user-w
+                      .user-avatar-w
+                        .user-avatar
+                          %img{:alt => "", :src => group.groupable.photo}/
+                      .user-name
+                        %h6.user-title
+                          = group.groupable.full_name
+                        .user-role
+                          = group.groupable&.type ? group.groupable&.type : group.groupable.class.to_s
+                      .user-action
+                        -#.os-icon.os-icon-email-forward
 
 
 
 - content_for :links do
   -if @job_application.applicationable_type == 'Candidate'
-    = link_to 'eTyme Resume',static_candidate_resume_path(@job_application.applicationable),class: 'btn btn-primary pull-right',target: '_blank', style: 'margin-top: 20px;margin-right: 10px;'
+    = link_to 'eTyme Resume',static_candidate_resume_path(@job_application.user),class: 'btn btn-primary pull-right',target: '_blank', style: 'margin-top: 20px;margin-right: 10px;'
   - if @job_application.applicant_resume
     = link_to 'Download Resume',"#{@job_application.applicant_resume}", class: 'btn btn-primary pull-right',style: 'margin-top: 20px;margin-right: 10px;',download:true
   - if @job_application.share_key
