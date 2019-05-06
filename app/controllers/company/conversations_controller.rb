@@ -66,8 +66,18 @@ class Company::ConversationsController < Company::BaseController
   end
 
   def add_to_chat
-    user = User.find(params[:user])
     conversation = Conversation.find(params[:chatconversation])
+    if params[:directoryid].present?
+      user = current_company.users.where(id: params[:directoryid]).first
+    elsif params[:candidateid].present?
+      user = current_company.candidates.where(id: params[:candidateid]).first
+    elsif params[:contactid].present?
+      user = current_company.company_contacts.where(id: params[:contactid]).first
+    else
+      flash[:error] = "Select any one option."
+      redirect_to company_conversations_path(conversation: conversation.id)
+      return
+    end
     if params[:chatctype] == "Group"
       group = Group.find(params[:chatcid])
       group.groupables.create(groupable: user)
