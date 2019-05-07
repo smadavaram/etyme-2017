@@ -101,18 +101,18 @@ class ConversationMessagesController < ApplicationController
 
   def messages
     @prev_date = params[:prev_date]||=nil
-    @messages = @conversation.conversation_messages.order(created_at: :desc).paginate(page: params[:page], per_page: 5)
+    @messages = @conversation.conversation_messages.order(created_at: :desc).paginate(page: params[:page], per_page: 10) if @conversation.present?
   end
 
   def pop_messages
     @prev_date = params[:prev_date]||=nil
-    @messages = @conversation.conversation_messages.order(created_at: :desc).paginate(page: params[:page], per_page: 5)
+    @messages = @conversation.conversation_messages.order(created_at: :desc).paginate(page: params[:page], per_page: 10)
   end
 
   private
 
   def set_conversation
-    @conversation = Conversation.find(params[:conversation_id])
+    @conversation = Conversation.where(id: params[:conversation_id]).first
   end
 
   def message_params

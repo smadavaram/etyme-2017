@@ -69,7 +69,8 @@
                         </div>
                       </div>
                       <ul class="nav flex-column nav-tabs" role="tablist" id="company-conversation-list">
-                        <%= render 'conversation_users', users: @companies, candidates: @candidates, groups: @groups %>
+                        <%#= render 'conversation_users', users: @companies, candidates: @candidates, groups: @groups %>
+                        <%= render 'conversations_list', conversations: @conversations %>
                       </ul>
                     </div>
                     <div role="tabpanel" class="tab-pane" id="Favourites">
@@ -102,7 +103,9 @@
                 url: "<%= messages_conversation_conversation_messages_path(@conversation||0) %>",
                 type: "GET",
                 dataType: "script",
-                success:function(data){}
+                success:function(data){
+                    $("#conversation_<%=@conversation.id||0 %>").parent().scrollTop($("#conversation_<%=@conversation.id||0 %>").parent()[0].scrollHeight);
+                }
             });
         });
     </script>

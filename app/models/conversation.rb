@@ -18,7 +18,7 @@ class Conversation < ApplicationRecord
 
 
   def opt_participant(user)
-    senderable == user ? recipientable : senderable
+    chatable.present? ? chatable : (senderable == user ? recipientable : senderable)
   end
 
 end
