@@ -1,0 +1,81 @@
+<!-- -#- content_for :links do-->
+<!-- -#  -if @job_application.applicationable_type == 'Candidate'-->
+<!-- -#    = link_to 'eTyme Resume',static_candidate_resume_path(@job_application.applicationable),class: 'btn btn-primary pull-right',target: '_blank', style: 'margin-top: 20px;margin-right: 10px;'-->
+<!-- -#  - if @job_application.applicant_resume-->
+<!-- -#    = link_to 'Download Resume',"#{@job_application.applicant_resume}", class: 'btn btn-primary pull-right',style: 'margin-top: 20px;margin-right: 10px;',download:true-->
+<!-- -#  - if @job_application.share_key-->
+<!-- -#    = button_tag 'Share Application' ,class: 'btn btn-primary pull-right margin-top-20 margin-right-10' , "data-toggle": "modal" , "data-target":"#share_application_#{@job_application.id}"-->
+<!-- -#= render partial: 'partials/job_application_show' ,locals: {job_application: @job_application}-->
+<!-- -#-->
+<!-- -#- if @job_application.share_key-->
+<!-- -#  = render 'company/job_applications/partials/share_application' , job_application: @job_application-->
+<!-- -#- content_for :modals do-->
+<!-- -#  #ajax-modal-->
+
+<div class="with-side-panel">
+    <div class="content-i">
+        <div class="content-box">
+            <div class="row">
+                <div class="col-sm-12">
+                    <div class="element-wrapper">
+                        <div class="element-header">
+                            Proposal details
+                        </div>
+                        <div class="element-content">
+                            <div class="row">
+                                <div class="element-box">
+                                    <h5 class="form-header">
+                                        Title
+                                    </h5>
+                                    <div class="element-box-content">
+                                        <div class="lead">
+                                            Vivamus sagittis lacus vel augue laoreet rutrum faucibus dolor auctor. Duis mollis, est non commodo luctus.
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="element-box">
+                                    <h5 class="form-header">
+                                        Description
+                                    </h5>
+                                    <div class="element-box-content">
+                                        <div class="lead">
+                                            Vivamus sagittis lacus vel augue laoreet rutrum faucibus dolor auctor. Duis mollis, est non commodo luctus.
+                                            Vivamus sagittis lacus vel augue laoreet rutrum faucibus dolor auctor. Duis mollis, est non commodo luctus.
+                                            Vivamus sagittis lacus vel augue laoreet rutrum faucibus dolor auctor. Duis mollis, est non commodo luctus.
+                                            Vivamus sagittis lacus vel augue laoreet rutrum faucibus dolor auctor. Duis mollis, est non commodo luctus.
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="element-box">
+                                    <h5 class="form-header">
+                                        Cover Letter
+                                    </h5>
+                                    <div class="element-box-content">
+                                        <div class="lead">
+                                            Vivamus sagittis lacus vel augue laoreet rutrum faucibus dolor auctor. Duis mollis, est non commodo luctus.
+                                            Vivamus sagittis lacus vel augue laoreet rutrum faucibus dolor auctor. Duis mollis, est non commodo luctus.
+                                            Vivamus sagittis lacus vel augue laoreet rutrum faucibus dolor auctor. Duis mollis, est non commodo luctus.
+                                            Vivamus sagittis lacus vel augue laoreet rutrum faucibus dolor auctor. Duis mollis, est non commodo luctus.
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="element-box">
+                                    <h5 class="form-header">
+                                        Messages
+                                    </h5>
+                                    <div class="element-box-content">
+                                        <textarea class="lead">
+                                        </textarea>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="content-panel">
+            <h2>Right</h2>
+        </div>
+    </div>
+</div>
