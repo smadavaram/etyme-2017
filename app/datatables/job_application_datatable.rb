@@ -27,10 +27,10 @@ class JobApplicationDatatable < ApplicationDatatable
   end
 
   def actions record
-    link_to(content_tag(:i, nil, class: 'icon-feather-user-plus').html_safe, make_company_candidate_path(record.applicationable), method: :put, title: 'Add to candidates', class: 'data-table-icons') +
-        link_to(content_tag(:i, nil, class: 'fa fa-eye').html_safe, job_application_path(record), title: 'View Detail', class: 'data-table-icons') +
+    link_to(content_tag(:i, nil, class: 'fa fa-eye').html_safe, job_application_path(record), title: 'View Detail', class: 'data-table-icons') +
         link_to(content_tag(:i, nil, class: 'fa fa-comment-o').html_safe, '#', title: 'chat', class: 'data-table-icons', data: {chattopic: "Job", cid: record.job.id, ctype: record.job.class.to_s, rid: record.applicationable_id, rtype: record.applicationable_type}) +
-        link_to(content_tag(:i, nil, class: 'picons-thin-icon-thin-0122_download_file_computer_drive').html_safe, record.applicant_resume, download: true, title: "Download Resume", class: 'data-table-icons')
+        link_to(content_tag(:i, nil, class: 'picons-thin-icon-thin-0122_download_file_computer_drive').html_safe, record.applicant_resume, download: true, title: "Download Resume", class: 'data-table-icons') +
+        link_to(content_tag(:i, nil, class: 'icon-feather-user-plus').html_safe, make_company_candidate_path(record.applicationable), method: :put, title: 'Add to candidates', class: 'data-table-icons')
   end
 
   def candidate_profile record
