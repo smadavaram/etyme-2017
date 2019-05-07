@@ -314,7 +314,7 @@ $(document).ready(function () {
     ],
     ajax: $('#application-datatable').data('source'),
     columns: [
-      {data: "id"},
+      {data: "id",searchable: false, orderable: false},
       {data: "name", searchable: false, orderable: false},
       {data: "application_number"},
       {data: "title"},
