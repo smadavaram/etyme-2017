@@ -291,6 +291,7 @@ $(document).ready(function () {
       {data: "application_number"},
       {data: "title"},
       {data: "status"},
+      {data: "type"},
       {data: "actions", searchable: false, orderable: false},
     ]
   });

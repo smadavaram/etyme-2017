@@ -67,7 +67,7 @@ class CompanyCandidateDatatable < ApplicationDatatable
         link_to(content_tag(:i, nil, class: 'icon-feather-user-plus').html_safe, '#', title: 'Follow/Unfollow', class: 'data-table-icons') +
         link_to(content_tag(:i, nil, class: 'fa fa-bell-o ').html_safe, candidate_add_reminder_path(record), remote: :true, title: "Remind Me", class: 'data-table-icons') +
         link_to(content_tag(:i, nil, class: 'fa fa-edit').html_safe, edit_company_candidate_path(record), title: "Edit #{record.full_name}", class: 'data-table-icons') +
-        link_to(content_tag(:i, nil, class: 'fa fa-file-text-o').html_safe, record.resume, download: true, title: "Download Resume", class: 'data-table-icons') +
+        link_to(content_tag(:i, nil, class: 'picons-thin-icon-thin-0122_download_file_computer_drive').html_safe, record.resume, download: true, title: "Download Resume", class: 'data-table-icons') +
         get_status_links(record)
   end
 
