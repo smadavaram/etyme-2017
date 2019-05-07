@@ -17,7 +17,6 @@ class CompanyContactDatatable < ApplicationDatatable
         name: {source: "Company.name"},
         first_name: {source: "User.first_name"},
         title: {source: "CompanyContact.title"},
-        contact: {source: "CompanyContact.phone"}
     }
   end
 
@@ -48,7 +47,7 @@ class CompanyContactDatatable < ApplicationDatatable
   end
 
   def get_raw_records
-    current_company.company_contacts.includes(:user_company,company: [:reminders, :statuses])
+    current_company.company_contacts.includes(:user_company,company: [:reminders, :statuses]).joins(:user, :user_company)
   end
 
   def reminder_note record

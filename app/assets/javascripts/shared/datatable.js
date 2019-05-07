@@ -72,8 +72,16 @@ $(document).ready(function () {
       {data: "name"},
       {data: "first_name"},
       {data: "title"},
-      {data: "contact"},
-      {data: "status"},
+      {
+        data: "contact",
+        searchable: false,
+        orderable: false
+      },
+      {
+        data: "status",
+        searchable: false,
+        orderable: false
+      },
       {
         data: "groups",
         searchable: false,
@@ -119,7 +127,11 @@ $(document).ready(function () {
         data: "id"
       },
       {data: "name"},
-      {data: "contact"},
+      {
+        data: "contact",
+        searchable: false,
+        orderable: false
+      },
       {
         data: "status",
         searchable: false,
@@ -159,9 +171,21 @@ $(document).ready(function () {
         data: "id"
       },
       {data: "name"},
-      {data: "users"},
-      {data: "contact"},
-      {data: "status"},
+      {
+        data: "users",
+        searchable: false,
+        orderable: false
+      },
+      {
+        data: "contact",
+        searchable: false,
+        orderable: false
+      },
+      {
+        data: "status",
+        searchable: false,
+        orderable: false
+      },
       {
         data: "reminder_note",
         searchable: false,
@@ -204,7 +228,11 @@ $(document).ready(function () {
       },
       {data: "domain"},
       {data: "name"},
-      {data: "contact"},
+      {
+        data: "contact",
+        searchable: false,
+        orderable: false
+      },
       {data: "title"},
       {
         data: "roles_permissions",
@@ -291,6 +319,7 @@ $(document).ready(function () {
       {data: "application_number"},
       {data: "title"},
       {data: "status"},
+      {data: "type"},
       {data: "actions", searchable: false, orderable: false},
     ]
   });

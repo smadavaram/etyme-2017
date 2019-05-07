@@ -246,7 +246,11 @@ Rails.application.routes.draw do
       get :hot_index
       match :create_chat, via: [:get, :post]
     end
-    resources :candidates
+    resources :candidates do
+      member do
+        put :company_candidate, as: :make
+      end
+    end
 
     get 'new_candidate_to_bench', to: 'candidates#new_candidate_to_bench'
     # get :new_candidate_to_banch
