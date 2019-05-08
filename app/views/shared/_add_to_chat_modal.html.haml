@@ -9,13 +9,14 @@
             .p-4
               = form_tag add_to_chat_company_conversations_path do
                 = select_tag :directoryid, options_for_select(current_company.users.order(:first_name).map{|u| [u.full_name, u.id]}), {include_blank: "Select From Directory", id: 'sel-dir-to-chat', class: 'form-control'}
-                = label_tag "OR"
+                = label_tag "", "OR", class: "my-2 d-block text-center"
                 = select_tag :candidateid, options_for_select(current_company.candidates.order(:first_name).map{|u| [u.full_name, u.id]}), {include_blank: "Select From Candidate", id: 'sel-can-to-chat', class: 'form-control'}
-                = label_tag "OR"
+                = label_tag "", "OR", class: "my-2 d-block text-center"
                 = select_tag :contactid, options_for_select(current_company.company_contacts.order(:first_name).map{|u| [u.full_name, u.id]}), {include_blank: "Select From Contacts", id: 'sel-con-to-chat', class: 'form-control' }
                 = hidden_field_tag "chatcid"
                 = hidden_field_tag "chatctype"
                 = hidden_field_tag "chatconversation"
-                = submit_tag "Add"
+                .w-100.text-center.mt-3
+                  = submit_tag "Add", class: "btn btn-primary"
             .card-subtitle.mt-4
 

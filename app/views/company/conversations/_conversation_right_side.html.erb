@@ -1,26 +1,102 @@
 <% if @conversation.present? %>
   <% user = @conversation.chatable_type == "Group" ? @conversation.chatable :  (@conversation.senderable == current_user ? @conversation.recipientable : @conversation.senderable) %>
-  <div class="user-intro">
-    <div class="avatar">
-      <%= image_tag user.photo %>
+    <!--<div class="user-intro">-->
+      <!--<div class="avatar">-->
+        <!--<%#= image_tag user.photo %>-->
+      <!--</div>-->
+      <!--<div class="user-intro-info">-->
+        <!--<h5 class="user-name">-->
+          <!--<%#= user.full_name %>-->
+        <!--</h5>-->
+      <!--</div>-->
+    <!--</div>-->
+    <div class="chat-info-section p-0 pb-3">
+      <div class="ci-header">
+        <i class="icon-people"></i><span>Chat Member</span>
+        <a href="#" class ="add-to-conversation ml-2" data-conid=<%= @conversation.id %> data-cid=<%= user.id %> data-ctype=<%= user.class.to_s %> > <i class="fa fa-plus"></i></a>
+      </div>
+      <div class="group-member">
+        <% if @conversation.chatable_type == "Group" %>
+            <ul>
+              <% @conversation.chatable.groupables.each do |g| %>
+                  <li>
+                    <%= g.groupable.full_name %>
+                    <%= link_to "<i class='icon-feather-x'></i>".html_safe, remove_from_group_groups_path(groupable: g.id, conversation: @conversation.id) if current_company.id == @conversation.chatable.company_id && g.groupable != current_user %>
+                  </li>
+              <% end %>
+              <% if current_company.id != @conversation.chatable.company_id %>
+                  <li><%= link_to "Leave Group", leave_group_groups_path(group: @conversation.chatable_id)  %></li>
+              <% end %>
+            </ul>
+         <% else %>
+          <ul>
+            <li>
+              <%= user.full_name %>
+            </li>
+          </ul>
+        <% end %>
+      </div>
     </div>
-    <div class="user-intro-info">
-      <h5 class="user-name">
-        <%= user.full_name %>
-      </h5>
+    <div class="chat-info-section p-0 pt-4 pb-2">
+      <div class="ci-header">
+        <i class="os-icon os-icon-documents-03"></i><span>Status</span>
+      </div>
+      <div class="ci-content p-0 pt-3">
+        <div class="ci-file-list">
+          <div class="form-group">
+            <label for="">Select Status</label>
+            <select class="form-control">
+              <option>Mute</option>
+              <option>Block</option>
+              <option>Status 3</option>
+              <option>Status 4</option>
+              <option>Status 5</option>
+              <option>Status 6</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="">Note:</label>
+            <input class="form-control"  placeholder="note"  type="text">
+          </div>
+        </div>
+      </div>
     </div>
-  </div>
-  <% if @conversation.chatable_type == "Group" %>
-    <ul>
-      <% @conversation.chatable.groupables.each do |g| %>
-        <li>
-          <%= g.groupable.full_name %>
-          <%= link_to "Remove", remove_from_group_groups_path(groupable: g.id, conversation: @conversation.id) if current_company.id == @conversation.chatable.company_id && g.groupable != current_user %>
-        </li>
-      <% end %>
-      <% if current_company.id != @conversation.chatable.company_id %>
-        <li><%= link_to "Leave Group", leave_group_groups_path(group: @conversation.chatable_id)  %></li>
-      <% end %>
-    </ul>
-  <% end %>
+    <div class="chat-info-section p-0 pt-4">
+      <div class="ci-header">
+        <i class="os-icon os-icon-documents-03"></i><span>Status</span>
+      </div>
+      <div class="timed-activities compact pt-3">
+        <div class="timed-activity">
+          <div class="ta-date">
+            <span>21st Jan, 2017</span>
+          </div>
+          <div class="ta-record-w">
+            <div class="ta-record">
+              <div class="ta-timestamp">
+                <strong>11:55</strong> am
+              </div>
+              <div class="ta-activity">
+                Created a post called <a href="#">Register new symbol</a> in Rogue
+              </div>
+            </div>
+            <div class="ta-record">
+              <div class="ta-timestamp">
+                <strong>2:34</strong> pm
+              </div>
+              <div class="ta-activity">
+                Commented on story <a href="#">How to be a leader</a> in <a href="#">Financial</a> category
+              </div>
+            </div>
+            <div class="ta-record">
+              <div class="ta-timestamp">
+                <strong>7:12</strong> pm
+              </div>
+              <div class="ta-activity">
+                Added <a href="#">John Silver</a> as a friend
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
 <% end %>

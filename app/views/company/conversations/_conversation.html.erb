@@ -27,25 +27,20 @@
     <!--<%# end if @conversation.present?  %>-->
   <!--</div>-->
 <!--</div>-->
-
-
-
 <div class="chat_box" data-conversation-id="<%= @conversation.id if @conversation.present?%>" id="conversation-chat-box">
   <div class="chat-head">
     <div class="user-info">
       <% opt_obj = @conversation.chatable_type == "Group" ? @conversation.chatable : (@conversation.senderable == current_user ? @conversation.recipientable : @conversation.senderable) if @conversation.present? %>
       <span>To:</span><a href="#"><%= opt_obj.full_name if opt_obj.present? %></a>
     </div>
-
     <% if @conversation.present? %>
       <div class="user-actions">
-        <a href="#" class ="add-to-conversation" data-conid=<%= @conversation.id %> data-cid=<%= opt_obj.id %> data-ctype=<%= opt_obj.class.to_s %> > <i class="fa fa-plus"></i></a>
-        <!--<a href="#"><i class="os-icon os-icon-phone-18"></i></a>-->
-        <!--<a href="#"><i class="os-icon os-icon-phone-15"></i></a>-->
+        <a title="Email Id" href="#"><i class="os-icon os-icon-email-2-at2"></i></a>
+        <a title="Phone Number" href="#"><i class="os-icon os-icon-phone "></i></a>
+        <a title="Add meeting" href="#"><i class="os-icon os-icon-calendar"></i></a>
       </div>
     <% end %>
   </div>
-
   <div class="chat-content-w chat-content-scroll">
     <div class="chat-content" id="conversation_<%= @conversation.id if @conversation.present? %>">
       <!--<%# prev_date = nil %>-->
@@ -107,10 +102,10 @@
           <%= f.text_field :body, class: 'form-control input-sm chat_input ', autocomplete: "off", placeholder: 'Type your message here...', required: true, "data-cid" => @conversation.id, id: "con-text-#{@conversation.id}-#{@current_user.class}-#{@current_user.id}" %>
         </div>
         <div class="chat-input-extra">
-          <!--<div class="chat-extra-actions">-->
-          <!--<a href="#"><i class="os-icon os-icon-mail-07"></i></a><a href="#"><i class="os-icon os-icon-phone-18"></i></a><a href="#"><i class="os-icon os-icon-phone-15"></i></a>-->
-          <!--</div>-->
-          <div class="chat-btn w-100">
+          <div class="chat-extra-actions">
+          <a href="#"><i class="icon-paper-clip"></i></a>
+          </div>
+          <div class="chat-btn">
             <%= f.submit "Send", class: "btn btn-primary btn-sm float-right", id: "send-chat-message" %>
             <!--<a class="btn btn-primary btn-sm" href="#">Reply</a>-->
           </div>

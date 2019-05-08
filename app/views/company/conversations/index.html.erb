@@ -39,9 +39,6 @@
     <!--</div>-->
   <!--</div>-->
 <!--</div>-->
-
-
-
 <div class="no-border" id="content">
   <div class="all-wrapper no-padding-content solid-bg-all">
     <div class="layout-w">
@@ -53,7 +50,7 @@
                 <div class="full-chat-left">
                   <div class="os-tabs-w">
                     <ul class="nav nav-tabs upper centered">
-                      <li class="nav-item">
+                      <li class="nav-item active">
                         <a class="nav-link" data-toggle="tab" href="#Company"><i class="os-icon os-icon-ui-93"></i><span>Chat</span></a>
                       </li>
                       <li class="nav-item">
@@ -69,7 +66,8 @@
                         </div>
                       </div>
                       <ul class="nav flex-column nav-tabs" role="tablist" id="company-conversation-list">
-                        <%= render 'conversation_users', users: @companies, candidates: @candidates, groups: @groups %>
+                        <%#= render 'conversation_users', users: @companies, candidates: @candidates, groups: @groups %>
+                        <%= render 'conversations_list', conversations: @conversations %>
                       </ul>
                     </div>
                     <div role="tabpanel" class="tab-pane" id="Favourites">
@@ -102,7 +100,9 @@
                 url: "<%= messages_conversation_conversation_messages_path(@conversation||0) %>",
                 type: "GET",
                 dataType: "script",
-                success:function(data){}
+                success:function(data){
+                    $("#conversation_<%=@conversation.id||0 %>").parent().scrollTop($("#conversation_<%=@conversation.id||0 %>").parent()[0].scrollHeight);
+                }
             });
         });
     </script>
