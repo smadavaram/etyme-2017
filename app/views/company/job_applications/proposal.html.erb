@@ -1,0 +1,188 @@
+<style>
+  /*.collapsible{*/
+    /*background: #037bf8;*/
+    /*color: white;*/
+    /*cursor: pointer;*/
+    /*padding: 18px;*/
+    /*width: 100%;*/
+    /*border: none;*/
+    /*text-align: left;*/
+    /*outline: none;*/
+    /*font-size: 15px;*/
+    /*transition: 0.4s;*/
+  /*}*/
+  /*.job-application-collaps{*/
+    /*display: none;*/
+  /*}*/
+  /*.chat-collaps{*/
+    /*display: none;*/
+  /*}*/
+  /*.collapsible:after {*/
+    /*content: '\002B';*/
+    /*color: white;*/
+    /*font-weight: bold;*/
+    /*float: right;*/
+    /*margin-left: 5px;*/
+  /*}*/
+  /*.active:after {*/
+    /*color: white;*/
+    /*content: "\2212";*/
+  /*}*/
+</style>
+<div class="with-side-panel">
+  <div class="content-i">
+    <div class="content-box">
+      <div class="row">
+        <div class="col-sm-12">
+          <div class="element-wrapper">
+            <div class="element-content">
+              <div class="row">
+                <h5 class="collapsible">Job Application</h5>
+                <div class="element-box w-100 text-justify job-application-collaps">
+                  <div>
+                    <h5 class="form-header">
+                      Title
+                    </h5>
+                    <div class="element-box-content">
+                      <div class="lead">
+                        <%= @job_application.job.title %>
+                      </div>
+                    </div>
+                    <h5 class="form-header">
+                      Description
+                    </h5>
+                    <h5 class="form-header">
+                      Category
+                    </h5>
+                    <div class="element-box-content">
+                      <div class="lead">
+                        <%= @job_application.job.job_category %>
+                      </div>
+                    </div>
+                    <div class="row">
+                      <div class="col-sm-12">
+                        <h5 class="form-header">
+                          Start Date - End Date
+                        </h5>
+                        <div class="element-box-content">
+                          <div>
+                            <%= @job_application.job.start_date %> -
+                            <%= @job_application.job.end_date %>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    <div class="row">
+                      <div class="col-sm-12">
+                        <h5 class="form-header">
+                          Rate
+                        </h5>
+                        <div class="element-box-content">
+                          <div>
+                            <%= @job_application.job.price.to_s %>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    <h5 class="form-header">
+                      Cover Letter
+                    </h5>
+                    <div class="element-box-content">
+                      <div class="lead">
+                        <%= @job_application.cover_letter.html_safe %>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div class="row">
+                <h2 class="collapsible">Job Detail</h2>
+                <div class="element-box w-100 text-justify chat-collaps">
+                  <h5 class="form-header">
+                    Title
+                  </h5>
+                  <div class="element-box-content">
+                    <div class="lead">
+                      <%= @job_application.job.title %>
+                    </div>
+                  </div>
+                  <h5 class="form-header">
+                    Description
+                  </h5>
+                  <h5 class="form-header">
+                    Category
+                  </h5>
+                  <div class="element-box-content">
+                    <div class="lead">
+                      <%= @job_application.job.job_category %>
+                    </div>
+                  </div>
+                  <div class="row">
+                    <div class="col-sm-12">
+                      <h5 class="form-header">
+                        Start Date - End Date
+                      </h5>
+                      <div class="element-box-content">
+                        <div>
+                          <%= @job_application.job.start_date %> -
+                          <%= @job_application.job.end_date %>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="row">
+                    <div class="col-sm-12">
+                      <h5 class="form-header">
+                        Rate
+                      </h5>
+                      <div class="element-box-content">
+                        <div>
+                          <%= @job_application.job.price.to_s %>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  <h5 class="form-header">
+                    Cover Letter
+                  </h5>
+                  <div class="element-box-content">
+                    <div class="lead">
+                      <%= @job_application.cover_letter.html_safe %>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<% content_for :scripts do %>
+  <script>
+    $(document).ready(function () {
+      $.ajax({
+        url: "<%= messages_conversation_conversation_messages_path(@conversation||0) %>",
+        type: "GET",
+        dataType: "script",
+        success: function (data) {
+        }
+      });
+      var coll = document.getElementsByClassName("collapsible");
+      var i;
+      for (i = 0; i < coll.length; i++) {
+        coll[i].addEventListener("click", function() {
+          this.classList.toggle("active");
+          var content = this.nextElementSibling;
+          if (content.style.display === "block") {
+            content.style.display = "none";
+          } else {
+            content.style.display = "block";
+          }
+        });
+      }
+    });
+  </script>
+<% end %>
