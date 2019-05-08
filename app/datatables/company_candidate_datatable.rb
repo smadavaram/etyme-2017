@@ -1,14 +1,12 @@
 class CompanyCandidateDatatable < ApplicationDatatable
-  def_delegator :@view, :ban_company_black_listers_path
-  def_delegator :@view, :unban_company_black_listers_path
-  def_delegator :@view, :candidate_assign_status_path
-  def_delegator :@view, :company_statuses_path
-  def_delegator :@view, :candidate_add_reminder_path
-  def_delegator :@view, :edit_company_candidate_path
-  def_delegator :@view, :candidate_remove_from_comapny_path
+  def_delegator :@view, :is_hot?
   def_delegator :@view, :candidate_make_hot_path
   def_delegator :@view, :candidate_make_normal_path
-  def_delegator :@view, :is_hot?
+  def_delegator :@view, :candidate_add_reminder_path
+  def_delegator :@view, :edit_company_candidate_path
+  def_delegator :@view, :ban_company_black_listers_path
+  def_delegator :@view, :unban_company_black_listers_path
+  def_delegator :@view, :candidate_remove_from_comapny_path
 
   def view_columns
     @view_columns ||= {
@@ -57,18 +55,23 @@ class CompanyCandidateDatatable < ApplicationDatatable
   end
 
   def reminder_note record
-    content_tag(:span, do_ellipsis(record&.reminders&.last&.title), class: 'bg-info badge mr-1').html_safe +
-        content_tag(:span, record&.statuses&.last&.status_type, class: 'bg-info badge').html_safe
+    content_tag(:span, do_ellipsis(record&.reminders&.last&.title), class: 'bg-info badge mr-1').html_safe
   end
 
   def actions record
-    link_to(content_tag(:i, nil, class: 'fa fa-sticky-note ').html_safe, company_statuses_path(id: record, type: 'Candidate'), title: 'Status Log', class: 'data-table-icons') +
-        link_to(content_tag(:i, nil, class: 'fa fa-sticky-note-o ').html_safe, candidate_assign_status_path(record), remote: :true, title: "Assign Status", class: 'data-table-icons') +
-        link_to(content_tag(:i, nil, class: 'icon-feather-user-plus').html_safe, '#', title: 'Follow/Unfollow', class: 'data-table-icons') +
+    link_to(content_tag(:i, nil, class: 'icon-feather-user-plus').html_safe, '#', title: 'Follow/Unfollow', class: 'data-table-icons') +
         link_to(content_tag(:i, nil, class: 'fa fa-bell-o ').html_safe, candidate_add_reminder_path(record), remote: :true, title: "Remind Me", class: 'data-table-icons') +
-        link_to(content_tag(:i, nil, class: 'fa fa-edit').html_safe, edit_company_candidate_path(record), title: "Edit #{record.full_name}", class: 'data-table-icons') +
+        get_edit_link(record) +
         link_to(content_tag(:i, nil, class: 'picons-thin-icon-thin-0122_download_file_computer_drive').html_safe, record.resume, download: true, title: "Download Resume", class: 'data-table-icons') +
         get_status_links(record)
+  end
+
+  def get_edit_link(record)
+    unless record.confirmed_at.nil?
+      link_to(content_tag(:i, nil, class: 'fa fa-edit').html_safe, '#' , title: "Cannot Edit #{record.full_name}", class: 'data-table-icons')
+    else
+      link_to(content_tag(:i, nil, class: 'fa fa-edit').html_safe, edit_company_candidate_path(record), title: "Edit #{record.full_name}", class: 'data-table-icons')
+    end
   end
 
   def get_status_links(record)

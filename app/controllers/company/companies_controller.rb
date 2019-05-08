@@ -242,7 +242,6 @@ class Company::CompaniesController < Company::BaseController
 
   def assign_groups_to_contact
     @company_contact = CompanyContact.find(params[:company_id])
-    @display_groups = params[:display_groups] if params[:display_groups]
     # @invited_company = current_company.invited_companies.find_by(invited_company_id: params[:company_id])
     if request.post?
       groups = params[:invited_company][:group_ids]

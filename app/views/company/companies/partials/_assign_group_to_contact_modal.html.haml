@@ -3,17 +3,8 @@
     .modal-content
       .modal-header
         %h4.modal-title
-          - if display
-            %strong= "Contact Groups"
-          - else
-            %strong= "Manage Groups"
+          %strong= "Manage Groups"
         %button.close{"aria-hidden" => "true", "data-dismiss" => "modal", :type => "button"}
           ×
       .modal-body.no-padding
-        - if display
-          .p-4
-            -contact.groups.each do |group|
-              %span.badge.badge-success-inverted.p-1.m-1
-                = group.group_name
-        - else
-          = render 'company/companies/partials/assign_groups_to_contact_form' , company: contact
+        = render 'company/companies/partials/assign_groups_to_contact_form' , company: contact
