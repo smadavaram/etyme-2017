@@ -4,12 +4,86 @@
       <div class="row">
         <div class="col-sm-12">
           <div class="element-wrapper">
-            <div class="element-header">
-              Proposal details
-            </div>
             <div class="element-content">
               <div class="row">
-                <div class="element-box w-100 text-justify">
+                <h5 class="collapsible">Job Detail</h5>
+                <div class="element-box w-100 text-justify job-application-collaps">
+                  <div>
+                    <h5 class="form-header">
+                      Title
+                    </h5>
+                    <div class="element-box-content">
+                      <div class="lead">
+                        <%= @job_application.job.title %>
+                      </div>
+                    </div>
+                    <h5 class="form-header">
+                      Description
+                    </h5>
+                    <h5 class="form-header">
+                      Category
+                    </h5>
+                    <div class="element-box-content">
+                      <div class="lead">
+                        <%= @job_application.job.job_category %>
+                      </div>
+                    </div>
+                    <div class="row">
+                      <div class="col-sm-12">
+                        <h5 class="form-header">
+                          Start Date - End Date
+                        </h5>
+                        <div class="element-box-content">
+                          <div>
+                            <%= @job_application.job.start_date %> -
+                            <%= @job_application.job.end_date %>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    <div class="row">
+                      <div class="col-sm-12">
+                        <h5 class="form-header">
+                          Rate
+                        </h5>
+                        <div class="element-box-content">
+                          <div>
+                            <%= @job_application.job.price.to_s %>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    <h5 class="form-header">
+                      Cover Letter
+                    </h5>
+                    <div class="element-box-content">
+                      <div class="lead">
+                        <%= @job_application.cover_letter.html_safe %>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div class="row">
+                <h2 class="collapsible">Job Application</h2>
+                <div class="element-box w-100 text-justify chat-collaps">
+                  <div class="row">
+                    <div class="col-sm-12">
+                      <%= content_for :links do %>
+                        <% if @job_application.applicant_resume %>
+                          <%= link_to('Download Resume', "#{@job_application.applicant_resume}", class: 'btn btn-primary
+                                      pull-right', download: true) %>
+                        <% end %>
+                      <% end %>
+                      <%= render partial: 'partials/job_application_show', locals: {job_application: @job_application}
+                      %>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div class="row">
+                <h2 class="collapsible">Messages</h2>
+                <div class="element-box w-100 text-justify chat-collaps">
                   <h5 class="form-header">
                     Title
                   </h5>
@@ -18,32 +92,15 @@
                       <%= @job_application.job.title %>
                     </div>
                   </div>
-                </div>
-                <div class="element-box w-100 text-justify">
-                  <div class="row">
-                    <div class="col-sm-12">
-                      <h5 class="form-header">
-                        Description
-                      </h5>
-                      <div class="element-box-content">
-                        <div>
-                          <%= @job_application.job.description %>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-                <div class="element-box w-100">
-                  <div class="row">
-                    <div class="col-sm-12">
-                      <h5 class="form-header">
-                        Category
-                      </h5>
-                      <div class="element-box-content">
-                        <div class="lead">
-                          <%= @job_application.job.job_category %>
-                        </div>
-                      </div>
+                  <h5 class="form-header">
+                    Description
+                  </h5>
+                  <h5 class="form-header">
+                    Category
+                  </h5>
+                  <div class="element-box-content">
+                    <div class="lead">
+                      <%= @job_application.job.job_category %>
                     </div>
                   </div>
                   <div class="row">
@@ -71,22 +128,6 @@
                       </div>
                     </div>
                   </div>
-                </div>
-                <div class="element-box w-100">
-                  <div class="row p-4">
-                    <div class="col-sm-12">
-                      <%= content_for :links do %>
-                        <% if @job_application.applicant_resume %>
-                          <%= link_to('Download Resume', "#{@job_application.applicant_resume}", class: 'btn btn-primary
-                                      pull-right', download: true) %>
-                        <% end %>
-                      <% end %>
-                      <%= render partial: 'partials/job_application_show' ,locals: {job_application: @job_application}
-                      %>
-                    </div>
-                  </div>
-                </div>
-                <div class="element-box w-100">
                   <h5 class="form-header">
                     Cover Letter
                   </h5>
@@ -164,3 +205,23 @@
     </div>
   </div>
 </div>
+
+<% content_for :scripts do %>
+  <script>
+    $(document).ready(function () {
+      var coll = document.getElementsByClassName("collapsible");
+      var i;
+      for (i = 0; i < coll.length; i++) {
+        coll[i].addEventListener("click", function () {
+          this.classList.toggle("active");
+          var content = this.nextElementSibling;
+          if (content.style.display === "block") {
+            content.style.display = "none";
+          } else {
+            content.style.display = "block";
+          }
+        });
+      }
+    });
+  </script>
+<% end %>
