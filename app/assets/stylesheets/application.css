@@ -44,6 +44,7 @@
  *= require style
  *= require bullettrain-global
  *= require bullettrain-public
+ *= require company
  */
 
 @font-face {
