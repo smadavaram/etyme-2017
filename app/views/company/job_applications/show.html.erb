@@ -73,6 +73,20 @@
                   </div>
                 </div>
                 <div class="element-box w-100">
+                  <div class="row p-4">
+                    <div class="col-sm-12">
+                      <%= content_for :links do %>
+                        <% if @job_application.applicant_resume %>
+                          <%= link_to('Download Resume', "#{@job_application.applicant_resume}", class: 'btn btn-primary
+                                      pull-right', download: true) %>
+                        <% end %>
+                      <% end %>
+                      <%= render partial: 'partials/job_application_show' ,locals: {job_application: @job_application}
+                      %>
+                    </div>
+                  </div>
+                </div>
+                <div class="element-box w-100">
                   <h5 class="form-header">
                     Cover Letter
                   </h5>
@@ -150,72 +164,3 @@
     </div>
   </div>
 </div>
-
-
-<div class="no-border" id="content">
-  <div class="all-wrapper no-padding-content solid-bg-all">
-    <div class="layout-w">
-      <div class="content-w">
-        <div class="content-i">
-          <div class="content-box">
-            <div class="full-chat-w">
-              <div class="full-chat-i">
-                <div class="full-chat-left">
-                  <div class="os-tabs-w">
-                    <ul class="nav nav-tabs upper centered">
-                      <li class="nav-item">
-                        <a class="nav-link" data-toggle="tab" href="#Company"><i class="os-icon os-icon-ui-93"></i><span>Chat</span></a>
-                      </li>
-                      <li class="nav-item">
-                        <a class="nav-link" data-toggle="tab" href="#Favourites"><i class="os-icon os-icon-ui-02"></i><span>Favourite</span></a>
-                      </li>
-                    </ul>
-                  </div>
-                  <div class="tab-content user-list">
-                    <div role="tabpanel" class="tab-pane active" id="Company">
-                      <div class="chat-search">
-                        <div class="element-search">
-                          <input type="text" class="form-control" placeholder="Search Company/Candidates" id="conversation-users-search">
-                        </div>
-                      </div>
-                      <ul class="nav flex-column nav-tabs" role="tablist" id="company-conversation-list">
-                        <%= render 'company/conversations/conversation_users', users: @companies, candidates: @candidates, groups: @groups %>
-                      </ul>
-                    </div>
-                    <div role="tabpanel" class="tab-pane" id="Favourites">
-                      <ul class="nav flex-column nav-tabs" role="tablist" id="favourite-conversation-list">
-                        <%= render 'company/conversations/conversation_favourites', favourites: @favourites %>
-                      </ul>
-                    </div>
-                  </div>
-                </div>
-                <div class="full-chat-middle" id="conversation-section">
-                  <%= render "company/conversations/conversation" %>
-                </div>
-
-                <div class="full-chat-right" id="conversation-r-section">
-                  <%= render "company/conversations/conversation_right_side" %>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
-</div>
-
-<% content_for :scripts do %>
-  <script>
-    $(document).ready(function () {
-      $.ajax({
-        url: "<%= messages_conversation_conversation_messages_path(@conversation||0) %>",
-        type: "GET",
-        dataType: "script",
-        success: function (data) {
-        }
-      });
-    })
-  </script>
-<% end %>
-

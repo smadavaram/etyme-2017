@@ -1,131 +1,131 @@
-.content-w
-  .content-i
-    .content-box.no_padding_bottom
-      .full-chat-w.border_bottom
-        .full-chat-i
-          .full-chat-left
-          .full-chat-middle
-            .chat-head.no_border_bottom
-              .user-info
-                %a{:href => "#"}
-                  =@conversation.senderable == current_user ? @conversation.recipientable.full_name : @conversation.senderable.full_name if @conversation.present?
-              .user-actions
-                %a{:href => "#"}
-                  %i.os-icon.os-icon-mail-07
-                %a{:href => "#"}
-                  %i.os-icon.os-icon-phone-18
-                %a{:href => "#"}
-                  %i.os-icon.os-icon-phone-15
-          .full-chat-right
-            = link_to 'View Proposal', proposal_job_application_path(@job_application)
-
-.content-w
-  .content-i
-    .content-box.no_padding_top
-      .full-chat-w
-        .full-chat-i
-          .full-chat-left
-            .chat-search
-              .element-search
-                %input{:placeholder => "Search users by name...", :id => "self-conversation-search", :type => "text"}/
-            .users-list-w
-              - @current_user_conversations.each do |conversation|
-                -if conversation.conversation_messages&.last
-                  .user-w#self-conversations{username: conversation.recipientable.full_name}
-                    .user-avatar-w
-                      .user-avatar
-                        %img{:alt => "", :src => conversation.recipientable.photo}/
-                    .user-name
-                      %h6.user-title
-                        = link_to conversation.recipientable.full_name, job_application_path(conversation.recipientable.job_applications.find_by_job_id(@job_application.job_id))
-                        .date-message_sent
-                          = conversation.created_at.strftime("%I:%M %p")
-                      .user-role
-                        = conversation.conversation_messages.last.body
-
-          .full-chat-middle
-            -#.chat-head
-              -#.user-info
-              -#  %span To:
-              -#  %a{:href => "#"}
-              -#    =@conversation.senderable == current_user ? @conversation.recipientable.full_name : @conversation.senderable.full_name if @conversation.present?
-              -#.user-actions
-              -#  %a{:href => "#"}
-              -#    %i.os-icon.os-icon-mail-07
-              -#  %a{:href => "#"}
-              -#    %i.os-icon.os-icon-phone-18
-              -#  %a{:href => "#"}
-              -#    %i.os-icon.os-icon-phone-15
-            .chat-content-w
-              .chat-content
-                %div{id: "conversation_#{@conversation.id}"}
-                  - @conversation_messages.each do |msg|
-                    -if msg.userable == current_user
-                      .chat-message.self
-                        .chat-message-content-w
-                          .chat-message-content
-                            = msg.body
-                        .chat-message-date
-                          = msg.created_at.strftime("%I:%M %p")
-                        .chat-message-avatar
-                          %img{:alt => "", :src => msg.userable.photo}/
-                    -else
-                      .chat-message
-                        .chat-message-content-w
-                          .chat-message-content
-                            = msg.body
-                        .chat-message-avatar
-                          %img{:alt => "", :src => msg.userable.photo}/
-                        .chat-message-date
-                          = msg.created_at.strftime("%I:%M %p")
-
-            .chat-controls
-              = form_for([@conversation, @conversation_message], :remote => true, :html => {id: "conversation_form_#{@conversation.id}"}) do |f|
-                .chat-input
-                  = f.text_field :body ,placeholder: 'Type your message and hit enter' ,class: "chatboxtextarea", "data-cid" => @conversation.id, id: "conversation_#{@conversation.id}_#{current_user.id}"
-                .chat-input-extra
-                  .chat-extra-actions
-                    %a{:href => "#"}
-                      %i.os-icon.os-icon-mail-07
-                    %a{:href => "#"}
-                      %i.os-icon.os-icon-phone-18
-                    %a{:href => "#"}
-                      %i.os-icon.os-icon-phone-15
-                .chat-btn
-                = f.submit "Replay", class: "btn btn-primary btn-sm pull-right", hidden: true,id: "send-chat-message"
-          .full-chat-right
-            .element-wrapper
-              .element-header
-                %p.d-inline-block.mb-0 Team Members
-                .d-inline-block
-                = link_to content_tag(:i, '  Member', class: 'fa fa-plus') , '#', class: 'pull-right'
-              .element-box-tp
-                .users-list-w
-                  .user-w
-                    .user-avatar-w
-                      .user-avatar
-                        %img{:alt => "", :src => @conversation.senderable.photo}/
-                    .user-name
-                      %h6.user-title
-                        =@conversation.senderable.full_name
-                      .user-role
-                        = @conversation.senderable&.type ? @conversation.senderable&.type : @conversation.senderable.class.to_s
-                    .user-action
-                      -#.os-icon.os-icon-email-forward
-                -if @conversation.chatable
-                  -@conversation.chatable.each do |group|
-                    .user-w
-                      .user-avatar-w
-                        .user-avatar
-                          %img{:alt => "", :src => group.groupable.photo}/
-                      .user-name
-                        %h6.user-title
-                          = group.groupable.full_name
-                        .user-role
-                          = group.groupable&.type ? group.groupable&.type : group.groupable.class.to_s
-                      .user-action
-                        -#.os-icon.os-icon-email-forward
-
+-#.content-w
+-#  .content-i
+-#    .content-box.no_padding_bottom
+-#      .full-chat-w.border_bottom
+-#        .full-chat-i
+-#          .full-chat-left
+-#          .full-chat-middle
+-#            .chat-head.no_border_bottom
+-#              .user-info
+-#                %a{:href => "#"}
+-#                  =@conversation.senderable == current_user ? @conversation.recipientable.full_name : @conversation.senderable.full_name if @conversation.present?
+-#              .user-actions
+-#                %a{:href => "#"}
+-#                  %i.os-icon.os-icon-mail-07
+-#                %a{:href => "#"}
+-#                  %i.os-icon.os-icon-phone-18
+-#                %a{:href => "#"}
+-#                  %i.os-icon.os-icon-phone-15
+-#          .full-chat-right
+-#            = link_to 'View Proposal', proposal_job_application_path(@job_application)
+-#
+-#.content-w
+-#  .content-i
+-#    .content-box.no_padding_top
+-#      .full-chat-w
+-#        .full-chat-i
+-#          .full-chat-left
+-#            .chat-search
+-#              .element-search
+-#                %input{:placeholder => "Search users by name...", :id => "self-conversation-search", :type => "text"}/
+-#            .users-list-w
+-#              - @current_user_conversations.each do |conversation|
+-#                -if conversation.conversation_messages&.last
+-#                  .user-w#self-conversations{username: conversation.recipientable.full_name}
+-#                    .user-avatar-w
+-#                      .user-avatar
+-#                        %img{:alt => "", :src => conversation.recipientable.photo}/
+-#                    .user-name
+-#                      %h6.user-title
+-#                        = link_to conversation.recipientable.full_name, job_application_path(conversation.recipientable.job_applications.find_by_job_id(@job_application.job_id))
+-#                        .date-message_sent
+-#                          = conversation.created_at.strftime("%I:%M %p")
+-#                      .user-role
+-#                        = conversation.conversation_messages.last.body
+-#
+-#          .full-chat-middle
+-#            -#.chat-head
+-#              -#.user-info
+-#              -#  %span To:
+-#              -#  %a{:href => "#"}
+-#              -#    =@conversation.senderable == current_user ? @conversation.recipientable.full_name : @conversation.senderable.full_name if @conversation.present?
+-#              -#.user-actions
+-#              -#  %a{:href => "#"}
+-#              -#    %i.os-icon.os-icon-mail-07
+-#              -#  %a{:href => "#"}
+-#              -#    %i.os-icon.os-icon-phone-18
+-#              -#  %a{:href => "#"}
+-#              -#    %i.os-icon.os-icon-phone-15
+-#            .chat-content-w
+-#              .chat-content
+-#                %div{id: "conversation_#{@conversation.id}"}
+-#                  - @conversation_messages.each do |msg|
+-#                    -if msg.userable == current_user
+-#                      .chat-message.self
+-#                        .chat-message-content-w
+-#                          .chat-message-content
+-#                            = msg.body
+-#                        .chat-message-date
+-#                          = msg.created_at.strftime("%I:%M %p")
+-#                        .chat-message-avatar
+-#                          %img{:alt => "", :src => msg.userable.photo}/
+-#                    -else
+-#                      .chat-message
+-#                        .chat-message-content-w
+-#                          .chat-message-content
+-#                            = msg.body
+-#                        .chat-message-avatar
+-#                          %img{:alt => "", :src => msg.userable.photo}/
+-#                        .chat-message-date
+-#                          = msg.created_at.strftime("%I:%M %p")
+-#
+-#            .chat-controls
+-#              = form_for([@conversation, @conversation_message], :remote => true, :html => {id: "conversation_form_#{@conversation.id}"}) do |f|
+-#                .chat-input
+-#                  = f.text_field :body ,placeholder: 'Type your message and hit enter' ,class: "chatboxtextarea", "data-cid" => @conversation.id, id: "conversation_#{@conversation.id}_#{current_user.id}"
+-#                .chat-input-extra
+-#                  .chat-extra-actions
+-#                    %a{:href => "#"}
+-#                      %i.os-icon.os-icon-mail-07
+-#                    %a{:href => "#"}
+-#                      %i.os-icon.os-icon-phone-18
+-#                    %a{:href => "#"}
+-#                      %i.os-icon.os-icon-phone-15
+-#                .chat-btn
+-#                = f.submit "Replay", class: "btn btn-primary btn-sm pull-right", hidden: true,id: "send-chat-message"
+-#          .full-chat-right
+-#            .element-wrapper
+-#              .element-header
+-#                %p.d-inline-block.mb-0 Team Members
+-#                .d-inline-block
+-#                = link_to content_tag(:i, '  Member', class: 'fa fa-plus') , '#', class: 'pull-right'
+-#              .element-box-tp
+-#                .users-list-w
+-#                  .user-w
+-#                    .user-avatar-w
+-#                      .user-avatar
+-#                        %img{:alt => "", :src => @conversation.senderable.photo}/
+-#                    .user-name
+-#                      %h6.user-title
+-#                        =@conversation.senderable.full_name
+-#                      .user-role
+-#                        = @conversation.senderable&.type ? @conversation.senderable&.type : @conversation.senderable.class.to_s
+-#                    .user-action
+-#                      -#.os-icon.os-icon-email-forward
+-#                -if @conversation.chatable
+-#                  -@conversation.chatable.each do |group|
+-#                    .user-w
+-#                      .user-avatar-w
+-#                        .user-avatar
+-#                          %img{:alt => "", :src => group.groupable.photo}/
+-#                      .user-name
+-#                        %h6.user-title
+-#                          = group.groupable.full_name
+-#                        .user-role
+-#                          = group.groupable&.type ? group.groupable&.type : group.groupable.class.to_s
+-#                      .user-action
+-#                        -#.os-icon.os-icon-email-forward
+-#
 
 
 - content_for :links do
