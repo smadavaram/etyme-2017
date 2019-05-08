@@ -73,12 +73,12 @@
                   </div>
                 </div>
                 <div class="element-box w-100">
-                  <div class="row">
+                  <div class="row p-4">
                     <div class="col-sm-12">
                       <%= content_for :links do %>
                         <% if @job_application.applicant_resume %>
                           <%= link_to('Download Resume', "#{@job_application.applicant_resume}", class: 'btn btn-primary
-                                      pull-right', style: 'margin-top: 20px;margin-right: 10px;', download: true) %>
+                                      pull-right', download: true) %>
                         <% end %>
                       <% end %>
                       <%= render partial: 'partials/job_application_show' ,locals: {job_application: @job_application}
