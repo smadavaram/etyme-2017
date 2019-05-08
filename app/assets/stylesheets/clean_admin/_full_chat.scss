@@ -296,10 +296,12 @@
     background-color: #fff;
     border-left: 1px solid rgba(0,0,0,0.1);
     padding: 20px;
+    max-height: 768px;
+    overflow-y:auto;
     .group-member{
       padding-top: 10px;
       ul{
-        padding: 0;
+        padding:0 0 0 15px;
         li{
           list-style-type: square;
           margin: 5px;
