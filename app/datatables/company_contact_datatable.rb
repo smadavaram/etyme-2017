@@ -47,7 +47,7 @@ class CompanyContactDatatable < ApplicationDatatable
   end
 
   def get_raw_records
-    current_company.company_contacts.includes(:user_company,company: [:reminders, :statuses]).joins(:user, :user_company)
+    current_company.company_contacts.includes(:user_company, company: [:reminders, :statuses]).joins(:user, :user_company)
   end
 
   def reminder_note record
@@ -60,7 +60,11 @@ class CompanyContactDatatable < ApplicationDatatable
   end
 
   def groups record
-    record.groups.map {|group| content_tag(:span, group.group_name, class: 'badge bg-color-blue margin-bottom-5 mr-1').html_safe}.join('').html_safe
+    if record.groups.count > 0
+      link_to(record.groups.count, company_company_assign_groups_to_contact_path(record, display_groups: true), remote: true, class: 'data-table-icons')
+    else
+      record.groups.count
+    end
   end
 
   def actions record
