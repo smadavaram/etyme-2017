@@ -40,7 +40,6 @@ $(document).ready(function () {
     };
   };
 
-
   $('#company-contacts-datatable').dataTable({
     processing: true,
     serverSide: true,
@@ -73,8 +72,16 @@ $(document).ready(function () {
       {data: "name"},
       {data: "first_name"},
       {data: "title"},
-      {data: "contact"},
-      {data: "status"},
+      {
+        data: "contact",
+        searchable: false,
+        orderable: false
+      },
+      {
+        data: "status",
+        searchable: false,
+        orderable: false
+      },
       {
         data: "groups",
         searchable: false,
@@ -120,7 +127,11 @@ $(document).ready(function () {
         data: "id"
       },
       {data: "name"},
-      {data: "contact"},
+      {
+        data: "contact",
+        searchable: false,
+        orderable: false
+      },
       {
         data: "status",
         searchable: false,
@@ -160,9 +171,21 @@ $(document).ready(function () {
         data: "id"
       },
       {data: "name"},
-      {data: "users"},
-      {data: "contact"},
-      {data: "status"},
+      {
+        data: "users",
+        searchable: false,
+        orderable: false
+      },
+      {
+        data: "contact",
+        searchable: false,
+        orderable: false
+      },
+      {
+        data: "status",
+        searchable: false,
+        orderable: false
+      },
       {
         data: "reminder_note",
         searchable: false,
@@ -205,7 +228,11 @@ $(document).ready(function () {
       },
       {data: "domain"},
       {data: "name"},
-      {data: "contact"},
+      {
+        data: "contact",
+        searchable: false,
+        orderable: false
+      },
       {data: "title"},
       {
         data: "roles_permissions",
@@ -245,7 +272,7 @@ $(document).ready(function () {
       },
       {data: "name"},
       {data: "type"},
-      {data: "member",searchable:false,orderable: false},
+      {data: "member", searchable: false, orderable: false},
       {data: "created_at"},
       {
         data: "status",
@@ -265,5 +292,36 @@ $(document).ready(function () {
     ]
   });
 
+
+  $('#application-datatable').dataTable({
+    processing: true,
+    serverSide: true,
+    order: [[0, "desc"]],
+    columnDefs: [{
+      'targets': 0, searchable: false, orderable: false,
+      'render': function (data, type, full, meta) {
+        return '<input type="checkbox" name="id[]" value="' + full.id + '">';
+      }
+    },
+      {
+        'targets': 1,
+        searchable: true,
+        orderable: true,
+        'createdCell': function (td, cellData, rowData, row, col) {
+          $(td).addClass('text-left');
+        }
+      }
+    ],
+    ajax: $('#application-datatable').data('source'),
+    columns: [
+      {data: "id",searchable: false, orderable: false},
+      {data: "name", searchable: false, orderable: false},
+      {data: "application_number"},
+      {data: "title"},
+      {data: "status"},
+      {data: "type"},
+      {data: "actions", searchable: false, orderable: false},
+    ]
+  });
 
 });

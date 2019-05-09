@@ -9,7 +9,7 @@ class CompanyDirectoryDatatable < ApplicationDatatable
         id: {source: "User.id"},
         domain: {source: "Company.website"},
         name: {source: "User.first_name"},
-        title: {source: "User.title"}
+        title: {source: "User.type"}
     }
   end
 
@@ -21,7 +21,7 @@ class CompanyDirectoryDatatable < ApplicationDatatable
           domain: record.company.website,
           name: company_user_profile(record),
           contact: contact_icon(record),
-          title: 'title',
+          title: record.type,
           roles_permissions: 'TBD',
           reminder_note: reminder_note(record),
           actions: actions(record)
@@ -30,7 +30,7 @@ class CompanyDirectoryDatatable < ApplicationDatatable
   end
 
   def get_raw_records
-    current_company.users.includes([:company, :reminders, :statuses])
+    current_company.users.includes([:reminders, :statuses]).joins(:company)
   end
 
   def company_user_profile user

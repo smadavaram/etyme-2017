@@ -11,6 +11,32 @@
     display: none;
 }
 
+
+.no_padding_bottom {
+    padding-bottom: 0px !important;
+}
+.no_padding_top {
+    padding-top: 0px !important;
+}
+
+.no_border_bottom {
+    border-bottom: none !important;
+}
+
+.border_bottom {
+    border-bottom: 1px solid rgba(0, 0, 0, 0.2);
+}
+
+.date-message_sent{
+    display: inline-block;
+    float: right;
+    vertical-align: bottom;
+    margin-left: 10px;
+    margin-right: 10px;
+    font-size: 0.72rem;
+    color: rgba(0, 0, 0, 0.3);
+}
+
 .chatboxhead {
     background: #666;
     color: white;
