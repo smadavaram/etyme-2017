@@ -295,6 +295,10 @@ Rails.application.routes.draw do
       get :add_to_favourite, on: :collection
       get :remove_from_favourite, on: :collection
       post :add_to_chat, on: :collection
+
+      get :mute, on: :member
+      get :unmute, on: :member
+
       resources :conversation_messages do
         get :mark_as_read, on: :member
       end

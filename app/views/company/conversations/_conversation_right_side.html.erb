@@ -19,13 +19,13 @@
         <% if @conversation.chatable_type == "Group" %>
             <ul>
               <% @conversation.chatable.groupables.each do |g| %>
-                  <li>
-                    <%= g.groupable.full_name %>
-                    <%= link_to "<i class='icon-feather-x'></i>".html_safe, remove_from_group_groups_path(groupable: g.id, conversation: @conversation.id) if current_company.id == @conversation.chatable.company_id && g.groupable != current_user %>
-                  </li>
+                <li>
+                  <%= g.groupable.full_name %>
+                  <%= link_to "<i class='icon-feather-x'></i>".html_safe, remove_from_group_groups_path(groupable: g.id, conversation: @conversation.id) if current_company.id == @conversation.chatable.company_id && g.groupable != current_user %>
+                </li>
               <% end %>
               <% if current_company.id != @conversation.chatable.company_id %>
-                  <li><%= link_to "Leave Group", leave_group_groups_path(group: @conversation.chatable_id)  %></li>
+                <li><%= link_to "Leave Group", leave_group_groups_path(group: @conversation.chatable_id)  %></li>
               <% end %>
             </ul>
          <% else %>
@@ -43,21 +43,11 @@
       </div>
       <div class="ci-content p-0 pt-3">
         <div class="ci-file-list">
-          <div class="form-group">
-            <label for="">Select Status</label>
-            <select class="form-control">
-              <option>Mute</option>
-              <option>Block</option>
-              <option>Status 3</option>
-              <option>Status 4</option>
-              <option>Status 5</option>
-              <option>Status 6</option>
-            </select>
-          </div>
-          <div class="form-group">
-            <label for="">Note:</label>
-            <input class="form-control"  placeholder="note"  type="text">
-          </div>
+          <% if ConversationMute.where(conversation: @conversation, mutable: current_user).present? %>
+            <%= link_to "Unmute", unmute_company_conversation_path(@conversation), class: "btn btn-primary" %>
+          <% else %>
+            <%= link_to "Mute", mute_company_conversation_path(@conversation), class: "btn btn-danger" %>
+          <% end %>
         </div>
       </div>
     </div>
