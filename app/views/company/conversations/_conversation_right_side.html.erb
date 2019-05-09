@@ -41,8 +41,8 @@
       <div class="ci-header">
         <i class="os-icon os-icon-documents-03"></i><span>Status</span>
       </div>
-      <div class="ci-content p-0 pt-3">
-        <div class="ci-file-list">
+      <div class="ci-content p-0 pt-3 pb-3">
+        <div class="ci-file-list text-center">
           <% if ConversationMute.where(conversation: @conversation, mutable: current_user).present? %>
             <%= link_to "Unmute", unmute_company_conversation_path(@conversation), class: "btn btn-primary" %>
           <% else %>
@@ -53,7 +53,7 @@
     </div>
     <div class="chat-info-section p-0 pt-4">
       <div class="ci-header">
-        <i class="os-icon os-icon-documents-03"></i><span>Status</span>
+        <i class="os-icon os-icon-documents-03"></i><span>Acticity log</span>
       </div>
       <div class="timed-activities compact pt-3">
         <div class="timed-activity">
