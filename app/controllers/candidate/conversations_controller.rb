@@ -3,7 +3,9 @@ class Candidate::ConversationsController < Candidate::BaseController
   def index
     get_conversation_users
     message = ConversationMessage.joins(:conversation).where("(senderable_type = ? AND senderable_id = ? ) OR (recipientable_type = ? AND recipientable_id = ?)", current_candidate.class.to_s, current_candidate.id, current_candidate.class.to_s, current_candidate.id).where.not(is_read: true, userable: current_candidate).order("created_at DESC").first
-    if message.present?
+    if params[:conversation].present?
+      @conversation = Conversation.find(params[:conversation])
+    elsif message.present?
       # set_conversation(message.userable)
       set_conversation(message.userable, '', message.userable_id, message.userable_type)
       @current_chat = message.userable
@@ -58,6 +60,24 @@ class Candidate::ConversationsController < Candidate::BaseController
     favourable = current_candidate.favourables.where(favourabled_type: params[:favourabled_type], favourabled_id: params[:favourabled_id]).first
     @user = favourable.favourabled if favourable.present?
     favourable.destroy if favourable.present?
+  end
+
+  def mute
+    conversation = Conversation.find(params[:id])
+    ConversationMute.create(conversation: conversation, mutable: current_candidate)
+    redirect_to candidate_conversations_path(conversation: conversation.id)
+  end
+
+  def unmute
+    conversation = Conversation.find(params[:id])
+    ConversationMute.where(conversation: conversation, mutable: current_candidate).destroy_all
+    redirect_to candidate_conversations_path(conversation: conversation.id)
+  end
+
+  def leave_group
+    grp = Group.find(params[:group])
+    grp.groupables.where(groupable: current_candidate).destroy_all
+    redirect_to candidate_conversations_path
   end
 
   private
