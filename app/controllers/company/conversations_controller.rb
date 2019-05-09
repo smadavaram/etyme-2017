@@ -107,6 +107,18 @@ class Company::ConversationsController < Company::BaseController
     redirect_to company_conversations_path(conversation: conversation.id)
   end
 
+  def mute
+    conversation = Conversation.find(params[:id])
+    ConversationMute.create(conversation: conversation, mutable: current_user)
+    redirect_to company_conversations_path(conversation: conversation.id)
+  end
+
+  def unmute
+    conversation = Conversation.find(params[:id])
+    ConversationMute.where(conversation: conversation, mutable: current_user).destroy_all
+    redirect_to company_conversations_path(conversation: conversation.id)
+  end
+
   private
 
   # def set_conversation(user)
