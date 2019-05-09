@@ -33,6 +33,7 @@
       <% opt_obj = @conversation.chatable_type == "Group" ? @conversation.chatable : (@conversation.senderable == current_user ? @conversation.recipientable : @conversation.senderable) if @conversation.present? %>
       <span>To:</span><a href="#"><%= opt_obj.full_name if opt_obj.present? %></a>
       <small class="d-block"><span>Job : </span><span> I need ROR developer </span></small>
+      <small class="d-block"><span>Application : </span><span> I need ROR developer </span></small>
     </div>
     <% if @conversation.present? %>
       <div class="user-actions">

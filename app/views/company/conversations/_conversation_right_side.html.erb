@@ -19,10 +19,16 @@
         <% if @conversation.chatable_type == "Group" %>
             <ul>
               <% @conversation.chatable.groupables.each do |g| %>
+                  <% if current_company.id == @conversation.chatable.company_id && g.groupable != current_user %>
                 <li>
                   <%= g.groupable.full_name %>
-                  <%= link_to "<i class='icon-feather-x'></i>".html_safe, remove_from_group_groups_path(groupable: g.id, conversation: @conversation.id) if current_company.id == @conversation.chatable.company_id && g.groupable != current_user %>
+                  <%= link_to "<i class='icon-feather-x'></i>".html_safe, remove_from_group_groups_path(groupable: g.id, conversation: @conversation.id) %>
                 </li>
+                <% else %>
+                      <li>
+                        <strong> <%= g.groupable.full_name %> </strong>
+                      </li>
+                <% end %>
               <% end %>
               <% if current_company.id != @conversation.chatable.company_id %>
                 <li><%= link_to "Leave Group", leave_group_groups_path(group: @conversation.chatable_id)  %></li>
@@ -38,9 +44,6 @@
       </div>
     </div>
     <div class="chat-info-section p-0 pt-4 pb-2">
-      <div class="ci-header">
-        <i class="os-icon os-icon-documents-03"></i><span>Status</span>
-      </div>
       <div class="ci-content p-0 pt-3 pb-3">
         <div class="ci-file-list text-center">
           <% if ConversationMute.where(conversation: @conversation, mutable: current_user).present? %>
