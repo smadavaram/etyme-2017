@@ -42,7 +42,7 @@
                 </td>
                 <td class="text-center"><%= application.id %></td>
                 <td><%= do_ellipsis(application.job.title, 15) %></td>
-                <td><%= do_ellipsis(application.applicationable.associated_company.name, 15) %></td>
+                <td><%= do_ellipsis(application.applicationable.associated_company&.name, 15) %></td>
 <!--                <td><%#= content_tag(:span, do_ellipsis(application.applicationable&.reminders&.last&.title), class: 'bg-info badge mr-1')%></td>-->
                 <td> <%= application.job_invitation_id ? 'Invited' : 'Direct' %> </td>
                 <td><%= application.status %></td>
