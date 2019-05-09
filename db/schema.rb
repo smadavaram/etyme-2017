@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema.define(version: 20190503140813) do
+ActiveRecord::Schema.define(version: 20190509064145) do
 
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
@@ -841,6 +841,16 @@ ActiveRecord::Schema.define(version: 20190503140813) do
     t.string "file_type"
     t.index ["conversation_id"], name: "index_conversation_messages_on_conversation_id"
     t.index ["userable_type", "userable_id"], name: "index_conversation_messages_on_userable_type_and_userable_id"
+  end
+
+  create_table "conversation_mutes", force: :cascade do |t|
+    t.bigint "conversation_id"
+    t.string "mutable_type"
+    t.bigint "mutable_id"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["conversation_id"], name: "index_conversation_mutes_on_conversation_id"
+    t.index ["mutable_type", "mutable_id"], name: "index_conversation_mutes_on_mutable_type_and_mutable_id"
   end
 
   create_table "conversations", force: :cascade do |t|

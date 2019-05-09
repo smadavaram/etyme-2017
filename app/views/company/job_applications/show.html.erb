@@ -1,208 +1,169 @@
-<div class="with-side-panel">
+<div class="with-side-panel m-4">
   <div class="content-i">
-    <div class="content-box">
-      <div class="row">
-        <div class="col-sm-12">
-          <div class="element-wrapper">
-            <div class="element-content">
-              <div class="row">
-                <h5 class="collapsible">Job Detail</h5>
-                <div class="element-box w-100 text-justify job-application-collaps">
-                  <div>
-                    <h5 class="form-header">
-                      Title
-                    </h5>
-                    <div class="element-box-content">
-                      <div class="lead">
-                        <%= @job_application.job.title %>
-                      </div>
-                    </div>
-                    <h5 class="form-header">
-                      Description
-                    </h5>
-                    <h5 class="form-header">
-                      Category
-                    </h5>
-                    <div class="element-box-content">
-                      <div class="lead">
-                        <%= @job_application.job.job_category %>
-                      </div>
-                    </div>
-                    <div class="row">
-                      <div class="col-sm-12">
-                        <h5 class="form-header">
-                          Start Date - End Date
-                        </h5>
-                        <div class="element-box-content">
-                          <div>
-                            <%= @job_application.job.start_date %> -
-                            <%= @job_application.job.end_date %>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                    <div class="row">
-                      <div class="col-sm-12">
-                        <h5 class="form-header">
-                          Rate
-                        </h5>
-                        <div class="element-box-content">
-                          <div>
-                            <%= @job_application.job.price.to_s %>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                    <h5 class="form-header">
-                      Cover Letter
-                    </h5>
-                    <div class="element-box-content">
-                      <div class="lead">
-                        <%= @job_application.cover_letter.html_safe %>
+    <div class="full-chat-w w-100">
+      <div class="full-chat-i">
+        <div class="content-box">
+
+          <div class="row">
+            <div class="col-sm-12">
+              <div class="element-wrapper">
+                <div class="element-content">
+                  <div class="row">
+                    <h5 class="collapsible"><%= @job_application.job.title %></h5>
+                    <div class="element-box w-100 text-justify job-application-collaps">
+                      <div class="col-lg-12">
+                        <%= render partial: 'partials/job_application_show', locals: {job_application: @job_application}%>
                       </div>
                     </div>
                   </div>
-                </div>
-              </div>
-              <div class="row">
-                <h2 class="collapsible">Job Application</h2>
-                <div class="element-box w-100 text-justify chat-collaps">
                   <div class="row">
-                    <div class="col-sm-12">
-                      <%= content_for :links do %>
-                        <% if @job_application.applicant_resume %>
-                          <%= link_to('Download Resume', "#{@job_application.applicant_resume}", class: 'btn btn-primary
+                    <h2 class="collapsible">Job Application</h2>
+                    <div class="element-box w-100 text-justify chat-collaps">
+                      <div class="row">
+                        <div class="col-sm-12">
+                          <%= content_for :links do %>
+                            <% if @job_application.applicant_resume %>
+                              <%= link_to('Download Resume', "#{@job_application.applicant_resume}", class: 'btn btn-primary
                                       pull-right', download: true) %>
-                        <% end %>
-                      <% end %>
-                      <%= render partial: 'partials/job_application_show', locals: {job_application: @job_application}
-                      %>
-                    </div>
-                  </div>
-                </div>
-              </div>
-              <div class="row">
-                <h2 class="collapsible">Messages</h2>
-                <div class="element-box w-100 text-justify chat-collaps">
-                  <h5 class="form-header">
-                    Title
-                  </h5>
-                  <div class="element-box-content">
-                    <div class="lead">
-                      <%= @job_application.job.title %>
-                    </div>
-                  </div>
-                  <h5 class="form-header">
-                    Description
-                  </h5>
-                  <h5 class="form-header">
-                    Category
-                  </h5>
-                  <div class="element-box-content">
-                    <div class="lead">
-                      <%= @job_application.job.job_category %>
-                    </div>
-                  </div>
-                  <div class="row">
-                    <div class="col-sm-12">
-                      <h5 class="form-header">
-                        Start Date - End Date
-                      </h5>
-                      <div class="element-box-content">
-                        <div>
-                          <%= @job_application.job.start_date %> -
-                          <%= @job_application.job.end_date %>
+                            <% end %>
+                            <% if @job_application.share_key %>
+                              <%= button_tag('Client Submission' ,class: 'btn btn-primary pull-right mr-1' , "data-toggle": "modal" , "data-target":"#share_application_#{@job_application.id}") %>
+                            <% end %>
+                          <% end %>
+                          <%= render partial: 'partials/job_application_show', locals: {job_application: @job_application}
+                          %>
                         </div>
                       </div>
                     </div>
                   </div>
                   <div class="row">
-                    <div class="col-sm-12">
+                    <h2 class="collapsible">Messages</h2>
+                    <div class="element-box w-100 text-justify chat-collaps">
                       <h5 class="form-header">
-                        Rate
+                        Title
                       </h5>
                       <div class="element-box-content">
-                        <div>
-                          <%= @job_application.job.price.to_s %>
+                        <div class="lead">
+                          <%= @job_application.job.title %>
+                        </div>
+                      </div>
+                      <h5 class="form-header">
+                        Description
+                      </h5>
+                      <h5 class="form-header">
+                        Category
+                      </h5>
+                      <div class="element-box-content">
+                        <div class="lead">
+                          <%= @job_application.job.job_category %>
+                        </div>
+                      </div>
+                      <div class="row">
+                        <div class="col-sm-12">
+                          <h5 class="form-header">
+                            Start Date - End Date
+                          </h5>
+                          <div class="element-box-content">
+                            <div>
+                              <%= @job_application.job.start_date %> -
+                              <%= @job_application.job.end_date %>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                      <div class="row">
+                        <div class="col-sm-12">
+                          <h5 class="form-header">
+                            Rate
+                          </h5>
+                          <div class="element-box-content">
+                            <div>
+                              <%= @job_application.job.price.to_s %>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                      <h5 class="form-header">
+                        Cover Letter
+                      </h5>
+                      <div class="element-box-content">
+                        <div class="lead">
+                          <%= @job_application.cover_letter.html_safe %>
                         </div>
                       </div>
                     </div>
                   </div>
-                  <h5 class="form-header">
-                    Cover Letter
-                  </h5>
-                  <div class="element-box-content">
-                    <div class="lead">
-                      <%= @job_application.cover_letter.html_safe %>
-                    </div>
-                  </div>
                 </div>
               </div>
             </div>
           </div>
+        </div>
+        <div class="content-panel">
+          <div class="full-chat-right" id="conversation-r-section" style="border: none;">
+            <%= render "company/conversations/conversation_right_side" %>
+          </div>
+          <!--      <div class="element-box">-->
+          <!--        <div class="element-wrapper">-->
+          <!--          <h6 class="element-header">Candidate Profile</h6>-->
+          <!--          <div class="users-list-w">-->
+          <!--            <div class="user-w">-->
+          <!--              <div class="user-avatar-w">-->
+          <!--                <div class="user-avatar"><img alt="" src=<%#= @job_application.user.photo %>></div>-->
+          <!--              </div>-->
+          <!--              <div class="user-name"><h6 class="user-title"><%#= @job_application.user.full_name %></h6>-->
+          <!--                <div class="user-role"><a href=<%#= @job_application.applicant_resume %>> Download Resume </a></div>-->
+          <!--              </div>-->
+          <!--            </div>-->
+          <!--          </div>-->
+          <!--        </div>-->
+          <!--        <div class="element-wrapper">-->
+          <!--          <h6 class="element-header">User Activity</h6>-->
+          <!--          <div class="timed-activities compact">-->
+          <!--            <div class="timed-activity">-->
+          <!--              <div class="ta-date">-->
+          <!--                <span>21st Jan, 2017</span>-->
+          <!--              </div>-->
+          <!--              <div class="ta-record-w">-->
+          <!--                <div class="ta-record">-->
+          <!--                  <div class="ta-timestamp">-->
+          <!--                    <strong>11:55</strong> am-->
+          <!--                  </div>-->
+          <!--                  <div class="ta-activity">Created a post called <a href="#">Register new symbol</a> in Rogue</div>-->
+          <!--                </div>-->
+          <!--                <div class="ta-record">-->
+          <!--                  <div class="ta-timestamp"><strong>2:34</strong> pm</div>-->
+          <!--                  <div class="ta-activity">Commented on story <a href="#">How to be a leader</a> in-->
+          <!--                    <a href="#">Financial</a> category-->
+          <!--                  </div>-->
+          <!--                </div>-->
+          <!--                <div class="ta-record">-->
+          <!--                  <div class="ta-timestamp"><strong>7:12</strong> pm</div>-->
+          <!--                  <div class="ta-activity">Added <a href="#">John Silver</a> as a friend</div>-->
+          <!--                </div>-->
+          <!--              </div>-->
+          <!--            </div>-->
+          <!--            <div class="timed-activity">-->
+          <!--              <div class="ta-date"><span>3rd Feb, 2017</span></div>-->
+          <!--              <div class="ta-record-w">-->
+          <!--                <div class="ta-record">-->
+          <!--                  <div class="ta-timestamp"><strong>9:32</strong> pm</div>-->
+          <!--                  <div class="ta-activity">Added <a href="#">John Silver</a> as a friend</div>-->
+          <!--                </div>-->
+          <!--                <div class="ta-record">-->
+          <!--                  <div class="ta-timestamp"><strong>5:14</strong> pm</div>-->
+          <!--                  <div class="ta-activity">Commented on story <a href="#">How to be a leader</a> in-->
+          <!--                    <a href="#">Financial</a> category-->
+          <!--                  </div>-->
+          <!--                </div>-->
+          <!--              </div>-->
+          <!--            </div>-->
+          <!--          </div>-->
+          <!--        </div>-->
+          <!--      </div>-->
         </div>
       </div>
     </div>
-    <div class="content-panel">
-      <div class="element-box">
-        <div class="element-wrapper">
-          <h6 class="element-header">Candidate Profile</h6>
-          <div class="users-list-w">
-            <div class="user-w">
-              <div class="user-avatar-w">
-                <div class="user-avatar"><img alt="" src=<%= @job_application.user.photo %>></div>
-              </div>
-              <div class="user-name"><h6 class="user-title"><%= @job_application.user.full_name %></h6>
-                <div class="user-role"><a href=<%= @job_application.applicant_resume %>> Download Resume </a></div>
-              </div>
-            </div>
-          </div>
-        </div>
-        <div class="element-wrapper">
-          <h6 class="element-header">User Activity</h6>
-          <div class="timed-activities compact">
-            <div class="timed-activity">
-              <div class="ta-date">
-                <span>21st Jan, 2017</span>
-              </div>
-              <div class="ta-record-w">
-                <div class="ta-record">
-                  <div class="ta-timestamp">
-                    <strong>11:55</strong> am
-                  </div>
-                  <div class="ta-activity">Created a post called <a href="#">Register new symbol</a> in Rogue</div>
-                </div>
-                <div class="ta-record">
-                  <div class="ta-timestamp"><strong>2:34</strong> pm</div>
-                  <div class="ta-activity">Commented on story <a href="#">How to be a leader</a> in
-                    <a href="#">Financial</a> category
-                  </div>
-                </div>
-                <div class="ta-record">
-                  <div class="ta-timestamp"><strong>7:12</strong> pm</div>
-                  <div class="ta-activity">Added <a href="#">John Silver</a> as a friend</div>
-                </div>
-              </div>
-            </div>
-            <div class="timed-activity">
-              <div class="ta-date"><span>3rd Feb, 2017</span></div>
-              <div class="ta-record-w">
-                <div class="ta-record">
-                  <div class="ta-timestamp"><strong>9:32</strong> pm</div>
-                  <div class="ta-activity">Added <a href="#">John Silver</a> as a friend</div>
-                </div>
-                <div class="ta-record">
-                  <div class="ta-timestamp"><strong>5:14</strong> pm</div>
-                  <div class="ta-activity">Commented on story <a href="#">How to be a leader</a> in
-                    <a href="#">Financial</a> category
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
+
   </div>
 </div>
 

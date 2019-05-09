@@ -15,9 +15,9 @@
           .col-sm-5
             %h3
               = link_to job_application.job.title,job_path(job_application.job)
-          .col-sm-7
-            - if @job_application.share_key
-              = button_tag 'Client Submission' ,class: 'btn btn-primary pull-right' , "data-toggle": "modal" , "data-target":"#share_application_#{@job_application.id}"
+          -#.col-sm-7
+          -#  - if @job_application.share_key
+          -#    = button_tag 'Client Submission' ,class: 'btn btn-primary pull-right' , "data-toggle": "modal" , "data-target":"#share_application_#{@job_application.id}"
     .row.mt-4{style: 'justify-content: space-between;'}
       .pl-3
         %span.text-muted.fs-13 Job Category
