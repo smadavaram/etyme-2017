@@ -1,42 +1,43 @@
 <% if @conversation.present? %>
     <% user = @conversation.chatable_type == "Group" ? @conversation.chatable :  (@conversation.senderable == current_candidate ? @conversation.recipientable : @conversation.senderable) %>
-    <div class="user-intro">
-      <div class="avatar">
-        <%= image_tag user.photo %>
+    <div class="chat-info-section p-0 pb-3">
+      <div class="ci-header">
+        <i class="icon-people"></i><span>Chat Member</span>
+        <a href="#" class ="add-to-conversation ml-2" data-conid=<%= @conversation.id %> data-cid=<%= user.id %> data-ctype=<%= user.class.to_s %> > <i class="fa fa-plus"></i></a>
       </div>
-      <div class="user-intro-info">
-        <h5 class="user-name">
-          <%= user.full_name %>
-        </h5>
+      <div class="group-member">
+        <% if @conversation.chatable_type == "Group" %>
+          <ul>
+            <% @conversation.chatable.groupables.each do |g| %>
+              <li><%= g.groupable.full_name %></li>
+            <% end %>
+            <% if current_company.id != @conversation.chatable.company_id %>
+              <li><%= link_to "Leave Group", leave_group_candidate_conversations_path(group: @conversation.chatable_id)  %></li>
+            <% end %>
+          </ul>
+        <% else %>
+          <ul>
+            <li>
+              <%= user.full_name %>
+            </li>
+          </ul>
+        <% end %>
       </div>
     </div>
     <div class="chat-info-section p-0 pt-4 pb-2">
-      <div class="ci-header">
-        <i class="os-icon os-icon-documents-03"></i><span>Status</span>
-      </div>
-      <div class="ci-content p-0 pt-3">
-        <div class="ci-file-list">
-          <div class="form-group">
-            <label for="">Select Status</label>
-            <select class="form-control">
-              <option>Mute</option>
-              <option>Block</option>
-              <option>Status 3</option>
-              <option>Status 4</option>
-              <option>Status 5</option>
-              <option>Status 6</option>
-            </select>
-          </div>
-          <div class="form-group">
-            <label for="">Note:</label>
-            <input class="form-control"  placeholder="note"  type="text">
-          </div>
+      <div class="ci-content p-0 pt-3 pb-3">
+        <div class="ci-file-list text-center">
+          <% if ConversationMute.where(conversation: @conversation, mutable: current_candidate).present? %>
+            <%= link_to "Unmute", unmute_candidate_conversation_path(@conversation), class: "btn btn-primary" %>
+          <% else %>
+            <%= link_to "Mute", mute_candidate_conversation_path(@conversation), class: "btn btn-danger" %>
+          <% end %>
         </div>
       </div>
     </div>
     <div class="chat-info-section p-0 pt-4">
       <div class="ci-header">
-        <i class="os-icon os-icon-documents-03"></i><span>Status</span>
+        <i class="os-icon os-icon-documents-03"></i><span>Acticity log</span>
       </div>
       <div class="timed-activities compact pt-3">
         <div class="timed-activity">
