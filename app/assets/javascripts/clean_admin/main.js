@@ -937,10 +937,10 @@ $(function(){
     return false;
   });
 
-  $('.support-index .support-tickets .support-ticket').on('click', function(){
-    $('.support-index').addClass('show-ticket-content');
-    return false;
-  });
+  //$('.support-index .support-tickets .support-ticket').on('click', function(){
+  //  $('.support-index').addClass('show-ticket-content');
+  //  return false;
+  //});
 
   $('.support-index .back-to-index').on('click', function(){
     $('.support-index').removeClass('show-ticket-content');

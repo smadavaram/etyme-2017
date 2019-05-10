@@ -43,4 +43,12 @@ class Company::PublicJobsController < Company::BaseController
       @job_application.custom_fields.new(name: cf.name,required: cf.required)
     end
   end
+
+  def search
+    if params[:keyword].present?
+      @jobs = Job.where("title Ilike ?", "%#{params[:keyword]}%").paginate(page: params[:page], per_page: 10)
+    else
+      @jobs = Job.all.paginate(page: params[:page], per_page: 10)
+    end
+  end
 end

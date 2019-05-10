@@ -1,0 +1,6 @@
+<% if params[:page].to_i <= 1 %>
+  $("#publick-job-list").html("<%= j render 'company/public_jobs/partials/public_job_list', :@jobs => @jobs %>");
+<% else %>
+  $(".load-more-public-job").html("<%= j link_to 'See More', company_public_jobs_path(page: @jobs.next_page), remote: true if @jobs.next_page.present? %>");
+  $("#publick-job-list").append("<%= j render 'company/public_jobs/partials/public_job_list', :@jobs => @jobs %>");
+<% end %>

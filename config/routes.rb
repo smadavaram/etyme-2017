@@ -289,6 +289,7 @@ Rails.application.routes.draw do
       post :create_batch_job, on: :member
       post :create_own_job, on: :member
       post :apply, on: :member
+      get :search, on: :collection
     end
     resources :owen_jobs, only: [:index] do
       get :batch_job, on: :member

@@ -1,0 +1,19 @@
+- @jobs.each do |job|
+  -# if !(Time.parse(job.created_at.to_s) <= Time.parse(Time.now.to_s) && job.job_applications.blank?)
+  = link_to job_company_public_job_path(job), remote: true, class:"support-ticket" do
+    .st-body
+      .avatar
+        = image_tag job.company.logo
+      .ticket-content
+        %h6.ticket-title
+          = truncate(job.title,length: 50)
+        .ticket-description
+          I have enabled the software for you, you can try now...
+    .st-foot
+      %span.label Agent:
+      %span.value.with-avatar{:href => "#"}
+        %span
+          =job.created_by.full_name
+      %span.label Updated:
+      %span.value
+        =job.created_at.strftime("%d/%m/%Y")

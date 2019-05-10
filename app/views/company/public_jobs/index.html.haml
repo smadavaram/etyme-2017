@@ -6,7 +6,7 @@
           %h5
             Jobs
           .element-search
-            %input{:placeholder => "Type to filter tickets...", :type => "text"}/
+            %input#search-public-job{:placeholder => "Type to filter tickets...", :type => "text"}/
         .tickets-filter
           .form-group.mr-3
             %label.d-none.d-md-inline-block.mr-2 Status
@@ -17,110 +17,46 @@
                 Open
               %option
                 Pending
-      - @jobs.each do |job|
-        -# if !(Time.parse(job.created_at.to_s) <= Time.parse(Time.now.to_s) && job.job_applications.blank?)
-        = link_to job_company_public_job_path(job), remote: true, class:"support-ticket" do
-          .st-body
-            .avatar
-              = image_tag job.company.logo
-            .ticket-content
-              %h6.ticket-title
-                = truncate(job.title,length: 50)
-              .ticket-description
-                I have enabled the software for you, you can try now...
-          .st-foot
-            %span.label Agent:
-            %span.value.with-avatar{:href => "#"}
-              %span
-                =job.created_by.full_name
-            %span.label Updated:
-            %span.value
-              =job.created_at.strftime("%d/%m/%Y")
-      .load-more-tickets
-        %a{:href => "#"}
-          %span Load More Tickets...
-    .support-ticket-content-w
-      .support-ticket-content
-        .support-ticket-content-header
-          %h3.ticket-header
-            Job Title
-          %a.back-to-index{:href => "#"}
-            %i.os-icon.os-icon-arrow-left5
-            %span Back
-          %a.show-ticket-info{:href => "#"}
-            %span Show Details
-            %i.os-icon.os-icon-documents-03
-        .ticket-thread
-          .ticket-reply
-            .ticket-reply-info
-              %a.author.with-avatar{:href => "#"}
-                %img{:alt => "", :src => "img/avatar1.jpg"}/
-                %span John Mayers
-              %span.info-data
-                %span.label replied on
-                %span.value May 27th, 2017 at 7:42am
-              .actions{:href => "#"}
-                %i.os-icon.os-icon-ui-46
-                .actions-list
-                  %a{:href => "#"}
-                    %i.os-icon.os-icon-ui-49
-                    %span Edit
-                  %a{:href => "#"}
-                    %i.os-icon.os-icon-ui-09
-                    %span Mark Private
-                  %a{:href => "#"}
-                    %i.os-icon.os-icon-ui-03
-                    %span Favorite
-                  %a.danger{:href => "#"}
-                    %i.os-icon.os-icon-ui-15
-                    %span Delete
-            .ticket-reply-content
-              %p
-                Hi. For the featured recipe banner feature, I'm able to enable it to show selected recipe and post on the feature recipe banner.
-              %p
-                Is there any way the enable the feature banner to show recent recipe and post instead?
-              %p
-                Thank you.
-            .ticket-attachments
-              %a.attachment{:href => "#"}
-                %i.os-icon.os-icon-ui-51
-                %span Bug Report.xml
-              %a.attachment{:href => "#"}
-                %i.os-icon.os-icon-documents-07
-                %span Sytem Information.txt
+      #publick-job-list
+        =render 'company/public_jobs/partials/public_job_list', :@jobs => @jobs
+      -#.load-more-public-job
+      -#  =link_to "See More", company_public_jobs_path(page: @jobs.next_page), remote: true if @jobs.next_page.present?
 
-#content.newsfeed
-  %body
-    %section#widget-grid.clearfix
-      .newsfeed-left
-        %ul
-          - @jobs.each do |job|
-            -# if !(Time.parse(job.created_at.to_s) <= Time.parse(Time.now.to_s) && job.job_applications.blank?)
-            %li
-              = link_to job_company_public_job_path(job), remote: true do
-                %div.public-job-list.clearfix
-                  %span.pull-left
-                    =job.id
-                  %span.pull-right
-                    %i.fa.fa-calendar-o
-                    =job.created_at.strftime("%d/%m/%Y")
-                %div.job-header.clearfix
-                  = image_tag job.company.logo,  style:"width:50px;height:50px", fit: 'clip'
-                  %p.job_title
-                    = truncate(job.title,length: 50)
-                  %p.job_title
-                    %i.fa.fa-usd
-                    =job.price
-                %div.public-job-other-info
-                  %span
-                    %i.fa.fa-map-marker
-                    =job.location
-                  %span
-                    %i.fa.fa-user
-                    =job.created_by.full_name
-        = digg_pagination(@jobs)
-      .newsfeed-right
-        %div#public-job-description
+    #public-job-description
+
+
+-##content.newsfeed
+-#  %body
+-#    %section#widget-grid.clearfix
+-#      .newsfeed-left
+-#        %ul
+-#          - @jobs.each do |job|
+-#            -# if !(Time.parse(job.created_at.to_s) <= Time.parse(Time.now.to_s) && job.job_applications.blank?)
+-#            %li
+-#              = link_to job_company_public_job_path(job), remote: true do
+-#                %div.public-job-list.clearfix
+-#                  %span.pull-left
+-#                    =job.id
+-#                  %span.pull-right
+-#                    %i.fa.fa-calendar-o
+-#                    =job.created_at.strftime("%d/%m/%Y")
+-#                %div.job-header.clearfix
+-#                  = image_tag job.company.logo,  style:"width:50px;height:50px", fit: 'clip'
+-#                  %p.job_title
+-#                    = truncate(job.title,length: 50)
+-#                  %p.job_title
+-#                    %i.fa.fa-usd
+-#                    =job.price
+-#                %div.public-job-other-info
+-#                  %span
+-#                    %i.fa.fa-map-marker
+-#                    =job.location
+-#                  %span
+-#                    %i.fa.fa-user
+-#                    =job.created_by.full_name
+-#        = digg_pagination(@jobs)
+-#      .newsfeed-right
+-#        %div#public-job-description
 
 -content_for :body_class, 'greybg'
 - content_for :modals do

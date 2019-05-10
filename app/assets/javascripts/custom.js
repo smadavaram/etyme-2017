@@ -150,6 +150,9 @@ $(document).ready(function(){
     $("#conversation-users-search").on("keyup", function(){
         callAjaxSearch('/company/conversations/search', "GET", { keyword: $("#conversation-users-search").val() })
     });
+    $("#search-public-job").on("keyup", function(){
+        callAjaxSearch('/company/public_jobs/search', "GET", { keyword: $("#search-public-job").val() })
+    });
 });
 $(document).on("click",".remove-multi-fields", function(){
     if ($(this).closest('div.multi-fields').find('div.multi-field-container').length > 1) {
