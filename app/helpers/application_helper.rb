@@ -17,6 +17,13 @@ module ApplicationHelper
         link_to(content_tag(:i, nil, class: 'os-icon os-icon-calendar').html_safe, '#', title: 'Add meeting', class: 'data-table-icons')
   end
 
+  def do_ellipsis(value, length = 20)
+    if value
+      post_fix = value.length > length ? '...' : ''
+      content_tag(:span, "#{value[0..length].strip}#{post_fix}", class: 'ellipsis', title: value).html_safe
+    end
+  end
+
   private
 
   def selected_locale

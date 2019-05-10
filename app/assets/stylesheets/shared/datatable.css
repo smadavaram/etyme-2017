@@ -13,6 +13,7 @@
     color: #3E4B5B;
     margin-left: 5px;
 }
+
 .data-table-icons:link,
 .data-table-icons:visited {
     color: currentColor;
@@ -22,9 +23,11 @@
     text-decoration: none;
     color: #3E4B5B;
 }
-.os-icon-ui-15{
+
+.os-icon-ui-15 {
     color: red;
 }
+
 .data-table-font {
     font-family: "Avenir Next W01";
     font-size: .9rem;
@@ -35,9 +38,15 @@
 }
 
 /*.dataTable th, .dataTable td, .dataTable .ellipsis {*/
-/*white-space: nowrap;*/
-/*overflow: hidden;*/
+/*    white-space: nowrap;*/
+/*    overflow: hidden;*/
 /*}*/
+
+.no-wrap {
+    white-space: nowrap;
+    overflow: hidden;
+}
+
 .dataTables_filter, .dataTables_length {
     display: none;
 }

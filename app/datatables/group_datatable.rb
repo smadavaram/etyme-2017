@@ -1,9 +1,8 @@
 class GroupDatatable < ApplicationDatatable
   def_delegator :@view, :group_path
+  def_delegator :@view, :add_reminder_group_path
   def_delegator :@view, :ban_company_black_listers_path
   def_delegator :@view, :unban_company_black_listers_path
-  def_delegator :@view, :assign_status_group_path
-  def_delegator :@view, :add_reminder_group_path
 
   def view_columns
     @view_columns ||= {
@@ -31,8 +30,7 @@ class GroupDatatable < ApplicationDatatable
   end
 
   def reminder_note record
-    content_tag(:span, do_ellipsis(record&.reminders&.last&.title), class: 'bg-info badge mr-1').html_safe +
-        content_tag(:span, record&.statuses&.last&.status_type, class: 'bg-info badge').html_safe
+    content_tag(:span, do_ellipsis(record&.reminders&.last&.title), class: 'bg-info badge mr-1').html_safe
   end
 
   def ban_unban_link(record)
@@ -50,7 +48,6 @@ class GroupDatatable < ApplicationDatatable
 
   def actions record
     link_to(content_tag(:i, nil, class: 'fa fa-comment-o').html_safe, '#', title: 'chat', class: 'data-table-icons') +
-        link_to(content_tag(:i, nil, class: 'fa fa-sticky-note-o ').html_safe, assign_status_group_path(record), remote: :true, method: :post, title: "Assign Status", class: 'data-table-icons') +
         link_to(content_tag(:i, nil, class: 'fa fa-bell-o ').html_safe, add_reminder_group_path(record), remote: :true,method: :post, title: "Remind Me", class: 'data-table-icons')
   end
 

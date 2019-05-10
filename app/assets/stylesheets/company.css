@@ -51,4 +51,5 @@
  *= require bullettrain-public
  *= require bullettrain-global
  *= require shared/datatable
+ *= require company/job_applications
  */
