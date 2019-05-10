@@ -34,7 +34,7 @@
             <h2 class="collapsible">Messages</h2>
             <div class="element-box w-100 text-justify chat-collaps">
               <%= render "company/conversations/job_conversation_box" %>
-              <%= job_application_top_links(job_application, 'btn-sm').html_safe %>
+              <%#= render 'company/job_applications/partials/job_status_links', btn_size_class: 'btn-sm', app: @conversation.chatable %>
             </div>
           </div>
         <% end %>
@@ -42,23 +42,3 @@
     </div>
   </div>
 </div>
-
-<% content_for :scripts do %>
-  <script>
-    $(document).ready(function () {
-      var coll = document.getElementsByClassName("collapsible");
-      var i;
-      for (i = 0; i < coll.length; i++) {
-        coll[i].addEventListener("click", function () {
-          this.classList.toggle("active");
-          var content = this.nextElementSibling;
-          if (content.style.display === "block") {
-            content.style.display = "none";
-          } else {
-            content.style.display = "block";
-          }
-        });
-      }
-    });
-  </script>
-<% end %>

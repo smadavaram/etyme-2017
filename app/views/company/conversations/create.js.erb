@@ -1,13 +1,13 @@
 <% if (@conversation.chatable && @conversation.chatable_type == "JobApplication") %>
-$("#conversation-section").html("<%= j render 'company/conversations/job_conversation_box' %>");
-$("#job_application_links").html("<%= j render 'company/job_applications/partials/collapse_able_job_application', job_application: @conversation.chatable %>");
-$('.collapsible').css('padding', '6px 18px');
-$('#collapsible_job_application').removeClass('ml-2 mr-2')
-$('#collapsible_job_application').removeClass('mt-4')
-$('#collapsible_job_application').addClass('mt-2')
-//  $('#collapsible_job_application').css('padding', '6px 18px');
+  $("#conversation-section").html("<%= j render 'company/conversations/job_conversation_box' %>");
+  $("#job_application_status_links").html("<%= j render 'company/job_applications/partials/job_status_links', btn_size_class: 'btn-sm', app: @conversation.chatable %>");
+
+  $('.collapsible').css('padding', '6px 18px');
+  $('#collapsible_job_application').removeClass('ml-2 mr-2')
+  $('#collapsible_job_application').removeClass('mt-4')
+  $('#collapsible_job_application').addClass('mt-2')
 <% else %>
-$("#conversation-section").html("<%= j render 'company/conversations/job_conversation_box' %>");
+  $("#conversation-section").html("<%= j render 'company/conversations/job_conversation_box' %>");
 <% end %>
 $("#conversation-r-section").html("<%= j render 'company/conversations/conversation_right_side' %>");
 $(".chat-content-scroll").data('ajaxready', true);

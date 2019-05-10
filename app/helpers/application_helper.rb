@@ -1,5 +1,6 @@
 # :nodoc:
 module ApplicationHelper
+
   def disable_spinning text
     return  "<i class='fa fa-spinner fa-pulse fa-spin pull-left'></i> #{text}"
   end
@@ -11,9 +12,9 @@ module ApplicationHelper
   end
 
   def contact_widget(email, phone, user_id=nil, members=[])
-    mail_to(email, content_tag(:i, nil, class: 'os-icon os-icon-email-2-at2').html_safe, title: email, class: 'data-table-icons') +
+    link_to(content_tag(:i, nil, class: 'fa fa-comment-o').html_safe, '#', title: 'chat', class: 'data-table-icons') +
+        mail_to(email, content_tag(:i, nil, class: 'os-icon os-icon-email-2-at2').html_safe, title: email, class: 'data-table-icons') +
         link_to(content_tag(:i, nil, class: 'os-icon os-icon-phone ').html_safe, '#', title: phone, class: 'data-table-icons') +
-        link_to(content_tag(:i, nil, class: 'fa fa-comment-o').html_safe, '#', title: 'chat', class: 'data-table-icons') +
         link_to(content_tag(:i, nil, class: 'os-icon os-icon-calendar').html_safe, '#', title: 'Add meeting', class: 'data-table-icons')
   end
 
