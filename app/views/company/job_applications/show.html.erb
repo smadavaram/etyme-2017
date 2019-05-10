@@ -16,7 +16,7 @@
                             <h5 class="collapsible"><%= @job_application.job.title %></h5>
                             <div class="element-box w-100 text-justify job-application-collaps">
                               <div class="col-lg-12">
-                                <%= render partial: 'partials/job_application_show', locals: {job_application: @job_application}%>
+                                <%= render partial: 'partials/job_show', locals: {job: @job_application.job}%>
                               </div>
                             </div>
                           </div>

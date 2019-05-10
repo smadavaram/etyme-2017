@@ -162,6 +162,9 @@ Rails.application.routes.draw do
       get :search, on: :collection
       get :add_to_favourite, on: :collection
       get :remove_from_favourite, on: :collection
+      get :leave_group, on: :collection
+      get :mute, on: :member
+      get :unmute, on: :member
       resources :conversation_messages
     end
 
