@@ -27,11 +27,10 @@
                                 <div class="col-sm-12">
                                   <%= content_for :links do %>
                                     <% if @job_application.applicant_resume %>
-                                      <%= link_to('Download Resume', "#{@job_application.applicant_resume}", class: 'btn btn-primary
-                                      pull-right', download: true) %>
+                                      <%= link_to('Download Resume', "#{@job_application.applicant_resume}", class: 'btn btn-primary mt-1 pull-right', download: true) %>
                                     <% end %>
                                     <% if @job_application.share_key %>
-                                      <%= button_tag('Client Submission' ,class: 'btn btn-primary pull-right mr-1' , "data-toggle": "modal" , "data-target":"#share_application_#{@job_application.id}") %>
+                                      <%= button_tag('Client Submission' ,class: 'btn btn-primary pull-right mr-1 mt-1' , "data-toggle": "modal" , "data-target":"#share_application_#{@job_application.id}") %>
                                     <% end %>
                                   <% end %>
                                   <%= render partial: 'partials/job_application_show', locals: {job_application: @job_application}
