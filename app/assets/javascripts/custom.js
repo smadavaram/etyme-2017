@@ -153,6 +153,9 @@ $(document).ready(function(){
     $("#search-public-job").on("keyup", function(){
         callAjaxSearch('/company/public_jobs/search', "GET", { keyword: $("#search-public-job").val() })
     });
+    $("#public-job-status").on("change", function () {
+        callAjaxSearch('/company/public_jobs/search', "GET", { status: $(this).val() })
+    });
 });
 $(document).on("click",".remove-multi-fields", function(){
     if ($(this).closest('div.multi-fields').find('div.multi-field-container').length > 1) {

@@ -10,19 +10,14 @@
         .tickets-filter
           .form-group.mr-3
             %label.d-none.d-md-inline-block.mr-2 Status
-            %select.form-control-sm
-              %option
-                Closed
-              %option
-                Open
-              %option
-                Pending
+            =select_tag "public-job-status", options_for_select(["All", "Job", "Training", "Products", "Services"]), class: 'form-control-sm'
       #publick-job-list
         =render 'company/public_jobs/partials/public_job_list', :@jobs => @jobs
       .load-more-public-job
         =link_to "See More", company_public_jobs_path(page: @jobs.next_page), remote: true if @jobs.next_page.present?
 
     #public-job-description
+      =render "company/public_jobs/partials/public_job_description", :@job => @jobs.first if @jobs.present?
 
 
 -##content.newsfeed

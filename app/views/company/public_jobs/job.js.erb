@@ -1,1 +1,3 @@
+$(".support-ticket").removeClass('active');
+$("#public-job-<%=@job.id%>").addClass('active');
 $("#public-job-description").html("<%= j render "company/public_jobs/partials/public_job_description" %>");

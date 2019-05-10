@@ -1,7 +1,8 @@
 <% if params[:page].to_i <= 1 %>
-$(".load-more-public-job").html("<%= j link_to 'See More', search_company_public_jobs_path(keyword: params[:keyword],page: @jobs.next_page), remote: true if @jobs.next_page.present? %>");
+$(".load-more-public-job").html("<%= j link_to 'See More', search_company_public_jobs_path(keyword: params[:keyword], status: params[:status],page: @jobs.next_page), remote: true if @jobs.next_page.present? %>");
 $("#publick-job-list").html("<%= j render 'company/public_jobs/partials/public_job_list', :@jobs => @jobs %>");
 <% else %>
-$(".load-more-public-job").html("<%= j link_to 'See More', search_company_public_jobs_path(keyword: params[:keyword],page: @jobs.next_page), remote: true if @jobs.next_page.present? %>");
+$(".load-more-public-job").html("<%= j link_to 'See More', search_company_public_jobs_path(keyword: params[:keyword],status: params[:status],page: @jobs.next_page), remote: true if @jobs.next_page.present? %>");
 $("#publick-job-list").append("<%= j render 'company/public_jobs/partials/public_job_list', :@jobs => @jobs %>");
 <% end %>
+$("#public-job-description").html("<%= j render "company/public_jobs/partials/public_job_description", :@job => @jobs.first if @jobs.present? %>");

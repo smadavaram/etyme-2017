@@ -1,6 +1,6 @@
-- @jobs.each do |job|
+- @jobs.each_with_index do |job, index|
   -# if !(Time.parse(job.created_at.to_s) <= Time.parse(Time.now.to_s) && job.job_applications.blank?)
-  = link_to job_company_public_job_path(job), remote: true, class:"support-ticket" do
+  = link_to job_company_public_job_path(job), remote: true, id: "public-job-#{job.id}",class:"support-ticket #{'active' if index == 0}" do
     .st-body
       .avatar
         = image_tag job.company.logo
@@ -8,7 +8,7 @@
         %h6.ticket-title
           = truncate(job.title,length: 50)
         .ticket-description
-          I have enabled the software for you, you can try now...
+          =truncate(job.description.html_safe, :length => 100)
     .st-foot
       %span.label Agent:
       %span.value.with-avatar{:href => "#"}

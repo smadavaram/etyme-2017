@@ -4,7 +4,7 @@ class Company::PublicJobsController < Company::BaseController
 
   def index
     # @jobs = Job.joins("INNER JOIN experiences on jobs.industry = experiences.industry AND jobs.department = experiences.department INNER JOIN candidates on experiences.user_id = candidates.id").where("candidates.id in (?)", current_company.candidates.pluck(:id)).order("id DESC").uniq.paginate(page: params[:page], per_page: 10) || []
-    @jobs = Job.all.paginate(page: params[:page], per_page: 10) || []
+    @jobs = Job.all.order('created_at DESC').paginate(page: params[:page], per_page: 10) || []
   end
 
   def job
@@ -46,9 +46,11 @@ class Company::PublicJobsController < Company::BaseController
 
   def search
     if params[:keyword].present?
-      @jobs = Job.where("title Ilike ?", "%#{params[:keyword]}%").paginate(page: params[:page], per_page: 10)
+      @jobs = Job.joins(:tags).where("name Ilike ? or title Ilike ?", "%#{params[:keyword]}%", "%#{params[:keyword]}%").order('created_at DESC').uniq.paginate(page: params[:page], per_page: 10)
+    elsif params[:status].present? && params[:status] != "All"
+      @jobs = Job.where(listing_type: params[:status]).order('created_at DESC').paginate(page: params[:page], per_page: 10)
     else
-      @jobs = Job.all.paginate(page: params[:page], per_page: 10)
+      @jobs = Job.all.order('created_at DESC').paginate(page: params[:page], per_page: 10)
     end
   end
 end
