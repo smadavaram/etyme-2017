@@ -16,6 +16,7 @@ class JobApplication < ApplicationRecord
   has_many     :chats             ,as: :chatable
   has_many :job_applicant_reqs
   has_many :job_applicantion_without_registrations
+  has_many     :conversations, as: :chatable
 
 
   # validates :cover_letter , :applicant_resume ,presence: true

@@ -143,7 +143,8 @@ class Company::ConversationsController < Company::BaseController
       if Conversation.between(current_user, user).where(chatable_id: chatable_id, chatable_type: chatable_type).present?
         @conversation = Conversation.between(current_user, user).where(chatable_id: chatable_id, chatable_type: chatable_type).first
       else
-        @conversation = Conversation.create!({senderable: current_user, recipientable: user, chatable_id: chatable_id, chatable_type: chatable_type})
+        @conversation = Conversation.find_by(recipientable_id: user.id,senderable_id: current_user.id)
+        @conversation ||= Conversation.create!({senderable: current_user, recipientable: user, chatable_id: chatable_id, chatable_type: chatable_type})
       end
     end
   end
@@ -158,7 +159,6 @@ class Company::ConversationsController < Company::BaseController
     # @favourites = current_user.favourables
     #
     # @groups = current_user.groups
-
     @conversations =  Conversation.joins(:conversation_messages).where("(senderable_type = ? AND senderable_id = ? ) OR (recipientable_type = ? AND recipientable_id = ?)", "User", current_user.id, "User", current_user.id).order("conversation_messages.created_at DESC").uniq
   end
 

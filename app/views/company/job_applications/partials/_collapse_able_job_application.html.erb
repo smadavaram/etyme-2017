@@ -1,0 +1,64 @@
+<div class="row mt-4 ml-2 mr-2" id="collapsible_job_application">
+  <div class="col-sm-12">
+    <div class="element-wrapper pb-0">
+      <div class="element-content">
+        <div class="">
+          <h5 class="collapsible"><%= job_application.job.title %></h5>
+          <div class="element-box w-100 text-justify job-application-collaps">
+            <div class="col-lg-12">
+              <%= render partial: 'partials/job_show', locals: {job: job_application.job} %>
+            </div>
+          </div>
+        </div>
+        <div class="">
+          <h2 class="collapsible">Job Application</h2>
+          <div class="element-box w-100 text-justify chat-collaps">
+            <div class="row">
+              <div class="col-sm-12">
+                <%= content_for :links do %>
+                  <% if job_application.applicant_resume %>
+                    <%= link_to('Download Resume', "#{job_application.applicant_resume}", class: 'btn btn-primary mt-1 pull-right', download: true) %>
+                  <% end %>
+                  <% if job_application.share_key %>
+                    <%= button_tag('Client Submission', class: 'btn btn-primary pull-right mr-1 mt-1', "data-toggle": "modal", "data-target": "#share_application_#{job_application.id}") %>
+                  <% end %>
+                <% end %>
+                <%= render partial: 'partials/job_application_show', locals: {job_application: job_application}
+                %>
+              </div>
+            </div>
+          </div>
+        </div>
+        <% if local_assigns[:messages] && messages %>
+          <div>
+            <h2 class="collapsible">Messages</h2>
+            <div class="element-box w-100 text-justify chat-collaps">
+              <%= render "company/conversations/job_conversation_box" %>
+              <%= job_application_top_links(job_application, 'btn-sm').html_safe %>
+            </div>
+          </div>
+        <% end %>
+      </div>
+    </div>
+  </div>
+</div>
+
+<% content_for :scripts do %>
+  <script>
+    $(document).ready(function () {
+      var coll = document.getElementsByClassName("collapsible");
+      var i;
+      for (i = 0; i < coll.length; i++) {
+        coll[i].addEventListener("click", function () {
+          this.classList.toggle("active");
+          var content = this.nextElementSibling;
+          if (content.style.display === "block") {
+            content.style.display = "none";
+          } else {
+            content.style.display = "block";
+          }
+        });
+      }
+    });
+  </script>
+<% end %>

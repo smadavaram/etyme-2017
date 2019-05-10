@@ -1,16 +1,23 @@
-<div class="chat_box with_border" data-conversation-id="<%= @conversation.id if @conversation.present?%>" id="conversation-chat-box">
-  <div class="chat-head">
-    <div class="user-info">
+<div class="chat_box with_border" data-conversation-id="<%= @conversation.id if @conversation.present? %>" id="conversation-chat-box">
+  <div class="chat-head" style="flex-direction: column; align-items: stretch;">
+    <div class="flex-row w-100 chat-heat_justify">
       <% opt_obj = @conversation.chatable_type == "Group" ? @conversation.chatable : (@conversation.senderable == current_user ? @conversation.recipientable : @conversation.senderable) if @conversation.present? %>
-      <span>To:</span><a class="d-inline" href="#"><%= opt_obj.full_name if opt_obj.present? %></a>
-      <small class="d-block"><span>Job : </span><span> <%= do_ellipsis(job.title,20) %> </span></small>
+      <div>
+        <span>To:</span>
+        <a class="d-inline" href="#"><%= opt_obj.full_name if opt_obj.present? %></a>
+      </div>
+      <% if @conversation.present? %>
+        <div>
+          <a title="View" href="#"><i class="icon-feather-maximize-2"></i></a>
+          <a title="Email Id" href="#"><i class="os-icon os-icon-email-2-at2"></i></a>
+          <a title="Phone Number" href="#"><i class="os-icon os-icon-phone "></i></a>
+          <a title="Add meeting" href="#"><i class="os-icon os-icon-calendar"></i></a>
+        </div>
+      <% end %>
     </div>
-    <% if @conversation.present? %>
-      <div class="user-actions">
-        <a title="View" href="#"><i class="icon-feather-maximize-2"></i></a>
-        <a title="Email Id" href="#"><i class="os-icon os-icon-email-2-at2"></i></a>
-        <a title="Phone Number" href="#"><i class="os-icon os-icon-phone "></i></a>
-        <a title="Add meeting" href="#"><i class="os-icon os-icon-calendar"></i></a>
+    <% if @conversation.chatable_type == "JobApplication" %>
+      <div id="job_application_links">
+
       </div>
     <% end %>
   </div>
@@ -34,6 +41,6 @@
           <!--<a class="btn btn-primary btn-sm" href="#">Reply</a>-->
         </div>
       </div>
-    <% end if @conversation.present?  %>
+    <% end if @conversation.present? %>
   </div>
 </div>

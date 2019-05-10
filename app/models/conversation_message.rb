@@ -26,8 +26,8 @@ class ConversationMessage < ApplicationRecord
   def create_notification
     senderable_name = "#{self.userable.first_name} #{self.userable.last_name}"
     notification_message = "#{senderable_name}: #{self.body}"
-    if self.conversation.chatable_id?
-      groupables = self.conversation.chatable.groupables
+    if self.conversation.chatable_id? && self.conversation.chatable_type != "JobApplication"
+      groupables = self.conversation.chatable&.groupables
       if groupables.present?
         groupables.each do |group|
           if self.userable_id != group.groupable.id

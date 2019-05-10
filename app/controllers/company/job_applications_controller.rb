@@ -160,7 +160,7 @@ class Company::JobApplicationsController < Company::BaseController
     if Conversation.between(current_user, user).present?
       @conversation = Conversation.between(current_user, user).first
     else
-      @conversation = Conversation.create!({senderable: current_user, recipientable: user})
+      @conversation = Conversation.create!({senderable: current_user, recipientable: user, chatable: @job_application})
     end
   end
 
