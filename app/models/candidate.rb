@@ -75,6 +75,7 @@ class Candidate < ApplicationRecord
   # has_many :partner_followers, through: :partner_passive_relationships, source: :partner_follower
 
   belongs_to :invited_by_user, class_name: "User", foreign_key: :invited_by_id, optional: true
+  belongs_to :associated_company, class_name: "Company", foreign_key: :company_id, optional: true
 
 
   attr_accessor :job_id , :expiry , :message , :invitation_type
@@ -204,7 +205,7 @@ class Candidate < ApplicationRecord
     )
 
     candidate_name = self.full_name
-    
+
     candidate_key = ledger.keys.query({aliases: [candidate_name]}).first
     unless candidate_key.present?
       candidate_key = ledger.keys.create(id: candidate_name)

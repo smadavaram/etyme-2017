@@ -4,7 +4,7 @@ class Company::JobApplicationsController < Company::BaseController
   before_action :find_job , only: [:create,:create_multiple_For_candidate]
   before_action :find_received_job_invitation , only: [:create]
   before_action :set_job_applications , only: [:index]
-  before_action :find_received_job_application , only: [:accept , :reject ,:interview,:hire, :short_list,:show , :share_application_with_companies]
+  before_action :find_received_job_application , only: [:accept , :reject ,:interview,:hire, :short_list,:show ,:proposal, :share_application_with_companies]
   before_action :authorized_user,only: [:accept , :reject ,:interview,:hire, :short_list,:show]
   skip_before_action :authenticate_user! , :authorized_user,only: [:share], raise: false
 
@@ -12,7 +12,10 @@ class Company::JobApplicationsController < Company::BaseController
   add_breadcrumb "JOB APPLICATIONS", :job_applications_path, options: { title: "JOBS APPLICATION" }
 
   def index
-
+    respond_to do |format|
+      format.html {}
+      format.json {render json: JobApplicationDatatable.new(params, view_context: view_context)}
+    end
   end
 
   def create
@@ -114,10 +117,21 @@ class Company::JobApplicationsController < Company::BaseController
   def show
     user = @job_application.user
     set_conversation(user)
+    # @current_user_conversations = ConversationMessage.where(conversation_id: Conversation.involving(current_user)).last(1)
+    @current_user_conversations = Conversation.involving(current_user).last(50)
     @conversation_messages = @conversation.conversation_messages.last(50)
     @unread_message_count = Conversation.joins(:conversation_messages).where("(senderable_type = ? AND senderable_id = ? ) OR (recipientable_type = ? AND recipientable_id = ?)", current_user.class.to_s, current_user.id, current_user.class.to_s, current_user.id).where.not(conversation_messages: {is_read: true, userable: current_user}).uniq.count
     @conversation_message = ConversationMessage.new
   end
+
+  def proposal
+    user = @job_application.user
+    set_conversation(user)
+    @conversation_messages = @conversation.conversation_messages.last(50)
+    @unread_message_count = Conversation.joins(:conversation_messages).where("(senderable_type = ? AND senderable_id = ? ) OR (recipientable_type = ? AND recipientable_id = ?)", current_user.class.to_s, current_user.id, current_user.class.to_s, current_user.id).where.not(conversation_messages: {is_read: true, userable: current_user}).uniq.count
+    @conversation_message = ConversationMessage.new
+  end
+
 
   def share
     @job_application = JobApplication.where(share_key: params[:id]).first
