@@ -19,8 +19,8 @@
                 Pending
       #publick-job-list
         =render 'company/public_jobs/partials/public_job_list', :@jobs => @jobs
-      -#.load-more-public-job
-      -#  =link_to "See More", company_public_jobs_path(page: @jobs.next_page), remote: true if @jobs.next_page.present?
+      .load-more-public-job
+        =link_to "See More", company_public_jobs_path(page: @jobs.next_page), remote: true if @jobs.next_page.present?
 
     #public-job-description
 
