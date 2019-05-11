@@ -11,6 +11,33 @@
     display: none;
 }
 
+.chat-content_height {
+    height: 350px !important;
+}
+
+.nav-tabs_height{
+    height: 450px !important;
+    overflow-y: scroll;
+    padding-bottom: 100px;
+}
+
+.user-fav:last-child{
+    /*margin-bottom: 100px !important;*/
+}
+
+.timed-activities_height{
+    height: 400px !important;
+    overflow-y: scroll;
+}
+
+.full-chat_height{
+    height: 650px !important;
+    /*overflow-y: scroll;*/
+}
+
+.full-chat_height{
+    height: 700px !important;
+}
 
 .no_padding_bottom {
     padding-bottom: 0px !important;

@@ -20,7 +20,7 @@
       <% end %>
     <% end %>
   </div>
-  <div class="chat-content-w chat-content-scroll">
+  <div class="chat-content-w chat-content-scroll chat-content_height" >
     <div class="chat-content" id="conversation_<%= @conversation.id if @conversation.present? %>">
       <div id="all-infinite-scrolling-msg" style="display:none"></div>
       <%= hidden_field_tag "prev_date", nil %>

@@ -46,8 +46,8 @@
         <div class="content-i">
           <div class="content-box">
             <div class="full-chat-w">
-              <div class="full-chat-i">
-                <div class="full-chat-left">
+              <div class="full-chat-i full-chat_height">
+                <div class="full-chat-left full-chat_height">
                   <div class="os-tabs-w">
                     <ul class="nav nav-tabs upper centered">
                       <li class="nav-item active">
@@ -65,7 +65,7 @@
                           <input type="text" class="form-control" placeholder="Search Company/Candidates" id="conversation-users-search">
                         </div>
                       </div>
-                      <ul class="nav flex-column nav-tabs" role="tablist" id="company-conversation-list">
+                      <ul class="nav flex-column nav-tabs nav-tabs_height" role="tablist" id="company-conversation-list">
                         <%#= render 'conversation_users', users: @companies, candidates: @candidates, groups: @groups %>
                         <%= render 'conversations_list', conversations: @conversations %>
                       </ul>
@@ -77,11 +77,10 @@
                     </div>
                   </div>
                 </div>
-                <div class="full-chat-middle" id="conversation-section">
+                <div class="full-chat-middle full-chat_height" id="conversation-section">
                   <%= render "company/conversations/job_conversation_box"%>
                 </div>
-
-                <div class="full-chat-right" id="conversation-r-section">
+                <div class="full-chat-right full-chat_height" id="conversation-r-section">
                   <%= render "company/conversations/conversation_right_side" %>
                 </div>
               </div>
