@@ -248,7 +248,6 @@ GEM
     nio4r (2.3.1)
     nokogiri (1.10.2)
       mini_portile2 (~> 2.4.0)
-    oauth (0.5.4)
     oauth2 (1.4.1)
       faraday (>= 0.8, < 0.16.0)
       jwt (>= 1.0, < 3.0)
@@ -264,11 +263,8 @@ GEM
       jwt (>= 2.0)
       omniauth (>= 1.1.1)
       omniauth-oauth2 (>= 1.5)
-    omniauth-linkedin (0.2.0)
-      omniauth-oauth (~> 1.0)
-    omniauth-oauth (1.1.0)
-      oauth
-      omniauth (~> 1.0)
+    omniauth-linkedin-oauth2 (1.0.0)
+      omniauth-oauth2
     omniauth-oauth2 (1.6.0)
       oauth2 (~> 1.1)
       omniauth (~> 1.9)
@@ -495,7 +491,7 @@ DEPENDENCIES
   omniauth
   omniauth-facebook
   omniauth-google-oauth2
-  omniauth-linkedin
+  omniauth-linkedin-oauth2
   paranoia
   pg (~> 0.18)
   popper_js (~> 1.12.9)
@@ -535,4 +531,4 @@ RUBY VERSION
    ruby 2.3.1p112
 
 BUNDLED WITH
-   1.16.4
+   1.17.3
