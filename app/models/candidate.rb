@@ -19,6 +19,7 @@ class Candidate < ApplicationRecord
   after_create  :send_welcome_email, if: Proc.new{|candidate| candidate.send_welcome_email_to_candidate.nil?}
   after_create  :normalize_candidate_entries, if: Proc.new{|candidate| candidate.signup?}
   # after_create  :set_on_seq
+  before_create :set_freelancer_company
 
   validates :email,presence: :true
   validates_uniqueness_of :email ,scope: [:status], message: "Candidate with same email already exist on the Eytme!" ,if: Proc.new{|candidate| candidate.signup?}
@@ -222,6 +223,10 @@ class Candidate < ApplicationRecord
       tags: {
       }
     ) unless la.present?
+  end
+
+  def set_freelancer_company
+    self.company_id = Company.find_by(company_type: :vendor, domain: 'freelancer.com')&.id if self.company_id.nil?
   end
 
 end
