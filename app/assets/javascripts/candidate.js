@@ -172,3 +172,15 @@
 
 // BulletTrain
 //= require_tree ./clean_admin
+
+
+// $(document).ready( function() {
+  $("input[name='candidate[designation_status]']").click(function(){
+    if($("input[name='candidate[designation_status]']:checked").val() == "Employee"){
+      $('#employee-designations').removeClass('display-none');
+    }
+    else if($("input[name='candidate[designation_status]']:checked").val() == "Freelancer"){
+      $('#employee-designations').addClass('display-none');
+    }
+  });
+// });

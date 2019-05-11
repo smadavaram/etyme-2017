@@ -236,7 +236,7 @@ class Candidate::CandidatesController < Candidate::BaseController
                                                                   :candidate_certificate_documents_attributes => [
                                                                       :id, :certificate_id, :title, :file, :exp_date, :_destroy
                                                                   ]],
-                                        clients_attributes: [:id, :name, :industry, :start_date, :end_date, :project_description, :role, :refrence_name, :refrence_phone, :refrence_email, :_destroy],
+                                        clients_attributes: [:id, :name, :industry, :start_date, :end_date, :project_description, :role, :refrence_name, :refrence_phone, :refrence_email,:refrence_two_name, :refrence_two_phone, :refrence_two_email, :_destroy],
                                         documents_attributes: [:id, :candidate_id, :title, :file, :exp_date, :is_education, :is_legal_doc, :_destroy],
                                         legal_documents_attributes: [:id, :candidate_id, :title, :file, :exp_date, :_destroy],
                                         criminal_check_attributes: [:id, :candidate_id, :state, :address, :start_date, :end_date, :_destroy],

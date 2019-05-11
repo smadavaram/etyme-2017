@@ -88,17 +88,17 @@
             </div>
             <ul>
               <li>
-                <a href="<%= onboarding_profile_path %>">
-                  <i class="icon-user-female"></i>
-                  <span>Onboarding</span>
-                </a>
-              </li>
-              <li>
                 <%= link_to "", destroy_candidate_session_path, method: :delete , class: 'hidden' , id: 'logout-hidden' %>
                 <%= link_to(destroy_candidate_session_path, title: 'Sign Out', data: {action: 'userLogout', 'logout-msg' => 'You can improve your security further after logging out by closing this opened browser'}) do %>
                   <i class="os-icon os-icon-signs-11"></i>
                   <span>Logout</span>
                 <% end %>
+              </li>
+              <li>
+                <a href="<%= onboarding_profile_path %>">
+                  <i class="icon-user-female"></i>
+                  <span>Onboarding</span>
+                </a>
               </li>
             </ul>
           </div>

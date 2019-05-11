@@ -10,42 +10,42 @@
         %div#wizard-1{:novalidate => "novalidate"}
           #bootstrap-wizard-1.col-sm-12
             .form-bootstrapWizard.mb-5
-              %ul.bootstrapWizard.form-wizard
-                %li{"data-target" => "#step1", :id=>"wiz_tab1", class: @tab.blank? ? "active" : ""}
+              %ul.bootstrapWizard.form-wizard{style: "display: flex; justify-content: space-evenly;"}
+                %li{"data-target" => "#step1", :id=>"wiz_tab1", class: @tab.blank? ? "active w-100" : "w-100"}
                   %a{"data-toggle" => "tab", :href => "#tab1"}
                     %span.step 1
-                    %span.title Veryfy Number
-                %li{"data-target" => "#step2" , :id=>"wiz_tab2", class: @tab == "verify-phone" ? "active" : ""}
+                    %span.title Veryfy Contact
+                %li{"data-target" => "#step2" , :id=>"wiz_tab2", class: @tab == "verify-phone" ? "active w-100" : "w-100"}
                   %a{"data-toggle" => "tab", :href => "#tab2"}
                     %span.step 2
                     %span.title Personal information
-                %li{"data-target" => "#step3" , :id=>"wiz_tab3", class: @tab == "basic_info" ? "active" : ""}
-                  %a{"data-toggle" => "tab", :href => "#tab3"}
-                    %span.step 3
-                    %span.title Social Media
-                %li{"data-target" => "#step4" , :id=>"wiz_tab4", class: @tab == "social" ? "active" : ""}
+                -#%li{"data-target" => "#step3" , :id=>"wiz_tab3", class: @tab == "basic_info" ? "active" : ""}
+                -#  %a{"data-toggle" => "tab", :href => "#tab3"}
+                -#    %span.step 3
+                -#    %span.title Social Media
+                %li{"data-target" => "#step4" , :id=>"wiz_tab4", class: @tab == "social" ? "active w-100" : "w-100"}
                   %a{"data-toggle" => "tab", :href => "#tab4"}
-                    %span.step 4
+                    %span.step 3
                     %span.title Update Education
-                %li{"data-target" => "#step5" , :id=>"wiz_tab5", class: @tab == "education" ? "active" : ""}
+                %li{"data-target" => "#step5" , :id=>"wiz_tab5", class: @tab == "education" ? "active w-100" : "w-100"}
                   %a{"data-toggle" => "tab", :href => "#tab5"}
-                    %span.step 5
-                    %span.title Update Skills
-                %li{"data-target" => "#step6" , :id=>"wiz_tab6", class: @tab == "skill" ? "active" : ""}
-                  %a{"data-toggle" => "tab", :href => "#tab6"}
-                    %span.step 6
+                    %span.step 4
                     %span.title Client Information
-                %li{"data-target" => "#step7" , :id=>"wiz_tab7", class: @tab == "client" ? "active" : ""}
+                -#%li{"data-target" => "#step6" , :id=>"wiz_tab6", class: @tab == "skill" ? "active" : ""}
+                -#  %a{"data-toggle" => "tab", :href => "#tab6"}
+                -#    %span.step 6
+                -#    %span.title Client Information
+                %li{"data-target" => "#step7" , :id=>"wiz_tab7", class: @tab == "client" ? "active w-100" : "w-100"}
                   %a{"data-toggle" => "tab", :href => "#tab7"}
-                    %span.step 7
+                    %span.step 5
                     %span.title Employer Information
-                %li{"data-target" => "#step8" , :id=>"wiz_tab8", class: @tab == "designate" ? "active" : ""}
-                  %a{"data-toggle" => "tab", :href => "#tab8"}
-                    %span.step 8
-                    %span.title Background Check
-                %li{"data-target" => "#step9" , :id=>"wiz_tab9", class: @tab == "submit_doc" ? "active" : ""}
+                -#%li{"data-target" => "#step8" , :id=>"wiz_tab8", class: @tab == "designate" ? "active" : ""}
+                -#  %a{"data-toggle" => "tab", :href => "#tab8"}
+                -#    %span.step 6
+                -#    %span.title Background Check
+                %li{"data-target" => "#step9" , :id=>"wiz_tab9", class: @tab == "submit_doc" ? "active w-100" : "w-100"}
                   %a{"data-toggle" => "tab", :href => "#tab9"}
-                    %span.step 9
+                    %span.step 6
                     %span.title Save Form
               .clearfix
             .tab-content
@@ -72,7 +72,11 @@
                         .form-group
                           .input-group
                             %a.btn.btn-primary.btn-lg{:href => "javascript:void(0);", :onclick => "smsLogin();"} Send OTP
-
+                %h5.element-header
+                  Social Media
+                .row
+                  .col-sm-12.col-md-12.col-lg-12#social-form
+                    =render partial: 'candidate/candidates/partials/social_form'
               #tab2.tab-pane{class: @tab == "verify-phone" ? "active" : "" }
                 %br/
                 %h4.element-header
@@ -135,14 +139,16 @@
                 .row{style: "padding: 15px;"}
                 #basic-info-form
                   =render partial: 'candidate/candidates/partials/basic_info_form' #,locals: {candidate: current_candidate}
-
+                .row
+                  .col-sm-12.col-md-12.col-lg-12#submit-doc-form
+                    = render partial: 'candidate/candidates/partials/submit_doc_form'
               #tab3.tab-pane{class: @tab == "basic_info" ? "active" : "" }
                 %br/
                 %h5.element-header
                   Social Media
                 .row
-                  .col-sm-12.col-md-12.col-lg-12#social-form
-                    =render partial: 'candidate/candidates/partials/social_form'
+                  -#.col-sm-12.col-md-12.col-lg-12#social-form
+                  -#  =render partial: 'candidate/candidates/partials/social_form'
 
               #tab4.tab-pane{class: @tab == "social" ? "active" : "" }
                 %br/
@@ -159,7 +165,6 @@
                 .row
                   .col-sm-12.col-md-12.col-lg-12#skill-form
                     = render partial: 'candidate/candidates/partials/skill_form'
-
               #tab6.tab-pane{class: @tab == "skill" ? "active" : "" }
                 %br/
                 %h4.element-header
@@ -176,11 +181,11 @@
                   .col-sm-12.col-md-12.col-lg-12#designate-form
                     = render partial: 'candidate/candidates/partials/designate_form'
 
-              #tab8.tab-pane{class: @tab == "designate" ? "active" : "" }
-                %br/
-                .row
-                  .col-sm-12.col-md-12.col-lg-12#submit-doc-form
-                    = render partial: 'candidate/candidates/partials/submit_doc_form'
+              -##tab8.tab-pane{class: @tab == "designate" ? "active" : "" }
+              -#  %br/
+                -#.row
+                -#  .col-sm-12.col-md-12.col-lg-12#submit-doc-form
+                -#    = render partial: 'candidate/candidates/partials/submit_doc_form'
 
               #tab9.tab-pane{class: @tab == "submit_doc" ? "active" : "" }
                 %br/
