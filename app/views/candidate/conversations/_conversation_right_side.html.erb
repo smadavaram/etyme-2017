@@ -3,7 +3,7 @@
     <div class="chat-info-section p-0 pb-3">
       <div class="ci-header">
         <i class="icon-people"></i><span>Chat Member</span>
-        <a href="#" class ="add-to-conversation ml-2" data-conid=<%= @conversation.id %> data-cid=<%= user.id %> data-ctype=<%= user.class.to_s %> > <i class="fa fa-plus"></i></a>
+<!--        <a href="#" class ="add-to-conversation ml-2" data-conid=<%#= @conversation.id %> data-cid=<%#= user.id %> data-ctype=<%#= user.class.to_s %> > <i class="fa fa-plus"></i></a>-->
       </div>
       <div class="group-member">
         <% if @conversation.chatable_type == "Group" %>
@@ -37,7 +37,7 @@
     </div>
     <div class="chat-info-section p-0 pt-4">
       <div class="ci-header">
-        <i class="os-icon os-icon-documents-03"></i><span>Acticity log</span>
+        <i class="os-icon os-icon-documents-03"></i><span>Activity log</span>
       </div>
       <div class="timed-activities compact pt-3">
         <div class="timed-activity">
