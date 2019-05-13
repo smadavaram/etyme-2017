@@ -19,20 +19,18 @@
                 %path.decor-path{:d => "M1223,362 L1223,581 L381,581 C868.912802,575.666667 1149.57947,502.666667 1223,362 Z"}
           .up-controls
             .row
-              .col-sm-6
-                = link_to candidate_conversations_path, class: "btn btn-primary btn-sm" do
-                  %i.ti-email
-                  %span Contact Me
+              .col-sm-6{style: "display: flex;justify-content: space-evenly;"}
+                = contact_widget(current_candidate.email,current_candidate.phone)
               .col-sm-6.text-right
                 - if current_candidate.candidates_resumes.present?
                   -#%a.btn.btn-primary.btn-sm{:href => ""}
                   = link_to current_candidate.candidates_resumes.primary_resume.resume, class: "btn btn-primary btn-sm", target: "_blank" do
                     %i.os-icon.os-icon-arrow-down6
-                    %span Download Resume
+                    %span Resume
                 - else
                   %a.btn.btn-primary.btn-sm{:href => "/onboarding_profile?tag=verify-phone"}
                     %i.os-icon.os-icon-arrow-up6
-                    %span Upload Resume
+                    %span Resume
 
           .up-contents
             .m-b
@@ -55,14 +53,15 @@
                     .bar-label-left
                       %span Email
                     .bar-label-right
-                      %span.text-success verified
+                      %span.text-success
+                        = is_verify(!!current_candidate.confirmed_at)
                 .os-progress-bar.primary
                   .bar-labels
                     .bar-label-left
                       %span Phone
                     .bar-label-right
                       %span.text-success
-                        =current_candidate.is_number_verify ? 'verified' : 'unverified'
+                        = is_verify(current_candidate.is_number_verify)
                 .os-progress-bar.primary
                   .bar-labels
                     .bar-label-left

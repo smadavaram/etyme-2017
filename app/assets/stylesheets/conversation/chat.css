@@ -226,3 +226,12 @@
 .chatboxtitle {
     float: left;
 }
+
+.candidate-icon_widget > a {
+    margin-left: 10px;
+    color: #666666;
+}
+
+.candidate-icon_widget > a:hover {
+    color: #666666;
+}

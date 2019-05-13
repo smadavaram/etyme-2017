@@ -30,23 +30,20 @@
 
 
 
-<div class="chat_box" data-conversation-id="<%= @conversation.id if @conversation.present?%>" id="conversation-chat-box">
-  <div class="chat-head">
-    <div class="user-info">
+<div class="chat_box"  data-conversation-id="<%= @conversation.id if @conversation.present?%>" id="conversation-chat-box">
+  <div class="chat-head" style="flex-direction: column; align-items: stretch;">
+    <div class="flex-row w-100" style="justify-content: space-between;">
       <% opt_obj = @conversation.chatable_type == "Group" ? @conversation.chatable : (@conversation.senderable == current_candidate ? @conversation.recipientable : @conversation.senderable) if @conversation.present? %>
-      <span>To:</span><a href="#"><%= opt_obj.full_name if opt_obj.present? %></a>
-      <small class="d-block"><span>Job : </span><span> I need ROR developer </span></small>
-    </div>
-    <% if @conversation.present? %>
-        <div class="user-actions">
-          <!--<a href="#" class ="add-to-conversation" data-cid=<%= opt_obj.id %> data-ctype=<%= opt_obj.class.to_s %> > <i class="fa fa-plus"></i></a>-->
-          <a title="View" href="#"><i class="icon-feather-maximize-2"></i></a>
-          <a title="Email Id" href="#"><i class="os-icon os-icon-email-2-at2"></i></a>
-          <a title="Phone Number" href="#"><i class="os-icon os-icon-phone "></i></a>
-          <a title="Add meeting" href="#"><i class="os-icon os-icon-calendar"></i></a>
+      <div>
+        <span>To:</span>
+        <a class="d-inline" href="#"><%= opt_obj.full_name if opt_obj.present? %></a>
+      </div>
+      <% if @conversation.present? %>
+        <div class="candidate-icon_widget">
+          <%= contact_widget(current_candidate.email,current_candidate.phone) %>
         </div>
-    <% end %>
-
+      <% end %>
+    </div>
   </div>
 
   <div class="chat-content-w chat-content-scroll">

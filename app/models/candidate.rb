@@ -4,6 +4,8 @@ class Candidate < ApplicationRecord
   devise :invitable, :database_authenticatable, :registerable,
          :recoverable, :rememberable, :trackable, :confirmable
 
+  has_paper_trail only: [:address]
+
   include PublicActivity::Model
 
   enum status: [:signup, :campany_candidate]

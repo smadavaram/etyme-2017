@@ -9,11 +9,25 @@
       %label Last Name
       .form-group
         = f.text_field :last_name  ,:placeholder => "Enter last Name",class:'form-control input'
-  .row
     .col-sm-12
       %label Address
       .form-group
         = f.text_field :address, :placeholder => "Enter Address", class:'form-control p-location input'
+
+    .col-sm-12
+      %label Previous Address
+      .timed-activities.pl-3
+        .timed-activity.d-block
+          -current_candidate.versions&.reverse_each do |version|
+            .ta-record
+              %label.mr-3.text-muted.pl-2
+                =version.created_at.strftime("%Y-%m-%d")
+              .small.text-muted
+                =version.reify.address
+
+
+
+
 
   -#.candidate-association
   -#  =f.fields_for :addresses do |custom_field|
