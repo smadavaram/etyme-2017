@@ -27,7 +27,7 @@
                   %a{"data-toggle" => "tab", :href => "#tab4"}
                     %span.step 3
                     %span.title Update Education
-                %li{"data-target" => "#step5" , :id=>"wiz_tab5", class: @tab == "education" ? "active w-100" : "w-100"}
+                %li{"data-target" => "#step5" , :id=>"wiz_tab5", class: @tab == "skill" ? "active w-100" : "w-100"}
                   %a{"data-toggle" => "tab", :href => "#tab5"}
                     %span.step 4
                     %span.title Client Information
@@ -35,7 +35,7 @@
                 -#  %a{"data-toggle" => "tab", :href => "#tab6"}
                 -#    %span.step 6
                 -#    %span.title Client Information
-                %li{"data-target" => "#step7" , :id=>"wiz_tab7", class: @tab == "client" ? "active w-100" : "w-100"}
+                %li{"data-target" => "#step7" , :id=>"wiz_tab7", class: @tab == "designate" ? "active w-100" : "w-100"}
                   %a{"data-toggle" => "tab", :href => "#tab7"}
                     %span.step 5
                     %span.title Employer Information
@@ -173,7 +173,7 @@
                   .col-sm-12.col-md-12.col-lg-12#client-form
                     = render partial: 'candidate/candidates/partials/client_form'
 
-              #tab7.tab-pane{class: @tab == "client" ? "active" : "" }
+              #tab7.tab-pane{class: @tab == "designate" ? "active" : "" }
                 %br/
                 %h4.element-header
                   Employer Information
