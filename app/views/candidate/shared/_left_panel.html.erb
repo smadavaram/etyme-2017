@@ -8,11 +8,19 @@
   <div class="logged-user-w avatar-inline">
     <div class="logged-user-i">
       <div class="avatar-w">
-        <%= link_to image_tag(current_candidate.associated_company.photo, alt: 'me'), '#' %>
+        <% if current_candidate.associated_company %>
+          <%= link_to image_tag(current_candidate.associated_company.photo, alt: 'me'), '#' %>
+        <% else %>
+          <%= image_tag 'default_logo.png' %>
+        <% end %>
       </div>
       <div class="logged-user-info-w">
         <div class="logged-user-name">
-          <%= link_to current_candidate.associated_company.name, '#', class: "text-muted" %>
+          <% if current_candidate.associated_company %>
+            <%= link_to current_candidate.associated_company.name, '#', class: "text-muted" %>
+          <% else %>
+            <a href="#" class="text-muted"> freelancer</a>
+          <% end %>
         </div>
         <!--div class="logged-user-role">My Team</div-->
       </div>

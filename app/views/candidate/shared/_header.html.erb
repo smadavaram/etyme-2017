@@ -80,15 +80,17 @@
       <div class="logged-user-w" style="padding-left: 0px; padding-right: 0px;">
         <div class="logged-user-i">
           <div class="avatar-w">
-            <%= image_tag "avatars/m_sunny_big.png" %>
+            <%= link_to my_profile_path do %>
+              <%= image_tag current_candidate.photo %>
+            <% end %>
           </div>
           <div class="os-dropdown">
             <div class="icon-w">
               <i class="os-icon os-icon-ui-46"></i>
             </div>
+            <%= link_to "", destroy_candidate_session_path, method: :delete , class: 'hidden' , id: 'logout-hidden' %>
             <ul>
               <li>
-                <%= link_to "", destroy_candidate_session_path, method: :delete , class: 'hidden' , id: 'logout-hidden' %>
                 <%= link_to(destroy_candidate_session_path, title: 'Sign Out', data: {action: 'userLogout', 'logout-msg' => 'You can improve your security further after logging out by closing this opened browser'}) do %>
                   <i class="os-icon os-icon-signs-11"></i>
                   <span>Logout</span>
