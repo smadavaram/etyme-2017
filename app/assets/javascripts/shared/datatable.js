@@ -113,11 +113,11 @@ $(document).ready(function () {
       }
     },
       {
-        'targets': 1,
+        'targets': [1,2],
         searchable: true,
         orderable: true,
         'createdCell': function (td, cellData, rowData, row, col) {
-          $(td).addClass('text-left');
+          $(td).addClass('text-left no-wrap');
         }
       }
     ],
@@ -126,7 +126,13 @@ $(document).ready(function () {
       {
         data: "id"
       },
+      {data: "company"},
       {data: "name"},
+      {
+        data: "recruiter",
+        searchable: false,
+        orderable: false
+      },
       {
         data: "contact",
         searchable: false,
