@@ -72,6 +72,19 @@
                         .form-group
                           .input-group
                             %a.btn.btn-primary.btn-lg{:href => "javascript:void(0);", :onclick => "smsLogin();"} Send OTP
+                %h4.element-header
+                  Verify Email
+                .row
+                  .col-sm-12
+                    .col-sm-4
+                      .os-progress-bar.primary.font-size-email
+                        .bar-labels
+                          .bar-label-left
+                            %span
+                              =current_candidate.email
+                          .bar-label-right
+                            %span.text-success
+                              = is_verify(!!current_candidate.confirmed_at)
                 %h5.element-header
                   Social Media
                 .row
@@ -361,7 +374,7 @@
        success: function (data) {
         $('.img_pic').removeClass('hidden').attr("src",photo_url);
         $('.img_pic_r').remove();
-        // location.reload();
+        location.reload();
        }
      });
     }
