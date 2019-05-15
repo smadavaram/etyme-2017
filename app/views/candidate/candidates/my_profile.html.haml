@@ -9,7 +9,7 @@
                 %i.os-icon.os-icon-twitter
               %a{:href => current_candidate.facebook_url, target: "_blank"}
                 %i.os-icon.os-icon-facebook
-            = link_to profile_path, class: 'profile--link' do
+            = link_to '/onboarding_profile?tag=verify-phone', class: 'profile--link' do
               .up-main-info
                 %h2.up-header
                   = current_candidate.full_name

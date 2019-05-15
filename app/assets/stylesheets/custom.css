@@ -122,3 +122,12 @@ label.required:after {
 .disable_header.element-header:after {
     width: 0 !important;
 }
+.font-size-email .bar-labels .bar-label-left span
+{
+    font-size: 16px;
+}
+
+.font-size-email .bar-labels .bar-label-right span
+{
+    font-size: 16px;
+}
