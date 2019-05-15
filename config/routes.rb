@@ -183,6 +183,11 @@ Rails.application.routes.draw do
       get :submitted_client_expenses, on: :collection
       get :approve_client_expense, on: :collection
     end
+    resources :designations, only: [] do
+      member do
+        get :accept
+      end
+    end
   end
 
 
