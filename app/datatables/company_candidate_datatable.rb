@@ -1,6 +1,8 @@
 class CompanyCandidateDatatable < ApplicationDatatable
   def_delegator :@view, :is_hot?
+  def_delegator :@view, :profile_company_path
   def_delegator :@view, :candidate_make_hot_path
+  def_delegator :@view, :bench_info_candidate_path
   def_delegator :@view, :candidate_make_normal_path
   def_delegator :@view, :candidate_add_reminder_path
   def_delegator :@view, :edit_company_candidate_path
@@ -12,6 +14,7 @@ class CompanyCandidateDatatable < ApplicationDatatable
     @view_columns ||= {
         id: {source: "Candidate.id"},
         name: {source: "Candidate.first_name"},
+        company: {source: "Company.name"},
         first_name: {source: "Candidate.first_name"},
         title: {source: "Candidate.title"},
         contact: {source: "Candidate.phone"}
@@ -22,7 +25,9 @@ class CompanyCandidateDatatable < ApplicationDatatable
     records.map do |record|
       {
           id: record.id,
+          company: company_profile(record),
           name: candidate_profile(record),
+          recruiter: get_recruiter_email(record),
           contact: contact_icon(record),
           status: ban_unban_link(record),
           reminder_note: reminder_note(record),
@@ -31,6 +36,14 @@ class CompanyCandidateDatatable < ApplicationDatatable
     end
   end
 
+  def get_recruiter_email(record)
+    do_ellipsis(record.associated_company.owner ? record.associated_company.owner.email : record.email, 15)
+  end
+
+  def company_profile(record)
+    image_tag(record.associated_company.photo, class: 'data-table-image mr-1').html_safe +
+        link_to(do_ellipsis(record.associated_company.name), profile_company_path(record.associated_company), class: 'data-table-font')
+  end
 
   def candidate_profile user
     image_tag(user.photo, class: 'data-table-image mr-1').html_safe +
@@ -38,11 +51,12 @@ class CompanyCandidateDatatable < ApplicationDatatable
   end
 
   def get_raw_records
-    current_company.candidates.includes(:companies, :candidates_companies)
+    current_company.candidates.includes(:companies, :candidates_companies).joins(:associated_company)
   end
 
   def contact_icon record
-    contact_widget(record.email, record.phone)
+    link_to(content_tag(:i, nil, class: 'fa fa-ellipsis-h').html_safe, bench_info_candidate_path(record), remote: true, method: :get, title: 'Show Bench Detail', class: 'data-table-icons') +
+        contact_widget(record.email, record.phone)
   end
 
   def ban_unban_link(record)
@@ -68,7 +82,7 @@ class CompanyCandidateDatatable < ApplicationDatatable
 
   def get_edit_link(record)
     unless record.confirmed_at.nil?
-      link_to(content_tag(:i, nil, class: 'fa fa-edit').html_safe, '#' , title: "Cannot Edit #{record.full_name}", class: 'data-table-icons')
+      link_to(content_tag(:i, nil, class: 'fa fa-edit').html_safe, '#', title: "Cannot Edit #{record.full_name}", class: 'data-table-icons')
     else
       link_to(content_tag(:i, nil, class: 'fa fa-edit').html_safe, edit_company_candidate_path(record), title: "Edit #{record.full_name}", class: 'data-table-icons')
     end

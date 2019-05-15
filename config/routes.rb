@@ -400,7 +400,7 @@ Rails.application.routes.draw do
       # end
     end
     resources :job_invitations, concerns: :paginatable, only: [:index, :show]
-    resources :candidates, concerns: :paginatable, only: :index do
+    resources :candidates, concerns: :paginatable, only: [:index] do
       match :manage_groups, via: [:get, :patch]
       post :make_hot
       post :make_normal
@@ -408,6 +408,9 @@ Rails.application.routes.draw do
       get :assign_status
       post :create_chat
       post :remove_from_comapny
+      member do
+        get :bench_info, as: :bench_info
+      end
       collection do
         get :share_candidates, as: :share_hot_candidates
       end

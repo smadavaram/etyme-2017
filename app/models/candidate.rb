@@ -110,7 +110,7 @@ class Candidate < ApplicationRecord
 
   validate :max_skill_size
   def max_skill_size
-    errors[:skill_list] << "8 skills maximum" if skill_list.count > 10
+    errors[:skill_list] << "8 skills maximum" if skill_list.count > 8
   end
 
   def etyme_url
