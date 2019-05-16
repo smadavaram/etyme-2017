@@ -1,0 +1,48 @@
+<% notifications&.each do |notification| %>
+  <div class="support-ticket" id=<%= notification.id %>>
+    <div class="st-meta">
+      <div class="badge badge-warning-inverted">Restaurants</div>
+      <i class="os-icon os-icon-ui-09"></i>
+      <div class="status-pill yellow"></div>
+    </div>
+    <div class="st-body">
+      <div class="avatar"><img alt="" src="img/avatar3.jpg"></div>
+      <div class="ticket-content"><h6 class="ticket-title">
+        <%= notification.title %>
+      </h6>
+        <div class="ticket-description">I have enabled the software for you, you can try now...</div>
+      </div>
+    </div>
+    <div class="st-foot">
+      <span class="label">Agent:</span>
+      <a class="value with-avatar" href="#">
+        <img alt="" src="img/avatar1.jpg">
+        <span>John Mayers</span>
+      </a>
+      <span class="label">Created:</span>
+      <span class="value">
+        <%= notification.created_at.to_formatted_s(:long) %>
+      </span>
+    </div>
+  </div>
+<% end %>
+
+
+<% content_for :scripts do %>
+  <script>
+    $.ajax({
+      url: "/company/users/notification/<%= notifications.first.id %>",
+      type: "GET",
+      dataType: "script"
+    });
+    $('.support-ticket').on('click', function () {
+      $('.support-index').addClass('show-ticket-content');
+      $.ajax({
+        url: `/company/users/notification/${$(this).attr("id")}`,
+        type: "GET",
+        dataType: "script"
+      });
+      return false;
+    });
+  </script>
+<% end %>

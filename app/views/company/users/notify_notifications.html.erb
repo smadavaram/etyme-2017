@@ -1,0 +1,21 @@
+<div class="content-w">
+  <div class="content-i">
+    <div class="content-box">
+      <div class="support-index">
+        <div class="support-tickets">
+          <!--          <div class="support-tickets-header">-->
+          <!--            <div class="tickets-control"><h5>Notifications</h5>-->
+          <!--              <div class="element-search"><input placeholder="Type to filter tickets..." type="text"></div>-->
+          <!--            </div>-->
+          <!--          </div>-->
+          <%= render 'company/users/partials/notifications_cards', notifications: @notifications %>
+          <div class="m-4">
+            <%= will_paginate @notifications %>
+          </div>
+        </div>
+        <div class="support-ticket-content-w">
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

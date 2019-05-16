@@ -131,3 +131,10 @@ label.required:after {
 {
     font-size: 16px;
 }
+
+.pagination{
+    justify-content: space-evenly;
+}
+.disabled{
+    color: #dddddd;
+}

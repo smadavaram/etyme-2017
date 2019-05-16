@@ -93,7 +93,12 @@ class Company::UsersController < Company::BaseController
   end
 
   def notify_notifications
-    @notifications = current_user.notifications || []
+    add_breadcrumb "NOTIFICATIONS", notify_notifications_company_users_path(current_user.id)
+    @notifications = current_user.notifications.page(params[:page]).per_page(10)
+  end
+
+  def notification
+    @notification = current_user.notifications.find_by(id: params[:id])
   end
 
   def current_status

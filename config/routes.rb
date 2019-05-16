@@ -234,7 +234,7 @@ Rails.application.routes.draw do
       post :update_video
       collection do
         get :notify_notifications
-
+        get "notification/:id", to: 'users#notification', as: "get_notification"
       end
     end
 
