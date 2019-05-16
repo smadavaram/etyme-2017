@@ -12,7 +12,7 @@
         </div>
       <% end %>
     </div>
-    <% if @conversation.chatable_type == "JobApplication" %>
+    <% if @conversation&.chatable_type == "JobApplication" %>
       <% unless @job_application %>
         <div id="job_application_links">
           <%= render 'company/job_applications/partials/collapse_able_job_application', job_application: @conversation.chatable %>
@@ -43,7 +43,7 @@
     <% end if @conversation.present? %>
   </div>
 </div>
-<% if @conversation.chatable_type == "JobApplication" %>
+<% if @conversation&.chatable_type == "JobApplication" %>
   <div id="job_application_status_links">
     <%= render 'company/job_applications/partials/job_status_links', btn_size_class: 'btn-sm', app: @conversation.chatable %>
   </div>
@@ -63,7 +63,7 @@
         type: "GET",
         dataType: "script",
         success: function (data) {
-          $("#conversation_<%=@conversation.id||0 %>").parent().scrollTop($("#conversation_<%=@conversation.id||0 %>").parent()[0].scrollHeight);
+          $("#conversation_<%=@conversation&.id||0 %>").parent().scrollTop($("#conversation_<%=@conversation&.id||0 %>").parent()[0].scrollHeight);
         }
       });
     });
