@@ -45,7 +45,7 @@
 </div>
 <% if @conversation.chatable_type == "JobApplication" %>
   <div id="job_application_status_links">
-    <%= render 'company/job_applications/partials/job_status_links', btn_size_class: 'btn-sm', app: @conversation.chatable, conversation: @conversation %>
+    <%= render 'company/job_applications/partials/job_status_links', btn_size_class: 'btn-sm', app: @conversation.chatable%>
   </div>
 <% end %>
 
