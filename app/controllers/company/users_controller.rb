@@ -94,7 +94,6 @@ class Company::UsersController < Company::BaseController
 
   def notify_notifications
     @notifications = current_user.notifications || []
-    render layout: false
   end
 
   def current_status
