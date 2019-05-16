@@ -54,8 +54,9 @@ class Company::JobApplicationsController < Company::BaseController
 
   def reject
     respond_to do |format|
-      if @job_application.hire
+      if !@job_application.hired?
         if @job_application.rejected!
+          create_conversation_message
           format.html{ flash[:success] = "Successfully Rejected." }
         else
           format.html{ flash[:errors] =  @job_application.errors.full_messages }
@@ -70,6 +71,7 @@ class Company::JobApplicationsController < Company::BaseController
   def short_list
     if @job_application.pending_review?
       if @job_application.short_listed!
+        create_conversation_message
          flash[:success] = "Successfully ShortListed."
       else
          flash[:errors] =  @job_application.errors.full_messages
@@ -83,6 +85,7 @@ class Company::JobApplicationsController < Company::BaseController
     respond_to do |format|
       if @job_application.short_listed?
         if @job_application.interviewing!
+          create_conversation_message
           format.html{ flash[:success] = "Successfully Interviewed." }
         else
           format.html{ flash[:errors] =  @job_application.errors.full_messages }
@@ -98,6 +101,7 @@ class Company::JobApplicationsController < Company::BaseController
     respond_to do |format|
       if @job_application.interviewing?
         if @job_application.hired!
+          create_conversation_message
           format.html{ flash[:success] = "Successfully Hired." }
         else
           format.html{ flash[:errors] =  @job_application.errors.full_messages }
@@ -196,6 +200,12 @@ class Company::JobApplicationsController < Company::BaseController
                                                             :name,
                                                             :value
                                                         ]])
+  end
+
+  def create_conversation_message
+    @conversation = @job_application.conversations.find_by(id: params[:conversation_id])
+    body = @job_application.applicationable.full_name+" has #{@job_application.status.humanize} <a href='http://#{@job_application.job.created_by.company.etyme_url + job_application_path(@job_application)}'> on your Job </a>#{@job_application.job.title}"
+    current_user.conversation_messages.create(conversation_id: @conversation.id, body: body)
   end
 
 

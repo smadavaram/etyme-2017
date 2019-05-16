@@ -21,7 +21,7 @@
   <div class="chat-message self">
     <div class="chat-message-content-w">
       <div class="chat-message-content">
-        <%= msg.body %>
+        <%= msg.body.html_safe %>
       </div>
     </div>
     <div class="chat-message-date">
