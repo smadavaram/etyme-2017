@@ -1,3 +1,4 @@
+<% user = @conversation.chatable_type == "Group" ? @conversation.chatable :  (@conversation.senderable == current_user ? @conversation.recipientable : @conversation.senderable) %>
 <div class="row mt-4 ml-2 mr-2" id="collapsible_job_application">
   <div class="col-sm-12">
     <div class="element-wrapper pb-0">
@@ -42,3 +43,21 @@
     </div>
   </div>
 </div>
+<%= content_for :body_class do %>
+  <%= content_for :modals do %>
+    <div id="candidate"></div>
+  <% end %>
+<% end %>
+
+<% content_for :scripts do %>
+  <script>
+    $(document).ready(function () {
+      $('.prescreen').on('click', function () {
+        $.ajax({
+          url: "/company/candidates/<%= user.id %>?conversation_id=<%= @conversation.id %>",
+          type: "GET"
+        });
+      })
+    });
+  </script>
+<% end %>

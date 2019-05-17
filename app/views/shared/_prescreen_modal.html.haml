@@ -1,0 +1,85 @@
+.modal{ id: "show-candidate-#{candidate.id}"}
+  .modal-dialog.modal-lg
+    .modal-content
+      .modal-header
+        %button.close{"aria-hidden" => "true", "data-dismiss" => "modal", :type => "button"}
+          ×
+      .modal-body
+        .element-wrapper
+          .element-box
+            %h4.element-header
+              Personal information
+            .element-info.border-0
+              .element-info-text
+                .mb-2.display-block
+                  %h6.element-inner-header.m-0
+                    Name
+                  .element-inner-desc
+                    ="#{candidate.first_name} #{candidate.last_name}"
+                -if candidate.location.present?
+                  .mb-2.display-block
+                    %h6.element-inner-header.m-0
+                      Location
+                    .element-inner-desc
+                      =candidate.location
+                -if candidate.address.present?
+                  .mb-2.display-block
+                    %h6.element-inner-header.m-0
+                      Address
+                    .element-inner-desc
+                      =candidate.address
+        .element-wrapper
+          .element-box
+            %h4.element-header
+              Education
+            .element-info.border-0
+              .element-info-text.parent--flex
+                - candidate.educations.each do |edu|
+                  .mb-2.add-flex
+                    %h6.element-inner-header.m-0
+                      =edu.degree_level
+                    .element-inner-desc
+                      =edu.degree_title
+          .element-box
+            %h4.element-header
+              Visa
+            .element-info.border-0
+              .element-info-text.parent--flex
+                - candidate.visas.each do |visa|
+                  .mb-2.add-flex
+                    %h6.element-inner-header.m-0
+                      Expiry Date
+                    .element-inner-desc
+                      =visa.exp_date
+                    %h6.element-inner-header.m-0
+                      Status
+                    .element-inner-desc
+                      =visa.status
+                    %h6.element-inner-header.m-0
+                      = link_to 'File', visa.file
+          .element-box
+            %h4.element-header
+              Clients
+            .element-info.border-0
+              .element-info-text
+                - candidate.clients.each do |client|
+                  .mb-2.display-block
+                    %h6.element-inner-header.m-0
+                      Client Name
+                    .element-inner-desc
+                      =client.name
+                    %h6.element-inner-header.m-0
+                      reference one name
+                    .element-inner-desc
+                      =client.refrence_name
+                    %h6.element-inner-header.m-0
+                      reference one email
+                    .element-inner-desc
+                      =client.refrence_email
+
+
+        .modal-footer
+          = link_to('Accept', prescreen_job_application_path(conversation.chatable, conversation_id: conversation.id), method: :post, class: "btn btn-md  btn-primary mt-12 margin-right-5 #{conversation.chatable.rejected? || conversation.chatable.hired? || conversation.chatable.prescreen? ? 'disabled' : "" }")
+          = link_to('Reject', reject_job_application_path(conversation.chatable, conversation_id: conversation.id), method: :post, class: "btn btn-md  btn-primary mt-12 margin-right-5")
+
+

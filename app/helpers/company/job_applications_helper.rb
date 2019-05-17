@@ -3,6 +3,7 @@ module Company::JobApplicationsHelper
     # status: [ :pending_review ,:rejected , :short_listed,:interviewing,:hired ]
     if  app.job.company == current_company && has_permission?('manage_job_applications')
       btn = ""
+      btn += "<button type='button' class='btn #{btn_size_class}  btn-primary mt-12 margin-right-5 #{!app.pending_review? ? 'disabled' : ""} prescreen' data-toggle='modal' data-target='.bd-example-modal-lg'>Pre Screen</button>"
       btn += link_to 'Short list' ,short_list_job_application_path(app, conversation_id: @conversation.id) , method: :post   ,  class: "btn #{btn_size_class}  btn-primary mt-12 margin-right-5 #{!app.pending_review? ? 'disabled' : "" }"
       btn += link_to 'Reject' , reject_job_application_path(app, conversation_id: @conversation.id), method: :post  , class: "btn #{btn_size_class}  btn-primary mt-12 margin-right-5 #{app.hired? || app.contract.present? || app.rejected? ? 'disabled' : "" }"
       btn += link_to 'Interview' , interview_job_application_path(app, conversation_id: @conversation.id) , method: :post  , class: "btn #{btn_size_class}  btn-primary mt-12 margin-right-5 #{!app.short_listed? ? 'disabled' : "" }"
@@ -17,3 +18,5 @@ module Company::JobApplicationsHelper
   end
 
 end
+
+

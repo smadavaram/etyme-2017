@@ -4,7 +4,7 @@ class Company::JobApplicationsController < Company::BaseController
   before_action :find_job , only: [:create,:create_multiple_For_candidate]
   before_action :find_received_job_invitation , only: [:create]
   before_action :set_job_applications , only: [:index]
-  before_action :find_received_job_application , only: [:accept , :reject ,:interview,:hire, :short_list,:show ,:proposal, :share_application_with_companies]
+  before_action :find_received_job_application , only: [:prescreen, :accept , :reject ,:interview,:hire, :short_list,:show ,:proposal, :share_application_with_companies]
   before_action :authorized_user,only: [:accept , :reject ,:interview,:hire, :short_list,:show]
   skip_before_action :authenticate_user! , :authorized_user,only: [:share], raise: false
 
@@ -68,8 +68,18 @@ class Company::JobApplicationsController < Company::BaseController
     redirect_back fallback_location: root_path
   end
 
+  def prescreen
+      if @job_application.prescreen!
+        create_conversation_message
+        flash[:success] = "Successfully Prescreen."
+      else
+        flash[:errors] =  @job_application.errors.full_messages
+      end
+    redirect_back fallback_location: root_path
+  end
+
   def short_list
-    if @job_application.pending_review?
+    if @job_application.prescreen?
       if @job_application.short_listed!
         create_conversation_message
          flash[:success] = "Successfully ShortListed."

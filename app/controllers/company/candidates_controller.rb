@@ -2,6 +2,7 @@ class Company::CandidatesController < Company::BaseController
   # add_breadcrumb "CANDIDATE", :candidate_path, options: { title: "CANDIDATE" }
   before_action :find_candidate, only: [:edit, :update, :add_reminder, :assign_status, :bench_info]
   before_action :find_signup_candidate, only: [:create_chat]
+  before_action :get_conversation, only: :show
   add_breadcrumb "Company", :dashboard_path
   add_breadcrumb "Candidates", :company_candidates_path
 
@@ -17,6 +18,10 @@ class Company::CandidatesController < Company::BaseController
   def new
     add_breadcrumb "New", "#"
     @candidate = Candidate.new
+  end
+
+  def show
+    @candidate = Candidate.find_by(id: params[:id])
   end
 
   def bench_info
@@ -284,5 +289,8 @@ class Company::CandidatesController < Company::BaseController
     )
   end
 
+  def get_conversation
+    @conversation = Conversation.find_by(id: params[:conversation_id])
+  end
 
 end
