@@ -221,7 +221,11 @@ Rails.application.routes.draw do
 
     get 'companies/edit'
     resources :users, only: [:show, :update, :destroy] do
-
+      resources :notifications do
+        member do
+          get 'read'
+        end
+      end
       collection do
         get 'current_status'
         get 'status_update'

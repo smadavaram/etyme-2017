@@ -4,15 +4,15 @@
     <a class="show-ticket-info" href="#"><span>Show Details</span><i class="os-icon os-icon-documents-03"></i></a>
   </div>
   <div class="ticket-thread">
-    <div class="ticket-reply">
+    <div class="ticket-reply <%= notification.unread? ? 'highlight' : '' %>">
       <div class="ticket-reply-info">
-        <a class="author with-avatar" href="#"><img alt="" src="img/avatar1.jpg"><span>John Mayers</span></a><span class="info-data"><span class="label">replied on</span><span class="value"><%= notification&.created_at.to_formatted_s(:long) %></span></span>
+        <a class="author with-avatar" href="#"><img alt="" src="<%= notification.createable&.photo %>"><span><%= notification.createable&.full_name.capitalize %></span></a><span class="info-data"><span class="label">Created on</span><span class="value"><%= notification&.created_at.to_formatted_s(:long) %></span></span>
         <div class="actions" href="#"><i class="os-icon os-icon-ui-46"></i>
           <div class="actions-list">
-            <a href="#"><i class="os-icon os-icon-ui-49"></i><span>Edit</span></a>
-            <a href="#"><i class="os-icon os-icon-ui-09"></i><span>Mark Private</span></a>
-            <a href="#"><i class="os-icon os-icon-ui-03"></i><span>Favorite</span></a>
-            <a class="danger" href="#"><i class="os-icon os-icon-ui-15"></i><span>Delete</span></a>
+            <% if notification.unread? %>
+              <%= link_to(content_tag(:i, nil, class: "os-icon os-icon-ui-49") + "Mark as Read", read_company_user_notification_path(current_user, notification), remote: true) %>
+            <% end %>
+            <%= link_to(content_tag(:i, nil, class: "os-icon os-icon-ui-15") + "Delete", company_user_notification_path(current_user, notification), method: :delete) %>
           </div>
         </div>
       </div>

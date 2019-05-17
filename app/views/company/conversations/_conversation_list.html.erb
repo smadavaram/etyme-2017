@@ -1,5 +1,4 @@
 <% chat_user_data = set_company_chat_user_data(con, usr) %>
-<%#= raise %>
 <%= link_to  company_conversations_path(conversation: con.id), class: "user-w", remote: true, method: :post do %>
   <div class="avatar with-status status-green">
     <%= image_tag usr&.photo %>
