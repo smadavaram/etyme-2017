@@ -110,7 +110,6 @@
 //= require plugin/superbox/superbox.min
 
 
-
 // Morris Chart Dependencies
 //= require plugin/morris/morris.min
 //= require plugin/morris/raphael.min
@@ -183,6 +182,12 @@
 //= require_tree ./clean_admin
 
 $(document).ready(function () {
+  $("#status").on('click', function () {
+    $('#status-menue').toggle();
+  });
+  $("#type").on('click', function () {
+    $('#type-menu').toggle();
+  });
   var coll = document.getElementsByClassName("collapsible");
   var i;
   for (i = 0; i < coll.length; i++) {

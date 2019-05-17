@@ -74,6 +74,8 @@ class Candidate < ApplicationRecord
   has_many :favourables, as: :favourable, class_name: "FavouriteChat", dependent: :destroy
   has_many :favourableds, as: :favourabled, class_name: "FavouriteChat", dependent: :destroy
 
+  has_many :created_notifications, as: :createable
+
   # has_many :partner_following, through: :partner_active_relationships, source: :partner_followed
   # has_many :partner_followers, through: :partner_passive_relationships, source: :partner_follower
 

@@ -1,0 +1,23 @@
+class Company::NotificationsController < Company::BaseController
+  before_action :set_user
+
+  def read
+    @notification = @user.notifications.find_by(id: params[:id])
+    @notification.read!
+  end
+
+  def destroy
+    @notification = @user.notifications.find_by(id: params[:id])
+    if @notification.destroy
+      flash[:success] = "Successfully Deleted"
+      redirect_to notify_notifications_company_users_path
+    else
+      flash[:error] = "Something went wrong"
+      redirect_back(fallback_location: root_path)
+    end
+  end
+
+  def set_user
+    @user = current_company.users.find_by(id: params[:user_id])
+  end
+end

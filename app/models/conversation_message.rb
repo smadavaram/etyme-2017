@@ -31,12 +31,12 @@ class ConversationMessage < ApplicationRecord
       if groupables.present?
         groupables.each do |group|
           if self.userable_id != group.groupable.id
-            group.groupable.notifications.create(message: notification_message, title: "Job Application Conversation")
+            group.groupable.notifications.create(notification_type: :chat,createable: self.userable,message: notification_message, title: "Job Application Conversation")
           end
         end
       end
     else
-      self.conversation.recipientable.notifications.create(message: notification_message, title: "Job Application Conversation")
+      self.conversation.recipientable.notifications.create(notification_type: :chat,createable: self.userable,message: notification_message, title: "Job Application Conversation")
     end
   end
 end
