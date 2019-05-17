@@ -12,7 +12,7 @@
             <% if notification.unread? %>
               <%= link_to(content_tag(:i, nil, class: "os-icon os-icon-ui-49") + "Mark as Read", read_company_user_notification_path(current_user, notification), remote: true) %>
             <% end %>
-            <%= link_to(content_tag(:i, nil, class: "os-icon os-icon-ui-15") + "Delete", company_user_notification_path(current_user, notification), method: :delete) %>
+            <%= link_to(content_tag(:i, nil, class: "os-icon os-icon-ui-15") + "Delete", company_user_notification_path(current_user, notification), method: :delete, class: 'danger text-danger') %>
           </div>
         </div>
       </div>
