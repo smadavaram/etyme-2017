@@ -9,7 +9,7 @@ class Conversation < ApplicationRecord
   enum topic: [:OneToOne, :Rate, :GroupChat, :Job]
 
   scope :involving, -> (user) do
-    where(senderable: user).or where(senderable: user)
+    where(senderable: user).or where(recipientable: user)
   end
 
   scope :between, -> (sender, recipient) do

@@ -3,7 +3,7 @@ class ConversationMessage < ApplicationRecord
   belongs_to :conversation
   belongs_to :userable, polymorphic: :true
 
-  after_create :create_notification
+  # after_create :create_notification
 
   scope :unread_messages, -> (sender, recipient) do
     joins(:conversation).where("(

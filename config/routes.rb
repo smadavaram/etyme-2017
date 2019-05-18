@@ -261,6 +261,7 @@ Rails.application.routes.draw do
     resources :candidates do
       member do
         put :company_candidate, as: :make
+        get :show, as: :candidate
       end
     end
 
@@ -436,6 +437,7 @@ Rails.application.routes.draw do
         post :short_list
         post :interview
         post :hire
+        post :prescreen
       end # End of member
     end
 
