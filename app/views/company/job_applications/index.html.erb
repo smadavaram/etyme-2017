@@ -36,7 +36,7 @@
               <tr data-id="<%= application.id %>">
                 <td><%= check_box_tag "ids[]", application.id %></td>
 
-                <td class="no-wrap">
+                <td>
                   <%=image_tag(application.applicationable.photo, class: 'data-table-image mr-1') %>
                   <%=link_to(do_ellipsis(application.applicationable.full_name), '#', class: 'data-table-font') %>
                 </td>

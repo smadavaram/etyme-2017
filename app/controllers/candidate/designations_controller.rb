@@ -5,10 +5,11 @@ class Candidate::DesignationsController < Candidate::BaseController
   def accept
     if @designation.verified!
       flash[:success] = "Invitation Is Accepted"
+      redirect_back(fallback_location: root_path)
     else
       flash[:error] = "Something went wrong"
+      redirect_back(fallback_location: root_path)
     end
-    redirect_back(fallback_location: root_path)
   end
 
   def set_designation
