@@ -159,6 +159,6 @@ label.required:after {
     border-radius: 4px;
 }
 
-.active::after{
+.support-ticket.active::after{
     content: none !important;
 }
