@@ -2,6 +2,7 @@
   $("#conversation-section").html("<%= j render 'company/conversations/job_conversation_box' %>");
   $("#job_application_status_links").html("<%= j render 'company/job_applications/partials/job_status_links', btn_size_class: 'btn-sm', app: @conversation.chatable %>");
 
+  $('#candidate-name').remove();
   $('.collapsible').css('padding', '6px 18px');
   $('#collapsible_job_application').removeClass('ml-2 mr-2')
   $('#collapsible_job_application').removeClass('mt-4')

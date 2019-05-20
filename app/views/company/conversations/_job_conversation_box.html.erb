@@ -1,4 +1,4 @@
-<div class="chat_box with_border" data-conversation-id="<%= @conversation.id if @conversation.present? %>" id="conversation-chat-box">
+<div class="chat_box with_border wrap-chat-box" data-conversation-id="<%= @conversation.id if @conversation.present? %>" id="conversation-chat-box">
   <div class="chat-head" style="flex-direction: column; align-items: stretch;">
     <div class="flex-row w-100 chat-heat_justify">
       <% opt_obj = @conversation.chatable_type == "Group" ? @conversation.chatable : (@conversation.senderable == current_user ? @conversation.recipientable : @conversation.senderable) if @conversation.present? %>
@@ -42,12 +42,12 @@
       </div>
     <% end if @conversation.present? %>
   </div>
+  <% if @conversation&.chatable_type == "JobApplication" %>
+    <div id="job_application_status_links">
+      <%= render 'company/job_applications/partials/job_status_links', btn_size_class: 'btn-sm', app: @conversation.chatable%>
+    </div>
+  <% end %>
 </div>
-<% if @conversation&.chatable_type == "JobApplication" %>
-  <div id="job_application_status_links">
-    <%= render 'company/job_applications/partials/job_status_links', btn_size_class: 'btn-sm', app: @conversation.chatable%>
-  </div>
-<% end %>
 
 <% content_for :scripts do %>
   <script>

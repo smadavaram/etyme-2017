@@ -2,11 +2,11 @@
   .col-sm-12.animated.fadeInRightBig
     %section.panel.mt-20s
       %header.panel-heading
-        .row
-          .col-sm-5
-            %h3.ml-2
-              = job_application.user.full_name.titleize
-          .col-sm-7
+        .row{style: 'justify-content: space-between;'}
+          #candidate-name
+            %h4.ml-2
+              = do_ellipsis(job_application.user.full_name.titleize)
+          #links-yeild
             = yield( :links)
         .row
           .col-lg-12.col-sm-12
@@ -33,6 +33,7 @@
         %span.text-muted.fs-13 Vendor Company
         %b
           = job_application.user.class.name == 'Candidate' ? 'Candidate' : job_application.user.company.name.titleize
+    %div
       %ul.ul-s.margin-top-10
         %li
           %span.text-muted Cover Letter
