@@ -221,7 +221,11 @@ Rails.application.routes.draw do
 
     get 'companies/edit'
     resources :users, only: [:show, :update, :destroy] do
-
+      resources :notifications do
+        member do
+          get 'read'
+        end
+      end
       collection do
         get 'current_status'
         get 'status_update'
@@ -234,7 +238,7 @@ Rails.application.routes.draw do
       post :update_video
       collection do
         get :notify_notifications
-
+        get "notification/:id", to: 'users#notification', as: "get_notification"
       end
     end
 

@@ -10,7 +10,7 @@ class Designation < ActiveRecord::Base
     recruiter = User.find_by_email(recruiter_email)
     message = "Candidate #{self.candidate.email} has registered you as recruiter. If you want to accept <a href='#{url_helpers.accept_candidate_designation_url(self.id)}'>Click Here</a>."
     if recruiter
-      recruiter_notification = recruiter.notifications.new(message: message, title: "Invitation for Recruiter")
+      recruiter_notification = recruiter.notifications.new(notification_type: "invitation",createable: self.candidate,message: message, title: "Invitation for Recruiter")
       if recruiter_notification.save
         self.notified!
       end
