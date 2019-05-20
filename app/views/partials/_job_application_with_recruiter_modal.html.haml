@@ -15,48 +15,44 @@
 
           .form-group.candidate-association
             .row
+              = render 'static/jobs/job_application_attributes', f: f
               = f.fields_for :candidate_with_recruiter do |b|
-                .col-sm-12
-                  .col-sm-6
-                    .form-group
-                      %p First Name
-                      = b.text_field :first_name,placeholder: "First Name",class: 'form-control input'
-                  .col-sm-6
-                    .form-group
-                      %p Last Name
-                      = b.text_field :last_name,placeholder: "Last Name",class: 'form-control input'    
-                .col-sm-12
-                  .col-sm-6
-                    .form-group
-                      %p Email
-                      = b.text_field :email,placeholder: "Email",class: 'form-control input'
-                  .col-sm-6
-                    .form-group
-                      %p Phone
-                      = b.text_field :phone,placeholder: "Phone",class: 'form-control input'    
-                .col-sm-12
-                  .col-sm-6
-                    .form-group
-                      %p Visa
-                      = b.text_field :visa,placeholder: "Visa",class: 'form-control input'
-                  .col-sm-6
-                    .form-group
-                      %p Title
-                      = b.text_field :title,placeholder: "Title",class: 'form-control input'    
-                .col-sm-12
-                  .col-sm-6
-                    .form-group
-                      %p Role
-                      = b.text_field :roal, placeholder: "Role",class: 'form-control input'
-                  .col-sm-6
-                    .form-group
-                      %p Recruiter Email
-                      = b.text_field :recruiter_email,placeholder: "Recruiter Email",class: 'form-control input'
-                .col-sm-12      
-                  .col-sm-6
-                    .form-group
-                      %p Resume
-                      = f.filepicker_field :applicant_resume , class: 'btn btn-primary file-pick'  , id: 'accept-filepiker' ,"data-fp-extensions" => ".pdf,.doc,.docx,.txt"      
+                .col-sm-6
+                  %label First Name
+                  .form-group
+                    = b.text_field :first_name,placeholder: "First Name",class: 'form-control input'
+                .col-sm-6
+                  %label Last Name
+                  .form-group
+                    = b.text_field :last_name,placeholder: "Last Name",class: 'form-control input'
+                .col-sm-6
+                  %label Email
+                  .form-group
+                    = b.text_field :email,placeholder: "Email",class: 'form-control input'
+                .col-sm-6
+                  %label Phone
+                  .form-group
+                    = b.text_field :phone,placeholder: "Phone",class: 'form-control input'
+                .col-sm-6
+                  %label Visa
+                  .form-group
+                    = b.text_field :visa,placeholder: "Visa",class: 'form-control input'
+                .col-sm-6
+                  %label Title
+                  .form-group
+                    = b.text_field :title,placeholder: "Title",class: 'form-control input'
+                .col-sm-6
+                  %label Role
+                  .form-group
+                    = b.text_field :roal, placeholder: "Role",class: 'form-control input'
+                .col-sm-6
+                  %label Recruiter Email
+                  .form-group
+                    = b.text_field :recruiter_email,placeholder: "Recruiter Email",class: 'form-control input'
+                .col-sm-6
+                  %label Resume
+                  .form-group
+                    = f.filepicker_field :applicant_resume , class: 'btn btn-primary file-pick'  , id: 'accept-filepiker' ,"data-fp-extensions" => ".pdf,.doc,.docx,.txt"
             .row
               .col-sm-12
                 .col-sm-12
@@ -122,6 +118,4 @@
             %button.btn.btn-default{"data-dismiss" => "modal", :type => "button"}
               Cancel
             = f.button "Save".html_safe , class: 'btn btn-primary' , data: {disable_with: disable_spinning('Saving...')}
-
-
 

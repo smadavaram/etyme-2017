@@ -10,6 +10,8 @@
         = form_for [:static , job,job_application], html: {class: 'form-horizontal'} do |f|
           = hidden_field_tag 'candidate_id', candidate_id if local_assigns[:candidate_id].present?
           = hidden_field_tag 'is_candidate', is_candidate if local_assigns[:is_candidate].present?
+          .row
+            =render 'static/jobs/job_application_attributes', f:f
           %fieldset
             .form-group
               %label.col-md-2.control-label Cover Letter
@@ -60,6 +62,3 @@
             %button.btn.btn-default{"data-dismiss" => "modal", :type => "button"}
               Cancel
             = f.button "Save".html_safe , class: 'btn btn-primary' , data: {disable_with: disable_spinning('Saving...')}
-
-
-

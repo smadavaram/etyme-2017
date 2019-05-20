@@ -1,0 +1,34 @@
+.col-sm-6
+  %label Interview Availability From
+  .form-group
+    =  f.text_field :available_from , class: "form-control tinymce p_time", rows: 8, cols: 25, placeholder: 'Available From'
+.col-sm-6
+  %label Interview Availability To
+  .form-group
+    =  f.text_field :available_to , class: "form-control tinymce p_time", rows: 8, cols: 25, placeholder: 'Available To'
+
+.col-sm-6
+  %label Can Join From
+  .form-group
+    =  f.text_field :available_to_join , class: "form-control tinymce p_date", rows: 8, cols: 25, placeholder: 'Joining Date'
+
+
+.col-sm-6
+  %label Rate/hr
+  .form-group
+    =  f.text_field :rate_per_hour , class: "form-control tinymce", rows: 8, cols: 25, placeholder: 'Per Hour Rate'
+
+.col-sm-6
+  %label Total Experience
+  .form-group
+    =  f.text_field :total_experience , class: "form-control tinymce", rows: 8, cols: 25, placeholder: 'Total Experience (Years)'
+
+.col-sm-6
+  %label Relevant Experience
+  .form-group
+    =  f.text_field :relevant_experience , class: "form-control tinymce", rows: 8, cols: 25, placeholder: 'Relevant Experience (Years)'
+
+
+:javascript
+  $('.p_date').datepicker({dateFormat: "yy-mm-dd"});
+  $('.p_time').timepicker({template: false,showInputs: false,minuteStep: 5});
