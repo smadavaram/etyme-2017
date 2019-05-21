@@ -9,6 +9,31 @@
       %label Last Name
       .form-group
         = f.text_field :last_name  ,:placeholder => "Enter last Name",class:'form-control input'
+    .col-sm-6
+      %label Passport Number
+      .form-group
+        = f.text_field :passport_number  ,:placeholder => "Enter Passport Number",class:'form-control input'
+    .col-sm-6
+      %label SSN Number
+      .form-group
+        = f.text_field :ssn  ,:placeholder => "Enter SSN Name",class:'form-control input'
+    .col-sm-6
+      %label Visa Type
+      .form-group
+        = f.text_field :visa_type, :placeholder => "First Us Visa Type", class: 'form-control input'
+    .col-sm-6.h-100{style: "margin: auto auto;"}
+      .form-group.mb-0
+        %b Are you willing to relocate?
+        %label.radio-container
+          Yes
+          = f.radio_button :relocation, true
+          %span.radio-checkmark
+        %label.radio-container
+          No
+          = f.radio_button :relocation, false
+          %span.radio-checkmark
+
+
     .col-sm-12
       %label Address
       .form-group

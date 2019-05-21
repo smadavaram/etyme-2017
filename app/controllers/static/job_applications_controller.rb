@@ -64,7 +64,7 @@ class Static::JobApplicationsController < ApplicationController
   end
 
   def job_application_params
-    params.require(:job_application).permit([ :message ,:applicant_resume, :cover_letter ,:candidate_email,:candidate_first_name,:candidate_last_name, :status, custom_fields_attributes:
+    params.require(:job_application).permit([ :message ,:available_to_join,:total_experience,:relevant_experience,:rate_per_hour,:available_from,:available_to,:applicant_resume, :cover_letter ,:candidate_email,:candidate_first_name,:candidate_last_name, :status, custom_fields_attributes:
         [
             :id,
             :name,

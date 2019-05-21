@@ -1,5 +1,5 @@
 .modal{ id: "job-apply-#{job.id}"}
-  .modal-dialog.modal-lg.job_application_model
+  .modal-lg.job_application_model.without-registration_modal
     .modal-content
       .modal-header
         %h2#myModalLabel.modal-title
@@ -15,57 +15,54 @@
           .form-group.candidate-association
             .row
               = f.fields_for :job_application_without_registrations do |b|
-                .col-sm-12
-                  .col-sm-6
-                    .form-group
-                      %p First Name
-                      = b.text_field :first_name,placeholder: "First Name",class: 'form-control input'
-                  .col-sm-6
-                    .form-group
-                      %p Last Name
-                      = b.text_field :last_name,placeholder: "Last Name",class: 'form-control input'    
-                .col-sm-12
-                  .col-sm-6
-                    .form-group
-                      %p Email
-                      = b.text_field :email,placeholder: "Email",class: 'form-control input'
-                  .col-sm-6
-                    .form-group
-                      %p Phone
-                      = b.text_field :phone,placeholder: "Phone",class: 'form-control input'    
-                .col-sm-12
-                  .col-sm-6
-                    .form-group
-                      %p Visa
-                      = b.text_field :visa,placeholder: "Visa",class: 'form-control input'
-                  .col-sm-6
-                    .form-group
-                      %p Title
-                      = b.text_field :title,placeholder: "Title",class: 'form-control input'    
-                .col-sm-12
-                  .col-sm-6
-                    .form-group
-                      %p Roal
-                      = b.text_field :roal,placeholder: "Roal",class: 'form-control input'
-                  .col-sm-6
-                    .form-group
-                      %p Resume
-                      = f.filepicker_field :applicant_resume , class: 'btn btn-primary file-pick'  , id: 'accept-filepiker' ,"data-fp-extensions" => ".pdf,.doc,.docx,.txt"
-            .row
-              .col-sm-12
-                .col-sm-12
+                .col-sm-6
+                  %lable First Name
                   .form-group
-                    %p Cover Letter
-                    =  f.text_area :cover_letter , class: "form-control tinymce", rows: 8, cols: 25, placeholder: 'Cover Letter'
-                    =  tinymce :default
-            .row
-              .col-sm-12
-                .col-sm-12
+                    = b.text_field :first_name,placeholder: "First Name",class: 'form-control input'
+                .col-sm-6
+                  %label Last Name
                   .form-group
-                    %p Message (optional)
-                    = f.text_area :message, class: "form-control", rows: "2" ,placeholder: 'Write tour message'
-    
+                    = b.text_field :last_name,placeholder: "Last Name",class: 'form-control input'
+                .col-sm-6
+                  %label Email
+                  .form-group
+                    = b.text_field :email,placeholder: "Email",class: 'form-control input'
+                .col-sm-6
+                  %label Phone
+                  .form-group
+                    = b.text_field :phone,placeholder: "Phone",class: 'form-control input'
+                .col-sm-6
+                  %label Visa
+                  .form-group
+                    = b.text_field :visa,placeholder: "Visa",class: 'form-control input'
+                .col-sm-3
+                  %label Title
+                  .form-group
+                    = b.text_field :title,placeholder: "Title",class: 'form-control input'
+                .col-sm-3
+                  %label Roal
+                  .form-group
+                    = b.text_field :roal,placeholder: "Roal",class: 'form-control input'
+              = render 'static/jobs/job_application_attributes', f: f
 
+
+            .row
+              .col-sm-12
+                .form-group
+                  %p Cover Letter
+                  =  f.text_area :cover_letter , class: "form-control tinymce", rows: 8, cols: 25, placeholder: 'Cover Letter'
+                  =  tinymce :default
+            .row
+              .col-sm-12
+                .form-group
+                  %p Resume
+                  = f.filepicker_field :applicant_resume , class: 'btn btn-primary file-pick'  , id: 'accept-filepiker' ,"data-fp-extensions" => ".pdf,.doc,.docx,.txt"
+
+            .row
+              .col-sm-12
+                .form-group
+                  %p Message (optional)
+                  = f.text_area :message, class: "form-control", rows: "2" ,placeholder: 'Write tour message'
           %fieldset
             / .form-group
             /   %label.col-md-2.control-label Cover Letter
@@ -95,14 +92,12 @@
                         - opt_array = s.split(" ")
                         - if r.multiple_ans
                           -opt_array.each do |a|
-                            = ja.check_box :app_multi_ans, {:multiple => true, class: 'set-checkbox'},"#{CGI.unescape(a)}"
-                            = ja.label :app_multi_ans, :value => "#{CGI.unescape(a)}"
-                            %br/
+                            = ja.check_box :app_multi_ans, {:multiple => true, class: 'set-checkbox d-inline-block'},"#{CGI.unescape(a)}"
+                            = ja.label :app_multi_ans, :value => "#{CGI.unescape(a)}", class: "d-inline-block mr-3"
                         - else
                           -opt_array.each do |a|
-                            = ja.radio_button :applicant_ans, "#{CGI.unescape(a)}",{class: 'set-checkbox'}
-                            = ja.label :applicant_ans, :value => "#{CGI.unescape(a)}"
-                            %br/
+                            = ja.radio_button :applicant_ans, "#{CGI.unescape(a)}",{class: 'set-checkbox d-inline-block'}
+                            = ja.label :applicant_ans, :value => "#{CGI.unescape(a)}", class: "d-inline-block mr-3"
                       - else
                         = ja.filepicker_field :applicant_ans , class: 'btn btn-primary req-file-pick',required: r.ans_mandatroy, id: 'req-accept-filepiker'
             .nested-fields
