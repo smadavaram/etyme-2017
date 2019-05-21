@@ -27,8 +27,8 @@
                   = link_to candidate.candidates_resumes.primary_resume.resume, class: "btn btn-primary btn-sm", target: "_blank" do
                     %i.os-icon.os-icon-arrow-down6
                     %span Resume
-                - elsif conversation.chatable.applicant_resume.present?
-                  = link_to conversation.chatable.applicant_resume, class: "btn btn-primary btn-sm", target: "_blank" do
+                - elsif @conversation.chatable.applicant_resume.present?
+                  = link_to @conversation.chatable.applicant_resume, class: "btn btn-primary btn-sm", target: "_blank" do
                     %i.os-icon.os-icon-arrow-down6
                     %span Resume
                 - else

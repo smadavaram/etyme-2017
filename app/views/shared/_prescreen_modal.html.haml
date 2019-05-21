@@ -8,6 +8,6 @@
           ×
       .modal-body#prescreen-modal-body
         = render "shared/candidate_profile", candidate: candidate
-        = render 'shared/more_info_request', conversation: conversation
+        = render 'shared/more_info_request', conversation: @conversation
         .modal-footer.company--content-footer
-          =render 'shared/status_links', conversation: conversation
+          =render 'shared/status_links', conversation: @conversation
