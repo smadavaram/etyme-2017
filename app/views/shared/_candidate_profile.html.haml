@@ -1,37 +1,40 @@
-.content-i
+.content-i.company--content#candidate_profile
   .content-box
     .row
       .col-sm-4
         .user-profile.compact
-          .up-head-w{:style => "background-image:url(#{current_candidate.photo})"}
+          .up-head-w{:style => "background-image:url(#{candidate.photo})"}
             .up-social
-              %a{:href => current_candidate.twitter_url, target: "_blank"}
+              %a{:href => candidate.twitter_url, target: "_blank"}
                 %i.os-icon.os-icon-twitter
-              %a{:href => current_candidate.facebook_url, target: "_blank"}
+              %a{:href => candidate.facebook_url, target: "_blank"}
                 %i.os-icon.os-icon-facebook
             = link_to '/onboarding_profile?tag=verify-phone', class: 'profile--link' do
               .up-main-info
                 %h2.up-header
-                  = current_candidate.full_name
+                  = candidate.full_name
                 %h6.up-sub-header
-                  = current_candidate.associated_company.name if current_candidate.associated_company.present?
+                  = candidate.associated_company.name if candidate.associated_company.present?
             %svg.decor{:height => "219px", :preserveaspectratio => "xMaxYMax meet", :version => "1.1", :viewbox => "0 0 842 219", :width => "842px", :xmlns => "http://www.w3.org/2000/svg", "xmlns:xlink" => "http://www.w3.org/1999/xlink"}
               %g{:fill => "#FFFFFF", :transform => "translate(-381.000000, -362.000000)"}
                 %path.decor-path{:d => "M1223,362 L1223,581 L381,581 C868.912802,575.666667 1149.57947,502.666667 1223,362 Z"}
           .up-controls
             .row
               .col-sm-6{style: "display: flex;justify-content: space-evenly;"}
-                = contact_widget(current_candidate.email,current_candidate.phone)
+                = contact_widget(candidate.email,candidate.phone)
               .col-sm-6.text-right
-                - if current_candidate.candidates_resumes.present?
-                  -#%a.btn.btn-primary.btn-sm{:href => ""}
-                  = link_to current_candidate.candidates_resumes.primary_resume.resume, class: "btn btn-primary btn-sm", target: "_blank" do
+                - if candidate.candidates_resumes.present?
+                  = link_to candidate.candidates_resumes.primary_resume.resume, class: "btn btn-primary btn-sm", target: "_blank" do
+                    %i.os-icon.os-icon-arrow-down6
+                    %span Resume
+                - elsif @conversation.chatable.applicant_resume.present?
+                  = link_to @conversation.chatable.applicant_resume, class: "btn btn-primary btn-sm", target: "_blank" do
                     %i.os-icon.os-icon-arrow-down6
                     %span Resume
                 - else
-                  %a.btn.btn-primary.btn-sm{:href => "/onboarding_profile?tag=verify-phone"}
+                  %button.btn.btn-primary.btn-sm
                     %i.os-icon.os-icon-arrow-up6
-                    %span Resume
+                    %span No Resume
 
           .up-contents
             .m-b
@@ -55,14 +58,14 @@
                       %span Email
                     .bar-label-right
                       %span.text-success
-                        = is_verify(!!current_candidate.confirmed_at)
+                        = is_verify(!!candidate.confirmed_at)
                 .os-progress-bar.primary
                   .bar-labels
                     .bar-label-left
                       %span Phone
                     .bar-label-right
                       %span.text-success
-                        = is_verify(current_candidate.is_number_verify)
+                        = is_verify(candidate.is_number_verify)
                 .os-progress-bar.primary
                   .bar-labels
                     .bar-label-left
@@ -82,7 +85,7 @@
               Education
             .element-info.border-0
               .element-info-text
-                - current_candidate.educations.each do |edu|
+                - candidate.educations.each do |edu|
                   .mb-2
                     %h6.element-inner-header.m-0
                       =edu.degree_level
@@ -92,7 +95,7 @@
               Certification
             .element-info.border-0
               .element-info-text
-                - current_candidate.certificates.each do |cert|
+                - candidate.certificates.each do |cert|
                   .mb-2
                     %h6.element-inner-header.m-0
                       =cert.title
@@ -102,7 +105,7 @@
               Skills
             .element-info.border-0
               .element-info-text
-                - current_candidate.skill_list.each do |sl|
+                - candidate.skill_list.each do |sl|
                   .badge.badge-primary.p-2.mb-1
                     =sl
       .col-sm-8
@@ -116,8 +119,8 @@
                   .element-info-text
                     %h4.element-inner-header
                       Work history
-              - if current_candidate.ever_worked_with_company && current_candidate.clients.present?
-                - current_candidate.clients.each do |c|
+              - if candidate.ever_worked_with_company && candidate.clients.present?
+                - candidate.clients.each do |c|
                   .element-info
                     .element-info-text
                       .mb-2
@@ -134,10 +137,7 @@
                   .element-info-text
                     .mb-2
                       %div
-                        %span.mb-1.h6.d-block.text-secondary There is no work history
-                      .element-inner-desc
-                        %P
-                          = link_to "Add New One", '/onboarding_profile?tag=skill'
+                        %span.mb-1.h6.d-block.text-secondary There is no work historys
         .col-sm-12
           .element-wrapper
             .element-box
@@ -148,8 +148,8 @@
                   .element-info-text
                     %h4.element-inner-header
                       Company history
-              - unless current_candidate.designations.empty?
-                - current_candidate.designations.each do |c|
+              - unless candidate.designations.empty?
+                - candidate.designations.each do |c|
                   .element-info
                     .element-info-text
                       .mb-2
@@ -158,15 +158,9 @@
                           %span.mb-1.h6.d-block.text-secondary as #{c.company_role}
                           %strong.font-weight-bold.font-sm.text-capitalize
                             #{c.start_date&.strftime('%B-%Y')} - #{c.end_date&.strftime('%B-%Y')}
-                        -#.element-inner-desc
-                        -#  %P
-                        -#    #{c.project_description}
               - else
                 .element-info
                   .element-info-text
                     .mb-2
                       %div
                         %span.mb-1.h6.d-block.text-secondary There is no Company history
-                      .element-inner-desc
-                        %P
-                          = link_to "Add New One", '/onboarding_profile?tag=designate'

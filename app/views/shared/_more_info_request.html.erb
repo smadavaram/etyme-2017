@@ -1,0 +1,13 @@
+<div id="requestForm" style="display: none">
+  <div class="element-box">
+    <%= form_tag(request_for_more_information_company_candidate_path(conversation_id: conversation.id)) do %>
+      <div class="form-group">
+        <%= label_tag('Enter Request Message') %>
+        <%= text_area_tag :body, nil, :required => true, class: 'form-control' %>
+      </div>
+      <div class="form-buttons-w">
+        <%= submit_tag('Send Request', required: true, class:'btn btn-primary') %>
+      </div>
+    <% end %>
+  </div>
+</div>

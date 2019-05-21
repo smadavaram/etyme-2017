@@ -71,3 +71,13 @@
     display: inline-block;
 }
 
+.company--content{
+    height: calc(100vh - 202px);
+    overflow-y: scroll;
+}
+
+.company--content-footer
+{
+    padding-top: 0;
+    padding-bottom: 0;
+}

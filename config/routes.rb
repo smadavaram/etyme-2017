@@ -262,6 +262,7 @@ Rails.application.routes.draw do
       member do
         put :company_candidate, as: :make
         get :show, as: :candidate
+        post :request_for_more_information
       end
     end
 

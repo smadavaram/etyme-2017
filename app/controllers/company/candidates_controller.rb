@@ -24,6 +24,21 @@ class Company::CandidatesController < Company::BaseController
     @candidate = Candidate.find_by(id: params[:id])
   end
 
+  def request_for_more_information
+    @conversation = Conversation.find_by(id: params[:conversation_id])
+    body = "#{params[:body]} <a href='http://#{@conversation.chatable.job.created_by.company.etyme_url + job_application_path(@conversation.chatable)}'> for your Job </a>#{@conversation.chatable.job.title}"
+    message = current_user.conversation_messages.new(conversation_id: @conversation.id, body: body)
+    if message.save
+      @conversation.chatable.applicationable.notifications.create(notification_type: :new_application,
+                                                                  createable: @conversation.chatable.job.company.owner,
+                                                                  message: body, title: "Job Application")
+      flash[:success] = "Request Submit successfully."
+    else
+      flash[:errors] =  ["Request Not Completed."]
+    end
+    redirect_back fallback_location: root_path
+  end
+
   def bench_info
     if CandidatesCompany.hot_candidate.where(candidate_id: params[:id], company_id: current_company.id).empty?
       @is_bench = false
