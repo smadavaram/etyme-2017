@@ -15,16 +15,16 @@
           %fieldset
             .form-group
               %label.col-md-2.control-label Cover Letter
-              .col-md-10
+              .col-md-12
                 =  f.text_area :cover_letter , class: "form-control tinymce", rows: 8, cols: 25, placeholder: 'Cover Letter'
                 =  tinymce :default
             .form-group
               %label.col-md-2.control-label Resume
-              .col-md-10
+              .col-md-12
                 = f.filepicker_field :applicant_resume , class: 'btn btn-primary file-pick'  , id: 'accept-filepiker' ,"data-fp-extensions" => ".pdf,.doc,.docx,.txt"
             .form-group
               %label.col-md-2.control-label Message (optional)
-              .col-md-10
+              .col-md-12
                 = f.text_area :message, class: "form-control", rows: "2" ,placeholder: 'Write tour message'
             .nested-fields
               - job.job_requirements.each do |r|
