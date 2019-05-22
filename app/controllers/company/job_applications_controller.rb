@@ -11,6 +11,12 @@ class Company::JobApplicationsController < Company::BaseController
 
   add_breadcrumb "JOB APPLICATIONS", :job_applications_path, options: { title: "JOBS APPLICATION" }
 
+  def applicant
+    @job_application = current_company.received_job_applications.find_by(id: params[:id])
+    @candidate = @job_application.applicationable
+    @conversation = @job_application.conversations.find_by(recipientable: @candidate)
+  end
+
   def index
     respond_to do |format|
       format.html {}

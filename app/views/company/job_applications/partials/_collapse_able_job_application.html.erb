@@ -4,7 +4,7 @@
     <div class="element-wrapper pb-0">
       <div class="element-content">
         <div class="">
-          <h5 class="collapsible"><%= job_application.job.title %></h5>
+          <h5 class="collapsible"><%= job_application.job.title %><a></a></h5>
           <div class="element-box w-100 text-justify job-application-collaps">
             <div class="col-lg-12">
               <%= render partial: 'partials/job_show', locals: {job: job_application.job} %>
@@ -12,7 +12,10 @@
           </div>
         </div>
         <div class="">
-          <h2 class="collapsible">Job Application</h2>
+          <h2 class="collapsible">
+            Job Application
+            <%= link_to 'Statuses', applicant_job_application_path(@job_application), class: "pull-right" %>
+          </h2>
           <div class="element-box w-100 text-justify chat-collaps">
             <div class="row">
               <div class="col-sm-12">
@@ -35,7 +38,7 @@
         </div>
         <% if local_assigns[:messages] && messages %>
           <div>
-            <h2 class="collapsible">Messages</h2>
+            <h2 class="collapsible">Messages<a></a></h2>
             <div class="element-box w-100 text-justify chat-collaps">
               <%= render "company/conversations/job_conversation_box" %>
               <%#= render 'company/job_applications/partials/job_status_links', btn_size_class: 'btn-sm', app: @conversation.chatable %>

@@ -151,6 +151,10 @@ gem "paranoia"#, "~> 2.2"
 # gem 'capistrano-rails', group: :development
 
 group :development, :test do
+  gem 'rbnacl','< 5.0' 
+  gem 'rbnacl-libsodium' 
+  gem 'bcrypt_pbkdf', '< 2.0'
+  gem 'ed25519', '< 2.0'
   gem 'better_errors'#, '~> 1.1.0'
   gem 'binding_of_caller'
   gem 'rails-erd'

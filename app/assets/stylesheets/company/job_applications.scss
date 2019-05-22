@@ -19,14 +19,14 @@
 .chat-collaps{
   display: none;
 }
-.collapsible:after {
+.collapsible > a:after {
   content: '\002B';
   color: #037bf8;
   font-weight: bold;
   float: right;
   margin-left: 5px;
 }
-.active:after {
+.active > a:after {
   color: #037bf8;
   content: "\2212";
 }
