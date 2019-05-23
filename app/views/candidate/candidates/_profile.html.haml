@@ -1,3 +1,6 @@
+- unless own
+  #navbar.text-right
+    = yield :statuses
 .content-i
   .content-box
     .row
@@ -109,23 +112,6 @@
                   .badge.badge-primary.p-2.mb-1
                     =sl
       .col-sm-8
-        - unless own
-          .col-sm-12
-            .element-wrapper
-              .element-box
-                .element-info
-                  .element-info-with-icon
-                    .element-info-icon
-                      %i.icon-badge
-                    .element-info-text
-                      %h4.element-inner-header
-                        Job Application Status
-                .element-info
-                  .element-info-text
-                    .mb-2
-                      %div
-                      .element-inner-desc
-                        = yield :statuses
         .col-sm-12
           .element-wrapper
             .element-box
@@ -192,3 +178,17 @@
                         -if own
                           %P
                             = link_to "Add New One", '/onboarding_profile?tag=designate'
+
+
+
+:javascript
+  window.onscroll = function() {myFunction()};
+  var navbar = document.getElementById("navbar");
+  var sticky = navbar.offsetTop;
+  function myFunction() {
+    if (window.pageYOffset >= sticky) {
+      navbar.classList.add("sticky")
+    } else {
+      navbar.classList.remove("sticky");
+    }
+  }

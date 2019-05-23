@@ -1,9 +1,11 @@
 = content_for :statuses do
-  - disabled = @job_application.rejected? || @job_application.hired? || @job_application.prescreen? ? 'disabled' : ""
-  = link_to('Accept', prescreen_job_application_path(@conversation.chatable, conversation_id: @conversation.id), method: :post, class: "btn btn-md  btn-primary mt-12 margin-right-5 #{disabled}")
-  %button.btn.btn-primary{"data-target" => "#candidate_more_info_#{@candidate.id}#{disabled}", "class"=> "btn btn-md  btn-primary mt-12 margin-right-5 #{disabled}","data-toggle" => "modal", :type => "button"} More Info
-  = link_to('Reject', reject_job_application_path(@conversation.chatable, conversation_id: @conversation.id), method: :post, class: "btn btn-md  btn-primary mt-12 margin-right-5")
-  = link_to('Cancel', job_application_path(@job_application),class: "btn btn-md  btn-primary mt-12 margin-right-5")
+  - disabled = @job_application.rejected? || @job_application.hired? || @job_application.short_listed? ? 'disabled' : ""
+  %div
+    = link_to('Accept', short_list_job_application_path(id: @job_application.id, conversation_id: @conversation.id), method: :post, class: "btn btn-md  btn-primary mt-12 margin-right-5 #{disabled}")
+    %button.btn.btn-primary{"data-target" => "#candidate_more_info_#{@candidate.id}#{disabled}", "class"=> "btn btn-md  btn-primary mt-12 margin-right-5 #{disabled}","data-toggle" => "modal", :type => "button"} More Info
+    = link_to('Reject', reject_job_application_path(@conversation.chatable, conversation_id: @conversation.id), method: :post, class: "btn btn-md  btn-primary mt-12 margin-right-5")
+    = link_to('Cancel', job_application_path(@job_application),class: "btn btn-md  btn-primary mt-12 margin-right-5")
+
   %div.modal.mt-3{"id" => "candidate_more_info_#{@candidate.id}", "aria-hidden" => "true", "aria-labelledby" => "candidateMoreInfoLabel", :role => "dialog", :style => "display: none;", :tabindex => "-1"}
     .modal-dialog{:role => "document"}
       .modal-content

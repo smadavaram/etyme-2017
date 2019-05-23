@@ -188,12 +188,13 @@ $(document).ready(function () {
   $("#type").on('click', function () {
     $('#type-menu').toggle();
   });
-  var coll = document.getElementsByClassName("collapsible");
+  var coll = document.getElementsByClassName("collapsible-click");
   var i;
   for (i = 0; i < coll.length; i++) {
     coll[i].addEventListener("click", function () {
-      this.classList.toggle("active");
-      var content = this.nextElementSibling;
+      console.log(this)
+      $(this).parent()[0].classList.toggle("active");
+      var content = $(this).parent()[0].nextElementSibling;
       if (content.style.display === "block") {
         content.style.display = "none";
       } else {

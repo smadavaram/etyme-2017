@@ -1,7 +1,7 @@
 <% user = @conversation.chatable_type == "Group" ? @conversation.chatable :  (@conversation.senderable == current_user ? @conversation.recipientable : @conversation.senderable) %>
 <% if (@conversation.chatable && @conversation.chatable_type == "JobApplication") %>
-  $("#conversation-section").html("<%= j render 'company/conversations/job_conversation_box' %>");
-  $("#job_application_status_links").html("<%= j render 'company/job_applications/partials/job_status_links', btn_size_class: 'btn-sm', app: @conversation.chatable %>");
+  $("#conversation-section").html("<%= j render 'company/conversations/job_conversation_box', job_appliction: @conversation.chatable, conversation: @conversation %>");
+//  $("#job_application_status_links").html(" j render 'company/job_applications/partials/job_status_links', btn_size_class: 'btn-sm', app: @conversation.chatable %>");
   $('.prescreen').on('click', function () {
     $.ajax({
       url: "/company/candidates/<%= user.id %>?conversation_id=<%= @conversation.id %>",

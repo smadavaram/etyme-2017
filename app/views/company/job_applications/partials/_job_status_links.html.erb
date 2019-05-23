@@ -1,18 +1,24 @@
 <% if local_assigns[:btn_size_class] %>
   <% btn_size = btn_size_class %>
 <% else %>
-  <% btn_size = "btn-md" %>
+  <% btn_size = "btn btn-primary btn-md mt-12 margin-right-5" %>
 <% end %>
 <% if app.job.company == current_company && has_permission?('manage_job_applications') %>
-  <button type="button" class="btn <%=btn_size %>  btn-primary mt-12 margin-right-5 <%= app.rejected? || app.hired? || app.prescreen? ? 'disabled' : "" %> prescreen" data-toggle="modal" data-target=".bd-example-modal-lg">Pre Screen</button>
-  <%= link_to('Short list', short_list_job_application_path(app, conversation_id: @conversation.id), method: :post, class: "btn #{btn_size}  btn-primary mt-12 margin-right-5 #{!app.prescreen? ? 'disabled' : "" }") %>
-  <%= link_to('Reject', reject_job_application_path(app, conversation_id: @conversation.id), method: :post, class: "btn #{btn_size}  btn-primary mt-12 margin-right-5 #{app.hired? || app.contract.present? || app.rejected? ? 'disabled' : "" }")%>
-  <%= link_to('Interview', interview_job_application_path(app, conversation_id: @conversation.id), method: :post, class: "btn #{btn_size}  btn-primary mt-12 margin-right-5 #{!app.short_listed? ? 'disabled' : "" }")%>
-  <%= link_to('Hire', hire_job_application_path(app, conversation_id: @conversation.id), method: :post, class: " btn #{btn_size}  btn-primary mt-12 margin-right-5 #{!app.interviewing? ? 'disabled' : "" }")%>
+  <%= link_to('Short list', applicant_job_application_path(app), class: "#{btn_size} #{!app.prescreen? ? 'disabled' : "" }") %>
+  <%= link_to('Pre Screen',prescreen_job_application_path(app,conversation_id: @conversation.id),class: "#{btn_size} #{app.rejected? || app.hired? || app.prescreen? ? 'disabled' : "" } prescreen",method: :post) %>
+  <%= link_to('Interview', interview_job_application_path(app, conversation_id: @conversation.id), method: :post, class: "#{btn_size} #{!app.short_listed? ? 'disabled' : "" }")%>
+  <%= link_to('Rate Confirmation','#',class: "#{btn_size}") %>
+  <%= link_to('Agreement(s)','#',class: "#{btn_size}") %>
+  <%= link_to('Client Submission','#',class: "#{btn_size}") %>
+  <%= link_to('Reject', reject_job_application_path(app, conversation_id: @conversation.id), method: :post, class: "#{btn_size} #{app.hired? || app.contract.present? || app.rejected? ? 'disabled' : "" }")%>
+  <%= link_to('Hire', hire_job_application_path(app, conversation_id: @conversation.id), method: :post, class: "#{btn_size} #{!app.interviewing? ? 'disabled' : "" }")%>
   <% if app.is_candidate_applicant? && !current_company.consultants.where(candidate_id: app.applicationable_id).present? %>
-    <%= link_to('Start On-Boarding', new_job_application_consultant_path(app), class: "contract btn #{btn_size} btn-default mt-12 margin-right-5 #{  !app.hired? || app.contract.present? ? 'disabled' : "" }")%>
+    <%= link_to('Start On-Boarding', new_job_application_consultant_path(app), class: "contract #{btn_size}#{  !app.hired? || app.contract.present? ? 'disabled' : "" }")%>
   <% else %>
-    <%= link_to('Start Contract', accept_job_application_path(app), method: :post, remote: true, class: "contract btn #{btn_size} btn-default mt-12 margin-right-5 #{  !app.hired? || app.contract.present? ? 'disabled' : "" }")%>
+    <%= link_to('Start Contract', accept_job_application_path(app), method: :post, remote: true, class: "contract #{btn_size} #{  !app.hired? || app.contract.present? ? 'disabled' : "" }")%>
   <% end %>
 <% end %>
 
+<script>
+
+</script>

@@ -15,7 +15,7 @@
     <% if @conversation&.chatable_type == "JobApplication" %>
       <% unless @job_application %>
         <div id="job_application_links">
-          <%= render 'company/job_applications/partials/collapse_able_job_application', job_application: @conversation.chatable %>
+          <%= render 'company/job_applications/partials/collapse_able_job_application', job_application: @conversation.chatable || conversation.chatable %>
         </div>
       <% end %>
     <% end %>
@@ -44,7 +44,7 @@
   </div>
   <% if @conversation&.chatable_type == "JobApplication" %>
     <div id="job_application_status_links">
-      <%= render 'company/job_applications/partials/job_status_links', btn_size_class: 'btn-sm', app: @conversation.chatable%>
+      <%#= render 'company/job_applications/partials/job_status_links', btn_size_class: 'btn-sm', app: @conversation.chatable%>
     </div>
   <% end %>
 </div>
