@@ -192,7 +192,6 @@ $(document).ready(function () {
   var i;
   for (i = 0; i < coll.length; i++) {
     coll[i].addEventListener("click", function () {
-      console.log(this)
       $(this).parent()[0].classList.toggle("active");
       var content = $(this).parent()[0].nextElementSibling;
       if (content.style.display === "block") {
