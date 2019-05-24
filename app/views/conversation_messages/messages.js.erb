@@ -2,9 +2,10 @@
   $("#prev_date").val("<%= @messages.last&.created_at&.strftime('%d %b, %Y') %>");
   $("#conversation_<%= @conversation.id %>").scrollTop(50);
   $("#conversation_<%= @conversation.id %>").parent().scrollTop(50);
-  <% @messages.each_with_index do |msg, i| %>
-    $("#conversation_<%= @conversation.id %>").prepend("<%= j render 'conversation_messages', msg: msg, i: i %>");
-  <% end if @messages.present? %>
+  $("#conversation_message_file_url").val('');
+<% @messages.each_with_index do |msg, i| %>
+  $("#conversation_<%= @conversation.id %>").prepend("<%= j render 'conversation_messages', msg: msg, i: i %>");
+<% end if @messages.present? %>
   $("#all-infinite-scrolling-msg").html("<%= j will_paginate @messages %>");
   $(".chat-content-scroll").data('ajaxready', true);
 <% end %>

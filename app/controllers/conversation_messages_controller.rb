@@ -15,6 +15,7 @@ class ConversationMessagesController < ApplicationController
                                        msg_id: message.id,
                                        # msg: message_content,
                                        msg: message.body,
+                                       file_url: message.file_url ? message.file_url : "",
                                        msg_url: message.userable.photo,
                                        msg_time: message.created_at.strftime("%l:%M%P"),
                                        # msg_att: message.attachment_file,
@@ -35,6 +36,7 @@ class ConversationMessagesController < ApplicationController
                                        msg_id: message.id,
                                        # msg: message_content,
                                        msg: message.body,
+                                       file_url: message.file_url ? message.file_url : "",
                                        msg_url: message.userable.photo,
                                        msg_time: message.created_at.strftime("%l:%M%P"),
                                        # msg_att: message.attachment_file,
@@ -55,6 +57,7 @@ class ConversationMessagesController < ApplicationController
                                      msg_id: message.id,
                                      # msg: message_content,
                                      msg: message.body,
+                                     file_url: message.file_url ? message.file_url : "",
                                      msg_url: message.userable.photo,
                                      msg_time: message.created_at.strftime("%l:%M%P"),
                                      # msg_att: message.attachment_file,
@@ -72,6 +75,7 @@ class ConversationMessagesController < ApplicationController
                                      msg_id: message.id,
                                      # msg: message_content,
                                      msg: message.body,
+                                     file_url: message.file_url ? message.file_url : "",
                                      msg_url: message.userable.photo,
                                      msg_time: message.created_at.strftime("%l:%M%P"),
                                      # msg_att: message.attachment_file,
@@ -116,7 +120,7 @@ class ConversationMessagesController < ApplicationController
   end
 
   def message_params
-    params.require(:conversation_message).permit(:body, :attachment_file, :file_name, :file_size, :file_type)
+    params.require(:conversation_message).permit(:body, :attachment_file, :file_name, :file_size, :file_type,:file_url)
   end
 
   def render_message(message)

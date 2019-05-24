@@ -22,6 +22,10 @@
     <div class="chat-message-content-w">
       <div class="chat-message-content">
         <%= msg.body.html_safe %>
+        <% if msg.file_url %>
+          <hr/>
+          <a href=<%= msg.file_url %> target="_blank">Attachment</a>
+        <% end %>
       </div>
     </div>
     <div class="chat-message-date">
@@ -36,6 +40,10 @@
     <div class="chat-message-content-w">
       <div class="chat-message-content">
         <%= msg.body %>
+        <% if msg.file_url %>
+          <hr/>
+          <a href=<%= msg.file_url %> target="_blank">Attachment</a>
+        <% end %>
       </div>
     </div>
     <div class="chat-message-avatar">
