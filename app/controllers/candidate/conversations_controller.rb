@@ -104,7 +104,8 @@ class Candidate::ConversationsController < Candidate::BaseController
       if Conversation.between(current_candidate, user).where(chatable_id: chatable_id, chatable_type: chatable_type).present?
         @conversation = Conversation.between(current_candidate, user).where(chatable_id: chatable_id, chatable_type: chatable_type).first
       else
-        @conversation = Conversation.create!({senderable: current_candidate, recipientable: user, chatable_id: chatable_id, chatable_type: chatable_type})
+        @conversation = Conversation.find_by(recipientable_id: current_candidate.id, senderable_id: user.id)
+        # @conversation ||= Conversation.create!({senderable: current_candidate, recipientable: user, chatable_id: chatable_id, chatable_type: chatable_type})
       end
     end
   end
