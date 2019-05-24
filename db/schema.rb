@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema.define(version: 20190520112837) do
+ActiveRecord::Schema.define(version: 20190524133106) do
 
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
@@ -847,6 +847,7 @@ ActiveRecord::Schema.define(version: 20190520112837) do
     t.string "file_name"
     t.string "file_size"
     t.string "file_type"
+    t.string "file_url"
     t.index ["conversation_id"], name: "index_conversation_messages_on_conversation_id"
     t.index ["userable_type", "userable_id"], name: "index_conversation_messages_on_userable_type_and_userable_id"
   end

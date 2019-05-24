@@ -31,9 +31,12 @@
       <div class="chat-input1 chat-input">
         <%= f.text_field :body, class: 'form-control input-sm chat_input ', autocomplete: "off", placeholder: 'Type your message here...', required: true, "data-cid" => @conversation.id, id: "con-text-#{@conversation.id}-#{@current_user.class}-#{@current_user.id}" %>
       </div>
+      <div id="file-name_uploaded">
+
+      </div>
       <div class="chat-input-extra">
         <div class="chat-extra-actions">
-          <a href="#"><i class="icon-paper-clip"></i></a>
+          <%= f.filepicker_field :file_url, onchange: 'onCompanyFileUpload(event)' %>
         </div>
         <div class="chat-btn">
           <%= f.submit "Send", class: "btn btn-primary btn-sm float-right", id: "send-chat-message" %>
@@ -51,6 +54,9 @@
 
 <% content_for :scripts do %>
   <script>
+    function onCompanyFileUpload (event) {
+      $('#file-name_uploaded').html("<span>" + event.fpfile.filename + "</span><hr/>");
+    }
     $(document).ready(function () {
       <% unless @job_application %>
       $('.collapsible').css('padding', '6px 18px');

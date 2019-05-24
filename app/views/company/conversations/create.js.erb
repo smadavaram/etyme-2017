@@ -36,12 +36,12 @@ if ($("#conversation_<%= @conversation.id %>")[0]) {
 $("#company-conversation-list .usr_<%= opt_usr.class.to_s+'_'+opt_usr.id.to_s %>").remove();
 $("#company-conversation-list").prepend("<div class='user-fav usr_<%= opt_usr.class.to_s+'_'+opt_usr.id.to_s %>'> <%= j render 'conversation_list', con: @conversation, usr: opt_usr, is_favourite: false %> </div>")
 
-var coll = document.getElementsByClassName("collapsible");
+var coll = document.getElementsByClassName("collapsible-click");
 var i;
 for (i = 0; i < coll.length; i++) {
   coll[i].addEventListener("click", function () {
-    this.classList.toggle("active");
-    var content = this.nextElementSibling;
+    $(this).parent()[0].classList.toggle("active");
+    var content = $(this).parent()[0].nextElementSibling;
     if (content.style.display === "block") {
       content.style.display = "none";
     } else {

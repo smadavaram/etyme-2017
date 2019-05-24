@@ -1,40 +1,41 @@
 App.messages = App.cable.subscriptions.create('MessagesChannel', {
-  connected: function() {},
-  disconnected: function() {},
+  connected: function () {
+  },
+  disconnected: function () {
+  },
 
-  received: function(data) {
+  received: function (data) {
     set_conversation(data);
     return ""
   },
 
-  notify: function(message) {
+  notify: function (message) {
     return alert(message);
   },
 
-  speak: function(massage) {
+  speak: function (massage) {
     return this.perform('speak', {
       massage: massage
     });
   }
 });
 
-function set_conversation(data){
-
-  $("#con-text-" + data.con_id+ "-" + data.usr_typ + "-" + data.usr).val('');
-  $("#con-atta-" + data.con_id+ "-" + data.usr_typ + "-" + data.usr).val('');
-  $("#con-filename-" + data.con_id+ "-" + data.usr_typ + "-" + data.usr).val('');
-  $("#con-filesize-" + data.con_id+ "-" + data.usr_typ + "-" + data.usr).val('');
-  $("#con-filetype-" + data.con_id+ "-" + data.usr_typ + "-" + data.usr).val('');
+function set_conversation (data) {
+  $("#con-text-" + data.con_id + "-" + data.usr_typ + "-" + data.usr).val('');
+  $("#con-atta-" + data.con_id + "-" + data.usr_typ + "-" + data.usr).val('');
+  $("#con-filename-" + data.con_id + "-" + data.usr_typ + "-" + data.usr).val('');
+  $("#con-filesize-" + data.con_id + "-" + data.usr_typ + "-" + data.usr).val('');
+  $("#con-filetype-" + data.con_id + "-" + data.usr_typ + "-" + data.usr).val('');
 
 
   current_user_id = $('meta[name=user-id]').attr("content");
   current_user_type = $('meta[name=user-type]').attr("content");
 
-  if (current_user_id == data.recpt_id && current_user_type == data.recpt_type ){
-    if ($("#conversation-chat-box").data("conversation-id") == data.con_id ){
+  if (current_user_id == data.recpt_id && current_user_type == data.recpt_type) {
+    if ($("#conversation-chat-box").data("conversation-id") == data.con_id) {
       mark_as_read(data.con_id, data.msg_id, current_user_id, current_user_type, data.chat_typ, data.group_id)
-    }else{
-      $("#unread-msg-"+current_user_id).html(data.unread_msg_cnt)
+    } else {
+      $("#unread-msg-" + current_user_id).html(data.unread_msg_cnt)
     }
   }
 
@@ -45,65 +46,74 @@ function set_conversation(data){
 //    "</div>"
 //  );
 //  $(data.dom).append(data.msg);
-    if($(data.dom).hasClass("popup-chat")){
-        if(current_user_id == data.usr && current_user_type == data.usr_typ ){
-            $(data.dom).append( "<div class='message self'>" +
-                  "<div class='message-content'>"+
-                    data.msg +
-                  "</div>"+
-                "</div>");
-        } else {
-            $(data.dom).append("<div class='message'>" +
-                  "<div class='message-content'>"+
-                    data.msg +
-                  "</div>"+
-                "</div>");
-        }
+
+  $("#conversation_message_file_url").val('');
+  $("#file-name_uploaded").html('');
+  if ($(data.dom).hasClass("popup-chat")) {
+    if (current_user_id == data.usr && current_user_type == data.usr_typ) {
+      $(data.dom).append("<div class='message self'>" +
+        "<div class='message-content'>" +
+        data.msg +
+        "</div>" +
+        "</div>");
     } else {
-      if(current_user_id == data.usr && current_user_type == data.usr_typ ){
-          $(data.dom).append( "<div class='chat-message self'>" +
-            "<div class='chat-message-content-w'>"+
-              "<div class='chat-message-content'>"+
-                data.msg +
-              "</div>"+
-            "</div>"+
-            "<div class=chat-message-date>"+
-              data.msg_time +
-            "</div>"+
-            "<div class='chat-message-avatar'>"+
-              "<img src='"+ data.msg_url + "' alt='Ovkjsvq7scweziqwldea'>"+
-            "</div>"+
-          "</div>");
-      } else {
-          $(data.dom).append("<div class='chat-message'>" +
-            "<div class='chat-message-content-w'>"+
-              "<div class='chat-message-content'>"+
-                data.msg +
-              "</div>"+
-            "</div>"+
-            "<div class='chat-message-avatar'>"+
-              "<img src='"+ data.msg_url + "' alt='Ovkjsvq7scweziqwldea'>"+
-            "</div>"+
-            "<div class=chat-message-date>"+
-                data.msg_time +
-            "</div>"+
-          "</div>");
-      }
+      $(data.dom).append("<div class='message'>" +
+        "<div class='message-content'>" +
+        data.msg +
+        "</div>" +
+        "</div>");
     }
+  } else {
+
+    file_url = data.file_url ? "<hr/><a href='"+data.file_url+"' target='_blank'>Attachment</a>" : ''
+
+    if (current_user_id == data.usr && current_user_type == data.usr_typ) {
+      $(data.dom).append("<div class='chat-message self'>" +
+        "<div class='chat-message-content-w'>" +
+        "<div class='chat-message-content'>" +
+        data.msg +
+        file_url +
+        "</div>" +
+        "</div>" +
+        "<div class=chat-message-date>" +
+        data.msg_time +
+        "</div>" +
+        "<div class='chat-message-avatar'>" +
+        "<img src='" + data.msg_url + "' alt='Ovkjsvq7scweziqwldea'>" +
+        "</div>" +
+        "</div>");
+    } else {
+      $(data.dom).append("<div class='chat-message'>" +
+        "<div class='chat-message-content-w'>" +
+        "<div class='chat-message-content'>" +
+        data.msg +
+        file_url +
+        "</div>" +
+        "</div>" +
+        "<div class='chat-message-avatar'>" +
+        "<img src='" + data.msg_url + "' alt='Ovkjsvq7scweziqwldea'>" +
+        "</div>" +
+        "<div class=chat-message-date>" +
+        data.msg_time +
+        "</div>" +
+        "</div>"
+      )
+      ;
+    }
+  }
 
 
-
-  if($("#conversation_"+data.con_id)[0]){
-    $("#conversation_"+data.con_id).scrollTop($("#conversation_"+data.con_id)[0].scrollHeight);
-    $("#conversation_"+data.con_id).parent().scrollTop($("#conversation_"+data.con_id).parent()[0].scrollHeight);
+  if ($("#conversation_" + data.con_id)[0]) {
+    $("#conversation_" + data.con_id).scrollTop($("#conversation_" + data.con_id)[0].scrollHeight);
+    $("#conversation_" + data.con_id).parent().scrollTop($("#conversation_" + data.con_id).parent()[0].scrollHeight);
   }
 }
 
-function mark_as_read(conversation_id, message_id, cnt_user_id, cnt_user_type, chat_type, group_id){
+function mark_as_read (conversation_id, message_id, cnt_user_id, cnt_user_type, chat_type, group_id) {
   $.ajax({
     url: "/conversations/" + conversation_id + "/conversation_messages/" + message_id + "/mark_as_read",
     type: "GET",
-    data: { cnt_user_id: cnt_user_id, cnt_user_type: cnt_user_type, chat_type: chat_type, group_id: group_id },
+    data: {cnt_user_id: cnt_user_id, cnt_user_type: cnt_user_type, chat_type: chat_type, group_id: group_id},
     dataType: "json"
   });
 }
