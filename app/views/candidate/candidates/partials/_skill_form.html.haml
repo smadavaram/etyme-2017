@@ -24,6 +24,28 @@
         .form-group
           %label Skills
           = f.text_field :skill_list, placeholder: "Add Skills Comma seperated",class: 'form-control p-location input', 'data-role'=>'tagsinput',value: current_candidate.skill_list.join(", ")
+    .row
+      .col-md-12
+        %h5
+          %b Have you ever worked with a Client?
+          %label.radio-container
+            Yes
+            = f.radio_button :ever_worked_with_company, "Yes"
+            %span.radio-checkmark
+          %label.radio-container
+            No
+            = f.radio_button :ever_worked_with_company, "No"
+            %span.radio-checkmark
+
+      %br
+      .row.client_information_main_div
+        .col-md-12
+          .form-group.candidate-association
+            = f.fields_for :clients do |b|
+              = render 'candidate/candidates/client_fields', f: b
+            %strong
+              .links.pull-right
+                = link_to_add_association '+ Add Client', f, :clients, class: 'btn btn-success', partial: 'candidate/candidates/client_fields'
       -#.col-sm-6
         -#  .form-group
         -#    %label Selected From Resume

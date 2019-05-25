@@ -14,4 +14,11 @@ class Group < ApplicationRecord
     self.black_listers.find_by(company_id: black_list_company_id)&.status || 'unbanned'
   end
 
+  def photo
+    ActionController::Base.helpers.asset_path('default_logo.png')
+  end
+
+  def full_name
+    group_name.to_s.titleize
+  end
 end

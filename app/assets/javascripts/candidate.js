@@ -108,7 +108,6 @@
 //= require plugin/superbox/superbox.min
 
 
-
 // Morris Chart Dependencies
 //= require plugin/morris/morris.min
 //= require plugin/morris/raphael.min
@@ -172,3 +171,11 @@
 
 // BulletTrain
 //= require_tree ./clean_admin
+
+$("input[name='candidate[designation_status]']").click(function () {
+  if ($("input[name='candidate[designation_status]']:checked").val() == "Employee") {
+    $('#employee-designations').removeClass('display-none');
+  } else if ($("input[name='candidate[designation_status]']:checked").val() == "Freelancer") {
+    $('#employee-designations').addClass('display-none');
+  }
+});

@@ -1,0 +1,22 @@
+<div class="no-border" id="content">
+  <div class="all-wrapper no-padding-content solid-bg-all">
+    <div class="layout-w">
+      <div class="content-w">
+        <div class="content-i">
+          <div class="content-box">
+            <div class="full-chat-w">
+              <div class="full-chat-i">
+                <div class="full-chat-middle" id="conversation-section">
+                  <%= render "company/job_applications/partials/collapse_able_job_application", job_application: @job_application, messages: true %>
+                </div>
+                <div class="full-chat-right" id="conversation-r-section">
+                  <%= render "company/conversations/conversation_right_side" %>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

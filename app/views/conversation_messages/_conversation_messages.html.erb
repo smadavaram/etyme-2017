@@ -5,31 +5,55 @@
 <% if @messages.next_page.nil? && i == (@messages.size - 1) %>
   <%# @prev_date = msg.created_at.strftime('%d %b, %Y') %>
   <div class="chat-date-separator">
-      <span>
-        <% if Date.parse(msg.created_at.strftime('%d %b, %Y')) == Date.today %>
-          Today
-        <% elsif Date.parse(msg.created_at.strftime('%d %b, %Y')) == Date.yesterday %>
-          Yesterday
-        <% else %>
-          <%= msg.created_at.strftime('%d %b, %Y') %>
-        <% end %>
-      </span>
+    <span>
+      <% if Date.parse(msg.created_at.strftime('%d %b, %Y')) == Date.today %>
+        Today
+      <% elsif Date.parse(msg.created_at.strftime('%d %b, %Y')) == Date.yesterday %>
+        Yesterday
+      <% else %>
+        <%= msg.created_at.strftime('%d %b, %Y') %>
+      <% end %>
+    </span>
   </div>
 <% end %>
 
-<div class="chat-message <%= msg.userable == current_candidate ? 'self' : '' %>">
-  <div class="chat-message-content-w">
-    <div class="chat-message-content">
-      <%= msg.body %>
+<% if msg.userable == get_current_user %>
+  <div class="chat-message self">
+    <div class="chat-message-content-w">
+      <div class="chat-message-content">
+        <%= msg.body.html_safe %>
+        <% if msg.file_url %>
+          <hr/>
+          <a href=<%= msg.file_url %> target="_blank">Attachment</a>
+        <% end %>
+      </div>
+    </div>
+    <div class="chat-message-date">
+      <%= msg.created_at.strftime("%l:%M%P") %>
+    </div>
+    <div class="chat-message-avatar">
+      <%= image_tag msg.userable.photo %>
     </div>
   </div>
-  <div class="chat-message-avatar">
-    <%= image_tag msg.userable.photo %>
+<% else %>
+  <div class="chat-message">
+    <div class="chat-message-content-w">
+      <div class="chat-message-content">
+        <%= msg.body %>
+        <% if msg.file_url %>
+          <hr/>
+          <a href=<%= msg.file_url %> target="_blank">Attachment</a>
+        <% end %>
+      </div>
+    </div>
+    <div class="chat-message-avatar">
+      <%= image_tag msg.userable.photo %>
+    </div>
+    <div class="chat-message-date">
+      <%= msg.created_at.strftime("%l:%M%P") %>
+    </div>
   </div>
-  <div class="chat-message-date">
-    <%= msg.created_at.strftime("%l:%M%P") %>
-  </div>
-</div>
+<% end %>
 
 <% if @prev_date != msg.created_at.strftime('%d %b, %Y') %>
   <div class="chat-date-separator">

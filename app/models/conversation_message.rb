@@ -2,6 +2,7 @@ class ConversationMessage < ApplicationRecord
 
   belongs_to :conversation
   belongs_to :userable, polymorphic: :true
+  # after_create :create_notification
 
   scope :unread_messages, -> (sender, recipient) do
     joins(:conversation).where("(
@@ -21,4 +22,20 @@ class ConversationMessage < ApplicationRecord
 
   end
 
+  def create_notification
+    senderable_name = "#{self.userable.first_name} #{self.userable.last_name}"
+    notification_message = "#{senderable_name}: #{self.body}"
+    if self.conversation.chatable_id? && self.conversation.chatable_type != "JobApplication"
+      groupables = self.conversation.chatable&.groupables
+      if groupables.present?
+        groupables.each do |group|
+          if self.userable_id != group.groupable.id
+            group.groupable.notifications.create(notification_type: :chat,createable: self.userable,message: notification_message, title: "Job Application Conversation")
+          end
+        end
+      end
+    else
+      self.conversation.recipientable.notifications.create(notification_type: :chat,createable: self.userable,message: notification_message, title: "Job Application Conversation")
+    end
+  end
 end

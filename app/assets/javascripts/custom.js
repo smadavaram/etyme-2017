@@ -6,7 +6,7 @@ function flash(color , msg , icon){
         iconSmall : icon+" bounce animated",
         timeout : 4000
     });
-}
+}1
 function flash_error(msg)
 {
     $error    = '#D04B2B';
@@ -168,3 +168,4 @@ function callAjaxSearch(ajax_url, ajax_method, params_data){
         success: function(data){}
     });
 }
+

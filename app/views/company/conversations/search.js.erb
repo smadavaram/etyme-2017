@@ -1,5 +1,13 @@
 <% if current_user.present? %>
-  $("#company-conversation-list").html("<%= j render 'company/conversations/conversation_users', users: @companies, candidates: @candidates %>");
+  <% if @conversations.present? %>
+    $("#company-conversation-list").html("<%= j render 'company/conversations/conversations_list', conversations: @conversations %>");
+  <% else %>
+    $("#company-conversation-list").html("<%= j render 'company/conversations/conversation_users', users: @companies, candidates: @candidates, groups: @groups %>");
+  <% end %>
 <% else %>
-  $("#company-conversation-list").html("<%= j render 'candidate/conversations/conversation_users', users: @companies, candidates: @candidates %>");
+  <% if @conversations.present? %>
+    $("#company-conversation-list").html("<%= j render 'candidate/conversations/conversation_users', users: @companies, candidates: @candidates, groups: @groups %>");
+  <% else %>
+    $("#company-conversation-list").html("<%= j render 'candidate/conversations/conversation_users', users: @companies, candidates: @candidates, groups: @groups %>");
+  <% end %>
 <% end %>

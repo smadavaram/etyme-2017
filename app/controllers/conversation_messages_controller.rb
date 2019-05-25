@@ -10,11 +10,12 @@ class ConversationMessagesController < ApplicationController
 
       if @conversation.chatable_type == "Group"
         @conversation.chatable.groupables.each do |gm|
-          GroupMsgNotify.create(group_id: @conversation.chatable.id, member: gm.groupable, conversation_message: message)
+          # GroupMsgNotify.create(group_id: @conversation.chatable.id, member: gm.groupable, conversation_message: message)
           ActionCable.server.broadcast "Message_#{gm.groupable_type}_#{gm.groupable_id}",
                                        msg_id: message.id,
                                        # msg: message_content,
                                        msg: message.body,
+                                       file_url: message.file_url ? message.file_url : "",
                                        msg_url: message.userable.photo,
                                        msg_time: message.created_at.strftime("%l:%M%P"),
                                        # msg_att: message.attachment_file,
@@ -30,11 +31,12 @@ class ConversationMessagesController < ApplicationController
                                        dom: "#conversation_#{@conversation.id}"
         end
         @conversation.chatable.company.users.each do |usr|
-          GroupMsgNotify.create(group_id: @conversation.chatable.id, member: usr, conversation_message: message)
+          # GroupMsgNotify.create(group_id: @conversation.chatable.id, member: usr, conversation_message: message)
           ActionCable.server.broadcast "Message_#{usr.class}_#{usr.id}",
                                        msg_id: message.id,
                                        # msg: message_content,
                                        msg: message.body,
+                                       file_url: message.file_url ? message.file_url : "",
                                        msg_url: message.userable.photo,
                                        msg_time: message.created_at.strftime("%l:%M%P"),
                                        # msg_att: message.attachment_file,
@@ -55,6 +57,7 @@ class ConversationMessagesController < ApplicationController
                                      msg_id: message.id,
                                      # msg: message_content,
                                      msg: message.body,
+                                     file_url: message.file_url ? message.file_url : "",
                                      msg_url: message.userable.photo,
                                      msg_time: message.created_at.strftime("%l:%M%P"),
                                      # msg_att: message.attachment_file,
@@ -72,6 +75,7 @@ class ConversationMessagesController < ApplicationController
                                      msg_id: message.id,
                                      # msg: message_content,
                                      msg: message.body,
+                                     file_url: message.file_url ? message.file_url : "",
                                      msg_url: message.userable.photo,
                                      msg_time: message.created_at.strftime("%l:%M%P"),
                                      # msg_att: message.attachment_file,
@@ -101,17 +105,22 @@ class ConversationMessagesController < ApplicationController
 
   def messages
     @prev_date = params[:prev_date]||=nil
-    @messages = @conversation.conversation_messages.order(created_at: :desc).paginate(page: params[:page], per_page: 5)
+    @messages = @conversation.conversation_messages.order(created_at: :desc).paginate(page: params[:page], per_page: 10) if @conversation.present?
+  end
+
+  def pop_messages
+    @prev_date = params[:prev_date]||=nil
+    @messages = @conversation.conversation_messages.order(created_at: :desc).paginate(page: params[:page], per_page: 10)
   end
 
   private
 
   def set_conversation
-    @conversation = Conversation.find(params[:conversation_id])
+    @conversation = Conversation.where(id: params[:conversation_id]).first
   end
 
   def message_params
-    params.require(:conversation_message).permit(:body, :attachment_file, :file_name, :file_size, :file_type)
+    params.require(:conversation_message).permit(:body, :attachment_file, :file_name, :file_size, :file_type,:file_url)
   end
 
   def render_message(message)

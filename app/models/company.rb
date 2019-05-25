@@ -190,6 +190,11 @@ class Company < ApplicationRecord
   def logo
     super.present? ? super : ActionController::Base.helpers.asset_path('default_logo.png')
   end
+
+  def photo
+    logo
+  end
+
   # def already_prefered(c)
   #   Company.where.not(:id=>PreferVendor.select(:vendor_id).where(company_id=c.id))
   # end

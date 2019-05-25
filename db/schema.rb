@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema.define(version: 20190427083127) do
+ActiveRecord::Schema.define(version: 20190524133106) do
 
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
@@ -360,6 +360,12 @@ ActiveRecord::Schema.define(version: 20190427083127) do
     t.string "skypeid"
     t.string "gtalk_url"
     t.string "address"
+    t.bigint "company_id"
+    t.string "passport_number"
+    t.string "ssn"
+    t.boolean "relocation", default: false
+    t.string "work_authorization"
+    t.string "visa_type"
     t.index ["invitation_token"], name: "index_candidates_on_invitation_token", unique: true
     t.index ["invitations_count"], name: "index_candidates_on_invitations_count"
     t.index ["invited_by_id"], name: "index_candidates_on_invited_by_id"
@@ -471,6 +477,9 @@ ActiveRecord::Schema.define(version: 20190427083127) do
     t.string "refrence_email"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.string "refrence_two_name"
+    t.string "refrence_two_email"
+    t.string "refrence_two_phone"
     t.index ["candidate_id"], name: "index_clients_on_candidate_id"
   end
 
@@ -807,8 +816,19 @@ ActiveRecord::Schema.define(version: 20190427083127) do
     t.string "file_name"
     t.string "file_size"
     t.string "file_type"
+    t.string "file_url"
     t.index ["conversation_id"], name: "index_conversation_messages_on_conversation_id"
     t.index ["userable_type", "userable_id"], name: "index_conversation_messages_on_userable_type_and_userable_id"
+  end
+
+  create_table "conversation_mutes", force: :cascade do |t|
+    t.bigint "conversation_id"
+    t.string "mutable_type"
+    t.bigint "mutable_id"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["conversation_id"], name: "index_conversation_mutes_on_conversation_id"
+    t.index ["mutable_type", "mutable_id"], name: "index_conversation_mutes_on_mutable_type_and_mutable_id"
   end
 
   create_table "conversations", force: :cascade do |t|
@@ -898,6 +918,7 @@ ActiveRecord::Schema.define(version: 20190427083127) do
     t.string "company_role"
     t.date "start_date"
     t.date "end_date"
+    t.integer "confirmation", default: 0
     t.index ["candidate_id"], name: "index_designations_on_candidate_id"
   end
 
@@ -1135,6 +1156,12 @@ ActiveRecord::Schema.define(version: 20190427083127) do
     t.string "applicationable_type"
     t.string "applicant_resume"
     t.string "share_key"
+    t.string "available_from"
+    t.string "available_to"
+    t.datetime "available_to_join"
+    t.float "total_experience"
+    t.float "relevant_experience"
+    t.float "rate_per_hour"
   end
 
   create_table "job_invitations", id: :serial, force: :cascade do |t|
@@ -1245,6 +1272,8 @@ ActiveRecord::Schema.define(version: 20190427083127) do
     t.integer "notification_type", default: 0
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.string "createable_type"
+    t.bigint "createable_id"
   end
 
   create_table "packages", id: :serial, force: :cascade do |t|
@@ -1725,6 +1754,16 @@ ActiveRecord::Schema.define(version: 20190427083127) do
     t.integer "vb_clr_cycle_id"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+  end
+
+  create_table "versions", force: :cascade do |t|
+    t.string "item_type", null: false
+    t.bigint "item_id", null: false
+    t.string "event", null: false
+    t.string "whodunnit"
+    t.text "object"
+    t.datetime "created_at"
+    t.index ["item_type", "item_id"], name: "index_versions_on_item_type_and_item_id"
   end
 
   create_table "visas", force: :cascade do |t|

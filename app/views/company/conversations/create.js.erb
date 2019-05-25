@@ -1,14 +1,51 @@
-$("#conversation-section").html("<%= j render 'company/conversations/conversation' %>");
+<% user = @conversation.chatable_type == "Group" ? @conversation.chatable :  (@conversation.senderable == current_user ? @conversation.recipientable : @conversation.senderable) %>
+<% if (@conversation.chatable && @conversation.chatable_type == "JobApplication") %>
+  $("#conversation-section").html("<%= j render 'company/conversations/job_conversation_box', job_appliction: @conversation.chatable, conversation: @conversation %>");
+//  $("#job_application_status_links").html(" j render 'company/job_applications/partials/job_status_links', btn_size_class: 'btn-sm', app: @conversation.chatable %>");
+  $('.prescreen').on('click', function () {
+    $.ajax({
+      url: "/company/candidates/<%= user.id %>?conversation_id=<%= @conversation.id %>",
+      type: "GET"
+    });
+  });
+  $('#candidate-name').remove();
+  $('.collapsible').css('padding', '6px 18px');
+  $('#collapsible_job_application').removeClass('ml-2 mr-2')
+  $('#collapsible_job_application').removeClass('mt-4')
+  $('#collapsible_job_application').addClass('mt-2')
+<% else %>
+  $("#conversation-section").html("<%= j render 'company/conversations/job_conversation_box' %>");
+<% end %>
 $("#conversation-r-section").html("<%= j render 'company/conversations/conversation_right_side' %>");
 $(".chat-content-scroll").data('ajaxready', true);
 $.ajax({
-    url: "<%= messages_conversation_conversation_messages_path(@conversation) %>",
-    type: "GET",
-    dataType: "script",
-    success:function(data){}
+  url: "<%= messages_conversation_conversation_messages_path(@conversation) %>",
+  type: "GET",
+  dataType: "script",
+  success: function (data) {
+    $("#conversation_<%=@conversation.id||0 %>").parent().scrollTop($("#conversation_<%=@conversation.id||0 %>").parent()[0].scrollHeight);
+  }
 });
 listenForScrollEvent($(".chat-content-scroll"));
 $("#unread-msg-<%= current_user.id %>").html("<%= @unread_message_count.to_i > 0 ? @unread_message_count : '' %>");
-if($("#conversation_<%= @conversation.id %>")[0]){
+if ($("#conversation_<%= @conversation.id %>")[0]) {
   $("#conversation_<%= @conversation.id %>").scrollTop($("#conversation_<%= @conversation.id %>")[0].scrollHeight);
+}
+
+<% opt_usr = @conversation.opt_participant(current_user) %>
+$("#company-conversation-list .usr_<%= opt_usr.class.to_s+'_'+opt_usr.id.to_s %>").remove();
+$("#company-conversation-list").prepend("<div class='user-fav usr_<%= opt_usr.class.to_s+'_'+opt_usr.id.to_s %>'> <%= j render 'conversation_list', con: @conversation, usr: opt_usr, is_favourite: false %> </div>")
+
+var coll = document.getElementsByClassName("collapsible-click");
+var i;
+for (i = 0; i < coll.length; i++) {
+  coll[i].addEventListener("click", function () {
+    $(this).parent()[0].classList.toggle("active");
+    var content = $(this).parent()[0].nextElementSibling;
+    if (content.style.display === "block") {
+      content.style.display = "none";
+    } else {
+      content.style.display = "block";
+    }
+  });
 }

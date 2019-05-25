@@ -1,0 +1,83 @@
+<%= javascript_include_tag "application" %>
+<div class="element-wrapper">
+  <div class="padded-lg">
+    <div class="element-box">
+      <div class="table-responsive">
+        <% if @received_job_applications.count > 0 %>
+          <table id="dataTable" class="table table-lightborder table-striped dataTable" data-class="Scaffolding::Thing">
+            <thead>
+            <tr>
+              <th><%= check_box_tag "select_all[]", "" %></th>
+              <th><input class="form-control" type="text" width="auto" placeholder="Filter Name"></th>
+              <th><input class="form-control" type="text" placeholder="Filter Application"></th>
+              <th><input class="form-control" type="text" placeholder="Filter Title"></th>
+              <th><input class="form-control" type="text" placeholder="Filter Bench"></th>
+<!--              <th><input class="form-control" type="text" placeholder="Filter Reminder/Note"></th>-->
+              <th><input class="form-control" type="text" placeholder="Filter Status"></th>
+              <th><input class="form-control" type="text" placeholder="Filter Source"></th>
+              <th><input class="form-control" type="text" placeholder="Filter Type"></th>
+              <th></th>
+            </tr>
+            <tr>
+              <th>Select</th>
+              <th>Name</th>
+              <th>Application NO</th>
+              <th>Job Title</th>
+              <th>Bench</th>
+<!--              <th>Reminder/Note</th>-->
+              <th>Status</th>
+              <th>Source</th>
+              <th>Type</th>
+              <th class="">Actions</th>
+            </tr>
+            </thead>
+            <tbody>
+            <% @received_job_applications.each do |application| %>
+              <tr data-id="<%= application.id %>">
+                <td><%= check_box_tag "ids[]", application.id %></td>
+
+                <td>
+                  <%=image_tag(application.applicationable.photo, class: 'data-table-image mr-1') %>
+                  <%=link_to(do_ellipsis(application.applicationable.full_name), '#', class: 'data-table-font') %>
+                </td>
+                <td class="text-center"><%= application.id %></td>
+                <td><%= do_ellipsis(application.job.title, 15) %></td>
+                <td><%= do_ellipsis(application.applicationable.associated_company&.name, 15) %></td>
+<!--                <td><%#= content_tag(:span, do_ellipsis(application.applicationable&.reminders&.last&.title), class: 'bg-info badge mr-1')%></td>-->
+                <td> <%= application.job_invitation_id ? 'Invited' : 'Direct' %> </td>
+                <td><%= application.status %></td>
+                <td><%= application.application_type %></td>
+                <td>
+                  <%=link_to(content_tag(:i, nil, class: 'fa fa-eye').html_safe, job_application_path(application), title: 'View Detail', class: 'data-table-icons')  %>
+                  <%=link_to(content_tag(:i, nil, class: 'fa fa-comment-o').html_safe, '#', title: 'chat', class: 'data-table-icons', data: {chattopic: "Job", cid: application.job.id, ctype: application.job.class.to_s, rid: application.applicationable_id, rtype: application.applicationable_type}) %>
+                  <%=link_to(content_tag(:i, nil, class: 'fa fa-bell-o ').html_safe, candidate_add_reminder_path(application.applicationable_id), remote: :true, title: "Remind Me", class: 'data-table-icons')%>
+                  <%=link_to(content_tag(:i, nil, class: 'picons-thin-icon-thin-0122_download_file_computer_drive').html_safe, application.applicant_resume, download: true, title: "Download Resume", class: 'data-table-icons') %>
+                  <%=link_to(content_tag(:i, nil, class: 'icon-feather-user-plus').html_safe, make_company_candidate_path(application.applicationable), method: :put, title: 'Add to candidates', class: 'data-table-icons') %>
+                </td>
+              </tr>
+            <% end %>
+            </tbody>
+          </table>
+        <% end %>
+      </div>
+    </div>
+  </div>
+</div>
+
+<%= javascript_tag do %>
+  $(function() {
+  var table = $("#dataTable").DataTable();
+
+  // Apply the filter
+  $("#dataTable thead th input[type=text]").on( 'keyup change', function () {
+  table
+  .column( $(this).parent().index()+':visible' )
+  .search( this.value )
+  .draw();
+
+  } );
+  $("#select_all_" ).on( "click", function() {
+  $("input[name='ids[]']").prop('checked', this.checked);
+  });
+  })
+<% end %>

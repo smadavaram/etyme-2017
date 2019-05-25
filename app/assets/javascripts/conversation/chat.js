@@ -160,7 +160,7 @@ var ready = function () {
 
             setTimeout( function(){
                 $.ajax({
-                    url: "/conversations/" + conversation_id + "/conversation_messages/messages",
+                    url: "/conversations/" + conversation_id + "/conversation_messages/pop_messages",
                     type: "GET",
                     dataType: "script",
                     success:function(data){}

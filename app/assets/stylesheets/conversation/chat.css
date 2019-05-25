@@ -11,6 +11,60 @@
     display: none;
 }
 
+.chat-content_height {
+    /*height: 350px !important;*/
+}
+
+.nav-tabs_height {
+    height: 450px !important;
+    overflow-y: scroll;
+    padding-bottom: 100px;
+}
+
+.user-fav:last-child {
+    /*margin-bottom: 100px !important;*/
+}
+
+.timed-activities_height {
+    height: 400px !important;
+    overflow-y: scroll;
+}
+
+.full-chat_height {
+    height: 650px !important;
+    /*overflow-y: scroll;*/
+}
+
+.full-chat_height {
+    height: 700px !important;
+}
+
+.no_padding_bottom {
+    padding-bottom: 0px !important;
+}
+
+.no_padding_top {
+    padding-top: 0px !important;
+}
+
+.no_border_bottom {
+    border-bottom: none !important;
+}
+
+.border_bottom {
+    border-bottom: 1px solid rgba(0, 0, 0, 0.2);
+}
+
+.date-message_sent {
+    display: inline-block;
+    float: right;
+    vertical-align: bottom;
+    margin-left: 10px;
+    margin-right: 10px;
+    font-size: 0.72rem;
+    color: rgba(0, 0, 0, 0.3);
+}
+
 .chatboxhead {
     background: #666;
     color: white;
@@ -172,4 +226,20 @@
 
 .chatboxtitle {
     float: left;
+}
+
+.candidate-icon_widget > a {
+    margin-left: 10px;
+    color: #666666;
+}
+
+.candidate-icon_widget > a:hover {
+    color: #666666;
+}
+
+.wrap-chat-box {
+    height: 700px !important;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
 }

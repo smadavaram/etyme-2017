@@ -60,6 +60,7 @@ Rails.application.configure do
   HOSTNAME='http://lvh.me:3000'
   COMPANY_URL = 'lvh.me:3000'
 
+  Rails.application.routes.default_url_options[:host] = HOSTNAME
   config.action_mailer.default_url_options = {host: 'lvh.me:3000'}
 
   # HOSTNAME='http://localhost:3000'

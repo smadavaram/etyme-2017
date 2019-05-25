@@ -122,3 +122,43 @@ label.required:after {
 .disable_header.element-header:after {
     width: 0 !important;
 }
+.font-size-email .bar-labels .bar-label-left span
+{
+    font-size: 16px;
+}
+
+.font-size-email .bar-labels .bar-label-right span
+{
+    font-size: 16px;
+}
+
+.pagination{
+    justify-content: space-evenly;
+}
+.disabled{
+    color: #dddddd;
+}
+
+.custom_drop{
+    position: absolute;
+    top: 100%;
+    left: 0;
+    z-index: 1000;
+    display: none;
+    float: left;
+    min-width: 10rem;
+    padding: 0.5rem 0;
+    margin: 0.125rem 0 0;
+    font-size: 0.9rem;
+    color: #3E4B5B;
+    text-align: left;
+    list-style: none;
+    background-color: #fff;
+    background-clip: padding-box;
+    border: 1px solid rgba(0, 0, 0, 0.15);
+    border-radius: 4px;
+}
+
+.support-ticket.active::after{
+    content: none !important;
+}

@@ -1,15 +1,15 @@
 class Conversation < ApplicationRecord
 
-  has_many   :conversation_messages
+  has_many :conversation_messages
 
   belongs_to :senderable, polymorphic: :true, optional: true
   belongs_to :recipientable, polymorphic: :true, optional: true
   belongs_to :chatable, polymorphic: true, optional: true
 
-  enum topic: [ :OneToOne, :Rate, :GroupChat, :Job ]
+  enum topic: [:OneToOne, :Rate, :GroupChat, :Job]
 
   scope :involving, -> (user) do
-    where(senderable: user).or where(senderable: user)
+    where(senderable: user).or where(recipientable: user)
   end
 
   scope :between, -> (sender, recipient) do
@@ -18,7 +18,7 @@ class Conversation < ApplicationRecord
 
 
   def opt_participant(user)
-    senderable == user ? recipientable : senderable
+    (chatable.present? and chatable_type != "JobApplication") ? chatable : (senderable == user ? recipientable : senderable)
   end
 
 end

@@ -9,7 +9,8 @@ class Candidates::OmniauthCallbacksController < Devise::OmniauthCallbacksControl
         token: request.env["omniauth.auth"].credentials.token,
         token_expires: request.env["omniauth.auth"].credentials.expired_at,
         first_name: request.env["omniauth.auth"].info.first_name,
-        last_name: request.env["omniauth.auth"].info.last_name
+        last_name: request.env["omniauth.auth"].info.last_name,
+        profile_image: request.env["omniauth.auth"].info.image
     }
 
     if current_user && current_user.present?
@@ -34,7 +35,8 @@ class Candidates::OmniauthCallbacksController < Devise::OmniauthCallbacksControl
         token: request.env["omniauth.auth"].credentials.token,
         token_expires: request.env["omniauth.auth"].credentials.expired_at,
         first_name: request.env["omniauth.auth"].info.first_name,
-        last_name: request.env["omniauth.auth"].info.last_name
+        last_name: request.env["omniauth.auth"].info.last_name,
+        profile_image: request.env["omniauth.auth"].info.image
     }
 
     if current_user && current_user.present?
@@ -59,7 +61,7 @@ class Candidates::OmniauthCallbacksController < Devise::OmniauthCallbacksControl
         token_expires: request.env["omniauth.auth"].credentials.expired_at,
         first_name: request.env["omniauth.auth"].info.first_name,
         last_name: request.env["omniauth.auth"].info.last_name,
-        profile_image: request.env["omniauth.auth"].info.image
+        profile_image: request.env["omniauth.auth"].info.picture_url
     }
 
     if current_user && current_user.present?

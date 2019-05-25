@@ -1,0 +1,39 @@
+<% notifications&.each do |notification| %>
+  <div class="support-ticket" id=<%= notification.id %>>
+    <div class="st-meta">
+      <div class="badge badge-warning-inverted"><%= notification.notification_type %></div>
+    </div>
+    <div class="st-body">
+      <div class="avatar"><img alt="" src="<%= notification.createable&.photo %>"></div>
+      <div class="ticket-content w-100"><h6 class="ticket-title">
+        <%= do_ellipsis(notification.title.capitalize) %>
+      </h6>
+        <div class="ticket-description d-inline-block"><%= notification.createable&.full_name.capitalize %></div>
+        <div class="ticket-description d-inline-block pull-right text-primary">
+        <%= notification.created_at.to_formatted_s(:short) %>
+      </div></div>
+    </div>
+  </div>
+<% end %>
+
+
+<% content_for :scripts do %>
+  <script>
+    <% unless notifications.empty? %>
+    $.ajax({
+      url: "/company/users/notification/<%= notifications.first.id %>",
+      type: "GET",
+      dataType: "script"
+    });
+    <% end %>
+    $('.support-ticket').on('click', function () {
+      $('.support-index').addClass('show-ticket-content');
+      $.ajax({
+        url: `/company/users/notification/${$(this).attr("id")}`,
+        type: "GET",
+        dataType: "script"
+      });
+      return false;
+    });
+  </script>
+<% end %>

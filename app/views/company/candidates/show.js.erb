@@ -1,0 +1,2 @@
+$('#candidate').html("<%= j render('shared/prescreen_modal' , candidate: @candidate, conversation: @conversation) %>");
+$('#show-candidate-<%=@candidate.id %>').modal('show');
