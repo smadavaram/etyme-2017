@@ -89,3 +89,12 @@
 .sticky > div{
   width: 80%;
 }
+
+.big-links_widget{
+  display: flex;
+  justify-content: space-evenly;
+  //border:  1px solid rgba(0, 0, 0, 0.2);
+  margin: auto auto;
+  width: 70%;
+  font-size: 2.5em;
+}

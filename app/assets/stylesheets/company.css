@@ -42,6 +42,7 @@
  *= require global
  *= require style
  *= require chat_box
+ *= require theme8
  *= require select2
  *= require select2-bootstrap
  *= require conversation/chat

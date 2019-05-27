@@ -54,21 +54,9 @@
     </div>
   </div>
 </div>
-<%= content_for :body_class do %>
   <%= content_for :modals do %>
-    <div id="candidate"></div>
+    <div id="candidate_pre_screen_modal">
+      <%= render 'shared/prescreen_modal', job_application: job_application, conversation: @conversation%>
+    </div>
   <% end %>
-<% end %>
 
-<% content_for :scripts do %>
-  <script>
-    $(document).ready(function () {
-      $('.prescreen').on('click', function () {
-        $.ajax({
-          url: "/company/candidates/<%= user.id %>?conversation_id=<%= @conversation.id %>",
-          type: "GET"
-        });
-      });
-    });
-  </script>
-<% end %>
