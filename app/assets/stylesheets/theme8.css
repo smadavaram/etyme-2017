@@ -2,25 +2,25 @@
 @import url("https://fonts.googleapis.com/css?family=Open+Sans:400,400i,600");
 
 /* The button */
-.addeventatc {
+.addeventatc{
     display: inline-block;
     position: relative;
     font-family: "Open Sans", Roboto, Optima, Segoe, "Segoe UI", Candara, Calibri, Arial, sans-serif;
     font-weight: 600;
     color: #333;
     text-decoration: none;
-    font-size: 16px;
     cursor: pointer;
     padding: 0;
     box-shadow: none !important;
+    background: none !important;
 }
 .os-icon-calendar
 {
     color: #3E4B5B;
-    font-size: 2.5em;
+    font-size: inherit !important;
 }
 .addeventatc:hover {
-    font-size: 16px;
+    /*font-size: 16px;*/
     text-decoration: underline;
 }
 

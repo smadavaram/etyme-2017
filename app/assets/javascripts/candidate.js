@@ -169,6 +169,8 @@
 //= require candidate/chat_status
 //= require bootstrap/bootstrap-switch
 
+//=require addevent
+
 // BulletTrain
 //= require_tree ./clean_admin
 
