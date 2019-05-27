@@ -166,6 +166,7 @@
 //= require signature-pad/json2.min
 
 //=require cable
+//=require addevent
 
 //= require company/select_autocomplete
 //= require company/chat_status

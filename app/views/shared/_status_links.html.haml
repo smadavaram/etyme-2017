@@ -1,13 +1,3 @@
 = link_to('Accept', prescreen_job_application_path(conversation.chatable, conversation_id: conversation.id), method: :post, class: "btn btn-md  btn-primary mt-12 margin-right-5 #{conversation.chatable.rejected? || conversation.chatable.hired? || conversation.chatable.prescreen? ? 'disabled' : "" }")
 = link_to('Reject', reject_job_application_path(conversation.chatable, conversation_id: conversation.id), method: :post, class: "btn btn-md  btn-primary mt-12 margin-right-5")
 = button_tag('Request Info', class: 'btn btn-md  btn-primary mt-12 margin-right-5', id: 'moreRequest')
-
-:javascript
-  $(document).ready(function(){
-    $("#moreRequest").on("click", function(){
-    var form = document.getElementById('requestForm');
-    form.style.display = 'block';
-    $("#PageTitle").empty().append($('<strong>More info Request</strong>'));
-    $("#candidate_profile").empty().append(form);
-    });
-  });
