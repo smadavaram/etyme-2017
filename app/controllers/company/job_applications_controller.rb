@@ -4,7 +4,7 @@ class Company::JobApplicationsController < Company::BaseController
   before_action :find_job, only: [:create, :create_multiple_For_candidate]
   before_action :find_received_job_invitation, only: [:create]
   before_action :set_job_applications, only: [:index]
-  before_action :find_received_job_application, only: [:prescreen, :accept, :reject, :interview, :hire, :short_list, :show, :proposal, :share_application_with_companies]
+  before_action :find_received_job_application, only: [:prescreen, :rate_negotiation, :accept, :reject, :interview, :hire, :short_list, :show, :proposal, :share_application_with_companies]
   before_action :authorized_user, only: [:accept, :reject, :interview, :hire, :short_list, :show]
   skip_before_action :authenticate_user!, :authorized_user, only: [:share], raise: false
 
@@ -154,6 +154,32 @@ class Company::JobApplicationsController < Company::BaseController
     @conversation_message = ConversationMessage.new
   end
 
+  def accept_rate
+    if @job_application.rate_confirmation!
+      @conversation = @job_application.conversations.find_by(id: params[:conversation_id])
+      body = current_user.full_name + " has accepted #{@job_application.rate_per_hour}/hr with reference to #{@job_application.job.title} job."
+      current_user.conversation_messages.create(conversation_id: @conversation.id, body: body, message_type: :rate_confirmation)
+      flash[:success] = "Rate is Confirmed"
+    else
+      flash[:errors] = @job_application.errors.full_messages
+    end
+    redirect_back(fallback_location: root_path)
+  end
+
+
+  def rate_negotiation
+    if @job_application.update(job_application_rate.merge(rate_initiator: current_user.full_name))
+      @conversation = @job_application.conversations.find_by(id: params[:conversation_id])
+      body = current_user.full_name + " has offered you #{@job_application.rate_per_hour}/hr with reference to #{@job_application.job.title} job.
+              <a href='http://lvh.me:3000#{ + accept_rate_candidate_job_application_path(@job_application,@conversation)}' data-method='post'>
+              Click Here </a> to Accept or <a href='' data-toggle='modal' data-target='#candidate-rate-confirmation-#{@job_application.applicationable_id}' >Click Here</a> to Counter".html_safe
+      current_user.conversation_messages.create(conversation_id: @conversation.id, body: body, message_type: :rate_confirmation)
+      flash[:success] = "Rate is set for candidate confirmation"
+    else
+      flash[:errors] = @job_application.errors.full_messages
+    end
+    redirect_back(fallback_location: root_path)
+  end
 
   def share
     @job_application = JobApplication.where(share_key: params[:id]).first
@@ -226,5 +252,8 @@ class Company::JobApplicationsController < Company::BaseController
     current_user.conversation_messages.create(conversation_id: @conversation.id, body: body)
   end
 
+  def job_application_rate
+    params.require(:job_application).permit(:rate_per_hour)
+  end
 
 end

@@ -27,7 +27,7 @@ module ApplicationHelper
           <span class="timezone">America/Los_Angeles </span>
           <span class="title"></span>
           <span class = "description" ></span>
-          <span class="os-icon os-icon-calendar"></span>
+          <span class="os-icon os-icon-calendar "></span>
           <span class="attendees"></span>
         </div >'.html_safe
 

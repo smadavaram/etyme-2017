@@ -1,4 +1,4 @@
-<% user = @conversation.chatable_type == "Group" ? @conversation.chatable :  (@conversation.senderable == current_user ? @conversation.recipientable : @conversation.senderable) %>
+<% user = @conversation.chatable_type == "Group" ? @conversation.chatable : (@conversation.senderable == current_user ? @conversation.recipientable : @conversation.senderable) %>
 <div class="row mt-4 ml-2 mr-2" id="collapsible_job_application">
   <div class="col-sm-12">
     <div class="element-wrapper pb-0">
@@ -17,7 +17,7 @@
           <div class="collapsible">
             <h6 class="collapsible-click">Job Application</h6>
             <hr/>
-            <%= render 'company/job_applications/partials/job_status_links', app: @job_application || job_application, btn_size_class: 'btn-link mt-12 margin-right-5'%>
+            <%= render 'company/job_applications/partials/job_status_links', app: @job_application || job_application, btn_size_class: 'btn-link mt-12 margin-right-5' %>
           </div>
           <div class="element-box w-100 text-justify chat-collaps">
             <div class="row">
@@ -54,9 +54,12 @@
     </div>
   </div>
 </div>
-  <%= content_for :modals do %>
-    <div id="candidate_pre_screen_modal">
-      <%= render 'shared/prescreen_modal', job_application: job_application, conversation: @conversation%>
-    </div>
-  <% end %>
+<%= content_for :modals do %>
+  <div id="candidate_pre_screen_modal">
+    <%= render 'shared/prescreen_modal', job_application: job_application, conversation: @conversation %>
+  </div>
+  <div id="candidate_rate_confirmation_modal">
+    <%= render 'shared/rate_confirmation_modal', job_application: job_application, conversation: @conversation %>
+  </div>
+<% end %>
 

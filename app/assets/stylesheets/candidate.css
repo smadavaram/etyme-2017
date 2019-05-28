@@ -35,11 +35,11 @@
  *
  * Lock screen related styles
  *= require lockscreen
+ *= require theme8
 
  *= require amaran.min
  *= require custom
  *= require candidate/jobs
-
  *= require global
  *= require chat_box
  *= require conversation/chat
