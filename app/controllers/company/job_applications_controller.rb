@@ -172,7 +172,7 @@ class Company::JobApplicationsController < Company::BaseController
       @conversation = @job_application.conversations.find_by(id: params[:conversation_id])
       body = current_user.full_name + " has offered you #{@job_application.rate_per_hour}/hr with reference to #{@job_application.job.title} job.
               <a href='http://lvh.me:3000#{ + accept_rate_candidate_job_application_path(@job_application,@conversation)}' data-method='post'>
-              Click Here </a> to Accept or <a href='' data-toggle='modal' data-target='#candidate-rate-confirmation-#{@job_application.applicationable_id}' >Click Here</a> to Counter"
+              Click Here </a> to Accept or <a href='' data-toggle='modal' data-target='#candidate-rate-confirmation-#{@job_application.applicationable_id}' >Click Here</a> to Counter".html_safe
       current_user.conversation_messages.create(conversation_id: @conversation.id, body: body, message_type: :rate_confirmation)
       flash[:success] = "Rate is set for candidate confirmation"
     else

@@ -17,7 +17,7 @@ module ApplicationHelper
     status ? "verified" : "unverified"
   end
 
-  def contact_widget(email, phone,calender_class, user_id = nil, members = [])
+  def contact_widget(email, phone, user_id = nil, members = [])
     link_to(content_tag(:i, nil, class: 'fa fa-comment-o').html_safe, '#', title: 'chat', class: 'data-table-icons') +
         mail_to(email, content_tag(:i, nil, class: 'os-icon os-icon-email-2-at2').html_safe, title: email, class: 'data-table-icons') +
         link_to(content_tag(:i, nil, class: 'os-icon os-icon-phone ').html_safe, '#', title: phone, class: 'data-table-icons') +

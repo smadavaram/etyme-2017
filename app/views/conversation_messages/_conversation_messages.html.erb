@@ -39,7 +39,7 @@
   <div class="chat-message">
     <div class="chat-message-content-w">
       <div class="chat-message-content">
-        <%= msg.body %>
+        <%= msg.body.html_safe %>
         <% if msg.file_url %>
           <hr/>
           <a href=<%= msg.file_url %> target="_blank">Attachment</a>
