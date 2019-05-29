@@ -36,6 +36,7 @@ class Job < ApplicationRecord
   mount_uploader :video_file, JobvideoUploader
 
   after_create :create_job_chat
+  before_save :set_parent_job
 
    scope :active ,   -> { where('end_date>=?',Date.today) }
    scope :expired,   -> { where('end_date<?',Date.today) }
@@ -56,6 +57,13 @@ class Job < ApplicationRecord
   # end
 
   # private_class_method :ransackable_attributes
+
+  def set_parent_job
+    if source.present? and source.match(/^[\s]*http/)
+      id = source.match(/([0-9]+)$/)[1].to_i
+      self.parent_job_id = id if Job.exists?(id)
+    end
+  end
 
   def self.like_any(fields, values)
     conditions = fields.product(values).map do |(field, value)|
