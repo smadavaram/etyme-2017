@@ -4,7 +4,7 @@ class Company::JobApplicationsController < Company::BaseController
   before_action :find_job, only: [:create, :create_multiple_For_candidate]
   before_action :find_received_job_invitation, only: [:create]
   before_action :set_job_applications, only: [:index]
-  before_action :find_received_job_application, only: [:prescreen, :rate_negotiation, :accept, :reject, :interview, :hire, :short_list, :show, :proposal, :share_application_with_companies]
+  before_action :find_received_job_application, only: [:prescreen, :rate_negotiation,:accept_rate, :accept, :reject, :interview, :hire, :short_list, :show, :proposal, :share_application_with_companies]
   before_action :authorized_user, only: [:accept, :reject, :interview, :hire, :short_list, :show]
   skip_before_action :authenticate_user!, :authorized_user, only: [:share], raise: false
 
@@ -168,10 +168,11 @@ class Company::JobApplicationsController < Company::BaseController
 
 
   def rate_negotiation
+    base_url = @job_application.applicationable.associated_company.owner ?  "http://#{@job_application.applicationable.associated_company.etyme_url}" : HOSTNAME
     if @job_application.update(job_application_rate.merge(rate_initiator: current_user.full_name))
       @conversation = @job_application.conversations.find_by(id: params[:conversation_id])
       body = current_user.full_name + " has offered you #{@job_application.rate_per_hour}/hr with reference to #{@job_application.job.title} job.
-              <a href='http://lvh.me:3000#{ + accept_rate_candidate_job_application_path(@job_application,@conversation)}' data-method='post'>
+              <a href='#{base_url}#{accept_rate_candidate_job_application_path(@job_application,@conversation)}' data-method='post'>
               Click Here </a> to Accept or <a href='' data-toggle='modal' data-target='#candidate-rate-confirmation-#{@job_application.applicationable_id}' >Click Here</a> to Counter".html_safe
       current_user.conversation_messages.create(conversation_id: @conversation.id, body: body, message_type: :rate_confirmation)
       flash[:success] = "Rate is set for candidate confirmation"
@@ -208,7 +209,17 @@ class Company::JobApplicationsController < Company::BaseController
     if Conversation.between(current_user, user).present?
       @conversation = Conversation.between(current_user, user).first
     else
-      @conversation = Conversation.create!({senderable: current_user, recipientable: user, chatable: @job_application})
+      name = [user.full_name]
+      name << current_user.full_name
+      name << user.associated_company.owner.full_name if user.associated_company.owner
+      group = nil
+      Group.transaction do
+        group = current_company.groups.create(group_name: name.join(', '),member_type: 'Chat')
+        group.groupables.create(groupable: user)
+        group.groupables.create(groupable: current_user)
+        group.groupables.create(groupable: user.associated_company.owner) if user.associated_company.owner
+      end
+      @conversation = Conversation.create!({senderable: current_user, recipientable: user, chatable: group, topic: :JobApplication, job_application_id: @job_application.id})
     end
   end
 
