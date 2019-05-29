@@ -34,7 +34,7 @@ class Company::CandidatesController < Company::BaseController
                                                                   message: body, title: "Job Application")
       flash[:success] = "Request Submit successfully."
     else
-      flash[:errors] =  ["Request Not Completed."]
+      flash[:errors] = ["Request Not Completed."]
     end
     redirect_back fallback_location: root_path
   end
@@ -48,17 +48,13 @@ class Company::CandidatesController < Company::BaseController
   end
 
   def company_candidate
-    @candidate = Candidate.find_by(id: params[:id])
-    unless current_company.candidates.include?(@candidate)
-      if current_company.candidates << @candidate
-        flash[:success] = 'Candidates is added successfully'
-      else
-        flash[:errors] = "Something went wrong"
-      end
-    else
+    if current_company.candidates_companies.exists?(candidate_id: params[:id])
       flash[:notice] = 'Candidate already exists in the company'
+    else
+      current_company.candidates_companies.create(candidate_id: params[:id])
+      flash[:success] = 'Candidate is added successfully'
     end
-    redirect_back(fallback_location: root_path)
+    redirect_to job_applications_path
   end
 
   def manage_groups

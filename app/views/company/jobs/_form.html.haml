@@ -8,6 +8,11 @@
             Title
             %sup.text-danger *
           = f.text_field :title , class: 'form-control' , placeholder: 'Enter Job Title' , required: true
+      .col-md-12
+        .form-group
+          %label.control-label
+            Job Source
+          = f.text_field :source , class: 'form-control' , placeholder: 'Enter Job Url/Email' , required: true
     .row
       .col-md-12
         .form-group.radio-group
