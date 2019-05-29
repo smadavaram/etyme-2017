@@ -46,7 +46,8 @@
                 = render_breadcrumbs tag: :li, separator: " / "
             -#= yield :ribbon
             = yield
-          = yield :modals
+          #modals
+            = yield :modals
           = render partial: 'candidate/shared/footer'
           = render partial: 'candidate/shared/tiles'
           = render partial: 'shared/add_to_chat_from_candidate'
