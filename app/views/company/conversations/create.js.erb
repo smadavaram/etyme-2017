@@ -1,8 +1,10 @@
 <% user = @conversation.chatable_type == "Group" ? @conversation.chatable :  (@conversation.senderable == current_user ? @conversation.recipientable : @conversation.senderable) %>
+
 <% if (@conversation.job_application) %>
-  $("#conversation-section").html("<%= j render 'company/conversations/job_conversation_box', job_application: @conversation.job_application, conversation: @conversation %>");
+  $("#conversation-section").html("<%= j render 'company/conversations/job_conversation_box', job_application: @conversation.job_application, conversation: @conversation,nested_colap:true %>");
   $("#modals").html("<%= j render 'shared/prescreen_modal', job_application: @conversation.job_application, conversation: @conversation %>");
   $("#modals").append("<%= j render 'shared/rate_confirmation_modal', job_application: @conversation.job_application, conversation: @conversation %>");
+  $("#modals").append("<%= j render 'shared/interview_modal', job_application: @conversation.job_application, conversation: @conversation %>");
   $('#candidate-name').remove();
   $('.collapsible').css('padding', '6px 18px');
   $('#collapsible_job_application').removeClass('ml-2 mr-2')
@@ -11,6 +13,18 @@
 <% else %>
   $("#conversation-section").html("<%= j render 'company/conversations/job_conversation_box', conversation: @conversation %>");
 <% end %>
+
+filepicker.constructWidget($('#req-accept-filepiker'));
+$( ".req-file-pick" ).on('click',function() {
+  $(".fp__overlay").css({'z-index':'99999'});
+});
+
+
+
+
+
+
+
 $("#conversation-r-section").html("<%= j render 'company/conversations/conversation_right_side' %>");
 $(".chat-content-scroll").data('ajaxready', true);
 $.ajax({
@@ -44,6 +58,10 @@ for (i = 0; i < coll.length; i++) {
     }
   });
 }
+
+$('.p_date').datepicker({dateFormat: "yy-mm-dd"});
+$('.p_time').timepicker({template: false,showInputs: false,minuteStep: 5});
+
 
 function $d (e) {
   return document.getElementById(e)

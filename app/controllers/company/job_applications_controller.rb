@@ -89,7 +89,7 @@ class Company::JobApplicationsController < Company::BaseController
       redirect_back(fallback_location: root_path)
     else
       if (@job_application.job.source.strip.match(/\A[\w+\-.]+@[a-z\d\-]+(\.[a-z]+)*\.[a-z]+\z/i))
-        if JobApplicationMailer.submit_to_client(@job_application.id, @job_application.job.id,current_company).deliver
+        if JobApplicationMailer.submit_to_client(@job_application.id, @job_application.job.id, current_company).deliver
           @job_application.client_submission!
           flash[:success] = "Application is Mailed to the client"
         else
@@ -126,17 +126,12 @@ class Company::JobApplicationsController < Company::BaseController
 
   def interview
     respond_to do |format|
-      if @job_application.short_listed?
-        if @job_application.interviewing!
-          create_conversation_message
-          format.html {flash[:success] = "Successfully Interviewed."}
-        else
-          format.html {flash[:errors] = @job_application.errors.full_messages}
-        end
+      if @job_application.interviewing!
+        create_conversation_message
+        format.html {flash[:success] = "Successfully Interviewed."}
       else
-        format.html {flash[:errors] = ["Request Not Completed."]}
+        format.html {flash[:errors] = @job_application.errors.full_messages}
       end
-
     end
     redirect_back fallback_location: root_path
   end
@@ -285,7 +280,7 @@ class Company::JobApplicationsController < Company::BaseController
 
   def create_conversation_message
     @conversation = @job_application.conversations.find_by(id: params[:conversation_id])
-    body = @job_application.applicationable.full_name + " has #{@job_application.status.humanize} <a href='http://#{@job_application.job.created_by.company.etyme_url + job_application_path(@job_application)}'> on your Job </a>#{@job_application.job.title}"
+    body = @job_application.applicationable.full_name + " has schedule an interview on #{params[:interview_date]} at #{params[:interview_time]} <a href='http://#{@job_application.job.created_by.company.etyme_url + job_application_path(@job_application)}'> with reference to the job </a>#{@job_application.job.title}"
     current_user.conversation_messages.create(conversation_id: @conversation.id, body: body)
   end
 

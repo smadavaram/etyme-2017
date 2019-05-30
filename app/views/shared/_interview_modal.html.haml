@@ -1,0 +1,22 @@
+.modal{ id: "candidate-interview-#{job_application.applicationable_id}"}
+  .modal-dialog
+    .modal-content
+      .modal-header
+        %h2#PageTitle.modal-title
+          %strong Schedule Time
+        %button.close{"aria-hidden" => "true", "data-dismiss" => "modal", :type => "button"}
+          ×
+      = form_tag interview_job_application_path(job_application, conversation_id: conversation.id), html: {class: 'form-horizontal'} do |f|
+        .modal-body#rate-confirmation-modal-body
+          .row
+            .col-md-6
+              %label Interview Date
+              .form-group
+                =text_field_tag(:interview_date, '',class: "form-control p_date", placeholder: 'Year-Month-Day')
+            .col-md-6
+              %label Interview Time
+              .form-group
+                =text_field_tag(:interview_time, '',class: "form-control p_time")
+        .modal-footer
+          =submit_tag "Save".html_safe , class: 'btn btn-primary mt-12 margin-right-5'
+          %button.btn.mt-12.margin-right-5.btn-primary{"data-dismiss"=>"modal", "type"=>"button"} Cancel
