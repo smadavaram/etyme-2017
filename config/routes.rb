@@ -437,6 +437,7 @@ Rails.application.routes.draw do
       member do
         post "rate_negotiation/:conversation_id", to: "job_applications#rate_negotiation", as: :rate_negotiation_for
         post "accept_rate/:conversation_id", to: "job_applications#accept_rate", as: :accept_rate
+        get :client_submission, as: :submit
         get  :applicant, as: :applicant
         get  :share
         get  :proposal
