@@ -229,6 +229,10 @@ class Candidate < ApplicationRecord
     ) unless la.present?
   end
 
+  def not_freelancer?
+    associated_company.name != 'freelancer'
+  end
+
   def set_freelancer_company
     self.company_id = Company.find_by(company_type: :vendor, domain: 'freelancer.com')&.id if self.company_id.nil?
   end

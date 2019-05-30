@@ -79,6 +79,7 @@ class Company::JobApplicationsController < Company::BaseController
       new_application = @job_application.dup
       new_application.job_id = @job_application.job.parent_job_id
       # TODO: Add recuritor info of current company
+      new_application.company = current_company
       if new_application.save
         @job_application.client_submission!
         flash[:success] = 'Application Is submitted to the client'
