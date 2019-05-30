@@ -45,7 +45,7 @@
               <h6 class="collapsible-click">Messages</h6>
             </div>
             <div class="element-box w-100 text-justify chat-collaps">
-              <%= render "company/conversations/job_conversation_box", conversation: conversation %>
+              <%= render "company/conversations/job_conversation_box", conversation: conversation, nested_colap: nested_col%>
               <%#= render 'company/job_applications/partials/job_status_links', btn_size_class: 'btn-sm', app: @conversation.chatable %>
             </div>
           </div>
@@ -60,6 +60,9 @@
   </div>
   <div id="candidate_rate_confirmation_modal">
     <%= render 'shared/rate_confirmation_modal', job_application: job_application, conversation: conversation %>
+  </div>
+  <div id="candidate_interview_modal">
+    <%= render 'shared/interview_modal', job_application: job_application, conversation: conversation %>
   </div>
 <% end %>
 

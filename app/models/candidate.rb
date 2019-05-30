@@ -166,6 +166,10 @@ class Candidate < ApplicationRecord
     self.save!
   end
 
+  def not_freelancer?
+    associated_company.name != 'freelancer'
+  end
+
   private
 
   def create_address
@@ -227,10 +231,6 @@ class Candidate < ApplicationRecord
       tags: {
       }
     ) unless la.present?
-  end
-
-  def not_freelancer?
-    associated_company.name != 'freelancer'
   end
 
   def set_freelancer_company

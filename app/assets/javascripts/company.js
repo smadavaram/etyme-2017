@@ -183,6 +183,10 @@
 //= require_tree ./clean_admin
 
 $(document).ready(function () {
+
+  $('.p_date').datepicker({dateFormat: "yy-mm-dd"});
+  $('.p_time').timepicker({template: false,showInputs: false,minuteStep: 5});
+
   $("#status").on('click', function () {
     $('#status-menue').toggle();
   });
