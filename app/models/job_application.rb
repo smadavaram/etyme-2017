@@ -2,7 +2,7 @@ class JobApplication < ApplicationRecord
 
   include Rails.application.routes.url_helpers
 
-  enum status: [ :applied, :prescreen, :pending_review ,:rejected , :short_listed,:interviewing,:hired, :rate_confirmation ]
+  enum status: [ :applied, :prescreen, :pending_review ,:rejected , :short_listed,:interviewing,:hired, :rate_confirmation,:client_submission ]
   enum application_type: [:direct , :candidate_direct , :vendor_direct , :invitation, :witout_registration,:with_recurator]
 
   belongs_to :job_invitation, optional: true
