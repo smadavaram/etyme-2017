@@ -4,7 +4,7 @@ class Company::JobApplicationsController < Company::BaseController
   before_action :find_job, only: [:create, :create_multiple_For_candidate]
   before_action :find_received_job_invitation, only: [:create]
   before_action :set_job_applications, only: [:index]
-  before_action :find_received_job_application, only: [:prescreen, :client_submission, :rate_negotiation, :accept_rate, :accept, :reject, :interview, :hire, :short_list, :show, :proposal, :share_application_with_companies]
+  before_action :find_received_job_application, only: [:prescreen, :client_submission, :rate_negotiation, :accept_rate, :accept_interview, :accept, :reject, :interview, :hire, :short_list, :show, :proposal, :share_application_with_companies]
   before_action :authorized_user, only: [:accept, :reject, :interview, :hire, :short_list, :show]
   skip_before_action :authenticate_user!, :authorized_user, only: [:share], raise: false
 
@@ -125,15 +125,44 @@ class Company::JobApplicationsController < Company::BaseController
   end
 
   def interview
+    @interview = params[:interview][:id].present? ?
+                     @job_application.interviews.find_by(id: params[:interview][:id])
+                     : @job_application.interviews.new(interview_params)
     respond_to do |format|
-      if @job_application.interviewing!
-        create_conversation_message
-        format.html {flash[:success] = "Successfully Interviewed."}
+      if @interview.new_record? ? @interview.save : @interview.update(interview_params.merge({accept: false, accepted_by_recruiter: false, accepted_by_company: false}))
+        @conversation = @job_application.conversations.find_by(id: params[:conversation_id])
+        @conversation.conversation_messages.schedule_interview.update_all(message_type: :job_conversation)
+        body = current_user.full_name + " has schedule an interview on #{@interview.date} at #{@interview.date} <a href='http://#{@job_application.job.created_by.company.etyme_url + job_application_path(@job_application)}'> with reference to the job </a>#{@job_application.job.title}."
+        current_user.conversation_messages.create(conversation_id: @conversation.id, body: body, message_type: :schedule_interview, resource_id: @interview.id)
+        format.html {flash[:success] = "Interview is Scheduled, pending confirmation"}
       else
         format.html {flash[:errors] = @job_application.errors.full_messages}
       end
     end
     redirect_back fallback_location: root_path
+  end
+
+  def accept_interview
+    @interview = @job_application.interviews.find_by(id: params[:interview_id])
+    if current_user == @job_application.job.company.owner
+      flash[:errors] = ['Already Accepted by you'] if @interview.accepted_by_company
+    else
+      flash[:errors] = ['Already Accepted by you'] if @interview.accepted_by_recruiter
+    end
+    if flash[:errors].present?
+      redirect_back(fallback_location: root_path)
+      return
+    end
+    if current_user == @job_application.job.company.owner ? @interview.update(accepted_by_company: true) : @interview.update(accepted_by_recruiter: true)
+      @conversation = @job_application.conversations.find_by(id: params[:conversation_id])
+      @conversation.conversation_messages.schedule_interview.update_all(message_type: :job_conversation) if @interview.is_accepted?
+      body = current_user.full_name + " has accepted the interview on #{@interview.date} at #{@interview.date} <a href='http://#{@job_application.job.created_by.company.etyme_url + job_application_path(@job_application)}'> with reference to the job </a>#{@job_application.job.title}."
+      current_user.conversation_messages.create(conversation_id: @conversation.id, body: body, resource_id: @interview_id)
+      flash[:success] = 'Interview Schedule is accepted'
+    else
+      flash[:errors] = @interview.errors.full_messages
+    end
+    redirect_back(fallback_location: root_path)
   end
 
   def hire
@@ -244,6 +273,9 @@ class Company::JobApplicationsController < Company::BaseController
     end
   end
 
+  def interview_params
+    params.require(:interview).permit(:date, :time, :location, :source)
+  end
 
   def set_job_applications
     @search = current_company.received_job_applications.includes(:job, :applicationable).search(params[:q])
@@ -280,12 +312,13 @@ class Company::JobApplicationsController < Company::BaseController
 
   def create_conversation_message
     @conversation = @job_application.conversations.find_by(id: params[:conversation_id])
-    body = @job_application.applicationable.full_name + " has schedule an interview on #{params[:interview_date]} at #{params[:interview_time]} <a href='http://#{@job_application.job.created_by.company.etyme_url + job_application_path(@job_application)}'> with reference to the job </a>#{@job_application.job.title}"
+    body = @job_application.applicationable.full_name + " has #{@job_application.status.humanize} <a href='http://#{@job_application.job.created_by.company.etyme_url + job_application_path(@job_application)}'> on your Job </a>#{@job_application.job.title}"
     current_user.conversation_messages.create(conversation_id: @conversation.id, body: body)
   end
 
   def job_application_rate
     params.require(:job_application).permit(:rate_per_hour)
   end
+
 
 end

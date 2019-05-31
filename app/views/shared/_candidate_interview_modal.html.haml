@@ -6,16 +6,15 @@
           %strong Schedule Time
         %button.close{"aria-hidden" => "true", "data-dismiss" => "modal", :type => "button"}
           ×
-
       - if job_application.interviews.last
         - @interview = job_application.interviews.last.is_accepted? ? Interview.new : job_application.interviews.last
       - else
         - @interview = Interview.new
-      = form_for @interview, url: interview_job_application_path(job_application, conversation_id: conversation.id),method: :post, html: {class: 'form-horizontal'} do |f|
+      = form_for @interview, url: interview_candidate_job_application_path(job_application, conversation_id: conversation.id),method: :post, html: {class: 'form-horizontal'} do |f|
         .modal-body#rate-confirmation-modal-body
           .row
-            .form-group
-              =f.hidden_field :id, class: "form-control p_date", placeholder: 'Year-Month-Day'
+            -unless @interview.new_record?
+              = f.hidden_field :id, class: "form-control p_date", placeholder: 'Year-Month-Day'
             .col-md-6
               %label Interview Date
               .form-group

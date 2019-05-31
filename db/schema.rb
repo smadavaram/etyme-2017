@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema.define(version: 20190529085321) do
+ActiveRecord::Schema.define(version: 20190531194728) do
 
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
@@ -848,6 +848,7 @@ ActiveRecord::Schema.define(version: 20190529085321) do
     t.string "file_type"
     t.string "file_url"
     t.integer "message_type"
+    t.bigint "resource_id"
     t.index ["conversation_id"], name: "index_conversation_messages_on_conversation_id"
     t.index ["userable_type", "userable_id"], name: "index_conversation_messages_on_userable_type_and_userable_id"
   end
@@ -1085,6 +1086,17 @@ ActiveRecord::Schema.define(version: 20190529085321) do
     t.datetime "updated_at", null: false
     t.string "member_type"
     t.index ["company_id"], name: "index_groups_on_company_id"
+  end
+
+  create_table "interviews", force: :cascade do |t|
+    t.string "date"
+    t.string "time"
+    t.bigint "job_application_id"
+    t.string "source"
+    t.string "location"
+    t.boolean "accept", default: false
+    t.boolean "accepted_by_recruiter", default: false
+    t.boolean "accepted_by_company", default: false
   end
 
   create_table "invited_companies", id: :serial, force: :cascade do |t|

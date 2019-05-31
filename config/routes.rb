@@ -136,6 +136,8 @@ Rails.application.routes.draw do
       member do
         post "rate_negotiation/:conversation_id", to: "job_applications#rate_negotiation", as: :rate_negotiation_for
         post "accept_rate/:conversation_id", to: "job_applications#accept_rate", as: :accept_rate
+        post "interview/:conversation_id", to: "job_applications#interview", as: :interview
+        post "accept_interview/:interview_id", to: "job_applications#accept_interview", as: :accept_interview
       end
     end
     resources :job_invitations, only: [:index, :show] do
@@ -445,7 +447,8 @@ Rails.application.routes.draw do
         post :accept
         post :reject
         post :short_list
-        post :interview
+        post "interview/:conversation_id", to: "job_applications#interview", as: :interview
+        post "accept_interview/:interview_id", to: "job_applications#accept_interview", as: :accept_interview
         post :hire
         post :prescreen
       end # End of member

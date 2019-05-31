@@ -6,11 +6,11 @@ $("#conversation_message_file_url").val('');
 <% @messages.each_with_index do |msg, i| %>
 
 <% if current_candidate %>
-<% unless(msg.rate_confirmation? and (current_candidate.not_freelancer?)) %>
-$("#conversation_<%= @conversation.id %>").prepend("<%= j render 'conversation_messages', msg: msg, i: i %>");
-<% end %>
+  <% unless(msg.rate_confirmation? and (current_candidate.not_freelancer?)) %>
+    $("#conversation_<%= @conversation.id %>").prepend("<%= j render 'conversation_messages', msg: msg, i: i %>");
+  <% end %>
 <% else %>
-$("#conversation_<%= @conversation.id %>").prepend("<%= j render 'conversation_messages', msg: msg, i: i %>");
+  $("#conversation_<%= @conversation.id %>").prepend("<%= j render 'conversation_messages', msg: msg, i: i %>");
 <% end %>
 
 <% end if @messages.present? %>
