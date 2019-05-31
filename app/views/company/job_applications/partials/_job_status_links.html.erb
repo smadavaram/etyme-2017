@@ -10,7 +10,7 @@
   <%= link_to('Rate Confirmation','#',class: "#{btn_size}",data: {toggle: "modal", target: "#candidate-rate-confirmation-#{app.applicationable_id}"})%>
   <%= link_to('Agreement(s)','#',class: "#{btn_size}") %>
   <%= link_to('Client Submission',submit_job_application_path(app),class: "#{btn_size}") if app.job.source.present? %>
-  <%= link_to('Interview', '#', class: "#{btn_size} #{app.interviewing? || app.rejected? || app.hired? ? 'disabled' : "" }", data: {toggle: "modal", target: "#{app.rejected? || app.hired? || app.interviewing? ? 'disabled' : "#candidate-interview-#{app.applicationable_id}" }"} )%>
+  <%= link_to('Interview', '#', class: "#{btn_size}", data: {toggle: "modal", target: "#candidate-interview-#{app.applicationable_id}" })%>
   <%= link_to('Hire', hire_job_application_path(app, conversation_id: conversation.id), method: :post, class: "#{btn_size} #{app.interviewing? ? 'disabled' : "" }")%>
   <%= link_to('Reject', reject_job_application_path(app, conversation_id: conversation.id), method: :post, class: "#{btn_size} #{app.hired? || app.contract.present? || app.rejected? ? 'disabled' : "" }")%>
   <% if app.is_candidate_applicant? && !current_company.consultants.where(candidate_id: app.applicationable_id).present? %>
