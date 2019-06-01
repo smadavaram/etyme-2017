@@ -205,10 +205,11 @@ class Company::JobApplicationsController < Company::BaseController
   end
 
   def accept_rate
-    if @job_application.rate_confirmation!
+    if (@job_application.job.company.owner == current_user ? @job_application.update(accept_rate_by_company: true, status: :rate_confirmation) : @job_application.update(accept_rate: true, status: :rate_confirmation))
       @conversation = @job_application.conversations.find_by(id: params[:conversation_id])
+      @conversation.conversation_messages.rate_confirmation.update_all(message_type: :job_conversation) if @job_application.is_rate_accepted?
       body = current_user.full_name + " has accepted #{@job_application.rate_per_hour}/hr with reference to #{@job_application.job.title} job."
-      current_user.conversation_messages.create(conversation_id: @conversation.id, body: body, message_type: :rate_confirmation)
+      current_user.conversation_messages.create(conversation_id: @conversation.id, body: body, message_type: :job_conversation)
       flash[:success] = "Rate is Confirmed"
     else
       flash[:errors] = @job_application.errors.full_messages
@@ -219,11 +220,10 @@ class Company::JobApplicationsController < Company::BaseController
 
   def rate_negotiation
     base_url = @job_application.applicationable.associated_company.owner ? "http://#{@job_application.applicationable.associated_company.etyme_url}" : HOSTNAME
-    if @job_application.update(job_application_rate.merge(rate_initiator: current_user.full_name))
+    if @job_application.update(job_application_rate.merge(rate_initiator: current_user.full_name, accept_rate: false, accept_rate_by_company: false))
       @conversation = @job_application.conversations.find_by(id: params[:conversation_id])
-      body = current_user.full_name + " has offered you #{@job_application.rate_per_hour}/hr with reference to #{@job_application.job.title} job.
-              <a href='#{base_url}#{accept_rate_candidate_job_application_path(@job_application, @conversation)}' data-method='post'>
-              Click Here </a> to Accept or <a href='' data-toggle='modal' data-target='#candidate-rate-confirmation-#{@job_application.applicationable_id}' >Click Here</a> to Counter".html_safe
+      @conversation.conversation_messages.rate_confirmation.update_all(message_type: :job_conversation)
+      body = current_user.full_name + " has offered you #{@job_application.rate_per_hour}/hr with reference to #{@job_application.job.title} job."
       current_user.conversation_messages.create(conversation_id: @conversation.id, body: body, message_type: :rate_confirmation)
       flash[:success] = "Rate is set for candidate confirmation"
     else

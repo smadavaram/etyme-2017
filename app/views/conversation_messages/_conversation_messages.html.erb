@@ -22,13 +22,23 @@
     <div class="chat-message-content-w">
       <div class="chat-message-content">
         <%= msg.body.html_safe %>
+        <% if msg.rate_confirmation? %>
+          <a href="<%= get_current_user.class.to_s == 'Candidate' ? accept_rate_candidate_job_application_path(msg.conversation.job_application, msg.conversation) :
+                           accept_rate_job_application_path(msg.conversation.job_application, msg.conversation)
+
+          %>" data-method='post'>
+            Click Here </a> to Accept or
+          <a href='' data-toggle='modal' data-target="#candidate-rate-confirmation-<%= msg.conversation.job_application.applicationable_id %>">Click
+            Here</a> to Counter
+        <% end %>
+
         <% if msg.schedule_interview? %>
           <a data-method='post' href="<%= get_current_user.class.to_s == 'Candidate' ?
-                           accept_interview_candidate_job_application_path(id: msg.conversation.job_application.id, interview_id: msg.resource_id, conversation_id:msg.conversation_id)
-                           :
-                           accept_interview_job_application_path(id: msg.conversation.job_application.id, interview_id: msg.resource_id, conversation_id:msg.conversation_id) %>"
+                                              accept_interview_candidate_job_application_path(id: msg.conversation.job_application.id, interview_id: msg.resource_id, conversation_id: msg.conversation_id)
+                                              :
+                                              accept_interview_job_application_path(id: msg.conversation.job_application.id, interview_id: msg.resource_id, conversation_id: msg.conversation_id) %>"
           >Click Here </a> accept this time or
-          <a class='btn-link mt-12 margin-right-5' data-toggle='modal' data-target='#candidate-interview-<%= msg.conversation.job_application.applicationable_id%>' href='#'>
+          <a class='btn-link mt-12 margin-right-5' data-toggle='modal' data-target='#candidate-interview-<%= msg.conversation.job_application.applicationable_id %>' href='#'>
             Click Here
           </a> to change details
         <% end %>
@@ -50,11 +60,19 @@
     <div class="chat-message-content-w">
       <div class="chat-message-content">
         <%= msg.body.html_safe %>
+        <% if msg.rate_confirmation? %>
+          <a href="<%= get_current_user.class.to_s == 'Candidate' ? accept_rate_candidate_job_application_path(msg.conversation.job_application, msg.conversation) :
+                           accept_rate_job_application_path(msg.conversation.job_application, msg.conversation)
+          %>" data-method='post'>
+            Click Here </a> to Accept or
+          <a href='' data-toggle='modal' data-target="#candidate-rate-confirmation-<%= msg.conversation.job_application.applicationable_id %>">Click
+            Here</a> to Counter
+        <% end %>
         <% if msg.schedule_interview? %>
           <a data-method='post' href="<%= get_current_user.class.to_s == 'Candidate' ?
-                           accept_interview_candidate_job_application_path(id: msg.conversation.job_application.id, interview_id: msg.resource_id, conversation_id:msg.conversation_id)
-                           :
-                           accept_interview_job_application_path(id: msg.conversation.job_application.id, interview_id: msg.resource_id, conversation_id:msg.conversation_id) %>"
+                                              accept_interview_candidate_job_application_path(id: msg.conversation.job_application.id, interview_id: msg.resource_id, conversation_id: msg.conversation_id)
+                                              :
+                                              accept_interview_job_application_path(id: msg.conversation.job_application.id, interview_id: msg.resource_id, conversation_id: msg.conversation_id) %>"
           >Click Here </a> accept this time or
           <a class='btn-link mt-12 margin-right-5' data-toggle='modal' data-target="#candidate-interview-<%= msg.conversation.job_application.applicationable_id %>" href='#'>
             Click Here

@@ -17,3 +17,6 @@ $("#conversation_message_file_url").val('');
 $("#all-infinite-scrolling-msg").html("<%= j will_paginate @messages %>");
 $(".chat-content-scroll").data('ajaxready', true);
 <% end %>
+
+$('.p_date').datepicker({dateFormat: "yy-mm-dd"});
+$('.p_time').timepicker({template: false,showInputs: false,minuteStep: 5});

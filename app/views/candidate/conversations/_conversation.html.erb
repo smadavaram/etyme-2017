@@ -123,7 +123,7 @@
 </div>
 
 <%= content_for :modals do %>
-  <% if @conversation.job_application %>
+  <% if @conversation&.job_application %>
     <div id="candidate_rate_confirmation_modal">
       <%= render 'shared/candidate_rate_confirmation', job_application: @conversation.job_application, conversation: @conversation %>
     </div>

@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema.define(version: 20190531194728) do
+ActiveRecord::Schema.define(version: 20190601091628) do
 
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
@@ -1207,6 +1207,8 @@ ActiveRecord::Schema.define(version: 20190531194728) do
     t.float "relevant_experience"
     t.float "rate_per_hour"
     t.string "rate_initiator"
+    t.boolean "accept_rate", default: false
+    t.boolean "accept_rate_by_company", default: false
   end
 
   create_table "job_invitations", id: :serial, force: :cascade do |t|
