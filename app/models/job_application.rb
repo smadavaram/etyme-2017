@@ -5,8 +5,8 @@ class JobApplication < ApplicationRecord
   has_paper_trail only: [:rate_per_hour]
 
 
-  enum status: [ :applied, :prescreen, :pending_review ,:rejected , :short_listed,:interviewing,:hired, :rate_confirmation,:client_submission ]
-  enum application_type: [:direct , :candidate_direct , :vendor_direct , :invitation, :witout_registration,:with_recurator]
+  enum status: [:applied, :short_listed, :prescreen, :rate_confirmation, :client_submission, :interviewing, :hired, :rejected, :pending_review]
+  enum application_type: [:direct, :candidate_direct, :vendor_direct, :invitation, :witout_registration, :with_recurator]
 
   belongs_to :job_invitation, optional: true
   belongs_to :applicationable, polymorphic: true, optional: true
