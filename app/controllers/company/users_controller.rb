@@ -27,6 +27,7 @@ class Company::UsersController < Company::BaseController
 
         }
         format.html{
+          @directory = current_company.users #.paginate(page: params[:page],per_page: 5)
           @data += apply_scopes(Job.where(company_id: current_company.prefer_vendor_companies.map(&:id)))
           @data += apply_scopes(current_company.invited_companies_contacts)
           @data += apply_scopes(current_company.candidates)

@@ -47,6 +47,7 @@
  *= require select2-bootstrap
  *= require conversation/chat
  *= require style
+ *= require tooltip
  *= require bootstrap-switch
  *= require company/companies
  *= require bullettrain-public
