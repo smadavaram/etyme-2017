@@ -162,3 +162,14 @@ label.required:after {
 .support-ticket.active::after{
     content: none !important;
 }
+
+.dashboard-list{
+    display: flex;
+}
+.dashboard-list > li {
+    margin-right: 6px;
+}
+
+.tppp{
+    padding: 30px;
+}

@@ -1,22 +1,3 @@
--#.col-xs-12.col-sm-7.col-md-7.col-lg-4
--#  %h1.page-title.txt-color-blueDark
--#- if !current_company.locations.present? || !current_company.roles.present?
--#  .col-xs-12.col-sm-7.col-md-12.col-lg-12.m-t-lg{style: 'margin-top: 20px;'}
--#    .alert.alert-success.alert-block
--#      %h4.alert-heading Info!
--#      %p.margin-top-5
--#        In order to take full advantage of Etyme, Please take a moment to complete your profile setup.
--#      %ul.margin-top-5
--#        -if !current_company.locations.present?
--#          %li
--#            Please setup your company locations by
--#            = link_to 'clicking here ' , company_path(current_company) , target: '_blank'
--#        -if !current_company.roles.present?
--#          %li
--#            Please setup some roles & permissions by
--#            = link_to 'clicking here ' , roles_path , target: '_blank'
--#            %br
-
 .with-side-panel
   .content-i
     .content-box
@@ -195,6 +176,201 @@
                         %span Hire
                         .legend-sub-value
                           15%, 45 Visits
+      .row
+        .col-sm-12
+          .element-wrapper
+            %h6.element-header
+              User Activity
+            .timed-activities.compact
+              .timed-activity
+                .ta-date
+                  %span 21st Jan, 2017
+                .ta-record-w
+                  .ta-record.bg_white.pt-2.pl-2
+                    .ta-timestamp
+                      %strong 11:55
+                      am
+                    .ta-activity
+                      Created a post called
+                      %a{:href => "#"} Register new symbol
+                      in Rogue
+                  .ta-record.bg_white.pt-2.pl-2
+                    .ta-timestamp
+                      %strong 2:34
+                      pm
+                    .ta-activity
+                      Commented on story
+                      %a{:href => "#"} How to be a leader
+                      in
+                      %a{:href => "#"} Financial
+                      category
+                  .ta-record.bg_white.pt-2.pl-2
+                    .ta-timestamp
+                      %strong 7:12
+                      pm
+                    .ta-activity
+                      Added
+                      %a{:href => "#"} John Silver
+                      as a friend
+              .timed-activity
+                .ta-date
+                  %span 3rd Feb, 2017
+                .ta-record-w
+                  .ta-record.bg_white.pt-2.pl-2
+                    .ta-timestamp
+                      %strong 9:32
+                      pm
+                    .ta-activity
+                      Added
+                      %a{:href => "#"} John Silver
+                      as a friend
+                  .ta-record.bg_white.pt-2.pl-2
+                    .ta-timestamp
+                      %strong 5:14
+                      pm
+                    .ta-activity
+                      Commented on story
+                      %a{:href => "#"} How to be a leader
+                      in
+                      %a{:href => "#"} Financial
+                      category
+        .col-sm-12
+          .element-wrapper
+            - if current_company.hiring_manager? || current_company.vendor?
+              .row
+                .col-sm-12.col-md-12
+                  - if @data.present?
+                    .col-sm-7.margin-bottom-20.d-inline-block
+                      %input.form-control#search-term.bg-color-white{placeholder: 'Search by Keywords ...',style: ''}
+                    .col-sm-4.margin-bottom-20.d-inline-block.pull-right
+                      = select_tag "Select Type", options_for_select([ "Candidates", "Jobs" , "Contacts" ]), include_blank: "All",class: 'form-control bg-color-white' ,id: "show_type",style:''
+                    %br
+                    .col-sm-12.col-md-12#dynamic-content{style: "width: 100%;"}
+                      - @data.each do |d|
+                        = render "company/users/partials/#{d.class.name.downcase}_show" ,data: d
+            - if current_company.hiring_manager? && !current_user.is_consultant?
+              .row
+                .col-md-6
+                  .element-box.el-tablo.centered
+                    .panel-body.status
+                      .who.clearfix
+                        %h4 Company Consultant(s)
+                      .row
+                        -if current_company.consultants.present?
+                          .text
+                            - current_company.consultants.last(3).each do |d|
+                              .col-sm-12.col-md-6.col-lg-4
+                                .well.text-center.connect
+                                  = image_tag d.photo ,class:"margin-bottom-5 margin-top-5",alt:'img',width: '20px;',height: '20px;'
+                                  %br/
+                                  %span.font-xs
+                                    %b
+                                      = d.first_name
+                        -else
+                          .text
+                            .font-md.text-center
+                              No Consultant in  Company Right now.
+                .col-md-6
+                  .element-box.el-tablo.centered
+                    .panel-body.status
+                      .who.clearfix
+                        %h4 Latest Job Opening
+                      - if current_company.jobs.present?
+                        - current_company.jobs.last(3).each do |j|
+                          .who.clearfix
+                            = image_tag 'jobs.png',class:'',alt: "job"
+                            %span.name.font-sm
+                              %span.text-muted Posted by
+                              %b
+                                =j.company.owner.first_name
+                                %br/
+                                %span.pull-right.font-xs.text-muted
+                                  %i
+                                    = time_ago_in_words(j.try(:created_at).try(:localtime))
+                              .font-md
+                                = link_to "#{truncate(j.title)}",job_path(j)
+                      -else
+                        .who.clearfix
+                          .text
+                            .font-md.text-center
+                              No Jobs in  Company Right now.
+              .row
+                .col-sm-12.col-md-6
+                  .element-box.el-tablo.centered
+                    .panel-body.status
+                      .who.clearfix
+                        %h4 Company Candidates
+                      - if current_company.candidates.present?
+                        - current_company.candidates.last(3).each do |j|
+                          .who.clearfix
+                            = image_tag 'can.png',class:'',alt: "job"
+                            %span.name.font-sm
+                              %span.text-muted Invited By
+                              %b
+                                =j.invited_by.first_name  rescue ' Admin '
+                                %br/
+                                %span.pull-right.font-xs.text-muted
+                                  %i
+                                    = time_ago_in_words(j.try(:created_at).try(:localtime))
+                              .font-md
+                                = link_to "#{j.first_name}",static_candidate_resume_path(j)
+                      -else
+                        .who.clearfix
+                          .text
+                            .font-md.text-center
+                              No Candidates in  Company Right now.
+                .col-sm-12.col-md-6
+                  .element-box.el-tablo.centered
+                    .panel-body.status
+                      .who.clearfix
+                        %h4 Latest Activities
+                      -if company_activities.present?
+                        -company_activities.take(4).each do |activity|
+                          .who.clearfix
+                            = render_activity activity
+                      -else
+                        .who.clearfix
+                          .text
+                            .font-md.text-center
+                              No Activities in  Company Right now.
+                .col-md-3
+                  .element-wrapper
+                    %h6.element-header
+                      Jobs
+                    .element-box.less-padding
+                      .el-chart-w
+                        %canvas#donutChart1{:height => "120", :width => "120"}
+                        .inside-donut-chart-label
+                          %strong 1,248
+                          %span Jobs
+                      .el-legend.condensed
+                        .row
+                          .col-auto.col-xxxxl-6.ml-sm-auto.mr-sm-auto
+                            .legend-value-w
+                              .legend-pin.legend-pin-squared{:style => "background-color: #6896f9;"}
+                              .legend-value
+                                %span Jobs
+                                .legend-sub-value
+                                  17%, 12 Visits
+                            .legend-value-w
+                              .legend-pin.legend-pin-squared{:style => "background-color: #85c751;"}
+                              .legend-value
+                                %span Application
+                                .legend-sub-value
+                                  22%, 763 Visits
+                          .col-sm-6.d-none.d-xxxxl-block
+                            .legend-value-w
+                              .legend-pin.legend-pin-squared{:style => "background-color: #806ef9;"}
+                              .legend-value
+                                %span Interview
+                                .legend-sub-value
+                                  3%, 7 Visits
+                            .legend-value-w
+                              .legend-pin.legend-pin-squared{:style => "background-color: #d97b70;"}
+                              .legend-value
+                                %span Hire
+                                .legend-sub-value
+                                  15%, 45 Visits
     .content-panel
       .content-panel-close
         %i.os-icon.os-icon-close
@@ -217,137 +393,29 @@
           Team Members
         .element-box-tp
           .input-search-w
-            %input.form-control.rounded.bright{:placeholder => "Search team members...", :type => "search"}/
-          .users-list-w
-            .user-w
-              .user-avatar-w
-                .user-avatar
-                  = image_tag 'avatars/m_sunny_big.png'
-              .user-name
-                %h6.user-title
-                  John Mayers
-                .user-role
-                  Account Manager
-              %a.user-action{:href => "users_profile_small.html"}
-                .os-icon.os-icon-email-forward
-            .user-w
-              .user-avatar-w
-                .user-avatar
-                  = image_tag 'avatars/m_sunny_big.png'
-              .user-name
-                %h6.user-title
-                  Ben Gossman
-                .user-role
-                  Administrator
-              %a.user-action{:href => "users_profile_small.html"}
-                .os-icon.os-icon-email-forward
-            .user-w
-              .user-avatar-w
-                .user-avatar
-                  = image_tag 'avatars/m_sunny_big.png'
-              .user-name
-                %h6.user-title
-                  Phil Nokorin
-                .user-role
-                  HR Manger
-              %a.user-action{:href => "users_profile_small.html"}
-                .os-icon.os-icon-email-forward
-            .user-w
-              .user-avatar-w
-                .user-avatar
-                  = image_tag 'avatars/m_sunny_big.png'
-              .user-name
-                %h6.user-title
-                  Jenny Miksa
-                .user-role
-                  Lead Developer
-              %a.user-action{:href => "users_profile_small.html"}
-                .os-icon.os-icon-email-forward
+            %input.form-control.directory-search.rounded.bright{:placeholder => "Search team members...", :type => "search"}/
+          .users-list-w{style: "height: 624px;overflow-y: scroll;"}
+            - @directory.each do |user|
+              .user-w.toggleable
+                .user-avatar-w
+                  .user-avatar
+                    = image_tag user.photo
+                .user-name
+                  %h6.user-title
+                    =user.full_name
+                  .user-role
+                    =user.class.to_s
+                %a.user-action{:href => "users_profile_small.html"}
+                  .os-icon.os-icon-email-forward
       .element-wrapper
-        %h6.element-header
-          User Activity
-        .timed-activities.compact
-          .timed-activity
-            .ta-date
-              %span 21st Jan, 2017
-            .ta-record-w
-              .ta-record
-                .ta-timestamp
-                  %strong 11:55
-                  am
-                .ta-activity
-                  Created a post called
-                  %a{:href => "#"} Register new symbol
-                  in Rogue
-              .ta-record
-                .ta-timestamp
-                  %strong 2:34
-                  pm
-                .ta-activity
-                  Commented on story
-                  %a{:href => "#"} How to be a leader
-                  in
-                  %a{:href => "#"} Financial
-                  category
-              .ta-record
-                .ta-timestamp
-                  %strong 7:12
-                  pm
-                .ta-activity
-                  Added
-                  %a{:href => "#"} John Silver
-                  as a friend
-          .timed-activity
-            .ta-date
-              %span 3rd Feb, 2017
-            .ta-record-w
-              .ta-record
-                .ta-timestamp
-                  %strong 9:32
-                  pm
-                .ta-activity
-                  Added
-                  %a{:href => "#"} John Silver
-                  as a friend
-              .ta-record
-                .ta-timestamp
-                  %strong 5:14
-                  pm
-                .ta-activity
-                  Commented on story
-                  %a{:href => "#"} How to be a leader
-                  in
-                  %a{:href => "#"} Financial
-                  category
-
-
-#content
-  %section#widget-grid
-    - if current_company.hiring_manager? || current_company.vendor?
-      .row
-        -#.col-sm-12.col-md-8{style: 'margin-left: 15px;'}
-          - if @data.present?
-            %input.form-control#search-term{placeholder: 'Search by Keywords ...',style: 'width: 96%;margin-bottom: 20px; background-color: white'}
-        .col-sm-12.col-md-8
-          - if @data.present?
-            .col-sm-8.margin-bottom-20
-              %input.form-control#search-term.bg-color-white{placeholder: 'Search by Keywords ...',style: ''}
-            .col-sm-4.margin-bottom-20
-              = select_tag "Select Type", options_for_select([ "Candidates", "Jobs" , "Contacts" ]), include_blank: "All",class: 'form-control bg-color-white' ,id: "show_type",style:''
-            %br
-            .col-sm-12.col-md-8#dynamic-content{style: "width: 100%;"}
-              - @data.each do |d|
-                = render "company/users/partials/#{d.class.name.downcase}_show" ,data: d
-        .col-sm-12.col-md-4
-
+        .col-sm-12.col-md-12
           .element-box.el-tablo.centered
-            .panel-body.status
-              .who.clearfix
-                %h4 Company Candidates (#{current_company.candidates.count})
+            .panel-body
+              .clearfix
+                %h6.element-header.text-left Company Candidates (#{current_company.candidates.count})
               -if current_company.candidates.present?
                 .col-sm-12
-                  %ul.list-inline.friends-list
-                    %br
+                  %ul.list-inline.friends-list.dashboard-list
                     - current_company.candidates.take(30).each do |candidate|
                       %li
                         = link_to image_tag( candidate.try(:photo) ,class:"margin-bottom-5 margin-top-5",alt:image_path('avatars/m_sunny_big.png')) , static_candidate_resume_path(candidate),target: "_blank" , title: candidate.full_name,"data-content" => "Email : #{candidate.email}", "data-placement" => "top",:rel => "hover"
@@ -357,12 +425,12 @@
                   .font-md.text-center
                     No Candidate in  Company Right now.
           .element-box.el-tablo.centered
-            .panel-body.status
-              .who.clearfix
-                %h4 Company Contacts (#{current_company.invited_companies_contacts.count})
+            .panel-body
+              .clearfix
+                %h6.element-header.text-left Company Contacts (#{current_company.invited_companies_contacts.count})
               -if current_company.invited_companies_contacts.present?
                 .col-sm-12
-                  %ul.list-inline.friends-list
+                  %ul.list-inline.friends-list.dashboard-list
                     %br
                     - current_company.invited_companies_contacts.take(30).each do |contact|
                       %li
@@ -372,12 +440,12 @@
                   .font-md.text-center
                     No Contact in Company Right now.
           .element-box.el-tablo.centered
-            .panel-body.status
-              .who.clearfix
-                %h4 Company Consultants (#{current_company.consultants.count})
+            .panel-body
+              .clearfix
+                %h6.element-header.text-left Company Consultants (#{current_company.consultants.count})
               -if current_company.consultants.present?
                 .col-sm-12
-                  %ul.list-inline.friends-list
+                  %ul.list-inline.friends-list.dashboard-list
                     %br
                     - current_company.consultants.take(30).each do |consultant|
                       %li
@@ -387,12 +455,12 @@
                   .font-md.text-center
                     No Consultant in Company Right now.
           .element-box.el-tablo.centered
-            .panel-body.status
-              .who.clearfix
-                %h4 My Vendors (#{current_company.send_or_received_network.count})
+            .panel-body
+              .clearfix
+                %h6.element-header.text-left My Vendors (#{current_company.send_or_received_network.count})
               -if current_company.send_or_received_network.present?
                 .col-sm-12
-                  %ul.list-inline.friends-list
+                  %ul.list-inline.friends-list.dashboard-list
                     %br
                     - current_company.send_or_received_network.take(30).each do |vendor|
                       %li
@@ -403,12 +471,12 @@
                   .font-md.text-center
                     No Vendor Right now.
           .element-box.el-tablo.centered
-            .panel-body.status
-              .who.clearfix
-                %h4 Companies 3rd Party (#{current_company.invited_companies.count})
+            .panel-body
+              .clearfix
+                %h6.element-header.text-left Companies 3rd Party (#{current_company.invited_companies.count})
               -if current_company.invited_companies.present?
                 .col-sm-12
-                  %ul.list-inline.friends-list
+                  %ul.list-inline.friends-list.dashboard-list
                     %br
                     - current_company.invited_companies.take(30).each do |company|
                       %li
@@ -418,126 +486,47 @@
                   .font-md.text-center
                     No Company Right now.
 
-
-
-        %hr
-    - if current_company.hiring_manager? && !current_user.is_consultant?
-      .row
-        .col-md-6
-          .element-box.el-tablo.centered
-            .panel-body.status
-              .who.clearfix
-                %h4 Company Consultant(s)
-              .row
-                -if current_company.consultants.present?
-                  .text
-                    - current_company.consultants.last(3).each do |d|
-                      .col-sm-12.col-md-6.col-lg-4
-                        .well.text-center.connect
-                          -#%img.margin-bottom-5.margin-top-5{:alt => "img", :src => "img/avatars/female.png"}/
-                          = image_tag d.photo ,class:"margin-bottom-5 margin-top-5",alt:'img',width: '20px;',height: '20px;'
-                          %br/
-                          %span.font-xs
-                            %b
-                              = d.first_name
-                -else
-                  .text
-                    .font-md.text-center
-                      No Consultant in  Company Right now.
-        .col-md-6
-          .element-box.el-tablo.centered
-            .panel-body.status
-              .who.clearfix
-                %h4 Latest Job Opening
-              - if current_company.jobs.present?
-                - current_company.jobs.last(3).each do |j|
-                  .who.clearfix
-                    = image_tag 'jobs.png',class:'',alt: "job"
-                    -#%img.busy{:alt => "img", :src => "img/avatars/2.png"}/
-                    %span.name.font-sm
-                      %span.text-muted Posted by
-                      %b
-                        =j.company.owner.first_name
-                        %br/
-                        %span.pull-right.font-xs.text-muted
-                          %i
-                            = time_ago_in_words(j.try(:created_at).try(:localtime))
-                      .font-md
-                        = link_to "#{truncate(j.title)}",job_path(j)
-              -else
-                .who.clearfix
-                  .text
-                    .font-md.text-center
-                      No Jobs in  Company Right now.
-        %hr
-      .row
-        .col-sm-12.col-md-6
-          .element-box.el-tablo.centered
-            .panel-body.status
-              .who.clearfix
-                %h4 Company Candidates
-              - if current_company.candidates.present?
-                - current_company.candidates.last(3).each do |j|
-                  .who.clearfix
-                    = image_tag 'can.png',class:'',alt: "job"
-                    -#%img.busy{:alt => "img", :src => "img/avatars/2.png"}/
-                    %span.name.font-sm
-                      %span.text-muted Invited By
-                      %b
-                        =j.invited_by.first_name  rescue ' Admin '
-                        %br/
-                        %span.pull-right.font-xs.text-muted
-                          %i
-                            = time_ago_in_words(j.try(:created_at).try(:localtime))
-                      .font-md
-                        = link_to "#{j.first_name}",static_candidate_resume_path(j)
-              -else
-                .who.clearfix
-                  .text
-                    .font-md.text-center
-                      No Candidates in  Company Right now.
-        .col-sm-12.col-md-6
-          .element-box.el-tablo.centered
-            .panel-body.status
-              .who.clearfix
-                %h4 Latest Activities
-              -if company_activities.present?
-                -company_activities.take(4).each do |activity|
-                  .who.clearfix
-                    = render_activity activity
-              -else
-                .who.clearfix
-                  .text
-                    .font-md.text-center
-                      No Activities in  Company Right now.
-
-- if current_user.is_consultant?
-  = render 'company/users/partials/consultant_dashboard'
-
-- content_for :scripts do
-  :javascript
-    $('#show_type').change(function(){
-      $.ajax({
-        url: "dashboard?search_by="+$('#search-term').val(),
-        type: "GET",
-        data: {value: $('#show_type option:selected').text()},
-      })
-    });
-
-    $(document).ready(function() {
-      pageSetUp();
-      $('a[rel=hover]').popover({
-      html: true,
-      trigger: 'hover',
-      placement: 'top',
-      content: function(){return '<img src="'+$(this).data('img') + '" />';}
-    });
-    $('[data-toggle="tooltip"]').tooltip()
-
-    });
-    $("#search-term").on("keypress", function (e) {
-        if (e.keyCode == 13) {
-           var sval = $('#search-term').val();
-           $.get('/dashboard?search_by='+sval);
-        }
-    });
+-#
+-#- if current_user.is_consultant?
+-#  = render 'company/users/partials/consultant_dashboard'
+-#- content_for :scripts do
+-#  :javascript
+-#    $('#show_type').change(function(){
+-#      $.ajax({
+-#        url: "dashboard?search_by="+$('#search-term').val(),
+-#        type: "GET",
+-#        data: {value: $('#show_type option:selected').text()},
+-#      })
+-#    });
+-#    $(document).ready(function() {
+-#      pageSetUp();
+-#      $('a[rel=hover]').popover({
+-#      html: true,
+-#      trigger: 'hover',
+-#      placement: 'top',
+-#      content: function(){return '<img src="'+$(this).data('img') + '" />';}
+-#    });
+-#    $('[data-toggle="tooltip"]').tooltip()
+-#
+-#    });
+-#    $("#search-term").on("keypress", function (e) {
+-#        if (e.keyCode == 13) {
+-#           var sval = $('#search-term').val();
+-#           $.get('/dashboard?search_by='+sval);
+-#        }
+-#    });
+-#    $(".directory-search").on('keydown',function () {
+-#      var txt = $('.directory-search').val();
+-#      if(!!txt.trim()){
+-#        $('.toggleable').each(function(){
+-#          if($(this).find('.user-title').text().toLowerCase().includes(txt.toLowerCase())){
+-#            $(this).show();
+-#          }else{
+-#            $(this).hide();
+-#          }
+-#        });
+-#      }else{
+-#        $('.toggleable').show()
+-#      }
+-#    });
+-#
