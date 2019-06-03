@@ -13,7 +13,7 @@
                     .label
                       Job
                     .value
-                      157
+                      = current_company.jobs.count
                     .trending.trending-up-basic
                       %span 12%
                       %i.os-icon.os-icon-arrow-up2
@@ -31,7 +31,7 @@
                     .label
                       Bench Job
                     .value
-                      37
+                      = current_company.jobs.where.not(source: nil).count
                     .trending.trending-up-basic
                       %span 12%
                       %i.os-icon.os-icon-arrow-up2
@@ -40,55 +40,20 @@
                     .label
                       Application
                     .value
-                      67
+                      = current_company.received_job_applications.count
                     .trending.trending-up-basic
                       %span 12%
                       %i.os-icon.os-icon-arrow-up2
-                .col-sm-4
-                  %a.element-box.el-tablo{:href => "#"}
-                    .label
-                      Pre Interview
-                    .value
-                      87
-                    .trending.trending-up-basic
-                      %span 12%
-                      %i.os-icon.os-icon-arrow-up2
-                .col-sm-4
-                  %a.element-box.el-tablo{:href => "#"}
-                    .label
-                      Pre Interview
-                    .value
-                      17
-                    .trending.trending-up-basic
-                      %span 12%
-                      %i.os-icon.os-icon-arrow-up2
-                .col-sm-4
-                  %a.element-box.el-tablo{:href => "#"}
-                    .label
-                      Client Submission
-                    .value
-                      27
-                    .trending.trending-up-basic
-                      %span 12%
-                      %i.os-icon.os-icon-arrow-up2
-                .col-sm-4
-                  %a.element-box.el-tablo{:href => "#"}
-                    .label
-                      Interview
-                    .value
-                      55
-                    .trending.trending-up-basic
-                      %span 12%
-                      %i.os-icon.os-icon-arrow-up2
-                .col-sm-4
-                  %a.element-box.el-tablo{:href => "#"}
-                    .label
-                      Hire
-                    .value
-                      51
-                    .trending.trending-up-basic
-                      %span 12%
-                      %i.os-icon.os-icon-arrow-up2
+                -Company.status_count(current_company).each do |app|
+                  .col-sm-4
+                    %a.element-box.el-tablo{:href => "#"}
+                      .label
+                        = app.status.camelize
+                      .value
+                        = app.count
+                      .trending.trending-up-basic
+                        %span 12%
+                        %i.os-icon.os-icon-arrow-up2
       .row
         .col-sm-9
           .element-wrapper
@@ -486,47 +451,52 @@
                   .font-md.text-center
                     No Company Right now.
 
--#
--#- if current_user.is_consultant?
--#  = render 'company/users/partials/consultant_dashboard'
--#- content_for :scripts do
--#  :javascript
--#    $('#show_type').change(function(){
--#      $.ajax({
--#        url: "dashboard?search_by="+$('#search-term').val(),
--#        type: "GET",
--#        data: {value: $('#show_type option:selected').text()},
--#      })
--#    });
--#    $(document).ready(function() {
--#      pageSetUp();
--#      $('a[rel=hover]').popover({
--#      html: true,
--#      trigger: 'hover',
--#      placement: 'top',
--#      content: function(){return '<img src="'+$(this).data('img') + '" />';}
--#    });
--#    $('[data-toggle="tooltip"]').tooltip()
--#
--#    });
--#    $("#search-term").on("keypress", function (e) {
--#        if (e.keyCode == 13) {
--#           var sval = $('#search-term').val();
--#           $.get('/dashboard?search_by='+sval);
--#        }
--#    });
--#    $(".directory-search").on('keydown',function () {
--#      var txt = $('.directory-search').val();
--#      if(!!txt.trim()){
--#        $('.toggleable').each(function(){
--#          if($(this).find('.user-title').text().toLowerCase().includes(txt.toLowerCase())){
--#            $(this).show();
--#          }else{
--#            $(this).hide();
--#          }
--#        });
--#      }else{
--#        $('.toggleable').show()
--#      }
--#    });
--#
+
+- if current_user.is_consultant?
+  = render 'company/users/partials/consultant_dashboard'
+- content_for :scripts do
+  :javascript
+    $('#show_type').change(function(){
+      $.ajax({
+        url: "dashboard?search_by="+$('#search-term').val(),
+        type: "GET",
+        data: {value: $('#show_type option:selected').text()},
+      })
+    });
+    $(document).ready(function() {
+      pageSetUp();
+      $('a[rel=hover]').popover({
+      html: true,
+      trigger: 'hover',
+      placement: 'top',
+      content: function(){return '<img src="'+$(this).data('img') + '" />';}
+    });
+    $('[data-toggle="tooltip"]').tooltip()
+
+    });
+    $("#search-term").on("keypress", function (e) {
+        if (e.keyCode == 13) {
+           var sval = $('#search-term').val();
+           $.get('/dashboard?search_by='+sval);
+        }
+    });
+    $(".directory-search").on('keydown',function () {
+      var txt = $('.directory-search').val();
+      if(!!txt.trim()){
+        $('.toggleable').each(function(){
+          if($(this).find('.user-title').text().toLowerCase().includes(txt.toLowerCase())){
+            $(this).show();
+          }else{
+            $(this).hide();
+          }
+        });
+      }else{
+        $('.toggleable').show()
+      }
+    });
+
+
+
+
+
+
