@@ -20,7 +20,9 @@ class Company::JobsController < Company::BaseController
   def show
     add_breadcrumb @job.try(:title).try(:titleize)[0..30], :job_path, options: { title: "Job Invitation" }
     @job_applications = @job.job_applications
-    @conversations = @job.conversations
+    # @conversations = @job.conversations
+    # @conversation = @conversations.first
+    @conversation = @job.conversation_id ? Conversation.find(@job.conversation_id) : nil
   end
 
   def new
