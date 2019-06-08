@@ -63,7 +63,7 @@ class User < ApplicationRecord
 
   has_many :favourables, as: :favourable, class_name: "FavouriteChat", dependent: :destroy
   has_many :favourableds, as: :favourabled, class_name: "FavouriteChat", dependent: :destroy
-
+  has_many :created_notifications, as: :createable
   accepts_nested_attributes_for :attachable_docs , reject_if: :all_blank
   accepts_nested_attributes_for :custom_fields   , reject_if: :all_blank
   accepts_nested_attributes_for :address   , reject_if: :all_blank, update_only: true
@@ -130,8 +130,10 @@ class User < ApplicationRecord
   def full_name
     if first_name.present? || first_name.present?
       self.first_name + " " + self.last_name
-    else
+    elsif company
       company.name
+    else
+      ""
     end
   end
 

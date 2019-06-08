@@ -17,7 +17,6 @@ class CompanyContactDatatable < ApplicationDatatable
         name: {source: "Company.name"},
         first_name: {source: "User.first_name"},
         title: {source: "CompanyContact.title"},
-        contact: {source: "CompanyContact.phone"}
     }
   end
 
@@ -48,30 +47,28 @@ class CompanyContactDatatable < ApplicationDatatable
   end
 
   def get_raw_records
-    current_company.company_contacts.includes(:user_company,company: [:reminders, :statuses])
+    current_company.company_contacts.includes(:user_company, company: [:reminders, :statuses]).joins(:user, :user_company)
   end
 
   def reminder_note record
-    content_tag(:span, do_ellipsis(record.user_company&.reminders&.last&.title), class: 'bg-info badge mr-1').html_safe +
-        content_tag(:span, record.user_company&.statuses&.last&.status_type, class: 'bg-info badge').html_safe
+    content_tag(:span, do_ellipsis(record.user_company&.reminders&.last&.title), class: 'bg-info badge mr-1').html_safe
   end
 
   def contact_icon record
-    mail_to(record.email, content_tag(:i, nil, class: 'os-icon os-icon-email-2-at2').html_safe, title: record.email, class: 'data-table-icons') +
-        link_to(content_tag(:i, nil, class: 'os-icon os-icon-phone  ').html_safe, '#', title: record.phone, class: 'data-table-icons') +
-        link_to(content_tag(:i, nil, class: 'fa fa-comment-o ').html_safe, '#', title: 'Leave a message', class: 'data-table-icons') +
-        link_to(content_tag(:i, nil, class: 'os-icon os-icon-calendar').html_safe, '#', title: 'Add meeting', class: 'data-table-icons')
-
+    contact_widget(record.email, record.phone)
   end
 
   def groups record
-    record.groups.map {|group| content_tag(:span, group.group_name, class: 'badge bg-color-blue margin-bottom-5 mr-1').html_safe}.join('').html_safe
+    if record.groups.count > 0
+      link_to(record.groups.count, company_company_assign_groups_to_contact_path(record), remote: true, class: 'data-table-icons')
+    else
+      record.groups.count
+    end
   end
 
   def actions record
-    link_to(content_tag(:i, nil, class: 'fa fa-sticky-note-o ').html_safe, company_assign_status_path(record.user_company), remote: :true, title: "Assign Status", class: 'data-table-icons') +
-        link_to(content_tag(:i, nil, class: 'fa fa-bell-o ').html_safe, company_company_add_reminder_path(record.user_company), remote: :true, title: "Remind Me", class: 'data-table-icons') +
-        link_to(content_tag(:i, nil, class: 'icon-feather-user-plus').html_safe, company_company_assign_groups_to_contact_path(record), remote: true, title: 'Add to Group', class: 'data-table-icons') +
+    link_to(content_tag(:i, nil, class: 'fa fa-bell-o ').html_safe, company_company_add_reminder_path(record.user_company), remote: :true, title: "Remind Me", class: 'data-table-icons') +
+        link_to(image_tag('groups.png', size: '16x16', class: '').html_safe, company_company_assign_groups_to_contact_path(record), remote: true, title: 'Add to Group', class: 'data-table-icons') +
         link_to(content_tag(:i, nil, class: 'fa fa-edit').html_safe, "#", remote: true, title: "Edit #{record.full_name}", class: 'data-table-icons')
   end
 

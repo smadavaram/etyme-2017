@@ -162,6 +162,9 @@ Rails.application.routes.draw do
       get :search, on: :collection
       get :add_to_favourite, on: :collection
       get :remove_from_favourite, on: :collection
+      get :leave_group, on: :collection
+      get :mute, on: :member
+      get :unmute, on: :member
       resources :conversation_messages
     end
 
@@ -179,6 +182,11 @@ Rails.application.routes.draw do
       post :get_client_expenses, on: :collection
       get :submitted_client_expenses, on: :collection
       get :approve_client_expense, on: :collection
+    end
+    resources :designations, only: [] do
+      member do
+        get :accept
+      end
     end
   end
 
@@ -213,7 +221,11 @@ Rails.application.routes.draw do
 
     get 'companies/edit'
     resources :users, only: [:show, :update, :destroy] do
-
+      resources :notifications do
+        member do
+          get 'read'
+        end
+      end
       collection do
         get 'current_status'
         get 'status_update'
@@ -226,7 +238,7 @@ Rails.application.routes.draw do
       post :update_video
       collection do
         get :notify_notifications
-
+        get "notification/:id", to: 'users#notification', as: "get_notification"
       end
     end
 
@@ -246,7 +258,13 @@ Rails.application.routes.draw do
       get :hot_index
       match :create_chat, via: [:get, :post]
     end
-    resources :candidates
+    resources :candidates do
+      member do
+        put :company_candidate, as: :make
+        get :show, as: :candidate
+        post :request_for_more_information
+      end
+    end
 
     get 'new_candidate_to_bench', to: 'candidates#new_candidate_to_bench'
     # get :new_candidate_to_banch
@@ -294,6 +312,11 @@ Rails.application.routes.draw do
       get :search, on: :collection
       get :add_to_favourite, on: :collection
       get :remove_from_favourite, on: :collection
+      post :add_to_chat, on: :collection
+
+      get :mute, on: :member
+      get :unmute, on: :member
+
       resources :conversation_messages do
         get :mark_as_read, on: :member
       end
@@ -347,6 +370,9 @@ Rails.application.routes.draw do
         post :create_bulk_candidates
         post :create_bulk_companies
         post :create_bulk_contacts
+
+        get :remove_from_group
+        get :leave_group
       end
     end
     resources :admins, concerns: :paginatable
@@ -385,7 +411,7 @@ Rails.application.routes.draw do
       # end
     end
     resources :job_invitations, concerns: :paginatable, only: [:index, :show]
-    resources :candidates, concerns: :paginatable, only: :index do
+    resources :candidates, concerns: :paginatable, only: [:index] do
       match :manage_groups, via: [:get, :patch]
       post :make_hot
       post :make_normal
@@ -393,6 +419,9 @@ Rails.application.routes.draw do
       get :assign_status
       post :create_chat
       post :remove_from_comapny
+      member do
+        get :bench_info, as: :bench_info
+      end
       collection do
         get :share_candidates, as: :share_hot_candidates
       end
@@ -401,13 +430,16 @@ Rails.application.routes.draw do
     resources :job_applications, concerns: :paginatable, only: [:index, :show] do
       resources :consultants, only: [:new, :create]
       member do
-        get :share
+        get  :applicant, as: :applicant
+        get  :share
+        get  :proposal
         post :share_application_with_companies
         post :accept
         post :reject
         post :short_list
         post :interview
         post :hire
+        post :prescreen
       end # End of member
     end
 
@@ -657,6 +689,7 @@ Rails.application.routes.draw do
   resources :conversations do
     resources :conversation_messages do
       get :messages, on: :collection
+      get :pop_messages, on: :collection
       get :mark_as_read, on: :member
     end
   end

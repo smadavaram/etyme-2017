@@ -1,0 +1,13 @@
+.modal{ id: "show-candidate-#{candidate.id}"}
+  .modal-dialog.modal-lg
+    .modal-content
+      .modal-header
+        %h2#PageTitle.modal-title
+          %strong Candidate Profile
+        %button.close{"aria-hidden" => "true", "data-dismiss" => "modal", :type => "button"}
+          ×
+      .modal-body#prescreen-modal-body
+        = render "shared/candidate_profile", candidate: candidate
+        = render 'shared/more_info_request', conversation: @conversation
+        .modal-footer.company--content-footer
+          =render 'shared/status_links', conversation: @conversation

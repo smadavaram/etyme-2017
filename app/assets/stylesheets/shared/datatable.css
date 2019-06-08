@@ -13,6 +13,12 @@
     color: #3E4B5B;
     margin-left: 5px;
 }
+
+.modal--top
+{
+    top: 10%;
+}
+
 .data-table-icons:link,
 .data-table-icons:visited {
     color: currentColor;
@@ -22,9 +28,11 @@
     text-decoration: none;
     color: #3E4B5B;
 }
-.os-icon-ui-15{
+
+.os-icon-ui-15 {
     color: red;
 }
+
 .data-table-font {
     font-family: "Avenir Next W01";
     font-size: .9rem;
@@ -35,10 +43,41 @@
 }
 
 /*.dataTable th, .dataTable td, .dataTable .ellipsis {*/
-/*white-space: nowrap;*/
-/*overflow: hidden;*/
+/*    white-space: nowrap;*/
+/*    overflow: hidden;*/
 /*}*/
+
+.no-wrap {
+    white-space: nowrap;
+    overflow: hidden;
+}
+
 .dataTables_filter, .dataTables_length {
     display: none;
 }
 
+.parent--flex{
+    display: flex;
+}
+.add-flex
+{
+    display: inline-flex;
+    width: 100%;
+    justify-content: space-between !important;
+}
+
+.display-block
+{
+    display: inline-block;
+}
+
+.company--content{
+    height: calc(100vh - 202px);
+    overflow-y: scroll;
+}
+
+.company--content-footer
+{
+    padding-top: 0;
+    padding-bottom: 0;
+}

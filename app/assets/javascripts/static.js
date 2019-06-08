@@ -1,13 +1,14 @@
 
 //= require static/js/modernizr-custom
 //= require static/js/jQuery-2.1.4.min
-// require jquery_ujs
-// require jquery-ui
+//= require jquery_ujs
+//= require jquery-ui
 
 //= require static/js/bootstrap.min
 //= require static/js/waypoints.min
 //= require static/js/jquery.animateNumbers
 //= require static/js/jquery.flexslider-min
+//= require plugin/bootstrap-timepicker/bootstrap-timepicker.min
 //= require static/js/kafe.flexslider
 //= require static/js/jquery.appear
 //= require static/js/jquery.easypiechart

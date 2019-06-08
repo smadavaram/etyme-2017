@@ -12,6 +12,8 @@
  *= require style
  *= require bullettrain-global
  *= require bullettrain-public
+
+ *= require smartadmin-production
 */
 
 .set-checkbox{
@@ -51,4 +53,16 @@
 
 .disable_header.element-header:after {
   width: 0 !important;
+}
+.without-registration_modal{
+  //width: 70% !important;
+  margin: 50px auto !important;
+  position: relative;
+  width: auto;
+  margin: 0.5rem;
+  pointer-events: none;
+  width: 70%;
+  height: 50%;
+  padding: 0;
+  position: relative;
 }

@@ -4,6 +4,8 @@ class Candidate < ApplicationRecord
   devise :invitable, :database_authenticatable, :registerable,
          :recoverable, :rememberable, :trackable, :confirmable
 
+  has_paper_trail only: [:address]
+
   include PublicActivity::Model
 
   enum status: [:signup, :campany_candidate]
@@ -19,6 +21,7 @@ class Candidate < ApplicationRecord
   after_create  :send_welcome_email, if: Proc.new{|candidate| candidate.send_welcome_email_to_candidate.nil?}
   after_create  :normalize_candidate_entries, if: Proc.new{|candidate| candidate.signup?}
   # after_create  :set_on_seq
+  before_create :set_freelancer_company
 
   validates :email,presence: :true
   validates_uniqueness_of :email ,scope: [:status], message: "Candidate with same email already exist on the Eytme!" ,if: Proc.new{|candidate| candidate.signup?}
@@ -71,10 +74,13 @@ class Candidate < ApplicationRecord
   has_many :favourables, as: :favourable, class_name: "FavouriteChat", dependent: :destroy
   has_many :favourableds, as: :favourabled, class_name: "FavouriteChat", dependent: :destroy
 
+  has_many :created_notifications, as: :createable
+
   # has_many :partner_following, through: :partner_active_relationships, source: :partner_followed
   # has_many :partner_followers, through: :partner_passive_relationships, source: :partner_follower
 
   belongs_to :invited_by_user, class_name: "User", foreign_key: :invited_by_id, optional: true
+  belongs_to :associated_company, class_name: "Company", foreign_key: :company_id, optional: true
 
 
   attr_accessor :job_id , :expiry , :message , :invitation_type
@@ -106,7 +112,7 @@ class Candidate < ApplicationRecord
 
   validate :max_skill_size
   def max_skill_size
-    errors[:skill_list] << "8 skills maximum" if skill_list.count > 10
+    errors[:skill_list] << "8 skills maximum" if skill_list.count > 8
   end
 
   def etyme_url
@@ -114,7 +120,7 @@ class Candidate < ApplicationRecord
   end
 
   def photo
-    super.present? ? super : 'avatars/m_sunny_big.png'
+    super.present? ? super : ActionController::Base.helpers.asset_path('avatars/m_sunny_big.png')
   end
 
   def full_name
@@ -204,7 +210,7 @@ class Candidate < ApplicationRecord
     )
 
     candidate_name = self.full_name
-    
+
     candidate_key = ledger.keys.query({aliases: [candidate_name]}).first
     unless candidate_key.present?
       candidate_key = ledger.keys.create(id: candidate_name)
@@ -221,6 +227,10 @@ class Candidate < ApplicationRecord
       tags: {
       }
     ) unless la.present?
+  end
+
+  def set_freelancer_company
+    self.company_id = Company.find_by(company_type: :vendor, domain: 'freelancer.com')&.id if self.company_id.nil?
   end
 
 end

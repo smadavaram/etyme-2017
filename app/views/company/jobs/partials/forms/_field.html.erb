@@ -1,0 +1,33 @@
+<% resource ||= form.object %>
+<% attributes ||= {} %>
+<% title ||= nil %>
+<% field_type ||= :text_field %>
+<% note ||= nil %>
+<% icon ||= nil %>
+<% field_id = "#{form.object.class.name.underscore}_#{attribute}" %>
+<% field_attributes = {class: "form-control", id: field_id}.merge(field_attributes || {}) %>
+<% if resource.errors[attribute].present? %>
+  <% field_attributes[:data] ||= {} %>
+  <% field_attributes[:data][:error] = resource.errors[attribute].to_sentence %>
+<% end %>
+<div class="form-group <%= 'has-error has-danger' if resource.errors[attribute].present? %>">
+  <%= form.label title || attribute, field_attributes[:label], for: field_id %>
+  <%= form.send(field_type, attribute, field_attributes) %>
+  <% if resource.errors[attribute].present? || block_given? %>
+  <div class="help-block form-text with-errors form-control-feedback">
+    <% if resource.errors[attribute].present? %>
+    <%= resource.class.human_attribute_name(attribute) %> <%= resource.errors[attribute].to_sentence %>.
+    <% end %>
+    <% if block_given? %>
+    <%= yield %>
+    <% end %>
+  </div>
+  <% end %>
+  <% if note %>
+    <p class="note"><strong>Note:</strong> <%= note %></p>
+  <% end %>
+  <% if icon %>
+  <div class="pre-icon os-icon <%= icon %>">
+  </div>
+  <% end %>
+</div>

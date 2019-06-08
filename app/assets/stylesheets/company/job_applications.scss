@@ -1,3 +1,91 @@
 // Place all the styles related to the company/job_applications controller here.
 // They will automatically be included in application.css.
 // You can use Sass (SCSS) here: http://sass-lang.com/
+.collapsible{
+  //background: #037bf8;
+  color: #037bf8;
+  cursor: pointer;
+  padding: 18px;
+  width: 100%;
+  border: 1px solid #037bf8;
+  text-align: left;
+  outline: none;
+  font-size: 15px;
+  transition: 0.4s;
+}
+.collapsible-click{
+  margin-bottom: 0px;
+  color: #037bf8;
+
+}
+.job-application-collaps{
+  display: none;
+}
+.chat-collaps{
+  display: none;
+}
+.collapsible > h6:after {
+  content: '\002B';
+  color: #037bf8;
+  font-weight: bold;
+  float: right;
+  margin-left: 5px;
+}
+.active > h6:after {
+  color: #037bf8;
+  content: "\2212";
+}
+
+.max-width{
+  width: max-content !important;
+}
+
+.with_border {
+  border:  1px solid rgba(0, 0, 0, 0.2);
+}
+
+.chat-heat_justify{
+  justify-content: space-between;
+}
+
+
+
+
+
+#navbar {
+  overflow: hidden;
+  background-color: white;
+  z-index: 9999;
+  padding-left: 20px;
+  padding-bottom: 20px;
+}
+
+//#navbar a {
+//  float: left;
+//  display: block;
+//  color: #f2f2f2;
+//  text-align: center;
+//  padding: 14px 16px;
+//  text-decoration: none;
+//  font-size: 17px;
+//}
+
+//#navbar a:hover {
+//  background-color: #ddd;
+//  color: black;
+//}
+
+//#navbar a.active {
+//  background-color: #4CAF50;
+//  color: white;
+//}
+
+.sticky {
+  position: fixed;
+  top: 0;
+  width: 100%;
+}
+
+.sticky > div{
+  width: 80%;
+}

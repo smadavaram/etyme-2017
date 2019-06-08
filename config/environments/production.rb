@@ -108,7 +108,7 @@ Rails.application.configure do
 
   HOSTNAME='http://etyme.com'
   COMPANY_URL = 'demoetyme.com'
-
+  Rails.application.routes.default_url_options[:host] = HOSTNAME
   config.action_mailer.default_url_options = {host: HOSTNAME}
 
 end

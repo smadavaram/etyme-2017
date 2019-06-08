@@ -120,6 +120,11 @@
   }
 }
 
+.profile--link:hover
+{
+  text-decoration: none;
+}
+
 .user-profile + .element-wrapper {
   margin-top: 2rem;
 }

@@ -11,6 +11,7 @@ class Company::ConversationMessagesController < Company::BaseController
       ActionCable.server.broadcast "Message_#{recipient.class.to_s}_#{recipient.id}",
                                    message_id: message.id,
                                    message: message.body,
+                                   file_url: message.file_url ? message.file_url : "",
                                    user_type: message.userable.class.to_s,
                                    user: message.userable.id,
                                    recipient_type: recipient.class.to_s,
@@ -22,6 +23,7 @@ class Company::ConversationMessagesController < Company::BaseController
       ActionCable.server.broadcast "Message_#{current_user.class.to_s}_#{current_user.id}",
                                    message_id: message.id,
                                    message: message.body,
+                                   file_url: message.file_url ? message.file_url : "",
                                    user_type: message.userable.class.to_s,
                                    user: message.userable.id,
                                    recipient_type: recipient.class.to_s,
@@ -48,7 +50,7 @@ class Company::ConversationMessagesController < Company::BaseController
     end
 
     def message_params
-      params.require(:conversation_message).permit(:body)
+      params.require(:conversation_message).permit(:body, :file_url)
     end
 
 end

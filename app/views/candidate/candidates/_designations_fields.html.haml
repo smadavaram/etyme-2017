@@ -6,8 +6,8 @@
         = f.text_field :comp_name, placeholder: "Company Name",class: 'form-control  input'
     .col-md-6
       .form-group
-        %label Company Role
-        = f.text_field :company_role, placeholder: "Company Role",class: 'form-control  input'
+        %label Company Designation
+        = f.text_field :company_role, placeholder: "Designation",class: 'form-control  input'
     .col-md-6
       .form-group
         %label Recruiter Name
@@ -16,10 +16,11 @@
       .form-group
         %label Recruiter Email
         = f.text_field :recruiter_email, placeholder: "Recruiter Email",class: 'form-control  input'
-    .col-md-3
+    .col-md-3{style: 'display: flex; align-items: center;'}
       .form-group
         %label Recruiter Phone
         = f.text_field :recruiter_phone, placeholder: "Recruiter Phone",class: 'form-control  input'
+      %button{style: 'height: 46%;', class: 'mt-2 btn btn-sm btn-primary'} verify
     .col-md-6
       .form-group
         %label Start Date

@@ -39,9 +39,6 @@
     <!--</div>-->
   <!--</div>-->
 <!--</div>-->
-
-
-
 <div class="no-border" id="content">
   <div class="all-wrapper no-padding-content solid-bg-all">
     <div class="layout-w">
@@ -49,11 +46,11 @@
         <div class="content-i">
           <div class="content-box">
             <div class="full-chat-w">
-              <div class="full-chat-i">
-                <div class="full-chat-left">
+              <div class="full-chat-i full-chat_height">
+                <div class="full-chat-left full-chat_height">
                   <div class="os-tabs-w">
                     <ul class="nav nav-tabs upper centered">
-                      <li class="nav-item">
+                      <li class="nav-item active">
                         <a class="nav-link" data-toggle="tab" href="#Company"><i class="os-icon os-icon-ui-93"></i><span>Chat</span></a>
                       </li>
                       <li class="nav-item">
@@ -68,8 +65,9 @@
                           <input type="text" class="form-control" placeholder="Search Company/Candidates" id="conversation-users-search">
                         </div>
                       </div>
-                      <ul class="nav flex-column nav-tabs" role="tablist" id="company-conversation-list">
-                        <%= render 'conversation_users', users: @companies, candidates: @candidates %>
+                      <ul class="nav flex-column nav-tabs nav-tabs_height" role="tablist" id="company-conversation-list">
+                        <%#= render 'conversation_users', users: @companies, candidates: @candidates, groups: @groups %>
+                        <%= render 'conversations_list', conversations: @conversations %>
                       </ul>
                     </div>
                     <div role="tabpanel" class="tab-pane" id="Favourites">
@@ -79,11 +77,10 @@
                     </div>
                   </div>
                 </div>
-                <div class="full-chat-middle" id="conversation-section">
-                  <%= render "company/conversations/conversation" %>
+                <div class="full-chat-middle full-chat_height" id="conversation-section">
+                  <%= render "company/conversations/job_conversation_box"%>
                 </div>
-
-                <div class="full-chat-right" id="conversation-r-section">
+                <div class="full-chat-right full-chat_height" id="conversation-r-section">
                   <%= render "company/conversations/conversation_right_side" %>
                 </div>
               </div>
@@ -94,16 +91,3 @@
     </div>
   </div>
 </div>
-
-<% content_for :scripts do %>
-    <script>
-        $(document).ready(function() {
-            $.ajax({
-                url: "<%= messages_conversation_conversation_messages_path(@conversation||0) %>",
-                type: "GET",
-                dataType: "script",
-                success:function(data){}
-            });
-        });
-    </script>
-<% end %>

@@ -1,0 +1,17 @@
+<% chat_user_data = set_company_chat_user_data(con, usr) %>
+<%= link_to  company_conversations_path(conversation: con.id), class: "user-w", remote: true, method: :post do %>
+  <div class="avatar with-status status-green">
+    <%= image_tag usr&.photo %>
+  </div>
+  <div class="user-info">
+    <div class="user-date"><%= chat_user_data[:last_msg_time] %></div>
+    <div class="user-name"><%= usr.full_name %></div>
+    <div class="last-message"><%= chat_user_data[:last_msg] %></div>
+  </div>
+<% end %>
+
+<% if current_user.favourables.where(favourabled_id: usr.id, favourabled_type: usr.class.to_s).present? %>
+    <a class="fav-btn fa fa-star"></a>
+<% else %>
+    <%= link_to "", add_to_favourite_company_conversations_path(favourabled_id: usr.id, favourabled_type: usr.class.to_s), class: "fav-btn fa fa-star-o", remote: true %>
+<% end %>

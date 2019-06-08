@@ -1,31 +1,39 @@
 .containers
-  = yield( :links)
   .col-sm-12.animated.fadeInRightBig
     %section.panel.mt-20s
       %header.panel-heading
-        %h1
-          = job_application.user.full_name.titleize
-          .pull-right
-            = raw job_application_top_links(job_application)
-        %h3.highlighted.margin-top-0
-          = link_to job_application.job.title,job_path(job_application.job)
+        .row{style: 'justify-content: space-between;'}
+          #candidate-name
+            %h4.ml-2
+              = do_ellipsis(job_application.user.full_name.titleize)
+          #links-yeild
+            = yield( :links)
         .row
-          .col-lg-3.col-md-3
-            %span.text-muted.fs-13 Current Status
-            %b
-              = job_application.status.titleize
-          .col-lg-3.col-md-3
-            %span.text-muted.fs-13 Job Category
-            %b
-              = job_application.job.job_category || 'Not Mentioned'
-          .col-lg-3.col-md-3
-            %span.text-muted.fs-13 Date
-            %b
-              = job_application.created_at.to_date
-          .col-lg-3.col-md-3
-            %span.text-muted.fs-13 Vendor Company
-            %b
-              = job_application.user.class.name == 'Candidate' ? 'Candidate' : job_application.user.company.name.titleize
+          .col-lg-12.col-sm-12
+            = raw job_application_top_links(job_application)
+        .row.mt-4
+          .col-sm-5
+            %h3
+              = link_to job_application.job.title,job_path(job_application.job)
+          -#.col-sm-7
+          -#  - if @job_application.share_key
+          -#    = button_tag 'Client Submission' ,class: 'btn btn-primary pull-right' , "data-toggle": "modal" , "data-target":"#share_application_#{@job_application.id}"
+    .row.mt-4{style: 'justify-content: space-between;'}
+      .pl-3
+        %span.text-muted.fs-13 Job Category
+        %b
+          = job_application.job.job_category || 'Not Mentioned'
+        %span.text-muted.fs-13 Date
+        %b
+          = job_application.created_at.to_date
+      .mr-3.pl-3
+        %span.text-muted.fs-13 Current Status
+        %b
+          = job_application.status.titleize
+        %span.text-muted.fs-13 Vendor Company
+        %b
+          = job_application.user.class.name == 'Candidate' ? 'Candidate' : job_application.user.company.name.titleize
+    %div
       %ul.ul-s.margin-top-10
         %li
           %span.text-muted Cover Letter
