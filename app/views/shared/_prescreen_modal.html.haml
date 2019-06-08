@@ -1,13 +1,14 @@
-.modal{ id: "show-candidate-#{candidate.id}"}
-  .modal-dialog.modal-lg
+.modal{ id: "show-candidate-#{job_application.applicationable_id}"}
+  .modal-dialog
     .modal-content
       .modal-header
         %h2#PageTitle.modal-title
-          %strong Candidate Profile
+          %strong Pre-Screen Candidate
         %button.close{"aria-hidden" => "true", "data-dismiss" => "modal", :type => "button"}
           ×
       .modal-body#prescreen-modal-body
-        = render "shared/candidate_profile", candidate: candidate
-        = render 'shared/more_info_request', conversation: @conversation
-        .modal-footer.company--content-footer
-          =render 'shared/status_links', conversation: @conversation
+        .big-links_widget
+          =contact_widget(job_application.applicationable.email,job_application.applicationable.phone,'big-calendar')
+      .modal-footer
+        = link_to('Reject', reject_job_application_path(job_application, conversation_id: conversation.id), method: :post, class: "btn btn-md  btn-danger mt-12 margin-right-5")
+        %button.btn.mt-12.margin-right-5.btn-primary{"data-dismiss"=>"modal", "type"=>"button"} Cancel

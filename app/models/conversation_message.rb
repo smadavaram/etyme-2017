@@ -2,6 +2,7 @@ class ConversationMessage < ApplicationRecord
 
   belongs_to :conversation
   belongs_to :userable, polymorphic: :true
+  enum message_type: [:job_conversation,:rate_confirmation,:schedule_interview]
   # after_create :create_notification
 
   scope :unread_messages, -> (sender, recipient) do

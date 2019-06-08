@@ -6,7 +6,7 @@
           %li
             = link_to (image_tag data.created_by.photo,class:'',alt: "Photo",style: 'width: 60px !important;height: 60px !important' ) ,'#'
       = image_tag 'jobs.png',class:'',alt: "job",style: "width: 60px !important; height: 60px !important;"
-      %h4 Title-#{data.title.humanize}
+      %h6 Title-#{data.title.humanize}
       %span.name.font-sm.text-muted
         Location: #{data.location&.humanize}
       %p= raw(data.description)

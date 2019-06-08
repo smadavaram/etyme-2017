@@ -1,71 +1,7 @@
-<% user = @conversation.chatable_type == "Group" ? @conversation.chatable :  (@conversation.senderable == current_user ? @conversation.recipientable : @conversation.senderable) %>
-
-<% if (@conversation.job_application) %>
-  $("#conversation-section").html("<%= j render 'company/conversations/job_conversation_box', job_application: @conversation.job_application, conversation: @conversation,nested_colap:true %>");
-  $("#modals").html("<%= j render 'shared/prescreen_modal', job_application: @conversation.job_application, conversation: @conversation %>");
-  $("#modals").append("<%= j render 'shared/rate_confirmation_modal', job_application: @conversation.job_application, conversation: @conversation %>");
-  $("#modals").append("<%= j render 'shared/interview_modal', job_application: @conversation.job_application, conversation: @conversation %>");
-  $('#candidate-name').remove();
-  $('.collapsible').css('padding', '6px 18px');
-  $('#collapsible_job_application').removeClass('ml-2 mr-2')
-  $('#collapsible_job_application').removeClass('mt-4')
-  $('#collapsible_job_application').addClass('mt-2')
-<% else %>
-  $("#conversation-section").html("<%= j render 'company/conversations/job_conversation_box', conversation: @conversation %>");
-<% end %>
-
-filepicker.constructWidget($('#req-accept-filepiker'));
-$( ".req-file-pick" ).on('click',function() {
-  $(".fp__overlay").css({'z-index':'99999'});
-});
-
-
-
-
-
-
-
-$("#conversation-r-section").html("<%= j render 'company/conversations/conversation_right_side' %>");
-$(".chat-content-scroll").data('ajaxready', true);
-$.ajax({
-  url: "<%= messages_conversation_conversation_messages_path(@conversation) %>",
-  type: "GET",
-  dataType: "script",
-  success: function (data) {
-    $("#conversation_<%=@conversation.id||0 %>").parent().scrollTop($("#conversation_<%=@conversation.id||0 %>").parent()[0].scrollHeight);
-  }
-});
-listenForScrollEvent($(".chat-content-scroll"));
-$("#unread-msg-<%= current_user.id %>").html("<%= @unread_message_count.to_i > 0 ? @unread_message_count : '' %>");
-if ($("#conversation_<%= @conversation.id %>")[0]) {
-  $("#conversation_<%= @conversation.id %>").scrollTop($("#conversation_<%= @conversation.id %>")[0].scrollHeight);
-}
-
-<% opt_usr = @conversation.opt_participant(current_user) %>
-$("#company-conversation-list .usr_<%= opt_usr.class.to_s+'_'+opt_usr.id.to_s %>").remove();
-$("#company-conversation-list").prepend("<div class='user-fav usr_<%= opt_usr.class.to_s+'_'+opt_usr.id.to_s %>'> <%= j render 'conversation_list', con: @conversation, usr: opt_usr, is_favourite: false %> </div>")
-
-var coll = document.getElementsByClassName("collapsible-click");
-var i;
-for (i = 0; i < coll.length; i++) {
-  coll[i].addEventListener("click", function () {
-    $(this).parent()[0].classList.toggle("active");
-    var content = $(this).parent()[0].nextElementSibling;
-    if (content.style.display === "block") {
-      content.style.display = "none";
-    } else {
-      content.style.display = "block";
-    }
-  });
-}
-
-$('.p_date').datepicker({dateFormat: "yy-mm-dd"});
-$('.p_time').timepicker({template: false,showInputs: false,minuteStep: 5});
-
-
 function $d (e) {
   return document.getElementById(e)
 }
+
 var addeventatc = function () {
   var u, v, s, t, e = !1, l = 1, r = !1, p = !0, m = !1, g = !1, h = !1, E = 1, f = "", w = !0, x = !0, b = !0, k = !0,
     y = !0, _ = !0, T = "Apple", N = "Google <em>(online)</em>", z = "Outlook", C = "Outlook.com <em>(online)</em>",
@@ -270,7 +206,7 @@ var addeventatc = function () {
     }, applycss: function () {
       if (!$d("ate_css")) {
         var e = "";
-        e += '@import url("https://fonts.googleapis.com/css?family=Open+Sans:400,400i,600");', e += '.addeventatc \t\t\t\t\t\t\t{display:inline-block;position:relative;z-index:99998;font-family:"Open Sans",Roboto,"Helvetica Neue",Helvetica,Optima,Segoe,"Segoe UI",Candara,Calibri,Arial,sans-serif;color:#000!important;font-weight:600;line-height:100%;background:#fff;text-decoration:none;border:1px solid transparent;padding:13px 12px 12px 43px;-webkit-border-radius:3px;border-radius:3px;cursor:pointer;-webkit-font-smoothing:antialiased!important;outline-color:rgba(0,78,255,0.5);text-shadow:1px 1px 1px rgba(0,0,0,0.004);-webkit-user-select:none;-webkit-tap-highlight-color:rgba(0,0,0,0);box-shadow:0 0 0 0.5px rgba(50,50,93,.17), 0 2px 5px 0 rgba(50,50,93,.1), 0 1px 1.5px 0 rgba(0,0,0,.07), 0 1px 2px 0 rgba(0,0,0,.08), 0 0 0 0 transparent!important;background-image:url(https://www.addevent.com/gfx/icon-calendar-t5.png), url(https://www.addevent.com/gfx/icon-calendar-t1.svg), url(https://www.addevent.com/gfx/icon-apple-t5.svg), url(https://www.addevent.com/gfx/icon-facebook-t5.svg), url(https://www.addevent.com/gfx/icon-google-t5.svg), url(https://www.addevent.com/gfx/icon-outlook-t5.svg),  url(https://www.addevent.com/gfx/icon-outlookcom-t5.svg), url(https://www.addevent.com/gfx/icon-yahoo-t5.svg);background-position:-9999px -9999px;background-repeat:no-repeat;}', e += ".addeventatc:hover \t\t\t\t\t\t{color:#000;text-decoration:none;}", e += ".addeventatc:active \t\t\t\t\t{border-width:2px 1px 0px 1px;}", e += ".addeventatc-selected \t\t\t\t\t{background-color:#f9f9f9;}", e += ".addeventatc .addeventatc_icon \t\t\t{width:18px;height:18px;position:absolute;z-index:1;left:12px;top:10px;background:url(https://www.addevent.com/gfx/icon-calendar-t1.svg) no-repeat;background-size:18px 18px;}", e += ".addeventatc .start, .addeventatc .end, .addeventatc .timezone, .addeventatc .title, .addeventatc .description, .addeventatc .location, .addeventatc .organizer, .addeventatc .organizer_email, .addeventatc .facebook_event, .addeventatc .all_day_event, .addeventatc .date_format, .addeventatc .alarm_reminder, .addeventatc .recurring, .addeventatc .attendees, .addeventatc .calname, .addeventatc .uid, .addeventatc .sequence, .addeventatc .status, .addeventatc .method, .addeventatc .client, .addeventatc .transp {display:none!important;}", e += ".addeventatc br \t\t\t\t\t\t{display:none;}", addeventatc.getlicense(u) ? e += '.addeventatc_dropdown \t\t\t\t{width:230px;position:absolute;padding:6px 0px 6px 0px;font-family:"Open Sans",Roboto,"Helvetica Neue",Helvetica,Optima,Segoe,"Segoe UI",Candara,Calibri,Arial,sans-serif;color:#000!important;font-weight:600;line-height:100%;background:#fff;font-size:15px;text-decoration:none;text-align:left;margin-left:-1px;display:none;-moz-border-radius:3px;-webkit-border-radius:3px;-webkit-box-shadow:rgba(0,0,0,0.4) 0px 10px 26px;-moz-box-shadow:rgba(0,0,0,0.4) 0px 10px 26px;box-shadow:rgba(0,0,0,0.4) 0px 10px 26px;transform:scale(.98,.98) translateY(5px);opacity:0.5;z-index:-1;transition:transform .15s ease;-webkit-user-select:none;-webkit-tap-highlight-color:rgba(0,0,0,0);}' : e += '.addeventatc_dropdown \t\t\t\t{width:230px;position:absolute;padding:6px 0px 0px 0px;font-family:"Open Sans",Roboto,"Helvetica Neue",Helvetica,Optima,Segoe,"Segoe UI",Candara,Calibri,Arial,sans-serif;color:#000!important;font-weight:600;line-height:100%;background:#fff;font-size:15px;text-decoration:none;text-align:left;margin-left:-1px;display:none;-moz-border-radius:3px;-webkit-border-radius:3px;-webkit-box-shadow:rgba(0,0,0,0.4) 0px 10px 26px;-moz-box-shadow:rgba(0,0,0,0.4) 0px 10px 26px;box-shadow:rgba(0,0,0,0.4) 0px 10px 26px;transform:scale(.98,.98) translateY(5px);opacity:0.5;z-index:-1;transition:transform .15s ease;-webkit-user-select:none;-webkit-tap-highlight-color:rgba(0,0,0,0);}', e += ".addeventatc_dropdown.topdown \t\t\t{transform:scale(.98,.98) translateY(-5px)!important;}", e += ".addeventatc_dropdown span \t\t\t\t{display:block;line-height:100%;background:#fff;text-decoration:none;cursor:pointer;font-size:15px;color:#333;font-weight:600;padding:14px 10px 14px 55px;-webkit-transition:background-color .3s;transition:background-color .3s;}", e += ".addeventatc_dropdown span:hover \t\t{background-color:#f4f4f4;color:#000;text-decoration:none;font-size:15px;}", e += ".addeventatc_dropdown em \t\t\t\t{color:#999!important;font-size:12px!important;font-weight:400;}", e += ".addeventatc_dropdown .frs a \t\t\t{background:#fff;color:#cacaca!important;cursor:pointer;font-size:9px!important;font-style:normal!important;font-weight:400!important;line-height:110%!important;padding-left:10px;position:absolute;right:10px;text-align:right;text-decoration:none;top:5px;z-index:101;}", e += ".addeventatc_dropdown .frs a:hover \t\t{color:#999!important;}", e += ".addeventatc_dropdown .ateappleical \t{background:url(https://www.addevent.com/gfx/icon-apple-t5.svg) 18px 40% no-repeat;background-size:22px 100%;}", e += ".addeventatc_dropdown .ategoogle \t\t{background:url(https://www.addevent.com/gfx/icon-google-t5.svg) 18px 50% no-repeat;background-size:22px 100%;}", e += ".addeventatc_dropdown .ateoutlook \t\t{background:url(https://www.addevent.com/gfx/icon-outlook-t5.svg) 18px 50% no-repeat;background-size:22px 100%;}", e += ".addeventatc_dropdown .ateoutlookcom \t{background:url(https://www.addevent.com/gfx/icon-outlookcom-t5.svg) 18px 50% no-repeat;background-size:22px 100%;}", e += ".addeventatc_dropdown .ateyahoo \t\t{background:url(https://www.addevent.com/gfx/icon-yahoo-t5.svg) 18px 50% no-repeat;background-size:22px 100%;}", e += ".addeventatc_dropdown .atefacebook \t\t{background:url(https://www.addevent.com/gfx/icon-facebook-t5.svg) 18px 50% no-repeat;background-size:22px 100%;}", e += ".addeventatc_dropdown .copyx \t\t\t{height:21px;display:block;position:relative;cursor:default;}", e += ".addeventatc_dropdown .brx \t\t\t\t{height:1px;overflow:hidden;background:#e8e8e8;position:absolute;z-index:100;left:10px;right:10px;top:9px;}", e += ".addeventatc_dropdown.addeventatc-selected {opacity:1;transform:scale(1,1) translateY(0px);z-index:99999999;}", e += ".addeventatc_dropdown.topdown.addeventatc-selected {transform:scale(1,1) translateY(0px)!important;}", e += ".addeventatc_dropdown .drop_markup {background-color:#f4f4f4;}";
+        e += '@import url("https://fonts.googleapis.com/css?family=Open+Sans:400,400i,600");', e += '.addeventatc \t\t\t\t\t\t\t{display:inline-block;position:relative;z-index:99998;font-family:"Open Sans",Roboto,"Helvetica Neue",Helvetica,Optima,Segoe,"Segoe UI",Candara,Calibri,Arial,sans-serif;color:#000!important;font-weight:600;line-height:100%;background:#fff;text-decoration:none;border:1px solid transparent;cursor:pointer;-webkit-font-smoothing:antialiased!important;outline-color:rgba(0,78,255,0.5);text-shadow:1px 1px 1px rgba(0,0,0,0.004);-webkit-user-select:none;-webkit-tap-highlight-color:rgba(0,0,0,0);, url(https://www.addevent.com/gfx/icon-apple-t5.svg), url(https://www.addevent.com/gfx/icon-facebook-t5.svg), url(https://www.addevent.com/gfx/icon-google-t5.svg), url(https://www.addevent.com/gfx/icon-outlook-t5.svg),  url(https://www.addevent.com/gfx/icon-outlookcom-t5.svg), url(https://www.addevent.com/gfx/icon-yahoo-t5.svg);background-position:-9999px -9999px;background-repeat:no-repeat;}', e += ".addeventatc:hover \t\t\t\t\t\t{color:#000;text-decoration:none;}", e += ".addeventatc:active \t\t\t\t\t{border-width:2px 1px 0px 1px;}", e += ".addeventatc-selected \t\t\t\t\t{background-color:#f9f9f9;}", e += ".addeventatc .addeventatc_icon \t\t\t{width:18px;height:18px;position:absolute;z-index:1;left:12px;top:10px;background:url(https://www.addevent.com/gfx/icon-calendar-t1.svg) no-repeat;background-size:18px 18px;}", e += ".addeventatc .start, .addeventatc .end, .addeventatc .timezone, .addeventatc .title, .addeventatc .description, .addeventatc .location, .addeventatc .organizer, .addeventatc .organizer_email, .addeventatc .facebook_event, .addeventatc .all_day_event, .addeventatc .date_format, .addeventatc .alarm_reminder, .addeventatc .recurring, .addeventatc .attendees, .addeventatc .calname, .addeventatc .uid, .addeventatc .sequence, .addeventatc .status, .addeventatc .method, .addeventatc .client, .addeventatc .transp {display:none!important;}", e += ".addeventatc br \t\t\t\t\t\t{display:none;}", addeventatc.getlicense(u) ? e += '.addeventatc_dropdown \t\t\t\t{width:230px;position:absolute;padding:6px 0px 6px 0px;font-family:"Open Sans",Roboto,"Helvetica Neue",Helvetica,Optima,Segoe,"Segoe UI",Candara,Calibri,Arial,sans-serif;color:#000!important;font-weight:600;line-height:100%;background:#fff;font-size:15px;text-decoration:none;text-align:left;margin-left:-1px;display:none;-moz-border-radius:3px;-webkit-border-radius:3px;-webkit-box-shadow:rgba(0,0,0,0.4) 0px 10px 26px;-moz-box-shadow:rgba(0,0,0,0.4) 0px 10px 26px;box-shadow:rgba(0,0,0,0.4) 0px 10px 26px;transform:scale(.98,.98) translateY(5px);opacity:0.5;z-index:-1;transition:transform .15s ease;-webkit-user-select:none;-webkit-tap-highlight-color:rgba(0,0,0,0);}' : e += '.addeventatc_dropdown \t\t\t\t{width:230px;position:absolute;padding:6px 0px 0px 0px;font-family:"Open Sans",Roboto,"Helvetica Neue",Helvetica,Optima,Segoe,"Segoe UI",Candara,Calibri,Arial,sans-serif;color:#000!important;font-weight:600;line-height:100%;background:#fff;font-size:15px;text-decoration:none;text-align:left;margin-left:-1px;display:none;-moz-border-radius:3px;-webkit-border-radius:3px;-webkit-box-shadow:rgba(0,0,0,0.4) 0px 10px 26px;-moz-box-shadow:rgba(0,0,0,0.4) 0px 10px 26px;box-shadow:rgba(0,0,0,0.4) 0px 10px 26px;transform:scale(.98,.98) translateY(5px);opacity:0.5;z-index:-1;transition:transform .15s ease;-webkit-user-select:none;-webkit-tap-highlight-color:rgba(0,0,0,0);}', e += ".addeventatc_dropdown.topdown \t\t\t{transform:scale(.98,.98) translateY(-5px)!important;}", e += ".addeventatc_dropdown span \t\t\t\t{display:block;line-height:100%;background:#fff;text-decoration:none;cursor:pointer;font-size:15px;color:#333;font-weight:600;padding:14px 10px 14px 55px;-webkit-transition:background-color .3s;transition:background-color .3s;}", e += ".addeventatc_dropdown span:hover \t\t{background-color:#f4f4f4;color:#000;text-decoration:none;font-size:15px;}", e += ".addeventatc_dropdown em \t\t\t\t{color:#999!important;font-size:12px!important;font-weight:400;}", e += ".addeventatc_dropdown .frs a \t\t\t{background:#fff;color:#cacaca!important;cursor:pointer;font-size:9px!important;font-style:normal!important;font-weight:400!important;line-height:110%!important;padding-left:10px;position:absolute;right:10px;text-align:right;text-decoration:none;top:5px;z-index:101;}", e += ".addeventatc_dropdown .frs a:hover \t\t{color:#999!important;}", e += ".addeventatc_dropdown .ateappleical \t{background:url(https://www.addevent.com/gfx/icon-apple-t5.svg) 18px 40% no-repeat;background-size:22px 100%;}", e += ".addeventatc_dropdown .ategoogle \t\t{background:url(https://www.addevent.com/gfx/icon-google-t5.svg) 18px 50% no-repeat;background-size:22px 100%;}", e += ".addeventatc_dropdown .ateoutlook \t\t{background:url(https://www.addevent.com/gfx/icon-outlook-t5.svg) 18px 50% no-repeat;background-size:22px 100%;}", e += ".addeventatc_dropdown .ateoutlookcom \t{background:url(https://www.addevent.com/gfx/icon-outlookcom-t5.svg) 18px 50% no-repeat;background-size:22px 100%;}", e += ".addeventatc_dropdown .ateyahoo \t\t{background:url(https://www.addevent.com/gfx/icon-yahoo-t5.svg) 18px 50% no-repeat;background-size:22px 100%;}", e += ".addeventatc_dropdown .atefacebook \t\t{background:url(https://www.addevent.com/gfx/icon-facebook-t5.svg) 18px 50% no-repeat;background-size:22px 100%;}", e += ".addeventatc_dropdown .copyx \t\t\t{height:21px;display:block;position:relative;cursor:default;}", e += ".addeventatc_dropdown .brx \t\t\t\t{height:1px;overflow:hidden;background:#e8e8e8;position:absolute;z-index:100;left:10px;right:10px;top:9px;}", e += ".addeventatc_dropdown.addeventatc-selected {opacity:1;transform:scale(1,1) translateY(0px);z-index:99999999;}", e += ".addeventatc_dropdown.topdown.addeventatc-selected {transform:scale(1,1) translateY(0px)!important;}", e += ".addeventatc_dropdown .drop_markup {background-color:#f4f4f4;}";
         var t = document.createElement("style");
         t.type = "text/css", t.id = "ate_css", t.styleSheet ? t.styleSheet.cssText = e : t.appendChild(document.createTextNode(e)), document.getElementsByTagName("head")[0].appendChild(t), addeventatc.removeelement($d("ate_tmp_css"))
       }

@@ -132,7 +132,14 @@ Rails.application.routes.draw do
     get '/', to: 'candidates#dashboard', as: :candidate_dashboard
     resources :addresses, only: [:update]
 
-    resources :job_applications, only: [:index, :show]
+    resources :job_applications, only: [:index, :show] do
+      member do
+        post "rate_negotiation/:conversation_id", to: "job_applications#rate_negotiation", as: :rate_negotiation_for
+        post "accept_rate/:conversation_id", to: "job_applications#accept_rate", as: :accept_rate
+        post "interview/:conversation_id", to: "job_applications#interview", as: :interview
+        post "accept_interview/:interview_id", to: "job_applications#accept_interview", as: :accept_interview
+      end
+    end
     resources :job_invitations, only: [:index, :show] do
       post :reject
       get :show_invitation
@@ -261,7 +268,6 @@ Rails.application.routes.draw do
     resources :candidates do
       member do
         put :company_candidate, as: :make
-        get :show, as: :candidate
         post :request_for_more_information
       end
     end
@@ -430,6 +436,9 @@ Rails.application.routes.draw do
     resources :job_applications, concerns: :paginatable, only: [:index, :show] do
       resources :consultants, only: [:new, :create]
       member do
+        post "rate_negotiation/:conversation_id", to: "job_applications#rate_negotiation", as: :rate_negotiation_for
+        post "accept_rate/:conversation_id", to: "job_applications#accept_rate", as: :accept_rate
+        get :client_submission, as: :submit
         get  :applicant, as: :applicant
         get  :share
         get  :proposal
@@ -437,7 +446,8 @@ Rails.application.routes.draw do
         post :accept
         post :reject
         post :short_list
-        post :interview
+        post "interview/:conversation_id", to: "job_applications#interview", as: :interview
+        post "accept_interview/:interview_id", to: "job_applications#accept_interview", as: :accept_interview
         post :hire
         post :prescreen
       end # End of member

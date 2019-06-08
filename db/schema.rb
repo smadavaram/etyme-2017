@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema.define(version: 20190525155959) do
+ActiveRecord::Schema.define(version: 20190601091628) do
 
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
@@ -372,12 +372,11 @@ ActiveRecord::Schema.define(version: 20190525155959) do
     t.index ["reset_password_token"], name: "index_candidates_on_reset_password_token", unique: true
   end
 
-  create_table "candidates_companies", id: false, force: :cascade do |t|
+  create_table "candidates_companies", force: :cascade do |t|
     t.integer "candidate_id"
     t.integer "company_id"
     t.integer "status", default: 0
     t.integer "candidate_status", default: 0
-    t.index ["candidate_id", "company_id"], name: "index_candidates_companies_on_candidate_id_and_company_id", unique: true
   end
 
   create_table "candidates_groups", id: false, force: :cascade do |t|
@@ -817,6 +816,8 @@ ActiveRecord::Schema.define(version: 20190525155959) do
     t.string "file_size"
     t.string "file_type"
     t.string "file_url"
+    t.integer "message_type"
+    t.bigint "resource_id"
     t.index ["conversation_id"], name: "index_conversation_messages_on_conversation_id"
     t.index ["userable_type", "userable_id"], name: "index_conversation_messages_on_userable_type_and_userable_id"
   end
@@ -841,6 +842,7 @@ ActiveRecord::Schema.define(version: 20190525155959) do
     t.integer "topic", default: 0
     t.string "chatable_type"
     t.bigint "chatable_id"
+    t.bigint "job_application_id"
     t.index ["chatable_type", "chatable_id"], name: "index_conversations_on_chatable_type_and_chatable_id"
     t.index ["recipientable_type", "recipientable_id"], name: "index_conversations_on_recipientable_type_and_recipientable_id"
     t.index ["senderable_type", "senderable_id"], name: "index_conversations_on_senderable_type_and_senderable_id"
@@ -1055,6 +1057,17 @@ ActiveRecord::Schema.define(version: 20190525155959) do
     t.index ["company_id"], name: "index_groups_on_company_id"
   end
 
+  create_table "interviews", force: :cascade do |t|
+    t.string "date"
+    t.string "time"
+    t.bigint "job_application_id"
+    t.string "source"
+    t.string "location"
+    t.boolean "accept", default: false
+    t.boolean "accepted_by_recruiter", default: false
+    t.boolean "accepted_by_company", default: false
+  end
+
   create_table "invited_companies", id: :serial, force: :cascade do |t|
     t.integer "user_id"
     t.integer "invited_company_id"
@@ -1162,6 +1175,9 @@ ActiveRecord::Schema.define(version: 20190525155959) do
     t.float "total_experience"
     t.float "relevant_experience"
     t.float "rate_per_hour"
+    t.string "rate_initiator"
+    t.boolean "accept_rate", default: false
+    t.boolean "accept_rate_by_company", default: false
   end
 
   create_table "job_invitations", id: :serial, force: :cascade do |t|
@@ -1218,7 +1234,7 @@ ActiveRecord::Schema.define(version: 20190525155959) do
     t.string "listing_type", default: "Job"
     t.string "status"
     t.string "media_type"
-    t.bigint "conversation_id"
+    t.string "source"
     t.index ["deleted_at"], name: "index_jobs_on_deleted_at"
   end
 

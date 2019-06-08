@@ -111,7 +111,7 @@
       </div>
       <div class="chat-input-extra">
         <div class="chat-extra-actions">
-          <%= f.filepicker_field :file_url, onchange: 'onFileUpload(event)' %>
+          <%= f.filepicker_field :file_url,class: 'btn btn-primary req-file-pick',id: 'req-accept-filepiker', onchange: 'onFileUpload(event)' %>
         </div>
         <div class="chat-btn">
           <%= f.submit "Send", class: "btn btn-primary btn-sm float-right", id: "send-chat-message" %>
@@ -121,6 +121,17 @@
     <% end if @conversation.present? %>
   </div>
 </div>
+
+<%= content_for :modals do %>
+  <% if @conversation&.job_application %>
+    <div id="candidate_rate_confirmation_modal">
+      <%= render 'shared/candidate_rate_confirmation', job_application: @conversation.job_application, conversation: @conversation %>
+    </div>
+    <div id="candidate_interview_modal">
+      <%= render 'shared/candidate_interview_modal', job_application: @conversation.job_application, conversation: @conversation %>
+    </div>
+  <% end %>
+<% end %>
 
 <script>
   function onFileUpload (event) {

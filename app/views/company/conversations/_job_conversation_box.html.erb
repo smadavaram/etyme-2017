@@ -1,51 +1,49 @@
-<div class="chat_box with_border wrap-chat-box" data-conversation-id="<%= @conversation.id if @conversation.present? %>" id="conversation-chat-box">
+<div class="chat_box with_border wrap-chat-box" data-conversation-id="<%= conversation.id if conversation.present? %>" id="conversation-chat-box">
   <div class="chat-head" style="flex-direction: column; align-items: stretch;">
     <div class="flex-row w-100 chat-heat_justify">
-      <% opt_obj = @conversation.chatable_type == "Group" ? @conversation.chatable : (@conversation.senderable == current_user ? @conversation.recipientable : @conversation.senderable) if @conversation.present? %>
+      <% opt_obj = conversation.chatable_type == "Group" ? conversation.chatable : (conversation.senderable == current_user ? conversation.recipientable : conversation.senderable) if conversation.present? %>
       <div>
         <span>To:</span>
         <a class="d-inline" href="#"><%= opt_obj.full_name if opt_obj.present? %></a>
       </div>
-      <% if @conversation.present? %>
+      <% if conversation.present? %>
         <div>
-          <%= contact_widget(@conversation.recipientable.email, @conversation.recipientable.phone, @conversation.recipientable_id) %>
+          <%= contact_widget(conversation.recipientable.email, conversation.recipientable.phone, conversation.recipientable_id) %>
         </div>
       <% end %>
     </div>
-    <% if @conversation&.chatable_type == "JobApplication" %>
-      <% unless @job_application %>
+      <% if conversation&.job_application and nested_colap%>
         <div id="job_application_links">
-          <%= render 'company/job_applications/partials/collapse_able_job_application', job_application: @conversation.chatable || conversation.chatable %>
+          <%= render 'company/job_applications/partials/collapse_able_job_application', conversation: conversation, job_application: conversation.job_application %>
         </div>
       <% end %>
-    <% end %>
   </div>
-  <div class="chat-content-w chat-content-scroll chat-content_height" >
-    <div class="chat-content" id="conversation_<%= @conversation.id if @conversation.present? %>">
+  <div class="chat-content-w chat-content-scroll chat-content_height">
+    <div class="chat-content" id="conversation_<%= conversation.id if conversation.present? %>">
       <div id="all-infinite-scrolling-msg" style="display:none"></div>
       <%= hidden_field_tag "prev_date", nil %>
     </div>
   </div>
   <div class="chat-controls">
-    <%= form_for([@conversation, ConversationMessage.new], :remote => true, :html => {id: "conversation_form_#{@conversation.id}"}) do |f| %>
+    <%= form_for([conversation, ConversationMessage.new], :remote => true, :html => {id: "conversation_form_#{conversation.id}"}) do |f| %>
       <div class="chat-input1 chat-input">
-        <%= f.text_field :body, class: 'form-control input-sm chat_input ', autocomplete: "off", placeholder: 'Type your message here...', required: true, "data-cid" => @conversation.id, id: "con-text-#{@conversation.id}-#{@current_user.class}-#{@current_user.id}" %>
+        <%= f.text_field :body, class: 'form-control input-sm chat_input ', autocomplete: "off", placeholder: 'Type your message here...', required: true, "data-cid" => conversation.id, id: "con-text-#{conversation.id}-#{current_user.class}-#{current_user.id}" %>
       </div>
       <div id="file-name_uploaded">
 
       </div>
       <div class="chat-input-extra">
         <div class="chat-extra-actions">
-          <%= f.filepicker_field :file_url, onchange: 'onCompanyFileUpload(event)' %>
+          <%= f.filepicker_field :file_url,class: 'btn btn-primary req-file-pick',id: 'req-accept-filepiker', onchange: 'onCompanyFileUpload(event)' %>
         </div>
         <div class="chat-btn">
           <%= f.submit "Send", class: "btn btn-primary btn-sm float-right", id: "send-chat-message" %>
           <!--<a class="btn btn-primary btn-sm" href="#">Reply</a>-->
         </div>
       </div>
-    <% end if @conversation.present? %>
+    <% end if conversation.present? %>
   </div>
-  <% if @conversation&.chatable_type == "JobApplication" %>
+  <% if conversation&.job_application %>
     <div id="job_application_status_links">
       <%#= render 'company/job_applications/partials/job_status_links', btn_size_class: 'btn-sm', app: @conversation.chatable%>
     </div>
@@ -58,18 +56,18 @@
       $('#file-name_uploaded').html("<span>" + event.fpfile.filename + "</span><hr/>");
     }
     $(document).ready(function () {
-      <% unless @job_application %>
+      <% unless conversation&.job_application %>
       $('.collapsible').css('padding', '6px 18px');
       $('#collapsible_job_application').removeClass('ml-2 mr-2')
       $('#collapsible_job_application').removeClass('mt-4')
       $('#collapsible_job_application').addClass('mt-2')
       <% end %>
       $.ajax({
-        url: "<%= messages_conversation_conversation_messages_path(@conversation||0) %>",
+        url: "<%= messages_conversation_conversation_messages_path(conversation||0) %>",
         type: "GET",
         dataType: "script",
         success: function (data) {
-          $("#conversation_<%=@conversation&.id||0 %>").parent().scrollTop($("#conversation_<%=@conversation&.id||0 %>").parent()[0].scrollHeight);
+          $("#conversation_<%=conversation&.id||0 %>").parent().scrollTop($("#conversation_<%=conversation&.id||0 %>").parent()[0].scrollHeight);
         }
       });
     });

@@ -48,7 +48,8 @@
             -#= yield :ribbon
             = yield
           -#.remote_container
-          = yield :modals
+          #modals
+            =yield :modals
           .remote_container
           = render partial: 'company/shared/footer'
           = render partial: 'company/shared/tiles'

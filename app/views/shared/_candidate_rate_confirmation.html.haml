@@ -1,0 +1,18 @@
+.modal{ id: "candidate-rate-confirmation-#{job_application.applicationable_id}"}
+  .modal-dialog
+    .modal-content
+      .modal-header
+        %h2#PageTitle.modal-title
+          %strong Rate Confirmation
+        %button.close{"aria-hidden" => "true", "data-dismiss" => "modal", :type => "button"}
+          ×
+      = form_for :job_application, url: rate_negotiation_for_candidate_job_application_path(job_application,conversation_id: conversation.id), html: {class: 'form-horizontal'} do |f|
+        .modal-body#rate-confirmation-modal-body
+          .row
+            .col-md-12
+              %label Rate/hr
+              .form-group
+                =  f.number_field :rate_per_hour, min: 1 , class: "form-control tinymce"
+        .modal-footer
+          = f.button "Save".html_safe , class: 'btn btn-primary mt-12 margin-right-5' , data: {disable_with: disable_spinning('Saving...')}
+          %button.btn.mt-12.margin-right-5.btn-primary{"data-dismiss"=>"modal", "type"=>"button"} Cancel

@@ -7,7 +7,7 @@
             <div class="full-chat-w">
               <div class="full-chat-i">
                 <div class="full-chat-middle" id="conversation-section">
-                  <%= render "company/job_applications/partials/collapse_able_job_application", job_application: @job_application, messages: true %>
+                  <%= render "company/job_applications/partials/collapse_able_job_application",conversation: @conversation, job_application: @job_application , messages: true,nested_col: false %>
                 </div>
                 <div class="full-chat-right" id="conversation-r-section">
                   <%= render "company/conversations/conversation_right_side" %>

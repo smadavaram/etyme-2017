@@ -11,7 +11,7 @@
             <% @conversation.chatable.groupables.each do |g| %>
               <li><%= g.groupable.full_name %></li>
             <% end %>
-            <% if current_company.id != @conversation.chatable.company_id %>
+            <% if current_company&.id != @conversation.chatable.company_id %>
               <li><%= link_to "Leave Group", leave_group_candidate_conversations_path(group: @conversation.chatable_id)  %></li>
             <% end %>
           </ul>

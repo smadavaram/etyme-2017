@@ -2,8 +2,11 @@ class JobApplication < ApplicationRecord
 
   include Rails.application.routes.url_helpers
 
-  enum status: [ :applied, :prescreen, :pending_review ,:rejected , :short_listed,:interviewing,:hired ]
-  enum application_type: [:direct , :candidate_direct , :vendor_direct , :invitation, :witout_registration,:with_recurator]
+  has_paper_trail only: [:rate_per_hour]
+
+
+  enum status: [:applied, :short_listed, :prescreen, :rate_confirmation, :client_submission, :interviewing, :hired, :rejected, :pending_review]
+  enum application_type: [:direct, :candidate_direct, :vendor_direct, :invitation, :witout_registration, :with_recurator]
 
   belongs_to :job_invitation, optional: true
   belongs_to :applicationable, polymorphic: true, optional: true
@@ -16,8 +19,8 @@ class JobApplication < ApplicationRecord
   has_many :chats, as: :chatable
   has_many :job_applicant_reqs
   has_many :job_applicantion_without_registrations
-  has_many :conversations, as: :chatable
-
+  has_many :conversations
+  has_many :interviews
 
   # validates :cover_letter , :applicant_resume ,presence: true
   validates :cover_letter, presence: true
@@ -85,6 +88,10 @@ class JobApplication < ApplicationRecord
         end
       end
     end
+  end
+
+  def is_rate_accepted?
+    accept_rate and accept_rate_by_company
   end
 
   private
