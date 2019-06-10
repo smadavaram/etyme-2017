@@ -143,8 +143,13 @@ class Company::ConversationsController < Company::BaseController
       if Conversation.between(current_user, user).where(chatable_id: chatable_id, chatable_type: chatable_type).present?
         @conversation = Conversation.between(current_user, user).where(chatable_id: chatable_id, chatable_type: chatable_type).first
       else
-        @conversation = Conversation.find_by(recipientable_id: user.id,senderable_id: current_user.id)
-        @conversation ||= Conversation.create!({senderable: current_user, recipientable: user, chatable_id: chatable_id, chatable_type: chatable_type})
+        if chatable_type == "Job"
+          @conversation = Conversation.create(senderable: current_user, recipientable: user, chatable_id: chatable_id, chatable_type: chatable_type)
+          Job.find(chatable_id).update_attributes(conversation_id: @conversation.id)
+        else
+          @conversation = Conversation.find_by(recipientable_id: user.id,senderable_id: current_user.id)
+          @conversation ||= Conversation.create!({senderable: current_user, recipientable: user, chatable_id: chatable_id, chatable_type: chatable_type})
+        end
       end
     end
   end

@@ -1,0 +1,27 @@
+<%= javascript_include_tag "application" %>
+
+<div class="content-box">
+  <div class="element-wrapper">
+    <div class="padded-lg">
+      <div class="element-box">
+        <h5 class="form-header">Edit</h5>
+        <div class="form-desc">Manage your offering and describe what you are looking for from the candidates</div>
+        <%= render 'form', thing: @job %>
+      </div>
+    </div>
+  </div>
+</div>
+
+<%= javascript_tag do %>
+  $(function() {
+    // Initialize date pickers
+    $('#job_end_date , #job_start_date').datepicker({
+      dateFormat : 'mm/dd/yy',
+      prevText : '<i class="fa fa-chevron-left"></i>',
+      nextText : '<i class="fa fa-chevron-right"></i>',
+    });
+
+    // Initialize CKEDITOR for description field
+    CKEDITOR.replace( 'job_description' );
+  })
+<% end %>

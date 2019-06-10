@@ -1,0 +1,219 @@
+<%= javascript_include_tag "application" %>
+
+<div class="content-box">
+  <div class="element-wrapper">
+    <h6 class="element-header">Job Details <span class="text-muted small">View and edit the details of the job with other collaborators</span></h6>
+    <div class="padded-lg">
+      <div class="row">
+        <div class="col-lg-8">
+          <div class="element-box element-box-show">
+            <div class="form-group">
+              <h4>
+                <%= @job.title %>
+              </h4>
+            </div>
+            <div class="form-desc"></div>
+            <div class="form-desc">
+              <div class="row">
+                <div class="col-lg-6">
+                  <div class="">
+                    Job Category
+                  </div>
+                  <div class="h6">
+                    <%= @job.job_category %>
+                  </div>
+                  <div class="">
+                    Date
+                  </div>
+                  <div class="h6">
+                    <%= @job.start_date.strftime("%B %d, %Y") %>
+                    <% if @job.end_date %>
+                    to <%= @job.end_date.strftime("%B %d, %Y") %>
+                    <% end %>
+                  </div>
+                  <div class="">
+                    Location
+                  </div>
+                  <div class="h6">
+                    <%= @job.location %>
+                  </div>
+                </div>
+                <div class="col-lg-6">
+                  <div class="">
+                    Industry
+                  </div>
+                  <div class="h6">
+                    <%= @job.industry %>
+                  </div>
+                  <div class="">
+                    Status
+                  </div>
+                  <div class="h6">
+                    <%= @job.status %>
+                  </div>
+                  <div class="">
+                    Price
+                  </div>
+                  <div class="h6">
+                    <%= sprintf("$%0.2f",@job.price) %>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="form-group">
+              <%= raw(@job.description) %>
+            </div>
+            <div class="form-desc"></div>
+            <div class="form-desc">
+              <div class="">
+                Educations
+                <% @job.education.each do |ed| %>
+                  <span class="badge badge-warning ml-2"><%= ed.name %></span>
+                <% end %>
+              </div>
+            </div>
+            <div class="form-desc">
+              <div class="">
+                Skills
+                <% @job.tags.each do |tag| %>
+                  <span class="badge badge-warning ml-2"><%= tag.name %></span>
+                <% end %>
+              </div>
+            </div>
+
+          </div>
+          <div class="element-box element-box-show">
+            <h5 class="form-header">Applications</h5>
+            <div class="table-responsive">
+              <% if @job_applications.count > 0 %>
+                <%= render 'company/jobs/partials/job_applications_table' %>
+              <% else %>
+                <i>Currently, there is no application</i>
+              <% end %>
+            </div>
+          </div>
+          <div class="element-box element-box-show">
+            <h5 class="form-header">Conversations</h5>
+            <% if @conversation.present? %>
+              <%= link_to "View conversation", company_conversations_path(conversation: @conversation.id), class: "btn btn-primary" %>
+            <% else %>
+              <%= link_to "Create conversation", company_conversations_path(user_id: current_user.id, chat_topic: "Job", chatable_id: @job.id, chatable_type: "Job"), class: "btn btn-primary", method: :post %>
+            <% end %>
+          </div>
+        </div>
+        <div class="col-lg-4">
+          <div class="element-box element-box-show">
+            <h5 class="form-header">Quick Actions</h5>
+            <div class="form-group">
+              <div class="form-buttons-w">
+                <%= link_to "Edit", edit_job_path(@job), class: "btn btn-primary" %>
+                <%= link_to "Company Candidates", job_create_multiple_for_candidate_path(@job),remote: true ,method: :get ,class: "btn btn-primary" %>
+              </div>
+              <% if has_permission?("send_job_invitations") %>
+                <div class="form-buttons mt-2">
+                  <%= link_to 'Send Invitation' ,send_invitation_job_path(@job) , method: :post ,remote: true,  class: 'btn btn-primary' %>
+                </div>
+              <% end %>
+            </div>
+          </div>
+          <div class="element-box element-box-show">
+            <h5 class="form-header">Media</h5>
+            <div class="form-group">
+              <% if @job.comp_video.present? %>
+                <% if @job.media_type == "video/mp4" %>
+                  <div class="embed-responsive embed-responsive-16by9">
+                    <video class="embed-responsive-item" controls>
+                      <source src='<%= @job.comp_video %>' type="video/mp4" />
+                    </video>
+                  </div>
+                <% else %>
+                  <img class="img-fluid" src='<%= @job.comp_video %>' />
+                <% end %>
+              <% else %>
+              <% end %>
+            </div>
+            <div class="form-group">
+              <%= filepicker_field_tag "" ,class: "hidden media-file", onchange:"mediaUpload(event)","data-fp-crop-ratio" => "2/2" %>
+              <button type="button" class="btn btn-default btn-primary btn-upload-media">Upload Media</button>
+            </div>
+          </div>
+          <div class="element-box element-box-show">
+            <h5 class="form-header">Collaborators</h5>
+            <% if @conversation.present? %>
+              <div class="users-list-w">
+                <% if @conversation.chatable_type == "Group" %>
+                  <% @conversation.chatable.groupables.each do |g| %>
+                    <div class="user-w with-status status-green">
+                      <div class="user-avatar-w">
+                        <div class="user-avatar">
+                          <img alt="" src="<%= g.groupable.photo %>">
+                        </div>
+                      </div>
+                      <div class="user-name">
+                        <h6 class="user-title"><%= g.groupable.full_name %></h6>
+                        <div class="user-role"><%= g.groupable.type %></div>
+                      </div>
+                      <!-- <div class="user-action">
+                        <div class="os-icon os-icon-email-forward"></div>
+                      </div> -->
+                    </div>
+                  <% end %>
+                <% else %>
+                  <div class="user-w with-status status-green">
+                   <div class="user-avatar-w">
+                     <div class="user-avatar">
+                       <img alt="" src="<%= current_user.photo %>">
+                     </div>
+                   </div>
+                   <div class="user-name">
+                     <h6 class="user-title"><%= "#{current_user.first_name} #{current_user.last_name}" %></h6>
+                     <div class="user-role"><%= current_user.type %></div>
+                   </div>
+                   <!-- <div class="user-action">
+                     <div class="os-icon os-icon-email-forward"></div>
+                   </div> -->
+                  </div>
+                <% end %>
+              </div>
+            <% else %>
+              <div><i>Currently, there is no collaborator. Create a conversation to add collaborators</i></div>
+            <% end %>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<%= javascript_tag do %>
+  $(function() {
+    // Initialize datatable
+    var table = $("#dataTable").DataTable();
+
+    // File picker handler
+    $( ".btn-upload-media" ).click(function() {
+      $( ".media-file" ).trigger( "click" );
+    });
+  })
+
+  function mediaUpload(event) {
+    media_url = event.fpfile.url
+    media_type=event.fpfile.mimetype
+    $('.btn-upload-media').html('');
+    $.ajax({
+     type: 'POST',
+     contentType: 'application/json; charset=utf-8', //dataType: 'json',
+     url: "#{update_media_jobs_path}",
+     data: JSON.stringify({ job_id: "#{@job.id}", media: media_url,authenticity_token: window._token, media_type: media_type }),
+     success: function (data) {
+        console.log("reload!")
+       window.location.reload(true);
+     },
+     done: function (data) {
+        console.log("done!");
+        window.location.reload(true);
+     }
+   });
+  }
+<% end %>
