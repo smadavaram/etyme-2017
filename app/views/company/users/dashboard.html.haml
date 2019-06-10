@@ -212,7 +212,7 @@
                     %br
                     .col-sm-12.col-md-12#dynamic-content{style: "width: 100%;"}
                       - @data.each do |d|
-                        = render "company/users/partials/#{d.class.name.downcase}_show" ,data: d
+                        = render "company/users/partials/#{d.class.name.downcase}_show" ,data: d,cached: true
             - if current_company.hiring_manager? && !current_user.is_consultant?
               .row
                 .col-md-6
@@ -224,13 +224,14 @@
                         -if current_company.consultants.present?
                           .text
                             - current_company.consultants.last(3).each do |d|
-                              .col-sm-12.col-md-6.col-lg-4
-                                .well.text-center.connect
-                                  = image_tag d.photo ,class:"margin-bottom-5 margin-top-5",alt:'img',width: '20px;',height: '20px;'
-                                  %br/
-                                  %span.font-xs
-                                    %b
-                                      = d.first_name
+                              - cache d do
+                                .col-sm-12.col-md-6.col-lg-4
+                                  .well.text-center.connect
+                                    = image_tag d.photo ,class:"margin-bottom-5 margin-top-5",alt:'img',width: '20px;',height: '20px;'
+                                    %br/
+                                    %span.font-xs
+                                      %b
+                                        = d.first_name
                         -else
                           .text
                             .font-md.text-center
@@ -242,18 +243,19 @@
                         %h4 Latest Job Opening
                       - if current_company.jobs.present?
                         - current_company.jobs.last(3).each do |j|
-                          .who.clearfix
-                            = image_tag 'jobs.png',class:'',alt: "job"
-                            %span.name.font-sm
-                              %span.text-muted Posted by
-                              %b
-                                =j.company.owner.first_name
-                                %br/
-                                %span.pull-right.font-xs.text-muted
-                                  %i
-                                    = time_ago_in_words(j.try(:created_at).try(:localtime))
-                              .font-md
-                                = link_to "#{truncate(j.title)}",job_path(j)
+                          - cache j do
+                            .who.clearfix
+                              = image_tag 'jobs.png',class:'',alt: "job"
+                              %span.name.font-sm
+                                %span.text-muted Posted by
+                                %b
+                                  =j.company.owner.first_name
+                                  %br/
+                                  %span.pull-right.font-xs.text-muted
+                                    %i
+                                      = time_ago_in_words(j.try(:created_at).try(:localtime))
+                                .font-md
+                                  = link_to "#{truncate(j.title)}",job_path(j)
                       -else
                         .who.clearfix
                           .text
@@ -267,18 +269,19 @@
                         %h4 Company Candidates
                       - if current_company.candidates.present?
                         - current_company.candidates.last(3).each do |j|
-                          .who.clearfix
-                            = image_tag 'can.png',class:'',alt: "job"
-                            %span.name.font-sm
-                              %span.text-muted Invited By
-                              %b
-                                =j.invited_by.first_name  rescue ' Admin '
-                                %br/
-                                %span.pull-right.font-xs.text-muted
-                                  %i
-                                    = time_ago_in_words(j.try(:created_at).try(:localtime))
-                              .font-md
-                                = link_to "#{j.first_name}",static_candidate_resume_path(j)
+                          - cache j do
+                            .who.clearfix
+                              = image_tag 'can.png',class:'',alt: "job"
+                              %span.name.font-sm
+                                %span.text-muted Invited By
+                                %b
+                                  =j.invited_by.first_name  rescue ' Admin '
+                                  %br/
+                                  %span.pull-right.font-xs.text-muted
+                                    %i
+                                      = time_ago_in_words(j.try(:created_at).try(:localtime))
+                                .font-md
+                                  = link_to "#{j.first_name}",static_candidate_resume_path(j)
                       -else
                         .who.clearfix
                           .text
@@ -361,17 +364,18 @@
             %input.form-control.directory-search.rounded.bright{:placeholder => "Search team members...", :type => "search"}/
           .users-list-w{style: "height: 624px;overflow-y: scroll;"}
             - @directory.each do |user|
-              .user-w.toggleable
-                .user-avatar-w
-                  .user-avatar
-                    = image_tag user.photo
-                .user-name
-                  %h6.user-title
-                    =user.full_name
-                  .user-role
-                    =user.class.to_s
-                %a.user-action{:href => "users_profile_small.html"}
-                  .os-icon.os-icon-email-forward
+              - cache user do
+                .user-w.toggleable
+                  .user-avatar-w
+                    .user-avatar
+                      = image_tag user.photo
+                  .user-name
+                    %h6.user-title
+                      =user.full_name
+                    .user-role
+                      =user.class.to_s
+                  %a.user-action{:href => "users_profile_small.html"}
+                    .os-icon.os-icon-email-forward
       .element-wrapper
         .col-sm-12.col-md-12
           .element-box.el-tablo.centered
@@ -382,8 +386,9 @@
                 .col-sm-12
                   %ul.list-inline.friends-list.dashboard-list
                     - current_company.candidates.take(30).each do |candidate|
-                      %li
-                        = link_to image_tag( candidate.try(:photo) ,class:"margin-bottom-5 margin-top-5",alt:image_path('avatars/m_sunny_big.png')) , static_candidate_resume_path(candidate),target: "_blank" , title: candidate.full_name,"data-content" => "Email : #{candidate.email}", "data-placement" => "top",:rel => "hover"
+                      - cache candidate do
+                        %li
+                          = link_to image_tag( candidate.try(:photo) ,class:"margin-bottom-5 margin-top-5",alt:image_path('avatars/m_sunny_big.png')) , static_candidate_resume_path(candidate),target: "_blank" , title: candidate.full_name,"data-content" => "Email : #{candidate.email}", "data-placement" => "top",:rel => "hover"
 
               -else
                 .text
@@ -398,8 +403,9 @@
                   %ul.list-inline.friends-list.dashboard-list
                     %br
                     - current_company.invited_companies_contacts.take(30).each do |contact|
-                      %li
-                        = link_to (image_tag contact.try(:photo) ,class:"margin-bottom-5 margin-top-5",alt: image_path('avatars/m_sunny_big.png') ), profile_company_path(contact) ,title: contact.full_name ,"data-content" => "Email : #{contact.email}", "data-placement" => "top",:rel => "hover"
+                      - cache contact do
+                        %li
+                          = link_to (image_tag contact.try(:photo) ,class:"margin-bottom-5 margin-top-5",alt: image_path('avatars/m_sunny_big.png') ), profile_company_path(contact) ,title: contact.full_name ,"data-content" => "Email : #{contact.email}", "data-placement" => "top",:rel => "hover"
               -else
                 .text
                   .font-md.text-center
@@ -413,8 +419,9 @@
                   %ul.list-inline.friends-list.dashboard-list
                     %br
                     - current_company.consultants.take(30).each do |consultant|
-                      %li
-                        = link_to image_tag( consultant.try(:photo) ,class:"margin-bottom-5 margin-top-5",alt: image_path('avatars/m_sunny_big.png') ), company_user_profile_path(consultant),target: "_blank" , title: consultant.full_name,"data-content" => "Email: #{consultant.email}", "data-placement" => "top","data-img"=>"#{consultant.photo}" ,:rel => "hover"
+                      - cache consultant do
+                        %li
+                          = link_to image_tag( consultant.try(:photo) ,class:"margin-bottom-5 margin-top-5",alt: image_path('avatars/m_sunny_big.png') ), company_user_profile_path(consultant),target: "_blank" , title: consultant.full_name,"data-content" => "Email: #{consultant.email}", "data-placement" => "top","data-img"=>"#{consultant.photo}" ,:rel => "hover"
               -else
                 .text
                   .font-md.text-center
@@ -428,9 +435,10 @@
                   %ul.list-inline.friends-list.dashboard-list
                     %br
                     - current_company.send_or_received_network.take(30).each do |vendor|
-                      %li
-                        = link_to image_tag( vendor.prefer_vendor.logo ,class:"margin-bottom-5 margin-top-5",alt: ' LOGO ' ), profile_company_path(vendor.prefer_vendor),target: "_blank" , title: vendor.prefer_vendor.name,"data-content" => "Email : #{vendor.try(:prefer_vendor).try(:email)}", "data-placement" => "top",:rel => "hover"
-                        -#= image_tag 'https://cdn1.iconfinder.com/data/icons/business-237/65/icons-08-128.png' ,class:"margin-bottom-5 margin-top-5",alt: image_path('avatars/male.png')
+                      - cache vendor do
+                        %li
+                          = link_to image_tag( vendor.prefer_vendor.logo ,class:"margin-bottom-5 margin-top-5",alt: ' LOGO ' ), profile_company_path(vendor.prefer_vendor),target: "_blank" , title: vendor.prefer_vendor.name,"data-content" => "Email : #{vendor.try(:prefer_vendor).try(:email)}", "data-placement" => "top",:rel => "hover"
+                          -#= image_tag 'https://cdn1.iconfinder.com/data/icons/business-237/65/icons-08-128.png' ,class:"margin-bottom-5 margin-top-5",alt: image_path('avatars/male.png')
               -else
                 .text
                   .font-md.text-center
@@ -444,8 +452,9 @@
                   %ul.list-inline.friends-list.dashboard-list
                     %br
                     - current_company.invited_companies.take(30).each do |company|
-                      %li
-                        = link_to image_tag( company.invited_company.logo ,class:"margin-bottom-5 margin-top-5",alt: 'Logo' ), profile_company_path(company.invited_company),target: "_blank", title:company.invited_company.name,"data-content" => "Email : #{company.invited_company.email}", "data-placement" => "top",:rel => "hover"
+                      - cache company do
+                        %li
+                          = link_to image_tag( company.invited_company.logo ,class:"margin-bottom-5 margin-top-5",alt: 'Logo' ), profile_company_path(company.invited_company),target: "_blank", title:company.invited_company.name,"data-content" => "Email : #{company.invited_company.email}", "data-placement" => "top",:rel => "hover"
               -else
                 .text
                   .font-md.text-center
