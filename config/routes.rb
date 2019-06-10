@@ -267,7 +267,7 @@ Rails.application.routes.draw do
     end
     resources :candidates do
       member do
-        put :company_candidate, as: :make
+        post :company_candidate, as: :make
         post :request_for_more_information
       end
     end

@@ -52,7 +52,7 @@
                   <%=link_to(content_tag(:i, nil, class: 'fa fa-comment-o').html_safe, '#', title: 'chat', class: 'data-table-icons', data: {chattopic: "Job", cid: application.job.id, ctype: application.job.class.to_s, rid: application.applicationable_id, rtype: application.applicationable_type}) %>
                   <%=link_to(content_tag(:i, nil, class: 'fa fa-bell-o ').html_safe, candidate_add_reminder_path(application.applicationable_id), remote: :true, title: "Remind Me", class: 'data-table-icons')%>
                   <%=link_to(content_tag(:i, nil, class: 'picons-thin-icon-thin-0122_download_file_computer_drive').html_safe, application.applicant_resume, download: true, title: "Download Resume", class: 'data-table-icons') %>
-                  <%=link_to(content_tag(:i, nil, class: 'icon-feather-user-plus').html_safe, make_company_candidate_path(application.applicationable), method: :put, title: 'Add to candidates', class: 'data-table-icons') %>
+                  <%=link_to(content_tag(:i, nil, class: 'icon-feather-user-plus').html_safe, make_company_candidate_path(application.applicationable), method: :post, title: 'Add to candidates', class: 'data-table-icons') %>
                 </td>
               </tr>
             <% end %>

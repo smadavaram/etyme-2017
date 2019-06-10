@@ -50,11 +50,12 @@ class Company::CandidatesController < Company::BaseController
   def company_candidate
     if current_company.candidates_companies.exists?(candidate_id: params[:id])
       flash[:notice] = 'Candidate already exists in the company'
+      redirect_to job_applications_path
     else
       current_company.candidates_companies.create(candidate_id: params[:id])
       flash[:success] = 'Candidate is added successfully'
+      redirect_to job_applications_path
     end
-    redirect_to job_applications_path
   end
 
   def manage_groups
