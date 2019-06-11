@@ -320,7 +320,7 @@
           .input-search-w
             %input.form-control.directory-search.rounded.bright{:placeholder => "Search team members...", :type => "search"}/
           .users-list-w{style: "height: 624px;overflow-y: scroll;"}
-            - @directory.each do |user|
+            - @directory&.each do |user|
               - cache user do
                 .user-w.toggleable
                   .user-avatar-w

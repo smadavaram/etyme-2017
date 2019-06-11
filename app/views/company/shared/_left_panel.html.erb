@@ -281,8 +281,8 @@
     </ul>
 
 
-    <div class="row side-bar_nav">
-      <a href="/dashboard">
+    <div class="row side-bar_nav w-100">
+      <a href="/dashboard" class="side-bar_tab">
         <div class="icon-w">
           <i class="ti-home"></i>
         </div>
@@ -321,6 +321,7 @@
   .sidebar_collapsible {
     font-size: 0.9rem;
     color: #3E4B5B;
+    background: #0a7cf8;
     cursor: pointer;
     padding: 18px;
     width: 100%;
@@ -351,6 +352,11 @@
     color: white;
     content: "\2212";
   }
+
+  .side-bar_tab > .icon-w{
+    display: inline-block;
+  }
+
 </style>
 <script>
   var coll = document.getElementsByClassName("sidebar_collapsible");
