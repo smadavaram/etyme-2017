@@ -3,8 +3,7 @@ class JobApplication < ApplicationRecord
   include Rails.application.routes.url_helpers
 
   has_paper_trail only: [:rate_per_hour]
-
-
+  include PublicActivity::Model
   enum status: [:applied, :short_listed, :prescreen, :rate_confirmation, :client_submission, :interviewing, :hired, :rejected, :pending_review]
   enum application_type: [:direct, :candidate_direct, :vendor_direct, :invitation, :witout_registration, :with_recurator]
 

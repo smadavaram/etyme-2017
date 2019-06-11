@@ -1,0 +1,6 @@
+.ta-record.bg_white.pt-2.pl-2
+  .ta-timestamp
+    %strong
+      = a.try(:created_at).strftime('%I:%M %P')
+  .ta-activity
+    = "#{a.owner.full_name} has updated the #{link_to('Job Application', job_application_path(a.trackable))} status to #{content_for(:strong,a.trackable.status.camelcase)}".html_safe
