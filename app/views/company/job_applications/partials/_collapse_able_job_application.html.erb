@@ -33,7 +33,7 @@
                     <%= button_tag('Client Submission', class: 'btn btn-primary pull-right mr-1 mt-1', "data-toggle": "modal", "data-target": "#share_application_#{job_application.id}") %>
                   <% end %>
                 <% end %>
-                <%= render partial: 'partials/job_application_show', locals: {job_application: job_application}
+                <%= render partial: 'partials/job_application_show', locals: {job_application: job_application,conversation: conversation}
                 %>
               </div>
             </div>

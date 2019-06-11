@@ -10,7 +10,7 @@
             = yield( :links)
         .row
           .col-lg-12.col-sm-12
-            = raw job_application_top_links(job_application)
+            = render 'company/job_applications/partials/job_status_links', app: job_application,conversation: conversation, btn_size_class: 'btn btn-primary mt-12 '
         .row.mt-4
           .col-sm-5
             %h3

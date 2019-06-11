@@ -147,58 +147,15 @@
             %h6.element-header
               User Activity
             .timed-activities.compact
-              .timed-activity
-                .ta-date
-                  %span 21st Jan, 2017
-                .ta-record-w
-                  .ta-record.bg_white.pt-2.pl-2
-                    .ta-timestamp
-                      %strong 11:55
-                      am
-                    .ta-activity
-                      Created a post called
-                      %a{:href => "#"} Register new symbol
-                      in Rogue
-                  .ta-record.bg_white.pt-2.pl-2
-                    .ta-timestamp
-                      %strong 2:34
-                      pm
-                    .ta-activity
-                      Commented on story
-                      %a{:href => "#"} How to be a leader
-                      in
-                      %a{:href => "#"} Financial
-                      category
-                  .ta-record.bg_white.pt-2.pl-2
-                    .ta-timestamp
-                      %strong 7:12
-                      pm
-                    .ta-activity
-                      Added
-                      %a{:href => "#"} John Silver
-                      as a friend
-              .timed-activity
-                .ta-date
-                  %span 3rd Feb, 2017
-                .ta-record-w
-                  .ta-record.bg_white.pt-2.pl-2
-                    .ta-timestamp
-                      %strong 9:32
-                      pm
-                    .ta-activity
-                      Added
-                      %a{:href => "#"} John Silver
-                      as a friend
-                  .ta-record.bg_white.pt-2.pl-2
-                    .ta-timestamp
-                      %strong 5:14
-                      pm
-                    .ta-activity
-                      Commented on story
-                      %a{:href => "#"} How to be a leader
-                      in
-                      %a{:href => "#"} Financial
-                      category
+              -company_activities_hash.each do |key,value|
+                .timed-activity
+                  .ta-date
+                    %span
+                      = key
+                  .ta-record-w
+                    - value.each do |activity|
+                      = render_activity activity
+
         .col-sm-12
           .element-wrapper
             - if current_company.hiring_manager? || current_company.vendor?

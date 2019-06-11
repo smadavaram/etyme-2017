@@ -63,6 +63,7 @@ class Company::JobApplicationsController < Company::BaseController
       if !@job_application.hired?
         if @job_application.rejected!
           create_conversation_message
+          record_activity
           format.html {flash[:success] = "Successfully Rejected."}
         else
           format.html {flash[:errors] = @job_application.errors.full_messages}
@@ -78,10 +79,10 @@ class Company::JobApplicationsController < Company::BaseController
     if @job_application.job.parent_job_id
       new_application = @job_application.dup
       new_application.job_id = @job_application.job.parent_job_id
-      # TODO: Add recuritor info of current company
       new_application.company = current_company
       if new_application.save
         @job_application.client_submission!
+        record_activity
         flash[:success] = 'Application Is submitted to the client'
       else
         flash[:errors] = new_application.errors.full_messages
@@ -103,6 +104,7 @@ class Company::JobApplicationsController < Company::BaseController
   def prescreen
     if @job_application.prescreen!
       create_conversation_message
+      record_activity
       flash[:success] = "Successfully Prescreen."
     else
       flash[:errors] = @job_application.errors.full_messages
@@ -114,6 +116,7 @@ class Company::JobApplicationsController < Company::BaseController
     unless @job_application.short_listed?
       if @job_application.short_listed!
         create_conversation_message
+        record_activity
         flash[:success] = "Successfully ShortListed."
       else
         flash[:errors] = @job_application.errors.full_messages
@@ -155,7 +158,11 @@ class Company::JobApplicationsController < Company::BaseController
     end
     if current_user == @job_application.job.company.owner ? @interview.update(accepted_by_company: true) : @interview.update(accepted_by_recruiter: true)
       @conversation = @job_application.conversations.find_by(id: params[:conversation_id])
-      @conversation.conversation_messages.schedule_interview.update_all(message_type: :job_conversation) if @interview.is_accepted?
+      if @interview.is_accepted?
+        @conversation.conversation_messages.schedule_interview.update_all(message_type: :job_conversation)
+        @job_application.interviewing!
+        record_activity
+      end
       body = current_user.full_name + " has accepted the interview on #{@interview.date} at #{@interview.date} <a href='http://#{@job_application.job.created_by.company.etyme_url + job_application_path(@job_application)}'> with reference to the job </a>#{@job_application.job.title}."
       current_user.conversation_messages.create(conversation_id: @conversation.id, body: body, resource_id: @interview_id)
       flash[:success] = 'Interview Schedule is accepted'
@@ -207,7 +214,10 @@ class Company::JobApplicationsController < Company::BaseController
   def accept_rate
     if (@job_application.job.company.owner == current_user ? @job_application.update(accept_rate_by_company: true, status: :rate_confirmation) : @job_application.update(accept_rate: true, status: :rate_confirmation))
       @conversation = @job_application.conversations.find_by(id: params[:conversation_id])
-      @conversation.conversation_messages.rate_confirmation.update_all(message_type: :job_conversation) if @job_application.is_rate_accepted?
+      if @job_application.is_rate_accepted?
+        @conversation.conversation_messages.rate_confirmation.update_all(message_type: :job_conversation)
+        record_activity
+      end
       body = current_user.full_name + " has accepted #{@job_application.rate_per_hour}/hr with reference to #{@job_application.job.title} job."
       current_user.conversation_messages.create(conversation_id: @conversation.id, body: body, message_type: :job_conversation)
       flash[:success] = "Rate is Confirmed"
@@ -216,7 +226,6 @@ class Company::JobApplicationsController < Company::BaseController
     end
     redirect_back(fallback_location: root_path)
   end
-
 
   def rate_negotiation
     base_url = @job_application.applicationable.associated_company.owner ? "http://#{@job_application.applicationable.associated_company.etyme_url}" : HOSTNAME
@@ -253,6 +262,10 @@ class Company::JobApplicationsController < Company::BaseController
   end
 
   private
+
+  def record_activity
+    @job_application.create_activity key: 'job_application.status', owner: current_user
+  end
 
   def set_conversation(user)
     ConversationMessage.unread_messages(user, current_user).update_all(is_read: true)
