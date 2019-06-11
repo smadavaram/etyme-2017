@@ -175,8 +175,7 @@
                 .col-md-6
                   .element-box.el-tablo.centered
                     .panel-body.status
-                      .who.clearfix
-                        %h4 Company Consultant(s)
+                      %h6.element-header.text-left Company Consultant(s)
                       .row
                         -if current_company.consultants.present?
                           .text
@@ -196,8 +195,7 @@
                 .col-md-6
                   .element-box.el-tablo.centered
                     .panel-body.status
-                      .who.clearfix
-                        %h4 Latest Job Opening
+                      %h6.element-header.text-left Latest Job Opening
                       - if current_company.jobs.present?
                         - current_company.jobs.last(3).each do |j|
                           - cache j do
@@ -214,16 +212,14 @@
                                 .font-md
                                   = link_to "#{truncate(j.title)}",job_path(j)
                       -else
-                        .who.clearfix
-                          .text
-                            .font-md.text-center
-                              No Jobs in  Company Right now.
+                        .text
+                          .font-md.text-center
+                            No Jobs in  Company Right now.
               .row
                 .col-sm-12.col-md-6
                   .element-box.el-tablo.centered
                     .panel-body.status
-                      .who.clearfix
-                        %h4 Company Candidates
+                      %h6.element-header.text-left Company Candidates
                       - if current_company.candidates.present?
                         - current_company.candidates.last(3).each do |j|
                           - cache j do
@@ -240,24 +236,21 @@
                                 .font-md
                                   = link_to "#{j.first_name}",static_candidate_resume_path(j)
                       -else
-                        .who.clearfix
-                          .text
-                            .font-md.text-center
-                              No Candidates in  Company Right now.
+                        .text
+                          .font-md.text-center
+                            No Candidates in  Company Right now.
                 .col-sm-12.col-md-6
                   .element-box.el-tablo.centered
                     .panel-body.status
-                      .who.clearfix
-                        %h4 Latest Activities
+                      %h6.element-header.text-left Latest Activities
                       -if company_activities.present?
                         -company_activities.take(4).each do |activity|
                           .who.clearfix
                             = render_activity activity
                       -else
-                        .who.clearfix
-                          .text
-                            .font-md.text-center
-                              No Activities in  Company Right now.
+                        .text
+                          .font-md.text-center
+                            No Activities in  Company Right now.
                 .col-md-3
                   .element-wrapper
                     %h6.element-header
@@ -313,26 +306,27 @@
             %a.btn.btn-white.btn-sm{:href => "#"}
               %i.os-icon.os-icon-wallet-loaded
               %span Store Settings
-      .element-wrapper
-        %h6.element-header
-          Team Members
-        .element-box-tp
-          .input-search-w
-            %input.form-control.directory-search.rounded.bright{:placeholder => "Search team members...", :type => "search"}/
-          .users-list-w{style: "height: 624px;overflow-y: scroll;"}
-            - @directory&.each do |user|
-              - cache user do
-                .user-w.toggleable
-                  .user-avatar-w
-                    .user-avatar
-                      = image_tag user.photo
-                  .user-name
-                    %h6.user-title
-                      =user.full_name
-                    .user-role
-                      =user.class.to_s
-                  %a.user-action{:href => "users_profile_small.html"}
-                    .os-icon.os-icon-email-forward
+      - if @directory.present?
+        .element-wrapper
+          %h6.element-header
+            Team Members
+          .element-box-tp
+            .input-search-w
+              %input.form-control.directory-search.rounded.bright{:placeholder => "Search team members...", :type => "search"}/
+            .users-list-w{style: "height: 624px;overflow-y: scroll;"}
+              - @directory&.each do |user|
+                - cache user do
+                  .user-w.toggleable
+                    .user-avatar-w
+                      .user-avatar
+                        = image_tag user.photo
+                    .user-name
+                      %h6.user-title
+                        =user.full_name
+                      .user-role
+                        =user.class.to_s
+                    %a.user-action{:href => "users_profile_small.html"}
+                      .os-icon.os-icon-email-forward
       .element-wrapper
         .col-sm-12.col-md-12
           .element-box.el-tablo.centered
