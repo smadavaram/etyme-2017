@@ -264,7 +264,7 @@ class Company::JobApplicationsController < Company::BaseController
   private
 
   def record_activity
-    @job_application.create_activity key: 'job_application.status', owner: current_user
+    @job_application.create_activity key: 'job_application.status', owner: current_user, additional_data: {status: @job_application.status.camelcase}
   end
 
   def set_conversation(user)
