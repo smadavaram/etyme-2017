@@ -142,20 +142,20 @@
                         .legend-sub-value
                           15%, 45 Visits
       .row
-        .col-sm-12
-          .element-wrapper
-            %h6.element-header
-              User Activity
-            .timed-activities.compact
-              -company_activities_hash.each do |key,value|
-                .timed-activity
-                  .ta-date
-                    %span
-                      = key
-                  .ta-record-w
-                    - value.each do |activity|
-                      = render_activity activity
-
+        - if company_activities_hash.present?
+          .col-sm-12
+            .element-wrapper
+              %h6.element-header
+                User Activity
+              .timed-activities.compact
+                -company_activities_hash.each do |key,value|
+                  .timed-activity
+                    .ta-date
+                      %span
+                        = key
+                    .ta-record-w
+                      - value.each do |activity|
+                        = render_activity activity
         .col-sm-12
           .element-wrapper
             - if current_company.hiring_manager? || current_company.vendor?
