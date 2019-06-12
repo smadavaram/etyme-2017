@@ -573,6 +573,7 @@ Rails.application.routes.draw do
     get 'leaves', to: 'leaves#employees_leaves', as: :employees_leaves
     # get 'attachment/documents_list',to: 'attachments#document_list'
     get 'dashboard', to: 'users#dashboard', as: :dashboard
+    get 'filter_data/:filter', to: 'users#filter_cards', as: :filter_cards_data
     post 'update_photo', to: 'users#update_photo'
     resources :timesheets, concerns: :paginatable, only: [:show, :index, :new, :create, :edit, :update] do
       get 'submit_timesheet'

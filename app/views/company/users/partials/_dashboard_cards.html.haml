@@ -1,0 +1,48 @@
+
+.row
+  .col-sm-4
+    %a.element-box.el-tablo{:href => "#"}
+      .label
+        Job
+      .value
+        = cards["JOB"]
+      .trending.trending-up-basic
+        %span 12%
+        %i.os-icon.os-icon-arrow-up2
+  .col-sm-4
+    %a.element-box.el-tablo{:href => "#"}
+      .label
+        Bench
+      .value
+        27
+      .trending.trending-up-basic
+        %span 12%
+        %i.os-icon.os-icon-arrow-up2
+  .col-sm-4
+    %a.element-box.el-tablo{:href => "#"}
+      .label
+        Bench Job
+      .value
+        = cards["BENCH JOB"]
+      .trending.trending-up-basic
+        %span 12%
+        %i.os-icon.os-icon-arrow-up2
+  .col-sm-4
+    %a.element-box.el-tablo{:href => "#"}
+      .label
+        Application
+      .value
+        = cards["APPLICATION"]
+      .trending.trending-up-basic
+        %span 12%
+        %i.os-icon.os-icon-arrow-up2
+  -cards["STATUS"].each do |app|
+    .col-sm-4
+      %a.element-box.el-tablo{:href => "#"}
+        .label
+          = app.status.camelize
+        .value
+          = app.count
+        .trending.trending-up-basic
+          %span 12%
+          %i.os-icon.os-icon-arrow-up2
