@@ -18,269 +18,6 @@
       </div>
     </div>
     <h1 class="menu-page-header">eTyme</h1>
-<!--    <ul class="main-menu">-->
-<!--      <li>-->
-<!--        <a href="/dashboard">-->
-<!--          <div class="icon-w">-->
-<!--            <i class="ti-home"></i>-->
-<!--          </div>-->
-<!--          <span>Dashboard</span>-->
-<!--        </a>-->
-<!--      </li>-->
-<!--      <li>-->
-<!--        <a href="<%#= company_conversations_path %>">-->
-<!--          <div class="icon-w">-->
-<!--            <i class="ti-email"></i>-->
-<!--          </div>-->
-<!--          <span>Inbox</span>-->
-<!--        </a>-->
-<!--      </li>-->
-<!--      <li>-->
-<!--        <a href="<%#= activities_path(index: true) %>">-->
-<!--          <div class="icon-w">-->
-<!--            <i class="ti-pulse"></i>-->
-<!--          </div>-->
-<!--          <span>Activity Log</span>-->
-<!--        </a>-->
-<!--      </li>-->
-<!--      <li>-->
-<!--        <a href=<%#= notify_notifications_company_users_path(status: "unread", notification_type: "new_application") %>>-->
-<!--          <div class="icon-w">-->
-<!--            <i class="ti-bell"></i>-->
-<!--          </div>-->
-<!--          <span>Notifications</span>-->
-<!--        </a>-->
-<!--      </li>-->
-<!--      <li class="has-sub-menu">-->
-<!--        <a class="team-menu" href="#">-->
-<!--          <div class="icon-w">-->
-<!--            <i class="ti-world"></i>-->
-<!--          </div>-->
-<!--          <span>Network</span>-->
-<!--        </a>-->
-<!--        <div class="sub-menu-w">-->
-<!--          <div class="sub-menu-header">Network</div>-->
-<!--          <div class="sub-menu-icon"><i class="icon-people"></i></div>-->
-<!--          <div class="sub-menu-i">-->
-<!--            <ul class="sub-menu">-->
-<!--              <li><a href="<%#= groups_path %>">Groups</a></li>-->
-<!--              <li><a href="<%#= directories_path %>">My Directory</a></li>-->
-<!--              <li><a href="<%#= candidates_path %>">Candidates</a></li>-->
-<!--              <li><a href="<%#= companies_path %>">Companies</a></li>-->
-<!--              <li><a href="<%#= company_contacts_company_companies_path %>">Contacts</a></li>-->
-<!--            </ul>-->
-<!--          </div>-->
-<!--        </div>-->
-<!--      </li>-->
-<!--      <li class="has-sub-menu">-->
-<!--        <a class="team-menu" href="#">-->
-<!--          <div class="icon-w">-->
-<!--            <i class="icon-puzzle"></i>-->
-<!--          </div>-->
-<!--          <span>Supplier Mgmt</span>-->
-<!--        </a>-->
-<!--        <div class="sub-menu-w">-->
-<!--          <div class="sub-menu-header">Supplier Management</div>-->
-<!--          <div class="sub-menu-icon"><i class="icon-people"></i></div>-->
-<!--          <div class="sub-menu-i">-->
-<!--            <ul class="sub-menu">-->
-<!--              <li><a href="<%#= companies_path(status: 'all') %>">All Companies</a></li>-->
-<!--              <li><a href="<%#= prefer_vendors_path %>">Network Requests</a></li>-->
-<!--              <li><a href="<%#= network_path %>">Clients / Vendors</a></li>-->
-<!--            </ul>-->
-<!--          </div>-->
-<!--        </div>-->
-<!--      </li>-->
-<!--      <li class="has-sub-menu">-->
-<!--        <a class="team-menu" href="#">-->
-<!--          <div class="icon-w">-->
-<!--            <i class="icon-graduation"></i>-->
-<!--          </div>-->
-<!--          <span>Bench</span>-->
-<!--        </a>-->
-<!--        <div class="sub-menu-w">-->
-<!--          <div class="sub-menu-header">Bench</div>-->
-<!--          <div class="sub-menu-icon"><i class="icon-people"></i></div>-->
-<!--          <div class="sub-menu-i">-->
-<!--            <ul class="sub-menu">-->
-<!--              <li><a href="<%#= company_bench_jobs_path %>">My Bench</a></li>-->
-<!--              <li><a href="<%#= company_job_receives_path %>">Received</a></li>-->
-<!--              <li><a href="<%#= company_public_jobs_path %>">Public</a></li>-->
-<!--              <li><a href="<%#= company_owen_jobs_path %>">Bench Jobs</a></li>-->
-<!--            </ul>-->
-<!--          </div>-->
-<!--        </div>-->
-<!--      </li>-->
-<!--      <li class="has-sub-menu">-->
-<!--        <a class="team-menu" href="#">-->
-<!--          <div class="icon-w">-->
-<!--            <i class="icon-people"></i>-->
-<!--          </div>-->
-<!--          <span>Jobs / Offers</span>-->
-<!--        </a>-->
-<!--        <div class="sub-menu-w">-->
-<!--          <div class="sub-menu-header">Jobs</div>-->
-<!--          <div class="sub-menu-icon"><i class="icon-people"></i></div>-->
-<!--          <div class="sub-menu-i">-->
-<!--            <ul class="sub-menu">-->
-<!--              <li><a href="<%#= jobs_path %>">All Posted Jobs</a></li>-->
-<!--              <li><a href="<%#= job_invitations_path %>">Invitations</a></li>-->
-<!--            </ul>-->
-<!--          </div>-->
-<!--        </div>-->
-<!--      </li>-->
-<!--      <li>-->
-<!--        <a href="<%#= job_applications_path %>">-->
-<!--          <div class="icon-w">-->
-<!--            <i class="icon-people"></i>-->
-<!--          </div>-->
-<!--          <span>Applicants</span>-->
-<!--        </a>-->
-<!--      </li>-->
-<!--      <li class="has-sub-menu">-->
-<!--        <a class="team-menu" href="#">-->
-<!--          <div class="icon-w">-->
-<!--            <i class="os-icon os-icon-hierarchy-structure-2"></i>-->
-<!--          </div>-->
-<!--          <span>HR</span>-->
-<!--        </a>-->
-<!--        <div class="sub-menu-w">-->
-<!--          <div class="sub-menu-header">HR</div>-->
-<!--          <div class="sub-menu-icon"><i class="icon-people"></i></div>-->
-<!--          <div class="sub-menu-i">-->
-<!--            <ul class="sub-menu">-->
-<!--              <li><a href="<%#= contracts_path %>">Contracts</a></li>-->
-<!--              <li><a href="<%#= company_sell_contracts_path %>">Sell</a></li>-->
-<!--              <li><a href="<%#= company_buy_contracts_path %>">Buy</a></li>-->
-<!--              <li><a href="<%#= timeline_contracts_path %>">Timeline</a></li>-->
-<!--            </ul>-->
-<!--          </div>-->
-<!--        </div>-->
-<!--      </li>-->
-<!--      <li class="has-sub-menu">-->
-<!--        <a class="team-menu" href="#">-->
-<!--          <div class="icon-w">-->
-<!--            <i class="ti-timer"></i>-->
-<!--          </div>-->
-<!--          <span>Timesheets</span>-->
-<!--        </a>-->
-<!--        <div class="sub-menu-w">-->
-<!--          <div class="sub-menu-header">Timesheets</div>-->
-<!--          <div class="sub-menu-icon"><i class="icon-people"></i></div>-->
-<!--          <div class="sub-menu-i">-->
-<!--            <ul class="sub-menu">-->
-<!--              <li><a href="<%#= timesheets_path %>">Submitted</a></li>-->
-<!--              <li><a href="<%#= approved_timesheets_path %>">Approved</a></li>-->
-<!--              <li>-->
-<!--                <a href="<%#= current_user.is_owner? ? employees_leaves_path : (current_user.is_consultant? ? consultant_leaves_path(current_user) : '#') %>">Leaves</a>-->
-<!--              </li>-->
-<!--            </ul>-->
-<!--          </div>-->
-<!--        </div>-->
-<!--      </li>-->
-
-<!--       Accounting -->
-<!--      <li class="sub-header"><span>Accounting</span></li>-->
-<!--      <li class="has-sub-menu">-->
-<!--        <a class="team-menu" href="#">-->
-<!--          <div class="icon-w">-->
-<!--            <i class="icon-handbag"></i>-->
-<!--          </div>-->
-<!--          <span>Sales</span>-->
-<!--        </a>-->
-<!--        <div class="sub-menu-w">-->
-<!--          <div class="sub-menu-header">Sales</div>-->
-<!--          <div class="sub-menu-icon"><i class="icon-people"></i></div>-->
-<!--          <div class="sub-menu-i">-->
-<!--            <ul class="sub-menu">-->
-              <%# if has_permission?('show_invoices') || has_permission?('manage_contracts') %>
-<!--                <li><a href="<%#= invoices_path %>">Open Invoices</a></li>-->
-<!--                <li><a href="<%#= cleared_invoice_invoices_path %>">Cleared Invoices</a></li>-->
-              <%# end %>
-<!--              <li><a href="<%#= recieved_payment_company_accountings_path %>">Payments</a></li>-->
-<!--            </ul>-->
-<!--          </div>-->
-<!--        </div>-->
-<!--      </li>-->
-<!--      <li class="has-sub-menu">-->
-<!--        <a class="team-menu" href="#">-->
-<!--          <div class="icon-w">-->
-<!--            <i class="ti-shopping-cart"></i>-->
-<!--          </div>-->
-<!--          <span>Purchasing</span>-->
-<!--        </a>-->
-<!--        <div class="sub-menu-w">-->
-<!--          <div class="sub-menu-header">Purchasing</div>-->
-<!--          <div class="sub-menu-icon"><i class="icon-people"></i></div>-->
-<!--          <div class="sub-menu-i">-->
-<!--            <ul class="sub-menu">-->
-<!--              <li><a href="<%#= bill_to_pay_company_accountings_path %>">Open Bills</a></li>-->
-<!--              <li><a href="<%#= bill_received_company_accountings_path %>">Vendor Bills</a></li>-->
-<!--              <li><a href="<%#= bill_pay_company_accountings_path %>">Bill Pay</a></li>-->
-<!--            </ul>-->
-<!--          </div>-->
-<!--        </div>-->
-<!--      </li>-->
-<!--      <li class="has-sub-menu">-->
-<!--        <a class="team-menu" href="#">-->
-<!--          <div class="icon-w">-->
-<!--            <i class="picons-thin-icon-thin-0420_money_cash_coins_payment_dollars"></i>-->
-<!--          </div>-->
-<!--          <span>Salaries</span>-->
-<!--        </a>-->
-<!--        <div class="sub-menu-w">-->
-<!--          <div class="sub-menu-header">Salaries</div>-->
-<!--          <div class="sub-menu-icon"><i class="icon-people"></i></div>-->
-<!--          <div class="sub-menu-i">-->
-<!--            <ul class="sub-menu">-->
-<!--              <li><a href="<%#= salary_to_pay_company_accountings_path %>">Salary to Pay</a></li>-->
-<!--              <li><a href="<%#= salary_list_salaries_path %>">Salary Advance</a></li>-->
-<!--              <li><a href="<%#= report_salaries_path %>">Salary Calculations</a></li>-->
-<!--              <li><a href="#">Salary Payments</a></li>-->
-<!--            </ul>-->
-<!--          </div>-->
-<!--        </div>-->
-<!--      </li>-->
-<!--      <li class="has-sub-menu">-->
-<!--        <a class="team-menu" href="#">-->
-<!--          <div class="icon-w">-->
-<!--            <i class="icon-plane"></i>-->
-<!--          </div>-->
-<!--          <span>Expenses</span>-->
-<!--        </a>-->
-<!--        <div class="sub-menu-w">-->
-<!--          <div class="sub-menu-header">Expenses</div>-->
-<!--          <div class="sub-menu-icon"><i class="icon-people"></i></div>-->
-<!--          <div class="sub-menu-i">-->
-<!--            <ul class="sub-menu">-->
-<!--              <li><a href="#">Open Bills</a></li>-->
-<!--              <li><a href="#">Bill Payments</a></li>-->
-<!--              <li><a href="#">Expense Payments</a></li>-->
-<!--            </ul>-->
-<!--          </div>-->
-<!--        </div>-->
-<!--      </li>-->
-<!--      <li class="has-sub-menu">-->
-<!--        <a class="team-menu" href="#">-->
-<!--          <div class="icon-w">-->
-<!--            <i class="ti-bar-chart"></i>-->
-<!--          </div>-->
-<!--          <span>Reporting</span>-->
-<!--        </a>-->
-<!--        <div class="sub-menu-w">-->
-<!--          <div class="sub-menu-header">Reporting</div>-->
-<!--          <div class="sub-menu-icon"><i class="icon-people"></i></div>-->
-<!--          <div class="sub-menu-i">-->
-<!--            <ul class="sub-menu">-->
-<!--              <li><a href="#">All Reports</a></li>-->
-<!--            </ul>-->
-<!--          </div>-->
-<!--        </div>-->
-<!--      </li>-->
-
-<!--    </ul>-->
-
-
     <div class="row side-bar_nav w-100">
       <a href="/dashboard" class="side-bar_tab side-bar_links">
         <div class="icon-w">
@@ -313,7 +50,8 @@
           <span>Supplier</span>
         </a>
         <div class="pl-4 w-100 text-justify nav-sidebar-collaps">
-          <a href="<%= companies_path(status: 'all') %>" class="side-bar_links nested_tab boarder_bottom">All Companies</a>
+          <a href="<%= companies_path(status: 'all') %>" class="side-bar_links nested_tab boarder_bottom">All
+            Companies</a>
           <a href="<%= prefer_vendors_path %>" class="side-bar_links nested_tab boarder_bottom">Network Requests</a>
           <a href="<%= network_path %>" class="side-bar_links nested_tab boarder_bottom">Clients / Vendors</a>
         </div>
@@ -362,10 +100,11 @@
       </a>
       <div class="ml-5 pl-2 w-100 text-justify nav-sidebar-collaps">
         <% if has_permission?('show_invoices') || has_permission?('manage_contracts') %>
-          <a href="<%= invoices_path %>" class="side-bar_links nested_tab boarder_bottom" >Open Invoices</a>
-          <a href="<%= cleared_invoice_invoices_path %>" class="side-bar_links nested_tab boarder_bottom" >Cleared Invoices</a>
+          <a href="<%= invoices_path %>" class="side-bar_links nested_tab boarder_bottom">Open Invoices</a>
+          <a href="<%= cleared_invoice_invoices_path %>" class="side-bar_links nested_tab boarder_bottom">Cleared
+            Invoices</a>
         <% end %>
-        <a href="<%= recieved_payment_company_accountings_path %>" class="side-bar_links nested_tab boarder_bottom" >Payments</a>
+        <a href="<%= recieved_payment_company_accountings_path %>" class="side-bar_links nested_tab boarder_bottom">Payments</a>
       </div>
       <a class="sidebar_collapsible side-bar_tab">
         <div class="icon-w">
@@ -374,8 +113,10 @@
         <span>Purchasing</span>
       </a>
       <div class="ml-5 pl-2 w-100 text-justify nav-sidebar-collaps">
-        <a href="<%= bill_to_pay_company_accountings_path %>" class="side-bar_links nested_tab boarder_bottom">Open Bills</a>
-        <a href="<%= bill_received_company_accountings_path %>" class="side-bar_links nested_tab boarder_bottom">Vendor Bills</a>
+        <a href="<%= bill_to_pay_company_accountings_path %>" class="side-bar_links nested_tab boarder_bottom">Open
+          Bills</a>
+        <a href="<%= bill_received_company_accountings_path %>" class="side-bar_links nested_tab boarder_bottom">Vendor
+          Bills</a>
         <a href="<%= bill_pay_company_accountings_path %>" class="side-bar_links nested_tab boarder_bottom">Bill Pay</a>
       </div>
       <a class="sidebar_collapsible side-bar_tab">
@@ -385,7 +126,8 @@
         <span>Salaries</span>
       </a>
       <div class="ml-5 pl-2 w-100 text-justify nav-sidebar-collaps">
-        <a href="<%= salary_to_pay_company_accountings_path %>" class="side-bar_links nested_tab boarder_bottom">Salary to Pay</a>
+        <a href="<%= salary_to_pay_company_accountings_path %>" class="side-bar_links nested_tab boarder_bottom">Salary
+          to Pay</a>
         <a href="<%= salary_list_salaries_path %>" class="side-bar_links nested_tab boarder_bottom">Salary Advance</a>
         <a href="<%= report_salaries_path %>" class="side-bar_links nested_tab boarder_bottom">Salary Calculations</a>
         <a href="#" class="side-bar_links nested_tab boarder_bottom">Salary Payments</a>
@@ -408,131 +150,25 @@
         <span>Reporting</span>
       </a>
       <div class="ml-5 pl-2 w-100 text-justify nav-sidebar-collaps">
-          <a href="#" class="side-bar_links nested_tab boarder_bottom">All Reports</a>
+        <a href="#" class="side-bar_links nested_tab boarder_bottom">All Reports</a>
       </div>
-      <button class="btn btn-primary side-bar_tab">
-        <span>Search / Filter</span>
-      </button>
-      <button class="btn btn-primary side-bar_tab">
-        <span>Website</span>
-      </button>
-      <button class="btn btn-primary side-bar_tab">
-        <span>Integrations</span>
-      </button>
+      <div class="side-bar_icons">
+        <a class="">
+          <div class="icon-w">
+            <i class="os-icon os-icon-search"></i>
+          </div>
+        </a>
+        <a class="">
+          <div class="icon-w">
+            <i class="ti-world"></i>
+          </div>
+        </a>
+        <a class="">
+          <div class="icon-w">
+            <i class="ti-settings"></i>
+          </div>
+        </a>
+      </div>
     </div>
   </div>
 </div>
-
-
-<style>
-
-  .side-bar_links{
-    font-size: 0.9rem;
-    color: #3E4B5B;
-  }
-
-  /*.side-bar_nav > a {*/
-  /*  font-size: 0.9rem;*/
-  /*  color: #3E4B5B;*/
-  /*}*/
-
-
-  .side-bar_links:hover {
-    text-decoration: none;
-    font-size: 0.9rem;
-    color: #3E4B5B;
-  }
-
-  /*.side-bar_nav > a:hover {*/
-  /*    text-decoration: none;*/
-  /*    font-size: 0.9rem;*/
-  /*    color: #3E4B5B;*/
-  /*  }*/
-
-  .sidebar_collapsible {
-    font-size: 0.9rem;
-    color: #3E4B5B;
-    cursor: pointer;
-    border: none;
-    text-align: left;
-    outline: none;
-    font-size: 15px;
-    transition: 0.4s;
-  }
-
-  .nav-sidebar-collaps {
-    display: none;
-    box-shadow: none;
-  }
-
-  .chat-collaps {
-    display: none;
-  }
-
-  .sidebar_collapsible:after {
-    content: '\002B';
-    color: rgba(0, 0, 0, 0.5);
-    font-weight: bold;
-    float: right;
-    margin-left: 5px;
-  }
-
-  .active:after {
-    color: rgba(0, 0, 0, 0.5);
-    content: "\2212";
-  }
-
-  .tab-divider {
-    font-size: 0.72rem;
-    letter-spacing: 1px;
-    color: #448eef;
-  }
-
-  .nested_tab {
-    margin-top: 10px;
-    width: 100%;
-    display: block;
-  }
-
-  .boarder_bottom{
-    border-bottom: 1px solid rgba(0, 0, 0, 0.1);
-  }
-
-  .nested_tab > .icon-w {
-    color: #448eef;
-    font-size: 18px;
-    display: inline-block;
-    margin-right: 10px;
-  }
-
-  .side-bar_tab {
-    padding-left: 18px;
-    padding-right: 18px;
-    margin-left: 20px;
-    margin-top: 18px;
-    width: 100%;
-  }
-
-  .side-bar_tab > .icon-w {
-    color: #448eef;
-    font-size: 18px;
-    display: inline-block;
-    margin-right: 10px;
-  }
-
-</style>
-<script>
-  var coll = document.getElementsByClassName("sidebar_collapsible");
-  var i;
-  for (i = 0; i < coll.length; i++) {
-    coll[i].addEventListener("click", function () {
-      this.classList.toggle("active");
-      var content = this.nextElementSibling;
-      if (content.style.display === "block") {
-        content.style.display = "none";
-      } else {
-        content.style.display = "block";
-      }
-    });
-  }
-</script>
