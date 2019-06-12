@@ -71,7 +71,7 @@
   <div class="form-buttons-w">
     <%= form.submit (form.object.persisted? ? "Update" : "Create"), class: "btn btn-primary" %>
     <% if form.object.persisted? %>
-    <%= link_to t('global.buttons.cancel'), job_path(@job), class: "btn btn-link" %>
+    <%= link_to t('global.buttons.cancel'), job_path(thing), class: "btn btn-link" %>
     <% else %>
     <%= link_to t('global.buttons.cancel'), jobs_path, class: "btn btn-link" %>
     <% end %>
