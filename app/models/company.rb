@@ -136,8 +136,9 @@ class Company < ApplicationRecord
   scope :vendors, -> {where(company_type: 1)}
   scope :signup_companies,->{ Company.where.not(:id=>InvitedCompany.select(:invited_company_id))}
   scope :search_by ,->(term) { Company.where('lower(name) like :term' ,{term: "#{term.downcase}%" })}
-  scope :status_count, ->(company) {company.received_job_applications.reorder('')
+  scope :status_count, ->(company,start_date,end_date) {company.received_job_applications.reorder('')
                                         .select('COUNT(*) as count, job_applications.status')
+                                        .where(created_at: start_date...end_date)
                                         .where(status: [:applied,:prescreen,:rate_confirmation,:client_submission,:interviewing,:hired])
                                         .group(:status)}
 

@@ -3,58 +3,16 @@
     .content-box
       .row
         .col-sm-12
-          .element-wrapper
-            %h6.element-header
-              Dashboard
-            .element-content
-              .row
-                .col-sm-4
-                  %a.element-box.el-tablo{:href => "#"}
-                    .label
-                      Job
-                    .value
-                      = current_company.jobs.count
-                    .trending.trending-up-basic
-                      %span 12%
-                      %i.os-icon.os-icon-arrow-up2
-                .col-sm-4
-                  %a.element-box.el-tablo{:href => "#"}
-                    .label
-                      Bench
-                    .value
-                      27
-                    .trending.trending-up-basic
-                      %span 12%
-                      %i.os-icon.os-icon-arrow-up2
-                .col-sm-4
-                  %a.element-box.el-tablo{:href => "#"}
-                    .label
-                      Bench Job
-                    .value
-                      = current_company.jobs.where.not(source: nil).count
-                    .trending.trending-up-basic
-                      %span 12%
-                      %i.os-icon.os-icon-arrow-up2
-                .col-sm-4
-                  %a.element-box.el-tablo{:href => "#"}
-                    .label
-                      Application
-                    .value
-                      = current_company.received_job_applications.count
-                    .trending.trending-up-basic
-                      %span 12%
-                      %i.os-icon.os-icon-arrow-up2
-                -Company.status_count(current_company).each do |app|
-                  .col-sm-4
-                    %a.element-box.el-tablo{:href => "#"}
-                      .label
-                        = app.status.camelize
-                      .value
-                        = app.count
-                      .trending.trending-up-basic
-                        %span 12%
-                        %i.os-icon.os-icon-arrow-up2
-      .row
+          .row
+            .element-wrapper
+              %h6.element-header
+                Dashboard
+                %a.pull-right.btn.btn-sm.btn-primary.mt-1.mr-1{href: filter_cards_data_path("month"), "data-remote" => "true"} Month
+                %a.pull-right.btn.btn-sm.btn-primary.mt-1.mr-1{href: filter_cards_data_path("quarter"), "data-remote" => "true"} Quarter
+                %a.pull-right.btn.btn-sm.btn-primary.mt-1.mr-1{href: filter_cards_data_path("year"), "data-remote" => "true"} year
+                %input.pull-right{id: 'custom_range', plceholder: 'Custom Rage Search', "data-date-format" => "DD/MM/YYYY"}
+              .element-content#dashboard_cards
+                =render 'company/users/partials/dashboard_cards', cards: @cards
         .col-sm-9
           .element-wrapper
             %h6.element-header
@@ -313,7 +271,7 @@
           .element-box-tp
             .input-search-w
               %input.form-control.directory-search.rounded.bright{:placeholder => "Search team members...", :type => "search"}/
-            .users-list-w{style: "height: 624px;overflow-y: scroll;"}
+            .users-list-w{style: "max-height: 624px;overflow-y: scroll;"}
               - @directory&.each do |user|
                 - cache user do
                   .user-w.toggleable
@@ -322,11 +280,11 @@
                         = image_tag user.photo
                     .user-name
                       %h6.user-title
-                        =user.full_name
+                        = do_ellipsis(user.full_name,17)
                       .user-role
                         =user.class.to_s
                     %a.user-action{:href => "users_profile_small.html"}
-                      .os-icon.os-icon-email-forward
+                      = contact_widget(user.email,user.phone)
       .element-wrapper
         .col-sm-12.col-md-12
           .element-box.el-tablo.centered
@@ -439,6 +397,17 @@
            var sval = $('#search-term').val();
            $.get('/dashboard?search_by='+sval);
         }
+    });
+    $('#custom_range').daterangepicker({
+        startDate: moment().startOf('month'),
+        endDate: moment().endOf('month'),
+        locale: {
+          format: 'DD/MM/YYYY'
+        }
+    });
+    $("#custom_range").change(function(){
+      url = "/filter_data/period?start_date=" + $(this).val().split('-').map(String.trim).join("&end_date=")
+      $.get(url);
     });
     $(".directory-search").on('keydown',function () {
       var txt = $('.directory-search').val();
