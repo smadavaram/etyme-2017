@@ -1,4 +1,4 @@
-<%= form_with(model: @job, local: true) do |form| %>
+<%= form_with(model: [@job], local: true) do |form| %>
   <%= render 'company/jobs/partials/forms/errors', form: form %>
 
   <%= render 'company/jobs/partials/forms/field', form: form, attribute: :title, field_type: :text_field, field_attributes: {autofocus: true} %>
