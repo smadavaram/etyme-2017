@@ -330,4 +330,8 @@ $(document).ready(function () {
     ]
   });
 
+  $('#my_bench_datatable').DataTable({
+    columnDefs: [{'targets': 0, searchable: false, orderable: false,}],
+  });
+
 });
