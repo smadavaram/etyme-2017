@@ -1,4 +1,4 @@
-<%= form_with(model: [thing], local: true) do |form| %>
+<%= form_with(model: [@job], local: true) do |form| %>
   <%= render 'company/jobs/partials/forms/errors', form: form %>
 
   <%= render 'company/jobs/partials/forms/field', form: form, attribute: :title, field_type: :text_field, field_attributes: {autofocus: true} %>
@@ -71,7 +71,7 @@
   <div class="form-buttons-w">
     <%= form.submit (form.object.persisted? ? "Update" : "Create"), class: "btn btn-primary" %>
     <% if form.object.persisted? %>
-    <%= link_to t('global.buttons.cancel'), job_path(thing), class: "btn btn-link" %>
+    <%= link_to t('global.buttons.cancel'), job_path(@job), class: "btn btn-link" %>
     <% else %>
     <%= link_to t('global.buttons.cancel'), jobs_path, class: "btn btn-link" %>
     <% end %>
