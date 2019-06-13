@@ -393,7 +393,7 @@ class Company::CompaniesController < Company::BaseController
       company_contact_params.to_h.map do |key, contact_hash|
         user_params = contact_hash.slice(:first_name, :last_name, :email)
         user = User.find_by_email(contact_hash["email"]) || Admin.create(user_params.merge({company_id: @company.id}))
-        company_contact = current_company.company_contacts.build(contact_hash.merge({user_id: user.id, user_company_id: user.company.id}))
+        company_contact = current_company.company_contacts.build(contact_hash.merge({user_id: user.id, user_company_id: user.company.id, created_by_id: current_user.id}))
         company_contact.save
       end.all?
     end
@@ -442,14 +442,14 @@ class Company::CompaniesController < Company::BaseController
 
   def add_contact_to_current_company(contact_hash)
     contact_hash = contact_hash.slice(:first_name, :last_name, :email, :phone, :title)
-    @company_contact = current_company.company_contacts.build(contact_hash)
+    @company_contact = current_company.company_contacts.build(contact_hash.merge({created_by_id: current_user.id}))
     @company_contact.save
   end
 
   def add_contact_to_company(contact_hash)
     user_params = contact_hash.slice(:first_name, :last_name, :email, :phone)
     user = User.find_by_email(contact_hash["email"]) || User.create(user_params.merge({company_id: @company.id}))
-    @company_contact = current_company.company_contacts.build(contact_hash.merge({user_id: user.id, user_company_id: user.company.id}))
+    @company_contact = current_company.company_contacts.build(contact_hash.merge({user_id: user.id, user_company_id: user.company.id,created_by_id: current_user.id}))
     @company_contact.save
   end
 

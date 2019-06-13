@@ -8,7 +8,7 @@ class CompanyContact < ApplicationRecord
   has_many :groupables ,as: :groupable
   has_many :groups ,through: :groupables
   belongs_to :user
-
+  belongs_to   :created_by , class_name: "User" ,foreign_key: :created_by_id
   # TODO: remove this one too, when we remove the extra columns
   # validates :email, uniqueness: { case_sensitive: false, scope: :company_id }, format: { with: EMAIL_REGEX }, presence: true
 

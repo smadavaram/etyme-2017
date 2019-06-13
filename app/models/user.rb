@@ -53,6 +53,8 @@ class User < ApplicationRecord
   has_many :reminders
   has_many :statuses
   has_many :company_contacts
+  has_many :created_company_contacts , class_name: 'CompanyContact', foreign_key: :created_by_id
+
 
   has_many :conversation_messages ,as: :userable
   has_many :document_signs       , as: :signable
