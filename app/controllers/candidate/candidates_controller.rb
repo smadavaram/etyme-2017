@@ -15,6 +15,7 @@ class Candidate::CandidatesController < Candidate::BaseController
     get_cards
     # @jobs = Job.joins("INNER JOIN experiences on jobs.industry = experiences.industry AND jobs.department = experiences.department INNER JOIN candidates on experiences.user_id = candidates.id").order("id DESC").uniq.paginate(page: params[:page], per_page: 10) || []
     @jobs = Job.order("id DESC").uniq.paginate(page: params[:page], per_page: 10) || []
+    @activities = PublicActivity::Activity.order("created_at desc")
   end
 
   def filter_cards
