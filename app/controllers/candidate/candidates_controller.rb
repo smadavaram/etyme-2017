@@ -12,11 +12,51 @@ class Candidate::CandidatesController < Candidate::BaseController
     add_breadcrumb current_candidate.full_name.titleize, profile_path, :title => ""
     @chat = @chats.try(:last)
     @messages = @chat.try(:messages)
-
+    get_cards
     # @jobs = Job.joins("INNER JOIN experiences on jobs.industry = experiences.industry AND jobs.department = experiences.department INNER JOIN candidates on experiences.user_id = candidates.id").order("id DESC").uniq.paginate(page: params[:page], per_page: 10) || []
     @jobs = Job.order("id DESC").uniq.paginate(page: params[:page], per_page: 10) || []
+  end
 
+  def filter_cards
+    respond_to do |format|
+      format.js {
+        get_cards
+      }
+    end
+  end
 
+  def get_cards
+    @cards = {}
+    start_date = get_start_date
+    end_date = get_end_date
+    @cards["APPLICATION"] = current_candidate.job_applications.where(created_at: start_date...end_date).count
+    @cards["STATUS"] = Candidate.application_status_count(current_candidate,start_date,end_date)
+  end
+
+  def get_start_date
+    case params[:filter] ? params[:filter] : 'year'
+    when 'period'
+      return DateTime.parse(params[:start_date]).beginning_of_day
+    when 'month'
+      return DateTime.current.beginning_of_month
+    when 'quarter'
+      return DateTime.current.beginning_of_quarter
+    when 'year'
+      return DateTime.current.beginning_of_year
+    end
+  end
+
+  def get_end_date
+    case params[:filter] ? params[:filter] : 'year'
+    when 'period'
+      return DateTime.parse(params[:end_date]).end_of_day
+    when 'month'
+      return DateTime.current.end_of_month
+    when 'quarter'
+      return DateTime.current.end_of_quarter
+    when 'year'
+      return DateTime.current.end_of_year
+    end
   end
 
   def show

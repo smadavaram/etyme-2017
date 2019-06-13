@@ -14,61 +14,61 @@ class Candidate < ApplicationRecord
   # validates :password,presence: true,if: Proc.new { |candidate| !candidate.password.nil? }
   # validates :password_confirmation,presence: true,if: Proc.new { |candidate| !candidate.password.nil? }
 
-  after_create  :send_invitation_email  , if: Proc.new{|candidate|(candidate.invited_by.present? && candidate.send_welcome_email_to_candidate.nil?) || candidate.send_invitation}
+  after_create :send_invitation_email, if: Proc.new {|candidate| (candidate.invited_by.present? && candidate.send_welcome_email_to_candidate.nil?) || candidate.send_invitation}
 
   # after_create :send_job_invitation, if: Proc.new{ |candidate| candidate.invited_by.present?}
-  after_create  :create_address
-  after_create  :send_welcome_email, if: Proc.new{|candidate| candidate.send_welcome_email_to_candidate.nil?}
-  after_create  :normalize_candidate_entries, if: Proc.new{|candidate| candidate.signup?}
+  after_create :create_address
+  after_create :send_welcome_email, if: Proc.new {|candidate| candidate.send_welcome_email_to_candidate.nil?}
+  after_create :normalize_candidate_entries, if: Proc.new {|candidate| candidate.signup?}
   # after_create  :set_on_seq
   before_create :set_freelancer_company
 
-  validates :email,presence: :true
-  validates_uniqueness_of :email ,scope: [:status], message: "Candidate with same email already exist on the Eytme!" ,if: Proc.new{|candidate| candidate.signup?}
-  validate :email_uniquenes ,on: :create,if: Proc.new{|candidate| candidate.status == "campany_candidate"}
+  validates :email, presence: :true
+  validates_uniqueness_of :email, scope: [:status], message: "Candidate with same email already exist on the Eytme!", if: Proc.new {|candidate| candidate.signup?}
+  validate :email_uniquenes, on: :create, if: Proc.new {|candidate| candidate.status == "campany_candidate"}
   # validates_numericality_of :phone , on: :update
   # validates :dob, date: { before_or_equal_to: Proc.new { Date.today }, message: " Date Of Birth Can not be in future." } , on: :update
   serialize :dept_name
   serialize :industry_name
-  has_many   :consultants
-  has_many   :notifications        , as: :notifiable               ,dependent: :destroy
-  has_many   :custom_fields        , as: :customizable             ,dependent: :destroy
-  has_many   :job_applications     , as: :applicationable
-  has_many   :job_invitations      , as: :recipient
-  has_many   :contracts            , through: :job_applications    ,dependent: :destroy
-  has_many   :job_invitations      , as: :recipient
-  has_many   :educations           , dependent: :destroy           ,foreign_key: 'user_id'
-  has_many   :experiences          , dependent: :destroy           ,foreign_key: 'user_id'
-  has_many   :candidates_companies , dependent: :destroy
-  has_many   :companies            , through: :candidates_companies ,dependent: :destroy
+  has_many :consultants
+  has_many :notifications, as: :notifiable, dependent: :destroy
+  has_many :custom_fields, as: :customizable, dependent: :destroy
+  has_many :job_applications, as: :applicationable
+  has_many :job_invitations, as: :recipient
+  has_many :contracts, through: :job_applications, dependent: :destroy
+  has_many :job_invitations, as: :recipient
+  has_many :educations, dependent: :destroy, foreign_key: 'user_id'
+  has_many :experiences, dependent: :destroy, foreign_key: 'user_id'
+  has_many :candidates_companies, dependent: :destroy
+  has_many :companies, through: :candidates_companies, dependent: :destroy
   has_many :candidates_resumes, dependent: :destroy
-  has_many          :csc_accounts, as: :accountable
+  has_many :csc_accounts, as: :accountable
 
 
-  has_many :addresses, as:  :addressable
+  has_many :addresses, as: :addressable
   # belongs_to :address              , foreign_key: :primary_address_id, optional: true
 
   # has_and_belongs_to_many :groups ,through: :company
-  has_many   :groupables           , as:  :groupable     ,dependent: :destroy
-  has_many   :groups               , through: :groupables
-  has_many   :comments             , as: :commentable
-  has_many   :reminders            ,as:  :reminderable
-  has_many   :messages             ,as: :messageable     ,dependent: :destroy
-  has_many   :chats                ,as: :chatable
-  has_many   :statuses             ,as:  :statusable     ,dependent: :destroy
-  has_many   :portfolios           ,as: :portfolioable   ,dependent: :destroy
-  has_many :conversation_messages  ,as: :userable
-  has_many   :certificates, dependent: :destroy
-  has_many   :clients, dependent: :destroy
-  has_many   :designations, dependent: :destroy
-  has_many   :timesheets, dependent: :destroy
+  has_many :groupables, as: :groupable, dependent: :destroy
+  has_many :groups, through: :groupables
+  has_many :comments, as: :commentable
+  has_many :reminders, as: :reminderable
+  has_many :messages, as: :messageable, dependent: :destroy
+  has_many :chats, as: :chatable
+  has_many :statuses, as: :statusable, dependent: :destroy
+  has_many :portfolios, as: :portfolioable, dependent: :destroy
+  has_many :conversation_messages, as: :userable
+  has_many :certificates, dependent: :destroy
+  has_many :clients, dependent: :destroy
+  has_many :designations, dependent: :destroy
+  has_many :timesheets, dependent: :destroy
   has_many :contract_salary_histories, dependent: :destroy
   has_many :contract_cycles, dependent: :destroy
-  has_many   :documents, dependent: :destroy
-  has_many   :criminal_check, dependent: :destroy
-  has_many   :visas, dependent: :destroy
-  has_many   :legal_documents, dependent: :destroy
-  has_many   :client_expenses, dependent: :destroy
+  has_many :documents, dependent: :destroy
+  has_many :criminal_check, dependent: :destroy
+  has_many :visas, dependent: :destroy
+  has_many :legal_documents, dependent: :destroy
+  has_many :client_expenses, dependent: :destroy
   has_many :black_listers, as: :blacklister
 
   has_many :favourables, as: :favourable, class_name: "FavouriteChat", dependent: :destroy
@@ -83,34 +83,39 @@ class Candidate < ApplicationRecord
   belongs_to :associated_company, class_name: "Company", foreign_key: :company_id, optional: true
 
 
-  attr_accessor :job_id , :expiry , :message , :invitation_type
+  attr_accessor :job_id, :expiry, :message, :invitation_type
   attr_accessor :send_welcome_email_to_candidate
   attr_accessor :send_invitation
   attr_accessor :invitation_as_contact
 
 
-  accepts_nested_attributes_for :portfolios     ,reject_if: :all_blank, allow_destroy: true
-  accepts_nested_attributes_for :experiences    ,reject_if: :all_blank, allow_destroy: true
-  accepts_nested_attributes_for :educations     ,reject_if: :all_blank, allow_destroy: true
-  accepts_nested_attributes_for :addresses        , reject_if: :all_blank, update_only: true, allow_destroy: true
-  accepts_nested_attributes_for :custom_fields  , allow_destroy: true , reject_if: :all_blank
-  accepts_nested_attributes_for :certificates  , allow_destroy: true , reject_if: :all_blank
-  accepts_nested_attributes_for :clients  , allow_destroy: true , reject_if: :all_blank
-  accepts_nested_attributes_for :designations  , allow_destroy: true , reject_if: :all_blank
-  accepts_nested_attributes_for :documents  , allow_destroy: true , reject_if: :all_blank
-  accepts_nested_attributes_for :criminal_check  , allow_destroy: true , reject_if: :all_blank
-  accepts_nested_attributes_for :visas  , allow_destroy: true , reject_if: :all_blank
-  accepts_nested_attributes_for :legal_documents  , allow_destroy: true , reject_if: :all_blank
+  accepts_nested_attributes_for :portfolios, reject_if: :all_blank, allow_destroy: true
+  accepts_nested_attributes_for :experiences, reject_if: :all_blank, allow_destroy: true
+  accepts_nested_attributes_for :educations, reject_if: :all_blank, allow_destroy: true
+  accepts_nested_attributes_for :addresses, reject_if: :all_blank, update_only: true, allow_destroy: true
+  accepts_nested_attributes_for :custom_fields, allow_destroy: true, reject_if: :all_blank
+  accepts_nested_attributes_for :certificates, allow_destroy: true, reject_if: :all_blank
+  accepts_nested_attributes_for :clients, allow_destroy: true, reject_if: :all_blank
+  accepts_nested_attributes_for :designations, allow_destroy: true, reject_if: :all_blank
+  accepts_nested_attributes_for :documents, allow_destroy: true, reject_if: :all_blank
+  accepts_nested_attributes_for :criminal_check, allow_destroy: true, reject_if: :all_blank
+  accepts_nested_attributes_for :visas, allow_destroy: true, reject_if: :all_blank
+  accepts_nested_attributes_for :legal_documents, allow_destroy: true, reject_if: :all_blank
 
 
+  scope :search_by, ->(term) {Candidate.where('lower(first_name) like :term or lower(last_name) like :term ', {term: "%#{term.downcase}%"})}
+  scope :application_status_count, ->(candidate,start_date, end_date) {candidate.job_applications.reorder('')
+                                                                 .select('COUNT(*) as count, job_applications.status')
+                                                                 .where(created_at: start_date...end_date)
+                                                                 .where(status: [:applied, :prescreen, :rate_confirmation, :client_submission, :interviewing, :hired])
+                                                                 .group(:status)}
 
-
-  scope :search_by ,->(term) { Candidate.where('lower(first_name) like :term or lower(last_name) like :term ' ,{term: "%#{term.downcase}%" })}
 
   #Tags Input
   acts_as_taggable_on :skills, :designates
 
   validate :max_skill_size
+
   def max_skill_size
     errors[:skill_list] << "8 skills maximum" if skill_list.count > 8
   end
@@ -149,7 +154,7 @@ class Candidate < ApplicationRecord
     invite! do |u|
       u.skip_invitation = true
     end
-    CandidateMailer.invite_user(self,self.invited_by).deliver_now
+    CandidateMailer.invite_user(self, self.invited_by).deliver_now
   end
 
   def is_already_applied? job_id
@@ -173,19 +178,20 @@ class Candidate < ApplicationRecord
   private
 
   def create_address
-    address= Address.new
+    address = Address.new
     address.save(validate: false)
-    self.update_column(:primary_address_id , address.try(:id))
+    self.update_column(:primary_address_id, address.try(:id))
   end
 
   # send welcome email to candidate
   def send_welcome_email
-      CandidateMailer.welcome_candidate(self).deliver_now
+    CandidateMailer.welcome_candidate(self).deliver_now
   end
+
   # def send_job_invitation
-    #   self.invited_by.company.sent_job_invitations.create!( recipient:self , created_by:self.invited_by , job_id: self.job_id.to_i,message:self.message,expiry:self.expiry,invitation_type: self.invitation_type)
-    # end
-    #
+  #   self.invited_by.company.sent_job_invitations.create!( recipient:self , created_by:self.invited_by , job_id: self.job_id.to_i,message:self.message,expiry:self.expiry,invitation_type: self.invitation_type)
+  # end
+  #
 
   #
   def normalize_candidate_entries
@@ -201,16 +207,16 @@ class Candidate < ApplicationRecord
 
   def email_uniquenes
     if self.status == "campany_candidate"
-      if self.invited_by.company.candidates.where(email:self.email).present?
-        errors.add(:base,"Candidate with same email exist's in your Company")
+      if self.invited_by.company.candidates.where(email: self.email).present?
+        errors.add(:base, "Candidate with same email exist's in your Company")
       end
     end
   end
 
   def set_on_seq
     ledger = Sequence::Client.new(
-      ledger_name: 'company-dev',
-      credential: 'OUUY4ZFYQO4P3YNC5JC3GMY7ZQJCSNTH'
+        ledger_name: 'company-dev',
+        credential: 'OUUY4ZFYQO4P3YNC5JC3GMY7ZQJCSNTH'
     )
 
     candidate_name = self.full_name
@@ -222,14 +228,14 @@ class Candidate < ApplicationRecord
 
     # Create Salary settlement Account
     la = ledger.accounts.list(
-          filter: 'id=$1',
-          filter_params: ["sal_set_#{self.id}"]).first
+        filter: 'id=$1',
+        filter_params: ["sal_set_#{self.id}"]).first
     ledger.accounts.create(
-      id: "sal_set_#{self.id}",
-      key_ids: [candidate_key],
-      quorum: 1,
-      tags: {
-      }
+        id: "sal_set_#{self.id}",
+        key_ids: [candidate_key],
+        quorum: 1,
+        tags: {
+        }
     ) unless la.present?
   end
 

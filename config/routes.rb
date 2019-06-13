@@ -130,6 +130,7 @@ Rails.application.routes.draw do
     resources :educations, only: [:create, :update]
     resources :experiences, only: [:create, :update]
     get '/', to: 'candidates#dashboard', as: :candidate_dashboard
+    get 'filter_data/:filter', to: 'candidates#filter_cards', as: :filter_cards_data
     resources :addresses, only: [:update]
 
     resources :job_applications, only: [:index, :show] do
