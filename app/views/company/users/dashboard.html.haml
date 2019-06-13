@@ -10,7 +10,7 @@
                 %a.pull-right.btn.btn-sm.btn-primary.mt-1.mr-1{href: filter_cards_data_path("month"), "data-remote" => "true"} Month
                 %a.pull-right.btn.btn-sm.btn-primary.mt-1.mr-1{href: filter_cards_data_path("quarter"), "data-remote" => "true"} Quarter
                 %a.pull-right.btn.btn-sm.btn-primary.mt-1.mr-1{href: filter_cards_data_path("year"), "data-remote" => "true"} year
-                %input.pull-right{id: 'custom_range', plceholder: 'Custom Rage Search', "data-date-format" => "DD/MM/YYYY"}
+                %input.pull-right.mr-1{id: 'custom_range', plceholder: 'Custom Rage Search', "data-date-format" => "DD/MM/YYYY"}
               .element-content#dashboard_cards
                 =render 'company/users/partials/dashboard_cards', cards: @cards
         .col-sm-9

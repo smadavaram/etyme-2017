@@ -17,18 +17,16 @@
               %input{:type => "file"}/
           .multiple-fiels-box
   .form-group.req_form
-    %p
-      Requirement
     .col-md-12
+      %label Requirement
       =f.hidden_field :multiple_option, class: 'multi-option-text'
       =f.text_area :questions , class: 'form-control question', :rows => 6, :cols => 60, placeholder: "Structure your Applicant Instructions as free text, a multiple choice question or file upload.", require: true
     .col-md-12.select-filed
-      .col-md-2
+      .col-md-3.pl-0
         %label Answer Type
-      .col-md-3
-        .plain-select
+        .plain-select.ml-0
           =f.select :ans_type, ["Free Text", "Multiple Answer", "Attached file"],{include_blank: false},{class: "form-control que-ans-type plain-select" }
-      .col-md-3
+      .col-md-3.pl-0
         = f.label :ans_mandatroy, class:"fancy" do
           = f.check_box :ans_mandatroy, class: 'set-checkbox'
           Answer is mandatory
