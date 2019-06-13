@@ -54,7 +54,8 @@ class Company::UsersController < Company::BaseController
     start_date = get_start_date
     end_date = get_end_date
     @cards["JOB"] = current_company.jobs.where(created_at: start_date...end_date).count
-    @cards["BENCH JOB"] = current_company.jobs.where.not(source: nil).where(created_at: start_date...end_date).count
+    @cards["BENCH JOB"] = current_company.jobs.where(status: 'Bench').where(created_at: start_date...end_date).count
+    @cards["BENCH"] = current_company.candidates.where(company_id: current_company.id).where(created_at: start_date...end_date).count
     @cards["APPLICATION"] = current_company.received_job_applications.where(created_at: start_date...end_date).count
     @cards["STATUS"] = Company.status_count(current_company,start_date,end_date)
   end

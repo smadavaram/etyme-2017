@@ -26,139 +26,80 @@
       </div>
     </div>
     <h1 class="menu-page-header">eTyme</h1>
-    <ul class="main-menu">
-      <li>
-        <a href="/candidate">
-          <div class="icon-w">
-            <i class="ti-home"></i>
-          </div>
-          <span>Dashboard</span>
-        </a>
-      </li>
-      <li>
-        <a href="<%= candidate_conversations_path %>">
-          <div class="icon-w">
-            <i class="ti-email"></i>
-          </div>
-          <span>Inbox</span>
-        </a>
-      </li>
-      <li class="has-sub-menu">
-        <a class="team-menu" href="#">
-          <div class="icon-w">
-            <i class="ti-world"></i>
-          </div>
-          <span>Network</span>
-        </a>
-        <div class="sub-menu-w">
-          <div class="sub-menu-header">Network</div>
-          <div class="sub-menu-icon"><i class="icon-people"></i></div>
-          <div class="sub-menu-i">
-            <ul class="sub-menu">
-              <li><a href="#">Groups</a></li>
-              <li><a href="#">My Directory</a></li>
-              <li><a href="#">Candidates</a></li>
-              <li><a href="#">Companies</a></li>
-              <li><a href="#">Contacts</a></li>
-            </ul>
-          </div>
+    <div class="row side-bar_nav w-100">
+      <a href="/candidate" class="side-bar_tab side-bar_links">
+        <div class="icon-w">
+          <i class="ti-home"></i>
         </div>
-      </li>
-      <li class="has-sub-menu">
-        <a class="team-menu" href="#">
-          <div class="icon-w">
-            <i class="icon-graduation"></i>
-          </div>
-          <span>Bench</span>
-        </a>
-        <div class="sub-menu-w">
-          <div class="sub-menu-header">Bench</div>
-          <div class="sub-menu-icon"><i class="icon-people"></i></div>
-          <div class="sub-menu-i">
-            <ul class="sub-menu">
-              <li><a href="<%= benchs_path %>">My Bench</a></li>
-            </ul>
-          </div>
+        <span>Dashboard</span>
+      </a>
+      <a href="<%= candidate_conversations_path %>" class="side-bar_tab side-bar_links">
+        <div class="icon-w">
+          <i class="ti-email"></i>
         </div>
-      </li>
-      <li class="has-sub-menu">
-        <a class="team-menu" href="#">
-          <div class="icon-w">
-            <i class="icon-people"></i>
-          </div>
-          <span>Jobs</span>
-        </a>
-        <div class="sub-menu-w">
-          <div class="sub-menu-header">Jobs</div>
-          <div class="sub-menu-icon"><i class="icon-people"></i></div>
-          <div class="sub-menu-i">
-            <ul class="sub-menu">
-              <li><a href="<%= candidate_jobs_path %>">All Posted Jobs</a></li>
-              <li><a href="<%= candidate_job_invitations_path %>">Invitations</a></li>
-              <li><a href="<%= candidate_job_applications_path %>">Applicants</a></li>
-            </ul>
-          </div>
+        <span>Inbox</span>
+      </a>
+      <a href="<%= %>" class="side-bar_tab side-bar_links">
+        <div class="icon-w">
+          <i class="ti-pulse"></i>
         </div>
-      </li>
-      <li class="has-sub-menu">
-        <a class="team-menu" href="#">
-          <div class="icon-w">
-            <i class="os-icon os-icon-hierarchy-structure-2"></i>
-          </div>
-          <span>HR</span>
-        </a>
-        <div class="sub-menu-w">
-          <div class="sub-menu-header">HR</div>
-          <div class="sub-menu-icon"><i class="icon-people"></i></div>
-          <div class="sub-menu-i">
-            <ul class="sub-menu">
-              <li><a href="#">Contracts</a></li>
-              <li><a href="#">Sell</a></li>
-              <li><a href="#">Buy</a></li>
-            </ul>
-          </div>
+        <span>Activity Log</span>
+      </a>
+      <a class="sidebar_collapsible side-bar_tab">
+        <div class="icon-w">
+          <i class="ti-world"></i>
         </div>
-      </li>
-      <li class="has-sub-menu">
-        <a class="team-menu" href="/account/teams/1">
-          <div class="icon-w">
-            <i class="ti-timer"></i>
-          </div>
-          <span>Timesheets</span>
-        </a>
-        <div class="sub-menu-w">
-          <div class="sub-menu-header">Timesheets</div>
-          <div class="sub-menu-icon"><i class="icon-people"></i></div>
-          <div class="sub-menu-i">
-            <ul class="sub-menu">
-              <li><a href="<%= candidate_timesheets_path %>">Timesheets</a></li>
-              <li><a href="<%= submitted_timesheets_candidate_timesheets_path %>">Submitted</a></li>
-              <li><a href="<%= approve_timesheets_candidate_timesheets_path %>">Approved</a></li>
-              <li><a href="#">Leaves</a></li>
-            </ul>
-          </div>
+        <span>Network</span>
+      </a>
+      <div class="ml-5 pl-2 w-100 text-justify nav-sidebar-collaps ml-4 pt-1 pb-0">
+        <a href="<%= "#" %>" class="side-bar_links nested_tab boarder_bottom">Company</a>
+        <a href="<%= "#" %>" class="side-bar_links nested_tab boarder_bottom">Contacts</a>
+        <a href="<%= "#" %>" class="side-bar_links nested_tab boarder_bottom">Groups</a>
+        <a href="<%= "#" %>" class="side-bar_links nested_tab boarder_bottom">Lists</a>
+        <a href="<%= "#" %>" class="side-bar_links nested_tab boarder_bottom">Directory</a>
+      </div>
+
+      <a class="sidebar_collapsible side-bar_tab">
+        <div class="icon-w">
+          <i class="icon-graduation"></i>
         </div>
-      </li>
-      <li class="has-sub-menu">
-        <a class="team-menu" href="#">
-          <div class="icon-w">
-            <i class="icon-plane"></i>
-          </div>
-          <span>Client Expenses</span>
-        </a>
-        <div class="sub-menu-w">
-          <div class="sub-menu-header">Client Expenses</div>
-          <div class="sub-menu-icon"><i class="icon-people"></i></div>
-          <div class="sub-menu-i">
-            <ul class="sub-menu">
-              <li><a href="<%= candidate_client_expenses_path %>">Expenses</a></li>
-              <li><a href="<%= submitted_client_expenses_candidate_client_expenses_path %>">Submitted</a></li>
-            </ul>
-          </div>
+        <span>Bench</span>
+      </a>
+      <div class="ml-5 pl-2 w-100 text-justify nav-sidebar-collaps">
+        <a href="<%= "#" %>" class="side-bar_links nested_tab boarder_bottom">My Company/Contacts</a>
+        <a href="<%= candidate_jobs_path %>" class="side-bar_links nested_tab boarder_bottom">Public Jobs</a>
+        <a href="<%= "#" %>" class="side-bar_links nested_tab boarder_bottom">Bench Jobs</a>
+        <a href="<%= "#" %>" class="side-bar_links nested_tab boarder_bottom">Add Bench Job</a>
+      </div>
+      <a href="<%= "#" %>" class="side-bar_tab side-bar_links">
+        <div class="icon-w">
+          <i class="ti-email"></i>
         </div>
-      </li>
-      <li><br/></li>
-      <li><br/></li>
-    </ul>
+        <span>Invitations</span>
+      </a>
+      <a class="sidebar_collapsible side-bar_tab">
+        <div class="icon-w">
+          <i class="icon-people"></i>
+        </div>
+        <span>Jobs</span>
+      </a>
+      <div class="ml-5 pl-2 w-100 text-justify nav-sidebar-collaps">
+        <a href="<%= "#" %>" class="side-bar_links nested_tab boarder_bottom">My Jobs</a>
+        <a href="<%= "#" %>" class="side-bar_links nested_tab boarder_bottom">Invited</a>
+        <a href="<%= "#" %>" class="side-bar_links nested_tab boarder_bottom">Public Jobs</a>
+      </div>
+      <a class="sidebar_collapsible side-bar_tab">
+        <div class="icon-w">
+          <i class="fa fa-id-card-o"></i>
+        </div>
+        <span>Applications</span>
+      </a>
+      <div class="ml-5 pl-2 w-100 text-justify nav-sidebar-collaps">
+        <a class="side-bar_links nested_tab boarder_bottom" href="<%= "#" %>">My Applications</a>
+        <a class="side-bar_links nested_tab boarder_bottom" href="<%= "#" %>">Rate confirmations</a>
+        <a class="side-bar_links nested_tab boarder_bottom" href="<%= "#" %>">Pre-interview</a>
+        <a class="side-bar_links nested_tab boarder_bottom" href="<%= "#" %>">Client interview</a>
+      </div>
+    </div>
   </div>
 </div>

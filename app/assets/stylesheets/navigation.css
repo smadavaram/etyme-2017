@@ -63,7 +63,7 @@
     margin-left: 5px;
 }
 
-.side-bar_tab .active:after {
+.side-bar_tab.active:after {
     color: rgba(0, 0, 0, 0.5);
     content: "\2212";
 }
