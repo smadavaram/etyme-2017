@@ -29,7 +29,7 @@ class JobApplication < ApplicationRecord
   validates_uniqueness_of :applicationable_id, scope: [:job_id, :applicationable_type], on: :create
 
   before_create :generate_share_key
-  before_create :set_application_type
+  # before_create :set_application_type
   after_create :update_job_invitation_status, if: Proc.new {|application| application.job_invitation.present?}
   after_create :notify_job_owner_or_admins
   after_update :notify_recipient_on_status_change, if: Proc.new {|application| application.status_changed?}

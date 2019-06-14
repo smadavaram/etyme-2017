@@ -29,7 +29,7 @@
       </td>
       <td><%= application.user.try(:location) %></td>
       <td><%= application.user.visa %></td>
-      <td><%= job.location %></td>
+      <td><%= application.job.location %></td>
       <td>
         <% application.user.companies.each do |company| %>
           <span class="label-info badge mb-5"><%= company.name %></span>
