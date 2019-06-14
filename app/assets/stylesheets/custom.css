@@ -173,3 +173,7 @@ label.required:after {
 .tppp{
     padding: 30px;
 }
+
+.intl-tel-input{
+    display: block !important;
+}

@@ -55,4 +55,5 @@
  *= require shared/datatable
  *= require company/job_applications
  *= require navigation
+ *= require intl-tel-input-13.0.0/build/css/intlTelInput.min
  */
