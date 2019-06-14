@@ -28,11 +28,12 @@
               .m-b
                 .row.m-b
                   .col-sm-6.b-r.b-b
-                    .el-tablo.centered.padded-v
-                      .value
-                        = current_company.jobs.not_system_generated.count
-                      .label
-                        Job
+                    = link_to jobs_path do
+                      .el-tablo.centered.padded-v
+                        .value
+                          = current_company.jobs.not_system_generated.count
+                        .label
+                          Job
                   .col-sm-6.b-b
                     .el-tablo.centered.padded-v
                       .value
@@ -97,7 +98,7 @@
                       - @jobs.each do |j|
                         %tr
                           %td.nowrap
-                            =j.title
+                            =link_to j.title, job_path(j)
                           %td
                             =j.location
                           %td.text-right
@@ -159,7 +160,7 @@
                       - @training.each do |t|
                         %tr
                           %td.nowrap
-                            =t.title
+                            =link_to t.title, job_path(t)
                           %td
                             =t.location
                           %td.text-right
