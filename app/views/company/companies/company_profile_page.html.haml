@@ -35,11 +35,12 @@
                         .label
                           Job
                   .col-sm-6.b-b
-                    .el-tablo.centered.padded-v
-                      .value
-                        = current_company.company_contacts.count
-                      .label
-                        contact
+                    = link_to contracts_path do
+                      .el-tablo.centered.padded-v
+                        .value
+                          = current_company.company_contacts.count
+                        .label
+                          contracts
                 .padded
                   .os-progress-bar.primary
                     .bar-labels
