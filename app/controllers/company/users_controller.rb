@@ -58,6 +58,7 @@ class Company::UsersController < Company::BaseController
     @cards["BENCH"] = current_company.candidates.where(company_id: current_company.id).where(created_at: start_date...end_date).count
     @cards["APPLICATION"] = current_company.received_job_applications.where(created_at: start_date...end_date).count
     @cards["STATUS"] = Company.status_count(current_company,start_date,end_date)
+    @cards["ACTIVE"] = params[:filter]
   end
 
   def get_start_date

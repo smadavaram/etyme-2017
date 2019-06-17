@@ -37,35 +37,26 @@
     </div>
     <!--------------------END - Messages Link in secondary top menu-------------------->
     <!--------------------START - Features Link in secondary top menu-------------------->
-    <div class="top-icon top-settings os-dropdown-trigger os-dropdown-position-left">
+    <div class="top-icon top-settings os-dropdown-trigger os-dropdown-position-left over">
       <i class="fa fa-plus"></i>
       <div class="os-dropdown" style="width: 600px;">
         <div class="icon-w">
           <i class="os-icon os-icon-ui-46"></i>
         </div>
+          <a class="mr-2 mb-2 btn btn-primary btn-rounded" href="<%= new_company_candidate_path %>">
+            <span>Add Candidates</span>
+          </a>
+          <a class="mr-2 mb-2 btn btn-primary btn-rounded" href="<%= new_company_company_path %>">
+            <span>Add Companies</span>
+          </a>
+          <a class="mr-2 mb-2 btn btn-primary btn-rounded" href="<%= new_company_company_path %>">
+            <span>Add Contacts</span>
+          </a>
+          <a class="mr-2 mb-2 btn btn-primary btn-rounded" href="<%= new_group_path %>">
+            <span>Add Groups</span>
+          </a>
+
         <ul style="display: inline-block; vertical-align: top; width: 180px;">
-          <li class="sub-header"><h6 class="text-white font-weight-bold">Master</h6></li>
-          <li>
-            <a href="<%= new_company_candidate_path %>">
-              <span>Add Candidates</span>
-            </a>
-          </li>
-          <li>
-            <a href="<%= new_company_company_path %>">
-              <span>Add Companies</span>
-            </a>
-          </li>
-          <li>
-            <a href="<%= new_company_company_path %>">
-              <span>Add Contacts</span>
-            </a>
-          </li>
-          <li>
-            <a href="<%= new_group_path %>">
-              <span>Add Groups</span>
-            </a>
-          </li>
-          <br/>
           <li class="sub-header"><h6 class="text-white font-weight-bold">Payments</h6></li>
           <li>
             <a href="<%= nil %>">
@@ -248,12 +239,6 @@
                 </a>
               </li>
               <li>
-                <a href="<%= groups_path %>">
-                  <i class="icon-people"></i>
-                  <span>Groups</span>
-                </a>
-              </li>
-              <li>
                 <a href="<%= company_import_job_path %>">
                   <i class="dripicons-list"></i>
                   <span>Import Data</span>
@@ -262,7 +247,7 @@
               <li>
                 <a href="<%= feed_feeds_path %>">
                   <i class="icon-directions"></i>
-                  <span>Marketplace</span>
+                  <span>Integrations</span>
                 </a>
               </li>
               <li>

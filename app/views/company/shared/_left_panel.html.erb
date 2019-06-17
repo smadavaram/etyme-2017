@@ -1,8 +1,7 @@
-<div class="menu-w color-scheme-light color-style-default menu-position-side menu-side-left menu-layout-compact sub-menu-style-flyout sub-menu-color-light selected-menu-color-light menu-activated-on-hover menu-has-selected-link">
+<div class="menu-w color-scheme-light fixed-height color-style-default menu-position-side menu-side-left menu-layout-compact sub-menu-style-flyout sub-menu-color-light selected-menu-color-light menu-activated-on-hover menu-has-selected-link">
   <div class="logo-w">
     <a class="logo" href="/dashboard">
-      <div class="logo-element"></div>
-      <div class="logo-label">eTyme</div>
+      <%= image_tag 'etyme-logo-dark.png', alt: SITE_NAME, style: 'width: 62px; height: 30px;' %>
     </a>
   </div>
   <div class="logged-user-w avatar-inline">
@@ -17,19 +16,21 @@
         <!--div class="logged-user-role">My Team</div-->
       </div>
     </div>
-    <h1 class="menu-page-header">eTyme</h1>
-    <div class="row side-bar_nav w-100">
+  </div>
+  <div class="logged-user-w avatar-inline pl-4 pt-0">
+<!--    <div class="side-bar_nav w-100" style="height: 450px;overflow-y: auto;">-->
+    <div class="side-bar_nav w-100">
       <a href="/dashboard" class="side-bar_tab side-bar_links">
         <div class="icon-w">
           <i class="ti-home"></i>
         </div>
         <span>Home</span>
       </a>
-      <a href="<%= activities_path(index: true) %>" class="side-bar_tab side-bar_links">
+      <a href="<%= company_conversations_path %>" class="side-bar_tab side-bar_links">
         <div class="icon-w">
-          <i class="ti-pulse"></i>
+          <i class="os-icon os-icon-mail"></i>
         </div>
-        <span>Activity Log</span>
+        <span>Inbox</span>
       </a>
       <a class="sidebar_collapsible side-bar_tab">
         <div class="icon-w">
@@ -37,23 +38,23 @@
         </div>
         <span>Network</span>
       </a>
-      <div class="ml-5 pl-2 w-100 text-justify nav-sidebar-collaps ml-4 pt-1 pb-0">
-        <a href="<%= groups_path %>" class="side-bar_links nested_tab boarder_bottom">Groups</a>
-        <a href="<%= directories_path %>" class="side-bar_links nested_tab boarder_bottom">My Directory</a>
-        <a href="<%= candidates_path %>" class="side-bar_links nested_tab boarder_bottom">Candidates</a>
-        <a href="<%= companies_path %>" class="side-bar_links nested_tab boarder_bottom">Companies</a>
-        <a href="<%= company_contacts_company_companies_path %>" class="side-bar_links nested_tab boarder_bottom">Contacts</a>
+      <div class="pl-4 w-100 text-justify nav-sidebar-collaps">
+        <a href="<%= groups_path %>" class="l2 side-bar_links nested_tab boarder_bottom">Groups</a>
+        <a href="<%= directories_path %>" class=" l2 side-bar_links nested_tab boarder_bottom">My Directory</a>
+        <a href="<%= candidates_path %>" class="l2 side-bar_links nested_tab boarder_bottom">Candidates</a>
+        <a href="<%= companies_path %>" class="l2 side-bar_links nested_tab boarder_bottom">Companies</a>
+        <a href="<%= company_contacts_company_companies_path %>" class="l2 side-bar_links nested_tab boarder_bottom">Contacts</a>
         <a class="sidebar_collapsible nested_tab">
           <div class="icon-w">
             <i class="ti-bar-chart"></i>
           </div>
           <span>Supplier</span>
         </a>
-        <div class="pl-4 w-100 text-justify nav-sidebar-collaps">
-          <a href="<%= companies_path(status: 'all') %>" class="side-bar_links nested_tab boarder_bottom">All
+        <div class="pl-4 w-100 l3 text-justify nav-sidebar-collaps">
+          <a href="<%= companies_path(status: 'all') %>" class=" side-bar_links nested_tab boarder_bottom">All
             Companies</a>
-          <a href="<%= prefer_vendors_path %>" class="side-bar_links nested_tab boarder_bottom">Network Requests</a>
-          <a href="<%= network_path %>" class="side-bar_links nested_tab boarder_bottom">Clients / Vendors</a>
+          <a href="<%= prefer_vendors_path %>" class=" side-bar_links nested_tab boarder_bottom">Network Requests</a>
+          <a href="<%= network_path %>" class=" side-bar_links nested_tab boarder_bottom">Clients / Vendors</a>
         </div>
         <a class="sidebar_collapsible nested_tab">
           <div class="icon-w">
@@ -61,11 +62,11 @@
           </div>
           <span>Bench</span>
         </a>
-        <div class="pl-4 w-100 text-justify nav-sidebar-collaps">
-          <a href="<%= company_bench_jobs_path %>" class="side-bar_links nested_tab boarder_bottom">My Bench</a>
-          <a href="<%= company_job_receives_path %>" class="side-bar_links nested_tab boarder_bottom">Received</a>
-          <a href="<%= company_public_jobs_path %>" class="side-bar_links nested_tab boarder_bottom">Public</a>
-          <a href="<%= company_owen_jobs_path %>" class="side-bar_links nested_tab boarder_bottom">Bench Jobs</a>
+        <div class="pl-4 w-100 l3 text-justify nav-sidebar-collaps">
+          <a href="<%= company_bench_jobs_path %>" class=" side-bar_links nested_tab boarder_bottom">My Bench</a>
+          <a href="<%= company_job_receives_path %>" class=" side-bar_links nested_tab boarder_bottom">Received</a>
+          <a href="<%= company_public_jobs_path %>" class=" side-bar_links nested_tab boarder_bottom">Public</a>
+          <a href="<%= company_owen_jobs_path %>" class=" side-bar_links nested_tab boarder_bottom">Bench Jobs</a>
         </div>
       </div>
       <a class="sidebar_collapsible side-bar_tab">
@@ -74,74 +75,83 @@
         </div>
         <span>Jobs / Offers</span>
       </a>
-      <div class="ml-5 pl-2 w-100 text-justify nav-sidebar-collaps">
-        <a href="<%= jobs_path %>" class="side-bar_links nested_tab boarder_bottom">All Posted Jobs</a>
-        <a href="<%= job_invitations_path %>" class="side-bar_links nested_tab boarder_bottom">Invitations</a>
-        <a href="<%= job_applications_path %>" class="side-bar_links nested_tab boarder_bottom">Applicants</a>
+      <div class="pl-4 w-100 text-justify nav-sidebar-collaps">
+        <a href="<%= jobs_path %>" class=" l2 side-bar_links nested_tab boarder_bottom">All Posted Jobs</a>
+        <a href="<%= job_invitations_path %>" class="l2 side-bar_links nested_tab boarder_bottom">Invitations</a>
+        <a href="<%= job_applications_path %>" class="l2 side-bar_links nested_tab boarder_bottom">Applicants</a>
       </div>
       <a class="sidebar_collapsible side-bar_tab">
         <div class="icon-w">
           <i class="os-icon os-icon-hierarchy-structure-2"></i>
         </div>
-        <span>HR</span>
+        <span>Contract</span>
       </a>
-      <div class="ml-5 pl-2 w-100 text-justify nav-sidebar-collaps">
-        <a class="side-bar_links nested_tab boarder_bottom" href="<%= contracts_path %>">Contracts</a>
-        <a class="side-bar_links nested_tab boarder_bottom" href="<%= company_sell_contracts_path %>">Sell</a>
-        <a class="side-bar_links nested_tab boarder_bottom" href="<%= company_buy_contracts_path %>">Buy</a>
-        <a class="side-bar_links nested_tab boarder_bottom" href="<%= timeline_contracts_path %>">Timeline</a>
+      <div class="pl-4 w-100 text-justify nav-sidebar-collaps">
+        <!--        <a class="side-bar_links nested_tab boarder_bottom" href="<%#= contracts_path %>">Contracts</a>-->
+        <a class="l2 side-bar_links nested_tab boarder_bottom" href="<%= company_sell_contracts_path %>">Sell</a>
+        <a class="l2 side-bar_links nested_tab boarder_bottom" href="<%= company_buy_contracts_path %>">Buy</a>
+        <a class="l2 side-bar_links nested_tab boarder_bottom" href="<%= timeline_contracts_path %>">Timeline</a>
       </div>
-      <span class="side-bar_tab tab-divider">REPORTING</span>
+      <a class="side-bar_tab tab-divider text-primary">REPORTING</a>
       <a class="sidebar_collapsible side-bar_tab">
         <div class="icon-w">
-          <i class="icon-handbag"></i>
+          <i class="picons-thin-icon-thin-0417_calculator"></i>
         </div>
-        <span>Sales</span>
+        <span>Accounting</span>
       </a>
-      <div class="ml-5 pl-2 w-100 text-justify nav-sidebar-collaps">
-        <% if has_permission?('show_invoices') || has_permission?('manage_contracts') %>
-          <a href="<%= invoices_path %>" class="side-bar_links nested_tab boarder_bottom">Open Invoices</a>
-          <a href="<%= cleared_invoice_invoices_path %>" class="side-bar_links nested_tab boarder_bottom">Cleared
-            Invoices</a>
-        <% end %>
-        <a href="<%= recieved_payment_company_accountings_path %>" class="side-bar_links nested_tab boarder_bottom">Payments</a>
-      </div>
-      <a class="sidebar_collapsible side-bar_tab">
-        <div class="icon-w">
-          <i class="ti-shopping-cart"></i>
+      <div class="pl-4 w-100 text-justify nav-sidebar-collaps">
+        <a class="sidebar_collapsible nested_tab">
+          <div class="icon-w">
+            <i class="icon-handbag"></i>
+          </div>
+          <span>Sales</span>
+        </a>
+        <div class="pl-4 w-100 text-justify l3 nav-sidebar-collaps">
+          <% if has_permission?('show_invoices') || has_permission?('manage_contracts') %>
+            <a href="<%= invoices_path %>" class="side-bar_links nested_tab boarder_bottom">Open Invoices</a>
+            <a href="<%= cleared_invoice_invoices_path %>" class="side-bar_links nested_tab boarder_bottom">Cleared
+              Invoices</a>
+          <% end %>
+          <a href="<%= recieved_payment_company_accountings_path %>" class="side-bar_links nested_tab boarder_bottom">Payments</a>
         </div>
-        <span>Purchasing</span>
-      </a>
-      <div class="ml-5 pl-2 w-100 text-justify nav-sidebar-collaps">
-        <a href="<%= bill_to_pay_company_accountings_path %>" class="side-bar_links nested_tab boarder_bottom">Open
-          Bills</a>
-        <a href="<%= bill_received_company_accountings_path %>" class="side-bar_links nested_tab boarder_bottom">Vendor
-          Bills</a>
-        <a href="<%= bill_pay_company_accountings_path %>" class="side-bar_links nested_tab boarder_bottom">Bill Pay</a>
-      </div>
-      <a class="sidebar_collapsible side-bar_tab">
-        <div class="icon-w">
-          <i class="picons-thin-icon-thin-0420_money_cash_coins_payment_dollars"></i>
+        <a class="sidebar_collapsible nested_tab">
+          <div class="icon-w">
+            <i class="ti-shopping-cart"></i>
+          </div>
+          <span>Purchasing</span>
+        </a>
+        <div class="pl-4 w-100 l3 text-justify nav-sidebar-collaps">
+          <a href="<%= bill_to_pay_company_accountings_path %>" class="side-bar_links nested_tab boarder_bottom">Open
+            Bills</a>
+          <a href="<%= bill_received_company_accountings_path %>" class="side-bar_links nested_tab boarder_bottom">Vendor
+            Bills</a>
+          <a href="<%= bill_pay_company_accountings_path %>" class="side-bar_links nested_tab boarder_bottom">Bill
+            Pay</a>
         </div>
-        <span>Salaries</span>
-      </a>
-      <div class="ml-5 pl-2 w-100 text-justify nav-sidebar-collaps">
-        <a href="<%= salary_to_pay_company_accountings_path %>" class="side-bar_links nested_tab boarder_bottom">Salary
-          to Pay</a>
-        <a href="<%= salary_list_salaries_path %>" class="side-bar_links nested_tab boarder_bottom">Salary Advance</a>
-        <a href="<%= report_salaries_path %>" class="side-bar_links nested_tab boarder_bottom">Salary Calculations</a>
-        <a href="#" class="side-bar_links nested_tab boarder_bottom">Salary Payments</a>
-      </div>
-      <a class="sidebar_collapsible side-bar_tab">
-        <div class="icon-w">
-          <i class="icon-plane"></i>
+        <a class="sidebar_collapsible nested_tab">
+          <div class="icon-w">
+            <i class="picons-thin-icon-thin-0420_money_cash_coins_payment_dollars"></i>
+          </div>
+          <span>Salaries</span>
+        </a>
+        <div class="pl-4 w-100 l3 text-justify nav-sidebar-collaps">
+          <a href="<%= salary_to_pay_company_accountings_path %>" class="side-bar_links nested_tab boarder_bottom">Salary
+            to Pay</a>
+          <a href="<%= salary_list_salaries_path %>" class="side-bar_links nested_tab boarder_bottom">Salary Advance</a>
+          <a href="<%= report_salaries_path %>" class="side-bar_links nested_tab boarder_bottom">Salary Calculations</a>
+          <a href="#" class="side-bar_links nested_tab boarder_bottom">Salary Payments</a>
         </div>
-        <span>Expenses</span>
-      </a>
-      <div class="ml-5 pl-2 w-100 text-justify nav-sidebar-collaps">
-        <a href="#" class="side-bar_links nested_tab boarder_bottom">Open Bills</a>
-        <a href="#" class="side-bar_links nested_tab boarder_bottom">Bill Payments</a>
-        <a href="#" class="side-bar_links nested_tab boarder_bottom">Expense Payments</a>
+        <a class="sidebar_collapsible nested_tab">
+          <div class="icon-w">
+            <i class="icon-plane"></i>
+          </div>
+          <span>Expenses</span>
+        </a>
+        <div class="pl-4 w-100 l3 text-justify nav-sidebar-collaps">
+          <a href="#" class="side-bar_links nested_tab boarder_bottom">Open Bills</a>
+          <a href="#" class="side-bar_links nested_tab boarder_bottom">Bill Payments</a>
+          <a href="#" class="side-bar_links nested_tab boarder_bottom">Expense Payments</a>
+        </div>
       </div>
       <a class="sidebar_collapsible side-bar_tab">
         <div class="icon-w">
@@ -149,26 +159,27 @@
         </div>
         <span>Reporting</span>
       </a>
-      <div class="ml-5 pl-2 w-100 text-justify nav-sidebar-collaps">
-        <a href="#" class="side-bar_links nested_tab boarder_bottom">All Reports</a>
+      <div class="pl-4 w-100 text-justify nav-sidebar-collaps">
+        <a href="#" class="l2 side-bar_links nested_tab boarder_bottom">All Reports</a>
       </div>
-      <div class="side-bar_icons">
-        <a class="">
-          <div class="icon-w">
-            <i class="os-icon os-icon-search"></i>
-          </div>
-        </a>
-        <a class="">
-          <div class="icon-w">
-            <i class="ti-world"></i>
-          </div>
-        </a>
-        <a class="">
-          <div class="icon-w">
-            <i class="ti-settings"></i>
-          </div>
-        </a>
-      </div>
+    </div>
+<!--    <div class="side-bar_icons buttons-stickky">-->
+    <div class="side-bar_icons">
+      <a class="">
+        <div class="icon-w">
+          <i class="os-icon os-icon-search"></i>
+        </div>
+      </a>
+      <a class="">
+        <div class="icon-w">
+          <i class="ti-world"></i>
+        </div>
+      </a>
+      <a class="">
+        <div class="icon-w">
+          <i class="ti-settings"></i>
+        </div>
+      </a>
     </div>
   </div>
 </div>

@@ -7,10 +7,19 @@
             .element-wrapper
               %h6.element-header
                 Dashboard
-                %a.pull-right.btn.btn-sm.btn-primary.mt-1.mr-1{href: filter_cards_data_path("month"), "data-remote" => "true"} Month
-                %a.pull-right.btn.btn-sm.btn-primary.mt-1.mr-1{href: filter_cards_data_path("quarter"), "data-remote" => "true"} Quarter
-                %a.pull-right.btn.btn-sm.btn-primary.mt-1.mr-1{href: filter_cards_data_path("year"), "data-remote" => "true"} year
-                %input.pull-right.mr-1{id: 'custom_range', plceholder: 'Custom Rage Search', "data-date-format" => "DD/MM/YYYY"}
+                .d-inline-block.pull-right
+                  %ul.nav.nav-tabs.smaller{style: "border-bottom: none;"}
+                    %li.nav-item
+                      %a{class: "nav-link active fd year", href: filter_cards_data_path("year"),"data-toggle" => "tab", "data-remote" => "true"} year
+                    %li.nav-item
+                      %a{class: "nav-link fd quarter ", href: filter_cards_data_path("quarter"),"data-toggle" => "tab", "data-remote" => "true"} Quarter
+                    %li.nav-item
+                      %a{class: "nav-link fd month", href: filter_cards_data_path("month"),"data-toggle" => "tab", "data-remote" => "true"} Month
+                    %li.nav-item
+                      %a{class: "nav-link fd period", "data-toggle" => "tab"} Custom Range
+                    %li.nav-item
+                      %input{class: 'pull-right nav-link', id: 'custom_range', plceholder: 'Custom Rage Search', "data-date-format" => "DD/MM/YYYY"}
+
               .element-content#dashboard_cards
                 =render 'company/users/partials/dashboard_cards', cards: @cards
         .col-sm-9
@@ -257,13 +266,13 @@
           .el-buttons-list.full-width
             %a.btn.btn-white.btn-sm{:href => "#"}
               %i.os-icon.os-icon-delivery-box-2
-              %span Create New Product
+              %span Add Job
             %a.btn.btn-white.btn-sm{:href => "#"}
               %i.os-icon.os-icon-window-content
-              %span Customer Comments
+              %span Add Contract
             %a.btn.btn-white.btn-sm{:href => "#"}
               %i.os-icon.os-icon-wallet-loaded
-              %span Store Settings
+              %span Setup Company
       - if @directory.present?
         .element-wrapper
           %h6.element-header
