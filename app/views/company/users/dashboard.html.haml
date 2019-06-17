@@ -2,26 +2,23 @@
   .content-i
     .content-box
       .row
-        .col-sm-12
-          .row
-            .element-wrapper
-              %h6.element-header
-                Dashboard
-                .d-inline-block.pull-right
-                  %ul.nav.nav-tabs.smaller{style: "border-bottom: none;"}
-                    %li.nav-item
-                      %a{class: "nav-link active fd year", href: filter_cards_data_path("year"),"data-toggle" => "tab", "data-remote" => "true"} year
-                    %li.nav-item
-                      %a{class: "nav-link fd quarter ", href: filter_cards_data_path("quarter"),"data-toggle" => "tab", "data-remote" => "true"} Quarter
-                    %li.nav-item
-                      %a{class: "nav-link fd month", href: filter_cards_data_path("month"),"data-toggle" => "tab", "data-remote" => "true"} Month
-                    %li.nav-item
-                      %a{class: "nav-link fd period", "data-toggle" => "tab", style: "color: rgba(0, 0, 0, 0.3);"} Custom Range
-                    %li.nav-item
-                      %input{class: 'pull-right nav-link', id: 'custom_range', plceholder: 'Custom Rage Search', "data-date-format" => "DD/MM/YYYY"}
-
-              .element-content#dashboard_cards
-                =render 'company/users/partials/dashboard_cards', cards: @cards
+        .element-wrapper.w-100
+          %h6.element-header
+            Dashboard
+          .row.mb-4{style: "justify-content: end;"}
+            %ul.nav.nav-tabs.smaller.float-right{style: "border-bottom: none;"}
+              %li.nav-item
+                %a{class: "nav-link active fd year", href: filter_cards_data_path("year"),"data-toggle" => "tab", "data-remote" => "true"} year
+              %li.nav-item
+                %a{class: "nav-link fd quarter ", href: filter_cards_data_path("quarter"),"data-toggle" => "tab", "data-remote" => "true"} Quarter
+              %li.nav-item
+                %a{class: "nav-link fd month", href: filter_cards_data_path("month"),"data-toggle" => "tab", "data-remote" => "true"} Month
+              -#%li.nav-item
+              -#  %a{class: "nav-link fd period", "data-toggle" => "tab", href: "#"} Custom Range
+              %li.nav-item
+                %input{class: 'pull-right nav-link', id: 'custom_range', plceholder: 'Custom Rage Search', "data-date-format" => "DD/MM/YYYY"}
+          .element-content#dashboard_cards
+            =render 'company/users/partials/dashboard_cards', cards: @cards
         .col-sm-9
           .element-wrapper
             %h6.element-header
