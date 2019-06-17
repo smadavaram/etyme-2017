@@ -84,7 +84,7 @@
         <div class="icon-w">
           <i class="os-icon os-icon-hierarchy-structure-2"></i>
         </div>
-        <span>Contract</span>
+        <span>Contract(s)</span>
       </a>
       <div class="pl-4 w-100 text-justify nav-sidebar-collaps">
         <!--        <a class="side-bar_links nested_tab boarder_bottom" href="<%#= contracts_path %>">Contracts</a>-->
@@ -92,7 +92,17 @@
         <a class="l2 side-bar_links nested_tab boarder_bottom" href="<%= company_buy_contracts_path %>">Buy</a>
         <a class="l2 side-bar_links nested_tab boarder_bottom" href="<%= timeline_contracts_path %>">Timeline</a>
       </div>
-      <a class="side-bar_tab tab-divider text-primary">REPORTING</a>
+      <a class="sidebar_collapsible side-bar_tab">
+        <div class="icon-w">
+          <i class="ti-timer"></i>
+        </div>
+        <span>Timesheets</span>
+      </a>
+      <div class="pl-4 w-100 text-justify nav-sidebar-collaps">
+        <a href="<%= timesheets_path %>" class=" l2 side-bar_links nested_tab boarder_bottom">Submitted</a>
+        <a href="<%= approved_timesheets_path %>" class="l2 side-bar_links nested_tab boarder_bottom"> Approved</a>
+        <a href="<%= job_applications_path %>" class="l2 side-bar_links nested_tab boarder_bottom">Applicants</a>
+      </div>
       <a class="sidebar_collapsible side-bar_tab">
         <div class="icon-w">
           <i class="picons-thin-icon-thin-0417_calculator"></i>
@@ -153,15 +163,7 @@
           <a href="#" class="side-bar_links nested_tab boarder_bottom">Expense Payments</a>
         </div>
       </div>
-      <a class="sidebar_collapsible side-bar_tab">
-        <div class="icon-w">
-          <i class="ti-bar-chart"></i>
-        </div>
-        <span>Reporting</span>
-      </a>
-      <div class="pl-4 w-100 text-justify nav-sidebar-collaps">
-        <a href="#" class="l2 side-bar_links nested_tab boarder_bottom">All Reports</a>
-      </div>
+
     </div>
 <!--    <div class="side-bar_icons buttons-stickky">-->
     <div class="side-bar_icons">
