@@ -62,7 +62,7 @@ end
 # Bullettrain uses this to detect the size of the logo assets.
 gem 'fastimage'
 
-
+gem 'ancestry'
 
 #****************************
 # DataBase

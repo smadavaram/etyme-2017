@@ -47,6 +47,8 @@ GEM
       sshkit (>= 1.6.1, != 1.7.0)
     ajax-datatables-rails (1.0.0)
       railties (>= 4.2)
+    ancestry (3.0.7)
+      activerecord (>= 3.2.0)
     annotate (2.7.5)
       activerecord (>= 3.2, < 7.0)
       rake (>= 10.4, < 13.0)
@@ -449,6 +451,7 @@ PLATFORMS
 DEPENDENCIES
   acts-as-taggable-on
   ajax-datatables-rails
+  ancestry
   annotate
   awesome_print
   bcrypt_pbkdf (< 2.0)

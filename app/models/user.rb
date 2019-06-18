@@ -3,6 +3,8 @@ class User < ApplicationRecord
   include DomainExtractor
   include ApplicationHelper
 
+  has_ancestry
+
   EXCLUDED_EMAIL_DOMAINS = %w[gmail yahoo rediff facebookmail].freeze
   # Include default devise modules. Others available are:
   # :confirmable, :lockable, :timeoutable and :omniauthable
