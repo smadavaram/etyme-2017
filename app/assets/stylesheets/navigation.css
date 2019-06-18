@@ -164,3 +164,14 @@
     height: 100vh;
     overflow-y: auto;
 }
+
+@media only screen and (max-width: 786px) {
+    .os-dropdown-position-left {
+        margin: 0px !important;
+        margin-right: 0px;
+        margin-right: 8px !important;
+    }
+    .new-messages-count{
+        right: -10px !important;
+    }
+}

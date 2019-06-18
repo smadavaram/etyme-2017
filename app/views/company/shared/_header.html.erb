@@ -1,18 +1,16 @@
 <div class="top-bar color-scheme-transparent" style="z-index: 10000;">
   <!--------------------START - Top Menu Controls-------------------->
-  <div class="top-menu-controls">
-    <div class="element-search autosuggest-search-activator">
+  <div class="top-menu-controls w-100" style="display: flex; justify-content: flex-end;">
+    <div class="element-search autosuggest-search-activator os-dropdown-position-left">
       <input placeholder="Find reports and more" type="text">
     </div>
     <!--   START Notifications -->
-
     <div class="messages-notifications os-dropdown-trigger os-dropdown-position-left">
       <a href="<%= notify_notifications_company_users_path(status: "unread", notification_type: "new_application") %>"><i class="ti-bell"></i></a>
       <% if current_user.notifications.unread.count > 0 %>
         <div class="new-messages-count"><%= current_user.notifications.unread.count %></div>
       <% end %>
     </div>
-
     <!--   END Notifications -->
     <!--------------------START - Messages Link in secondary top menu-------------------->
     <div class="messages-notifications os-dropdown-trigger os-dropdown-position-left">

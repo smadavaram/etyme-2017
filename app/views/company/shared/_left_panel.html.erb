@@ -1,17 +1,17 @@
 <div class="menu-w color-scheme-light fixed-height color-style-default menu-position-side menu-side-left menu-layout-compact sub-menu-style-flyout sub-menu-color-light selected-menu-color-light menu-activated-on-hover menu-has-selected-link">
-  <div class="logo-w">
-    <a class="logo" href="/dashboard">
-      <%= image_tag 'etyme-logo-dark.png', alt: SITE_NAME, style: 'width: 62px; height: 30px;' %>
-    </a>
-  </div>
-  <div class="logged-user-w avatar-inline">
+<!--  <div class="logo-w">-->
+<!--    <a class="logo" href="/dashboard">-->
+      <%#= image_tag 'etyme-logo-dark.png', alt: SITE_NAME, style: 'width: 62px; height: 30px;' %>
+<!--    </a>-->
+<!--  </div>-->
+  <div class="logged-user-w avatar-inline p-1 m-1">
     <div class="logged-user-i">
       <div class="avatar-w">
         <%= link_to image_tag(current_company.logo, alt: 'me'), company_profile_page_companies_path %>
       </div>
       <div class="logged-user-info-w">
         <div class="logged-user-name">
-          <%= link_to current_company.full_name, company_profile_page_companies_path, class: "text-muted" %>
+          <%= link_to content_tag(:span, current_company.full_name, class:"lead") , company_profile_page_companies_path,class: "side-bar_links" %>
         </div>
         <!--div class="logged-user-role">My Team</div-->
       </div>

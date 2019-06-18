@@ -5,7 +5,7 @@
         .element-wrapper.w-100
           %h6.element-header
             Dashboard
-          .row.mb-4{style: "justify-content: end;"}
+          .row.mb-4{style: "justify-content: flex-end;"}
             %ul.nav.nav-tabs.smaller.float-right{style: "border-bottom: none;"}
               %li.nav-item
                 %a{class: "nav-link active fd year", href: filter_cards_data_path("year"),"data-toggle" => "tab", "data-remote" => "true"} year
@@ -261,7 +261,7 @@
           Quick Links
         .element-box-tp
           .el-buttons-list.full-width
-            %a.btn.btn-white.btn-sm{:href => "#"}
+            %a.btn.btn-white.btn-sm{:href => new_job_path}
               %i.os-icon.os-icon-delivery-box-2
               %span Add Job
             %a.btn.btn-white.btn-sm{:href => "#"}
@@ -412,7 +412,7 @@
         }
     });
     $("#custom_range").change(function(){
-      url = "/filter_data/period?start_date=" + $(this).val().split('-').map(String.trim).join("&end_date=")
+      url = "/filter_data/period?start_date=" + $(this).val().replace(/\s+/g, "").split('-').join("&end_date=")
       $.get(url);
     });
     $(".directory-search").on('keydown',function () {

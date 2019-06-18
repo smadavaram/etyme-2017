@@ -91,7 +91,7 @@
         }
       });
       $("#custom_range").change(function(){
-        url = "/candidate/filter_data/period?start_date=" + $(this).val().split('-').map(String.trim).join("&end_date=")
+        url = "/candidate/filter_data/period?start_date=" + $(this).val().replace(/\s+/g, "").split('-').join("&end_date=")
         $.get(url);
       });
 
