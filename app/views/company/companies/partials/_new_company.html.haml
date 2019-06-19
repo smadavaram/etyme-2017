@@ -71,8 +71,10 @@
     function validate_email() {
       var email = $('#company_company_contacts_attributes_0_email').val();
       var split_email = email.split("@");
-      checkDomain(split_email[1] ,split_email[1].split(".")[0])
+      //checkDomain(split_email[1] ,split_email[1].split(".")[0])
       // checkDomain(split_email[1])
+      $("#company_slug").val(split_email[1].split(".")[0]);
+      $("#company_domain").val(split_email[1].split(".")[0]);
     }
 
     //function validate_domain() {
