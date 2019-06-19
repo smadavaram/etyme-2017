@@ -63,7 +63,7 @@ end
 gem 'fastimage'
 
 gem 'ancestry'
-
+gem 'rails-jquery-autocomplete'
 #****************************
 # DataBase
 #****************************

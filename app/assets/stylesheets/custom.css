@@ -187,3 +187,4 @@ label.required:after {
     display: block !important;
 }
 
+.ui-autocomplete { z-index:2147483647 !important;}

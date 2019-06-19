@@ -1,0 +1,6 @@
+$("#modals").html("<%= j render "company/admins/partials/add_team_member_modal", user: @user %>")
+$("#add_team_members_of_<%=@user.id%>").modal("show");
+$('#user_autocomplete_field').bind('railsAutocomplete.select', function(event, data){
+  $('#add_child_link').attr('href',$('#add_child_link').attr('href').split('add_as_child/')[0]+'add_as_child/'+data.item.id)
+  $('#add_child_link').addClass('d-inline-block')
+});

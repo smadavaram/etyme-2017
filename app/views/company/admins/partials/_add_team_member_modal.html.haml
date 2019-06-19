@@ -1,0 +1,33 @@
+-#.modal{ id: "add_team_members_of_#{user.id}"}
+-#  .modal-dialog
+-#    .modal-content
+-#      .modal-header
+-#        %h2#PageTitle.modal-title
+-#          %strong Add User To Team
+-#        %button.close{"aria-hidden" => "true", "data-dismiss" => "modal", :type => "button"}
+-#          ×
+-#      .modal-body#prescreen-modal-body
+-#        .big-links_widget
+-#          =form_with modal: user do |f|
+-#            =f.autocomplete_field :user_name, autocomplete_user_email_admins_path
+-#      .modal-footer
+-#        %button.btn.mt-12.margin-right-5.btn-primary{"data-dismiss"=>"modal", "type"=>"button"} Cancel
+
+.modal{id: "add_team_members_of_#{user.id}", "aria-labelledby" => "add_team_members", :role => "dialog"}
+  .modal-dialog{:role => "document"}
+    .modal-content
+      .modal-header
+        %h5#add_team_members.modal-title Add User To Team
+        %button.close{"aria-label" => "Close", "data-dismiss" => "modal", :type => "button"}
+          %span{"aria-hidden" => "true"} ×
+      .modal-body
+        .form-group
+          .row
+            .col-sm-12#search-field_box
+              %label{:class => "d-block"} Search By Email
+              %input.w-75.d-inline-block.form-control#user_autocomplete_field{:placeholder => "Enter email partials","data-auto-focus" => true,'data-noMatchesLabel' => 'no user found', "data-autocomplete" => "/admins/autocomplete_user_email"}/
+              %a{href: admin_add_as_child_path(user,0),id: "add_child_link","data-remote"=>"true", class: "btn btn-secondary d-none", style: "padding: 10px; height: 37px;"} ADD TO TEAM
+        #team_members
+          =render "company/admins/partials/team_members", user: user
+      .modal-footer
+        -#%button.btn.btn-secondary{"data-dismiss" => "modal", :type => "button"} Close
