@@ -131,6 +131,7 @@ class Company < ApplicationRecord
   after_create      :set_owner_company_id , if: Proc.new{|com| com.owner.present?}
   after_create      :welcome_email_to_owner, if: Proc.new{|comp| !comp.invited_by.present?}
   after_create      :create_defult_roles
+  after_create      :create_associated_roles
   # after_create  :set_account_on_seq
 
   scope :vendors, -> {where(company_type: 1)}
@@ -256,6 +257,10 @@ class Company < ApplicationRecord
                                         }
                                      })
 
+  end
+
+  def create_associated_roles
+    self.roles.create(name: "Manager")
   end
 
 end

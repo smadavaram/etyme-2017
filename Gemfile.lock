@@ -47,6 +47,8 @@ GEM
       sshkit (>= 1.6.1, != 1.7.0)
     ajax-datatables-rails (1.0.0)
       railties (>= 4.2)
+    ancestry (3.0.7)
+      activerecord (>= 3.2.0)
     annotate (2.7.5)
       activerecord (>= 3.2, < 7.0)
       rake (>= 10.4, < 13.0)
@@ -322,6 +324,8 @@ GEM
       ruby-graphviz (~> 1.2)
     rails-html-sanitizer (1.0.4)
       loofah (~> 2.2, >= 2.2.2)
+    rails-jquery-autocomplete (1.0.5)
+      rails (>= 3.2)
     rails_12factor (0.0.3)
       rails_serve_static_assets
       rails_stdout_logging
@@ -449,6 +453,7 @@ PLATFORMS
 DEPENDENCIES
   acts-as-taggable-on
   ajax-datatables-rails
+  ancestry
   annotate
   awesome_print
   bcrypt_pbkdf (< 2.0)
@@ -517,6 +522,7 @@ DEPENDENCIES
   rails-assets-jsTimezoneDetect!
   rails-assets-tether (>= 1.1.0)!
   rails-erd
+  rails-jquery-autocomplete
   rails_12factor
   ransack
   rbnacl (< 5.0)

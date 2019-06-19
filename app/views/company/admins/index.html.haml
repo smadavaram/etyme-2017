@@ -52,8 +52,9 @@
                             = link_to raw("<i class='fa fa-edit '></i>") , edit_admin_path(admin) , class: 'btn btn-xs btn-default  margin-bottom-5' ,remote: true,title: "Edit #{admin.full_name}",'data-toggle'=>"tooltip" ,'data-placement'=>"top"
                             = link_to raw("<i class='fa fa-users '></i>"), company_user_assign_groups_path(admin) , remote:true,class: 'btn btn-xs btn-default margin-bottom-5',title: "Manage Groups",'data-toggle'=>"tooltip" ,'data-placement'=>"top"
                             = link_to raw("<i class='fa fa-trash-o '></i>"), company_user_path(admin) ,class: 'btn btn-xs btn-default margin-bottom-5',title: "Manage Groups",'data-toggle'=>"tooltip" ,'data-placement'=>"top", :method=>:delete
+                            -if admin.roles.where(name: "Manager").present?
+                              = link_to raw("<i class='os-icon os-icon-users'></i>"), admin_add_member_path(admin) ,class: 'btn btn-xs btn-default margin-bottom-5',title: "Add Team Member",'data-toggle'=>"tooltip" ,'data-placement'=>"top", remote: true
                             -#= link_to raw("<i class='fa fa-times '></i>") , admin_path(admin) , method: :delete ,  class: 'btn btn-xs btn-default btn-danger' ,title: "Delete #{admin.full_name}" ,data: {confirm: 'Are you sure?', verify: 'Confirm', verify_text: 'Type "Confirm" to confirm'}
-
                   - if @admins.count >15
                     .dt-toolbar-footer
                       =  digg_pagination(@admins)
@@ -66,6 +67,7 @@
   {
     background-color: #fafafa !important;
   }
+
 -content_for :scripts do
   :javascript
     $(document).ready(function() {
