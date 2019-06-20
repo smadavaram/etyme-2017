@@ -1,7 +1,7 @@
 class ApplicationController < ActionController::Base
 
   protect_from_forgery
-
+  before_action :set_permissions
   layout :set_devise_layout
 
   add_flash_types :error, :success, :errors, :alert
@@ -18,6 +18,9 @@ class ApplicationController < ActionController::Base
 
   # before_filter :authenticate_user!
 
+  def set_permissions
+    session[:permissions] ||= current_user.permissions.uniq.collect(&:name) if current_user
+  end
 
   def states
     render json: CS.states(params[:country].to_sym).to_json
