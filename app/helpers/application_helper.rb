@@ -1039,7 +1039,7 @@ module ApplicationHelper
   end
 
   def has_permission?(permission)
-    current_user.has_permission(permission) || current_user.is_owner?
+    session[:permissions].include?(permission) || current_user.is_owner?
   end
 
   def assign_fa_icon(group)
