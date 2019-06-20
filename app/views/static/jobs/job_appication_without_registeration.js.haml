@@ -1,3 +1,4 @@
+$('#new-candidate').modal('hide');
 $('.modals').empty().append(("#{ j render('partials/job_application_without_registration_modal' , job: @job , job_application: @job_application )}"));
 $('#job-apply-#{@job.id }').modal('toggle');
 

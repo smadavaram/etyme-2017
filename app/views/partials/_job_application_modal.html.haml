@@ -1,5 +1,5 @@
 .modal{ id: "job-apply-#{job.id}"}
-  .modal-dialog.modal-lg
+  .modal-lg.job_application_model.without-registration_modal
     .modal-content
       .modal-header
         %h2#myModalLabel.modal-title
@@ -10,18 +10,19 @@
         = form_for [:static , job,job_application], html: {class: 'form-horizontal'} do |f|
           = hidden_field_tag 'candidate_id', candidate_id if local_assigns[:candidate_id].present?
           = hidden_field_tag 'is_candidate', is_candidate if local_assigns[:is_candidate].present?
-          .row
-            =render 'static/jobs/job_application_attributes', f:f
+
           %fieldset
+            .col-sm-12
+              %label.d-block Resume
+              .file_selector{style: "display: flex;"}
+                .form-group.d-inline-block
+                  = f.filepicker_field :applicant_resume , class: 'btn btn-primary file-pick'  , id: 'accept-filepiker' ,onchange: 'display_file_name(event)',"data-fp-extensions" => ".pdf,.doc,.docx,.txt"
+                %p.d-inline-block.uploaded_file_name  No File Selected
             .form-group
               %label.col-md-2.control-label Cover Letter
               .col-md-12
                 =  f.text_area :cover_letter , class: "form-control tinymce", rows: 8, cols: 25, placeholder: 'Cover Letter'
                 =  tinymce :default
-            .form-group
-              %label.col-md-2.control-label Resume
-              .col-md-12
-                = f.filepicker_field :applicant_resume , class: 'btn btn-primary file-pick'  , id: 'accept-filepiker' ,"data-fp-extensions" => ".pdf,.doc,.docx,.txt"
             .form-group
               %label.col-md-2.control-label Message (optional)
               .col-md-12

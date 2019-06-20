@@ -14,6 +14,12 @@
 
           .form-group.candidate-association
             .row
+              .col-sm-12
+                %label.d-block Resume
+                .file_selector{style: "display: flex;"}
+                  .form-group.d-inline-block
+                    = f.filepicker_field :applicant_resume , class: 'btn btn-primary file-pick'  , id: 'accept-filepiker' ,onchange: 'display_file_name(event)',"data-fp-extensions" => ".pdf,.doc,.docx,.txt"
+                  %p.d-inline-block.uploaded_file_name  No File Selected
               = f.fields_for :job_application_without_registrations do |b|
                 .col-sm-6
                   %lable First Name
@@ -31,20 +37,6 @@
                   %label Phone
                   .form-group
                     = b.text_field :phone,placeholder: "Phone",class: 'form-control input'
-                .col-sm-6
-                  %label Visa
-                  .form-group
-                    = b.text_field :visa,placeholder: "Visa",class: 'form-control input'
-                .col-sm-3
-                  %label Title
-                  .form-group
-                    = b.text_field :title,placeholder: "Title",class: 'form-control input'
-                .col-sm-3
-                  %label Roal
-                  .form-group
-                    = b.text_field :roal,placeholder: "Roal",class: 'form-control input'
-              = render 'static/jobs/job_application_attributes', f: f
-
 
             .row
               .col-sm-12
@@ -55,28 +47,9 @@
             .row
               .col-sm-12
                 .form-group
-                  %p Resume
-                  = f.filepicker_field :applicant_resume , class: 'btn btn-primary file-pick'  , id: 'accept-filepiker' ,"data-fp-extensions" => ".pdf,.doc,.docx,.txt"
-
-            .row
-              .col-sm-12
-                .form-group
                   %p Message (optional)
                   = f.text_area :message, class: "form-control", rows: "2" ,placeholder: 'Write tour message'
           %fieldset
-            / .form-group
-            /   %label.col-md-2.control-label Cover Letter
-            /   .col-md-10
-            /     =  f.text_area :cover_letter , class: "form-control tinymce", rows: 8, cols: 25, placeholder: 'Cover Letter'
-            /     =  tinymce :default
-            / .form-group
-            /   %label.col-md-2.control-label Resume
-            /   .col-md-10
-            /     = f.filepicker_field :applicant_resume , class: 'btn btn-primary file-pick'  , id: 'accept-filepiker' ,"data-fp-extensions" => ".pdf,.doc,.docx,.txt"
-            / .form-group
-            /   %label.col-md-2.control-label Message (optional)
-            /   .col-md-10
-            /     = f.text_area :message, class: "form-control", rows: "2" ,placeholder: 'Write tour message'
             .nested-fields
               - job.job_requirements.each do |r|
                 = f.fields_for :job_applicant_reqs do |ja|

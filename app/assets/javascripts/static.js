@@ -1,7 +1,6 @@
 
 //= require static/js/modernizr-custom
 //= require static/js/jQuery-2.1.4.min
-//= require jquery_ujs
 //= require jquery-ui
 
 //= require static/js/bootstrap.min
@@ -22,3 +21,8 @@
 //= require notification/SmartNotification.min.js
 
 //= require_tree ./clean_admin/.
+
+function display_file_name(event) {
+  // alert(event.fpfile.filename );
+  $('.uploaded_file_name').text(event.fpfile.filename)
+}

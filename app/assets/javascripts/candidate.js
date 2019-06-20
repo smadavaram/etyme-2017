@@ -194,3 +194,4 @@ for (i = 0; i < collapse.length; i++) {
     }
   });
 }
+
