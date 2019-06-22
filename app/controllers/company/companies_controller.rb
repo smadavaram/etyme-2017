@@ -66,7 +66,7 @@ class Company::CompaniesController < Company::BaseController
       end
     elsif @company
       if @company != current_company
-        if create_current_company_contact
+        if create_current_company_contact(current_company)
           flash[:success] = "Company contact has been added to company"
           redirect_to_new_company
         else
@@ -366,11 +366,17 @@ class Company::CompaniesController < Company::BaseController
   def create_new_company
     @company = Company.new(company_params)
     if @company.save
-      create_current_company_contact
+      create_current_company_contact(@company)
       @company.update_attribute(:owner_id, @company.admins.first.id)
-      redirect_to new_company_company_path, success: 'Successfully Created company.'
+      respond_to do |format|
+        format.html {redirect_to new_company_company_path, success: 'Successfully Created company.' }
+        format.js {flash[:success] = 'Successfully Created company.'}
+      end
     else
-      render :new
+      respond_to do |format|
+        format.html {render :new}
+        format.js {flash[:errors] = @company.errors.full_messages}
+      end
     end
   end
 
@@ -388,12 +394,12 @@ class Company::CompaniesController < Company::BaseController
     end
   end
 
-  def create_current_company_contact
+  def create_current_company_contact(current_com)
     if current_company && company_contact_params.present?
       company_contact_params.to_h.map do |key, contact_hash|
         user_params = contact_hash.slice(:first_name, :last_name, :email)
         user = User.find_by_email(contact_hash["email"]) || Admin.create(user_params.merge({company_id: @company.id}))
-        company_contact = current_company.company_contacts.build(contact_hash.merge({user_id: user.id, user_company_id: user.company.id, created_by_id: current_user.id}))
+        company_contact = current_com.company_contacts.build(contact_hash.merge({user_id: user.id, user_company_id: user.company.id, created_by_id: current_user.id}))
         company_contact.save
       end.all?
     end
@@ -476,7 +482,9 @@ class Company::CompaniesController < Company::BaseController
   end
 
   def company_params
-    params.require(:company).permit(:name, :company_type, :domain, :skill_list, :website, :logo, :description, :phone, :email, :linkedin_url, :facebook_url, :twitter_url, :google_url, :is_activated, :status, :time_zone, :tag_line, group_ids: [], owner_attributes: [:id, :type, :first_name, :last_name, :email, :password, :password_confirmation], locations_attributes: [:id, :name, :status, address_attributes: [:id, :address_1, :country, :city, :state, :zip_code]])
+    params.require(:company).permit(:name, :company_type, :domain, :skill_list, :website, :logo, :description, :phone, :email, :linkedin_url, :facebook_url, :twitter_url, :google_url, :is_activated, :status, :time_zone, :tag_line, group_ids: [],
+                                    owner_attributes: [:id, :type, :first_name, :last_name, :email, :password, :password_confirmation], locations_attributes: [:id, :name, :status, address_attributes: [:id, :address_1, :country, :city, :state, :zip_code]],
+                                    invited_by_attributes: [:invited_by_company_id, :user_id])
   end
 
   def create_params

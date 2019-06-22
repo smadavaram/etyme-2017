@@ -1,4 +1,4 @@
-= f.email_field :email ,  placeholder: 'Email' , required: true, data: { email_field: true }
+= f.email_field :email ,  placeholder: 'Email' , required: true, data: { email_field: true }, onblur: 'validate_email();'
 .row
   .col-md-6
     = f.text_field :first_name ,  placeholder: "First Name"

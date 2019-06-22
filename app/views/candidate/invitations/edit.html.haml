@@ -12,7 +12,7 @@
             %header
               %h2 #{resource.class.name.titleize} Onboarding
             %div
-              .jarviswidget-editbox
+              .jarviswidget-editbox{style: "display:block"}
                 = form_for resource , url: candidate_invitation_path(resource_name) ,html: { method: :put , class: 'form-horizontal'} do |e|
                   = e.hidden_field :invitation_token
                   %fieldset
