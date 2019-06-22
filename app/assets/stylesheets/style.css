@@ -1206,6 +1206,10 @@ input:checked + .slider1:before {
   width: 101%;
   max-width: 101%;
 }
+.bootstrapWizard li.custom-step:before{
+    width: 50% !important;
+    max-width: 50% !important;
+}
 
 /*timeline css start*/
 
