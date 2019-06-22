@@ -1,9 +1,40 @@
-<div class="menu-w color-scheme-light fixed-height color-style-default menu-position-side menu-side-left menu-layout-compact sub-menu-style-flyout sub-menu-color-light selected-menu-color-light menu-activated-on-hover menu-has-selected-link">
-<!--  <div class="logo-w">-->
-<!--    <a class="logo" href="/dashboard">-->
-      <%#= image_tag 'etyme-logo-dark.png', alt: SITE_NAME, style: 'width: 62px; height: 30px;' %>
-<!--    </a>-->
-<!--  </div>-->
+<div id="togglebutton" onclick="toglleMenu()" class="togglebtncontainer">
+  <div class="os-icon os-icon-hamburger-menu-1"></div>
+</div>
+
+<div id="toggledmenubar1" class="menu-mobile menu-activated-on-click color-scheme-dark">
+
+  <div class="mm-logo-buttons-w"><a class="mm-logo" href="index.html">
+    <img src="img/logo.png"><span>Clean Admin</span></a>
+    <div class="mm-buttons">
+      <div class="content-panel-open">
+        <div class="os-icon os-icon-grid-circles"></div>
+      </div>
+      <div class="mobile-menu-trigger">
+        <div class="os-icon os-icon-hamburger-menu-1"></div>
+      </div>
+    </div>
+  </div>
+  <div class="menu-and-user">
+    <div class="logged-user-w">
+      <div class="avatar-w">
+        <img alt="" src="img/avatar1.jpg"></div>
+      <div class="logged-user-info-w">
+        <div class="logged-user-name">Maria Gomez</div>
+        <div class="logged-user-role">Administrator</div>
+      </div>
+    </div>
+
+  </div>
+</div>
+<script>
+  function toglleMenu () {
+    var menu = document.querySelector('#toggledmenubar').classList.toggle("displayblock");
+    document.querySelector('#togglebutton').classList.toggle('leftChanged')
+  }
+
+</script>
+<div id="toggledmenubar" class="menu-w color-scheme-light fixed-height color-style-default menu-position-side menu-side-left menu-layout-compact sub-menu-style-flyout sub-menu-color-light selected-menu-color-light menu-activated-on-hover menu-has-selected-link">
   <div class="logged-user-w avatar-inline p-1 m-1">
     <div class="logged-user-i">
       <div class="avatar-w">
@@ -11,15 +42,15 @@
       </div>
       <div class="logged-user-info-w">
         <div class="logged-user-name">
-          <%= link_to content_tag(:span, current_company.full_name, class:"lead") , company_profile_page_companies_path,class: "side-bar_links" %>
+          <%= link_to content_tag(:span, current_company.full_name, class: "lead"), company_profile_page_companies_path, class: "side-bar_links" %>
         </div>
         <!--div class="logged-user-role">My Team</div-->
       </div>
     </div>
   </div>
-  <div class="logged-user-w avatar-inline pl-4 pt-0">
-<!--    <div class="side-bar_nav w-100" style="height: 450px;overflow-y: auto;">-->
-    <div class="side-bar_nav w-100">
+  <div class="logged-user-w avatar-inline pl-4 pt-0 pr-0">
+    <!--    <div class="side-bar_nav w-100" style="height: 450px;overflow-y: auto;">-->
+    <div class="side-bar_nav w-100 pr-2" style="height: calc(100vh - 136px);overflow-y: auto;">
       <a href="/dashboard" class="side-bar_tab side-bar_links">
         <div class="icon-w">
           <i class="ti-home"></i>
@@ -42,7 +73,9 @@
         <a href="<%= groups_path %>" class="l2 side-bar_links nested_tab boarder_bottom">Groups</a>
         <a href="<%= directories_path %>" class=" l2 side-bar_links nested_tab boarder_bottom">My Directory</a>
         <a href="<%= candidates_path %>" class="l2 side-bar_links nested_tab boarder_bottom">Candidates</a>
-        <a href="<%= companies_path %>" class="l2 side-bar_links nested_tab boarder_bottom">Companies</a>
+        <% if has_permission?('manage_company') %>
+          <a href="<%= companies_path %>" class="l2 side-bar_links nested_tab boarder_bottom">Companies</a>
+        <% end %>
         <a href="<%= company_contacts_company_companies_path %>" class="l2 side-bar_links nested_tab boarder_bottom">Contacts</a>
         <a class="sidebar_collapsible nested_tab">
           <div class="icon-w">
@@ -54,7 +87,9 @@
           <a href="<%= companies_path(status: 'all') %>" class=" side-bar_links nested_tab boarder_bottom">All
             Companies</a>
           <a href="<%= prefer_vendors_path %>" class=" side-bar_links nested_tab boarder_bottom">Network Requests</a>
-          <a href="<%= network_path %>" class=" side-bar_links nested_tab boarder_bottom">Clients / Vendors</a>
+          <% if has_permission?('manage_vendors') %>
+            <a href="<%= network_path %>" class=" side-bar_links nested_tab boarder_bottom">Clients / Vendors</a>
+          <% end %>
         </div>
         <a class="sidebar_collapsible nested_tab">
           <div class="icon-w">
@@ -69,6 +104,7 @@
           <a href="<%= company_owen_jobs_path %>" class=" side-bar_links nested_tab boarder_bottom">Bench Jobs</a>
         </div>
       </div>
+
       <a class="sidebar_collapsible side-bar_tab">
         <div class="icon-w">
           <i class="icon-people"></i>
@@ -76,33 +112,44 @@
         <span>Jobs / Offers</span>
       </a>
       <div class="pl-4 w-100 text-justify nav-sidebar-collaps">
-        <a href="<%= jobs_path %>" class=" l2 side-bar_links nested_tab boarder_bottom">All Posted Jobs</a>
-        <a href="<%= job_invitations_path %>" class="l2 side-bar_links nested_tab boarder_bottom">Invitations</a>
-        <a href="<%= job_applications_path %>" class="l2 side-bar_links nested_tab boarder_bottom">Applicants</a>
+        <% if has_permission?('manage_jobs') %>
+          <a href="<%= jobs_path %>" class=" l2 side-bar_links nested_tab boarder_bottom">All Posted Jobs</a>
+        <% end %>
+        <% if has_permission?('manage_job_invitations') %>
+          <a href="<%= job_invitations_path %>" class="l2 side-bar_links nested_tab boarder_bottom">Invitations</a>
+        <% end %>
+        <% if has_permission?('manage_job_applications') %>
+          <a href="<%= job_applications_path %>" class="l2 side-bar_links nested_tab boarder_bottom">Applicants</a>
+        <% end %>
       </div>
-      <a class="sidebar_collapsible side-bar_tab">
-        <div class="icon-w">
-          <i class="os-icon os-icon-hierarchy-structure-2"></i>
+      <% if has_permission?('manage_contracts') %>
+
+        <a class="sidebar_collapsible side-bar_tab">
+          <div class="icon-w">
+            <i class="os-icon os-icon-hierarchy-structure-2"></i>
+          </div>
+          <span>Contract(s)</span>
+        </a>
+        <div class="pl-4 w-100 text-justify nav-sidebar-collaps">
+          <!--        <a class="side-bar_links nested_tab boarder_bottom" href="<%#= contracts_path %>">Contracts</a>-->
+          <a class="l2 side-bar_links nested_tab boarder_bottom" href="<%= company_sell_contracts_path %>">Sell</a>
+          <a class="l2 side-bar_links nested_tab boarder_bottom" href="<%= company_buy_contracts_path %>">Buy</a>
+          <a class="l2 side-bar_links nested_tab boarder_bottom" href="<%= timeline_contracts_path %>">Timeline</a>
         </div>
-        <span>Contract(s)</span>
-      </a>
-      <div class="pl-4 w-100 text-justify nav-sidebar-collaps">
-        <!--        <a class="side-bar_links nested_tab boarder_bottom" href="<%#= contracts_path %>">Contracts</a>-->
-        <a class="l2 side-bar_links nested_tab boarder_bottom" href="<%= company_sell_contracts_path %>">Sell</a>
-        <a class="l2 side-bar_links nested_tab boarder_bottom" href="<%= company_buy_contracts_path %>">Buy</a>
-        <a class="l2 side-bar_links nested_tab boarder_bottom" href="<%= timeline_contracts_path %>">Timeline</a>
-      </div>
-      <a class="sidebar_collapsible side-bar_tab">
-        <div class="icon-w">
-          <i class="ti-timer"></i>
+      <% end %>
+      <% if has_permission?('manage_timesheets') %>
+        <a class="sidebar_collapsible side-bar_tab">
+          <div class="icon-w">
+            <i class="ti-timer"></i>
+          </div>
+          <span>Timesheet(s)</span>
+        </a>
+        <div class="pl-4 w-100 text-justify nav-sidebar-collaps">
+          <a href="<%= timesheets_path %>" class=" l2 side-bar_links nested_tab boarder_bottom">Submitted</a>
+          <a href="<%= approved_timesheets_path %>" class="l2 side-bar_links nested_tab boarder_bottom"> Approved</a>
+          <a href="<%= job_applications_path %>" class="l2 side-bar_links nested_tab boarder_bottom">Applicants</a>
         </div>
-        <span>Timesheet(s)</span>
-      </a>
-      <div class="pl-4 w-100 text-justify nav-sidebar-collaps">
-        <a href="<%= timesheets_path %>" class=" l2 side-bar_links nested_tab boarder_bottom">Submitted</a>
-        <a href="<%= approved_timesheets_path %>" class="l2 side-bar_links nested_tab boarder_bottom"> Approved</a>
-        <a href="<%= job_applications_path %>" class="l2 side-bar_links nested_tab boarder_bottom">Applicants</a>
-      </div>
+      <% end %>
       <a class="sidebar_collapsible side-bar_tab">
         <div class="icon-w">
           <i class="picons-thin-icon-thin-0417_calculator"></i>
@@ -165,7 +212,7 @@
       </div>
 
     </div>
-<!--    <div class="side-bar_icons buttons-stickky">-->
+    <!--    <div class="side-bar_icons buttons-stickky">-->
     <div class="side-bar_icons">
       <a class="">
         <div class="icon-w">

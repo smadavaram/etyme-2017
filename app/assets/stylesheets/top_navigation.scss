@@ -1,0 +1,60 @@
+//
+.menu-mobile
+{
+  display: none;
+  @media(max-width: 1024px) and (min-width: 768px) {
+    width:auto !important;
+  }
+}
+.flex-d-column
+{
+  @media (max-width: 768px) {
+    flex-direction: row;
+  }
+}
+
+@media (max-width: 768px) {
+    .menu-mobile .mm-logo-buttons-w .mm-buttons
+    {
+    display: none;
+    }
+    .menu-mobile .mm-logo-buttons-w .mm-logo span
+    {
+      display: none;
+    }
+}
+.displayblock
+{
+  display: block !important;
+}
+.togglebtncontainer
+{
+  position: absolute;
+  top: 4px;
+  cursor: pointer;
+  z-index: 999999;
+  height: 50px;
+  width: 50px;
+  color: #047bf8;
+  border-radius: 6px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  @media (min-width: 1024px) {
+    display: none;
+  }
+}
+.mm-logo-buttons-w
+{
+  margin-top:55px;
+}
+.leftChanged
+{
+  left:210px;
+}
+.top-bar .top-menu-controls .element-search input
+{
+  @media (max-width:420px) {
+      width: 170px;
+  }
+}

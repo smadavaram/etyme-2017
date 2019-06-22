@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema.define(version: 20190613102411) do
+ActiveRecord::Schema.define(version: 20190618151721) do
 
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
@@ -1791,6 +1791,8 @@ ActiveRecord::Schema.define(version: 20190613102411) do
     t.string "video_type"
     t.string "chat_status"
     t.string "temp_pass"
+    t.string "ancestry"
+    t.index ["ancestry"], name: "index_users_on_ancestry"
     t.index ["deleted_at"], name: "index_users_on_deleted_at"
     t.index ["email"], name: "index_users_on_email", unique: true
     t.index ["invitation_token"], name: "index_users_on_invitation_token", unique: true

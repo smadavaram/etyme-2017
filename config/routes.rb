@@ -382,7 +382,11 @@ Rails.application.routes.draw do
         get :leave_group
       end
     end
-    resources :admins, concerns: :paginatable
+    resources :admins, concerns: :paginatable do
+      get :autocomplete_user_email, :on => :collection
+      get :add_member
+      get 'add_as_child/:id', to: 'admins#add_as_child', as: :add_as_child
+    end
     resources :addresses
     resources :directories, only: [:index]
     resources :comments, only: [:create]
