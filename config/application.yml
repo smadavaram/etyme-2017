@@ -1,15 +1,26 @@
 development:
-    domain:             "lvh.me:3000"
-    filepicker_api_key: "AR0LrQ7ZBRbaL4HN6BMTDz"
-    pusher_key:  "e5aefe0d463e73afe6bc"
-    seq_ledgers: 'etyme-apr28'
-    seq_token: 'OUUY4ZFYQO4P3YNC5JC3GMY7ZQJCSNTH'
-
+  domain:             "lvh.me:3000"
+  filepicker_api_key: "AR0LrQ7ZBRbaL4HN6BMTDz"
+  pusher_key:  "e5aefe0d463e73afe6bc"
+  seq_ledgers: 'etyme-apr28'
+  seq_token: 'OUUY4ZFYQO4P3YNC5JC3GMY7ZQJCSNTH'
+  facebook_public_key: '786583305060792'
+  facebook_secret_key: '7d5dc700bb74a680055b26b99ca48bba'
+  google_people_key: '232075031343-r52p7hmkphqvtfto7prdmuh3mm4tf10p.apps.googleusercontent.com'
+  google_secret_key: 'Cmvv8FFTt2Pnbv0gNvIr1kZ3'
+  linked_in_public_key: '861nbap4e5ht0t'
+  linked_in_secret_key: 'SIlWl8ytehCs9ZTz'
 
 
 production:
-    mailgun_gun_api:  "key-65deee3bd721c9bba966ff557d3fc79b"
-    mailgun_domian:   "etyme.com"
-    domain:           "etyme.com"
-    filepicker_api_key: "AR0LrQ7ZBRbaL4HN6BMTDz"
-    pusher_key:  "e5aefe0d463e73afe6bc"
+  mailgun_gun_api:  "key-65deee3bd721c9bba966ff557d3fc79b"
+  mailgun_domian:   "etyme.com"
+  domain:           "pizzanight.gq"
+  filepicker_api_key: "AR0LrQ7ZBRbaL4HN6BMTDz"
+  pusher_key:  "e5aefe0d463e73afe6bc"
+  facebook_public_key: '786583305060792'
+  facebook_secret_key: '7d5dc700bb74a680055b26b99ca48bba'
+  google_people_key: '232075031343-r52p7hmkphqvtfto7prdmuh3mm4tf10p.apps.googleusercontent.com'
+  google_secret_key: 'Cmvv8FFTt2Pnbv0gNvIr1kZ3'
+  linked_in_public_key: '861nbap4e5ht0t'
+  linked_in_secret_key: 'SIlWl8ytehCs9ZTz'
