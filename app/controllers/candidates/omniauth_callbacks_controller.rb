@@ -1,5 +1,6 @@
 class Candidates::OmniauthCallbacksController < Devise::OmniauthCallbacksController
   include AuthenticateOauth
+
   def facebook
     logger.info request.env["omniauth.auth"]
     @auth = {
@@ -14,7 +15,7 @@ class Candidates::OmniauthCallbacksController < Devise::OmniauthCallbacksControl
     }
 
     if current_user && current_user.present?
-      session[:token]=@auth[:token]
+      session[:token] = @auth[:token]
       redirect_to set_redirection(current_user)
     else
       process_oauth
@@ -40,7 +41,7 @@ class Candidates::OmniauthCallbacksController < Devise::OmniauthCallbacksControl
     }
 
     if current_user && current_user.present?
-      session[:token]=@auth[:token]
+      session[:token] = @auth[:token]
       redirect_to set_redirection(current_user)
     else
       process_oauth
@@ -65,7 +66,7 @@ class Candidates::OmniauthCallbacksController < Devise::OmniauthCallbacksControl
     }
 
     if current_user && current_user.present?
-      session[:token]=@auth[:token]
+      session[:token] = @auth[:token]
       redirect_to set_redirection(current_user)
     else
       process_oauth
@@ -76,6 +77,24 @@ class Candidates::OmniauthCallbacksController < Devise::OmniauthCallbacksControl
         redirect_to set_redirection(@user)
       end
     end
+  end
+
+  def docusign
+    userinfo = request.env['omniauth.auth']
+    cred = userinfo.credentials
+    @docusign = current_company.build_docusign(ds_expires_at: userinfo.credentials['expires_at'],
+                                               ds_user_name: userinfo.info.name,
+                                               ds_access_token: cred.token,
+                                               ds_refresh_token: cred.refresh_token,
+                                               ds_account_id: userinfo.extra.account_id,
+                                               ds_account_name: userinfo.extra.account_name,
+                                               ds_base_path: userinfo.extra.base_uri)
+    if @docusign.save
+      flash[:success] = 'Docusign Plugin has been integrated'
+    else
+      flash[:errors] = @docusign.errors.full_messages
+    end
+    redirect_to('/feed/feeds')
   end
 
   def failure

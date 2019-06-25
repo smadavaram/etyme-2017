@@ -208,3 +208,10 @@ gem 'holidays'
 # API libs
 #****************
 gem 'rack-cors', :require => 'rack/cors'
+
+# *************************
+# omni auth for docusign
+# *************************
+
+gem 'omniauth-oauth2'
+gem 'docusign_esign'

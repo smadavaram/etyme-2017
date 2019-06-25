@@ -1,5 +1,6 @@
 Rails.application.routes.draw do
 
+
   namespace :company do
     get 'activities/index'
   end
@@ -253,6 +254,9 @@ Rails.application.routes.draw do
     resources :company_contacts, only: [:index, :new, :create, :destroy]
 
     resources :companies, only: [:new, :create, :update] do
+      member do
+        get :docusign
+      end
       get :add_reminder
       match :assign_groups, via: [:get, :post]
       match :assign_groups_to_contact, via: [:get, :post]
