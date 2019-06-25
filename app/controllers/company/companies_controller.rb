@@ -37,6 +37,10 @@ class Company::CompaniesController < Company::BaseController
     @company.build_invited_by
   end
 
+  def docusign
+    redirect_to(user_docusign_omniauth_authorize_path)
+  end
+
   def new
     @company = Company.new
     @company.build_invited_by
