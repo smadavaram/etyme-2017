@@ -1,3 +1,5 @@
+require 'docusign'
+
 # Use this hook to configure devise mailer, warden hooks and so forth.
 # Use this hook to configure devise mailer, warden hooks and so forth.
 # Many of these configuration options can be set straight in your model.
@@ -32,6 +34,52 @@ Devise.setup do |config|
   config.omniauth :google_oauth2, ENV['google_people_key'], ENV['google_secret_key'],:image_size => 'large', skip_jwt: true
   config.omniauth :facebook, ENV['facebook_public_key'], ENV['facebook_secret_key'], scope: 'email', info_fields: 'email,name,first_name,last_name,gender',:image_size => 'large'
   config.omniauth :linkedin, ENV['linked_in_public_key'], ENV['linked_in_secret_key']
+  config.omniauth :docusign, Rails.application.config.client_id, Rails.application.config.client_secret,:provider_ignores_state => true,
+           :setup => lambda{|env|
+             strategy = env['omniauth.strategy']
+             strategy.options[:client_options].site = Rails.application.config.app_url
+             strategy.options[:prompt] = 'login'
+             strategy.options[:oauth_base_uri] = Rails.application.config.authorization_server
+             strategy.options[:target_account_id] = Rails.application.config.target_account_id
+             strategy.options[:allow_silent_authentication] = Rails.application.config.allow_silent_authentication
+           }
+
+
+
+
+
+  # config.app_url = 'http://localhost:3000' # The public url of the application.
+  # Note that the setting which controls the host/port for your app
+  # is determined by your app's web server. For the default puma
+  # server, see config/puma.rb
+  #
+  # NOTE => You must add a Redirect URI of {app_url}/auth/docusign/callback
+  #         to your Integration Key.
+  #
+  # NOTE: The terms "client_id" and "Integration key" are synonyms. They refer to the same thing.
+  # config.client_id = '78233b42-83ae-433a-9add-520b8960e731'
+  # config.client_secret = '93aa8e6e-e353-4298-9096-3ccaa6c256ca'
+  # config.signer_email =  'sp18-rcs-003@cuilahore.edu.pk'
+  # config.signer_name = 'ali hussain'
+  # config.authorization_server = 'https://account-d.docusign.com'
+  # config.allow_silent_authentication = true # a user can be silently authenticated if they have an
+  # # active login session on another tab of the same browser
+  # # Set if you want a specific DocuSign AccountId, If false, the user's default account will be used.
+  # config.target_account_id = true
+  # # Payment gateway information is optional. It is only needed for example 14.
+  # # See the PAYMENTS_INSTALLATION.md file for instructions
+  # config.gateway_account_id = '{DS_PAYMENT_GATEWAY_ID}'
+  #
+  # # The remainder of this file is already configured.
+  # config.demo_doc_path = 'demo_documents'
+  # config.doc_docx = 'World_Wide_Corp_Battle_Plan_Trafalgar.docx'
+  # config.doc_pdf = 'World_Wide_Corp_lorem.pdf'
+  # config.gateway_name = "stripe"
+  # config.gateway_display_name = "Stripe"
+  # config.github_example_url = 'https://github.com/docusign/eg-03-ruby-auth-code-grant/tree/master/app/controllers/'
+  # config.documentation = false
+
+
 
   # ==> Configuration for any authentication mechanism
   # Configure which keys are used when authenticating a user. The default is
