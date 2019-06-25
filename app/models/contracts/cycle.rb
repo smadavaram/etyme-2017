@@ -9,7 +9,7 @@ module Contracts
         next_date =  get_next_date(ts_time_sheet_frequency, ts_date_1, ts_date_2, ts_end_of_month, ts_day_of_week, contract_cycle_ts.cycle_date )
         start_date = contract.start_date+ @count
       else
-  
+
         next_date =  get_next_date(ts_time_sheet_frequency, ts_date_1, ts_date_2, ts_end_of_month, ts_day_of_week, contract.start_date-1.day)
         start_date = contract.start_date
       end
@@ -252,9 +252,13 @@ module Contracts
     end
 
     def set_salary_process(con_cycle, con_cycle_start_date)
-      con_cycle_scal_start_date = con_cycle_start_date[0]
-      con_cycle_sp_start_date = con_cycle_start_date[1]
-  
+      if con_cycle_start_date.kind_of?(Array)
+        con_cycle_scal_start_date = con_cycle_start_date[0]
+        con_cycle_sp_start_date = con_cycle_start_date[1]
+      else
+        con_cycle_scal_start_date = con_cycle_start_date
+        con_cycle_sp_start_date = con_cycle_start_date
+      end
 
       salary_cal = ContractCycle.find_by(
                     contract_id: contract_id,
@@ -598,6 +602,11 @@ module Contracts
           end
           start_date = Date.new(end_date.year, end_date.month, buy_contract.term_no.to_i+1)
         end
+      elsif  sclr_frequency == 'daily'
+        doc_date =  set_salary_clear_date
+        end_date = doc_date
+        start_date = end_date
+
         # doc_date = date + 1.months
 
 

@@ -283,7 +283,11 @@ class Contract < ApplicationRecord
   def self.set_cycle
     count = 0
     self.in_progress.each do |contract|
-      contract.set_timesheet_submit(count)
+      begin
+        contract.set_timesheet_submit(count)
+      rescue NoMethodError, RuntimeError, KeyError, ArgumentError
+        next
+      end
       # contract.contract_cycles.where('end_date > ?', contract.end_date).where.not(cycle_type: ['SalaryClear', 'ClientExpenseApprove', 'ClientExpenseInvoice']).update_all(end_date: contract.end_date)
       # contract.invoice_generate
     end
