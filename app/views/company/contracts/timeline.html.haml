@@ -1,25 +1,24 @@
 %section
   .container
     .row
-      %hr
       = form_tag filter_timeline_contracts_path, remote: true, method: :get, class: 'filter_timeline' do
-        .col-md-2
+        .col-md-12
           .form-group
             %label Contract
             = select_tag "contracts", options_from_collection_for_select(@contracts, 'id', 'title'),{class: "form-control contract_list", prompt: "All"}
-        .col-md-2
+        .col-md-12
           .form-group
             %label Consultant
             = select_tag "consultants", options_from_collection_for_select(@candidates, 'id', 'full_name'),{class: "form-control candidate_list", prompt: "All"}
-        .col-md-2
+        .col-md-12
           .form-group
             %label Action
             = select_tag 'cycle_actions', options_for_select(['Timesheet submit', 'Timesheet Approve', 'Invoice Generate', 'Salary calculation', 'Salary process', 'Salary clear', 'Commission calculation', 'Commission process', 'Commission clear', 'VendorBill calculation', 'VendorPayment process', 'VendorBill clear', 'ClientBill calculation', 'ClientPayment process', 'ClientBill clear', 'ClientExpense calculation', 'ClientExpense Approve', 'ClientExpense Invoice' ]), {class: 'form-control cycle_action', prompt: 'All'}
-        .col-md-2
+        .col-md-12
           .form-group
             %label Search by relevance
             = select_tag 'view_type', options_for_select(['Overall View', 'Invoice View', 'Salary View']), {class: 'form-control'}
-        .col-md-2
+        .col-md-12
           .form-group
             %label Sort By
             = select_tag 'sort_by', options_for_select(['Date', 'Actions']), {class: 'form-control'}
