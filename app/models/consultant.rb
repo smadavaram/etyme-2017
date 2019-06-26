@@ -6,7 +6,7 @@ class Consultant < User
   attr_accessor :resend_invitation
 
   enum visa_status: [:USC, :GC, :H1B, :EAD]
-  enum relocation:  [:not_set,:open,:not_open]
+  enum relocation:  []#:not_set,:open,:not_open
   acts_as_taggable
 
   belongs_to :candidate, optional: true
