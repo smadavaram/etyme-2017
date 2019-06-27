@@ -13,7 +13,7 @@ module Etyme
 
 
 
-    config.app_url = 'http://localhost:3000'
+    config.app_url = ENV['docusign_app_url']
 
     config.client_id = ENV['docusign_client_id']
     config.client_secret = ENV['docusign_client_secret']

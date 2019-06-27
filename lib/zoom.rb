@@ -33,10 +33,6 @@ module OmniAuth
             email: raw_info['email'],
         }
       end
-
-      def callback_url
-        "http://cloudepa.lvh.me:3000/users/auth/zoom/callback"
-      end
     end
   end
 end

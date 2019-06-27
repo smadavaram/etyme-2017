@@ -14,6 +14,7 @@ development:
   docusign_client_id: '78233b42-83ae-433a-9add-520b8960e731'
   docusign_client_secret: '93aa8e6e-e353-4298-9096-3ccaa6c256ca'
   docusign_authorization_server: 'https://account-d.docusign.com'
+  docusign_app_url: 'http://localhost:3000'
   #zoom dev credientials
   zoom_client_id: 'NRPXIuuSSZ2F_RxFhWGtrA'
   zoom_client_secret: 'I8ptFChOtF4xTr9Os9w7i1Fo81pG5Gk4'
@@ -36,6 +37,7 @@ production:
   docusign_client_id: '78233b42-83ae-433a-9add-520b8960e731'
   docusign_client_secret: '93aa8e6e-e353-4298-9096-3ccaa6c256ca'
   docusign_authorization_server: 'https://account-d.docusign.com'
+  docusign_app_url: 'http://www.etyme.com'
   #zoom dev credientials
   zoom_client_id: 'NRPXIuuSSZ2F_RxFhWGtrA'
   zoom_client_secret: 'I8ptFChOtF4xTr9Os9w7i1Fo81pG5Gk4'
