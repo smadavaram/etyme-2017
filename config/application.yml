@@ -16,8 +16,8 @@ development:
   docusign_authorization_server: 'https://account-d.docusign.com'
   docusign_app_url: 'http://localhost:3000'
   #zoom dev credientials
-  zoom_client_id: 'NRPXIuuSSZ2F_RxFhWGtrA'
-  zoom_client_secret: 'I8ptFChOtF4xTr9Os9w7i1Fo81pG5Gk4'
+  zoom_client_id: 'GFWCAp5SS76petRMLKItcg'
+  zoom_client_secret: '11EylRQ3O5vh5SOTxOm4jJntirEDhmCg'
   zoom_authorization_server: 'https://zoom.us'
 
 production:
@@ -39,6 +39,6 @@ production:
   docusign_authorization_server: 'https://account-d.docusign.com'
   docusign_app_url: 'http://www.etyme.com'
   #zoom dev credientials
-  zoom_client_id: 'NRPXIuuSSZ2F_RxFhWGtrA'
-  zoom_client_secret: 'I8ptFChOtF4xTr9Os9w7i1Fo81pG5Gk4'
+  zoom_client_id: 'GFWCAp5SS76petRMLKItcg'
+  zoom_client_secret: '11EylRQ3O5vh5SOTxOm4jJntirEDhmCg'
   zoom_authorization_server: 'https://zoom.us'
