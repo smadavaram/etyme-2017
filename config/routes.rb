@@ -255,7 +255,7 @@ Rails.application.routes.draw do
 
     resources :companies, only: [:new, :create, :update] do
       member do
-        get :docusign
+        get "plugin/:plugin_type", to: "companies#plugin", as: :plugin
       end
       get :add_reminder
       match :assign_groups, via: [:get, :post]
