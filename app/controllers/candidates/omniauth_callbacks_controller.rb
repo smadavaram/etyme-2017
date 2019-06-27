@@ -79,16 +79,35 @@ class Candidates::OmniauthCallbacksController < Devise::OmniauthCallbacksControl
     end
   end
 
+  def zoom
+    userinfo = request.env['omniauth.auth']
+    cred = userinfo.credentials
+    @docusign = current_company.plugins.new(expires_at: userinfo.credentials['expires_at'],
+                                            user_name: "#{userinfo.info.user.first_name} #{userinfo.info.user.last_name}",
+                                            access_token: cred.token,
+                                            refresh_token: cred.refresh_token,
+                                            account_id: userinfo.extra.raw_info.account_id,
+                                            base_path: userinfo.extra.raw_info.personal_meeting_url,
+                                            plugin_type: :zoom)
+    if @docusign.save
+      flash[:success] = 'Zoom Plugin has been integrated'
+    else
+      flash[:errors] = @docusign.errors.full_messages
+    end
+    redirect_to('/feed/feeds')
+  end
+
   def docusign
     userinfo = request.env['omniauth.auth']
     cred = userinfo.credentials
-    @docusign = current_company.build_docusign(ds_expires_at: userinfo.credentials['expires_at'],
-                                               ds_user_name: userinfo.info.name,
-                                               ds_access_token: cred.token,
-                                               ds_refresh_token: cred.refresh_token,
-                                               ds_account_id: userinfo.extra.account_id,
-                                               ds_account_name: userinfo.extra.account_name,
-                                               ds_base_path: userinfo.extra.base_uri)
+    @docusign = current_company.plugins.new(expires_at: userinfo.credentials['expires_at'],
+                                            user_name: userinfo.info.name,
+                                            access_token: cred.token,
+                                            refresh_token: cred.refresh_token,
+                                            account_id: userinfo.extra.account_id,
+                                            account_name: userinfo.extra.account_name,
+                                            base_path: userinfo.extra.base_uri,
+                                            plugin_type: :docusign)
     if @docusign.save
       flash[:success] = 'Docusign Plugin has been integrated'
     else
