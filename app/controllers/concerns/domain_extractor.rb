@@ -9,6 +9,12 @@ module DomainExtractor
       end
     end
 
+    private def get_domain_from_email(email)
+      if email
+        Mail::Address.new(email).domain.split('.')[0]
+      end
+    end
+
     private def domain_name(email)
       if email
         domain_from_email(email).split(".").first
