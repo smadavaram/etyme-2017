@@ -1,4 +1,4 @@
-class CreateDocusign < ActiveRecord::Migration[5.1]
+class CreateDocusigns < ActiveRecord::Migration[5.1]
   def change
     create_table :docusigns do |t|
       t.string :ds_expires_at

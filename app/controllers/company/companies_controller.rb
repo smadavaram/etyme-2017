@@ -37,8 +37,12 @@ class Company::CompaniesController < Company::BaseController
     @company.build_invited_by
   end
 
-  def docusign
-    redirect_to(user_docusign_omniauth_authorize_path)
+  def plugin
+    if params[:plugin_type] == 'docusign'
+      redirect_to(user_docusign_omniauth_authorize_path)
+    elsif params[:plugin_type] == 'zoom'
+      redirect_to(user_zoom_omniauth_authorize_path)
+    end
   end
 
   def new
@@ -141,11 +145,11 @@ class Company::CompaniesController < Company::BaseController
   end
 
   def company_profile_page
-    @jobs = current_company.jobs.not_system_generated.where(:listing_type=>"Job").order(created_at: :desc).limit(5)
-    @benches = CandidatesCompany.hot_candidate.where(company_id: current_company.id ).limit(5)
-    @training = current_company.jobs.not_system_generated.where(:listing_type=>"Training").order(created_at: :desc).limit(5)
-    @products = current_company.jobs.not_system_generated.where(:listing_type=>"Products").order(created_at: :desc).limit(5)
-    @services = current_company.jobs.not_system_generated.where(:listing_type=>"Services").order(created_at: :desc).limit(5)
+    @jobs = current_company.jobs.not_system_generated.where(:listing_type => "Job").order(created_at: :desc).limit(5)
+    @benches = CandidatesCompany.hot_candidate.where(company_id: current_company.id).limit(5)
+    @training = current_company.jobs.not_system_generated.where(:listing_type => "Training").order(created_at: :desc).limit(5)
+    @products = current_company.jobs.not_system_generated.where(:listing_type => "Products").order(created_at: :desc).limit(5)
+    @services = current_company.jobs.not_system_generated.where(:listing_type => "Services").order(created_at: :desc).limit(5)
     @directories = current_company.admins.order(created_at: :desc).limit(5)
     @activities = PublicActivity::Activity.where("activities.owner_id = ? or activities.recipient_id = ?", current_company.id, current_company.id).limit(5)
     @clients = current_company.send_or_received_network.limit(5)
@@ -373,7 +377,7 @@ class Company::CompaniesController < Company::BaseController
       create_current_company_contact(@company)
       @company.update_attribute(:owner_id, @company.admins.first.id)
       respond_to do |format|
-        format.html {redirect_to new_company_company_path, success: 'Successfully Created company.' }
+        format.html {redirect_to new_company_company_path, success: 'Successfully Created company.'}
         format.js {flash[:success] = 'Successfully Created company.'}
       end
     else
@@ -459,7 +463,7 @@ class Company::CompaniesController < Company::BaseController
   def add_contact_to_company(contact_hash)
     user_params = contact_hash.slice(:first_name, :last_name, :email, :phone)
     user = User.find_by_email(contact_hash["email"]) || User.create(user_params.merge({company_id: @company.id}))
-    @company_contact = current_company.company_contacts.build(contact_hash.merge({user_id: user.id, user_company_id: user.company.id,created_by_id: current_user.id}))
+    @company_contact = current_company.company_contacts.build(contact_hash.merge({user_id: user.id, user_company_id: user.company.id, created_by_id: current_user.id}))
     @company_contact.save
   end
 

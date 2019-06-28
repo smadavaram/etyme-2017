@@ -1,5 +1,5 @@
 require 'docusign'
-
+require 'zoom'
 # Use this hook to configure devise mailer, warden hooks and so forth.
 # Use this hook to configure devise mailer, warden hooks and so forth.
 # Many of these configuration options can be set straight in your model.
@@ -43,7 +43,15 @@ Devise.setup do |config|
              strategy.options[:target_account_id] = Rails.application.config.target_account_id
              strategy.options[:allow_silent_authentication] = Rails.application.config.allow_silent_authentication
            }
-
+  config.omniauth :zoom, Rails.application.config.zoom_client_id, Rails.application.config.zoom_client_secret,
+                  :setup => lambda{|env|
+                    strategy = env['omniauth.strategy']
+                    strategy.options[:client_options].site = Rails.application.config.app_url
+                    # strategy.options[:prompt] = 'login'
+                    strategy.options[:oauth_base_uri] = Rails.application.config.zoom_authorization_server
+                    # strategy.options[:target_account_id] = Rails.application.config.target_account_id
+                    strategy.options[:allow_silent_authentication] = Rails.application.config.allow_silent_authentication
+                  }
 
 
 
