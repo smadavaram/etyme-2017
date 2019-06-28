@@ -101,9 +101,27 @@
             } else {
               error.insertAfter(element);
             }
+          },
+          invalidHandler: function(e, validator){
+            $('#tabs a[href="#' + jQuery(validator.errorList[0].element).closest(".tab-pane").attr('id') + '"]').tab('show')
           }
         });
-
+        $("#sell_con_tab").tabs({
+        beforeActivate: function(event, ui) {
+          var valid = true;
+          var i = 0;
+          tabId =  ui.oldPanel.attr('id')
+          var $inputs =$("#"+tabId).find("input");
+          $inputs.each(function() {
+            if (!$validator.element(this) && valid) {
+              $validator.element(this).focusInvalid();
+              valid = false;
+              return;
+            }
+          });
+          return valid;
+         }
+        });
         $('#bootstrap-wizard-1').bootstrapWizard({
           'tabClass': 'form-wizard',
           'onNext': function (tab, navigation, index) {
@@ -126,7 +144,7 @@
             wizard_set_finish_button($current , $total );
           },'onTabClick': function(tab, navigation, index){
 
-             return false;
+              return false;
           }
         });
 

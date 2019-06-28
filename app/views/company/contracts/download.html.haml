@@ -287,7 +287,8 @@
                 %strong
                   Period :
                 %span
-                  = @contract.buy_contracts.try(:first).pr_start_date.strftime("#{@contract.buy_contracts.try(:first).pr_start_date.day.ordinalize} %b %Y ").to_s+' to '+@contract.buy_contracts.try(:first).pr_end_date.strftime("#{@contract.buy_contracts.try(:first).pr_end_date.day.ordinalize} %b %Y ").to_s
+                  - contract = @contract.buy_contracts.try(:first)
+                  = contract.pr_start_date.strftime("#{contract.pr_start_date.day.ordinalize} %b %Y ").to_s+' to '+contract.pr_end_date.strftime("#{contract.pr_end_date.day.ordinalize} %b %Y ").to_s if contract.pr_end_date && contract.pr_start_date
               %br
               %div
                 %strong
