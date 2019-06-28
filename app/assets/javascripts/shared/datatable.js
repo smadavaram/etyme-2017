@@ -100,6 +100,28 @@ $(document).ready(function () {
     ]
 
   });
+
+
+
+  $('#job_application_dataTable').dataTable({
+    columnDefs: [{
+      'targets': 0,
+      searchable: false,
+      orderable: false,
+      'render': function (data, type, full, meta) {
+        return '<input type="checkbox" name="id[]" value="' + full.id + '">';
+      }
+    },
+      {
+        'targets': [1],
+        searchable: true,
+        orderable: true,
+        'createdCell': function (td, cellData, rowData, row, col) {
+          $(td).addClass('text-left');
+        }
+      }
+    ]
+  });
   $('#company-candidates-datatable').dataTable({
     processing: true,
     serverSide: true,
@@ -117,7 +139,7 @@ $(document).ready(function () {
         searchable: true,
         orderable: true,
         'createdCell': function (td, cellData, rowData, row, col) {
-          $(td).addClass('text-left no-wrap');
+          $(td).addClass('text-left');
         }
       }
     ],

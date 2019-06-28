@@ -12,11 +12,11 @@
         </div>
       <% end %>
     </div>
-      <% if conversation&.job_application and nested_colap%>
-        <div id="job_application_links">
-          <%= render 'company/job_applications/partials/collapse_able_job_application', conversation: conversation, job_application: conversation.job_application %>
-        </div>
-      <% end %>
+    <% if conversation&.job_application and nested_colap %>
+      <div id="job_application_links">
+        <%= render 'company/job_applications/partials/collapse_able_job_application', conversation: conversation, job_application: conversation.job_application %>
+      </div>
+    <% end %>
   </div>
   <div class="chat-content-w chat-content-scroll chat-content_height">
     <div class="chat-content" id="conversation_<%= conversation.id if conversation.present? %>">
@@ -34,7 +34,7 @@
       </div>
       <div class="chat-input-extra">
         <div class="chat-extra-actions">
-          <%= f.filepicker_field :file_url,class: 'btn btn-primary req-file-pick',id: 'req-accept-filepiker', onchange: 'onCompanyFileUpload(event)' %>
+          <%= f.filepicker_field :file_url, class: 'btn btn-primary req-file-pick', id: 'req-accept-filepiker', onchange: 'onCompanyFileUpload(event)' %>
         </div>
         <div class="chat-btn">
           <%= f.submit "Send", class: "btn btn-primary btn-sm float-right", id: "send-chat-message" %>
@@ -55,13 +55,16 @@
     function onCompanyFileUpload (event) {
       $('#file-name_uploaded').html("<span>" + event.fpfile.filename + "</span><hr/>");
     }
+
     $(document).ready(function () {
-      <% unless conversation&.job_application %>
-      $('.collapsible').css('padding', '6px 18px');
-      $('#collapsible_job_application').removeClass('ml-2 mr-2')
-      $('#collapsible_job_application').removeClass('mt-4')
-      $('#collapsible_job_application').addClass('mt-2')
-      <% end %>
+      <%# unless conversation&.job_application %>
+        <% unless request.fullpath.include?("job_applications") %>
+          $('.collapsible').css('padding', '6px 18px');
+          $('#collapsible_job_application').removeClass('ml-2 mr-2')
+          $('#collapsible_job_application').removeClass('mt-4')
+          $('#collapsible_job_application').addClass('mt-2')
+        <% end %>
+      <%# end %>
       $.ajax({
         url: "<%= messages_conversation_conversation_messages_path(conversation||0) %>",
         type: "GET",
