@@ -365,7 +365,10 @@ class Company::CompaniesController < Company::BaseController
   def create_new_company
     @company = Company.new(create_params)
     if @company.save
-      redirect_to new_company_company_path, success: 'Successfully Created company.'
+      respond_to do |format|
+        format.html {redirect_to new_company_company_path, success: 'Successfully Created company.' }
+        format.js {flash[:success] = 'Successfully Created company.'}
+      end
     else
       render :new
     end

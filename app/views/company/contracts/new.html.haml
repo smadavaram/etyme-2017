@@ -101,21 +101,38 @@
             } else {
               error.insertAfter(element);
             }
+          },
+          invalidHandler: function(e, validator){
+            $('#tabs a[href="#' + jQuery(validator.errorList[0].element).closest(".tab-pane").attr('id') + '"]').tab('show')
           }
         });
-
+        //$("#sell_con_tab").tabs({
+        //beforeActivate: function(event, ui) {
+        //  var valid = true;
+        //  var i = 0;
+        //  tabId =  ui.oldPanel.attr('id')
+        //  var $inputs =$("#"+tabId).find("input");
+        //  $inputs.each(function() {
+        //    if (!$validator.element(this) && valid) {
+        //      $validator.element(this).focusInvalid();
+        //      valid = false;
+        //      return;
+        //    }
+        //  });
+        //  return valid;
+        // }
+        //});
         $('#bootstrap-wizard-1').bootstrapWizard({
           'tabClass': 'form-wizard',
           'onNext': function (tab, navigation, index) {
-
-            var $total = navigation.find('li').length;
-            var $current = index+1;
-            wizard_set_finish_button($current , $total );
             var $valid = $("#wizard-1").valid();
             if (!$valid) {
               $validator.focusInvalid();
               return false;
             }else {
+              var $total = navigation.find('li').length;
+              var $current = index+1;
+              wizard_set_finish_button($current , $total );
               $('#bootstrap-wizard-1').find('.form-wizard').children('li').eq(index - 1).addClass(
                 'complete');
               $('#bootstrap-wizard-1').find('.form-wizard').children('li').eq(index - 1).find('.step')

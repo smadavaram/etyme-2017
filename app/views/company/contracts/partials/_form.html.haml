@@ -1,4 +1,4 @@
-= form_for  @contract ,html: {id: 'wizard-1' , class: 'form-horizontal new_contract' ,novalidate: "novalidate" } do |contract|
+= form_for  @contract ,html: {id: 'wizard-1' , class: 'form-horizontal new_contract', style: "width: 100%;", novalidate: "novalidate" } do |contract|
   =contract.hidden_field :contractable_type , value: "Company"
   - if params.has_key?('id')
     =contract.hidden_field :parent_contract_id , value: params[:id]
@@ -71,14 +71,19 @@
 
 - content_for :scripts do
   :javascript
-    set_client_company_select('#select_clients', "Please Select Or Add new Client");
-    set_job_candidate_select('#select_candidates', "Please Select Or Add new Candidate");
-    set_company_select('#sell_contract_company', "Please Select Or Add new Company");
-    set_company_select('#buy_contract_company', "Please Select Or Add new Company");
-    set_candidate_select('#buy_contract_candidate', "Please Select Or Add new Candidate");
-    set_job_select('#select_jobs', "Please Select Or Add new Job");
-    set_company_contacts_select('#select_sell_company_contacts', "Please Select Or Add new Contacts", "#sell_contract_company");
-    set_company_contacts_select('#select_buy_company_contacts', "Please Select Or Add new Contacts", "#buy_contract_company");
+    $( document ).ready(function() {
+      set_client_company_select('#select_clients', "Please Select Or Add new Client");
+      set_job_candidate_select('#select_candidates', "Please Select Or Add new Candidate");
+      set_company_select('#sell_contract_company', "Please Select Or Add new Company");
+      set_company_select('#buy_contract_company', "Please Select Or Add new Company");
+      set_candidate_select('#buy_contract_candidate', "Please Select Or Add new Candidate");
+      set_job_select('#select_jobs', "Please Select Or Add new Job");
+      set_company_contacts_select('#select_sell_company_contacts', "Please Select Or Add new Contacts", "#sell_contract_company");
+      set_company_contacts_select('#select_buy_company_contacts', "Please Select Or Add new Contacts", "#buy_contract_company");
+      $( ".file-pick" ).on('click',function() {
+        $(".fp__overlay").css({'z-index':'99999'});
+      });
+     });
 
     $( document ).ready(function() {
       $(".multi-select2-role").select2({placeholder: "Select a Role(s)"});

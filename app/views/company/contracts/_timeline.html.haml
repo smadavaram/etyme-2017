@@ -23,10 +23,9 @@
         %p Client: #{cc&.contract&.company&.full_name}
         %p Tax type: #{cc.contract.buy_contracts.first.contract_type}
         - if cc.note == 'Timesheet submit'
-          %hr
-          .row
+          .row.border-top.pt-2
             .col-sm-2.text-center Plan
-            .col-sm-8.text-center Cycle
+            .col-sm-7.text-center Cycle
             .col-sm-2.text-center Actual
           .row
             .col-sm-2.text-center #{cc&.contract&.sell_contracts&.first&.expected_hour}
@@ -63,10 +62,9 @@
         %p Client: #{cc&.contract&.company&.full_name}
         %p Tax type: #{cc.contract.buy_contracts.first.contract_type}
         - if cc.note == 'Timesheet submit'
-          %hr
-          .row
+          .row.border-top.pt-2
             .col-sm-2.text-center Plan
-            .col-sm-8.text-center Cycle
+            .col-sm-7.text-center Cycle
             .col-sm-2.text-center Actual
           .row
             .col-sm-2.text-center #{cc&.contract&.sell_contracts&.first&.expected_hour}
@@ -98,10 +96,9 @@
         %p Client: #{cc&.contract&.company&.full_name}
         %p Tax type: #{cc.contract.buy_contracts.first.contract_type}
         - if cc.note == 'Timesheet submit'
-          %hr
-          .row
+          .row.border-top.pt2
             .col-sm-2.text-center Plan
-            .col-sm-8.text-center Cycle
+            .col-sm-7.text-center Cycle
             .col-sm-2.text-center Actual
           .row
             .col-sm-2.text-center #{cc&.contract&.sell_contracts&.first&.expected_hour}

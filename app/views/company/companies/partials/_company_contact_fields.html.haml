@@ -4,7 +4,7 @@
     %label.control-label
       Email
       %sup.text-danger *
-    = f.email_field :email , class: 'form-control' , placeholder: 'Email' , required: true, data: { email_field: true }
+    = f.email_field :email , class: 'form-control' , placeholder: 'Email' , required: true, data: { email_field: true }, onblur: 'validate_email();'
   .form-group
     %label.control-label
       First Name
