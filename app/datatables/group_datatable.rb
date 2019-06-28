@@ -47,8 +47,8 @@ class GroupDatatable < ApplicationDatatable
   end
 
   def actions record
-    link_to(content_tag(:i, nil, class: 'fa fa-comment-o').html_safe, '#', title: 'chat', class: 'data-table-icons') +
-        link_to(content_tag(:i, nil, class: 'fa fa-bell-o ').html_safe, add_reminder_group_path(record), remote: :true,method: :post, title: "Remind Me", class: 'data-table-icons')
+    # link_to(content_tag(:i, nil, class: 'fa fa-comment-o').html_safe, '#', title: 'chat', class: 'data-table-icons') +
+        link_to(content_tag(:i, nil, class: 'picons-thin-icon-thin-0014_notebook_paper_todo').html_safe, add_reminder_group_path(record), remote: :true,method: :post, title: "Remind Me", class: 'data-table-icons')
   end
 
 

@@ -6,97 +6,86 @@
         .panel.panel-default
           .panel-body.status
             .who.clearfix
-              .row
-                .col-xs-6.col-sm-3.col-md-3.col-lg-3.pull-left
+              .row.pt-3
+                .col-xs-6.col-sm-6.col-md-6.col-lg-6.pull-left
                   - if @chat.try(:chatable_type)=="Job"
                     %h4= truncate(@chat.try(:chatable).try(:title).try(:titleize),length: 50)
                   -elsif @chat.try(:chatable_type)=="Company"
                     %h4= truncate(@chat.try(:chatable)==current_company ?  @chat.try(:company).try(:name).try(:titleize): @chat.try(:chatable).try(:name),length: 50)
                   -else
                     %h4= truncate(@chat.try(:chatable).try(:full_name).try(:titleize),length: 50)
-                .col-xs-6.col-sm-3.col-md-3.col-lg-3.pull-right
+                .col-xs-6.col-sm-6.col-md-6.col-lg-6.pull-right
                   -if @chat.try(:chatable).try(:created_by) == current_user || @chat.try(:chatable_type)=="Candidate" || @chat.try(:chatable_type)=='Company'
                     = link_to raw("<i class='fa-user-plus fa fa-fw fa-lg'></i>") ,"#", class: 'btn btn-success btn-lg pull-right header-btn',"data-target" => "#add_users", "data-toggle" => "modal"
-            .row
-              .text
-                .super-box.col-sm-12.well
-                  - @chat.chat_users.each do |user|
-                    .superbox-list.text-center{style: "display: initial !important;"}
-                      =link_to (image_tag user.userable.photo ,class: 'superbox-img',style: 'border-radius: 50%;width:40px !important;height:40px !important'),"#",title: user.userable.full_name,'data-toggle'=>"tooltip" ,'data-placement'=>"top"
+            .row.m-2
+              .col-sm-12{style: "display: flex;justify-content: flex-end;"}
+                - @chat.chat_users.each do |user|
+                  .superbox-list.text-center{style: "display: initial !important;"}
+                    =link_to (image_tag user.userable.photo ,class: 'superbox-img',style: 'border-radius: 50%;width:40px !important;height:40px !important'),"#",title: user.userable.full_name,'data-toggle'=>"tooltip" ,'data-placement'=>"top"
 
             - if @chat.try(:chatable_type)== 'Job'
-              .row.hidden-sm.hidden-xs
-                .text.padding-top-0
-                  .col-sm-4.col-md-4.col-lg-2
-                    .well.text-center.connect
-                      %img.margin-bottom-5.margin-top-5{:alt => "img", :height => "20px;", :src => "/assets/avatars/male-6fdb3297a97307d20273866196068e696682f523355db573e7d5bd8581ab763e.png", :width => "20px;"}/
-                      %br/
-                      %span.font-xs
-                        %b
-                          %span.badge.bg-color-blueDark.txt-color-white
-                            = @chat.try(:chatable).try(:job_applications).try(:pending_review).try(:count)
-                          %br
-                          Pending
-                  .col-sm-4.col-md-4.col-lg-2
-                    .well.text-center.connect
-                      %img.margin-bottom-5.margin-top-5{:alt => "img", :height => "20px;", :src => "/assets/avatars/male-6fdb3297a97307d20273866196068e696682f523355db573e7d5bd8581ab763e.png", :width => "20px;"}/
-                      %br/
-                      %span.font-xs
-                        %b
-                          %span.badge.bg-color-blueDark.txt-color-white
-                            = @chat.try(:chatable).try(:job_applications).try(:rejected ).try(:count)
-                          %br
-                          Rejected
-                  .col-sm-4.col-md-4.col-lg-2
-                    .well.text-center.connect
-                      %img.margin-bottom-5.margin-top-5{:alt => "img", :height => "20px;", :src => "/assets/avatars/male-6fdb3297a97307d20273866196068e696682f523355db573e7d5bd8581ab763e.png", :width => "20px;"}/
-                      %br/
-                      %span.font-xs
-                        %b
-                          %span.badge.bg-color-blueDark.txt-color-white
-                            = @chat.try(:chatable).try(:job_applications).try(:short_listed).try(:count)
-                          %br
-                          Shortlisted
-                  .col-sm-4.col-md-4.col-lg-2
-                    .well.text-center.connect
-                      %img.margin-bottom-5.margin-top-5{:alt => "img", :height => "20px;", :src => "/assets/avatars/male-6fdb3297a97307d20273866196068e696682f523355db573e7d5bd8581ab763e.png", :width => "20px;"}/
-                      %br/
-                      %span.font-xs
-                        %b
-                          %span.badge.bg-color-blueDark.txt-color-white
-                            = @chat.try(:chatable).try(:job_applications).try(:interviewing).try(:count)
-                          %br
-                          Interviewed
-                  .col-sm-4.col-md-4.col-lg-2
-                    .well.text-center.connect
-                      %img.margin-bottom-5.margin-top-5{:alt => "img", :height => "20px;", :src => "/assets/avatars/male-6fdb3297a97307d20273866196068e696682f523355db573e7d5bd8581ab763e.png", :width => "20px;"}/
-                      %br/
-                      %span.font-xs
-                        %b
-                          %span.badge.bg-color-blueDark.txt-color-white
-                            = @chat.try(:chatable).try(:job_applications).try(:hired).try(:count)
-                          %br
-                          Hired
-                  .col-sm-4.col-md-4.col-lg-2
-                    .well.text-center.connect
-                      %img.margin-bottom-5.margin-top-5{:alt => "img", :height => "20px;", :src => "/assets/avatars/male-6fdb3297a97307d20273866196068e696682f523355db573e7d5bd8581ab763e.png", :width => "20px;"}/
-                      %br/
-                      %span.font-xs
-                        %b
-                          %span.badge.bg-color-blueDark.txt-color-white
-                            = @chat.try(:chatable).try(:job_applications).try(:count)
-                          %br
-                          Total
+              .row.hidden-sm.hidden-xs.m-2
+                .col-sm-4.col-md-4.col-lg-2
+                  .well.text-center.connect
+                    %img.margin-bottom-5.margin-top-5{:alt => "img", :height => "20px;", :src => "/assets/avatars/male-6fdb3297a97307d20273866196068e696682f523355db573e7d5bd8581ab763e.png", :width => "20px;"}/
+                    %br/
+                    %span.font-xs
+                      %b
+                        %span.badge.bg-color-blueDark.txt-color-white
+                          = @chat.try(:chatable).try(:job_applications).try(:pending_review).try(:count)
+                        Pending
+                .col-sm-4.col-md-4.col-lg-2
+                  .well.text-center.connect
+                    %img.margin-bottom-5.margin-top-5{:alt => "img", :height => "20px;", :src => "/assets/avatars/male-6fdb3297a97307d20273866196068e696682f523355db573e7d5bd8581ab763e.png", :width => "20px;"}/
+                    %br/
+                    %span.font-xs
+                      %b
+                        %span.badge.bg-color-blueDark.txt-color-white
+                          = @chat.try(:chatable).try(:job_applications).try(:rejected ).try(:count)
+                        Rejected
+                .col-sm-4.col-md-4.col-lg-2
+                  .well.text-center.connect
+                    %img.margin-bottom-5.margin-top-5{:alt => "img", :height => "20px;", :src => "/assets/avatars/male-6fdb3297a97307d20273866196068e696682f523355db573e7d5bd8581ab763e.png", :width => "20px;"}/
+                    %br/
+                    %span.font-xs
+                      %b
+                        %span.badge.bg-color-blueDark.txt-color-white
+                          = @chat.try(:chatable).try(:job_applications).try(:short_listed).try(:count)
+                        Shortlisted
+                .col-sm-4.col-md-4.col-lg-2
+                  .well.text-center.connect
+                    %img.margin-bottom-5.margin-top-5{:alt => "img", :height => "20px;", :src => "/assets/avatars/male-6fdb3297a97307d20273866196068e696682f523355db573e7d5bd8581ab763e.png", :width => "20px;"}/
+                    %br/
+                    %span.font-xs
+                      %b
+                        %span.badge.bg-color-blueDark.txt-color-white
+                          = @chat.try(:chatable).try(:job_applications).try(:interviewing).try(:count)
+                        Interviewed
+                .col-sm-4.col-md-4.col-lg-2
+                  .well.text-center.connect
+                    %img.margin-bottom-5.margin-top-5{:alt => "img", :height => "20px;", :src => "/assets/avatars/male-6fdb3297a97307d20273866196068e696682f523355db573e7d5bd8581ab763e.png", :width => "20px;"}/
+                    %br/
+                    %span.font-xs
+                      %b
+                        %span.badge.bg-color-blueDark.txt-color-white
+                          = @chat.try(:chatable).try(:job_applications).try(:hired).try(:count)
+                        Hired
+                .col-sm-4.col-md-4.col-lg-2
+                  .well.text-center.connect
+                    %img.margin-bottom-5.margin-top-5{:alt => "img", :height => "20px;", :src => "/assets/avatars/male-6fdb3297a97307d20273866196068e696682f523355db573e7d5bd8581ab763e.png", :width => "20px;"}/
+                    %br/
+                    %span.font-xs
+                      %b
+                        %span.badge.bg-color-blueDark.txt-color-white
+                          = @chat.try(:chatable).try(:job_applications).try(:count)
+                        Total
 
             #chat-body.chat-body{style: "height: 500px !important"}
               .widget-body
                 .row
-                  .col-md-4.col-sm-12.hidden-sm.hidden-xs.center{style: "position: absolute !important"}
-                    .who.clearfix.right
-                      %h4 Your Chats
-                    %br
-
-                    %ul.nav.nav-tabs
+                  .col-md-4.col-sm-12.hidden-sm.hidden-xs.center
+                    %h4.d-inline-block Your Chats
+                    %ul.nav.nav-tabs.d-inline-block.pull-right
                       - @chat_groups.each_with_index  do |(group,chats),index|
                         - if chats.include?(@chat)
                           %li.active.margin-top-0.make-tab-active
