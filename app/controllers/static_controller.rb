@@ -42,18 +42,38 @@ class StaticController < ApplicationController
       if @company
         format.html {}
         format.json do
-          render json: { message: 'Looks like company already registered. Just add it as contact.', slug: @company.try(:slug), website: domain_from_email(params[:email]), name: @company.try(:name), company_type: @company.try(:company_type), status: :ok }
+          domain = get_uniq_domain(get_domain_from_email(params[:email]))
+          render json: { message: 'Looks like company already registered. Just add it as contact.', slug: @company.try(:slug), website: domain_name(params[:email]), name: @company.try(:name), company_type: @company.try(:company_type), domain: domain, status: :ok }
         end
       else
         format.html {}
         format.json do
-          render json: { message: 'Company domain is available.', slug: suggested_slug, website: domain_from_email(params[:email]), status: :ok }
+          render json: { message: 'Company domain is available.', slug: suggested_slug, website: domain_from_email(params[:email]), domain: get_domain_from_email(params[:email]), status: :ok }
         end
       end
     end
   end
 
   private
+
+    def get_uniq_domain(domain)
+      if domain.present?
+        total_domain = Company.where("domain like ?", "#{domain.gsub(/[^0-9A-Za-z.]/, '').downcase}%").count
+        if total_domain == 0
+          domain = "#{domain.gsub(/[^0-9A-Za-z.]/, '').downcase}"
+        else
+          l = 1
+          domain = "#{domain.gsub(/[^0-9A-Za-z.]/, '').downcase}#{total_domain + l }"
+          collision = Company.find_by_domain(domain)
+          until collision.nil?
+            l = l + 1
+            domain = "#{domain.gsub(/[^0-9A-Za-z.]/, '').downcase}#{total_domain +l}"
+            collision = Company.find_by_domain(domain)
+          end
+        end
+      end
+      domain
+    end
 
     def handle_invalid_email
       unless ::EMAIL_REGEX =~ params[:email]
@@ -78,7 +98,7 @@ class StaticController < ApplicationController
             else
               render json: { message: 'User already registered.', status: :unprocessible_entity, slug: @find_company.try(:slug), website: domain_from_email(params[:email]), name: @find_company.try(:name), company_type: @find_company.try(:company_type) }
             end
-            
+
           end
         end
       end
