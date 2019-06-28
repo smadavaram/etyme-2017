@@ -56,7 +56,7 @@ class CompanyDatatable < ApplicationDatatable
 
 
   def actions record
-    link_to(content_tag(:i, nil, class: 'fa fa-bell-o ').html_safe, company_company_add_reminder_path(record), remote: :true, title: "Remind Me", class: 'data-table-icons')
+    link_to(content_tag(:i, nil, class: 'picons-thin-icon-thin-0014_notebook_paper_todo').html_safe, company_company_add_reminder_path(record), remote: :true, title: "Remind Me", class: 'data-table-icons')
   end
 
 

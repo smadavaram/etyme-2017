@@ -198,6 +198,10 @@ class Company < ApplicationRecord
     logo
   end
 
+  def is_freelancer?
+    name == "freelancer"
+  end
+
   # def already_prefered(c)
   #   Company.where.not(:id=>PreferVendor.select(:vendor_id).where(company_id=c.id))
   # end
