@@ -66,7 +66,7 @@
                           %br
                           = "-"+timesheet.contract.client.full_name[0..10]
                           %br
-                          = "-"+timesheet.contract.buy_contracts.first.contract_type
+                          = "-"+timesheet.contract.buy_contracts.first.contract_type.to_s
                           %br
                           = "-"+timesheet.contract.buy_contracts.first.candidate.full_name[0..10]
                         %td= timesheet.total_time
