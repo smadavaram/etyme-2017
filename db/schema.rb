@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema.define(version: 20190624122117) do
+ActiveRecord::Schema.define(version: 20190627144400) do
 
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
@@ -981,17 +981,6 @@ ActiveRecord::Schema.define(version: 20190624122117) do
     t.datetime "updated_at", null: false
   end
 
-  create_table "docusigns", force: :cascade do |t|
-    t.string "ds_expires_at"
-    t.string "ds_user_name"
-    t.string "ds_access_token"
-    t.string "ds_refresh_token"
-    t.string "ds_account_id"
-    t.string "ds_account_name"
-    t.string "ds_base_path"
-    t.integer "company_id"
-  end
-
   create_table "educations", id: :serial, force: :cascade do |t|
     t.string "degree_title"
     t.string "grade"
@@ -1417,6 +1406,18 @@ ActiveRecord::Schema.define(version: 20190624122117) do
   create_table "permissions_roles", id: false, force: :cascade do |t|
     t.integer "role_id"
     t.integer "permission_id"
+  end
+
+  create_table "plugins", force: :cascade do |t|
+    t.string "expires_at"
+    t.string "user_name"
+    t.string "access_token"
+    t.string "refresh_token"
+    t.string "account_id"
+    t.string "account_name"
+    t.string "base_path"
+    t.integer "plugin_type"
+    t.integer "company_id"
   end
 
   create_table "portfolios", id: :serial, force: :cascade do |t|
