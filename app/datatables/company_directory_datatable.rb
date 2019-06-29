@@ -58,8 +58,8 @@ class CompanyDirectoryDatatable < ApplicationDatatable
   end
 
   def actions record
-    link_to(content_tag(:i, nil, class: 'fa fa-bell-o ').html_safe, add_reminder_company_users_path(user_id: record.id), remote: :true, title: "Remind Me", class: 'data-table-icons') +
-        link_to(content_tag(:i, nil, class: 'fa fa-edit').html_safe, '#', title: "Edit #{record.full_name}", class: 'data-table-icons') +
+    link_to(content_tag(:i, nil, class: 'picons-thin-icon-thin-0014_notebook_paper_todo').html_safe, add_reminder_company_users_path(user_id: record.id), remote: :true, title: "Remind Me", class: 'data-table-icons') +
+        # link_to(content_tag(:i, nil, class: 'fa fa-edit').html_safe, '#', title: "Edit #{record.full_name}", class: 'data-table-icons') +
         delete_link_for_owner(record)
   end
 end

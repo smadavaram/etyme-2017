@@ -455,6 +455,7 @@ Rails.application.routes.draw do
         post :accept
         post :reject
         post :short_list
+        get :open_inbox_conversation
         post "interview/:conversation_id", to: "job_applications#interview", as: :interview
         post "accept_interview/:interview_id", to: "job_applications#accept_interview", as: :accept_interview
         post :hire
