@@ -59,11 +59,11 @@ module Contracts
         # set_client_payment_process(client_bill_cycle, con_cycle_cp_pro_start_date )
 
         # # #client expense cycles
-        # client_expense_cycle  = add_client_expense_cycle  
-        # add_client_expense(start_date, next_date, buy_contract.candidate_id, client_expense_cycle.id)     
-        # con_cycle_ce_ap_start_date = ClientExpense.set_con_cycle_ce_ap_date(sell_contract, client_expense_cycle)
-        # set_client_expense_approve(cycle,con_cycle_ce_ap_start_date)
-        # client_expense_invoice_generate(client_expense_cycle)
+        client_expense_cycle  = add_client_expense_cycle
+        add_client_expense(start_date, next_date, buy_contract.candidate_id, client_expense_cycle.id)
+        con_cycle_ce_ap_start_date = ClientExpense.set_con_cycle_ce_ap_date(sell_contract, client_expense_cycle)
+        set_client_expense_approve(cycle,con_cycle_ce_ap_start_date)
+        client_expense_invoice_generate(client_expense_cycle)
 
 
         next_date = next_next_date
