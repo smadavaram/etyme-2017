@@ -20,6 +20,7 @@ class Company::ContractsController < Company::BaseController
   def index
     @contract_activity = PublicActivity::Activity.where(trackable: current_company.contracts).order('created_at DESC').paginate(page: params[:page], per_page: 15 )
     @buy_contracts = Contract.joins(:buy_contracts).where(buy_contracts: {candidate_id: current_company.id}).order('created_at DESC').paginate(page: params[:page], per_page: 15 )
+    @sell_contracts = Contract.joins(:sell_contracts).where(sell_contracts: {company_id: current_company.id}).order('created_at DESC').paginate(page: params[:page], per_page: 15 )
   end
 
   def show
