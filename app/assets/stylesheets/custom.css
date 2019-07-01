@@ -187,4 +187,33 @@ label.required:after {
     display: block !important;
 }
 
-.ui-autocomplete { z-index:2147483647 !important;}
+.ui-autocomplete {
+    z-index: 2147483647 !important;
+}
+
+.without-registration_modal {
+    margin: 50px auto !important;
+    position: relative;
+    width: auto;
+    margin: 0.5rem;
+    pointer-events: none;
+    width: 70%;
+    height: 50%;
+    padding: 0;
+    position: relative;
+}
+
+.uploaded_file_name {
+    text-overflow: ellipsis;
+    overflow: hidden;
+    white-space: nowrap;
+    height: 38px;
+    padding: 5px;
+    border: 1px solid #0362c6;
+    width: -moz-available;
+    width: -webkit-fill-available;
+}
+.file-pick_height{
+    height: 38px;
+    border-radius: unset !important;
+}

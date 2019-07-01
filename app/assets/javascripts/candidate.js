@@ -194,4 +194,6 @@ for (i = 0; i < collapse.length; i++) {
     }
   });
 }
-
+function display_file_name(event) {
+  $('.uploaded_file_name').text(event.fpfile.filename)
+}
