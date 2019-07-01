@@ -32,6 +32,7 @@ class Candidate::CandidatesController < Candidate::BaseController
     end_date = get_end_date
     @cards["APPLICATION"] = current_candidate.job_applications.where(created_at: start_date...end_date).count
     @cards["STATUS"] = Candidate.application_status_count(current_candidate,start_date,end_date)
+    @cards["ACTIVE"] = params[:filter]
   end
 
   def get_start_date

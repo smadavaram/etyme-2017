@@ -38,9 +38,9 @@
     .all-wrapper
       .layout-w
         = render partial: 'candidate/shared/left_panel'
-        .content-w
+        .content-w.fixed-height
           = render partial: 'candidate/shared/header'
-          #main{:role => "main"}
+          #main{:role => "main",style: "min-height: 750px !important"}
             #ribbon
               %ol.breadcrumb
                 = render_breadcrumbs tag: :li, separator: " / "
