@@ -11,13 +11,14 @@
           = hidden_field_tag 'candidate_id', candidate_id if local_assigns[:candidate_id].present?
           = hidden_field_tag 'is_candidate', is_candidate if local_assigns[:is_candidate].present?
 
-          %fieldset
+          .row
             .col-sm-12
               %label.d-block Resume
               .file_selector{style: "display: flex;"}
                 .form-group.d-inline-block
-                  = f.filepicker_field :applicant_resume , class: 'btn btn-primary file-pick'  , id: 'accept-filepiker' ,onchange: 'display_file_name(event)',"data-fp-extensions" => ".pdf,.doc,.docx,.txt"
+                  = f.filepicker_field :applicant_resume , class: 'btn btn-primary file-pick file-pick_height', id: 'accept-filepiker' ,onchange: 'display_file_name(event)',"data-fp-extensions" => ".pdf,.doc,.docx,.txt"
                 %p.d-inline-block.uploaded_file_name  No File Selected
+          %fieldset
             .form-group
               %label.col-md-2.control-label Cover Letter
               .col-md-12
@@ -42,14 +43,12 @@
                         - opt_array = s.split(" ")
                         - if r.multiple_ans
                           -opt_array.each do |a|
-                            = ja.check_box :app_multi_ans, {:multiple => true, class: 'set-checkbox'},"#{CGI.unescape(a)}"
-                            = ja.label :app_multi_ans, :value => "#{CGI.unescape(a)}"
-                            %br/
+                            = ja.check_box :app_multi_ans, {:multiple => true, class: 'set-checkbox d-inline-block'},"#{CGI.unescape(a)}"
+                            = ja.label :app_multi_ans, :value => "#{CGI.unescape(a)}", class: "d-inline-block mr-3"
                         - else
                           -opt_array.each do |a|
-                            = ja.radio_button :applicant_ans, "#{CGI.unescape(a)}",{class: 'set-checkbox'}
-                            = ja.label :applicant_ans, :value => "#{CGI.unescape(a)}"
-                            %br/
+                            = ja.radio_button :applicant_ans, "#{CGI.unescape(a)}",{class: 'set-checkbox d-inline-block'}
+                            = ja.label :applicant_ans, :value => "#{CGI.unescape(a)}", class: "d-inline-block mr-3"
                       - else
                         = ja.filepicker_field :applicant_ans , class: 'btn btn-primary req-file-pick',required: r.ans_mandatroy, id: 'req-accept-filepiker'
             .nested-fields

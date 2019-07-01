@@ -47,11 +47,7 @@ class CompanyDatatable < ApplicationDatatable
   end
 
   def contact_icon record
-    mail_to(record.owner&.email, content_tag(:i, nil, class: 'os-icon os-icon-email-2-at2').html_safe, title: "#{record.email}", class: 'data-table-icons') +
-        link_to(content_tag(:i, nil, class: 'os-icon os-icon-phone  ').html_safe, '#', title: "#{record.phone}", class: 'data-table-icons') +
-        link_to(content_tag(:i, nil, class: 'os-icon os-icon-calendar').html_safe, '#', title: 'Add meeting', class: 'data-table-icons') +
-        link_to(content_tag(:i, nil, class: 'fa fa-comment-o').html_safe, '#', title: 'Add Comment', class: 'data-table-icons')
-
+    contact_widget(record.email, record.phone)
   end
 
 

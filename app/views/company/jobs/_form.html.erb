@@ -2,6 +2,7 @@
   <%= render 'company/jobs/partials/forms/errors', form: form %>
 
   <%= render 'company/jobs/partials/forms/field', form: form, attribute: :title, field_type: :text_field, field_attributes: {autofocus: true} %>
+  <%= render 'company/jobs/partials/forms/field', form: form, attribute: :source, field_type: :text_field, field_attributes: {autofocus: true} %>
   <div class="row">
     <div class="col-lg-6">
       <%= render 'company/jobs/partials/forms/select', form: form, attribute: :listing_type, options: ["Job", "Training", "Service", "Product", "Blog"], field_attributes: {}, note: "If you choose \"Published\", We will show this job to all candidates in your system and will be posted on etyme. So anyone can apply. To control job applications by invitations only" %>

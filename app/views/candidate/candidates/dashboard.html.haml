@@ -3,32 +3,36 @@
   .content-i
     .content-box
       .row
-        .col-sm-12
-          .row
-            .element-wrapper.w-100
+        .element-wrapper.w-100
+          %h6.element-header
+            Dashboard
+          .row.mb-4{style: "justify-content: flex-end;"}
+            %ul.nav.nav-tabs.smaller.float-right{style: "border-bottom: none;"}
+              %li.nav-item
+                %a{class: "nav-link active fd year", href: candidate_filter_cards_data_path("year"),"data-toggle" => "tab", "data-remote" => "true"} year
+              %li.nav-item
+                %a{class: "nav-link fd quarter ", href: candidate_filter_cards_data_path("quarter"),"data-toggle" => "tab", "data-remote" => "true"} Quarter
+              %li.nav-item
+                %a{class: "nav-link fd month", href: candidate_filter_cards_data_path("month"),"data-toggle" => "tab", "data-remote" => "true"} Month
+              %li.nav-item
+                %input{class: 'pull-right nav-link', id: 'custom_range', plceholder: 'Custom Rage Search', "data-date-format" => "DD/MM/YYYY"}
+          .element-content#dashboard_cards
+            =render 'candidate/candidates/partials/dashboard_cards', cards: @cards
+      .row
+        - if candidate_activity_hash.present?
+          .col-sm-12
+            .element-wrapper
               %h6.element-header
-                Dashboard
-                %a.pull-right.btn.btn-sm.btn-primary.mt-1.mr-1{href: candidate_filter_cards_data_path("month"), "data-remote" => "true"} Month
-                %a.pull-right.btn.btn-sm.btn-primary.mt-1.mr-1{href: candidate_filter_cards_data_path("quarter"), "data-remote" => "true"} Quarter
-                %a.pull-right.btn.btn-sm.btn-primary.mt-1.mr-1{href: candidate_filter_cards_data_path("year"), "data-remote" => "true"} year
-                %input.pull-right.mr-1{id: 'custom_range', plceholder: 'Custom Rage Search', "data-date-format" => "DD/MM/YYYY"}
-              .element-content#dashboard_cards
-                =render 'candidate/candidates/partials/dashboard_cards', cards: @cards
-          .row
-            .col-sm-12
-              .element-wrapper
-                %h6.element-header
-                  User Activity
-                .timed-activities.compact
-                  -candidate_activity_hash.each do |key,value|
-                    .timed-activity
-                      .ta-date
-                        %span
-                          = key
-                      .ta-record-w
-                        - value.each do |activity|
-                          = render_activity activity
-
+                User Activity
+              .timed-activities.compact
+                -candidate_activity_hash.each do |key,value|
+                  .timed-activity
+                    .ta-date
+                      %span
+                        = key
+                    .ta-record-w
+                      - value.each do |activity|
+                        = render_activity activity
     .content-panel
       .content-panel-close
         %i.os-icon.os-icon-close

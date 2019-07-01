@@ -39,8 +39,10 @@ $(document).ready(function () {
       return '<span class="ellipsis" title="' + esc(d) + '">' + shortened + '&#8230;</span>';
     };
   };
-
   $('#company-contacts-datatable').dataTable({
+    "drawCallback": function (settings) {
+      addeventatc.refresh();
+    },
     processing: true,
     serverSide: true,
     order: [[1, "desc"]],
@@ -98,11 +100,7 @@ $(document).ready(function () {
         orderable: false
       }
     ]
-
   });
-
-
-
   $('#job_application_dataTable').dataTable({
     columnDefs: [{
       'targets': 0,
@@ -123,6 +121,9 @@ $(document).ready(function () {
     ]
   });
   $('#company-candidates-datatable').dataTable({
+    "drawCallback": function (settings) {
+      addeventatc.refresh();
+    },
     processing: true,
     serverSide: true,
     order: [[1, "desc"]],
@@ -135,7 +136,7 @@ $(document).ready(function () {
       }
     },
       {
-        'targets': [1,2],
+        'targets': [1, 2],
         searchable: true,
         orderable: true,
         'createdCell': function (td, cellData, rowData, row, col) {
@@ -178,9 +179,10 @@ $(document).ready(function () {
     ]
 
   });
-
-
   $('#companies-datatable').dataTable({
+    "drawCallback": function (settings) {
+      addeventatc.refresh();
+    },
     processing: true,
     serverSide: true,
     order: [[1, "desc"]],
@@ -227,8 +229,10 @@ $(document).ready(function () {
     ]
 
   });
-
   $('#company-directory-datatable').dataTable({
+    "drawCallback": function (settings) {
+      addeventatc.refresh();
+    },
     processing: true,
     serverSide: true,
     order: [[1, "desc"]],
@@ -279,7 +283,6 @@ $(document).ready(function () {
       }
     ]
   });
-
   $('#group-datatable').dataTable({
     processing: true,
     serverSide: true,
@@ -319,8 +322,6 @@ $(document).ready(function () {
       }
     ]
   });
-
-
   $('#application-datatable').dataTable({
     processing: true,
     serverSide: true,
@@ -342,7 +343,7 @@ $(document).ready(function () {
     ],
     ajax: $('#application-datatable').data('source'),
     columns: [
-      {data: "id",searchable: false, orderable: false},
+      {data: "id", searchable: false, orderable: false},
       {data: "name", searchable: false, orderable: false},
       {data: "application_number"},
       {data: "title"},
@@ -351,9 +352,7 @@ $(document).ready(function () {
       {data: "actions", searchable: false, orderable: false},
     ]
   });
-
   $('#my_bench_datatable').DataTable({
     columnDefs: [{'targets': 0, searchable: false, orderable: false,}],
   });
-
 });
