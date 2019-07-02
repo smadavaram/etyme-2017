@@ -1,0 +1,21 @@
+#skype_integration_modal.modal{"aria-hidden" => "true", "aria-labelledby" => "exampleModalLabel", :role => "dialog", :style => "display: none;", :tabindex => "-1"}
+  .modal-dialog{:role => "document"}
+    .modal-content
+      .modal-header
+        %h5#exampleModalLabel.modal-title Skype Integration Credentials
+        %button.close{"aria-label" => "Close", "data-dismiss" => "modal", :type => "button"}
+          %span{"aria-hidden" => "true"} ×
+      = form_with url: company_plugins_path do |f|
+        .modal-body
+          .row
+            .col-sm-12
+              .form-group
+                %label{:for => ""} App key
+                =f.text_field :app_key, class: "form-control",:placeholder => "App Key"
+            .col-sm-12
+              .form-group
+                %label{:for => ""} App Secret
+                =f.password_field :app_secret, class: "form-control",:placeholder => "App Secret"
+        .modal-footer
+          = f.submit :submit, class: "btn btn-primary"
+          %button.btn.btn-secondary{"data-dismiss" => "modal", :type => "button"} Close

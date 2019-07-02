@@ -1,7 +1,4 @@
 class Plugin < ApplicationRecord
-  enum plugin_type: [:docusign,:zoom]
+  enum plugin_type: [:docusign,:zoom, :skype]
   belongs_to :company
-  validates_presence_of :access_token
-  validates_presence_of :refresh_token
-  validates_presence_of :account_id
 end
