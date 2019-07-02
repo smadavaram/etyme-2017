@@ -80,3 +80,41 @@
   width: -moz-available;
   width: -webkit-fill-available;
 }
+
+.privacy_policy_container {
+  width: 70%;
+  margin: auto auto;
+  text-align: justify;
+  padding-top: 80px;
+}
+
+.terms_of_use_container {
+  width: 70%;
+  margin: auto auto;
+  text-align: justify;
+  padding-top: 80px;
+  color: #494949 !important;
+}
+.contact_us_container {
+  width: 70%;
+  margin: auto auto;
+  text-align: justify;
+  padding-top: 80px;
+  color: #494949 !important;
+}
+
+.terms_of_use_container > ul {
+  list-style: unset;
+}
+
+.privacy_policy_container > ul {
+  list-style: unset;
+}
+
+li > ul {
+  list-style: unset;
+}
+
+ul > li > p > span {
+  display: block !important;
+}

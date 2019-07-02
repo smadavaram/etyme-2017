@@ -13,6 +13,15 @@ class StaticController < ApplicationController
   def index
   end
 
+  def contact_us
+  end
+
+  def privacy_policy
+  end
+
+  def terms_of_use
+  end
+
   def signup
   end
 
