@@ -7,7 +7,7 @@ class Company::UsersController < Company::BaseController
   has_scope :search_by, only: :dashboard
 
   def dashboard
-
+    get_cards
     if current_company&.vendor?
       @data = []
       respond_to do |format|
@@ -27,7 +27,6 @@ class Company::UsersController < Company::BaseController
 
         }
         format.html {
-          get_cards
           @directory = current_company.users #.paginate(page: params[:page],per_page: 5)
           @data += apply_scopes(Job.where(company_id: current_company.prefer_vendor_companies.map(&:id)))
           @data += apply_scopes(current_company.invited_companies_contacts)

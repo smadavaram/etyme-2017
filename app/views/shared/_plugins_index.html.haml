@@ -1,0 +1,34 @@
+.row
+  .col-sm-12.col-md-12.col-12
+    .element-box
+      -Plugin.plugin_types.keys.each do |plugin_type|
+        -unless current_company.plugins.send(plugin_type).present?
+          - if plugin_type == "skype"
+            %button.btn.btn-sm.btn-secondary.mr-2.mb-2{"data-target" => "#skype_integration_modal", "data-toggle" => "modal", :type => "button"} Integrate #{plugin_type}
+          - else
+            %a.btn.btn-sm.btn-secondary.mr-2.mb-2{:href => plugin_company_company_path(current_company,plugin_type: plugin_type)} Integrate #{plugin_type}
+      -if current_company.plugins.present?
+        - current_company.plugins.each do |plugin|
+          .element-wrapper
+            %h6.element-header= "#{plugin.plugin_type} Plugin"
+            .element-box
+              .table-responsive
+                %table.table.table-lightborder
+                  %tbody
+                    %tr
+                      %td User Name
+                      %td= plugin.user_name
+                    - if plugin.skype?
+                      %tr
+                        %td App Key
+                        %td= plugin.app_key
+                    - else
+                      %tr
+                        %td Account Id
+                        %td= plugin.account_id
+                      %tr
+                        %td Account Name
+                        %td= plugin.account_name
+                      %tr
+                        %td Token Expiry
+                        %td= Time.at(plugin.expires_at.to_i)
