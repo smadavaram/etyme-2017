@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema.define(version: 20190702072930) do
+ActiveRecord::Schema.define(version: 20190703130011) do
 
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
@@ -876,6 +876,7 @@ ActiveRecord::Schema.define(version: 20190702072930) do
     t.string "chatable_type"
     t.bigint "chatable_id"
     t.bigint "job_application_id"
+    t.bigint "job_id"
     t.index ["chatable_type", "chatable_id"], name: "index_conversations_on_chatable_type_and_chatable_id"
     t.index ["recipientable_type", "recipientable_id"], name: "index_conversations_on_recipientable_type_and_recipientable_id"
     t.index ["senderable_type", "senderable_id"], name: "index_conversations_on_senderable_type_and_senderable_id"
