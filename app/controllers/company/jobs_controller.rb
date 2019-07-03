@@ -22,8 +22,10 @@ class Company::JobsController < Company::BaseController
     @job_applications = @job.job_applications
     # @conversations = @job.conversations
     # @conversation = @conversations.first
-    @conversation = @job.conversation_id ? Conversation.find(@job.conversation_id) : nil
+    @job.create_job_conversation unless @job.conversation.present?
+    @conversation = @job.conversation
   end
+
 
   def new
     add_breadcrumb "NEW", :new_job_path, options: { title: "NEW JOB" }

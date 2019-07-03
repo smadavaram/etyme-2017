@@ -6,6 +6,7 @@ class Conversation < ApplicationRecord
   belongs_to :recipientable, polymorphic: :true, optional: true
   belongs_to :chatable, polymorphic: true, optional: true
   belongs_to :job_application, optional: true
+  belongs_to :job, optional: true
   enum topic: [:OneToOne, :Rate, :GroupChat, :Job, :JobApplication]
 
   scope :involving, -> (user) do

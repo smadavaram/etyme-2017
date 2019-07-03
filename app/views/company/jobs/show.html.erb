@@ -95,9 +95,7 @@
           <div class="element-box element-box-show">
             <h5 class="form-header">Conversations</h5>
             <% if @conversation.present? %>
-              <%= link_to "View conversation", company_conversations_path(conversation: @conversation.id), class: "btn btn-primary" %>
-            <% else %>
-              <%= link_to "Create conversation", company_conversations_path(user_id: current_user.id, chat_topic: "Job", chatable_id: @job.id, chatable_type: "Job"), class: "btn btn-primary", method: :post %>
+              <%= link_to "View Conversation", company_conversations_path(conversation: @conversation.id), class: "btn btn-primary", method: :post %>
             <% end %>
           </div>
         </div>
