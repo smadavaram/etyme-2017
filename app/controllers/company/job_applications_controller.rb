@@ -288,7 +288,7 @@ class Company::JobApplicationsController < Company::BaseController
         group.groupables.create(groupable: current_user)
         group.groupables.create(groupable: user.associated_company.owner) if user.associated_company.owner
       end
-      @conversation = Conversation.create!({senderable: current_user, recipientable: user, chatable: group, topic: :JobApplication, job_application_id: @job_application.id})
+      @conversation = @job_application.build_conversation({chatable: group, topic: :JobApplication}).save
     end
   end
 

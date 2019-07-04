@@ -6,9 +6,10 @@
         <span>To:</span>
         <a class="d-inline" href="#"><%= opt_obj.full_name if opt_obj.present? %></a>
       </div>
-      <% if conversation.present? and conversation.recipientable.present? %>
+      <% if conversation.present? and conversation.JobApplication?%>
         <div>
-          <%= contact_widget(conversation.recipientable.email, conversation.recipientable.phone, conversation.recipientable_id) %>
+          <% candidate = conversation.chatable&.groupables.find_by_groupable_type(:Candidate).groupable %>
+          <%= contact_widget(candidate.email, candidate.phone, candidate.id) %>
         </div>
       <% end %>
     </div>

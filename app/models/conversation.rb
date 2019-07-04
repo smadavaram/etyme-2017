@@ -17,9 +17,14 @@ class Conversation < ApplicationRecord
     where(senderable: sender, recipientable: recipient).or where(senderable: recipient, recipientable: sender)
   end
 
+  scope :all_onversations, -> (user) do
+    where(chatable: Group.where(member_type: "Chat")
+                        .joins(:groupables)
+                        .where("groupables.groupable_id = ? and groupables.groupable_type = ?", user.id, "User").uniq)
+  end
 
   def opt_participant(user)
-    chatable.present?  ? chatable : (senderable == user ? recipientable : senderable)
+    chatable.present? ? chatable : (senderable == user ? recipientable : senderable)
   end
 
 end
