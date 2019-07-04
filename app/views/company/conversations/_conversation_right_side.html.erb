@@ -61,37 +61,28 @@
         <i class="os-icon os-icon-documents-03"></i><span>Activity log</span>
       </div>
       <div class="timed-activities timed-activities_height compact pt-3">
-        <div class="timed-activity">
-          <div class="ta-date">
-            <span>21st Jan, 2017</span>
-          </div>
-          <div class="ta-record-w">
-            <div class="ta-record">
-              <div class="ta-timestamp">
-                <strong>11:55</strong> am
-              </div>
-              <div class="ta-activity">
-                Created a post called <a href="#">Register new symbol</a> in Rogue
-              </div>
-            </div>
-            <div class="ta-record">
-              <div class="ta-timestamp">
-                <strong>2:34</strong> pm
-              </div>
-              <div class="ta-activity">
-                Commented on story <a href="#">How to be a leader</a> in <a href="#">Financial</a> category
-              </div>
-            </div>
-            <div class="ta-record">
-              <div class="ta-timestamp">
-                <strong>7:12</strong> pm
-              </div>
-              <div class="ta-activity">
-                Added <a href="#">John Silver</a> as a friend
+        <% if job_application_activity_hash.present? %>
+          <div class="col-sm-12">
+            <div class="element-wrapper">
+              <div class="timed-activities compact">
+                <% job_application_activity_hash.each do |key, value| %>
+                  <div class="timed-activity">
+                    <div class="ta-date">
+                      <span>
+                        <%= key %>
+                      </span>
+                    </div>
+                    <div class="ta-record-w">
+                      <% value.each do |activity| %>
+                        <%= render_activity activity %>
+                      <% end %>
+                    </div>
+                  </div>
+                <% end %>
               </div>
             </div>
           </div>
-        </div>
+        <% end %>
       </div>
     <% end %>
   </div>

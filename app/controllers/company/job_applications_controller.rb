@@ -14,7 +14,7 @@ class Company::JobApplicationsController < Company::BaseController
   def applicant
     @job_application = current_company.received_job_applications.find_by(id: params[:id])
     @candidate = @job_application.applicationable
-    @conversation = @job_application.conversations.find_by(recipientable: @candidate)
+    @conversation = @job_application.conversation
   end
 
   def index
@@ -133,7 +133,7 @@ class Company::JobApplicationsController < Company::BaseController
                      : @job_application.interviews.new(interview_params)
     respond_to do |format|
       if @interview.new_record? ? @interview.save : @interview.update(interview_params.merge({accept: false, accepted_by_recruiter: false, accepted_by_company: false}))
-        @conversation = @job_application.conversations.find_by(id: params[:conversation_id])
+        @conversation = @job_application.conversation
         @conversation.conversation_messages.schedule_interview.update_all(message_type: :job_conversation)
         body = current_user.full_name + " has schedule an interview on #{@interview.date} at #{@interview.date} <a href='http://#{@job_application.job.created_by.company.etyme_url + job_application_path(@job_application)}'> with reference to the job </a>#{@job_application.job.title}."
         current_user.conversation_messages.create(conversation_id: @conversation.id, body: body, message_type: :schedule_interview, resource_id: @interview.id)
@@ -157,7 +157,7 @@ class Company::JobApplicationsController < Company::BaseController
       return
     end
     if current_user == @job_application.job.company.owner ? @interview.update(accepted_by_company: true) : @interview.update(accepted_by_recruiter: true)
-      @conversation = @job_application.conversations.find_by(id: params[:conversation_id])
+      @conversation = @job_application.conversation
       if @interview.is_accepted?
         @conversation.conversation_messages.schedule_interview.update_all(message_type: :job_conversation)
         @job_application.interviewing!
@@ -194,8 +194,8 @@ class Company::JobApplicationsController < Company::BaseController
   end
 
   def show
-    user = @job_application.user
-    set_conversation(user)
+    set_conversation(@job_application.user)
+    @activities = PublicActivity::Activity.where(recipient: @job_application).order("created_at desc")
   end
 
   def open_inbox_conversation
@@ -214,7 +214,7 @@ class Company::JobApplicationsController < Company::BaseController
 
   def accept_rate
     if (@job_application.job.company.owner == current_user ? @job_application.update(accept_rate_by_company: true, status: :rate_confirmation) : @job_application.update(accept_rate: true, status: :rate_confirmation))
-      @conversation = @job_application.conversations.find_by(id: params[:conversation_id])
+      @conversation = @job_application.conversation
       if @job_application.is_rate_accepted?
         @conversation.conversation_messages.rate_confirmation.update_all(message_type: :job_conversation)
         record_activity
@@ -231,7 +231,7 @@ class Company::JobApplicationsController < Company::BaseController
   def rate_negotiation
     base_url = @job_application.applicationable.associated_company.owner ? "http://#{@job_application.applicationable.associated_company.etyme_url}" : HOSTNAME
     if @job_application.update(job_application_rate.merge(rate_initiator: current_user.full_name, accept_rate: false, accept_rate_by_company: false))
-      @conversation = @job_application.conversations.find_by(id: params[:conversation_id])
+      @conversation = @job_application.conversation
       @conversation.conversation_messages.rate_confirmation.update_all(message_type: :job_conversation)
       body = current_user.full_name + " has offered you #{@job_application.rate_per_hour}/hr with reference to #{@job_application.job.title} job."
       current_user.conversation_messages.create(conversation_id: @conversation.id, body: body, message_type: :rate_confirmation)
@@ -265,7 +265,10 @@ class Company::JobApplicationsController < Company::BaseController
   private
 
   def record_activity
-    @job_application.create_activity key: 'job_application.status', owner: current_user,recipient: @job_application.applicationable, additional_data: {status: @job_application.status.camelcase}
+    # owner: who performs the activity
+    # recipient: the one on which the activity is performed
+    # additional_data: hash of things about the recipients --needed to make links
+    @job_application.create_activity key: 'job_application.status', owner: current_user,recipient: @job_application, additional_data: {status: @job_application.status.camelcase}
   end
 
   def set_conversation(user)
@@ -325,7 +328,7 @@ class Company::JobApplicationsController < Company::BaseController
   end
 
   def create_conversation_message
-    @conversation = @job_application.conversations.find_by(id: params[:conversation_id])
+    @conversation = @job_application.conversation
     body = @job_application.applicationable.full_name + " has #{@job_application.status.humanize} <a href='http://#{@job_application.job.created_by.company.etyme_url + job_application_path(@job_application)}'> on your Job </a>#{@job_application.job.title}"
     current_user.conversation_messages.create(conversation_id: @conversation.id, body: body)
   end

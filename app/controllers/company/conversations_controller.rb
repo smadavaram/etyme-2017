@@ -5,11 +5,15 @@ class Company::ConversationsController < Company::BaseController
   def index
     @conversations = Conversation.all_onversations(current_user)
     @conversation = params[:conversation].present? ? Conversation.find(params[:conversation]) : @conversations.first
+    set_activity_for_job_application
     # @unread_message_count = Conversation.joins(:conversation_messages).where("(senderable_type = ? AND senderable_id = ? ) OR (recipientable_type = ? AND recipientable_id = ?)", current_user.class.to_s, current_user.id, current_user.class.to_s, current_user.id).where.not(conversation_messages: {is_read: true, userable: current_user}).uniq.count
   end
 
   def create
     @conversation = Conversation.where(id: params[:conversation]).first
+    if @conversation.job_application.present?
+      @activities = PublicActivity::Activity.where(recipient: @conversation.job_application).order("created_at desc")
+    end
     # @unread_message_count = Conversation.joins(:conversation_messages).where("(senderable_type = ? AND senderable_id = ? ) OR (recipientable_type = ? AND recipientable_id = ?)", current_user.class.to_s, current_user.id, current_user.class.to_s, current_user.id).where.not(conversation_messages: {is_read: true, userable: current_user}).uniq.count
     respond_to do |format|
       format.html {
@@ -85,6 +89,13 @@ class Company::ConversationsController < Company::BaseController
     redirect_to company_conversations_path(conversation: conversation.id)
   end
 
+  private
+
+  def set_activity_for_job_application
+    if @conversation.job_application.present?
+      @activities = PublicActivity::Activity.where(recipient: @conversation.job_application).order("created_at desc")
+    end
+  end
   # private
 
   # def set_conversation(user)
