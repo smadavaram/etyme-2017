@@ -17,7 +17,6 @@ class Company::ConversationsController < Company::BaseController
     # @unread_message_count = Conversation.joins(:conversation_messages).where("(senderable_type = ? AND senderable_id = ? ) OR (recipientable_type = ? AND recipientable_id = ?)", current_user.class.to_s, current_user.id, current_user.class.to_s, current_user.id).where.not(conversation_messages: {is_read: true, userable: current_user}).uniq.count
     respond_to do |format|
       format.html {
-        get_conversation_users
         render 'index'
       }
       format.js
@@ -29,7 +28,7 @@ class Company::ConversationsController < Company::BaseController
       @candidates = Candidate.like_any([:first_name, :last_name], params[:keyword].to_s.split)
       @companies = User.joins(:company).where("companies.name ILIKE ?", "%#{params[:keyword].to_s}%")
     else
-      get_conversation_users
+      # get_conversation_users
     end
   end
 
