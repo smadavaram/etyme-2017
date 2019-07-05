@@ -16,7 +16,6 @@ Rails.application.routes.draw do
   resources :messages, concerns: :commentable
   resources :articles, concerns: [:commentable, :image_attachable]
 
-
   get '/states/:country', to: 'application#states'
   get '/cities/:state/:country', to: 'application#cities'
   get 'register' => 'companies#new'
@@ -50,6 +49,7 @@ Rails.application.routes.draw do
   resources :static, only: [:index]
   namespace :static do
     resources :jobs, only: [:index, :show] do
+      post 'job_request', on: :collection
       get '(page/:page)', action: :index, on: :collection, as: ''
       match :search, action: :index, via: [:get, :post], on: :collection
       post :apply
@@ -220,8 +220,8 @@ Rails.application.routes.draw do
     resources :plugins, only: [:create]
     resources :departments, only: [:create, :update]
     resources :black_listers, only: [] do
-      post 'ban/:black_lister_id/type/:black_lister_type',to: 'black_listers#ban',as: :ban,on: :collection
-      post 'unban/:black_lister_id/type/:black_lister_type',to: 'black_listers#unban',as: :unban,on: :collection
+      post 'ban/:black_lister_id/type/:black_lister_type', to: 'black_listers#ban', as: :ban, on: :collection
+      post 'unban/:black_lister_id/type/:black_lister_type', to: 'black_listers#unban', as: :unban, on: :collection
     end
     resources :statuses, only: [:create, :index] do
       collection do
@@ -452,9 +452,9 @@ Rails.application.routes.draw do
         post "rate_negotiation/:conversation_id", to: "job_applications#rate_negotiation", as: :rate_negotiation_for
         post "accept_rate/:conversation_id", to: "job_applications#accept_rate", as: :accept_rate
         get :client_submission, as: :submit
-        get  :applicant, as: :applicant
-        get  :share
-        get  :proposal
+        get :applicant, as: :applicant
+        get :share
+        get :proposal
         post :share_application_with_companies
         post :accept
         post :reject
