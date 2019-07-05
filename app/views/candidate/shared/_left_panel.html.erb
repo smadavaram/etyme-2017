@@ -96,6 +96,16 @@
         <div class="icon-w">
           <i class="fa fa-id-card-o"></i>
         </div>
+        <span>HR</span>
+      </a>
+      <div class="pl-4 w-100 text-justify nav-sidebar-collaps">
+        <a class="l2 side-bar_links nested_tab boarder_bottom" href="<%= candidate_contracts_path %>">Buy Contract</a>
+        <a class="l2 side-bar_links nested_tab boarder_bottom" href="<%= "#" %>">Sell contract</a>
+      </div>
+      <a class="sidebar_collapsible side-bar_tab">
+        <div class="icon-w">
+          <i class="fa fa-id-card-o"></i>
+        </div>
         <span>Applications</span>
       </a>
       <div class="pl-4 w-100 text-justify nav-sidebar-collaps">
@@ -105,12 +115,27 @@
         <a class="l2 side-bar_links nested_tab boarder_bottom" href="<%= "#" %>">Pre-interview</a>
         <a class="l2 side-bar_links nested_tab boarder_bottom" href="<%= "#" %>">Client interview</a>
       </div>
-      <a href="<%= candidate_timesheets_path %>" class="side-bar_tab side-bar_links">
+      <a class="sidebar_collapsible side-bar_tab">
         <div class="icon-w">
           <i class="ti-timer"></i>
         </div>
         <span>Timesheets</span>
       </a>
+      <div class="pl-4 w-100 text-justify nav-sidebar-collaps">
+        <a class="l2 side-bar_links nested_tab boarder_bottom" href="<%= candidate_timesheets_path %>">Timesheets</a>
+        <a class="l2 side-bar_links nested_tab boarder_bottom" href="<%= submitted_timesheets_candidate_timesheets_path %>">Submitted</a>
+        <a class="l2 side-bar_links nested_tab boarder_bottom" href="<%= approve_timesheets_candidate_timesheets_path %>">Approved</a>
+      </div>
+      <a class="sidebar_collapsible side-bar_tab">
+        <div class="icon-w">
+          <i class="icon-plane"></i>
+        </div>
+        <span>Client Expenses</span>
+      </a>
+      <div class="pl-4 w-100 text-justify nav-sidebar-collaps">
+        <a class="l2 side-bar_links nested_tab boarder_bottom" href="<%= candidate_client_expenses_path %>">Expenses</a>
+        <a class="l2 side-bar_links nested_tab boarder_bottom" href="<%= submitted_client_expenses_candidate_client_expenses_path %>">Submitted</a>
+      </div>
     </div>
     <div class="side-bar_icons">
       <a class="">

@@ -61,7 +61,7 @@ class BankDetail < ApplicationRecord
     )
 
     # create company account
-    company_key = ledger.keys.query({aliases: [self.company.name]}).first
+    company_key = ledger.keys.to_query({aliases: [self.company.name]}).first
     unless company_key 
       company_key = ledger.keys.create(id: self.company.name)
     end
