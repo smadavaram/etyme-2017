@@ -20,8 +20,11 @@ class Company::ClientExpensesController < Company::BaseController
     ClientExpense.retire_after_reject_on_seq(client_expense, client_expense.amount)  
     flash[:errors] = 'Expense approval rejected'
     redirect_to client_expenses_path
-  end 
+  end
 
+  def approve_client_expenses
+    @client_expenses = current_company.client_expenses.approved_client_expenses
+  end
 
   private
 

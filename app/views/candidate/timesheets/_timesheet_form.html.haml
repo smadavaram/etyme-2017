@@ -65,6 +65,13 @@
     })
 
     $(document).on('click', '.save-all', function () {
+      if(save_all.length === 0){
+        var arr = []
+          $.each($("input.sin-select:checkbox"), function(){
+            arr.push($(this).attr('id'))
+          });
+          save_all = arr;
+      }
       $.each(save_all, function( index, value ) {
         $('#'+value).parents("tr").find(".button_green").click()
       });

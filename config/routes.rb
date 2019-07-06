@@ -192,7 +192,7 @@ Rails.application.routes.draw do
     resources :client_expenses, only: [:index, :update] do
       post :get_client_expenses, on: :collection
       get :submitted_client_expenses, on: :collection
-      get :approve_client_expense, on: :collection
+      get :approve_client_expenses, on: :collection
     end
     resources :designations, only: [] do
       member do
@@ -610,6 +610,7 @@ Rails.application.routes.draw do
     resources :client_expenses, only: [:index] do
       get 'approve', on: :collection
       get 'reject', on: :collection
+      get :approve_client_expenses, on: :collection
     end
     # get 'configuration' ,   to: 'companies#edit' ,              as: :configuration
     resources :companies, concerns: :paginatable, only: [:update, :show, :index, :edit, :destroy] do

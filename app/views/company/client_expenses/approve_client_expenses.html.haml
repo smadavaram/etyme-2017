@@ -1,0 +1,45 @@
+#content
+  .row
+  %section
+    .row
+      %article.col-sm-12.col-md-12.col-lg-12
+        #wid-id-0.jarviswidget{"data-widget-deletebutton" => "false", "data-widget-editbutton" => "false"}
+          %header
+            %span.widget-icon
+              %i.fa.fa-check
+            %h2 Approve Client Expense
+
+          %div
+            .jarviswidget-editbox
+            .widget-body
+              %div.table-responsive
+                %table.table.table-bordered.account_detail
+                  %thead
+                    %tr
+                      %th Cycle ID
+                      %th Approve Cycle ID
+                      %th Contract
+                      %th Client
+                      %th Tax Type
+                      %th Candidate
+                      %th Total Amount
+                      %th Status
+                  %tbody
+                    - @client_expenses.each do |ex|
+                      %tr
+                        %td
+                          = ex.id
+                        %td
+                          = ex.ce_ap_cycle_id
+                        %td
+                          = ex.contract.number
+                        %td
+                          = ex.contract.sell_contracts.first.company.full_name
+                        %td
+                          = ex.contract.buy_contracts.first.contract_type
+                        %td
+                          = ex.candidate.full_name
+                        %td
+                          = ex.amount
+                        %td
+                          = ex.status.titleize
