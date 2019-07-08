@@ -68,14 +68,18 @@ class Static::JobsController < ApplicationController
     if company
       job = company.jobs.build(job_attr_extractor.merge({created_by_id: user.id}))
       job.title = "Draft Job" unless job.title.present?
+      job.description = request.POST["stripped-html"] unless job.source and job.price and job.education_list and job.tag_list
       if job.save(:validate => false)
+        begin
+          JobMailer.send_confirmation_receipt(job).deliver_now
+        rescue
+        end
         render json: {message: 'Job Created'}, status: :ok
       else
         render json: {errors: job.errors.full_messages}, status: :unprocessable_entity
       end
     end
   end
-
 
   def show
     unless @job.present?

@@ -10,6 +10,11 @@ class JobMailer < ApplicationMailer
     mail(to: @vendor.email,  subject: "Job Invitation" , from: "Etyme <no-reply@etyme.com>")
   end
 
+  def send_confirmation_receipt(job)
+    @job = job
+    mail(to: @job.created_by.email,  subject: "Job Creation Reciept Through Email" , from: "Etyme <no-reply@etyme.com>")
+  end
+
   def share_jobs(to, to_emails, job_ids, current_company, message, subject)
     @link_list = []
     @message = message
