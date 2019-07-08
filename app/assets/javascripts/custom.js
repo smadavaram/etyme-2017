@@ -1,52 +1,54 @@
-function flash(color , msg , icon){
+function flash(color, msg, icon) {
     $.smallBox({
-        title : msg,
+        title: msg,
         // content : "<i class='fa fa-clock-o'></i> <i>2 seconds ago...</i>",
-        color : color,
-        iconSmall : icon+" bounce animated",
-        timeout : 4000
+        color: color,
+        iconSmall: icon + " bounce animated",
+        timeout: 4000
     });
-}1
-function flash_error(msg)
-{
-    $error    = '#D04B2B';
-    flash($error,msg , 'fa fa-exclamation-triangle');
-}
-function flash_success(msg)
-{
-    var $success  = '#80C14B';
-    flash($success,msg , 'fa fa-check');
-}
-function flash_info(msg)
-{
-    var $info     = '#35A4DA';
-    flash($info,msg , 'fa fa-info');
-}
-function flash_notice(msg)
-{
-    var $notice   = '#80C14B';
-    flash($notice,msg , 'fa fa-thumbs');
-}
-function flash_alert(msg)
-{
-    var $alert    = '#FFC333';
-    flash($alert,msg , 'fa fa-exclamation-triangle');
 }
 
-$( document ).ready(function() {
+1
+
+function flash_error(msg) {
+    $error = '#D04B2B';
+    flash($error, msg, 'fa fa-exclamation-triangle');
+}
+
+function flash_success(msg) {
+    var $success = '#80C14B';
+    flash($success, msg, 'fa fa-check');
+}
+
+function flash_info(msg) {
+    var $info = '#35A4DA';
+    flash($info, msg, 'fa fa-info');
+}
+
+function flash_notice(msg) {
+    var $notice = '#80C14B';
+    flash($notice, msg, 'fa fa-thumbs');
+}
+
+function flash_alert(msg) {
+    var $alert = '#FFC333';
+    flash($alert, msg, 'fa fa-exclamation-triangle');
+}
+
+$(document).ready(function () {
     $(".multi-select2").select2({
-        placeholder: $('#'+$('.multi-select2').attr('id')).attr('placeholder'),
+        placeholder: $('#' + $('.multi-select2').attr('id')).attr('placeholder'),
         tokenSeparators: [',', ' ']
     })
-    $("#comment_body").keypress(function(event) {
+    $("#comment_body").keypress(function (event) {
         if (event.which == 13) {
             event.preventDefault();
             $("#new_comment").submit();
         }
     });
-    if($('#container-chart').length > 0) {
+    if ($('#container-chart').length > 0) {
         $('#container-chart').highcharts({
-            colors: ['#53C986','#334A5E','#ffc333','#fb6b5b'],
+            colors: ['#53C986', '#334A5E', '#ffc333', '#fb6b5b'],
             chart: {
                 type: 'column'
             },
@@ -60,7 +62,7 @@ $( document ).ready(function() {
                 text: 'Approved Hours / Day'
             },
             xAxis: {
-                categories: ['19th Dec','21th Dec','22th Dec','23th Dec','24th Dec','25th Dec','26th Dec','27th Dec']
+                categories: ['19th Dec', '21th Dec', '22th Dec', '23th Dec', '24th Dec', '25th Dec', '26th Dec', '27th Dec']
             },
             plotOptions: {
                 series: {
@@ -79,20 +81,20 @@ $( document ).ready(function() {
             },
             series: [{
                 name: 'Total Hours ',
-                data: [4,7,5,7,10,7,10,4.4],
+                data: [4, 7, 5, 7, 10, 7, 10, 4.4],
                 color: '#3b5998'
             }]
         })
     }
-    $('[data-form-prepend]').click( function(e) {
-        var obj = $( $(this).attr('data-form-prepend') );
-        var time_stamp = (new Date()).getTime() ;
-        obj.find('input, select, textarea').each( function() {
-            $(this).attr( 'name', function() {
-                return $(this).attr('name').replace( 'new_record', time_stamp);
+    $('[data-form-prepend]').click(function (e) {
+        var obj = $($(this).attr('data-form-prepend'));
+        var time_stamp = (new Date()).getTime();
+        obj.find('input, select, textarea').each(function () {
+            $(this).attr('name', function () {
+                return $(this).attr('name').replace('new_record', time_stamp);
             });
         });
-        obj.insertBefore( this );
+        obj.insertBefore(this);
         $('.education_start_year, .education_completion_year, .start_date, .end_date').datepicker({
             autoclose: true,
             todayHighlight: true,
@@ -103,38 +105,38 @@ $( document ).ready(function() {
 });
 
 function toggleFields() {
-    if($('#contract_is_commission').val() == "true")
+    if ($('#contract_is_commission').val() == "true")
         $("#contract-commision").show();
     else
         $("#contract-commision").hide();
 
-    if($('#contract_commission_type option:selected').val() == "fixed")
+    if ($('#contract_commission_type option:selected').val() == "fixed")
         $(".max-commission").hide();
     else
         $(".max-commission").show();
 
 }
-function contractToggleModel(){
-    if($('#contract_toggle_modal_contract_toggle_modal').val() == "true") {
+
+function contractToggleModel() {
+    if ($('#contract_toggle_modal_contract_toggle_modal').val() == "true") {
         job_id = $('#toggle_contract_parent_job_id').val();
         contract_id = $('#toggle_contract_parent_contract_id').val();
-        url = "/jobs/"+job_id+"/contracts/"+contract_id+"/create_sub_contract"
+        url = "/jobs/" + job_id + "/contracts/" + contract_id + "/create_sub_contract"
         console.log(job_id);
         console.log(contract_id);
         $.post(url);
         $("#contract-assign").hide();
         $("#sub_contract_toggle").show();
-    }
-    else if($('#contract_toggle_modal_contract_toggle_modal').val() == "false") {
+    } else if ($('#contract_toggle_modal_contract_toggle_modal').val() == "false") {
         $("#contract-assign").show();
         $("#sub_contract_toggle").hide();
-    }
-    else {
+    } else {
         $("#contract-assign").hide();
         $("#sub_contract_toggle").hide();
     }
 }
-$(document).ready(function(){
+
+$(document).ready(function () {
     toggleFields();
     contractToggleModel();
     $("#contract_is_commission , #contract_commission_type").change(function () {
@@ -147,11 +149,21 @@ $(document).ready(function(){
     $('[data-toggle="tooltip"]').tooltip();
     $('[rel="tooltip"]').tooltip();
 
-    $("#conversation-users-search").on("keyup", function(){
-        callAjaxSearch('/company/conversations/search', "GET", { keyword: $("#conversation-users-search").val() })
+    $("#chat_topic").change(function () {
+        callAjaxSearch('/company/conversations/search', "GET", {
+            keyword: $("#conversation-users-search").val(),
+            topic: $("#chat_topic").val()
+        })
+    });
+
+    $("#conversation-users-search").on("keyup", function () {
+        callAjaxSearch('/company/conversations/search', "GET", {
+            keyword: $("#conversation-users-search").val(),
+            topic: $("#chat_topic").val()
+        })
     });
 });
-$(document).on("click",".remove-multi-fields", function(){
+$(document).on("click", ".remove-multi-fields", function () {
     if ($(this).closest('div.multi-fields').find('div.multi-field-container').length > 1) {
         $(this).closest('div.multi-field-container').remove();
     } else {
@@ -159,13 +171,14 @@ $(document).on("click",".remove-multi-fields", function(){
     }
 });
 
-function callAjaxSearch(ajax_url, ajax_method, params_data){
+function callAjaxSearch(ajax_url, ajax_method, params_data) {
     $.ajax({
         type: ajax_method,
         dataType: "script",
         url: ajax_url,
         data: params_data,
-        success: function(data){}
+        success: function (data) {
+        }
     });
 }
 

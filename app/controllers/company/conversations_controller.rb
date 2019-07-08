@@ -24,12 +24,18 @@ class Company::ConversationsController < Company::BaseController
   end
 
   def search
-    if params[:keyword].present?
-      @candidates = Candidate.like_any([:first_name, :last_name], params[:keyword].to_s.split)
-      @companies = User.joins(:company).where("companies.name ILIKE ?", "%#{params[:keyword].to_s}%")
+    if params[:keyword].present? and params[:topic].present?
+      @conversations = params[:topic] == "All" ?
+                           Conversation.conversation_of(current_company, params[:keyword]) :
+                           Conversation.send(params[:topic]).conversation_of(current_company, params[:keyword])
     else
-      # get_conversation_users
+      @conversations = params[:topic] == "All" ?
+                           Conversation.all_onversations(current_user) :
+                           Conversation.send(params[:topic]).all_onversations(current_user)
+
     end
+    group_ids =  Group.user_chat_groups(current_user.id,current_company.id).ids
+    @conversations = @conversations.select{|con| group_ids.include?(con.chatable_id) }
   end
 
   def add_to_favourite

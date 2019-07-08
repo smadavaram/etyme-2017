@@ -10,6 +10,10 @@ class Group < ApplicationRecord
   has_many   :reminders            ,as:  :reminderable
 
 
+  scope :user_chat_groups, -> (user_id,company_id) do
+    where(member_type: "Chat", company_id: company_id).joins(:groupables).where("groupables.groupable_id = ? and groupables.groupable_type = ?", user_id, "User")
+  end
+
   def get_blacklist_status(black_list_company_id)
     self.black_listers.find_by(company_id: black_list_company_id)&.status || 'unbanned'
   end
