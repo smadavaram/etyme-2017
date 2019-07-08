@@ -106,20 +106,19 @@ class Company::JobsController < Company::BaseController
 
   def share_jobs
     j_ids = params[:jobs_ids].split(",").map { |s| s.to_i }
-    jobs = Job.where("id IN (?) AND end_date >= ? ",j_ids, Date.today)
-
+    jobs = Job.where("id IN (?) AND (DATE(end_date) >= ? OR end_date IS NULL) ",j_ids, Date.today)
     if jobs.present?
-      emails = []
+      to = []
+      bcc = []
       params[:emails].each do |e|
         email = e.include?('[') ? JSON.parse(e) : e
-        emails << email
+        to << email
       end
       params[:emails_bcc].each do |e|
         email = e.include?('[') ? JSON.parse(e) : e
-        emails << email
+        bcc << email
       end
-
-      Job.share_jobs(current_user.email, emails.flatten.uniq.split(","), j_ids, current_company, params[:message], params[:subject])
+      Job.share_jobs(to.flatten.uniq.split(","), bcc.flatten.uniq.split(","), j_ids, current_company, params[:message], params[:subject])
       flash[:success] = "job shared successfully."
     else
       flash[:errors] = "There is no one active job."

@@ -1,74 +1,83 @@
 <%= javascript_include_tag "application" %>
 <%= render 'type_tabs' %>
-<div class="element-wrapper">
-  <div class="padded-lg">
-    <div class="element-box">
-      <%= link_to "Add a New #{params[:type] || "Job"}", new_job_path, class: 'btn btn-sm btn-secondary ml-2' %>
-      <div class="table-responsive">
-        <% if @company_jobs.count > 0 %>
-          <table id="dataTable" class="table table-lightborder table-striped dataTable" data-class="Scaffolding::Thing">
-            <thead>
-            <tr>
-              <th><%= check_box_tag "select_all[]", "" %></th>
-              <th><input class="form-control" type="text" placeholder="Filter Title"></th>
-              <th><input class="form-control" type="text" placeholder="Filter Category"></th>
-              <th><input class="form-control" type="text" placeholder="Filter Last Date"></th>
-              <th><input class="form-control" type="text" placeholder="Filter Location"></th>
-              <th><input class="form-control" type="text" placeholder="Filter Posted By"></th>
-              <th><input class="form-control" type="text" placeholder="Filter Status"></th>
-              <th></th>
-            </tr>
-            <tr>
-              <th>Select</th>
-              <th>Title</th>
-              <th>Category</th>
-              <th>Last Date</th>
-              <th>Location</th>
-              <th>Posted By</th>
-              <th>Status</th>
-              <th class="">Actions</th>
-            </tr>
-            </thead>
-            <tbody>
-            <% @company_jobs.each do |job| %>
-              <tr data-id="<%= job.id %>">
-                <td><%= check_box_tag "ids[]", job.id %></td>
-                <td><%= link_to job.title, job_path(job) %></td>
-                <td><%= job.job_category %></td>
-                <td><%= display_date_and_time(job.end_date || Time.now) %></td>
-                <td><%= job.location %></td>
-                <td><%= job.created_by.full_name %></td>
-                <td><%= job.status %></td>
-                <td class="" style="white-space: nowrap;">
-                  <% if job.try(:chat).present? && job.try(:chat).is_chat_user?(current_user) %>
-                    <%= link_to company_chat_path(job.try(:chat)), class: 'btn btn-link btn-sm m-0 p-0' do %>
-                      <i class="fa fa-comment"></i>
-                    <% end %>
-                  <% end %>
-                  <% if has_permission?("manage_job") %>
-                    <%= link_to edit_job_path(job), class: 'btn btn-link btn-sm m-0 p-0' do %>
-                      <i class="fa fa-pencil"></i>
-                    <% end %>
-                    <%= link_to job_create_multiple_for_candidate_path(job), remote: true, class: 'btn btn-link btn-sm m-0 p-0' do %>
-                      <i class="fa fa-users"></i>
-                    <% end %>
-                  <% end %>
-                  <% if has_permission?("send_job_invitations") %>
-                    <%= link_to send_invitation_job_path(job), method: :post, remote: true, class: 'btn btn-link btn-sm m-0 p-0' do %>
-                      <i class="fa fa-share-alt"></i>
-                    <% end %>
-                  <% end %>
-                  <% if has_permission?("manage_job") %>
-                    <%= link_to job_path(job), method: :delete, data: {confirm: "Are you sure you want to delete this listing?"}, class: 'btn btn-link btn-sm m-0 p-0 text-danger' do %>
-                      <i class="fa fa-trash"></i>
-                    <% end %>
-                  <% end %>
-                </td>
-              </tr>
-            <% end %>
-            </tbody>
-          </table>
-        <% end %>
+
+<div class="content-i">
+  <div class="content-box">
+    <div class="row">
+      <div class="col-sm-12">
+        <div class="element-wrapper">
+          <div class="element-box-tp">
+            <div class="controls-above-table">
+              <div class="row mr-1 ml-1">
+                <div class="col-sm-6">
+                  <%= link_to "Add a New #{params[:type] || "Job"}", new_job_path, class: 'btn btn-sm btn-secondary ml-2' %>
+                  <%= link_to "Share Jobs", '#', class: 'btn share btn-sm btn-secondary ml-2' %>
+                </div>
+                <div class="col-sm-6">
+                  <div class="form-inline justify-content-sm-end">
+                    <input class="form-control form-control-sm rounded bright" id="jobs_datatable-search" placeholder="Search" type="search"></input>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="table-responsive">
+              <table aria-describedby="datatable_fixed_column_info" class="table text-center table-bordered table-lg table-v2 table-striped data-table-font no-footer" id="jobs_datatable" role="grid" style="width: 100%;" width="100%">
+                <thead>
+                <tr>
+                  <th>
+                    <%= check_box_tag "select_all[]", "" %>
+                  </th>
+                  <th>Title</th>
+                  <th>Category</th>
+                  <th>Last Date</th>
+                  <th>Location</th>
+                  <th>Posted By</th>
+                  <th>Status</th>
+                  <th class="">Actions</th>
+                </tr>
+                </thead>
+                <tbody>
+                <% @company_jobs.each do |job| %>
+                  <tr data-id="<%= job.id %>">
+                    <td><%= check_box_tag "ids[]", job.id %></td>
+                    <td><%= link_to job.title, job_path(job) %></td>
+                    <td><%= job.job_category %></td>
+                    <td><%= display_date_and_time(job.end_date || Time.now) %></td>
+                    <td><%= job.location %></td>
+                    <td><%= job.created_by.full_name %></td>
+                    <td><%= job.status %></td>
+                    <td class="" style="white-space: nowrap;">
+                      <% if job.try(:chat).present? && job.try(:chat).is_chat_user?(current_user) %>
+                        <%= link_to company_chat_path(job.try(:chat)), class: 'data-table-icons btn btn-link btn-sm m-0 p-0' do %>
+                          <i class="fa fa-comment-o"></i>
+                        <% end %>
+                      <% end %>
+                      <% if has_permission?("manage_job") %>
+                        <%= link_to edit_job_path(job), class: 'data-table-icons btn btn-link btn-sm m-0 p-0' do %>
+                          <i class="fa fa-edit"></i>
+                        <% end %>
+                        <%= link_to job_create_multiple_for_candidate_path(job), remote: true, class: 'data-table-icons btn btn-link btn-sm m-0 p-0' do %>
+                          <%=image_tag('groups.png', size: '16x16', class: '').html_safe %>
+                        <% end %>
+                      <% end %>
+                      <% if has_permission?("send_job_invitations") %>
+                        <%= link_to send_invitation_job_path(job), method: :post, remote: true, class: 'data-table-icons btn btn-link btn-sm m-0 p-0' do %>
+                          <i class="dashicons dashicons-external"></i>
+                        <% end %>
+                      <% end %>
+                      <% if has_permission?("manage_job") %>
+                        <%= link_to job_path(job), method: :delete, data: {confirm: "Are you sure you want to delete this listing?"}, class: 'data-table-icons btn btn-link btn-sm m-0 p-0 text-danger' do %>
+                          <i class="fa fa-trash"></i>
+                        <% end %>
+                      <% end %>
+                    </td>
+                  </tr>
+                <% end %>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   </div>
@@ -78,18 +87,41 @@
 
 <%= javascript_tag do %>
   $(function() {
-  var table = $("#dataTable").DataTable();
+  $('#jobs_datatable-search').keyup(function(){
+  $('#jobs_datatable').DataTable().search( $(this).val() ).draw();
+  });
 
-  // Apply the filter
-  $("#dataTable thead th input[type=text]").on( 'keyup change', function () {
-  table
-  .column( $(this).parent().index()+':visible' )
-  .search( this.value )
-  .draw();
-
-  } );
+  // // Apply the filter
+  // $("#dataTable thead th input[type=text]").on( 'keyup change', function () {
+  // table
+  // .column( $(this).parent().index()+':visible' )
+  // .search( this.value )
+  // .draw();
+  //
+  // } );
   $("#select_all_" ).on( "click", function() {
   $("input[name='ids[]']").prop('checked', this.checked);
   });
+
+  var checkedRows = new Array();
+  $(".share" ).on( "click", function() {
+  $("input[name='ids[]']:checked").each(function(){
+  checkedRows.push($(this).val());
+  });
+  if(checkedRows.length>0){
+  $('#jobs_ids').val(checkedRows);
+  $('#share-jobs').modal('show');
+  }
+  else{
+  alert("Please select atleast one job to proceed before.");
+  }
+  });
+  $('#share-jobs').on('shown.bs.modal', function() {
+  $(".select2").select2({
+  placeholder: "Groups/Contact/Email",
+  tags: true
+  });
+  });
+
   })
 <% end %>

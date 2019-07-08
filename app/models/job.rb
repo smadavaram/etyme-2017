@@ -79,7 +79,7 @@ class Job < ApplicationRecord
   end
 
   def is_active?
-    self.end_date >= Date.today
+    self.end_date.nil? ? true : self.end_date >= Date.today
   end
 
   def self.find_or_create_sub_job(company, user, j)
