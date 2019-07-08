@@ -2,10 +2,10 @@
   .modal-dialog.modal-md
     .modal-content
       .modal-header
-        %button.close{"aria-hidden" => "true", "data-dismiss" => "modal", :type => "button"}
-          ×
         %h2#myModalLabel.modal-title
           %strong Job Application - #{job.title}
+        %button.close{"aria-hidden" => "true", "data-dismiss" => "modal", :type => "button"}
+          ×
 
       .modal-body
         = form_for [JobApplication.new],url: job_create_multiple_for_candidate_path(job), html: {class: 'form-horizontal', remote: (defined? for_remote)},method: :post do |f|
@@ -20,11 +20,11 @@
             -#  .col-md-10
             -#    = f.filepicker_field :applicant_resume , class: 'btn btn-primary file-pick'  , id: 'accept-filepiker' ,"data-fp-extensions" => ".pdf,.doc,.docx,.txt"
             .form-group
-              %label.col-md-2.control-label Select Candidates
+              %label.col-md-6.control-label Select Candidates
               .col-md-10.temp_select_candidates
                 = select_tag 'temp_candidates', options_for_select(current_company.candidates.collect { |c| [c.full_name,c.id] if c.resume.present? && !c.is_already_applied?(job) }.compact),class: 'form-control job_select2' , required: true ,:multiple => true
             .form-group
-              %label.col-md-2.control-label
+              %label.col-md-6.control-label
                 Memo
                 %sup.text-danger
               .col-md-10

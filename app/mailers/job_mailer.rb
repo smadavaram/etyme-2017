@@ -19,8 +19,7 @@ class JobMailer < ApplicationMailer
     @link_list = []
     @message = message
     @subject = subject
-    jobs = Job.where("id IN (?) AND end_date >= ? ",job_ids, Date.today)
-
+    jobs = Job.where("id IN (?) AND (DATE(end_date) >= ? OR end_date IS NULL) ",job_ids, Date.today)
     jobs.each do |job|
       @link_list.push({
                           title: job.title[0..50],
