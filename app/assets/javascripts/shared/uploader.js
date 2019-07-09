@@ -1058,3 +1058,30 @@
     }();
     window.UploaderWindow = window.UploaderWindow || u
 }]);
+
+function upload_file(selector, name_selector = false, nultiple = false) {
+    new UploaderWindow("etyme").open().then(urls => {
+        $('.tingle-modal__closeIcon').text('x');
+        if (urls !== false) {
+            let upload = urls[0];
+            if (name_selector) {
+                $(name_selector).html("<span>" + upload.name + "</span><hr/>");
+            }
+            $(selector).val(upload.url);
+            console.log(upload.url);
+            // jQuery("<input>", { type: "text", name: "url", value: upload.url}).insertBefore("#submit");
+        }
+    });
+}
+
+function upload_file_ajax(callback_function) {
+    new UploaderWindow("etyme").open().then(urls => {
+        $('.tingle-modal__closeIcon').text('x');
+        if (urls !== false) {
+            let upload = urls[0];
+            callback_function(upload.url,upload.type);
+            console.log(upload.url);
+            // jQuery("<input>", { type: "text", name: "url", value: upload.url}).insertBefore("#submit");
+        }
+    });
+}

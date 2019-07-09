@@ -170,7 +170,7 @@
 //= require bootstrap/bootstrap-switch
 
 //=require addevent
-
+//= require shared/uploader
 // BulletTrain
 //= require_tree ./clean_admin
 

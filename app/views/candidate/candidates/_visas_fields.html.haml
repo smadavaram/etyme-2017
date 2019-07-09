@@ -19,9 +19,10 @@
     .col-md-2
       .form-group
         %label Select File
-        = f.text_field :file, class: 'hidden file_education_document'
-        = filepicker_field_tag "" , class: " hidden education_file can-filepicker-attach filepicker-attach", onchange:"uploadFileDoc(event, $(this).prev())"
-        = link_to "Select Document" ,"#",class: 'col-lg-12 education_doc btn btn-md btn-primary', style: "margin-bottom: 10px", onclick:"select_file($(this).prev())"
+        -#= f.text_field :file, class: 'hidden file_education_document'
+        = render 'shared/file_attachement',f:f,attr_name: :file,cstm_style: "border-radius: 0; height:38px;", button_name: 'Select Document'
+        -#= filepicker_field_tag "" , class: " hidden education_file can-filepicker-attach filepicker-attach", onchange:"uploadFileDoc(event, $(this).prev())"
+        -#= link_to "Select Document" ,"#",class: 'col-lg-12 education_doc btn btn-md btn-primary', style: "margin-bottom: 10px", onclick:"select_file($(this).prev())"
   .row
     .col-md-12
       = link_to_remove_association f , wrapper_class: "nested-fields0", class: "bttn btn-add pull-right delete_icon" do

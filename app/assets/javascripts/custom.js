@@ -220,19 +220,3 @@ function callAjaxSearch(ajax_url, ajax_method, params_data) {
         }
     });
 }
-
-function upload_file(selector, name = false, nultiple = false) {
-    new UploaderWindow("etyme").open().then(urls => {
-        $('.tingle-modal__closeIcon').text('x');
-        if (urls !== false) {
-            let upload = urls[0];
-            if (name) {
-                $(selector).html("<span>" + upload.name + "</span><hr/>");
-            } else {
-                $(selector).val(upload.url);
-            }
-            console.log(upload.url);
-            // jQuery("<input>", { type: "text", name: "url", value: upload.url}).insertBefore("#submit");
-        }
-    });
-}
