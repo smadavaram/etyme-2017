@@ -97,7 +97,7 @@
                 .row
                   .col-4.col-sm-3.col-xxl-2
                     .profile-tile.profile-tile-inlined
-                      = filepicker_field_tag "" ,class: "hidden candi-logo", onchange:"candidateLogoUpload(event)","data-fp-crop-ratio" => "2/2",mimetypes: "image/*"
+                      -#= filepicker_field_tag "" ,class: "hidden candi-logo", onchange:"candidateLogoUpload(event)","data-fp-crop-ratio" => "2/2",mimetypes: "image/*"
                       .profile-tile-box.faded.candi-profile-pic
                         -if(current_candidate.photo.present?)
                           = image_tag current_candidate.photo,  style:"width:100px;height:100px", fit: 'clip',:class =>"img_pic"
@@ -297,15 +297,15 @@
     });
 
     $(document).on("click", ".resume", function(){
-      $(".resume_file").trigger("click");
+      upload_file_ajax(uploadResume);
     });
 
     $( document ).on("click", ".video-pic", function() {
-      $( ".file" ).trigger( "click" );
+      upload_file_ajax(employeevideoUpload);
     });
 
     $(document).on("click", ".candi-profile-pic", function(){
-      $( ".candi-logo" ).trigger( "click" );
+      upload_file_ajax(candidateLogoUpload);
     });
 
     $(document).on("click", '#myTab a', function(e) {
@@ -352,8 +352,8 @@
       );
     }
 
-    function uploadResume(event){
-      resume_url = event.fpfile.url
+    function uploadResume(url){
+      resume_url = url
       $.ajax({
        type: 'POST',
        dataType: 'script',
@@ -363,8 +363,8 @@
      });
     }
 
-    function candidateLogoUpload(event){
-      photo_url = event.fpfile.url
+    function candidateLogoUpload(url,type){
+      photo_url = url
       $('.profile-pic').html('');
       $.ajax({
        type: 'POST',
@@ -379,9 +379,9 @@
      });
     }
 
-    function employeevideoUpload(event){
-      video_url = event.fpfile.url
-      video_type=event.fpfile.mimetype
+    function employeevideoUpload(url,type){
+      video_url = url
+      video_type=type
       // $('.video-pic').html('');
       $.ajax({
        type: 'POST',

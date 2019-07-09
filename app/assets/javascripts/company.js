@@ -11,6 +11,7 @@
 // about supported directives.
 //
 //= require jquery
+//= require jquery_ujs
 //= require jquery-ui
 //= require jquery-ui/widgets/autocomplete
 //= require autocomplete-rails
@@ -181,43 +182,6 @@
 
 // BulletTrain
 //= require_tree ./clean_admin
+// Uploader
+//= require shared/uploader
 
-$(document).ready(function () {
-  $('.p_date').datepicker({dateFormat: "yy-mm-dd"});
-  $('.p_time').timepicker({template: false,showInputs: false,minuteStep: 5});
-
-  $("#status").on('click', function () {
-    $('#status-menue').toggle();
-  });
-  $("#type").on('click', function () {
-    $('#type-menu').toggle();
-  });
-  var coll = document.getElementsByClassName("collapsible-click");
-  var i;
-  for (i = 0; i < coll.length; i++) {
-    coll[i].addEventListener("click", function () {
-      $(this).parent()[0].classList.toggle("active");
-      var content = $(this).parent()[0].nextElementSibling;
-      if (content.style.display === "block") {
-        content.style.display = "none";
-      } else {
-        content.style.display = "block";
-      }
-    });
-  }
-  var collapse = document.getElementsByClassName("sidebar_collapsible");
-  var i;
-  for (i = 0; i < collapse.length; i++) {
-    collapse[i].addEventListener("click", function () {
-      this.classList.toggle("active");
-      var content = this.nextElementSibling;
-      if (content.style.display === "block") {
-        content.style.display = "none";
-      } else {
-        content.style.display = "block";
-      }
-    });
-  }
-
-
-});

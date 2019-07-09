@@ -17,7 +17,8 @@
             .form-group
               %label.col-md-2.control-label Resume
               .col-md-10
-                = f.filepicker_field :applicant_resume , class: 'btn btn-primary file-pick'  , id: 'accept-filepiker',"data-fp-extensions" => ".pdf,.doc,.docx,.txt"
+                = render 'shared/file_attachement',f:f,attr_name: :applicant_resume,button_name: "Resume"
+                -#= f.filepicker_field :applicant_resume , class: 'btn btn-primary file-pick'  , id: 'accept-filepiker',"data-fp-extensions" => ".pdf,.doc,.docx,.txt"
 
             -#=  tinymce :alternate
             - job.custom_fields.each do |c|

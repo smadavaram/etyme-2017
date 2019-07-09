@@ -9,9 +9,9 @@
               .text
                 %div.profile-hover
                   //= f.label :filepicker_url, "Upload Your Avatar:"
-                  %p.imgDescription.col-sm-offset-3  Change Logo
+                  %p.imgDescription.col-sm-offset-3 Change Logo
                   %div.pictureContainer
-                    = filepicker_field_tag "" ,class: "hidden file", onchange:"companyLogoUpload(event)","data-fp-crop-ratio" => "2/2",mimetypes: "image/*"
+                    -#= filepicker_field_tag "" ,class: "hidden file", onchange:"companyLogoUpload(event)","data-fp-crop-ratio" => "2/2",mimetypes: "image/*"
                     -if(current_company.logo.present?)
                       = image_tag current_company.logo,  style:"width:100px;height:100px", fit: 'clip',:class =>"profile-pic image-setting"
                     -else
@@ -34,7 +34,7 @@
                 %div.profile-hover
                   %p.imgDescription.col-sm-offset-4 Upload Media
                   %div.pictureContainer
-                    = filepicker_field_tag "" ,class: "hidden video-file", onchange:"videoUpload(event)","data-fp-crop-ratio" => "2/2"
+                    -#= filepicker_field_tag "" ,class: "hidden video-file", onchange:"videoUpload(event)","data-fp-crop-ratio" => "2/2"
                     -if(current_company.company_videos.first.present?)
                       -if current_company.company_videos.first.video_type == "video/mp4"
                         %video{:controls => "", :width => "200", :height=> "200"}
@@ -225,8 +225,9 @@
 
       $( ".profile-pic,.domain" ).click(function()
       {
-        $( ".file" ).trigger( "click" );
-        $('.fp__overlay').css({'z-index':'99999'});
+              upload_file_ajax(companyLogoUpload);
+        // $( ".file" ).trigger( "click" );
+        // $('.fp__overlay').css({'z-index':'99999'});
       });
       $(".domain").click(function(){
        $( ".domain_file" ).trigger( "click" );
@@ -234,7 +235,9 @@
       })
       $( ".video-pic" ).click(function()
       {
-        $( ".video-file" ).trigger( "click" );
+              upload_file_ajax(videoUpload);
+
+        // $( ".video-file" ).trigger( "click" );
       });
       $(".best_in_place").best_in_place();
       $(".best_in_place").on('change', function(event) {
@@ -277,8 +280,8 @@
             }
       });
     });
-    function companyLogoUpload(event){
-      photo_url = event.fpfile.url
+    function companyLogoUpload(url,type){
+      photo_url = url
       $('.profile-pic').html('');
       $.ajax({
        type: 'POST',
@@ -303,9 +306,9 @@
        }
      });
     }
-    function videoUpload(event){
-      video_url = event.fpfile.url
-      video_type=event.fpfile.mimetype
+    function videoUpload(url,type){
+      video_url = url
+      video_type= type
       $('.video-pic').html('');
       $.ajax({
        type: 'POST',

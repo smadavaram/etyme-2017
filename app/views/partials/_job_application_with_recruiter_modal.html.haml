@@ -19,7 +19,8 @@
                 %label.d-block Resume
                 .file_selector{style: "display: flex;"}
                   .form-group.d-inline-block
-                    = f.filepicker_field :applicant_resume , class: 'btn btn-primary file-pick'  , id: 'accept-filepiker' ,onchange: 'display_file_name(event)',"data-fp-extensions" => ".pdf,.doc,.docx,.txt"
+                    = render 'shared/file_attachement',f:f,attr_name: :applicant_resume, name_selector: ".uploaded_file_name",cstm_style: "border-radius: 0; height:38px;"
+                    -#= f.filepicker_field :applicant_resume , class: 'btn btn-primary file-pick'  , id: 'accept-filepiker' ,onchange: 'display_file_name(event)',"data-fp-extensions" => ".pdf,.doc,.docx,.txt"
                   %p.d-inline-block.uploaded_file_name  No File Selected
               = f.fields_for :candidate_with_recruiter do |b|
                 .col-sm-6
@@ -105,7 +106,8 @@
                             = ja.radio_button :applicant_ans, "#{CGI.unescape(a)}",{class: 'set-checkbox d-inline-block'}
                             = ja.label :applicant_ans, :value => "#{CGI.unescape(a)}", class: "d-inline-block mr-3"
                       - else
-                        = ja.filepicker_field :applicant_ans , class: 'btn btn-primary req-file-pick',required: r.ans_mandatroy, id: 'req-accept-filepiker'
+                        = render 'shared/file_attachement',f:ja,attr_name: :applicant_ans, name_selector: ".uploaded_file_name",cstm_style: "border-radius: 0; height:38px;"
+                        -#= ja.filepicker_field :applicant_ans , class: 'btn btn-primary req-file-pick',required: r.ans_mandatroy, id: 'req-accept-filepiker'
             .nested-fields
               = f.fields_for :custom_fields do |custom|
                 .form-group

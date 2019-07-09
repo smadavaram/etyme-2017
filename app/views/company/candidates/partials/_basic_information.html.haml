@@ -32,7 +32,8 @@
         = f.check_box :send_invitation ,{}, true, false
         %label.col-md-2.control-label Resume
         .col-md-12
-          = f.filepicker_field :resume , class: 'btn btn-primary file-pick'  , id: 'accept-filepiker',"data-fp-extensions" => ".pdf,.doc,.docx,.txt"
+          = render 'shared/file_attachement',f:f,attr_name: :resume
+          -#= f.filepicker_field :resume , class: 'btn btn-primary file-pick'  , id: 'accept-filepiker',"data-fp-extensions" => ".pdf,.doc,.docx,.txt"
 
     -#.col-sm-6
     -#  = f.fields_for :custom_fields do |lt|
