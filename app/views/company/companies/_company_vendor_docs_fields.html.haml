@@ -44,8 +44,8 @@
         %p Upload Template
         / = f.text_field :file, class: 'hidden file_education_document'
         / = filepicker_field_tag "" , class: " hidden education_file filepicker-attach", onchange:"uploadFileDoc(event, $(this).prev())"
-
-        = f.filepicker_field :file, :button_text => "Upload Template", disable: true , class: 'file-pick btn btn-primary filepicker-attach filepicker-attach-doc'
+        = render 'shared/file_attachement',f:f,attr_name: :file,button_name: "Upload Template"
+        -#= f.filepicker_field :file, :button_text => "Upload Template", disable: true , class: 'file-pick btn btn-primary filepicker-attach filepicker-attach-doc'
         / = link_to "Select Document" ,"#",class: 'col-lg-12 education_doc btn btn-md btn-primary', style: "margin-bottom: 10px", onclick:"select_file($(this).prev())"
     .col-md-2    
       .col-lg-12

@@ -22,7 +22,6 @@
         %p Select File
         / = f.text_field :file, class: 'hidden file_education_document'
         / = filepicker_field_tag "" , class: " hidden education_file filepicker-attach", onchange:"uploadFileDoc(event, $(this).prev())"
-
         = f.filepicker_field :file, :button_text => "Select Document", disable: true , class: 'file-pick btn btn-primary filepicker-attach filepicker-attach-doc', :multiple => true
         / = link_to "Select Document" ,"#",class: 'col-lg-12 education_doc btn btn-md btn-primary', style: "margin-bottom: 10px", onclick:"select_file($(this).prev())"
     .col-lg-1

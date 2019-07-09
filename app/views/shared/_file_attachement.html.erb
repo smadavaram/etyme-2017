@@ -5,7 +5,7 @@
   <% cstm_style = '' %>
 <% end %>
 <% unless local_assigns.has_key? :cstm_class %>
-  <% cstm_style = 'btn-primary' %>
+  <% cstm_class = 'btn-primary' %>
 <% end %>
 <% if local_assigns.has_key? :button_name %>
   <% name = button_name %>
@@ -13,7 +13,7 @@
   <% name = attr_name.to_s.split('_').collect(&:capitalize).join(' ') %>
 <% end %>
 <% if local_assigns.has_key? :name_selector %>
-  <%= button_tag name, type: 'button', style: cstm_style, class: "btn #{cstm_class if local_assigns.has_key? :cstm_class} uploader", onclick: "upload_file('##{id}','#{name_selector}')" %>
+  <%= button_tag name, type: 'button', style: cstm_style, class: "btn #{cstm_class} uploader", onclick: "upload_file('##{id}','#{name_selector}')" %>
 <% else %>
-  <%= button_tag name, type: 'button', style: cstm_style, class: "btn #{cstm_class if local_assigns.has_key? :cstm_class} uploader", onclick: "upload_file('##{id}')" %>
+  <%= button_tag name, type: 'button', style: cstm_style, class: "btn #{cstm_class} uploader", onclick: "upload_file('##{id}')" %>
 <% end %>

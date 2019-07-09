@@ -73,7 +73,8 @@
                             = ja.radio_button :applicant_ans, "#{CGI.unescape(a)}",{class: 'set-checkbox d-inline-block'}
                             = ja.label :applicant_ans, :value => "#{CGI.unescape(a)}", class: "d-inline-block mr-3"
                       - else
-                        = ja.filepicker_field :applicant_ans , class: 'btn btn-primary req-file-pick',required: r.ans_mandatroy, id: 'req-accept-filepiker'
+                        = render 'shared/file_attachement',f:ja,attr_name: :applicant_ans, name_selector: ".uploaded_file_name",cstm_style: "border-radius: 0; height:38px;"
+                        -#= ja.filepicker_field :applicant_ans , class: 'btn btn-primary req-file-pick',required: r.ans_mandatroy, id: 'req-accept-filepiker'
             .nested-fields
               = f.fields_for :custom_fields do |custom|
                 .form-group

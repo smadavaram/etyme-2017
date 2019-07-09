@@ -12,7 +12,7 @@
                   %div.profile-hover
                     %p.imgDescription.col-sm-offset-4  Change Image
                     %div.pictureContainer.col-md-offset-2
-                      = filepicker_field_tag "" ,class: "hidden user-logo", onchange:"userLogoUpload(event)","data-fp-crop-ratio" => "2/2",mimetypes: "image/*"
+                      -#= filepicker_field_tag "" ,class: "hidden user-logo", onchange:"userLogoUpload(event)","data-fp-crop-ratio" => "2/2",mimetypes: "image/*"
                       -if(user.photo.present?)
                         = image_tag user.photo,  style:"width:100px;height:100px", fit: 'clip',:class =>"profile-pic image-setting"
 
@@ -24,7 +24,7 @@
                     %div.profile-hover
                       %p.imgDescription.col-sm-offset-4 Upload Video
                       %div.pictureContainer.col-md-offset-2
-                        = filepicker_field_tag "" ,class: "hidden file", onchange:"usersVideoUpload(event)","data-fp-crop-ratio" => "2/2",mimetypes: "video/*"
+                        -#= filepicker_field_tag "" ,class: "hidden file", onchange:"usersVideoUpload(event)","data-fp-crop-ratio" => "2/2",mimetypes: "video/*"
                         -if(user.video.present?)
                           %video{:controls => "", :width => "200", :height=> "200"}
                             %source{:src => user.video, :type => "#{user.video_type}"}
@@ -42,14 +42,14 @@
 
       $( ".profile-pic" ).click(function()
       {
-        $( ".user-logo" ).trigger( "click" );
+        upload_file_ajax(userLogoUpload);
       });
        $(".best_in_place").best_in_place();
        $(".best_in_place").on('change', function(event) {
           flash_success('Change Saved!');
       });
       $( ".video-pic" ).click(function() {
-        $( ".file" ).trigger( "click" );
+        upload_file_ajax(usersVideoUpload);
      });
      $( ".resume" ).click(function() {
         $( ".resume_file" ).trigger( "click" );
@@ -58,8 +58,8 @@
         dateFormat: "yy-mm-dd"
       });
     });
-    function userLogoUpload(event){
-      photo_url = event.fpfile.url
+    function userLogoUpload(url,type){
+      photo_url = url
       $('.profile-pic').html('');
       $.ajax({
        type: 'POST',
@@ -72,9 +72,9 @@
        }
      });
     }
-    function usersVideoUpload(event){
-      video_url = event.fpfile.url
-      video_type=event.fpfile.mimetype
+    function usersVideoUpload(url,type){
+      video_url = url
+      video_type=type
       $('.video-pic').html('');
       $.ajax({
        type: 'POST',
