@@ -36,6 +36,43 @@ function flash_alert(msg) {
 }
 
 $(document).ready(function () {
+
+    $('.p_date').datepicker({dateFormat: "yy-mm-dd"});
+    $('.p_time').timepicker({template: false, showInputs: false, minuteStep: 5});
+
+    $("#status").on('click', function () {
+        $('#status-menue').toggle();
+    });
+    $("#type").on('click', function () {
+        $('#type-menu').toggle();
+    });
+    var coll = document.getElementsByClassName("collapsible-click");
+    var i;
+    for (i = 0; i < coll.length; i++) {
+        coll[i].addEventListener("click", function () {
+            $(this).parent()[0].classList.toggle("active");
+            var content = $(this).parent()[0].nextElementSibling;
+            if (content.style.display === "block") {
+                content.style.display = "none";
+            } else {
+                content.style.display = "block";
+            }
+        });
+    }
+    var collapse = document.getElementsByClassName("sidebar_collapsible");
+    var i;
+    for (i = 0; i < collapse.length; i++) {
+        collapse[i].addEventListener("click", function () {
+            this.classList.toggle("active");
+            var content = this.nextElementSibling;
+            if (content.style.display === "block") {
+                content.style.display = "none";
+            } else {
+                content.style.display = "block";
+            }
+        });
+    }
+
     $(".multi-select2").select2({
         placeholder: $('#' + $('.multi-select2').attr('id')).attr('placeholder'),
         tokenSeparators: [',', ' ']
@@ -137,6 +174,8 @@ function contractToggleModel() {
 }
 
 $(document).ready(function () {
+    // uploader initiation and function
+
     toggleFields();
     contractToggleModel();
     $("#contract_is_commission , #contract_commission_type").change(function () {
@@ -182,3 +221,18 @@ function callAjaxSearch(ajax_url, ajax_method, params_data) {
     });
 }
 
+function upload_file(selector, name = false, nultiple = false) {
+    new UploaderWindow("etyme").open().then(urls => {
+        $('.tingle-modal__closeIcon').text('x');
+        if (urls !== false) {
+            let upload = urls[0];
+            if (name) {
+                $(selector).html("<span>" + upload.name + "</span><hr/>");
+            } else {
+                $(selector).val(upload.url);
+            }
+            console.log(upload.url);
+            // jQuery("<input>", { type: "text", name: "url", value: upload.url}).insertBefore("#submit");
+        }
+    });
+}
