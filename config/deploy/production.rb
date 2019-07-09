@@ -8,7 +8,7 @@ role :app, %w{deploy@157.230.90.106}
 role :web, %w{deploy@157.230.90.106}
 role :db,  %w{deploy@157.230.90.106}
 set :deploy_to, '/var/www/deploy'
-set :branch, 'dev'
+set :branch, 'refactoring/uploader'
 
 # Extended Server Syntax
 # ======================
