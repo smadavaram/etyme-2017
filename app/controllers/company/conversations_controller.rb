@@ -63,7 +63,11 @@ class Company::ConversationsController < Company::BaseController
     end
     if params[:chatctype] == "Group"
       group = Group.find(params[:chatcid])
-      group.groupables.create(groupable: user)
+      if group.groupables.create(groupable: user)
+        flash[:success] = "Member is added to the group"
+      else
+        flash[:errors] = group.errors.full_messages
+      end
     else
       if params[:chatctype] == "Candidate"
         user1 = Candidate.where(id: params[:chatcid]).first
@@ -79,7 +83,7 @@ class Company::ConversationsController < Company::BaseController
       group.groupables.create(groupable: user1)
       conversation.update(chatable: group, topic: "GroupChat")
     end
-    redirect_to company_conversations_path(conversation: conversation.id)
+    redirect_back(fallback_location: current_company.etyme_url)
   end
 
   def mute

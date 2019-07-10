@@ -2,22 +2,22 @@
   .modal-dialog.modal-lg
     .modal-content
       .modal-header
-        %button.close{"aria-hidden" => "true", "data-dismiss" => "modal", :type => "button"}
-          ×
         %h2#myModalLabel.modal-title
           %strong Job Invitation - #{job.title}
+        %button.close{"aria-hidden" => "true", "data-dismiss" => "modal", :type => "button"}
+          ×
       .modal-body
         %header{:role => "heading"}
           %ul.nav.nav-tabs.pull-left.in.margin-bottom-10.col-sm-12
-            %li.active
-              %a{"aria-expanded" => "true", "data-toggle" => "tab", :href => "#hr1"}
+            %li.nav-item
+              %a.nav-link.active{"aria-expanded" => "true", "data-toggle" => "tab", :href => "#hr1"}
                 %span.hidden-mobile.hidden-tablet Vendor
-            %li
-              %a{"aria-expanded" => "false", "data-toggle" => "tab", :href => "#hr2"}
+            %li.nav-item
+              %a.nav-link{"aria-expanded" => "false", "data-toggle" => "tab", :href => "#hr2"}
                 %span.hidden-mobile.hidden-tablet
                   Candidate
-            %li
-              %a{"aria-expanded" => "false", "data-toggle" => "tab", :href => "#hr3"}
+            %li.nav-item
+              %a.nav-link{"aria-expanded" => "false", "data-toggle" => "tab", :href => "#hr3"}
                 %span.hidden-mobile.hidden-tablet
                   Direct Email
           .widget-body

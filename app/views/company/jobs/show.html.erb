@@ -2,7 +2,8 @@
 
 <div class="content-box">
   <div class="element-wrapper">
-    <h6 class="element-header">Job Details <span class="text-muted small">View and edit the details of the job with other collaborators</span></h6>
+    <h6 class="element-header">Job Details
+      <span class="text-muted small">View and edit the details of the job with other collaborators</span></h6>
     <div class="padded-lg">
       <div class="row">
         <div class="col-lg-8">
@@ -28,7 +29,7 @@
                   <div class="h6">
                     <%= @job.start_date.strftime("%B %d, %Y") %>
                     <% if @job.end_date %>
-                    to <%= @job.end_date.strftime("%B %d, %Y") %>
+                      to <%= @job.end_date.strftime("%B %d, %Y") %>
                     <% end %>
                   </div>
                   <div class="">
@@ -55,7 +56,7 @@
                     Price
                   </div>
                   <div class="h6">
-                    <%= sprintf("$%0.2f",@job.price) %>
+                    <%= sprintf("$%0.2f", @job.price) %>
                   </div>
                 </div>
               </div>
@@ -92,26 +93,19 @@
               <% end %>
             </div>
           </div>
-          <div class="element-box element-box-show">
-            <h5 class="form-header">Conversations</h5>
-            <% if @conversation.present? %>
-              <%= link_to "View Conversation", company_conversations_path(conversation: @conversation.id), class: "btn btn-primary", method: :post %>
-            <% end %>
-          </div>
         </div>
         <div class="col-lg-4">
           <div class="element-box element-box-show">
             <h5 class="form-header">Quick Actions</h5>
-            <div class="form-group">
-              <div class="form-buttons-w">
-                <%= link_to "Edit", edit_job_path(@job), class: "btn btn-primary" %>
-                <%= link_to "Company Candidates", job_create_multiple_for_candidate_path(@job),remote: true ,method: :get ,class: "btn btn-primary" %>
-              </div>
+            <div style="display: flex;flex-direction: column;">
+              <%= link_to "Edit", edit_job_path(@job), class: "mb-1 btn btn-primary" %>
               <% if has_permission?("send_job_invitations") %>
-                <div class="form-buttons mt-2">
-                  <%= link_to 'Send Invitation' ,send_invitation_job_path(@job) , method: :post ,remote: true,  class: 'btn btn-primary' %>
-                </div>
+                <%= link_to 'Send Invitation', send_invitation_job_path(@job), method: :post, remote: true, class: 'mb-1 btn btn-primary' %>
               <% end %>
+              <% if @conversation.present? %>
+                <%= link_to "View Conversation", company_conversations_path(conversation: @conversation.id), class: "mb-1 btn btn-primary", method: :post %>
+              <% end %>
+              <%= link_to "Company Candidates", job_create_multiple_for_candidate_path(@job), remote: true, method: :get, class: "mb-1 btn btn-primary" %>
             </div>
           </div>
           <div class="element-box element-box-show">
@@ -121,18 +115,18 @@
                 <% if @job.media_type == "video/mp4" %>
                   <div class="embed-responsive embed-responsive-16by9">
                     <video class="embed-responsive-item" controls>
-                      <source src='<%= @job.comp_video %>' type="video/mp4" />
+                      <source src='<%= @job.comp_video %>' type="video/mp4"/>
                     </video>
                   </div>
                 <% else %>
-                  <img class="img-fluid" src='<%= @job.comp_video %>' />
+                  <img class="img-fluid" src='<%= @job.comp_video %>'/>
                 <% end %>
               <% else %>
               <% end %>
             </div>
             <div class="form-group">
-              <%= filepicker_field_tag "" ,class: "hidden media-file", onchange:"mediaUpload(event)","data-fp-crop-ratio" => "2/2" %>
-              <button type="button" class="btn btn-default btn-primary btn-upload-media">Upload Media</button>
+              <%= filepicker_field_tag "", class: "hidden media-file", onchange: "mediaUpload(event)", "data-fp-crop-ratio" => "2/2" %>
+              <button type="button" class="w-100 btn btn-default btn-primary btn-upload-media">Upload Media</button>
             </div>
           </div>
           <div class="element-box element-box-show">
@@ -158,24 +152,27 @@
                   <% end %>
                 <% else %>
                   <div class="user-w with-status status-green">
-                   <div class="user-avatar-w">
-                     <div class="user-avatar">
-                       <img alt="" src="<%= current_user.photo %>">
-                     </div>
-                   </div>
-                   <div class="user-name">
-                     <h6 class="user-title"><%= "#{current_user.first_name} #{current_user.last_name}" %></h6>
-                     <div class="user-role"><%= current_user.type %></div>
-                   </div>
-                   <!-- <div class="user-action">
-                     <div class="os-icon os-icon-email-forward"></div>
-                   </div> -->
+                    <div class="user-avatar-w">
+                      <div class="user-avatar">
+                        <img alt="" src="<%= current_user.photo %>">
+                      </div>
+                    </div>
+                    <div class="user-name">
+                      <h6 class="user-title"><%= "#{current_user.first_name} #{current_user.last_name}" %></h6>
+                      <div class="user-role"><%= current_user.type %></div>
+                    </div>
+                    <!-- <div class="user-action">
+                      <div class="os-icon os-icon-email-forward"></div>
+                    </div> -->
                   </div>
                 <% end %>
               </div>
             <% else %>
               <div><i>Currently, there is no collaborator. Create a conversation to add collaborators</i></div>
             <% end %>
+            <div class="ci-header">
+              <a href="#" class ="w-100 btn btn-default btn-primary add-to-conversation" data-conid=<%= @conversation.id %> data-cid=<%= @conversation.chatable.id %> data-ctype=<%= @conversation.chatable.class.to_s %>>Add Collaborators</a>
+            </div>
           </div>
         </div>
       </div>
@@ -186,32 +183,33 @@
 
 <%= javascript_tag do %>
   $(function() {
-    // Initialize datatable
-    var table = $("#dataTable").DataTable();
+  // Initialize datatable
+  var table = $("#dataTable").DataTable();
 
-    // File picker handler
-    $( ".btn-upload-media" ).click(function() {
-      $( ".media-file" ).trigger( "click" );
-    });
+  // File picker handler
+  $( ".btn-upload-media" ).click(function() {
+  // $( ".media-file" ).trigger( "click" );
+  upload_file_ajax(mediaUpload)
+  });
   })
 
-  function mediaUpload(event) {
-    media_url = event.fpfile.url
-    media_type=event.fpfile.mimetype
-    $('.btn-upload-media').html('');
-    $.ajax({
-     type: 'POST',
-     contentType: 'application/json; charset=utf-8', //dataType: 'json',
-     url: "#{update_media_jobs_path}",
-     data: JSON.stringify({ job_id: "#{@job.id}", media: media_url,authenticity_token: window._token, media_type: media_type }),
-     success: function (data) {
-        console.log("reload!")
-       window.location.reload(true);
-     },
-     done: function (data) {
-        console.log("done!");
-        window.location.reload(true);
-     }
-   });
+  function mediaUpload(url,type) {
+  media_url = url
+  media_type= type
+  $('.btn-upload-media').html('');
+  $.ajax({
+  type: 'POST',
+  contentType: 'application/json; charset=utf-8', //dataType: 'json',
+  url: "/jobs/update_media",
+  data: JSON.stringify({ job_id: <%= @job.id %>, media: media_url,authenticity_token: window._token, media_type: media_type }),
+  success: function (data) {
+  console.log("reload!")
+  window.location.reload(true);
+  },
+  done: function (data) {
+  console.log("done!");
+  window.location.reload(true);
+  }
+  });
   }
 <% end %>
