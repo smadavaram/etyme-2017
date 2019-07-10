@@ -19,7 +19,7 @@ development:
   zoom_client_id: 'GFWCAp5SS76petRMLKItcg'
   zoom_client_secret: '11EylRQ3O5vh5SOTxOm4jJntirEDhmCg'
   zoom_authorization_server: 'https://zoom.us'
-  GOOGLE_APPLICATION_CREDENTIALS: '/home/ali/work/Documents/etyme-246309-0e533c794f53.json'
+
 production:
   mailgun_gun_api:  "key-65deee3bd721c9bba966ff557d3fc79b"
   mailgun_domian:   "etyme.com"

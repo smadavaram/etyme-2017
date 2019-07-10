@@ -2,7 +2,6 @@ GEM
   remote: https://rubygems.org/
   remote: https://rails-assets.org/
   specs:
-    CFPropertyList (2.3.6)
     actioncable (5.1.2)
       actionpack (= 5.1.2)
       nio4r (~> 2.0)
@@ -115,7 +114,6 @@ GEM
       coffee-script-source
       execjs
     coffee-script-source (1.12.2)
-    colored (1.2)
     concurrent-ruby (1.1.5)
     crass (1.0.4)
     daemons (1.3.1)
@@ -139,9 +137,6 @@ GEM
     devise_invitable (2.0.1)
       actionmailer (>= 5.0)
       devise (>= 4.6)
-    doc_ripper (0.0.9)
-      CFPropertyList (~> 2.3)
-      colored (~> 1.2)
     docusign_esign (2.0.0)
       json (~> 1.8, >= 1.8.3)
       jwt (~> 1.0, >= 1.5.2)
@@ -171,32 +166,6 @@ GEM
       momentjs-rails (>= 2.9.0)
     globalid (0.4.2)
       activesupport (>= 4.2.0)
-    google-cloud-language (0.33.0)
-      google-gax (~> 1.7)
-      googleapis-common-protos (>= 1.3.9, < 2.0)
-    google-gax (1.7.0)
-      google-protobuf (~> 3.2)
-      googleapis-common-protos (>= 1.3.5, < 2.0)
-      googleauth (>= 0.6.2, < 0.10.0)
-      grpc (>= 1.7.2, < 2.0)
-      rly (~> 0.2.3)
-    google-protobuf (3.8.0)
-    googleapis-common-protos (1.3.9)
-      google-protobuf (~> 3.0)
-      googleapis-common-protos-types (~> 1.0)
-      grpc (~> 1.0)
-    googleapis-common-protos-types (1.0.4)
-      google-protobuf (~> 3.0)
-    googleauth (0.8.1)
-      faraday (~> 0.12)
-      jwt (>= 1.4, < 3.0)
-      memoist (~> 0.16)
-      multi_json (~> 1.11)
-      os (>= 0.9, < 2.0)
-      signet (~> 0.7)
-    grpc (1.22.0)
-      google-protobuf (~> 3.8)
-      googleapis-common-protos-types (~> 1.0)
     haml (5.1.1)
       temple (>= 0.8.0)
       tilt
@@ -257,7 +226,6 @@ GEM
       rest-client (>= 1.6.7)
     markio (0.1)
       nokogiri
-    memoist (0.16.0)
     method_source (0.9.2)
     mime-types (3.2.2)
       mime-types-data (~> 3.2015)
@@ -311,7 +279,6 @@ GEM
       omniauth (~> 1.9)
     open4 (1.3.4)
     orm_adapter (0.5.0)
-    os (1.0.1)
     paper_trail (10.3.0)
       activerecord (>= 4.2, < 6.1)
       request_store (~> 1.1)
@@ -400,7 +367,6 @@ GEM
       http-cookie (>= 1.0.2, < 2.0)
       mime-types (>= 1.16, < 4.0)
       netrc (~> 0.8)
-    rly (0.2.3)
     roo (2.8.2)
       nokogiri (~> 1)
       rubyzip (>= 1.2.1, < 2.0.0)
@@ -433,11 +399,6 @@ GEM
     signature-pad-rails (1.0.1)
       jquery-rails (>= 3.0.0)
       rails (>= 3.0.0, < 5.3)
-    signet (0.11.0)
-      addressable (~> 2.3)
-      faraday (~> 0.9)
-      jwt (>= 1.5, < 3.0)
-      multi_json (~> 1.10)
     simple_form (4.1.0)
       actionpack (>= 5.0)
       activemodel (>= 5.0)
@@ -527,7 +488,6 @@ DEPENDENCIES
   delayed_job_active_record
   devise
   devise_invitable
-  doc_ripper
   docusign_esign
   ed25519 (< 2.0)
   facebook-account-kit
@@ -536,7 +496,6 @@ DEPENDENCIES
   filepicker-rails
   font-awesome-rails
   fullcalendar-rails
-  google-cloud-language
   haml-rails
   has_scope
   hirb
