@@ -150,6 +150,9 @@ gem "paranoia"#, "~> 2.2"
 # Use Capistrano for deployment
 # gem 'capistrano-rails', group: :development
 
+gem "google-cloud-language"
+gem "doc_ripper"
+
 group :development, :test do
   gem 'rbnacl','< 5.0' 
   gem 'rbnacl-libsodium' 
