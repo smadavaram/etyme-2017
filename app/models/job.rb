@@ -116,7 +116,24 @@ class Job < ApplicationRecord
   end
 
   private
-
+  def index_on_google
+    scope = ['https://www.googleapis.com/auth/indexing']
+    authorizer = Google::Auth::ServiceAccountCredentials.make_creds(
+        json_key_io: File.open('/etyme-246309-0e533c794f53.json'),
+        scope: scope)
+    authorizer.fetch_access_token!
+    url = URI.parse('https://indexing.googleapis.com/v3/urlNotifications:publish')
+    http = Net::HTTP.new(url.host, url.port)
+    http.use_ssl = true
+    req = Net::HTTP::Post.new(url.request_uri)
+    req["Content-Type"] = "application/json"
+    req["Authorization"] = "Bearer #{authorizer.access_token}"
+    req.body = {
+        "url": "https://etyme.com/static/jobs/1",
+        "type": "URL_UPDATED"
+    }.to_json
+    response = http.request(req)
+  end
   def create_job_chat
     self.create_chat(company: self.company)
     self.try(:chat).try(:chat_users).create(userable: self.try(:created_by))

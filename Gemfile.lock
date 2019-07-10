@@ -166,6 +166,13 @@ GEM
       momentjs-rails (>= 2.9.0)
     globalid (0.4.2)
       activesupport (>= 4.2.0)
+    googleauth (0.8.1)
+      faraday (~> 0.12)
+      jwt (>= 1.4, < 3.0)
+      memoist (~> 0.16)
+      multi_json (~> 1.11)
+      os (>= 0.9, < 2.0)
+      signet (~> 0.7)
     haml (5.1.1)
       temple (>= 0.8.0)
       tilt
@@ -226,6 +233,7 @@ GEM
       rest-client (>= 1.6.7)
     markio (0.1)
       nokogiri
+    memoist (0.16.0)
     method_source (0.9.2)
     mime-types (3.2.2)
       mime-types-data (~> 3.2015)
@@ -279,6 +287,7 @@ GEM
       omniauth (~> 1.9)
     open4 (1.3.4)
     orm_adapter (0.5.0)
+    os (1.0.1)
     paper_trail (10.3.0)
       activerecord (>= 4.2, < 6.1)
       request_store (~> 1.1)
@@ -399,6 +408,11 @@ GEM
     signature-pad-rails (1.0.1)
       jquery-rails (>= 3.0.0)
       rails (>= 3.0.0, < 5.3)
+    signet (0.11.0)
+      addressable (~> 2.3)
+      faraday (~> 0.9)
+      jwt (>= 1.5, < 3.0)
+      multi_json (~> 1.10)
     simple_form (4.1.0)
       actionpack (>= 5.0)
       activemodel (>= 5.0)
@@ -496,6 +510,7 @@ DEPENDENCIES
   filepicker-rails
   font-awesome-rails
   fullcalendar-rails
+  googleauth
   haml-rails
   has_scope
   hirb
