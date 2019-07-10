@@ -379,7 +379,7 @@ class Company::JobsController < Company::BaseController
 
     def set_preferred_vendors
       # @preferred_vendors_companies = Company.joins(:users).where("users.type = ?" , 'Vendor') - [current_company]|| []
-      @preferred_vendors_companies = Company.vendors - [current_company] || []
+      @preferred_vendors_companies = Company.vendors - [current_company,Company.get_freelancer_company] || []
     end
 
 

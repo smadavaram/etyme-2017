@@ -48,7 +48,7 @@
                     <td><%= job.status %></td>
                     <td class="" style="white-space: nowrap;">
                       <% if job.try(:chat).present? && job.try(:chat).is_chat_user?(current_user) %>
-                        <%= link_to company_chat_path(job.try(:chat)), class: 'data-table-icons btn btn-link btn-sm m-0 p-0' do %>
+                        <%= link_to company_conversations_path(conversation: job.conversation.id), class: 'data-table-icons btn btn-link btn-sm m-0 p-0' do %>
                           <i class="fa fa-comment-o"></i>
                         <% end %>
                       <% end %>

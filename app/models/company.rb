@@ -202,6 +202,10 @@ class Company < ApplicationRecord
     name == "freelancer"
   end
 
+  def self.get_freelancer_company
+    Company.find_by_domain('freelancer.com')
+  end
+
   # def already_prefered(c)
   #   Company.where.not(:id=>PreferVendor.select(:vendor_id).where(company_id=c.id))
   # end
