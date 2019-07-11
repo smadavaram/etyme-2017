@@ -116,7 +116,6 @@ class Job < ApplicationRecord
   end
 
   private
-
   def create_job_chat
     self.create_chat(company: self.company)
     self.try(:chat).try(:chat_users).create(userable: self.try(:created_by))
