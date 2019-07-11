@@ -44,6 +44,7 @@ class Company::JobsController < Company::BaseController
 
     respond_to do |format|
       if @job.save
+        CreateGoogleIndex.new(@job,"URL_UPDATED").index_job
         format.html { redirect_to @job, success: 'Job was successfully created.' }
         format.js{ flash.now[:success] = "successfully Created." }
       else
