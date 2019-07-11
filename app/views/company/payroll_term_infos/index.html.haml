@@ -1,210 +1,213 @@
-= render partial: 'company/companies/sub_menu_company'
-#content
-  %section#widget-grid
-    .row
-      %article.col-sm-12.col-md-12.col-lg-12
-        #wid-id-0.jarviswidget
-          %header
-            %span.widget-icon
-              %i.fa.fa-eye
-            %h2 Payroll
-          / widget div
-          %div
-            .jarviswidget-editbox
-            .widget-body
-              .row{style: "padding: 15px;"}
-                = form_for @payroll,url: payroll_term_infos_path,method: :post do |f|
+.content-box
+  .element-wrapper
+    .element-box
+      = render partial: 'company/companies/sub_menu_company'
+      #content
+        %section#widget-grid
+          .row
+            %article.col-sm-12.col-md-12.col-lg-12
+              #wid-id-0.jarviswidget
+                %header
+                  %span.widget-icon
+                    %i.fa.fa-eye
+                  %h2 Payroll
+                / widget div
+                %div
+                  .jarviswidget-editbox
+                  .widget-body
+                    .row{style: "padding: 15px;"}
+                      = form_for @payroll,url: payroll_term_infos_path,method: :post do |f|
 
-                  %h6 Employee/Consultant Tax type
-                  .row.form-group
-                    .col-lg-12.multi-field-wrapper
-                      .form-group.candidate-association  
-                        .multi-fields
-                          .links
-                            = f.fields_for :tax_infos, f.object.tax_infos do |b|
-                              = render 'company/payroll_term_infos/tax_info_fields', f: b
-                              %strong
-                          = link_to_add_association '+ Add Tax', f, :tax_infos, class: 'btn btn-success', partial: 'company/payroll_term_infos/tax_info_fields'                  
+                        %h6 Employee/Consultant Tax type
+                        .row.form-group
+                          .col-lg-12.multi-field-wrapper
+                            .form-group.candidate-association
+                              .multi-fields
+                                .links
+                                  = f.fields_for :tax_infos, f.object.tax_infos do |b|
+                                    = render 'company/payroll_term_infos/tax_info_fields', f: b
+                                    %strong
+                                = link_to_add_association '+ Add Tax', f, :tax_infos, class: 'btn btn-success', partial: 'company/payroll_term_infos/tax_info_fields'
 
-         
-                  .row
-                    .col-md-4
-                      %label.control-label
-                        Payroll Frequency
 
-                    .col-md-4
-                      .select
-                        .plain-select
-                          = f.select :payroll_type, Contract.time_sheet_frequencies.map { |key, value| [key.humanize, key] }, {selected: @payroll_detail&.payroll_type},{class: "form-control buy-sal-cal" }
-                  
-                  %br
-                  .row
-                    .col-md-4
-                      %label.control-label
-                        Payroll Calculation
-                    .col-md-4
-                      .b-sal-cal
-                        %div{:class => "form-group daily #{f.object.payroll_type != 'daily' ? 'hidden' : ''}"}
-                          %label.control-label
-                            Select Time
-                            = f.text_field :scal_day_time, class: "form-control con-time"
-                        %div{:class => "form-group week #{f.object.payroll_type != 'weekly' ? 'hidden' : ''}"}
-                          %label.control-label
-                            Select day of week
-                          .select
-                            .plain-select
-                              = f.select :scal_day_of_week, [["Every Monday", "mon"], ["Every Tuesday", "tue"], ["Every Wednesday", "wed"], ["Every Thursday", "thu"], ["Every Friday", "fri"], ["Every Saturday", "sat"], ["Every Sunday", "sun"]], {},{class: "form-control" }
-                        %div{:class => "form-group month #{['twice a month', 'monthly'].include?(f.object.payroll_type) ? '' : 'hidden'}"}
-
-                          .select
-                            = f.text_field :scal_date_1, class: "date_1 form-control", placeholder: "DD/MM/YYYY"
-                        %div{:class => "form-group twice-month #{f.object.payroll_type != 'twice a month' ? 'hidden' : ''}"}
-                          %label.control-label
-                            Second date
-                          .select
-                            = f.text_field :scal_date_2, class: "date_1 form-control", placeholder: "DD/MM/YYYY"
-                    .col-md-4
-                      .b-sal-cal
-                        %span{:class => "form-group month #{['twice a month', 'monthly'].include?(f.object.payroll_type) ? '' : 'hidden'}"} OR
-                        = f.check_box :scal_end_of_month, class: "month #{['twice a month', 'monthly'].include?(f.object.payroll_type) ? '' : 'hidden'}"
-                        = f.label :scal_end_of_month, "End of month", class: "month #{['twice a month', 'monthly'].include?(f.object.payroll_type) ? '' : 'hidden'}"
-
-                  %br
-                  .row
-                    .col-md-12
-                      .form-group
                         .row
                           .col-md-4
                             %label.control-label
-                              Payroll Process
+                              Payroll Frequency
 
+                          .col-md-4
+                            .select
+                              .plain-select
+                                = f.select :payroll_type, Contract.time_sheet_frequencies.map { |key, value| [key.humanize, key] }, {selected: @payroll_detail&.payroll_type},{class: "form-control buy-sal-cal" }
+
+                        %br
+                        .row
+                          .col-md-4
+                            %label.control-label
+                              Payroll Calculation
                           .col-md-4
                             .b-sal-cal
                               %div{:class => "form-group daily #{f.object.payroll_type != 'daily' ? 'hidden' : ''}"}
                                 %label.control-label
                                   Select Time
-                                  = f.text_field :sp_day_time, class: "form-control con-time"
+                                  = f.text_field :scal_day_time, class: "form-control con-time"
                               %div{:class => "form-group week #{f.object.payroll_type != 'weekly' ? 'hidden' : ''}"}
                                 %label.control-label
                                   Select day of week
                                 .select
                                   .plain-select
-                                    = f.select :sp_day_of_week, [["Every Monday", "mon"], ["Every Tuesday", "tue"], ["Every Wednesday", "wed"], ["Every Thursday", "thu"], ["Every Friday", "fri"], ["Every Saturday", "sat"], ["Every Sunday", "sun"]], {},{class: "form-control" }
+                                    = f.select :scal_day_of_week, [["Every Monday", "mon"], ["Every Tuesday", "tue"], ["Every Wednesday", "wed"], ["Every Thursday", "thu"], ["Every Friday", "fri"], ["Every Saturday", "sat"], ["Every Sunday", "sun"]], {},{class: "form-control" }
                               %div{:class => "form-group month #{['twice a month', 'monthly'].include?(f.object.payroll_type) ? '' : 'hidden'}"}
-          
+
                                 .select
-                                  = f.text_field :sp_date_1, class: "date_1 form-control", placeholder: "DD/MM/YYYY"
+                                  = f.text_field :scal_date_1, class: "date_1 form-control", placeholder: "DD/MM/YYYY"
                               %div{:class => "form-group twice-month #{f.object.payroll_type != 'twice a month' ? 'hidden' : ''}"}
                                 %label.control-label
                                   Second date
                                 .select
-                                  = f.text_field :sp_date_2, class: "date_1 form-control", placeholder: "DD/MM/YYYY"
+                                  = f.text_field :scal_date_2, class: "date_1 form-control", placeholder: "DD/MM/YYYY"
                           .col-md-4
                             .b-sal-cal
                               %span{:class => "form-group month #{['twice a month', 'monthly'].include?(f.object.payroll_type) ? '' : 'hidden'}"} OR
-                              = f.check_box :sp_end_of_month, class: "month #{['twice a month', 'monthly'].include?(f.object.payroll_type) ? '' : 'hidden'}"
-                              = f.label :sp_end_of_month, "End of month", class: "month #{['twice a month', 'monthly'].include?(f.object.payroll_type) ? '' : 'hidden'}"
+                              = f.check_box :scal_end_of_month, class: "month #{['twice a month', 'monthly'].include?(f.object.payroll_type) ? '' : 'hidden'}"
+                              = f.label :scal_end_of_month, "End of month", class: "month #{['twice a month', 'monthly'].include?(f.object.payroll_type) ? '' : 'hidden'}"
 
-                  %br
-                  .row
-                    .col-md-12
-                      .form-group
+                        %br
                         .row
-                          .col-md-4
-                            %label.control-label
-                              Payroll Date (clearing)
-                          .col-md-4
-                            .b-sal-cal
-                              %div{:class => "form-group daily #{f.object.payroll_type != 'daily' ? 'hidden' : ''}"}
-                                %label.control-label
-                                  Select Time
-                                  = f.text_field :sclr_day_time, class: "form-control con-time"
-                              %div{:class => "form-group week #{f.object.payroll_type != 'weekly' ? 'hidden' : ''}"}
-                                %label.control-label
-                                  Select day of week
-                                .select
-                                  .plain-select
-                                    = f.select :sclr_day_of_week, [["Every Monday", "mon"], ["Every Tuesday", "tue"], ["Every Wednesday", "wed"], ["Every Thursday", "thu"], ["Every Friday", "fri"], ["Every Saturday", "sat"], ["Every Sunday", "sun"]], {},{class: "form-control" }
-                              %div{:class => "form-group month #{['twice a month', 'monthly'].include?(f.object.payroll_type) ? '' : 'hidden'}"}
-                                %label.control-label
-                                .select
-                                  = f.text_field :sclr_date_1, class: "date_1 form-control", placeholder: "DD/MM/YYYY"
-                              %div{:class => "form-group twice-month #{f.object.payroll_type != 'twice a month' ? 'hidden' : ''}"}
-                                %label.control-label
-                                  Second date
-                                .select
-                                  = f.text_field :sclr_date_2, class: "date_1 form-control", placeholder: "DD/MM/YYYY"
-                          .col-md-4
-                            .b-sal-cal
-                              %span{:class => "form-group month #{['twice a month', 'monthly'].include?(f.object.payroll_type) ? '' : 'hidden'}"} OR
-                              = f.check_box :sclr_end_of_month, class: "month #{['twice a month', 'monthly'].include?(f.object.payroll_type) ? '' : 'hidden'}"
-                              = f.label :sclr_end_of_month, "End of month", class: "month #{['twice a month', 'monthly'].include?(f.object.payroll_type) ? '' : 'hidden'}"
-                          
+                          .col-md-12
+                            .form-group
+                              .row
+                                .col-md-4
+                                  %label.control-label
+                                    Payroll Process
 
-                  %br
-                  .row
-                    .col-md-12
-                      .form-group
+                                .col-md-4
+                                  .b-sal-cal
+                                    %div{:class => "form-group daily #{f.object.payroll_type != 'daily' ? 'hidden' : ''}"}
+                                      %label.control-label
+                                        Select Time
+                                        = f.text_field :sp_day_time, class: "form-control con-time"
+                                    %div{:class => "form-group week #{f.object.payroll_type != 'weekly' ? 'hidden' : ''}"}
+                                      %label.control-label
+                                        Select day of week
+                                      .select
+                                        .plain-select
+                                          = f.select :sp_day_of_week, [["Every Monday", "mon"], ["Every Tuesday", "tue"], ["Every Wednesday", "wed"], ["Every Thursday", "thu"], ["Every Friday", "fri"], ["Every Saturday", "sat"], ["Every Sunday", "sun"]], {},{class: "form-control" }
+                                    %div{:class => "form-group month #{['twice a month', 'monthly'].include?(f.object.payroll_type) ? '' : 'hidden'}"}
+
+                                      .select
+                                        = f.text_field :sp_date_1, class: "date_1 form-control", placeholder: "DD/MM/YYYY"
+                                    %div{:class => "form-group twice-month #{f.object.payroll_type != 'twice a month' ? 'hidden' : ''}"}
+                                      %label.control-label
+                                        Second date
+                                      .select
+                                        = f.text_field :sp_date_2, class: "date_1 form-control", placeholder: "DD/MM/YYYY"
+                                .col-md-4
+                                  .b-sal-cal
+                                    %span{:class => "form-group month #{['twice a month', 'monthly'].include?(f.object.payroll_type) ? '' : 'hidden'}"} OR
+                                    = f.check_box :sp_end_of_month, class: "month #{['twice a month', 'monthly'].include?(f.object.payroll_type) ? '' : 'hidden'}"
+                                    = f.label :sp_end_of_month, "End of month", class: "month #{['twice a month', 'monthly'].include?(f.object.payroll_type) ? '' : 'hidden'}"
+
+                        %br
                         .row
-                          .col-md-4
-                            %label.control-label
-                              Payroll Period
-                          .col-md-4
-                            .b-sal-cal.term-no
-                              %div{:class => "month"}
-                              %label.control-label
-                                Select Term 1
-                              .select.form-group
-                                = f.select :term_no, options_for_select( (1..30).to_a+['End of month'],f.object.term_no), {}, {class: 'form-control'}
-                              %div{:class => "form-group twice-month #{f.object.payroll_type != 'twice a month' ? 'hidden' : ''}"}
-                                %label.control-label
-                                  Select Term 2
-                                .select
-                                  = f.select :term_no_2, options_for_select( (1..30).to_a+['End of month'],f.object.term_no_2), {}, {class: 'form-control'}
-                          .col-md-4
-                            .b-sal-cal1
-                              %div{:class => "month"}
-                              %label.control-label
-                                Select Payroll 1
-                              .select.payrol
-                                .plain-select.payroll-term
+                          .col-md-12
+                            .form-group
+                              .row
+                                .col-md-4
+                                  %label.control-label
+                                    Payroll Date (clearing)
+                                .col-md-4
+                                  .b-sal-cal
+                                    %div{:class => "form-group daily #{f.object.payroll_type != 'daily' ? 'hidden' : ''}"}
+                                      %label.control-label
+                                        Select Time
+                                        = f.text_field :sclr_day_time, class: "form-control con-time"
+                                    %div{:class => "form-group week #{f.object.payroll_type != 'weekly' ? 'hidden' : ''}"}
+                                      %label.control-label
+                                        Select day of week
+                                      .select
+                                        .plain-select
+                                          = f.select :sclr_day_of_week, [["Every Monday", "mon"], ["Every Tuesday", "tue"], ["Every Wednesday", "wed"], ["Every Thursday", "thu"], ["Every Friday", "fri"], ["Every Saturday", "sat"], ["Every Sunday", "sun"]], {},{class: "form-control" }
+                                    %div{:class => "form-group month #{['twice a month', 'monthly'].include?(f.object.payroll_type) ? '' : 'hidden'}"}
+                                      %label.control-label
+                                      .select
+                                        = f.text_field :sclr_date_1, class: "date_1 form-control", placeholder: "DD/MM/YYYY"
+                                    %div{:class => "form-group twice-month #{f.object.payroll_type != 'twice a month' ? 'hidden' : ''}"}
+                                      %label.control-label
+                                        Second date
+                                      .select
+                                        = f.text_field :sclr_date_2, class: "date_1 form-control", placeholder: "DD/MM/YYYY"
+                                .col-md-4
+                                  .b-sal-cal
+                                    %span{:class => "form-group month #{['twice a month', 'monthly'].include?(f.object.payroll_type) ? '' : 'hidden'}"} OR
+                                    = f.check_box :sclr_end_of_month, class: "month #{['twice a month', 'monthly'].include?(f.object.payroll_type) ? '' : 'hidden'}"
+                                    = f.label :sclr_end_of_month, "End of month", class: "month #{['twice a month', 'monthly'].include?(f.object.payroll_type) ? '' : 'hidden'}"
 
-                            .b-sal-cal
-                              %div{:class => "form-group twice-month #{f.object.payroll_type != 'twice a month' ? 'hidden' : ''}"}
-                                %label.control-label
-                                  Select Payroll 2
-                                .select.payrol-2
-                                  .plain-select.payroll-term-2
+
+                        %br
+                        .row
+                          .col-md-12
+                            .form-group
+                              .row
+                                .col-md-4
+                                  %label.control-label
+                                    Payroll Period
+                                .col-md-4
+                                  .b-sal-cal.term-no
+                                    %div{:class => "month"}
+                                    %label.control-label
+                                      Select Term 1
+                                    .select.form-group
+                                      = f.select :term_no, options_for_select( (1..30).to_a+['End of month'],f.object.term_no), {}, {class: 'form-control'}
+                                    %div{:class => "form-group twice-month #{f.object.payroll_type != 'twice a month' ? 'hidden' : ''}"}
+                                      %label.control-label
+                                        Select Term 2
+                                      .select
+                                        = f.select :term_no_2, options_for_select( (1..30).to_a+['End of month'],f.object.term_no_2), {}, {class: 'form-control'}
+                                .col-md-4
+                                  .b-sal-cal1
+                                    %div{:class => "month"}
+                                    %label.control-label
+                                      Select Payroll 1
+                                    .select.payrol
+                                      .plain-select.payroll-term
+
+                                  .b-sal-cal
+                                    %div{:class => "form-group twice-month #{f.object.payroll_type != 'twice a month' ? 'hidden' : ''}"}
+                                      %label.control-label
+                                        Select Payroll 2
+                                      .select.payrol-2
+                                        .plain-select.payroll-term-2
 
 
-                    %hr
-                    .row
-                      .col-md-12
-                        .form-group
-                      %span.col-md-2    
-                        %label.control-label Holiday Schedule
-                        %i.fa.fa-info-circle
-                      .col-md-10
-                        .col-md-5
-                          .form-group.mr-top-10
-                            %label.radio-container
-                              Payroll Before Holiday
-                              = f.radio_button :weekend_sch, "Payroll Before Holiday", checked:!@payroll_detail.blank? ? @payroll_detail.weekend_sch == "Payroll Before Holiday" ? true :false : "", class: 'set-checkbox payroll-schedule-btn'
-                              %span.radio-checkmark
-                        .col-md-5 
-                          .form-group.mr-top-10
-                            %label.radio-container
-                              Payroll After Holiday
-                              = f.radio_button :weekend_sch, "Payroll After Holiday", checked:!@payroll_detail.blank? ? @payroll_detail.weekend_sch == "Payroll After Holiday" ? true :false : "", class: 'set-checkbox payroll-schedule-btn'
-                              %span.radio-checkmark
+                          %hr
+                          .row
+                            .col-md-12
+                              .form-group
+                            %span.col-md-2
+                              %label.control-label Holiday Schedule
+                              %i.fa.fa-info-circle
+                            .col-md-10
+                              .col-md-5
+                                .form-group.mr-top-10
+                                  %label.radio-container
+                                    Payroll Before Holiday
+                                    = f.radio_button :weekend_sch, "Payroll Before Holiday", checked:!@payroll_detail.blank? ? @payroll_detail.weekend_sch == "Payroll Before Holiday" ? true :false : "", class: 'set-checkbox payroll-schedule-btn'
+                                    %span.radio-checkmark
+                              .col-md-5
+                                .form-group.mr-top-10
+                                  %label.radio-container
+                                    Payroll After Holiday
+                                    = f.radio_button :weekend_sch, "Payroll After Holiday", checked:!@payroll_detail.blank? ? @payroll_detail.weekend_sch == "Payroll After Holiday" ? true :false : "", class: 'set-checkbox payroll-schedule-btn'
+                                    %span.radio-checkmark
 
-                  %br
-                  .row
-                    .col-md-6
-                      = f.submit 'Save', class: 'btn btn-primary'
+                        %br
+                        .row
+                          .col-md-6
+                            = f.submit 'Save', class: 'btn btn-primary'
 
-                    .col-md-6
-                      = link_to 'Generate Payroll Cycle', generate_payroll_dates_payroll_term_infos_path, class: 'btn btn-primary float-right' if payroll_infos(current_company)
+                          .col-md-6
+                            = link_to 'Generate Payroll Cycle', generate_payroll_dates_payroll_term_infos_path, class: 'btn btn-primary float-right' if payroll_infos(current_company)
 - content_for :scripts do
   :javascript
     $(document).on("click",".remove-tax-fields", function(){
