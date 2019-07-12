@@ -1,57 +1,60 @@
-= render partial: 'company/companies/sub_menu_company'
-#content
-  %body
-    %section#widget-grid
-      .row
-        %article.col-xs-12.col-sm-12.col-md-12.col-lg-12.sortable-grid.ui-sortable
-          #wid-id-1.jarviswidget.jarviswidget-color-blueDark.jarviswidget-sortable{"data-widget-editbutton" => "false", :role => "widget"}
-            %header{:role => "heading"}
-              %span.widget-icon
-                %i.fa.fa-table
-              %h2 Roles
-              %span.jarviswidget-loader
-                %i.fa.fa-refresh.fa-spin
-            / widget div
-            %div{:role => "content"}
-              .jarviswidget-editbox
-              .widget-body.no-padding
-                #datatable_fixed_column_wrapper.dataTables_wrapper.form-inline.dt-bootstrap.no-footer
-                  %table#example#datatable_fixed_column.table.table-striped.table-bordered.dataTable.no-footer{"aria-describedby" => "datatable_fixed_column_info", :role => "grid", :style => "width: 100%;", :width => "100%"}
-                    %thead
-                      %tr{:role => "row"}
-                        %th.hasinput{ :style => "width:17%"}
-                          %input.form-control{:placeholder => "Filter ID", :type => "text"}/
-                        %th.hasinput{ :style => "width:18%"}
-                          %input.form-control{:placeholder => "Filter Name", :type => "text"}/
-                        %th.hasinput{ :style => "width:16%"}
-                          %input.form-control{:placeholder => "Filter Permisions", :type => "text"}/
-                        %th.hasinput{ :style => "width:17%"}
-                          %input.form-control{:placeholder => "Filter Date", :type => ""}/
-                        %th.hasinput{ :style => "width:16%"}
-                          %input.form-control{:placeholder => "Filter Actions", :type => "text"}/
-                      %tr{:role => "row"}
-                        %th{"data-hide" => "phone",:width => "2%"} ID
-                        %th{"data-class" => "expand",:width => "10%"}
-                          %i.fa.fa-fw.fa-user.text-muted.hidden-md.hidden-sm.hidden-xs
-                          Name
-                        %th{"data-hide" => "phone,tablet",:width => "40%"}Permisions
-                        %th{"data-hide" => "phone,tablet",:width => "10%"}
-                          %i.fa.fa-fw.fa-calendar.txt-color-blue.hidden-md.hidden-sm.hidden-xs
-                          Date
-                        %th{style:"width:20%"}
-                          Actions
-                    %tbody
-                      - @roles.each_with_index do |r , index|
-                        %tr
-                          %td= index+1
-                          %td= r.name
-                          %td
-                            - r.permissions.each do |p|
-                              %span.badge.bg-color-blue.margin-bottom-5
-                                = p.name.titleize
-                          %td= r.created_at.try(:strftime,'%B %d, %Y')
-                          %td
-                            = link_to raw("<i class='fa fa-pencil '></i>") , edit_role_path(r) , class: 'btn btn-xs btn-default ' , remote: true,title: "Edit #{r.name}",'data-toggle'=>"tooltip" ,'data-placement'=>"top"
+.content-box
+  .element-wrapper
+    .element-box
+      = render partial: 'company/companies/sub_menu_company'
+      #content
+        %body
+          %section#widget-grid
+            .row
+              %article.col-xs-12.col-sm-12.col-md-12.col-lg-12.sortable-grid.ui-sortable
+                #wid-id-1.jarviswidget.jarviswidget-color-blueDark.jarviswidget-sortable{"data-widget-editbutton" => "false", :role => "widget"}
+                  %header{:role => "heading"}
+                    %span.widget-icon
+                      %i.fa.fa-table
+                    %h2 Roles
+                    %span.jarviswidget-loader
+                      %i.fa.fa-refresh.fa-spin
+                  / widget div
+                  %div{:role => "content"}
+                    .jarviswidget-editbox
+                    .widget-body.no-padding
+                      #datatable_fixed_column_wrapper.dataTables_wrapper.form-inline.dt-bootstrap.no-footer
+                        %table#example#datatable_fixed_column.table.table-striped.table-bordered.dataTable.no-footer{"aria-describedby" => "datatable_fixed_column_info", :role => "grid", :style => "width: 100%;", :width => "100%"}
+                          %thead
+                            %tr{:role => "row"}
+                              %th.hasinput{ :style => "width:17%"}
+                                %input.form-control{:placeholder => "Filter ID", :type => "text"}/
+                              %th.hasinput{ :style => "width:18%"}
+                                %input.form-control{:placeholder => "Filter Name", :type => "text"}/
+                              %th.hasinput{ :style => "width:16%"}
+                                %input.form-control{:placeholder => "Filter Permisions", :type => "text"}/
+                              %th.hasinput{ :style => "width:17%"}
+                                %input.form-control{:placeholder => "Filter Date", :type => ""}/
+                              %th.hasinput{ :style => "width:16%"}
+                                %input.form-control{:placeholder => "Filter Actions", :type => "text"}/
+                            %tr{:role => "row"}
+                              %th{"data-hide" => "phone",:width => "2%"} ID
+                              %th{"data-class" => "expand",:width => "10%"}
+                                %i.fa.fa-fw.fa-user.text-muted.hidden-md.hidden-sm.hidden-xs
+                                Name
+                              %th{"data-hide" => "phone,tablet",:width => "40%"}Permisions
+                              %th{"data-hide" => "phone,tablet",:width => "10%"}
+                                %i.fa.fa-fw.fa-calendar.txt-color-blue.hidden-md.hidden-sm.hidden-xs
+                                Date
+                              %th{style:"width:20%"}
+                                Actions
+                          %tbody
+                            - @roles.each_with_index do |r , index|
+                              %tr
+                                %td= index+1
+                                %td= r.name
+                                %td
+                                  - r.permissions.each do |p|
+                                    %span.badge.bg-color-blue.margin-bottom-5
+                                      = p.name.titleize
+                                %td= r.created_at.try(:strftime,'%B %d, %Y')
+                                %td
+                                  = link_to raw("<i class='fa fa-pencil '></i>") , edit_role_path(r) , class: 'btn btn-xs btn-default ' , remote: true,title: "Edit #{r.name}",'data-toggle'=>"tooltip" ,'data-placement'=>"top"
 :css
   .form-control
   {
