@@ -5,7 +5,8 @@
       %sup.text-danger *
     .col-md-2
       = f.text_field :file_name,class:"name hidden" , disable: true , readonly: true
-      = f.filepicker_field :file, :button_text => "Pick File", disable: true , class: 'file-pick btn btn-primary filepicker-attachment', onChange: 'onUpload(event)'
+      = render "shared/file_attachement", f:f,attr_name: :file,button_name: "Pick File",multiple: false
+      -#= f.filepicker_field :file, :button_text => "Pick File", disable: true , class: 'file-pick btn btn-primary filepicker-attachment', onChange: 'onUpload(event)'
       = f.hidden_field :file_type,class:"type"
       = f.hidden_field :file_size,class:"size"
       = f.hidden_field :company_id , value: current_company.id

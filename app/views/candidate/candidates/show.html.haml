@@ -22,7 +22,7 @@
                       .text
                         %div.profile-hover
                           %div.pictureContainer
-                            = filepicker_field_tag "" ,class: "hidden candi-logo", onchange:"candidateLogoUpload(event)","data-fp-crop-ratio" => "2/2",mimetypes: "image/*"
+                            = button_tag "" ,class: "hidden candi-logo", onclick:"upload_file()",type: "button"
                             -if(current_candidate.photo.present?)
                               = image_tag current_candidate.photo,  style:"width:100px;height:100px", fit: 'clip',:class =>"candi-profile-pic img_pic"
 
@@ -36,7 +36,7 @@
                       .text
                         %div.profile-hover
                           %div.pictureContainer.col-md-offset-2
-                            = filepicker_field_tag "" ,class: "hidden file", onchange:"employeevideoUpload(event)","data-fp-crop-ratio" => "2/2",mimetypes: "video/*"
+                            = button_tag "" ,class: "hidden file", onclick:"upload_video()", type: "button"
                             -if(current_candidate.video.present?)
                               %video{:controls => "", :width => "100", :height=> "100"}
                                 %source{:src => current_candidate.video, :type => "#{current_candidate.video_type}"}
@@ -96,8 +96,8 @@
       $('#myTab a[href="' + hash + '"]').tab('show');
 
     });
-    function uploadResume(event){
-      resume_url = event.fpfile.url
+    function uploadResume(url,type){
+      resume_url = url
       $.ajax({
        type: 'POST',
        dataType: 'json',
@@ -106,8 +106,14 @@
        success: function (data) {  }
      });
     }
-    function candidateLogoUpload(event){
-      photo_url = event.fpfile.url
+    function upload_resume_file(){
+        upload_file_ajax(uploadResume);
+    }
+    function upload_file(){
+    upload_file_ajax(candidateLogoUpload);
+    }
+    function candidateLogoUpload(url,type){
+      photo_url = url
       $('.profile-pic').html('');
       $.ajax({
        type: 'POST',
@@ -120,9 +126,12 @@
        }
      });
     }
-    function employeevideoUpload(event){
-      video_url = event.fpfile.url
-      video_type=event.fpfile.mimetype
+    function upload_video(){
+        upload_file_ajax(employeevideoUpload);
+    }
+    function employeevideoUpload(url,type){
+      video_url = url
+      video_type=type
       $('.video-pic').html('');
       $.ajax({
        type: 'POST',

@@ -17,7 +17,7 @@
       .col-sm-4
         = link_to raw("<i class='fa fa-download'></i>"),'',target:'_blank', class: 'btn btn-info pull-right download-doc-button'
         - if ed.object.company_doc.is_required_signature?
-          = ed.filepicker_field :file,  class: 'btn btn-info btn-custom-file pull-right'
+          = render "shared/file_attachement", f:ed,attr_name: :file, button_name: "Upload Document",multiple: false
           = ed.hidden_field :id
     -#.col-sm-12
     -#  - if  ed.object.company_doc.description

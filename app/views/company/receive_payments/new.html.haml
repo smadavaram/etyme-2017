@@ -32,7 +32,8 @@
             = f.text_area :memo
           %p
             = f.label :attachment
-            = f.filepicker_field :attachment, :button_text => "Pick File", class: 'file-pick btn btn-primary'
+            = render "shared/file_attachement", f:f,attr_name: :attachment, button_name: "Pick File",multiple: false
+            -#= f.filepicker_field :attachment, :button_text => "Pick File", class: 'file-pick btn btn-primary'
           %p
             = f.submit :save
 

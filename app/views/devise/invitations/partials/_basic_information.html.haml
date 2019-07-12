@@ -4,7 +4,8 @@
       .input-group
         %span.input-group-addon
           %i.fa.fa-envelope.fa-lg.fa-fw
-        = e.filepicker_field :photo , class: 'form-control input-lg'  , required: true
+        = render "shared/file_attachement", f:e,attr_name: :photo, button_name: "Upload Photo",multiple: false
+        -#= e.filepicker_field :photo , class: 'form-control input-lg'  , required: true
 .row
   .col-sm-6
     .form-group

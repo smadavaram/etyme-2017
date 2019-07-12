@@ -1059,27 +1059,38 @@
     window.UploaderWindow = window.UploaderWindow || u
 }]);
 
-function upload_file(selector, name_selector = false, nultiple = false) {
+function upload_file(selector, name_selector = false, multiple = false) {
     new UploaderWindow("etyme").open().then(urls => {
         $('.tingle-modal__closeIcon').text('x');
         if (urls !== false) {
-            let upload = urls[0];
-            if (name_selector) {
-                $(name_selector).html("<span>" + upload.name + "</span><hr/>");
+            let files_path;
+            if (multiple) {
+                files_path = urls.map(function (url) {
+                    return url.url
+                }).join(',')
+            } else {
+                let upload = urls[0];
+                if (name_selector) {
+                    $(name_selector).html("<span>" + upload.name + "</span><hr/>");
+                }
+                files_path = upload.url
             }
-            $(selector).val(upload.url);
-            console.log(upload.url);
-            // jQuery("<input>", { type: "text", name: "url", value: upload.url}).insertBefore("#submit");
+            $(selector).val(files_path);
+            console.log(files_path);
         }
     });
 }
 
-function upload_file_ajax(callback_function) {
+function upload_file_ajax(callback_function,id=false) {
     new UploaderWindow("etyme").open().then(urls => {
         $('.tingle-modal__closeIcon').text('x');
         if (urls !== false) {
             let upload = urls[0];
-            callback_function(upload.url,upload.type);
+            if(id){
+                callback_function(upload.url, upload.type,id);
+            }else{
+                callback_function(upload.url, upload.type);
+            }
             console.log(upload.url);
             // jQuery("<input>", { type: "text", name: "url", value: upload.url}).insertBefore("#submit");
         }

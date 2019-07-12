@@ -33,7 +33,8 @@
 
     .col-md-2{:style=>"margin-top: 25px;"}
       .form-group
-        = f.filepicker_field :file, :button_text => " Upload Template", disable: true , class: 'file-pick btn btn-primary filepicker-attach filepicker-attach-doc fa fa-paperclip', :multiple => true
+        = render "shared/file_attachement", f:f,attr_name: :file, button_name: "Upload Template",multiple: true, cstm_style: 'margin-top: 12px;height: 38px;'
+        -#= f.filepicker_field :file, :button_text => " Upload Template", disable: true , class: 'file-pick btn btn-primary filepicker-attach filepicker-attach-doc fa fa-paperclip', :multiple => true
     
 
     .col-md-6    

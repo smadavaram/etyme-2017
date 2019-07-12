@@ -115,7 +115,8 @@
                           =  ex.total_amount
                         %td
                           = form_for ex, url: invoice_payment_expenses_path(ex_id: ex.id), method: :post do |f|
-                            = f.filepicker_field :attachment, :button_text => "<i class='fa fa-file-pdf-o'> </i>".html_safe, disable: true , class: 'file-pick timesheet-filepicker-attachment'
+                            = render "shared/file_attachement", f:f,attr_name: :attachment, button_name: "<i class='fa fa-file-pdf-o'> </i>".html_safe,multiple: false
+                            -#= f.filepicker_field :attachment, :button_text => "<i class='fa fa-file-pdf-o'> </i>".html_safe, disable: true , class: 'file-pick timesheet-filepicker-attachment'
                             = f.submit 'Invoice Payment'
 
 - content_for :scripts do

@@ -69,8 +69,8 @@
     .col-sm-12.col-md-12.col-lg-2
       %div.profile-hover
         %div.pictureContainer
-          = filepicker_field_tag "" ,class: "hidden can-filepicker-attach resume_file", onchange:"uploadResume(event)"
-          = link_to "Upload CV" ,"#",class: 'm-0 resume btn btn-primary btn-rounded btn-lg', style: "margin-bottom: 10px"
+          = button_tag "Upload CV" , class: 'm-0 resume btn btn-primary btn-rounded btn-lg', onclick: "upload_resume_file()"
+          -#= link_to "Upload CV" ,"#",class: 'm-0 resume btn btn-primary btn-rounded btn-lg', style: "margin-bottom: 10px"
   #uploaded-resumes
     = render 'candidate/candidates/partials/resumes'
 

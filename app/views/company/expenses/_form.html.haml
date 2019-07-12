@@ -105,7 +105,8 @@
                   .col-md-3
                     = f.label :attachment
                     %br
-                    = f.filepicker_field :attachment, class: 'file-pick timesheet-filepicker-attachment'
+                    = render "shared/file_attachement", f:f,attr_name: :attachment,multiple: false
+                    -#= f.filepicker_field :attachment, class: 'file-pick timesheet-filepicker-attachment'
 
                   .col-md-4 
 
