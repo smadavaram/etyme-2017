@@ -10,8 +10,8 @@ class StaticController < ApplicationController
   layout 'static'
   add_breadcrumb "Home",'/'
 
-  def index
 
+  def index
   end
 
   def contact_us

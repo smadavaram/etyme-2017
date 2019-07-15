@@ -1,7 +1,7 @@
 class Static::JobsController < ApplicationController
 
   before_action :set_jobs, only: [:index]
-  before_action :find_job, only: [:show, :apply, :job_appication_without_registeration, :job_appication_with_recruiter]
+  before_action :find_job, only: [:show, :apply, :job_appication_without_registeration, :job_appication_with_recruiter,:iframe_apply]
 
   layout 'static'
   add_breadcrumb "Home", '/'
@@ -23,6 +23,11 @@ class Static::JobsController < ApplicationController
       end
     end
     found_attr_value
+  end
+
+  def iframe_apply
+    @job_application = @job.job_applications.new
+    response.headers.delete "X-Frame-Options"
   end
 
   def job_attr_obj
