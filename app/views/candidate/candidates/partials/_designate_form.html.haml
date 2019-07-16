@@ -1,30 +1,19 @@
-- current_candidate.designations.build unless current_candidate.designations.present?
-= form_for current_candidate,url: candidate_candidate_path(current_candidate.id, tab: "designate"),method: :put, remote: true do |f|
-  -#.row
-  -#  .col-md-12
-  -#    .form-group
-  -#      %p Designation
-  -#      = f.text_field :designate_list,placeholder: "Add Designations Comma seperated", class: 'form-control start_date input', 'data-role'=>'tagsinput',value: current_candidate.designate_list.join(", ")
-  .row
-    .col-md-12
-      .form-group
-        %h5
-          %b What is your current status ?
-          %label.radio-container
-            Freelancer
-            = f.radio_button :designation_status, "Freelancer"
-            %span.radio-checkmark
-          %label.radio-container
-            Employee
-            = f.radio_button :designation_status, "Employee"
-            %span.radio-checkmark
+.row
+  .col-md-12
+    .form-group
+      %h5
+        %b What is your current status ?
+        %label.radio-container
+          Freelancer
+          = f.radio_button :designation_status, "Freelancer"
+          %span.radio-checkmark
+        %label.radio-container
+          Employee
+          = f.radio_button :designation_status, "Employee"
+          %span.radio-checkmark
 
-    %div{id: "employee-designations", class: f.object.designation_status == "Employee" ? "candidate-association" : "candidate-association display-none"}
-      = f.fields_for :designations, f.object.designations do |b|
-        = render 'candidate/candidates/designations_fields', f: b
-      .links.education_links.pull-right
-        = link_to_add_association '+ Add Designations', f, :designations, class: 'btn btn-success', partial: 'candidate/candidates/designations_fields'
-  -#.row
-  -#.col-lg-12
-  -#  %button.btn.btn-primary.pull-right{:type => "submit"}
-  -#    Saved
+  %div{id: "employee-designations", class: f.object.designation_status == "Employee" ? "candidate-association" : "candidate-association display-none"}
+    = f.fields_for :designations, f.object.designations do |b|
+      = render 'candidate/candidates/designations_fields', f: b
+    .links.education_links.pull-right
+      = link_to_add_association '+ Add Designations', f, :designations, class: 'btn btn-success', partial: 'candidate/candidates/designations_fields'

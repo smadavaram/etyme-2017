@@ -10,8 +10,16 @@
         = f.text_field :company_role, placeholder: "Designation",class: 'form-control  input'
     .col-md-6
       .form-group
+        %label Start Date
+        = f.text_field :start_date, placeholder: "Start Date",class: 'form-control p_date input'
+    .col-md-6
+      .form-group
+        %label End Date
+        = f.text_field :end_date, placeholder: "End Date",class: 'form-control p_date input'
+    .col-md-6
+      .form-group
         %label Recruiter Name
-        = f.text_field :recruiter_name, placeholder: "Recruiter Name",class: 'form-control  input'
+        = f.text_field :recruiter_name, placeholder: "HR/Recruiter Name",class: 'form-control  input'
     .col-md-3
       .form-group
         %label Recruiter Email
@@ -20,15 +28,7 @@
       .form-group
         %label Recruiter Phone
         = f.text_field :recruiter_phone, placeholder: "Recruiter Phone",class: 'form-control  input'
-      %button{style: 'height: 46%;', class: 'mt-2 btn btn-sm btn-primary'} verify
-    .col-md-6
-      .form-group
-        %label Start Date
-        = f.text_field :start_date, placeholder: "Start Date",class: 'form-control p_date input'
-    .col-md-6
-      .form-group
-        %label End Date
-        = f.text_field :end_date, placeholder: "End Date",class: 'form-control p_date input'
+      %button{style: 'height: 37px;border-radius: 0;', class: 'mt-2 btn btn-sm btn-primary'} verify
 
   .row
     .col-md-12

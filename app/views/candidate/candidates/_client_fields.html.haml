@@ -29,25 +29,33 @@
       .form-group
         %label Refrence Phone
         = f.text_field :refrence_phone, class: 'form-control input'
-    .col-sm-4
+    .col-sm-3
       .form-group
         %label Refrence Email
         = f.text_field :refrence_email,placeholder: "Email",class: 'form-control input'
+    - if f.object.refrence_one
+      .col-sm-1
+        %h3.text-success.mt-4
+          -#%strong
+          %i.fa.fa-check
   .row
     .col-sm-4
       .form-group
         %label Refrence name
         = f.text_field :refrence_two_name,placeholder: "Degree level",class: 'form-control input'
-
     .col-sm-4
       .form-group
         %label Refrence Phone
         = f.text_field :refrence_two_phone, class: 'form-control input'
-    .col-sm-4
+    .col-sm-3
       .form-group
         %label Refrence Email
         = f.text_field :refrence_two_email,placeholder: "Email",class: 'form-control input'
-
+    - if f.object.refrence_two
+      .col-sm-1
+        %h3.text-success.mt-4
+          -#%strong
+          %i.fa.fa-check
 
   .row
     .col-md-6

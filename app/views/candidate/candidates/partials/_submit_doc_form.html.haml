@@ -19,13 +19,17 @@
               %table.table.table-bordered
                 %tr
                   %th Title
-                  %th Status
+                  %th Visa Number
+                  %th Alien Number
+                  %th Start Date
                   %th Expiry Date
                   %th Attachments
                 - current_candidate.visas.each do |doc|
                   %tr
                     %td= doc.title
+                    %td= doc.visa_number
                     %td= doc.status
+                    %td= doc.start_date
                     %td= doc.exp_date
                     %td
                       %a.delete_icon
@@ -48,11 +52,15 @@
               %table.table.table-bordered
                 %tr
                   %th Title
+                  %th Document Number
+                  %th Start Date
                   %th Expiry Date
                   %th Attachments
                 - current_candidate.legal_documents.each do |doc|
                   %tr
                     %td= doc.title
+                    %td= doc.document_number
+                    %td= doc.start_date
                     %td= doc.exp_date
                     %td
                       %a.delete_icon
@@ -64,13 +72,13 @@
         .row
           .col-md-12
             %h4.element-header
-              Criminal Check
+              Address/Background Check
             .form-group.candidate-association
               = f.fields_for :criminal_check, f.object.criminal_check do |b|
                 = render 'candidate/candidates/criminal_check_fields', f: b
               %strong
                 .links.pull-right
-                  = link_to_add_association '+ Add Criminal Check Docs', f, :criminal_check, class: 'btn btn-success', partial: 'candidate/candidates/criminal_check_fields'
+                  = link_to_add_association '+ Address/Background Check', f, :criminal_check, class: 'btn btn-success', partial: 'candidate/candidates/criminal_check_fields'
             -#.row
             -#.col-lg-12
             -#  %button.btn.btn-primary.pull-right{:type => "submit"}

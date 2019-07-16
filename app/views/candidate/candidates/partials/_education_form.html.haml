@@ -7,6 +7,8 @@
       = f.fields_for :educations, f.object.educations do |b|
         = render 'candidate/candidates/education_fields', f: b
       .links.education_links.pull-right
+        = link_to_remove_association f , wrapper_class: "nested-fields8", class: "bttn btn-add delete_icon" do
+          %i.fa.fa-trash
         = link_to_add_association '+ Add Education', f, :educations, class: 'btn btn-success', partial: 'candidate/candidates/education_fields'
       %br
       %h5.element-header
@@ -16,6 +18,8 @@
         = f.fields_for :certificates, f.object.certificates do |b|
           = render 'candidate/candidates/certificate_fields', f: b
         .links.education_links.pull-right  
+          = link_to_remove_association f , wrapper_class: "nested-fields4", class: "bttn btn-add delete_icon" do
+            %i.fa.fa-trash
           = link_to_add_association '+ Add Certificates', f, :certificates, class: 'btn btn-success', partial: 'candidate/candidates/certificate_fields'
     %br
     %hr

@@ -1,10 +1,10 @@
 class Candidate::CandidatesController < Candidate::BaseController
 
   require 'will_paginate/array'
-  respond_to :html,:json,:js
+  respond_to :html, :json, :js
 
-  before_action :set_candidate ,only: [:show,:update]
-  before_action :set_chats     ,only: [:dashboard]
+  before_action :set_candidate, only: [:show, :update]
+  before_action :set_chats, only: [:dashboard]
 
   add_breadcrumb 'Candidates', "#", :title => ""
 
@@ -31,7 +31,7 @@ class Candidate::CandidatesController < Candidate::BaseController
     start_date = get_start_date
     end_date = get_end_date
     @cards["APPLICATION"] = current_candidate.job_applications.where(created_at: start_date...end_date).count
-    @cards["STATUS"] = Candidate.application_status_count(current_candidate,start_date,end_date)
+    @cards["STATUS"] = Candidate.application_status_count(current_candidate, start_date, end_date)
     @cards["ACTIVE"] = params[:filter]
   end
 
@@ -92,11 +92,11 @@ class Candidate::CandidatesController < Candidate::BaseController
 
   def update
     @tab = params[:tab]
-    respond_to do  |format|
+    respond_to do |format|
       if current_candidate.update_attributes candidate_params
         if params[:candidate][:educations_attributes].present?
           params[:candidate][:educations_attributes].each_pair do |mul_field|
-            unless params[:candidate][:educations_attributes][mul_field].reject { |p| p == "id" }.present?
+            unless params[:candidate][:educations_attributes][mul_field].reject {|p| p == "id"}.present?
               Education.where(id: params[:candidate][:educations_attributes][mul_field]["id"]).destroy_all
             end
           end
@@ -112,11 +112,13 @@ class Candidate::CandidatesController < Candidate::BaseController
           flash[:success] = "Candidate Updated"
           redirect_to onboarding_profile_path(tag: params["tab"])
         }
-        format.js
+        format.js{
+          flash.now[:success] = "Candidate Profile Updated"
+        }
 
       else
-        format.html{redirect_back fallback_location: root_path}
-        format.json{redirect_back fallback_location: root_path}
+        format.html {redirect_back fallback_location: root_path}
+        format.json {redirect_back fallback_location: root_path}
         format.js {render json: :ok}
       end
     end
@@ -146,33 +148,33 @@ class Candidate::CandidatesController < Candidate::BaseController
   def delete_resume
     resume = CandidatesResume.find(params["id"]) rescue nil
     if resume.is_primary
-      resumes = CandidatesResume.where(:candidate_id=>resume.candidate_id).map{|data| data.id}
+      resumes = CandidatesResume.where(:candidate_id => resume.candidate_id).map {|data| data.id}
       resumes.delete(resume.id)
       resume.destroy()
       if resumes.count > 0
         primary_resume = CandidatesResume.find(resumes[0]) rescue nil
-        primary_resume.update_attributes(:is_primary=>true)
-      end  
-    else  
+        primary_resume.update_attributes(:is_primary => true)
+      end
+    else
       resume.destroy()
     end
     render 'upload_resume'
     # redirect_back fallback_location: root_path
-  end  
+  end
 
   def make_primary_resume
 
     resume = CandidatesResume.find(params["id"]) rescue nil
 
-    resumes = CandidatesResume.where(:candidate_id=>resume.candidate_id)
+    resumes = CandidatesResume.where(:candidate_id => resume.candidate_id)
     resumes.each do |data|
-      data.update_attributes(:is_primary=>false)
-    end  
-    resume.update_attributes(:is_primary=>true)
+      data.update_attributes(:is_primary => false)
+    end
+    resume.update_attributes(:is_primary => true)
 
     render 'upload_resume'
     # redirect_back fallback_location: root_path
-  end  
+  end
 
   def update_photo
     render json: current_candidate.update_attribute(:photo, params[:photo])
@@ -221,7 +223,7 @@ class Candidate::CandidatesController < Candidate::BaseController
       @candidate.go_available
     end
     # respond_with @candidate
-    render :json=>@candidate
+    render :json => @candidate
 
   end
 
@@ -236,7 +238,7 @@ class Candidate::CandidatesController < Candidate::BaseController
     @user.designations.build unless @user.designations.present?
     @sub_cat = WORK_CATEGORIES[@user.category]
 
-  end  
+  end
 
   def onboarding_profile
     @user = current_candidate
@@ -250,41 +252,41 @@ class Candidate::CandidatesController < Candidate::BaseController
   end
 
   def update_mobile_number
-    @candidate=Candidate.find_by_id(params[:id])
+    @candidate = Candidate.find_by_id(params[:id])
     @tab = "verify-phone"
     if @candidate
-      @candidate.update_attributes(:phone=>params["phone_number"], :is_number_verify=> true)
-    end  
-  end  
+      @candidate.update_attributes(:phone => params["phone_number"], :is_number_verify => true)
+    end
+  end
 
   private
 
-   def set_chats
-     @chats = current_candidate.chats
-   end
+  def set_chats
+    @chats = current_candidate.chats
+  end
 
-    def set_candidate
-      @candidate=Candidate.find_by_id(params[:id])
-    end
+  def set_candidate
+    @candidate = Candidate.find_by_id(params[:id])
+  end
 
-    def candidate_params
-      params.require(:candidate).permit(:first_name, :last_name, :invited_by ,:ssn,:passport_number,:relocation,:visa_type,:job_id,:description, :last_nam,:dob,:email,:phone,:visa, :skill_list,:designate_list, :primary_address_id,:category,:subcategory,:dept_name,:industry_name, :selected_from_resume, :ever_worked_with_company, :designation_status, :facebook_url, :twitter_url, :linkedin_url, :gtalk_url, :skypeid, :address,
-                                        addresses_attributes: [:id,:address_1,:address_2,:country,:city,:state,:zip_code, :from_date, :to_date, :_destroy],
-                                        educations_attributes: [:id,:degree_level,:degree_title,:grade,:completion_year,:start_year,:institute,:description, :_destroy,
-                                                                :candidate_education_documents_attributes => [
-                                                                    :id, :education_id, :title, :file, :exp_date, :_destroy
+  def candidate_params
+    params.require(:candidate).permit(:first_name, :last_name, :invited_by, :ssn, :passport_number, :relocation, :visa_type, :job_id, :description, :last_nam, :dob, :email, :phone, :visa, :skill_list, :designate_list, :primary_address_id, :category, :subcategory, :dept_name, :industry_name, :selected_from_resume, :ever_worked_with_company, :designation_status, :facebook_url, :twitter_url, :linkedin_url, :gtalk_url, :skypeid, :address,
+                                      addresses_attributes: [:id, :address_1, :address_2, :country, :city, :state, :zip_code, :from_date, :to_date, :_destroy],
+                                      educations_attributes: [:id, :degree_level, :degree_title, :grade, :completion_year, :start_year, :institute, :description, :_destroy,
+                                                              :candidate_education_documents_attributes => [
+                                                                  :id, :education_id, :title, :file, :exp_date, :_destroy
+                                                              ]],
+                                      certificates_attributes: [:id, :title, :start_date, :end_date, :institute, :_destroy,
+                                                                :candidate_certificate_documents_attributes => [
+                                                                    :id, :certificate_id, :title, :file, :exp_date, :_destroy
                                                                 ]],
-                                        certificates_attributes: [:id,:title,:start_date,:end_date,:institute, :_destroy,
-                                                                  :candidate_certificate_documents_attributes => [
-                                                                      :id, :certificate_id, :title, :file, :exp_date, :_destroy
-                                                                  ]],
-                                        clients_attributes: [:id, :name, :industry, :start_date, :end_date, :project_description, :role, :refrence_name, :refrence_phone, :refrence_email,:refrence_two_name, :refrence_two_phone, :refrence_two_email, :_destroy],
-                                        documents_attributes: [:id, :candidate_id, :title, :file, :exp_date, :is_education, :is_legal_doc, :_destroy],
-                                        legal_documents_attributes: [:id, :candidate_id, :title, :file, :exp_date, :_destroy],
-                                        criminal_check_attributes: [:id, :candidate_id, :state, :address, :start_date, :end_date, :_destroy],
-                                        visas_attributes: [:id, :candidate_id, :title, :file, :exp_date, :status, :_destroy],
-                                        designations_attributes: [:id, :comp_name, :recruiter_name, :recruiter_phone, :recruiter_email, :start_date, :end_date, :status, :company_role, :_destroy])
-    end
+                                      clients_attributes: [:id, :name, :industry, :start_date, :end_date, :project_description, :role, :refrence_name, :refrence_phone, :refrence_email, :refrence_two_name, :refrence_two_phone, :refrence_two_email, :_destroy],
+                                      documents_attributes: [:id, :candidate_id, :title, :file, :exp_date, :is_education, :is_legal_doc, :_destroy],
+                                      legal_documents_attributes: [:id, :candidate_id,:document_number, :start_date, :title, :file, :exp_date, :_destroy],
+                                      criminal_check_attributes: [:id, :candidate_id, :state, :address, :start_date, :end_date, :_destroy],
+                                      visas_attributes: [:id, :candidate_id, :title, :file, :visa_number, :start_date, :exp_date, :status, :_destroy],
+                                      designations_attributes: [:id, :comp_name, :recruiter_name, :recruiter_phone, :recruiter_email, :start_date, :end_date, :status, :company_role, :_destroy])
+  end
 
 
 end

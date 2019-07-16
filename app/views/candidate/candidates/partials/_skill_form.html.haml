@@ -1,83 +1,41 @@
-.form-group
-  = form_for current_candidate,url: candidate_candidate_path(current_candidate.id, tab: "skill"),method: :put, remote: true do |f|
-    .row
-      .col-sm-6
-        .form-group
-          %label Category
-          =f.select :category, WORK_CATEGORIES.keys,{include_blank: "Select Category"},{class: "form-control input", required: true }
-      .col-sm-6
-        .form-
-          %label Sub Category
-          =f.select :subcategory, '', {include_blank: "Select Category"},{class: "form-control input", required: true }
+- current_candidate.designations.build unless current_candidate.designations.present?
+= form_for current_candidate,url: candidate_candidate_path(current_candidate.id, tab: "skill"),method: :put, remote: true do |f|
+  %br/
+  %h4.element-header
+    Update Skills
+  .row
+    .col-sm-12.col-md-12.col-lg-12#skill-form
+      .form-group
+        .row
+          .col-sm-12
+            .form-group
+              %label Skills
+              = f.text_field :skill_list, placeholder: "Add Skills Comma seperated",class: 'form-control p-location input', 'data-role'=>'tagsinput',value: current_candidate.skill_list.join(", ")
+        .row
+          .col-md-12
+            %h5
+              %b Have you ever worked with a Client?
+              %label.radio-container
+                Yes
+                = f.radio_button :ever_worked_with_company, "Yes"
+                %span.radio-checkmark
+              %label.radio-container
+                No
+                = f.radio_button :ever_worked_with_company, "No"
+                %span.radio-checkmark
 
-    .row
-      .col-sm-6
-        .form-group
-          %label Department
-          = f.select :dept_name, department_list, {include_blank: "Select Department"},{class: "form-control input", required: true}
-      .col-sm-6
-        .form-group
-          %label Industry
-          = f.select :industry_name, industry_list, {include_blank: "Select Industry"},{class: "form-control input", required: true}
-    .row
-      .col-sm-12
-        .form-group
-          %label Skills
-          = f.text_field :skill_list, placeholder: "Add Skills Comma seperated",class: 'form-control p-location input', 'data-role'=>'tagsinput',value: current_candidate.skill_list.join(", ")
-    .row
-      .col-md-12
-        %h5
-          %b Have you ever worked with a Client?
-          %label.radio-container
-            Yes
-            = f.radio_button :ever_worked_with_company, "Yes"
-            %span.radio-checkmark
-          %label.radio-container
-            No
-            = f.radio_button :ever_worked_with_company, "No"
-            %span.radio-checkmark
-
-      %br
-      .row.client_information_main_div
-        .col-md-12
-          .form-group.candidate-association
-            = f.fields_for :clients do |b|
-              = render 'candidate/candidates/client_fields', f: b
-            %strong
-              .links.pull-right
-                = link_to_add_association '+ Add Client', f, :clients, class: 'btn btn-success', partial: 'candidate/candidates/client_fields'
-      -#.col-sm-6
-        -#  .form-group
-        -#    %label Selected From Resume
-        -#    = f.text_field :selected_from_resume,placeholder: "Selected From Resume",class: 'form-control p-location input'
-
-    -#.row
-    -#  .col-lg-12
-    -#    %button.btn.btn-primary.pull-right{:type => "submit"}
-    -#      Saved
-
--#-content_for :scripts do
--#  :javascript
--#    setcategories($("#candidate_category").val());
--#    $(document).on("change","#candidate_category", function(){
--#      setcategories($(this).val());
--#    });
--#    function setcategories(cat){
--#      $.ajax({
--#        type: 'POST',
--#        dataType: "json",
--#        data: {category: cat},
--#        url: "#{get_sub_category_candidates_path}",
--#        success: function(data){
--#          $('#candidate_subcategory').empty();
--#          $.each(data, function(i, value) {
--#
--#            if(value == "#{@user.subcategory}"){
--#              $('#candidate_subcategory').append($('<option selected="selected">').text(value).attr('value', value));
--#            }else{
--#              $('#candidate_subcategory').append($('<option>').text(value).attr('value', value));
--#            }
--#          });
--#        }
--#      });
--#    }
+          %br
+          .row.client_information_main_div
+            .col-md-12
+              .form-group.candidate-association
+                = f.fields_for :clients do |b|
+                  = render 'candidate/candidates/client_fields', f: b
+                %strong
+                  .links.pull-right
+                    = link_to_add_association '+ Add Client', f, :clients, class: 'btn btn-success', partial: 'candidate/candidates/client_fields'
+  %br/
+  %h4.element-header
+    Employer Information
+  .row
+    .col-sm-12.col-md-12.col-lg-12#designate-form
+      = render 'candidate/candidates/partials/designate_form',f: f

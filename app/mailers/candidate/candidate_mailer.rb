@@ -15,8 +15,10 @@ class Candidate::CandidateMailer < ApplicationMailer
     mail(to: candidate.email,  subject: "#{@sender.full_name.titleize} Invited You to Etyme",from: "Etyme <no-reply@etyme.com>")
   end
 
-  def client_reference(email, candidate_name)
+  def client_reference(email, candidate_name, id,slug)
     @candidate = candidate_name
+    @id = id
+    @slug = slug
     mail(to: email,  subject: "Reference Etyme", from: "Etyme <no-reply@etyme.com>")
   end
 

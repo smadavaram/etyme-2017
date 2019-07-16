@@ -4,23 +4,36 @@
       .form-group
         %label Title
         = f.text_field :title, placeholder: "Title",class: 'form-control  input'
-       
     .col-md-4
       .form-group
-        %label Status
-        = f.text_field :status, placeholder: "Status",class: 'form-control  input'
+        %label Visa Number
+        = f.text_field :visa_number, placeholder: "Visa Number",class: 'form-control  input'
+
+    .col-md-4
+      .form-group
+        %label Alien Number
+        = f.text_field :status, placeholder: "l-94",class: 'form-control  input'
            
-    .col-md-2
+    .col-md-4
+      .form-group
+        %label Start Date
+        = f.text_field :start_date, placeholder: "YYYY-MM-DD",class: 'form-control p_date input visa_exp_date'
+    .col-md-4
       .form-group
         %label Expiry Date
         = f.text_field :exp_date, placeholder: "YYYY-MM-DD",class: 'form-control p_date input visa_exp_date'
-    
-    
-    .col-md-2
-      .form-group
-        %label Select File
-        -#= f.text_field :file, class: 'hidden file_education_document'
-        = render 'shared/file_attachement',f:f,attr_name: :file,cstm_style: "border-radius: 0; height:38px;", button_name: 'Select Document'
+
+
+    .col-md-4
+      %label.d-block Select Document
+      .file_selector{style: "display: flex;"}
+        .form-group.d-inline-block
+          = render 'shared/file_attachement',f:f,attr_name: :file,button_name: "Document", name_selector: ".uploaded_file_name",cstm_style: "border-radius: 0; height:38px;"
+        %p.d-inline-block.uploaded_file_name No File Selected
+      -#.form-group
+      -#  %label Select File
+      -#  -#= f.text_field :file, class: 'hidden file_education_document'
+      -#  = render 'shared/file_attachement',f:f,attr_name: :file,cstm_style: "border-radius: 0; height:38px;", button_name: 'Select Document'
         -#= filepicker_field_tag "" , class: " hidden education_file can-filepicker-attach filepicker-attach", onchange:"uploadFileDoc(event, $(this).prev())"
         -#= link_to "Select Document" ,"#",class: 'col-lg-12 education_doc btn btn-md btn-primary', style: "margin-bottom: 10px", onclick:"select_file($(this).prev())"
   .row
