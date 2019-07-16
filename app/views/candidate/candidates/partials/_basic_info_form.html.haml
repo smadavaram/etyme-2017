@@ -1,27 +1,27 @@
 - current_candidate.addresses.build unless current_candidate.addresses.present?
 = form_for current_candidate, url: candidate_candidate_path(current_candidate.id, tab: "basic_info"),method: :put, remote: true do |f|
   .row
-    .col-sm-6
+    .col-sm-12
       %label First Name
       .form-group
         = f.text_field :first_name  ,:placeholder => "Enter First Name",class:'form-control input'
-    .col-sm-6
+    .col-sm-12
       %label Last Name
       .form-group
         = f.text_field :last_name  ,:placeholder => "Enter last Name",class:'form-control input'
-    .col-sm-6
-      %label Passport Number
-      .form-group
-        = f.text_field :passport_number  ,:placeholder => "Enter Passport Number",class:'form-control input'
-    .col-sm-6
-      %label SSN Number
-      .form-group
-        = f.text_field :ssn  ,:placeholder => "Enter SSN Name",class:'form-control input'
-    .col-sm-6
-      %label Visa Type
-      .form-group
-        = f.text_field :visa_type, :placeholder => "First Us Visa Type", class: 'form-control input'
-    .col-sm-6.h-100{style: "margin: auto auto;"}
+    -#.col-sm-6
+    -#  %label Passport Number
+    -#  .form-group
+    -#    = f.text_field :passport_number  ,:placeholder => "Enter Passport Number",class:'form-control input'
+    -#.col-sm-6
+    -#  %label SSN Number
+    -#  .form-group
+    -#    = f.text_field :ssn  ,:placeholder => "Enter SSN Name",class:'form-control input'
+    -#.col-sm-6
+    -#  %label Visa Type
+    -#  .form-group
+    -#    = f.text_field :visa_type, :placeholder => "First Us Visa Type", class: 'form-control input'
+    .col-sm-12.h-100{style: "margin: auto auto;"}
       .form-group.mb-0
         %b Are you willing to relocate?
         %label.radio-container
@@ -34,23 +34,23 @@
           %span.radio-checkmark
 
 
-    .col-sm-12
-      %label Address
-      .form-group
-        = f.text_field :address, :placeholder => "Enter Address", class:'form-control p-location input'
-
-    .col-sm-12
-      - if current_candidate.versions.present?
-        %label Previous Address
-        .timed-activities.pl-3
-          .timed-activity.d-block
-            -current_candidate.versions&.reverse_each do |version|
-              - if version.reify.address.present?
-                .ta-record
-                  %label.mr-3.text-muted.pl-2
-                    =version.created_at.strftime("%Y-%m-%d")
-                  .small.text-muted
-                    =version.reify.address
+    -#.col-sm-12
+    -#  %label Address
+    -#  .form-group
+    -#    = f.text_field :address, :placeholder => "Enter Address", class:'form-control p-location input'
+    -#
+    -#.col-sm-12
+    -#  - if current_candidate.versions.present?
+    -#    %label Previous Address
+    -#    .timed-activities.pl-3
+    -#      .timed-activity.d-block
+    -#        -current_candidate.versions&.reverse_each do |version|
+    -#          - if version.reify.address.present?
+    -#            .ta-record
+    -#              %label.mr-3.text-muted.pl-2
+    -#                =version.created_at.strftime("%Y-%m-%d")
+    -#              .small.text-muted
+    -#                =version.reify.address
 
 
 

@@ -25,11 +25,8 @@
         = f.fields_for :candidate_certificate_documents do |b|
           = render 'candidate/candidates/candidate_certificate_document_fields', f: b
         .links.education_links
-          = link_to_add_association '+ Add Document', f, :candidate_certificate_documents, class: 'btn btn-success add_education_btn', partial: 'candidate/candidates/candidate_certificate_document_fields'
-  .row
-    .col-md-12
-      = link_to_remove_association f , wrapper_class: "nested-fields4", class: "bttn btn-add pull-right delete_icon" do
-        %i.fa.fa-trash
+          = link_to_add_association '+ Add Document', f, :candidate_certificate_documents, class: 'btn btn-primary add_education_btn pull-right', partial: 'candidate/candidates/candidate_certificate_document_fields'
+
 
 -#- content_for :scripts do
 -#  :javascript

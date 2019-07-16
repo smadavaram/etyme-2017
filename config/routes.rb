@@ -46,7 +46,11 @@ Rails.application.routes.draw do
     match :search, action: :index, via: [:get, :post], on: :collection
   end
 
-  resources :static, only: [:index]
+  resources :static, only: [:index] do
+    collection do
+      get '/client/:id/acknowledge/:slug', to: "static#acknowledge_refrence", as: :acknowledge_refrence
+    end
+  end
   namespace :static do
     resources :jobs, only: [:index, :show] do
       post 'job_request', on: :collection

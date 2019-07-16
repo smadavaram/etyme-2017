@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema.define(version: 20190711071423) do
+ActiveRecord::Schema.define(version: 20190716123048) do
 
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
@@ -511,6 +511,10 @@ ActiveRecord::Schema.define(version: 20190711071423) do
     t.string "refrence_two_name"
     t.string "refrence_two_email"
     t.string "refrence_two_phone"
+    t.boolean "refrence_one"
+    t.boolean "refrence_two"
+    t.string "slug_one"
+    t.string "slug_two"
     t.index ["candidate_id"], name: "index_clients_on_candidate_id"
   end
 
@@ -1304,6 +1308,8 @@ ActiveRecord::Schema.define(version: 20190711071423) do
     t.date "exp_date"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.string "document_number"
+    t.date "start_date"
   end
 
   create_table "locations", id: :serial, force: :cascade do |t|
@@ -1856,6 +1862,8 @@ ActiveRecord::Schema.define(version: 20190711071423) do
     t.string "status"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.string "visa_number"
+    t.date "start_date"
   end
 
   add_foreign_key "expense_accounts", "expenses"
