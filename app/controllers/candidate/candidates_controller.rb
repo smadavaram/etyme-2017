@@ -112,7 +112,7 @@ class Candidate::CandidatesController < Candidate::BaseController
           flash[:success] = "Candidate Updated"
           redirect_to onboarding_profile_path(tag: params["tab"])
         }
-        format.js{
+        format.js {
           flash.now[:success] = "Candidate Profile Updated"
         }
 
@@ -130,8 +130,11 @@ class Candidate::CandidatesController < Candidate::BaseController
     new_resume.resume = params[:resume]
     new_resume.candidate_id = current_candidate.id
     new_resume.is_primary = current_candidate.candidates_resumes.count == 0 ? true : false
-
     if new_resume.save
+      begin
+        current_candidate.build_profile(ResumeParser.new(new_resume.resume).parse) if first_resume?
+      rescue
+      end
       flash[:success] = "Resume uploaded successfully."
     else
       flash[:errors] = 'Resume not updated'
@@ -282,7 +285,7 @@ class Candidate::CandidatesController < Candidate::BaseController
                                                                 ]],
                                       clients_attributes: [:id, :name, :industry, :start_date, :end_date, :project_description, :role, :refrence_name, :refrence_phone, :refrence_email, :refrence_two_name, :refrence_two_phone, :refrence_two_email, :_destroy],
                                       documents_attributes: [:id, :candidate_id, :title, :file, :exp_date, :is_education, :is_legal_doc, :_destroy],
-                                      legal_documents_attributes: [:id, :candidate_id,:document_number, :start_date, :title, :file, :exp_date, :_destroy],
+                                      legal_documents_attributes: [:id, :candidate_id, :document_number, :start_date, :title, :file, :exp_date, :_destroy],
                                       criminal_check_attributes: [:id, :candidate_id, :state, :address, :start_date, :end_date, :_destroy],
                                       visas_attributes: [:id, :candidate_id, :title, :file, :visa_number, :start_date, :exp_date, :status, :_destroy],
                                       designations_attributes: [:id, :comp_name, :recruiter_name, :recruiter_phone, :recruiter_email, :start_date, :end_date, :status, :company_role, :_destroy])
