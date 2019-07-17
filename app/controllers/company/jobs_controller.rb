@@ -38,10 +38,7 @@ class Company::JobsController < Company::BaseController
   end
 
   def create
-    params[:job][:start_date] = Time.strptime(params[:job][:start_date], "%m/%d/%Y") if params[:job][:start_date].present?
-    params[:job][:end_date] = params[:job][:end_date].present? ? Time.strptime(params[:job][:end_date], "%m/%d/%Y") : Time.parse("31/12/9999")
     @job = current_company.jobs.new(company_job_params.merge!(created_by_id: current_user.id))
-
     respond_to do |format|
       if @job.save
         CreateGoogleIndex.new(@job,"URL_UPDATED").index_job

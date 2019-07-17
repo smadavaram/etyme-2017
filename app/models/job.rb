@@ -38,7 +38,7 @@ class Job < ApplicationRecord
   after_create :create_job_conversation
   before_save :set_parent_job
 
-  scope :active, -> {where('end_date>=?', Date.today)}
+  scope :active, -> {where('end_date>=? AND status = ?', Date.today, "Published")}
   scope :expired, -> {where('end_date<?', Date.today)}
   scope :is_public, -> {where(is_public: true)}
   scope :not_system_generated, -> {where(is_system_generated: false)}
