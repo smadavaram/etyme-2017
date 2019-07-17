@@ -131,10 +131,6 @@ class Candidate::CandidatesController < Candidate::BaseController
     new_resume.candidate_id = current_candidate.id
     new_resume.is_primary = current_candidate.candidates_resumes.count == 0 ? true : false
     if new_resume.save
-      begin
-        current_candidate.build_profile(ResumeParser.new(new_resume.resume).parse) if first_resume?
-      rescue
-      end
       flash[:success] = "Resume uploaded successfully."
     else
       flash[:errors] = 'Resume not updated'

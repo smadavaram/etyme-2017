@@ -24,7 +24,8 @@ module CandidateProfileBuilder
                             start_year: extract_date(education["StartDate"]),
                             completion_year: extract_date(education["EndDate"]),
                             institute: education["Institution"]["Name"],
-                            degree_level: education["Institution"]["Type"]
+                            degree_level: education["Institution"]["Type"],
+                            grade: "#{education["Aggregate"]["Value"]}  #{education["Aggregate"]["MeasureType"]}"
 
       ).save
     end
@@ -38,6 +39,7 @@ module CandidateProfileBuilder
           end_date: extract_date(experience["EndDate"]),
           company_role: experience["JobProfile"]["Title"]
       ).save
+      self.update(designation_status: "Employee") if self.designation_status.nil?
     end
   end
 

@@ -10,14 +10,16 @@ class ResumeParser
     @resume_url = url
   end
 
-  def parse
+  def binary_parse
+    base64Data = Base64.encode64(open(@resume_url).read)
     uri = URI.parse(API_URL)
-    body = {
-        url: @resume_url,
+    String body = {
+        filedata: base64Data,
+        filename: @resume_url.split('/').last,
         userkey: USER_KEY,
         version: VERSION,
         subuserid: USER_ID
-    }.to_json
+    }
     headers = {
         'Content-Type' => 'application/json',
         'Accept' => "application/json"
@@ -25,7 +27,25 @@ class ResumeParser
     http = Net::HTTP.new(uri.host,uri.port)
     http.use_ssl = true
     http.verify_mode = OpenSSL::SSL::VERIFY_NONE
-    response = http.post(uri.path,input.to_json,headers)
+    response = http.post(uri.path,body.to_json,headers)
+  end
+
+  def parse
+    uri = URI.parse(API_URL)
+    String body = {
+        url: @resume_url,
+        userkey: USER_KEY,
+        version: VERSION,
+        subuserid: USER_ID
+    }
+    headers = {
+        'Content-Type' => 'application/json',
+        'Accept' => "application/json"
+    }
+    http = Net::HTTP.new(uri.host,uri.port)
+    http.use_ssl = true
+    http.verify_mode = OpenSSL::SSL::VERIFY_NONE
+    response = http.post(uri.path,body.to_json,headers)
   end
 
 end

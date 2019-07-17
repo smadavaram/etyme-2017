@@ -176,6 +176,9 @@ class Candidate < ApplicationRecord
     associated_company.name != 'freelancer'
   end
 
+  def first_resume?
+    candidates_resumes.count == 1
+  end
   private
 
   def create_address
@@ -214,9 +217,7 @@ class Candidate < ApplicationRecord
     end
   end
 
-  def first_resume?
-    candidates_resumes.present?
-  end
+
 
   def set_on_seq
     ledger = Sequence::Client.new(
