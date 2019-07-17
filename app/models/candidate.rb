@@ -7,6 +7,7 @@ class Candidate < ApplicationRecord
   has_paper_trail only: [:address]
 
   include PublicActivity::Model
+  include CandidateProfileBuilder
 
   enum status: [:signup, :campany_candidate]
   enum visa: [:Us_citizen, :GC, :OPT, :OPT_third_party, :H1B, :H1B_third_party]
@@ -211,6 +212,10 @@ class Candidate < ApplicationRecord
         errors.add(:base, "Candidate with same email exist's in your Company")
       end
     end
+  end
+
+  def first_resume?
+    candidates_resumes.present?
   end
 
   def set_on_seq
