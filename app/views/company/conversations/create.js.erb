@@ -14,17 +14,6 @@ $('#collapsible_job_application').addClass('mt-2')
 $("#conversation-section").html("<%= j render 'company/conversations/job_conversation_box', conversation: @conversation %>");
 <% end %>
 
-filepicker.constructWidget($('#req-accept-filepiker'));
-$(".req-file-pick").on('click', function () {
-  $(".fp__overlay").css({'z-index': '99999'});
-});
-
-
-
-
-
-
-
 $("#conversation-r-section").html("<%= j render 'company/conversations/conversation_right_side' %>");
 $(".chat-content-scroll").data('ajaxready', true);
 $.ajax({
