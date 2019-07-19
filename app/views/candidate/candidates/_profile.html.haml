@@ -8,8 +8,10 @@
         .user-profile.compact
           .up-head-w{:style => "background-image:url(#{candidate.photo})"}
             - if own
-              = link_to '/onboarding_profile?tag=verify-phone', class: 'profile--link' do
+              = link_to '#', class: 'profile--link', onclick: "upload_file_ajax(candidateLogoUpload)" do
                 .up-main-info
+                  %h2.up-header
+                    %i.icon-feather-camera
                   %h2.up-header
                     = candidate.full_name
                   %h6.up-sub-header
@@ -180,7 +182,6 @@
                             = link_to "Add New One", '/onboarding_profile?tag=designate'
 
 
-
 :javascript
   window.onscroll = function() {myFunction()};
   var navbar = document.getElementById("navbar");
@@ -191,4 +192,19 @@
     } else {
       navbar.classList.remove("sticky");
     }
+  }
+  function candidateLogoUpload(url,type){
+    photo_url = url
+    $('.profile-pic').html('');
+    $.ajax({
+     type: 'POST',
+     dataType: 'json',
+     url: "#{ candidate_update_photo_path }",
+     data: { photo: photo_url,authenticity_token: window._token },
+     success: function (data) {
+      $('.img_pic').removeClass('hidden').attr("src",photo_url);
+      $('.img_pic_r').remove();
+      location.reload();
+     }
+   });
   }

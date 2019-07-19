@@ -181,6 +181,12 @@ $("input[name='candidate[designation_status]']").click(function () {
     $('#employee-designations').addClass('display-none');
   }
 });
+$('.up-head-w').mouseover(function () {
+    $('.up-main-info').addClass('profile-wrapper')
+})
+$('.up-head-w').mouseleave(function () {
+    $('.up-main-info').removeClass('profile-wrapper')
+})
 function display_file_name(event) {
   $('.uploaded_file_name').text(event.fpfile.filename)
 }
