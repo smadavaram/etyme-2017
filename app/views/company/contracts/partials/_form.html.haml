@@ -4,19 +4,24 @@
     =contract.hidden_field :parent_contract_id , value: params[:id]
   #bootstrap-wizard-1.col-sm-12
     .form-bootstrapWizard
-      %ul.bootstrapWizard.form-wizard
-        %li.active{"data-target" => "#step1"}
+      %ul.bootstrapWizard.form-wizard{style: 'display: flex; justify-content: space-evenly;'}
+        %li.w-100.active{"data-target" => "#step1"}
           %a{"data-toggle" => "tab", :href => "#tab1"}
             %span.step 1
-            %span.title Job
-        %li{"data-target" => "#step2"}
+            %span.title Contract Header
+        %li.w-100{"data-target" => "#step2"}
           %a{"data-toggle" => "tab", :href => "#tab2"}
             %span.step 2
-            %span.title Sell Contract
-        %li.step3.custom-step{"data-target" => "#step3"}
+            %span.title Onboard Customer / Sell Side
+        %li.w-100{"data-target" => "#step3"}
           %a{"data-toggle" => "tab", :href => "#tab3"}
             %span.step 3
-            %span.title Buy Contract
+            %span.title Onboard Consultant / Buy Side
+        %li.w-100.step4.custom-step{"data-target" => "#step4"}
+          %a{"data-toggle" => "tab", :href => "#tab4"}
+            %span.step 4
+            %span.title Activate / Timeline
+
         / %li{"data-target" => "#step4"}
         /   %a{"data-toggle" => "tab", :href => "#tab4"}
         /     %span.step 4
@@ -33,21 +38,27 @@
         %br/
         %h3
           %strong Step 1
-          \- Job Details
+          \- Contract Header
           = link_to 'NEW', "#" ,class: 'btn btn-success btn-sm pull-right header-btn hidden-mobile' , "data-toggle": "modal" , "data-target":"#new-contract-company"
         = render 'company/contracts/partials/job' , f: contract
       #tab2.tab-pane
         %br/
         %h3
           %strong Step 2
-          \- Sell Contract
+          \- Onboard Customer / Sell Side
         = render 'company/contracts/partials/contract_and_docs' , f: contract
       #tab3.tab-pane
         %br/
         %h3
           %strong Step 3
-          \- Buy Contract
+          \- Onboard Consultant / Buy Side
         = render 'company/contracts/partials/docs_and_attachments' , f: contract
+      #tab4.tab-pane
+        %br/
+        %h3
+          %strong Step 4
+          \- Active / Timeline
+        -#= render 'company/contracts/partials/docs_and_attachments' , f: contract
       .form-actions
         .row
           .col-sm-12
@@ -112,6 +123,17 @@
         $($(this).closest('.contract_box')[0]).find('.accountable_user').addClass('active_row')
       })
 
+
+
+
+
+      // $(document).on('change','#select_jobs', function(){
+      //   $.get('/api/company/companies/get_owner?job_id='+$( "#select_jobs" ).val(),function (data, textStatus, jqXHR) {
+      //     console.log('status: ' + textStatus + ', data:' + data);
+      //     $('#contract_admins_table').find('tbody:last').append(`<tr><td>${data.domain}</td><td>${data.name}</td><td>TBD</td><td><a title='chat' class='data-table-icons' href='#'><i class='fa fa-comment-o'></i></a><a title='${data.email}' class='data-table-icons' href='mailto:${data.email}'><i class='os-icon os-icon-email-2-at2'></i></a><a title='${data.phone}' class='data-table-icons' href='#'><i class='os-icon os-icon-phone '></i></a><div title='' class='addeventatc' id='addeventatc1' style='visibility: visible;' aria-haspopup='true' aria-expanded='false' tabindex='0' translate='no'><span class="os-icon os-icon-calendar  atc_node notranslate"></span></div><td>${data.role}</td><td>${data.reminders}</td><td>TBD</td></tr>`);
+      //     addeventatc.refresh();
+      //   });
+      // });
 
       $(document).on('change', '.commission_user', function(){
         $($('.active_row')[0]).find('input')[0].value = $('#select2-commission_user-container').text();

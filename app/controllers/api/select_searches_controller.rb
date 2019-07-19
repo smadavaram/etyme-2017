@@ -7,8 +7,8 @@ class Api::SelectSearchesController < ApplicationController
   end
 
   def find_client_companies
-    @invited_clients = current_company.try(:invited_companies).pluck(:invited_company_id).uniq
-    @companies = Company.where(id: @invited_clients).like_any([:name], params[:q].to_s.split).paginate(:page => params[:page], :per_page => params[:per_page])
+    @contacts_company_ids = current_company.try(:company_contacts).pluck(:user_company_id).uniq
+    @companies = Company.where(id: @contacts_company_ids).like_any([:name], params[:q].to_s.split).paginate(:page => params[:page], :per_page => params[:per_page])
     respond_with @companies
   end
 
