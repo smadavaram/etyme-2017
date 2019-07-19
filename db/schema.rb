@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema.define(version: 20190716123048) do
+ActiveRecord::Schema.define(version: 20190719144050) do
 
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
@@ -807,6 +807,7 @@ ActiveRecord::Schema.define(version: 20190716123048) do
     t.integer "client_id"
     t.string "number"
     t.decimal "salary_to_pay", default: "0.0"
+    t.string "project_name"
   end
 
   create_table "conversation_messages", force: :cascade do |t|

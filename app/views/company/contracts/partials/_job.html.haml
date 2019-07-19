@@ -1,4 +1,46 @@
-%fieldset
+.contract-fields_wrapper
+  .row
+    .col-md-4
+      .form-group
+        %label.control-label
+          Project Name
+          %sup.text-danger
+        .contract-fild
+          = f.text_field :project_name ,class: "form-control" , required: 'required',disabled: 'disabled', placeholder: "Contract ID - Job title - Client - Auto generated"
+    .col-md-4
+      .form-group
+        %label.control-label
+          Start Date
+          %sup.text-danger *
+        .contract-fild
+          = f.text_field :start_date ,class: "form-control" , required: 'required', placeholder: "Contract Start Date"
+    .col-md-4
+      .form-group
+        %label.control-label
+          End Date
+          %sup.text-danger *
+        .contract-fild
+          = f.text_field :end_date ,class: "form-control" , required: 'required', placeholder: "Contract End Date"
+
+
+.contract-fields_wrapper.mt-4
+  - headers =  %w(domain name contact title role(s) reminder action(s))
+  .table-responsive
+    %table.table.text-center.table-bordered.table-lg.table-v2.table-striped.data-table-font#contract_admins_table
+      %thead
+        %tr
+        - headers.each do |header|
+          %th= header.capitalize
+      %tbody
+        %tr
+          %td= current_company.domain
+          %td= current_company.owner.full_name
+          %td= "TBD"
+          %td= contact_widget(current_company.owner.email,current_company.owner.phone)
+          %td= current_company.owner.roles.pluck(:name).join(', ')
+          %td= "TBD"
+          %td= "TBD"
+.contract-fields_wrapper.mt-4
   .row
     .col-md-6
       .form-group
@@ -25,18 +67,16 @@
         .contract-fild
           .plain-select
             = f.select :client_id, '', {}, id: 'select_clients'
-  .row
-    .col-md-6
-      .form-group
-        %label.control-label
-          Start Date
-          %sup.text-danger *
-        .contract-fild
-          = f.text_field :start_date ,class: "form-control" , required: 'required', placeholder: "Contract Start Date"
-    .col-md-6
-      .form-group
-        %label.control-label
-          End Date
-          %sup.text-danger *
-        .contract-fild
-          = f.text_field :end_date ,class: "form-control" , required: 'required', placeholder: "Contract End Date"
+
+    =f.fields_for :sell_contracts do |sc|
+      .col-md-6
+        .form-group
+          %label.control-label  Customer Company
+          .contract-fild
+            .plain-select
+              = sc.select :company_id, {}, {}, id: "sell_contract_company", required: true
+        .form-group.company_contacts
+          -sc.object.contract_sell_business_details.build
+          =sc.fields_for :contract_sell_business_details do |csbd|
+            = link_to_add_fields 'available_tour_fields', sc, :contract_sell_business_details, {partial: 'company/contracts/contract_sell_business_details_fields'}, {class: 'link-company-contacts hidden'}
+          = select_tag 'contract[job_1_id]', nil, id: "select_sell_company_contacts", class: "form-control select_company_contacts"

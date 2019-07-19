@@ -694,6 +694,7 @@ Rails.application.routes.draw do
     namespace :company do
       resources :companies, only: [:index, :create] do
         post :add_company, on: :collection
+        get :get_owner, on: :collection
       end
     end
 

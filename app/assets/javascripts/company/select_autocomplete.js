@@ -68,7 +68,7 @@ var set_client_company_select = function(selector, place_holder){
                     };
                 },
                 processResults: function (data, params) {
-                  debugger;
+                  // debugger;
                     params.page = params.page || 1;
                     return {
                         results: data.companies,
