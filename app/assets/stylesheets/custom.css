@@ -37,6 +37,53 @@
 
 }
 
+.search-form
+{
+    width: 100% !important;
+}
+
+.search_bar
+{
+    display: flex;
+    border: 2px solid #dde2ec;
+}
+
+.search_input
+{
+    border: none !important;
+}
+
+.bordered{
+    border: 2px solid #dde2ec;
+}
+
+ul > li{
+    padding: 10px;
+    border: 2px solid #dde2ec;
+    text-decoration: none;
+}
+ul > a:hover {
+    text-decoration: none;
+}
+
+ul > li >a {
+    font-size: 1rem;
+}
+
+ul > li.active{
+    background-color: #5E92F7;
+}
+
+ul > li.active > a{
+    color: #ffffff;
+}
+
+.btn-search-bar
+{
+    background-color: inherit;
+    box-shadow: none;
+
+}
 
 .profile-hover:hover .imgDescription {
     visibility: visible;
