@@ -57,7 +57,7 @@ class Company::ContractsController < Company::BaseController
   def update
     if @contract.update(contract_params)
       flash[:success] = "#{@contract.title.titleize} updated successfully"
-      create_contract_activity 'contract.update', contract_params
+      create_contract_activity('contract.update', contract_params)
     else
       flash[:errors] = @contract.errors.full_messages
     end
@@ -69,7 +69,7 @@ class Company::ContractsController < Company::BaseController
     @contract  = current_company.sent_contracts.new(create_contract_params)
     respond_to do |format|
       if @contract.save
-        create_contract_activity'contract.create', create_contract_params
+        create_contract_activity('contract.create', create_contract_params)
         format.html {
           flash[:success] = "successfully Send."
           redirect_to contract_path(@contract)
@@ -101,7 +101,8 @@ class Company::ContractsController < Company::BaseController
     respond_to do |format|
       if @contract.pending?
         if @contract.update_attributes(update_contract_response_params.merge!(respond_by_id: current_user.id , responed_at: Time.zone.now , status: status))
-          create_contract_activity'contract.update', update_contract_response_params.merge!(respond_by_id: current_user.id , responed_at: Time.zone.now , status: status)
+          create_contract_activity('contract.update',
+                                   update_contract_response_params.merge!(respond_by_id: current_user.id , responed_at: Time.zone.now , status: status))
           format.js{ flash.now[:success] = "successfully Submitted." }
         else
           format.js{ flash.now[:errors] =  @contract.errors.full_messages }
@@ -173,7 +174,7 @@ class Company::ContractsController < Company::BaseController
 
   def update_contract_status
     if @contract.update(status: params[:status])
-      create_contract_activity'contract.update', {status: params[:status]}
+      create_contract_activity('contract.update', {status: params[:status]})
       Contract.set_cycle if @contract.in_progress!
       redirect_back fallback_location: root_path
     end
@@ -371,8 +372,8 @@ class Company::ContractsController < Company::BaseController
     end
   end
 
-  def create_contract_activity key
-     @contract.create_activity key: key, owner: current_user
+  def create_contract_activity key, params
+     @contract.create_activity key: key, owner: current_user, params: params
   end
 
   def update_contract_response_params

@@ -1,7 +1,6 @@
 class Contract < ApplicationRecord
   require 'sequence'
   include PublicActivity::Model
-  # tracked params:{ "obj"=> proc {|controller, model_instance| model_instance.changes}}
 
   include Rails.application.routes.url_helpers
 
