@@ -14,3 +14,12 @@
 .cumstom_nav-tab .active {
   border: none !important;
 }
+.select2-selection__arrow b:before, .select2-container .select2-choice .select2-arrow b:before{
+  content: none !important;
+}
+.select2-selection__arrow{
+  background: none !important;
+  background-color: transparent !important;
+  border: none !important;
+  margin-top: 5px;
+}
