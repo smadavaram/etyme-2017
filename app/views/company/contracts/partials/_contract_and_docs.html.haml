@@ -7,7 +7,7 @@
             %label.control-label  Customer Company
             .contract-fild
               .plain-select
-                = sc.select :company_id, {}, {}, id: "sell_contract_company_1", required: false, disabled: 'disabled'
+                = sc.select :company_id, {}, {}, id: "sell_contract_company_1", required: true
       - headers =  %w(domain name contact title role(s) reminder action(s))
       .table-responsive
         %table.table.text-center.table-bordered.table-lg.table-v2.table-striped.data-table-font#contract_admins_table
