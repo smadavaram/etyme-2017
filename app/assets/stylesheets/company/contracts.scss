@@ -5,3 +5,12 @@
   border: 2px solid #b6bcbf;
   padding: 25px;
 }
+
+.cumstom_nav-tab{
+  border: none !important;
+  background-color: transparent !important;
+}
+
+.cumstom_nav-tab .active {
+  border: none !important;
+}

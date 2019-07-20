@@ -36,39 +36,31 @@
     .tab-content
       #tab1.tab-pane.active
         %br/
-        %h3
-          %strong Step 1
-          \- Contract Header
-          = link_to 'NEW', "#" ,class: 'btn btn-success btn-sm pull-right header-btn hidden-mobile' , "data-toggle": "modal" , "data-target":"#new-contract-company"
+        -#= link_to 'NEW', "#" ,class: 'btn btn-success btn-sm pull-right header-btn hidden-mobile' , "data-toggle": "modal" , "data-target":"#new-contract-company"
         = render 'company/contracts/partials/job' , f: contract
       #tab2.tab-pane
         %br/
-        %h3
-          %strong Step 2
-          \- Onboard Customer / Sell Side
         = render 'company/contracts/partials/contract_and_docs' , f: contract
       #tab3.tab-pane
         %br/
-        %h3
-          %strong Step 3
-          \- Onboard Consultant / Buy Side
         = render 'company/contracts/partials/docs_and_attachments' , f: contract
       #tab4.tab-pane
         %br/
-        %h3
-          %strong Step 4
-          \- Active / Timeline
-        -#= render 'company/contracts/partials/docs_and_attachments' , f: contract
-      .form-actions
+        .contract-fields_wrapper.mt-4
+          .text-center.p-2
+            .onboarding-content.with-gradient
+              %h4.onboarding-title Contract Completed Successfuly
+              .onboarding-text= "These changes are not stored yet! Please clic on the <strong>Finish</strong> button to store the contract. You can also update the contract by going through the previous button below.".html_safe
+      .form-actions.wizard-action
         .row
           .col-sm-12
-            %ul.pager.wizard.no-margin
-              %li.previous.disabled
-                %a.btn.btn-lg.btn-default{:href => "javascript:void(0);"} Previous
-              %li.next
-                %a.btn.btn-lg.txt-color-darken{:href => "javascript:void(0);"} Next
+            %ul.pager.wizard.no-margin.clearfix.p-0
+              %li.previous.disabled.pull-left
+                %a{:href => "javascript:void(0);"} Previous
+              %li.next.pull-right
+                %a{:href => "javascript:void(0);"} Next
               %li.pull-right.finish{:style=>"di"}
-                %a.btn.btn-lg.btn-default{:href => "javascript:;"} Finish
+                %a{:href => "javascript:;"} Finish
 
 .remote_container_contract
 = render "company/companies/partials/new_company", for_remote: true
