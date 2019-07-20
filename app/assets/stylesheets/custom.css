@@ -57,24 +57,24 @@
     border: 2px solid #dde2ec;
 }
 
-ul > li{
+.new_tab > li{
     padding: 10px;
     border: 2px solid #dde2ec;
     text-decoration: none;
 }
-ul > a:hover {
+.new_tab > a:hover {
     text-decoration: none;
 }
 
-ul > li >a {
+.new_tab > li >a {
     font-size: 1rem;
 }
 
-ul > li.active{
+.new_tab > li.active{
     background-color: #5E92F7;
 }
 
-ul > li.active > a{
+.new_tab > li.active > a{
     color: #ffffff;
 }
 
