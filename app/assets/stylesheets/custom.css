@@ -37,12 +37,87 @@
 
 }
 
+.search-form
+{
+    width: 100% !important;
+}
+
+.search_bar
+{
+    display: flex;
+    border: 2px solid #dde2ec;
+}
+
+.search_input
+{
+    border: none !important;
+}
+
+.bordered{
+    border: 2px solid #dde2ec;
+}
+
+.new_tab > li{
+    padding: 10px;
+    border: 2px solid #dde2ec;
+    text-decoration: none;
+}
+.new_tab > a:hover {
+    text-decoration: none;
+}
+
+.new_tab > li >a {
+    font-size: 1rem;
+}
+
+.new_tab > li.active{
+    background-color: #5E92F7;
+}
+
+.float-right{
+    float: left;
+    margin: 10px;
+}
+
+.new_tab > li.active > a{
+    color: #ffffff;
+}
+
+.btn-search-bar
+{
+    background-color: inherit;
+    box-shadow: none;
+
+}
 
 .profile-hover:hover .imgDescription {
     visibility: visible;
     opacity: 1;
 }
 
+.two_columns{
+    padding: 20px;
+    border: 2px solid #dde2ec;
+    text-align: center;
+}
+
+.contract_link
+{
+    color: #000 !important;
+}
+
+.contract_link:hover
+{
+    text-decoration: none;
+}
+
+.button_heading{
+    font-weight: bold;
+}
+
+.button_span{
+    font-size: 11px;
+}
 .profile-margin {
     background-color: white;
     margin-top: -10px;

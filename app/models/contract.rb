@@ -1,7 +1,6 @@
 class Contract < ApplicationRecord
   require 'sequence'
   include PublicActivity::Model
-  tracked params:{ "obj"=> proc {|controller, model_instance| model_instance.changes}}
 
   include Rails.application.routes.url_helpers
 
@@ -56,7 +55,7 @@ class Contract < ApplicationRecord
   # has_many :contract_sell_business_details
   # has_many :contract_sale_commisions
 
-  after_create :set_on_seq
+  # after_create :set_on_seq
   after_create :insert_attachable_docs
   after_create :set_next_invoice_date
   after_create :create_rate_change

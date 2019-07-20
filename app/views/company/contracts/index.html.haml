@@ -1,49 +1,49 @@
-#content
-  -#.row
-    .col-xs-12.col-sm-.col-md-3.col-lg-3.pull-right
-      = link_to 'NEW',new_contract_path ,class: 'btn btn-success btn-lg pull-right header-btn hidden-mobile'
-
-
-  #wid-id-5.no-border.jarviswidget
-    .col-xs-12.col-sm-9.col-md-9.col-lg-9.pull-left{style: 'border-bottom-color: #fff !important;'}
-      = search_form_for @sent_search , url: search_contracts_path , method: :get do |f|
-        %ul#internal-tab-1.nav.nav-tabs.tabs-pull-right.sub-tab
-          %br
-          .input-group.input-group-lg.hidden-mobile
-            .input-group-btn.select
-              = f.select :status_eq , Contract.statuses.map { |key, value| [key.humanize, value] }.push(['All', '']).reverse.to_h, {} , {class: "btn btn-default dropdown-toggle" ,  onChange: "this.form.submit();"}
-            = f.text_field :job_title_cont, class: "form-control input-lg bg-white", placeholder: "Search Contracts..."
-            .input-group-btn
-              = f.button raw("<i class='fa fa-fw fa-search fa-lg'></i>") , class: 'btn btn-default'
-    %div
-      .widget-body
-        %ul#myTab1.nav.nav-tabs.no-border
-          %li.active
-            %a{"data-toggle" => "tab", :href => "#tab-r1"}
-              %span.badge.bg-color-blue.txt-color-white= @contract_activity.count
-              Activity log
-          %li
-            %a{"data-toggle" => "tab", :href => "#tab-r2"}
-              %span.badge.bg-color-blue.txt-color-white= @sent_contracts.count
-              My Contracts
-          %li
-            %a{"data-toggle" => "tab", :href => "#tab-r3"}
-              %span.badge.bg-color-blueDark.txt-color-white= @buy_contracts.count
-              Received Contracts
-          %li
-            %a{"data-toggle" => "tab", :href => "#tab-r4"}
-              %span.badge.bg-color-blueDark.txt-color-white= @sell_contracts.count
-              Sell Contracts
-        .col-md-12
-          .tab-content
-            #tab-r1.tab-pane.padding-top-15.active.in
-              = render 'company/contracts/partials/contract_activity' , data: @contract_activity
-            #tab-r2.tab-pane.padding-top-15
-              = render 'company/contracts/partials/contract_table' , data: @sent_contracts
-            #tab-r3.tab-pane.padding-top-15
-              = render 'company/contracts/partials/receive_contract_table' , data: @buy_contracts
-            #tab-r4.tab-pane.padding-top-15
-              = render 'company/contracts/partials/sell_contract_table' , data: @sell_contracts
+.content-box
+  .element-wrapper
+    .element-box
+      #wid-id-5
+        .col-xs-12.col-sm-12.col-md-12.col-lg-12{style: 'border-bottom-color: #fff !important;'}
+          = search_form_for @sent_search , url: search_contracts_path , method: :get do |f|
+            .row
+              .input-group.input-group-lg
+                .col-md-4.col-sm-12.col-12
+                  = f.select :status_eq , Contract.statuses.map { |key, value| [key.humanize, value] }.push(['All', '']).reverse.to_h, {} , {class: "form-control company_type search-form" ,  onChange: "this.form.submit();"}
+                .col-md-4.col-sm-12.col-12
+                  = f.select :status_eq , Contract.statuses.map { |key, value| [key.humanize, value] }.push(['All', '']).reverse.to_h, {} , {class: "form-control company_type search-form" ,  onChange: "this.form.submit();"}
+                .col-md-4.col-sm-12.col-12
+                  %div.search_bar
+                    = f.button raw("<i class='fa fa-fw fa-search fa-lg'></i>") , class: 'btn btn-default btn-search-bar'
+                    = f.text_field :job_title_cont, class: "form-control input-lg bg-white search-form search_input", placeholder: "Search Contracts..."
+        %hr
+        %div
+          .widget-body
+            %ul#myTab1.nav.nav-tabs.no-border.new_tab
+              %li.active
+                %a{"data-toggle" => "tab", :href => "#tab-r1"}
+                  Activity log
+                  %span.badge.bg-color-blue.txt-color-white= @contract_activity.count
+              %li
+                %a{"data-toggle" => "tab", :href => "#tab-r2"}
+                  My Contracts
+                  %span.badge.bg-color-blue.txt-color-white= @sent_contracts.count
+              %li
+                %a{"data-toggle" => "tab", :href => "#tab-r3"}
+                  Received Contracts
+                  %span.badge.bg-color-blueDark.txt-color-white= @buy_contracts.count
+              %li
+                %a{"data-toggle" => "tab", :href => "#tab-r4"}
+                  Sell Contracts
+                  %span.badge.bg-color-blueDark.txt-color-white= @sell_contracts.count
+            .col-md-12
+              .tab-content
+                #tab-r1.tab-pane.padding-top-15.active.in
+                  = render 'company/contracts/partials/contract_activity' , data: @contract_activity
+                #tab-r2.tab-pane.padding-top-15
+                  = render 'company/contracts/partials/contract_table' , data: @sent_contracts
+                #tab-r3.tab-pane.padding-top-15
+                  = render 'company/contracts/partials/receive_contract_table' , data: @buy_contracts
+                #tab-r4.tab-pane.padding-top-15
+                  = render 'company/contracts/partials/sell_contract_table' , data: @sell_contracts
 
 - content_for :modals do
   #ajax-modal
