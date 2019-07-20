@@ -399,6 +399,55 @@
                 = render 'company/contracts/contract_documents_fields', f: custom_field
               = link_to_add_association '+ Add Request documents', sc, :sell_request_documents, class: 'bttn text-info pull-left doc-fields', partial: 'company/contracts/contract_documents_fields'
 
+                  .col-md-4
+                    %label.control-label
+                      Assign to
+                    = select_tag 'assign_to', options_from_collection_for_select(current_company&.company_contacts, "id", 'full_name'), include_blank: 'Please select',class: 'form-control'
+              #tab-sell-pr.tab-pane.padding-top-15
+                .row
+                  .col-md-6
+                    .form-group
+                      %label.control-label
+                        Payment Terms
+                      .select
+                        = sc.number_field :payment_term , class: "form-control", min: 0, max: 365
+    .contract-fields_wrapper.mt-4
+      .row
+        %label.control-label  Customer Documents
+        .col-md-12.contract-attachment
+          %ul#myTab2.nav.nav-tabs.smaller{style: "border-bottom: 0px;"}
+            %li.nav-item.active.cumstom_nav-tab
+              %a{"data-toggle" => "tab", :href => "#doc-request", class: "nav-link cumstom_nav-tab"}
+                %span.badge.bg-color-blue.txt-color-white
+                Request Decuments
+            %li.nav-item.cumstom_nav-tab
+              %a{"data-toggle" => "tab", :href => "#doc-submit", class: "nav-link cumstom_nav-tab"}
+                %span.badge.bg-color-blue.txt-color-white
+                Submit Decuments
+          .col-md-12.pl-0
+            .tab-content{style: 'border: 1px solid #b6bcbf;'}
+              #doc-request.tab-pane.padding-top-15.active.in
+                .row
+                  .col-md-12
+                    .form-group
+                      %a.btn.btn-sm.btn-secondary{"data-toggle": "modal", "data-target":"#request_document"} Create Checklist
+              #doc-submit.tab-pane.padding-top-15
+                .row
+                  .col-md-12
+                    .form-group
+                      =sc.fields_for :sell_send_documents do |custom_field|
+                        = render 'company/contracts/contract_documents_fields', f: custom_field
+                      = link_to_add_association '+ Add Send documents', sc, :sell_send_documents, class: 'bttn text-info pull-left doc-fields', partial: 'company/contracts/contract_documents_fields'
+        -#    .form-group
+        -#      =sc.fields_for :sell_send_documents do |custom_field|
+        -#        = render 'company/contracts/contract_documents_fields', f: custom_field
+        -#      = link_to_add_association '+ Add Send documents', sc, :sell_send_documents, class: 'bttn text-info pull-left doc-fields', partial: 'company/contracts/contract_documents_fields'
+        -#.col-md-12.contract-attachment
+        -#  .form-group
+        -#    =sc.fields_for :sell_request_documents do |custom_field|
+        -#      = render 'company/contracts/contract_documents_fields', f: custom_field
+        -#    = link_to_add_association '+ Add Request documents', sc, :sell_request_documents, class: 'bttn text-info pull-left doc-fields', partial: 'company/contracts/contract_documents_fields'
+
     / .row
     /   .col-md-6
     /     .form-group
@@ -407,7 +456,7 @@
     /         / = sc.check_box :show_accounting_to_employee
     /         %span
     /           Show Accounting term to employee ?
-
+= render 'company/contracts/request_document_modal', contract: {id: 1}
 - content_for :scripts do
   :javascript
      $('.contract-attachment').on('cocoon:after-insert', function(e, insertedItem) {

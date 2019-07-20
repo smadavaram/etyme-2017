@@ -1,0 +1,26 @@
+.modal#request_document
+  .modal-dialog.modal-lg
+    .modal-content
+      .modal-header
+        %button.close{"aria-hidden" => "true", "data-dismiss" => "modal", :type => "button"}
+          ×
+        %h2#myModalLabel.modal-title
+          %strong Request Document
+      .modal-body
+        = form_tag(controller: 'company/contracts', action: 'create_document_request', remote: true) do
+          %fieldset
+            .form-group
+              %label.col-md-2.control-label Request
+              .col-md-10
+                =  text_field_tag :request , "", class: 'form-control tinymce'
+          .modal-footer
+            %a.btn.btn-default{"data-dismiss" => "modal", :type => "button"}
+              Cancel
+            = link_to 'Save', class: 'btn btn-primary'
+
+- content_for :scripts do
+  :javascript
+    $(document).ready(function() {
+      $( ".file-pick" ).on('click',function() {
+      $('.fp__overlay').css({'z-index':'99999'})});
+    });

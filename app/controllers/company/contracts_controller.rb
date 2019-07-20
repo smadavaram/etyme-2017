@@ -51,7 +51,7 @@ class Company::ContractsController < Company::BaseController
     @company.build_invited_by
   end
 
-  def create_contract
+  def create_document_request
   end
 
   def edit
