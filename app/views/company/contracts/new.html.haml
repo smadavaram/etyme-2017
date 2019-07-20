@@ -137,6 +137,7 @@
                 'complete');
               $('#bootstrap-wizard-1').find('.form-wizard').children('li').eq(index - 1).find('.step')
                 .html('<i class="fa fa-check"></i>');
+              $('.new_contract').submit();
             }
           },'onPrevious': function(tab, navigation, index){
             var $total = navigation.find('li').length;
@@ -148,19 +149,20 @@
           }
         });
 
-        $('.finish').click(function(){
-          if ($("#wizard-1").valid()) {
-            $('.new_contract').submit();
-          }
-          return false;
-        });
+        // $('.finish').click(function(){
+        //   if ($("#wizard-1").valid()) {
+        //     $('.new_contract').submit();
+        //   }
+        //   return false;
+        // });
 
         function wizard_set_finish_button(current , total )
         {
           if(current >= total) {
-            $('#bootstrap-wizard-1').find('.pager .next').hide();
-            $('#bootstrap-wizard-1').find('.pager .finish').show();
-            $('#bootstrap-wizard-1').find('.pager .finish').removeClass('disabled');
+            // $('#bootstrap-wizard-1').find('.pager .next').hide();
+            // $('#bootstrap-wizard-1').find('.pager .finish').show();
+            // $('#bootstrap-wizard-1').find('.pager .finish').removeClass('disabled');
+            $('#bootstrap-wizard-1').find('.pager .next').show();
           } else {
             $('#bootstrap-wizard-1').find('.pager .next').show();
             $('#bootstrap-wizard-1').find('.pager .finish').hide();

@@ -6,7 +6,7 @@ class Contract < ApplicationRecord
 
   include CandidateHelper
 
-  enum status:                [ :pending, :accepted , :rejected , :is_ended  , :cancelled , :paused , :in_progress]
+  enum status:                [ :pending, :accepted , :rejected , :is_ended  , :cancelled , :paused , :in_progress, :draft]
   enum billing_frequency:     [ :weekly_invoice, :monthly_invoice  ]
   enum time_sheet_frequency:  [ :daily,:weekly, :biweekly, "twice a month", :monthly]
   enum commission_type:       [:perhour, :fixed]
@@ -56,19 +56,19 @@ class Contract < ApplicationRecord
   # has_many :contract_sale_commisions
 
   # after_create :set_on_seq
-  after_create :insert_attachable_docs
-  after_create :set_next_invoice_date
-  after_create :create_rate_change
-  after_create :notify_recipient , if: Proc.new{ |contract| contract.not_system_generated? }
+  after_create :insert_attachable_docs, unless: Proc.new{ |contract| contract.draft? }
+  after_create :set_next_invoice_date, unless: Proc.new{ |contract| contract.draft? }
+  after_create :create_rate_change, unless: Proc.new{ |contract| contract.draft? }
+  after_create :notify_recipient , if: Proc.new{ |contract| contract.draft? and contract.not_system_generated? }
   # after_create :notify_company_about_contract, if: Proc.new{|contract|contract.parent_contract?}
-  after_update :notify_assignee_on_status_change , if: Proc.new{ |contract| contract.status_changed? && contract.not_system_generated? && contract.assignee? && contract.respond_by.present?  && contract.accepted? }
-  after_update :notify_companies_admins_on_status_change, if: Proc.new{|contract| contract.status_changed? && contract.respond_by.present? && contract.not_system_generated?}
+  after_update :notify_assignee_on_status_change , if: Proc.new{ |contract| contract.draft? and contract.status_changed? && contract.not_system_generated? && contract.assignee? && contract.respond_by.present?  && contract.accepted? }
+  after_update :notify_companies_admins_on_status_change, if: Proc.new{|contract| contract.draft? and contract.status_changed? && contract.respond_by.present? && contract.not_system_generated?}
   # after_create :update_contract_application_status
-  after_save   :create_timesheet, if: Proc.new{|contract| !contract.has_child? && contract.status_changed? && contract.is_not_ended? && !contract.timesheets.present? && contract.in_progress? && contract.next_invoice_date.nil?}
-  before_create :set_contractable , if: Proc.new{ |contract| contract.not_system_generated? }
-  before_create :set_sub_contract_attributes , if: Proc.new{ |contract| contract.parent_contract? }
+  after_save   :create_timesheet, if: Proc.new{|contract| contract.draft? and !contract.has_child? && contract.status_changed? && contract.is_not_ended? && !contract.timesheets.present? && contract.in_progress? && contract.next_invoice_date.nil?}
+  before_create :set_contractable , if: Proc.new{ |contract| contract.draft? and contract.not_system_generated?}
+  before_create :set_sub_contract_attributes , if: Proc.new{ |contract| contract.draft? and contract.parent_contract? }
 
-  before_create :set_number
+  before_create :set_number , unless: Proc.new{ |contract| contract.draft? }
 
   validate  :start_date_cannot_be_less_than_end_date , on: :create
   validate  :start_date_cannot_be_in_the_past , :next_invoice_date_should_be_in_future ,on: :create
@@ -120,6 +120,10 @@ class Contract < ApplicationRecord
 
   def self.find_sent_or_received(contract_id , obj)
     where("contracts.id = :c_id and (contracts.company_id = :obj_id or (contracts.contractable_id = :obj_id and contracts.contractable_type = :obj_type))" , {obj_id: obj.id , obj_type: obj.class.name , c_id: contract_id}  )
+  end
+
+  def draft?
+    status == :draft
   end
 
   def timesheet_logs_total_time_array
