@@ -47,6 +47,9 @@ class Company::ContractsController < Company::BaseController
     @company.build_invited_by
   end
 
+  def create_contract
+  end
+
   def edit
 
   end

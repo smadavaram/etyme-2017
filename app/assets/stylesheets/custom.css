@@ -74,6 +74,11 @@
     background-color: #5E92F7;
 }
 
+.float-right{
+    float: left;
+    margin: 10px;
+}
+
 .new_tab > li.active > a{
     color: #ffffff;
 }
@@ -90,6 +95,29 @@
     opacity: 1;
 }
 
+.two_columns{
+    padding: 20px;
+    border: 2px solid #dde2ec;
+    text-align: center;
+}
+
+.contract_link
+{
+    color: #000 !important;
+}
+
+.contract_link:hover
+{
+    text-decoration: none;
+}
+
+.button_heading{
+    font-weight: bold;
+}
+
+.button_span{
+    font-size: 11px;
+}
 .profile-margin {
     background-color: white;
     margin-top: -10px;
