@@ -7,21 +7,21 @@
           %table#company-contracts-datatable.table.text-center.table-bordered.table-lg.table-v2.table-striped.data-table-font
             %thead
               %tr
-              %th Id
-              %th Title
-              %th Customer
-              %th Rate
-              %th Candidate
-              %th Cost
-              %th Created By
-              %th Start date
-              %th Sell Contract
-              %th Buy Contract
-              %th Status
-              %th Action
+                %th Id
+                %th Title
+                %th Customer
+                %th Rate
+                %th Candidate
+                %th Cost
+                %th Created By
+                %th Start date
+                %th Sell Contract
+                %th Buy Contract
+                %th Status
+                %th Action
             %tbody
               - data.each do |contract|
-                %tr{class: "#{set_background_status_color(contract.status)}"}
+                %tr
                   %td=link_to contract.try(:number) ,contract_path(contract)
                   %td=contract.try(:title)
                   %td
