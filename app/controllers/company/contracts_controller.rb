@@ -73,7 +73,22 @@ class Company::ContractsController < Company::BaseController
   end
 
   def buy_emp_doc_create
-
+    if @buy_contract.present?
+      @buy_emp_send_document = @buy_contract.buy_emp_req_docs.build(buy_document_params)
+      respond_to do |format|
+        if @buy_emp_send_document.save
+          format.js {
+            flash.now[:success] = 'Request Document is created for the contract'
+            render 'buy_emp_doc_create.js'
+          }
+        else
+          format.js {
+            flash[:errors] = @buy_emp_send_document.errors.full_messages
+            render 'buy_emp_doc_create.js'
+          }
+        end
+      end
+    end
   end
 
   def buy_ven_doc_create

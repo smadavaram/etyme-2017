@@ -4,6 +4,6 @@ flash_error("<%= e %>");
 <% end %>
 <% end %>
 <% unless @buy_send_document.errors.present? %>
-$('#buy_send_doc_table').html("<%= j render 'company/contracts/partials/buy_send_document' , buy_send_document: @buy_send_document%>");
+$('#buy_send_doc_modal').html("<%= j render 'company/contracts/partials/buy_send_document' , buy_send_document: @buy_send_document%>");
 $('#buy_send_doc').modal('hide')
 <% end %>

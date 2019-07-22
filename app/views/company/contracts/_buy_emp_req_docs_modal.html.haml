@@ -1,4 +1,4 @@
-.modal#buy_emp_req_docs
+.modal#buy_emp_req_docs_modal
   .modal-dialog.modal-lg
     .modal-content
       .modal-header
@@ -7,7 +7,8 @@
         %button.close{"aria-hidden" => "true", "data-dismiss" => "modal", :type => "button"}
         ×
       .modal-body
-        = form_for(@contract.buy_contracts&.first.buy_emp_req_docs.build, as: :document, url: buy_emp_doc_create_contracts_path, remote: true) do |erd|
+        = form_for(BuyEmpReqDoc.new, as: :document, url: buy_emp_doc_create_contracts_path, remote: true) do |erd|
+          =erd.hidden_field :buy_contract_id, value: @contract.buy_contracts&.first.id
           %fieldset
             .form-row
               .col-3
@@ -24,7 +25,7 @@
                   %label.control-label
                     expire date
                   .contract-fild
-                    = erd.text_field :when_expire ,class: "form-control exp_date" , placeholder: "DD/MM/YYYY"
+                    = erd.text_field :when_expire ,class: "form-control exp_date_emp_buy" , placeholder: "DD/MM/YYYY"
             .form-row
               .col-12
                 .form-group
@@ -43,22 +44,26 @@
                       Cancel
                     = erd.submit 'Save', class: 'btn btn-primary'
 
--#- content_for :scripts do
--#  :javascript
--#    $(document).ready(function() {
--#      $( ".file-pick" ).on('click',function() {
--#      $('.fp__overlay').css({'z-index':'99999'})});
--#    });
--#
--#:javascript
--#    $(document).ready(function() {
--#        pageSetUp();
--#        $(".filepicker-attach-doc").on("change", function(e){
--#          var name = e["originalEvent"]["fpfile"]["filename"];
--#          var size = e["originalEvent"]["fpfile"]["size"];
--#          var type = e["originalEvent"]["fpfile"]["mimetype"];
--#          $(this).siblings(".doc-file-name" ).val(name);
--#          $(this).siblings( ".doc-file-size" ).val(size);
--#          $(this).siblings( ".doc-file-type" ).val(type);
--#        })
--#      });
+- content_for :scripts do
+  :javascript
+    $(document).ready(function() {
+      $( ".file-pick" ).on('click',function() {
+      $('.fp__overlay').css({'z-index':'99999'})});
+    });
+
+:javascript
+    $(document).ready(function() {
+        pageSetUp();
+        $(".filepicker-attach-doc").on("change", function(e){
+          var name = e["originalEvent"]["fpfile"]["filename"];
+          var size = e["originalEvent"]["fpfile"]["size"];
+          var type = e["originalEvent"]["fpfile"]["mimetype"];
+          $(this).siblings(".doc-file-name" ).val(name);
+          $(this).siblings( ".doc-file-size" ).val(size);
+          $(this).siblings( ".doc-file-type" ).val(type);
+        });
+        $(".exp_date_emp_buy").datepicker({
+          dateFormat : 'dd/mm/yy'
+          });
+      });
+
