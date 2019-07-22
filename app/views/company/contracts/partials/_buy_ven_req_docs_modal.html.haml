@@ -1,4 +1,4 @@
-.modal#buy_ven_req_docs
+.modal#buy_ven_req_docs_modal
   .modal-dialog.modal-lg
     .modal-content
       .modal-header
@@ -7,7 +7,8 @@
         %button.close{"aria-hidden" => "true", "data-dismiss" => "modal", :type => "button"}
         ×
       .modal-body
-        = form_for(@contract.buy_contracts&.first.buy_emp_req_docs.build, as: :document, url: buy_ven_doc_create_contracts_path, remote: true) do |vrd|
+        = form_for(BuyVenReqDoc.new, as: :document, url: buy_ven_doc_create_contracts_path, remote: true) do |vrd|
+          =vrd.hidden_field :buy_contract_id, value: @contract.buy_contracts&.first.id
           %fieldset
             .form-row
               .col-3
@@ -43,22 +44,25 @@
                       Cancel
                     = vrd.submit 'Save', class: 'btn btn-primary'
 
--#- content_for :scripts do
--#  :javascript
--#    $(document).ready(function() {
--#      $( ".file-pick" ).on('click',function() {
--#      $('.fp__overlay').css({'z-index':'99999'})});
--#    });
--#
--#:javascript
--#    $(document).ready(function() {
--#        pageSetUp();
--#        $(".filepicker-attach-doc").on("change", function(e){
--#          var name = e["originalEvent"]["fpfile"]["filename"];
--#          var size = e["originalEvent"]["fpfile"]["size"];
--#          var type = e["originalEvent"]["fpfile"]["mimetype"];
--#          $(this).siblings(".doc-file-name" ).val(name);
--#          $(this).siblings( ".doc-file-size" ).val(size);
--#          $(this).siblings( ".doc-file-type" ).val(type);
--#        })
--#      });
+- content_for :scripts do
+  :javascript
+    $(document).ready(function() {
+      $( ".file-pick" ).on('click',function() {
+      $('.fp__overlay').css({'z-index':'99999'})});
+    });
+
+:javascript
+    $(document).ready(function() {
+        pageSetUp();
+        $(".filepicker-attach-doc").on("change", function(e){
+          var name = e["originalEvent"]["fpfile"]["filename"];
+          var size = e["originalEvent"]["fpfile"]["size"];
+          var type = e["originalEvent"]["fpfile"]["mimetype"];
+          $(this).siblings(".doc-file-name" ).val(name);
+          $(this).siblings( ".doc-file-size" ).val(size);
+          $(this).siblings( ".doc-file-type" ).val(type);
+        });
+        $(".exp_date_emp_buy").datepicker({
+          dateFormat : 'dd/mm/yy'
+          });
+      });

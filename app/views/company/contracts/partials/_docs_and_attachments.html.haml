@@ -435,33 +435,24 @@
                                 %th Action
                             %tbody#buy_emp_req_docs_table
 
-                -##buy_ven_req_docs.tab-pane.padding-top-15
-                -#  .row
-                -#    .col-md-12
-                -#      .form-group
-                -#        %a.btn.btn-sm.btn-secondary.float-right.margin-bottom-10{"data-toggle": "modal", "data-target":"#buy_ven_req_docs", style: "color: #fff;"} Create Checklist
-                -#        .table-responsive
-                -#          %table#company-buy_ven_req_docs-doc-datatable.table.text-center.table-bordered.table-lg.table-v2.table-striped.data-table-font
-                -#            %thead
-                -#              %tr
-                -#                %th Doc ID
-                -#                %th Title
-                -#                %th Signors/Request doc
-                -#                %th Creator
-                -#                %th Due Date
-                -#                %th Status
-                -#                %th Attachment
-                -#                %th Action
-                -#            %tbody
-                -#              %tr
-                -#                %td Doc ID
-                -#                %td Title
-                -#                %td Signors/Request doc
-                -#                %td Creator
-                -#                %td Due Date
-                -#                %td Status
-                -#                %td Attachment
-                -#                %td Action
+                #buy_ven_req_docs.tab-pane.padding-top-15
+                  .row
+                    .col-md-12
+                      .form-group
+                        %a.btn.btn-sm.btn-secondary.float-right.margin-bottom-10{"data-toggle": "modal", "data-target":"#buy_ven_req_docs_modal", style: "color: #fff;"} Create Checklist
+                        .table-responsive
+                          %table#company-buy_ven_req_docs-doc-datatable.table.text-center.table-bordered.table-lg.table-v2.table-striped.data-table-font
+                            %thead
+                              %tr
+                                %th Doc ID
+                                %th Title
+                                %th Signors/Request doc
+                                %th Creator
+                                %th Due Date
+                                %th Status
+                                %th Attachment
+                                %th Action
+                            %tbody#buy_ven_req_docs_table
 
 = render 'company/contracts/buy_send_documents_modal', contract: @contract
 = render 'company/contracts/buy_emp_req_docs_modal', contract: @contract
