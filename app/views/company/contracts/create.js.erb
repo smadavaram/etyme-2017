@@ -1,0 +1,569 @@
+<% if flash[:errors].present? %>
+<% flash[:errors].each do |e| %>
+flash_error("<%= e %>");
+<% end %>
+<% end %>
+<% if flash[:success].present? %>
+flash_success("<%= flash[:success] %>");
+<% end %>
+$('.new_contract').remove();
+<% if @tab_number == 2 %>
+$('.tab-pane.active').html("<%= j render 'company/contracts/partials/contract_and_docs' , contract: @contract %>");
+<% end %>
+<% if @tab_number == 3 %>
+$('.tab-pane.active').html("<%= j render 'company/contracts/partials/docs_and_attachments' , contract: @contract %>");
+<% end %>
+<% if @tab_number == 4 %>
+$('.tab-pane.active').html("<%= j render 'company/contracts/partials/show_contract' , contract: @contract %>");
+<% end %>
+window.history.pushState('newTab', 'contract partial', '?contract_id=<%= @contract.id %>');
+$('.previous').find('a').attr('href',"<%= new_contract_path(contract_id: @contract.id) %>")
+
+$(document).ready(function () {
+    addeventatc.refresh();
+    set_client_company_select('#select_clients', "Please Select Or Add new Client");
+    set_job_candidate_select('#select_candidates', "Please Select Or Add new Candidate");
+    set_company_select('#sell_contract_company', "Please Select Or Add new Company");
+    set_company_select('#sell_contract_company_1', "Please Select Or Add new Company");
+    set_company_select('#buy_contract_company', "Please Select Or Add new Company");
+    set_candidate_select('#buy_contract_candidate', "Please Select Or Add new Candidate");
+    set_job_select('#select_jobs', "Please Select Or Add new Job");
+    set_company_contacts_select('#select_sell_company_contacts', "Please Select Or Add new Contacts", "#sell_contract_company");
+    set_company_contacts_select('#select_sell_company_contacts', "Please Select Or Add new Contacts", "#sell_contract_company_1");
+    set_company_contacts_select('#select_buy_company_contacts', "Please Select Or Add new Contacts", "#buy_contract_company");
+    $(".file-pick").on('click', function () {
+        $(".fp__overlay").css({'z-index': '99999'});
+    });
+});
+
+$(document).ready(function () {
+    $(".multi-select2-role").select2({placeholder: "Select a Role(s)"});
+    $(".multi-select2-company-docs").select2({placeholder: "Select Document(s)"});
+});
+
+$(document).ready(function () {
+    $('#contract_start_date').datepicker({
+        dateFormat: 'dd/mm/yy',
+        prevText: '<i class="fa fa-chevron-left"></i>',
+        nextText: '<i class="fa fa-chevron-right"></i>',
+        onSelect: function (selectedDate) {
+            $('#contract_end_date').datepicker('option', 'minDate', selectedDate);
+        }
+    });
+
+    $(document).on('click', '.commission-user-type', function () {
+        if (this.value == 'Admin') {
+            set_company_admin('.commission_user')
+        }
+        if ((this.value == 'Candidate')) {
+            set_company_candidate('.commission_user')
+        }
+    })
+
+    $(document).on('click', '#commission-user-modal', function () {
+        $($(this).closest('.contract_box')[0]).find('.accountable_user').addClass('active_row')
+    })
+
+
+    // $(document).on('change','#select_jobs', function(){
+    //   $.get('/api/company/companies/get_owner?job_id='+$( "#select_jobs" ).val(),function (data, textStatus, jqXHR) {
+    //     console.log('status: ' + textStatus + ', data:' + data);
+    //     $('#contract_admins_table').find('tbody:last').append(`<tr><td>${data.domain}</td><td>${data.name}</td><td>TBD</td><td><a title='chat' class='data-table-icons' href='#'><i class='fa fa-comment-o'></i></a><a title='${data.email}' class='data-table-icons' href='mailto:${data.email}'><i class='os-icon os-icon-email-2-at2'></i></a><a title='${data.phone}' class='data-table-icons' href='#'><i class='os-icon os-icon-phone '></i></a><div title='' class='addeventatc' id='addeventatc1' style='visibility: visible;' aria-haspopup='true' aria-expanded='false' tabindex='0' translate='no'><span class="os-icon os-icon-calendar  atc_node notranslate"></span></div><td>${data.role}</td><td>${data.reminders}</td><td>TBD</td></tr>`);
+    //     addeventatc.refresh();
+    //   });
+    // });
+
+    $(document).on('change', '.commission_user', function () {
+        $($('.active_row')[0]).find('input')[0].value = $('#select2-commission_user-container').text();
+
+        $($('.active_row')[0]).find('input')[1].value = $(this).val();
+
+        if ($('.commission-user-type')[0].checked == true) {
+            $($('.active_row')[0]).find('input')[2].value = $('.commission-user-type')[0].value
+        } else {
+            $($('.active_row')[0]).find('input')[2].value = $('.commission-user-type')[1].value
+        }
+
+
+    });
+
+    $(document).on('click', '.close-modal', function () {
+        $('.accountable_user').removeClass('active_row')
+    })
+
+    $('#contract_end_date').datepicker({
+        dateFormat: 'dd/mm/yy',
+        prevText: '<i class="fa fa-chevron-left"></i>',
+        nextText: '<i class="fa fa-chevron-right"></i>'
+    });
+    $(".cr_start_date, .cr_end_date, .pr_start_date, .pr_end_date, .date_1").datepicker({
+        dateFormat: 'dd/mm/yy'
+    });
+
+    $('.con-time').timepicker();
+
+    $(".sell-invoice").on("change", function () {
+        $(".sell-invoice-setting").children().addClass("hidden");
+        if ($(this).val() == "daily") {
+            $(".sell-invoice-setting").find('.daily').removeClass("hidden");
+        } else if ($(this).val() == "weekly" || $(this).val() == "biweekly") {
+            $(".sell-invoice-setting").find('.week').removeClass("hidden");
+        } else if ($(this).val() == "twice a month") {
+            $(".sell-invoice-setting").find('.twice-month, .month').removeClass("hidden");
+        } else if ($(this).val() == "monthly") {
+            $(".sell-invoice-setting").find('.month').removeClass("hidden");
+        }
+    });
+
+    $(".sell-time-sheet").on("change", function () {
+        $(".s-ts-set").children().addClass("hidden");
+        if ($(this).val() == "daily") {
+            $(".s-ts-set").find('.daily').removeClass("hidden");
+        } else if ($(this).val() == "weekly" || $(this).val() == "biweekly") {
+            $(".s-ts-set").find('.week').removeClass("hidden");
+            $('#contract_buy_contracts_attributes_0_ts_day_of_week').val($('#contract_sell_contracts_attributes_0_ts_day_of_week').val());
+        } else if ($(this).val() == "twice a month") {
+            $(".s-ts-set").find('.twice-month, .month').removeClass("hidden");
+        } else if ($(this).val() == "monthly") {
+            $(".s-ts-set").find('.month').removeClass("hidden");
+        }
+
+        $(".b-ts-set").children().addClass("hidden");
+        if ($(this).val() == "daily") {
+            $(".b-ts-set").find('.daily').removeClass("hidden");
+            $(".b-ts-set").find('.con-time').val($(".s-ts-set").find('.con-time').val());
+        } else if ($(this).val() == "weekly" || $(this).val() == "biweekly") {
+            $(".b-ts-set").find('.week').removeClass("hidden");
+        } else if ($(this).val() == "twice a month") {
+            $(".b-ts-set").find('.twice-month, .month').removeClass("hidden");
+            $('#contract_buy_contracts_attributes_0_ts_date_1').val($('#contract_sell_contracts_attributes_0_ts_date_1').val());
+            $('#contract_buy_contracts_attributes_0_ts_date_2').val($('#contract_sell_contracts_attributes_0_ts_date_2').val());
+        } else if ($(this).val() == "monthly") {
+            $(".b-ts-set").find('.month').removeClass("hidden");
+            $('#contract_buy_contracts_attributes_0_ts_date_1').val($('#contract_sell_contracts_attributes_0_ts_date_1').val());
+            $(".b-ts-set").find('#sc_ts_end_of_month').removeClass('hidden');
+        }
+        $('#bc_timesheet').val($('#contract_sell_contracts_attributes_0_time_sheet option:selected').text());
+
+    });
+
+    $('#bc_timesheet').val($('#contract_sell_contracts_attributes_0_time_sheet option:selected').text());
+
+    $(".sell-time-sheet-approve").on("change", function () {
+        $(".s-ts-apv-set").children().addClass("hidden");
+        if ($(this).val() == "daily") {
+            $(".s-ts-apv-set").find('.daily').removeClass("hidden");
+        } else if ($(this).val() == "weekly" || $(this).val() == "biweekly") {
+            $(".s-ts-apv-set").find('.week').removeClass("hidden");
+        } else if ($(this).val() == "twice a month") {
+            $(".s-ts-apv-set").find('.twice-month, .month').removeClass("hidden");
+        } else if ($(this).val() == "monthly") {
+            $(".s-ts-apv-set").find('.month').removeClass("hidden");
+        }
+
+        $(".b-ts-apv-set").children().addClass("hidden");
+        if ($(this).val() == "daily") {
+            $(".b-ts-apv-set").find('.daily').removeClass("hidden");
+            $(".b-ts-apv-set").find('.con-time').val($(".s-ts-apv-set").find('.con-time').val());
+        } else if ($(this).val() == "weekly" || $(this).val() == "biweekly") {
+            $(".b-ts-apv-set").find('.week').removeClass("hidden");
+            $('#contract_buy_contracts_attributes_0_ta_day_of_week').val($('#contract_sell_contracts_attributes_0_ta_day_of_week').val());
+        } else if ($(this).val() == "twice a month") {
+            $(".b-ts-apv-set").find('.twice-month, .month').removeClass("hidden");
+            $('#contract_buy_contracts_attributes_0_ta_date_1').val($('#contract_sell_contracts_attributes_0_ta_date_1').val());
+            $('#contract_buy_contracts_attributes_0_ta_date_2').val($('#contract_sell_contracts_attributes_0_ta_date_2').val());
+        } else if ($(this).val() == "monthly") {
+            $(".b-ts-apv-set").find('.month').removeClass("hidden");
+            $('#contract_buy_contracts_attributes_0_ta_date_1').val($('#contract_sell_contracts_attributes_0_ta_date_1').val());
+            $(".b-ts-apv-set").find('#sc_ta_end_of_month').removeClass('hidden');
+        }
+
+        $('#sc_ts_approve').val($('#contract_sell_contracts_attributes_0_ts_approve option:selected').text());
+
+    });
+
+    $('#sc_ts_approve').val($('#contract_sell_contracts_attributes_0_ts_approve option:selected').text());
+
+    $(".s-ts-set").on("change", function () {
+        $(".b-ts-set").find('.con-time').val($(".s-ts-set").find('.con-time').val());
+        $('#contract_buy_contracts_attributes_0_ts_date_1').val($('#contract_sell_contracts_attributes_0_ts_date_1').val());
+        $('#contract_buy_contracts_attributes_0_ts_date_2').val($('#contract_sell_contracts_attributes_0_ts_date_2').val());
+
+        $('#bc_ts_day_of_week').val($('#contract_sell_contracts_attributes_0_ts_day_of_week option:selected').text());
+
+        check_sc_ts_end_of_month()
+    });
+
+    $('#bc_ts_day_of_week').val($('#contract_sell_contracts_attributes_0_ts_day_of_week option:selected').text());
+
+    $(".s-ts-apv-set").on("change", function () {
+        $(".b-ts-apv-set").find('.con-time').val($(".s-ts-apv-set").find('.con-time').val());
+        $('#contract_buy_contracts_attributes_0_ta_date_1').val($('#contract_sell_contracts_attributes_0_ta_date_1').val());
+        $('#contract_buy_contracts_attributes_0_ta_date_2').val($('#contract_sell_contracts_attributes_0_ta_date_2').val());
+
+        $('#sc_ta_day_of_week').val($('#contract_sell_contracts_attributes_0_ta_day_of_week option:selected').text());
+
+        check_sc_ta_end_of_month()
+    });
+
+    $('#sc_ta_day_of_week').val($('#contract_sell_contracts_attributes_0_ta_day_of_week option:selected').text());
+
+    $('#contract_sell_contracts_attributes_0_ta_day_of_week').on("change", function () {
+        $('#contract_buy_contracts_attributes_0_ta_day_of_week').val($('#contract_sell_contracts_attributes_0_ta_day_of_week').val());
+    });
+
+    $('#contract_sell_contracts_attributes_0_ts_day_of_week').on("change", function () {
+        $('#contract_buy_contracts_attributes_0_ts_day_of_week').val($('#contract_sell_contracts_attributes_0_ts_day_of_week').val());
+    });
+
+    $(".sell-client-expense").on("change", function () {
+        $(".s-ce-set").children().addClass("hidden");
+        if ($(this).val() == "daily") {
+            $(".s-ce-set").find('.daily').removeClass("hidden");
+        } else if ($(this).val() == "weekly" || $(this).val() == "biweekly") {
+            $(".s-ce-set").find('.week').removeClass("hidden");
+        } else if ($(this).val() == "twice a month") {
+            $(".s-ce-set").find('.twice-month, .month').removeClass("hidden");
+        } else if ($(this).val() == "monthly") {
+            $(".s-ce-set").find('.month').removeClass("hidden");
+        }
+    });
+
+    $(".sell-client-expense-approve").on("change", function () {
+        $(".s-ce-ap-set").children().addClass("hidden");
+        if ($(this).val() == "daily") {
+            $(".s-ce-ap-set").find('.daily').removeClass("hidden");
+        } else if ($(this).val() == "weekly" || $(this).val() == "biweekly") {
+            $(".s-ce-ap-set").find('.week').removeClass("hidden");
+        } else if ($(this).val() == "twice a month") {
+            $(".s-ce-ap-set").find('.twice-month, .month').removeClass("hidden");
+        } else if ($(this).val() == "monthly") {
+            $(".s-ce-ap-set").find('.month').removeClass("hidden");
+        }
+    });
+
+    $(".sell-client-expense-invoice").on("change", function () {
+        $(".s-ce-in-set").children().addClass("hidden");
+        if ($(this).val() == "daily") {
+            $(".s-ce-in-set").find('.daily').removeClass("hidden");
+        } else if ($(this).val() == "weekly" || $(this).val() == "biweekly") {
+            $(".s-ce-in-set").find('.week').removeClass("hidden");
+        } else if ($(this).val() == "twice a month") {
+            $(".s-ce-in-set").find('.twice-month, .month').removeClass("hidden");
+        } else if ($(this).val() == "monthly") {
+            $(".s-ce-in-set").find('.month').removeClass("hidden");
+        }
+    });
+
+    $(".sell-performance-review").on("change", function () {
+        $(".s-pr-set").children().addClass("hidden");
+        if ($(this).val() == "daily") {
+            $(".s-pr-set").find('.daily').removeClass("hidden");
+        } else if ($(this).val() == "weekly" || $(this).val() == "biweekly") {
+            $(".s-pr-set").find('.week').removeClass("hidden");
+        } else if ($(this).val() == "twice a month") {
+            $(".s-pr-set").find('.twice-month, .month').removeClass("hidden");
+        } else if ($(this).val() == "monthly") {
+            $(".s-pr-set").find('.month').removeClass("hidden");
+        }
+    });
+
+    $(".buy-vendor-bill").on("change", function () {
+        $(".b-vb-set").children().addClass("hidden");
+        if ($(this).val() == "daily") {
+            $(".b-vb-set").find('.daily').removeClass("hidden");
+        } else if ($(this).val() == "weekly" || $(this).val() == "biweekly") {
+            $(".b-vb-set").find('.week').removeClass("hidden");
+        } else if ($(this).val() == "twice a month") {
+            $(".b-vb-set").find('.twice-month, .month').removeClass("hidden");
+        } else if ($(this).val() == "monthly") {
+            $(".b-vb-set").find('.month').removeClass("hidden");
+        }
+    });
+
+    $(".buy-client-bill-payment").on("change", function () {
+        $(".b-cp-set").children().addClass("hidden");
+        if ($(this).val() == "daily") {
+            $(".b-cp-set").find('.daily').removeClass("hidden");
+        } else if ($(this).val() == "weekly" || $(this).val() == "biweekly") {
+            $(".b-cp-set").find('.week').removeClass("hidden");
+        } else if ($(this).val() == "twice a month") {
+            $(".b-cp-set").find('.twice-month, .month').removeClass("hidden");
+        } else if ($(this).val() == "monthly") {
+            $(".b-cp-set").find('.month').removeClass("hidden");
+        }
+    });
+
+    $(".buy-client-bill").on("change", function () {
+        $(".b-cb-set").children().addClass("hidden");
+        if ($(this).val() == "daily") {
+            $(".b-cb-set").find('.daily').removeClass("hidden");
+        } else if ($(this).val() == "weekly" || $(this).val() == "biweekly") {
+            $(".b-cb-set").find('.week').removeClass("hidden");
+        } else if ($(this).val() == "twice a month") {
+            $(".b-cb-set").find('.twice-month, .month').removeClass("hidden");
+        } else if ($(this).val() == "monthly") {
+            $(".b-cb-set").find('.month').removeClass("hidden");
+        }
+    });
+
+    $(".buy-sal-cal").on("change", function () {
+        $(".b-sal-cal").children().addClass("hidden");
+        if ($(this).val() == "daily") {
+            $(".b-sal-cal").find('.daily').removeClass("hidden");
+        } else if ($(this).val() == "weekly" || $(this).val() == "biweekly") {
+            $(".b-sal-cal").find('.week').removeClass("hidden");
+        } else if ($(this).val() == "twice a month") {
+            $(".b-sal-cal").find('.twice-month, .month').removeClass("hidden");
+        } else if ($(this).val() == "monthly") {
+            $(".b-sal-cal").find('.month').removeClass("hidden");
+        }
+    });
+
+    $(".b-sal-cal").children().addClass("hidden");
+    if ($('.buy-sal-cal').val() == "daily") {
+        $(".b-sal-cal").find('.daily').removeClass("hidden");
+    } else if ($('.buy-sal-cal').val() == "weekly" || $('.buy-sal-cal').val() == "biweekly") {
+        $(".b-sal-cal").find('.week').removeClass("hidden");
+    } else if ($('.buy-sal-cal').val() == "twice a month") {
+        $(".b-sal-cal").find('.twice-month, .month').removeClass("hidden");
+    } else if ($('.buy-sal-cal').val() == "monthly") {
+        $(".b-sal-cal").find('.month').removeClass("hidden");
+    }
+
+    $(".buy-com-cal").on("change", function () {
+        $(".b-com-cal").children().addClass("hidden");
+        if ($(this).val() == "daily") {
+            $(".b-com-cal").find('.daily').removeClass("hidden");
+        } else if ($(this).val() == "weekly" || $(this).val() == "biweekly") {
+            $(".b-com-cal").find('.week').removeClass("hidden");
+        } else if ($(this).val() == "twice a month") {
+            $(".b-com-cal").find('.twice-month, .month').removeClass("hidden");
+        } else if ($(this).val() == "monthly") {
+            $(".b-com-cal").find('.month').removeClass("hidden");
+        }
+    });
+
+    $(document).on('click', '.contract_commission', function () {
+        set_company_admin('.contract_commission')
+    })
+
+    $(".buy-com-pro").on("change", function () {
+        $(".b-com-pro").children().addClass("hidden");
+        if ($(this).val() == "daily") {
+            $(".b-com-pro").find('.daily').removeClass("hidden");
+        } else if ($(this).val() == "weekly" || $(this).val() == "biweekly") {
+            $(".b-com-pro").find('.week').removeClass("hidden");
+        } else if ($(this).val() == "twice a month") {
+            $(".b-com-pro").find('.twice-month, .month').removeClass("hidden");
+        } else if ($(this).val() == "monthly") {
+            $(".b-com-pro").find('.month').removeClass("hidden");
+        }
+    });
+
+
+    $(".buy-invoice-recepit").on("change", function () {
+        $(".b-in-re-set").children().addClass("hidden");
+        if ($(this).val() == "daily") {
+            $(".b-in-re-set").find('.daily').removeClass("hidden");
+        } else if ($(this).val() == "weekly" || $(this).val() == "biweekly") {
+            $(".b-in-re-set").find('.week').removeClass("hidden");
+        } else if ($(this).val() == "twice a month") {
+            $(".b-in-re-set").find('.twice-month, .month').removeClass("hidden");
+        } else if ($(this).val() == "monthly") {
+            $(".b-in-re-set").find('.month').removeClass("hidden");
+        }
+    });
+
+    $(".is_client_customer_radio input[type='radio']").on("change", function () {
+        if ($(this).val() == "true") {
+            $('.contract_client').show()
+        } else {
+            $('.contract_client').hide()
+        }
+    });
+    $(".contract-type-radio input[type='radio']").on("change", function () {
+        if ($(this).val() == "C2C") {
+            $(".c2c-type").removeClass('hidden');
+            $('.corp-corp').text('Vendor');
+            $('.corp-corp-frequency').text('Vendor Frequency');
+            $('.corp-corp-bill').text('Vendor Bill');
+            $('.corp-corp-payment').text('Vendor Payment');
+            $('.corp-corp-clear').text('Vendor Clear');
+            $('.vendor_company').show();
+
+        } else {
+            $('.vendor_company').hide();
+            $(".c2c-type").addClass('hidden');
+            $('.corp-corp').text('Salary Calculation');
+            $('.corp-corp-frequency').text('Salary Frequency');
+            $('.corp-corp-bill').text('Salary Calculation');
+            $('.corp-corp-payment').text('Salary Process');
+            $('.corp-corp-clear').text('Salary Clear');
+        }
+    });
+
+    $(".buy-time-sheet").on("change", function () {
+        $(".buy-time-sheet-setting").children().addClass("hidden");
+        if ($(this).val() == "weekly" || $(this).val() == "biweekly") {
+            $(".buy-time-sheet-setting").find('.week').removeClass("hidden");
+        } else if ($(this).val() == "twice a month") {
+            $(".buy-time-sheet-setting").find('.twice-month, .month').removeClass("hidden");
+        } else if ($(this).val() == "monthly") {
+            $(".buy-time-sheet-setting").find('.month').removeClass("hidden");
+        }
+    });
+});
+
+$(document).on("change", ".is-require-sign", function (event) {
+    $(this).parent().next('.assign_signable').find('.whois_sign').empty().trigger('change')
+    $(this).parent().next('.assign_signable').find('.sign-nested-fields').remove();
+    if ($(this).is(":checked")) {
+        $(this).parent().next('.assign_signable').removeClass('hidden');
+    } else {
+        $(this).parent().next('.assign_signable').addClass('hidden');
+    }
+});
+
+$(document).on("change", '#select_candidates', function (event) {
+    $('#contract_buy_contracts_attributes_0_candidate_id').val($('#select_candidates').select2('data')[0]['name'])
+})
+
+$(document).on("select2:unselect", ".select_company_contacts", function (e) {
+    $(this).closest('.company_contacts').find('div.contact-nested-fields').find(':input.contact-id[value=' + e.params.data.id + ']').closest('div.contact-nested-fields').remove();
+});
+
+$(document).on("select2:select", ".select_company_contacts", function (e) {
+    var sign_btn = $(this).closest('.company_contacts').find("a.link-company-contacts");
+    var obj = $(sign_btn.attr('data-form-prepend'));
+    var time_stamp = (new Date()).getTime();
+    obj.find('input').each(function () {
+        $(this).attr('name', function () {
+            return $(this).attr('name').replace('new_record', time_stamp);
+        });
+    });
+    obj.insertBefore(sign_btn);
+    $(this).closest('.company_contacts').find('div.contact-nested-fields:last').find("input.contact-id").val(e.params.data.id);
+});
+
+
+$(document).on("select2:unselect", ".whois_sign", function (e) {
+    $(this).closest('.assign_signable').find('div.sign-nested-fields').find(':input.signable-id[value=' + e.params.data.id.split("_")[0] + ']').closest('div.sign-nested-fields').remove();
+});
+
+$(document).on("select2:select", ".whois_sign", function (e) {
+    var sign_btn = $(this).closest('.assign_signable').find("a.doc-user-generater");
+    var obj = $(sign_btn.attr('data-form-prepend'));
+    var time_stamp = (new Date()).getTime();
+    obj.find('input').each(function () {
+        $(this).attr('name', function () {
+            return $(this).attr('name').replace('new_record', time_stamp);
+        });
+    });
+    obj.insertBefore(sign_btn);
+    $(this).closest('.assign_signable').find('div.sign-nested-fields:last').find("input.signable-id").val(e.params.data.id.split("_")[0]);
+    $(this).closest('.assign_signable').find('div.sign-nested-fields:last').find("input.signable-type").val(e.params.data.id.split("_")[1]);
+});
+
+
+
+
+$(document).on("select2:unselect", ".commission-user", function (e) {
+    $(this).closest('.assign_commission_user').find('div.account-nested-fields').find(':input.accountable-id[value=' + e.params.data.id.split("_")[0] + ']').closest('div.account-nested-fields').remove();
+});
+
+$(document).on("select2:select", ".commission-user", function (e) {
+    var sign_btn = $(this).closest('.assign_commission_user').find("a.com-user-generater");
+    var obj = $(sign_btn.attr('data-form-prepend'));
+    var time_stamp = (new Date()).getTime();
+    obj.find('input').each(function () {
+        $(this).attr('name', function () {
+            return $(this).attr('name').replace('new_record', time_stamp);
+        });
+    });
+    obj.insertBefore(sign_btn);
+    $(this).closest('.assign_commission_user').find('div.account-nested-fields:last').find("input.accountable-id").val(e.params.data.id.split("_")[0]);
+    $(this).closest('.assign_commission_user').find('div.account-nested-fields:last').find("input.accountable-type").val(e.params.data.id.split("_")[1]);
+});
+
+function check_sc_ts_end_of_month() {
+    if ($('#contract_sell_contracts_attributes_0_ts_end_of_month').is(':checked')) {
+        $('#sc_ts_end_of_month').prop('checked', true);
+        $('#contract_buy_contracts_attributes_0_ts_end_of_month').val(true);
+    } else {
+        $('#sc_ts_end_of_month').prop('checked', false);
+        $('#contract_buy_contracts_attributes_0_ts_end_of_month').val(false);
+    }
+}
+
+function check_sc_ta_end_of_month() {
+    if ($('#contract_sell_contracts_attributes_0_ta_end_of_month').is(':checked')) {
+        $('#sc_ta_end_of_month').prop('checked', true);
+        $('#contract_buy_contracts_attributes_0_ta_end_of_month').val(true);
+    } else {
+        $('#sc_ta_end_of_month').prop('checked', true);
+        $('#contract_buy_contracts_attributes_0_ta_end_of_month').val(true);
+    }
+}
+
+function toggleFields() {
+    if ($('#contract_is_commission').val() == "true")
+        $("#contract-commision").show();
+    else
+        $("#contract-commision").hide();
+
+    if ($('#contract_commission_type option:selected').val() == "fixed")
+        $(".max-commission").hide();
+    else
+        $(".max-commission").show();
+
+}
+$(document).ready(function () {
+    $('.sigPad').signaturePad({drawOnly: true});
+    toggleFields();
+    $(".multi-select2-company-docs").select2({placeholder: "Select a Doc(s)"});
+    $('#contract_start_date').datepicker({
+        dateFormat: 'dd/mm/yy'
+    });
+    $('#contract_end_date').datepicker({
+        dateFormat: 'dd/mm/yy'
+    });
+    $("#contract_is_commission , #contract_commission_type").change(function () {
+        toggleFields();
+    });
+});
+
+google.maps.event.addDomListener(window, 'load', function () {
+    var places = new google.maps.places.Autocomplete(document.getElementById('contract_work_location'));
+    google.maps.event.addListener(places, 'place_changed', function () {
+        var place = places.getPlace();
+        $("#post_ad_latitude").val(place.geometry.location.lat());
+        $("#post_ad_longitude").val(place.geometry.location.lng());
+    });
+});
+
+var input = document.getElementById('contract_work_location');
+google.maps.event.addDomListener(input, 'keydown', function (event) {
+    if (event.keyCode === 13) {
+        event.preventDefault();
+    }
+});
+
+$(document).ready(function () {
+    $('.client_expense').hide();
+    $('#contract_sell_contracts_attributes_0_is_client_expense').on("change", function () {
+        if (this.checked) {
+            $('.client_expense').show();
+        } else {
+            $('.client_expense').hide();
+        }
+    });
+    $('.performance_review').hide();
+    $('#contract_sell_contracts_attributes_0_is_performance_review').on("change", function () {
+        if (this.checked) {
+            $('.performance_review').show();
+        } else {
+            $('.performance_review').hide();
+        }
+    });
+});

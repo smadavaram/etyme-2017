@@ -17,18 +17,18 @@
         %br
         Contract ID - #{cc.contract.id} - Cycle ID #{cc.id}
         %p.mb-0.submitted-name
-          %b Name: #{cc.candidate.present? ? cc.candidate.full_name : cc&.contract&.sell_contracts&.first&.company&.full_name}
+          %b Name: #{cc.candidate.present? ? cc.candidate.full_name : cc&.contract&.sell_contract.company&.full_name}
           %b
             = link_to 'Approve', timesheets_path, class: 'btn' if cc.note == 'Timesheet Approve'
         %p Client: #{cc&.contract&.company&.full_name}
-        %p Tax type: #{cc.contract.buy_contracts.first.contract_type}
+        %p Tax type: #{cc.contract.buy_contract.contract_type}
         - if cc.note == 'Timesheet submit'
           .row.border-top.pt-2
             .col-sm-2.text-center Plan
             .col-sm-7.text-center Cycle
             .col-sm-2.text-center Actual
           .row
-            .col-sm-2.text-center #{cc&.contract&.sell_contracts&.first&.expected_hour}
+            .col-sm-2.text-center #{cc&.contract&.sell_contract.expected_hour}
             .col-sm-8.text-center
               / #{cc.start_date.strftime("%d/%m/%Y").to_s+' - '+cc.end_date.utc.strftime("%d/%m/%Y")}
             / .col-sm-2.text-center #{cc.ts_submitteds.first.total_time}
@@ -60,14 +60,14 @@
           %b
             = link_to 'Approve', timesheets_path, class: 'btn' if cc.note == 'Timesheet Approve'
         %p Client: #{cc&.contract&.company&.full_name}
-        %p Tax type: #{cc.contract.buy_contracts.first.contract_type}
+        %p Tax type: #{cc.contract.buy_contract.contract_type}
         - if cc.note == 'Timesheet submit'
           .row.border-top.pt-2
             .col-sm-2.text-center Plan
             .col-sm-7.text-center Cycle
             .col-sm-2.text-center Actual
           .row
-            .col-sm-2.text-center #{cc&.contract&.sell_contracts&.first&.expected_hour}
+            .col-sm-2.text-center #{cc&.contract&.sell_contract.expected_hour}
             .col-sm-8.text-center
               / #{cc.start_date.strftime("%d/%m/%Y").to_s+' - '+cc.end_date.utc.strftime("%d/%m/%Y")}
             / .col-sm-2.text-center #{cc.ts_submitteds&.first&.total_time}
@@ -94,14 +94,14 @@
         %p.mb-0.submitted-name
           %b Name: #{cc.candidate.present? ? cc.candidate.full_name : cc.company.full_name}
         %p Client: #{cc&.contract&.company&.full_name}
-        %p Tax type: #{cc.contract.buy_contracts.first.contract_type}
+        %p Tax type: #{cc.contract.buy_contract.contract_type}
         - if cc.note == 'Timesheet submit'
           .row.border-top.pt2
             .col-sm-2.text-center Plan
             .col-sm-7.text-center Cycle
             .col-sm-2.text-center Actual
           .row
-            .col-sm-2.text-center #{cc&.contract&.sell_contracts&.first&.expected_hour}
+            .col-sm-2.text-center #{cc&.contract&.sell_contract.expected_hour}
             .col-sm-8.text-center
               / #{cc.start_date.strftime("%d/%m/%Y").to_s+' - '+cc.end_date.utc.strftime("%d/%m/%Y")}
             / .col-sm-2.text-center #{cc.ts_submitteds&.first&.total_time}

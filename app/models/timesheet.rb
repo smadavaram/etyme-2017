@@ -134,7 +134,7 @@ class Timesheet < ApplicationRecord
   end
 
   def set_contract_salary_histories
-    amoount = self.contract.buy_contracts.first.payrate.present? ? (self.total_time * self.contract.buy_contracts.first.payrate) : 0
+    amoount = self.contract.buy_contract.payrate.present? ? (self.total_time * self.contract.buy_contract.payrate) : 0
     contract_amount = self.contract.salary_to_pay
     ContractSalaryHistory.create(contract_id: self.contract_id,
                                  company_id: self.contract.company_id,
@@ -166,10 +166,10 @@ class Timesheet < ApplicationRecord
     con_cycle = ContractCycle.find(self.ts_cycle_id)
     # binding.pry
     con_cycle.update_attributes(completed_at: Time.now, status: "completed")
-    con_cycle_ta_start_date = Timesheet.set_con_cycle_ta_date(con_cycle&.contract&.buy_contracts.first, con_cycle)
+    con_cycle_ta_start_date = Timesheet.set_con_cycle_ta_date(con_cycle&.contract&.buy_contract, con_cycle)
     # binding.pry
     con_cycle_ta = ContractCycle.where(contract_id: con_cycle.contract_id,
-                                        company_id: self.contract.sell_contracts.first.company_id,
+                                        company_id: self.contract.sell_contract.company_id,
                                         note: "Timesheet Approve",
                                         cycle_type: "TimesheetApprove",
                                         next_action: "InvoiceGenerate"

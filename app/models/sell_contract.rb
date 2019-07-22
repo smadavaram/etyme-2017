@@ -23,7 +23,7 @@ class SellContract < ApplicationRecord
 
   def set_number
     # self.number = self.contract.number
-    self.number = "SC_" + self.contract.only_number.to_s
+    self.number = "SC_" + self.contract.number.split("_")[1].to_s
   end
 
   # def display_number

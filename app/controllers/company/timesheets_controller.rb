@@ -179,7 +179,7 @@ class Company::TimesheetsController < Company::BaseController
   def check_invoice
     @invoice = Invoice.where(id: (params[:id] || params[:timesheet_id])).first
     if @invoice.present?
-      @timesheets = current_company.timesheets.includes(contract: :sell_contracts).approved_timesheets.invoice_timesheets(@invoice)
+      @timesheets = current_company.timesheets.includes(contract: :sell_contract).approved_timesheets.invoice_timesheets(@invoice)
     else
       @errors = true
     end
@@ -237,7 +237,7 @@ class Company::TimesheetsController < Company::BaseController
 
   def get_next_invoice_date(contract)
     last_invoice = contract.invoices.order("created_at DESC").first
-    sell_contract = contract.sell_contracts.first
+    sell_contract = contract.sell_contract
     get_next_date(Time.now, sell_contract.invoice_terms_period, sell_contract.invoice_date_1, sell_contract.invoice_date_2, sell_contract.invoice_end_of_month, sell_contract.invoice_day_of_week, (last_invoice.present? ? last_invoice.end_date : contract.start_date))
   end
 

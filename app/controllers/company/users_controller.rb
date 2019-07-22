@@ -189,7 +189,7 @@ class Company::UsersController < Company::BaseController
   private
 
   def find_user
-    @user = current_company.users.find(params[:user_id] || params[:user_id]) || []
+    @user = User.find_by(id: params[:user_id] || params[:user_id]) || []
   end
 
   def user_params

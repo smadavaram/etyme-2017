@@ -68,7 +68,7 @@
                     %th{:scope => "col"} Total Amount
 
                 %tbody
-                  - current_company.contracts.includes(:candidate, :timesheets, :buy_contracts).each_with_index do |con, i|
+                  - current_company.contracts.includes(:candidate, :timesheets, :buy_contract).each_with_index do |con, i|
                     %tr
                       %td
                         = i + 1
@@ -78,11 +78,11 @@
                       %td
                         = con.title
                       %td
-                        = (con&.buy_contracts&.first.payrate.present? ? con&.buy_contracts&.first.payrate : 0 )
+                        = (con&.buy_contract.payrate.present? ? con&.buy_contract.payrate : 0 )
                       %td
                         = salary_settlement_monthly_time(con)
                       %td
-                        = (salary_settlement_monthly_time(con) * (con&.buy_contracts&.first.payrate.present? ? con&.buy_contracts&.first.payrate : 0 ))
+                        = (salary_settlement_monthly_time(con) * (con&.buy_contract.payrate.present? ? con&.buy_contract.payrate : 0 ))
 
 
 

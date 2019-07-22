@@ -1,391 +1,403 @@
-%fieldset
-  =f.fields_for :sell_contracts do |sc|
-    .contract-fields_wrapper.mt-4
-      .row
-        .col-md-12
-          .form-group
-            %label.control-label  Customer Company
-            .contract-fild
-              .plain-select
-                = sc.select :company_id, {}, {}, id: "sell_contract_company_1", required: true
-      - headers =  %w(domain name contact title role(s) reminder action(s))
-      .table-responsive
-        %table.table.text-center.table-bordered.table-lg.table-v2.table-striped.data-table-font#contract_admins_table
-          %thead
-            %tr
-            - headers.each do |header|
-              %th= header.capitalize
-          %tbody
-            %tr
-              %td= current_company.domain
-              %td= current_company.owner.full_name
-              %td= "TBD"
-              %td= contact_widget(current_company.owner.email,current_company.owner.phone)
-              %td= current_company.owner.roles.pluck(:name).join(', ')
-              %td= "TBD"
-              %td= "TBD"
-
-    -#          -#= hidden_field :company_id,
-    -#          =# select_tag 'contract[contractable_id]', options_for_select(current_company.invited_companies.collect { |c|[c.invited_company.name, c.invited_company.id] })  , class: "form-control"
-    -#.form-group.company_contacts
-    -#  -sc.object.contract_sell_business_details.build
-    -#  =sc.fields_for :contract_sell_business_details do |csbd|
-    -#    = link_to_add_fields 'available_tour_fields', sc, :contract_sell_business_details, {partial: 'company/contracts/contract_sell_business_details_fields'}, {class: 'link-company-contacts hidden'}
-    -#  = select_tag 'contract[job_1_id]', nil, id: "select_sell_company_contacts", class: "form-control select_company_contacts"
-
-    -#.row
-    -#  .col-md-12
-    -#    .form-group.company_contacts
-    -#      -sc.object.contract_sell_business_details.build
-    -#      =sc.fields_for :contract_sell_business_details do |csbd|
-    -#        = link_to_add_fields 'available_tour_fields', csbd, :document_signs, {partial: 'company/contracts/contract_sell_business_details_fields'}, {class: 'doc-user-generater hidden'}
-    -#        -#= link_to_add_fields 'available_tour_fields', csbd, :csbd, {partial: 'company/contracts/contract_document_users_fields'}, {class: 'doc-user-generater hidden'}
-    -#        = select_tag 'contract[job_1_id]', nil, id: "select_sell_company_contacts", class: "form-control"
-    -#        -#= ds.select :signable, {}, {}, class: "form-control whois_sign" , placeholder: ""
-    -#
-    -#    .form-group.company_contacts
-    -#      -#=f.fields_for :document_signs do |ds|
-    -#      -#  = link_to_add_fields 'available_tour_fields', f, :document_signs, {partial: 'company/contracts/contract_document_users_fields'}, {class: 'doc-user-generater hidden'}
-    -#      -#  = ds.select :signable, {}, {}, class: "form-control whois_sign" , placeholder: ""
-    -#      =sc.fields_for :contract_sell_business_details do |custom_field|
-    -#        = link_to_add_association '+ Add Business Details', sc, :contract_sell_business_details, class: 'bttn text-info pull-left buy-contract-contacts hidden', partial: 'company/contracts/contract_sell_business_details_fields'
-    -#        = select_tag 'contract[job_1_id]', nil, id: "select_sell_company_contacts", class: "form-control"
-    -#      -#=sc.fields_for :contract_sell_business_details do |custom_field|
-    -#      -#  = render 'company/contracts/contract_sell_business_details_fields', f: custom_field
-    -#    -#%strong
-    -#    -#  .links
-    -#        =# link_to_add_association '+ Add Business Details', sc, :contract_sell_business_details, class: 'bttn text-info pull-left', partial: 'company/contracts/contract_sell_business_details_fields'
-    -#        -#%br/
-    .contract-fields_wrapper.mt-4
-      %div
-        .widget-body#sell_con_tab
-          %ul#myTab1.nav.nav-tabs.smaller{style: "border-bottom: 0px;"}
-            %li.nav-item.active.cumstom_nav-tab
-              %a{"data-toggle" => "tab", :href => "#tab-sell-pri", class: "nav-link cumstom_nav-tab"}
-                %span.badge.bg-color-blue.txt-color-white
-                Pricing
-            %li.nav-item.cumstom_nav-tab
-              %a{"data-toggle" => "tab", :href => "#tab-sell-ts",class: "nav-link cumstom_nav-tab"}
-                %span.badge.bg-color-blue.txt-color-white
-                Timesheet Submit
-            %li.nav-item.cumstom_nav-tab
-              %a{"data-toggle" => "tab", :href => "#tab-sell-ta",class: "nav-link cumstom_nav-tab"}
-                %span.badge.bg-color-blue.txt-color-white
-                Timesheet Approve
-            %li.nav-item.cumstom_nav-tab
-              %a{"data-toggle" => "tab", :href => "#tab-sell-bi",class: "nav-link cumstom_nav-tab"}
-                %span.badge.bg-color-blueDark.txt-color-white
-                Invoice
-            %li.nav-item.cumstom_nav-tab
-              %a{"data-toggle" => "tab", :href => "#tab-sell-pr",class: "nav-link cumstom_nav-tab"}
-                %span.badge.bg-color-blueDark.txt-color-white
-                Payment Receive
-          .col-md-12.pl-0
-            .tab-content{style: 'border: 1px solid #b6bcbf;'}
-              #tab-sell-pri.tab-pane.padding-top-15.active.in
-                .row
-                  .col-md-12
-                    .form-group
-                      %label.control-label
-                        Customer Rate $
-                      .select
-                        .row
-                          .col-md-6
-                            = sc.number_field :customer_rate, class: "form-control"
-                          .col-md-6
-                            .plain-select
-                              = sc.select :customer_rate_type, ["hourly", "daily", "weekly", "monthly"], class: "form-control"
-                  .col-md-6
-                    .form-group
-                      %label.control-label
-                        Expected Hours per Day
-                      = sc.number_field :expected_hour, class: "form-control"
-              #tab-sell-ts.tab-pane.padding-top-15
-                .row
-                  .col-md-12
-                    .form-group
-                      .select
-                        .row
-                          .col-md-4
-                            %label.control-label
-                              Time sheet
-                            .plain-select
-                              = sc.select :time_sheet, Contract.time_sheet_frequencies.map { |key, value| [key.humanize, key] }, {},{class: "form-control sell-time-sheet" }
-                          .col-md-4
-                            .s-ts-set
-                              %div{:class => "form-group daily #{sc.object.time_sheet != 'daily' ? 'hidden' : ''}"}
-                                %label.control-label
-                                  Select Time
-                                  = sc.text_field :ts_day_time, class: "form-contro con-time"
-                              %div{:class => "form-group week #{sc.object.time_sheet != 'weekly' ? 'hidden' : ''}"}
-                                %label.control-label
-                                  Select day of week for submission
-                                .select
-                                  .plain-select
-                                    = sc.select :ts_day_of_week, [["Every Monday", "mon"], ["Every Tuesday", "tue"], ["Every Wednesday", "wed"], ["Every Thursday", "thu"], ["Every Friday", "fri"], ["Every Saturday", "sat"], ["Every Sunday", "sun"]], {},{class: "form-contro" }
-                              %div{:class => "form-group month #{['twice a month', 'monthly'].include?(sc.object.time_sheet) ? '' : 'hidden'}"}
-                                %label.control-label
-                                  Select date
-                                .select
-                                  = sc.text_field :ts_date_1, class: "date_1", required: true, placeholder: "DD/MM/YYYY"
-                              %div{:class => "form-group twice-month #{sc.object.time_sheet != 'twice a month' ? 'hidden' : ''}"}
-                                %label.control-label
-                                  Select second date
-                                .select
-                                  = sc.text_field :ts_date_2, class: "date_1", required: true, placeholder: "DD/MM/YYYY"
-                              %span{:class => "form-group month #{['twice a month', 'monthly'].include?(sc.object.time_sheet) ? '' : 'hidden'}"} OR
-                              = sc.check_box :ts_end_of_month, class: "month #{['twice a month', 'monthly'].include?(sc.object.time_sheet) ? '' : 'hidden'}"
-                              = sc.label :ts_end_of_month, "End of month", class: "month #{['twice a month', 'monthly'].include?(sc.object.time_sheet) ? '' : 'hidden'}"
-
-                          .col-md-4
-                            %label.control-label
-                              Assign to
-                            = select_tag 'assign_to', options_from_collection_for_select(current_company&.company_contacts, "id", 'full_name'), include_blank: 'Please select',class: 'form-control'
-
-                        .row
-                          .col-md-4
-                            = sc.check_box :is_client_expense
-                            %label
-                              Client Expenses ?
-                        .row.client_expense
-                          .col-md-4
-                            %label.control-label
-                              Client Expenses
-                            .plain-select
-                              = sc.select :client_expense, Contract.time_sheet_frequencies.map { |key, value| [key.humanize, key] }, {},{class: "form-control sell-client-expense" }
-                          .col-md-6
-                            .s-ce-set
-                              %div{:class => "form-group daily #{sc.object.client_expense != 'daily' ? 'hidden' : ''}"}
-                                %label.control-label
-                                  Select Time
-                                  = sc.text_field :ce_day_time, class: "form-contro con-time"
-                              %div{:class => "form-group week #{sc.object.client_expense != 'weekly' ? 'hidden' : ''}"}
-                                %label.control-label
-                                  Select day of week
-                                .select
-                                  .plain-select
-                                    = sc.select :ce_day_of_week, [["Every Monday", "mon"], ["Every Tuesday", "tue"], ["Every Wednesday", "wed"], ["Every Thursday", "thu"], ["Every Friday", "fri"], ["Every Saturday", "sat"], ["Every Sunday", "sun"]], {},{class: "form-contro" }
-                              %div{:class => "form-group month #{['twice a month', 'monthly'].include?(sc.object.client_expense) ? '' : 'hidden'}"}
-                                %label.control-label
-                                  Select date
-                                .select
-                                  = sc.text_field :ce_date_1, class: "date_1", required: true, placeholder: "DD/MM/YYYY"
-                              %div{:class => "form-group twice-month #{sc.object.client_expense != 'twice a month' ? 'hidden' : ''}"}
-                                %label.control-label
-                                  Select second date
-                                .select
-                                  = sc.text_field :ce_date_2, class: "date_1", required: true, placeholder: "DD/MM/YYYY"
-                              %span{:class => "form-group month #{['twice a month', 'monthly'].include?(sc.object.client_expense) ? '' : 'hidden'}"} OR
-                              = sc.check_box :ce_end_of_month, class: "month #{['twice a month', 'monthly'].include?(sc.object.client_expense) ? '' : 'hidden'}"
-                              = sc.label :ce_end_of_month, "End of month", class: "month #{['twice a month', 'monthly'].include?(sc.object.client_expense) ? '' : 'hidden'}"
-
-                        .row.client_expense
-                          .col-md-4
-                            %label.control-label
-                              Client Expenses Approve
-                            .plain-select
-                              = sc.select :ce_approve, Contract.time_sheet_frequencies.map { |key, value| [key.humanize, key] }, {},{class: "form-control sell-client-expense-approve" }
-                          .col-md-6
-                            .s-ce-ap-set
-                              %div{:class => "form-group daily #{sc.object.ce_approve != 'daily' ? 'hidden' : ''}"}
-                                %label.control-label
-                                  Select Time
-                                  = sc.text_field :ce_ap_day_time, class: "form-contro con-time"
-                              %div{:class => "form-group week #{sc.object.ce_approve != 'weekly' ? 'hidden' : ''}"}
-                                %label.control-label
-                                  Select day of week
-                                .select
-                                  .plain-select
-                                    = sc.select :ce_ap_day_of_week, [["Every Monday", "mon"], ["Every Tuesday", "tue"], ["Every Wednesday", "wed"], ["Every Thursday", "thu"], ["Every Friday", "fri"], ["Every Saturday", "sat"], ["Every Sunday", "sun"]], {},{class: "form-contro" }
-                              %div{:class => "form-group month #{['twice a month', 'monthly'].include?(sc.object.ce_approve) ? '' : 'hidden'}"}
-                                %label.control-label
-                                  Select date
-                                .select
-                                  = sc.text_field :ce_ap_date_1, class: "date_1", required: true, placeholder: "DD/MM/YYYY"
-                              %div{:class => "form-group twice-month #{sc.object.ce_approve != 'twice a month' ? 'hidden' : ''}"}
-                                %label.control-label
-                                  Select second date
-                                .select
-                                  = sc.text_field :ce_ap_date_2, class: "date_1", required: true, placeholder: "DD/MM/YYYY"
-                              %span{:class => "form-group month #{['twice a month', 'monthly'].include?(sc.object.ce_approve) ? '' : 'hidden'}"} OR
-                              = sc.check_box :ce_ap_end_of_month, class: "month #{['twice a month', 'monthly'].include?(sc.object.ce_approve) ? '' : 'hidden'}"
-                              = sc.label :ce_ap_end_of_month, "End of month", class: "month #{['twice a month', 'monthly'].include?(sc.object.ce_approve) ? '' : 'hidden'}"
-
-                        .row.client_expense
-                          .col-md-4
-                            %label.control-label
-                              Client Expenses Invoice
-                            .plain-select
-                              = sc.select :ce_invoice, Contract.time_sheet_frequencies.map { |key, value| [key.humanize, key] }, {},{class: "form-control sell-client-expense-invoice" }
-                          .col-md-6
-                            .s-ce-in-set
-                              %div{:class => "form-group daily #{sc.object.ce_invoice != 'daily' ? 'hidden' : ''}"}
-                                %label.control-label
-                                  Select Time
-                                  = sc.text_field :ce_in_day_time, class: "form-contro con-time"
-                              %div{:class => "form-group week #{sc.object.ce_invoice != 'weekly' ? 'hidden' : ''}"}
-                                %label.control-label
-                                  Select day of week
-                                .select
-                                  .plain-select
-                                    = sc.select :ce_in_day_of_week, [["Every Monday", "mon"], ["Every Tuesday", "tue"], ["Every Wednesday", "wed"], ["Every Thursday", "thu"], ["Every Friday", "fri"], ["Every Saturday", "sat"], ["Every Sunday", "sun"]], {},{class: "form-contro" }
-                              %div{:class => "form-group month #{['twice a month', 'monthly'].include?(sc.object.ce_invoice) ? '' : 'hidden'}"}
-                                %label.control-label
-                                  Select date
-                                .select
-                                  = sc.text_field :ce_in_date_1, class: "date_1", required: true, placeholder: "DD/MM/YYYY"
-                              %div{:class => "form-group twice-month #{sc.object.ce_invoice != 'twice a month' ? 'hidden' : ''}"}
-                                %label.control-label
-                                  Select second date
-                                .select
-                                  = sc.text_field :ce_in_date_2, class: "date_1", required: true, placeholder: "DD/MM/YYYY"
-                              %span{:class => "form-group month #{['twice a month', 'monthly'].include?(sc.object.ce_invoice) ? '' : 'hidden'}"} OR
-                              = sc.check_box :ce_in_end_of_month, class: "month #{['twice a month', 'monthly'].include?(sc.object.ce_invoice) ? '' : 'hidden'}"
-                              = sc.label :ce_in_end_of_month, "End of month", class: "month #{['twice a month', 'monthly'].include?(sc.object.ce_invoice) ? '' : 'hidden'}"
+= form_for  @contract, remote: true, method: :put ,html: {id: 'wizard-1' , class: 'form-horizontal new_contract', style: "width: 100%;", novalidate: "novalidate" } do |f|
+  =f.hidden_field :contractable_type , value: "Company"
+  =f.hidden_field :status, value: "draft"
+  =hidden_field_tag :tab, "3"
+  - if params.has_key?('id')
+    =f.hidden_field :parent_contract_id , value: params[:id]
+  %fieldset
+    =f.fields_for :sell_contract do |sc|
+      = sc.hidden_field :id
+      .contract-fields_wrapper.mt-4
+        .row
+          .col-md-6
+            .form-group
+              %label.control-label  Customer Company
+              .contract-fild
+                = text_field_tag :customer_company, @contract.sell_contract.company.name.capitalize, disabled: "disabled"
+          .col-md-6
+            .form-group
+              %h3.control-label.pull-right.text-muted
+                = @contract.sell_contract.number
+        - headers =  %w(domain name contact role(s) reminder action(s))
+        .table-responsive
+          %table.table.text-center.table-bordered.table-lg.table-v2.table-striped.data-table-font#contract_admins_table
+            %thead
+              %tr
+              - headers.each do |header|
+                %th= header.capitalize
+            %tbody
+              - @contract.sell_contract.contract_sell_business_details.each do |bussiness_detail|
+                - company_contact = bussiness_detail.company_contact.user
+                %tr
+                  %td= company_contact.company.domain
+                  %td= company_contact.full_name
+                  %td= contact_widget(company_contact.email,company_contact.phone)
+                  %td= company_contact.roles.pluck(:name).join(', ')
+                  %td= content_tag(:span, do_ellipsis(current_user.reminders.where(reminderable_id: company_contact.id, reminderable_type: 'Admin')&.last&.title), class: 'bg-info badge mr-1').html_safe
+                  %td= link_to(content_tag(:i, nil, class: 'picons-thin-icon-thin-0014_notebook_paper_todo').html_safe, add_reminder_company_users_path(user_id: company_contact.id), remote: :true, title: "Remind Me", class: 'data-table-icons')
 
 
+      -#          -#= hidden_field :company_id,
+      -#          =# select_tag 'contract[contractable_id]', options_for_select(current_company.invited_companies.collect { |c|[c.invited_company.name, c.invited_company.id] })  , class: "form-control"
+      -#.form-group.company_contacts
+      -#  -sc.object.contract_sell_business_details.build
+      -#  =sc.fields_for :contract_sell_business_details do |csbd|
+      -#    = link_to_add_fields 'available_tour_fields', sc, :contract_sell_business_details, {partial: 'company/contracts/contract_sell_business_details_fields'}, {class: 'link-company-contacts hidden'}
+      -#  = select_tag 'contract[job_1_id]', nil, id: "select_sell_company_contacts", class: "form-control select_company_contacts"
 
-                        %br
-                        .row
-                          .col-md-4
-                            = sc.check_box :is_performance_review
-                            %label
-                              Performance review ?
-                        .row.performance_review
-                          .col-md-4
-                            %label.control-label
-                              Performance review
-                            .plain-select
-                              = sc.select :performance_review, Contract.time_sheet_frequencies.map { |key, value| [key.humanize, key] }, {},{class: "form-control sell-performance-review" }
-                          .col-md-6
-                            .s-pr-set
-                              %div{:class => "form-group daily #{sc.object.performance_review != 'daily' ? 'hidden' : ''}"}
-                                %label.control-label
-                                  Select Time
-                                  = sc.text_field :pr_day_time, class: "form-contro con-time"
-                              %div{:class => "form-group week #{sc.object.performance_review != 'weekly' ? 'hidden' : ''}"}
-                                %label.control-label
-                                  Select day of week
-                                .select
-                                  .plain-select
-                                    = sc.select :pr_day_of_week, [["Every Monday", "mon"], ["Every Tuesday", "tue"], ["Every Wednesday", "wed"], ["Every Thursday", "thu"], ["Every Friday", "fri"], ["Every Saturday", "sat"], ["Every Sunday", "sun"]], {},{class: "form-contro" }
-                              %div{:class => "form-group month #{['twice a month', 'monthly'].include?(sc.object.performance_review) ? '' : 'hidden'}"}
-                                %label.control-label
-                                  Select date
-                                .select
-                                  = sc.text_field :pr_date_1, class: "date_1", required: true, placeholder: "DD/MM/YYYY"
-                              %div{:class => "form-group twice-month #{sc.object.performance_review != 'twice a month' ? 'hidden' : ''}"}
-                                %label.control-label
-                                  Select second date
-                                .select
-                                  = sc.text_field :pr_date_2, class: "date_1", required: true, placeholder: "DD/MM/YYYY"
-                              %span{:class => "form-group month #{['twice a month', 'monthly'].include?(sc.object.performance_review) ? '' : 'hidden'}"} OR
-                              = sc.check_box :pr_end_of_month, class: "month #{['twice a month', 'monthly'].include?(sc.object.performance_review) ? '' : 'hidden'}"
-                              = sc.label :pr_end_of_month, "End of month", class: "month #{['twice a month', 'monthly'].include?(sc.object.performance_review) ? '' : 'hidden'}"
-                          .col-md-6
-              #tab-sell-ta.tab-pane.padding-top-15
-                .row
-                  .col-md-12
-                    .form-group
-                      .select
-                        .row
-                          .col-md-4
-                            %label.control-label
-                              Timesheet Approve
-                            .plain-select
-                              = sc.select :ts_approve, Contract.time_sheet_frequencies.map { |key, value| [key.humanize, key] }, {},{class: "form-control sell-time-sheet-approve" }
-                          .col-md-4
-                            .s-ts-apv-set
-                              %div{:class => "form-group daily #{sc.object.ts_approve != 'daily' ? 'hidden' : ''}"}
-                                %label.control-label
-                                  Select Time
-                                  = sc.text_field :ta_day_time, class: "form-contro con-time"
-                              %div{:class => "form-group week #{sc.object.ts_approve != 'weekly' ? 'hidden' : ''}"}
-                                %label.control-label
-                                  Select day of week for submission
-                                .select
-                                  .plain-select
-                                    = sc.select :ta_day_of_week, [["Every Monday", "mon"], ["Every Tuesday", "tue"], ["Every Wednesday", "wed"], ["Every Thursday", "thu"], ["Every Friday", "fri"], ["Every Saturday", "sat"], ["Every Sunday", "sun"]], {},{class: "form-contro" }
-                              %div{:class => "form-group month #{['twice a month', 'monthly'].include?(sc.object.ts_approve) ? '' : 'hidden'}"}
-                                %label.control-label
-                                  Select date
-                                .select
-                                  = sc.text_field :ta_date_1, class: "date_1", required: true, placeholder: "DD/MM/YYYY"
-                              %div{:class => "form-group twice-month #{sc.object.ts_approve != 'twice a month' ? 'hidden' : ''}"}
-                                %label.control-label
-                                  Select second date
-                                .select
-                                  = sc.text_field :ta_date_2, class: "date_1", required: true, placeholder: "DD/MM/YYYY"
-                              %span{:class => "form-group month #{['twice a month', 'monthly'].include?(sc.object.ts_approve) ? '' : 'hidden'}"} OR
-                              = sc.check_box :ta_end_of_month, class: "month #{['twice a month', 'monthly'].include?(sc.object.ts_approve) ? '' : 'hidden'}"
-                              = sc.label :ta_end_of_month, "End of month", class: "month #{['twice a month', 'monthly'].include?(sc.object.ts_approve) ? '' : 'hidden'}"
-
-                          .col-md-4
-                            %label.control-label
-                              Assign to
-                            = select_tag 'assign_to', options_from_collection_for_select(current_company&.company_contacts, "id", 'full_name'), include_blank: 'Please select',class: 'form-control'
-              #tab-sell-bi.tab-pane.padding-top-15
-                .row
-                  .col-md-4
-                    .form-group
-                      %label.control-label
-                        Invoice Terms
-                      .select
-                        .plain-select
-                          = sc.select :invoice_terms_period, Contract.time_sheet_frequencies.map { |key, value| [key.humanize, key] }, {},{class: "form-control sell-invoice " }
-                  -#= sc.select :invoice_terms_period , (0..60).map{|a| ["Net " + a.to_s + " days",a]}, {},{class: "form-control" }
-                  .col-md-4
-                    .sell-invoice-setting
-                      %div{:class => "form-group daily #{sc.object.invoice_terms_period != 'daily' ? 'hidden' : ''}"}
+      -#.row
+      -#  .col-md-12
+      -#    .form-group.company_contacts
+      -#      -sc.object.contract_sell_business_details.build
+      -#      =sc.fields_for :contract_sell_business_details do |csbd|
+      -#        = link_to_add_fields 'available_tour_fields', csbd, :document_signs, {partial: 'company/contracts/contract_sell_business_details_fields'}, {class: 'doc-user-generater hidden'}
+      -#        -#= link_to_add_fields 'available_tour_fields', csbd, :csbd, {partial: 'company/contracts/contract_document_users_fields'}, {class: 'doc-user-generater hidden'}
+      -#        = select_tag 'contract[job_1_id]', nil, id: "select_sell_company_contacts", class: "form-control"
+      -#        -#= ds.select :signable, {}, {}, class: "form-control whois_sign" , placeholder: ""
+      -#
+      -#    .form-group.company_contacts
+      -#      -#=f.fields_for :document_signs do |ds|
+      -#      -#  = link_to_add_fields 'available_tour_fields', f, :document_signs, {partial: 'company/contracts/contract_document_users_fields'}, {class: 'doc-user-generater hidden'}
+      -#      -#  = ds.select :signable, {}, {}, class: "form-control whois_sign" , placeholder: ""
+      -#      =sc.fields_for :contract_sell_business_details do |custom_field|
+      -#        = link_to_add_association '+ Add Business Details', sc, :contract_sell_business_details, class: 'bttn text-info pull-left buy-contract-contacts hidden', partial: 'company/contracts/contract_sell_business_details_fields'
+      -#        = select_tag 'contract[job_1_id]', nil, id: "select_sell_company_contacts", class: "form-control"
+      -#      -#=sc.fields_for :contract_sell_business_details do |custom_field|
+      -#      -#  = render 'company/contracts/contract_sell_business_details_fields', f: custom_field
+      -#    -#%strong
+      -#    -#  .links
+      -#        =# link_to_add_association '+ Add Business Details', sc, :contract_sell_business_details, class: 'bttn text-info pull-left', partial: 'company/contracts/contract_sell_business_details_fields'
+      -#        -#%br/
+      .contract-fields_wrapper.mt-4
+        %div
+          .widget-body#sell_con_tab
+            %ul#myTab1.nav.nav-tabs.smaller{style: "border-bottom: 0px;"}
+              %li.nav-item.active.cumstom_nav-tab
+                %a{"data-toggle" => "tab", :href => "#tab-sell-pri", class: "nav-link cumstom_nav-tab"}
+                  %span.badge.bg-color-blue.txt-color-white
+                  Pricing
+              %li.nav-item.cumstom_nav-tab
+                %a{"data-toggle" => "tab", :href => "#tab-sell-ts",class: "nav-link cumstom_nav-tab"}
+                  %span.badge.bg-color-blue.txt-color-white
+                  Timesheet Submit
+              %li.nav-item.cumstom_nav-tab
+                %a{"data-toggle" => "tab", :href => "#tab-sell-ta",class: "nav-link cumstom_nav-tab"}
+                  %span.badge.bg-color-blue.txt-color-white
+                  Timesheet Approve
+              %li.nav-item.cumstom_nav-tab
+                %a{"data-toggle" => "tab", :href => "#tab-sell-bi",class: "nav-link cumstom_nav-tab"}
+                  %span.badge.bg-color-blueDark.txt-color-white
+                  Invoice
+              %li.nav-item.cumstom_nav-tab
+                %a{"data-toggle" => "tab", :href => "#tab-sell-pr",class: "nav-link cumstom_nav-tab"}
+                  %span.badge.bg-color-blueDark.txt-color-white
+                  Payment Receive
+            .col-md-12.pl-0
+              .tab-content.p-4{style: 'border: 1px solid #b6bcbf;'}
+                #tab-sell-pri.tab-pane.padding-top-15.active.in
+                  .row
+                    .col-md-12
+                      .form-group
                         %label.control-label
-                          Select Time
-                          = sc.text_field :invoice_day_time, class: "form-contro con-time"
-                      %div{:class => "form-group week #{sc.object.invoice_terms_period != 'weekly' ? 'hidden' : ''}"}
+                          Customer Rate $
+                        .select
+                          .row
+                            .col-md-6
+                              = sc.number_field :customer_rate, class: "form-control"
+                            .col-md-6
+                              .plain-select
+                                = sc.select :customer_rate_type, ["hourly", "daily", "weekly", "monthly"], class: "form-control"
+                    .col-md-6
+                      .form-group
                         %label.control-label
-                          Select day of week for submission
+                          Expected Hours per Day
+                        = sc.number_field :expected_hour, class: "form-control"
+                #tab-sell-ts.tab-pane.padding-top-15
+                  .row
+                    .col-md-12
+                      .form-group
+                        .select
+                          .row
+                            .col-md-4
+                              %label.control-label
+                                Time sheet
+                              .plain-select
+                                = sc.select :time_sheet, Contract.time_sheet_frequencies.map { |key, value| [key.humanize, key] }, {},{class: "form-control sell-time-sheet" }
+                            .col-md-4
+                              .s-ts-set
+                                %div{:class => "form-group daily #{sc.object.time_sheet != 'daily' ? 'hidden' : ''}"}
+                                  %label.control-label
+                                    Select Time
+                                    = sc.text_field :ts_day_time, class: "form-contro con-time"
+                                %div{:class => "form-group week #{sc.object.time_sheet != 'weekly' ? 'hidden' : ''}"}
+                                  %label.control-label
+                                    Select day of week for submission
+                                  .select
+                                    .plain-select
+                                      = sc.select :ts_day_of_week, [["Every Monday", "mon"], ["Every Tuesday", "tue"], ["Every Wednesday", "wed"], ["Every Thursday", "thu"], ["Every Friday", "fri"], ["Every Saturday", "sat"], ["Every Sunday", "sun"]], {},{class: "form-contro" }
+                                %div{:class => "form-group month #{['twice a month', 'monthly'].include?(sc.object.time_sheet) ? '' : 'hidden'}"}
+                                  %label.control-label
+                                    Select date
+                                  .select
+                                    = sc.text_field :ts_date_1, class: "date_1", required: true, placeholder: "DD/MM/YYYY"
+                                %div{:class => "form-group twice-month #{sc.object.time_sheet != 'twice a month' ? 'hidden' : ''}"}
+                                  %label.control-label
+                                    Select second date
+                                  .select
+                                    = sc.text_field :ts_date_2, class: "date_1", required: true, placeholder: "DD/MM/YYYY"
+                                %span{:class => "form-group month #{['twice a month', 'monthly'].include?(sc.object.time_sheet) ? '' : 'hidden'}"} OR
+                                = sc.check_box :ts_end_of_month, class: "month #{['twice a month', 'monthly'].include?(sc.object.time_sheet) ? '' : 'hidden'}"
+                                = sc.label :ts_end_of_month, "End of month", class: "month #{['twice a month', 'monthly'].include?(sc.object.time_sheet) ? '' : 'hidden'}"
+
+                            .col-md-4
+                              %label.control-label
+                                Assign to
+                              = select_tag 'assign_to', options_from_collection_for_select(current_company&.company_contacts, "id", 'full_name'), include_blank: 'Please select',class: 'form-control'
+
+                          .row
+                            .col-md-4
+                              = sc.check_box :is_client_expense
+                              %label
+                                Client Expenses ?
+                          .row.client_expense
+                            .col-md-4
+                              %label.control-label
+                                Client Expenses
+                              .plain-select
+                                = sc.select :client_expense, Contract.time_sheet_frequencies.map { |key, value| [key.humanize, key] }, {},{class: "form-control sell-client-expense" }
+                            .col-md-6
+                              .s-ce-set
+                                %div{:class => "form-group daily #{sc.object.client_expense != 'daily' ? 'hidden' : ''}"}
+                                  %label.control-label
+                                    Select Time
+                                    = sc.text_field :ce_day_time, class: "form-contro con-time"
+                                %div{:class => "form-group week #{sc.object.client_expense != 'weekly' ? 'hidden' : ''}"}
+                                  %label.control-label
+                                    Select day of week
+                                  .select
+                                    .plain-select
+                                      = sc.select :ce_day_of_week, [["Every Monday", "mon"], ["Every Tuesday", "tue"], ["Every Wednesday", "wed"], ["Every Thursday", "thu"], ["Every Friday", "fri"], ["Every Saturday", "sat"], ["Every Sunday", "sun"]], {},{class: "form-contro" }
+                                %div{:class => "form-group month #{['twice a month', 'monthly'].include?(sc.object.client_expense) ? '' : 'hidden'}"}
+                                  %label.control-label
+                                    Select date
+                                  .select
+                                    = sc.text_field :ce_date_1, class: "date_1", required: true, placeholder: "DD/MM/YYYY"
+                                %div{:class => "form-group twice-month #{sc.object.client_expense != 'twice a month' ? 'hidden' : ''}"}
+                                  %label.control-label
+                                    Select second date
+                                  .select
+                                    = sc.text_field :ce_date_2, class: "date_1", required: true, placeholder: "DD/MM/YYYY"
+                                %span{:class => "form-group month #{['twice a month', 'monthly'].include?(sc.object.client_expense) ? '' : 'hidden'}"} OR
+                                = sc.check_box :ce_end_of_month, class: "month #{['twice a month', 'monthly'].include?(sc.object.client_expense) ? '' : 'hidden'}"
+                                = sc.label :ce_end_of_month, "End of month", class: "month #{['twice a month', 'monthly'].include?(sc.object.client_expense) ? '' : 'hidden'}"
+
+                          .row.client_expense
+                            .col-md-4
+                              %label.control-label
+                                Client Expenses Approve
+                              .plain-select
+                                = sc.select :ce_approve, Contract.time_sheet_frequencies.map { |key, value| [key.humanize, key] }, {},{class: "form-control sell-client-expense-approve" }
+                            .col-md-6
+                              .s-ce-ap-set
+                                %div{:class => "form-group daily #{sc.object.ce_approve != 'daily' ? 'hidden' : ''}"}
+                                  %label.control-label
+                                    Select Time
+                                    = sc.text_field :ce_ap_day_time, class: "form-contro con-time"
+                                %div{:class => "form-group week #{sc.object.ce_approve != 'weekly' ? 'hidden' : ''}"}
+                                  %label.control-label
+                                    Select day of week
+                                  .select
+                                    .plain-select
+                                      = sc.select :ce_ap_day_of_week, [["Every Monday", "mon"], ["Every Tuesday", "tue"], ["Every Wednesday", "wed"], ["Every Thursday", "thu"], ["Every Friday", "fri"], ["Every Saturday", "sat"], ["Every Sunday", "sun"]], {},{class: "form-contro" }
+                                %div{:class => "form-group month #{['twice a month', 'monthly'].include?(sc.object.ce_approve) ? '' : 'hidden'}"}
+                                  %label.control-label
+                                    Select date
+                                  .select
+                                    = sc.text_field :ce_ap_date_1, class: "date_1", required: true, placeholder: "DD/MM/YYYY"
+                                %div{:class => "form-group twice-month #{sc.object.ce_approve != 'twice a month' ? 'hidden' : ''}"}
+                                  %label.control-label
+                                    Select second date
+                                  .select
+                                    = sc.text_field :ce_ap_date_2, class: "date_1", required: true, placeholder: "DD/MM/YYYY"
+                                %span{:class => "form-group month #{['twice a month', 'monthly'].include?(sc.object.ce_approve) ? '' : 'hidden'}"} OR
+                                = sc.check_box :ce_ap_end_of_month, class: "month #{['twice a month', 'monthly'].include?(sc.object.ce_approve) ? '' : 'hidden'}"
+                                = sc.label :ce_ap_end_of_month, "End of month", class: "month #{['twice a month', 'monthly'].include?(sc.object.ce_approve) ? '' : 'hidden'}"
+
+                          .row.client_expense
+                            .col-md-4
+                              %label.control-label
+                                Client Expenses Invoice
+                              .plain-select
+                                = sc.select :ce_invoice, Contract.time_sheet_frequencies.map { |key, value| [key.humanize, key] }, {},{class: "form-control sell-client-expense-invoice" }
+                            .col-md-6
+                              .s-ce-in-set
+                                %div{:class => "form-group daily #{sc.object.ce_invoice != 'daily' ? 'hidden' : ''}"}
+                                  %label.control-label
+                                    Select Time
+                                    = sc.text_field :ce_in_day_time, class: "form-contro con-time"
+                                %div{:class => "form-group week #{sc.object.ce_invoice != 'weekly' ? 'hidden' : ''}"}
+                                  %label.control-label
+                                    Select day of week
+                                  .select
+                                    .plain-select
+                                      = sc.select :ce_in_day_of_week, [["Every Monday", "mon"], ["Every Tuesday", "tue"], ["Every Wednesday", "wed"], ["Every Thursday", "thu"], ["Every Friday", "fri"], ["Every Saturday", "sat"], ["Every Sunday", "sun"]], {},{class: "form-contro" }
+                                %div{:class => "form-group month #{['twice a month', 'monthly'].include?(sc.object.ce_invoice) ? '' : 'hidden'}"}
+                                  %label.control-label
+                                    Select date
+                                  .select
+                                    = sc.text_field :ce_in_date_1, class: "date_1", required: true, placeholder: "DD/MM/YYYY"
+                                %div{:class => "form-group twice-month #{sc.object.ce_invoice != 'twice a month' ? 'hidden' : ''}"}
+                                  %label.control-label
+                                    Select second date
+                                  .select
+                                    = sc.text_field :ce_in_date_2, class: "date_1", required: true, placeholder: "DD/MM/YYYY"
+                                %span{:class => "form-group month #{['twice a month', 'monthly'].include?(sc.object.ce_invoice) ? '' : 'hidden'}"} OR
+                                = sc.check_box :ce_in_end_of_month, class: "month #{['twice a month', 'monthly'].include?(sc.object.ce_invoice) ? '' : 'hidden'}"
+                                = sc.label :ce_in_end_of_month, "End of month", class: "month #{['twice a month', 'monthly'].include?(sc.object.ce_invoice) ? '' : 'hidden'}"
+
+
+
+                          %br
+                          .row
+                            .col-md-4
+                              = sc.check_box :is_performance_review
+                              %label
+                                Performance review ?
+                          .row.performance_review
+                            .col-md-4
+                              %label.control-label
+                                Performance review
+                              .plain-select
+                                = sc.select :performance_review, Contract.time_sheet_frequencies.map { |key, value| [key.humanize, key] }, {},{class: "form-control sell-performance-review" }
+                            .col-md-6
+                              .s-pr-set
+                                %div{:class => "form-group daily #{sc.object.performance_review != 'daily' ? 'hidden' : ''}"}
+                                  %label.control-label
+                                    Select Time
+                                    = sc.text_field :pr_day_time, class: "form-contro con-time"
+                                %div{:class => "form-group week #{sc.object.performance_review != 'weekly' ? 'hidden' : ''}"}
+                                  %label.control-label
+                                    Select day of week
+                                  .select
+                                    .plain-select
+                                      = sc.select :pr_day_of_week, [["Every Monday", "mon"], ["Every Tuesday", "tue"], ["Every Wednesday", "wed"], ["Every Thursday", "thu"], ["Every Friday", "fri"], ["Every Saturday", "sat"], ["Every Sunday", "sun"]], {},{class: "form-contro" }
+                                %div{:class => "form-group month #{['twice a month', 'monthly'].include?(sc.object.performance_review) ? '' : 'hidden'}"}
+                                  %label.control-label
+                                    Select date
+                                  .select
+                                    = sc.text_field :pr_date_1, class: "date_1", required: true, placeholder: "DD/MM/YYYY"
+                                %div{:class => "form-group twice-month #{sc.object.performance_review != 'twice a month' ? 'hidden' : ''}"}
+                                  %label.control-label
+                                    Select second date
+                                  .select
+                                    = sc.text_field :pr_date_2, class: "date_1", required: true, placeholder: "DD/MM/YYYY"
+                                %span{:class => "form-group month #{['twice a month', 'monthly'].include?(sc.object.performance_review) ? '' : 'hidden'}"} OR
+                                = sc.check_box :pr_end_of_month, class: "month #{['twice a month', 'monthly'].include?(sc.object.performance_review) ? '' : 'hidden'}"
+                                = sc.label :pr_end_of_month, "End of month", class: "month #{['twice a month', 'monthly'].include?(sc.object.performance_review) ? '' : 'hidden'}"
+                            .col-md-6
+                #tab-sell-ta.tab-pane.padding-top-15
+                  .row
+                    .col-md-12
+                      .form-group
+                        .select
+                          .row
+                            .col-md-4
+                              %label.control-label
+                                Timesheet Approve
+                              .plain-select
+                                = sc.select :ts_approve, Contract.time_sheet_frequencies.map { |key, value| [key.humanize, key] }, {},{class: "form-control sell-time-sheet-approve" }
+                            .col-md-4
+                              .s-ts-apv-set
+                                %div{:class => "form-group daily #{sc.object.ts_approve != 'daily' ? 'hidden' : ''}"}
+                                  %label.control-label
+                                    Select Time
+                                    = sc.text_field :ta_day_time, class: "form-contro con-time"
+                                %div{:class => "form-group week #{sc.object.ts_approve != 'weekly' ? 'hidden' : ''}"}
+                                  %label.control-label
+                                    Select day of week for submission
+                                  .select
+                                    .plain-select
+                                      = sc.select :ta_day_of_week, [["Every Monday", "mon"], ["Every Tuesday", "tue"], ["Every Wednesday", "wed"], ["Every Thursday", "thu"], ["Every Friday", "fri"], ["Every Saturday", "sat"], ["Every Sunday", "sun"]], {},{class: "form-contro" }
+                                %div{:class => "form-group month #{['twice a month', 'monthly'].include?(sc.object.ts_approve) ? '' : 'hidden'}"}
+                                  %label.control-label
+                                    Select date
+                                  .select
+                                    = sc.text_field :ta_date_1, class: "date_1", required: true, placeholder: "DD/MM/YYYY"
+                                %div{:class => "form-group twice-month #{sc.object.ts_approve != 'twice a month' ? 'hidden' : ''}"}
+                                  %label.control-label
+                                    Select second date
+                                  .select
+                                    = sc.text_field :ta_date_2, class: "date_1", required: true, placeholder: "DD/MM/YYYY"
+                                %span{:class => "form-group month #{['twice a month', 'monthly'].include?(sc.object.ts_approve) ? '' : 'hidden'}"} OR
+                                = sc.check_box :ta_end_of_month, class: "month #{['twice a month', 'monthly'].include?(sc.object.ts_approve) ? '' : 'hidden'}"
+                                = sc.label :ta_end_of_month, "End of month", class: "month #{['twice a month', 'monthly'].include?(sc.object.ts_approve) ? '' : 'hidden'}"
+
+                            .col-md-4
+                              %label.control-label
+                                Assign to
+                              = select_tag 'assign_to', options_from_collection_for_select(current_company&.company_contacts, "id", 'full_name'), include_blank: 'Please select',class: 'form-control'
+                #tab-sell-bi.tab-pane.padding-top-15
+                  .row
+                    .col-md-4
+                      .form-group
+                        %label.control-label
+                          Invoice Terms
                         .select
                           .plain-select
-                            = sc.select :invoice_day_of_week, [["Every Monday", "mon"], ["Every Tuesday", "tue"], ["Every Wednesday", "wed"], ["Every Thursday", "thu"], ["Every Friday", "fri"], ["Every Saturday", "sat"], ["Every Sunday", "sun"]], {},{class: "form-contro" }
-                      %div{:class => "form-group month #{['twice a month', 'monthly'].include?(sc.object.invoice_terms_period) ? '' : 'hidden'}"}
-                        %label.control-label
-                          Select date
-                        .select
-                          = sc.text_field :invoice_date_1, class: "date_1", required: true, placeholder: "DD/MM/YYYY"
-                      %div{:class => "form-group twice-month #{sc.object.invoice_terms_period != 'twice a month' ? 'hidden' : ''}"}
-                        %label.control-label
-                          Select second date
-                        .select
-                          = sc.text_field :invoice_date_2, class: "date_1", required: true, placeholder: "DD/MM/YYYY"
-                      %span{:class => "form-group month #{['twice a month', 'monthly'].include?(sc.object.invoice_terms_period) ? '' : 'hidden'}"} OR
-                      = sc.check_box :invoice_end_of_month, class: "month #{['twice a month', 'monthly'].include?(sc.object.invoice_terms_period) ? '' : 'hidden'}"
-                      = sc.label :invoice_end_of_month, "End of month", class: "month #{['twice a month', 'monthly'].include?(sc.object.invoice_terms_period) ? '' : 'hidden'}"
+                            = sc.select :invoice_terms_period, Contract.time_sheet_frequencies.map { |key, value| [key.humanize, key] }, {},{class: "form-control sell-invoice " }
+                    -#= sc.select :invoice_terms_period , (0..60).map{|a| ["Net " + a.to_s + " days",a]}, {},{class: "form-control" }
+                    .col-md-4
+                      .sell-invoice-setting
+                        %div{:class => "form-group daily #{sc.object.invoice_terms_period != 'daily' ? 'hidden' : ''}"}
+                          %label.control-label
+                            Select Time
+                            = sc.text_field :invoice_day_time, class: "form-contro con-time"
+                        %div{:class => "form-group week #{sc.object.invoice_terms_period != 'weekly' ? 'hidden' : ''}"}
+                          %label.control-label
+                            Select day of week for submission
+                          .select
+                            .plain-select
+                              = sc.select :invoice_day_of_week, [["Every Monday", "mon"], ["Every Tuesday", "tue"], ["Every Wednesday", "wed"], ["Every Thursday", "thu"], ["Every Friday", "fri"], ["Every Saturday", "sat"], ["Every Sunday", "sun"]], {},{class: "form-contro" }
+                        %div{:class => "form-group month #{['twice a month', 'monthly'].include?(sc.object.invoice_terms_period) ? '' : 'hidden'}"}
+                          %label.control-label
+                            Select date
+                          .select
+                            = sc.text_field :invoice_date_1, class: "date_1", required: true, placeholder: "DD/MM/YYYY"
+                        %div{:class => "form-group twice-month #{sc.object.invoice_terms_period != 'twice a month' ? 'hidden' : ''}"}
+                          %label.control-label
+                            Select second date
+                          .select
+                            = sc.text_field :invoice_date_2, class: "date_1", required: true, placeholder: "DD/MM/YYYY"
+                        %span{:class => "form-group month #{['twice a month', 'monthly'].include?(sc.object.invoice_terms_period) ? '' : 'hidden'}"} OR
+                        = sc.check_box :invoice_end_of_month, class: "month #{['twice a month', 'monthly'].include?(sc.object.invoice_terms_period) ? '' : 'hidden'}"
+                        = sc.label :invoice_end_of_month, "End of month", class: "month #{['twice a month', 'monthly'].include?(sc.object.invoice_terms_period) ? '' : 'hidden'}"
 
-                  .col-md-4
-                    %label.control-label
-                      Assign to
-                    = select_tag 'assign_to', options_from_collection_for_select(current_company&.company_contacts, "id", 'full_name'), include_blank: 'Please select',class: 'form-control'
-
-              #tab-sell-pr.tab-pane.padding-top-15
-                .row
-                  .col-md-6
-                    .form-group
+                    .col-md-4
                       %label.control-label
-                        Payment Terms
-                      .select
-                        = sc.number_field :payment_term , class: "form-control", min: 0, max: 365
-    .contract-fields_wrapper.mt-4
-      .row
-        %label.control-label  Customer Documents
-        .col-md-12.contract-attachment
-          .form-group
-            =sc.fields_for :sell_send_documents do |custom_field|
-              = render 'company/contracts/contract_documents_fields', f: custom_field
-            = link_to_add_association '+ Add Send documents', sc, :sell_send_documents, class: 'bttn text-info pull-left doc-fields', partial: 'company/contracts/contract_documents_fields'
-        .col-md-12.contract-attachment
-          .form-group
-            =sc.fields_for :sell_request_documents do |custom_field|
-              = render 'company/contracts/contract_documents_fields', f: custom_field
-            = link_to_add_association '+ Add Request documents', sc, :sell_request_documents, class: 'bttn text-info pull-left doc-fields', partial: 'company/contracts/contract_documents_fields'
+                        Assign to
+                      = select_tag 'assign_to', options_from_collection_for_select(current_company&.company_contacts, "id", 'full_name'), include_blank: 'Please select',class: 'form-control'
+
+                #tab-sell-pr.tab-pane.padding-top-15
+                  .row
+                    .col-md-6
+                      .form-group
+                        %label.control-label
+                          Payment Terms
+                        .select
+                          = sc.number_field :payment_term , class: "form-control", min: 0, max: 365
+      .contract-fields_wrapper.mt-4
+        .row
+          %label.control-label  Customer Documents
+          .col-md-12.contract-attachment
+            .form-group
+              =sc.fields_for :sell_send_documents do |custom_field|
+                = render 'company/contracts/contract_documents_fields', f: custom_field
+              = link_to_add_association '+ Add Send documents', sc, :sell_send_documents, class: 'bttn text-info pull-left doc-fields', partial: 'company/contracts/contract_documents_fields'
+          .col-md-12.contract-attachment
+            .form-group
+              =sc.fields_for :sell_request_documents do |custom_field|
+                = render 'company/contracts/contract_documents_fields', f: custom_field
+              = link_to_add_association '+ Add Request documents', sc, :sell_request_documents, class: 'bttn text-info pull-left doc-fields', partial: 'company/contracts/contract_documents_fields'
 
     / .row
     /   .col-md-6

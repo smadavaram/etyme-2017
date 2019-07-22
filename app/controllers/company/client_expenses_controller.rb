@@ -2,7 +2,7 @@ class Company::ClientExpensesController < Company::BaseController
   include CandidateHelper
 
   def index
-    @client_expenses = current_company.client_expenses.includes(:candidate, contract: [:buy_contracts, sell_contracts:[:company]]).submitted_client_expenses#.joins(contract: [:client, [buy_contracts: :candidate]]).submitted_client_expenses.select("DISTINCT(client_expenses.ce_ap_cycle_id), contracts.number, companies.name, buy_contracts.contract_type, candidates.first_name, candidates.last_name, sum(amount) as total_amount").group('client_expenses.ce_ap_cycle_id', 'contracts.number', 'companies.name', 'buy_contracts.contract_type', 'candidates.first_name', 'candidates.last_name').map(&:attributes)
+    @client_expenses = current_company.client_expenses.includes(:candidate, contract: [:buy_contract, sell_contract:[:company]]).submitted_client_expenses#.joins(contract: [:client, [buy_contracts: :candidate]]).submitted_client_expenses.select("DISTINCT(client_expenses.ce_ap_cycle_id), contracts.number, companies.name, buy_contracts.contract_type, candidates.first_name, candidates.last_name, sum(amount) as total_amount").group('client_expenses.ce_ap_cycle_id', 'contracts.number', 'companies.name', 'buy_contracts.contract_type', 'candidates.first_name', 'candidates.last_name').map(&:attributes)
   end
 
   def approve

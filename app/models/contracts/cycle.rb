@@ -1,6 +1,6 @@
 module Contracts
   class Cycle < Struct.new(:contract)
-    delegate :contract_cycles, :timesheets, :invoices, :sell_contracts, :buy_contracts, :contract_salary_histories, :to => :contract
+    delegate :contract_cycles, :timesheets, :invoices, :sell_contract, :buy_contract, :contract_salary_histories, :to => :contract
 
     def set_timesheet_submit(count)
 
@@ -825,11 +825,11 @@ module Contracts
     end
 
     def buy_contract
-      buy_contracts.first
+      buy_contract
     end
 
     def sell_contract
-      sell_contracts.first
+      sell_contract
     end
 
     def ts_time_sheet_frequency

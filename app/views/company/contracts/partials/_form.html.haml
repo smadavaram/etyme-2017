@@ -1,66 +1,57 @@
-= form_for  @contract ,html: {id: 'wizard-1' , class: 'form-horizontal new_contract', style: "width: 100%;", novalidate: "novalidate" } do |contract|
-  =contract.hidden_field :contractable_type , value: "Company"
-  - if params.has_key?('id')
-    =contract.hidden_field :parent_contract_id , value: params[:id]
-  #bootstrap-wizard-1.col-sm-12
-    .form-bootstrapWizard
-      %ul.bootstrapWizard.form-wizard{style: 'display: flex; justify-content: space-evenly;'}
-        %li.w-100.active{"data-target" => "#step1"}
-          %a{"data-toggle" => "tab", :href => "#tab1"}
-            %span.step 1
-            %span.title Contract Header
-        %li.w-100{"data-target" => "#step2"}
-          %a{"data-toggle" => "tab", :href => "#tab2"}
-            %span.step 2
-            %span.title Onboard Customer / Sell Side
-        %li.w-100{"data-target" => "#step3"}
-          %a{"data-toggle" => "tab", :href => "#tab3"}
-            %span.step 3
-            %span.title Onboard Consultant / Buy Side
-        %li.w-100.step4.custom-step{"data-target" => "#step4"}
-          %a{"data-toggle" => "tab", :href => "#tab4"}
-            %span.step 4
-            %span.title Activate / Timeline
+#bootstrap-wizard-1.col-sm-12
+  .form-bootstrapWizard
+    %ul.bootstrapWizard.form-wizard{style: 'display: flex; justify-content: space-evenly;'}
+      %li.w-100.active{"data-target" => "#step1"}
+        %a{"data-toggle" => "tab", :href => "#tab1"}
+          %span.step 1
+          %span.title Contract Header
+      %li.w-100{"data-target" => "#step2"}
+        %a{"data-toggle" => "tab", :href => "#tab2"}
+          %span.step 2
+          %span.title Onboard Customer / Sell Side
+      %li.w-100{"data-target" => "#step3"}
+        %a{"data-toggle" => "tab", :href => "#tab3"}
+          %span.step 3
+          %span.title Onboard Consultant / Buy Side
+      %li.w-100{"data-target" => "#step4"}
+        %a{"data-toggle" => "tab", :href => "#tab4"}
+          %span.step 4
+          %span.title Activate / Timeline
 
-        / %li{"data-target" => "#step4"}
-        /   %a{"data-toggle" => "tab", :href => "#tab4"}
-        /     %span.step 4
-        /     %span.title Activation
-      -#.form-bootstrapWizard
-      -#  %ul.bootstrapWizard.form-wizard
-      -#    %li.step4{"data-target" => "#step4"}
-      -#      %a{"data-toggle" => "tab", :href => "#tab4"}
-      -#        %span.step 4
-      -#        %span.title Activation
-      .clearfix
-    .tab-content
-      #tab1.tab-pane.active
-        %br/
-        -#= link_to 'NEW', "#" ,class: 'btn btn-success btn-sm pull-right header-btn hidden-mobile' , "data-toggle": "modal" , "data-target":"#new-contract-company"
-        = render 'company/contracts/partials/job' , f: contract
-      #tab2.tab-pane
-        %br/
-        = render 'company/contracts/partials/contract_and_docs' , f: contract
-      #tab3.tab-pane
-        %br/
-        = render 'company/contracts/partials/docs_and_attachments' , f: contract
-      #tab4.tab-pane
-        %br/
-        .contract-fields_wrapper.mt-4
-          .text-center.p-2
-            .onboarding-content.with-gradient
-              %h4.onboarding-title Contract Completed Successfuly
-              .onboarding-text= "These changes are not stored yet! Please clic on the <strong>Finish</strong> button to store the contract. You can also update the contract by going through the previous button below.".html_safe
-      .form-actions.wizard-action
-        .row
-          .col-sm-12
-            %ul.pager.wizard.no-margin.clearfix.p-0
-              %li.previous.disabled.pull-left
-                %a{:href => "javascript:void(0);"} Previous
-              %li.next.pull-right
-                %a{:href => "javascript:void(0);"} Next
-              %li.pull-right.finish{:style=>"di"}
-                %a{:href => "javascript:;"} Finish
+      / %li{"data-target" => "#step4"}
+      /   %a{"data-toggle" => "tab", :href => "#tab4"}
+      /     %span.step 4
+      /     %span.title Activation
+    -#.form-bootstrapWizard
+    -#  %ul.bootstrapWizard.form-wizard
+    -#    %li.step4{"data-target" => "#step4"}
+    -#      %a{"data-toggle" => "tab", :href => "#tab4"}
+    -#        %span.step 4
+    -#        %span.title Activation
+    .clearfix
+  .tab-content
+    #tab1.tab-pane.active
+      %br/
+      -#= link_to 'NEW', "#" ,class: 'btn btn-success btn-sm pull-right header-btn hidden-mobile' , "data-toggle": "modal" , "data-target":"#new-contract-company"
+      = render 'company/contracts/partials/job' , contract: @contract
+    #tab2.tab-pane
+      %br/
+      -#= render 'company/contracts/partials/contract_and_docs' , contract: @contract
+    #tab3.tab-pane
+      %br/
+      -#= render 'company/contracts/partials/docs_and_attachments' , contract: @contract
+    #tab4.tab-pane
+      %br/
+    .form-actions.wizard-action
+      .row
+        .col-sm-12
+          %ul.pager.wizard.no-margin.clearfix.p-0.no-steps-container
+            %li.previous.disabled.pull-left
+              %a{:href => new_contract_path(contract_id: @contract.id || nil)} Contract Tab
+            %li.next.pull-right
+              %a{:href => "javascript:void(0);"} Next
+            %li.pull-right.finish{:style=>"di"}
+              %a.next_submit_link{:href => "javascript:;"} Finish
 
 .remote_container_contract
 = render "company/companies/partials/new_company", for_remote: true
@@ -432,6 +423,13 @@
         }
       });
 
+      $(".is_client_customer_radio input[type='radio']").on("change", function(){
+        if($(this).val() == "true"){
+          $('.contract_client').show()
+        } else {
+          $('.contract_client').hide()
+        }
+      });
       $(".contract-type-radio input[type='radio']").on("change", function(){
         if($(this).val() == "C2C"){
           $(".c2c-type").removeClass('hidden');
@@ -440,7 +438,10 @@
           $('.corp-corp-bill').text('Vendor Bill');
           $('.corp-corp-payment').text('Vendor Payment');
           $('.corp-corp-clear').text('Vendor Clear');
+          $('.vendor_company').show();
+
         } else {
+          $('.vendor_company').hide();
           $(".c2c-type").addClass('hidden');
           $('.corp-corp').text('Salary Calculation');
           $('.corp-corp-frequency').text('Salary Frequency');

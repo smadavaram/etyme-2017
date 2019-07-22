@@ -1,0 +1,66 @@
+.content-box
+  .element-wrapper
+    .element-box
+      %h6.element-header Create New Contract
+      .row
+        .col-md-6.col-sm-12.col-xs-12.mr-bottom-10
+          = link_to new_contract_path, class: 'contract_link' do
+            %div.two_columns
+              %div.button_heading
+                Buy & Sell (Hourly)
+              %div.button_span
+                Onboard both Customer and Consultant (W2/1099)
+        .col-md-6.col-sm-12.col-xs-12.mr-bottom-10
+          = link_to '#', class: 'contract_link' do
+            %div.two_columns
+              %div.button_heading
+                Buy & Sell (Fixed)
+              %div.button_span
+                Onboard both Customer and Vendor (1099)
+      .row
+        .col-md-6.col-sm-12.col-xs-12
+          .row
+            .col-xs-12.col-md-6.mr-bottom-10
+              = link_to '#', class: 'contract_link' do
+                %div.two_columns
+                  %div.button_heading
+                    Employee(Hr)
+                  %div.button_span
+                    Onboard Emp (W2/1099)
+            .col-xs-12.col-md-6.mr-bottom-10
+              = link_to '#', class: 'contract_link' do
+                %div.two_columns
+                  %div.button_heading
+                    Buy (Hr)
+                  %div.button_span
+                    Onboard Vendor (1099)
+            .col-xs-12.col-md-6.mr-bottom-10
+              = link_to '#', class: 'contract_link' do
+                %div.two_columns
+                  %div.button_heading
+                    Sell (Hr)
+                  %div.button_span
+                    Onboard Emp (W2)
+        .col-md-6.col-sm-12.col-xs-12
+          .row
+            .col-xs-12.col-md-6.mr-bottom-10
+              = link_to '#', class: 'contract_link' do
+                %div.two_columns
+                  %div.button_heading
+                    Employee(Fixed)
+                  %div.button_span
+                    Onboard Emp (W2/1099)
+            .col-xs-12.col-md-6.mr-bottom-10
+              = link_to '#', class: 'contract_link' do
+                %div.two_columns
+                  %div.button_heading
+                    Buy (Fixed)
+                  %div.button_span
+                    Onboard Vendor (1099)
+            .col-xs-12.col-md-6.mr-bottom-10
+              = link_to '#', class: 'contract_link' do
+                %div.two_columns
+                  %div.button_heading
+                    Sell (Fixed)
+                  %div.button_span
+                    Onboard Emp (W2)

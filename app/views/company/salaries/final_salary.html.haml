@@ -66,7 +66,7 @@
                       %td
                         = c&.buy_contracts&.first.contract_type
                       %td
-                        = c&.sell_contracts&.first&.customer_rate.to_i
+                        = c&.sell_contract.customer_rate.to_i
                       %td
                         = c&.buy_contracts&.first&.payrate.to_i
                       %td

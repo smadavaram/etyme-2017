@@ -4,7 +4,7 @@ class Candidate::ClientExpensesController < Candidate::BaseController
 
   def index
     @dates = Time.now-1.month
-    @client_expenses = current_candidate.client_expenses.includes(:candidate, contract: [:buy_contracts, sell_contracts:[:company]]).not_submitted_expenses.where("(start_date >= ? AND start_date <= ?) OR (end_date >= ? AND end_date <= ?) ",(@dates.beginning_of_week-1.day), (@dates.end_of_week - 1.day), (@dates.beginning_of_week-1.day), (@dates.end_of_week - 1.day)).order(id: :asc)
+    @client_expenses = current_candidate.client_expenses.includes(:candidate, contract: [:buy_contract, sell_contract:[:company]]).not_submitted_expenses.where("(start_date >= ? AND start_date <= ?) OR (end_date >= ? AND end_date <= ?) ",(@dates.beginning_of_week-1.day), (@dates.end_of_week - 1.day), (@dates.beginning_of_week-1.day), (@dates.end_of_week - 1.day)).order(id: :asc)
     @time_cycle = [((@dates.beginning_of_week-1.day).strftime("%m/%d/%Y") +" - " + (@dates.end_of_week - 1.day).strftime("%m/%d/%Y")),
                    ((@dates.end_of_week ).strftime("%m/%d/%Y") +" - " + (@dates.end_of_week + 6.day).strftime("%m/%d/%Y")),
                    ((@dates.end_of_week + 7.day).strftime("%m/%d/%Y") +" - " + (@dates.end_of_week + 13.day).strftime("%m/%d/%Y")),
@@ -23,7 +23,7 @@ class Candidate::ClientExpensesController < Candidate::BaseController
     dates = params[:date_range].split(" - ")
     @start_date = Date.strptime(dates[0].gsub('/', '-'), '%m-%d-%Y')
     @end_date = Date.strptime(dates[1].gsub('/', '-'), '%m-%d-%Y')
-    @client_expenses = current_candidate.client_expenses.includes(:candidate, contract: [:buy_contracts, sell_contracts:[:company]]).not_submitted_expenses.where("(start_date >= ? AND start_date <= ?) OR (end_date >= ? AND end_date <= ?) ",@start_date, @end_date, @start_date, @end_date).order(id: :asc)
+    @client_expenses = current_candidate.client_expenses.includes(:candidate, contract: [:buy_contract, sell_contract:[:company]]).not_submitted_expenses.where("(start_date >= ? AND start_date <= ?) OR (end_date >= ? AND end_date <= ?) ",@start_date, @end_date, @start_date, @end_date).order(id: :asc)
   end
 
   def update
@@ -42,7 +42,7 @@ class Candidate::ClientExpensesController < Candidate::BaseController
   end
 
   def submitted_client_expenses
-    @client_expenses = current_candidate.client_expenses.includes(:candidate, contract: [:buy_contracts, sell_contracts:[:company]]).submitted_client_expenses
+    @client_expenses = current_candidate.client_expenses.includes(:candidate, contract: [:buy_contract, sell_contract:[:company]]).submitted_client_expenses
   end
 
   def approve_client_expenses

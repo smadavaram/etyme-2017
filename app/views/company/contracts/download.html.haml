@@ -61,30 +61,30 @@
           %div.sell-side.box
             %div.contract-custome-details.line-bottom
               %h5
-                Company Name : #{@contract.sell_contracts.first.try(:company).try(:full_name)}
+                Company Name : #{@contract.sell_contract.try(:company).try(:full_name)}
               %div.row
                 .col-sm-6.col-md-6.col-lg-6
                   %strong
                     Website :
                   %span
-                    =@contract.sell_contracts&.first&.company&.website
+                    =@contract.sell_contract.company&.website
                   %strong
                     Location :
                     %span
-                      - @contract.sell_contracts&.first&.company&.addresses.each do |address|
+                      - @contract.sell_contract&.company&.addresses.each do |address|
                         =address.address_1
                 .col-sm-6.col-md-6.col-lg-6.text-center
                   %div.rate_info
                     %h5 
                       Customer Rate
                     %span
-                      = @contract.sell_contracts&.first&.customer_rate.present? ? '$' + @contract.sell_contracts.first.customer_rate.to_s + " / " + @contract.sell_contracts.first.customer_rate_type.to_s : ""
+                      = @contract.sell_contract&.customer_rate.present? ? '$' + @contract.sell_contract.customer_rate.to_s + " / " + @contract.sell_contract.customer_rate_type.to_s : ""
             %div
               %div.contract-custome-details.line-bottom
                 %h5
                   Business Contact Name
                 %div.row
-                  -@contract.sell_contracts.first.contract_sell_business_details.each do |contract_sell_business_detail|
+                  -@contract.sell_contract.contract_sell_business_details.each do |contract_sell_business_detail|
                     .col-sm-6.col-md-6.col-lg-6
                       %div
                         %b
@@ -105,7 +105,7 @@
                       %span
                         Customer Rate:
                       %span
-                        =@contract.sell_contracts&.first&.customer_rate.present? ? '$' + @contract.sell_contracts.first.customer_rate.to_s + " / " + @contract.sell_contracts.first.customer_rate_type.to_s : ""
+                        =@contract.sell_contract&.customer_rate.present? ? '$' + @contract.sell_contract.customer_rate.to_s + " / " + @contract.sell_contract.customer_rate_type.to_s : ""
 
                 %div.row
                   .col-sm-12.col-md-12.col-lg-12
@@ -113,7 +113,7 @@
                       %span
                         Payment Terms:
                       %span
-                        =@contract.sell_contracts&.first&.payment_term
+                        =@contract.sell_contract&.payment_term
                 %br
                 %div.row
                   .col-sm-4.col-md-4.col-lg-4
@@ -121,32 +121,32 @@
                       %p
                         Submit Timesheet
                       %h5
-                        =@contract.sell_contracts&.first&.time_sheet
+                        =@contract.sell_contract&.time_sheet
                       %p
-                        =sell_contract_time_sheet('time_sheet', @contract.sell_contracts&.first&.time_sheet)
+                        =sell_contract_time_sheet('time_sheet', @contract.sell_contract&.time_sheet)
                   .col-sm-4.col-md-4.col-lg-4
                     %div.sell-side.contract_box
                       %p
                         Approve Timesheet
                       %h5
-                        =@contract.sell_contracts&.first&.ts_approve
+                        =@contract.sell_contract&.ts_approve
                       %p
-                        =sell_contract_time_sheet('ts_approve', @contract.sell_contracts&.first&.ts_approve)
+                        =sell_contract_time_sheet('ts_approve', @contract.sell_contract&.ts_approve)
 
                   .col-sm-4.col-md-4.col-lg-4
                     %div.sell-side.contract_box
                       %p
                         Invoice Timesheet
                       %h5
-                        =@contract.sell_contracts&.first&.invoice_terms_period
+                        =@contract.sell_contract&.invoice_terms_period
                       %p
-                        =sell_contract_time_sheet('invoice_terms_period', @contract.sell_contracts&.first&.invoice_terms_period)
+                        =sell_contract_time_sheet('invoice_terms_period', @contract.sell_contract&.invoice_terms_period)
                 %div.row
                   .col-sm-12.col-md-12.col-lg-12
                     %span
                       %b 
                         Show Accounting to employee:
-                        = @contract.sell_contracts.first.show_accounting_to_employee == true ? "Yes" : "No" 
+                        = @contract.sell_contract.show_accounting_to_employee == true ? "Yes" : "No"
             %div.contract-custome-details.line-bottom
               %h5
                 Send Documents
@@ -169,7 +169,7 @@
                       Signature
               %br
               %div.row
-                -@contract.sell_contracts.first.sell_send_documents.each do |ssd|
+                -@contract.sell_contract.sell_send_documents.each do |ssd|
                   .col-sm-6.col-md-6.col-lg-6
                     %span
                       %i.fa.fa-paperclip
@@ -206,7 +206,7 @@
                     %b
                       Signature
               %br
-              -@contract.sell_contracts.first.sell_request_documents.each do |srd|
+              -@contract.sell_contract.sell_request_documents.each do |srd|
                 %div.row
                   .col-sm-6.col-md-6.col-lg-6
                     %span
@@ -228,7 +228,7 @@
             Buy
           %div.contract-custome-details.box
             %h5
-              = @contract.candidate.full_name+' ($'+@contract.buy_contracts&.first&.payrate&.to_i.to_s+' / '+@contract.buy_contracts&.first&.payrate_type+')'
+              = @contract.candidate.full_name+' ($'+@contract.buy_contract&.payrate&.to_i.to_s+' / '+@contract.buy_contract&.payrate_type+')'
             %div.contract-custome-details.line-bottom
               .row
                 .col-sm-6.col-md-6.col-lg-6
@@ -236,7 +236,7 @@
                     %strong
                       Contract type :
                     %span
-                      =@contract.buy_contracts.first.try(:contract_type)
+                      =@contract.buy_contract.try(:contract_type)
                   .col-sm-12
                     %strong
                       Candidate Address :
@@ -246,24 +246,24 @@
                   %h5
                     Freelancer rate
                   %span
-                    = '$'+@contract.buy_contracts&.first&.payrate.to_i.to_s+' / '+@contract.buy_contracts&.first&.payrate_type
+                    = '$'+@contract.buy_contract&.payrate.to_i.to_s+' / '+@contract.buy_contract&.payrate_type
               %h6
-                Company Name : #{@contract.buy_contracts&.first&.candidate&.companies&.first&.full_name}
+                Company Name : #{@contract.buy_contract&.candidate&.companies&.first&.full_name}
               %strong
                 Website:
               %span
-                =@contract.buy_contracts&.first&.candidate&.companies&.first&.website
+                =@contract.buy_contract&.candidate&.companies&.first&.website
               %br
               %strong
                 Location :
               %span
-                =@contract.buy_contracts&.first&.candidate&.companies&.first&.addresses&.first&.address_1
+                =@contract.buy_contract&.candidate&.companies&.first&.addresses&.first&.address_1
 
             %div.contract-custome-details.line-bottom
               %h5
                 Business Contact Name
               %div.row
-                -@contract.sell_contracts.first.contract_sell_business_details.each do |csbd|
+                -@contract.sell_contract.contract_sell_business_details.each do |csbd|
                   .col-sm-6.col-md-6.col-lg-6
                     %b
                       =csbd.company_contact.full_name
@@ -281,46 +281,46 @@
                 %strong
                   FreeLancer Rate :
                 %span
-                  = '$ '+@contract.buy_contracts.try(:first).payrate.to_s+' / '+@contract.buy_contracts.try(:first).payrate_type
+                  = '$ '+@contract.buy_contract.payrate.to_s+' / '+@contract.buy_contract.payrate_type
               %br
               %div
                 %strong
                   Period :
                 %span
-                  - contract = @contract.buy_contracts.try(:first)
+                  - contract = @contract.buy_contract
                   = contract.pr_start_date.strftime("#{contract.pr_start_date.day.ordinalize} %b %Y ").to_s+' to '+contract.pr_end_date.strftime("#{contract.pr_end_date.day.ordinalize} %b %Y ").to_s if contract.pr_end_date && contract.pr_start_date
               %br
               %div
                 %strong
                   USCIS Rate :
                 %span
-                  = '$'+@contract.buy_contracts.try(:first).uscis_rate.to_s
+                  = '$'+@contract.buy_contract.uscis_rate.to_s
               %div.row
                 .col-sm-4.col-md-4.col-lg-4
                   %div.sell-side.contract_box
                     %p
                       Submit Timesheet
                     %h5
-                      =@contract.buy_contracts&.first&.time_sheet
+                      =@contract.buy_contract.time_sheet
                     %p
-                      =buy_contract_time_sheet('time_sheet', @contract.buy_contracts&.first&.time_sheet)
+                      =buy_contract_time_sheet('time_sheet', @contract.buy_contract.time_sheet)
                 .col-sm-4.col-md-4.col-lg-4
                   %div.buy-side.contract_box
                     %p
                       Approve Timesheet
                     %h5
-                      =@contract.buy_contracts&.first&.ts_approve
+                      =@contract.buy_contract.ts_approve
                     %p
-                      =buy_contract_time_sheet('ts_approve',@contract.buy_contracts&.first&.ts_approve)
+                      =buy_contract_time_sheet('ts_approve',@contract.buy_contract.ts_approve)
 
                 .col-sm-4.col-md-4.col-lg-4
                   %div.buy-side.contract_box
                     %p
                       Salary Calculation
                     %h5
-                      =@contract.buy_contracts&.first&.salary_calculation
+                      =@contract.buy_contract&.salary_calculation
                     %p
-                      =buy_contract_time_sheet('salary_calculation', @contract.buy_contracts&.first&.salary_calculation)
+                      =buy_contract_time_sheet('salary_calculation', @contract.buy_contract.salary_calculation)
             %hr
             %div.table-responsive
               Comission:
@@ -331,7 +331,7 @@
                     %th Rate
                     %th Frequency
                     %th Limit
-                  -@contract.buy_contracts.first.contract_sale_commisions.each do |csc|
+                  -@contract.buy_contract.contract_sale_commisions.each do |csc|
                     %tr
                       %td
                         =csc.csc_accounts.map{ |a|  a.accountable.full_name}.join(', ')
@@ -345,12 +345,12 @@
               %strong
                 Payroll date:
               %span
-                = @contract.buy_contracts.try(:first).payroll_date&.try(:strftime, '%e').to_s+' of each month'
+                = @contract.buy_contract.payroll_date&.try(:strftime, '%e').to_s+' of each month'
             %div.contract-custome-details.line-bottom
               %strong
                 Comissiom Payment terms:
               %span
-                = @contract.buy_contracts.try(:first).commission_payment_term
+                = @contract.buy_contract.commission_payment_term
             %div.contract-custome-details.line-bottom
               %h5
                 Send Documents
@@ -373,7 +373,7 @@
                       Signature
               %br
               %div.row
-                -@contract.buy_contracts.first.buy_send_documents.each do |bsd|
+                -@contract.buy_contract.buy_send_documents.each do |bsd|
                   .col-sm-6.col-md-6.col-lg-6
                     %span
                       %i.fa.fa-paperclip
@@ -409,7 +409,7 @@
                       Signature
               %br
               %div.row
-                -@contract.buy_contracts.first.buy_emp_req_docs.each do |berd|
+                -@contract.buy_contract.buy_emp_req_docs.each do |berd|
                   .col-sm-6.col-md-6.col-lg-6
                     %span
                       %i.fa.fa-paperclip
@@ -423,7 +423,7 @@
                         = ds.signable.full_name
 
             %div.row 
-              -@contract.buy_contracts.first.buy_ven_req_docs.each do |bvrd|
+              -@contract.buy_contract.buy_ven_req_docs.each do |bvrd|
                 .col-sm-6.col-md-6.col-lg-6
                   %span
                     %i.fa.fa-paperclip
