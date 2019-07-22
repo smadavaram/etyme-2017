@@ -9,6 +9,7 @@ class SellRequestDocument < ApplicationRecord
   before_create :set_number
 
   accepts_nested_attributes_for :document_signs, allow_destroy: true,reject_if: :all_blank
+  validates :request, presence: true
 
   def set_number
     # self.number = self.sell_contract.number

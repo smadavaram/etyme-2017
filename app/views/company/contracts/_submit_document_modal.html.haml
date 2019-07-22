@@ -7,7 +7,8 @@
         %h2#myModalLabel.modal-title
           %strong Submit Document
       .modal-body
-        = form_tag(controller: 'company/contracts', action: 'create_document_request', remote: true) do
+        = form_for(SellSendDocument.new, as: :document, url: submit_document_create_contracts_path, remote: true) do |sd|
+          = sd.hidden_field :sell_contract_id, value: @contract.sell_contracts.first.id
           %fieldset
             .form-group
               %label.col-md-2.control-label Request
@@ -24,3 +25,19 @@
       $( ".file-pick" ).on('click',function() {
       $('.fp__overlay').css({'z-index':'99999'})});
     });
+
+:javascript
+    $(document).ready(function() {
+        pageSetUp();
+        $(".filepicker-attach-doc").on("change", function(e){
+          var name = e["originalEvent"]["fpfile"]["filename"];
+          var size = e["originalEvent"]["fpfile"]["size"];
+          var type = e["originalEvent"]["fpfile"]["mimetype"];
+          $(this).siblings(".doc-file-name" ).val(name);
+          $(this).siblings( ".doc-file-size" ).val(size);
+          $(this).siblings( ".doc-file-type" ).val(type);
+        })
+      });
+    $(".exp_date").datepicker({
+      dateFormat : 'dd/mm/yy'
+      });

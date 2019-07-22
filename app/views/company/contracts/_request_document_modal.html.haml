@@ -7,12 +7,16 @@
         %h2#myModalLabel.modal-title
           %strong Request Document
       .modal-body
-        = form_tag(controller: 'company/contracts', action: 'create_document_request', remote: true) do
+        = form_for(SellRequestDocument.new, as: :document, url: create_document_request_contracts_path, remote: true)  do |srd|
+          = srd.hidden_field :sell_contract_id, value: @contract.sell_contracts.first.id
+          = srd.hidden_field :creatable_type, class: "form-control", value: "Company"
+          = srd.hidden_field :creatable_id, class: "form-control", value: current_company.id
           %fieldset
             .form-group
               %label.col-md-2.control-label Request
               .col-md-10
-                =  text_field_tag :request , "", class: 'form-control tinymce'
+                = srd.text_area :request , class: 'form-control tinymce'
+                %sup.text-danger *
           .modal-footer
             %a.btn.btn-default{"data-dismiss" => "modal", :type => "button"}
               Cancel

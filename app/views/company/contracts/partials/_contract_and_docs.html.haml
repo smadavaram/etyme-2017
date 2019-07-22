@@ -389,133 +389,72 @@
         .row
           %label.control-label  Customer Documents
           .col-md-12.contract-attachment
-            .form-group
-              =sc.fields_for :sell_send_documents do |custom_field|
-                = render 'company/contracts/contract_documents_fields', f: custom_field
-              = link_to_add_association '+ Add Send documents', sc, :sell_send_documents, class: 'bttn text-info pull-left doc-fields', partial: 'company/contracts/contract_documents_fields'
-          .col-md-12.contract-attachment
-            .form-group
-              =sc.fields_for :sell_request_documents do |custom_field|
-                = render 'company/contracts/contract_documents_fields', f: custom_field
-              = link_to_add_association '+ Add Request documents', sc, :sell_request_documents, class: 'bttn text-info pull-left doc-fields', partial: 'company/contracts/contract_documents_fields'
+            %ul#myTab2.nav.nav-tabs.smaller{style: "border-bottom: 0px;"}
+              %li.nav-item.active.cumstom_nav-tab
+                %a{"data-toggle" => "tab", :href => "#doc-request", class: "nav-link cumstom_nav-tab"}
+                  %span.badge.bg-color-blue.txt-color-white
+                  Request Decuments
+              %li.nav-item.cumstom_nav-tab
+                %a{"data-toggle" => "tab", :href => "#doc-submit", class: "nav-link cumstom_nav-tab"}
+                  %span.badge.bg-color-blue.txt-color-white
+                  Submit Decuments
+            .col-md-12.pl-0
+              .tab-content{style: 'border: 1px solid #b6bcbf;'}
+                #doc-request.tab-pane.padding-top-15.active.in
+                  .row
+                    .col-md-12
+                      .form-group
+                        %a.btn.btn-sm.btn-secondary.float-right.margin-bottom-10{"data-toggle": "modal", "data-target":"#request_document", style: "color: #fff;"} Create Checklist
+                        .table-responsive
+                          %table#company-request-doc-datatable.table.text-center.table-bordered.table-lg.table-v2.table-striped.data-table-font
+                            %thead
+                              %tr
+                                %th Doc ID
+                                %th requested
+                                %th Signors/Request doc
+                                %th Creator
+                                %th Due Date
+                                %th Status
+                                %th Attachment
+                                %th Action
+                            %tbody#request_doc
 
-                  .col-md-4
-                    %label.control-label
-                      Assign to
-                    = select_tag 'assign_to', options_from_collection_for_select(current_company&.company_contacts, "id", 'full_name'), include_blank: 'Please select',class: 'form-control'
-              #tab-sell-pr.tab-pane.padding-top-15
-                .row
-                  .col-md-6
-                    .form-group
-                      %label.control-label
-                        Payment Terms
-                      .select
-                        = sc.number_field :payment_term , class: "form-control", min: 0, max: 365
-    .contract-fields_wrapper.mt-4
-      .row
-        %label.control-label  Customer Documents
-        .col-md-12.contract-attachment
-          %ul#myTab2.nav.nav-tabs.smaller{style: "border-bottom: 0px;"}
-            %li.nav-item.active.cumstom_nav-tab
-              %a{"data-toggle" => "tab", :href => "#doc-request", class: "nav-link cumstom_nav-tab"}
-                %span.badge.bg-color-blue.txt-color-white
-                Request Decuments
-            %li.nav-item.cumstom_nav-tab
-              %a{"data-toggle" => "tab", :href => "#doc-submit", class: "nav-link cumstom_nav-tab"}
-                %span.badge.bg-color-blue.txt-color-white
-                Submit Decuments
-          .col-md-12.pl-0
-            .tab-content{style: 'border: 1px solid #b6bcbf;'}
-              #doc-request.tab-pane.padding-top-15.active.in
-                .row
-                  .col-md-12
-                    .form-group
-                      %a.btn.btn-sm.btn-secondary.float-right.margin-bottom-10{"data-toggle": "modal", "data-target":"#request_document", style: "color: #fff;"} Create Checklist
-                      .table-responsive
-                        %table#company-request-doc-datatable.table.text-center.table-bordered.table-lg.table-v2.table-striped.data-table-font
-                          %thead
-                            %tr
-                              %th Doc ID
-                              %th Title
-                              %th Signors/Request doc
-                              %th Creator
-                              %th Due Date
-                              %th Status
-                              %th Attachment
-                              %th Action
-                          %tbody
-                            %tr
-                              %td Doc ID
-                              %td Title
-                              %td Signors/Request doc
-                              %td Creator
-                              %td Due Date
-                              %td Status
-                              %td Attachment
-                              %td Action
+                #doc-submit.tab-pane.padding-top-15
+                  .row
+                    .col-md-12
+                      .form-group
+                        %a.btn.btn-sm.btn-secondary.float-right.margin-bottom-10{"data-toggle": "modal", "data-target":"#submit_document", style: "color: #fff;"} Create Checklist
+                        .table-responsive
+                          %table#company-submit-doc-datatable.table.text-center.table-bordered.table-lg.table-v2.table-striped.data-table-font
+                            %thead
+                              %tr
+                                %th Doc ID
+                                %th Title
+                                %th Signors/Request doc
+                                %th Creator
+                                %th Due Date
+                                %th Status
+                                %th Attachment
+                                %th Action
+                            %tbody#submit_doc
 
-              #doc-submit.tab-pane.padding-top-15
-                .row
-                  .col-md-12
-                    .form-group
-                      %a.btn.btn-sm.btn-secondary.float-right.margin-bottom-10{"data-toggle": "modal", "data-target":"#submit_document", style: "color: #fff;"} Create Checklist
-                      .table-responsive
-                        %table#company-submit-doc-datatable.table.text-center.table-bordered.table-lg.table-v2.table-striped.data-table-font
-                          %thead
-                            %tr
-                              %th Doc ID
-                              %th Title
-                              %th Signors/Request doc
-                              %th Creator
-                              %th Due Date
-                              %th Status
-                              %th Attachment
-                              %th Action
-                          %tbody
-                            %tr
-                              %td Doc ID
-                              %td Title
-                              %td Signors/Request doc
-                              %td Creator
-                              %td Due Date
-                              %td Status
-                              %td Attachment
-                              %td Action
-        -#      =sc.fields_for :sell_send_documents do |custom_field|
-        -#        = render 'company/contracts/contract_documents_fields', f: custom_field
-        -#      = link_to_add_association '+ Add Send documents', sc, :sell_send_documents, class: 'bttn text-info pull-left doc-fields', partial: 'company/contracts/contract_documents_fields'
-        -#.col-md-12.contract-attachment
-        -#  .form-group
-        -#    =sc.fields_for :sell_request_documents do |custom_field|
-        -#      = render 'company/contracts/contract_documents_fields', f: custom_field
-        -#    = link_to_add_association '+ Add Request documents', sc, :sell_request_documents, class: 'bttn text-info pull-left doc-fields', partial: 'company/contracts/contract_documents_fields'
-
-    / .row
-    /   .col-md-6
-    /     .form-group
-    /       %label.control-label
-    /       .select
-    /         / = sc.check_box :show_accounting_to_employee
-    /         %span
-    /           Show Accounting term to employee ?
-= render 'company/contracts/request_document_modal', contract: Contract.first
-= render 'company/contracts/submit_document_modal', contract: Contract.first
-- content_for :scripts do
-  :javascript
-     $('.contract-attachment').on('cocoon:after-insert', function(e, insertedItem) {
-        insertedItem.find('.filepicker-attach').each(function(i,e){
-          filepicker.constructWidget(e);
-          $(".filepicker-attach").on('click',function() {
-            $('.fp__overlay').css({'z-index':'99999'})
-          });
-          $('.filepicker-attach').on('click',function() {
-            //$(this).hide();
-           });
+= render 'company/contracts/request_document_modal', contract: @contract
+= render 'company/contracts/submit_document_modal', contract: @contract
+:javascript
+   $('.contract-attachment').on('cocoon:after-insert', function(e, insertedItem) {
+      insertedItem.find('.filepicker-attach').each(function(i,e){
+        filepicker.constructWidget(e);
+        $(".filepicker-attach").on('click',function() {
+          $('.fp__overlay').css({'z-index':'99999'})
         });
+        $('.filepicker-attach').on('click',function() {
+          //$(this).hide();
+         });
+      });
 
-       $(".exp_date").datepicker({
-          dateFormat : 'dd/mm/yy'
-       });
-       set_user_select(".whois_sign:not([class*='added']", "Select User who is sign document");
-       $(".whois_sign:not([class*='added']").addClass('added');
+     $(".exp_date").datepicker({
+        dateFormat : 'dd/mm/yy'
      });
+     set_user_select(".whois_sign:not([class*='added']", "Select User who is sign document");
+     $(".whois_sign:not([class*='added']").addClass('added');
+   });

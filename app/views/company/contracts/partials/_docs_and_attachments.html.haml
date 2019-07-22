@@ -415,90 +415,82 @@
                                 %th Status
                                 %th Attachment
                                 %th Action
-                            %tbody
-                              %tr
-                                %td Doc ID
-                                %td Title
-                                %td Signors/Request doc
-                                %td Creator
-                                %td Due Date
-                                %td Status
-                                %td Attachment
-                                %td Action
-                #buy_emp_req_docs.tab-pane.padding-top-15
-                  .row
-                    .col-md-12
-                      .form-group
-                        %a.btn.btn-sm.btn-secondary.float-right.margin-bottom-10{"data-toggle": "modal", "data-target":"#buy_emp_req_docs", style: "color: #fff;"} Create Checklist
-                        .table-responsive
-                          %table#company--buy_emp_req_docs-datatable.table.text-center.table-bordered.table-lg.table-v2.table-striped.data-table-font
-                            %thead
-                              %tr
-                                %th Doc ID
-                                %th Title
-                                %th Signors/Request doc
-                                %th Creator
-                                %th Due Date
-                                %th Status
-                                %th Attachment
-                                %th Action
-                            %tbody
-                              %tr
-                                %td Doc ID
-                                %td Title
-                                %td Signors/Request doc
-                                %td Creator
-                                %td Due Date
-                                %td Status
-                                %td Attachment
-                                %td Action
-                #buy_ven_req_docs.tab-pane.padding-top-15
-                  .row
-                    .col-md-12
-                      .form-group
-                        %a.btn.btn-sm.btn-secondary.float-right.margin-bottom-10{"data-toggle": "modal", "data-target":"#buy_ven_req_docs", style: "color: #fff;"} Create Checklist
-                        .table-responsive
-                          %table#company-buy_ven_req_docs-doc-datatable.table.text-center.table-bordered.table-lg.table-v2.table-striped.data-table-font
-                            %thead
-                              %tr
-                                %th Doc ID
-                                %th Title
-                                %th Signors/Request doc
-                                %th Creator
-                                %th Due Date
-                                %th Status
-                                %th Attachment
-                                %th Action
-                            %tbody
-                              %tr
-                                %td Doc ID
-                                %td Title
-                                %td Signors/Request doc
-                                %td Creator
-                                %td Due Date
-                                %td Status
-                                %td Attachment
-                                %td Action
-                = render 'company/contracts/buy_send_documents_modal', contract: @contract, sc: bc
-                = render 'company/contracts/buy_emp_req_docs_modal', contract: @contract, sc: bc
-                -#= render 'company/contracts/partials/buy_ven_req_docs_modal', contract: @contract, sc: bc
-        -#.row
-        -#  %label.control-label  Employye/Vender Documents
-        -#  .col-md-12.contract-attachment
-        -#    .form-group
-        -#      =bc.fields_for :buy_send_documents do |custom_field|
-        -#        = render 'company/contracts/contract_documents_fields', f: custom_field
-        -#      = link_to_add_association '+ Add Send documents', bc, :buy_send_documents, class: 'bttn text-info pull-left', partial: 'company/contracts/contract_documents_fields'
-        -#  .col-md-12.contract-attachment
-        -#    .form-group
-        -#      =bc.fields_for :buy_emp_req_docs do |custom_field|
-        -#        = render 'company/contracts/contract_documents_fields', f: custom_field
-        -#      = link_to_add_association '+ Add Employee Request documents', bc, :buy_emp_req_docs, class: 'bttn text-info pull-left', partial: 'company/contracts/contract_documents_fields'
-        -#  .col-md-12.contract-attachment
-        -#    .form-group
-        -#      =bc.fields_for :buy_ven_req_docs do |custom_field|
-        -#        = render 'company/contracts/contract_documents_fields', f: custom_field
-        -#      = link_to_add_association '+ Add Vender Request documents', bc, :buy_ven_req_docs, class: 'bttn text-info pull-left', partial: 'company/contracts/contract_documents_fields'
+                            %tbody#buy_send_doc_table
+                -##buy_emp_req_docs.tab-pane.padding-top-15
+                -#  .row
+                -#    .col-md-12
+                -#      .form-group
+                -#        %a.btn.btn-sm.btn-secondary.float-right.margin-bottom-10{"data-toggle": "modal", "data-target":"#buy_emp_req_docs", style: "color: #fff;"} Create Checklist
+                -#        .table-responsive
+                -#          %table#company--buy_emp_req_docs-datatable.table.text-center.table-bordered.table-lg.table-v2.table-striped.data-table-font
+                -#            %thead
+                -#              %tr
+                -#                %th Doc ID
+                -#                %th Title
+                -#                %th Signors/Request doc
+                -#                %th Creator
+                -#                %th Due Date
+                -#                %th Status
+                -#                %th Attachment
+                -#                %th Action
+                -#            %tbody
+                -#              %tr
+                -#                %td Doc ID
+                -#                %td Title
+                -#                %td Signors/Request doc
+                -#                %td Creator
+                -#                %td Due Date
+                -#                %td Status
+                -#                %td Attachment
+                -#                %td Action
+                -##buy_ven_req_docs.tab-pane.padding-top-15
+                -#  .row
+                -#    .col-md-12
+                -#      .form-group
+                -#        %a.btn.btn-sm.btn-secondary.float-right.margin-bottom-10{"data-toggle": "modal", "data-target":"#buy_ven_req_docs", style: "color: #fff;"} Create Checklist
+                -#        .table-responsive
+                -#          %table#company-buy_ven_req_docs-doc-datatable.table.text-center.table-bordered.table-lg.table-v2.table-striped.data-table-font
+                -#            %thead
+                -#              %tr
+                -#                %th Doc ID
+                -#                %th Title
+                -#                %th Signors/Request doc
+                -#                %th Creator
+                -#                %th Due Date
+                -#                %th Status
+                -#                %th Attachment
+                -#                %th Action
+                -#            %tbody
+                -#              %tr
+                -#                %td Doc ID
+                -#                %td Title
+                -#                %td Signors/Request doc
+                -#                %td Creator
+                -#                %td Due Date
+                -#                %td Status
+                -#                %td Attachment
+                -#                %td Action
+
+= render 'company/contracts/buy_send_documents_modal', contract: @contract
+= render 'company/contracts/buy_emp_req_docs_modal', contract: @contract
+= render 'company/contracts/partials/buy_ven_req_docs_modal', contract: @contract
+-#.row
+-#  %label.control-label  Employye/Vender Documents
+-#  .col-md-12.contract-attachment
+-#    .form-group
+-#      =bc.fields_for :buy_send_documents do |custom_field|
+-#        = render 'company/contracts/contract_documents_fields', f: custom_field
+-#      = link_to_add_association '+ Add Send documents', bc, :buy_send_documents, class: 'bttn text-info pull-left', partial: 'company/contracts/contract_documents_fields'
+-#  .col-md-12.contract-attachment
+-#    .form-group
+-#      =bc.fields_for :buy_emp_req_docs do |custom_field|
+-#        = render 'company/contracts/contract_documents_fields', f: custom_field
+-#      = link_to_add_association '+ Add Employee Request documents', bc, :buy_emp_req_docs, class: 'bttn text-info pull-left', partial: 'company/contracts/contract_documents_fields'
+-#  .col-md-12.contract-attachment
+-#    .form-group
+-#      =bc.fields_for :buy_ven_req_docs do |custom_field|
+-#        = render 'company/contracts/contract_documents_fields', f: custom_field
+-#      = link_to_add_association '+ Add Vender Request documents', bc, :buy_ven_req_docs, class: 'bttn text-info pull-left', partial: 'company/contracts/contract_documents_fields'
 
 - content_for :scripts do
   :javascript

@@ -1,0 +1,9 @@
+<% if flash[:errors].present? %>
+<% flash[:errors].each do |e| %>
+flash_error("<%= e %>");
+<% end %>
+<% end %>
+<% unless @sell_request.errors.present? %>
+$('#request_doc').html("<%= j render 'company/contracts/request_document_table' , sell_request: @sell_request%>");
+$('#request_document').modal('hide')
+<% end %>

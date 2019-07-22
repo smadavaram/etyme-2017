@@ -533,7 +533,12 @@ Rails.application.routes.draw do
         get :salary_settlement
         get :salary_process
         get :set_commission_user
-        get :create_document_request
+        get :create_contract
+        post :create_document_request
+        post :submit_document_create
+        post :buy_document_create
+        post :buy_emp_doc_create
+        post :buy_ven_doc_create
       end
       member do
         get :download

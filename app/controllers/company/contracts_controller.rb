@@ -7,6 +7,8 @@ class Company::ContractsController < Company::BaseController
   before_action :find_attachable_doc, only: [:update_attachable_doc]
   before_action :authorize_user_for_new_contract, only: :new
   before_action :authorize_user_for_edit_contract, only: :edit
+  before_action :get_sell_contract, only: [:submit_document_create, :create_document_request]
+  before_action :get_buy_contract, only: [:buy_document_create, :buy_emp_doc_create, :buy_ven_doc_create ]
   before_action :authorized_user, only: :show
   before_action :main_authorized_user, only: :show
 
@@ -51,7 +53,69 @@ class Company::ContractsController < Company::BaseController
     @company.build_invited_by
   end
 
+  def buy_document_create
+    if @buy_contract.present?
+      @buy_send_document = @buy_contract.buy_send_documents.build(buy_document_params)
+      respond_to do |format|
+        if @buy_send_document.save
+          format.js {
+            flash.now[:success] = 'Request Document is created for the contract'
+            render 'buy_document_create.js'
+          }
+        else
+          format.js {
+            flash[:errors] = @buy_send_document.errors.full_messages
+            render 'buy_document_create.js'
+          }
+        end
+      end
+    end
+  end
+
+  def buy_emp_doc_create
+
+  end
+
+  def buy_ven_doc_create
+
+  end
+
+  def submit_document_create
+    if @sell_contract.present?
+      @sell_document = @sell_contract.sell_send_documents.build(send_document_params)
+      respond_to do |format|
+        if @sell_document.save
+          format.js {
+            flash.now[:success] = 'Request Document is created for the contract'
+            render 'submit_document_create.js'
+          }
+        else
+          format.js {
+            flash[:errors] = @sell_document.errors.full_messages
+            render 'submit_document_create.js'
+          }
+        end
+      end
+    end
+  end
+
   def create_document_request
+    if @sell_contract.present?
+      @sell_request = @sell_contract.sell_request_documents.build(sell_request_params)
+      respond_to do |format|
+        if @sell_request.save
+          format.js {
+            flash.now[:success] = 'Request Document is created for the contract'
+            render 'create_document_request.js'
+          }
+        else
+          format.js {
+            flash[:errors] = @sell_request.errors.full_messages
+            render 'create_document_request.js'
+          }
+        end
+      end
+    end
   end
 
   def edit
@@ -286,6 +350,22 @@ class Company::ContractsController < Company::BaseController
     @sent_contracts = @sent_search.result.paginate(page: params[:page], per_page: 30) || []
   end
 
+
+  def sell_request_params
+    params.require(:document).permit(:id, :doc_file, :request, :file_name, :file_size, :file_type, :when_expire, :is_sign_required, :creatable_type,
+                                         :creatable_id)
+  end
+
+  def send_document_params
+    params.require(:document).permit(:id, :doc_file, :request, :file_name, :file_size, :file_type, :when_expire, :is_sign_required, :creatable_type,
+                                         :creatable_id)
+  end
+
+  def buy_document_params
+    params.require(:document).permit(:id, :doc_file, :request, :file_name, :file_size, :file_type, :when_expire, :is_sign_required, :creatable_type,
+                                     :creatable_id)
+  end
+
   def contract_params
     params.require(:contract).permit(
         [:job_id, :client_id, :candidate_id, :is_commission, :contract_type, :client_name, :client_name,
@@ -321,7 +401,7 @@ class Company::ContractsController < Company::BaseController
                                                   :id, :signable_type, :signable_id, :_destroy
                                               ]
              ],
-             sell_request_documents_attributes: [:id, :doc_file, :file_name, :file_size, :file_type, :when_expire, :is_sign_required, :creatable_type,
+             sell_request_documents_attributes: [:id, :doc_file, :request, :file_name, :file_size, :file_type, :when_expire, :is_sign_required, :creatable_type,
                                                  :creatable_id, :_destroy,
                                                  document_signs_attributes: [:id, :signable_type, :signable_id, :_destroy]]
          ],
@@ -396,6 +476,14 @@ class Company::ContractsController < Company::BaseController
     else
       contract_params.merge!(respond_by_id: current_user.id, created_by_id: current_user.id)
     end
+  end
+
+  def get_buy_contract
+    @buy_contract = BuyContract.find_by(id: params[:document][:buy_contract_id])
+  end
+
+  def get_sell_contract
+    @sell_contract = SellContract.find_by(id: params[:document][:sell_contract_id])
   end
 
   def create_contract_activity key, params
