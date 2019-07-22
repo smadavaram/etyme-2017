@@ -3,7 +3,7 @@
     .modal-content
       .modal-header
         %h2#myModalLabel.modal-title
-          %strong Request Document
+          %strong Buy Employee Request Document
         %button.close{"aria-hidden" => "true", "data-dismiss" => "modal", :type => "button"}
         ×
       .modal-body
@@ -62,8 +62,6 @@
           $(this).siblings( ".doc-file-size" ).val(size);
           $(this).siblings( ".doc-file-type" ).val(type);
         });
-        $(".exp_date_emp_buy").datepicker({
-          dateFormat : 'dd/mm/yy'
-          });
       });
+   $(".exp_date_emp_buy").datepicker({dateFormat : 'dd/mm/yy'});
 

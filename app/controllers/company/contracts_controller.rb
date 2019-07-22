@@ -59,7 +59,7 @@ class Company::ContractsController < Company::BaseController
       respond_to do |format|
         if @buy_send_document.save
           format.js {
-            flash.now[:success] = 'Request Document is created for the contract'
+            flash.now[:success] = 'Document is created for the contract'
             render 'buy_document_create.js'
           }
         else
@@ -78,7 +78,7 @@ class Company::ContractsController < Company::BaseController
       respond_to do |format|
         if @buy_emp_send_document.save
           format.js {
-            flash.now[:success] = 'Request Document is created for the contract'
+            flash.now[:success] = 'Document is created for the contract'
             render 'buy_emp_doc_create.js'
           }
         else
@@ -97,7 +97,7 @@ class Company::ContractsController < Company::BaseController
       respond_to do |format|
         if @buy_ven_send_document.save
           format.js {
-            flash.now[:success] = 'Request Document is created for the contract'
+            flash.now[:success] = 'Document is created for the contract'
             render 'buy_ven_doc_create.js'
           }
         else
@@ -116,7 +116,7 @@ class Company::ContractsController < Company::BaseController
       respond_to do |format|
         if @sell_document.save
           format.js {
-            flash.now[:success] = 'Request Document is created for the contract'
+            flash.now[:success] = 'Document is created for the contract'
             render 'submit_document_create.js'
           }
         else
@@ -135,7 +135,7 @@ class Company::ContractsController < Company::BaseController
       respond_to do |format|
         if @sell_request.save
           format.js {
-            flash.now[:success] = 'Request Document is created for the contract'
+            flash.now[:success] = 'Request is created for the contract'
             render 'create_document_request.js'
           }
         else

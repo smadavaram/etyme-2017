@@ -3,6 +3,9 @@
 flash_error("<%= e %>");
 <% end %>
 <% end %>
+<% if flash[:success].present? %>
+flash_success("<%= flash[:success] %>");
+<% end %>
 <% unless @sell_document.errors.present? %>
 $('#submit_doc').html("<%= j render 'company/contracts/submit_document_table' , sell_request: @sell_document%>");
 $('#submit_document').modal('hide')
