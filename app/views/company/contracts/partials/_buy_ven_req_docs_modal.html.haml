@@ -8,7 +8,7 @@
         ×
       .modal-body
         = form_for(BuyVenReqDoc.new, as: :document, url: buy_ven_doc_create_contracts_path, remote: true) do |vrd|
-          =vrd.hidden_field :buy_contract_id, value: @contract.buy_contracts&.first.id
+          =vrd.hidden_field :buy_contract_id, value: @contract.buy_contract.id
           %fieldset
             .form-row
               .col-3

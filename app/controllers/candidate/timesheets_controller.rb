@@ -47,8 +47,8 @@ class Candidate::TimesheetsController < Candidate::BaseController
     contract = Contract.where(id: params[:timesheet][:contract_id]).first
     if contract.present?
       if check_valid_dates(contract, params[:timesheet][:start_date], params[:timesheet][:end_date])
-        if contract.buy_contracts.first.candidate_id == current_candidate.id
-          buy_contract = contract.buy_contracts.first
+        if contract.buy_contract.candidate_id == current_candidate.id
+          buy_contract = contract.buy_contract
           if buy_contract.first_date_of_timesheet <= Time.now
             @timesheet = current_candidate.timesheets.new(timesheet_params)
             @timesheet.days = params[:timesheet][:days]

@@ -33,8 +33,8 @@ class ExpenseAccount < ApplicationRecord
             builder.transfer(
               flavor_id: 'usd',
               amount: self.payment.to_i,
-              source_account_id: 'cust_'+self.expense.contract.sell_contracts.first.company_id.to_s+'_treasury',
-              destination_account_id: 'cust_'+self.expense.contract.sell_contracts.first.company_id.to_s+'_expense',
+              source_account_id: 'cust_'+self.expense.contract.sell_contract.company_id.to_s+'_treasury',
+              destination_account_id: 'cust_'+self.expense.contract.sell_contract.company_id.to_s+'_expense',
               action_tags: {
                 type: 'expense bill payment',
                 expense_type: self.expense_type.name,
@@ -50,7 +50,7 @@ class ExpenseAccount < ApplicationRecord
             builder.transfer(
               flavor_id: 'usd',
               amount: self.payment.to_i,
-              source_account_id: 'cust_'+self.expense.contract.sell_contracts.first.company_id.to_s+'_treasury',
+              source_account_id: 'cust_'+self.expense.contract.sell_contract.company_id.to_s+'_treasury',
               destination_account_id: 'cons_'+self.expense.contract.candidate_id.to_s+'_expense',
               action_tags: {
                 type: 'expense bill payment',

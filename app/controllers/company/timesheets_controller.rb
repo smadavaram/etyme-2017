@@ -194,9 +194,9 @@ class Company::TimesheetsController < Company::BaseController
         max_date = timesheets.maximum(:end_date)
 
         invoice = Invoice.new(contract_id: timesheet.contract_id, start_date: min_date, end_date: max_date,
-                              total_amount: (timesheets.pluck(:total_time).sum * (timesheet.contract.buy_contracts.first.payrate)),
+                              total_amount: (timesheets.pluck(:total_time).sum * (timesheet.contract.buy_contract.payrate)),
                               total_approve_time: timesheets.pluck(:total_time).sum, submitted_on: Time.now,
-                              rate: timesheet.contract.buy_contracts.first.payrate
+                              rate: timesheet.contract.buy_contract.payrate
         )
         if invoice.save
           timesheets.update_all(invoice_id: invoice.id)

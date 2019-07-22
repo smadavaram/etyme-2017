@@ -25,7 +25,7 @@ class Company::InvoicesController < Company::BaseController
 
       total_amount = 0
       total_approve_time = 0
-      payrate = inv.contract.buy_contracts.first.payrate
+      payrate = inv.contract.buy_contract.payrate
 
       timesheets.each do |t|
         t.days.each_key do |k|
@@ -181,7 +181,7 @@ class Company::InvoicesController < Company::BaseController
 
     total_amount = 0
     total_approve_time = 0
-    payrate = inv.contract.buy_contracts.first.payrate
+    payrate = inv.contract.buy_contract.payrate
 
     timesheets.each do |t|
       t.days.each_key do |k|

@@ -208,10 +208,10 @@ class Salary < ApplicationRecord
         credential: 'OUUY4ZFYQO4P3YNC5JC3GMY7ZQJCSNTH'
     )
 
-    if self.contract.buy_contracts.first.contract_type == 'C2C'
-      receiver = 'vendor_'+self.contract.buy_contracts.first.company_id.to_s
-      receiver_advance = 'vendor_'+self.contract.buy_contracts.first.company_id.to_s+'_advance'
-      receiver_settlement = 'vendor_'+self.contract.buy_contracts.first.company_id.to_s+'_settlement'
+    if self.contract.buy_contract.contract_type == 'C2C'
+      receiver = 'vendor_'+self.contract.buy_contract.company_id.to_s
+      receiver_advance = 'vendor_'+self.contract.buy_contract.company_id.to_s+'_advance'
+      receiver_settlement = 'vendor_'+self.contract.buy_contract.company_id.to_s+'_settlement'
     elsif
       receiver = 'cons_'+self.candidate_id.to_s
       receiver_advance = 'cons_'+self.candidate_id.to_s+'_advance'
@@ -254,12 +254,12 @@ class Salary < ApplicationRecord
       ledger_name: 'company-dev',
       credential: 'OUUY4ZFYQO4P3YNC5JC3GMY7ZQJCSNTH'
     )
-    if self.contract.buy_contracts.first.contract_type == 'C2C'
-      source = "vendor_#{self.contract.buy_contracts.first.company_id}_settlement"
-      destination = "vendor_#{self.contract.buy_contracts.first.company_id}_process"
+    if self.contract.buy_contract.contract_type == 'C2C'
+      source = "vendor_#{self.contract.buy_contract.company_id}_settlement"
+      destination = "vendor_#{self.contract.buy_contract.company_id}_process"
     else
-      source = "cons_#{self.contract.buy_contracts.first.candidate.id}_settlement"
-      destination = "cons_#{self.contract.buy_contracts.first.candidate.id}_process"
+      source = "cons_#{self.contract.buy_contract.candidate.id}_settlement"
+      destination = "cons_#{self.contract.buy_contract.candidate.id}_process"
     end
     # self.contract.set_on_seq
     if self.total_amount > 0
@@ -273,7 +273,7 @@ class Salary < ApplicationRecord
               type: 'transfer',
               contract: self.contract_id,
               salary_id: self.id,
-              "TransactionType" => self.contract.buy_contracts.first.contract_type
+              "TransactionType" => self.contract.buy_contract.contract_type
             }
         )         
         # builder.retire(
