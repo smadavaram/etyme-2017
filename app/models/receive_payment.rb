@@ -22,8 +22,8 @@ class ReceivePayment < ApplicationRecord
       builder.transfer(
           flavor_id: 'tym',
           amount: (self.amount_received.to_i * 100).to_i,
-          destination_account_id: "#{self.invoice.contract.sell_contracts.first.company.slug.to_s + self.invoice.contract.sell_contracts.first.company.id.to_s}_q",
-          source_account_id: "#{self.invoice.contract.buy_contracts.first.candidate.full_name.parameterize + self.invoice.contract.buy_contracts.first.candidate.id.to_s}_exp",
+          destination_account_id: "#{self.invoice.contract.sell_contract.company.slug.to_s + self.invoice.contract.sell_contract.company.id.to_s}_q",
+          source_account_id: "#{self.invoice.contract.buy_contract.candidate.full_name.parameterize + self.invoice.contract.buy_contract.candidate.id.to_s}_exp",
           action_tags: {
               "Fixed" => "false",
               "Status" => "Clear",
@@ -35,7 +35,7 @@ class ReceivePayment < ApplicationRecord
               "CycleFrom" => self.invoice.start_date.strftime("%m/%d/%Y"),
               "CycleTo" => self.invoice.end_date.strftime("%m/%d/%Y"),
               "Documentdate" => Time.now.strftime("%m/%d/%Y"),
-              "TransactionType" => self.invoice.contract.buy_contracts.first.contract_type == "C2C" ? "C2C" : "W2"
+              "TransactionType" => self.invoice.contract.buy_contract.contract_type == "C2C" ? "C2C" : "W2"
           },
       )
     end

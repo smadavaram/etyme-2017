@@ -7,13 +7,13 @@
         %ul
           %li.branch
             %i.indicator.glyphicon.glyphicon-folder-open>
-            sell #{@contract.sell_contracts.first.number if @contract.sell_contracts}
+            sell #{@contract.sell_contract.number if @contract.sell_contract}
             %ul
               %li.last-node{"data-openhref" => "#sell_req_doc"} Request documents
               %li.last-node{"data-openhref" => "#sell_send_doc"} Send documents
           %li.branch
             %i.indicator.glyphicon.glyphicon-folder-open>
-            Buy #{@contract.buy_contracts.first.number if @contract.buy_contracts}
+            Buy #{@contract.buy_contract.number if @contract.buy_contracts}
             %ul
               %li.last-node{"data-openhref" => "#buy_send_doc"} Send documents
               %li.last-node{"data-openhref" => "#buy_emp_req_doc"} Request employee documents
@@ -69,7 +69,7 @@
               %th Documents
               %th Owner
               %th Need signature of
-            -@contract.sell_contracts.first.sell_request_documents.each do |srd|
+            -@contract.sell_contract.sell_request_documents.each do |srd|
               %tr
                 %td
                   =link_to srd.file_name, srd.doc_file, target: "_blank"
@@ -88,7 +88,7 @@
               %th Documents
               %th Owner
               %th Need signature of
-            -@contract.sell_contracts.first.sell_send_documents.each do |ssd|
+            -@contract.sell_contract.sell_send_documents.each do |ssd|
               %tr
                 %td
                   =link_to ssd.file_name, ssd.doc_file, target: "_blank"
@@ -107,7 +107,7 @@
               %th Documents
               %th Owner
               %th Need signature of
-            -@contract.buy_contracts.first.buy_send_documents.each do |bsd|
+            -@contract.buy_contract.buy_send_documents.each do |bsd|
               %tr
                 %td
                   =link_to bsd.file_name, bsd.doc_file, target: "_blank"
@@ -126,7 +126,7 @@
               %th Documents
               %th Owner
               %th Need signature of
-            -@contract.buy_contracts.first.buy_emp_req_docs.each do |berd|
+            -@contract.buy_contract.buy_emp_req_docs.each do |berd|
               %tr
                 %td
                   =link_to berd.file_name, berd.doc_file, target: "_blank"
@@ -145,7 +145,7 @@
               %th Documents
               %th Owner
               %th Need signature of
-            -@contract.buy_contracts.first.buy_ven_req_docs.each do |bvrd|
+            -@contract.buy_contract.buy_ven_req_docs.each do |bvrd|
               %tr
                 %td
                   =link_to bvrd.file_name, bvrd.doc_file, target: "_blank"

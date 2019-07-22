@@ -6,7 +6,6 @@ flash_error("<%= e %>");
 <% if flash[:success].present? %>
 flash_success("<%= flash[:success] %>");
 <% end %>
-console.log("hello========================== <%= @tab_number %>")
 $('.new_contract').remove();
 <% if @tab_number == 2 %>
 $('.tab-pane.active').html("<%= j render 'company/contracts/partials/contract_and_docs' , contract: @contract %>");
@@ -17,10 +16,11 @@ $('.tab-pane.active').html("<%= j render 'company/contracts/partials/docs_and_at
 <% if @tab_number == 4 %>
 $('.tab-pane.active').html("<%= j render 'company/contracts/partials/show_contract' , contract: @contract %>");
 <% end %>
-
-
+window.history.pushState('newTab', 'contract partial', '?contract_id=<%= @contract.id %>');
+$('.previous').find('a').attr('href',"<%= new_contract_path(contract_id: @contract.id) %>")
 
 $(document).ready(function () {
+    addeventatc.refresh();
     set_client_company_select('#select_clients', "Please Select Or Add new Client");
     set_job_candidate_select('#select_candidates', "Please Select Or Add new Candidate");
     set_company_select('#sell_contract_company', "Please Select Or Add new Company");

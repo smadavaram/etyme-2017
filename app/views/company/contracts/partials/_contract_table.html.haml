@@ -33,25 +33,25 @@
                   %td= link_to contract.created_by.full_name , '#'
                   %td= (contract.start_date)
                   %td
-                    = link_to contract.sell_contracts.first.try(:number), company_sell_contract_path(contract.sell_contracts.first.try(:number))
+                    = link_to contract.sell_contract.try(:number), company_sell_contract_path(contract.sell_contract.try(:number))
                     %br
-                    =contract.sell_contracts.first.try(:customer_rate)
+                    =contract.sell_contract.try(:customer_rate)
                     %br
-                    =contract.sell_contracts.first.try(:time_sheet)
+                    =contract.sell_contract.try(:time_sheet)
                     %br
-                    =contract.sell_contracts.first.try(:invoice_terms_period)
+                    =contract.sell_contract.try(:invoice_terms_period)
                     %br
-                    =contract.sell_contracts.first.try(:show_accounting_to_employee)
+                    =contract.sell_contract.try(:show_accounting_to_employee)
                   %td
-                    = link_to contract.buy_contracts.first.try(:number), company_buy_contract_path(contract.buy_contracts.first.try(:number))
+                    = link_to contract.buy_contract.try(:number), company_buy_contract_path(contract.buy_contract.try(:number))
                     %br
-                    =contract.buy_contracts.first.try(:contract_type)
+                    =contract.buy_contract.try(:contract_type)
                     %br
-                    =contract.buy_contracts.first.try(:payrate)
+                    =contract.buy_contract.try(:payrate)
                     %br
-                    =contract.buy_contracts.first.try(:time_sheet)
+                    =contract.buy_contract.try(:time_sheet)
                     %br
-                    =contract.buy_contracts.first.try(:payment_term)
+                    =contract.buy_contract.try(:payment_term)
                   %td
                     = label_status_color(contract.status)
                   %td not know

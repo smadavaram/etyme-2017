@@ -21,7 +21,7 @@ class Company::ContractsController < Company::BaseController
   def index
     @contract_activity = PublicActivity::Activity.where(trackable: current_company.contracts).order('created_at DESC').paginate(page: params[:page], per_page: 15)
     @buy_contracts = Contract.joins(:buy_contracts).where(buy_contracts: {candidate_id: current_company.id}).order('created_at DESC').paginate(page: params[:page], per_page: 15)
-    @sell_contracts = Contract.joins(:sell_contracts).where(sell_contracts: {company_id: current_company.id}).order('created_at DESC').paginate(page: params[:page], per_page: 15)
+    @sell_contracts = Contract.joins(:sell_contract).where(sell_contract: {company_id: current_company.id}).order('created_at DESC').paginate(page: params[:page], per_page: 15)
   end
 
   def show
@@ -35,12 +35,15 @@ class Company::ContractsController < Company::BaseController
   end
 
   def new
-    @contract = current_company.sent_contracts.new
-    @contract.contract_terms.new
-    @contract.sell_contracts.build
-    @contract.buy_contracts.build
-    # @contract.contract_sale_commisions.build
-
+    unless params[:contract_id].present?
+      @contract = current_company.sent_contracts.new
+      @contract.contract_terms.new
+      @contract.build_sell_contract
+      @contract.build_buy_contract
+      # @contract.contract_sale_commisions.build
+    else
+      find_contract
+    end
     @company = Company.new
     @candidate = Candidate.new
     @job = current_company.jobs.new
@@ -59,21 +62,22 @@ class Company::ContractsController < Company::BaseController
     @tab_number = params[:tab].to_i
     respond_to do |format|
       if @contract.update(contract_params)
-        format.html{
+        format.html {
           create_contract_activity('contract.update', contract_params)
+          after_create_callbacks if @contract.pending?
           flash[:success] = "#{@contract.title.titleize} updated successfully"
           edirect_back fallback_location: root_path
         }
-        format.js{
+        format.js {
           flash.now[:success] = 'Contract Updated Successfully'
           render 'create.js'
         }
       else
-        format.html{
+        format.html {
           flash[:errors] = @contract.errors.full_messages
           edirect_back fallback_location: root_path
         }
-        format.js{
+        format.js {
           @tab_number = 2
           flash[:errors] = @contract.errors.full_messages
           render 'create.js'
@@ -86,6 +90,7 @@ class Company::ContractsController < Company::BaseController
     params[:contract][:company_id] = current_company.id
     @contract = current_company.sent_contracts.new(create_contract_params)
     @tab_number = params[:tab].to_i
+    @contract.status = :draft
     respond_to do |format|
       if @contract.save
         create_contract_activity('contract.create', create_contract_params)
@@ -175,8 +180,8 @@ class Company::ContractsController < Company::BaseController
   def received_contract
     contract = Contract.find(params[:id])
     @contract = contract.dup
-    @contract.sell_contracts = contract.sell_contracts
-    @contract.buy_contracts = contract.buy_contracts
+    @contract.sell_contracts = contract.sell_contract
+    @contract.buy_contracts = contract.buy_contract
 
     @company = Company.new
     @candidate = Candidate.new
@@ -209,7 +214,7 @@ class Company::ContractsController < Company::BaseController
   end
 
   def filter_timeline
-    @contract_cycles = current_company.contract_cycles.includes(:ts_submitteds, :candidate, contract: [:sell_contracts, :buy_contracts, :company]).where(nil)
+    @contract_cycles = current_company.contract_cycles.includes(:ts_submitteds, :candidate, contract: [:sell_contract, :buy_contract, :company]).where(nil)
     filtering_params(params).each do |key, value|
       @contract_cycles = @contract_cycles.public_send(key, value) if value.present?
     end
@@ -259,7 +264,7 @@ class Company::ContractsController < Company::BaseController
 
 
   def find_contract
-    @contract = Contract.includes(:sell_contracts, :buy_contracts).find(params[:id] || params[:contract_id]) #  , current_company).first || []
+    @contract = Contract.includes(:sell_contract, :buy_contract).find(params[:id] || params[:contract_id]) #  , current_company).first || []
   end
 
   def find_attachable_doc
@@ -291,7 +296,7 @@ class Company::ContractsController < Company::BaseController
          :contractable_type, :job_application_id, :parent_contract_id, :start_date,
          :payment_term, :b_time_sheet, :payrate, :contract_type, :end_date,
          :message_from_hiring, :status, :company_id, company_doc_ids: [],
-         sell_contracts_attributes: [
+         sell_contract_attributes: [
              :expected_hour,
              :id,
              :is_performance_review, :performance_review, :pr_day_time, :pr_date_1, :pr_date_2, :pr_day_of_week, :pr_end_of_month,
@@ -320,7 +325,7 @@ class Company::ContractsController < Company::BaseController
                                                  :creatable_id, :_destroy,
                                                  document_signs_attributes: [:id, :signable_type, :signable_id, :_destroy]]
          ],
-         buy_contracts_attributes: [
+         buy_contract_attributes: [
              :id,
              :vendor_bill, :vb_day_time, :vb_date_1, :vb_date_2, :vb_day_of_week, :vb_end_of_month,
 

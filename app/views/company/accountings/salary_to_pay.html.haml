@@ -65,10 +65,10 @@
                             %br
                             = "-"+salary.contract.client.full_name[0..10]
                             %br
-                            = "-"+salary.contract.buy_contracts.first.contract_type
+                            = "-"+salary.contract.buy_contract.contract_type
                             %br
-                            = "-"+salary.contract.buy_contracts.first.candidate.full_name[0..10]
-                          %td= salary.contract.sell_contracts.first.company.full_name
+                            = "-"+salary.contract.buy_contract.candidate.full_name[0..10]
+                          %td= salary.contract.sell_contract.company.full_name
                           %td= salary.start_date.to_s + " - " + salary.end_date.to_s
                           %td= salary.total_approve_time
                           %td= salary.rate

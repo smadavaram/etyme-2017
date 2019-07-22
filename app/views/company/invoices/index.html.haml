@@ -604,10 +604,10 @@
                             %br
                             = "-"+invoice.contract.client.full_name[0..10]
                             %br
-                            = "-"+invoice.contract.buy_contracts.first.contract_type
+                            = "-"+invoice.contract.buy_contract.contract_type
                             %br
-                            = "-"+invoice.contract.buy_contracts.first.candidate.full_name[0..10]
-                          %td= invoice.contract.sell_contracts.first.company.full_name
+                            = "-"+invoice.contract.buy_contract.candidate.full_name[0..10]
+                          %td= invoice.contract.sell_contract.company.full_name
                           %td= invoice.start_date.to_s + " - " + invoice.end_date.to_s
                           %td= invoice.total_approve_time
                           %td= invoice.rate

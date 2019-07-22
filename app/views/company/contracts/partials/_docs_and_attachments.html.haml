@@ -1,31 +1,48 @@
 = form_for  @contract , remote: true, method: :put, html: {id: 'wizard-1' , class: 'form-horizontal new_contract', style: "width: 100%;", novalidate: "novalidate" } do |f|
   =f.hidden_field :contractable_type , value: "Company"
-  =f.hidden_field :status, value: "draft"
+  =f.hidden_field :status, value: "pending"
   =hidden_field_tag :tab, "4"
   - if params.has_key?('id')
     =f.hidden_field :parent_contract_id , value: params[:id]
   %fieldset
-    =f.fields_for :buy_contracts do |bc|
+    =f.fields_for :buy_contract do |bc|
       = bc.hidden_field :id
       .contract-fields_wrapper.mt-4
+        - if @contract.buy_contract.company.present?
+          .row
+            .col-md-12
+              .form-group
+                %h3.control-label.pull-right.text-muted
+                  = @contract.buy_contract.number
         .row
           .col-md-6
             .form-group
               %label.control-label  Consultant
-              = bc.text_field :candidate_id, required: false, readonly: false,placeholder: "Please Select or Add new Candidate"
+              .contract-fild
+                = text_field_tag :consultant_name, @contract.candidate.full_name.capitalize, disabled: "disabled"
           .col-md-6
-            .row.c2c-type.hidden
-              .col-md-12
-                .form-group
-                  %label.control-label  Add Vendor Company
-                  .contract-fild
-                    .plain-select
-                      = bc.select :company_id, {}, {}, id: "buy_contract_company"
-                .form-group.company_contacts
-                  -bc.object.contract_buy_business_details.build
-                  =bc.fields_for :contract_buy_business_details do |csbd|
-                    = link_to_add_fields 'available_tour_fields', bc, :contract_buy_business_details, {partial: 'company/contracts/contract_sell_business_details_fields'}, {class: 'link-company-contacts hidden'}
-                  = select_tag 'contract[job_1_id]', nil, id: "select_buy_company_contacts", class: "form-control select_company_contacts"
+            .form-group
+              - if @contract.buy_contract.company.present?
+                %label.control-label  Employer
+                .contract-fild
+                  = text_field_tag :employeer_name, @contract.buy_contract.company.name.capitalize, disabled: "disabled"
+              - else
+                %h3.control-label.pull-right.text-muted
+                  = @contract.buy_contract.number
+
+            -#.col-md-6
+            -#.row.c2c-type.hidden
+            -#  .col-md-12
+            -#    .form-group
+            -#      %label.control-label  Add Vendor Company
+            -#      .contract-fild
+            -#        .plain-select
+            -#          = bc.select :company_id, {}, {}, id: "buy_contract_company"
+            -#    .form-group.company_contacts
+            -#      -bc.object.contract_buy_business_details.build
+            -#      =bc.fields_for :contract_buy_business_details do |csbd|
+            -#        = link_to_add_fields 'available_tour_fields', bc, :contract_buy_business_details, {partial: 'company/contracts/contract_sell_business_details_fields'}, {class: 'link-company-contacts hidden'}
+            -#      = select_tag 'contract[job_1_id]', nil, id: "select_buy_company_contacts", class: "form-control select_company_contacts"
 
       -#.row
       -#  .col-md-8

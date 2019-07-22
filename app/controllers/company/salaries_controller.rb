@@ -25,8 +25,8 @@ class Company::SalariesController < Company::BaseController
       when 'Salary calculation'
         @salary = Salary.find_by(sc_cycle_id: params[:cycle_id])
       end
-      @contracts = current_company.in_progress_contracts.includes(:sell_contracts, :buy_contracts, :candidate)
-      @timesheets = Timesheet.includes(contract: [:buy_contracts, :sell_contracts])
+      @contracts = current_company.in_progress_contracts.includes(:sell_contract, :buy_contract, :candidate)
+      @timesheets = Timesheet.includes(contract: [:buy_contract, :sell_contract])
       @salary_expenses = Expense.where(contract_id: current_company.in_progress_contracts.ids, bill_type: 'salary_advanced' ).where('bill_date BETWEEN ? AND ?', @salary.start_date, @salary.end_date)
       @company_expenses = Expense.where(contract_id: current_company.in_progress_contracts.ids, bill_type: 'company_expense' ).where('bill_date BETWEEN ? AND ?', @salary.start_date, @salary.end_date)
       @contract_expense_types = ContractExpenseType.all
@@ -40,11 +40,11 @@ class Company::SalariesController < Company::BaseController
         ledger_name: 'company-dev',
         credential: 'OUUY4ZFYQO4P3YNC5JC3GMY7ZQJCSNTH'
     )
-    @monthly_salaries = ContractCycle.includes(:candidate, contract: [:buy_contracts]).where(note: 'Salary clear', contract_id: current_company.contracts.ids).where('buy_contracts.salary_clear =?', 'monthly').order(start_date: :asc).pluck("date(contract_cycles.start_date), date(contract_cycles.end_date), contract_cycles.contract_id, contract_cycles.id").group_by{|e| [e[0], e[1]]}.map { |c, xs| [c, xs.map{|x| [x[2], x[3]]}] }
+    @monthly_salaries = ContractCycle.includes(:candidate, contract: [:buy_contract]).where(note: 'Salary clear', contract_id: current_company.contracts.ids).where('buy_contracts.salary_clear =?', 'monthly').order(start_date: :asc).pluck("date(contract_cycles.start_date), date(contract_cycles.end_date), contract_cycles.contract_id, contract_cycles.id").group_by{|e| [e[0], e[1]]}.map { |c, xs| [c, xs.map{|x| [x[2], x[3]]}] }
 
-    @weekly_salaries = ContractCycle.includes(:candidate, contract: [:buy_contracts]).where(note: 'Salary clear', contract_id: current_company.contracts.ids).where('buy_contracts.salary_clear =?', 'weekly').order(start_date: :asc).pluck("date(contract_cycles.start_date), date(contract_cycles.end_date), contract_cycles.contract_id, contract_cycles.id").group_by{|e| [e[0], e[1]]}.map { |c, xs| [c, xs.map{|x| [x[2], x[3]]}] }
-    @contracts = current_company.in_progress_contracts.includes(:buy_contracts, candidate: [:addresses])
-    @timesheets = Timesheet.includes(contract: :buy_contracts)
+    @weekly_salaries = ContractCycle.includes(:candidate, contract: [:buy_contract]).where(note: 'Salary clear', contract_id: current_company.contracts.ids).where('buy_contracts.salary_clear =?', 'weekly').order(start_date: :asc).pluck("date(contract_cycles.start_date), date(contract_cycles.end_date), contract_cycles.contract_id, contract_cycles.id").group_by{|e| [e[0], e[1]]}.map { |c, xs| [c, xs.map{|x| [x[2], x[3]]}] }
+    @contracts = current_company.in_progress_contracts.includes(:buy_contract, candidate: [:addresses])
+    @timesheets = Timesheet.includes(contract: :buy_contract)
     @expenses = Expense.where(contract_id: current_company.in_progress_contracts.ids )
     @contract_expense_types = ContractExpenseType.all
     @months = Date::ABBR_MONTHNAMES.dup.slice(1,12)
