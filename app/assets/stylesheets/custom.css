@@ -22,6 +22,10 @@
     padding: 5px;
 }
 
+fieldset{
+    margin: 0 !important;
+}
+
 .imgDescription {
     position: initial;
     top: 0;
