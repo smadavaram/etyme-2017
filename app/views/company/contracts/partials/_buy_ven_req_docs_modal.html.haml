@@ -25,7 +25,7 @@
                   %label.control-label
                     expire date
                   .contract-fild
-                    = vrd.text_field :when_expire ,class: "form-control exp_date" , placeholder: "DD/MM/YYYY"
+                    = vrd.text_field :when_expire ,class: "form-control exp_date_ven_buy", placeholder: "DD/MM/YYYY"
             .form-row
               .col-12
                 .form-group
@@ -63,4 +63,4 @@
           $(this).siblings( ".doc-file-type" ).val(type);
         });
       });
-    $(".exp_date_emp_buy").datepicker({dateFormat : 'dd/mm/yy'});
+    $(".exp_date_ven_buy").datepicker({dateFormat : 'dd/mm/yy'});

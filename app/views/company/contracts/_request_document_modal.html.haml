@@ -2,10 +2,10 @@
   .modal-dialog.modal-lg
     .modal-content
       .modal-header
-        %button.close{"aria-hidden" => "true", "data-dismiss" => "modal", :type => "button"}
-          ×
         %h2#myModalLabel.modal-title
           %strong Request Document
+        %button.close{"aria-hidden" => "true", "data-dismiss" => "modal", :type => "button"}
+          ×
       .modal-body
         = form_for(SellRequestDocument.new, as: :document, url: create_document_request_contracts_path, remote: true)  do |srd|
           = srd.hidden_field :sell_contract_id, value: @contract.sell_contract.id

@@ -477,6 +477,23 @@
 
 - content_for :scripts do
   :javascript
+    $(document).ready(function() {
+      $(".exp_date").datepicker({
+          dateFormat : 'dd/mm/yy'
+       });
+
+       $(".exp_date_buy").datepicker({
+          dateFormat : 'dd/mm/yy'
+       });
+
+       $(".exp_date_emp_buy").datepicker({
+          dateFormat : 'dd/mm/yy'
+       });
+
+       $(".exp_date_ven_buy").datepicker({
+          dateFormat : 'dd/mm/yy'
+       });
+    });
     $('#bc_timesheet').val($('#contract_buy_contracts_attributes_0_time_sheet').val());
     $('.add-commission').on('cocoon:after-insert', function(e, insertedItem) {
       set_commission_user_select(".commission-user:not([class*='added']", "Select Commssion User");

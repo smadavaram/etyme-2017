@@ -10,3 +10,6 @@ flash_success("<%= flash[:success] %>");
 $('#submit_doc').html("<%= j render 'company/contracts/submit_document_table' , sell_request: @sell_document%>");
 $('#submit_document').modal('hide')
 <% end %>
+$(".exp_date").datepicker({
+  dateFormat : 'dd/mm/yy'
+});
