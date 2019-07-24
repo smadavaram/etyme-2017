@@ -20,7 +20,7 @@ class Conversation < ApplicationRecord
   scope :all_onversations, -> (user) do
     where(chatable: Group.where(member_type: "Chat")
                         .joins(:groupables)
-                        .where("groupables.groupable_id = ? and groupables.groupable_type = ?", user.id, "User").uniq)
+                        .where("groupables.groupable_id = ? and groupables.groupable_type = ?", user.id, user.class.to_s == "Candidate" ? "Candidate" : "User").uniq)
   end
 
   scope :conversation_of, -> (company, query_string) do
