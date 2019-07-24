@@ -25,7 +25,8 @@
                   %label.control-label
                     expire date
                   .contract-fild
-                    = esd.text_field :when_expire ,class: "form-control exp_date_buy", autoload: false, placeholder: "DD/MM/YYYY"
+                    = text_field_tag :hello, esd.object.when_expire ,class: "form-control exp_date_buy", name: "document[when_expire]",placeholder: "DD/MM/YYYY"
+                    -#= esd.text_field :when_expire, value: '',class: "form-control exp_date_buy", placeholder: "DD/MM/YYYY"
             .form-row
               .col-12
                 .form-group
@@ -64,4 +65,6 @@
           $(this).siblings( ".doc-file-type" ).val(type);
         });
       });
-    $(".exp_date_buy").datepicker({dateFormat : 'dd/mm/yy'});
+    $(".exp_date_buy").datepicker({
+      dateFormat : 'dd/mm/yy'
+    });

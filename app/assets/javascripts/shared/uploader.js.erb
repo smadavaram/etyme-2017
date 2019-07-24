@@ -1060,7 +1060,7 @@
 }]);
 
 function upload_file(selector, name_selector = false, multiple = false) {
-    new UploaderWindow("etyme").open().then(urls => {
+    new UploaderWindow("<%= ENV['uploader'] %>").open().then(urls => {
         $('.tingle-modal__closeIcon').text('x');
         if (urls !== false) {
             let files_path;
@@ -1082,7 +1082,7 @@ function upload_file(selector, name_selector = false, multiple = false) {
 }
 
 function upload_file_ajax(callback_function,id=false) {
-    new UploaderWindow("etyme").open().then(urls => {
+    new UploaderWindow("<%= ENV['uploader'] %>").open().then(urls => {
         $('.tingle-modal__closeIcon').text('x');
         if (urls !== false) {
             let upload = urls[0];
