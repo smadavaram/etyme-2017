@@ -1,9 +1,7 @@
-#content.newsfeed.contracts{style:"overflow-y: hidden;"}
+#content.contracts{style:"overflow-y: hidden; border-left: none !important;width: 95%; margin: auto auto !important;"}
   %container
     %section#widget-grid.clearfix
-      .newsfeed-right
-        %h1.text-center
-          %b Client
+      %div
         .job-title
           .contract-top.clearfix.row
             %div.col-sm-6
@@ -38,7 +36,7 @@
                 %b
                   =@contract.candidate.try(:full_name)
           %br
-          %div.row
+          .row
             %div.col-sm-6.col-md-6.col-lg-6
               .job-location
                 %b Work location:
@@ -94,12 +92,21 @@
                       Candidate Address :
                     %span
                       =@contract.candidate&.addresses&.first&.address_1 if @contract.candidate && @contract.candidate.addresses.present?
-                  .col-sm-6.col-md-6.col-lg-6.rate_info.text-center
+                  .col-sm-6.col-md-6.col-lg-6
+                    %strong
+                      Website:
+                    %span
+                      =@contract.buy_contract&.candidate&.companies&.first&.website
+                    %br
+                    %strong
+                      Location :
+                    %span
+                      =@contract.buy_contract&.candidate&.companies&.first&.addresses&.first&.address_1
+                  .col-sm-12.col-md-12.col-lg-12.mt-3
                     %h5
                       Freelancer rate
                     %span
-                      = number_to_currency(get_rate(Date.today,@contract.id, 'buy'))
-                      %br
+                      = @contract.buy_contract.payrate.to_i
                       %span.btn.btn-primary.buy-change-rate Change rate
                   .col-sm-12.col-md-12.col-lg-12
                     = form_for :change_rate, url: change_rates_path(contract_id: @contract.id, type: 'buy'), method: :post, html:{class: 'contract-expense-type hidden', id: 'buy-change-rate'} do |f|
@@ -114,18 +121,6 @@
                             = f.text_field :from_date, class: 'form-control rate_date_picker', placeholder: "dd/mm/yy"
                         .col-sm-2
                           = f.submit 'Save', class: 'btn btn-primary', style: 'margin-top: 21px;height: 37px;'
-                %br
-                %h5
-                  Company Name : #{@contract.buy_contract&.candidate&.companies&.first&.full_name}
-                %strong
-                  Website:
-                %span
-                  =@contract.buy_contract&.candidate&.companies&.first&.website
-                %br
-                %strong
-                  Location :
-                %span
-                  =@contract.buy_contract&.candidate&.companies&.first&.addresses&.first&.address_1
               %div.contract-custome-details
                 #content
                   %section
@@ -186,14 +181,14 @@
                           =@contract.buy_contract&.time_sheet
                         %p
                           =buy_contract_time_sheet('time_sheet', @contract.buy_contract&.time_sheet)
-                    .col-sm-4.col-md-4.col-lg-4
-                      %div.buy-side.contract_box
-                        %p
-                          Approve Timesheet
-                        %h5
-                          =@contract.buy_contract&.ts_approve
-                        %p
-                          =buy_contract_time_sheet('ts_approve',@contract.buy_contract&.ts_approve)
+                    -#.col-sm-4.col-md-4.col-lg-4
+                    -#  %div.buy-side.contract_box
+                    -#    %p
+                    -#      Approve Timesheet
+                    -#    %h5
+                    -#      =@contract.buy_contract&.ts_approve
+                    -#    %p
+                    -#      =buy_contract_time_sheet('ts_approve',@contract.buy_contract&.ts_approve)
 
                     .col-sm-4.col-md-4.col-lg-4
                       %div.buy-side.contract_box
@@ -313,44 +308,12 @@
                         %span
                           - bvrd.document_signs.each do |ds|
                             = ds.signable.full_name
-#content
-  .row
-  %section
-#content
-  .row
-  %section
-    .row
-      %article.col-sm-12.col-md-12.col-lg-12
-        #wid-id-0.jarviswidget{"data-widget-deletebutton" => "false", "data-widget-editbutton" => "false"}
-          %header
-            %span.widget-icon
-              %i.fa.fa-check
-            %h2 Buy Rates
-          %div.table-responsive
-            %table.table.table-bordered.account_detail
-              %thead
-                %tr
-                  %th Rate
-                  %th From
-                  %th To
-                  %th Type
-              %tbody
-                - @contract.change_rates.buy_rates.each do |cr|
-                  %tr
-                    %td
-                      = cr.rate.to_i
-                    %td
-                      = cr.from_date.inspect
-                    %td
-                      = cr.to_date.inspect
-                    %td
-                      = cr.rate_type.capitalize
 
 - content_for :scripts do
   :javascript
 
     $('.rate_date_picker').datepicker({dateFormat : 'dd/mm/yy'});
-    $('.contract_progress').attr('data-content','0%');
+    $('.contract_proHi wgress').attr('data-content','0%');
     $('.contract_progress').css('left', '#{(((@contract.contract_progress.to_f*54)/100).to_f+21).round}%');
     $('.contract_progress').attr('data-content','#{@contract.contract_progress.to_f.round}%');
 
