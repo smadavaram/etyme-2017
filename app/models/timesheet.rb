@@ -134,11 +134,11 @@ class Timesheet < ApplicationRecord
   end
 
   def set_contract_salary_histories
-    amoount = self.contract.buy_contracts.first.payrate.present? ? (self.total_time * self.contract.buy_contracts.first.payrate) : 0
+    amoount = self.contract.buy_contract.payrate.present? ? (self.total_time * self.contract.buy_contract.payrate) : 0
     contract_amount = self.contract.salary_to_pay
     ContractSalaryHistory.create(contract_id: self.contract_id,
                                  company_id: self.contract.company_id,
-                                 candidate_id: self.contract.buy_contracts.first.candidate_id,
+                                 candidate_id: self.contract.buy_contract.candidate_id,
                                  salary_type: "CREDIT",
                                  description: "Timesheet Approved",
                                  amount: amoount,
@@ -150,8 +150,8 @@ class Timesheet < ApplicationRecord
   end
 
   def get_total_amount
-    if self.contract.buy_contracts.first.payrate
-      self.total_time * self.contract.buy_contracts.first.payrate
+    if self.contract.buy_contract.payrate
+      self.total_time * self.contract.buy_contract.payrate
     else
       self.total_time * 0
     end
@@ -166,10 +166,10 @@ class Timesheet < ApplicationRecord
     con_cycle = ContractCycle.find(self.ts_cycle_id)
     # binding.pry
     con_cycle.update_attributes(completed_at: Time.now, status: "completed")
-    con_cycle_ta_start_date = Timesheet.set_con_cycle_ta_date(con_cycle&.contract&.buy_contracts.first, con_cycle)
+    con_cycle_ta_start_date = Timesheet.set_con_cycle_ta_date(con_cycle&.contract&.buy_contract, con_cycle)
     # binding.pry
     con_cycle_ta = ContractCycle.where(contract_id: con_cycle.contract_id,
-                                        company_id: self.contract.sell_contracts.first.company_id,
+                                        company_id: self.contract.sell_contract.company_id,
                                         note: "Timesheet Approve",
                                         cycle_type: "TimesheetApprove",
                                         next_action: "InvoiceGenerate"
@@ -225,7 +225,7 @@ class Timesheet < ApplicationRecord
   def self.date_of_next(day_of_week,con_cycle)
     # binding.pry
     day_of_week = DateTime.parse(day_of_week).wday
-    ts_day_of_week = DateTime.parse(con_cycle&.contract&.buy_contracts&.first&.ts_day_of_week).wday if con_cycle.contract.buy_contracts.first.time_sheet == 'weekly'
+    ts_day_of_week = DateTime.parse(con_cycle&.contract&.buy_contracts&.first&.ts_day_of_week).wday if con_cycle.contract.buy_contract.time_sheet == 'weekly'
     date = con_cycle.start_date.to_date + ((day_of_week - con_cycle.start_date.to_date.wday) % 7)
     if day_of_week >= con_cycle.start_date.wday
       date = (date - con_cycle.start_date.to_date <= 5) && con_cycle.start_date.wday != 0 ? date+7.days : date
@@ -281,10 +281,10 @@ class Timesheet < ApplicationRecord
       ledger_name: 'company-dev',
       credential: 'OUUY4ZFYQO4P3YNC5JC3GMY7ZQJCSNTH'
     )
-    if self.contract.buy_contracts.first.contract_type == 'C2C'
-      receiver = "vendor_#{self.contract.buy_contracts.first.company_id}"
+    if self.contract.buy_contract.contract_type == 'C2C'
+      receiver = "vendor_#{self.contract.buy_contract.company_id}"
     else
-      receiver = "cons_#{self.contract.buy_contracts.first.candidate.id}"
+      receiver = "cons_#{self.contract.buy_contract.candidate.id}"
     end
     # self.contract.set_on_seq
     begin
@@ -304,7 +304,7 @@ class Timesheet < ApplicationRecord
               "CycleFrom" => self.start_date.to_datetime + Time.parse("00:00").seconds_since_midnight.seconds,
               "CycleTo" => self.end_date.to_datetime + Time.parse("00:00").seconds_since_midnight.seconds,
               "Documentdate" => Time.now,
-              "TransactionType" => self.contract.buy_contracts.first.contract_type == "C2C" ? "C2C" : "W2"
+              "TransactionType" => self.contract.buy_contracts.contract_type == "C2C" ? "C2C" : "W2"
             },
         )
       end
@@ -324,10 +324,10 @@ class Timesheet < ApplicationRecord
       ledger_name: 'company-dev',
       credential: 'OUUY4ZFYQO4P3YNC5JC3GMY7ZQJCSNTH'
     )
-    if self.contract.buy_contracts.first.contract_type == 'C2C'
-      receiver = "vendor_#{self.contract.buy_contracts.first.company_id}"
+    if self.contract.buy_contract.contract_type == 'C2C'
+      receiver = "vendor_#{self.contract.buy_contracts.company_id}"
     else
-      receiver = "cons_#{self.contract.buy_contracts.first.candidate.id}"
+      receiver = "cons_#{self.contract.buy_contracts.candidate.id}"
     end
     # self.contract.set_on_seq
     tx = ledger.transactions.transact do |builder|
@@ -346,7 +346,7 @@ class Timesheet < ApplicationRecord
             "CycleFrom" => self.start_date.to_datetime + Time.parse("00:00").seconds_since_midnight.seconds,
             "CycleTo" => self.end_date.to_datetime + Time.parse("00:00").seconds_since_midnight.seconds,
             "Documentdate" => Time.now.strftime("%m/%d/%Y"),
-            "TransactionType" => self.contract.buy_contracts.first.contract_type == "C2C" ? "C2C" : "W2"
+            "TransactionType" => self.contract.buy_contract.contract_type == "C2C" ? "C2C" : "W2"
           }
       )
     end    
@@ -357,10 +357,10 @@ class Timesheet < ApplicationRecord
       ledger_name: 'company-dev',
       credential: 'OUUY4ZFYQO4P3YNC5JC3GMY7ZQJCSNTH'
     )
-    if self.contract.buy_contracts.first.contract_type == 'C2C'
-      receiver = "vendor_#{self.contract.buy_contracts.first.company_id}"
+    if self.contract.buy_contract.contract_type == 'C2C'
+      receiver = "vendor_#{self.contract.buy_contract.company_id}"
     else
-      receiver = "cons_#{self.contract.buy_contracts.first.candidate.id}"
+      receiver = "cons_#{self.contract.buy_contract.candidate.id}"
     end
     # self.contract.set_on_seq
     tx = ledger.transactions.transact do |builder|
@@ -380,7 +380,7 @@ class Timesheet < ApplicationRecord
               "CycleFrom" => self.start_date.to_datetime + Time.parse("00:00").seconds_since_midnight.seconds,
               "CycleTo" => self.end_date.to_datetime + Time.parse("00:00").seconds_since_midnight.seconds,
               "Documentdate" => Time.now.strftime("%m/%d/%Y"),
-              "TransactionType" => self.contract.buy_contracts.first.contract_type == "C2C" ? "C2C" : "W2"
+              "TransactionType" => self.contract.buy_contract.contract_type == "C2C" ? "C2C" : "W2"
           }
       )
 
@@ -399,7 +399,7 @@ class Timesheet < ApplicationRecord
               "CycleFrom" => self.start_date.to_datetime + Time.parse("00:00").seconds_since_midnight.seconds,
               "CycleTo" => self.end_date.to_datetime + Time.parse("00:00").seconds_since_midnight.seconds,
               "Documentdate" => Time.now.strftime("%m/%d/%Y"),
-              "TransactionType" => self.contract.buy_contracts.first.contract_type == "C2C" ? "C2C" : "W2"
+              "TransactionType" => self.contract.buy_contract.contract_type == "C2C" ? "C2C" : "W2"
           },
       )
     end

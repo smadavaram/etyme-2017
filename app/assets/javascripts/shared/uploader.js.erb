@@ -55,7 +55,7 @@
         }).a
     })
 }, function (t, n) {
-    var e = t.exports = {version: "2.6.5"};
+    var e = t.exports = {version: "2.6.9"};
     "number" == typeof __e && (__e = e)
 }, function (t, n) {
     t.exports = function (t) {
@@ -294,18 +294,18 @@
         return void 0 === i && (i = o.apply(this, arguments)), i
     }), a = function (t) {
         var n = {};
-        return function (t, e) {
+        return function (t) {
             if ("function" == typeof t) return t();
             if (void 0 === n[t]) {
-                var o = function (t, n) {
-                    return n ? n.querySelector(t) : document.querySelector(t)
-                }.call(this, t, e);
-                if (window.HTMLIFrameElement && o instanceof window.HTMLIFrameElement) try {
-                    o = o.contentDocument.head
+                var e = function (t) {
+                    return document.querySelector(t)
+                }.call(this, t);
+                if (window.HTMLIFrameElement && e instanceof window.HTMLIFrameElement) try {
+                    e = e.contentDocument.head
                 } catch (t) {
-                    o = null
+                    e = null
                 }
-                n[t] = o
+                n[t] = e
             }
             return n[t]
         }
@@ -340,7 +340,7 @@
         var o = u[u.length - 1];
         if ("top" === t.insertAt) o ? o.nextSibling ? e.insertBefore(n, o.nextSibling) : e.appendChild(n) : e.insertBefore(n, e.firstChild), u.push(n); else if ("bottom" === t.insertAt) e.appendChild(n); else {
             if ("object" != typeof t.insertAt || !t.insertAt.before) throw new Error("[Style Loader]\n\n Invalid value for parameter 'insertAt' ('options.insertAt') found.\n Must be 'top', 'bottom', or Object.\n (https://github.com/webpack-contrib/style-loader#insertat)\n");
-            var i = a(t.insertAt.before, e);
+            var i = a(t.insertInto + " " + t.insertAt.before);
             e.insertBefore(n, i)
         }
     }
@@ -354,14 +354,7 @@
 
     function v(t) {
         var n = document.createElement("style");
-        if (void 0 === t.attrs.type && (t.attrs.type = "text/css"), void 0 === t.attrs.nonce) {
-            var o = function () {
-                0;
-                return e.nc
-            }();
-            o && (t.attrs.nonce = o)
-        }
-        return b(n, t.attrs), h(t, n), n
+        return void 0 === t.attrs.type && (t.attrs.type = "text/css"), b(n, t.attrs), h(t, n), n
     }
 
     function b(t, n) {
@@ -373,7 +366,7 @@
     function g(t, n) {
         var e, o, i, r;
         if (n.transform && t.css) {
-            if (!(r = "function" == typeof n.transform ? n.transform(t.css) : n.transform.default(t.css))) return function () {
+            if (!(r = n.transform(t.css))) return function () {
             };
             t.css = r
         }
@@ -494,7 +487,7 @@
             this.modal || (function () {
                 this.modal = document.createElement("div"), this.modal.classList.add("tingle-modal"), (0 === this.opts.closeMethods.length || -1 === this.opts.closeMethods.indexOf("overlay")) && this.modal.classList.add("tingle-modal--noOverlayClose"), this.modal.style.display = "none", this.opts.cssClass.forEach(function (t) {
                     "string" == typeof t && this.modal.classList.add(t)
-                }, this), -1 !== this.opts.closeMethods.indexOf("button") && (this.modalCloseBtn = document.createElement("button"), this.modalCloseBtn.classList.add("tingle-modal__close"), this.modalCloseBtnIcon = document.createElement("span"), this.modalCloseBtnIcon.classList.add("tingle-modal__closeIcon"), this.modalCloseBtnIcon.innerHTML = "x", this.modalCloseBtnLabel = document.createElement("span"), this.modalCloseBtnLabel.classList.add("tingle-modal__closeLabel"), this.modalCloseBtnLabel.innerHTML = this.opts.closeLabel, this.modalCloseBtn.appendChild(this.modalCloseBtnIcon), this.modalCloseBtn.appendChild(this.modalCloseBtnLabel)), this.modalBox = document.createElement("div"), this.modalBox.classList.add("tingle-modal-box"), this.modalBoxContent = document.createElement("div"), this.modalBoxContent.classList.add("tingle-modal-box__content"), this.modalBox.appendChild(this.modalBoxContent), -1 !== this.opts.closeMethods.indexOf("button") && this.modal.appendChild(this.modalCloseBtn), this.modal.appendChild(this.modalBox)
+                }, this), -1 !== this.opts.closeMethods.indexOf("button") && (this.modalCloseBtn = document.createElement("button"), this.modalCloseBtn.classList.add("tingle-modal__close"), this.modalCloseBtnIcon = document.createElement("span"), this.modalCloseBtnIcon.classList.add("tingle-modal__closeIcon"), this.modalCloseBtnIcon.innerHTML = "Ã—", this.modalCloseBtnLabel = document.createElement("span"), this.modalCloseBtnLabel.classList.add("tingle-modal__closeLabel"), this.modalCloseBtnLabel.innerHTML = this.opts.closeLabel, this.modalCloseBtn.appendChild(this.modalCloseBtnIcon), this.modalCloseBtn.appendChild(this.modalCloseBtnLabel)), this.modalBox = document.createElement("div"), this.modalBox.classList.add("tingle-modal-box"), this.modalBoxContent = document.createElement("div"), this.modalBoxContent.classList.add("tingle-modal-box__content"), this.modalBox.appendChild(this.modalBoxContent), -1 !== this.opts.closeMethods.indexOf("button") && this.modal.appendChild(this.modalCloseBtn), this.modal.appendChild(this.modalBox)
             }.call(this), function () {
                 this._events = {
                     clickCloseBtn: this.close.bind(this),
@@ -574,7 +567,7 @@
                     for (var o = t._v, i = 1 == t._s, r = 0, s = function (n) {
                         var e, r, s, a = i ? n.ok : n.fail, l = n.resolve, c = n.reject, u = n.domain;
                         try {
-                            a ? (i || (2 == t._h && R(t), t._h = 1), !0 === a ? e = o : (u && u.enter(), e = a(o), u && (u.exit(), s = !0)), e === n.promise ? c(k("Promise-chain cycle")) : (r = F(e)) ? r.call(e, l, c) : l(e)) : c(o)
+                            a ? (i || (2 == t._h && I(t), t._h = 1), !0 === a ? e = o : (u && u.enter(), e = a(o), u && (u.exit(), s = !0)), e === n.promise ? c(k("Promise-chain cycle")) : (r = F(e)) ? r.call(e, l, c) : l(e)) : c(o)
                         } catch (t) {
                             u && !s && u.exit(), c(t)
                         }
@@ -594,12 +587,12 @@
             })
         }, U = function (t) {
             return 1 !== t._h && 0 === (t._a || t._c).length
-        }, R = function (t) {
+        }, I = function (t) {
             b.call(l, function () {
                 var n;
                 E ? O.emit("rejectionHandled", t) : (n = l.onrejectionhandled) && n({promise: t, reason: t._v})
             })
-        }, I = function (t) {
+        }, R = function (t) {
             var n = this;
             n._d || (n._d = !0, (n = n._w || n)._v = t, n._s = 2, n._a || (n._a = n._c.slice()), T(n, !0))
         }, z = function (t) {
@@ -611,22 +604,22 @@
                     (n = F(t)) ? g(function () {
                         var o = {_w: e, _d: !1};
                         try {
-                            n.call(t, c(z, o, 1), c(I, o, 1))
+                            n.call(t, c(z, o, 1), c(R, o, 1))
                         } catch (t) {
-                            I.call(o, t)
+                            R.call(o, t)
                         }
                     }) : (e._v = t, e._s = 1, T(e, !1))
                 } catch (t) {
-                    I.call({_w: e, _d: !1}, t)
+                    R.call({_w: e, _d: !1}, t)
                 }
             }
         };
     M || (L = function (t) {
         h(this, L, "Promise", "_h"), p(t), o.call(this);
         try {
-            t(c(z, this, 1), c(I, this, 1))
+            t(c(z, this, 1), c(R, this, 1))
         } catch (t) {
-            I.call(this, t)
+            R.call(this, t)
         }
     }, (o = function (t) {
         this._c = [], this._a = void 0, this._s = 0, this._d = !1, this._v = void 0, this._h = 0, this._n = !1
@@ -639,7 +632,7 @@
         }
     }), r = function () {
         var t = new o;
-        this.promise = t, this.resolve = c(z, t, 1), this.reject = c(I, t, 1)
+        this.promise = t, this.resolve = c(z, t, 1), this.reject = c(R, t, 1)
     }, y.f = S = function (t) {
         return t === L || t === s ? new r(t) : i(t)
     }), d(d.G + d.W + d.F * !M, {Promise: L}), e(50)(L, "Promise"), e(51)("Promise"), s = e(4).Promise, d(d.S + d.F * !M, "Promise", {
@@ -866,16 +859,16 @@
     o(o.S + o.F, "Object", {assign: e(54)})
 }, function (t, n, e) {
     "use strict";
-    var o = e(55), i = e(61), r = e(62), s = e(63), a = e(26), l = Object.assign;
-    t.exports = !l || e(10)(function () {
+    var o = e(3), i = e(55), r = e(61), s = e(62), a = e(63), l = e(26), c = Object.assign;
+    t.exports = !c || e(10)(function () {
         var t = {}, n = {}, e = Symbol(), o = "abcdefghijklmnopqrst";
         return t[e] = 7, o.split("").forEach(function (t) {
             n[t] = t
-        }), 7 != l({}, t)[e] || Object.keys(l({}, n)).join("") != o
+        }), 7 != c({}, t)[e] || Object.keys(c({}, n)).join("") != o
     }) ? function (t, n) {
-        for (var e = s(t), l = arguments.length, c = 1, u = i.f, d = r.f; l > c;) for (var f, p = a(arguments[c++]), h = u ? o(p).concat(u(p)) : o(p), m = h.length, v = 0; m > v;) d.call(p, f = h[v++]) && (e[f] = p[f]);
+        for (var e = a(t), c = arguments.length, u = 1, d = r.f, f = s.f; c > u;) for (var p, h = l(arguments[u++]), m = d ? i(h).concat(d(h)) : i(h), v = m.length, b = 0; v > b;) p = m[b++], o && !f.call(h, p) || (e[p] = h[p]);
         return e
-    } : l
+    } : c
 }, function (t, n, e) {
     var o = e(56), i = e(60);
     t.exports = Object.keys || function (t) {
@@ -967,7 +960,7 @@
     e(30)(o, i);
     o.locals && (t.exports = o.locals)
 }, function (t, n, e) {
-    (t.exports = e(29)(!1)).push([t.i, '.tingle-modal {\n    z-index: 2000;\n}\n\n.tingle-modal-box__content {\n    padding: 0;\n    margin: 0;\n}\n\n#framePopup {\n    transition: width 150ms ease-in-out, height 150ms ease-in-out;\n}\n\n.tingle-modal-box {\n    width: auto;\n}\n\n.tingle-modal--visible {\n    z-index: 99999;\n}\n\n.powered-by-holder {\n    position: absolute;\n    left: 20px;\n    right: 20px;\n    bottom: 20px;\n    font-family: "Tahoma", "Open Sans", "Trebuchet MS", Arial, serif;\n    display: flex;\n    flex-direction: column;\n    align-items: start;\n    text-decoration: none;\n    z-index: -100;\n}\n\n.powered-by-text {\n    font-size: 11px;\n    color: #eee;\n    padding: 4px 8px;\n    border-radius: 5px;\n    opacity: 0.65;\n    border: 1px solid rgba(255, 255, 255, 0.75);\n}\n\n.powered-by-text:hover {\n    color: yellow;\n}\n\n.powered-by-text b {\n    font-size: 16px;\n}\n\n@media (max-width: 768px) {\n    .tingle-modal-box {\n        margin-top: 60px;\n    }\n\n    .powered-by-holder {\n        align-items: center;\n    }\n}', ""])
+    (t.exports = e(29)(!1)).push([t.i, '.tingle-modal {\n    z-index: 2000;\n}\n\n.tingle-modal-box__content {\n    padding: 0;\n    margin: 0;\n}\n\n#framePopup {\n    transition: width 150ms ease-in-out, height 150ms ease-in-out;\n}\n\n.tingle-modal-box {\n    width: auto;\n}\n\n.tingle-modal--visible {\n    z-index: 99999;\n}\n\n.powered-by-holder {\n    position: absolute;\n    left: 20px;\n    right: 20px;\n    bottom: 20px;\n    font-family: "Tahoma", "Open Sans", "Trebuchet MS", Arial, serif;\n    display: flex;\n    flex-direction: column;\n    align-items: start;\n    text-decoration: none;\n    z-index: -100;\n}\n\n.powered-by-text {\n    font-size: 11px;\n    color: #eee;\n    padding: 4px 8px;\n    border-radius: 5px;\n    opacity: 0.65;\n    border: 1px solid rgba(255, 255, 255, 0.75);\n}\n\n.powered-by-text:hover {\n    color: yellow;\n}\n\n.powered-by-text b {\n    font-size: 16px;\n}\n\n@media (max-width: 768px) {\n    .tingle-modal-box {\n        margin-top: 60px !important;\n    }\n\n    .powered-by-holder {\n        align-items: center;\n    }\n}', ""])
 }, function (t, n, e) {
     "use strict";
     e.r(n);
@@ -1009,7 +1002,7 @@
                     footer: !1, cssClass: ["no-padding"], onClose: function () {
                         return u({detail: {type: "success", data: !1}})
                     }, closeMethods: !0 === e.modal ? [] : e.closeButtons || ["button"]
-                }), b || (b = document.createElement("div"), c.modal.insertBefore(b, c.modal.firstChild)), c.setContent(v), c.open()
+                }), b || (b = document.createElement("div"), c.modal.insertBefore(b, c.modal.firstChild)), b.innerHTML = '<a class="powered-by-holder" href="//www.uploader.win" target="_blank"><div class="powered-by-text">Powered by <b>Uploader.win</b></div></a>', c.setContent(v), c.open()
             } else if ("iframe" === n) {
                 var g = e.id, y = document.getElementById(g);
                 if (y) {
@@ -1060,8 +1053,7 @@
 }]);
 
 function upload_file(selector, name_selector = false, multiple = false) {
-    new UploaderWindow("etyme").open().then(urls => {
-        $('.tingle-modal__closeIcon').text('x');
+    new UploaderWindow("<%= ENV['uploader'] %>").open().then(urls => {
         if (urls !== false) {
             let files_path;
             if (multiple) {
@@ -1078,21 +1070,24 @@ function upload_file(selector, name_selector = false, multiple = false) {
             $(selector).val(files_path);
             console.log(files_path);
         }
-    });
+});
+    $(".powered-by-holder").remove();
+    $('.tingle-modal__closeIcon').text('x');
 }
 
-function upload_file_ajax(callback_function,id=false) {
-    new UploaderWindow("etyme").open().then(urls => {
-        $('.tingle-modal__closeIcon').text('x');
-        if (urls !== false) {
-            let upload = urls[0];
-            if(id){
-                callback_function(upload.url, upload.type,id);
-            }else{
-                callback_function(upload.url, upload.type);
-            }
-            console.log(upload.url);
-            // jQuery("<input>", { type: "text", name: "url", value: upload.url}).insertBefore("#submit");
+function upload_file_ajax(callback_function, id=false) {
+    new UploaderWindow("<%= ENV['uploader'] %>").open().then(urls => {
+    if (urls !== false) {
+        let upload = urls[0];
+        if (id) {
+            callback_function(upload.url, upload.type, id);
+        } else {
+            callback_function(upload.url, upload.type);
         }
-    });
+        console.log(upload.url);
+        // jQuery("<input>", { type: "text", name: "url", value: upload.url}).insertBefore("#submit");
+    }
+});
+    $(".powered-by-holder").remove();
+    $('.tingle-modal__closeIcon').text('x');
 }

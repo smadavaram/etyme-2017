@@ -23,9 +23,9 @@ class ClientExpense < ApplicationRecord
     self.status = 1
     con_cycle = ContractCycle.find(self.ce_cycle_id)
     con_cycle.update_attributes(completed_at: Time.now, status: "completed")
-    con_cycle_ce_ap_start_date = ClientExpense.set_con_cycle_ce_ap_date(con_cycle&.contract&.sell_contracts.first, con_cycle)
+    con_cycle_ce_ap_start_date = ClientExpense.set_con_cycle_ce_ap_date(con_cycle&.contract&.sell_contract, con_cycle)
     con_cycle_ce_ap = ContractCycle.where(contract_id: con_cycle.contract_id,
-                                        company_id: self.contract.sell_contracts.first.company_id,
+                                        company_id: self.contract.sell_contract.company_id,
                                         note: "ClientExpense Approve",
                                         cycle_type: "ClientExpenseApprove",
                                         next_action: "CleintExpenseInvoice"
@@ -46,11 +46,11 @@ class ClientExpense < ApplicationRecord
         builder.issue(
           flavor_id: 'usd',
           amount: self&.amount.to_i,
-          destination_account_id: 'cons_'+self&.contract.buy_contracts.first.candidate_id.to_s,
+          destination_account_id: 'cons_'+self&.contract.buy_contract.candidate_id.to_s,
           action_tags: {
             type: 'issue',
             contract: self.contract_id,
-            candidate: self.contract.buy_contracts.first.candidate_id.to_s,
+            candidate: self.contract.buy_contract.candidate_id.to_s,
             cycle_id: self.ce_cycle_id,
             start_date: self.start_date,
             end_date: self.end_date
@@ -70,12 +70,12 @@ class ClientExpense < ApplicationRecord
       builder.transfer(
         flavor_id: 'usd',
         amount: amount.to_i,
-        source_account_id: 'cons_'+client_expense&.contract.buy_contracts.first.candidate_id.to_s,
+        source_account_id: 'cons_'+client_expense&.contract.buy_contract.candidate_id.to_s,
         destination_account_id: 'cont_'+client_expense.contract_id.to_s,
         action_tags: {
           type: 'transfer',
           contract: client_expense.contract_id,
-          candidate: client_expense.contract.buy_contracts.first.candidate_id.to_s,
+          candidate: client_expense.contract.buy_contract.candidate_id.to_s,
           cycle_id: client_expense.ce_cycle_id,
           start_date: client_expense.start_date,
           end_date: client_expense.end_date
@@ -94,11 +94,11 @@ class ClientExpense < ApplicationRecord
       builder.retire(
         flavor_id: 'usd',
         amount: amount.to_i,
-        source_account_id: 'cons_'+client_expense&.contract.buy_contracts.first.candidate_id.to_s,
+        source_account_id: 'cons_'+client_expense&.contract.buy_contract.candidate_id.to_s,
         action_tags: {
           type: 'retire-rejected',
           contract: client_expense.contract_id,
-          candidate: client_expense.contract.buy_contracts.first.candidate_id.to_s,
+          candidate: client_expense.contract.buy_contract.candidate_id.to_s,
           cycle_id: client_expense.ce_cycle_id,
           start_date: client_expense.start_date,
           end_date: client_expense.end_date
@@ -177,7 +177,7 @@ class ClientExpense < ApplicationRecord
 
   def self.date_of_next(day_of_week,con_cycle)
     day_of_week = DateTime.parse(day_of_week).wday
-    ce_day_of_week = DateTime.parse(con_cycle&.contract&.sell_contracts&.first&.ce_day_of_week).wday if con_cycle.contract.sell_contracts.first.time_sheet == 'weekly'
+    ce_day_of_week = DateTime.parse(con_cycle&.contract&.sell_contract.ce_day_of_week).wday if con_cycle.contract.sell_contract.time_sheet == 'weekly'
     date = con_cycle.start_date.to_date + ((day_of_week - con_cycle.start_date.to_date.wday) % 7)
     if day_of_week >= con_cycle.start_date.wday
       date = (date - con_cycle.start_date.to_date <= 5) && con_cycle.start_date.wday != 0 ? date+7.days : date

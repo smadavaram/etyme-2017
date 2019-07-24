@@ -534,6 +534,11 @@ Rails.application.routes.draw do
         get :salary_process
         get :set_commission_user
         get :create_contract
+        post :create_document_request
+        post :submit_document_create
+        post :buy_document_create
+        post :buy_emp_doc_create
+        post :buy_ven_doc_create
       end
       member do
         get :download
@@ -694,6 +699,7 @@ Rails.application.routes.draw do
     namespace :company do
       resources :companies, only: [:index, :create] do
         post :add_company, on: :collection
+        get :get_owner, on: :collection
       end
     end
 

@@ -54,16 +54,16 @@
                 creation_date: ts.created_at.strftime('%Y-%m-%d'),
                 contract: ts.contract.number,
                 client: ts.contract.client.full_name,
-                tax_type: ts.contract.buy_contracts.first.contract_type,
-                candidate: ts.contract.buy_contracts.first.candidate.full_name,
-                company_vender: ts.contract.buy_contracts.first.company.present? ? ts.contract.buy_contracts.first.company.full_name : '',
+                tax_type: ts.contract.buy_contract.contract_type,
+                candidate: ts.contract.buy_contract.candidate.full_name,
+                company_vender: ts.contract.buy_contract.company.present? ? ts.contract.buy_contract.company.full_name : '',
                 buy_rate: rate,
                 timesheet_clyver: "#{ts.start_date} - #{ts.end_date}",
                 hours: ts.total_time,
                 amount: (ts.total_time * rate),
                 attachment: ts.timesheet_attachment,
                 status: ts.status,
-                act: time_sheet_approve_date(ts&.contract&.buy_contracts&.first)})
+                act: time_sheet_approve_date(ts&.contract&.buy_contract)})
 
 -# var ajqgrid_data = #{raw(@temp.to_json)};
 .page.text-center

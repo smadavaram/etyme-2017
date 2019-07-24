@@ -66,7 +66,7 @@
                       %td
                         = c&.buy_contracts&.first.contract_type
                       %td
-                        = c&.sell_contracts&.first&.customer_rate.to_i
+                        = c&.sell_contract.customer_rate.to_i
                       %td
                         = c&.buy_contracts&.first&.payrate.to_i
                       %td
@@ -113,7 +113,7 @@
                             %br
                             %br
                           %span.commission
-                            - ContractSaleCommision.where(buy_contract_id: c.buy_contracts.first.id).each do |csc|
+                            - ContractSaleCommision.where(buy_contract_id: c.buy_contract.id).each do |csc|
                               - csc.csc_accounts.each do |csca|
                                 %span.csca_id{:id => "#{csca.id}"}
                                   %span.csca_amount{:id => "#{csca.total_amount}"}

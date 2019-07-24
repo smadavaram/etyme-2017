@@ -16,7 +16,7 @@ class ExpenseAccount < ApplicationRecord
         credential: 'OUUY4ZFYQO4P3YNC5JC3GMY7ZQJCSNTH'
     )
     sleep 1
-    if self.expense.contract.buy_contracts.first.contract_type == 'C2C'
+    if self.expense.contract.buy_contract.contract_type == 'C2C'
     else
       if self.pay_type == 'reject'
         ledger.transactions.transact do |builder|
@@ -33,8 +33,8 @@ class ExpenseAccount < ApplicationRecord
             builder.transfer(
               flavor_id: 'usd',
               amount: self.payment.to_i,
-              source_account_id: 'cust_'+self.expense.contract.sell_contracts.first.company_id.to_s+'_treasury',
-              destination_account_id: 'cust_'+self.expense.contract.sell_contracts.first.company_id.to_s+'_expense',
+              source_account_id: 'cust_'+self.expense.contract.sell_contract.company_id.to_s+'_treasury',
+              destination_account_id: 'cust_'+self.expense.contract.sell_contract.company_id.to_s+'_expense',
               action_tags: {
                 type: 'expense bill payment',
                 expense_type: self.expense_type.name,
@@ -50,7 +50,7 @@ class ExpenseAccount < ApplicationRecord
             builder.transfer(
               flavor_id: 'usd',
               amount: self.payment.to_i,
-              source_account_id: 'cust_'+self.expense.contract.sell_contracts.first.company_id.to_s+'_treasury',
+              source_account_id: 'cust_'+self.expense.contract.sell_contract.company_id.to_s+'_treasury',
               destination_account_id: 'cons_'+self.expense.contract.candidate_id.to_s+'_expense',
               action_tags: {
                 type: 'expense bill payment',
@@ -82,12 +82,12 @@ class ExpenseAccount < ApplicationRecord
       credential: 'OUUY4ZFYQO4P3YNC5JC3GMY7ZQJCSNTH'
     )
     sleep 1
-    if self.expense.contract.buy_contracts.first.contract_type == 'C2C'
+    if self.expense.contract.buy_contract.contract_type == 'C2C'
       vendor_issue = ledger.transactions.transact do |builder|
         builder.issue(
           flavor_id: 'usd',
           amount: (self&.amount)*100,
-          destination_account_id: 'cust_'+self&.expense&.contract.buy_contracts.first.company_id.to_s,
+          destination_account_id: 'cust_'+self&.expense&.contract.buy_contract.company_id.to_s,
           action_tags: {
             type: 'issue',
             expense_type: self.expense_type,

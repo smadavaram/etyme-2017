@@ -21,4 +21,4 @@
               %td= tms.end_date
               %td= tms.status.humanize
               %td= tms.total_time
-              %td= tms.total_time * tms.contract.buy_contracts.first.payrate.to_i
+              %td= tms.total_time * tms.contract.buy_contract.payrate.to_i

@@ -54,6 +54,7 @@
  *= require bullettrain-global
  *= require shared/datatable
  *= require company/job_applications
+ *= require company/contracts
  *= require navigation
  *= require top_navigation
  *= require intl-tel-input-13.0.0/build/css/intlTelInput.min

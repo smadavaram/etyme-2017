@@ -29,11 +29,11 @@ class Expense < ApplicationRecord
           flavor_id: 'usd',
           amount: self.total_amount.to_i,
           source_account_id:  'cont_'+self.contract_id.to_s,
-          destination_account_id: 'cons_'+self&.contract.buy_contracts.first.candidate_id.to_s,
+          destination_account_id: 'cons_'+self&.contract.buy_contract.candidate_id.to_s,
           action_tags: {
             type: 'transfer',
             contract: self.contract_id,
-            candidate: self.contract.buy_contracts.first.candidate_id.to_s,
+            candidate: self.contract.buy_contract.candidate_id.to_s,
             due_date: self.due_date,
             bill_type: self.bill_type
           }
@@ -74,12 +74,12 @@ class Expense < ApplicationRecord
       builder.transfer(
         flavor_id: 'usd',
         amount: expense.total_amount.to_i,
-        source_account_id:  'cust_'+expense&.contract&.sell_contracts&.first&.company_id.to_s+'_expense',
+        source_account_id:  'cust_'+expense&.contract&.sell_contract&.company_id.to_s+'_expense',
         destination_account_id: 'comp_'+expense.contract.company_id.to_s+'_treasury',
         action_tags: {
           type: 'transfer',
           contract: expense.contract_id,
-          candidate: expense.contract.buy_contracts.first.candidate_id.to_s,
+          candidate: expense.contract.buy_contract.candidate_id.to_s,
           due_date: expense.due_date,
           bill_type: expense.bill_type
         }
@@ -100,7 +100,7 @@ class Expense < ApplicationRecord
         action_tags: {
           type: 'transfer',
           contract: expense.contract_id,
-          candidate: expense.contract.buy_contracts.first.candidate_id.to_s,
+          candidate: expense.contract.buy_contract.candidate_id.to_s,
           due_date: expense.due_date,
           bill_type: expense.bill_type
         }

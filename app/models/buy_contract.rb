@@ -33,7 +33,7 @@ class BuyContract < ApplicationRecord
   attr_accessor :ssn
 
   def set_number
-     self.number = "BC_" + self.contract.only_number.to_s
+     self.number = "BC_" + self.contract.number.split("_")[1].to_s
   end
 
   def set_first_timesheet_date

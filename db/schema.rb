@@ -10,11 +10,25 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema.define(version: 20190716123048) do
+ActiveRecord::Schema.define(version: 20190720154813) do
 
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
   enable_extension "hstore"
+
+  create_table "active_admin_comments", id: :serial, force: :cascade do |t|
+    t.string "namespace"
+    t.text "body"
+    t.integer "resource_id"
+    t.string "resource_type"
+    t.integer "author_id"
+    t.string "author_type"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["author_type", "author_id"], name: "index_active_admin_comments_on_author_type_and_author_id"
+    t.index ["namespace"], name: "index_active_admin_comments_on_namespace"
+    t.index ["resource_type", "resource_id"], name: "index_active_admin_comments_on_resource_type_and_resource_id"
+  end
 
   create_table "activities", id: :serial, force: :cascade do |t|
     t.string "trackable_type"
@@ -47,6 +61,23 @@ ActiveRecord::Schema.define(version: 20190716123048) do
     t.string "addressable_type"
     t.bigint "addressable_id"
     t.index ["addressable_type", "addressable_id"], name: "index_addresses_on_addressable_type_and_addressable_id"
+  end
+
+  create_table "admin_users", id: :serial, force: :cascade do |t|
+    t.string "email", default: "", null: false
+    t.string "encrypted_password", default: "", null: false
+    t.string "reset_password_token"
+    t.datetime "reset_password_sent_at"
+    t.datetime "remember_created_at"
+    t.integer "sign_in_count", default: 0, null: false
+    t.datetime "current_sign_in_at"
+    t.datetime "last_sign_in_at"
+    t.inet "current_sign_in_ip"
+    t.inet "last_sign_in_ip"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["email"], name: "index_admin_users_on_email", unique: true
+    t.index ["reset_password_token"], name: "index_admin_users_on_reset_password_token", unique: true
   end
 
   create_table "attachable_docs", id: :serial, force: :cascade do |t|
@@ -807,6 +838,8 @@ ActiveRecord::Schema.define(version: 20190716123048) do
     t.integer "client_id"
     t.string "number"
     t.decimal "salary_to_pay", default: "0.0"
+    t.string "project_name"
+    t.boolean "is_client_customer"
   end
 
   create_table "conversation_messages", force: :cascade do |t|
@@ -1562,6 +1595,7 @@ ActiveRecord::Schema.define(version: 20190716123048) do
     t.string "file_name"
     t.integer "file_size"
     t.integer "file_type"
+    t.string "request"
     t.index ["creatable_type", "creatable_id"], name: "index_sell_request_documents_on_creatable_type_and_creatable_id"
     t.index ["sell_contract_id"], name: "index_sell_request_documents_on_sell_contract_id"
   end

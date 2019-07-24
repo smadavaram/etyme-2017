@@ -45,7 +45,7 @@ class ContractCycle < ApplicationRecord
     if ig.present?
       ig.cycle_date
     else
-      sell_contract = self.contract.sell_contracts.first
+      sell_contract = self.contract.sell_contract
       self.contract.find_next_date(sell_contract.invoice_terms_period, sell_contract.invoice_date_1, sell_contract.invoice_date_2, sell_contract.invoice_end_of_month, sell_contract.invoice_day_of_week, self.cycle_date)
     end
   end

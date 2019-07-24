@@ -1,0 +1,18 @@
+- @buy_contract.buy_send_documents.each do |doc|
+  %tr
+    %td
+      = doc.id
+    %td
+      - doc.document_signs.each do |sign|
+        = sign&.signable&.full_name
+    %td
+      - doc.document_signs.each do |sign|
+        = sign&.signable&.full_name
+    %td
+      = doc.creatable.full_name
+    %td
+      = doc.when_expire
+    %td
+      = doc.is_sign_required && doc.document_signs.present? ? "Signed": "Unsigned"
+    %td attachment
+    %td Action

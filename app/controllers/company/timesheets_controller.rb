@@ -179,7 +179,7 @@ class Company::TimesheetsController < Company::BaseController
   def check_invoice
     @invoice = Invoice.where(id: (params[:id] || params[:timesheet_id])).first
     if @invoice.present?
-      @timesheets = current_company.timesheets.includes(contract: :sell_contracts).approved_timesheets.invoice_timesheets(@invoice)
+      @timesheets = current_company.timesheets.includes(contract: :sell_contract).approved_timesheets.invoice_timesheets(@invoice)
     else
       @errors = true
     end
@@ -194,9 +194,9 @@ class Company::TimesheetsController < Company::BaseController
         max_date = timesheets.maximum(:end_date)
 
         invoice = Invoice.new(contract_id: timesheet.contract_id, start_date: min_date, end_date: max_date,
-                              total_amount: (timesheets.pluck(:total_time).sum * (timesheet.contract.buy_contracts.first.payrate)),
+                              total_amount: (timesheets.pluck(:total_time).sum * (timesheet.contract.buy_contract.payrate)),
                               total_approve_time: timesheets.pluck(:total_time).sum, submitted_on: Time.now,
-                              rate: timesheet.contract.buy_contracts.first.payrate
+                              rate: timesheet.contract.buy_contract.payrate
         )
         if invoice.save
           timesheets.update_all(invoice_id: invoice.id)
@@ -237,7 +237,7 @@ class Company::TimesheetsController < Company::BaseController
 
   def get_next_invoice_date(contract)
     last_invoice = contract.invoices.order("created_at DESC").first
-    sell_contract = contract.sell_contracts.first
+    sell_contract = contract.sell_contract
     get_next_date(Time.now, sell_contract.invoice_terms_period, sell_contract.invoice_date_1, sell_contract.invoice_date_2, sell_contract.invoice_end_of_month, sell_contract.invoice_day_of_week, (last_invoice.present? ? last_invoice.end_date : contract.start_date))
   end
 

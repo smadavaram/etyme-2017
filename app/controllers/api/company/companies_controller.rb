@@ -12,6 +12,11 @@ class Api::Company::CompaniesController < ApplicationController
 
   add_breadcrumb 'Companies', :companies_path, :title => ""
 
+  def get_owner
+    @admin = Job.find_by(id: params[:job_id]).company.owner
+    render 'get_owner', admin: @admin, status: :ok
+  end
+
   def index
     if params[:status]=='all'
       respond_to do |format|

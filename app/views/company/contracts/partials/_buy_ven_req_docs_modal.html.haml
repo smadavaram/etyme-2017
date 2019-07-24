@@ -1,0 +1,66 @@
+.modal#buy_ven_req_docs_modal
+  .modal-dialog.modal-lg
+    .modal-content
+      .modal-header
+        %h2#myModalLabel.modal-title
+          %strong Vendor Create Document
+        %button.close{"aria-hidden" => "true", "data-dismiss" => "modal", :type => "button"}
+        ×
+      .modal-body
+        = form_for(BuyVenReqDoc.new, as: :document, url: buy_ven_doc_create_contracts_path, remote: true) do |vrd|
+          =vrd.hidden_field :buy_contract_id, value: @contract.buy_contract.id
+          %fieldset
+            .form-row
+              .col-3
+                %label.control-label
+                Documents
+                .contract-fild
+                  = render "shared/file_attachement", f:vrd,attr_name: :doc_file,button_name: "Pick File",multiple: false
+                  -#= f.filepicker_field :doc_file, :button_text => "Pick File", disable: true , class: 'file-pick btn btn-primary filepicker-attach filepicker-attach-doc'
+                  = vrd.hidden_field :file_name, class: "doc-file-name"
+                  = vrd.hidden_field :file_size, class: "doc-file-size"
+                  = vrd.hidden_field :file_type, class: "doc-file-type"
+              .col-7
+                .form-group
+                  %label.control-label
+                    expire date
+                  .contract-fild
+                    = vrd.text_field :when_expire ,class: "form-control exp_date_ven_buy", placeholder: "DD/MM/YYYY"
+            .form-row
+              .col-12
+                .form-group
+                  %label.control-label
+                    = vrd.check_box :is_sign_required ,class: "form-control is-require-sign" , placeholder: ""
+                    = vrd.label :is_sign_required
+                    = vrd.hidden_field :creatable_type, class: "form-control", value: "Company"
+                    = vrd.hidden_field :creatable_id, class: "form-control", value: current_company.id
+                  .form-group.assign_signable.hidden
+                    -vrd.object.document_signs.build
+                    =vrd.fields_for :document_signs do |ds|
+                      = link_to_add_fields 'available_tour_fields', vrd, :document_signs, {partial: 'company/contracts/contract_document_users_fields'}, {class: 'doc-user-generater hidden'}
+                      = ds.select :signable, {}, {}, class: "form-control whois_sign" , placeholder: ""
+                  .modal-footer
+                    %a.btn.btn-default{"data-dismiss" => "modal", :type => "button"}
+                      Cancel
+                    = vrd.submit 'Save', class: 'btn btn-primary'
+
+- content_for :scripts do
+  :javascript
+    $(document).ready(function() {
+      $( ".file-pick" ).on('click',function() {
+      $('.fp__overlay').css({'z-index':'99999'})});
+    });
+
+:javascript
+    $(document).ready(function() {
+        pageSetUp();
+        $(".filepicker-attach-doc").on("change", function(e){
+          var name = e["originalEvent"]["fpfile"]["filename"];
+          var size = e["originalEvent"]["fpfile"]["size"];
+          var type = e["originalEvent"]["fpfile"]["mimetype"];
+          $(this).siblings(".doc-file-name" ).val(name);
+          $(this).siblings( ".doc-file-size" ).val(size);
+          $(this).siblings( ".doc-file-type" ).val(type);
+        });
+      });
+    $(".exp_date_ven_buy").datepicker({dateFormat : 'dd/mm/yy'});
