@@ -25,7 +25,7 @@ development:
   rchilli_user_id: "etyme"
   rchilli_user_key: "E1ZA0XO7IZO"
   # uploader for files
-  uploader: "etyme-2"
+  uploader: "etyme-3"
 production:
   mailgun_gun_api:  "key-65deee3bd721c9bba966ff557d3fc79b"
   mailgun_domian:   "etyme.com"
