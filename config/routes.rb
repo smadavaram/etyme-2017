@@ -184,7 +184,7 @@ Rails.application.routes.draw do
       resources :conversation_messages
     end
 
-    resources :contracts, only: [:index] do
+    resources :contracts, only: [:index,:show] do
       collection do
         get :timeline
       end
