@@ -11,21 +11,23 @@
           =erd.hidden_field :buy_contract_id, value: @contract.buy_contract.id
           %fieldset
             .form-row
-              .col-3
+              .col-md-6
                 %label.control-label
                 Documents
-                .contract-fild
-                  = render "shared/file_attachement", f:erd,attr_name: :doc_file,button_name: "Pick File",multiple: false
+                .contract-fild.display-flex
+                  = render 'shared/file_attachement',f:erd,attr_name: :doc_file,button_name: "Document", name_selector: ".uploaded_file_name",cstm_style: "border-radius: 0; height:38px;"
+                  %p.d-inline-block.uploaded_file_name= erd.object&.doc_file.present?  ? File.basename(erd.object.doc_file) : "No File Selected"
                   -#= f.filepicker_field :doc_file, :button_text => "Pick File", disable: true , class: 'file-pick btn btn-primary filepicker-attach filepicker-attach-doc'
                   = erd.hidden_field :file_name, class: "doc-file-name"
                   = erd.hidden_field :file_size, class: "doc-file-size"
                   = erd.hidden_field :file_type, class: "doc-file-type"
-              .col-7
+              .col-md-6
                 .form-group
                   %label.control-label
                     expire date
                   .contract-fild
-                    = erd.text_field :when_expire ,class: "form-control exp_date_emp_buy" , placeholder: "DD/MM/YYYY"
+                    = erd.text_field :when_expire ,class: "form-control exp_date_emp_buy" , placeholder: "DD/MM/YYYY", id: 'emp_exp_date', :autocomplete => :off
+                    -#= text_field_tag "document[when_expire]", erd.object.when_expire ,class: "form-control exp_date_emp_buy",placeholder: "DD/MM/YYYY"
             .form-row
               .col-12
                 .form-group

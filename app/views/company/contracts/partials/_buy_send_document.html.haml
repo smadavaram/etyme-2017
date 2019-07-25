@@ -3,8 +3,7 @@
     %td
       = doc.id
     %td
-      - doc.document_signs.each do |sign|
-        = sign&.signable&.full_name
+      = File.basename(URI.parse(doc.doc_file).path)
     %td
       - doc.document_signs.each do |sign|
         = sign&.signable&.full_name
@@ -14,5 +13,10 @@
       = doc.when_expire
     %td
       = doc.is_sign_required && doc.document_signs.present? ? "Signed": "Unsigned"
-    %td attachment
+    %td
+      - if doc.doc_file.present?
+        = link_to doc.doc_file do
+          %i.fa.fa-paperclip.fa-lg
+      - else
+        File not exists
     %td Action

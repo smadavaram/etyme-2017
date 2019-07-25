@@ -58,6 +58,7 @@ class Company::ContractsController < Company::BaseController
       @buy_send_document = @buy_contract.buy_send_documents.build(buy_document_params)
       respond_to do |format|
         if @buy_send_document.save
+          create_contract_activity('contract.buy_document_create', buy_document_params, @buy_contract.contract)
           format.js {
             flash.now[:success] = 'Document is created for the contract'
             render 'buy_document_create.js'
@@ -77,6 +78,7 @@ class Company::ContractsController < Company::BaseController
       @buy_emp_send_document = @buy_contract.buy_emp_req_docs.build(buy_document_params)
       respond_to do |format|
         if @buy_emp_send_document.save
+          create_contract_activity('contract.buy_emp_doc_create', buy_document_params, @buy_contract.contract)
           format.js {
             flash.now[:success] = 'Document is created for the contract'
             render 'buy_emp_doc_create.js'
@@ -96,6 +98,7 @@ class Company::ContractsController < Company::BaseController
       @buy_ven_send_document = @buy_contract.buy_ven_req_docs.build(buy_document_params)
       respond_to do |format|
         if @buy_ven_send_document.save
+          create_contract_activity('contract.buy_ven_doc_create', buy_document_params, @buy_contract.contract)
           format.js {
             flash.now[:success] = 'Document is created for the contract'
             render 'buy_ven_doc_create.js'
@@ -115,6 +118,7 @@ class Company::ContractsController < Company::BaseController
       @sell_document = @sell_contract.sell_send_documents.build(send_document_params)
       respond_to do |format|
         if @sell_document.save
+          create_contract_activity('contract.submit_document_create', send_document_params, @sell_contract.contract)
           format.js {
             flash.now[:success] = 'Document is created for the contract'
             render 'submit_document_create.js'
@@ -134,6 +138,7 @@ class Company::ContractsController < Company::BaseController
       @sell_request = @sell_contract.sell_request_documents.build(sell_request_params)
       respond_to do |format|
         if @sell_request.save
+          create_contract_activity('contract.create_document_request', sell_request_params, @sell_contract.contract)
           format.js {
             flash.now[:success] = 'Request is created for the contract'
             render 'create_document_request.js'
@@ -157,7 +162,7 @@ class Company::ContractsController < Company::BaseController
     respond_to do |format|
       if @contract.update(contract_params)
         format.html {
-          create_contract_activity('contract.update', contract_params)
+          create_contract_activity('contract.update', contract_params, @contract)
           after_create_callbacks if @contract.pending?
           flash[:success] = "#{@contract.title.titleize} updated successfully"
           edirect_back fallback_location: root_path
@@ -187,7 +192,7 @@ class Company::ContractsController < Company::BaseController
     @contract.status = :draft
     respond_to do |format|
       if @contract.save
-        create_contract_activity('contract.create', create_contract_params)
+        create_contract_activity('contract.create', create_contract_params, @contract)
         format.html {
           flash[:success] = "successfully Send."
           redirect_to contract_path(@contract)
@@ -222,7 +227,8 @@ class Company::ContractsController < Company::BaseController
       if @contract.pending?
         if @contract.update_attributes(update_contract_response_params.merge!(respond_by_id: current_user.id, responed_at: Time.zone.now, status: status))
           create_contract_activity('contract.update',
-                                   update_contract_response_params.merge!(respond_by_id: current_user.id, responed_at: Time.zone.now, status: status))
+                                   update_contract_response_params.merge!(respond_by_id: current_user.id, responed_at: Time.zone.now, status: status),
+                                   @contract)
           format.js {flash.now[:success] = "successfully Submitted."}
         else
           format.js {flash.now[:errors] = @contract.errors.full_messages}
@@ -294,7 +300,7 @@ class Company::ContractsController < Company::BaseController
 
   def update_contract_status
     if @contract.update(status: params[:status])
-      create_contract_activity('contract.update', {status: params[:status]})
+      create_contract_activity('contract.update', {status: params[:status]}, @contract)
       Contract.set_cycle if @contract.in_progress!
       redirect_back fallback_location: root_path
     end
@@ -516,8 +522,8 @@ class Company::ContractsController < Company::BaseController
     @sell_contract = SellContract.find_by(id: params[:document][:sell_contract_id])
   end
 
-  def create_contract_activity key, params
-    @contract.create_activity key: key, owner: current_user, params: params
+  def create_contract_activity key, params, contract
+    contract.create_activity key: key, owner: current_user, params: params
   end
 
   def update_contract_response_params

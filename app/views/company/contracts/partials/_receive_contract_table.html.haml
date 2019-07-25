@@ -54,9 +54,9 @@
                     %br
                     =contract.buy_contract.try(:payment_term)
                   %td
-                    = label_status_color(contract.status)
+                    = contract.status
                   %td not know
-= digg_pagination(data)
+= digg_pagination(data, 3)
 
 :css
   .form-control
