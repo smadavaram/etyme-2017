@@ -1,0 +1,5 @@
+.ta-record.bg_white.pt-2.pl-2
+  .ta-timestamp
+    %strong #{a.try(:created_at).strftime('%I:%M %P')}
+  .ta-activity
+    #{a.owner.name.titleize} created #{BuyContract.find_by(id: a.additional_data.buy_contract_id).number} contract document.
