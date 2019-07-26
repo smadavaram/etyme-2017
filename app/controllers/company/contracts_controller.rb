@@ -21,9 +21,16 @@ class Company::ContractsController < Company::BaseController
   include Company::ChangeRatesHelper
 
   def index
-    @contract_activity = PublicActivity::Activity.where(trackable: current_company.contracts).order('created_at DESC').paginate(page: params[:page], per_page: 15)
-    @buy_contracts = Contract.joins(:buy_contract).where(buy_contracts: {company_id: current_company.id}).order('created_at DESC').paginate(page: params[:page], per_page: 15)
-    @sell_contracts = Contract.joins(:sell_contract).where(sell_contracts: {company_id: current_company.id}).order('created_at DESC').paginate(page: params[:page], per_page: 15)
+    @contract_activity = PublicActivity::Activity.where(trackable: current_company.contracts).order('created_at DESC').paginate(page: 1, per_page: 15)
+    @buy_contracts = Contract.joins(:buy_contract).where(buy_contracts: {company_id: current_company.id}).order('created_at DESC').paginate(page: 1, per_page: 15)
+    @sell_contracts = Contract.joins(:sell_contract).where(sell_contracts: {company_id: current_company.id}).order('created_at DESC').paginate(page: 1, per_page: 15)
+    @sent_contracts = @sent_search.result.paginate(page: 1, per_page: 15) || []
+    if params[:page]
+      @contract_activity = PublicActivity::Activity.where(trackable: current_company.contracts).order('created_at DESC').paginate(page: params[:page], per_page: 15) if params[:tab] == "activity"
+      @sent_contracts = @sent_search.result.paginate(page: params[:page], per_page: 15) || [] if params[:tab] == "contract_table"
+      @buy_contracts = Contract.joins(:buy_contract).where(buy_contracts: {company_id: current_company.id}).order('created_at DESC').paginate(page: params[:page], per_page: 15) if params[:tab] == "buy_contract"
+      @sell_contracts = Contract.joins(:sell_contract).where(sell_contracts: {company_id: current_company.id}).order('created_at DESC').paginate(page: params[:page], per_page: 15) if params[:tab] == "sell_contract"
+    end
   end
 
   def show
@@ -383,7 +390,6 @@ class Company::ContractsController < Company::BaseController
     @received_search = current_company.received_contracts.includes(job: [:company, :created_by]).search(params[:q]) || []
     @received_contracts = @received_search.result.paginate(page: params[:page], per_page: 30) || []
     @sent_search = current_company.sent_contracts.includes(job: [:created_by]).search(params[:q]) || []
-    @sent_contracts = @sent_search.result.paginate(page: params[:page], per_page: 30) || []
   end
 
 

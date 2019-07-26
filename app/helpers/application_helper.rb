@@ -1029,11 +1029,11 @@ module ApplicationHelper
     format("%02d:%02d:%02d", hours, minutes, seconds)
   end
 
-  def digg_pagination data
+  def digg_pagination(data, tab=nil)
     # will_paginate @collection, {link_options: {'data-remote': true}, params: {action: 'other_action'}}
     digg = ""
     digg = "<div class='text-center'><div class='digg_pagination'>"
-    digg += will_paginate(data, {params: params}).to_s
+    digg += will_paginate(data, {params: params.merge(tab: tab)}).to_s
     digg += "</div></div>"
     raw(digg)
   end
