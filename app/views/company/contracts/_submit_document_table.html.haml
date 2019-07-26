@@ -1,10 +1,22 @@
 - @sell_contract.sell_send_documents.each do |doc|
   %tr
     %td
-      = doc.number
-    %td Signors/Request doc
-    %td Creator
-    %td Due Date
-    %td Status
-    %td Attachment
+      = doc.id
+    %td
+      = File.basename(URI.parse(doc.doc_file).path)
+    %td
+      - doc.document_signs.each do |sign|
+        = sign&.signable&.full_name
+    %td
+      = doc.creatable.full_name
+    %td
+      = doc.when_expire
+    %td
+      = doc.is_sign_required && doc.document_signs.present? ? "Signed": "Unsigned"
+    %td
+      - if doc.doc_file.present?
+        = link_to doc.doc_file do
+          %i.fa.fa-paperclip.fa-lg
+      - else
+        File not exists
     %td Action

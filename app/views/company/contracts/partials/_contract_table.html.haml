@@ -31,33 +31,23 @@
                   %td= contract.candidate.try(:full_name)
                   %td not know
                   %td= link_to contract.created_by.full_name , '#'
-                  %td= (contract.start_date)
+                  %td= contract.start_date
                   %td
                     = link_to contract.sell_contract.try(:number), company_sell_contract_path(contract.sell_contract.try(:number))
-                    %br
                     =contract.sell_contract.try(:customer_rate)
-                    %br
                     =contract.sell_contract.try(:time_sheet)
-                    %br
                     =contract.sell_contract.try(:invoice_terms_period)
-                    %br
                     =contract.sell_contract.try(:show_accounting_to_employee)
                   %td
                     = link_to contract.buy_contract.try(:number), company_buy_contract_path(contract.buy_contract.try(:number))
-                    %br
                     =contract.buy_contract.try(:contract_type)
-                    %br
                     =contract.buy_contract.try(:payrate)
-                    %br
                     =contract.buy_contract.try(:time_sheet)
-                    %br
                     =contract.buy_contract.try(:payment_term)
                   %td
-                    = label_status_color(contract.status)
+                    = contract.status
                   %td not know
-
-
-= digg_pagination(data)
+      = digg_pagination(data)
 
 :css
   .form-control

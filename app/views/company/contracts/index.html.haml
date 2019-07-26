@@ -17,21 +17,25 @@
         %hr
         %div
           .widget-body
-            %ul#myTab1.nav.nav-tabs.no-border.new_tab
-              %li.active
-                %a{"data-toggle" => "tab", :href => "#tab-r1"}
+            %ul#myTab1.nav.nav-tabs.smaller{style: "border-bottom: 0px;"}
+              %li.nav-item.active.cumstom_nav-tab
+                %a{"data-toggle" => "tab", :href => "#tab-r1", class: "nav-link cumstom_nav-tab display-flex"}
+                  %span.badge.bg-color-blue.txt-color-white
                   Activity log
                   %span.badge.bg-color-blue.txt-color-white= @contract_activity.count
-              %li
-                %a{"data-toggle" => "tab", :href => "#tab-r2"}
+              %li.nav-item.cumstom_nav-tab
+                %a{"data-toggle" => "tab", :href => "#tab-r2",class: "nav-link cumstom_nav-tab display-flex"}
+                  %span.badge.bg-color-blue.txt-color-white
                   My Contracts
                   %span.badge.bg-color-blue.txt-color-white= @sent_contracts.count
-              %li
-                %a{"data-toggle" => "tab", :href => "#tab-r3"}
+              %li.nav-item.cumstom_nav-tab
+                %a{"data-toggle" => "tab", :href => "#tab-r3",class: "nav-link cumstom_nav-tab display-flex"}
+                  %span.badge.bg-color-blue.txt-color-white
                   Received Contracts
                   %span.badge.bg-color-blueDark.txt-color-white= @buy_contracts.count
-              %li
-                %a{"data-toggle" => "tab", :href => "#tab-r4"}
+              %li.nav-item.cumstom_nav-tab
+                %a{"data-toggle" => "tab", :href => "#tab-r4",class: "nav-link cumstom_nav-tab display-flex"}
+                  %span.badge.bg-color-blueDark.txt-color-white
                   Sell Contracts
                   %span.badge.bg-color-blueDark.txt-color-white= @sell_contracts.count
             .col-md-12
