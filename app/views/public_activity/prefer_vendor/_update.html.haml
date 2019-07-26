@@ -2,7 +2,7 @@
   .ta-timestamp
     %strong #{a.try(:created_at).strftime('%I:%M %P')}
   .ta-activity
-    #{a.owner.try(:name).try(:titleize) } #{a.trackable.status.titleize} vendor request of company #{a.trackable.prefer_vendor.try(:name) }
+    #{a.owner.try(:full_name).try(:titleize) } #{a.trackable.status.titleize} vendor request of company #{a.trackable.prefer_vendor.try(:name) }
 
 -#- if params[:index]
 -#  %li.well.margin-bottom-10

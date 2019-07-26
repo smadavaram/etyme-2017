@@ -1,52 +1,49 @@
-%body
-  %section#widget-grid
-    .row
-      %article.col-xs-12.col-sm-12.col-md-12.col-lg-12.sortable-grid.ui-sortable
-        = link_to 'Create New',create_contract_contracts_path ,class: 'btn btn-sm btn-secondary float-right'
-        .table-responsive
-          %table#company-contracts-datatable.table.text-center.table-bordered.table-lg.table-v2.table-striped.data-table-font
-            %thead
-              %tr
-                %th Id
-                %th Title
-                %th Customer
-                %th Rate
-                %th Candidate
-                %th Cost
-                %th Created By
-                %th Start date
-                %th Sell Contract
-                %th Buy Contract
-                %th Status
-                %th Action
-            %tbody
-              - data.each do |contract|
-                %tr
-                  %td=link_to contract.try(:number) ,contract_path(contract)
-                  %td=contract.try(:title)
-                  %td
-                    = contract.client.try(:full_name)
-                  %td
-                    = contract.rate
-                  %td= contract.candidate.try(:full_name)
-                  %td not know
-                  %td= link_to contract.created_by.full_name , '#'
-                  %td= contract.start_date
-                  %td
-                    = link_to contract.sell_contract.try(:number), company_sell_contract_path(contract.sell_contract.try(:number))
-                    =contract.sell_contract.try(:customer_rate)
-                    =contract.sell_contract.try(:time_sheet)
-                    =contract.sell_contract.try(:invoice_terms_period)
-                    =contract.sell_contract.try(:show_accounting_to_employee)
-                  %td
-                    = link_to contract.buy_contract.try(:number), company_buy_contract_path(contract.buy_contract.try(:number))
-                    =contract.buy_contract.try(:contract_type)
-                    =contract.buy_contract.try(:payrate)
-                    =contract.buy_contract.try(:time_sheet)
-                    =contract.buy_contract.try(:payment_term)
-                  %td
-                    = contract.status
-                  %td not know
+.x_overflow_y_h
+  = link_to 'Create New',create_contract_contracts_path ,class: 'btn btn-sm btn-secondary float-right'
+  .table-responsive
+    %table#company-contracts-datatable.table.text-center.table-bordered.table-lg.table-v2.table-striped.data-table-font
+      %thead
+        %tr
+          %th Id
+          %th Title
+          %th Customer
+          %th Rate
+          %th Candidate
+          %th Cost
+          %th Created By
+          %th Start date
+          %th Sell Contract
+          %th Buy Contract
+          %th Status
+          %th Action
+      %tbody
+        - data.each do |contract|
+          %tr
+            %td=link_to contract.try(:number) ,contract_path(contract)
+            %td=contract.try(:title)
+            %td
+              = contract.client.try(:full_name)
+            %td
+              = contract.rate
+            %td= contract.candidate.try(:full_name)
+            %td not know
+            %td= link_to contract.created_by.full_name , '#'
+            %td= contract.start_date
+            %td
+              = link_to contract.sell_contract.try(:number), company_sell_contract_path(contract.sell_contract.try(:number))
+              =contract.sell_contract.try(:customer_rate)
+              =contract.sell_contract.try(:time_sheet)
+              =contract.sell_contract.try(:invoice_terms_period)
+              =contract.sell_contract.try(:show_accounting_to_employee)
+            %td
+              = link_to contract.buy_contract.try(:number), company_buy_contract_path(contract.buy_contract.try(:number))
+              =contract.buy_contract.try(:contract_type)
+              =contract.buy_contract.try(:payrate)
+              =contract.buy_contract.try(:time_sheet)
+              =contract.buy_contract.try(:payment_term)
+            %td
+              = contract.status
+            %td not know
       = digg_pagination(data, "contract_table")
 
 :css

@@ -1,51 +1,21 @@
 class Candidate::ConversationsController < Candidate::BaseController
 
   def index
-    get_conversation_users
-    message = ConversationMessage.joins(:conversation).where("(senderable_type = ? AND senderable_id = ? ) OR (recipientable_type = ? AND recipientable_id = ?)", current_candidate.class.to_s, current_candidate.id, current_candidate.class.to_s, current_candidate.id).where.not(is_read: true, userable: current_candidate).order("created_at DESC").first
-    if params[:conversation].present?
-      @conversation = Conversation.find(params[:conversation])
-    elsif message.present?
-      # set_conversation(message.userable)
-      set_conversation(message.userable, '', message.userable_id, message.userable_type)
-      @current_chat = message.userable
-      # @messages = @conversation.conversation_messages.last(50)
-    elsif @companies.present?
-      # set_conversation(@companies.first)
-      set_conversation(@companies.first, '', @companies.first.id, @companies.first.class.to_s)
-      @current_chat = @companies.first
-      # @messages = @conversation.conversation_messages.last(50)
-    end
-    @unread_message_count = Conversation.joins(:conversation_messages).where("(senderable_type = ? AND senderable_id = ? ) OR (recipientable_type = ? AND recipientable_id = ?)", current_candidate.class.to_s, current_candidate.id, current_candidate.class.to_s, current_candidate.id).where.not(conversation_messages: {is_read: true, userable: current_candidate}).uniq.count
+    @conversations = Conversation.all_onversations(current_candidate).uniq
+    @conversation = params[:conversation].present? ? Conversation.find(params[:conversation]) : @conversations.first
+    @favourites = current_candidate.favourables.uniq
+    set_activity_for_job_application
   end
 
   def create
-    # if params[:user_type] == "Candidate"
-    #   user = Candidate.where(id: params[:user_id]).first
-    # else
-    #   user = User.where(id: params[:user_id]).first
-    # end
-    #
-    # set_conversation(user)
-
-
-    if params[:chatable_type] == "Group"
-      user = Group.where(id: params[:chatable_id]).first
-    elsif params[:user_type] == "Candidate"
-      user = Candidate.where(id: params[:user_id]).first
-    elsif params[:user_type] == "Company"
-      user = Company.where(id: params[:user_id]).first
-    else
-      user = User.where(id: params[:user_id]).first
+    @conversation = Conversation.where(id: params[:conversation]).first
+    if @conversation.job_application.present?
+      @activities = PublicActivity::Activity.where(recipient: @conversation.job_application).order("created_at desc")
     end
-
-    set_conversation(user, params[:chat_topic], params[:chatable_id], params[:chatable_type])
-
-    # @messages = @conversation.conversation_messages.last(50)
-    @unread_message_count = Conversation.joins(:conversation_messages).where("(senderable_type = ? AND senderable_id = ? ) OR (recipientable_type = ? AND recipientable_id = ?)", current_candidate.class.to_s, current_candidate.id, current_candidate.class.to_s, current_candidate.id).where.not(conversation_messages: {is_read: true, userable: current_candidate}).uniq.count
+    @favourites = current_candidate.favourables
+    # @unread_message_count = Conversation.joins(:conversation_messages).where("(senderable_type = ? AND senderable_id = ? ) OR (recipientable_type = ? AND recipientable_id = ?)", current_user.class.to_s, current_user.id, current_user.class.to_s, current_user.id).where.not(conversation_messages: {is_read: true, userable: current_user}).uniq.count
     respond_to do |format|
       format.html {
-        get_conversation_users
         render 'index'
       }
       format.js
@@ -120,6 +90,13 @@ class Candidate::ConversationsController < Candidate::BaseController
     @favourites = current_candidate.favourables
 
     @groups = current_candidate.groups
+  end
+
+
+  def set_activity_for_job_application
+    if @conversation.job_application.present?
+      @activities = PublicActivity::Activity.where(recipient: @conversation.job_application).order("created_at desc")
+    end
   end
 
 end

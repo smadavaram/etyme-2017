@@ -1,5 +1,5 @@
 class BuyVenReqDoc < ApplicationRecord
-
+  include PublicActivity::Model
   belongs_to :buy_contract, optional: true
   belongs_to :creatable      , polymorphic: :true, optional: true
 

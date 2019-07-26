@@ -20,6 +20,6 @@ class AddTimeSheetSettingColumn < ActiveRecord::Migration[4.2][5.1]
     add_column :buy_contracts, :max_day_allow_for_invoice, :integer
     add_column :buy_contracts, :uscis_rate, :integer
 
-    add_column :contracts, :salary_to_pay, :decimal, default: 0.0
+    add_column :contract, :salary_to_pay, :decimal, default: 0.0
   end
 end

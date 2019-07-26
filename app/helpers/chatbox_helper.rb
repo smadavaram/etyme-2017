@@ -2,7 +2,7 @@ module ChatboxHelper
 
 
   def set_company_chat_user_data(current_chat_user, user)
-    conversation = Conversation.between(current_user, user).first
+    conversation = Conversation.where(chatable: user).first
     message = conversation.conversation_messages.order("created_at DESC").first if conversation.present?
 
     class_name = ""
@@ -12,7 +12,7 @@ module ChatboxHelper
 
     if message.present?
       class_name = "unread" unless message.is_read
-      unread_count = ConversationMessage.unread_messages(user, current_user).count
+      # unread_count = ConversationMessage.unread_messages(user, current_user).count
       last_msg = message.body[0..50]
       last_msg_time = time_ago_in_words(message.created_at)
     end
@@ -30,7 +30,7 @@ module ChatboxHelper
 
 
   def set_candidate_chat_user_data(current_chat_user, user)
-    conversation = Conversation.between(current_candidate, user).first
+    conversation = Conversation.where(chatable: user).first
     message = conversation.conversation_messages.order("created_at DESC").first if conversation.present?
 
     class_name = ""
@@ -40,7 +40,7 @@ module ChatboxHelper
 
     if message.present?
       class_name = "unread" unless message.is_read
-      unread_count = ConversationMessage.unread_messages(user, current_candidate).count
+      # unread_count = ConversationMessage.unread_messages(user, current_candidate).count
       last_msg = message.body[0..50]
       last_msg_time = time_ago_in_words(message.created_at)
     end

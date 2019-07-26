@@ -1,5 +1,5 @@
 class SellSendDocument < ApplicationRecord
-
+  include PublicActivity::Model
   belongs_to :sell_contract, optional: true
   belongs_to :creatable      , polymorphic: :true, optional: true
 
