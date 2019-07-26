@@ -1,5 +1,5 @@
 <% chat_user_data = set_candidate_chat_user_data(@current_chat, usr) %>
-<%= link_to  candidate_conversations_path(user_id: usr.id, user_type: usr.class.to_s), class: "user-w", remote: true, method: :post do %>
+<%= link_to  candidate_conversations_path(conversation: Conversation.where(chatable: usr).first), class: "user-w", remote: true, method: :post do %>
     <div class="avatar with-status status-green">
       <%= image_tag usr.photo %>
     </div>

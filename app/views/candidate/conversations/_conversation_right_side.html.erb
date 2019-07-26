@@ -1,76 +1,70 @@
 <% if @conversation.present? %>
-    <% user = @conversation.chatable_type == "Group" ? @conversation.chatable :  (@conversation.senderable == current_candidate ? @conversation.recipientable : @conversation.senderable) %>
-    <div class="chat-info-section p-0 pb-3">
-      <div class="ci-header">
-        <i class="icon-people"></i><span>Chat Member</span>
-        <a href="#" class ="add-to-conversation ml-2" data-conid=<%= @conversation.id %> data-cid=<%= user.id %> data-ctype=<%= user.class.to_s %> > <i class="fa fa-plus"></i></a>
-      </div>
-      <div class="group-member">
-        <% if @conversation.chatable_type == "Group" %>
-          <ul>
-            <% @conversation.chatable.groupables.each do |g| %>
-              <li><%= g.groupable.full_name %></li>
-            <% end %>
-            <% if current_company&.id != @conversation.chatable.company_id %>
-              <li><%= link_to "Leave Group", leave_group_candidate_conversations_path(group: @conversation.chatable_id)  %></li>
-            <% end %>
-          </ul>
-        <% else %>
-          <ul>
+  <% user = @conversation.chatable_type == "Group" ? @conversation.chatable : (@conversation.senderable == current_candidate ? @conversation.recipientable : @conversation.senderable) %>
+  <div class="chat-info-section p-0 pb-3">
+    <div class="ci-header pl-1">
+<!--      <i class="icon-people"></i>-->
+      <span>Chat Member</span>
+      <% if ConversationMute.where(conversation: @conversation, mutable: current_candidate).present? %>
+        <%= link_to "<i class='ti-bell'></i>".html_safe, unmute_candidate_conversation_path(@conversation),title: 'Unmute Conversation','data-toggle'=>"tooltip" ,'data-placement'=>"top" %>
+      <% else %>
+        <%= link_to "<i class='fa fa-bell-slash-o' style='color: red;'></i>".html_safe, mute_candidate_conversation_path(@conversation),class:'text-danger',title: 'Mute Conversation','data-toggle'=>"tooltip" ,'data-placement'=>"top" %>
+      <% end %>
+<!--      <a href="#" class="add-to-conversation ml-2" data-conid=<%#= @conversation.id %> data-cid=<%#= user.id %> data-ctype=<%#= user.class.to_s %>>-->
+<!--        <i class="fa fa-plus"></i></a>-->
+    </div>
+    <div class="group-member">
+      <% if @conversation.chatable_type == "Group" %>
+        <ul>
+          <% @conversation.chatable.groupables.each do |g| %>
             <li>
-              <%= user.full_name %>
+              <%= image_tag g.groupable.photo, class: 'superbox-img', style: 'border-radius: 50%;width:30px !important;height:30px !important' %>
+              <%= do_ellipsis(g.groupable.full_name.capitalize, 15) %>
+              <% if g.groupable == current_candidate %>
+                <%= link_to "<i class='icon-feather-x'></i>".html_safe, leave_group_candidate_conversations_path(group: @conversation.chatable_id) %>
+              <% end %>
             </li>
-          </ul>
-        <% end %>
-      </div>
-    </div>
-    <div class="chat-info-section p-0 pt-4 pb-2">
-      <div class="ci-content p-0 pt-3 pb-3">
-        <div class="ci-file-list text-center">
-          <% if ConversationMute.where(conversation: @conversation, mutable: current_candidate).present? %>
-            <%= link_to "Unmute", unmute_candidate_conversation_path(@conversation), class: "btn btn-primary" %>
-          <% else %>
-            <%= link_to "Mute", mute_candidate_conversation_path(@conversation), class: "btn btn-danger" %>
           <% end %>
-        </div>
-      </div>
+        </ul>
+      <% else %>
+        <ul>
+          <li>
+            <%= image_tag user.photo, class: 'superbox-img', style: 'border-radius: 50%;width:30px !important;height:30px !important' %>
+            <%= do_ellipsis(user.full_name.capitalize, 15) %>
+          </li>
+        </ul>
+      <% end %>
     </div>
-    <div class="chat-info-section p-0 pt-4">
+  </div>
+
+  <div class="chat-info-section p-0 pt-4">
+    <% if @conversation.topic == "JobApplication" %>
       <div class="ci-header">
         <i class="os-icon os-icon-documents-03"></i><span>Activity log</span>
       </div>
-      <div class="timed-activities compact pt-3">
-        <div class="timed-activity">
-          <div class="ta-date">
-            <span>21st Jan, 2017</span>
-          </div>
-          <div class="ta-record-w">
-            <div class="ta-record">
-              <div class="ta-timestamp">
-                <strong>11:55</strong> am
-              </div>
-              <div class="ta-activity">
-                Created a post called <a href="#">Register new symbol</a> in Rogue
-              </div>
-            </div>
-            <div class="ta-record">
-              <div class="ta-timestamp">
-                <strong>2:34</strong> pm
-              </div>
-              <div class="ta-activity">
-                Commented on story <a href="#">How to be a leader</a> in <a href="#">Financial</a> category
-              </div>
-            </div>
-            <div class="ta-record">
-              <div class="ta-timestamp">
-                <strong>7:12</strong> pm
-              </div>
-              <div class="ta-activity">
-                Added <a href="#">John Silver</a> as a friend
+      <div class="timed-activities timed-activities_height compact pt-3">
+        <% if job_application_activity_hash.present? %>
+          <div class="col-sm-12">
+            <div class="element-wrapper">
+              <div class="timed-activities compact">
+                <% job_application_activity_hash.each do |key, value| %>
+                  <div class="timed-activity">
+                    <div class="ta-date">
+                      <span>
+                        <%= key %>
+                      </span>
+                    </div>
+                    <div class="ta-record-w">
+                      <% value.each do |activity| %>
+                        <%= render_activity activity %>
+                      <% end %>
+                    </div>
+                  </div>
+                <% end %>
               </div>
             </div>
           </div>
-        </div>
+        <% end %>
       </div>
-    </div>
+    <% end %>
+  </div>
 <% end %>
