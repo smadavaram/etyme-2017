@@ -27,7 +27,6 @@ class Company::ConversationsController < Company::BaseController
 
 
   def search
-    puts "============================================== #{online_user.class.to_s}"
     if params[:keyword].present? and params[:topic].present?
       @conversations = params[:topic] == "All" ?
                            Conversation.conversation_of(current_company, params[:keyword]) :
@@ -105,7 +104,7 @@ class Company::ConversationsController < Company::BaseController
   private
 
   def set_activity_for_job_application
-    if @conversation.job_application.present?
+    if @conversation&.job_application.present?
       @activities = PublicActivity::Activity.where(recipient: @conversation.job_application).order("created_at desc")
     end
   end

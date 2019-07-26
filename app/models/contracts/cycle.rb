@@ -824,13 +824,13 @@ module Contracts
       contract_cycles.where(cycle_type: "ClientExpenseCalculation").order("created_at DESC").first
     end
 
-    def buy_contract
-      buy_contract
-    end
-
-    def sell_contract
-      sell_contract
-    end
+    # def buy_contract
+    #   buy_contract
+    # end
+    #
+    # def sell_contract
+    #   sell_contract
+    # end
 
     def ts_time_sheet_frequency
       buy_contract.time_sheet

@@ -4,7 +4,7 @@ class Company::JobApplicationsController < Company::BaseController
   before_action :find_job, only: [:create, :create_multiple_For_candidate]
   before_action :find_received_job_invitation, only: [:create]
   before_action :set_job_applications, only: [:index]
-  before_action :find_received_job_application, only: [:prescreen, :client_submission, :rate_negotiation, :accept_rate, :accept_interview, :accept, :reject, :interview, :hire, :short_list, :show, :proposal, :share_application_with_companies,:open_inbox_conversation]
+  before_action :find_received_job_application, only: [:prescreen, :client_submission, :rate_negotiation, :accept_rate, :accept_interview, :accept, :reject, :interview, :hire, :short_list, :show, :proposal, :share_application_with_companies, :open_inbox_conversation]
   before_action :authorized_user, only: [:accept, :reject, :interview, :hire, :short_list, :show]
   skip_before_action :authenticate_user!, :authorized_user, only: [:share], raise: false
 
@@ -174,17 +174,12 @@ class Company::JobApplicationsController < Company::BaseController
 
   def hire
     respond_to do |format|
-      if @job_application.interviewing?
-        if @job_application.hired!
-          create_conversation_message
-          format.html {flash[:success] = "Successfully Hired."}
-        else
-          format.html {flash[:errors] = @job_application.errors.full_messages}
-        end
+      if @job_application.hired!
+        create_conversation_message
+        format.html {flash[:success] = "Successfully Hired."}
       else
-        format.html {flash[:errors] = ["Request Not Completed."]}
+        format.html {flash[:errors] = @job_application.errors.full_messages}
       end
-
     end
     redirect_back fallback_location: root_path
   end
@@ -268,12 +263,12 @@ class Company::JobApplicationsController < Company::BaseController
     # owner: who performs the activity
     # recipient: the one on which the activity is performed
     # additional_data: hash of things about the recipients --needed to make links
-    @job_application.create_activity key: 'job_application.status', owner: current_user,recipient: @job_application, additional_data: {status: @job_application.status.camelcase}
+    @job_application.create_activity key: 'job_application.status', owner: current_user, recipient: @job_application, additional_data: {status: @job_application.status.camelcase}
   end
 
   def set_conversation(user)
     ConversationMessage.unread_messages(user, current_user).update_all(is_read: true)
-    @conversation = Conversation.where(topic: :JobApplication,job_application_id: @job_application.id).first
+    @conversation = Conversation.where(topic: :JobApplication, job_application_id: @job_application.id).first
     unless @conversation.present?
       name = [user.full_name]
       name << current_user.full_name
@@ -328,7 +323,7 @@ class Company::JobApplicationsController < Company::BaseController
 
   def create_conversation_message
     @conversation = @job_application.conversation
-    body = @job_application.applicationable.full_name + " has #{@job_application.status.humanize} <a href='http://#{@job_application.job.created_by.company.etyme_url + job_application_path(@job_application)}'> on your Job </a>#{@job_application.job.title}"
+    body = current_user.full_name.capitalize + " has #{@job_application.status.humanize} you on your Job application against the #{@job_application.job.title} job"
     current_user.conversation_messages.create(conversation_id: @conversation.id, body: body)
   end
 

@@ -8,7 +8,7 @@ class Company::ContractsController < Company::BaseController
   before_action :authorize_user_for_new_contract, only: :new
   before_action :authorize_user_for_edit_contract, only: :edit
   before_action :get_sell_contract, only: [:submit_document_create, :create_document_request]
-  before_action :get_buy_contract, only: [:buy_document_create, :buy_emp_doc_create, :buy_ven_doc_create ]
+  before_action :get_buy_contract, only: [:buy_document_create, :buy_emp_doc_create, :buy_ven_doc_create]
   before_action :authorized_user, only: :show
   before_action :main_authorized_user, only: :show
 
@@ -65,7 +65,7 @@ class Company::ContractsController < Company::BaseController
       @buy_send_document = @buy_contract.buy_send_documents.build(buy_document_params)
       respond_to do |format|
         if @buy_send_document.save
-          create_custom_activity(@buy_send_document,'buy_send_documents.create',
+          create_custom_activity(@buy_send_document, 'buy_send_documents.create',
                                  buy_document_params, @buy_send_document,
                                  {contract_id: @buy_contract.contract_id,
                                   buy_contract_id: @buy_contract.id})
@@ -88,7 +88,7 @@ class Company::ContractsController < Company::BaseController
       @buy_emp_send_document = @buy_contract.buy_emp_req_docs.build(buy_document_params)
       respond_to do |format|
         if @buy_emp_send_document.save
-          create_custom_activity(@buy_emp_send_document,'buy_emp_req_docs.create',
+          create_custom_activity(@buy_emp_send_document, 'buy_emp_req_docs.create',
                                  buy_document_params, @buy_emp_send_document,
                                  {contract_id: @buy_contract.contract_id,
                                   buy_contract_id: @buy_contract.id})
@@ -111,7 +111,7 @@ class Company::ContractsController < Company::BaseController
       @buy_ven_send_document = @buy_contract.buy_ven_req_docs.build(buy_document_params)
       respond_to do |format|
         if @buy_ven_send_document.save
-          create_custom_activity(@buy_ven_send_document,'buy_ven_req_docs.create',
+          create_custom_activity(@buy_ven_send_document, 'buy_ven_req_docs.create',
                                  buy_document_params, @buy_ven_send_document,
                                  {contract_id: @buy_contract.contract_id,
                                   buy_contract_id: @buy_contract.id})
@@ -134,7 +134,7 @@ class Company::ContractsController < Company::BaseController
       @sell_document = @sell_contract.sell_send_documents.build(send_document_params)
       respond_to do |format|
         if @sell_document.save
-          create_custom_activity(@sell_document,'sell_send_documents.create',
+          create_custom_activity(@sell_document, 'sell_send_documents.create',
                                  send_document_params, @sell_document,
                                  {contract_id: @sell_contract.contract_id,
                                   sell_contract_id: @sell_contract.id})
@@ -157,7 +157,7 @@ class Company::ContractsController < Company::BaseController
       @sell_request = @sell_contract.sell_request_documents.build(sell_request_params)
       respond_to do |format|
         if @sell_request.save
-          create_custom_activity(@sell_request,'sell_request_documents.create',
+          create_custom_activity(@sell_request, 'sell_request_documents.create',
                                  sell_request_params, @sell_request,
                                  {contract_id: @sell_contract.contract_id,
                                   sell_contract_id: @sell_contract.id})
@@ -183,13 +183,18 @@ class Company::ContractsController < Company::BaseController
     @tab_number = params[:tab].to_i
     respond_to do |format|
       if @contract.update(contract_params)
-        create_custom_activity(@contract,'contracts.update', contract_params, @contract)
+        create_custom_activity(@contract, 'contracts.update', contract_params, @contract)
         format.html {
-          after_create_callbacks if @contract.pending?
           flash[:success] = "#{@contract.title.titleize} updated successfully"
           edirect_back fallback_location: root_path
         }
         format.js {
+          if @contract.pending?
+            debugger
+            @contract.set_next_invoice_date
+            @contract.create_rate_change
+            @contract.notify_recipient if @contract.not_system_generated?
+          end
           flash.now[:success] = 'Contract Updated Successfully'
           render 'create.js'
         }
@@ -214,7 +219,7 @@ class Company::ContractsController < Company::BaseController
     @contract.status = :draft
     respond_to do |format|
       if @contract.save
-        create_custom_activity(@contract,'contracts.create', create_contract_params, @contract)
+        create_custom_activity(@contract, 'contracts.create', create_contract_params, @contract)
         format.html {
           flash[:success] = "successfully Send."
           redirect_to contract_path(@contract)
@@ -248,7 +253,7 @@ class Company::ContractsController < Company::BaseController
     respond_to do |format|
       if @contract.pending?
         if @contract.update_attributes(update_contract_response_params.merge!(respond_by_id: current_user.id, responed_at: Time.zone.now, status: status))
-          create_custom_activity(@contract,'contracts.update',
+          create_custom_activity(@contract, 'contracts.update',
                                  update_contract_response_params.merge!(respond_by_id: current_user.id,
                                                                         responed_at: Time.zone.now,
                                                                         status: status),
@@ -265,7 +270,7 @@ class Company::ContractsController < Company::BaseController
 
   def change_invoice_date
     if @contract.update_attributes(next_invoice_date: params[:contract][:next_invoice_date])
-      create_custom_activity(@contract,'contracts.update', {next_invoice_date: params[:contract][:next_invoice_date]}, @contract)
+      create_custom_activity(@contract, 'contracts.update', {next_invoice_date: params[:contract][:next_invoice_date]}, @contract)
       flash[:success] = "Next invoice date changed"
     else
       flash[:errors] = @contract.errors.full_messages
@@ -325,7 +330,7 @@ class Company::ContractsController < Company::BaseController
 
   def update_contract_status
     if @contract.update(status: params[:status])
-      create_custom_activity(@contract,'contracts.update', {status: params[:status]}, @contract)
+      create_custom_activity(@contract, 'contracts.update', {status: params[:status]}, @contract)
       Contract.set_cycle if @contract.in_progress!
       redirect_back fallback_location: root_path
     end
@@ -413,12 +418,12 @@ class Company::ContractsController < Company::BaseController
 
   def sell_request_params
     params.require(:document).permit(:id, :doc_file, :request, :file_name, :file_size, :file_type, :when_expire, :is_sign_required, :creatable_type,
-                                         :creatable_id)
+                                     :creatable_id)
   end
 
   def send_document_params
     params.require(:document).permit(:id, :doc_file, :request, :file_name, :file_size, :file_type, :when_expire, :is_sign_required, :creatable_type,
-                                         :creatable_id)
+                                     :creatable_id)
   end
 
   def buy_document_params
@@ -546,7 +551,7 @@ class Company::ContractsController < Company::BaseController
     @sell_contract = SellContract.find_by(id: params[:document][:sell_contract_id])
   end
 
-  def create_custom_activity(model, key, parameters, recipient=nil, additional_data=nil)
+  def create_custom_activity(model, key, parameters, recipient = nil, additional_data = nil)
     model.create_activity(key: key, owner: current_user, params: parameters, recipient: recipient, additional_data: additional_data)
   end
 

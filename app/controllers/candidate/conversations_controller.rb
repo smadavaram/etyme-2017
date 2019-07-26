@@ -94,7 +94,7 @@ class Candidate::ConversationsController < Candidate::BaseController
 
 
   def set_activity_for_job_application
-    if @conversation.job_application.present?
+    if @conversation&.job_application.present?
       @activities = PublicActivity::Activity.where(recipient: @conversation.job_application).order("created_at desc")
     end
   end
