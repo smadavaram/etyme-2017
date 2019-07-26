@@ -2,4 +2,4 @@
   .ta-timestamp
     %strong #{a.try(:created_at).strftime('%I:%M %P')}
   .ta-activity
-    #{a.owner.name.titleize} created #{SellContract.find_by(id: a.additional_data.sell_contract_id).number} contract Request document.
+    #{a.owner.full_name.titleize} created #{SellContract.find_by(id: a.additional_data.sell_contract_id).number} contract Request document.

@@ -2,7 +2,7 @@
   .ta-timestamp
     %strong #{a.try(:created_at).strftime('%I:%M %P')}
   .ta-activity
-    company #{a.owner.try(:name).try(:humanize)} sent invitation to
+    company #{a.owner.try(:full_name).try(:humanize)} sent invitation to
     = link_to   a.trackable.try(:prefer_vendor).try(:name).try(:titleize),  a.trackable.try(:company).present? ?  profile_company_path( a.trackable.try(:prefer_vendor).try(:id)):'', class: 'font-md'
 
 -#- if params[:index]
