@@ -2,7 +2,7 @@
   .ta-timestamp
     %strong #{a.try(:created_at).strftime('%I:%M %P')}
   .ta-activity
-    #{a.owner.name.titleize} created job
+    #{a.owner.full_name.titleize} created job
     = link_to truncate(a.trackable.title), job_path(a.trackable), class: 'font-md'
 
 -#%img.busy{:alt => "img", :src => "#{a.owner.try(:photo)}"}/

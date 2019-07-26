@@ -1,33 +1,29 @@
-
-%body
-  %section#widget-grid
-    .row
-      %article.col-xs-12.col-sm-12.col-md-12.col-lg-12.sortable-grid.ui-sortable
-        = link_to 'Create New',create_contract_contracts_path ,class: 'btn btn-sm btn-secondary float-right'
-        .table-responsive
-          %table#company-contracts-datatable.table.text-center.table-bordered.table-lg.table-v2.table-striped.data-table-font
-            %thead
-              %tr
-                %th Pic
-                %th Title
-                %th Company/Candidate
-                %th Created By
-                %th Expiry
-                %th Invoice
-                %th Status
-                %th Action
-            %tbody
-              - data.each do |contract|
-                %tr
-                  %td=image_tag show_recipient_picture(contract.contractable), alt: '', width: '20'
-                  %td= contract.try(:title)
-                  %td= show_recipient_name(contract.contractable)
-                  %td= contract.created_by.full_name
-                  %td= (contract.end_date)
-                  %td
-                  %td
-                    = contract.status
-                  %td
+.x_overflow_y_h
+  = link_to 'Create New',create_contract_contracts_path ,class: 'btn btn-sm btn-secondary float-right'
+  .table-responsive
+    %table#company-contracts-datatable.table.text-center.table-bordered.table-lg.table-v2.table-striped.data-table-font
+      %thead
+        %tr
+          %th Pic
+          %th Title
+          %th Company/Candidate
+          %th Created By
+          %th Expiry
+          %th Invoice
+          %th Status
+          %th Action
+      %tbody
+        - data.each do |contract|
+          %tr
+            %td=image_tag show_recipient_picture(contract.contractable), alt: '', width: '20'
+            %td= contract.try(:title)
+            %td= show_recipient_name(contract.contractable)
+            %td= contract.created_by.full_name
+            %td= (contract.end_date)
+            %td
+            %td
+              = contract.status
+            %td
 
 = digg_pagination(data, "sell_contract")
 

@@ -20,6 +20,14 @@ module Company::ActivitiesHelper
     activity_h
   end
 
+  def contract_activity_hash(activities)
+    activity_h = {}
+    activities.each do |activity|
+      activity_h[activity.created_at.to_date] ? activity_h[activity.created_at.to_date] << activity : activity_h[activity.created_at.to_date] = [activity]
+    end
+    activity_h
+  end
+
   def job_application_activity_hash
     activity_h = {}
     @activities.take(5).each do |activity|
