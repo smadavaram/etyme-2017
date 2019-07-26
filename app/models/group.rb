@@ -1,17 +1,20 @@
 class Group < ApplicationRecord
   belongs_to :company, optional: true
-  has_many :groupables ,dependent:  :destroy
-  has_many :candidates  , through: :groupables, source: "groupable"  ,source_type: "Candidate"
-  has_many :companies   , through: :groupables, source: "groupable"  ,source_type: "Company"
-  has_many :users       , through: :groupables, source: "groupable"  ,source_type: "User"
-  has_many :company_contacts       , through: :groupables, source: "groupable"  ,source_type: "CompanyContact"
+  has_many :groupables, dependent: :destroy
+  has_many :candidates, through: :groupables, source: "groupable", source_type: "Candidate"
+  has_many :companies, through: :groupables, source: "groupable", source_type: "Company"
+  has_many :users, through: :groupables, source: "groupable", source_type: "User"
+  has_many :company_contacts, through: :groupables, source: "groupable", source_type: "CompanyContact"
   has_many :black_listers, as: :blacklister
-  has_many   :statuses             ,as:  :statusable     ,dependent: :destroy
-  has_many   :reminders            ,as:  :reminderable
+  has_many :statuses, as: :statusable, dependent: :destroy
+  has_many :reminders, as: :reminderable
 
 
-  scope :user_chat_groups, -> (user_id,company_id) do
-    where(member_type: "Chat", company_id: company_id).joins(:groupables).where("groupables.groupable_id = ? and groupables.groupable_type = ?", user_id, "User")
+  scope :user_chat_groups, -> (user, company) do
+    company.present? ?
+        where(member_type: "Chat", company_id: company.id).joins(:groupables).where("groupables.groupable_id = ? and groupables.groupable_type = ?", user.id, "User")
+        :
+        where(member_type: "Chat").joins(:groupables).where("groupables.groupable_id = ? and groupables.groupable_type = ?", user.id, "Candidate")
   end
 
   def get_blacklist_status(black_list_company_id)

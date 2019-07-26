@@ -273,9 +273,8 @@ class Company::JobApplicationsController < Company::BaseController
 
   def set_conversation(user)
     ConversationMessage.unread_messages(user, current_user).update_all(is_read: true)
-    if Conversation.between(current_user, user).present?
-      @conversation = Conversation.between(current_user, user).first
-    else
+    @conversation = Conversation.where(topic: :JobApplication,job_application_id: @job_application.id).first
+    unless @conversation.present?
       name = [user.full_name]
       name << current_user.full_name
       name << user.associated_company.owner.full_name if user.associated_company.owner
@@ -286,7 +285,7 @@ class Company::JobApplicationsController < Company::BaseController
         group.groupables.create(groupable: current_user)
         group.groupables.create(groupable: user.associated_company.owner) if user.associated_company.owner
       end
-      @conversation = Conversation.create({chatable: group, topic: :JobApplication, job_application_id: @job_application.id})
+      @conversation = Conversation.create({chatable: group, topic: :JobApplication, job_application_id: @job_application.id}) if group.present?
     end
   end
 

@@ -3,8 +3,9 @@ class Company::ConversationsController < Company::BaseController
   skip_before_action :authenticate_user!, only: :search
 
   def index
-    @conversations = Conversation.all_onversations(current_user)
+    @conversations = Conversation.all_onversations(current_user).uniq
     @conversation = params[:conversation].present? ? Conversation.find(params[:conversation]) : @conversations.first
+    @favourites = current_user.favourables.uniq
     set_activity_for_job_application
     # @unread_message_count = Conversation.joins(:conversation_messages).where("(senderable_type = ? AND senderable_id = ? ) OR (recipientable_type = ? AND recipientable_id = ?)", current_user.class.to_s, current_user.id, current_user.class.to_s, current_user.id).where.not(conversation_messages: {is_read: true, userable: current_user}).uniq.count
   end
@@ -14,6 +15,7 @@ class Company::ConversationsController < Company::BaseController
     if @conversation.job_application.present?
       @activities = PublicActivity::Activity.where(recipient: @conversation.job_application).order("created_at desc")
     end
+    @favourites = current_user.favourables
     # @unread_message_count = Conversation.joins(:conversation_messages).where("(senderable_type = ? AND senderable_id = ? ) OR (recipientable_type = ? AND recipientable_id = ?)", current_user.class.to_s, current_user.id, current_user.class.to_s, current_user.id).where.not(conversation_messages: {is_read: true, userable: current_user}).uniq.count
     respond_to do |format|
       format.html {
@@ -23,18 +25,20 @@ class Company::ConversationsController < Company::BaseController
     end
   end
 
+
   def search
+    puts "============================================== #{online_user.class.to_s}"
     if params[:keyword].present? and params[:topic].present?
       @conversations = params[:topic] == "All" ?
                            Conversation.conversation_of(current_company, params[:keyword]) :
                            Conversation.send(params[:topic]).conversation_of(current_company, params[:keyword])
     else
       @conversations = params[:topic] == "All" ?
-                           Conversation.all_onversations(current_user) :
-                           Conversation.send(params[:topic]).all_onversations(current_user)
+                           Conversation.all_onversations(online_user) :
+                           Conversation.send(params[:topic]).all_onversations(online_user)
 
     end
-    group_ids =  Group.user_chat_groups(current_user.id,current_company.id).ids
+    group_ids =  Group.user_chat_groups(online_user,current_company).ids
     @conversations = @conversations.select{|con| group_ids.include?(con.chatable_id) }
   end
 
@@ -105,6 +109,11 @@ class Company::ConversationsController < Company::BaseController
       @activities = PublicActivity::Activity.where(recipient: @conversation.job_application).order("created_at desc")
     end
   end
+
+  def online_user
+    current_user.present? ? current_user : current_candidate
+  end
+
   # private
 
   # def set_conversation(user)
