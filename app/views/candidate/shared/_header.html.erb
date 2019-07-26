@@ -9,7 +9,7 @@
     <div class="messages-notifications os-dropdown-trigger os-dropdown-position-left">
       <a href="<%= "#" %>"><i class="ti-bell"></i></a>
       <%# if current_user.notifications.unread.count > 0 %>
-<!--        <div class="new-messages-count"><%#= current_user.notifications.unread.count %></div>-->
+      <!--        <div class="new-messages-count"><%#= current_user.notifications.unread.count %></div>-->
       <%# end %>
     </div>
 
@@ -19,7 +19,7 @@
       <a href="<%= candidate_conversations_path %>"><i class="os-icon os-icon-mail-14"></i></a>
       <!-- Below is message count icon. Uncomment to add back in. -->
       <!--div class="new-messages-count">1</div-->
-<!--      <div class="os-dropdown light message-list">-->
+      <!--      <div class="os-dropdown light message-list">-->
       <!--        <ul>-->
       <!--          <li>-->
       <!--            <a href="#">-->
@@ -39,46 +39,49 @@
     <!--------------------START - Features Link in secondary top menu-------------------->
     <div class="top-icon top-settings os-dropdown-trigger os-dropdown-position-left">
       <i class="fa fa-plus"></i>
-      <div class="os-dropdown">
+      <div class="os-dropdown" style="width: 500px;">
         <div class="icon-w">
           <i class="os-icon os-icon-ui-46"></i>
         </div>
-        <ul>
-          <li>
-            <a href="<%= new_company_company_path %>">
-              <span>Add Companies</span>
-            </a>
-          </li>
-          <li>
-            <a href="<%= new_company_company_contact_path %>">
-              <span>Add Contacts</span>
-            </a>
-          </li>
-          <li>
-            <a href="<%= new_group_path %>">
-              <span>Add Groups</span>
-            </a>
-          </li>
-          <br/>
-          <li class="sub-header"></li>
-          <li>
-            <a href="<%= nil %>">
-              <span>Received Payments</span>
-            </a>
-          </li>
-          <li>
-            <a href="<%= nil %>">
-              <span>Send Payments</span>
-            </a>
-          </li>
+        <a href="<%= new_company_company_path %>" style="background-color:#0d1e73; color: white; " class="mr-2 mb-2 btn btn-rounded">
+          <span>Add Companies</span>
+        </a>
+        <a href="<%= new_company_company_contact_path %>" style="background-color:#0d1e73; color: white; " class="mr-2 mb-2 btn btn-rounded">
+          <span>Add Contacts</span>
+        </a>
+        <a href="<%= new_group_path %>" style="background-color:#0d1e73; color: white; " class="mr-2 mb-2 btn btn-rounded">
+          <span>Add Groups</span>
+        </a>
+        <br/>
+        <ul style="display: inline-block; vertical-align: top; width: 180px;">
+          <li class="sub-header"><h6 class="text-white font-weight-bold">Delv. Transactions</h6></li>
           <li>
             <a href="<%= candidate_timesheets_path %>">
               <span>Add Timesheets</span>
             </a>
           </li>
+          <li class="sub-header"><h6 class="text-white font-weight-bold">Payments</h6></li>
           <li>
-            <a href="<%= candidate_client_expenses_path %>">
-              <span>Submit Client Expenses</span>
+            <a href="#">
+              <span>Pay Salary Processing</span>
+            </a>
+          </li>
+        </ul>
+        <ul style="display: inline-block; vertical-align: top; width: 180px;">
+          <li class="sub-header"><h6 class="text-white font-weight-bold">Expenses</h6></li>
+          <li>
+            <a href="<%= "#" %>">
+              <span>Submit CE</span>
+            </a>
+          </li>
+          <li>
+            <a href="<%= "#" %>">
+              <span>Request Expenses</span>
+            </a>
+          </li>
+          <li>
+            <a href="<%= "#" %>">
+              <span>Req CE Vendor Bill</span>
             </a>
           </li>
         </ul>
@@ -98,7 +101,7 @@
             <div class="icon-w">
               <i class="os-icon os-icon-ui-46"></i>
             </div>
-            <%= link_to "", destroy_candidate_session_path, method: :delete , class: 'hidden' , id: 'logout-hidden' %>
+            <%= link_to "", destroy_candidate_session_path, method: :delete, class: 'hidden', id: 'logout-hidden' %>
             <ul>
               <li>
                 <%= link_to(destroy_candidate_session_path, title: 'Sign Out', data: {action: 'userLogout', 'logout-msg' => 'You can improve your security further after logging out by closing this opened browser'}) do %>
