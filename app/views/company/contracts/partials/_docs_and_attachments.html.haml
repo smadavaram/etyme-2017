@@ -128,8 +128,8 @@
                               Time sheet
                             .select
                               .plain-select
-                                = text_field_tag :bc_timesheet, '', class: 'form-control',readonly: true
-                                = bc.hidden_field :time_sheet, value: 'immediately'
+                                -#= text_field_tag :bc_timesheet, '', class: 'form-control',readonly: true
+                                = bc.select :time_sheet, [['Daily','daily'], ['Weekly','weekly'], ['Biweekly','biweekly'],['Twice a month','twice a month'],['Every Month','month']], {}, class: 'form-control'
                           -#.col-md-4
                           -#  .b-ts-set
                           -#    %div{:class => "form-group daily #{bc.object.time_sheet != 'daily' ? 'hidden' : ''}"}
