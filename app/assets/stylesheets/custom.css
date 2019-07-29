@@ -22,10 +22,6 @@
     padding: 5px;
 }
 
-.pagination{
-    display: inline-block !important;
-}
-
 .display-flex
 {
     display: flex !important;
