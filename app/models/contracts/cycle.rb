@@ -3,14 +3,17 @@ module Contracts
     delegate :contract_cycles, :timesheets, :invoices, :sell_contract, :buy_contract, :contract_salary_histories, :to => :contract
 
     def set_timesheet_submit(count)
+
       @count = count
       if contract_cycle_ts.present?
         next_date =  get_next_date(ts_time_sheet_frequency, ts_date_1, ts_date_2, ts_end_of_month, ts_day_of_week, contract_cycle_ts.cycle_date )
         start_date = contract.start_date+ @count
       else
+
         next_date =  get_next_date(ts_time_sheet_frequency, ts_date_1, ts_date_2, ts_end_of_month, ts_day_of_week, contract.start_date-1.day)
         start_date = contract.start_date
       end
+
       ta_next_date =  get_next_date(ta_time_sheet_frequency, ta_date_1, ta_date_2, ta_end_of_month, ta_day_of_week, Time.now-1.day)
       while  next_date <= contract.end_date
   
@@ -78,7 +81,9 @@ module Contracts
         elsif sclr_frequency == 'biweekly'
           start_date = date_of_next_two_week(sclr_day_of_week, contract.start_date+@count, sclr_frequency)
         elsif sclr_frequency == 'monthly'
+          # binding.pry
           start_date = monthly_submit_date(sclr_date_1, contract.start_date+@count, sclr_end_of_month)
+          # binding.pry
         elsif sclr_frequency == 'twice a month'
           start_date = twice_a_month_submit_date(sclr_date_1, sclr_date_2, contract.start_date+@count)
         else
@@ -565,6 +570,7 @@ module Contracts
         start_date = end_date - (sclr_frequency == 'weekly' ? 6.days : 13.days)
       elsif  sclr_frequency == 'monthly'
         date = set_salary_clear_date
+        # binding.pry
         doc_date = date + buy_contract.payment_term.to_i.months
         month = (doc_date-buy_contract.payment_term.to_i.months).month
 
@@ -818,6 +824,13 @@ module Contracts
       contract_cycles.where(cycle_type: "ClientExpenseCalculation").order("created_at DESC").first
     end
 
+    # def buy_contract
+    #   buy_contract
+    # end
+    #
+    # def sell_contract
+    #   sell_contract
+    # end
 
     def ts_time_sheet_frequency
       buy_contract.time_sheet
@@ -1098,6 +1111,7 @@ module Contracts
     end
 
     def monthly_submit_date(date_1, start_date,end_of_month)
+      # binding.pry
       day_1 = date_1&.strftime("%d").to_i
       if day_1.present? && start_date.strftime("%d").to_i <= day_1
         day = day_1&.to_i
@@ -1121,6 +1135,7 @@ module Contracts
         start_date = DateTime.new(year, month, day)
         end_date = start_date.end_of_month
       end
+      # binding.pry
       return start_date
     end
 

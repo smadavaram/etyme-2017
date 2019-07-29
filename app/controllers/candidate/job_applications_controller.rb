@@ -19,7 +19,7 @@ class Candidate::JobApplicationsController < Candidate::BaseController
 
   def accept_rate
     if @job_application.update(accept_rate: true, status: :rate_confirmation)
-      @conversation = @job_application.conversations.find_by(id: params[:conversation_id])
+      @conversation = @job_application.conversation
       @conversation.conversation_messages.rate_confirmation.update_all(message_type: :job_conversation) if @job_application.is_rate_accepted?
       body = current_candidate.full_name + " has accepted #{@job_application.rate_per_hour}/hr with reference to #{@job_application.job.title} job."
       current_candidate.conversation_messages.create(conversation_id: @conversation.id, body: body, message_type: :job_conversation)
@@ -35,7 +35,7 @@ class Candidate::JobApplicationsController < Candidate::BaseController
       flash[:errors] = ['You cannot change the rate once accepted by you.']
     else
       if @job_application.update(job_application_rate.merge(rate_initiator: current_candidate.full_name,accept_rate: false, accept_rate_by_company: false))
-        @conversation = @job_application.conversations.find_by(id: params[:conversation_id])
+        @conversation = @job_application.conversation
         @conversation.conversation_messages.rate_confirmation.update_all(message_type: :job_conversation)
         body = current_candidate.full_name + " has Countered #{@job_application.rate_per_hour}/hr with reference to #{@job_application.job.title} job."
         current_candidate.conversation_messages.create(conversation_id: @conversation.id, body: body, message_type: :rate_confirmation)
@@ -51,7 +51,7 @@ class Candidate::JobApplicationsController < Candidate::BaseController
     @interview = @job_application.interviews.find_by(id: params[:interview][:id])
     respond_to do |format|
       if @interview.update(interview_params.merge({accept: false, accepted_by_recruiter: false, accepted_by_company: false}))
-        @conversation = @job_application.conversations.find_by(id: params[:conversation_id])
+        @conversation = @job_application.conversation
         @conversation.conversation_messages.schedule_interview.update_all(message_type: :job_conversation)
         body = current_candidate.full_name + " has schedule an interview on #{@interview.date} at #{@interview.date} <a href='http://#{@job_application.job.created_by.company.etyme_url + job_application_path(@job_application)}'> with reference to the job </a>#{@job_application.job.title}."
         current_candidate.conversation_messages.create(conversation_id: @conversation.id, body: body, message_type: :schedule_interview, resource_id: @interview.id)
@@ -67,7 +67,7 @@ class Candidate::JobApplicationsController < Candidate::BaseController
     @interview = @job_application.interviews.find_by(id: params[:interview_id])
     unless @interview.accept
       if @interview.update(accept: true)
-        @conversation = @job_application.conversations.find_by(id: params[:conversation_id])
+        @conversation = @job_application.conversation
         @conversation.conversation_messages.schedule_interview.update_all(message_type: :job_conversation) if @interview.is_accepted?
         body = current_candidate.full_name + " has accepted the interview on #{@interview.date} at #{@interview.date} <a href='http://#{@job_application.job.created_by.company.etyme_url + job_application_path(@job_application)}'> with reference to the job </a>#{@job_application.job.title}."
         current_candidate.conversation_messages.create(conversation_id: @conversation.id, body: body, resource_id: @interview_id)
