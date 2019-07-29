@@ -20,7 +20,7 @@ class DocusignEnvelope
     response = Net::HTTP.start(uri.hostname, uri.port, req_options) {|http| http.request(request)}
     if response.code == "200"
       response = JSON.parse(response.body)
-      @plugin.update(access_token: response.access_token, refresh_token: response.refresh_token, expires_at: response.expires_in)
+      @plugin.update(access_token: response["access_token"], refresh_token: response["refresh_token"], expires_at: response["expires_in"])
     else
       response
     end
