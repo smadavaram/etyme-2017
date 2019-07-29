@@ -4,7 +4,8 @@ class Company::JobApplicationsController < Company::BaseController
   before_action :find_job, only: [:create, :create_multiple_For_candidate]
   before_action :find_received_job_invitation, only: [:create]
   before_action :set_job_applications, only: [:index]
-  before_action :find_received_job_application, only: [:prescreen, :client_submission, :rate_negotiation, :accept_rate, :accept_interview, :accept, :reject, :interview, :hire, :short_list, :show, :proposal, :share_application_with_companies, :open_inbox_conversation]
+  before_action :find_attachments, only: [:send_templates]
+  before_action :find_received_job_application, only: [:send_templates, :templates, :prescreen, :client_submission, :rate_negotiation, :accept_rate, :accept_interview, :accept, :reject, :interview, :hire, :short_list, :show, :proposal, :share_application_with_companies,:open_inbox_conversation]
   before_action :authorized_user, only: [:accept, :reject, :interview, :hire, :short_list, :show]
   skip_before_action :authenticate_user!, :authorized_user, only: [:share], raise: false
 
@@ -56,6 +57,12 @@ class Company::JobApplicationsController < Company::BaseController
       end
     end
 
+  end
+
+  def templates
+  end
+
+  def send_templates
   end
 
   def reject
@@ -329,6 +336,10 @@ class Company::JobApplicationsController < Company::BaseController
 
   def job_application_rate
     params.require(:job_application).permit(:rate_per_hour)
+  end
+
+  def find_attachments
+    @attachments = current_company.company_candidate_docs.where(id: params[:ids])
   end
 
 

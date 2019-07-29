@@ -8,7 +8,7 @@
   <%#= link_to('Pre Screen',prescreen_job_application_path(app,conversation_id: @conversation.id),class: "#{btn_size} #{app.rejected? || app.hired? || app.prescreen? ? 'disabled' : "" } prescreen",method: :post) %>
   <%= link_to('Pre Screen','#',class: "#{btn_size} #{app.rejected? || app.hired? || app.prescreen? ? 'disabled' : "" } prescreen",data: {toggle: "modal", target: "#{app.rejected? || app.hired? || app.prescreen? ? 'disabled' : "#show-candidate-#{app.applicationable_id}" }"}) %>
   <%= link_to('Rate Confirmation','#',class: "#{btn_size}",data: {toggle: "modal", target: "#candidate-rate-confirmation-#{app.applicationable_id}"})%>
-  <%= link_to('Agreement(s)','#',class: "#{btn_size}") %>
+  <%= link_to('Agreement(s)',templates_job_application_path(app),class: "#{btn_size}") %>
   <%= link_to('Client Submission',submit_job_application_path(app),class: "#{btn_size}") if app.job.source.present? %>
   <%= link_to('Interview', '#', class: "#{btn_size}", data: {toggle: "modal", target: "#candidate-interview-#{app.applicationable_id}" })%>
   <%= link_to('Hire', hire_job_application_path(app, conversation_id: conversation.id), method: :post, class: "#{btn_size} #{app.interviewing? ? 'disabled' : "" }")%>
