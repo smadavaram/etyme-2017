@@ -5,7 +5,7 @@ class Company::JobApplicationsController < Company::BaseController
   before_action :find_received_job_invitation, only: [:create]
   before_action :set_job_applications, only: [:index]
   before_action :find_attachments, only: [:send_templates]
-  before_action :find_received_job_application, only: [:send_templates, :templates, :prescreen, :client_submission, :rate_negotiation, :accept_rate, :accept_interview, :accept, :reject, :interview, :hire, :short_list, :show, :proposal, :share_application_with_companies,:open_inbox_conversation]
+  before_action :find_received_job_application, only: [:send_templates, :templates, :prescreen, :client_submission, :rate_negotiation, :accept_rate, :accept_interview, :accept, :reject, :interview, :hire, :short_list, :show, :proposal, :share_application_with_companies, :open_inbox_conversation]
   before_action :authorized_user, only: [:accept, :reject, :interview, :hire, :short_list, :show]
   skip_before_action :authenticate_user!, :authorized_user, only: [:share], raise: false
 
@@ -63,6 +63,16 @@ class Company::JobApplicationsController < Company::BaseController
   end
 
   def send_templates
+    response = RefreshToken.new(current_company.plugins.docusign.first).refresh_docusign_token
+    if response == true
+      @company_candidate_docs.each do |sign_doc|
+        current_company.document_signs.create(documentable: sign_doc,signable: @job_application.applicationable,is_sign_done: false)
+      end
+      flash[:success] = 'Sign Document request submitted successfully.'
+    else
+      flash[:errors] = ["Docusign token request failed","Code: #{request.code}, Body: #{request.body}"]
+    end
+    redirect_back(fallback_location: current_company.etyme_url)
   end
 
   def reject
@@ -339,7 +349,7 @@ class Company::JobApplicationsController < Company::BaseController
   end
 
   def find_attachments
-    @attachments = current_company.company_candidate_docs.where(id: params[:ids])
+    @company_candidate_docs = current_company.company_candidate_docs.where(id: params[:ids])
   end
 
 
