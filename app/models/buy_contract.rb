@@ -15,9 +15,9 @@ class BuyContract < ApplicationRecord
   include DateCalculation
 
   before_create :set_number
-  before_create :set_first_timesheet_date
-  after_create  :set_salary_frequency
-  after_create  :set_candidate
+  # before_create :set_first_timesheet_date
+  # after_create  :set_salary_frequency
+  # after_create  :set_candidate
 
   accepts_nested_attributes_for :contract_buy_business_details, allow_destroy: true,reject_if: :all_blank
   accepts_nested_attributes_for :contract_sale_commisions, allow_destroy: true,reject_if: :all_blank

@@ -190,10 +190,12 @@ class Company::ContractsController < Company::BaseController
         }
         format.js {
           if @contract.pending?
-            debugger
             @contract.set_next_invoice_date
             @contract.create_rate_change
             @contract.notify_recipient if @contract.not_system_generated?
+            @contract.buy_contract.set_first_timesheet_date
+            @contract.buy_contract.set_salary_frequency
+            @contract.buy_contract.set_candidate
           end
           flash.now[:success] = 'Contract Updated Successfully'
           render 'create.js'
