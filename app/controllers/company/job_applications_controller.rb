@@ -63,10 +63,15 @@ class Company::JobApplicationsController < Company::BaseController
   end
 
   def send_templates
-    response = RefreshToken.new(current_company.plugins.docusign.first).refresh_docusign_token
-    if response == true
+    @plugin = current_company.plugins.docusign.first
+    # response = RefreshToken.new(@plugin).refresh_docusign_token
+    # if response == true
+    if true
       @company_candidate_docs.each do |sign_doc|
-        current_company.document_signs.create(documentable: sign_doc,signable: @job_application.applicationable,is_sign_done: false)
+        @document_sign  = current_company.document_signs.create(documentable: sign_doc,signable: @job_application.applicationable,is_sign_done: false)
+        result = DocusignEnvelope.new(@document_sign,@plugin).create_envelope
+        # DocusignEnvelope.new(DocumentSign.first,Plugin.first).create_envelope
+        # debugger
       end
       flash[:success] = 'Sign Document request submitted successfully.'
     else

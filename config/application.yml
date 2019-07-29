@@ -15,6 +15,7 @@ development:
   docusign_client_secret: '93aa8e6e-e353-4298-9096-3ccaa6c256ca'
   docusign_authorization_server: 'https://account-d.docusign.com'
   docusign_app_url: 'http://localhost:3000'
+  docusign_envelope_base_path: 'http://demo.docusign.net/restapi'
   #zoom dev credientials
   zoom_client_id: 'GFWCAp5SS76petRMLKItcg'
   zoom_client_secret: '11EylRQ3O5vh5SOTxOm4jJntirEDhmCg'
