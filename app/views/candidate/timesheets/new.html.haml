@@ -21,6 +21,7 @@
         = form_for @timesheet, url: candidate_timesheets_path, html:{ class:'form-horizontal', method: :post, remote: true} do |f|
           = f.hidden_field :start_date, class: "time-start"
           = f.hidden_field :end_date, class: "time-end"
+          = f.hidden_field :ts_cycle_id, value: ts_c.id
           .table-responsive
             %table.table.table-bordred
               %thead
