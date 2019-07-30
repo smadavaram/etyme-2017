@@ -5,7 +5,7 @@ class Company::JobApplicationsController < Company::BaseController
   before_action :find_received_job_invitation, only: [:create]
   before_action :set_job_applications, only: [:index]
   before_action :find_attachments, only: [:send_templates]
-  before_action :find_received_job_application, only: [:send_templates, :templates, :prescreen, :client_submission, :rate_negotiation, :accept_rate, :accept_interview, :accept, :reject, :interview, :hire, :short_list, :show, :proposal, :share_application_with_companies,:open_inbox_conversation]
+  before_action :find_received_job_application, only: [:send_templates, :templates, :prescreen, :client_submission, :rate_negotiation, :accept_rate, :accept_interview, :accept, :reject, :interview, :hire, :short_list, :show, :proposal, :share_application_with_companies, :open_inbox_conversation]
   before_action :authorized_user, only: [:accept, :reject, :interview, :hire, :short_list, :show]
   skip_before_action :authenticate_user!, :authorized_user, only: [:share], raise: false
 
@@ -21,7 +21,7 @@ class Company::JobApplicationsController < Company::BaseController
   def index
     respond_to do |format|
       format.html {}
-      format.json {render json: JobApplicationDatatable.new(params, view_context: view_context)}
+      format.json { render json: JobApplicationDatatable.new(params, view_context: view_context) }
     end
   end
 
@@ -29,9 +29,9 @@ class Company::JobApplicationsController < Company::BaseController
     @job_application = current_company.sent_job_applications.new(job_application_params.merge!(applicationable_id: current_user.id, job_id: @job.id, job_invitation_id: @job_invitation.id, applicationable_type: 'User'))
     respond_to do |format|
       if @job_application.save
-        format.js {flash.now[:success] = "Successfully Created."}
+        format.js { flash.now[:success] = "Successfully Created." }
       else
-        format.js {flash.now[:errors] = @job_application.errors.full_messages}
+        format.js { flash.now[:errors] = @job_application.errors.full_messages }
       end
 
     end
@@ -53,16 +53,35 @@ class Company::JobApplicationsController < Company::BaseController
         @contract.contract_terms.new
         format.js
       else
-        format.js {flash.now[:errors] = ["Request Not Completed."]}
+        format.js { flash.now[:errors] = ["Request Not Completed."] }
       end
     end
 
   end
 
   def templates
+    @document_signs = @job_application.applicationable.document_signs
   end
 
   def send_templates
+    @plugin = current_company.plugins.docusign.first
+    response = (Time.current - @plugin.updated_at).to_i.abs/3600 <= 5 ? true : RefreshToken.new(@plugin).refresh_docusign_token
+    if response.present?
+      @company_candidate_docs.each do |sign_doc|
+        @document_sign = current_company.document_signs.create(documentable: sign_doc, signable: @job_application.applicationable, is_sign_done: false)
+        result = DocusignEnvelope.new(@document_sign, @plugin).create_envelope
+        if(result.status == "sent")
+          @document_sign.update(envelope_id: result.envelope_id, envelope_uri: result.uri)
+        else
+          flash[:errors] = result.error_message
+        end
+      end
+      flash[:success] = 'Document is submitted to the candidate for signature'
+    else
+      flash[:errors] = ["Docusign token request failed, please regenerate the token from integrations"]
+    end
+    @document_signs = @job_application.applicationable.document_signs
+    redirect_back(fallback_location: current_company.etyme_url)
   end
 
   def reject
@@ -71,12 +90,12 @@ class Company::JobApplicationsController < Company::BaseController
         if @job_application.rejected!
           create_conversation_message
           record_activity
-          format.html {flash[:success] = "Successfully Rejected."}
+          format.html { flash[:success] = "Successfully Rejected." }
         else
-          format.html {flash[:errors] = @job_application.errors.full_messages}
+          format.html { flash[:errors] = @job_application.errors.full_messages }
         end
       else
-        format.html {flash[:errors] = ["Request Not Completed."]}
+        format.html { flash[:errors] = ["Request Not Completed."] }
       end
     end
     redirect_back fallback_location: root_path
@@ -144,9 +163,9 @@ class Company::JobApplicationsController < Company::BaseController
         @conversation.conversation_messages.schedule_interview.update_all(message_type: :job_conversation)
         body = current_user.full_name + " has schedule an interview on #{@interview.date} at #{@interview.date} <a href='http://#{@job_application.job.created_by.company.etyme_url + job_application_path(@job_application)}'> with reference to the job </a>#{@job_application.job.title}."
         current_user.conversation_messages.create(conversation_id: @conversation.id, body: body, message_type: :schedule_interview, resource_id: @interview.id)
-        format.html {flash[:success] = "Interview is Scheduled, pending confirmation"}
+        format.html { flash[:success] = "Interview is Scheduled, pending confirmation" }
       else
-        format.html {flash[:errors] = @job_application.errors.full_messages}
+        format.html { flash[:errors] = @job_application.errors.full_messages }
       end
     end
     redirect_back fallback_location: root_path
@@ -183,9 +202,9 @@ class Company::JobApplicationsController < Company::BaseController
     respond_to do |format|
       if @job_application.hired!
         create_conversation_message
-        format.html {flash[:success] = "Successfully Hired."}
+        format.html { flash[:success] = "Successfully Hired." }
       else
-        format.html {flash[:errors] = @job_application.errors.full_messages}
+        format.html { flash[:errors] = @job_application.errors.full_messages }
       end
     end
     redirect_back fallback_location: root_path
@@ -339,7 +358,7 @@ class Company::JobApplicationsController < Company::BaseController
   end
 
   def find_attachments
-    @attachments = current_company.company_candidate_docs.where(id: params[:ids])
+    @company_candidate_docs = current_company.company_candidate_docs.where(id: params[:ids])
   end
 
 

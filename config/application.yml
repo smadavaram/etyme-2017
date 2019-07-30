@@ -15,6 +15,7 @@ development:
   docusign_client_secret: '93aa8e6e-e353-4298-9096-3ccaa6c256ca'
   docusign_authorization_server: 'https://account-d.docusign.com'
   docusign_app_url: 'http://localhost:3000'
+  docusign_envelope_base_path: 'http://demo.docusign.net/restapi'
   #zoom dev credientials
   zoom_client_id: 'GFWCAp5SS76petRMLKItcg'
   zoom_client_secret: '11EylRQ3O5vh5SOTxOm4jJntirEDhmCg'
@@ -26,6 +27,12 @@ development:
   rchilli_user_key: "E1ZA0XO7IZO"
   # uploader for files
   uploader: "etyme-3"
+  # DigitalOcean
+  DO_ACCESS_KEY_ID: 'MMVR32ZCM62IFMUJER57'
+  DO_SECRET_ACCESS_KEY: 'A/AJA/k5nX4LHjvGH2Ks0ajPgb6SjksAtt8f9XinqNg'
+  DO_REGION: 'sfo2'
+  DO_BUCKET: 'etyme-cdn'
+
 production:
   mailgun_gun_api:  "key-65deee3bd721c9bba966ff557d3fc79b"
   mailgun_domian:   "etyme.com"

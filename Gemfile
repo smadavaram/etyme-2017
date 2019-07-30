@@ -215,3 +215,5 @@ gem 'rack-cors', :require => 'rack/cors'
 
 gem 'omniauth-oauth2'
 gem 'docusign_esign'
+# gem 'bucket_client'
+gem 'aws-sdk', '~> 3'

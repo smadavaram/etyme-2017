@@ -1,6 +1,7 @@
 .content-box
   .element-wrapper
     .element-box
+      .element-header Documents Templates
       =form_tag(controller: 'company/job_applications', action: 'send_templates') do
         = hidden_field_tag 'id', @job_application.id
         .table-responsive
@@ -14,7 +15,6 @@
                 %th Expiry Date
                 %th Is Require
                 %th Attachments
-                %th Actions
               %tbody
                 - current_company.company_candidate_docs.each do |doc|
                   %tr.even{:role => "row"}
@@ -31,9 +31,28 @@
                         - doc.file.split(",").each do |file_path|
                           %br
                           %a{:download => "", :href => file_path, :target=>"_blank"}
-                            = "File #{index}"
+                            = "#{index}: #{file_path.split('/').last}"
                             - index = index +1
-                    %td.candidate-file-upload-btn
-                      = link_to "", delete_company_candidate_docs_path(:id=>doc.id), :title=>"Delete", class: "fa fa-trash-o fa-lg fa-fw delete_primary_doc", method: :delete, data: { confirm: 'Are you sure?' }
-                      = button_tag "" ,class: "video-file fa fa-paperclip fa-lg",type: "button", onclick:"fileUploadEvent(#{doc.id})", :button_text=>" "
-        = button_tag 'submit', class: 'btn btn-sm btn-secondary'
+        %br
+        = button_tag 'submit', class: 'btn btn-sm btn-secondary pull-right'
+        %br
+    .element-wrapper
+      .element-box
+        .element-header Documents sent to candidate
+        .table-responsive
+          %table.table.text-center.table-bordered.table-lg.table-v2.table-striped.data-table-font
+            %thead
+              %tr{:role => "row"}
+                %th Document Title
+                %th Sent Date
+                %th Status
+                %th Envelope No
+                %th Signed Document
+            %tbody
+              - @document_signs.each do |docusign|
+                %tr
+                  %td= docusign.documentable.title
+                  %td= docusign.created_at
+                  %td= docusign.is_sign_done ? "Signed" : "Pending"
+                  %td= docusign.envelope_id.present? ? docusign.envelope_id : "Document Not Submitted"
+                  %td= link_to content_tag(:i,'',class:'fa fa-paperclip fa-lg').html_safe, docusign.signed_file if docusign.is_sign_done

@@ -223,6 +223,9 @@ Rails.application.routes.draw do
   namespace :company do
 
     resources :plugins, only: [:create]
+    resources :document_signs, only:[] do
+      post :e_sign_completed, on: :collection
+    end
     resources :departments, only: [:create, :update]
     resources :black_listers, only: [] do
       post 'ban/:black_lister_id/type/:black_lister_type', to: 'black_listers#ban', as: :ban, on: :collection

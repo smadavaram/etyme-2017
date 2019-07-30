@@ -88,7 +88,7 @@ class Company < ApplicationRecord
   has_many :bank_details
   has_many :client_expenses
   has_many :plugins
-
+  has_many :document_signs
   # validates           :company_type, inclusion: { in: [0, 1] } , presence: true
   # validates           :company_type, inclusion: {in: %w(0 , 1)}
   # validates           :name,  presence:   true
