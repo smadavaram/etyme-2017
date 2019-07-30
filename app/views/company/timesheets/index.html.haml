@@ -45,22 +45,21 @@
   .row
     %article.col-xs-12.col-sm-12.col-md-12.col-lg-12
       %table#jqgrid
-
 - @temp = []
 -@timesheets.each do |ts|
-  - rate = get_rate(ts.start_date, ts.contract_id, 'buy')
+  - rate = get_rate(ts.start_date, ts.contract_id, 'buy').where(rate_type: 'buy')
   -@temp.push({ timesheet_id: ts.id,
                 cycle_id: ts.ts_cycle_id,
                 creation_date: ts.created_at.strftime('%Y-%m-%d'),
                 contract: ts.contract.number,
-                client: ts.contract.client.full_name,
+                client: ts.contract.client.try(:full_name),
                 tax_type: ts.contract.buy_contract.contract_type,
-                candidate: ts.contract.buy_contract.candidate.full_name,
+                candidate: ts.contract.buy_contract.candidate.try(:full_name),
                 company_vender: ts.contract.buy_contract.company.present? ? ts.contract.buy_contract.company.full_name : '',
                 buy_rate: rate,
                 timesheet_clyver: "#{ts.start_date} - #{ts.end_date}",
                 hours: ts.total_time,
-                amount: (ts.total_time * rate),
+                amount: (ts.total_time * rate.first.rate),
                 attachment: ts.timesheet_attachment,
                 status: ts.status,
                 act: time_sheet_approve_date(ts&.contract&.buy_contract)})

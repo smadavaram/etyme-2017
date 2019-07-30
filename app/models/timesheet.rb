@@ -225,7 +225,7 @@ class Timesheet < ApplicationRecord
   def self.date_of_next(day_of_week,con_cycle)
     # binding.pry
     day_of_week = DateTime.parse(day_of_week).wday
-    ts_day_of_week = DateTime.parse(con_cycle&.contract&.buy_contracts&.first&.ts_day_of_week).wday if con_cycle.contract.buy_contract.time_sheet == 'weekly'
+    ts_day_of_week = DateTime.parse(con_cycle&.contract&.buy_contract.ts_day_of_week).wday if con_cycle.contract.buy_contract.time_sheet == 'weekly'
     date = con_cycle.start_date.to_date + ((day_of_week - con_cycle.start_date.to_date.wday) % 7)
     if day_of_week >= con_cycle.start_date.wday
       date = (date - con_cycle.start_date.to_date <= 5) && con_cycle.start_date.wday != 0 ? date+7.days : date
@@ -304,7 +304,7 @@ class Timesheet < ApplicationRecord
               "CycleFrom" => self.start_date.to_datetime + Time.parse("00:00").seconds_since_midnight.seconds,
               "CycleTo" => self.end_date.to_datetime + Time.parse("00:00").seconds_since_midnight.seconds,
               "Documentdate" => Time.now,
-              "TransactionType" => self.contract.buy_contracts.contract_type == "C2C" ? "C2C" : "W2"
+              "TransactionType" => self.contract.buy_contract.contract_type == "C2C" ? "C2C" : "W2"
             },
         )
       end
