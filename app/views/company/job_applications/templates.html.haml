@@ -1,6 +1,7 @@
 .content-box
   .element-wrapper
     .element-box
+      .element-header Documents Templates
       =form_tag(controller: 'company/job_applications', action: 'send_templates') do
         = hidden_field_tag 'id', @job_application.id
         .table-responsive
@@ -35,3 +36,23 @@
         %br
         = button_tag 'submit', class: 'btn btn-sm btn-secondary pull-right'
         %br
+    .element-wrapper
+      .element-box
+        .element-header Documents sent to candidate
+        .table-responsive
+          %table.table.text-center.table-bordered.table-lg.table-v2.table-striped.data-table-font
+            %thead
+              %tr{:role => "row"}
+                %th Document Title
+                %th Sent Date
+                %th Status
+                %th Envelope No
+                %th Signed Document
+            %tbody
+              - @document_signs.each do |docusign|
+                %tr
+                  %td= docusign.documentable.title
+                  %td= docusign.created_at
+                  %td= docusign.is_sign_done ? "Signed" : "Pending"
+                  %td= docusign.envelope_id.present? ? docusign.envelope_id : "Document Not Submitted"
+                  %td= link_to content_tag(:i,'',class:'fa fa-paperclip fa-lg').html_safe, docusign.signed_file if docusign.is_sign_done
