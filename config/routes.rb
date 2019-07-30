@@ -469,7 +469,11 @@ Rails.application.routes.draw do
         post "accept_interview/:interview_id", to: "job_applications#accept_interview", as: :accept_interview
         post :hire
         post :prescreen
+        get :templates
       end # End of member
+      collection do
+        post :send_templates
+      end
     end
 
     resources :expenses do
