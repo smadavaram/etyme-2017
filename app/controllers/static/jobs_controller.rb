@@ -62,14 +62,26 @@ class Static::JobsController < ApplicationController
     job_attributes
   end
 
+  def find_or_create_company(from)
+
+    company = Company.find_or_create_by(domain: from.domain.split("@")[0].split('.').first) do |company|
+      company.name = from.domain.split("@")[0].split('.').first
+      company.website = from.domain
+      company.phone = '123456789'
+      company.email = from.address.to_s
+      company.company_type = 'hiring_manager'
+    end
+  end
+
   def job_request
     subject = request.POST[:subject]
     from = Mail::Address.new(request.POST[:from])
     company_email = from.address.to_s
     company_domain = from.domain.split("@")[0]
-    company = Company.find_by(domain: company_domain.split('.').first)
+    company = find_or_create_company(from)
     full_name = from.name.split
-    user = User.find_by_email(company_email) || User.create(:email => company_email, :first_name => full_name.first, :last_name => full_name.slice(1, full_name.length), :company_id => company.id)
+    user = User.find_by_email(company_email) || Admin.create(:email => company_email, :first_name => full_name.first, :last_name => full_name.slice(1, full_name.length), :company_id => company.id)
+    company.update(owner_id: user.id) if company.owner_id.nil?
     if company
       job = company.jobs.build(job_attr_extractor.merge({created_by_id: user.id}))
       job.title = "Draft Job" unless job.title.present?
