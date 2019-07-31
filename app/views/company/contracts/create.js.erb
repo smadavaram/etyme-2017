@@ -519,6 +519,22 @@ function toggleFields() {
 
 }
 $(document).ready(function () {
+    $('.client_expense').hide();
+    $('#contract_sell_contract_attributes_is_client_expense').on("change", function () {
+        if (this.checked) {
+            $('.client_expense').show();
+        } else {
+            $('.client_expense').hide();
+        }
+    });
+    $('.performance_review').hide();
+    $('#contract_sell_contract_attributes_is_performance_review').on("change", function () {
+        if (this.checked) {
+            $('.performance_review').show();
+        } else {
+            $('.performance_review').hide();
+        }
+    });
     $('.sigPad').signaturePad({drawOnly: true});
     toggleFields();
     $(".multi-select2-company-docs").select2({placeholder: "Select a Doc(s)"});
@@ -547,23 +563,4 @@ google.maps.event.addDomListener(input, 'keydown', function (event) {
     if (event.keyCode === 13) {
         event.preventDefault();
     }
-});
-
-$(document).ready(function () {
-    $('.client_expense').hide();
-    $('#contract_sell_contracts_attributes_0_is_client_expense').on("change", function () {
-        if (this.checked) {
-            $('.client_expense').show();
-        } else {
-            $('.client_expense').hide();
-        }
-    });
-    $('.performance_review').hide();
-    $('#contract_sell_contracts_attributes_0_is_performance_review').on("change", function () {
-        if (this.checked) {
-            $('.performance_review').show();
-        } else {
-            $('.performance_review').hide();
-        }
-    });
 });
