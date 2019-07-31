@@ -188,82 +188,44 @@
             %br
             %div.contract-custome-details
               %h3.contract_sub_heading
-                Send Documents
+                Customer Submitted Documents
               %div.sell-side.box
-                %div.row
-                  .col-sm-6.col-md-6.col-lg-6
-                    %span
-                      %b
-                        Documents
-                  .col-sm-2.col-md-2.col-lg-2
-                    %span
-                      %b
-                        Expire
-                  .col-sm-2.col-md-2.col-lg-2
-                    %span
-                      %b
-                        Owner
-                  .col-sm-2.col-md-2.col-lg-2
-                    %span
-                      %b
-                        Signature
-                  %br
-                %div.row
-                  -@contract.sell_contract.sell_send_documents.each do |ssd|
-                    .col-sm-6.col-md-6.col-lg-6
-                      %span
-                        %i.fa.fa-paperclip
-                        =link_to ssd.file_name, ssd.doc_file, target: "_blank", class: 'text-break'
-                    .col-sm-2.col-md-2.col-lg-2
-                      %span
-                        =ssd.when_expire&.strftime('%d/%m/%Y')
-                    .col-sm-2.col-md-2.col-lg-2
-                      %span
-                        =ssd.creatable.full_name
-                    .col-sm-2.col-md-2.col-lg-2
-                      %span
-                        - ssd.document_signs.each do |ds|
-                          = ds.signable.full_name
+                %table.table.text-center.table-bordered.table-lg.table-v2.table-striped.data-table-font
+                  %thead
+                    %tr{:role => "row"}
+                      %th Document Title
+                      %th Sent Date
+                      %th Status
+                      %th Envelope No
+                      %th Signed Document
+                  %tbody#submit_doc
+                    - @signature_documents.each do |docusign|
+                      %tr
+                        %td= docusign.documentable.title
+                        %td= docusign.created_at.strftime("%Y-%m-%d")
+                        %td= docusign.is_sign_done ? "Signed" : "Pending"
+                        %td= docusign.envelope_id.present? ? docusign.envelope_id : "Document Not Submitted"
+                        %td= link_to content_tag(:i,'',class:'fa fa-paperclip fa-lg').html_safe, docusign.signed_file if docusign.is_sign_done
             %br
             %div.contract-custome-details
               %h3.contract_sub_heading
-                Request Documents
+                Customer Request Documents
               %div.sell-side.box
                 %div.row
-                  .col-sm-6.col-md-6.col-lg-6
-                    %span
-                      %b
-                        Documents
-                  .col-sm-2.col-md-2.col-lg-2
-                    %span
-                      %b
-                        Expire
-                  .col-sm-2.col-md-2.col-lg-2
-                    %span
-                      %b
-                        Owner
-                  .col-sm-2.col-md-2.col-lg-2
-                    %span
-                      %b
-                        Signature
-                %br
-                -@contract.sell_contract.sell_request_documents.each do |srd|
-                  %div.row
-                    .col-sm-6.col-md-6.col-lg-6
-                      %span
-                        %i.fa.fa-paperclip
-                        =link_to srd.file_name, srd.doc_file, target: "_blank", class: 'text-break'
-                    .col-sm-2.col-md-2.col-lg-2
-                      %span
-                        =srd.when_expire&.strftime('%d/%m/%Y')
-                    .col-sm-2.col-md-2.col-lg-2
-                      %span
-                        =srd.creatable.full_name
-                    .col-sm-2.col-md-2.col-lg-2
-                      %span
-                        - srd.document_signs.each do |ds|
-                          = ds.signable.full_name
-
+                  %table.table.text-center.table-bordered.table-lg.table-v2.table-striped.data-table-font
+                    %thead
+                      %tr{:role => "row"}
+                        %th Document Title
+                        %th Sent Date
+                        %th Status
+                        %th Submitted Document
+                    %tbody#request_doc
+                      - @request_documents.each do |docusign|
+                        %tr
+                          %td= docusign.documentable.title
+                          %td= docusign.created_at.strftime("%Y-%m-%d")
+                          %td= docusign.envelope_id.present? ? "Submitted" : "Document Not Submitted"
+                          %td= link_to content_tag(:i,'',class:'fa fa-paperclip fa-lg').html_safe, docusign.signed_file if docusign.signed_file.present?
           .col-sm-6.col-md-6.col-lg-6
             %h2.contract_heading
               Buy-  #{@contract.buy_contract.number}
@@ -424,98 +386,70 @@
               %br
               %div.contract-custome-details
                 %h3.contract_sub_heading
-                  Send Documents
+                  Employee Submitted Documents
                 %div.contract-custome-details.box
                   %div.row
-                    .col-sm-6.col-md-6.col-lg-6
-                      %span
-                        %b
-                          Documents
-                    .col-sm-2.col-md-2.col-lg-2
-                      %span
-                        %b
-                          Expire
-                    .col-sm-2.col-md-2.col-lg-2
-                      %span
-                        %b
-                          Owner
-                    .col-sm-2.col-md-2.col-lg-2
-                      %span
-                        %b
-                          Signature
-                  %br
-                  %div.row
-                    -@contract.buy_contract.buy_send_documents.each do |bsd|
-                      .col-sm-6.col-md-6.col-lg-6
-                        %span
-                          %i.fa.fa-paperclip
-                          =link_to bsd.file_name, bsd.doc_file, target: "_blank", class: 'text-break'
-                      .col-sm-2.col-md-2.col-lg-2
-                        %span
-                          = bsd.when_expire&.strftime('%d/%m/%Y')
-                      .col-sm-2.col-md-2.col-lg-2
-                        %span
-                          =bsd.creatable.full_name
-                      .col-sm-2.col-md-2.col-lg-2
-                        %span
-                          - bsd.document_signs.each do |ds|
-                            = ds.signable.full_name
-
+                    %table.table.text-center.table-bordered.table-lg.table-v2.table-striped.data-table-font
+                      %thead
+                        %tr{:role => "row"}
+                          %th Document Title
+                          %th Sent Date
+                          %th Status
+                          %th Envelope No
+                          %th Signed Document
+                      %tbody#buy_send_documents_table
+                        - @candidate_signature_documents.each do |docusign|
+                          %tr
+                            %td= docusign.documentable.title
+                            %td= docusign.created_at.strftime("%Y-%m-%d")
+                            %td= docusign.is_sign_done ? "Signed" : "Pending"
+                            %td= docusign.envelope_id.present? ? docusign.envelope_id : "Document Not Submitted"
+                            %td= link_to content_tag(:i,'',class:'fa fa-paperclip fa-lg').html_safe, docusign.signed_file if docusign.is_sign_done
               %br
               %div.contract-custome-details
                 %h3.contract_sub_heading
-                  Request Documents
+                  Employee Request Documents
                 %div.contract-custome-details.box
                   %div.row
-                    .col-sm-6.col-md-6.col-lg-6
-                      %span
-                        %b
-                          Documents
-                    .col-sm-2.col-md-2.col-lg-2
-                      %span
-                        %b
-                          Expire
-                    .col-sm-2.col-md-2.col-lg-2
-                      %span
-                        %b
-                          Owner
-                    .col-sm-2.col-md-2.col-lg-2
-                      %span
-                        %b
-                          Signature
-                  %br
-                  %div.row
-                    -@contract.buy_contract.buy_emp_req_docs.each do |berd|
-                      .col-sm-6.col-md-6.col-lg-6
-                        %span
-                          %i.fa.fa-paperclip
-                          =link_to berd.file_name, berd.doc_file, target: "_blank", class: 'text-break'
-                      .col-sm-2.col-md-2.col-lg-2
-                        %span
-                          = berd.when_expire&.strftime('%d/%m/%Y')
-                      .col-sm-2.col-md-2.col-lg-2
-                        %span
-                          =berd.creatable.full_name
-                      .col-sm-2.col-md-2.col-lg-2
-                        %span
-                          - berd.document_signs.each do |ds|
-                            = ds.signable.full_name
-                  %div.row
-                    -@contract.buy_contract.buy_ven_req_docs.each do |bvrd|
-                      .col-sm-6.col-md-6.col-lg-6
-                        %span
-                          %i.fa.fa-paperclip
-                          =link_to bvrd.file_name, bvrd.doc_file, target: "_blank", class: 'text-break'
-                      .col-sm-2.col-md-2.col-lg-2
-                        %span
-                          = bvrd.when_expire&.strftime('%d/%m/%Y')
-                      .col-sm-2.col-md-2.col-lg-2
-                        %span
-                          =bvrd.creatable.full_name
-                      .col-sm-2.col-md-2.col-lg-2
-                        %span
-                          - bvrd.document_signs.each do |ds|
-                            = ds.signable.full_name
+                    %table.table.text-center.table-bordered.table-lg.table-v2.table-striped.data-table-font
+                      %thead
+                        %tr{:role => "row"}
+                          %th Document Title
+                          %th Sent Date
+                          %th Status
+                          %th Submitted Document
+                      %tbody#buy_emp_req_docs_table
+                        - @candidate_request_documents.each do |docusign|
+                          %tr
+                            %td= docusign.documentable.title
+                            %td= docusign.created_at.strftime("%Y-%m-%d")
+                            %td= docusign.envelope_id.present? ? "Submitted" : "Document Not Submitted"
+                            %td= link_to content_tag(:i,'',class:'fa fa-paperclip fa-lg').html_safe, docusign.signed_file if docusign.signed_file.present?
+              %br
+              - if @contract.buy_contract.company.present?
+                %div.contract-custome-details
+                  %h3.contract_sub_heading
+                    Vendor Submitted Documents
+                  %div.contract-custome-details.box
+                    %div.row
+                      %table.table.text-center.table-bordered.table-lg.table-v2.table-striped.data-table-font
+                      %thead
+                        %tr{:role => "row"}
+                          %th Document Title
+                          %th Sent Date
+                          %th Status
+                          %th Envelope No
+                          %th Signed Document
+                      %tbody#buy_ven_req_docs_table
+                        - @vendor_signature_documents.each do |docusign|
+                          %tr
+                            %td= docusign.documentable.title
+                            %td= docusign.created_at.strftime("%Y-%m-%d")
+                            %td= docusign.is_sign_done ? "Signed" : "Pending"
+                            %td= docusign.envelope_id.present? ? docusign.envelope_id : "Document Not Submitted"
+                            %td= link_to content_tag(:i,'',class:'fa fa-paperclip fa-lg').html_safe, docusign.signed_file if docusign.is_sign_done
+
+
 
 - if @contract.pending? && !@contract.is_sent?(current_company)
   - content_for :modals do

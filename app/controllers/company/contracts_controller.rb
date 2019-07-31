@@ -35,6 +35,12 @@ class Company::ContractsController < Company::BaseController
 
   def show
     add_breadcrumb "#{@contract.number}"
+    @signature_documents = @contract.send("sell_contract").document_signs.where(signable: @contract.sell_contract.company.owner, documentable: current_company.company_candidate_docs.where(is_require: "signature").ids)
+    @request_documents = @contract.send("sell_contract").document_signs.where(signable: @contract.sell_contract.company.owner, documentable: current_company.company_candidate_docs.where(is_require: "Document").ids)
+    @candidate_signature_documents = @contract.send("buy_contract").document_signs.where(signable: @contract.buy_contract.contract.candidate, documentable:  current_company.company_candidate_docs.where(is_require: "signature").ids)
+    @vendor_signature_documents = @contract.buy_contract.company.present? ? @contract.send("buy_contract").document_signs.where(signable: @contract.buy_contract.company.owner, documentable: current_company.company_candidate_docs.where(is_require: "signature").ids) : []
+    @candidate_request_documents = @contract.send("buy_contract").document_signs.where(signable: @contract.buy_contract.contract.candidate, documentable: current_company.company_candidate_docs.where(is_require: "Document").ids)
+
   end
 
   def download
@@ -200,8 +206,8 @@ class Company::ContractsController < Company::BaseController
 
     @signature_templates = current_company.company_candidate_docs.where(is_require: "signature")
     @documents_templates = current_company.company_candidate_docs.where(is_require: "Document")
-    @signature_documents = @contract.sell_contract.document_signs.where(documentable: @signature_templates.ids)
-    @request_documents = @contract.sell_contract.document_signs.where(documentable: @documents_templates.ids)
+    @signature_documents = @contract.send("sell_contract").document_signs.where(signable: @contract.sell_contract.company.owner, documentable: @signature_templates.ids)
+    @request_documents = @contract.send("sell_contract").document_signs.where(signable: @contract.sell_contract.company.owner, documentable: @documents_templates.ids)
 
     SellContract.last.document_signs.where(documentable: Company.first.company_candidate_docs.where(is_require: "signature").ids)
     respond_to do |format|
