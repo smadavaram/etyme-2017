@@ -50,7 +50,7 @@ class DocusignEnvelope
 
   def build_event_notification
     {
-        url: "https://178d360d.ngrok.io#{url_helpers.e_sign_completed_company_document_signs_path}",
+        url: "https://#{@document_sign.company.etyme_url}#{url_helpers.e_sign_completed_company_document_signs_path}",
         loggingEnabled: "true", # The api wants strings for true/false
         requireAcknowledgment: "true",
         useSoapInterface: "false",
