@@ -18,5 +18,4 @@ class SellSendDocument < ApplicationRecord
   # def display_number
   #   "SSD"+self.number
   # end
-
 end
