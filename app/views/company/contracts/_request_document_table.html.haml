@@ -1,22 +1,6 @@
-- @sell_contract.sell_request_documents.each do |doc|
+- @document_signs.each do |docusign|
   %tr
-    %td
-      = doc.id
-    %td
-      = doc.request
-    %td
-      - doc.document_signs.each do |sign|
-        = sign&.signable&.full_name
-    %td
-      = doc.creatable.full_name
-    %td
-      = doc.when_expire
-    %td
-      = doc.is_sign_required && doc.document_signs.present? ? "Signed": "Unsigned"
-    %td
-      - if doc.doc_file.present?
-        = link_to doc.doc_file do
-          %i.fa.fa-paperclip.fa-lg
-      - else
-        File not exists
-    %td Action
+    %td= docusign.documentable.title
+    %td= docusign.created_at.strftime("%Y-%m-%d")
+    %td= docusign.signed_file.present? ? "Pending" : "Document Not Submitted"
+    %td= link_to content_tag(:i,'',class:'fa fa-paperclip fa-lg').html_safe, docusign.signed_file if docusign.signed_file.present?

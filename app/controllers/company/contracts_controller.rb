@@ -61,118 +61,84 @@ class Company::ContractsController < Company::BaseController
   end
 
   def buy_document_create
-    if @buy_contract.present?
-      @buy_send_document = @buy_contract.buy_send_documents.build(buy_document_params)
-      respond_to do |format|
-        if @buy_send_document.save
-          create_custom_activity(@buy_send_document, 'buy_send_documents.create',
-                                 buy_document_params, @buy_send_document,
-                                 {contract_id: @buy_contract.contract_id,
-                                  buy_contract_id: @buy_contract.id})
-          format.js {
-            flash.now[:success] = 'Document is created for the contract'
-            render 'buy_document_create.js'
-          }
+    @company_candidate_docs = current_company.company_candidate_docs.where(id: params[:ids])
+    @plugin = current_company.plugins.docusign.first
+    response = (Time.current - @plugin.updated_at).to_i.abs / 3600 <= 5 ? true : RefreshToken.new(@plugin).refresh_docusign_token
+    if response.present?
+      @company_candidate_docs.each do |sign_doc|
+        @document_sign = current_company.document_signs.create(documentable: sign_doc, signable: @buy_contract.contract.candidate, is_sign_done: false, initiator: @buy_contract)
+        result = DocusignEnvelope.new(@document_sign, @plugin).create_envelope
+        if (result.status == "sent")
+          @document_sign.update(envelope_id: result.envelope_id, envelope_uri: result.uri)
         else
-          format.js {
-            flash[:errors] = @buy_send_document.errors.full_messages
-            render 'buy_document_create.js'
-          }
+          flash.now[:errors] = result.error_message
         end
       end
+      flash.now[:success] = 'Document is submitted to the candidate for signature'
+    else
+      flash.now[:errors] = ["Docusign token request failed, please regenerate the token from integrations"]
     end
+    @document_signs = @buy_contract.document_signs.where(signable: @buy_contract.contract.candidate, documentable: current_company.company_candidate_docs.where(is_require: "signature").ids)
   end
 
   def buy_emp_doc_create
-    if @buy_contract.present?
-      @buy_emp_send_document = @buy_contract.buy_emp_req_docs.build(buy_document_params)
-      respond_to do |format|
-        if @buy_emp_send_document.save
-          create_custom_activity(@buy_emp_send_document, 'buy_emp_req_docs.create',
-                                 buy_document_params, @buy_emp_send_document,
-                                 {contract_id: @buy_contract.contract_id,
-                                  buy_contract_id: @buy_contract.id})
-          format.js {
-            flash.now[:success] = 'Document is created for the contract'
-            render 'buy_emp_doc_create.js'
-          }
-        else
-          format.js {
-            flash[:errors] = @buy_emp_send_document.errors.full_messages
-            render 'buy_emp_doc_create.js'
-          }
-        end
-      end
+    @company_candidate_docs = current_company.company_candidate_docs.where(id: params[:ids])
+    @company_candidate_docs.each do |sign_doc|
+      current_company.document_signs.create(documentable: sign_doc, signable: @buy_contract.contract.candidate, is_sign_done: false, initiator: @buy_contract)
     end
+    flash.now[:success] = 'Document(s) submission request is submitted to the Company'
+    @document_signs = @buy_contract.document_signs.where(signable: @buy_contract.contract.candidate, documentable: current_company.company_candidate_docs.where(is_require: "Document").ids)
   end
 
   def buy_ven_doc_create
-    if @buy_contract.present?
-      @buy_ven_send_document = @buy_contract.buy_ven_req_docs.build(buy_document_params)
-      respond_to do |format|
-        if @buy_ven_send_document.save
-          create_custom_activity(@buy_ven_send_document, 'buy_ven_req_docs.create',
-                                 buy_document_params, @buy_ven_send_document,
-                                 {contract_id: @buy_contract.contract_id,
-                                  buy_contract_id: @buy_contract.id})
-          format.js {
-            flash.now[:success] = 'Document is created for the contract'
-            render 'buy_ven_doc_create.js'
-          }
+    @company_candidate_docs = current_company.company_candidate_docs.where(id: params[:ids])
+    @plugin = current_company.plugins.docusign.first
+    response = (Time.current - @plugin.updated_at).to_i.abs / 3600 <= 5 ? true : RefreshToken.new(@plugin).refresh_docusign_token
+    if response.present?
+      @company_candidate_docs.each do |sign_doc|
+        @document_sign = current_company.document_signs.create(documentable: sign_doc, signable: @buy_contract.company.owner, is_sign_done: false, initiator: @buy_contract)
+        result = DocusignEnvelope.new(@document_sign, @plugin).create_envelope
+        if (result.status == "sent")
+          @document_sign.update(envelope_id: result.envelope_id, envelope_uri: result.uri)
         else
-          format.js {
-            flash[:errors] = @buy_ven_send_document.errors.full_messages
-            render 'buy_ven_doc_create.js'
-          }
+          flash.now[:errors] = result.error_message
         end
       end
+      flash.now[:success] = 'Document is submitted to the candidate for signature'
+    else
+      flash.now[:errors] = ["Docusign token request failed, please regenerate the token from integrations"]
     end
+    @document_signs = @buy_contract.document_signs.where(signable: @buy_contract.company.owner, documentable: current_company.company_candidate_docs.where(is_require: "signature").ids)
   end
 
   def submit_document_create
-    if @sell_contract.present?
-      @sell_document = @sell_contract.sell_send_documents.build(send_document_params)
-      respond_to do |format|
-        if @sell_document.save
-          create_custom_activity(@sell_document, 'sell_send_documents.create',
-                                 send_document_params, @sell_document,
-                                 {contract_id: @sell_contract.contract_id,
-                                  sell_contract_id: @sell_contract.id})
-          format.js {
-            flash.now[:success] = 'Document is created for the contract'
-            render 'submit_document_create.js'
-          }
+    @company_candidate_docs = current_company.company_candidate_docs.where(id: params[:ids])
+    @plugin = current_company.plugins.docusign.first
+    response = (Time.current - @plugin.updated_at).to_i.abs / 3600 <= 5 ? true : RefreshToken.new(@plugin).refresh_docusign_token
+    if response.present?
+      @company_candidate_docs.each do |sign_doc|
+        @document_sign = current_company.document_signs.create(documentable: sign_doc, signable: @sell_contract.company.owner, is_sign_done: false, initiator: @sell_contract)
+        result = DocusignEnvelope.new(@document_sign, @plugin).create_envelope
+        if (result.status == "sent")
+          @document_sign.update(envelope_id: result.envelope_id, envelope_uri: result.uri)
         else
-          format.js {
-            flash[:errors] = @sell_document.errors.full_messages
-            render 'submit_document_create.js'
-          }
+          flash.now[:errors] = result.error_message
         end
       end
+      flash.now[:success] = 'Document is submitted to the Company for signature'
+    else
+      flash.now[:errors] = ["Docusign token request failed, please regenerate the token from integrations"]
     end
+    @document_signs = @sell_contract.document_signs.where(signable: @sell_contract.company.owner, documentable: current_company.company_candidate_docs.where(is_require: "signature").ids)
   end
 
   def create_document_request
-    if @sell_contract.present?
-      @sell_request = @sell_contract.sell_request_documents.build(sell_request_params)
-      respond_to do |format|
-        if @sell_request.save
-          create_custom_activity(@sell_request, 'sell_request_documents.create',
-                                 sell_request_params, @sell_request,
-                                 {contract_id: @sell_contract.contract_id,
-                                  sell_contract_id: @sell_contract.id})
-          format.js {
-            flash.now[:success] = 'Request is created for the contract'
-            render 'create_document_request.js'
-          }
-        else
-          format.js {
-            flash[:errors] = @sell_request.errors.full_messages
-            render 'create_document_request.js'
-          }
-        end
-      end
+    @company_candidate_docs = current_company.company_candidate_docs.where(id: params[:ids])
+    @company_candidate_docs.each do |sign_doc|
+      current_company.document_signs.create(documentable: sign_doc, signable: @sell_contract.company.owner, is_sign_done: false, initiator: @sell_contract)
     end
+    flash.now[:success] = 'Document(s) submission request is submitted to the Company'
+    @document_signs = @sell_contract.document_signs.where(signable: @sell_contract.company.owner, documentable: current_company.company_candidate_docs.where(is_require: "Document").ids)
   end
 
   def edit
@@ -181,6 +147,18 @@ class Company::ContractsController < Company::BaseController
 
   def update
     @tab_number = params[:tab].to_i
+
+    @signature_templates = current_company.company_candidate_docs.where(is_require: "signature")
+    @documents_templates = current_company.company_candidate_docs.where(is_require: "Document")
+
+    if @tab_number == 2
+      @signature_documents = @contract.send("sell_contract").document_signs.where(signable: @contract.sell_contract.company.owner, documentable: @signature_templates.ids)
+      @request_documents = @contract.send("sell_contract").document_signs.where(signable: @contract.sell_contract.company.owner, documentable: @documents_templates.ids)
+    else
+      @candidate_signature_documents = @contract.send("buy_contract").document_signs.where(signable: @contract.buy_contract.contract.candidate, documentable: @signature_templates.ids)
+      @vendor_signature_documents = @contract.buy_contract.company.present? ? @contract.send("buy_contract").document_signs.where(signable: @contract.buy_contract.company.owner, documentable: @signature_templates.ids) : []
+      @candidate_request_documents = @contract.send("buy_contract").document_signs.where(signable: @contract.buy_contract.contract.candidate, documentable: @documents_templates.ids)
+    end
     respond_to do |format|
       if @contract.update(contract_params)
         create_custom_activity(@contract, 'contracts.update', contract_params, @contract)
@@ -219,6 +197,13 @@ class Company::ContractsController < Company::BaseController
     @contract = current_company.sent_contracts.new(create_contract_params)
     @tab_number = params[:tab].to_i
     @contract.status = :draft
+
+    @signature_templates = current_company.company_candidate_docs.where(is_require: "signature")
+    @documents_templates = current_company.company_candidate_docs.where(is_require: "Document")
+    @signature_documents = @contract.sell_contract.document_signs.where(documentable: @signature_templates.ids)
+    @request_documents = @contract.sell_contract.document_signs.where(documentable: @documents_templates.ids)
+
+    SellContract.last.document_signs.where(documentable: Company.first.company_candidate_docs.where(is_require: "signature").ids)
     respond_to do |format|
       if @contract.save
         create_custom_activity(@contract, 'contracts.create', create_contract_params, @contract)
@@ -230,8 +215,8 @@ class Company::ContractsController < Company::BaseController
           flash.now[:success] = "successfully Send."
         }
       else
-        format.js {flash.now[:errors] = @contract.errors.full_messages}
-        format.html {flash[:errors] = @contract.errors.full_messages
+        format.js { flash.now[:errors] = @contract.errors.full_messages }
+        format.html { flash[:errors] = @contract.errors.full_messages
         redirect_back fallback_location: root_path
         }
       end
@@ -260,12 +245,12 @@ class Company::ContractsController < Company::BaseController
                                                                         responed_at: Time.zone.now,
                                                                         status: status),
                                  @contract)
-          format.js {flash.now[:success] = "successfully Submitted."}
+          format.js { flash.now[:success] = "successfully Submitted." }
         else
-          format.js {flash.now[:errors] = @contract.errors.full_messages}
+          format.js { flash.now[:errors] = @contract.errors.full_messages }
         end
       else
-        format.js {flash.now[:errors] = ["Request Not Completed."]}
+        format.js { flash.now[:errors] = ["Request Not Completed."] }
       end
     end
   end
@@ -546,11 +531,11 @@ class Company::ContractsController < Company::BaseController
   end
 
   def get_buy_contract
-    @buy_contract = BuyContract.find_by(id: params[:document][:buy_contract_id])
+    @buy_contract = BuyContract.find_by(id: params[:buy_contract_id])
   end
 
   def get_sell_contract
-    @sell_contract = SellContract.find_by(id: params[:document][:sell_contract_id])
+    @sell_contract = SellContract.find_by(id: params[:sell_contract_id])
   end
 
   def create_custom_activity(model, key, parameters, recipient = nil, additional_data = nil)

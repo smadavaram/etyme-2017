@@ -6,7 +6,5 @@ flash_error("<%= e %>");
 <% if flash[:success].present? %>
 flash_success("<%= flash[:success] %>");
 <% end %>
-<% unless @sell_request.errors.present? %>
 $('#request_doc').html("<%= j render 'company/contracts/request_document_table' , sell_request: @sell_request%>");
 $('#request_document').modal('hide')
-<% end %>

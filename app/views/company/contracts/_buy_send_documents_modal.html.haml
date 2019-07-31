@@ -7,44 +7,40 @@
         %button.close{"aria-hidden" => "true", "data-dismiss" => "modal", :type => "button"}
         ×
       .modal-body
-        = form_for(BuySendDocument.new, as: :document, url: buy_document_create_contracts_path, remote: true) do |esd|
-          =esd.hidden_field :buy_contract_id, value: @contract.buy_contract.id
-          %fieldset
-            .form-row
-              .col-md-6
-                %label.control-label
-                Documents
-                .contract-fild.display-flex
-                  = render 'shared/file_attachement',f:esd,attr_name: :doc_file,button_name: "Document", name_selector: ".uploaded_file_name",cstm_style: "border-radius: 0; height:38px;"
-                  %p.d-inline-block.uploaded_file_name= esd.object&.doc_file.present?  ? File.basename(esd.object.doc_file) : "No File Selected"
-                  -#= f.filepicker_field :doc_file, :button_text => "Pick File", disable: true , class: 'file-pick btn btn-primary filepicker-attach filepicker-attach-doc'
-                  = esd.hidden_field :file_name, class: "doc-file-name"
-                  = esd.hidden_field :file_size, class: "doc-file-size"
-                  = esd.hidden_field :file_type, class: "doc-file-type"
-              .col-md-6
-                .form-group
-                  %label.control-label
-                    expire date
-                  .contract-fild
-                    -#= text_field_tag "document[when_expire]", esd.object.when_expire ,id: 'abcd',class: "form-control exp_date_buy",placeholder: "DD/MM/YYYY"
-                    = esd.text_field :when_expire, value: '',class: "form-control exp_date_buy", placeholder: "DD/MM/YYYY", id: 'buy_send_docments', :autocomplete => :off
-            .form-row
-              .col-12
-                .form-group
-                  %label.control-label
-                    = esd.check_box :is_sign_required ,class: "form-control is-require-sign" , placeholder: ""
-                    = esd.label :is_sign_required
-                    = esd.hidden_field :creatable_type, class: "form-control", value: "Company"
-                    = esd.hidden_field :creatable_id, class: "form-control", value: current_company.id
-                  .form-group.assign_signable.hidden
-                    -esd.object.document_signs.build
-                    =esd.fields_for :document_signs do |ds|
-                      = link_to_add_fields 'available_tour_fields', esd, :document_signs, {partial: 'company/contracts/contract_document_users_fields'}, {class: 'doc-user-generater hidden'}
-                      = ds.select :signable, {}, {}, class: "form-control whois_sign" , placeholder: ""
-                  .modal-footer
-                    %a.btn.btn-default{"data-dismiss" => "modal", :type => "button"}
-                      Cancel
-                    = esd.submit 'Save', class: 'btn btn-primary'
+        .element-box
+          =form_tag(buy_document_create_contracts_path, remote: true, method: :post) do
+            %input{name: "buy_contract_id", type:"hidden", value: @contract.buy_contract.id}
+            .table-responsive
+              %table#company-template-datatable.table.text-center.table-bordered.table-lg.table-v2.table-striped.data-table-font
+                %thead
+                  %tr{:role => "row"}
+                    %th Select
+                    %th.expand.sorting_asc Title
+                    %th Type
+                    %th Document For
+                    %th Expiry Date
+                    %th Is Require
+                    %th Attachments
+                  %tbody
+                    - @signature_templates.each do |doc|
+                      %tr.even{:role => "row"}
+                        %td
+                          = check_box_tag "ids[]", doc.id
+                        %td= doc.title
+                        %td= doc.title_type
+                        %td= doc.document_for
+                        %td= doc.exp_date
+                        %td= doc.is_require
+                        %td
+                          -if !doc.file.blank?
+                            -index = 1
+                            - doc.file.split(",").each do |file_path|
+                              %br
+                              %a{:download => "", :href => file_path, :target=>"_blank"}
+                                = "#{index}: #{file_path.split('/').last}"
+                                - index = index +1
+            %br
+            = button_tag 'submit', class: 'btn btn-sm btn-secondary pull-right'
 
 - content_for :scripts do
   :javascript

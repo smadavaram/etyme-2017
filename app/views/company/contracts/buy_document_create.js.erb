@@ -6,9 +6,9 @@ flash_error("<%= e %>");
 <% if flash[:success].present? %>
 flash_success("<%= flash[:success] %>");
 <% end %>
-<% unless @buy_send_document.errors.present? %>
 $('#buy_send_documents_table').html("<%= j render 'company/contracts/partials/buy_send_document' , buy_send_document: @buy_send_document%>");
 $('#buy_send_documents_modal').modal('hide')
+
 pageSetUp();
 $(".filepicker-attach-doc").on("change", function(e){
   var name = e["originalEvent"]["fpfile"]["filename"];
@@ -18,4 +18,3 @@ $(".filepicker-attach-doc").on("change", function(e){
   $(this).siblings( ".doc-file-size" ).val(size);
   $(this).siblings( ".doc-file-type" ).val(type);
 });
-<% end %>
