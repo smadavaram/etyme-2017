@@ -1157,9 +1157,9 @@ input:checked + .slider1:before {
   .date_box{
     background-color: #afe0f3;
     border: 1px solid #cccc;
-    padding: 8px;
+    padding: 6px;
     text-align: center; 
-    width: 100px;
+    width: auto;
     height: 65px;
   }
   .contract_progress{

@@ -1,9 +1,7 @@
 #content.newsfeed.contracts{style:"overflow-y: hidden;"}
   %container
     %section#widget-grid.clearfix
-      .newsfeed-right
-        %h1.text-center
-          %b Client
+      .newsfeed-right{style: "border: none;"}
         .job-title
           .contract-top.clearfix.row
             %div.col-sm-6
@@ -25,18 +23,16 @@
                 =@contract.created_at.strftime("%d %B %Y")
               / =link_to "Tree View", tree_view_contract_path(@contract.number)
           .row
-            %div.job-header.clearfix.col-sm-4
+            %div.job-header.clearfix.col-sm-6
               = image_tag @contract.company.logo
               %p.job_title.thumb_name
                 %b End Client:
-                %b
-                  =@contract.client.try(:full_name)
-            %div.col-sm-4.job-header
+                %b= @contract.client.try(:full_name)
+            %div.col-sm-6.job-header
               = image_tag "avatars/m_sunny_big.png"
               %p.job_title.thumb_name
                 %b Candidate:
-                %b
-                  =@contract.candidate.try(:full_name)
+                %b= @contract.candidate.try(:full_name)
           %br
           %div.row
             %div.col-sm-6.col-md-6.col-lg-6
@@ -70,7 +66,7 @@
           =link_to "Timeline", timeline_contracts_path, class: "btn btn-primary"
           =link_to "Tree View", tree_view_contract_path(@contract.number), class: "btn btn-primary"
           =link_to 'Download', download_contract_path(@contract), class: 'btn btn-primary'
-          =link_to 'Edit', '#', class: 'btn btn-primary'
+          =link_to 'Edit', new_contract_path(contract_id: @contract.id), class: 'btn btn-primary'
           =link_to 'Generate Salary Cycle', generate_salary_cycles_company_accountings_path(contract_id: @contract.id), class: 'btn btn-primary'
         %div.row
           .col-sm-6.col-md-6.col-lg-6
@@ -199,12 +195,12 @@
                       %th Envelope No
                       %th Signed Document
                   %tbody#submit_doc
-                    - @signature_documents.each do |docusign|
+                    - @signature_documents&.each do |docusign|
                       %tr
                         %td= docusign.documentable.title
                         %td= docusign.created_at.strftime("%Y-%m-%d")
                         %td= docusign.is_sign_done ? "Signed" : "Pending"
-                        %td= docusign.envelope_id.present? ? docusign.envelope_id : "Document Not Submitted"
+                        %td= do_ellipsis(docusign.envelope_id.present? ? docusign.envelope_id : "Not Submitted",15)
                         %td= link_to content_tag(:i,'',class:'fa fa-paperclip fa-lg').html_safe, docusign.signed_file if docusign.is_sign_done
             %br
             %div.contract-custome-details
@@ -220,11 +216,11 @@
                         %th Status
                         %th Submitted Document
                     %tbody#request_doc
-                      - @request_documents.each do |docusign|
+                      - @request_documents&.each do |docusign|
                         %tr
                           %td= docusign.documentable.title
                           %td= docusign.created_at.strftime("%Y-%m-%d")
-                          %td= docusign.envelope_id.present? ? "Submitted" : "Document Not Submitted"
+                          %td= docusign.signed_file.present? ? "Submitted" : "Document Not Submitted"
                           %td= link_to content_tag(:i,'',class:'fa fa-paperclip fa-lg').html_safe, docusign.signed_file if docusign.signed_file.present?
           .col-sm-6.col-md-6.col-lg-6
             %h2.contract_heading
@@ -389,22 +385,23 @@
                   Employee Submitted Documents
                 %div.contract-custome-details.box
                   %div.row
-                    %table.table.text-center.table-bordered.table-lg.table-v2.table-striped.data-table-font
-                      %thead
-                        %tr{:role => "row"}
-                          %th Document Title
-                          %th Sent Date
-                          %th Status
-                          %th Envelope No
-                          %th Signed Document
-                      %tbody#buy_send_documents_table
-                        - @candidate_signature_documents.each do |docusign|
-                          %tr
-                            %td= docusign.documentable.title
-                            %td= docusign.created_at.strftime("%Y-%m-%d")
-                            %td= docusign.is_sign_done ? "Signed" : "Pending"
-                            %td= docusign.envelope_id.present? ? docusign.envelope_id : "Document Not Submitted"
-                            %td= link_to content_tag(:i,'',class:'fa fa-paperclip fa-lg').html_safe, docusign.signed_file if docusign.is_sign_done
+                    .table-responsive
+                      %table.table.text-center.table-bordered.table-lg.table-v2.table-striped.data-table-font
+                        %thead
+                          %tr{:role => "row"}
+                            %th Document Title
+                            %th Sent Date
+                            %th Status
+                            %th Envelope No
+                            %th Signed Document
+                        %tbody#buy_send_documents_table
+                          - @candidate_signature_documents&.each do |docusign|
+                            %tr
+                              %td= docusign.documentable.title
+                              %td= docusign.created_at.strftime("%Y-%m-%d")
+                              %td= docusign.is_sign_done ? "Signed" : "Pending"
+                              %td= do_ellipsis(docusign.envelope_id.present? ? docusign.envelope_id : "Not Submitted",15)
+                              %td= link_to content_tag(:i,'',class:'fa fa-paperclip fa-lg').html_safe, docusign.signed_file if docusign.is_sign_done
               %br
               %div.contract-custome-details
                 %h3.contract_sub_heading
@@ -419,11 +416,11 @@
                           %th Status
                           %th Submitted Document
                       %tbody#buy_emp_req_docs_table
-                        - @candidate_request_documents.each do |docusign|
+                        - @candidate_request_documents&.each do |docusign|
                           %tr
                             %td= docusign.documentable.title
                             %td= docusign.created_at.strftime("%Y-%m-%d")
-                            %td= docusign.envelope_id.present? ? "Submitted" : "Document Not Submitted"
+                            %td= docusign.signed_file.present? ? "Submitted" : "Document Not Submitted"
                             %td= link_to content_tag(:i,'',class:'fa fa-paperclip fa-lg').html_safe, docusign.signed_file if docusign.signed_file.present?
               %br
               - if @contract.buy_contract.company.present?
@@ -446,7 +443,7 @@
                             %td= docusign.documentable.title
                             %td= docusign.created_at.strftime("%Y-%m-%d")
                             %td= docusign.is_sign_done ? "Signed" : "Pending"
-                            %td= docusign.envelope_id.present? ? docusign.envelope_id : "Document Not Submitted"
+                            %td= do_ellipsis(docusign.envelope_id.present? ? docusign.envelope_id : "Not Submitted",15)
                             %td= link_to content_tag(:i,'',class:'fa fa-paperclip fa-lg').html_safe, docusign.signed_file if docusign.is_sign_done
 
 

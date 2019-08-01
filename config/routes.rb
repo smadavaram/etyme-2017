@@ -187,6 +187,7 @@ Rails.application.routes.draw do
     resources :contracts, only: [:index,:show] do
       collection do
         get :timeline
+        post :request_document
       end
     end
     resources :timesheets, only: [:index, :new, :create, :update] do
