@@ -22,6 +22,14 @@
     padding: 5px;
 }
 
+.height-45{
+    height: 45px !important;
+}
+
+.time-input{
+    margin-top: 6px !important;
+}
+
 .display-flex
 {
     display: flex !important;
