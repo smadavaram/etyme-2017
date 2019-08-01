@@ -1152,7 +1152,8 @@ module ApplicationHelper
     elsif pay_type == 'ts_approve' && pay_schedule == 'daily'
       @contract.buy_contract&.ta_day_time&.try(:strftime, '%H:%M')
     elsif pay_type == 'ts_approve' && pay_schedule == 'weekly'
-      "Every " + Date.parse(@contract.buy_contract&.ta_day_of_week&.titleize).try(:strftime, '%A')
+      ## Todo application helper
+      # "Every " + Date.parse(@contract.buy_contract&.ta_day_of_week&.titleize).try(:strftime, '%A')
     elsif pay_type == 'ts_approve' && pay_schedule == 'biweekly'
       "Every " + Date.parse(@contract.buy_contract&.ta_day_of_week&.titleize).try(:strftime, '%A')
     elsif pay_type == 'ts_approve' && pay_schedule == 'twice a month'
