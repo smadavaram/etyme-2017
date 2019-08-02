@@ -324,6 +324,7 @@ class Company::ContractsController < Company::BaseController
   def update_contract_status
     if @contract.update(status: params[:status])
       create_custom_activity(@contract, 'contracts.update', {status: params[:status]}, @contract)
+      #TODO: make it change the status not just in progress
       Contract.set_cycle if @contract.in_progress!
       redirect_back fallback_location: root_path
     end
