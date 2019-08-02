@@ -128,7 +128,6 @@
                               Time sheet
                             .select
                               .plain-select
-                                -bc.object.time_sheet = bc.object.contract.sell_contract.time_sheet
                                 = bc.text_field :time_sheet, value: bc.object.contract.sell_contract.time_sheet, class: 'form-control', readonly: true
                           .col-md-4
                             .b-ts-set
@@ -148,6 +147,7 @@
                                     "Thursday": "thu",
                                     "Friday": "fri",
                                     "Saturday": "sat"}, {selected: bc.object.contract.sell_contract.ts_day_of_week},{disabled: true}
+                                    = bc.hidden_field :ts_day_of_week, value: bc.object.contract.sell_contract.ts_day_of_week
                               %div{:class => "form-group month #{['twice a month', 'monthly'].include?(bc.object.time_sheet) ? '' : 'hidden'}"}
                                 %label.control-label.w-100
                                   Select date
@@ -172,30 +172,33 @@
                               Timesheet Approve
                             .select
                               .plain-select
-                                - bc.object.ts_approve = bc.object.contract.sell_contract.ts_approve
                                 = bc.text_field :ts_approve, value: bc.object.contract.sell_contract.ts_approve, class: 'form-control', readonly: true
                           .col-md-4
                             .b-ts-apv-set
                               %div{:class => "form-group daily #{bc.object.ts_approve != 'daily' ? 'hidden' : ''}"}
                                 %label.control-label.w-100
                                   Select Time
-                                  = bc.text_field :ta_day_time, class: "form-contro con-time time-input", readonly: true
+                                  = bc.text_field :ta_day_time, class: "form-contro con-time time-input", readonly: true, value: bc.object.contract.sell_contract.ta_day_time
+                                  =bc.hidden_field :ta_day_time, value: bc.object.contract.sell_contract.ta_day_time
                               %div{:class => "form-group week #{bc.object.ts_approve != 'weekly' ? 'hidden' : ''}"}
                                 %label.control-label
                                   Select day of week
                                 .select
                                   .plain-select
                                     = bc.select :ta_day_of_week, [["Every Monday", "mon"], ["Every Tuesday", "tue"], ["Every Wednesday", "wed"], ["Every Thursday", "thu"], ["Every Friday", "fri"], ["Every Saturday", "sat"], ["Every Sunday", "sun"]], {selected: bc.object.contract.sell_contract.ta_day_of_week, value: bc.object.contract.sell_contract.ta_day_of_week},{class: "form-contro", disabled: true }
+                                    =bc.hidden_field :ta_day_of_week, value: bc.object.contract.sell_contract.ta_day_of_week
                               %div{:class => "form-group month #{['twice a month', 'monthly'].include?(bc.object.ts_approve) ? '' : 'hidden'}"}
                                 %label.control-label
                                   Select date
                                 .select
                                   = bc.text_field :ta_date_1, class: "form-control", readonly: true
+                                  = bc.hidden_field :ta_date_1, value: bc.object.contract.sell_contract.ta_date_1
                               %div{:class => "form-group twice-month #{bc.object.ts_approve != 'twice a month' ? 'hidden' : ''}"}
                                 %label.control-label
                                   Select second date
                                 .select
                                   = bc.text_field :ta_date_2, class: "form-control", readonly: true
+                                  = bc.hidden_field :ta_date_2, value: bc.object.contract.sell_contract.ta_date_2
                               %span{:class => "form-group month #{['twice a month', 'monthly'].include?(bc.object.ts_approve) ? '' : 'hidden'}"}
                           .col-md-4
                             %label.control-label
