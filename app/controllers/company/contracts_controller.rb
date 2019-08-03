@@ -37,7 +37,7 @@ class Company::ContractsController < Company::BaseController
     add_breadcrumb "#{@contract.number}"
     @signature_documents = @contract.send("sell_contract").document_signs.where(signable: @contract.sell_contract.company.owner, documentable: current_company.company_candidate_docs.where(is_require: "signature").ids)
     @request_documents = @contract.send("sell_contract").document_signs.where(signable: @contract.sell_contract.company.owner, documentable: current_company.company_candidate_docs.where(is_require: "Document").ids)
-    @candidate_signature_documents = @contract.send("buy_contract").document_signs.where(signable: @contract.buy_contract.contract.candidate, documentable:  current_company.company_candidate_docs.where(is_require: "signature").ids)
+    @candidate_signature_documents = @contract.send("buy_contract").document_signs.where(signable: @contract.buy_contract.contract.candidate, documentable: current_company.company_candidate_docs.where(is_require: "signature").ids)
     @vendor_signature_documents = @contract.buy_contract.company.present? ? @contract.send("buy_contract").document_signs.where(signable: @contract.buy_contract.company.owner, documentable: current_company.company_candidate_docs.where(is_require: "signature").ids) : []
     @candidate_request_documents = @contract.send("buy_contract").document_signs.where(signable: @contract.buy_contract.contract.candidate, documentable: current_company.company_candidate_docs.where(is_require: "Document").ids)
 
@@ -324,8 +324,7 @@ class Company::ContractsController < Company::BaseController
   def update_contract_status
     if @contract.update(status: params[:status])
       create_custom_activity(@contract, 'contracts.update', {status: params[:status]}, @contract)
-      #TODO: make it change the status not just in progress
-      Contract.set_cycle if @contract.in_progress!
+      @contract.create_cycles if @contract.in_progress?
       redirect_back fallback_location: root_path
     end
   end
@@ -451,6 +450,9 @@ class Company::ContractsController < Company::BaseController
              :ts_approve, :ta_day_of_week, :ta_date_1, :ta_date_2, :ta_end_of_month,
              :cr_start_date, :cr_end_date, :first_date_of_invoice,
              :ts_day_time, :ta_day_time, :invoice_day_time,
+             approvals_attributes: [
+                 :id, :user_id, :approvable_type
+             ],
              contract_sell_business_details_attributes: [
                  :id, :company_contact_id, :_destroy
              ],
@@ -491,6 +493,9 @@ class Company::ContractsController < Company::BaseController
              :first_date_of_invoice, :company_id, :uscis_rate,
              :ts_day_time, :ta_day_time, :sc_day_time, :payroll_date, :term_no, :term_no_2, :payment_term_2,
              :invoice_recepit, :ir_day_time, :ir_date_1, :ir_date_2, :ir_end_of_month, :ir_day_of_week,
+             approvals_attributes: [
+                 :id, :user_id, :approvable_type
+             ],
              contract_buy_business_details_attributes: [
                  :id, :company_contact_id, :_destroy
              ],

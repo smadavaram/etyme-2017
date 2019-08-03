@@ -3,7 +3,7 @@ class Timesheet < ApplicationRecord
   include Rails.application.routes.url_helpers
 
   # enum status: [:open,:pending_review, :approved , :partially_approved , :rejected , :submitted , :invoiced]
-  enum status: [:open, :submitted, :approved , :partially_approved, :rejected, :invoiced]
+  enum status: [:open, :submitted, :approved, :partially_approved, :rejected, :invoiced]
 
   belongs_to :company, optional: true
   belongs_to :contract, optional: true
@@ -11,9 +11,13 @@ class Timesheet < ApplicationRecord
   belongs_to :job, optional: true
   belongs_to :invoice, optional: true
   belongs_to :candidate, optional: true
-  has_many   :timesheet_logs , dependent: :destroy
+
+  has_one :contract_cycle, as: :cyclable
+
+  # has_many   :timesheet_logs , dependent: :destroy
   has_many   :timesheet_approvers  , dependent: :destroy
-  has_many   :transactions  , through: :timesheet_logs
+  has_many :transactions
+  # has_many   :transactions  , through: :timesheet_logs
 
   has_many :contract_salary_histories ,as: :salable, dependent: :destroy
 
