@@ -292,6 +292,8 @@ class Contract < ApplicationRecord
 
   def create_cycles
     buy_contract_time_sheet_cycles unless contract_cycles.where(cycle_type: 'TimesheetSubmit').present?
+    buy_contract_time_sheet_aprove_cycle unless contract_cycles.where(cycle_type: 'TimesheetApprove').present?
+    buy_contract_invoice_cycle unless contract_cycles.where(cycle_type: 'InvoiceGenerate').present?
   end
 
   def self.set_cycle
