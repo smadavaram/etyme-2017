@@ -10,7 +10,7 @@ class ClientExpense < ApplicationRecord
   belongs_to :ce_cycle, optional: true, foreign_key: :ce_cycle_id, class_name: 'ContractCycle'
   belongs_to :ce_ap_cycle, optional: true, foreign_key: :ce_ap_cycle_id, class_name: 'ContractCycle'
 
-  after_update :set_ce_on_seq
+  # after_update :set_ce_on_seq
   
   scope :not_submitted_expenses, -> {where(status: 0)}
   scope :submitted_client_expenses, -> {where(status: :submitted)}
