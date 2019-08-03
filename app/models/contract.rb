@@ -1,7 +1,7 @@
 class Contract < ApplicationRecord
   require 'sequence'
   include PublicActivity::Model
-
+  include Cycle::CycleMaker
   include Rails.application.routes.url_helpers
 
   include CandidateHelper
@@ -56,17 +56,17 @@ class Contract < ApplicationRecord
   # has_many :contract_sale_commisions
 
   # after_create :set_on_seq
-  after_create :insert_attachable_docs, unless: Proc.new {|contract| contract.draft?}
+  after_create :insert_attachable_docs, unless: Proc.new { |contract| contract.draft? }
   # after_create :set_next_invoice_date, unless: Proc.new {|contract| contract.draft?}
   # after_create :create_rate_change, unless: Proc.new {|contract| contract.draft?}
   # after_create :notify_recipient, if: Proc.new {|contract| contract.draft? and contract.not_system_generated?}
   # after_create :notify_company_about_contract, if: Proc.new{|contract|contract.parent_contract?}
-  after_update :notify_assignee_on_status_change, if: Proc.new {|contract| contract.draft? and contract.status_changed? && contract.not_system_generated? && contract.assignee? && contract.respond_by.present? && contract.accepted?}
-  after_update :notify_companies_admins_on_status_change, if: Proc.new {|contract| contract.draft? and contract.status_changed? && contract.respond_by.present? && contract.not_system_generated?}
+  after_update :notify_assignee_on_status_change, if: Proc.new { |contract| contract.draft? and contract.status_changed? && contract.not_system_generated? && contract.assignee? && contract.respond_by.present? && contract.accepted? }
+  after_update :notify_companies_admins_on_status_change, if: Proc.new { |contract| contract.draft? and contract.status_changed? && contract.respond_by.present? && contract.not_system_generated? }
   # after_create :update_contract_application_status
-  after_save :create_timesheet, if: Proc.new {|contract| contract.draft? and !contract.has_child? && contract.status_changed? && contract.is_not_ended? && !contract.timesheets.present? && contract.in_progress? && contract.next_invoice_date.nil?}
-  before_create :set_contractable, if: Proc.new {|contract| contract.not_system_generated?}
-  before_create :set_sub_contract_attributes, if: Proc.new {|contract| contract.parent_contract?}
+  after_save :create_timesheet, if: Proc.new { |contract| contract.draft? and !contract.has_child? && contract.status_changed? && contract.is_not_ended? && !contract.timesheets.present? && contract.in_progress? && contract.next_invoice_date.nil? }
+  before_create :set_contractable, if: Proc.new { |contract| contract.not_system_generated? }
+  before_create :set_sub_contract_attributes, if: Proc.new { |contract| contract.parent_contract? }
 
   before_create :set_number
   after_create :set_name
@@ -75,13 +75,13 @@ class Contract < ApplicationRecord
   validates :status, inclusion: {in: statuses.keys}
   # validates :billing_frequency ,  inclusion: {in: billing_frequencies.keys}
   # validates :time_sheet_frequency,inclusion: {in: time_sheet_frequencies.keys}
-  validates :commission_type, inclusion: {in: commission_types.keys}, on: :update, if: Proc.new {|contract| contract.is_commission}
+  validates :commission_type, inclusion: {in: commission_types.keys}, on: :update, if: Proc.new { |contract| contract.is_commission }
   # validates :contract_type ,      inclusion: {in: contract_types.keys}
   validates :is_commission, inclusion: {in: [true, false]}
   validates :start_date, :end_date, presence: true
-  validates :commission_amount, numericality: true, presence: true, if: Proc.new {|contract| contract.is_commission}
-  validates :max_commission, numericality: true, presence: true, if: Proc.new {|contract| contract.is_commission && contract.percentage?}
-  validates_uniqueness_of :job_id, scope: :job_application_id, message: "You have already applied for this Job.", if: Proc.new {|contract| contract.job_application.present?}
+  validates :commission_amount, numericality: true, presence: true, if: Proc.new { |contract| contract.is_commission }
+  validates :max_commission, numericality: true, presence: true, if: Proc.new { |contract| contract.is_commission && contract.percentage? }
+  validates_uniqueness_of :job_id, scope: :job_application_id, message: "You have already applied for this Job.", if: Proc.new { |contract| contract.job_application.present? }
 
   accepts_nested_attributes_for :contract_terms, allow_destroy: true, reject_if: :all_blank
   accepts_nested_attributes_for :attachments, allow_destroy: true, reject_if: :all_blank
@@ -97,7 +97,7 @@ class Contract < ApplicationRecord
   # accepts_nested_attributes_for :contract_sale_commisions, allow_destroy: true,reject_if: :all_blank
 
   # include NumberGenerator.new({prefix: 'C', length: 7})
-  default_scope -> {order(created_at: :desc)}
+  default_scope -> { order(created_at: :desc) }
 
   delegate :set_timesheet_submit, :invoice_generate, :find_next_date, :to => :appraiser
 
@@ -288,6 +288,10 @@ class Contract < ApplicationRecord
     self.in_progress.where({next_invoice_date: Date.today}).each do |contract|
       contract.invoices.create! if !contract.has_child?
     end
+  end
+
+  def create_cycles
+    buy_contract_time_sheet_cycles unless contract_cycles.where(cycle_type: 'TimesheetSubmit').present?
   end
 
   def self.set_cycle

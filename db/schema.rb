@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema.define(version: 20190731101337) do
+ActiveRecord::Schema.define(version: 20190803105919) do
 
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
@@ -78,6 +78,15 @@ ActiveRecord::Schema.define(version: 20190731101337) do
     t.datetime "updated_at", null: false
     t.index ["email"], name: "index_admin_users_on_email", unique: true
     t.index ["reset_password_token"], name: "index_admin_users_on_reset_password_token", unique: true
+  end
+
+  create_table "approvals", force: :cascade do |t|
+    t.bigint "user_id"
+    t.string "contractable_type"
+    t.bigint "contractable_id"
+    t.integer "approvable_type"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
   end
 
   create_table "attachable_docs", id: :serial, force: :cascade do |t|
@@ -1732,7 +1741,7 @@ ActiveRecord::Schema.define(version: 20190731101337) do
   end
 
   create_table "transactions", id: :serial, force: :cascade do |t|
-    t.integer "timesheet_log_id"
+    t.integer "timesheet_id"
     t.datetime "start_time"
     t.datetime "end_time"
     t.integer "total_time", default: 0
@@ -1741,7 +1750,7 @@ ActiveRecord::Schema.define(version: 20190731101337) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.string "file"
-    t.index ["timesheet_log_id"], name: "index_transactions_on_timesheet_log_id"
+    t.index ["timesheet_id"], name: "index_transactions_on_timesheet_id"
   end
 
   create_table "user_certificates", force: :cascade do |t|
