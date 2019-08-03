@@ -159,7 +159,6 @@
                           .row.client_expense
                             .col-md-4
                               %label.control-label
-                              - sc.object.client_expense = 'daily' if sc.object.is_client_expense
                               .plain-select
                                 = sc.select :client_expense, Contract.time_sheet_frequencies.map { |key, value| [key.humanize, key] }, {},{class: "form-control sell-client-expense height-45" }
                             .col-md-6
@@ -186,7 +185,6 @@
                                     = sc.text_field :ce_date_2, class: "date_1", placeholder: "DD/MM/YYYY"
                           .row.client_expense
                             .col-md-4
-                              - sc.object.ce_approve = 'daily' if sc.object.is_client_expense
                               %label.control-label
                                 Client Expenses Approve
                               .plain-select
@@ -218,7 +216,6 @@
                               %label.control-label
                                 Client Expenses Invoice
                               .plain-select
-                                - sc.object.ce_invoice = 'daily' if sc.object.is_client_expense
                                 = sc.select :ce_invoice, Contract.time_sheet_frequencies.map { |key, value| [key.humanize, key] }, {},{class: "form-control sell-client-expense-invoice height-45" }
                             .col-md-6
                               .s-ce-in-set
@@ -251,7 +248,6 @@
                             .col-md-4
                               %label.control-label
                               .plain-select
-                                - sc.object.ce_invoice = 'daily' if sc.object.is_performance_review
                                 = sc.select :performance_review, Contract.time_sheet_frequencies.map { |key, value| [key.humanize, key] }, {},{class: "form-control sell-performance-review height-45" }
                             .col-md-6
                               .s-pr-set
@@ -285,6 +281,7 @@
                               %label.control-label
                                 Timesheet Approve
                               .plain-select
+                                - sc.object.ts_approve = sc.object.ts_approve || 'daily'
                                 = sc.select :ts_approve, Contract.time_sheet_frequencies.map { |key, value| [key.humanize, key] }, {},{class: "form-control sell-time-sheet-approve height-45" }
                             .col-md-4
                               .s-ts-apv-set
@@ -324,7 +321,7 @@
                             = sc.select :invoice_terms_period, Contract.time_sheet_frequencies.map { |key, value| [key.humanize, key] }, {},{class: "form-control sell-invoice height-45" }
                     .col-md-4
                       .sell-invoice-setting
-                        -sc.object.invoice_terms_period = 'daily'
+                        -sc.object.invoice_terms_period = sc.object.invoice_terms_period || 'daily'
                         %div{:class => "form-group daily #{sc.object.invoice_terms_period != 'daily' ? 'hidden' : ''}"}
                           %label.control-label.w-100
                             Select Time
