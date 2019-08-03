@@ -92,6 +92,14 @@
                 %a{"data-toggle" => "tab", :href => "#tab-sell-pr",class: "nav-link cumstom_nav-tab"}
                   %span.badge.bg-color-blueDark.txt-color-white
                   Payment Receive
+              %li.nav-item.cumstom_nav-tab
+                %a{"data-toggle" => "tab", :href => "#payment-received",class: "nav-link cumstom_nav-tab"}
+                  %span.badge.bg-color-blueDark.txt-color-white
+                  Payment Receive
+              %li.nav-item.cumstom_nav-tab
+                %a{"data-toggle" => "tab", :href => "#integration",class: "nav-link cumstom_nav-tab"}
+                  %span.badge.bg-color-blueDark.txt-color-white
+                  Integration
             .col-md-12.pl-0
               .tab-content.p-4{style: 'border: 1px solid #b6bcbf;'}
                 #tab-sell-pri.tab-pane.padding-top-15.active.in
@@ -149,7 +157,7 @@
                                 %span{:class => "form-group month #{['twice a month', 'monthly'].include?(sc.object.time_sheet) ? '' : 'hidden'}"}
                             .col-md-4
                               %label.control-label
-                                Assign to
+                                Collaborators
                               = select_tag 'assign_to', options_from_collection_for_select(current_company&.company_contacts, "id", 'full_name'), include_blank: 'Please select',class: 'form-control height-45'
                           .row
                             .col-md-4
@@ -308,7 +316,7 @@
                                 %span{:class => "form-group month #{['twice a month', 'monthly'].include?(sc.object.ts_approve) ? '' : 'hidden'}"}
                             .col-md-4
                               %label.control-label
-                                Assign to
+                                Collaborators
                               = select_tag 'assign_to', options_from_collection_for_select(current_company&.company_contacts, "id", 'full_name'), include_blank: 'Please select',class: 'form-control height-45'
                 #tab-sell-bi.tab-pane.padding-top-15
                   .row
@@ -345,8 +353,8 @@
                         %span{:class => "form-group month #{['twice a month', 'monthly'].include?(sc.object.invoice_terms_period) ? '' : 'hidden'}"}
                     .col-md-4
                       %label.control-label
-                        Assign to
-                      = select_tag 'assign_to', options_from_collection_for_select(current_company&.company_contacts, "id", 'full_name'), include_blank: 'Please select',class: 'form-control'
+                        Collaborators
+                      = select_tag 'assign_to', options_from_collection_for_select(current_company&.company_contacts, "id", 'full_name'), include_blank: 'Please select',class: 'form-control height-45'
                 #tab-sell-pr.tab-pane.padding-top-15
                   .row
                     .col-md-6
@@ -355,6 +363,24 @@
                           Payment Terms
                         .select
                           = sc.number_field :payment_term , class: "form-control", min: 0, max: 365
+                #payment-received.tab-pane.padding-top-15
+                  .row
+                    .col-md-6
+                      %label.control-label.w-100
+                        Payment Terms
+                      = number_field_tag :payment_terms, class: 'form-control'
+                    .col-md-6
+                      %label.control-label.w-100
+                        Collaborators
+                      = select_tag 'assign_to', options_from_collection_for_select(current_company&.company_contacts, "id", 'full_name'), include_blank: 'Please select',class: 'form-control height-45'
+                #integration.tab-pane.padding-top-15
+                  .row.integration
+                    .col-md-6
+                      %label.control-label.w-100
+                        Transaction Reference
+                      = select_tag 'assign_to', options_from_collection_for_select(current_company&.company_contacts, "id", 'full_name'), include_blank: 'Please select',class: 'form-control height-45'
+                    .col-md-6.button_main
+                      %a.btn.btn-sm.btn-secondary.float-right{href: '#', title: 'Add More'} Add More
       .contract-fields_wrapper.mt-4
         .row
           %label.control-label  Customer Documents
@@ -412,7 +438,6 @@
                                   %td= docusign.is_sign_done ? "Signed" : "Pending"
                                   %td= docusign.envelope_id.present? ? docusign.envelope_id : "Document Not Submitted"
                                   %td= link_to content_tag(:i,'',class:'fa fa-paperclip fa-lg').html_safe, docusign.signed_file if docusign.is_sign_done
-
 = render 'company/contracts/request_document_modal', contract: @contract
 = render 'company/contracts/submit_document_modal', contract: @contract
 :javascript

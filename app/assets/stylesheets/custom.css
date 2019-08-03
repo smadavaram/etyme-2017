@@ -30,6 +30,11 @@
     margin-top: 6px !important;
 }
 
+.integration
+{
+    align-items: center;
+}
+
 .display-flex
 {
     display: flex !important;

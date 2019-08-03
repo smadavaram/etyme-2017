@@ -88,6 +88,10 @@
                 %a{"data-toggle" => "tab", :href => "#tab-buy-cc", class: "nav-link cumstom_nav-tab"}
                   %span.badge.bg-color-blue.txt-color-white
                   Commission Calculation
+              %li.nav-item.cumstom_nav-tab
+                %a{"data-toggle" => "tab", :href => "#tab-buy-integration", class: "nav-link cumstom_nav-tab"}
+                  %span.badge.bg-color-blue.txt-color-white
+                  Integration
               / %li
               /   %a{"data-toggle" => "tab", :href => "#tab-buy-cp"}
               /     %span.badge.bg-color-blueDark.txt-color-white
@@ -129,6 +133,7 @@
                             .select
                               .plain-select
                                 = bc.text_field :time_sheet, value: bc.object.contract.sell_contract.time_sheet, class: 'form-control', disabled: true
+                                = bc.hidden_field :time_sheet, value: bc.object.contract.sell_contract.time_sheet
                           .col-md-4
                             .b-ts-set
                               %div{:class => "form-group daily #{bc.object.contract.sell_contract.time_sheet != 'daily' ? 'hidden' : ''}"}
@@ -223,9 +228,9 @@
                           .col-md-4
                             .b-sal-cal
                               %div{:class => "form-group daily #{bc.object.salary_calculation != 'daily' ? 'hidden' : ''}"}
-                                %label.control-label
+                                %label.control-label.w-100
                                   Select Time
-                                  = bc.text_field :sc_day_time, class: "form-contro con-time"
+                                  = bc.text_field :sc_day_time, class: "form-contro con-time time-input"
                               %div{:class => "form-group week #{bc.object.salary_calculation != 'weekly' ? 'hidden' : ''}"}
                                 %label.control-label
                                   Select day of week
@@ -246,7 +251,7 @@
                           .col-md-4
                             %label.control-label
                               Assign to
-                            = select_tag 'assign_to', options_from_collection_for_select(current_company&.company_contacts, "id", 'full_name'), include_blank: 'Please select',class: 'form-control'
+                            = select_tag 'assign_to', options_from_collection_for_select(current_company&.company_contacts, "id", 'full_name'), include_blank: 'Please select',class: 'form-control height-45'
 
                   .row
                     .col-md-12
@@ -259,9 +264,9 @@
                           .col-md-4
                             .b-sal-cal
                               %div{:class => "form-group daily #{bc.object.salary_calculation != 'daily' ? 'hidden' : ''}"}
-                                %label.control-label
+                                %label.control-label.w-100
                                   Select Time
-                                  = bc.text_field :sp_day_time, class: "form-contro con-time"
+                                  = bc.text_field :sp_day_time, class: "form-contro con-time time-input"
                               %div{:class => "form-group week #{bc.object.salary_calculation != 'weekly' ? 'hidden' : ''}"}
                                 %label.control-label
                                   Select day of week
@@ -282,7 +287,7 @@
                           .col-md-4
                             %label.control-label
                               Assign to
-                            = select_tag 'assign_to', options_from_collection_for_select(current_company&.company_contacts, "id", 'full_name'), include_blank: 'Please select',class: 'form-control'
+                            = select_tag 'assign_to', options_from_collection_for_select(current_company&.company_contacts, "id", 'full_name'), include_blank: 'Please select',class: 'form-control height-45'
 
                   .row
                     .col-md-12
@@ -295,15 +300,15 @@
                           .col-md-3
                             .b-sal-cal
                               %div{:class => "form-group daily #{bc.object.salary_calculation != 'daily' ? 'hidden' : ''}"}
-                                %label.control-label
+                                %label.control-label.w-100
                                   Select Time
-                                  = bc.text_field :sclr_day_time, class: "form-contro con-time"
+                                  = bc.text_field :sclr_day_time, class: "form-contro con-time time-input"
                               %div{:class => "form-group week #{bc.object.salary_calculation != 'weekly' ? 'hidden' : ''}"}
                                 %label.control-label
                                   Select day of week
                                 .select
                                   .plain-select
-                                    = bc.select :sclr_day_of_week, [["Every Monday", "mon"], ["Every Tuesday", "tue"], ["Every Wednesday", "wed"], ["Every Thursday", "thu"], ["Every Friday", "fri"], ["Every Saturday", "sat"], ["Every Sunday", "sun"]], {},{class: "form-contro" }
+                                    = bc.select :sclr_day_of_week, [["Every Monday", "mon"], ["Every Tuesday", "tue"], ["Every Wednesday", "wed"], ["Every Thursday", "thu"], ["Every Friday", "fri"], ["Every Saturday", "sat"], ["Every Sunday", "sun"]], {},{class: "form-contro height-45" }
                               %div{:class => "form-group month #{['twice a month', 'monthly'].include?(bc.object.salary_calculation) ? '' : 'hidden'}"}
                                 %label.control-label
                                   Select date
@@ -321,13 +326,13 @@
                               %label.control-label
                                 Select Term
                               .select
-                                = bc.select :term_no, options_for_select( (1..30).to_a+['End of month'],current_company&.payroll_infos&.first&.term_no), {}, {class: 'form-control'}
+                                = bc.select :term_no, options_for_select( (1..30).to_a+['End of month'],current_company&.payroll_infos&.first&.term_no), {}, {class: 'form-control height-45'}
                               .b-sal-cal
                                 %div{:class => "form-group twice-month #{bc.object.salary_calculation != 'twice a month' ? 'hidden' : ''}"}
                                   %label.control-label
                                     Select Term 2
                                   .select
-                                    = bc.select :term_no_2, options_for_select( (1..30).to_a+['End of month'],current_company&.payroll_infos&.first&.term_no_2), {}, {class: 'form-control'}
+                                    = bc.select :term_no_2, options_for_select( (1..30).to_a+['End of month'],current_company&.payroll_infos&.first&.term_no_2), {}, {class: 'form-control height-45'}
 
                           .col-md-3
                             .b-sal-cal1
@@ -337,31 +342,44 @@
                                 Select Payroll
                               .select.payroll
                                 .plain-select.payroll-term
-
+                                  - #TODO: change the below select
+                                  = bc.select :term_no_2, options_for_select( (1..30).to_a+['End of month'],current_company&.payroll_infos&.first&.term_no_2), {}, {class: 'form-control height-45'}
                             .b-sal-cal
                               %div{:class => "form-group twice-month #{bc.object.salary_calculation != 'twice a month' ? 'hidden' : ''}"}
                                 %label.control-label
                                   Select Payroll 2
                                 .select.payrol-2
                                   .plain-select.payroll-term-2
+                                    - #TODO: change the below select
+                                    = bc.select :term_no_2, options_for_select( (1..30).to_a+['End of month'],current_company&.payroll_infos&.first&.term_no_2), {}, {class: 'form-control height-45'}
                 #tab-buy-cc.tab-pane.padding-top-15
+                  .contract-fields_wrapper.mt-4
+                    %div
+                      .widget-body
+                        .col-md-4
+                          .form-group
+                            %label.control-label
+                              Payroll Date
+                              %sup.text-danger *
+                            .select
+                              .row
+                                = bc.text_field :payroll_date, value: current_company&.payroll_infos&.first&.payroll_date, class: "date_1"
                   .row
                     .col-md-12
                       .form-group
                         =bc.nested_fields_for :contract_sale_commisions do |custom_field|
                           = render 'company/contracts/contract_sale_commisions_fields', f: custom_field
-                      %strong
                         .links
-                          = link_to_add_association '+ Add Sale Comission', bc, :contract_sale_commisions, class: 'bttn text-info pull-left', partial: 'company/contracts/contract_sale_commisions_fields'
-                          %br/
-                    .col-md-4
-                      .form-group
-                        %label.control-label
-                          Payroll Date
-                          %sup.text-danger *
-                        .select
-                          .row
-                            = bc.text_field :payroll_date, value: current_company&.payroll_infos&.first&.payroll_date, class: "date_1"
+                          = link_to_add_association '+ Add Sale Comission', bc, :contract_sale_commisions, class: 'btn btn-sm btn-secondary float-right margin-bottom-10', partial: 'company/contracts/contract_sale_commisions_fields'
+                #tab-buy-integration.tab-pane.padding-top-15
+                  .row.integration
+                    .col-md-6
+                      %label.control-label.w-100
+                        Transaction Reference
+                      = select_tag 'assign_to', options_from_collection_for_select(current_company&.company_contacts, "id", 'full_name'), include_blank: 'Please select',class: 'form-control height-45'
+                    .col-md-6.button_main
+                      %a.btn.btn-sm.btn-secondary.float-right{href: '#', title: 'Add More'} Add More
+
       .contract-fields_wrapper.mt-4
         .row
           %label.control-label  Employye/Vender Documents
