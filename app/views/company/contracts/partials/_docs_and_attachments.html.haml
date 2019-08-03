@@ -133,6 +133,7 @@
                             .select
                               .plain-select
                                 = bc.text_field :time_sheet, value: bc.object.contract.sell_contract.time_sheet, class: 'form-control', disabled: true
+                                = bc.hidden_field :time_sheet, value: bc.object.contract.sell_contract.time_sheet
                           .col-md-4
                             .b-ts-set
                               %div{:class => "form-group daily #{bc.object.contract.sell_contract.time_sheet != 'daily' ? 'hidden' : ''}"}

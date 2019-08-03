@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema.define(version: 20190803105919) do
+ActiveRecord::Schema.define(version: 20190803150538) do
 
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
@@ -229,6 +229,15 @@ ActiveRecord::Schema.define(version: 20190803105919) do
     t.string "ven_term_2"
     t.string "ven_term_num_1"
     t.string "ven_term_num_2"
+    t.string "ts_2day_of_week"
+    t.string "ta_2day_of_week"
+    t.string "invoice_2day_of_week"
+    t.string "ce_2day_of_week"
+    t.string "ce_in_2day_of_week"
+    t.string "pr_2day_of_week"
+    t.string "sc_2day_of_week"
+    t.string "sp_2day_of_week"
+    t.string "sclr_2day_of_week"
     t.index ["candidate_id"], name: "index_buy_contracts_on_candidate_id"
     t.index ["contract_id"], name: "index_buy_contracts_on_contract_id"
   end
@@ -1562,6 +1571,12 @@ ActiveRecord::Schema.define(version: 20190803105919) do
     t.date "ce_in_date_2"
     t.string "ce_in_day_of_week"
     t.boolean "ce_in_end_of_month", default: false
+    t.string "ts_2day_of_week"
+    t.string "ta_2day_of_week"
+    t.string "invoice_2day_of_week"
+    t.string "ce_2day_of_week"
+    t.string "ce_in_2day_of_week"
+    t.string "pr_2day_of_week"
     t.index ["company_id"], name: "index_sell_contracts_on_company_id"
     t.index ["contract_id"], name: "index_sell_contracts_on_contract_id"
   end
