@@ -431,7 +431,7 @@ class Company::ContractsController < Company::BaseController
          :company_address, :company_website, :fed_id, :commission_type, :commission_amount, :max_commission,
          :commission_for_id, :candidate_name, :customer_rate, :time_sheet_frequency, :invoice_terms_period,
          :show_accounting_to_employee, :billing_frequency, :time_sheet_frequency, :assignee_id, :contractable_id,
-         :contractable_type, :job_application_id, :parent_contract_id, :start_date,
+         :contractable_type, :job_application_id, :parent_contract_id, :start_date, :is_client_customer,
          :payment_term, :b_time_sheet, :payrate, :contract_type, :end_date,
          :message_from_hiring, :status, :company_id, company_doc_ids: [],
          sell_contract_attributes: [
