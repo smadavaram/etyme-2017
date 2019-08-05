@@ -22,6 +22,7 @@ $('.previous').find('a').attr('href',"<%= new_contract_path(contract_id: @contra
 $(document).ready(function () {
     $(".add_contacts").click(function () {
         approval_approvable_type.value = this.id;
+        buy_approval_type.value = this.id;
     })
     addeventatc.refresh();
     set_client_company_select('#select_clients', "Please Select Or Add new Client");

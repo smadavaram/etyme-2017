@@ -162,11 +162,14 @@
                                   Select second date
                                 .select
                                   = bc.text_field :ts_date_2, class: "form-control", readonly: true, value: bc.object.contract.sell_contract.ts_date_2
-
                           .col-md-4
                             %label.control-label
-                              Assign to
-                            = select_tag 'assign_to', options_from_collection_for_select(current_company&.company_contacts, "id", 'full_name'), include_blank: 'Please select',class: 'form-control height-45'
+                              Collaborators
+                            .row
+                              .col-md-12
+                                #buy_collaborators
+                                  = render 'company/contracts/partials/approval', approvals: @contract.buy_contract.approvals.where(approvable_type: 'timesheet')
+                                %a.fa.fa-plus.fa-3x.pull-right.add_contacts{"data-toggle": "modal", "data-target":"#buy_approval", id: 'timesheet'}
                 #tab-buy-ta.tab-pane.padding-top-15
                   .row
                     .col-md-12
@@ -207,8 +210,12 @@
                               %span{:class => "form-group month #{['twice a month', 'monthly'].include?(bc.object.ts_approve) ? '' : 'hidden'}"}
                           .col-md-4
                             %label.control-label
-                              Assign to
-                            = select_tag 'assign_to', options_from_collection_for_select(current_company&.company_contacts, "id", 'full_name'), include_blank: 'Please select',class: 'form-control height-45'
+                              Collaborators
+                            .row
+                              .col-md-12
+                                #buy_ts_approver
+                                  = render 'company/contracts/partials/approval', approvals: @contract.buy_contract.approvals.where(approvable_type: 'timesheet_approve')
+                                %a.fa.fa-plus.fa-3x.pull-right.add_contacts{"data-toggle": "modal", "data-target":"#buy_approval", id: 'timesheet_approve'}
                 #tab-buy-sc.tab-pane.padding-top-15
                   .row
                     .col-md-12
@@ -250,9 +257,12 @@
                               %span{:class => "form-group month #{['twice a month', 'monthly'].include?(bc.object.salary_calculation) ? '' : 'hidden'}"}
                           .col-md-4
                             %label.control-label
-                              Assign to
-                            = select_tag 'assign_to', options_from_collection_for_select(current_company&.company_contacts, "id", 'full_name'), include_blank: 'Please select',class: 'form-control height-45'
-
+                              Collaborators
+                            .row
+                              .col-md-12
+                                #buy_s_c
+                                  = render 'company/contracts/partials/approval', approvals: @contract.buy_contract.approvals.where(approvable_type: 'slaray_calculation')
+                                %a.fa.fa-plus.fa-3x.pull-right.add_contacts{"data-toggle": "modal", "data-target":"#buy_approval", id: 'slaray_calculation'}
                   .row
                     .col-md-12
                       .form-group
@@ -286,9 +296,12 @@
                               %span{:class => "form-group month #{['twice a month', 'monthly'].include?(bc.object.salary_calculation) ? '' : 'hidden'}"}
                           .col-md-4
                             %label.control-label
-                              Assign to
-                            = select_tag 'assign_to', options_from_collection_for_select(current_company&.company_contacts, "id", 'full_name'), include_blank: 'Please select',class: 'form-control height-45'
-
+                              Collaborators
+                            .row
+                              .col-md-12
+                                #buy_s_p
+                                  = render 'company/contracts/partials/approval', approvals: @contract.buy_contract.approvals.where(approvable_type: 'slaray_process')
+                                %a.fa.fa-plus.fa-3x.pull-right.add_contacts{"data-toggle": "modal", "data-target":"#buy_approval", id: 'slaray_process'}
                   .row
                     .col-md-12
                       .form-group
@@ -468,6 +481,7 @@
 = render 'company/contracts/buy_send_documents_modal', contract: @contract
 = render 'company/contracts/buy_emp_req_docs_modal', contract: @contract
 = render 'company/contracts/partials/buy_ven_req_docs_modal', contract: @contract
+= render 'company/contracts/partials/buy_approval_modal',contract: @contract, contractable_type: @contract.buy_contract.class.name, contractable_id: @contract.buy_contract.id
 -#.row
 -#  %label.control-label  Employye/Vender Documents
 -#  .col-md-12.contract-attachment

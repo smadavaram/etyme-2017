@@ -6,13 +6,25 @@ flash_error("<%= e %>");
 <% if flash[:success].present? %>
 flash_success("<%= flash[:success] %>");
 <% end %>
-<% if params[:approval][:approvable_type] == "timesheet" %>
+<% if params[:approval][:approvable_type] == "timesheet" and params[:approval][:contractable_type] == 'SellContract' %>
 $('#collaborators').html("<%= j render 'company/contracts/partials/approval' , approvals: @approvals%>");
 $('#collaborator_modal').modal('hide');
-<% elsif params[:approval][:approvable_type] == "timesheet_approve" %>
+<% elsif params[:approval][:approvable_type] == "timesheet_approve" and params[:approval][:contractable_type] == 'SellContract' %>
 $('#ts_approver').html("<%= j render 'company/contracts/partials/approval' , approvals: @approvals%>");
 $('#collaborator_modal').modal('hide');
-<% elsif params[:approval][:approvable_type] == "invoice" %>
+<% elsif params[:approval][:approvable_type] == "invoice" and params[:approval][:contractable_type] == 'SellContract' %>
 $('#invoice').html("<%= j render 'company/contracts/partials/approval' , approvals: @approvals%>");
 $('#collaborator_modal').modal('hide');
+<% elsif params[:approval][:approvable_type] == "timesheet" and params[:approval][:contractable_type] == 'BuyContract' %>
+$('#buy_collaborators').html("<%= j render 'company/contracts/partials/approval' , approvals: @approvals%>");
+$('#buy_approval').modal('hide');
+<% elsif params[:approval][:approvable_type] == "timesheet_approve" and params[:approval][:contractable_type] == 'BuyContract' %>
+$('#buy_ts_approver').html("<%= j render 'company/contracts/partials/approval' , approvals: @approvals%>");
+$('#buy_approval').modal('hide');
+<% elsif params[:approval][:approvable_type] == "slaray_calculation" and params[:approval][:contractable_type] == 'BuyContract' %>
+$('#buy_s_c').html("<%= j render 'company/contracts/partials/approval' , approvals: @approvals%>");
+$('#buy_approval').modal('hide');
+<% elsif params[:approval][:approvable_type] == "slaray_process" and params[:approval][:contractable_type] == 'BuyContract' %>
+$('#buy_s_p').html("<%= j render 'company/contracts/partials/approval' , approvals: @approvals%>");
+$('#buy_approval').modal('hide');
 <% end %>
