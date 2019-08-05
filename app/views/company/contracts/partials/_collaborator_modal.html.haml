@@ -12,7 +12,7 @@
             .form-row
               .col-12
                 .form-group
-                  = f.hidden_field :approvable_type, value: approvable_type
+                  = f.hidden_field :approvable_type
                   = f.hidden_field :contractable_type, value: contractable_type
                   = f.hidden_field :contractable_id, value: contractable_id
                   = f.select :user_id, current_company&.company_contacts.map{|contact| [contact.full_name, contact.id]}, {}, {class: 'form-control'}

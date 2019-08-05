@@ -20,6 +20,9 @@ window.history.pushState('newTab', 'contract partial', '?contract_id=<%= @contra
 $('.previous').find('a').attr('href',"<%= new_contract_path(contract_id: @contract.id) %>")
 
 $(document).ready(function () {
+    $(".add_contacts").click(function () {
+        approval_approvable_type.value = this.id;
+    })
     addeventatc.refresh();
     set_client_company_select('#select_clients', "Please Select Or Add new Client");
     set_job_candidate_select('#select_candidates', "Please Select Or Add new Candidate");

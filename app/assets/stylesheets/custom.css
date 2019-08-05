@@ -26,6 +26,13 @@
     width: 100% !important;
 }
 
+.collaborators
+{
+    display: flex;
+    flex-wrap: nowrap;
+    justify-content: space-evenly;
+}
+
 .height-45{
     height: 45px !important;
 }

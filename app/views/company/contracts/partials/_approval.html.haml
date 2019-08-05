@@ -1,4 +1,6 @@
-- approvals.each do |approval|
-  %div
-    %i.fa.fa-user-circle
-    = approval.user.full_name
+.collaborators
+  - approvals.each do |approval|
+    %div
+      %div
+        %i.fa.fa-3x.fa-user-circle
+      %p= approval.user.full_name

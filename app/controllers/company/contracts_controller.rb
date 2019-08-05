@@ -46,7 +46,8 @@ class Company::ContractsController < Company::BaseController
   def add_approval
     @approval = Approval.find_or_initialize_by(approval_params)
     @approvals = Approval.where(contractable_type: approval_params[:contractable_type],
-                               contractable_id: approval_params[:contractable_id])
+                               contractable_id: approval_params[:contractable_id],
+                                approvable_type: approval_params[:approvable_type])
     if @approval.save
       flash.now[:success] = "Collaborator Added"
       render 'add_approval'
