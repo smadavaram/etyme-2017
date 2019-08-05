@@ -1,0 +1,24 @@
+.table-responsive.p-4
+  %table.table.table-bordred
+    %thead
+      %th{:width => "20%"} Contract Id
+      %th{:width => "5%"}
+      %th{:width => "5%"}
+      %th{:width => "5%"}
+      %th{:width => "5%"}
+      %th{:width => "5%"}
+      %th{:width => "5%"}
+      %th{:width => "5%"}
+      %th{:width => "20%"}
+    %tbody
+      - @timesheets&.each do |timesheet|
+        = form_for timesheet, url: candidate_timesheet_path(timesheet),method: :put do |tf|
+          %tr
+            %td= tf.object.contract.project_name
+            -#=tf.object.transactions.each_with_index do |tt,index|
+            -(0..6).each do index
+              %td{style: "width: 5% !important;"}
+                %input{id: "timesheet_transactions_attributes_#{index}_total_time",:name => "timesheet[transactions_attributes][#{index}][total_time]", :style => "width: 100%", :type => "number", :value => "4"}/
+                %input{id: "timesheet_transactions_attributes_#{index}_id",:name => "timesheet[transactions_attributes][#{index}][id]", :type => "hidden", :value => "281"}/
+                -#=tt.number_field :total_time, style: "width: 100%"
+            %td= tf.submit :save

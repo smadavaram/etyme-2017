@@ -14,7 +14,7 @@ module Cycle::Utils::DateUtils
       groups = []
       tmp = []
       range(start_date, end_date).each do |date|
-        if date.send(DayTranslation[day])
+        if date.send(DayTranslation[day.to_sym])
           tmp << date
           groups << tmp
           tmp = []
@@ -22,14 +22,14 @@ module Cycle::Utils::DateUtils
           tmp << date
         end
       end
-      groups << tmp unless tmp.empty?
+      tmp.empty? ? groups : groups << tmp
     end
 
     def group_by_biweekly(day_one, day_two, start_date, end_date)
       groups = []
       tmp = []
       range(start_date, end_date).each do |date|
-        if date.send(DayTranslation[day_one]) || date.send(DayTranslation[day_two])
+        if date.send(DayTranslation[day_one.to_sym]) || date.send(DayTranslation[day_two.to_sym])
           tmp << date
           groups << tmp
           tmp = []
@@ -37,7 +37,7 @@ module Cycle::Utils::DateUtils
           tmp << date
         end
       end
-      groups << tmp unless tmp.empty?
+      tmp.empty? ? groups : groups << tmp
     end
 
     def group_by_monthly(day, start_date, end_date)
@@ -52,7 +52,7 @@ module Cycle::Utils::DateUtils
           tmp << date
         end
       end
-      groups << tmp unless tmp.empty?
+      tmp.empty? ? groups : groups << tmp
     end
 
     def group_by_twice_a_month(day_one, day_two, start_date, end_date)
@@ -67,7 +67,7 @@ module Cycle::Utils::DateUtils
           tmp << date
         end
       end
-      groups << tmp unless tmp.empty?
+      tmp.empty? ? groups : groups << tmp
     end
 
   end

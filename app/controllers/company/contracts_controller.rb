@@ -208,8 +208,6 @@ class Company::ContractsController < Company::BaseController
     @documents_templates = current_company.company_candidate_docs.where(is_require: "Document")
     @signature_documents = @contract.send("sell_contract").document_signs.where(signable: @contract.sell_contract.company.owner, documentable: @signature_templates.ids)
     @request_documents = @contract.send("sell_contract").document_signs.where(signable: @contract.sell_contract.company.owner, documentable: @documents_templates.ids)
-
-    SellContract.last.document_signs.where(documentable: Company.first.company_candidate_docs.where(is_require: "signature").ids)
     respond_to do |format|
       if @contract.save
         create_custom_activity(@contract, 'contracts.create', create_contract_params, @contract)

@@ -1,16 +1,50 @@
-.timesheet
-  .row
-    .col-md-12
-      %h2 Submit Timesheets
-      .timesheet-select-date
-        = form_for '', url: get_timesheets_candidate_timesheets_path, html:{ class:'form-horizontal', method: :post, remote: true} do |f|
-          %select.select-time-cycle{name: "date_range"}
-            -@time_cycle.each do |t|
-              %option=t
-    .clearfix.set-timesheet-form.col-md-12
-      = render 'timesheet_form', start_date: (@dates.beginning_of_week-1.day), end_date: @dates.end_of_week - 1.day
+-#.timesheet
+-#  .row
+-#    .col-md-12
+-#      %h2 Submit Timesheets
+-#      .timesheet-select-date
+-#        = form_for '', url: get_timesheets_candidate_timesheets_path, html:{ class:'form-horizontal', method: :post, remote: true} do |f|
+-#          %select.select-time-cycle{name: "date_range"}
+-#            -@time_cycle.each do |t|
+-#              %option=t
+-#    .clearfix.set-timesheet-form.col-md-12
+-#      = render 'timesheet_form', start_date: (@dates.beginning_of_week-1.day), end_date: @dates.end_of_week - 1.day
+
+.row.mb-4.w-100
+  %ul.nav.nav-tabs.w-100.mt-3{style: "border-bottom: none;"}
+    %li.nav-item.ml-3
+      %a{class: "nav-link fd upcomming_timesheets", href:'#', onclick: "time_line_filter('upcomming_timesheets','.select-time-cycle','.select-contract')","data-toggle" => "tab", "data-remote" => "true"} Upcomming
+    %li.nav-item
+      %a{class: "nav-link fd submitted_timesheets ",href:'#', onclick: "time_line_filter('submitted_timesheets','.select-time-cycle','.select-contract')","data-toggle" => "tab", "data-remote" => "true"} Submitted
+    %li.nav-item
+      %a{class: "nav-link fd approved_timesheets", href:'#', onclick: "time_line_filter('approved_timesheets','.select-time-cycle','.select-contract')","data-toggle" => "tab", "data-remote" => "true"} Approved
+    %li.nav-item
+      %a{class: "nav-link active fd open_timesheets", href:'#', onclick: "time_line_filter('open_timesheets','.select-time-cycle','.select-contract')","data-toggle" => "tab", "data-remote" => "true"} All
+    %li.nav-item.mt-2{style: "margin-left: auto;"}
+      %select.select-contract
+        %option{value: 'all'} Select Contract
+        -@contracts.each do |t|
+          %option{value: t.id}= t.project_name
+      %select.select-time-cycle
+        %option{value: 'all'} Select Cycle
+        -@cycles.each do |t|
+          %option{value: t.id}= "#{t.start_date.strftime("%Y-%m-%d")} - #{t.end_date.strftime("%Y-%m-%d")}"
+
+.time_sheets_submission
+  = render 'time_sheets_submit',timesheets: @timesheets
+
+
+
+
+
+
 - content_for :scripts do
   :javascript
+    function time_line_filter(tab,cycle_selector,contract_selector){
+      let cycle = $(cycle_selector).val();
+      let contract = $(contract_selector).val();
+      $.get(`/candidate/timesheets.js?cycle_id=${cycle}&&contract_id=${contract}&&tab=${tab}`);
+    }
     $(document).ready(function() {
       pageSetUp();
 

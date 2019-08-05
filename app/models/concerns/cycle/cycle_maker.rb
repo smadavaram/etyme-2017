@@ -37,8 +37,8 @@ module Cycle::CycleMaker
     end
   end
 
-  def buy_contract_invoice_cycle
-    date_groups = get_date_groups(self.buy_contract, 'invoice', 'invoice_terms_period')
+  def sell_contract_invoice_cycle
+    date_groups = get_date_groups(self.sell_contract, 'invoice', 'invoice_terms_period')
     date_groups.each do |date_group|
       start_date = date_group.first
       end_date = date_group.last
@@ -73,13 +73,13 @@ module Cycle::CycleMaker
 
   def get_date_groups(buy_or_sell, resource_initial, cycle_frequency_field)
     utils = Cycle::Utils::DateUtils
-    case buy_or_sell.time_sheet
+    case buy_or_sell.send(cycle_frequency_field)
     when 'daily'
       utils.group_by_daily(start_date, end_date)
     when 'weekly'
       utils.group_by_weekly(buy_or_sell.send("#{resource_initial}_day_of_week"), start_date, end_date)
     when 'biweekly'
-      utils.group_by_biweekly(buy_or_sell.send("#{resource_initial}_day_of_week"), buy_or_sell.send("#{resource_initial}_day_of_week"), start_date, end_date)
+      utils.group_by_biweekly(buy_or_sell.send("#{resource_initial}_day_of_week"), buy_or_sell.send("#{resource_initial}_2day_of_week"), start_date, end_date)
     when 'monthly'
       utils.group_by_monthly(buy_or_sell.send("#{resource_initial}_date_1").day, start_date, end_date)
     when 'twice a month'

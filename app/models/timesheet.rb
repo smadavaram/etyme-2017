@@ -25,6 +25,8 @@ class Timesheet < ApplicationRecord
   belongs_to :ts_cycle, optional: true, foreign_key: :ts_cycle_id, class_name: 'ContractCycle'
   belongs_to :ta_cycle, optional: true, foreign_key: :ta_cycle_id, class_name: 'ContractCycle'
 
+  accepts_nested_attributes_for :transactions
+
   # before_validation :set_recurring_timesheet_cycle
   after_update  :set_ts_on_seq, if: Proc.new{|t| t.status_changed? && t.submitted? && t.total_time.to_f > 0}
   # after_update  :set_ta_on_seq, if: Proc.new{|t| t.status_changed? && t.approved? && t.total_time.to_f > 0}
@@ -47,6 +49,8 @@ class Timesheet < ApplicationRecord
   scope :submitted_timesheets, -> {where(status: :submitted)}
   scope :approved_timesheets, -> {where(status: :approved)}
   scope :invoice_timesheets, -> (invoice) {where(contract_id: invoice.contract_id).where("start_date >= ? AND end_date <= ?", invoice.start_date, invoice.end_date).order(id: :desc)}
+  scope :upcomming_timesheets, -> {where('DATE(end_date) > ?', DateTime.now.end_of_day.to_date)}
+
 
   def assignee
     self.contract.assignee
