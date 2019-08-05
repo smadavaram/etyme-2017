@@ -22,8 +22,16 @@
     padding: 5px;
 }
 
+.modal-body > .select2-container{
+    width: 100% !important;
+}
+
 .height-45{
     height: 45px !important;
+}
+
+.add_contacts{
+   align-items: center;
 }
 
 .time-input{

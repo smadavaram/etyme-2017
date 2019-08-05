@@ -158,7 +158,12 @@
                             .col-md-4
                               %label.control-label
                                 Collaborators
-                              = select_tag 'assign_to', options_from_collection_for_select(current_company&.company_contacts, "id", 'full_name'), include_blank: 'Please select',class: 'form-control height-45'
+                              .row
+                                .col-md-12
+                                  #collaborators
+                                    = render 'company/contracts/partials/approval', approvals: @contract.sell_contract.approvals
+                                  %a.fa.fa-plus.fa-3x.pull-right.add_contacts{"data-toggle": "modal", "data-target":"#collaborator_modal"}
+                                  -#%a.fa.fa-plus.fa-3x.pull-right.add_contacts{'aria-hidden': true, "data-toggle" => "tab", :href => "#collaborator_modal", class: "nav-link cumstom_nav-tab"}
                           .row
                             .col-md-4
                               = sc.check_box :is_client_expense
@@ -440,6 +445,7 @@
                                   %td= link_to content_tag(:i,'',class:'fa fa-paperclip fa-lg').html_safe, docusign.signed_file if docusign.is_sign_done
 = render 'company/contracts/request_document_modal', contract: @contract
 = render 'company/contracts/submit_document_modal', contract: @contract
+= render 'company/contracts/partials/collaborator_modal',contract: @contract, contractable_type: @contract.sell_contract.class.name, contractable_id: @contract.sell_contract.id, approvable_type: 'timesheet'
 :javascript
    $('.contract-attachment').on('cocoon:after-insert', function(e, insertedItem) {
       insertedItem.find('.filepicker-attach').each(function(i,e){

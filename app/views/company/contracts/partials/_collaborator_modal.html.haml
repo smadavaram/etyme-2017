@@ -1,0 +1,21 @@
+.modal#collaborator_modal
+  .modal-dialog.modal-lg
+    .modal-content
+      .modal-header
+        %h2#myModalLabel.modal-title
+          %strong Add Collaborator
+        %button.close{"aria-hidden" => "true", "data-dismiss" => "modal", :type => "button"}
+        ×
+      .modal-body
+        .element-box
+          =form_for(Approval.new, url: {controller: 'company/contracts', action: 'add_approval'}, remote: true) do |f|
+            .form-row
+              .col-12
+                .form-group
+                  = f.hidden_field :approvable_type, value: approvable_type
+                  = f.hidden_field :contractable_type, value: contractable_type
+                  = f.hidden_field :contractable_id, value: contractable_id
+                  = f.select :user_id, current_company&.company_contacts.map{|contact| [contact.full_name, contact.id]}, {}, {class: 'form-control'}
+            .form-row
+              .col-12
+                = f.submit 'submit', class: 'btn btn-sm btn-secondary pull-right'

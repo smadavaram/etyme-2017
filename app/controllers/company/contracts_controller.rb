@@ -43,6 +43,18 @@ class Company::ContractsController < Company::BaseController
 
   end
 
+  def add_approval
+    @approval = Approval.find_or_initialize_by(approval_params)
+    @approvals = Approval.where(contractable_type: approval_params[:contractable_type],
+                               contractable_id: approval_params[:contractable_id])
+    if @approval.save
+      flash.now[:success] = "Collaborator Added"
+      render 'add_approval'
+    else
+      flash.now[:errors] = @approval.error.full_messages
+    end
+  end
+
   def download
     html = render_to_string(:layout => false)
     pdf = WickedPdf.new.pdf_from_string(html)
@@ -378,6 +390,10 @@ class Company::ContractsController < Company::BaseController
   end
 
   private
+
+  def approval_params
+    params.require(:approval).permit(:id, :user_id, :approvable_type, :contractable_type, :contractable_id, :approvable_type)
+  end
 
   def filtering_params(params)
     params.slice(:contract_id, :candidate_id, :note)
