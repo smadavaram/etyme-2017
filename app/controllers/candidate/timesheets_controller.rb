@@ -1,23 +1,23 @@
 class Candidate::TimesheetsController < Candidate::BaseController
 
   include CandidateHelper
-  before_action :set_time_sheet, only: [:update]
+  before_action :set_time_sheet, only: [:update, :submit_timesheet]
 
   def index
     @cycles = current_candidate.contract_cycles.where(cycle_type: 'TimesheetSubmit')
     @contracts = Contract.where(candidate: current_candidate)
     respond_to do |format|
-      @timesheets = Timesheet.timesheet_by_frequency("weekly",current_candidate).open_timesheets
-      format.html {  }
+      @timesheets = Timesheet.timesheet_by_frequency("weekly", current_candidate).open_timesheets
+      format.html {}
       format.js {
         @tab = params[:tab]
         if params[:cycle_frequency].present?
           @cycle_frequency = params[:cycle_frequency]
-          @timesheets = Timesheet.timesheet_by_frequency(params[:cycle_frequency],current_candidate).send(@tab)
+          @timesheets = Timesheet.timesheet_by_frequency(params[:cycle_frequency], current_candidate).send(@tab)
         elsif if_all?(params[:contract_id]) and if_all?(params[:cycle_id])
           @timesheets = current_candidate.timesheets.send(@tab)
         elsif params[:contract_id] != "all" and if_all?(params[:cycle_id])
-          @timesheets = current_candidate.timesheets.send(@tab).where(id: current_candidate.contract_cycles.where(contract_id: params[:contract_id],cycle_type: 'TimesheetSubmit', cyclable_type: "Timesheet").pluck(:cyclable_id))
+          @timesheets = current_candidate.timesheets.send(@tab).where(id: current_candidate.contract_cycles.where(contract_id: params[:contract_id], cycle_type: 'TimesheetSubmit', cyclable_type: "Timesheet").pluck(:cyclable_id))
         elsif params[:cycle_id] != "all"
           @timesheets = current_candidate.timesheets.send(@tab).where(id: current_candidate.contract_cycles.where(id: params[:cycle_id]).pluck(:cyclable_id))
         end
@@ -83,6 +83,19 @@ class Candidate::TimesheetsController < Candidate::BaseController
     end
   end
 
+  def submit_timesheet
+    if @timesheet.end_date <= DateTime.now
+      if @timesheet.submitted!
+        flash[:status] = "Timesheet submitted successfully"
+      else
+        flash[:errors] = @timesheet.errors.full_messages
+      end
+    else
+      flash[:errors] = ["You cannot submit the before time."]
+    end
+    redirect_back(fallback_location: root_path)
+  end
+
   def update
     if @timesheet.update(timesheet_params)
       flash[:success] = "Timesheet is updated"
@@ -90,19 +103,6 @@ class Candidate::TimesheetsController < Candidate::BaseController
       flash[:errors] = @timesheet.errors.full_messages
     end
     redirect_back(fallback_location: root_path)
-    # @timesheet = current_candidate.timesheets.open_timesheets.find(params[:id])
-    # if @timesheet.present?
-    #   if params[:timesheet][:days].present?
-    #     @timesheet.submitted(timesheet_params, params[:timesheet][:days], params[:timesheet][:days].values.map(&:to_i).sum)
-    #     flash[:success] = "Successfully Submitted"
-    #   else
-    #     flash[:errors] = ["You are able to submit timeshhet for #{@timesheet.contract.title} on #{@timesheet.start_date.strftime('%d/%m/%Y')}"]
-    #   end
-    # else
-    #   flash[:errors] = ["Timesheet Invalid"]
-    # end
-    # render 'create'
-
   end
 
   def submitted_timesheets
@@ -110,7 +110,7 @@ class Candidate::TimesheetsController < Candidate::BaseController
   end
 
   def set_time_sheet
-    @timesheet = current_candidate.timesheets.open_timesheets.find(params[:id])
+    @timesheet = current_candidate.timesheets.open_timesheets.find(params[:id]||params[:timesheet_id])
   end
 
   def approve_timesheets

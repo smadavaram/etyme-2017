@@ -165,40 +165,40 @@ class Timesheet < ApplicationRecord
     end
   end
 
-  def submitted(timesheet_params, days, total_time)
-    self.assign_attributes(timesheet_params)
-    self.days = days
-    self.total_time = total_time
-    self.status = 'submitted'
-    self.save
-    con_cycle = ContractCycle.find(self.ts_cycle_id)
-    # binding.pry
-    con_cycle.update_attributes(completed_at: Time.now, status: "completed")
-    con_cycle_ta_start_date = Timesheet.set_con_cycle_ta_date(con_cycle&.contract&.buy_contract, con_cycle)
-    # binding.pry
-    con_cycle_ta = ContractCycle.where(contract_id: con_cycle.contract_id,
-                                        company_id: self.contract.sell_contract.company_id,
-                                        note: "Timesheet Approve",
-                                        cycle_type: "TimesheetApprove",
-                                        next_action: "InvoiceGenerate"
-    ).where("DATE(end_date) = ?", con_cycle_ta_start_date.end_of_day.to_date).first
-    # binding.pry
-    # unless con_cycle_ta
-    #   con_cycle_ta = ContractCycle.create(contract_id: con_cycle.contract_id,
-    #                                       start_date: con_cycle_ta_start_date,
-    #                                       end_date: (con_cycle_ta_start_date.end_of_day),
-    #                                       cyclable: self,
-    #                                       company_id: self.contract.sell_contracts.first.company_id,
-    #                                       note: "Timesheet Approve",
-    #                                       cycle_date: Time.now,
-    #                                       cycle_type: "TimesheetApprove",
-    #                                       next_action: "InvoiceGenerate"
-    #   )
-    # end
-    # con_cycle_ta.update_attributes(cycle_date: Time.now)
-    # binding.pry
-    self.update_attributes(ta_cycle_id: con_cycle_ta.id)
-  end
+  # def submitted(timesheet_params, days, total_time)
+  #   self.assign_attributes(timesheet_params)
+  #   self.days = days
+  #   self.total_time = total_time
+  #   self.status = 'submitted'
+  #   self.save
+  #   con_cycle = ContractCycle.find(self.ts_cycle_id)
+  #   # binding.pry
+  #   con_cycle.update_attributes(completed_at: Time.now, status: "completed")
+  #   con_cycle_ta_start_date = Timesheet.set_con_cycle_ta_date(con_cycle&.contract&.buy_contract, con_cycle)
+  #   # binding.pry
+  #   con_cycle_ta = ContractCycle.where(contract_id: con_cycle.contract_id,
+  #                                       company_id: self.contract.sell_contract.company_id,
+  #                                       note: "Timesheet Approve",
+  #                                       cycle_type: "TimesheetApprove",
+  #                                       next_action: "InvoiceGenerate"
+  #   ).where("DATE(end_date) = ?", con_cycle_ta_start_date.end_of_day.to_date).first
+  #   # binding.pry
+  #   # unless con_cycle_ta
+  #   #   con_cycle_ta = ContractCycle.create(contract_id: con_cycle.contract_id,
+  #   #                                       start_date: con_cycle_ta_start_date,
+  #   #                                       end_date: (con_cycle_ta_start_date.end_of_day),
+  #   #                                       cyclable: self,
+  #   #                                       company_id: self.contract.sell_contracts.first.company_id,
+  #   #                                       note: "Timesheet Approve",
+  #   #                                       cycle_date: Time.now,
+  #   #                                       cycle_type: "TimesheetApprove",
+  #   #                                       next_action: "InvoiceGenerate"
+  #   #   )
+  #   # end
+  #   # con_cycle_ta.update_attributes(cycle_date: Time.now)
+  #   # binding.pry
+  #   self.update_attributes(ta_cycle_id: con_cycle_ta.id)
+  # end
 
   def self.set_con_cycle_ta_date(buy_contract, con_cycle)
     @ta_type = buy_contract&.ts_approve
