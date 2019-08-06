@@ -1609,6 +1609,7 @@ ActiveRecord::Schema.define(version: 20190806112919) do
     t.string "ce_2day_of_week"
     t.string "ce_in_2day_of_week"
     t.string "pr_2day_of_week"
+    t.string "ce_ap_2day_of_week"
     t.index ["company_id"], name: "index_sell_contracts_on_company_id"
     t.index ["contract_id"], name: "index_sell_contracts_on_contract_id"
   end
