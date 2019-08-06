@@ -22,8 +22,24 @@
     padding: 5px;
 }
 
+.modal-body > .select2-container{
+    width: 100% !important;
+}
+
+.collaborators
+{
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-start;
+    width: 80%;
+}
+
 .height-45{
     height: 45px !important;
+}
+
+.add_contacts{
+   align-items: center;
 }
 
 .time-input{

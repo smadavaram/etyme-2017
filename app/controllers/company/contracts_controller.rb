@@ -43,6 +43,19 @@ class Company::ContractsController < Company::BaseController
 
   end
 
+  def add_approval
+    @approval = Approval.find_or_initialize_by(approval_params)
+    @approvals = Approval.where(contractable_type: approval_params[:contractable_type],
+                               contractable_id: approval_params[:contractable_id],
+                                approvable_type: approval_params[:approvable_type])
+    if @approval.save
+      flash.now[:success] = "Collaborator Added"
+      render 'add_approval'
+    else
+      flash.now[:errors] = @approval.error.full_messages
+    end
+  end
+
   def download
     html = render_to_string(:layout => false)
     pdf = WickedPdf.new.pdf_from_string(html)
@@ -379,6 +392,10 @@ class Company::ContractsController < Company::BaseController
 
   private
 
+  def approval_params
+    params.require(:approval).permit(:id, :user_id, :approvable_type, :contractable_type, :contractable_id, :approvable_type)
+  end
+
   def filtering_params(params)
     params.slice(:contract_id, :candidate_id, :note)
   end
@@ -433,7 +450,14 @@ class Company::ContractsController < Company::BaseController
          :payment_term, :b_time_sheet, :payrate, :contract_type, :end_date,
          :message_from_hiring, :status, :company_id, company_doc_ids: [],
          sell_contract_attributes: [
+             :ts_2day_of_week, :ta_2day_of_week,
+             :invoice_2day_of_week,
+             :ce_2day_of_week,
+             :ce_ap_2day_of_week,
+             :ce_in_2day_of_week,
+             :pr_2day_of_week,
              :expected_hour,
+             :ce_ap_2day_of_week,
              :id,
              :is_performance_review, :performance_review, :pr_day_time, :pr_date_1, :pr_date_2, :pr_day_of_week, :pr_end_of_month,
              :is_client_expense, :client_expense, :ce_day_time, :ce_date_1, :ce_date_2, :ce_day_of_week, :ce_end_of_month,
@@ -465,6 +489,15 @@ class Company::ContractsController < Company::BaseController
                                                  document_signs_attributes: [:id, :signable_type, :signable_id, :_destroy]]
          ],
          buy_contract_attributes: [
+             :ts_2day_of_week ,:ta_2day_of_week,
+             :invoice_2day_of_week,
+             :ce_2day_of_week,
+             :ce_ap_2day_of_week,
+             :ce_in_2day_of_week,
+             :pr_2day_of_week,
+             :sc_2day_of_week,
+             :sp_2day_of_week,
+             :sclr_2day_of_week,
              :id,
              :vendor_bill, :vb_day_time, :vb_date_1, :vb_date_2, :vb_day_of_week, :vb_end_of_month,
 
