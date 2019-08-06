@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema.define(version: 20190803150538) do
+ActiveRecord::Schema.define(version: 20190806102726) do
 
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
@@ -1608,6 +1608,7 @@ ActiveRecord::Schema.define(version: 20190803150538) do
     t.string "ce_2day_of_week"
     t.string "ce_in_2day_of_week"
     t.string "pr_2day_of_week"
+    t.string "ce_ap_2day_of_week"
     t.index ["company_id"], name: "index_sell_contracts_on_company_id"
     t.index ["contract_id"], name: "index_sell_contracts_on_contract_id"
   end

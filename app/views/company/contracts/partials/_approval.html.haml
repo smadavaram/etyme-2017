@@ -1,6 +1,5 @@
 .collaborators
   - approvals.each do |approval|
-    %div
-      %div
-        %i.fa.fa-3x.fa-user-circle
-      %p= approval.user.full_name
+    %div.margin-right-5
+      =link_to "#" do
+        = image_tag(approval.user.photo, class: 'img-fluid rounded-circle', width: "50")

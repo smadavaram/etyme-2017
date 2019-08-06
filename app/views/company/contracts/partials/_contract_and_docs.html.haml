@@ -138,12 +138,18 @@
                                   %label.control-label.w-100
                                     Select Time
                                     = sc.text_field :ts_day_time, class: "form-contro con-time time-input"
-                                %div{:class => "form-group week #{sc.object.time_sheet != 'weekly' ? 'hidden' : ''}"}
+                                %div{:class => "form-group week #{sc.object.time_sheet != 'weekly' && sc.object.time_sheet != 'biweekly' ? 'hidden' : ''}"}
                                   %label.control-label
                                     Select day of week for submission
                                   .select
                                     .plain-select
                                       = sc.select :ts_day_of_week, [["Every Monday", "mon"], ["Every Tuesday", "tue"], ["Every Wednesday", "wed"], ["Every Thursday", "thu"], ["Every Friday", "fri"], ["Every Saturday", "sat"], ["Every Sunday", "sun"]], {},{class: "form-contro" }
+                                %div{:class => "form-group biweek #{sc.object.time_sheet != 'biweekly' ? 'hidden' : ''}"}
+                                  %label.control-label
+                                    Select Second day of week for submission
+                                  .select
+                                    .plain-select
+                                      = sc.select :ts_2day_of_week, [["Every Monday", "mon"], ["Every Tuesday", "tue"], ["Every Wednesday", "wed"], ["Every Thursday", "thu"], ["Every Friday", "fri"], ["Every Saturday", "sat"], ["Every Sunday", "sun"]], {},{class: "form-contro" }
                                 %div{:class => "form-group month #{['twice a month', 'monthly'].include?(sc.object.time_sheet) ? '' : 'hidden'}"}
                                   %label.control-label
                                     Select date
@@ -179,12 +185,18 @@
                                   %label.control-label.w-100
                                     Select Time
                                     = sc.text_field :ce_day_time, class: "form-contro con-time time-input"
-                                %div{:class => "form-group week #{sc.object.client_expense != 'weekly' ? 'hidden' : ''}"}
+                                %div{:class => "form-group week #{sc.object.client_expense != 'weekly' && sc.object.client_expense != 'biweekly' ? 'hidden' : ''}"}
                                   %label.control-label
                                     Select day of week
                                   .select
                                     .plain-select
                                       = sc.select :ce_day_of_week, [["Every Monday", "mon"], ["Every Tuesday", "tue"], ["Every Wednesday", "wed"], ["Every Thursday", "thu"], ["Every Friday", "fri"], ["Every Saturday", "sat"], ["Every Sunday", "sun"]], {},{class: "form-contro" }
+                                %div{:class => "form-group biweek #{sc.object.client_expense != 'biweekly' ? 'hidden' : ''}"}
+                                  %label.control-label
+                                    Select Second day of week for submission
+                                  .select
+                                    .plain-select
+                                      = sc.select :ce_2day_of_week, [["Every Monday", "mon"], ["Every Tuesday", "tue"], ["Every Wednesday", "wed"], ["Every Thursday", "thu"], ["Every Friday", "fri"], ["Every Saturday", "sat"], ["Every Sunday", "sun"]], {},{class: "form-contro" }
                                 %div{:class => "form-group month #{['twice a month', 'monthly'].include?(sc.object.client_expense) ? '' : 'hidden'}"}
                                   %label.control-label
                                     Select date
@@ -207,12 +219,18 @@
                                   %label.control-label.w-100
                                     Select Time
                                     = sc.text_field :ce_ap_day_time, class: "form-contro con-time time-input"
-                                %div{:class => "form-group week #{sc.object.ce_approve != 'weekly' ? 'hidden' : ''}"}
+                                %div{:class => "form-group week #{sc.object.ce_approve != 'weekly' && sc.object.ce_approve != 'biweekly' ? 'hidden' : ''}"}
                                   %label.control-label
                                     Select day of week
                                   .select
                                     .plain-select
                                       = sc.select :ce_ap_day_of_week, [["Every Monday", "mon"], ["Every Tuesday", "tue"], ["Every Wednesday", "wed"], ["Every Thursday", "thu"], ["Every Friday", "fri"], ["Every Saturday", "sat"], ["Every Sunday", "sun"]], {},{class: "form-contro" }
+                                %div{:class => "form-group biweek #{sc.object.ce_approve != 'biweekly' ? 'hidden' : ''}"}
+                                  %label.control-label
+                                    Select Second day of week for submission
+                                  .select
+                                    .plain-select
+                                      = sc.select :ce_ap_2day_of_week, [["Every Monday", "mon"], ["Every Tuesday", "tue"], ["Every Wednesday", "wed"], ["Every Thursday", "thu"], ["Every Friday", "fri"], ["Every Saturday", "sat"], ["Every Sunday", "sun"]], {},{class: "form-contro" }
                                 %div{:class => "form-group month #{['twice a month', 'monthly'].include?(sc.object.ce_approve) ? '' : 'hidden'}"}
                                   %label.control-label
                                     Select date
@@ -235,12 +253,18 @@
                                   %label.control-label.w-100
                                     Select Time
                                     = sc.text_field :ce_in_day_time, class: "form-contro con-time time-input"
-                                %div{:class => "form-group week #{sc.object.ce_invoice != 'weekly' ? 'hidden' : ''}"}
+                                %div{:class => "form-group week #{sc.object.ce_invoice != 'weekly' && sc.object.ce_invoice != 'biweekly' ? 'hidden' : ''}"}
                                   %label.control-label
                                     Select day of week
                                   .select
                                     .plain-select
                                       = sc.select :ce_in_day_of_week, [["Every Monday", "mon"], ["Every Tuesday", "tue"], ["Every Wednesday", "wed"], ["Every Thursday", "thu"], ["Every Friday", "fri"], ["Every Saturday", "sat"], ["Every Sunday", "sun"]], {},{class: "form-contro" }
+                                %div{:class => "form-group biweek #{sc.object.ce_invoice != 'biweekly' ? 'hidden' : ''}"}
+                                  %label.control-label
+                                    Select Second day of week for submission
+                                  .select
+                                    .plain-select
+                                      = sc.select :ce_in_2day_of_week, [["Every Monday", "mon"], ["Every Tuesday", "tue"], ["Every Wednesday", "wed"], ["Every Thursday", "thu"], ["Every Friday", "fri"], ["Every Saturday", "sat"], ["Every Sunday", "sun"]], {},{class: "form-contro" }
                                 %div{:class => "form-group month #{['twice a month', 'monthly'].include?(sc.object.ce_invoice) ? '' : 'hidden'}"}
                                   %label.control-label
                                     Select date
@@ -267,12 +291,18 @@
                                   %label.control-label.w-100
                                     Select Time
                                     = sc.text_field :pr_day_time, class: "form-contro con-time time-input"
-                                %div{:class => "form-group week #{sc.object.performance_review != 'weekly' ? 'hidden' : ''}"}
+                                %div{:class => "form-group week #{sc.object.performance_review != 'weekly' && sc.object.performance_review != 'biweekly' ? 'hidden' : ''}"}
                                   %label.control-label
                                     Select day of week
                                   .select
                                     .plain-select
                                       = sc.select :pr_day_of_week, [["Every Monday", "mon"], ["Every Tuesday", "tue"], ["Every Wednesday", "wed"], ["Every Thursday", "thu"], ["Every Friday", "fri"], ["Every Saturday", "sat"], ["Every Sunday", "sun"]], {},{class: "form-contro" }
+                                %div{:class => "form-group biweek #{sc.object.performance_review != 'biweekly' ? 'hidden' : ''}"}
+                                  %label.control-label
+                                    Select Second day of week for submission
+                                  .select
+                                    .plain-select
+                                      = sc.select :pr_2day_of_week, [["Every Monday", "mon"], ["Every Tuesday", "tue"], ["Every Wednesday", "wed"], ["Every Thursday", "thu"], ["Every Friday", "fri"], ["Every Saturday", "sat"], ["Every Sunday", "sun"]], {},{class: "form-contro" }
                                 %div{:class => "form-group month #{['twice a month', 'monthly'].include?(sc.object.performance_review) ? '' : 'hidden'}"}
                                   %label.control-label
                                     Select date
@@ -301,12 +331,18 @@
                                   %label.control-label.w-100
                                     Select Time
                                     = sc.text_field :ta_day_time, class: "form-contro con-time time-input"
-                                %div{:class => "form-group week #{sc.object.ts_approve != 'weekly' ? 'hidden' : ''}"}
+                                %div{:class => "form-group week #{sc.object.ts_approve != 'weekly' && sc.object.ts_approve != 'biweekly' ? 'hidden' : ''}"}
                                   %label.control-label
                                     Select day of week for submission
                                   .select
                                     .plain-select
                                       = sc.select :ta_day_of_week, [["Every Monday", "mon"], ["Every Tuesday", "tue"], ["Every Wednesday", "wed"], ["Every Thursday", "thu"], ["Every Friday", "fri"], ["Every Saturday", "sat"], ["Every Sunday", "sun"]], {},{class: "form-contro" }
+                                %div{:class => "form-group biweek #{sc.object.ts_approve != 'biweekly' ? 'hidden' : ''}"}
+                                  %label.control-label
+                                    Select Second day of week for submission
+                                  .select
+                                    .plain-select
+                                      = sc.select :ta_2day_of_week, [["Every Monday", "mon"], ["Every Tuesday", "tue"], ["Every Wednesday", "wed"], ["Every Thursday", "thu"], ["Every Friday", "fri"], ["Every Saturday", "sat"], ["Every Sunday", "sun"]], {},{class: "form-contro" }
                                 %div{:class => "form-group month #{['twice a month', 'monthly'].include?(sc.object.ts_approve) ? '' : 'hidden'}"}
                                   %label.control-label
                                     Select date
@@ -342,12 +378,18 @@
                           %label.control-label.w-100
                             Select Time
                             = sc.text_field :invoice_day_time, class: "form-contro con-time time-input"
-                        %div{:class => "form-group week #{sc.object.invoice_terms_period != 'weekly' ? 'hidden' : ''}"}
+                        %div{:class => "form-group week #{sc.object.invoice_terms_period != 'weekly' && sc.object.invoice_terms_period != 'biweekly' ? 'hidden' : ''}"}
                           %label.control-label
                             Select day of week for submission
                           .select
                             .plain-select
                               = sc.select :invoice_day_of_week, [["Every Monday", "mon"], ["Every Tuesday", "tue"], ["Every Wednesday", "wed"], ["Every Thursday", "thu"], ["Every Friday", "fri"], ["Every Saturday", "sat"], ["Every Sunday", "sun"]], {},{class: "form-contro height-45" }
+                        %div{:class => "form-group biweek #{sc.object.invoice_terms_period != 'biweekly' ? 'hidden' : ''}"}
+                          %label.control-label
+                            Select Second day of week for submission
+                          .select
+                            .plain-select
+                              = sc.select :invoice_2day_of_week, [["Every Monday", "mon"], ["Every Tuesday", "tue"], ["Every Wednesday", "wed"], ["Every Thursday", "thu"], ["Every Friday", "fri"], ["Every Saturday", "sat"], ["Every Sunday", "sun"]], {},{class: "form-contro" }
                         %div{:class => "form-group month #{['twice a month', 'monthly'].include?(sc.object.invoice_terms_period) ? '' : 'hidden'}"}
                           %label.control-label
                             Select date
