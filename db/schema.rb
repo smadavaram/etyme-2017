@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema.define(version: 20190803150538) do
+ActiveRecord::Schema.define(version: 20190806112919) do
 
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
@@ -744,6 +744,7 @@ ActiveRecord::Schema.define(version: 20190803150538) do
     t.datetime "next_action_date"
     t.date "doc_date"
     t.date "post_date"
+    t.bigint "cycle_frequency"
     t.index ["candidate_id"], name: "index_contract_cycles_on_candidate_id"
     t.index ["company_id"], name: "index_contract_cycles_on_company_id"
     t.index ["contract_id"], name: "index_contract_cycles_on_contract_id"

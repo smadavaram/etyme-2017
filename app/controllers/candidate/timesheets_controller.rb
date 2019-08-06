@@ -3,25 +3,25 @@ class Candidate::TimesheetsController < Candidate::BaseController
   include CandidateHelper
   before_action :set_time_sheet, only: [:update]
 
-
-  def if_all?(value)
-    value == "all"
-  end
-
   def index
     @cycles = current_candidate.contract_cycles.where(cycle_type: 'TimesheetSubmit')
     @contracts = Contract.where(candidate: current_candidate)
     respond_to do |format|
-      format.html { @timesheets = current_candidate.timesheets }
+      @timesheets = Timesheet.timesheet_by_frequency("weekly",current_candidate).open_timesheets
+      format.html {  }
       format.js {
         @tab = params[:tab]
-        if if_all?(params[:contract_id]) and if_all?(params[:cycle_id])
+        if params[:cycle_frequency].present?
+          @cycle_frequency = params[:cycle_frequency]
+          @timesheets = Timesheet.timesheet_by_frequency(params[:cycle_frequency],current_candidate).send(@tab)
+        elsif if_all?(params[:contract_id]) and if_all?(params[:cycle_id])
           @timesheets = current_candidate.timesheets.send(@tab)
         elsif params[:contract_id] != "all" and if_all?(params[:cycle_id])
-          @timesheets = Timesheet.send(@tab).where(id: current_candidate.contract_cycles.where(contract_id: params[:contract_id],cycle_type: 'TimesheetSubmit', cyclable_type: "Timesheet").pluck(:cyclable_id))
+          @timesheets = current_candidate.timesheets.send(@tab).where(id: current_candidate.contract_cycles.where(contract_id: params[:contract_id],cycle_type: 'TimesheetSubmit', cyclable_type: "Timesheet").pluck(:cyclable_id))
         elsif params[:cycle_id] != "all"
-          @timesheets = Timesheet.send(@tab).where(id: current_candidate.contract_cycles.where(id: params[:cycle_id]).pluck(:cyclable_id))
+          @timesheets = current_candidate.timesheets.send(@tab).where(id: current_candidate.contract_cycles.where(id: params[:cycle_id]).pluck(:cyclable_id))
         end
+        @cycle_frequency = @timesheets&.first.contract_cycle.cycle_frequency if @timesheets.present?
       }
     end
   end
@@ -132,6 +132,10 @@ class Candidate::TimesheetsController < Candidate::BaseController
       flash[:errors] = ["You are able to submit timesheet, You need to send timesheet of date #{nd} first."]
       false
     end
+  end
+
+  def if_all?(value)
+    value == "all"
   end
 
 end

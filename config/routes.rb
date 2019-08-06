@@ -194,6 +194,7 @@ Rails.application.routes.draw do
       post :get_timesheets, on: :collection
       get :submitted_timesheets, on: :collection
       get :approve_timesheets, on: :collection
+      # post "/:id", to: "timesheets#update", on: :collection, as: :update
     end
     resources :client_expenses, only: [:index, :update] do
       post :get_client_expenses, on: :collection
@@ -701,6 +702,7 @@ Rails.application.routes.draw do
     namespace :candidate do
       resources :candidates, only: :index do
         post :add_candidate, on: :collection
+        get :contract_cycles, on: :collection
       end
     end
 

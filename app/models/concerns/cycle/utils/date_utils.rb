@@ -7,7 +7,7 @@ module Cycle::Utils::DateUtils
     end
 
     def group_by_daily(start_date, end_date)
-      [range(start_date, end_date).map { |date| [date] }]
+      range(start_date, end_date).map { |date| [date] }
     end
 
     def group_by_weekly(day, start_date, end_date)

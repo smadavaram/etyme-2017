@@ -49,8 +49,8 @@ class Timesheet < ApplicationRecord
   scope :submitted_timesheets, -> {where(status: :submitted)}
   scope :approved_timesheets, -> {where(status: :approved)}
   scope :invoice_timesheets, -> (invoice) {where(contract_id: invoice.contract_id).where("start_date >= ? AND end_date <= ?", invoice.start_date, invoice.end_date).order(id: :desc)}
-  scope :upcomming_timesheets, -> {where('DATE(end_date) > ?', DateTime.now.end_of_day.to_date)}
-
+  scope :upcomming_timesheets, -> {where('DATE(start_date) > ?', DateTime.now.end_of_day.to_date)}
+  scope :timesheet_by_frequency, ->(type,candidate){where(id: candidate.contract_cycles.send(type).where(cyclable_type: "Timesheet").pluck(:cyclable_id))}
 
   def assignee
     self.contract.assignee

@@ -4,7 +4,7 @@ class ContractCycle < ApplicationRecord
                  'CommissionProcess', 'CommissionClear', 'VendorBillCalculation', 'ClientBillCalculation',
                  'VendorPaymentProcess', 'VendorBillClear', 'ClientPaymentProcess', 'ClientBillClear',
                  'ClientExpenseCalculation', 'ClientExpenseApprove', 'ClientExpenseInvoice','ClientExpenseSubmission'  ]
-
+  enum cycle_frequency: ["daily","weekly","biweekly","monthly","twice a month"]
   belongs_to :contract, optional: true
   belongs_to :company, optional: true
   belongs_to :candidate, optional: true

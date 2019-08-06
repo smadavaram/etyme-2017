@@ -366,3 +366,13 @@ div.group-member > ul > li > a{
     font-size: 20px;
     float: right;
 }
+th.have-nested_headers{
+    display: flex;
+    justify-content: space-between;
+    border: none !important;
+    padding-left: 25px !important;
+    padding-right: 36px !important;
+}
+div.nested_headers{
+    /*display: inline-block;*/
+}

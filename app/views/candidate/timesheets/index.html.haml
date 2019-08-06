@@ -25,10 +25,17 @@
         %option{value: 'all'} Select Contract
         -@contracts.each do |t|
           %option{value: t.id}= t.project_name
-      %select.select-time-cycle
+      %select.select-time-cycle{disabled:"disabled"}
         %option{value: 'all'} Select Cycle
-        -@cycles.each do |t|
-          %option{value: t.id}= "#{t.start_date.strftime("%Y-%m-%d")} - #{t.end_date.strftime("%Y-%m-%d")}"
+
+      %select.cycle-type
+        %option{value: 'weekly'} Weekly
+        %option{value: 'daily'} Daily
+        %option{value: 'monthly'} Monthly
+        %option{value: 'twice a month'} Twice A Month
+        %option{value: 'biweekly'} Twice A Week
+        -#-@cycles.each do |t|
+        -#  %option{value: t.id}= "#{t.start_date.strftime("%Y-%m-%d")} - #{t.end_date.strftime("%Y-%m-%d")}"
 
 .time_sheets_submission
   = render 'time_sheets_submit',timesheets: @timesheets
@@ -47,6 +54,20 @@
     }
     $(document).ready(function() {
       pageSetUp();
+
+      $('.cycle-type').change(function(){
+        $.get(`/candidate/timesheets.js?cycle_id=${false}&&contract_id=${false}&&tab=open_timesheets&&cycle_frequency=${$(this).val()}`);
+      });
+
+      $('.select-contract').change(function() {
+        $.get(`/api/candidate/candidates/contract_cycles.json?contract_id=${$(this).val()}`).then(function(data) {
+          $('.select-time-cycle').empty().append($("<option>").val("all").text("Select Cycle"));
+          data.forEach(function(cycle) {
+            $('.select-time-cycle').append($("<option>").val(cycle.id).text(cycle.range))
+          });
+          $('.select-time-cycle').removeAttr('disabled');
+        })
+      });
 
       $('.select-time-cycle').on("change", function(){
         $(this).closest('form').submit();
