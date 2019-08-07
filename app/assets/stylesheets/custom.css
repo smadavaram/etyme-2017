@@ -42,6 +42,10 @@
    align-items: center;
 }
 
+.space-evenly{
+    justify-content: space-evenly;
+}
+
 .time-input{
     margin-top: 6px !important;
 }
