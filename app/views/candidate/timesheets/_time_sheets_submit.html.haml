@@ -7,7 +7,7 @@
           -timesheet.transactions.each_with_index do |transaction,index|
             .d-inline-block
               %p.mb-1.mt-1= transaction.start_time.strftime("%Y-%m-%d")
-              %input{id: "timesheet_transactions_attributes_#{index}_total_time",:name => "timesheet[transactions_attributes][#{index}][total_time]", :style => "width: 100px",disabled: transaction.start_time > DateTime.now ? true : false, :type => "number", :value => "#{transaction.total_time}"}/
+              %input{id: "timesheet_transactions_attributes_#{index}_total_time",:name => "timesheet[transactions_attributes][#{index}][total_time]", :style => "width: 100px",disabled: transaction.start_time <= DateTime.now ? false : true, :type => "number", :value => "#{transaction.total_time}"}/
               %input{id: "timesheet_transactions_attributes_#{index}_id",:name => "timesheet[transactions_attributes][#{index}][id]", :type => "hidden", :value => "#{transaction.id}"}/
           =tf.submit :save, class:"btn btn-secondary btn-sm" unless timesheet.submitted?
           =link_to :submit, candidate_timesheet_submit_timesheet_path(timesheet), class: "btn btn-secondary btn-sm" if timesheet.end_date <= DateTime.now and !timesheet.submitted?
@@ -41,7 +41,7 @@
                         - transaction = get_day_transaction(index,tf.object.transactions)
                         %td{style: "border-top: none !important"}
                           - if transaction
-                            %input{id: "timesheet_transactions_attributes_#{index}_total_time",:name => "timesheet[transactions_attributes][#{index}][total_time]", :style => "width: 100%", disabled: transaction.start_time > DateTime.now ? true : false,:type => "number", :value => "#{transaction.total_time}"}/
+                            %input{id: "timesheet_transactions_attributes_#{index}_total_time",:name => "timesheet[transactions_attributes][#{index}][total_time]", :style => "width: 100%", disabled: transaction.start_time <= DateTime.now ? false : true,:type => "number", :value => "#{transaction.total_time}"}/
                             %input{id: "timesheet_transactions_attributes_#{index}_id",:name => "timesheet[transactions_attributes][#{index}][id]", :type => "hidden", :value => "#{transaction.id}"}/
                           - else
                             %input{name:"no_transaction", disabled: "disabled",:style => "width: 100%",value:"0", type:"number"}

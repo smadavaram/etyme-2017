@@ -1,0 +1,2 @@
+$('.timeline_modals').html("<%= j render 'candidate/contracts/partials/timesheet_submit_modal', timesheet: @timesheet %>");
+$("#submit_timesheet_<%=@timesheet.id%>").modal('show')

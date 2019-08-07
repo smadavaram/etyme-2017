@@ -188,6 +188,7 @@ Rails.application.routes.draw do
       collection do
         get :timeline
         post :request_document
+        get :submit_timesheet
       end
     end
     resources :timesheets, only: [:index, :new, :create, :update] do

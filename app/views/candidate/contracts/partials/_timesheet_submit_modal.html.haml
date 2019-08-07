@@ -1,0 +1,56 @@
+.modal{ id: "submit_timesheet_#{@timesheet.id}"}
+  .modal-dialog
+    .modal-content
+      .modal-header
+        %h5#PageTitle.modal-title
+          ="Timesheet( #{@timesheet.start_date.strftime("%Y-%m-%d")} - #{@timesheet.end_date.strftime("%Y-%m-%d")} )"
+        %button.close{"aria-hidden" => "true", "data-dismiss" => "modal", :type => "button"}
+          ×
+      = form_for @timesheet, url: candidate_timesheet_path(timesheet), method: "put" do |tf|
+        .modal-body#rate-confirmation-modal-body
+          - if ["weekly","biweekly"].include?(@timesheet.contract_cycle.cycle_frequency)
+            %table.table.table-bordred
+              %thead
+                %tr
+                  %th MON
+                  %th TUE
+                  %th WED
+                  %th THU
+                  %th FRI
+                  %th SAT
+                  %th SUN
+              %tbody
+                %tr
+                  -(0..6).each do |index|
+                    - transaction = get_day_transaction(index,@timesheet.transactions)
+                    %td{style: "border-top: none !important"}
+                      - if transaction
+                        %input{id: "timesheet_transactions_attributes_#{index}_total_time",:name => "timesheet[transactions_attributes][#{index}][total_time]", :style => "width: 100%", disabled: transaction.start_time <= DateTime.now ? false : true,:type => "number", :value => "#{transaction.total_time}"}/
+                        %input{id: "timesheet_transactions_attributes_#{index}_id",:name => "timesheet[transactions_attributes][#{index}][id]", :type => "hidden", :value => "#{transaction.id}"}/
+                      - else
+                        %input{name:"no_transaction", disabled: "disabled",:style => "width: 100%",value:"0", type:"number"}
+          -elsif ["monthly","twice a month"].include?(@timesheet.contract_cycle.cycle_frequency)
+            -@timesheet.transactions.each_with_index do |transaction,index|
+              .d-inline-block
+                %p.mb-1.mt-1= transaction.start_time.strftime("%Y-%m-%d")
+                %input{id: "timesheet_transactions_attributes_#{index}_total_time",:name => "timesheet[transactions_attributes][#{index}][total_time]", :style => "width: 100px",disabled: transaction.start_time <= DateTime.now ? false : true, :type => "number", :value => "#{transaction.total_time}"}/
+                %input{id: "timesheet_transactions_attributes_#{index}_id",:name => "timesheet[transactions_attributes][#{index}][id]", :type => "hidden", :value => "#{transaction.id}"}/
+          -elsif ["daily"].include?(@timesheet.contract_cycle.cycle_frequency)
+            .row
+              .col-sm-3
+                - index = 0
+                %label.d-block Add Hour
+                .form-group.d-inline-block
+                  %input{id: "timesheet_transactions_attributes_#{index}_total_time",:name => "timesheet[transactions_attributes][#{index}][total_time]", :style => "width: 100px",disabled: @timesheet.transactions.first.start_time <= DateTime.now ? false : true, :type => "number", :value => "#{@timesheet.transactions.first.total_time}"}/
+                  %input{id: "timesheet_transactions_attributes_#{index}_id",:name => "timesheet[transactions_attributes][#{index}][id]", :type => "hidden", :value => "#{@timesheet.transactions.first.id}"}/
+              .col-sm-9
+                %label.d-block File
+                .file_selector{style: "display: flex;"}
+                  %input{id: "timesheet_transactions_attributes_#{index}_file",:name => "timesheet[transactions_attributes][#{index}][file]", hidden: "hidden"}/
+                  = button_tag "Pick File", type: 'button', style: "border-radius: 0; height:38px;", class: "btn btn-primary uploader", onclick: "upload_file('#timesheet_transactions_attributes_#{index}_file','.uploaded_file_name',#{false})"
+                  %p.d-inline-block.uploaded_file_name=  @timesheet.transactions.first.file.present? ? File.basename(@timesheet.transactions.first.file) : "No File Selected"
+              .col-sm-12
+                =text_area_tag "timesheet[transactions_attributes][#{index}][memo]",@timesheet.transactions.first.memo,placeholder:"Add Note", class: "w-100 p-2"
+        .modal-footer
+          = tf.submit :save,class: "btn btn-secondary btn-sm" unless @timesheet.submitted?
+          =link_to "Submit To Client", candidate_timesheet_submit_timesheet_path(@timesheet,redirect_url: "/candidate/timesheets?cycle_id=false&&contract_id=false&&tab=submitted_timesheets&&cycle_frequency=#{@timesheet.contract_cycle.cycle_frequency}"), class: "btn btn-secondary btn-sm" unless @timesheet.submitted?

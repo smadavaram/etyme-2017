@@ -7,8 +7,13 @@ class Candidate::TimesheetsController < Candidate::BaseController
     @cycles = current_candidate.contract_cycles.where(cycle_type: 'TimesheetSubmit')
     @contracts = Contract.where(candidate: current_candidate)
     respond_to do |format|
-      @timesheets = Timesheet.timesheet_by_frequency("weekly", current_candidate).open_timesheets
-      format.html {}
+      @timesheets = Timesheet.timesheet_by_frequency(
+          params[:cycle_frequency].present? ? params[:cycle_frequency] : "weekly",
+          current_candidate).send(params[:tab].present? ? params[:tab] : "open_timesheets"
+      )
+      format.html {
+        @tab = params[:tab].present? ? params[:tab] : "open_timesheets"
+      }
       format.js {
         @tab = params[:tab]
         if params[:cycle_frequency].present?
@@ -85,15 +90,17 @@ class Candidate::TimesheetsController < Candidate::BaseController
 
   def submit_timesheet
     if @timesheet.end_date <= DateTime.now
-      if @timesheet.submitted!
+      if @timesheet.submitted
         flash[:status] = "Timesheet submitted successfully"
+        params[:redirect_url].present? ? redirect_to(params[:redirect_url]) : redirect_back(fallback_location: root_path)
       else
         flash[:errors] = @timesheet.errors.full_messages
+        redirect_back(fallback_location: root_path)
       end
     else
       flash[:errors] = ["You cannot submit the before time."]
+      redirect_back(fallback_location: root_path)
     end
-    redirect_back(fallback_location: root_path)
   end
 
   def update
@@ -110,7 +117,7 @@ class Candidate::TimesheetsController < Candidate::BaseController
   end
 
   def set_time_sheet
-    @timesheet = current_candidate.timesheets.open_timesheets.find(params[:id]||params[:timesheet_id])
+    @timesheet = current_candidate.timesheets.open_timesheets.find(params[:id] || params[:timesheet_id])
   end
 
   def approve_timesheets
@@ -120,7 +127,7 @@ class Candidate::TimesheetsController < Candidate::BaseController
   private
 
   def timesheet_params
-    params.require(:timesheet).permit(:job_id, :user_id, :company_id, :contract_id, :status, :total_time, :start_date, :end_date, :submitted_date, :next_timesheet_created_date, :invoice_id, :timesheet_attachment, :candidate_name, :ts_cycle_id, transactions_attributes: [:id, :total_time])
+    params.require(:timesheet).permit(:job_id, :user_id, :company_id, :contract_id, :status, :total_time, :start_date, :end_date, :submitted_date, :next_timesheet_created_date, :invoice_id, :timesheet_attachment, :candidate_name, :ts_cycle_id, transactions_attributes: [:id, :total_time, :memo, :file])
   end
 
   def check_valid_dates(contract, startdate, enddate)

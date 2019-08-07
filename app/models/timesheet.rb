@@ -165,6 +165,11 @@ class Timesheet < ApplicationRecord
     end
   end
 
+  def submitted
+    update(status: :submitted)
+    contract_cycle.update(status: :completed)
+  end
+
   # def submitted(timesheet_params, days, total_time)
   #   self.assign_attributes(timesheet_params)
   #   self.days = days
