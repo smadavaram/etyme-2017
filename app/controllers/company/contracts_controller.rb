@@ -44,8 +44,8 @@ class Company::ContractsController < Company::BaseController
   end
 
   def add_approval
-    @approval = Approval.find_or_initialize_by(approval_params)
-    @approvals = Approval.where(contractable_type: approval_params[:contractable_type],
+    @approval = current_company.approvals.find_or_initialize_by(approval_params)
+    @approvals = current_company.approvals.where(contractable_type: approval_params[:contractable_type],
                                contractable_id: approval_params[:contractable_id],
                                 approvable_type: approval_params[:approvable_type])
     if @approval.save
@@ -348,10 +348,14 @@ class Company::ContractsController < Company::BaseController
   end
 
   def filter_timeline
-    @contract_cycles = current_company.contract_cycles.includes(:ts_submitteds, :candidate, contract: [:sell_contract, :buy_contract, :company]).where(nil)
+    @contract_cycles = ContractCycle.includes(:ts_submitteds, :candidate, contract: [:sell_contract, :buy_contract, :company]).where(params[:cycle_type].present? ? {cycle_type: params[:cycle_type],contract: current_company.contracts} : nil)
     filtering_params(params).each do |key, value|
       @contract_cycles = @contract_cycles.public_send(key, value) if value.present?
     end
+  end
+
+  def get_cyclable
+    @cyclable = params[:cyclable_type].constantize.find_by(id: params[:cyclable_id])
   end
 
   def set_commission_user

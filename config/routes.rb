@@ -538,6 +538,7 @@ Rails.application.routes.draw do
         get :add_bill
         get :add_invoice
         get :pay_bill
+        get :get_cyclable
         post :add_approval
         get :receive_payment
         get :client_expense_submit
