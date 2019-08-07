@@ -26,7 +26,7 @@
                   %label Sort By
                   = select_tag 'sort_by', options_for_select(['Date', 'Actions']), {class: 'form-control'}
           .row.timeline-wrap.margin-bottom-10.margin-top-10
-            = render "timeline", todo_contract_cycles: @todo_contract_cycles, completed_contract_cycles: @completed_contract_cycles, overdue_contract_cycles: @overdue_contract_cycles
+            -#= render "timeline", todo_contract_cycles: @todo_contract_cycles, completed_contract_cycles: @completed_contract_cycles, overdue_contract_cycles: @overdue_contract_cycles
             = render 'timeline', contract_cycles: @contract_cycles
 
           -#  = form_tag filter_timeline_contracts_path, remote: true, method: :get, class: 'filter_timeline' do
