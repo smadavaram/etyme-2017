@@ -16,7 +16,7 @@
               .col-md-2
                 .form-group
                   %label Action
-                  = select_tag 'cycle_actions', options_for_select(['Timesheet submit', 'Timesheet Approve', 'Invoice Generate', 'Salary calculation', 'Salary process', 'Salary clear', 'Commission calculation', 'Commission process', 'Commission clear', 'VendorBill calculation', 'VendorPayment process', 'VendorBill clear', 'ClientBill calculation', 'ClientPayment process', 'ClientBill clear', 'ClientExpense calculation', 'ClientExpense Approve', 'ClientExpense Invoice' ]), {class: 'form-control cycle_action', prompt: 'All'}
+                  = select_tag 'cycle_actions', options_for_select(ContractCycle.get_cycle_types.map{|type| [type.tableize.singularize.split("_").join(" "),type]}), {class: 'form-control cycle_action', prompt: 'All'}
               -#.col-md-2
               -#  .form-group
               -#    %label Search by relevance
@@ -28,76 +28,7 @@
           .row.timeline-wrap.margin-bottom-10.margin-top-10
             -#= render "timeline", todo_contract_cycles: @todo_contract_cycles, completed_contract_cycles: @completed_contract_cycles, overdue_contract_cycles: @overdue_contract_cycles
             = render 'timeline', contract_cycles: @contract_cycles
-
-          -#  = form_tag filter_timeline_contracts_path, remote: true, method: :get, class: 'filter_timeline' do
-          -#  .row
-          -#    .col-md-5
-          -#      = radio_button_tag :duration, class: 'form-control'
-          -#      = label_tag :weekly, "Weekly", class: 'label-form'
-          -#      = radio_button_tag :duration, class: 'form-control'
-          -#      = label_tag :monthly, "Monthly", class: 'label-form'
-          -#    .col-md-4
-          -#      %input{class: 'pull-right nav-link', id: 'custom_range', plceholder: 'Custom Rage Search', "data-date-format" => "DD/MM/YYYY"}
-          -#
-          -#%br
-          -#%br
-          -#%hr
-          -#%div
-          -#.widget-body
-          -#  .row
-          -#    .col-md-6
-          -#      %ul#myTab1.nav.nav-tabs.smaller{style: "border-bottom: 0px;"}
-          -#        %li.nav-item.active.cumstom_nav-tab
-          -#          %a{"data-toggle" => "tab", :href => "#tab-r1", class: "nav-link cumstom_nav-tab display-flex"}
-          -#            %span.badge.bg-color-blue.txt-color-white
-          -#            Upcoming
-          -#            %span.badge.bg-color-blue.txt-color-white
-          -#        %li.nav-item.cumstom_nav-tab
-          -#          %a{"data-toggle" => "tab", :href => "#tab-r2",class: "nav-link cumstom_nav-tab display-flex"}
-          -#            %span.badge.bg-color-blue.txt-color-white
-          -#            Submitted
-          -#            %span.badge.bg-color-blue.txt-color-white
-          -#        %li.nav-item.cumstom_nav-tab
-          -#          %a{"data-toggle" => "tab", :href => "#tab-r3",class: "nav-link cumstom_nav-tab display-flex"}
-          -#            %span.badge.bg-color-blue.txt-color-white
-          -#            Approved
-          -#            %span.badge.bg-color-blueDark.txt-color-white
-          -#        %li.nav-item.cumstom_nav-tab
-          -#          %a{"data-toggle" => "tab", :href => "#tab-r4",class: "nav-link cumstom_nav-tab display-flex"}
-          -#            %span.badge.bg-color-blueDark.txt-color-white
-          -#            Rejected
-          -#            %span.badge.bg-color-blueDark.txt-color-white
-          -#        %li.nav-item.cumstom_nav-tab
-          -#          %a{"data-toggle" => "tab", :href => "#tab-r5",class: "nav-link cumstom_nav-tab display-flex"}
-          -#            %span.badge.bg-color-blueDark.txt-color-white
-          -#            All
-          -#            %span.badge.bg-color-blueDark.txt-color-white
-          -#    .col-md-6
-          -#      %div.pull-right
-          -#        .row
-          -#          .col-md-12.margin-bottom-10
-          -#            = link_to '#', class: 'btn btn-sm btn-secondary' do
-          -#              <i class="fa fa-th-large" aria-hidden="true"></i>
-          -#            = link_to 'Export', '#', class: 'btn btn-sm btn-secondary'
-          -#            = link_to 'Print', '#', class: 'btn btn-sm btn-secondary'
-          -#        .row
-          -#          .col-12
-          -#            %div.search_bar
-          -#              = button_tag raw("<i class='fa fa-fw fa-search fa-lg'></i>") , class: 'btn btn-default btn-search-bar'
-          -#              = text_field_tag :job_title_cont,"", class: "form-control input-lg bg-white search-form search_input", placeholder: "Search Contracts..."
-          -#  .col-md-12
-          -#    .tab-content
-          -#      #tab-r1.tab-pane.padding-top-15.active.in
-          -#        1
-          -#      #tab-r2.tab-pane.padding-top-15
-          -#        2
-          -#      #tab-r3.tab-pane.padding-top-15
-          -#        3
-          -#      #tab-r4.tab-pane.padding-top-15
-          -#        4
-          -#      #tab-r5.tab-pane.padding-top-15
-          -#        5
-
+  .cyclable_modals
 
 - content_for :scripts do
   :javascript

@@ -33,7 +33,7 @@ class Timesheet < ApplicationRecord
 
   # after_create  :create_timesheet_logs
   # after_create  :notify_timesheet_created
-  after_update :update_pending_timesheet_logs, if: Proc.new{|t| t.status_changed? && t.approved?}
+  # after_update :update_pending_timesheet_logs, if: Proc.new{|t| t.status_changed? && t.approved?}
 
   after_update :set_contract_salary_histories, if: Proc.new{|t| t.status_changed? && t.approved?}
 
@@ -54,6 +54,10 @@ class Timesheet < ApplicationRecord
 
   def assignee
     self.contract.assignee
+  end
+
+  def can_approve?(user,company)
+    current_company.approvals.timesheet.pluck(:user_id).include?(user.id)
   end
 
   def self.find_sent_or_received(timesheet_id , obj)

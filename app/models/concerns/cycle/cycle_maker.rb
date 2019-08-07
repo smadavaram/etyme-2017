@@ -15,7 +15,8 @@ module Cycle::CycleMaker
                                contract: self,
                                start_date: start_date,
                                end_date: end_date,
-                               cycle_frequency: buy_contract.time_sheet
+                               cycle_frequency: buy_contract.time_sheet,
+                               note: "Timesheet submit"
         )
         date_group.each do |date|
           time_sheet.transactions.create(status: :pending, start_time: date)
@@ -34,7 +35,8 @@ module Cycle::CycleMaker
                              contract: self,
                              start_date: start_date,
                              end_date: end_date,
-                             cycle_frequency: buy_contract.ts_approve
+                             cycle_frequency: buy_contract.ts_approve,
+                             note: "Timesheet approve"
       )
     end
   end
@@ -49,7 +51,8 @@ module Cycle::CycleMaker
                              contract: self,
                              start_date: start_date,
                              end_date: end_date,
-                             cycle_frequency: sell_contract.invoice_terms_period
+                             cycle_frequency: sell_contract.invoice_terms_period,
+                             note: "Invoice generate"
       )
     end
   end
@@ -67,7 +70,8 @@ module Cycle::CycleMaker
                                contract: self,
                                start_date: start_date,
                                end_date: end_date,
-                               cycle_frequency: sell_contract.client_expense
+                               cycle_frequency: sell_contract.client_expense,
+                               note: 'Client expense submission'
         )
       end
     end

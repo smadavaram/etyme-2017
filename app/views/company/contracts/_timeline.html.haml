@@ -15,6 +15,8 @@
           #{cc&.doc_date&.strftime("%d %B %Y")}
         %br
         %br
+        = link_to cc.cyclable_type, get_cyclable_contracts_path(cyclable_id: cc.cyclable_id,cyclable_type: cc.cyclable_type), remote: :true, class: "btn", style: "background-color: #d6d6d6;color: #645d5d;" if ["Timesheet"].include?(cc.cyclable_type)
+        %br
         Contract ID - #{cc.contract.id} - Cycle ID #{cc.id}
         %p.mb-0.submitted-name
           %b Name: #{cc.candidate.present? ? cc.candidate.full_name : cc&.contract&.sell_contract.company&.full_name}
