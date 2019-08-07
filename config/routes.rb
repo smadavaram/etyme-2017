@@ -188,12 +188,14 @@ Rails.application.routes.draw do
       collection do
         get :timeline
         post :request_document
+        get :submit_timesheet
       end
     end
     resources :timesheets, only: [:index, :new, :create, :update] do
       post :get_timesheets, on: :collection
       get :submitted_timesheets, on: :collection
       get :approve_timesheets, on: :collection
+      get :submit_timesheet
       # post "/:id", to: "timesheets#update", on: :collection, as: :update
     end
     resources :client_expenses, only: [:index, :update] do

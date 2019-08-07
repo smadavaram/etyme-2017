@@ -13,13 +13,13 @@
 .row.mb-4.w-100
   %ul.nav.nav-tabs.w-100.mt-3{style: "border-bottom: none;"}
     %li.nav-item.ml-3
-      %a{class: "nav-link fd upcomming_timesheets", href:'#', onclick: "time_line_filter('upcomming_timesheets','.select-time-cycle','.select-contract')","data-toggle" => "tab", "data-remote" => "true"} Upcomming
+      %a{class: "nav-link fd upcomming_timesheets #{ "active" if @tab.eql?("upcomming_timesheets") }", href:'#', onclick: "time_line_filter('upcomming_timesheets','.select-time-cycle','.select-contract')","data-toggle" => "tab"} Upcomming
     %li.nav-item
-      %a{class: "nav-link fd submitted_timesheets ",href:'#', onclick: "time_line_filter('submitted_timesheets','.select-time-cycle','.select-contract')","data-toggle" => "tab", "data-remote" => "true"} Submitted
+      %a{class: "nav-link fd submitted_timesheets #{ "active" if @tab.eql?("submitted_timesheets") } ",href:'#', onclick: "time_line_filter('submitted_timesheets','.select-time-cycle','.select-contract')","data-toggle" => "tab"} Submitted
     %li.nav-item
-      %a{class: "nav-link fd approved_timesheets", href:'#', onclick: "time_line_filter('approved_timesheets','.select-time-cycle','.select-contract')","data-toggle" => "tab", "data-remote" => "true"} Approved
+      %a{class: "nav-link fd approved_timesheets #{ "active" if @tab.eql?("approved_timesheets") } ", href:'#', onclick: "time_line_filter('approved_timesheets','.select-time-cycle','.select-contract')","data-toggle" => "tab"} Approved
     %li.nav-item
-      %a{class: "nav-link active fd open_timesheets", href:'#', onclick: "time_line_filter('open_timesheets','.select-time-cycle','.select-contract')","data-toggle" => "tab", "data-remote" => "true"} All
+      %a{class: "nav-link fd open_timesheets #{ "active" if @tab.eql?("open_timesheets") } ", href:'#', onclick: "time_line_filter('open_timesheets','.select-time-cycle','.select-contract')","data-toggle" => "tab"} All
     %li.nav-item.mt-2{style: "margin-left: auto;"}
       %select.select-contract
         %option{value: 'all'} Select Contract
@@ -29,6 +29,7 @@
         %option{value: 'all'} Select Cycle
 
       %select.cycle-type
+        %option{value: false} Select Cycle Type
         %option{value: 'weekly'} Weekly
         %option{value: 'daily'} Daily
         %option{value: 'monthly'} Monthly
@@ -69,8 +70,10 @@
         })
       });
 
-      $('.select-time-cycle').on("change", function(){
-        $(this).closest('form').submit();
+      $('.select-time-cycle').change(function(){
+        let cycle = $(this).val();
+        let contract = $('.select-contract').val();
+        $.get(`/candidate/timesheets.js?cycle_id=${cycle}&&contract_id=${contract}&&tab=open_timesheets`);
       });
 
       $(".all-select").on("change", function(){

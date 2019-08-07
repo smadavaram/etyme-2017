@@ -4,7 +4,7 @@ class Api::Candidate::CandidatesController < ApplicationController
   def contract_cycles
     @contract = Contract.find(params[:contract_id])
     if @contract
-      render locals: {cycles: @contract.contract_cycles}, status: :ok
+      render locals: {cycles: @contract.contract_cycles.where(cycle_type: "TimesheetSubmit")}, status: :ok
     else
       render json: {error: "Cannot find contract with this id"}, status: :not_found
     end
