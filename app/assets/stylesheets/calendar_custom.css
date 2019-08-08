@@ -1,0 +1,18 @@
+.events{
+    background-color: transparent;
+    border-color: transparent;
+    box-shadow: none;
+}
+
+.events > input {
+    border-radius: 4px;
+    padding: 5px;
+    height: 20px;
+    border-style: ridge;
+}
+
+.fc-day-number{
+    width: 95%;
+    text-align: center !important;
+    background: #9cb4c5;
+}

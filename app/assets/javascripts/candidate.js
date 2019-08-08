@@ -135,9 +135,9 @@
 //= require plugin/vectormap/jquery-jvectormap-world-mill-en
 
 // Full Calendar
-//= require plugin/moment/moment.min
 //= require plugin/chartjs/chart.min
-//= require plugin/fullcalendar/jquery.fullcalendar.min
+//= require moment
+//= require fullcalendar
 
 // Custom Fields
 //= require cocoon
@@ -197,4 +197,45 @@ $('#dataTable').dataTable({
         searchable: false,
         orderable: false
     }]
+});
+function handle_input(event){
+    alert(event.value);
+}
+
+$('#timesheet_calendar').fullCalendar({
+    selectable: true,
+    height: 700,
+    width: 500,
+    events: [
+        {
+            title: "hello",
+            start: '2019-08-09',
+            description: 'This is a cool event',
+            className: ["events"],
+            allDay: true,
+        },
+        // {
+        //     title: '',
+        //     start: '2019-08-10',
+        //     description: 'This is a cool event'
+        // },{
+        //     title: 'My Event',
+        //     start: '2019-08-07',
+        //     description: 'This is a cool event'
+        // },{
+        //     title: 'My Event',
+        //     start: '2019-08-06',
+        //     description: 'This is a cool event'
+        // },
+
+        ],
+    eventRender: function(info,event,el,view) {
+        event[0].removeChild(event[0].firstChild)
+        event.append(`<input name='${info.title}' onchange="handle_input(this)" value="2nd value" style='width: -moz-available;width: -webkit-fill-available;' />`)
+        event.append(`<input name='${info.title}' value="1st value" style='width: -moz-available;width: -webkit-fill-available;' />`)
+    },
+    selectConstraint: {
+        start: $.fullCalendar.moment().subtract(1, 'days'),
+        end: $.fullCalendar.moment().startOf('month').add(1, 'month')
+    }
 });
