@@ -52,7 +52,7 @@ class Company::ContractsController < Company::BaseController
       flash.now[:success] = "Collaborator Added"
       render 'add_approval'
     else
-      flash.now[:errors] = @approval.error.full_messages
+      flash.now[:errors] = @approval.errors.full_messages
     end
   end
 
