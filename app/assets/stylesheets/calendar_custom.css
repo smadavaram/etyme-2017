@@ -14,5 +14,13 @@
 .fc-day-number{
     width: 95%;
     text-align: center !important;
-    background: #9cb4c5;
+    background: #545F7A;
+    color: white;
+}
+
+.fc-day-header{
+    height: 40px;
+    vertical-align: middle !important;
+    background: #545f7a;
+    color: white;
 }

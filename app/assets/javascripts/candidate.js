@@ -136,8 +136,9 @@
 
 // Full Calendar
 //= require plugin/chartjs/chart.min
+//= require moment/min/moment.min
 //= require moment
-//= require fullcalendar
+//= require fullcalendar/dist/fullcalendar.min
 
 // Custom Fields
 //= require cocoon
@@ -206,6 +207,13 @@ $('#timesheet_calendar').fullCalendar({
     selectable: true,
     height: 700,
     width: 500,
+    header: { center: 'dayGridMonth,timeGridWeek' }, // buttons for switching between views
+    views: {
+        dayGridMonth: { // name of view
+            titleFormat: { year: 'numeric', month: '2-digit'}
+            // other view-specific options here
+        }
+    },
     events: [
         {
             title: "hello",
