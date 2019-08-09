@@ -5,6 +5,7 @@ class SellContract < ApplicationRecord
   has_many :contract_sell_business_details,dependent: :destroy
 
   has_many :document_signs, as: :initiator
+  has_many :document_signs, as: :part_of
 
   has_many :sell_send_documents,dependent: :destroy
   has_many :sell_request_documents,dependent: :destroy

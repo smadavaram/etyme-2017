@@ -20,6 +20,9 @@ class JobApplication < ApplicationRecord
   has_many :job_applicantion_without_registrations
   has_one :conversation
   has_many :interviews
+  has_many :document_signs, as: :part_of
+
+
   # validates :cover_letter , :applicant_resume ,presence: true
   validates :cover_letter, presence: true
 

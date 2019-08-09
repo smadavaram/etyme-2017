@@ -60,7 +60,7 @@ class Company::JobApplicationsController < Company::BaseController
   end
 
   def templates
-    @document_signs = @job_application.applicationable.document_signs
+    @document_signs = current_company.document_signs.where(signable: @job_application.applicationable, part_of: @job_application)
   end
 
   def send_templates
@@ -68,7 +68,7 @@ class Company::JobApplicationsController < Company::BaseController
     response = (Time.current - @plugin.updated_at).to_i.abs/3600 <= 5 ? true : RefreshToken.new(@plugin).refresh_docusign_token
     if response.present?
       @company_candidate_docs.each do |sign_doc|
-        @document_sign = current_company.document_signs.create(documentable: sign_doc, signable: @job_application.applicationable, is_sign_done: false)
+        @document_sign = current_company.document_signs.create(documentable: sign_doc, signable: @job_application.applicationable, is_sign_done: false,part_of: @job_application)
         result = DocusignEnvelope.new(@document_sign, @plugin).create_envelope
         if(result.status == "sent")
           @document_sign.update(envelope_id: result.envelope_id, envelope_uri: result.uri)

@@ -211,6 +211,22 @@ class Company < ApplicationRecord
   #   Company.where.not(:id=>PreferVendor.select(:vendor_id).where(company_id=c.id))
   # end
 
+
+  def candidate_job_templates
+    company_candidate_docs.where(document_for: "Candidate",title_type: "Job",is_require: "signature")
+  end
+  def customer_job_templates
+    company_candidate_docs.where(document_for: "Customer",title_type: "Contract",is_require: "signature")
+  end
+
+  def candidate_contract_templates(is_require)
+    company_candidate_docs.where(document_for: "Candidate",title_type: "Contract",is_require: is_require)
+  end
+  def customer_contract_templates(is_require)
+    company_candidate_docs.where(document_for: "Customer",title_type: "Contract",is_require: is_require)
+  end
+
+
   private
 
   def create_slug

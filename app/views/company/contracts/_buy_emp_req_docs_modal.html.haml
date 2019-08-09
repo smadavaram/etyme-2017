@@ -20,7 +20,7 @@
                   %th Expiry Date
                   %th Is Require
                 %tbody
-                  - @documents_templates.each do |doc|
+                  - @documents_templates_candidate.each do |doc|
                     %tr.even{:role => "row"}
                       %td
                         = check_box_tag "ids[]", doc.id

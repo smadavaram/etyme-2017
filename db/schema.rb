@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema.define(version: 20190807142608) do
+ActiveRecord::Schema.define(version: 20190809095441) do
 
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
@@ -999,6 +999,8 @@ ActiveRecord::Schema.define(version: 20190807142608) do
     t.string "signed_file"
     t.string "initiator_type"
     t.bigint "initiator_id"
+    t.string "part_of_type"
+    t.integer "part_of_id"
     t.index ["documentable_type", "documentable_id"], name: "index_document_signs_on_documentable_type_and_documentable_id"
     t.index ["signable_type", "signable_id"], name: "index_document_signs_on_signable_type_and_signable_id"
   end

@@ -22,7 +22,7 @@
                     %th Is Require
                     %th Attachments
                   %tbody
-                    - @signature_templates.each do |doc|
+                    - @signature_templates_candidate.each do |doc|
                       %tr.even{:role => "row"}
                         %td
                           = check_box_tag "ids[]", doc.id

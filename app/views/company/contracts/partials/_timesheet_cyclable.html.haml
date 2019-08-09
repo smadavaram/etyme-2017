@@ -32,11 +32,11 @@
         - index = 0
         %label.d-block Add Hour
         .form-group.d-inline-block
-          %input{id: "timesheet_transactions_attributes_#{index}_total_time",:name => "timesheet[transactions_attributes][#{index}][total_time]", :style => "width: 100px",disabled: true, :type => "number", :value => "#{timesheet.transactions.first.total_time}"}/
+          %input{id: "timesheet_transactions_attributes_#{index}_total_time",:name => "timesheet[transactions_attributes][#{index}][total_time]", :style => "width: 100px",disabled: true, :type => "number", :value => "#{cyclable.transactions.first.total_time}"}/
       .col-sm-9
-        %label.d-block File
-        .file_selector{style: "display: flex;"}
-          -if  @cyclable.transactions.first.file.present?
+        -if  @cyclable.transactions.first.file.present?
+          %label.d-block File
+          .file_selector{style: "display: flex;"}
             %p.d-inline-block.uploaded_file_name= File.basename(@cyclable.transactions.first.file)
       .col-sm-12
         =text_area_tag "timesheet[transactions_attributes][#{index}][memo]",@cyclable.transactions.first.memo,placeholder:"Add Note", class: "w-100 p-2"

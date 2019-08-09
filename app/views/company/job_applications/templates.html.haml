@@ -16,7 +16,7 @@
                 %th Is Require
                 %th Attachments
               %tbody
-                - current_company.company_candidate_docs.each do |doc|
+                - current_company.candidate_job_templates.each do |doc|
                   %tr.even{:role => "row"}
                     %td
                       = check_box_tag "ids[]", doc.id
