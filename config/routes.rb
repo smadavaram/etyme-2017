@@ -188,12 +188,15 @@ Rails.application.routes.draw do
       collection do
         get :timeline
         post :request_document
+        get :submit_timesheet
       end
     end
     resources :timesheets, only: [:index, :new, :create, :update] do
       post :get_timesheets, on: :collection
       get :submitted_timesheets, on: :collection
       get :approve_timesheets, on: :collection
+      get :submit_timesheet
+      # post "/:id", to: "timesheets#update", on: :collection, as: :update
     end
     resources :client_expenses, only: [:index, :update] do
       post :get_client_expenses, on: :collection
@@ -535,6 +538,8 @@ Rails.application.routes.draw do
         get :add_bill
         get :add_invoice
         get :pay_bill
+        get :get_cyclable
+        post :add_approval
         get :receive_payment
         get :client_expense_submit
         get :client_expense_approve
@@ -701,6 +706,7 @@ Rails.application.routes.draw do
     namespace :candidate do
       resources :candidates, only: :index do
         post :add_candidate, on: :collection
+        get :contract_cycles, on: :collection
       end
     end
 

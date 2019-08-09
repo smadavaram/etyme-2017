@@ -9,8 +9,8 @@ class TimesheetApprover < ApplicationRecord
   belongs_to :timesheet, optional: true
   has_one    :job , through: :timesheet
   has_one    :contract , through: :timesheet
-  after_create :approve_timesheet , if: Proc.new{|t| t.is_master_user? && t.approved?}
-  after_create :submit_timesheet , if: Proc.new{|t| t.is_assign_user? && t.submitted? }
+  # after_create :approve_timesheet , if: Proc.new{|t| t.is_master_user? && t.approved?}
+  # after_create :submit_timesheet , if: Proc.new{|t| t.is_assign_user? && t.submitted? }
   # after_create :notify_user_on_change_timesheet_status
 
   validates :status ,             inclusion: {in: statuses.keys}

@@ -1033,7 +1033,7 @@ module Contracts
     end
 
     def get_next_date(time_sheet_frequency, date_1, date_2, end_of_month, day_of_week, last_date = Date.today - 1.day )
-
+      #TODO: look for business logic and correct the folow
       # if time_sheet_frequency == "daily" || time_sheet_frequency == "immediately"
         time_sheet_date = last_date + 1.days
       # elsif time_sheet_frequency == "weekly"

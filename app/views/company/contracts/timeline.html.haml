@@ -1,38 +1,45 @@
-%section
-  .container
-    .row
-      = form_tag filter_timeline_contracts_path, remote: true, method: :get, class: 'filter_timeline' do
-        .col-md-12
-          .form-group
-            %label Contract
-            = select_tag "contracts", options_from_collection_for_select(@contracts, 'id', 'title'),{class: "form-control contract_list", prompt: "All"}
-        .col-md-12
-          .form-group
-            %label Consultant
-            = select_tag "consultants", options_from_collection_for_select(@candidates, 'id', 'full_name'),{class: "form-control candidate_list", prompt: "All"}
-        .col-md-12
-          .form-group
-            %label Action
-            = select_tag 'cycle_actions', options_for_select(['Timesheet submit', 'Timesheet Approve', 'Invoice Generate', 'Salary calculation', 'Salary process', 'Salary clear', 'Commission calculation', 'Commission process', 'Commission clear', 'VendorBill calculation', 'VendorPayment process', 'VendorBill clear', 'ClientBill calculation', 'ClientPayment process', 'ClientBill clear', 'ClientExpense calculation', 'ClientExpense Approve', 'ClientExpense Invoice' ]), {class: 'form-control cycle_action', prompt: 'All'}
-        .col-md-12
-          .form-group
-            %label Search by relevance
-            = select_tag 'view_type', options_for_select(['Overall View', 'Invoice View', 'Salary View']), {class: 'form-control'}
-        .col-md-12
-          .form-group
-            %label Sort By
-            = select_tag 'sort_by', options_for_select(['Date', 'Actions']), {class: 'form-control'}
-    .row
-      .col-xs-12
-        %p.mb-0
-          Showing Tasks for you from : All Contracts, All Freelancers and All Actions
-    .row.timeline-wrap
-      / = render "timeline", todo_contract_cycles: @todo_contract_cycles, completed_contract_cycles: @completed_contract_cycles, overdue_contract_cycles: @overdue_contract_cycles
-      = render 'timeline', contract_cycles: @contract_cycles
-
+.content-box
+  .element-wrapper
+    .element-box
+      %section
+        .container
+          .contract-fields_wrapper
+            .row.space-evenly
+              .col-md-2
+                .form-group
+                  %label Contract
+                  = select_tag "contracts", options_from_collection_for_select(@contracts, 'id', 'title'),{class: "form-control contract_list", prompt: "All"}
+              .col-md-2
+                .form-group
+                  %label Consultant
+                  = select_tag "consultants", options_from_collection_for_select(@candidates, 'id', 'full_name'),{class: "form-control candidate_list", prompt: "All"}
+              .col-md-2
+                .form-group
+                  %label Action
+                  = select_tag 'cycle_actions', options_for_select(ContractCycle.get_cycle_types.map{|type| [type.tableize.singularize.split("_").join(" "),type]}), {class: 'form-control cycle_action', prompt: 'All'}
+              -#.col-md-2
+              -#  .form-group
+              -#    %label Search by relevance
+              -#    = select_tag 'view_type', options_for_select(['Overall View', 'Invoice View', 'Salary View']), {class: 'form-control'}
+              .col-md-2
+                .form-group
+                  %label Sort By
+                  = select_tag 'sort_by', options_for_select(['Date', 'Actions']), {class: 'form-control'}
+          .row.timeline-wrap.margin-bottom-10.margin-top-10
+            -#= render "timeline", todo_contract_cycles: @todo_contract_cycles, completed_contract_cycles: @completed_contract_cycles, overdue_contract_cycles: @overdue_contract_cycles
+            = render 'timeline', contract_cycles: @contract_cycles
+  .cyclable_modals
 
 - content_for :scripts do
   :javascript
+
+    $('#custom_range').daterangepicker({
+        startDate: moment().startOf('month'),
+        endDate: moment().endOf('month'),
+        locale: {
+          format: 'DD/MM/YYYY'
+        }
+      });
 
     $('.contract_list').on('change', function(){
       var contract_id = $(this).val();

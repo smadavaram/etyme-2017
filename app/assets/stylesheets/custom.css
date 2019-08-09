@@ -22,12 +22,37 @@
     padding: 5px;
 }
 
+.modal-body > .select2-container{
+    width: 100% !important;
+}
+
+.collaborators
+{
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-start;
+    width: 80%;
+}
+
 .height-45{
     height: 45px !important;
 }
 
+.add_contacts{
+   align-items: center;
+}
+
+.space-evenly{
+    justify-content: space-evenly;
+}
+
 .time-input{
     margin-top: 6px !important;
+}
+
+.integration
+{
+    align-items: center;
 }
 
 .display-flex
@@ -360,4 +385,14 @@ div.group-member > ul > li > a{
     color: red;
     font-size: 20px;
     float: right;
+}
+th.have-nested_headers{
+    display: flex;
+    justify-content: space-between;
+    border: none !important;
+    padding-left: 25px !important;
+    padding-right: 36px !important;
+}
+div.nested_headers{
+    /*display: inline-block;*/
 }

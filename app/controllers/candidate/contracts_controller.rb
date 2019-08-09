@@ -19,6 +19,14 @@ class Candidate::ContractsController < Candidate::BaseController
     end
   end
 
+  def submit_timesheet
+    @timesheet = current_candidate.timesheets.find_by(id: params[:timesheet_id])
+  end
+  def timeline
+    @contract_cycles = params[:cycle_type]&.eql?('timesheet') ? current_candidate.contract_cycles.where(cycle_type: "TimesheetSubmit") : current_candidate.contract_cycles
+    @contracts = Contract.where(candidate: current_candidate)
+  end
+
   def request_document
     @docment_sign = DocumentSign.find_by(id: params[:docusign_id])
     if @docment_sign.update(is_sign_done: true, signed_file: params[:file])

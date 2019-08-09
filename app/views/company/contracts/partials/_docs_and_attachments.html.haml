@@ -88,6 +88,10 @@
                 %a{"data-toggle" => "tab", :href => "#tab-buy-cc", class: "nav-link cumstom_nav-tab"}
                   %span.badge.bg-color-blue.txt-color-white
                   Commission Calculation
+              %li.nav-item.cumstom_nav-tab
+                %a{"data-toggle" => "tab", :href => "#tab-buy-integration", class: "nav-link cumstom_nav-tab"}
+                  %span.badge.bg-color-blue.txt-color-white
+                  Integration
               / %li
               /   %a{"data-toggle" => "tab", :href => "#tab-buy-cp"}
               /     %span.badge.bg-color-blueDark.txt-color-white
@@ -128,15 +132,15 @@
                               Time sheet
                             .select
                               .plain-select
-                                -bc.object.time_sheet = bc.object.contract.sell_contract.time_sheet
-                                = bc.text_field :time_sheet, value: bc.object.contract.sell_contract.time_sheet, class: 'form-control', readonly: true
+                                = bc.text_field :time_sheet, value: bc.object.contract.sell_contract.time_sheet, class: 'form-control', disabled: true
+                                = bc.hidden_field :time_sheet, value: bc.object.contract.sell_contract.time_sheet
                           .col-md-4
                             .b-ts-set
-                              %div{:class => "form-group daily #{bc.object.time_sheet != 'daily' ? 'hidden' : ''}"}
+                              %div{:class => "form-group daily #{bc.object.contract.sell_contract.time_sheet != 'daily' ? 'hidden' : ''}"}
                                 %label.control-label.w-100
                                   Select Time
                                   = bc.text_field :ts_day_time, class: "form-control con-time time-input", value: bc.object.contract.sell_contract.ts_day_time, readonly: true
-                              %div{:class => "form-group week #{bc.object.time_sheet != 'weekly' || bc.object.time_sheet != 'biweekly' ? 'hidden' : ''}"}
+                              %div{:class => "form-group week #{bc.object.contract.sell_contract.time_sheet != 'weekly' && bc.object.contract.sell_contract.time_sheet != 'biweekly' ? 'hidden' : ''}"}
                                 %label.control-label
                                   Select day of week
                                 .select
@@ -148,20 +152,35 @@
                                     "Thursday": "thu",
                                     "Friday": "fri",
                                     "Saturday": "sat"}, {selected: bc.object.contract.sell_contract.ts_day_of_week},{disabled: true}
-                              %div{:class => "form-group month #{['twice a month', 'monthly'].include?(bc.object.time_sheet) ? '' : 'hidden'}"}
+                                    = bc.hidden_field :ts_day_of_week, value: bc.object.contract.sell_contract.ts_day_of_week
+                              %div{:class => "form-group biweek #{bc.object.contract.sell_contract.time_sheet != 'biweekly' ? 'hidden' : ''}"}
+                                %label.control-label
+                                  Select Second day of week
+                                .select
+                                  .plain-select
+                                    = bc.select :ts_2day_of_week,
+                                      [["Every Monday", "mon"],["Every Tuesday", "tue"],["Every Wednesday", "wed"],
+                                      ["Every Thursday", "thu"],
+                                      ["Every Friday", "fri"],["Every Saturday", "sat"],["Every Sunday", "sun"]],
+                                      {selected: bc.object.contract.sell_contract.ts_2day_of_week}, {class: "form-control", disabled: true}
+                                    = bc.hidden_field :ts_2day_of_week, value: bc.object.contract.sell_contract.ts_2day_of_week
+                              %div{:class => "form-group month #{['twice a month', 'monthly'].include?(bc.object.contract.sell_contract.time_sheet) ? '' : 'hidden'}"}
                                 %label.control-label.w-100
                                   Select date
                                   = bc.text_field :ts_date_1, class: "form-control time-input", readonly: true, value: bc.object.contract.sell_contract.ts_date_1
-                              %div{:class => "form-group twice-month #{bc.object.time_sheet != 'twice a month' ? 'hidden' : ''}"}
+                              %div{:class => "form-group twice-month #{bc.object.contract.sell_contract.time_sheet != 'twice a month' ? 'hidden' : ''}"}
                                 %label.control-label
                                   Select second date
                                 .select
                                   = bc.text_field :ts_date_2, class: "form-control", readonly: true, value: bc.object.contract.sell_contract.ts_date_2
-
                           .col-md-4
                             %label.control-label
-                              Assign to
-                            = select_tag 'assign_to', options_from_collection_for_select(current_company&.company_contacts, "id", 'full_name'), include_blank: 'Please select',class: 'form-control height-45'
+                              Collaborators
+                            .row
+                              .col-md-12
+                                #buy_collaborators
+                                  = render 'company/contracts/partials/approval', approvals: @contract.buy_contract.approvals.where(approvable_type: 'timesheet')
+                                %a.fa.fa-plus.fa-3x.pull-right.add_contacts{"data-toggle": "modal", "data-target":"#buy_approval", id: 'timesheet'}
                 #tab-buy-ta.tab-pane.padding-top-15
                   .row
                     .col-md-12
@@ -172,35 +191,53 @@
                               Timesheet Approve
                             .select
                               .plain-select
-                                - bc.object.ts_approve = bc.object.contract.sell_contract.ts_approve
                                 = bc.text_field :ts_approve, value: bc.object.contract.sell_contract.ts_approve, class: 'form-control', readonly: true
                           .col-md-4
                             .b-ts-apv-set
-                              %div{:class => "form-group daily #{bc.object.ts_approve != 'daily' ? 'hidden' : ''}"}
+                              %div{:class => "form-group daily #{bc.object.contract.sell_contract.ts_approve != 'daily' ? 'hidden' : ''}"}
                                 %label.control-label.w-100
                                   Select Time
-                                  = bc.text_field :ta_day_time, class: "form-contro con-time time-input", readonly: true
-                              %div{:class => "form-group week #{bc.object.ts_approve != 'weekly' ? 'hidden' : ''}"}
+                                  = bc.text_field :ta_day_time, class: "form-contro con-time time-input", disabled: true, value: bc.object.contract.sell_contract.ta_day_time
+                                  =bc.hidden_field :ta_day_time, value: bc.object.contract.sell_contract.ta_day_time
+                              %div{:class => "form-group week #{bc.object.contract.sell_contract.ts_approve != 'weekly' && bc.object.contract.sell_contract.ts_approve != 'biweekly' ? 'hidden' : ''}"}
                                 %label.control-label
                                   Select day of week
                                 .select
                                   .plain-select
-                                    = bc.select :ta_day_of_week, [["Every Monday", "mon"], ["Every Tuesday", "tue"], ["Every Wednesday", "wed"], ["Every Thursday", "thu"], ["Every Friday", "fri"], ["Every Saturday", "sat"], ["Every Sunday", "sun"]], {selected: bc.object.contract.sell_contract.ta_day_of_week, value: bc.object.contract.sell_contract.ta_day_of_week},{class: "form-contro", disabled: true }
-                              %div{:class => "form-group month #{['twice a month', 'monthly'].include?(bc.object.ts_approve) ? '' : 'hidden'}"}
+                                    = bc.select :ta_day_of_week, [["Every Monday", "mon"], ["Every Tuesday", "tue"], ["Every Wednesday", "wed"], ["Every Thursday", "thu"], ["Every Friday", "fri"], ["Every Saturday", "sat"], ["Every Sunday", "sun"]], {selected: bc.object.contract.sell_contract.ta_day_of_week},{class: "form-contro", disabled: true }
+                                    =bc.hidden_field :ta_day_of_week, value: bc.object.contract.sell_contract.ta_day_of_week
+                              %div{:class => "form-group biweek #{bc.object.contract.sell_contract.ts_approve != 'biweekly' ? 'hidden' : ''}"}
+                                %label.control-label
+                                  Select Second day of week
+                                .select
+                                  .plain-select
+                                    = bc.select :ta_2day_of_week,
+                                      [["Every Monday", "mon"],["Every Tuesday", "tue"],["Every Wednesday", "wed"],
+                                      ["Every Thursday", "thu"],
+                                      ["Every Friday", "fri"],["Every Saturday", "sat"],["Every Sunday", "sun"]],
+                                      {selected: bc.object.contract.sell_contract.ta_2day_of_week}, {class: "form-control", disabled: true}
+                                    = bc.hidden_field :ta_2day_of_week, value: bc.object.contract.sell_contract.ta_2day_of_week
+                              %div{:class => "form-group month #{['twice a month', 'monthly'].include?(bc.object.contract.sell_contract.ts_approve) ? '' : 'hidden'}"}
                                 %label.control-label
                                   Select date
                                 .select
-                                  = bc.text_field :ta_date_1, class: "form-control", readonly: true
-                              %div{:class => "form-group twice-month #{bc.object.ts_approve != 'twice a month' ? 'hidden' : ''}"}
+                                  = bc.text_field :ta_date_1, class: "form-control", disabled: true, value: bc.object.contract.sell_contract.ta_date_1
+                                  = bc.hidden_field :ta_date_1, value: bc.object.contract.sell_contract.ta_date_1
+                              %div{:class => "form-group twice-month #{bc.object.contract.sell_contract.ts_approve != 'twice a month' ? 'hidden' : ''}"}
                                 %label.control-label
                                   Select second date
                                 .select
-                                  = bc.text_field :ta_date_2, class: "form-control", readonly: true
-                              %span{:class => "form-group month #{['twice a month', 'monthly'].include?(bc.object.ts_approve) ? '' : 'hidden'}"}
+                                  = bc.text_field :ta_date_2, class: "form-control", disabled: true, value: bc.object.contract.sell_contract.ta_date_1
+                                  = bc.hidden_field :ta_date_2, value: bc.object.contract.sell_contract.ta_date_2
+                              %span{:class => "form-group month #{['twice a month', 'monthly'].include?(bc.object.contract.sell_contract.ts_approve) ? '' : 'hidden'}"}
                           .col-md-4
                             %label.control-label
-                              Assign to
-                            = select_tag 'assign_to', options_from_collection_for_select(current_company&.company_contacts, "id", 'full_name'), include_blank: 'Please select',class: 'form-control height-45'
+                              Collaborators
+                            .row
+                              .col-md-12
+                                #buy_ts_approver
+                                  = render 'company/contracts/partials/approval', approvals: @contract.buy_contract.approvals.where(approvable_type: 'timesheet_approve')
+                                %a.fa.fa-plus.fa-3x.pull-right.add_contacts{"data-toggle": "modal", "data-target":"#buy_approval", id: 'timesheet_approve'}
                 #tab-buy-sc.tab-pane.padding-top-15
                   .row
                     .col-md-12
@@ -220,15 +257,25 @@
                           .col-md-4
                             .b-sal-cal
                               %div{:class => "form-group daily #{bc.object.salary_calculation != 'daily' ? 'hidden' : ''}"}
-                                %label.control-label
+                                %label.control-label.w-100
                                   Select Time
-                                  = bc.text_field :sc_day_time, class: "form-contro con-time"
-                              %div{:class => "form-group week #{bc.object.salary_calculation != 'weekly' ? 'hidden' : ''}"}
+                                  = bc.text_field :sc_day_time, class: "form-contro con-time time-input"
+                              %div{:class => "form-group week #{bc.object.salary_calculation != 'weekly' && bc.object.salary_calculation != 'biweekly' ? 'hidden' : ''}"}
                                 %label.control-label
                                   Select day of week
                                 .select
                                   .plain-select
                                     = bc.select :sc_day_of_week, [["Every Monday", "mon"], ["Every Tuesday", "tue"], ["Every Wednesday", "wed"], ["Every Thursday", "thu"], ["Every Friday", "fri"], ["Every Saturday", "sat"], ["Every Sunday", "sun"]], {selected: current_company&.payroll_infos&.first&.scal_day_of_week},{class: "form-contro" }
+                              %div{:class => "form-group biweek #{bc.object.salary_calculation != 'biweekly' ? 'hidden' : ''}"}
+                                %label.control-label
+                                  Select Second day of week
+                                .select
+                                  .plain-select
+                                    = bc.select :sc_2day_of_week,
+                                      [["Every Monday", "mon"],["Every Tuesday", "tue"],["Every Wednesday", "wed"],
+                                      ["Every Thursday", "thu"],
+                                      ["Every Friday", "fri"],["Every Saturday", "sat"],["Every Sunday", "sun"]],
+                                      {}, {class: "form-control height-45"}
                               %div{:class => "form-group month #{['twice a month', 'monthly'].include?(bc.object.salary_calculation) ? '' : 'hidden'}"}
                                 %label.control-label
                                   Select date
@@ -242,9 +289,12 @@
                               %span{:class => "form-group month #{['twice a month', 'monthly'].include?(bc.object.salary_calculation) ? '' : 'hidden'}"}
                           .col-md-4
                             %label.control-label
-                              Assign to
-                            = select_tag 'assign_to', options_from_collection_for_select(current_company&.company_contacts, "id", 'full_name'), include_blank: 'Please select',class: 'form-control'
-
+                              Collaborators
+                            .row
+                              .col-md-12
+                                #buy_s_c
+                                  = render 'company/contracts/partials/approval', approvals: @contract.buy_contract.approvals.where(approvable_type: 'slaray_calculation')
+                                %a.fa.fa-plus.fa-3x.pull-right.add_contacts{"data-toggle": "modal", "data-target":"#buy_approval", id: 'slaray_calculation'}
                   .row
                     .col-md-12
                       .form-group
@@ -256,15 +306,25 @@
                           .col-md-4
                             .b-sal-cal
                               %div{:class => "form-group daily #{bc.object.salary_calculation != 'daily' ? 'hidden' : ''}"}
-                                %label.control-label
+                                %label.control-label.w-100
                                   Select Time
-                                  = bc.text_field :sp_day_time, class: "form-contro con-time"
-                              %div{:class => "form-group week #{bc.object.salary_calculation != 'weekly' ? 'hidden' : ''}"}
+                                  = bc.text_field :sp_day_time, class: "form-contro con-time time-input"
+                              %div{:class => "form-group week #{bc.object.salary_calculation != 'weekly' && bc.object.salary_calculation != 'biweekly' ? 'hidden' : ''}"}
                                 %label.control-label
                                   Select day of week
                                 .select
                                   .plain-select
                                     = bc.select :sp_day_of_week, [["Every Monday", "mon"], ["Every Tuesday", "tue"], ["Every Wednesday", "wed"], ["Every Thursday", "thu"], ["Every Friday", "fri"], ["Every Saturday", "sat"], ["Every Sunday", "sun"]], {},{class: "form-contro" }
+                              %div{:class => "form-group biweek #{bc.object.salary_calculation != 'biweekly' ? 'hidden' : ''}"}
+                                %label.control-label
+                                  Select Second day of week
+                                .select
+                                  .plain-select
+                                    = bc.select :sp_2day_of_week,
+                                      [["Every Monday", "mon"],["Every Tuesday", "tue"],["Every Wednesday", "wed"],
+                                      ["Every Thursday", "thu"],
+                                      ["Every Friday", "fri"],["Every Saturday", "sat"],["Every Sunday", "sun"]],
+                                      {}, {class: "form-control height-45"}
                               %div{:class => "form-group month #{['twice a month', 'monthly'].include?(bc.object.salary_calculation) ? '' : 'hidden'}"}
                                 %label.control-label
                                   Select date
@@ -278,9 +338,12 @@
                               %span{:class => "form-group month #{['twice a month', 'monthly'].include?(bc.object.salary_calculation) ? '' : 'hidden'}"}
                           .col-md-4
                             %label.control-label
-                              Assign to
-                            = select_tag 'assign_to', options_from_collection_for_select(current_company&.company_contacts, "id", 'full_name'), include_blank: 'Please select',class: 'form-control'
-
+                              Collaborators
+                            .row
+                              .col-md-12
+                                #buy_s_p
+                                  = render 'company/contracts/partials/approval', approvals: @contract.buy_contract.approvals.where(approvable_type: 'slaray_process')
+                                %a.fa.fa-plus.fa-3x.pull-right.add_contacts{"data-toggle": "modal", "data-target":"#buy_approval", id: 'slaray_process'}
                   .row
                     .col-md-12
                       .form-group
@@ -292,15 +355,21 @@
                           .col-md-3
                             .b-sal-cal
                               %div{:class => "form-group daily #{bc.object.salary_calculation != 'daily' ? 'hidden' : ''}"}
-                                %label.control-label
+                                %label.control-label.w-100
                                   Select Time
-                                  = bc.text_field :sclr_day_time, class: "form-contro con-time"
-                              %div{:class => "form-group week #{bc.object.salary_calculation != 'weekly' ? 'hidden' : ''}"}
+                                  = bc.text_field :sclr_day_time, class: "form-contro con-time time-input"
+                              %div{:class => "form-group week #{bc.object.salary_calculation != 'weekly' && bc.object.salary_calculation != 'weekly' ? 'hidden' : ''}"}
                                 %label.control-label
                                   Select day of week
                                 .select
                                   .plain-select
-                                    = bc.select :sclr_day_of_week, [["Every Monday", "mon"], ["Every Tuesday", "tue"], ["Every Wednesday", "wed"], ["Every Thursday", "thu"], ["Every Friday", "fri"], ["Every Saturday", "sat"], ["Every Sunday", "sun"]], {},{class: "form-contro" }
+                                    = bc.select :sclr_day_of_week, [["Every Monday", "mon"], ["Every Tuesday", "tue"], ["Every Wednesday", "wed"], ["Every Thursday", "thu"], ["Every Friday", "fri"], ["Every Saturday", "sat"], ["Every Sunday", "sun"]], {},{class: "form-contro height-45" }
+                              %div{:class => "form-group biweek #{bc.object.salary_calculation != 'biweekly' ? 'hidden' : ''}"}
+                                %label.control-label
+                                  Select Second day of week
+                                .select
+                                  .plain-select
+                                    = bc.select :sclr_2day_of_week, [["Every Monday", "mon"], ["Every Tuesday", "tue"], ["Every Wednesday", "wed"], ["Every Thursday", "thu"], ["Every Friday", "fri"], ["Every Saturday", "sat"], ["Every Sunday", "sun"]], {},{class: "form-contro height-45" }
                               %div{:class => "form-group month #{['twice a month', 'monthly'].include?(bc.object.salary_calculation) ? '' : 'hidden'}"}
                                 %label.control-label
                                   Select date
@@ -318,13 +387,13 @@
                               %label.control-label
                                 Select Term
                               .select
-                                = bc.select :term_no, options_for_select( (1..30).to_a+['End of month'],current_company&.payroll_infos&.first&.term_no), {}, {class: 'form-control'}
+                                = bc.select :term_no, options_for_select( (1..30).to_a+['End of month'],current_company&.payroll_infos&.first&.term_no), {}, {class: 'form-control height-45'}
                               .b-sal-cal
                                 %div{:class => "form-group twice-month #{bc.object.salary_calculation != 'twice a month' ? 'hidden' : ''}"}
                                   %label.control-label
                                     Select Term 2
                                   .select
-                                    = bc.select :term_no_2, options_for_select( (1..30).to_a+['End of month'],current_company&.payroll_infos&.first&.term_no_2), {}, {class: 'form-control'}
+                                    = bc.select :term_no_2, options_for_select( (1..30).to_a+['End of month'],current_company&.payroll_infos&.first&.term_no_2), {}, {class: 'form-control height-45'}
 
                           .col-md-3
                             .b-sal-cal1
@@ -334,31 +403,44 @@
                                 Select Payroll
                               .select.payroll
                                 .plain-select.payroll-term
-
+                                  - #TODO: change the below select
+                                  = bc.select :term_no_2, options_for_select( (1..30).to_a+['End of month'],current_company&.payroll_infos&.first&.term_no_2), {}, {class: 'form-control height-45'}
                             .b-sal-cal
                               %div{:class => "form-group twice-month #{bc.object.salary_calculation != 'twice a month' ? 'hidden' : ''}"}
                                 %label.control-label
                                   Select Payroll 2
                                 .select.payrol-2
                                   .plain-select.payroll-term-2
+                                    - #TODO: change the below select
+                                    = bc.select :term_no_2, options_for_select( (1..30).to_a+['End of month'],current_company&.payroll_infos&.first&.term_no_2), {}, {class: 'form-control height-45'}
                 #tab-buy-cc.tab-pane.padding-top-15
+                  .contract-fields_wrapper.mt-4
+                    %div
+                      .widget-body
+                        .col-md-4
+                          .form-group
+                            %label.control-label
+                              Payroll Date
+                              %sup.text-danger *
+                            .select
+                              .row
+                                = bc.text_field :payroll_date, value: current_company&.payroll_infos&.first&.payroll_date, class: "date_1"
                   .row
                     .col-md-12
                       .form-group
                         =bc.nested_fields_for :contract_sale_commisions do |custom_field|
                           = render 'company/contracts/contract_sale_commisions_fields', f: custom_field
-                      %strong
                         .links
-                          = link_to_add_association '+ Add Sale Comission', bc, :contract_sale_commisions, class: 'bttn text-info pull-left', partial: 'company/contracts/contract_sale_commisions_fields'
-                          %br/
-                    .col-md-4
-                      .form-group
-                        %label.control-label
-                          Payroll Date
-                          %sup.text-danger *
-                        .select
-                          .row
-                            = bc.text_field :payroll_date, value: current_company&.payroll_infos&.first&.payroll_date, class: "date_1"
+                          = link_to_add_association '+ Add Sale Comission', bc, :contract_sale_commisions, class: 'btn btn-sm btn-secondary float-right margin-bottom-10', partial: 'company/contracts/contract_sale_commisions_fields'
+                #tab-buy-integration.tab-pane.padding-top-15
+                  .row.integration
+                    .col-md-6
+                      %label.control-label.w-100
+                        Transaction Reference
+                      = select_tag 'assign_to', options_from_collection_for_select(current_company&.company_contacts, "id", 'full_name'), include_blank: 'Please select',class: 'form-control height-45'
+                    .col-md-6.button_main
+                      %a.btn.btn-sm.btn-secondary.float-right{href: '#', title: 'Add More'} Add More
+
       .contract-fields_wrapper.mt-4
         .row
           %label.control-label  Employye/Vender Documents
@@ -447,6 +529,7 @@
 = render 'company/contracts/buy_send_documents_modal', contract: @contract
 = render 'company/contracts/buy_emp_req_docs_modal', contract: @contract
 = render 'company/contracts/partials/buy_ven_req_docs_modal', contract: @contract
+= render 'company/contracts/partials/buy_approval_modal',contract: @contract, contractable_type: @contract.buy_contract.class.name, contractable_id: @contract.buy_contract.id
 -#.row
 -#  %label.control-label  Employye/Vender Documents
 -#  .col-md-12.contract-attachment
@@ -508,19 +591,22 @@
 
     $('#contract_buy_contracts_attributes_0_payment_term_2').val(#{current_company&.payroll_infos&.first&.payroll_term_2})
 
-    $(".buy-sal-cal").on("change", function(){
-      $('.plain-select.payroll-term').find('.month-terms').remove();
-      $(".b-sal-cal").children().addClass("hidden");
-      if($(this).val() == "daily"){
-        $(".b-sal-cal").find('.daily').removeClass("hidden");
-      } else if($(this).val() == "weekly" || $(this).val() == "biweekly"){
-        $(".b-sal-cal").find('.week').removeClass("hidden");
-        $('.plain-select.payroll-term').html("<select class='form-control' name='contract[buy_contracts_attributes][0][payment_term]' id='contract_buy_contracts_attributes_0_payment_term'><option value='1'>1 Day</option> <option value='2'>1 Days</option> <option value='3'>3 Days</option> <option value='4'>4 Days</option> <option value='5'>5 Days</option> <option value='6'>6 Days</option> <option value='7'>7 Days</option> <option value='14'>14 Days</option></select>")
-      } else if($(this).val() == "twice a month"){
-      } else if($(this).val() == "monthly" || $(this).val() == "twice a month"){
-        $(".b-sal-cal").find('.twice-month, .month').removeClass("hidden");
-        $(".term-no").find('.select').removeClass('hidden')
-        $(".term-no").find('.control-label').removeClass('hidden')
-        $('.plain-select.payroll-term').html("<select class='form-control month-term' name='contract[buy_contracts_attributes][0][payment_term]' id='contract_buy_contracts_attributes_0_payment_term'><option value='0'>Current month</option> <option value='1'>1 previous month</option> <option value='2'>2 previous month</option></select>")
-      }
-    });
+    // $(".buy-sal-cal").on("change", function(){
+    // debugger;
+    //   $('.plain-select.payroll-term').find('.month-terms').remove();
+    //   $(".b-sal-cal").children().addClass("hidden");
+    //   if($(this).val() == "daily"){
+    //     $(".b-sal-cal").find('.daily').removeClass("hidden");
+    //   } else if($(this).val() == "weekly" || $(this).val() == "biweekly"){
+    //     $(".b-sal-cal").find('.week').removeClass("hidden");
+    //      if ($(this).val() == "biweekly"){
+    //         $(".b-sal-cal").find('.biweek').removeClass("hidden");
+    //     }
+    //   } else if($(this).val() == "twice a month"){
+    //   } else if($(this).val() == "monthly" || $(this).val() == "twice a month"){
+    //     $(".b-sal-cal").find('.twice-month, .month').removeClass("hidden");
+    //     $(".term-no").find('.select').removeClass('hidden')
+    //     $(".term-no").find('.control-label').removeClass('hidden')
+    //     $('.plain-select.payroll-term').html("<select class='form-control month-term' name='contract[buy_contracts_attributes][0][payment_term]' id='contract_buy_contracts_attributes_0_payment_term'><option value='0'>Current month</option> <option value='1'>1 previous month</option> <option value='2'>2 previous month</option></select>")
+    //   }
+    // });

@@ -1,0 +1,51 @@
+- if @cycle_frequency and @cycle_frequency == "monthly" || @cycle_frequency == "twice a month"
+  .element-wrapper.p-4
+    - @timesheets&.each do |timesheet|
+      %h6.element-header= "Contract-#{timesheet.contract.id}/Timesheet-#{timesheet.id} from #{timesheet.start_date.strftime("%Y-%m-%d")} - #{timesheet.end_date.strftime("%Y-%m-%d")}"
+      .element-box
+        = form_for timesheet, url: candidate_timesheet_path(timesheet), method: "put" do |tf|
+          -timesheet.transactions.each_with_index do |transaction,index|
+            .d-inline-block
+              %p.mb-1.mt-1= transaction.start_time.strftime("%Y-%m-%d")
+              %input{id: "timesheet_transactions_attributes_#{index}_total_time",:name => "timesheet[transactions_attributes][#{index}][total_time]", :style => "width: 100px",disabled: transaction.start_time <= DateTime.now ? false : true, :type => "number", :value => "#{transaction.total_time}"}/
+              %input{id: "timesheet_transactions_attributes_#{index}_id",:name => "timesheet[transactions_attributes][#{index}][id]", :type => "hidden", :value => "#{transaction.id}"}/
+          =tf.submit :save, class:"btn btn-secondary btn-sm" unless timesheet.submitted?
+          =link_to :submit, candidate_timesheet_submit_timesheet_path(timesheet), class: "btn btn-secondary btn-sm" if timesheet.end_date <= DateTime.now and !timesheet.submitted?
+-else
+  .table-responsive.p-4
+    %table.table.table-bordred
+      %thead
+        %tr
+          %th Contract/Timesheet Id
+          %th Duration
+          %th.have-nested_headers
+            .nested_headers MON
+            .nested_headers TUE
+            .nested_headers WED
+            .nested_headers THU
+            .nested_headers FRI
+            .nested_headers SAT
+            .nested_headers SUN
+            .nested_headers Actions
+      %tbody
+        - @timesheets&.each do |timesheet|
+          %tr
+            %td= "Contract-#{timesheet.contract.id}/Timesheet-#{timesheet.id}"
+            %td= "#{timesheet.start_date.strftime("%Y-%m-%d")} - #{timesheet.end_date.strftime("%Y-%m-%d")}"
+            %td
+              = form_for timesheet, url: candidate_timesheet_path(timesheet), method: "put" do |tf|
+                %table
+                  %tbody
+                    %tr
+                      -(0..6).each do |index|
+                        - transaction = get_day_transaction(index,tf.object.transactions)
+                        %td{style: "border-top: none !important"}
+                          - if transaction
+                            %input{id: "timesheet_transactions_attributes_#{index}_total_time",:name => "timesheet[transactions_attributes][#{index}][total_time]", :style => "width: 100%", disabled: transaction.start_time <= DateTime.now ? false : true,:type => "number", :value => "#{transaction.total_time}"}/
+                            %input{id: "timesheet_transactions_attributes_#{index}_id",:name => "timesheet[transactions_attributes][#{index}][id]", :type => "hidden", :value => "#{transaction.id}"}/
+                          - else
+                            %input{name:"no_transaction", disabled: "disabled",:style => "width: 100%",value:"0", type:"number"}
+                          -#=tt.number_field :total_time, style: "width: 100%"
+                      %td{style: "border-top: none !important;"}
+                        = tf.submit :save,class: "btn btn-secondary btn-sm" unless timesheet.submitted?
+                        =link_to :submit, candidate_timesheet_submit_timesheet_path(timesheet), class: "btn btn-secondary btn-sm" if timesheet.end_date <= DateTime.now and !timesheet.submitted?

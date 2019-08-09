@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema.define(version: 20190731101337) do
+ActiveRecord::Schema.define(version: 20190807142608) do
 
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
@@ -78,6 +78,16 @@ ActiveRecord::Schema.define(version: 20190731101337) do
     t.datetime "updated_at", null: false
     t.index ["email"], name: "index_admin_users_on_email", unique: true
     t.index ["reset_password_token"], name: "index_admin_users_on_reset_password_token", unique: true
+  end
+
+  create_table "approvals", force: :cascade do |t|
+    t.bigint "user_id"
+    t.string "contractable_type"
+    t.bigint "contractable_id"
+    t.integer "approvable_type"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.bigint "company_id"
   end
 
   create_table "attachable_docs", id: :serial, force: :cascade do |t|
@@ -251,6 +261,15 @@ ActiveRecord::Schema.define(version: 20190731101337) do
     t.string "ven_term_2"
     t.string "ven_term_num_1"
     t.string "ven_term_num_2"
+    t.string "ts_2day_of_week"
+    t.string "ta_2day_of_week"
+    t.string "invoice_2day_of_week"
+    t.string "ce_2day_of_week"
+    t.string "ce_in_2day_of_week"
+    t.string "pr_2day_of_week"
+    t.string "sc_2day_of_week"
+    t.string "sp_2day_of_week"
+    t.string "sclr_2day_of_week"
     t.index ["candidate_id"], name: "index_buy_contracts_on_candidate_id"
     t.index ["contract_id"], name: "index_buy_contracts_on_contract_id"
   end
@@ -726,6 +745,7 @@ ActiveRecord::Schema.define(version: 20190731101337) do
     t.datetime "next_action_date"
     t.date "doc_date"
     t.date "post_date"
+    t.bigint "cycle_frequency"
     t.index ["candidate_id"], name: "index_contract_cycles_on_candidate_id"
     t.index ["company_id"], name: "index_contract_cycles_on_company_id"
     t.index ["contract_id"], name: "index_contract_cycles_on_contract_id"
@@ -1584,6 +1604,13 @@ ActiveRecord::Schema.define(version: 20190731101337) do
     t.date "ce_in_date_2"
     t.string "ce_in_day_of_week"
     t.boolean "ce_in_end_of_month", default: false
+    t.string "ts_2day_of_week"
+    t.string "ta_2day_of_week"
+    t.string "invoice_2day_of_week"
+    t.string "ce_2day_of_week"
+    t.string "ce_in_2day_of_week"
+    t.string "pr_2day_of_week"
+    t.string "ce_ap_2day_of_week"
     t.index ["company_id"], name: "index_sell_contracts_on_company_id"
     t.index ["contract_id"], name: "index_sell_contracts_on_contract_id"
   end
@@ -1732,7 +1759,7 @@ ActiveRecord::Schema.define(version: 20190731101337) do
   end
 
   create_table "transactions", id: :serial, force: :cascade do |t|
-    t.integer "timesheet_log_id"
+    t.integer "timesheet_id"
     t.datetime "start_time"
     t.datetime "end_time"
     t.integer "total_time", default: 0
@@ -1741,7 +1768,7 @@ ActiveRecord::Schema.define(version: 20190731101337) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.string "file"
-    t.index ["timesheet_log_id"], name: "index_transactions_on_timesheet_log_id"
+    t.index ["timesheet_id"], name: "index_transactions_on_timesheet_id"
   end
 
   create_table "user_certificates", force: :cascade do |t|

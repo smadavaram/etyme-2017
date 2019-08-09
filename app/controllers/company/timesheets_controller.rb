@@ -1,19 +1,19 @@
 class Company::TimesheetsController < Company::BaseController
 
   include Company::ChangeRatesHelper
-  before_action :find_timesheet , except: [:index]
+  before_action :find_timesheet, except: [:index]
   # before_action :received_timesheet , only: [:approve]
   # before_action :set_timesheets , only: [:index]
 
-  before_action :authorized_user , only: [:show,:approve]
+  before_action :authorized_user, only: [:show, :approve]
 
-  add_breadcrumb "TIMESHEETS", :timesheets_path, options: { title: "TIMESHEETS" }
+  add_breadcrumb "TIMESHEETS", :timesheets_path, options: {title: "TIMESHEETS"}
 
   include CandidateHelper
   include Company::ChangeRatesHelper
 
   def index
-    @timesheets = current_company.timesheets.includes(contract: [:change_rates ,buy_contract: [:company, :candidate]]).submitted_timesheets.paginate(page: params[:page], per_page: 10).order(id: :desc)
+    @timesheets = current_company.timesheets.includes(contract: [:change_rates, buy_contract: [:company, :candidate]]).submitted_timesheets.paginate(page: params[:page], per_page: 10).order(id: :desc)
     # @rec_search = current_company.received_timesheets.search(params[:q])
     # @received_timesheets   = @rec_search.result(distinct: true).paginate(page: params[:page], per_page: 10) || []
   end
@@ -60,7 +60,7 @@ class Company::TimesheetsController < Company::BaseController
   end
 
   def submit
-    @timesheet_approver = current_user.timesheet_approvers.new(timesheet_id: @timesheet.id , status: Timesheet.statuses[:submitted].to_i)
+    @timesheet_approver = current_user.timesheet_approvers.new(timesheet_id: @timesheet.id, status: Timesheet.statuses[:submitted].to_i)
     if @timesheet_approver.save
       flash[:success] = "Successfully Submitted"
     else
@@ -70,9 +70,12 @@ class Company::TimesheetsController < Company::BaseController
   end
 
   def reject
-    @timesheet.update_attributes(status: 'open')
-    @timesheet.retire_on_reject_seq
-    flash[:errors] = 'Timesheet rejected !'
+    if @timesheet.open!
+      flash[:success] = "Successfully Rejected The Timesheet"
+    else
+      flash[:errors] = ['Timesheet rejected !']
+    end
+    # @timesheet.retire_on_reject_seq
     redirect_back fallback_location: root_path
     # if current_user.timesheet_approvers.create!(timesheet_id: @timesheet.id , status: Timesheet.statuses[:rejected].to_i)
     #   @timesheet.rejected!
@@ -84,91 +87,98 @@ class Company::TimesheetsController < Company::BaseController
   end
 
   def approve
-    i = 0
-    # if current_user.timesheet_approvers.create!(timesheet_id: @timesheet.id , status: Timesheet.statuses[:approved].to_i)
-    rate = get_rate(@timesheet.start_date, @timesheet.contract_id, 'buy')
-    if @timesheet.update_attributes(status: "approved", amount: rate*@timesheet.total_time)
-      i += 1
-      con_cycle = ContractCycle.find(@timesheet.ta_cycle_id)
-      arr = Timesheet.where(ta_cycle_id: @timesheet.ta_cycle_id).pluck(:ta_cycle_id).uniq.compact.first
-
-      total_count = Timesheet.where(ta_cycle_id: arr).count
-      approved_count = Timesheet.where(ta_cycle_id: arr, status: 'approved').count
-      if total_count == approved_count
-        con_cycle.update_attributes(completed_at: Time.now, status: "completed")
-      end
-
-
-      # if con_cycle.end_date.utc.to_date-1.day == @timesheet.end_date
-      #   con_cycle.update_attributes(completed_at: Time.now, status: "completed")
-      # end
-      # @timesheet.contract.invoice_generate(con_cycle)
-
-      invoices = @timesheet.contract.invoices.where(invoice_type: 'timesheet_invoice').where("(start_date <= ? AND end_date >= ?) OR (start_date <= ? AND end_date >= ?)", @timesheet.start_date, @timesheet.start_date, @timesheet.end_date, @timesheet.end_date)
-      invoices.each do |i|
-        hours = 0
-        if @timesheet.start_date >= i.start_date && @timesheet.end_date <= i.end_date
-          i.update_attributes(total_approve_time: (i.total_approve_time+@timesheet.total_time), balance: (i.balance + (@timesheet.total_time * get_rate(@timesheet.start_date , @timesheet.contract_id, 'sell' ))))
-          @timesheet.update(inv_numbers: (@timesheet.inv_numbers+[i.id]))
-        else
-          @timesheet.days.each do |t|
-            if i.start_date <= t[0] && t[0] <= i.end_date
-              hours += t[1].to_i
-            end
-          end
-          i.update(total_approve_time: (i.total_approve_time+hours))
-          @timesheet.update(inv_numbers: (@timesheet.inv_numbers+[i.id]))
-        end
-      end
-      csca_accounts = CscAccount.where(contract_id: @timesheet.contract_id)
-      # binding.pry
-      csca_accounts.each do |csca|
-        if csca.contract_sale_commision.limit.to_i > (csca.total_amount.to_i+@timesheet&.total_time*csca&.contract_sale_commision&.rate.to_i)
-          # binding.pry
-          csca.update(total_amount: (csca&.total_amount+@timesheet&.total_time*csca&.contract_sale_commision&.rate.to_i).to_i)
-          csca.set_commission_on_seq(@timesheet&.total_time*csca&.contract_sale_commision&.rate.to_i)     
-        else
-          csca.set_commission_on_seq(csca.contract_sale_commision.limit.to_i - csca&.total_amount.to_i)
-          csca.update(total_amount: (csca.contract_sale_commision.limit.to_i))
-        end
-      end
-
-
-      # salaries = @timesheet.contract.salaries.where("(start_date <= ? AND end_date >= ?) OR (start_date <= ? AND end_date >= ?)", @timesheet.start_date, @timesheet.start_date, @timesheet.end_date, @timesheet.end_date)
-      # salaries.each do |i|
-      #   hours = 0
-      #   if @timesheet.start_date >= i.start_date && @timesheet.end_date <= i.end_date
-      #     i.update_attributes(total_approve_time: (i.total_approve_time+@timesheet.total_time), balance: (i.balance + (@timesheet.total_time * i.rate)))
-      #     @timesheet.update(inv_numbers: (@timesheet.inv_numbers+[i.id]))
-      #   else
-      #     @timesheet.days.each do |t|
-      #       if i.start_date <= t[0] && t[0] <= i.end_date
-      #         hours += t[1].to_i
-      #       end
-      #     end
-      #     i.update(total_approve_time: (i.total_approve_time+hours))
-      #   end
-      # end
-
-      # @timesheet.contract.invoices.where("start_date <= ? AND end_date >= ?", self.start_date, self.start_date )
-      # timesheets = self.contract.timesheets.where("start_date >= ? AND start_date <= ?", self.start_date, self.end_date )
-      # hours = 0
-      # timesheets.each do |t|
-      #   if t.start_date >= self.start_date && t.end_date <= self.end_date
-      #     hours += t.total_time
-      #     t.update(inv_numbers: (t.inv_numbers+[t.id]))
-      #   else
-      #     # t.days.each
-      #   end
-      # end
-
-
-      @timesheet.set_ta_on_seq
-      flash[:success] = "Successfully Approved"
+    if @timesheet.approved!
+      @timesheet.contract_cycle.update(status: "completed")
+      flash[:success] = "Successfully Approved The Timesheet"
     else
       flash[:errors] = @timesheet.errors.full_messages
     end
-    redirect_back fallback_location: root_path
+    redirect_back(fallback_location: root_path)
+    # i = 0
+    # # if current_user.timesheet_approvers.create!(timesheet_id: @timesheet.id , status: Timesheet.statuses[:approved].to_i)
+    # rate = get_rate(@timesheet.start_date, @timesheet.contract_id, 'buy')
+    # if @timesheet.update_attributes(status: "approved", amount: rate*@timesheet.total_time)
+    #   i += 1
+    #   con_cycle = ContractCycle.find(@timesheet.ta_cycle_id)
+    #   arr = Timesheet.where(ta_cycle_id: @timesheet.ta_cycle_id).pluck(:ta_cycle_id).uniq.compact.first
+    #
+    #   total_count = Timesheet.where(ta_cycle_id: arr).count
+    #   approved_count = Timesheet.where(ta_cycle_id: arr, status: 'approved').count
+    #   if total_count == approved_count
+    #     con_cycle.update_attributes(completed_at: Time.now, status: "completed")
+    #   end
+    #
+    #
+    #   # if con_cycle.end_date.utc.to_date-1.day == @timesheet.end_date
+    #   #   con_cycle.update_attributes(completed_at: Time.now, status: "completed")
+    #   # end
+    #   # @timesheet.contract.invoice_generate(con_cycle)
+    #
+    #   invoices = @timesheet.contract.invoices.where(invoice_type: 'timesheet_invoice').where("(start_date <= ? AND end_date >= ?) OR (start_date <= ? AND end_date >= ?)", @timesheet.start_date, @timesheet.start_date, @timesheet.end_date, @timesheet.end_date)
+    #   invoices.each do |i|
+    #     hours = 0
+    #     if @timesheet.start_date >= i.start_date && @timesheet.end_date <= i.end_date
+    #       i.update_attributes(total_approve_time: (i.total_approve_time+@timesheet.total_time), balance: (i.balance + (@timesheet.total_time * get_rate(@timesheet.start_date , @timesheet.contract_id, 'sell' ))))
+    #       @timesheet.update(inv_numbers: (@timesheet.inv_numbers+[i.id]))
+    #     else
+    #       @timesheet.days.each do |t|
+    #         if i.start_date <= t[0] && t[0] <= i.end_date
+    #           hours += t[1].to_i
+    #         end
+    #       end
+    #       i.update(total_approve_time: (i.total_approve_time+hours))
+    #       @timesheet.update(inv_numbers: (@timesheet.inv_numbers+[i.id]))
+    #     end
+    #   end
+    #   csca_accounts = CscAccount.where(contract_id: @timesheet.contract_id)
+    #   # binding.pry
+    #   csca_accounts.each do |csca|
+    #     if csca.contract_sale_commision.limit.to_i > (csca.total_amount.to_i+@timesheet&.total_time*csca&.contract_sale_commision&.rate.to_i)
+    #       # binding.pry
+    #       csca.update(total_amount: (csca&.total_amount+@timesheet&.total_time*csca&.contract_sale_commision&.rate.to_i).to_i)
+    #       csca.set_commission_on_seq(@timesheet&.total_time*csca&.contract_sale_commision&.rate.to_i)
+    #     else
+    #       csca.set_commission_on_seq(csca.contract_sale_commision.limit.to_i - csca&.total_amount.to_i)
+    #       csca.update(total_amount: (csca.contract_sale_commision.limit.to_i))
+    #     end
+    #   end
+    #
+    #
+    #   # salaries = @timesheet.contract.salaries.where("(start_date <= ? AND end_date >= ?) OR (start_date <= ? AND end_date >= ?)", @timesheet.start_date, @timesheet.start_date, @timesheet.end_date, @timesheet.end_date)
+    #   # salaries.each do |i|
+    #   #   hours = 0
+    #   #   if @timesheet.start_date >= i.start_date && @timesheet.end_date <= i.end_date
+    #   #     i.update_attributes(total_approve_time: (i.total_approve_time+@timesheet.total_time), balance: (i.balance + (@timesheet.total_time * i.rate)))
+    #   #     @timesheet.update(inv_numbers: (@timesheet.inv_numbers+[i.id]))
+    #   #   else
+    #   #     @timesheet.days.each do |t|
+    #   #       if i.start_date <= t[0] && t[0] <= i.end_date
+    #   #         hours += t[1].to_i
+    #   #       end
+    #   #     end
+    #   #     i.update(total_approve_time: (i.total_approve_time+hours))
+    #   #   end
+    #   # end
+    #
+    #   # @timesheet.contract.invoices.where("start_date <= ? AND end_date >= ?", self.start_date, self.start_date )
+    #   # timesheets = self.contract.timesheets.where("start_date >= ? AND start_date <= ?", self.start_date, self.end_date )
+    #   # hours = 0
+    #   # timesheets.each do |t|
+    #   #   if t.start_date >= self.start_date && t.end_date <= self.end_date
+    #   #     hours += t.total_time
+    #   #     t.update(inv_numbers: (t.inv_numbers+[t.id]))
+    #   #   else
+    #   #     # t.days.each
+    #   #   end
+    #   # end
+    #
+    #
+    #   @timesheet.set_ta_on_seq
+    #   flash[:success] = "Successfully Approved"
+    # else
+    #   flash[:errors] = @timesheet.errors.full_messages
+    # end
+    # redirect_back fallback_location: root_path
   end
 
   def authorized_user
@@ -220,7 +230,7 @@ class Company::TimesheetsController < Company::BaseController
   end
 
   def find_timesheet
-    @timesheet = Timesheet.find_sent_or_received(params[:id] || params[:timesheet_id] , current_company)
+    @timesheet = Timesheet.find_sent_or_received(params[:id] || params[:timesheet_id], current_company)
   end
 
   def received_timesheet
@@ -229,9 +239,9 @@ class Company::TimesheetsController < Company::BaseController
 
   def set_timesheets
     @search = current_company.timesheets.search(params[:q])
-    @timesheets       = @search.result(distinct: true).paginate(page: params[:page], per_page: 10) || []
+    @timesheets = @search.result(distinct: true).paginate(page: params[:page], per_page: 10) || []
     @rec_search = current_company.received_timesheets.search(params[:q])
-    @received_timesheets   = @rec_search.result(distinct: true).paginate(page: params[:page], per_page: 10) || []
+    @received_timesheets = @rec_search.result(distinct: true).paginate(page: params[:page], per_page: 10) || []
   end
 
   def get_next_invoice_date(contract)

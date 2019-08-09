@@ -3,7 +3,7 @@ class Timesheet < ApplicationRecord
   include Rails.application.routes.url_helpers
 
   # enum status: [:open,:pending_review, :approved , :partially_approved , :rejected , :submitted , :invoiced]
-  enum status: [:open, :submitted, :approved , :partially_approved, :rejected, :invoiced]
+  enum status: [:open, :submitted, :approved, :partially_approved, :rejected, :invoiced]
 
   belongs_to :company, optional: true
   belongs_to :contract, optional: true
@@ -11,9 +11,13 @@ class Timesheet < ApplicationRecord
   belongs_to :job, optional: true
   belongs_to :invoice, optional: true
   belongs_to :candidate, optional: true
-  has_many   :timesheet_logs , dependent: :destroy
+
+  has_one :contract_cycle, as: :cyclable
+
+  # has_many   :timesheet_logs , dependent: :destroy
   has_many   :timesheet_approvers  , dependent: :destroy
-  has_many   :transactions  , through: :timesheet_logs
+  has_many :transactions
+  # has_many   :transactions  , through: :timesheet_logs
 
   has_many :contract_salary_histories ,as: :salable, dependent: :destroy
 
@@ -21,13 +25,15 @@ class Timesheet < ApplicationRecord
   belongs_to :ts_cycle, optional: true, foreign_key: :ts_cycle_id, class_name: 'ContractCycle'
   belongs_to :ta_cycle, optional: true, foreign_key: :ta_cycle_id, class_name: 'ContractCycle'
 
+  accepts_nested_attributes_for :transactions
+
   # before_validation :set_recurring_timesheet_cycle
   after_update  :set_ts_on_seq, if: Proc.new{|t| t.status_changed? && t.submitted? && t.total_time.to_f > 0}
   # after_update  :set_ta_on_seq, if: Proc.new{|t| t.status_changed? && t.approved? && t.total_time.to_f > 0}
 
   # after_create  :create_timesheet_logs
   # after_create  :notify_timesheet_created
-  after_update :update_pending_timesheet_logs, if: Proc.new{|t| t.status_changed? && t.approved?}
+  # after_update :update_pending_timesheet_logs, if: Proc.new{|t| t.status_changed? && t.approved?}
 
   after_update :set_contract_salary_histories, if: Proc.new{|t| t.status_changed? && t.approved?}
 
@@ -43,9 +49,15 @@ class Timesheet < ApplicationRecord
   scope :submitted_timesheets, -> {where(status: :submitted)}
   scope :approved_timesheets, -> {where(status: :approved)}
   scope :invoice_timesheets, -> (invoice) {where(contract_id: invoice.contract_id).where("start_date >= ? AND end_date <= ?", invoice.start_date, invoice.end_date).order(id: :desc)}
+  scope :upcomming_timesheets, -> {where('DATE(start_date) > ?', DateTime.now.end_of_day.to_date)}
+  scope :timesheet_by_frequency, ->(type,candidate){where(id: candidate.contract_cycles.send(type).where(cyclable_type: "Timesheet").pluck(:cyclable_id))}
 
   def assignee
     self.contract.assignee
+  end
+
+  def can_approve?(user,company)
+    current_company.approvals.timesheet.pluck(:user_id).include?(user.id)
   end
 
   def self.find_sent_or_received(timesheet_id , obj)
@@ -157,40 +169,45 @@ class Timesheet < ApplicationRecord
     end
   end
 
-  def submitted(timesheet_params, days, total_time)
-    self.assign_attributes(timesheet_params)
-    self.days = days
-    self.total_time = total_time
-    self.status = 'submitted'
-    self.save
-    con_cycle = ContractCycle.find(self.ts_cycle_id)
-    # binding.pry
-    con_cycle.update_attributes(completed_at: Time.now, status: "completed")
-    con_cycle_ta_start_date = Timesheet.set_con_cycle_ta_date(con_cycle&.contract&.buy_contract, con_cycle)
-    # binding.pry
-    con_cycle_ta = ContractCycle.where(contract_id: con_cycle.contract_id,
-                                        company_id: self.contract.sell_contract.company_id,
-                                        note: "Timesheet Approve",
-                                        cycle_type: "TimesheetApprove",
-                                        next_action: "InvoiceGenerate"
-    ).where("DATE(end_date) = ?", con_cycle_ta_start_date.end_of_day.to_date).first
-    # binding.pry
-    # unless con_cycle_ta
-    #   con_cycle_ta = ContractCycle.create(contract_id: con_cycle.contract_id,
-    #                                       start_date: con_cycle_ta_start_date,
-    #                                       end_date: (con_cycle_ta_start_date.end_of_day),
-    #                                       cyclable: self,
-    #                                       company_id: self.contract.sell_contracts.first.company_id,
-    #                                       note: "Timesheet Approve",
-    #                                       cycle_date: Time.now,
-    #                                       cycle_type: "TimesheetApprove",
-    #                                       next_action: "InvoiceGenerate"
-    #   )
-    # end
-    # con_cycle_ta.update_attributes(cycle_date: Time.now)
-    # binding.pry
-    self.update_attributes(ta_cycle_id: con_cycle_ta.id)
+  def submitted
+    update(status: :submitted)
+    contract_cycle.update(status: :completed)
   end
+
+  # def submitted(timesheet_params, days, total_time)
+  #   self.assign_attributes(timesheet_params)
+  #   self.days = days
+  #   self.total_time = total_time
+  #   self.status = 'submitted'
+  #   self.save
+  #   con_cycle = ContractCycle.find(self.ts_cycle_id)
+  #   # binding.pry
+  #   con_cycle.update_attributes(completed_at: Time.now, status: "completed")
+  #   con_cycle_ta_start_date = Timesheet.set_con_cycle_ta_date(con_cycle&.contract&.buy_contract, con_cycle)
+  #   # binding.pry
+  #   con_cycle_ta = ContractCycle.where(contract_id: con_cycle.contract_id,
+  #                                       company_id: self.contract.sell_contract.company_id,
+  #                                       note: "Timesheet Approve",
+  #                                       cycle_type: "TimesheetApprove",
+  #                                       next_action: "InvoiceGenerate"
+  #   ).where("DATE(end_date) = ?", con_cycle_ta_start_date.end_of_day.to_date).first
+  #   # binding.pry
+  #   # unless con_cycle_ta
+  #   #   con_cycle_ta = ContractCycle.create(contract_id: con_cycle.contract_id,
+  #   #                                       start_date: con_cycle_ta_start_date,
+  #   #                                       end_date: (con_cycle_ta_start_date.end_of_day),
+  #   #                                       cyclable: self,
+  #   #                                       company_id: self.contract.sell_contracts.first.company_id,
+  #   #                                       note: "Timesheet Approve",
+  #   #                                       cycle_date: Time.now,
+  #   #                                       cycle_type: "TimesheetApprove",
+  #   #                                       next_action: "InvoiceGenerate"
+  #   #   )
+  #   # end
+  #   # con_cycle_ta.update_attributes(cycle_date: Time.now)
+  #   # binding.pry
+  #   self.update_attributes(ta_cycle_id: con_cycle_ta.id)
+  # end
 
   def self.set_con_cycle_ta_date(buy_contract, con_cycle)
     @ta_type = buy_contract&.ts_approve

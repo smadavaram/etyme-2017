@@ -1,6 +1,10 @@
 class ContractCycle < ApplicationRecord
-  CYCLETYPES = [ "TimesheetSubmit", "TimesheetApprove", "InvoiceGenerate", "SalaryCalculation", 'SalaryProcess', 'SalaryClear', 'CommissionCalculation', 'CommissionProcess', 'CommissionClear', 'VendorBillCalculation', 'ClientBillCalculation', 'VendorPaymentProcess', 'VendorBillClear', 'ClientPaymentProcess', 'ClientBillClear', 'ClientExpenseCalculation', 'ClientExpenseApprove', 'ClientExpenseInvoice'  ]
-
+  CYCLETYPES = [ "TimesheetSubmit", "TimesheetApprove", "InvoiceGenerate",
+                 "SalaryCalculation", 'SalaryProcess', 'SalaryClear', 'CommissionCalculation',
+                 'CommissionProcess', 'CommissionClear', 'VendorBillCalculation', 'ClientBillCalculation',
+                 'VendorPaymentProcess', 'VendorBillClear', 'ClientPaymentProcess', 'ClientBillClear',
+                 'ClientExpenseCalculation', 'ClientExpenseApprove', 'ClientExpenseInvoice','ClientExpenseSubmission'  ]
+  enum cycle_frequency: ["daily","weekly","biweekly","monthly","twice a month"]
   belongs_to :contract, optional: true
   belongs_to :company, optional: true
   belongs_to :candidate, optional: true
@@ -18,7 +22,7 @@ class ContractCycle < ApplicationRecord
 
   scope :candidate_id, -> (candidate_id) { where candidate_id: candidate_id }
   scope :contract_id, -> (contract_id) { where contract_id: contract_id }
-  scope :note, -> (note) {where note: note}
+  scope :note, -> (note) {where cycle_type: note}
 
   scope :completed, -> {where(status: 'completed')}
   scope :overdue, -> {where('DATE(contract_cycles.end_date) < ?', DateTime.now.end_of_day.to_date)}
@@ -28,7 +32,9 @@ class ContractCycle < ApplicationRecord
     write_attribute(:next_action, new_next_action)
     self.next_action_date = get_next_action_date(new_next_action) unless self.next_action_date.present?
   end
-
+  def self.get_cycle_types
+    CYCLETYPES
+  end
   def get_next_action_date(new_next_action)
     case new_next_action
     when 'TimesheetApprove'

@@ -15,7 +15,7 @@
           #{cc&.doc_date&.strftime("%d %B %Y")}
         %br
         %br
-        = link_to cc.cyclable_type, get_cyclable_contracts_path(cyclable_id: cc.cyclable_id,cyclable_type: cc.cyclable_type), remote: :true, class: "btn", style: "background-color: #d6d6d6;color: #645d5d;" if ["Timesheet"].include?(cc.cyclable_type)
+        = link_to "Submit Timesheet", submit_timesheet_candidate_contracts_path(timesheet_id: cc.cyclable.id), remote: :true, class: "btn", style: "background-color: #d6d6d6;color: #645d5d;"
         %br
         Contract ID - #{cc.contract.id} - Cycle ID #{cc.id}
         %p.mb-0.submitted-name
