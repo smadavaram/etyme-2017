@@ -116,6 +116,17 @@ class Candidate < ApplicationRecord
   acts_as_taggable_on :skills, :designates
 
   validate :max_skill_size
+  def exp_words
+    days = (client_exp + designation_exp)
+    days < 365 ? "<div class='value'>#{days }</div> <div class='label'>day(s) experience</div>" : "<div class='value'>#{days/365}</div><div class='label'>year(s) experience</div>"
+  end
+  def client_exp
+    clients.map{|c| (c.end_date - c.start_date).to_i if c.start_date and c.end_date }.compact.sum
+  end
+
+  def designation_exp
+    designations.map{|c| (c.end_date - c.start_date).to_i if c.start_date and c.end_date }.compact.sum
+  end
 
   def max_skill_size
     errors[:skill_list] << "8 skills maximum" if skill_list.count > 8
@@ -244,6 +255,8 @@ class Candidate < ApplicationRecord
         }
     ) unless la.present?
   end
+
+
 
   def set_freelancer_company
     self.company_id = Company.find_by(company_type: :vendor, domain: 'freelancer.com')&.id if self.company_id.nil?

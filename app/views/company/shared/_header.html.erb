@@ -35,166 +35,294 @@
     </div>
     <!--------------------END - Messages Link in secondary top menu-------------------->
     <!--------------------START - Features Link in secondary top menu-------------------->
-    <div class="top-icon top-settings os-dropdown-trigger os-dropdown-position-left">
+    <div class="top-icon btn-header transparent pull-right open" id="quick-add">
       <i class="ti-plus"></i>
-      <div class="os-dropdown" style="width: 600px;">
-        <div class="icon-w">
-          <i class="os-icon os-icon-ui-46"></i>
-        </div>
-        <a class="mr-2 mb-2 btn btn-rounded" style="background-color:#0d1e73; color: white; " href="<%= new_company_candidate_path %>">
-          <span>Add Candidates</span>
-        </a>
-        <a class="mr-2 mb-2 btn btn-rounded" style="background-color:#0d1e73; color: white; " href="<%= new_company_company_path %>">
-          <span>Add Contacts</span>
-        </a>
-        <a class="mr-2 mb-2 btn btn-rounded" style="background-color:#0d1e73; color: white; " href="<%= new_job_path %>">
-          <span>Add Job</span>
-        </a>
-        <a class="mr-2 mb-2 btn btn-rounded" style="background-color:#0d1e73; color: white; " href="<%= new_contract_path %>">
-          <span>Add Contracts</span>
-        </a>
-
-        <ul style="display: inline-block; vertical-align: top; width: 180px;">
-          <li class="sub-header"><h6 class="text-white font-weight-bold">Payments</h6></li>
-          <li>
-            <a href="<%= nil %>">
-              <span>Vendor Bills</span>
-            </a>
-          </li>
-          <li>
-            <a href="<%= nil %>">
-              <span>Pay Vendor</span>
-            </a>
-          </li>
-          <li>
-            <a href="<%= nil %>">
-              <span>Salary Settlement</span>
-            </a>
-          </li>
-          <li>
-            <a href="<%= nil %>">
-              <span>Salary Processing</span>
-            </a>
-          </li>
-          <li>
-            <a href="<%= nil %>">
-              <span>Salary Clearing</span>
-            </a>
-          </li>
-
-          <br/>
-          <li class="sub-header"><h6 class="text-white font-weight-bold">Orders</h6></li>
-          <li>
-            <a href="<%= candidate_timesheets_path %>">
-              <span>Submit Timesheets</span>
-            </a>
-          </li>
-          <li>
-            <a href="<%= timesheets_path %>">
-              <span>Approve Timesheets</span>
-            </a>
-          </li>
-        </ul>
-        <ul style="display: inline-block; vertical-align: top; width: 180px;">
-          <li class="sub-header"><h6 class="text-white font-weight-bold">Receivables</h6></li>
-          <li>
-            <a href="<%= invoices_path %>">
-              <span>Invoices</span>
-            </a>
-          </li>
-          <li>
-            <a href="<%= nil %>">
-              <span>Received Payments</span>
-            </a>
-          </li>
-          <li>
-            <a href="<%= client_expense_invoices_expenses_path %>">
-              <span>Client Expense Invoices</span>
-            </a>
-          </li>
-          <br/>
-          <li class="sub-header"><h6 class="text-white font-weight-bold">Offerings</h6></li>
-          <li>
-            <a href="<%= new_job_path %>">
-              <span>Jobs</span>
-            </a>
-          </li>
-          <li>
-            <a href="<%= nil %>">
-              <span>Products</span>
-            </a>
-          </li>
-          <li>
-            <a href="<%= nil %>">
-              <span>Services</span>
-            </a>
-          </li>
-          <li>
-            <a href="<%= nil %>">
-              <span>Trainings</span>
-            </a>
-          </li>
-          <li>
-            <a href="<%= nil %>">
-              <span>Blogs</span>
-            </a>
-          </li>
-          <li>
-            <a href="<%= nil %>">
-              <span>Book an Event</span>
-            </a>
-          </li>
-          <li>
-            <a href="<%= nil %>">
-              <span>Survey</span>
-            </a>
-          </li>
-        </ul>
-        <ul style="display: inline-block; vertical-align: top; width: 180px;">
-          <li class="sub-header"><h6 class="text-white font-weight-bold">Expenses</h6></li>
-          <li>
-            <a href="<%= bank_reconciliation_bank_details_path %>">
-              <span>Bank Reconcilliation</span>
-            </a>
-          </li>
-          <li>
-            <a href="<%= new_expense_path %>">
-              <span>Request Expenses</span>
-            </a>
-          </li>
-          <li>
-            <a href="<%= pay_expense_expenses_path %>">
-              <span>Pay: Salary Advance</span>
-            </a>
-          </li>
-          <li>
-            <a href="<%= pay_expense_expenses_path %>">
-              <span>Pay: Company Expense</span>
-            </a>
-          </li>
-          <li>
-            <a href="<%= candidate_client_expenses_path %>">
-              <span>Submit Client Expenses</span>
-            </a>
-          </li>
-          <li>
-            <a href="<%= client_expenses_path %>">
-              <span>Approve Client Expenses</span>
-            </a>
-          </li>
-          <li>
-            <a href="<%= client_expense_bill_expenses_path %>">
-              <span>Create Bill - Client Expenses</span>
-            </a>
-          </li>
-          <li>
-            <a href="<%= pay_expense_expenses_path %>">
-              <span>Pay Client Expense</span>
-            </a>
-          </li>
-        </ul>
-      </div>
+      <ul class="dropdown-menu project-dropdown" style="right: 120px !important; left: initial;">
+        <li>
+          <div class="sub-title">
+            Master
+          </div>
+          <ul>
+            <li>
+              <a href="/company/candidates/new">Add Candidate(s)</a>
+            </li>
+            <li>
+              <a href="/company/companies/new">Add Company(s)</a>
+            </li>
+            <li>
+              <a href="/company/companies/new">Add Contact(s)</a>
+            </li>
+            <li>
+              <a href="/groups/new">Add Group(s)</a>
+            </li>
+          </ul>
+        </li>
+        <li>
+          <div class="sub-title">
+            Offerings
+          </div>
+          <ul>
+            <li>
+              <a href="/jobs/new">Jobs</a>
+            </li>
+            <li>
+              <a href="#">Products</a>
+            </li>
+            <li>
+              <a href="#">Services</a>
+            </li>
+            <li>
+              <a href="#">Trainings</a>
+            </li>
+            <li>
+              <a href="#">Blogs</a>
+            </li>
+            <li>
+              <a href="#">Book An Event</a>
+            </li>
+            <li>
+              <a href="#">Survey</a>
+            </li>
+          </ul>
+        </li>
+        <li class="active">
+          <div class="sub-title">
+            Orders
+          </div>
+          <ul>
+            <li>
+              <a href="/contracts/new">Add Contract(s)</a>
+            </li>
+            <li>
+              <a href="/timesheets">Approve Timesheet(s)</a>
+            </li>
+          </ul>
+        </li>
+        <li>
+          <div class="sub-title">
+            Payments
+          </div>
+          <ul>
+            <li>
+              <a href="#">Vendor Bills</a>
+            </li>
+            <li>
+              <a href="#">Pay Vendor</a>
+            </li>
+            <li>
+              <a href="#">Salary Settlement</a>
+            </li>
+            <li>
+              <a href="#">Salary Processing</a>
+            </li>
+            <li>
+              <a href="#">Salary Clearing</a>
+            </li>
+          </ul>
+        </li>
+        <li>
+          <div class="sub-title">
+            Recievables
+          </div>
+          <ul>
+            <li>
+              <a href="/invoices">Invoices</a>
+            </li>
+            <li>
+              <a href="#">Received Payment(s)</a>
+            </li>
+            <li>
+              <a href="/expenses/client_expense_invoices">Client Expense Invoices</a>
+            </li>
+          </ul>
+        </li>
+        <li>
+          <div class="sub-title">
+            Expenses
+          </div>
+          <ul>
+            <li>
+              <a href="/bank_details/bank_reconciliation">Bank Reconcilliation</a>
+            </li>
+            <li>
+              <a href="/expenses/new">Request Expenses</a>
+            </li>
+            <li>
+              Pay Expense
+              <ul>
+                <li>
+                  <a href="/expenses/pay_expense">Salary Advance</a>
+                </li>
+                <li>
+                  <a href="/expenses/pay_expense">Company expense</a>
+                </li>
+              </ul>
+            </li>
+            <li>
+              <a href="/client_expenses">Approve client expenses</a>
+            </li>
+            <li>
+              <a href="/expenses/client_expense_bill">Create Bill - Client Expenses</a>
+            </li>
+            <li>
+              <a href="/expenses/pay_expense">Pay Client expense</a>
+            </li>
+          </ul>
+        </li>
+      </ul>
     </div>
+
+
+<!--    <div class="top-icon top-settings os-dropdown-trigger os-dropdown-position-left">-->
+<!--      <i class="ti-plus"></i>-->
+<!--      <div class="os-dropdown" style="width: 600px;">-->
+<!--        <div class="icon-w">-->
+<!--          <i class="os-icon os-icon-ui-46"></i>-->
+<!--        </div>-->
+<!--        <a class="mr-2 mb-2 btn btn-rounded" style="background-color:#0d1e73; color: white; " href="<%#= new_company_candidate_path %>">-->
+<!--          <span>Add Candidates</span>-->
+<!--        </a>-->
+<!--        <a class="mr-2 mb-2 btn btn-rounded" style="background-color:#0d1e73; color: white; " href="<%#= new_company_company_path %>">-->
+<!--          <span>Add Contacts</span>-->
+<!--        </a>-->
+<!--        <a class="mr-2 mb-2 btn btn-rounded" style="background-color:#0d1e73; color: white; " href="<%#= new_job_path %>">-->
+<!--          <span>Add Job</span>-->
+<!--        </a>-->
+<!--        <a class="mr-2 mb-2 btn btn-rounded" style="background-color:#0d1e73; color: white; " href="<%#= new_contract_path %>">-->
+<!--          <span>Add Contracts</span>-->
+<!--        </a>-->
+
+<!--        <ul style="display: inline-block; vertical-align: top; width: 180px;">-->
+<!--          <li class="sub-header"><h6 class="text-white font-weight-bold">Payments</h6></li>-->
+<!--          <li>-->
+<!--            <a href="<%#= nil %>">-->
+<!--              <span>Vendor Bills</span>-->
+<!--            </a>-->
+<!--          </li>-->
+<!--          <li>-->
+<!--            <a href="<%#= nil %>">-->
+<!--              <span>Pay Vendor</span>-->
+<!--            </a>-->
+<!--          </li>-->
+<!--          <li>-->
+<!--            <a href="<%#= nil %>">-->
+<!--              <span>Salary Settlement</span>-->
+<!--            </a>-->
+<!--          </li>-->
+<!--          <li>-->
+<!--            <a href="<%#= nil %>">-->
+<!--              <span>Salary Processing</span>-->
+<!--            </a>-->
+<!--          </li>-->
+<!--          <li>-->
+<!--            <a href="<%#= nil %>">-->
+<!--              <span>Salary Clearing</span>-->
+<!--            </a>-->
+<!--          </li>-->
+
+<!--          <br/>-->
+<!--          <li class="sub-header"><h6 class="text-white font-weight-bold">Orders</h6></li>-->
+<!--          <li>-->
+<!--            <a href="<%#= timesheets_path %>">-->
+<!--              <span>Approve Timesheets</span>-->
+<!--            </a>-->
+<!--          </li>-->
+<!--        </ul>-->
+<!--        <ul style="display: inline-block; vertical-align: top; width: 180px;">-->
+<!--          <li class="sub-header"><h6 class="text-white font-weight-bold">Receivables</h6></li>-->
+<!--          <li>-->
+<!--            <a href="<%#= invoices_path %>">-->
+<!--              <span>Invoices</span>-->
+<!--            </a>-->
+<!--          </li>-->
+<!--          <li>-->
+<!--            <a href="<%#= nil %>">-->
+<!--              <span>Received Payments</span>-->
+<!--            </a>-->
+<!--          </li>-->
+<!--          <li>-->
+<!--            <a href="<%#= client_expense_invoices_expenses_path %>">-->
+<!--              <span>Client Expense Invoices</span>-->
+<!--            </a>-->
+<!--          </li>-->
+<!--          <br/>-->
+<!--          <li class="sub-header"><h6 class="text-white font-weight-bold">Offerings</h6></li>-->
+<!--          <li>-->
+<!--            <a href="<%#= new_job_path %>">-->
+<!--              <span>Jobs</span>-->
+<!--            </a>-->
+<!--          </li>-->
+<!--          <li>-->
+<!--            <a href="<%#= nil %>">-->
+<!--              <span>Products</span>-->
+<!--            </a>-->
+<!--          </li>-->
+<!--          <li>-->
+<!--            <a href="<%#= nil %>">-->
+<!--              <span>Services</span>-->
+<!--            </a>-->
+<!--          </li>-->
+<!--          <li>-->
+<!--            <a href="<%#= nil %>">-->
+<!--              <span>Trainings</span>-->
+<!--            </a>-->
+<!--          </li>-->
+<!--          <li>-->
+<!--            <a href="<%#= nil %>">-->
+<!--              <span>Blogs</span>-->
+<!--            </a>-->
+<!--          </li>-->
+<!--          <li>-->
+<!--            <a href="<%#= nil %>">-->
+<!--              <span>Book an Event</span>-->
+<!--            </a>-->
+<!--          </li>-->
+<!--          <li>-->
+<!--            <a href="<%#= nil %>">-->
+<!--              <span>Survey</span>-->
+<!--            </a>-->
+<!--          </li>-->
+<!--        </ul>-->
+<!--        <ul style="display: inline-block; vertical-align: top; width: 180px;">-->
+<!--          <li class="sub-header"><h6 class="text-white font-weight-bold">Expenses</h6></li>-->
+<!--          <li>-->
+<!--            <a href="<%#= bank_reconciliation_bank_details_path %>">-->
+<!--              <span>Bank Reconcilliation</span>-->
+<!--            </a>-->
+<!--          </li>-->
+<!--          <li>-->
+<!--            <a href="<%#= new_expense_path %>">-->
+<!--              <span>Request Expenses</span>-->
+<!--            </a>-->
+<!--          </li>-->
+<!--          <li>-->
+<!--            <a href="<%#= pay_expense_expenses_path %>">-->
+<!--              <span>Pay: Salary Advance</span>-->
+<!--            </a>-->
+<!--          </li>-->
+<!--          <li>-->
+<!--            <a href="<%#= pay_expense_expenses_path %>">-->
+<!--              <span>Pay: Company Expense</span>-->
+<!--            </a>-->
+<!--          </li>-->
+<!--          <li>-->
+<!--            <a href="<%#= client_expenses_path %>">-->
+<!--              <span>Approve Client Expenses</span>-->
+<!--            </a>-->
+<!--          </li>-->
+<!--          <li>-->
+<!--            <a href="<%#= client_expense_bill_expenses_path %>">-->
+<!--              <span>Create Bill - Client Expenses</span>-->
+<!--            </a>-->
+<!--          </li>-->
+<!--          <li>-->
+<!--            <a href="<%#= pay_expense_expenses_path %>">-->
+<!--              <span>Pay Client Expense</span>-->
+<!--            </a>-->
+<!--          </li>-->
+<!--        </ul>-->
+<!--      </div>-->
+<!--    </div>-->
     <!--------------------END - Features Link in secondary top menu-------------------->
     <!--------------------START - User Link in secondary top menu-------------------->
     <div class="top-icon top-settings os-dropdown-trigger os-dropdown-position-left">

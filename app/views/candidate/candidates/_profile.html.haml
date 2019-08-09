@@ -46,14 +46,11 @@
               .row.m-b
                 .col-sm-6.b-r.b-b
                   .el-tablo.centered.padded-v
-                    .value
-                      25
-                    .label
-                      Yrs of experience
+                    = candidate.exp_words.html_safe
                 .col-sm-6.b-b
                   .el-tablo.centered.padded-v
                     .value
-                      315
+                      = candidate.clients.count
                     .label
                       Clients
               .padded

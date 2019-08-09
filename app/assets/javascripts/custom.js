@@ -37,6 +37,11 @@ function flash_alert(msg) {
 
 $(document).ready(function () {
 
+    $('#quick-add').on('click',function (e) {
+        $(this).find('.project-dropdown').toggle();
+    })
+
+
     $('.p_date').datepicker({dateFormat: "yy-mm-dd"});
     $('.p_time').timepicker({template: false, showInputs: false, minuteStep: 5});
 

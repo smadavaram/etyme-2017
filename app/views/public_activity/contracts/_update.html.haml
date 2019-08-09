@@ -2,4 +2,4 @@
   .ta-timestamp
     %strong #{a.try(:created_at).strftime('%I:%M %P')}
   .ta-activity
-    #{a.owner.full_name.titleize} Updated #{a.trackable.number} contract
+    ="#{a.owner.full_name.titleize} Updated #{a.trackable&.number} contract"

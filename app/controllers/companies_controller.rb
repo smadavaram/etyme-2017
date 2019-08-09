@@ -50,7 +50,7 @@ class CompaniesController < ApplicationController
       @company = Company.find(params[:id]);
       @new_company = @company
       if @company.invited_by.present?
-        @company_contacts = current_company.invited_companies.find_by(invited_company_id: params[:id]).try(:invited_company).try(:company_contacts).paginate(:page => params[:page], :per_page => 20) || []
+        @company_contacts = current_company.invited_companies.find_by(invited_company_id: params[:id]).try(:invited_company).try(:company_contacts)&.paginate(:page => params[:page], :per_page => 20) || []
       end
     end
 
