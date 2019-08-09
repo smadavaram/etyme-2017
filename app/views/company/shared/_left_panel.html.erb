@@ -64,20 +64,20 @@
             <a href="<%= network_path %>" class=" side-bar_links nested_tab boarder_bottom">Clients / Vendors</a>
           <% end %>
         </div>
-        <a class="sidebar_collapsible nested_tab">
-          <div class="icon-w">
-            <i class="ti-bar-chart"></i>
-          </div>
-          <span>Bench</span>
-        </a>
-        <div class="pl-4 w-100 l3 text-justify nav-sidebar-collaps">
-          <a href="<%= company_bench_jobs_path %>" class=" side-bar_links nested_tab boarder_bottom">My Bench</a>
-          <a href="<%= company_job_receives_path %>" class=" side-bar_links nested_tab boarder_bottom">Received</a>
-          <a href="<%= company_public_jobs_path %>" class=" side-bar_links nested_tab boarder_bottom">Public</a>
-          <a href="<%= company_owen_jobs_path %>" class=" side-bar_links nested_tab boarder_bottom">Bench Jobs</a>
-        </div>
+    
       </div>
-
+      <a class="sidebar_collapsible side-bar_tab">
+        <div class="icon-w">
+          <i class="ti-bar-chart"></i>
+        </div>
+        <span>Bench</span>
+      </a>
+      <div class="pl-4 w-100 text-justify nav-sidebar-collaps">
+        <a href="<%= company_bench_jobs_path %>" class=" side-bar_links nested_tab boarder_bottom">My Bench</a>
+        <a href="<%= company_job_receives_path %>" class=" side-bar_links nested_tab boarder_bottom">Received</a>
+        <a href="<%= company_public_jobs_path %>" class=" side-bar_links nested_tab boarder_bottom">Public</a>
+        <a href="<%= company_owen_jobs_path %>" class=" side-bar_links nested_tab boarder_bottom">Bench Jobs</a>
+      </div>
       <a class="sidebar_collapsible side-bar_tab">
         <div class="icon-w">
           <i class="icon-people"></i>
