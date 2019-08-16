@@ -2,7 +2,7 @@
 lock '3.11.0'
 
 set :application, 'etyme'
-set :repo_url, 'git@github.com:smadavaram/etyme-2017.git'
+set :repo_url, 'git@github.com:umairraza101/etyme.git'
 
 # Default branch is :master
 # ask :branch, proc { `git rev-parse --abbrev-ref HEAD`.chomp }.call
