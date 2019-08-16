@@ -29,9 +29,9 @@
               - @contract.sell_contract.contract_sell_business_details.each do |bussiness_detail|
                 - company_contact = bussiness_detail.company_contact.user
                 %tr
-                  %td= company_contact.company.domain
-                  %td= company_contact.full_name
-                  %td= contact_widget(company_contact.email,company_contact.phone)
+                  %td= company_contact.company&.domain
+                  %td= company_contact&.full_name
+                  %td= contact_widget(company_contact&.email,company_contact&.phone)
                   %td= company_contact.roles.pluck(:name).join(', ')
                   %td= content_tag(:span, do_ellipsis(current_user.reminders.where(reminderable_id: company_contact.id, reminderable_type: 'Admin')&.last&.title), class: 'bg-info badge mr-1').html_safe
                   %td= link_to(content_tag(:i, nil, class: 'picons-thin-icon-thin-0014_notebook_paper_todo').html_safe, add_reminder_company_users_path(user_id: company_contact.id), remote: :true, title: "Remind Me", class: 'data-table-icons')

@@ -10,6 +10,8 @@ class Company::ChangeRatesController  < Company::BaseController
         old_rate.update(to_date: change_rate_params[:from_date].to_date-1)
         new_rate = ChangeRate.create(change_rate_params.merge(contract_id: params[:contract_id], to_date: new_to_date, rate_type: params[:type]))
         flash[:notice] = 'Rate changed successfully.'
+      else
+        flash[:errors] = 'Rate Can be changed for the future dates of the contract'
       end
       redirect_to contract_path(params[:contract_id])
     end
