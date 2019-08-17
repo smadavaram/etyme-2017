@@ -19,10 +19,8 @@
                 %path.decor-path{:d => "M1223,362 L1223,581 L381,581 C868.912802,575.666667 1149.57947,502.666667 1223,362 Z"}
           .up-controls
             .row
-              .col-sm-6
-                = link_to candidate_conversations_path, class: "btn btn-success btn-sm" do
-                  %i.ti-email
-                  %span Contact Me
+              .col-sm-12.d-flex.justify-content-around
+                = contact_widget(@user.email, @user.phone)
 
 
           .up-contents

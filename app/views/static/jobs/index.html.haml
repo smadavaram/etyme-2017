@@ -71,9 +71,8 @@
                 .col-lg-4
                   = link_to raw("<i class= 'fa fa-align-left'> Apply</i>") ,static_job_apply_path(job,status: candidate_signed_in?)   , method: :post , remote: true ,  class: " kafe-btn kafe-btn-mint-small   #{current_candidate.present? ? (current_candidate.is_already_applied?(job.id) ? "disabled " : "" ) : "" } ", data: { trigger_modal: true }
 
-          .page.text-center
-            %ul.pagination
-              = will_paginate(@posts,class: "pagination ")
+          .mt-3
+            = digg_pagination(@posts,class: "pagination ")
 
 -content_for :scripts do
   :javascript
