@@ -52,12 +52,14 @@
                   <div class="h6">
                     <%= @job.status %>
                   </div>
-                  <div class="">
-                    Price
-                  </div>
-                  <div class="h6">
-                    <%= sprintf("$%0.2f", @job.price) %>
-                  </div>
+                  <% if @job.price.present? %>
+                    <div class="">
+                      Price
+                    </div>
+                    <div class="h6">
+                      <%= sprintf("$%0.2f", @job.price) %>
+                    </div>
+                  <% end %>
                 </div>
               </div>
             </div>
@@ -171,7 +173,8 @@
               <div><i>Currently, there is no collaborator. Create a conversation to add collaborators</i></div>
             <% end %>
             <div class="ci-header">
-              <a href="#" class ="w-100 btn btn-default btn-primary add-to-conversation" data-conid=<%= @conversation.id %> data-cid=<%= @conversation.chatable.id %> data-ctype=<%= @conversation.chatable.class.to_s %>>Add Collaborators</a>
+              <a href="#" class="w-100 btn btn-default btn-primary add-to-conversation" data-conid=<%= @conversation.id %> data-cid=<%= @conversation.chatable.id %> data-ctype=<%= @conversation.chatable.class.to_s %>>Add
+                Collaborators</a>
             </div>
           </div>
         </div>
