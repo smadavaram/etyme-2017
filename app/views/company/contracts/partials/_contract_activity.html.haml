@@ -21,7 +21,7 @@
                 %tr
                   %td=link_to "#{activty.trackable.try(:number)} Contract" ,contract_path(activty.trackable)
                   %td=activty.trackable.try(:title)
-                  %td{style: "color: #EFA544"}=activty.trackable.try(:status).capitalize
+                  %td{style: "color: #EFA544"}=activty.trackable.try(:status).camelcase
                   %td{style: "color: #1AAE9F"}= "#{time_ago_in_words(activty.trackable.try(:updated_at))} ago"
                   %td
                     =image_tag(activty.owner.photo, class: 'data-table-image mr-1').html_safe
