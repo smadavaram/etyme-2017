@@ -19,11 +19,13 @@
             %tbody
               - data.each do |activty|
                 %tr
-                  %td=link_to activty.trackable.try(:number) ,contract_path(activty.trackable)
+                  %td=link_to "#{activty.trackable.try(:number)} Contract" ,contract_path(activty.trackable)
                   %td=activty.trackable.try(:title)
-                  %td=activty.trackable.try(:status)
-                  %td=activty.trackable.try(:updated_at)
-                  %td= "#{activty.owner.try(:first_name)}" + "#{activty.owner.try(:last_name)}"
-                  %td= activty.parameters
+                  %td{style: "color: #EFA544"}=activty.trackable.try(:status).capitalize
+                  %td{style: "color: #1AAE9F"}= "#{time_ago_in_words(activty.trackable.try(:updated_at))} ago"
+                  %td
+                    =image_tag(activty.owner.photo, class: 'data-table-image mr-1').html_safe
+                    =do_ellipsis(activty.owner.full_name.capitalize,15).html_safe
+                  %td Updated terms & conditions for contract
 .mt-3
   = digg_pagination(data, "activity")
