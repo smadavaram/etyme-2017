@@ -27,7 +27,7 @@
                     Date
                   </div>
                   <div class="h6">
-                    <%= @job.start_date.strftime("%B %d, %Y") %>
+                    <%= @job.start_date&.strftime("%B %d, %Y") %>
                     <% if @job.end_date %>
                       to <%= @job.end_date.strftime("%B %d, %Y") %>
                     <% end %>
@@ -100,7 +100,7 @@
           <div class="element-box element-box-show">
             <h5 class="form-header">Quick Actions</h5>
             <div style="display: flex;flex-direction: column;">
-              <%= link_to "Edit", edit_job_path(@job), class: "mb-1 btn btn-primary" %>
+              <%= link_to "Edit", edit_job_path(@job,type: @job.listing_type), class: "mb-1 btn btn-primary" %>
               <% if has_permission?("send_job_invitations") %>
                 <%= link_to 'Send Invitation', send_invitation_job_path(@job), method: :post, remote: true, class: 'mb-1 btn btn-primary' %>
               <% end %>

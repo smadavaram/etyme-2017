@@ -3,8 +3,12 @@
 <div class="content-box">
   <div class="element-wrapper">
     <div class="element-box">
-      <h5 class="form-header">New Job</h5>
-      <div class="form-desc">Create your offering and describe what you are looking for from the candidates</div>
+      <h5 class="form-header">New <%= params[:type] || "Job" %></h5>
+      <% if params[:type] == "Job" || params[:type].nil?%>
+        <div class="form-desc">Create your offering and describe what you are looking for from the candidates</div>
+      <% else %>
+        <div class="form-desc"></div>
+      <% end %>
       <%= render 'form', thing: @job %>
     </div>
   </div>

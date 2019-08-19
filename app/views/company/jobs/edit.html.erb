@@ -4,8 +4,12 @@
   <div class="element-wrapper">
     <div class="padded-lg">
       <div class="element-box">
-        <h5 class="form-header">Edit</h5>
-        <div class="form-desc">Manage your offering and describe what you are looking for from the candidates</div>
+        <h5 class="form-header">Edit <%= params[:type] || "Job" %></h5>
+        <% if params[:type] == "Job" || params[:type].nil? %>
+          <div class="form-desc">Create your offering and describe what you are looking for from the candidates</div>
+        <% else %>
+          <div class="form-desc"></div>
+        <% end %>
         <%= render 'form', thing: @job %>
       </div>
     </div>
@@ -14,14 +18,14 @@
 
 <%= javascript_tag do %>
   $(function() {
-    // Initialize date pickers
-    $('#job_end_date , #job_start_date').datepicker({
-      dateFormat : 'yy/mm/dd',
-      prevText : '<i class="fa fa-chevron-left"></i>',
-      nextText : '<i class="fa fa-chevron-right"></i>',
-    });
+  // Initialize date pickers
+  $('#job_end_date , #job_start_date').datepicker({
+  dateFormat : 'yy/mm/dd',
+  prevText : '<i class="fa fa-chevron-left"></i>',
+  nextText : '<i class="fa fa-chevron-right"></i>',
+  });
 
-    // Initialize CKEDITOR for description field
-    CKEDITOR.replace( 'job_description' );
+  // Initialize CKEDITOR for description field
+  CKEDITOR.replace( 'job_description' );
   })
 <% end %>

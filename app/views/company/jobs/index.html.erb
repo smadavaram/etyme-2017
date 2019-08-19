@@ -10,7 +10,7 @@
             <div class="controls-above-table">
               <div class="row mr-1 ml-1">
                 <div class="col-sm-6">
-                  <%= link_to "Add a New #{params[:type] || "Job"}", new_job_path, class: 'btn btn-sm btn-secondary ml-2' %>
+                  <%= link_to "Add a New #{params[:type] || "Job"}", new_job_path(type: params[:type] || "Job"), class: 'btn btn-sm btn-secondary ml-2' %>
                   <%= link_to "Share Jobs", '#', class: 'btn share btn-sm btn-secondary ml-2' %>
                 </div>
                 <div class="col-sm-6">
@@ -53,7 +53,7 @@
                         <% end %>
                       <% end %>
                       <% if has_permission?("manage_job") %>
-                        <%= link_to edit_job_path(job), class: 'data-table-icons btn btn-link btn-sm m-0 p-0' do %>
+                        <%= link_to edit_job_path(job,type: job.listing_type), class: 'data-table-icons btn btn-link btn-sm m-0 p-0' do %>
                           <i class="fa fa-edit"></i>
                         <% end %>
                         <%= link_to job_create_multiple_for_candidate_path(job), remote: true, class: 'data-table-icons btn btn-link btn-sm m-0 p-0' do %>

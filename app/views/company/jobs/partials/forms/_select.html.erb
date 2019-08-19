@@ -12,7 +12,7 @@
   <% if block_given? && yield.try(:strip).present? %>
   <%= yield %>
   <% else %>
-  <%= form.select attribute, options, {}, field_attributes %>
+  <%= form.select attribute, options, local_assigns.has_key?(:select_option) ? select_option : {} , field_attributes %>
   <% end %>
   <% if resource.errors[attribute].present? || block_given? %>
   <div class="help-block form-text with-errors form-control-feedback">
