@@ -7,9 +7,9 @@
             .row
               .input-group.input-group-lg
                 .col-md-2.col-sm-12.col-12
-                  = f.select :status_eq , Contract.statuses.map { |key, value| [key.humanize, value] }.push(['All', '']).reverse.to_h, params[:q][:status_eq].present? ? {selected: params[:q][:status_eq].to_i} : {} , {class: "form-control company_type search-form" ,  onChange: "this.form.submit();"}
+                  = f.select :status_eq , Contract.statuses.map { |key, value| [key.humanize, value] }.push(['All', '']).reverse.to_h, params[:q].present? ? {selected: params[:q][:status_eq].to_i} : {} , {class: "form-control company_type search-form" ,  onChange: "this.form.submit();"}
                 .col-md-2.col-sm-12.col-12
-                  = f.select :contract_type_eq , Contract.contract_types.map { |key, value| [key.humanize, value] }.push(['All', '']).reverse.to_h, params[:q][:contract_type_eq].present? ? {selected: params[:q][:contract_type_eq].to_i} : {} , {class: "form-control company_type search-form" ,  onChange: "this.form.submit();"}
+                  = f.select :contract_type_eq , Contract.contract_types.map { |key, value| [key.humanize, value] }.push(['All', '']).reverse.to_h, params[:q].present? ? {selected: params[:q][:contract_type_eq].to_i} : {} , {class: "form-control company_type search-form" ,  onChange: "this.form.submit();"}
                 .col-md-8.col-sm-12.col-12
                   %div.search_bar
                     = f.button raw("<i class='fa fa-fw fa-search fa-lg'></i>") , class: 'btn btn-default btn-search-bar'
