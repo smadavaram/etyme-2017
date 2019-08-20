@@ -119,7 +119,7 @@
                         = key
                     .ta-record-w
                       - value.each do |activity|
-                        = render_activity activity
+                        = render_activity activity if activity.trackable.present?
         .col-sm-12
           .element-wrapper
             - if current_company.hiring_manager? || current_company.vendor?
