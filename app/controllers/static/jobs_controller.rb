@@ -38,7 +38,7 @@ class Static::JobsController < ApplicationController
         description: nil,
         location: nil,
         start_date: DateTime.now,
-        end_date: nil,
+        end_date: DateTime.now.end_of_year,
         tag_list: nil,
         education_list: nil,
         price: nil,
@@ -59,6 +59,17 @@ class Static::JobsController < ApplicationController
     job_attributes[:education_list] = get_attr_value(data_array, "education")
     job_attributes[:tag_list] = get_attr_value(data_array, "skills")
     job_attributes[:description] = get_attr_value(data_array, "description")
+    update_status(job_attributes)
+  end
+
+  def update_status(job_attributes)
+    ["Draft","Published"].each do |status|
+      if job_attributes[:title].match(/#{status}\s*:/i)
+        job_attributes[:title] = job_attributes[:title].gsub(/#{status}\s*:/i, '').strip.capitalize
+        job_attributes[:status] = status
+        return job_attributes
+      end
+    end
     job_attributes
   end
 
