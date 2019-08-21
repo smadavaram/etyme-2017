@@ -10,6 +10,8 @@ class Group < ApplicationRecord
   has_many :reminders, as: :reminderable
 
 
+  scope :chat_groups, ->{where(member_type: 'Chat')}
+
   scope :user_chat_groups, -> (user, company) do
     company.present? ?
         where(member_type: "Chat", company_id: company.id).joins(:groupables).where("groupables.groupable_id = ? and groupables.groupable_type = ?", user.id, "User")

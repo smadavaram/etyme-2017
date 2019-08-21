@@ -51,7 +51,7 @@ class CompanyContactDatatable < ApplicationDatatable
   end
 
   def reminder_note record
-    content_tag(:span, do_ellipsis(record.user_company&.reminders&.last&.title), class: 'bg-info badge mr-1').html_safe
+    content_tag(:span, do_ellipsis(record.user_company&.reminders.where(user_id: current_user.id)&.last&.title), class: 'bg-info badge mr-1').html_safe
   end
 
   def contact_icon record

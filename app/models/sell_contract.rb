@@ -14,6 +14,7 @@ class SellContract < ApplicationRecord
 
   has_many :approvals, as: :contractable, dependent: :destroy
 
+  has_one :conversation
 
   # include NumberGenerator.new({prefix: 'SC', length: 7})
   before_create :set_number

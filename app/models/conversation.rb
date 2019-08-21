@@ -7,7 +7,10 @@ class Conversation < ApplicationRecord
   belongs_to :chatable, polymorphic: true, optional: true
   belongs_to :job_application, optional: true
   belongs_to :job, optional: true
-  enum topic: [:OneToOne, :Rate, :GroupChat, :Job, :JobApplication, :Contract]
+  belongs_to :sell_contract, optional: true
+  belongs_to :buy_contract, optional: true
+
+  enum topic: [:OneToOne, :Rate, :GroupChat, :Job, :JobApplication, :Contract, :SellContract, :BuyContract, :DocumentRequest]
 
   scope :involving, -> (user) do
     where(senderable: user).or where(recipientable: user)
@@ -30,6 +33,16 @@ class Conversation < ApplicationRecord
                                                    .or(Group.joins(:groupables).where("groupables.groupable_type": "Candidate", "groupables.groupable_id":
                                                        Candidate.where("first_name LIKE ? OR last_name LIKE ?", "%#{query_string}%", "%#{query_string}%")))
     )
+  end
+
+  def self.create_conversation(users, title, topic,company)
+    group = nil
+    Group.transaction do
+      group = company.groups.create(group_name: title, member_type: 'Chat')
+      users.each { |user| group.groupables.create(groupable: user) }
+    end
+    conversation = Conversation.new({chatable: group, topic: topic})
+    group and conversation.save ? conversation : false
   end
 
   def opt_participant(user)

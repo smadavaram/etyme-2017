@@ -4,29 +4,43 @@ class DocumentSign < ApplicationRecord
   belongs_to :initiator, polymorphic: :true, optional: true
   belongs_to :part_of, polymorphic: true, optional: true
   belongs_to :company
+  belongs_to :requested_by, polymorphic: true
+
 
   after_create :notify_signable
   after_update :notify_creator
 
+  def get_requester_signer_conversation
+    conversation = Conversation.DocumentRequest.where(chatable: requested_by.groups.chat_groups.where(id: signable.groups.chat_groups)).first
+    conversation.present? ? conversation : create_requester_signer_conversation
+  end
+
   private
+
+  def create_requester_signer_conversation
+    Conversation.create_conversation([signable,requested_by],"D-#{id}", :DocumentRequest,company)
+  end
 
   def notify_signable
     notification = Notification.new(notifiable: signable,
-                                    createable: part_of.contract.created_by,
+                                    createable: requested_by,
                                     status: :unread, notification_type: :contract)
     if documentable.is_require == "signature"
       notification.title = "Signature Request"
-      notification.message = "#{part_of.contract.created_by.full_name.capitalize} has requested you to sign the document sent through docusign"
+      notification.message = "#{requested_by.full_name.capitalize} has requested you to sign the document sent through docusign"
     else
       notification.title = "Document Request"
-      notification.message = "#{part_of.contract.created_by.full_name.capitalize} has requested you to Submit a document #{ "titled '#{documentable.title.capitalize}'" if documentable.title.present?}"
+      notification.message = "#{requested_by.full_name.capitalize} has requested you to Submit a document #{ "titled '#{documentable.title.capitalize}'" if documentable.title.present?}"
     end
-    notification.save
+    if notification.save
+      conversation_id = part_of.class.to_s == "JobApplication" ? part_of.conversation.id : get_requester_signer_conversation.id
+      requested_by.conversation_messages.create(conversation_id: conversation_id , body: notification.message,message_type: :DocumentRequest)
+    end
   end
 
   def notify_creator
     if signed_file.present?
-      notification = Notification.new(notifiable: part_of.contract.created_by,
+      notification = Notification.new(notifiable: requested_by,
                                       createable: signable,
                                       status: :unread, notification_type: :contract)
       if documentable.is_require == "signature"
@@ -36,8 +50,10 @@ class DocumentSign < ApplicationRecord
         notification.title = "Document Submitted"
         notification.message = "#{signable.full_name.capitalize} has uploaded a document #{"titled '#{documentable.title.capitalize}'" if documentable.title.present? }"
       end
-      notification.save
+      if notification.save
+        conversation_id = part_of.class.to_s == "JobApplication" ? part_of.conversation.id : get_requester_signer_conversation.id
+        signable.conversation_messages.create(conversation_id: conversation_id, body: notification.message,message_type: :DocumentRequest)
+      end
     end
   end
-
 end

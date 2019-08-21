@@ -91,6 +91,10 @@ class JobApplication < ApplicationRecord
     end
   end
 
+  def number
+    "JA-#{id}"
+  end
+
   def is_rate_accepted?
     accept_rate and accept_rate_by_company
   end
