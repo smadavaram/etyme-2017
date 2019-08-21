@@ -29,7 +29,7 @@
             <% if current_company.id == @conversation.chatable.company_id && g.groupable != current_user %>
               <li>
                 <%= image_tag g.groupable.photo ,class: 'superbox-img',style: 'border-radius: 50%;width:30px !important;height:30px !important'%>
-                <%= do_ellipsis(g.groupable.full_name.capitalize,15) %>
+                <%= do_ellipsis(g.groupable.full_name.capitalize,13) %>
                 <%= link_to "<i class='icon-feather-x'></i>".html_safe, remove_from_group_groups_path(groupable: g.id, conversation: @conversation.id) %>
               </li>
             <% else %>
