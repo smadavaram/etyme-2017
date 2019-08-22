@@ -9,14 +9,14 @@
   %meta{content: "#{@job.description}", property: "og:description"}/
   %meta{content: "article", property: "og:type"}/
 
-#sectionIntro.intro-w.layout-v1
-  .os-container
-    .fade2
-    .call-to-action
-      .h3.cta-header
-        Jobs
-%section.jobpost
+%section.jobpost.mt-3
   .container
+    .row.mb-3
+      .col-lg-9.offset-lg-1.d-flex
+        .d-inline-block
+          = image_tag(@job.company.logo,class: "roundedimage", size: "100x100")
+        .h3.cta-header.text-center.w-100.d-flex.justify-content-center.align-items-center
+          Jobs
     .row
       .col-lg-9.offset-lg-1.element-box.gray-background
         .row
