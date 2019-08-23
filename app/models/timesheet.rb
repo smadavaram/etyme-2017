@@ -73,10 +73,7 @@ class Timesheet < ApplicationRecord
   end
 
   def total_time
-    super
-    # total_time = 0
-    # self.timesheet_logs.each do |t| total_time = total_time + t.total_time end
-    # total_time
+    transactions.sum(:total_time)
   end
 
   def approved_total_time

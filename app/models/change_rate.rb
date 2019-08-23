@@ -9,7 +9,7 @@ class ChangeRate < ApplicationRecord
 
   def self.date_range(date, contract_id, type)
     rate = self.get_date_range(contract_id,type).map{|x| x[2] if date.between?(x[0], x[1])}.compact.first
-    rate.present? ? rate : where(rate_type: type,contract_id: contract_id).order(:from_date)&.first&.rate
+    rate.present? ? rate : where(rate_type: type,contract_id: contract_id).order(:from_date)&.first&.rate || 0
   end
 
 end
