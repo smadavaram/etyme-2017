@@ -4,7 +4,7 @@ class Company::JobApplicationsController < Company::BaseController
   before_action :find_job, only: [:create, :create_multiple_For_candidate]
   before_action :find_received_job_invitation, only: [:create]
   before_action :set_job_applications, only: [:index]
-  before_action :find_attachments, only: [:send_templates]
+  before_action :find_attachments, :find_signers, only: [:send_templates]
   before_action :find_received_job_application, only: [:send_templates, :templates, :prescreen, :client_submission, :rate_negotiation, :accept_rate, :accept_interview, :accept, :reject, :interview, :hire, :short_list, :show, :proposal, :share_application_with_companies, :open_inbox_conversation]
   before_action :authorized_user, only: [:accept, :reject, :interview, :hire, :short_list, :show]
   skip_before_action :authenticate_user!, :authorized_user, only: [:share], raise: false
@@ -65,12 +65,20 @@ class Company::JobApplicationsController < Company::BaseController
 
   def send_templates
     @plugin = current_company.plugins.docusign.first
-    response = (Time.current - @plugin.updated_at).to_i.abs/3600 <= 5 ? true : RefreshToken.new(@plugin).refresh_docusign_token
+    response = true #(Time.current - @plugin.updated_at).to_i.abs/3600 <= 5 ? true : RefreshToken.new(@plugin).refresh_docusign_token
     if response.present?
       @company_candidate_docs.each do |sign_doc|
-        @document_sign = current_company.document_signs.create(requested_by: current_user,documentable: sign_doc, signable: @job_application.applicationable, is_sign_done: false,part_of: @job_application)
+        @document_sign = current_company.document_signs.new(
+            requested_by: current_user,
+            documentable: sign_doc,
+            signable: @job_application.applicationable,
+            is_sign_done: false,
+            part_of: @job_application
+        )
+        params[:signers].each { |id| @document_sign.signers_ids << id.to_i }
+        @document_sign.save
         result = DocusignEnvelope.new(@document_sign, @plugin).create_envelope
-        if(result.status == "sent")
+        if (result.status == "sent")
           @document_sign.update(envelope_id: result.envelope_id, envelope_uri: result.uri)
         else
           flash[:errors] = result.error_message
@@ -361,5 +369,8 @@ class Company::JobApplicationsController < Company::BaseController
     @company_candidate_docs = current_company.company_candidate_docs.where(id: params[:ids])
   end
 
+  def find_signers
+    @signers = current_company.users.where(id: params[:signers])
+  end
 
 end

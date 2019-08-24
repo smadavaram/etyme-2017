@@ -1,4 +1,7 @@
 class DocumentSign < ApplicationRecord
+
+  serialize :signers_ids, Array
+
   belongs_to :documentable, polymorphic: :true, optional: true
   belongs_to :signable, polymorphic: :true, optional: true
   belongs_to :initiator, polymorphic: :true, optional: true
@@ -13,6 +16,10 @@ class DocumentSign < ApplicationRecord
   def get_requester_signer_conversation
     conversation = Conversation.DocumentRequest.where(chatable: requested_by.groups.chat_groups.where(id: signable.groups.chat_groups)).first
     conversation.present? ? conversation : create_requester_signer_conversation
+  end
+
+  def signers
+    company.users.where(id: signers_ids)
   end
 
   private

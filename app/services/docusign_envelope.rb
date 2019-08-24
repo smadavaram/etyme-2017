@@ -21,32 +21,33 @@ class DocusignEnvelope
     docx
   end
 
+
   def get_signers(documents)
     signers = []
-    signer_name = @document_sign.signable.full_name
-    signer_email = @document_sign.signable.email
     documents.each do |document|
       # create a signer recipient to sign the document, identified by name and email
       # We're setting the parameters via the object creation
-      signer = DocuSign_eSign::Signer.new({:email => signer_email, :name => signer_name, :recipientId => @document_sign.signable.id})
-      sign_here = DocuSign_eSign::SignHere.new({
-                                                   documentId: document.document_id,
-                                                   pageNumber: '1',
-                                                   recipientId: @document_sign.signable.id,
-                                                   tabLabel: 'signHereTabs',
-                                                   anchorXOffset: '2',
-                                                   anchorYOffset: '0',
-                                                   anchorString: 'Please Sign Here:',
-                                                   anchorIgnoreIfNotPresent: "false",
-                                                   anchorUnits: "inches"
-                                               })
-      # Tabs are set per recipient / signer
-      tabs = DocuSign_eSign::Tabs.new({:signHereTabs => [sign_here]})
-      signer.tabs = tabs
-      signers << signer
+      (@document_sign.signers.to_a << @document_sign.signable).each do |signable|
+        signer = DocuSign_eSign::Signer.new({:email => signable.email, :name => signable.full_name, :recipientId => signable.id})
+        sign_here = DocuSign_eSign::SignHere.new({
+                                                     documentId: document.document_id,
+                                                     pageNumber: '1',
+                                                     recipientId: signable.id,
+                                                     tabLabel: 'signHereTabs',
+                                                     anchorXOffset: '2',
+                                                     anchorYOffset: '0',
+                                                     anchorString: 'Please Sign Here:',
+                                                     anchorIgnoreIfNotPresent: "true",
+                                                     anchorUnits: "inches"
+                                                 })
+        # Tabs are set per recipient / signer
+        signer.tabs = DocuSign_eSign::Tabs.new({:signHereTabs => [sign_here]})
+        signers << signer
+      end
     end
     signers
   end
+
   # url: "https://0fa99b3b.ngrok.io#{url_helpers.e_sign_completed_company_document_signs_path}",
   def build_event_notification
     {

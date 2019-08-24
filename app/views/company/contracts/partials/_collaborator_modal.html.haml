@@ -15,7 +15,7 @@
                   = f.hidden_field :approvable_type
                   = f.hidden_field :contractable_type, value: contractable_type
                   = f.hidden_field :contractable_id, value: contractable_id
-                  = f.select :user_id, current_company&.company_contacts.map{|contact| contact.user.present? ? [contact.user.full_name, contact.user.id] : nil}.compact, {}, {class: 'form-control'}
+                  = f.select :user_id, options_from_collection_for_select(current_company.company_contacts.includes(:user),"users.id","users.full_name"), {}, {class: 'form-control'}
             .form-row
               .col-12
                 = f.submit 'submit', class: 'btn btn-sm btn-secondary pull-right'

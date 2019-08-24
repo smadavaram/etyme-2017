@@ -396,3 +396,12 @@ th.have-nested_headers{
 div.nested_headers{
     /*display: inline-block;*/
 }
+
+.select2-selection__choice > span {
+    margin-top: 5px;
+    position: inherit;
+}
+.select2-selection__choice{
+    height: 30px;
+    /*padding: 5px !important;*/
+}

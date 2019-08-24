@@ -34,7 +34,9 @@
                             = "#{index}: #{file_path.split('/').last}"
                             - index = index +1
         %br
-        = button_tag 'submit', class: 'btn btn-sm btn-secondary pull-right'
+        #toggle_signers{class: current_company.candidate_job_templates.present? ? '': 'd-none'}
+          = select_tag 'signers[]', nil, id: "select_sell_company_contacts", class: "form-control select2 select2-hidden-accessible mb-2"
+        = button_tag 'submit', class: 'btn btn-sm btn-secondary pull-right mt-2'
         %br
     .element-wrapper
       .element-box
@@ -56,3 +58,10 @@
                   %td= docusign.is_sign_done ? "Signed" : "Pending"
                   %td= docusign.envelope_id.present? ? docusign.envelope_id : "Document Not Submitted"
                   %td= link_to content_tag(:i,'',class:'fa fa-paperclip fa-lg').html_safe, docusign.signed_file if docusign.is_sign_done
+
+
+- content_for :scripts do
+  :javascript
+    $(document).ready(function() {
+      set_company_contacts_select('#select_sell_company_contacts', "Please Select Signers", "#sell_contract_company");
+    })
