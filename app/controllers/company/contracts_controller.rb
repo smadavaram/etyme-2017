@@ -85,7 +85,7 @@ class Company::ContractsController < Company::BaseController
     response = (Time.current - @plugin.updated_at).to_i.abs / 3600 <= 5 ? true : RefreshToken.new(@plugin).refresh_docusign_token
     if response.present?
       @company_candidate_docs.each do |sign_doc|
-        @document_sign = current_company.document_signs.create(requested_by: current_user,documentable: sign_doc, signable: @buy_contract.contract.candidate, is_sign_done: false,part_of: @buy_contract)
+        @document_sign = current_company.document_signs.create(requested_by: current_user,documentable: sign_doc, signable: @buy_contract.contract.candidate, is_sign_done: false,part_of: @buy_contract, signers_ids: params[:signers].to_s.gsub('[','{').gsub(']','}'))
         result = DocusignEnvelope.new(@document_sign, @plugin).create_envelope
         if (result.status == "sent")
           @document_sign.update(envelope_id: result.envelope_id, envelope_uri: result.uri)
@@ -97,13 +97,13 @@ class Company::ContractsController < Company::BaseController
     else
       flash.now[:errors] = ["Docusign token request failed, please regenerate the token from integrations"]
     end
-    @document_signs = @buy_contract.document_signs.where(signable: @buy_contract.contract.candidate, documentable: current_company.company_candidate_docs.where(is_require: "signature").ids)
+    @document_signs = @buy_contract.document_signs.where(signable: @buy_contract.contract.candidate, documentable: current_company.company_candidate_docs.where(is_require: "signature").id0s)
   end
 
   def buy_emp_doc_create
     @company_candidate_docs = current_company.company_candidate_docs.where(id: params[:ids])
     @company_candidate_docs.each do |sign_doc|
-      current_company.document_signs.create(requested_by: current_user,documentable: sign_doc, signable: @buy_contract.contract.candidate, is_sign_done: false,part_of: @buy_contract)
+      current_company.document_signs.create(requested_by: current_user,documentable: sign_doc, signable: @buy_contract.contract.candidate, is_sign_done: false,part_of: @buy_contract,signers_ids: params[:signers].to_s.gsub('[','{').gsub(']','}'))
     end
     flash.now[:success] = 'Document(s) submission request is submitted to the Company'
     @document_signs = @buy_contract.document_signs.where(signable: @buy_contract.contract.candidate, documentable: current_company.company_candidate_docs.where(is_require: "Document").ids)
@@ -115,7 +115,7 @@ class Company::ContractsController < Company::BaseController
     response = (Time.current - @plugin.updated_at).to_i.abs / 3600 <= 5 ? true : RefreshToken.new(@plugin).refresh_docusign_token
     if response.present?
       @company_candidate_docs.each do |sign_doc|
-        @document_sign = current_company.document_signs.create(requested_by: current_user,documentable: sign_doc, signable: @buy_contract.company.owner, is_sign_done: false,part_of: @buy_contract)
+        @document_sign = current_company.document_signs.create(requested_by: current_user,documentable: sign_doc, signable: @buy_contract.company.owner, is_sign_done: false,part_of: @buy_contract,signers_ids: params[:signers].to_s.gsub('[','{').gsub(']','}'))
         result = DocusignEnvelope.new(@document_sign, @plugin).create_envelope
         if (result.status == "sent")
           @document_sign.update(envelope_id: result.envelope_id, envelope_uri: result.uri)
@@ -136,7 +136,7 @@ class Company::ContractsController < Company::BaseController
     response = (Time.current - @plugin.updated_at).to_i.abs / 3600 <= 5 ? true : RefreshToken.new(@plugin).refresh_docusign_token
     if response.present?
       @company_candidate_docs.each do |sign_doc|
-        @document_sign = current_company.document_signs.create(requested_by: current_user,documentable: sign_doc, signable: @sell_contract.company.owner, is_sign_done: false, part_of: @sell_contract)
+        @document_sign = current_company.document_signs.create(requested_by: current_user,documentable: sign_doc, signable: @sell_contract.company.owner, is_sign_done: false, part_of: @sell_contract,signers_ids: params[:signers].to_s.gsub('[','{').gsub(']','}'))
         result = DocusignEnvelope.new(@document_sign, @plugin).create_envelope
         if (result.status == "sent")
           @document_sign.update(envelope_id: result.envelope_id, envelope_uri: result.uri)

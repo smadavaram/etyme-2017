@@ -1,7 +1,5 @@
 class DocumentSign < ApplicationRecord
-
-  serialize :signers_ids, Array
-
+  
   belongs_to :documentable, polymorphic: :true, optional: true
   belongs_to :signable, polymorphic: :true, optional: true
   belongs_to :initiator, polymorphic: :true, optional: true
