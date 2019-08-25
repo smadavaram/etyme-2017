@@ -573,6 +573,7 @@
       $(".commission-user:not([class*='added']").addClass('added');
     });
 
+    set_company_contacts_select('#select_sell_company_contacts', "Please Select Signers", "#sell_contract_company");
 
     if($('#contract_buy_contracts_attributes_0_salary_calculation').val() == 'weekly'){
       $('.plain-select.payroll-term').html("<select class='form-control' name='contract[buy_contracts_attributes][0][payment_term]' id='contract_buy_contracts_attributes_0_payment_term'><option value='1'>1 Day</option> <option value='2'>1 Days</option> <option value='3'>3 Days</option> <option value='4'>4 Days</option> <option value='5'>5 Days</option> <option value='6'>6 Days</option> <option value='7'>7 Days</option> <option value='14'>14 Days</option></select>")
