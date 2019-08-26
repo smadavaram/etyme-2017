@@ -12,7 +12,7 @@ class DocumentSign < ApplicationRecord
   after_update :notify_creator
 
   def get_requester_signer_conversation
-    conversation = Conversation.DocumentRequest.where(chatable: requested_by.groups.chat_groups.where(id: signable.groups.chat_groups)).first
+    conversation = part_of.is_a?(Conversation) ? part_of : Conversation.DocumentRequest.where(chatable: requested_by.groups.chat_groups.where(id: signable.groups.chat_groups)).first
     conversation.present? ? conversation : create_requester_signer_conversation
   end
 

@@ -340,7 +340,7 @@ Rails.application.routes.draw do
       get :add_to_favourite, on: :collection
       get :remove_from_favourite, on: :collection
       post :add_to_chat, on: :collection
-
+      post :chat_docusign
       get :mute, on: :member
       get :unmute, on: :member
 

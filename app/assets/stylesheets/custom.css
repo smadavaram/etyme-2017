@@ -405,3 +405,7 @@ div.nested_headers{
     height: 30px;
     /*padding: 5px !important;*/
 }
+
+.select2-search__field{
+    width: 100% !important;
+}

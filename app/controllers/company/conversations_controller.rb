@@ -1,6 +1,7 @@
 class Company::ConversationsController < Company::BaseController
 
   skip_before_action :authenticate_user!, only: :search
+  before_action :find_attachments, :find_signers, only: [:chat_docusign]
 
   def index
     @conversations = Conversation.all_onversations(current_user).uniq
@@ -9,6 +10,39 @@ class Company::ConversationsController < Company::BaseController
     set_activity_for_job_application
     # @unread_message_count = Conversation.joins(:conversation_messages).where("(senderable_type = ? AND senderable_id = ? ) OR (recipientable_type = ? AND recipientable_id = ?)", current_user.class.to_s, current_user.id, current_user.class.to_s, current_user.id).where.not(conversation_messages: {is_read: true, userable: current_user}).uniq.count
   end
+
+  def chat_docusign
+
+    @conversation = Conversation.find_by(id: params[:conversation_id])
+    @plugin = current_company.plugins.docusign.first
+    main_signer = get_main_signer
+    co_signers = params[:signers]
+    co_signers&.pop
+    response = true #(Time.current - @plugin.updated_at).to_i.abs / 3600 <= 5 ? true : RefreshToken.new(@plugin).refresh_docusign_token
+    if response.present?
+      @company_candidate_docs.each do |sign_doc|
+        @document_sign = current_company.document_signs.create(
+            requested_by: current_user,
+            documentable: sign_doc,
+            signable: main_signer,
+            is_sign_done: false,
+            part_of: @conversation,
+            signers_ids: co_signers.to_s.gsub('[', '{').gsub(']', '}')
+        )
+        result = DocusignEnvelope.new(@document_sign, @plugin).create_envelope
+        if (result.status == "sent")
+          @document_sign.update(envelope_id: result.envelope_id, envelope_uri: result.uri)
+        else
+          flash[:errors] = result.error_message
+        end
+      end
+      flash[:success] = 'Document is submitted to the candidate for signature'
+    else
+      flash[:errors] = ["Docusign token request failed, please regenerate the token from integrations"]
+    end
+    redirect_to company_conversations_path(conversation: params[:conversation_id])
+  end
+
 
   def create
     @conversation = Conversation.where(id: params[:conversation]).first
@@ -37,8 +71,8 @@ class Company::ConversationsController < Company::BaseController
                            Conversation.send(params[:topic]).all_onversations(online_user)
 
     end
-    group_ids =  Group.user_chat_groups(online_user,current_company).ids
-    @conversations = @conversations.select{|con| group_ids.include?(con.chatable_id) }
+    group_ids = Group.user_chat_groups(online_user, current_company).ids
+    @conversations = @conversations.select { |con| group_ids.include?(con.chatable_id) }
   end
 
   def add_to_favourite
@@ -111,6 +145,20 @@ class Company::ConversationsController < Company::BaseController
 
   def online_user
     current_user.present? ? current_user : current_candidate
+  end
+
+
+  def find_attachments
+    @company_candidate_docs = current_company.company_candidate_docs.where(id: params[:ids])
+  end
+
+  def find_signers
+    @signers = current_company.users.where(id: params[:signers])
+  end
+
+  def get_main_signer
+    candidate = @conversation.chatable.groupables.where(groupable_type: "Candidate").first.groupable
+    candidate.present? ? candidate : current_company.users.find_by(id: params[:signers]&.last)
   end
 
   # private
