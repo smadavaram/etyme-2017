@@ -1,70 +1,164 @@
 .padded-lg
   = render 'shared/plugins_index'
-  %body.bg_white
-    .container-fluid.bg_white
-      .row{style: "padding: 0px 15px 15px 15px;"}
-        .form-group
-          .multi-field-wrapper
-            .multi-fields
-              %br
-              .row
-                .col-md-12
-                  %h4
-                    %b Job Feeds
-                  .form-group.candidate-association
-                  .col-md-12{:style=>"margin-top: 25px;"}
-                    .form-group
-                      .col-md-2
-                        %p Click to get a code snippet for the job feed
-                      .col-md-2
-                        %button.btn.btn-primary{"data-target" => "#embedModal", "data-toggle" => "modal", :type => "button"} Job Feed
+  .element-box
+    .margin-top-10.main_accordion
+      %a.sidebar_collapsible.side-bar_tab.active
+        %div.header-accordion CMS
+      .w-100.text-justify.nav-sidebar-collaps{style: 'display:block'}
+        %div.bg-color-white
+          .row
+            .col-md-3.col-6
+              .feed
+                %a.modal-opener.display-flex{"data-target" => "#embedModal", "data-toggle" => "modal", href: '#embedModal'}
+                  .icon-part
+                    .fa.fa-briefcase
+                  .link-part Job Feed
 
-                .col-md-12
-                  %h4
-                    %b Product Feeds
-                  .form-group.candidate-association
-                  .col-md-12{:style=>"margin-top: 25px;"}
-                    .form-group
-                      .col-md-2
-                        %p Click to get a code snippet for the Product feed
-                      .col-md-2
-                        / = link_to "Product Feed", feed_product_feed_path(:format => :rss), class: "btn btn-primary"
-                        %button.btn.btn-primary{"data-target" => "#embedProductModal", "data-toggle" => "modal", :type => "button"} Product Feed
+            .col-md-3.col-6
+              .feed
+                %a.modal-opener.display-flex{"data-target" => "#embedProductModal", "data-toggle" => "modal", href: '#embedProductModal'}
+                  .icon-part
+                    .fa.fa-product-hunt
+                  .link-part Product Feed
 
-                .col-md-12
-                  %h4
-                    %b Service Feeds
-                  .form-group.candidate-association
-                  .col-md-12{:style=>"margin-top: 25px;"}
-                    .form-group
-                      .col-md-2
-                        %p Click to get a code snippet for the Service feed
-                      .col-md-2
-                        / = link_to "Service Feed", feed_service_feed_path(:format => :rss), class: "btn btn-primary"
-                        %button.btn.btn-primary{"data-target" => "#embedServiceModal", "data-toggle" => "modal", :type => "button"} Service Feed
+            .col-md-3.col-6
+              .feed
+                %a.modal-opener.display-flex{"data-target" => "#embedServiceModal", "data-toggle" => "modal", href: '#embedServiceModal'}
+                  .icon-part
+                    .fa.fa-street-view
+                  .link-part Service Feed
 
-                .col-md-12
-                  %h4
-                    %b Training Feeds
-                  .form-group.candidate-association
-                  .col-md-12{:style=>"margin-top: 25px;"}
-                    .form-group
-                      .col-md-2
-                        %p Click to get a code snippet for the Training feed
-                      .col-md-2
-                        / = link_to "Training Feed", feed_training_feed_path(:format => :rss), class: "btn btn-primary"
-                        %button.btn.btn-primary{"data-target" => "#embedTrainingModal", "data-toggle" => "modal", :type => "button"} Training Feed
+            .col-md-3.col-6
+              .feed
+                %a.modal-opener.display-flex{"data-target" => "#embedBlogModal", "data-toggle" => "modal", href: '#embedBlogModal'}
+                  .icon-part
+                    .fa.fa-rss
+                  .link-part Blog Feed
 
-                .col-md-12
-                  %h4
-                    %b Blog Feeds
-                  .form-group.candidate-association
-                  .col-md-12{:style=>"margin-top: 25px;"}
-                    .form-group
-                      .col-md-2
-                        %p Click to get a code snippet for the Blog feed
-                      .col-md-2
-                        %button.btn.btn-primary{"data-target" => "#embedBlogModal", "data-toggle" => "modal", :type => "button"} Blog Feed
+
+    .margin-top-10.main_accordion
+      %a.sidebar_collapsible.side-bar_tab.active
+        %div.header-accordion Collaboration
+      .w-100.text-justify.nav-sidebar-collaps{style: 'display:block'}
+        %div.bg-color-white
+          .row
+            -Plugin.plugin_types.keys.each do |plugin_type|
+              -unless current_company.plugins.send(plugin_type).present?
+                - if plugin_type == "skype"
+                  .col-md-3.col-6
+                    .feed
+                      %a.modal-opener.display-flex{"data-target" => "#skype_integration_modal", "data-toggle" => "modal", href: '#skype_integration_modal'}
+                        .icon-part
+                          .fa.fa-skype
+                        .link-part Integrate #{plugin_type}
+                - if plugin_type == "zoom"
+                  .col-md-3.col-6
+                    .feed
+                      %a.modal-opener.display-flex{:href => plugin_company_company_path(current_company,plugin_type: plugin_type)}
+                        .icon-part
+                          .fa.fa-video-camera
+                        .link-part Integrate #{plugin_type}
+
+    .margin-top-10.main_accordion
+      %a.sidebar_collapsible.side-bar_tab.active
+        %div.header-accordion Workflows
+      .w-100.text-justify.nav-sidebar-collaps{style: 'display:block'}
+        %div.bg-color-white
+          .row
+            -Plugin.plugin_types.keys.each do |plugin_type|
+              -unless current_company.plugins.send(plugin_type).present?
+                -if plugin_type == "docusign"
+                  .col-md-3.col-6
+                    .feed
+                      %a.modal-opener.display-flex{:href => plugin_company_company_path(current_company,plugin_type: plugin_type)}
+                        .icon-part
+                          = image_tag('docusign.png', width: '60', height: '50')
+                        .link-part Integrate #{plugin_type}
+
+            .col-md-3.col-6
+              .feed
+                %a.modal-opener.display-flex{"data-target" => "#embedProductModal", "data-toggle" => "modal", href: '#embedProductModal'}
+                  .icon-part
+                    .fa.fa-product-hunt
+                  .link-part Product Feed
+
+
+    .margin-top-10.main_accordion
+      %a.sidebar_collapsible.side-bar_tab.active
+        %div.header-accordion Alerts
+      .w-100.text-justify.nav-sidebar-collaps{style: 'display:block'}
+
+    .margin-top-10.main_accordion
+      %a.sidebar_collapsible.side-bar_tab.active
+        %div.header-accordion Reporting
+      .w-100.text-justify.nav-sidebar-collaps{style: 'display:block'}
+
+
+  -#%body.bg_white
+  -#  .container-fluid.bg_white
+  -#    .row{style: "padding: 0px 15px 15px 15px;"}
+  -#      .form-group
+  -#        .multi-field-wrapper
+  -#          .multi-fields
+  -#            %br
+  -#            .row
+  -#              .col-md-12
+  -#                %h4
+  -#                  %b Job Feeds
+  -#                .form-group.candidate-association
+  -#                .col-md-12{:style=>"margin-top: 25px;"}
+  -#                  .form-group
+  -#                    .col-md-2
+  -#                      %p Click to get a code snippet for the job feed
+  -#                    .col-md-2
+  -#                      %button.btn.btn-primary{"data-target" => "#embedModal", "data-toggle" => "modal", :type => "button"} Job Feed
+  -#
+  -#              .col-md-12
+  -#                %h4
+  -#                  %b Product Feeds
+  -#                .form-group.candidate-association
+  -#                .col-md-12{:style=>"margin-top: 25px;"}
+  -#                  .form-group
+  -#                    .col-md-2
+  -#                      %p Click to get a code snippet for the Product feed
+  -#                    .col-md-2
+  -#                      / = link_to "Product Feed", feed_product_feed_path(:format => :rss), class: "btn btn-primary"
+  -#                      %button.btn.btn-primary{"data-target" => "#embedProductModal", "data-toggle" => "modal", :type => "button"} Product Feed
+  -#
+  -#              .col-md-12
+  -#                %h4
+  -#                  %b Service Feeds
+  -#                .form-group.candidate-association
+  -#                .col-md-12{:style=>"margin-top: 25px;"}
+  -#                  .form-group
+  -#                    .col-md-2
+  -#                      %p Click to get a code snippet for the Service feed
+  -#                    .col-md-2
+  -#                      / = link_to "Service Feed", feed_service_feed_path(:format => :rss), class: "btn btn-primary"
+  -#                      %button.btn.btn-primary{"data-target" => "#embedServiceModal", "data-toggle" => "modal", :type => "button"} Service Feed
+  -#
+  -#              .col-md-12
+  -#                %h4
+  -#                  %b Training Feeds
+  -#                .form-group.candidate-association
+  -#                .col-md-12{:style=>"margin-top: 25px;"}
+  -#                  .form-group
+  -#                    .col-md-2
+  -#                      %p Click to get a code snippet for the Training feed
+  -#                    .col-md-2
+  -#                      / = link_to "Training Feed", feed_training_feed_path(:format => :rss), class: "btn btn-primary"
+  -#                      %button.btn.btn-primary{"data-target" => "#embedTrainingModal", "data-toggle" => "modal", :type => "button"} Training Feed
+  -#
+  -#              .col-md-12
+  -#                %h4
+  -#                  %b Blog Feeds
+  -#                .form-group.candidate-association
+  -#                .col-md-12{:style=>"margin-top: 25px;"}
+  -#                  .form-group
+  -#                    .col-md-2
+  -#                      %p Click to get a code snippet for the Blog feed
+  -#                    .col-md-2
+  -#                      %button.btn.btn-primary{"data-target" => "#embedBlogModal", "data-toggle" => "modal", :type => "button"} Blog Feed
 
 
   #embedModal.modal{:role => "dialog"}
