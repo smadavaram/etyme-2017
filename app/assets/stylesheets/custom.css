@@ -26,6 +26,29 @@
     width: 100% !important;
 }
 
+.main_accordion
+{
+    background-color: #292b2c;
+}
+.main_accordion .sidebar_collapsible:after{
+    color: white;
+    margin: 6px;
+}
+.main_accordion .side-bar_tab.active:after{
+    color: white;
+    margin: 6px;
+}
+
+.main_accordion .sidebar_collapsible.side-bar_tab{
+    color: white !important;
+}
+
+.header-accordion{
+    display: inline-block;
+    width: 98%;
+    padding: 10px;
+}
+
 .collaborators
 {
     display: flex;
