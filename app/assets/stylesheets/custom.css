@@ -43,6 +43,26 @@
     color: white !important;
 }
 
+.icon-part{
+    font-size: 1.5rem;
+    margin-right: 10px;
+}
+
+.link-part{
+    font-size: 1rem;
+    display: flex;
+    align-items: center;
+}
+
+.modal-opener{
+    text-decoration: none;
+    color: #3E4B5B;
+}
+
+.feed{
+    padding: 0 10px;
+}
+
 .header-accordion{
     display: inline-block;
     width: 98%;
