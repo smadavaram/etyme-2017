@@ -32,7 +32,10 @@ development:
   DO_SECRET_ACCESS_KEY: 'A/AJA/k5nX4LHjvGH2Ks0ajPgb6SjksAtt8f9XinqNg'
   DO_REGION: 'sfo2'
   DO_BUCKET: 'etyme-cdn'
-
+  # sovren resume parser
+  sovren_client_id: '25584059'
+  sovren_service_key: 'x0pRSXIS5lmRB30L1GLpWbDGIBNtes3JUUM4Uvpi'
+  sovren_api_path: "http://services.resumeparsing.com"
 production:
   mailgun_gun_api:  "key-65deee3bd721c9bba966ff557d3fc79b"
   mailgun_domian:   "etyme.com"
