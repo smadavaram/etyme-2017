@@ -229,6 +229,7 @@ Rails.application.routes.draw do
     resources :plugins, only: [:create]
     resources :document_signs, only:[] do
       post :e_sign_completed, on: :collection
+      get :open_envelope
     end
     resources :departments, only: [:create, :update]
     resources :black_listers, only: [] do

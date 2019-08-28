@@ -1,6 +1,14 @@
 class Company::DocumentSignsController < ApplicationController
 
 
+  def open_envelope
+    docusign = DocumentSign.find_by(id: params[:document_sign_id])
+    company = current_company || docusign.company
+    plugin = company.plugins.docusign.first
+
+    url = DocusignEnvelope.new(docusign,plugin).get_signing_link(online_user)
+  end
+
   def e_sign_completed
     client = Aws::S3::Client.new(access_key_id: ENV['DO_ACCESS_KEY_ID'], secret_access_key: ENV['DO_SECRET_ACCESS_KEY'], endpoint: "https://#{ENV['DO_REGION']}.digitaloceanspaces.com", region: ENV['DO_REGION'])
     xml_doc = Nokogiri::XML(request.body.read)
@@ -22,6 +30,10 @@ class Company::DocumentSignsController < ApplicationController
     end
     @document_sign.update(is_sign_done: true,signed_file: file_urls.join(','))
     render json: {status: "ok"}, status: :ok
+  end
+
+  def online_user
+    current_user.present? ? current_user : current_candidate
   end
 
 end

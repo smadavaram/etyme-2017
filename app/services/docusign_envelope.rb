@@ -21,6 +21,32 @@ class DocusignEnvelope
     docx
   end
 
+  def get_signing_link(user)
+    # opt = {
+    #     ReturnUrl: "https://#{@document_sign.company.etyme_url}",
+    #     ClientUserId: user.id,
+    #     AuthenticationMethod: "email",
+    #     UserName: user.full_name,
+    #     Email: user.email
+    # };
+    # DocuSign_eSign::EnvelopesApi.create_recipient_view(@plugin.account_id, @document_sign.envelope_id,opt)
+    #
+    #
+    configuration = DocuSign_eSign::Configuration.new
+    configuration.host = ENV['docusign_envelope_base_path']
+    api_client = DocuSign_eSign::ApiClient.new configuration
+    api_client.default_headers["Authorization"] = "Bearer " + @plugin.access_token
+    envelopes_api = DocuSign_eSign::EnvelopesApi.new api_client
+
+    view_request =  DocuSign_eSign::RecipientViewRequest.new
+    view_request.return_url = "https://#{@document_sign.company.etyme_url}"
+    view_request.authentication_method = "email"
+    view_request.email = user.email
+    view_request.user_name = user.full_name
+    view_request.client_user_id = user.id
+    results = envelopes_api.create_recipient_view(@plugin.account_id, @document_sign.envelope_id, view_request)
+    redirect_to results.url
+  end
 
   def get_signers(documents)
     signers = []
