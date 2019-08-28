@@ -409,3 +409,6 @@ div.nested_headers{
 .select2-search__field{
     width: 100% !important;
 }
+.table-responsive{
+    overflow-x: auto !important;
+}

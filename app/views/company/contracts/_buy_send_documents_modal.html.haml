@@ -41,16 +41,14 @@
                                 - index = index +1
 
             %br
-            #toggle_signers{class: current_company.candidate_job_templates.present? ? '': 'd-none'}
-              = select_tag 'signers[]', nil, id: "select_sell_company_contacts", class: "form-control select2 select2-hidden-accessible mb-2"
-            = button_tag 'submit', class: 'btn btn-sm btn-secondary pull-right mt-2'
+            #toggle_signers{class: current_company.candidate_job_templates.present? ? 'w-100 ': 'w-100 d-none'}
+              = select_tag 'signers[]', nil, id: "select_sell_company_contacts_signers", class: "mb-2", style: "width: 100%"
             %br
-            = button_tag 'submit', class: 'btn btn-sm btn-secondary pull-right'
+            = button_tag 'submit',type: 'submit', class: 'btn btn-sm btn-secondary pull-right'
 
 - content_for :scripts do
   :javascript
     $(document).ready(function() {
-      set_company_contacts_select('#select_sell_company_contacts', "Please Select Signers", "#sell_contract_company");
       $( ".file-pick" ).on('click',function() {
       $('.fp__overlay').css({'z-index':'99999'})});
     });
@@ -58,6 +56,7 @@
 :javascript
     $(document).ready(function() {
         pageSetUp();
+        set_company_contacts_select('#select_sell_company_contacts_signers', "Please Select Signers", "#sell_contract_company");
         $(".filepicker-attach-doc").on("change", function(e){
           var name = e["originalEvent"]["fpfile"]["filename"];
           var size = e["originalEvent"]["fpfile"]["size"];

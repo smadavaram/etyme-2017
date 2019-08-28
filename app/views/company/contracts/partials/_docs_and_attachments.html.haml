@@ -473,6 +473,7 @@
                                 %th Document Title
                                 %th Sent Date
                                 %th Status
+                                %th Signers
                                 %th Envelope No
                                 %th Signed Document
                             %tbody#buy_send_documents_table
@@ -481,6 +482,10 @@
                                   %td= docusign.documentable.title
                                   %td= docusign.created_at.strftime("%Y-%m-%d")
                                   %td= docusign.is_sign_done ? "Signed" : "Pending"
+                                  %td.d-flex
+                                    = image_tag(docusign&.signable&.photo, class: 'data-table-image mr-1')
+                                    - docusign.signers&.each do |signer|
+                                      =image_tag(signer.photo, class: 'data-table-image mr-1')
                                   %td= docusign.envelope_id.present? ? docusign.envelope_id : "Document Not Submitted"
                                   %td= link_to content_tag(:i,'',class:'fa fa-paperclip fa-lg').html_safe, docusign.signed_file if docusign.is_sign_done
                 #buy_emp_req_docs.tab-pane.padding-top-15
@@ -515,6 +520,7 @@
                                 %th Document Title
                                 %th Sent Date
                                 %th Status
+                                %th Signers
                                 %th Envelope No
                                 %th Signed Document
                             %tbody#buy_ven_req_docs_table
@@ -523,6 +529,10 @@
                                   %td= docusign.documentable.title
                                   %td= docusign.created_at.strftime("%Y-%m-%d")
                                   %td= docusign.is_sign_done ? "Signed" : "Pending"
+                                  %td.d-flex
+                                    = image_tag(docusign&.signable&.photo, class: 'data-table-image mr-1')
+                                    - docusign.signers&.each do |signer|
+                                      =image_tag(signer.photo, class: 'data-table-image mr-1')
                                   %td= docusign.envelope_id.present? ? docusign.envelope_id : "Document Not Submitted"
                                   %td= link_to content_tag(:i,'',class:'fa fa-paperclip fa-lg').html_safe, docusign.signed_file if docusign.is_sign_done
 

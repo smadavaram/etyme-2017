@@ -97,7 +97,7 @@ class Company::ContractsController < Company::BaseController
     else
       flash.now[:errors] = ["Docusign token request failed, please regenerate the token from integrations"]
     end
-    @document_signs = @buy_contract.document_signs.where(signable: @buy_contract.contract.candidate, documentable: current_company.company_candidate_docs.where(is_require: "signature").id0s)
+    @document_signs = @buy_contract.document_signs.where(signable: @buy_contract.contract.candidate, documentable: current_company.company_candidate_docs.where(is_require: "signature").ids)
   end
 
   def buy_emp_doc_create

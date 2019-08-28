@@ -36,7 +36,7 @@ class DocusignEnvelope
                                                      tabLabel: 'signHereTabs',
                                                      anchorXOffset: '2',
                                                      anchorYOffset: '0',
-                                                     anchorString: 'Please Sign Here:',
+                                                     anchorString: '::Sig:',
                                                      anchorIgnoreIfNotPresent: "true",
                                                      anchorUnits: "inches"
                                                  })
