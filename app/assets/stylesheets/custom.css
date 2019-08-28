@@ -43,6 +43,10 @@
     color: white !important;
 }
 
+.align-item-center{
+    align-items: center;
+}
+
 .icon-part{
     font-size: 1.5rem;
     margin-right: 10px;
