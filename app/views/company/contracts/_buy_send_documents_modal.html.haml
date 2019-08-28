@@ -39,8 +39,12 @@
                               %a{:download => "", :href => file_path, :target=>"_blank"}
                                 = "#{index}: #{file_path.split('/').last}"
                                 - index = index +1
+
             %br
-            = button_tag 'submit', class: 'btn btn-sm btn-secondary pull-right'
+            #toggle_signers{class: current_company.candidate_job_templates.present? ? 'w-100 ': 'w-100 d-none'}
+              = select_tag 'signers[]', nil, id: "select_sell_company_contacts_signers", class: "mb-2", style: "width: 100%"
+            %br
+            = button_tag 'submit',type: 'submit', class: 'btn btn-sm btn-secondary pull-right'
 
 - content_for :scripts do
   :javascript
@@ -52,6 +56,7 @@
 :javascript
     $(document).ready(function() {
         pageSetUp();
+        set_company_contacts_select('#select_sell_company_contacts_signers', "Please Select Signers", "#sell_contract_company");
         $(".filepicker-attach-doc").on("change", function(e){
           var name = e["originalEvent"]["fpfile"]["filename"];
           var size = e["originalEvent"]["fpfile"]["size"];

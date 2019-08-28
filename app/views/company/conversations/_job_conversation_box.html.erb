@@ -6,7 +6,7 @@
         <span>To:</span>
         <a class="d-inline" href="#"><%= opt_obj.full_name if opt_obj.present? %></a>
       </div>
-      <% if conversation.present? and conversation.JobApplication?%>
+      <% if conversation.present? and conversation.JobApplication? %>
         <div>
           <% candidate = conversation.chatable&.groupables.find_by_groupable_type(:Candidate).groupable %>
           <%= contact_widget(candidate.email, candidate.phone, candidate.id) %>
@@ -35,12 +35,13 @@
       </div>
       <div class="chat-input-extra">
         <div class="chat-extra-actions">
-          <%= render 'shared/file_attachement',f:f,attr_name: :file_url, name_selector: ".uploaded_file_name",cstm_class: "btn-primary btn-sm",button_name: "Pick File",name_selector: '#file-name_uploaded' %>
-          <%#= f.filepicker_field :file_url, class: 'btn btn-primary req-file-pick', id: 'req-accept-filepiker', onchange: 'onCompanyFileUpload(event)' %>
+          <%= button_tag "<i class='fi-clipboard-pencil' style='font-size: 26px;'></i>".html_safe, type: "button", class: "btn p-0", style: "background: transparent;box-shadow: none;", onclick: "$('##{"chat-templates-#{conversation.id}"}').modal('show')" %>
+          <%= render 'shared/file_attachement', f: f, attr_name: :file_url, name_selector: ".uploaded_file_name", cstm_class: "p-0", cstm_style: "background: transparent;box-shadow: none;", button_name: "<i class='os-icon os-icon-ui-51' style='font-size: 26px;'></i>".html_safe, name_selector: '#file-name_uploaded' %>
         </div>
         <div class="chat-btn">
-          <%= f.submit "Send", class: "btn btn-primary btn-sm float-right", id: "send-chat-message" %>
-          <!--<a class="btn btn-primary btn-sm" href="#">Reply</a>-->
+          <%= button_tag(type: "submit", class: "btn p-0", style: "background: transparent;box-shadow: none;") do %>
+            <i class="os-icon os-icon-mail-18" style='font-size: 26px; margin: 0px;'></i>
+          <% end %>
         </div>
       </div>
     <% end if conversation.present? %>
@@ -52,6 +53,10 @@
   <% end %>
 </div>
 
+<% content_for :modals do %>
+  <%= render 'shared/chat_document_templates', conversation: @conversation %>
+<% end %>
+
 <% content_for :scripts do %>
   <script>
     function onCompanyFileUpload (event) {
@@ -59,13 +64,14 @@
     }
 
     $(document).ready(function () {
+      set_company_contacts_select('#select_sell_company_contacts', "Please Select Signers", "#sell_contract_company");
       <%# unless conversation&.job_application %>
-        <% unless request.fullpath.include?("job_applications") %>
-          $('.collapsible').css('padding', '6px 18px');
-          $('#collapsible_job_application').removeClass('ml-2 mr-2')
-          $('#collapsible_job_application').removeClass('mt-4')
-          $('#collapsible_job_application').addClass('mt-2')
-        <% end %>
+      <% unless request.fullpath.include?("job_applications") %>
+      $('.collapsible').css('padding', '6px 18px');
+      $('#collapsible_job_application').removeClass('ml-2 mr-2')
+      $('#collapsible_job_application').removeClass('mt-4')
+      $('#collapsible_job_application').addClass('mt-2')
+      <% end %>
       <%# end %>
       $.ajax({
         url: "<%= messages_conversation_conversation_messages_path(conversation||0) %>",

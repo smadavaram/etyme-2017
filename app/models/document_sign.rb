@@ -1,4 +1,5 @@
 class DocumentSign < ApplicationRecord
+
   belongs_to :documentable, polymorphic: :true, optional: true
   belongs_to :signable, polymorphic: :true, optional: true
   belongs_to :initiator, polymorphic: :true, optional: true
@@ -11,8 +12,12 @@ class DocumentSign < ApplicationRecord
   after_update :notify_creator
 
   def get_requester_signer_conversation
-    conversation = Conversation.DocumentRequest.where(chatable: requested_by.groups.chat_groups.where(id: signable.groups.chat_groups)).first
+    conversation = part_of.is_a?(Conversation) ? part_of : Conversation.DocumentRequest.where(chatable: requested_by.groups.chat_groups.where(id: signable.groups.chat_groups)).first
     conversation.present? ? conversation : create_requester_signer_conversation
+  end
+
+  def signers
+    company.users.where(id: signers_ids)
   end
 
   private
