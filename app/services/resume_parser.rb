@@ -58,43 +58,10 @@ class ResumeParser
     request["Sovren-Accountid"] = account_id
     request["Sovren-Servicekey"] = service_key
     request.body = {
-        "DocumentAsBase64String": Base64.encode64(open(@resume_url).read),
-        "GeocodeOptions": {
-            "IncludeGeocoding": true,
-            "Provider": "string",
-            "ProviderKey": "string",
-            "PostalAddress": {
-                "CountryCode": "string",
-                "PostalCode": "string",
-                "Region": "string",
-                "Municipality": "string",
-                "AddressLine": "string"
-            },
-            "GeoCoordinates": {
-                "Latitude": 0,
-                "Longitude": 0
-            }
-        },
-        "IndexingOptions": {
-            "IndexId": "string",
-            "DocumentId": "string",
-            "CustomIds": [
-                "string"
-            ]
-        },
-        "OutputHtml": true,
-        "OutputRtf": true,
-        "OutputCandidateImage": true,
-        "OutputPdf": true,
-        "Configuration": "string",
-        "RevisionDate": "string",
-        "SkillsData": [
-            "string"
-        ],
-        "NormalizerData": "string"
+        "DocumentAsBase64String": Base64.encode64(open(@resume_url).read)
     }.to_json
     req_options = {
-        use_ssl: uri.scheme == " https ",
+        use_ssl: uri.scheme == "https",
     }
     response = Net::HTTP.start(uri.hostname, uri.port, req_options) do |http|
       http.request(request)
