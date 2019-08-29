@@ -1,4 +1,4 @@
-module CandidateProfileBuilder
+module ArchilliCandidateProfileBuilder
   extend ActiveSupport::Concern
 
   def build_profile(parsed_resume)

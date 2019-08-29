@@ -1253,6 +1253,7 @@ DEPENDENCIES
   capistrano-passenger (>= 0.1.1)
   capistrano-rails
   carrierwave
+  chronic
   city-state
   cocoon
   coffee-rails
@@ -1273,6 +1274,7 @@ DEPENDENCIES
   googleauth
   haml-rails
   has_scope
+  hashie
   hirb
   holidays
   jbuilder (~> 2.5)
