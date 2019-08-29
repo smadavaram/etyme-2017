@@ -58,7 +58,7 @@ class Static::JobApplicationsController < ApplicationController
   end
 
   def save_job_application(job_application)
-    if job_application.save!
+    if job_application.save
       flash[:success] = "Job Application Created"
     else
       flash[:errors] = job_application.errors.full_messages

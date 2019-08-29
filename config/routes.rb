@@ -32,12 +32,16 @@ Rails.application.routes.draw do
     get 'product_feed' => 'rss_jobs#product_feed', format: 'rss'
     get 'service_feed' => 'rss_jobs#service_feed', format: 'rss'
     get 'training_feed' => 'rss_jobs#training_feed', format: 'rss'
+    get ':company_id/bench_feed' => 'rss_jobs#bench_feed', format: 'rss'
+
     get 'feeds' => 'rss_jobs#feeds'
     get ':company_id/job_feed' => 'rss_jobs#job_feed', format: 'json'
     get ':company_id/job_feed/:job_id' => 'rss_jobs#job_feed', format: 'json'
     get ':company_id/product_feed' => 'rss_jobs#product_feed', format: 'json'
     get ':company_id/service_feed' => 'rss_jobs#service_feed', format: 'json'
     get ':company_id/training_feed' => 'rss_jobs#training_feed', format: 'json'
+    get ':company_id/bench_feed' => 'rss_jobs#bench_feed', format: 'json'
+
   end
 
 

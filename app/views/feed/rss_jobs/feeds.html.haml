@@ -34,6 +34,12 @@
                   .icon-part
                     .fa.fa-rss
                   .link-part Blog Feed
+            .col-md-3.col-6
+              .feed
+                %a.modal-opener.display-flex{"data-target" => "#embedBenchModal", "data-toggle" => "modal", href: '#embedBlogModal'}
+                  .icon-part
+                    .fa.fa-user
+                  .link-part Bench Feed
 
 
     .margin-top-10.main_accordion
@@ -319,6 +325,34 @@
                   &nbsp;$(function() {
                   %br
                   &nbsp;&nbsp;etyme("blog-board",#{current_company.id},"blog");
+                  %br
+                  &nbsp;})
+                  %br
+                  &lt;/script&gt;
+  #embedBenchModal.modal{:role => "dialog"}
+    .modal-dialog
+      / Modal content
+      .modal-content
+        .modal-body
+          .card
+            .card-body
+              .card-subtitle
+                Copy and paste the following code snippets inside the <code>&lt;head&gt;&lt;/head&gt;</code> at the bottom:
+              .p-4.border
+                %code
+                  &lt;script src="https://cdnjs.cloudflare.com/ajax/libs/iframe-resizer/4.0.4/iframeResizer.min.js" crossorigin="anonymous"&gt;&lt;/script&gt;
+                  &lt;script src="https://etyme.club/static/js/etyme.embeddable.min.js" type="text/javascript"&gt;&lt;/script&gt;
+              .card-subtitle.mt-4
+                Copy and paste the following code snippets where you want to display the blog board:
+              .p-4.border
+                %code
+                  &lt;div id="bench-board"&gt;&lt;/div&gt;
+                  %br
+                  &lt;script type="text/javascript"&gt;
+                  %br
+                  &nbsp;$(function() {
+                  %br
+                  &nbsp;&nbsp;etyme("bench-board",#{current_company.id},"bench");
                   %br
                   &nbsp;})
                   %br

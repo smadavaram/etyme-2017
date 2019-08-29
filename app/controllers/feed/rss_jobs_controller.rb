@@ -4,6 +4,14 @@ class Feed::RssJobsController < ApplicationController
   def feeds
   end
 
+  def bench_feed
+    @candidates = CandidatesCompany.hot_candidate.where(company_id: params[:company_id])
+    respond_to do |format|
+      format.rss {render :layout => false}
+      format.json {render :json => {company: @company.as_json(include: :company_videos),candidates: @candidates}}
+    end
+  end
+
  def job_feed
     @jobs = Job.active.is_public.where(:listing_type=>"Job").where(:status =>"Published")
     if params[:company_id].present?

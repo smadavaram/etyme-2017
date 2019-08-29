@@ -10,7 +10,7 @@
           %label.d-block Resume
           .file_selector{style: "display: flex;"}
             .form-group.d-inline-block
-              = render 'shared/file_attachement',f:f,attr_name: :applicant_resume, name_selector: ".uploaded_file_name",cstm_style: "border-radius: 0; height:38px;"
+              = render 'shared/file_attachement',f:f,attr_name: :applicant_resume,button_name: "Attach Resume", name_selector: ".uploaded_file_name",cstm_style: "border-radius: 0; height:38px;"
             %p.d-inline-block.uploaded_file_name  No File Selected
         = f.fields_for :job_application_without_registrations do |b|
           .col-sm-6
