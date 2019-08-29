@@ -17,7 +17,7 @@ $("#modals").html("<%= j render 'shared/chat_document_templates', conversation: 
 $("#conversation-r-section").html("<%= j render 'company/conversations/conversation_right_side' %>");
 <% end %>
 
-set_company_contacts_select('#select_sell_company_contacts', "Please Select Signers", "#sell_contract_company");
+set_company_users_select('#select_sell_company_contacts', "Please Select Signers", "#sell_contract_company");
 
 $(".chat-content-scroll").data('ajaxready', true);
 $.ajax({

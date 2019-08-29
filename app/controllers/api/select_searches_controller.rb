@@ -22,6 +22,11 @@ class Api::SelectSearchesController < ApplicationController
     respond_with @contacts
   end
 
+  def find_users
+    @users = current_company.users.like_any([:first_name, :last_name], params[:q].to_s.split).paginate(:page => params[:page], :per_page => params[:per_page])
+    respond_with @users
+  end
+
   def find_jobs
     @jobs = current_company.jobs.like_any([:title], params[:q].to_s.split).paginate(:page => params[:page], :per_page => params[:per_page])
     respond_with @jobs

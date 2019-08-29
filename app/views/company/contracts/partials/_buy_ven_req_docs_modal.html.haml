@@ -49,7 +49,7 @@
 - content_for :scripts do
   :javascript
     $(document).ready(function() {
-      set_company_contacts_select('#select_sell_company_contacts', "Please Select Signers", "#sell_contract_company");
+      set_company_users_select('#select_sell_company_contacts', "Please Select Signers", "#sell_contract_company");
       $( ".file-pick" ).on('click',function() {
       $('.fp__overlay').css({'z-index':'99999'})});
     });

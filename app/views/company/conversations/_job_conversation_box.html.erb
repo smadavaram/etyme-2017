@@ -64,7 +64,7 @@
     }
 
     $(document).ready(function () {
-      set_company_contacts_select('#select_sell_company_contacts', "Please Select Signers", "#sell_contract_company");
+        set_company_users_select('#select_sell_company_contacts', "Please Select Signers", "#sell_contract_company");
       <%# unless conversation&.job_application %>
       <% unless request.fullpath.include?("job_applications") %>
       $('.collapsible').css('padding', '6px 18px');

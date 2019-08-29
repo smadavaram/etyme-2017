@@ -56,7 +56,7 @@
 :javascript
     $(document).ready(function() {
         pageSetUp();
-        set_company_contacts_select('#select_sell_company_contacts_signers', "Please Select Signers", "#sell_contract_company");
+        set_company_users_select('#select_sell_company_contacts_signers', "Please Select Signers", "#sell_contract_company");
         $(".filepicker-attach-doc").on("change", function(e){
           var name = e["originalEvent"]["fpfile"]["filename"];
           var size = e["originalEvent"]["fpfile"]["size"];

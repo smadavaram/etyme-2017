@@ -89,6 +89,15 @@ class User < ApplicationRecord
   validate :max_skill_size
 
 
+
+  def self.like_any(fields, values)
+    conditions = fields.product(values).map do |(field, value)|
+      [arel_table[field].matches("#{value}%"), arel_table[field].matches("% #{value}%")]
+    end
+    where conditions.flatten.inject(:or)
+  end
+
+
   def user?
     instance_of? User if invited_by_id.nil?
   end
