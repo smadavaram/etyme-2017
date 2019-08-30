@@ -22,6 +22,8 @@ class JobApplication < ApplicationRecord
   has_many :interviews
   has_many :document_signs, as: :part_of
 
+  has_many :activities, as: :trackable, class_name: 'PublicActivity::Activity', dependent: :destroy
+
 
   # validates :cover_letter , :applicant_resume ,presence: true
   validates :cover_letter, presence: true

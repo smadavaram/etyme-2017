@@ -4,6 +4,7 @@ class Consultant < User
 
   attr_accessor :company_doc_ids
   attr_accessor :resend_invitation
+  has_many :activities, as: :trackable, class_name: 'PublicActivity::Activity', dependent: :destroy
 
   enum visa_status: [:USC, :GC, :H1B, :EAD]
   enum relocation:  [:not_set,:open,:not_open]

@@ -4,6 +4,7 @@ class Expense < ApplicationRecord
   belongs_to :company_contact, optional: true, foreign_key: :account_id
 
   has_many :expense_accounts, dependent: :destroy
+  has_many :activities, as: :trackable, class_name: 'PublicActivity::Activity', dependent: :destroy
 
   accepts_nested_attributes_for :expense_accounts, allow_destroy: true ,reject_if: :all_blank
 

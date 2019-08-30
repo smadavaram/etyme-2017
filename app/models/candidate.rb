@@ -80,6 +80,7 @@ class Candidate < ApplicationRecord
   has_many :document_signs, as: :signable, dependent: :destroy
   # has_many :partner_following, through: :partner_active_relationships, source: :partner_followed
   # has_many :partner_followers, through: :partner_passive_relationships, source: :partner_follower
+  has_many :activities, as: :trackable, class_name: 'PublicActivity::Activity', dependent: :destroy
 
   belongs_to :invited_by_user, class_name: "User", foreign_key: :invited_by_id, optional: true
   belongs_to :associated_company, class_name: "Company", foreign_key: :company_id, optional: true

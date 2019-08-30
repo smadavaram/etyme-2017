@@ -5,6 +5,7 @@ class PreferVendor < ApplicationRecord
 
   belongs_to :company, optional: true
   belongs_to :prefer_vendor, class_name: "Company",foreign_key: 'vendor_id', optional: true
+  has_many :activities, as: :trackable, class_name: 'PublicActivity::Activity', dependent: :destroy
 
   attr_accessor :company_ids
 

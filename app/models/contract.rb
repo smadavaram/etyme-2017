@@ -55,6 +55,9 @@ class Contract < ApplicationRecord
   # has_many :contract_sell_business_details
   # has_many :contract_sale_commisions
 
+  has_many :activities, as: :trackable, class_name: 'PublicActivity::Activity', dependent: :destroy
+
+
   # after_create :set_on_seq
   after_create :insert_attachable_docs, unless: Proc.new { |contract| contract.draft? }
   # after_create :set_next_invoice_date, unless: Proc.new {|contract| contract.draft?}

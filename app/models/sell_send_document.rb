@@ -4,6 +4,7 @@ class SellSendDocument < ApplicationRecord
   belongs_to :creatable      , polymorphic: :true, optional: true
 
   has_many :document_signs       , as: :documentable,dependent: :destroy
+  has_many :activities, as: :trackable, class_name: 'PublicActivity::Activity', dependent: :destroy
 
   # include NumberGenerator.new({prefix: 'SSD', length: 7})
   before_create :set_number

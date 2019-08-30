@@ -94,6 +94,7 @@ class Company < ApplicationRecord
   # validates           :company_type, inclusion: {in: %w(0 , 1)}
   # validates           :name,  presence:   true
   # validates           :domain, uniqueness:   true
+  has_many :activities, as: :trackable, class_name: 'PublicActivity::Activity', dependent: :destroy
 
 
   # validates_uniqueness_of   :name, message: "This company is already registered on etyme. You can connect with its Admin and he can allow you to be added into the company"
