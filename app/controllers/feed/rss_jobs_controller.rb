@@ -5,10 +5,11 @@ class Feed::RssJobsController < ApplicationController
   end
 
   def bench_feed
-    @candidates = CandidatesCompany.hot_candidate.where(company_id: params[:company_id])
+    @company = Company.find_by(id: params[:company_id])
+    @candidates = Candidate.where(id: CandidatesCompany.hot_candidate.where(company_id: params[:company_id]).pluck(:candidate_id))
     respond_to do |format|
       format.rss {render :layout => false}
-      format.json {render :json => {company: @company.as_json(include: :company_videos),candidates: @candidates}}
+      format.json {render :json => {company: @company.as_json(include: :company_videos),bench: @candidates.as_json(include: :invited_by_user)}}
     end
   end
 
