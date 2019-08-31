@@ -608,6 +608,7 @@ Rails.application.routes.draw do
       collection do
         post :share_jobs, as: :share_jobs
         post :update_media
+        post :update_images
       end
     end
 

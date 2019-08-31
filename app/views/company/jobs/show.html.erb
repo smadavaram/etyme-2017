@@ -100,7 +100,7 @@
           <div class="element-box element-box-show">
             <h5 class="form-header">Quick Actions</h5>
             <div style="display: flex;flex-direction: column;">
-              <%= link_to "Edit", edit_job_path(@job,type: @job.listing_type), class: "mb-1 btn btn-primary" %>
+              <%= link_to "Edit", edit_job_path(@job, type: @job.listing_type), class: "mb-1 btn btn-primary" %>
               <% if has_permission?("send_job_invitations") %>
                 <%= link_to 'Send Invitation', send_invitation_job_path(@job), method: :post, remote: true, class: 'mb-1 btn btn-primary' %>
               <% end %>
@@ -129,6 +129,22 @@
             <div class="form-group">
               <%#= filepicker_field_tag "", class: "hidden media-file", onchange: "mediaUpload(event)", "data-fp-crop-ratio" => "2/2" %>
               <button type="button" class="w-100 btn btn-default btn-primary btn-upload-media">Upload Media</button>
+            </div>
+          </div>
+          <div class="element-box element-box-show">
+            <h5 class="form-header">Job Images</h5>
+            <div class="form-group">
+              <% if @job.files.present? %>
+                <% @job.files.split(',').each do |file| %>
+                  <a href="<%= file %>" target="_blank" class="mb-1">
+                    <%= image_tag(file, size: "50x50") %>
+                  </a>
+                <% end %>
+              <% end %>
+            </div>
+            <div class="form-group">
+              <%#= filepicker_field_tag "", class: "hidden media-file", onchange: "mediaUpload(event)", "data-fp-crop-ratio" => "2/2" %>
+              <button type="button" class="w-100 btn btn-default btn-primary btn-upload-images">Upload Images</button>
             </div>
           </div>
           <div class="element-box element-box-show">
@@ -187,14 +203,34 @@
 <%= javascript_tag do %>
   $(function() {
   // Initialize datatable
-  var table = $("#dataTable").DataTable();
+  // var table = $("#dataTable").DataTable();
 
   // File picker handler
   $( ".btn-upload-media" ).click(function() {
-  // $( ".media-file" ).trigger( "click" );
   upload_file_ajax(mediaUpload)
   });
+  $( ".btn-upload-images" ).click(function() {
+  upload_multi_file_ajax(imagesUpload,false,true)
+  });
   })
+
+  function imagesUpload(url){
+  media_url = url
+  $.ajax({
+  type: 'POST',
+  contentType: 'application/json; charset=utf-8', //dataType: 'json',
+  url: "/jobs/update_images",
+  data: JSON.stringify({ job_id: <%= @job.id %>, files: media_url,authenticity_token: window._token }),
+  success: function (data) {
+  console.log("reload!")
+  window.location.reload(true);
+  },
+  done: function (data) {
+  console.log("done!");
+  window.location.reload(true);
+  }
+  });
+  }
 
   function mediaUpload(url,type) {
   media_url = url

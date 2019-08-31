@@ -1091,3 +1091,26 @@ function upload_file_ajax(callback_function, id=false) {
     $(".powered-by-holder").remove();
     $('.tingle-modal__closeIcon').text('x');
 }
+function upload_multi_file_ajax(callback_function, id=false,multiple=false) {
+    new UploaderWindow("<%= ENV['uploader'] %>").open().then(urls => {
+    if (urls !== false) {
+
+        let files_path;
+        if (multiple) {
+          files_path = urls.map(function (url) {
+            return url.url
+          }).join(',')
+        } else {
+          let upload = urls[0];
+          files_path = upload.url
+        }
+        if (id) {
+            callback_function(files_path,id);
+        } else {
+            callback_function(files_path);
+        }
+    }
+});
+    $(".powered-by-holder").remove();
+    $('.tingle-modal__closeIcon').text('x');
+}

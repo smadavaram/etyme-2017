@@ -1,41 +1,41 @@
-<table id="dataTable" class="table table-lightborder table-striped dataTable" data-class="Scaffolding::Thing">
+<table id="jobs_datatable" class="table table-lightborder table-striped dataTable" data-class="Scaffolding::Thing">
   <thead>
-    <tr>
-      <th>Name</th>
-      <th>Role, Title</th>
-      <th>Skills</th>
-      <th>Location</th>
-      <th>Visa</th>
-      <th>Recruiter Name</th>
-    </tr>
+  <tr>
+    <th>Name</th>
+    <th>Role, Title</th>
+    <th>Skills</th>
+    <th>Location</th>
+    <th>Visa</th>
+    <th>Recruiter Name</th>
+  </tr>
   </thead>
   <tbody>
     <% @job_applications.each do |application| %>
-    <tr data-id="<%= application.id %>">
-      <td>
-        <%= link_to application.user.try(:full_name).try(:titleize),job_application_path(application.id),"data-content" => "<p class= 'text-center' ><image style='border-radius:50%;' src=#{image_url(application.user.photo)}/></br><div class='well well-sm'>#{application.user.full_name}</br>Email : #{application.user.email} </div></p>", "data-placement" => "top",:rel => "hover" %>
-      </td>
-      <td>
-        <% if application.user.try(:roles).present? %>
-          <% application.user.try(:roles).each do |role| %>
-            <span class="label-info badge"><%= role.try(:name) %></span>
+      <tr data-id="<%= application.id %>">
+        <td>
+          <%= link_to application.user.try(:full_name).try(:titleize), job_application_path(application.id), "data-content" => "<p class= 'text-center' ><image style='border-radius:50%;' src=#{image_url(application.user.photo)}/></br><div class='well well-sm'>#{application.user.full_name}</br>Email : #{application.user.email} </div></p>", "data-placement" => "top", :rel => "hover" %>
+        </td>
+        <td>
+          <% if application.user.try(:roles).present? %>
+            <% application.user.try(:roles).each do |role| %>
+              <span class="label-info badge"><%= role.try(:name) %></span>
+            <% end %>
           <% end %>
-        <% end %>
-      </td>
-      <td>
-        <% application.user.skills.each do |skill| %>
-          <span class="label-info badge mb-5"><%= skill.name %></span>
-        <% end %>
-      </td>
-      <td><%= application.user.try(:location) %></td>
-      <td><%= application.user.visa %></td>
-      <td><%= application.job.location %></td>
-      <td>
-        <% application.user.companies.each do |company| %>
-          <span class="label-info badge mb-5"><%= company.name %></span>
-        <% end %>
-      </td>
-    </tr>
+        </td>
+        <td>
+          <% application.user.skills.each do |skill| %>
+            <span class="label-info badge mb-5"><%= skill.name %></span>
+          <% end %>
+        </td>
+        <td><%= application.user.try(:location) %></td>
+        <td><%= application.user.visa %></td>
+        <td><%= application.job.location %></td>
+        <td>
+          <% application.user.companies.each do |company| %>
+            <span class="label-info badge mb-5"><%= company.name %></span>
+          <% end %>
+        </td>
+      </tr>
     <% end %>
   </tbody>
 </table>
