@@ -1060,6 +1060,9 @@ function upload_file(selector, name_selector = false, multiple = false) {
                 files_path = urls.map(function (url) {
                     return url.url
                 }).join(',')
+              if (name_selector) {
+                $(name_selector).html("<span>" + urls.map(function (url) {return url.name}).join(',') + "</span><hr/>");
+              }
             } else {
                 let upload = urls[0];
                 if (name_selector) {
