@@ -29,7 +29,7 @@ class DocumentSign < ApplicationRecord
   def notify_signable
     notification = Notification.new(notifiable: signable,
                                     createable: requested_by,
-                                    status: :unread, notification_type: :contract)
+                                    status: :unread, notification_type: :document_request)
     if documentable.is_require == "signature"
       notification.title = "Signature Request"
       notification.message = "#{requested_by.full_name.capitalize} has requested you to sign the document sent through docusign"
@@ -47,7 +47,7 @@ class DocumentSign < ApplicationRecord
     if signed_file.present?
       notification = Notification.new(notifiable: requested_by,
                                       createable: signable,
-                                      status: :unread, notification_type: :contract)
+                                      status: :unread, notification_type: :document_request)
       if documentable.is_require == "signature"
         notification.title = "Document Signatured"
         notification.message = "#{signable.full_name.capitalize} has signed the document received through docusign"

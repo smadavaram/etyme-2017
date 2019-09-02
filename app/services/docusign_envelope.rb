@@ -48,7 +48,7 @@ class DocusignEnvelope
     signers
   end
 
-  # url: "https://0fa99b3b.ngrok.io#{url_helpers.e_sign_completed_company_document_signs_path}",
+  # url: "https://a544946b.ngrok.io#{url_helpers.e_sign_completed_company_document_signs_path}",
   def build_event_notification
     {
         url: "https://#{@document_sign.company.etyme_url}#{url_helpers.e_sign_completed_company_document_signs_path}",
