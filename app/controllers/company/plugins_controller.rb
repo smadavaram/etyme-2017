@@ -1,7 +1,7 @@
 class Company::PluginsController < Company::BaseController
 
   def create
-    @plugin = current_company.plugins.new(plugin_attributes)
+    @plugin = current_company.plugins.new(plugin_attributes.merge(plugin_type: :skype))
     if @plugin.save
       flash[:success] = 'Skype Credentials are saved successfully'
     else
