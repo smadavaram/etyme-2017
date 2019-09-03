@@ -56,8 +56,8 @@ class Api::SelectSearchesController < ApplicationController
   end
 
   def find_contract_candidate
-    @contract =  Contract.find_by(id: params[:contract_id].to_i)
-    respond_with @contract, :include => [{ buy_contracts: {:include => :company}}, :candidate]
+    @contract = Contract.find_by(id: params[:contract_id].to_i)
+    respond_with @contract, :include => [{buy_contracts: {:include => :company}}, :candidate]
   end
 
   def find_contract_salary_cycles
@@ -67,8 +67,13 @@ class Api::SelectSearchesController < ApplicationController
   end
 
   def find_company_admin
-    @company_admins = current_company.admins.like_any([:first_name], params[:q].to_s.split)
+    @company_admins = current_company.admins.like_any([:first_name], params[:q].to_s.split).paginate(:page => params[:page], :per_page => params[:per_page])
     respond_with @company_admins
+  end
+
+  def find_hr_admins
+    @users = current_company.users.joins(:roles).where('roles.name': "HR admin").like_any([:first_name], params[:q].to_s.split).paginate(:page => params[:page], :per_page => params[:per_page])
+    respond_with @users
   end
 
   def find_commission_candidates

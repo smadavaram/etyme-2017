@@ -1,0 +1,15 @@
+- users.each do |admin|
+  - user = ["User","Admin"].include?(admin.class.to_s) ? admin : admin.user
+  %tr
+    %td= user.company.domain
+    %td
+      = user.full_name
+      - if ["User","Admin"].include?(admin.class.to_s)
+        %input{id: user.id,:name => "contract[hr_admins_ids][]", :value => user.id,hidden: "hidden"}/
+    %td= contact_widget(user.email,user.phone)
+    %td= user.roles.pluck(:name).join(', ')
+    %td= content_tag(:span, do_ellipsis(current_user.reminders.where(reminderable_id: user.id, reminderable_type: 'Admin')&.last&.title), class: 'bg-info badge mr-1').html_safe
+    %td
+      = link_to(content_tag(:i, nil, class: 'picons-thin-icon-thin-0014_notebook_paper_todo').html_safe, add_reminder_company_users_path(user_id: user.id), remote: :true, title: "Remind Me", class: 'data-table-icons')
+      - unless ["User","Admin"].include?(admin.class.to_s)
+        = link_to(content_tag(:i, nil, class: 'os-icon os-icon-ui-15').html_safe, delete_hr_admin_contracts_path(contract_id: admin.contract.id,contract_admin_id: admin&.id), method: :delete,remote: :true, title: "Delete #{user.full_name}", class: 'data-table-icons')

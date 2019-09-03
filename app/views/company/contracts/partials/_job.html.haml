@@ -28,7 +28,9 @@
           .contract-fild
             = f.text_field :end_date ,class: "form-control" , required: 'true', placeholder: "Contract End Date"
   .contract-fields_wrapper.mt-4
-    %h5.mb-4 Contract Admin Team
+    %h5.mb-4.d-inline-block Contract Admin Team
+    %h5.mb-4.d-inline-block.pull-right
+      %button.btn.btn-secondary.btn-sm{"data-target" => "#contract-admin-team", "data-toggle" => "modal", :type => "button"} Add Admin
     - headers =  %w(domain name contact role(s) reminder action(s))
     .table-responsive
       %table.table.text-center.table-bordered.table-lg.table-v2.table-striped.data-table-font#contract_admins_table
@@ -36,15 +38,18 @@
           %tr
           - headers.each do |header|
             %th= header.capitalize
-        %tbody
-          - current_company.users.joins(:roles).where('roles.name': "HR admin")&.each do |user|
+        %tbody.hr_admins_table_body
+          - @contract.contract_admins&.each do |admin|
+            - user = admin.user
             %tr
               %td= user.company.domain
               %td= user.full_name
               %td= contact_widget(user.email,user.phone)
               %td= user.roles.pluck(:name).join(', ')
               %td= content_tag(:span, do_ellipsis(current_user.reminders.where(reminderable_id: user.id, reminderable_type: 'Admin')&.last&.title), class: 'bg-info badge mr-1').html_safe
-              %td= link_to(content_tag(:i, nil, class: 'picons-thin-icon-thin-0014_notebook_paper_todo').html_safe, add_reminder_company_users_path(user_id: user.id), remote: :true, title: "Remind Me", class: 'data-table-icons')
+              %td
+                = link_to(content_tag(:i, nil, class: 'picons-thin-icon-thin-0014_notebook_paper_todo').html_safe, add_reminder_company_users_path(user_id: user.id), remote: :true, title: "Remind Me", class: 'data-table-icons')
+                = link_to(content_tag(:i, nil, class: 'os-icon os-icon-ui-15').html_safe, delete_hr_admin_contracts_path(contract_id: @contract.id,contract_admin_id: admin.id), method: :delete,remote: :true, title: "Delete #{user.full_name}", class: 'data-table-icons')
 
 
 
@@ -152,3 +157,8 @@
                 %td= company_contact.roles.pluck(:name).join(', ')
                 %td= content_tag(:span, do_ellipsis(current_user.reminders.where(reminderable_id: company_contact.id, reminderable_type: 'Admin')&.last&.title), class: 'bg-info badge mr-1').html_safe
                 %td= link_to(content_tag(:i, nil, class: 'picons-thin-icon-thin-0014_notebook_paper_todo').html_safe, add_reminder_company_users_path(user_id: company_contact.id), remote: :true, title: "Remind Me", class: 'data-table-icons')
+
+
+- content_for :modals do
+  .hr_admins
+    =render 'company/contracts/partials/admin_team_modal',contract: @contract || nil

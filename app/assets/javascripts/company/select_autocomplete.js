@@ -363,7 +363,17 @@ function formatCompanyContact (contact) {
     var markup = "<div> <table style='width: 100%;'> <td>"+ contact.name +"</td><td> "+ contact.email +"</td><td>"+ contact.phone +"</td><td>"+ contact.department +"</td></table> </div>"
     return markup;
 }
+function formatHrAdmins (user) {
+    if (user.loading) {
+        return user.text;
+    }
+    var markup = "<div> <table style='width: 100%;'> <td>"+ user.full_name +"</td><td> "+ user.email +"</td><td>"+ user.phone +"</td></table> </div>"
+    return markup;
+}
 function formatCompanyUserSelection (user) {
+    return user.full_name || user.email;
+}
+function formatHrAdminsSelection (user) {
     return user.full_name || user.email;
 }
 function formatCompanyContactSelection (contact) {
@@ -406,6 +416,44 @@ var set_company_users_select = function(selector, place_holder, company_type){
         });
     }
 }
+var set_contract_admins = function(selector, place_holder){
+    if ($(selector).length > 0) {
+        $(selector).select2({
+            ajax: {
+                url: '/api/select_searches/find_hr_admins',
+                dataType: 'json',
+                delay: 250,
+                data: function (params) {
+                    return {
+                        per_page: 10,
+                        q: params.term, // search term
+                        page: params.page
+                    };
+                },
+                processResults: function (data, params) {
+                    params.page = params.page || 1;
+                    return {
+                        results: data.users,
+                        pagination: {
+                            more: (params.page * 10) < data.total_count
+                        }
+                    };
+                },
+                cache: true
+            },
+            placeholder: place_holder,
+            language: {
+                noResults: function() {return "No results <a class='pull-right header-btn hidden-mobile' target='_blank' href='/admins'>Add Roles</a>"; }
+            },
+            multiple: true,
+            escapeMarkup: function (markup) { return markup; },
+            templateResult: formatHrAdmins,
+            templateSelection: formatHrAdminsSelection
+        });
+    }
+}
+
+
 var set_company_contacts_select = function(selector, place_holder, company_type){
     if ($(selector).length > 0) {
         $(selector).select2({

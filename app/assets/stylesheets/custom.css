@@ -459,3 +459,10 @@ div.nested_headers{
 .table-responsive{
     overflow-x: auto !important;
 }
+
+.select2{
+    width: 100% !important;
+}
+.select2-selection__choice{
+    color: black !important;
+}

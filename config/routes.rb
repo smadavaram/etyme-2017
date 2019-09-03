@@ -531,7 +531,6 @@ Rails.application.routes.draw do
         post :update_acc_info
       end
     end
-
     resources :contracts, concerns: :paginatable, except: [:destroy] do
       resources :contracts
       collection do
@@ -556,6 +555,8 @@ Rails.application.routes.draw do
         post :buy_document_create
         post :buy_emp_doc_create
         post :buy_ven_doc_create
+        post :get_hr_admins
+        delete :delete_hr_admin
       end
       member do
         get :download
@@ -707,6 +708,7 @@ Rails.application.routes.draw do
       get :find_contract_salary_cycles, on: :collection
       get :find_commission_candidates, on: :collection
       get :find_company_admin, on: :collection
+      get :find_hr_admins, on: :collection
     end
 
     namespace :candidate do

@@ -182,6 +182,9 @@ class Company::ContractsController < Company::BaseController
     end
     respond_to do |format|
       if @contract.update(contract_params)
+        params[:contract][:hr_admins_ids]&.each do |id|
+          @contract.contract_admins.create(user_id: id, company_id: current_company.id)
+        end
         create_custom_activity(@contract, 'contracts.update', contract_params, @contract)
         format.html {
           flash[:success] = "#{@contract.title.titleize} updated successfully"
@@ -218,13 +221,15 @@ class Company::ContractsController < Company::BaseController
     @contract = current_company.sent_contracts.new(create_contract_params)
     @tab_number = params[:tab].to_i
     @contract.status = :draft
-
     @signature_templates = current_company.customer_contract_templates("signature")
     @documents_templates = current_company.customer_contract_templates("Document")
     @signature_documents = @contract.send("sell_contract").document_signs.where(part_of: @contract.sell_contract,signable: @contract.sell_contract.company.owner, documentable: @signature_templates.ids)
     @request_documents = @contract.send("sell_contract").document_signs.where(part_of: @contract.sell_contract,signable: @contract.sell_contract.company.owner, documentable: @documents_templates.ids)
     respond_to do |format|
       if @contract.save
+        params[:contract][:hr_admins_ids]&.each do |id|
+          @contract.contract_admins.create(user_id: id, company_id: current_company.id)
+        end
         create_custom_activity(@contract, 'contracts.create', create_contract_params, @contract)
         format.html {
           flash[:success] = "successfully Send."
@@ -394,6 +399,27 @@ class Company::ContractsController < Company::BaseController
                    ((@dates.end_of_week + 49.day).strftime("%m/%d/%Y") + " - " + (@dates.end_of_week + 55.day).strftime("%m/%d/%Y")),
                    ((@dates.end_of_week + 56.day).strftime("%m/%d/%Y") + " - " + (@dates.end_of_week + 62.day).strftime("%m/%d/%Y"))]
 
+  end
+
+  def get_hr_admins
+    @users = current_company.users.where(id: params[:user_ids]).to_a
+    if params[:contract_id].present?
+      @users = @users + Contract.find_by(id: params[:contract_id]).contract_admins.to_a
+    end
+    respond_to do |format|
+      format.js{}
+    end
+  end
+
+  def delete_hr_admin
+    @contract = Contract.find_by(id: params[:contract_id])
+    @contract_admin = @contract.contract_admins.find_by(id: params[:contract_admin_id])
+    if @contract_admin.destroy
+      flash.now[:success] = "Successfully Removed"
+    else
+      flash.now[:errors] = @contract_admin.errors.full_messages
+    end
+    @users = @contract.contract_admins.includes(:user)
   end
 
   private
