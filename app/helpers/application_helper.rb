@@ -17,19 +17,23 @@ module ApplicationHelper
     status ? "verified" : "unverified"
   end
 
-  def contact_widget(email, phone, user_id = nil, members = [])
-    link_to(content_tag(:i, nil, class: 'fa fa-comment-o').html_safe, '#', title: 'chat', class: 'data-table-icons') +
+  def snake_to_words(tag)
+    tag.tableize.singularize.split("_").join(" ").capitalize
+  end
+
+  def contact_widget(email, phone, user_id = nil, options = {})
+    link_to(content_tag(:i, nil, class: 'fa fa-comment-o').html_safe, options[:chat_link] || '#', title: 'chat', class: 'data-table-icons') +
         mail_to(email, content_tag(:i, nil, class: 'os-icon os-icon-email-2-at2').html_safe, title: email, class: 'data-table-icons') +
         link_to(content_tag(:i, nil, class: 'os-icon os-icon-phone ').html_safe, '#', title: phone, class: 'data-table-icons') +
-        '<div title = "Add to Calendar" class = "addeventatc">
-          <span class = "start" >06/10/2019 08:00 AM</span>
-          <span class="end">06/10/2019 10:00 AM</span>
-          <span class="timezone">America/Los_Angeles </span>
-          <span class="title"></span>
-          <span class = "description" ></span>
-          <span class="os-icon os-icon-calendar "></span>
-          <span class="attendees"></span>
-        </div >'.html_safe
+        "<div title = 'Add to Calendar' class = 'addeventatc'>
+          <span class = 'start' >06/10/2019 08:00 AM</span>
+          <span class='end'>06/10/2019 10:00 AM</span>
+          <span class='timezone'>America/Los_Angeles </span>
+          <span class='title'></span>
+          <span class = 'description' ></span>
+          <span class='os-icon os-icon-calendar' style='color: #{options[:color]}'></span>
+          <span class='attendees'></span>
+        </div >".html_safe
 
   end
 

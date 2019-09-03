@@ -9,9 +9,7 @@ class Candidate::ConversationsController < Candidate::BaseController
 
   def create
     @conversation = Conversation.where(id: params[:conversation]).first
-    if @conversation.job_application.present?
-      @activities = PublicActivity::Activity.where(recipient: @conversation.job_application).order("created_at desc")
-    end
+    set_activity_for_job_application
     @favourites = current_candidate.favourables
     # @unread_message_count = Conversation.joins(:conversation_messages).where("(senderable_type = ? AND senderable_id = ? ) OR (recipientable_type = ? AND recipientable_id = ?)", current_user.class.to_s, current_user.id, current_user.class.to_s, current_user.id).where.not(conversation_messages: {is_read: true, userable: current_user}).uniq.count
     respond_to do |format|
@@ -94,9 +92,9 @@ class Candidate::ConversationsController < Candidate::BaseController
 
 
   def set_activity_for_job_application
-    if @conversation&.job_application.present?
-      @activities = PublicActivity::Activity.where(recipient: @conversation.job_application).order("created_at desc")
-    end
+    @activities = @conversation&.job_application.present? ?
+                      PublicActivity::Activity.where(recipient: @conversation.job_application).order("created_at desc") :
+                      []
   end
 
 end
