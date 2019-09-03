@@ -17,9 +17,10 @@
         .row
           .col-md-6
             .form-group
-              %label.control-label  Consultant
+              %label.control-label=  "Consultant/#{@contract.buy_contract.get_contract_type_label}"
               .contract-fild
                 = text_field_tag :consultant_name, @contract.candidate.full_name.capitalize, disabled: "disabled"
+
           .col-md-6
             .form-group
               - if @contract.buy_contract.company.present?

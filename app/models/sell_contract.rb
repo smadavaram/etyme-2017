@@ -42,7 +42,8 @@ class SellContract < ApplicationRecord
     Group.transaction do
       group = contract.company.groups.create(group_name: number, member_type: 'Chat')
       groupies = contract.company.users.joins(:permissions).where("permissions.name": "manage_contracts").to_a + User.where(id: CompanyContact.joins(:contract_sell_business_details).pluck(:user_id)).to_a
-      groupies.each do |user|
+      groupies << contract.created_by
+      groupies.uniq.each do |user|
         group.groupables.create(groupable: user)
       end
     end

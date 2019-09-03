@@ -83,6 +83,10 @@ class BuyContract < ApplicationRecord
     self.legacy_ssn = number
   end
 
+  def get_contract_type_label
+    {"W2":"W2 (Fulltime)", "1099":"1099 (Freelancers)","C2C":"Corp-Corp (Third Party)"}[contract_type.to_sym]
+  end
+
   private
 
   def create_buy_contract_conversation
@@ -90,7 +94,8 @@ class BuyContract < ApplicationRecord
     Group.transaction do
       group = contract.company.groups.create(group_name: number, member_type: 'Chat')
       groupies = contract.company.users.joins(:permissions).where("permissions.name": "manage_contracts").to_a << contract.candidate
-      groupies.each do |user|
+      groupies << contract.created_by
+      groupies.uniq.each do |user|
         group.groupables.create(groupable: user)
       end
     end
