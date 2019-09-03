@@ -2,15 +2,15 @@ class SellContract < ApplicationRecord
 
   belongs_to :contract, optional: true
   belongs_to :company, optional: true
-  has_many :contract_sell_business_details,dependent: :destroy
+  has_many :contract_sell_business_details, dependent: :destroy
 
   has_many :document_signs, as: :initiator
   has_many :document_signs, as: :part_of
 
-  has_many :sell_send_documents,dependent: :destroy
-  has_many :sell_request_documents,dependent: :destroy
+  has_many :sell_send_documents, dependent: :destroy
+  has_many :sell_request_documents, dependent: :destroy
 
-  has_many :contract_customer_rate_histories,dependent: :destroy
+  has_many :contract_customer_rate_histories, dependent: :destroy
 
   has_many :approvals, as: :contractable, dependent: :destroy
 
@@ -18,10 +18,11 @@ class SellContract < ApplicationRecord
 
   # include NumberGenerator.new({prefix: 'SC', length: 7})
   before_create :set_number
+  after_create :create_sell_contract_conversation
 
-  accepts_nested_attributes_for :contract_sell_business_details, allow_destroy: true,reject_if: :all_blank
-  accepts_nested_attributes_for :sell_send_documents, allow_destroy: true,reject_if: :all_blank
-  accepts_nested_attributes_for :sell_request_documents, allow_destroy: true,reject_if: :all_blank
+  accepts_nested_attributes_for :contract_sell_business_details, allow_destroy: true, reject_if: :all_blank
+  accepts_nested_attributes_for :sell_send_documents, allow_destroy: true, reject_if: :all_blank
+  accepts_nested_attributes_for :sell_request_documents, allow_destroy: true, reject_if: :all_blank
   accepts_nested_attributes_for :approvals, allow_destroy: true, reject_if: :all_blank
 
   after_create :set_contract_customer_rate_history
@@ -34,6 +35,18 @@ class SellContract < ApplicationRecord
   def set_number
     # self.number = self.contract.number
     self.number = "SC_" + self.contract.number.split("_")[1].to_s
+  end
+
+  def create_sell_contract_conversation
+    group = nil
+    Group.transaction do
+      group = contract.company.groups.create(group_name: number, member_type: 'Chat')
+      groupies = contract.company.users.joins(:permissions).where("permissions.name": "manage_contracts").to_a + User.where(id: CompanyContact.joins(:contract_sell_business_details).pluck(:user_id)).to_a
+      groupies.each do |user|
+        group.groupables.create(groupable: user)
+      end
+    end
+    build_conversation({chatable: group, topic: :SellContract}).save if group
   end
 
   # def display_number

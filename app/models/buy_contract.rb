@@ -16,10 +16,12 @@ class BuyContract < ApplicationRecord
 
   has_many :approvals, as: :contractable, dependent: :destroy
   # include DateCalculation.new({prefix: 'BC', length: 7})
-
+  has_one :conversation
   include DateCalculation
 
   before_create :set_number
+  after_create :create_buy_contract_conversation
+
   # before_create :set_first_timesheet_date
   # after_create  :set_salary_frequency
   # after_create  :set_candidate
@@ -82,6 +84,18 @@ class BuyContract < ApplicationRecord
   end
 
   private
+
+  def create_buy_contract_conversation
+    group = nil
+    Group.transaction do
+      group = contract.company.groups.create(group_name: number, member_type: 'Chat')
+      groupies = contract.company.users.joins(:permissions).where("permissions.name": "manage_contracts").to_a << contract.candidate
+      groupies.each do |user|
+        group.groupables.create(groupable: user)
+      end
+    end
+    self.build_conversation({chatable: group, topic: :BuyContract}).save if group
+  end
 
   def legacy_ssn
     return unless encrypted_ssn.present?
