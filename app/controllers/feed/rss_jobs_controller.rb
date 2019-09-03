@@ -29,7 +29,7 @@ class Feed::RssJobsController < ApplicationController
   end
 
   def product_feed
-    @jobs = Job.where(:listing_type=>"Products").where(:status =>"Published")
+    @jobs = Job.where(:listing_type=>"Product").where(:status =>"Published")
     if params[:company_id].present?
       @jobs = @jobs.where(company_id: params[:company_id])
       if params[:job_id].present?
@@ -44,7 +44,7 @@ class Feed::RssJobsController < ApplicationController
   end
 
   def service_feed
-    @jobs = Job.where(:listing_type=>"Services").where(:status =>"Published")
+    @jobs = Job.where(:listing_type=>"Service").where(:status =>"Published")
     if params[:company_id].present?
       @jobs = @jobs.where(company_id: params[:company_id])
       if params[:job_id].present?
