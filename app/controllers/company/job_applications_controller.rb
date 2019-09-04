@@ -63,29 +63,38 @@ class Company::JobApplicationsController < Company::BaseController
     @document_signs = current_company.document_signs.where(signable: @job_application.applicationable, part_of: @job_application)
   end
 
-  def send_templates
-    @plugin = current_company.plugins.docusign.first
-    response = (Time.current - @plugin.updated_at).to_i.abs/3600 <= 5 ? true : RefreshToken.new(@plugin).refresh_docusign_token
+
+  def request_sign
+    response = (Time.current - @plugin.updated_at).to_i.abs / 3600 <= 5 ? true : RefreshToken.new(@plugin).refresh_docusign_token
     if response.present?
-      @company_candidate_docs.each do |sign_doc|
-        @document_sign = current_company.document_signs.create(
-            requested_by: current_user,
-            documentable: sign_doc,
-            signable: @job_application.applicationable,
-            is_sign_done: false,
-            part_of: @job_application,
-            signers_ids: params[:signers].to_s.gsub('[','{').gsub(']','}')
-        )
-        result = DocusignEnvelope.new(@document_sign, @plugin).create_envelope
-        if (result.status == "sent")
-          @document_sign.update(envelope_id: result.envelope_id, envelope_uri: result.uri)
-        else
-          flash[:errors] = result.error_message
-        end
+      result = DocusignEnvelope.new(@document_sign, @plugin).create_envelope
+      if (result&.status == "sent")
+        @document_sign.update(envelope_id: result.envelope_id, envelope_uri: result.uri)
+        flash[:success] = 'Document is submitted to the candidate for signature'
+      else
+        flash[:errors] = result.error_message
       end
-      flash[:success] = 'Document is submitted to the candidate for signature'
     else
       flash[:errors] = ["Docusign token request failed, please regenerate the token from integrations"]
+    end
+  end
+
+  def send_templates
+    @plugin = current_company.plugins.docusign.first
+    @company_candidate_docs.each do |sign_doc|
+      @document_sign = current_company.document_signs.create(
+          requested_by: current_user,
+          documentable: sign_doc,
+          signable: @job_application.applicationable,
+          is_sign_done: false,
+          part_of: @job_application,
+          signers_ids: params[:signers].to_s.gsub('[', '{').gsub(']', '}')
+      )
+      if @document_sign.is_signable?
+        request_sign
+      else
+        flash[:success] = "Your request is submitted for processing"
+      end
     end
     @document_signs = @job_application.applicationable.document_signs
     redirect_back(fallback_location: current_company.etyme_url)

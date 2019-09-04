@@ -49,4 +49,5 @@
  *= require bullettrain-global
  *= require navigation
  *= require top_navigation
+ *= require shared/datatable
  */

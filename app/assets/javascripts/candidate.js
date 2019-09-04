@@ -190,3 +190,10 @@ $('.up-head-w').mouseleave(function () {
 function display_file_name(event) {
   $('.uploaded_file_name').text(event.fpfile.filename)
 }
+$('#dataTable').dataTable({
+    columnDefs: [{
+        'targets': 0,
+        searchable: false,
+        orderable: false
+    }]
+});

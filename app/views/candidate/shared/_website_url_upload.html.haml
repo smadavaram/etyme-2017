@@ -1,21 +1,20 @@
-.modal{ id: "contract-admin-team"}
+.modal{ id: "website_url_#{document_sign.id}"}
   .modal-dialog
     .modal-content
       .modal-header
         %h2#PageTitle.modal-title
-          %strong Contract Admins
+          %strong Website Request
         %button.close{"aria-hidden" => "true", "data-dismiss" => "modal", :type => "button"}
           ×
-      = form_tag get_hr_admins_contracts_path, remote: true ,html: {class: 'form-horizontal'} do
+      = form_tag candidate_document_sign_path(document_sign),method: :patch ,html: {class: 'form-horizontal'} do
         .modal-body#rate-confirmation-modal-body
           - if @contract.present?
             %input{name: "contract_id",value: @contract.id,hidden: "hidden"}
           .row
             .col-md-12
-              %label Hr Admins
+              %label Url
               .form-group
-                = select_tag "user_ids[]", [] ,class:"contract_admins w-100"
+                = text_field_tag :website_url,nil, placeholder: "http(s)://",class: "w-100"
         .modal-footer
           %button.btn.btn-secondary.btn-sm.mr-1{"data-dismiss"=>"modal", "type"=>"button"} Cancel
           %button.btn.btn-secondary.btn-sm{type: "submit"} Save
-

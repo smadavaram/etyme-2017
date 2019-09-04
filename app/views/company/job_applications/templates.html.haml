@@ -5,7 +5,7 @@
       =form_tag(controller: 'company/job_applications', action: 'send_templates') do
         = hidden_field_tag 'id', @job_application.id
         .table-responsive
-          %table#company-template-datatable.table.text-center.table-bordered.table-lg.table-v2.table-striped.data-table-font
+          %table#dataTable.table.text-center.table-bordered.table-lg.table-v2.table-striped.data-table-font
             %thead
               %tr{:role => "row"}
                 %th Select
@@ -16,11 +16,11 @@
                 %th Is Require
                 %th Attachments
               %tbody
-                - current_company.candidate_job_templates.each do |doc|
+                - current_company.company_candidate_docs.jobs_docs.each do |doc|
                   %tr.even{:role => "row"}
                     %td
                       = check_box_tag "ids[]", doc.id
-                    %td= doc.title
+                    %td= do_ellipsis(doc.title.capitalize,15)
                     %td= doc.title_type
                     %td= doc.document_for
                     %td= doc.exp_date
@@ -54,15 +54,19 @@
             %tbody
               - @document_signs.each do |docusign|
                 %tr
-                  %td= docusign.documentable.title
-                  %td= docusign.created_at
-                  %td= docusign.is_sign_done ? "Signed" : "Pending"
+                  %td= do_ellipsis(docusign.documentable.title.capitalize,15)
+                  %td{style: "color: #1AAE9F"}= do_ellipsis(docusign.created_at.strftime("%B %e, %Y at %I:%M %p"),15)
+                  %td{style: "color: #EFA544"}= docusign.is_sign_done ? "Completed" : "Pending"
                   %td.d-flex
                     = image_tag(docusign&.signable.photo, class: 'data-table-image mr-1')
                     - docusign.signers&.each do |signer|
                       =image_tag(signer.photo, class: 'data-table-image mr-1')
-                  %td= docusign.envelope_id.present? ? docusign.envelope_id : "Document Not Submitted"
-                  %td= link_to content_tag(:i,'',class:'fa fa-paperclip fa-lg').html_safe, docusign.signed_file if docusign.is_sign_done
+                  %td= do_ellipsis(docusign.envelope_id.present? ? docusign.envelope_id : "Document Not Submitted",15) if docusign.is_signable?
+                  %td
+                    - if docusign.documentable.is_require == "Website"
+                      = link_to content_tag(:i,'',class:'ti-world').html_safe, docusign.signed_file if docusign.is_sign_done
+                    -else
+                      = link_to content_tag(:i,'',class:'fa fa-paperclip fa-lg').html_safe, docusign.signed_file if docusign.is_sign_done
 
 
 - content_for :scripts do

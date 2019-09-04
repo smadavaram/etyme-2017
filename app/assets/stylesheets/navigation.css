@@ -124,7 +124,9 @@
 .l3 > a:hover{
     font-size: 11px;
 }
-
+.candidate_nav .side-bar_tab{
+    margin-top: 25px !important;
+}
 .side-bar_tab {
     /*padding-left: 18px;*/
     /*padding-right: 18px;*/

@@ -1,0 +1,45 @@
+.content-i
+  .content-box
+    .element-wrapper
+      .element-header Document Requests
+      .element-box
+        .table-responsive
+          %table#dataTable.table.text-center.table-bordered.table-lg.table-v2.table-striped.data-table-font
+            %thead
+              %tr{:role => "row"}
+                %th Document Title
+                %th Sent Date
+                %th Status
+                %th User(s)
+                %th Request Type
+                %th Document
+            %tbody
+              - @document_signs.each do |docusign|
+                %tr
+                  %td= do_ellipsis(docusign.documentable.title.capitalize,15)
+                  %td{style: "color: #1AAE9F"}= do_ellipsis(docusign.created_at.strftime("%B %e, %Y at %I:%M %p"),15)
+                  %td{style: "color: #EFA544"}= docusign.is_sign_done ? "Completed" : "Pending"
+                  %td.d-flex
+                    = image_tag(docusign&.signable.photo, class: 'data-table-image mr-1')
+                    - docusign.signers&.each do |signer|
+                      =image_tag(signer.photo, class: 'data-table-image mr-1')
+                  %td=  docusign.documentable.is_require.capitalize
+                  %td
+                    - if docusign.documentable.is_require == "Website"
+                      = link_to content_tag(:i,'',class:'ti-world').html_safe, docusign.signed_file if docusign.is_sign_done
+                      = link_to content_tag(:i,'',class:'ti-world').html_safe, candidate_document_sign_path(docusign), remote: true unless docusign.signed_file.present?
+                    -else
+                      = link_to content_tag(:i,'',class:'fa fa-paperclip fa-lg').html_safe, '#', onclick: "init_request_document_upload(#{docusign.id})", title: "Upload Document" unless docusign.signed_file.present?
+                      = link_to content_tag(:i,'',class:'fa fa-paperclip fa-lg').html_safe, docusign.signed_file if docusign.is_sign_done
+
+
+- content_for :scripts do
+  :javascript
+    function init_request_document_upload(docusign_id){
+      upload_file_ajax(upload_file_to_server, docusign_id)
+    }
+    function upload_file_to_server(url,type,id){
+      $.post( "#{request_document_candidate_contracts_path}", { file: url,authenticity_token: window._token, docusign_id: id },function(data) {
+        location.reload()
+      })
+    }

@@ -128,6 +128,13 @@ $(document).ready(function () {
             orderable: false
         }]
     });
+    $('#dataTable').dataTable({
+        columnDefs: [{
+            'targets': 0,
+            searchable: false,
+            orderable: false
+        }]
+    });
 
     $('#company-candidates-datatable').dataTable({
         "drawCallback": function (settings) {
