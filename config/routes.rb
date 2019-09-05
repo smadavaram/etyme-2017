@@ -40,6 +40,7 @@ Rails.application.routes.draw do
     get ':company_id/service_feed' => 'rss_jobs#service_feed', format: 'json'
     get ':company_id/training_feed' => 'rss_jobs#training_feed', format: 'json'
     get ':company_id/bench_feed' => 'rss_jobs#bench_feed', format: 'json'
+    get ':company_id/blog_feed' => 'rss_jobs#blog_feed', format: 'json'
 
   end
 
