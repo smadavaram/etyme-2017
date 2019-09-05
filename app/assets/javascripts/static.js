@@ -19,7 +19,7 @@
 //= require tinymce-jquery
 //= require plugin/jquery-validate/jquery.validate.min
 //= require notification/SmartNotification.min.js
-
+//= require addevent
 //= require_tree ./clean_admin/.
 //= require shared/uploader
 function display_file_name(event) {

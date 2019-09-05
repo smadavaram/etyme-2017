@@ -26,7 +26,6 @@ Rails.application.routes.draw do
   get 'privacy_policy', to: 'static#privacy_policy'
   get 'terms_of_use', to: 'static#terms_of_use'
   get 'contact_us', to: 'static#contact_us'
-
   namespace :feed do
     get 'job_feed' => 'rss_jobs#job_feed', format: 'rss'
     get 'product_feed' => 'rss_jobs#product_feed', format: 'rss'
@@ -77,6 +76,7 @@ Rails.application.routes.draw do
     resources :candidates do
       post :send_message
       get :resume
+      get ':id/public/profile', to: 'candidates#candidate_profile', on: :collection, as: :public_profile
     end
   end
 

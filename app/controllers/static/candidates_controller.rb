@@ -14,10 +14,17 @@ class Static::CandidatesController < ApplicationController
     redirect_back fallback_location: root_path
   end
 
+  def candidate_profile
+    @candidate = Candidate.find_by(id: params[:id])
+    unless @candidate
+      redirect_back(fallback_location: root_path)
+    end
+  end
+
   private
 
   def find_candidate
-    @candidate = Candidate.find(params[:candidate_id])
+    @candidate = Candidate.find_by(id: params[:candidate_id])
   end
 
 end
