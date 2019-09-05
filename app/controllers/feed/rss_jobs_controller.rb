@@ -28,7 +28,7 @@ class Feed::RssJobsController < ApplicationController
     end
  end
   def blog_feed
-    @jobs = Job.active.is_public.where(:listing_type=>"Blog").where(:status =>"Published")
+    @jobs = Job.where(:listing_type=>"Blog").where(:status =>"Published")
     if params[:company_id].present?
       @jobs = @jobs.where(company_id: params[:company_id])
       if params[:job_id].present?
