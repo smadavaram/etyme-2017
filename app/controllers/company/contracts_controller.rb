@@ -182,6 +182,9 @@ class Company::ContractsController < Company::BaseController
     end
     respond_to do |format|
       if @contract.update(contract_params)
+        params[:contract][:reporting_manager_ids]&.each do |id|
+          @contract.sell_contract.contract_sell_business_details.create(company_contact_id: id)
+        end
         params[:contract][:hr_admins_ids]&.each do |id|
           @contract.contract_admins.create(user_id: id, company_id: current_company.id)
         end
@@ -227,6 +230,9 @@ class Company::ContractsController < Company::BaseController
     @request_documents = @contract.send("sell_contract").document_signs.where(part_of: @contract.sell_contract,signable: @contract.sell_contract.company.owner, documentable: @documents_templates.ids)
     respond_to do |format|
       if @contract.save
+        params[:contract][:reporting_manager_ids]&.each do |id|
+          @contract.sell_contract.contract_sell_business_details.create(company_contact_id: id)
+        end
         params[:contract][:hr_admins_ids]&.each do |id|
           @contract.contract_admins.create(user_id: id, company_id: current_company.id)
         end
@@ -409,6 +415,28 @@ class Company::ContractsController < Company::BaseController
     respond_to do |format|
       format.js{}
     end
+  end
+
+  def get_reporting_managers
+    @contract_sell_business_details = current_company.company_contacts.where(id: params[:company_contacts_ids]).to_a
+    if params[:contract_id].present?
+      @contract_sell_business_details = @contract_sell_business_details + Contract.find_by(id: params[:contract_id]).sell_contract.contract_sell_business_details.to_a
+    end
+    respond_to do |format|
+      format.js{}
+    end
+  end
+
+
+  def delete_reporting_manager
+    @contract = Contract.find_by(id: params[:contract_id])
+    @contract_sell_business_detail = @contract.sell_contract.contract_sell_business_details.find_by(id: params[:reporting_manager_id])
+    if @contract_sell_business_detail.destroy
+      flash.now[:success] = "Successfully Removed"
+    else
+      flash.now[:errors] = @contract_sell_business_detail.errors.full_messages
+    end
+    @contract_sell_business_details = @contract.sell_contract.contract_sell_business_details.includes(:company_contact)
   end
 
   def delete_hr_admin

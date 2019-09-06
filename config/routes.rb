@@ -66,7 +66,6 @@ Rails.application.routes.draw do
       # get 'job_appication_without_registeration' ,to: 'job_applications#job_appication_without_registeration'
       post :job_appication_without_registeration
       post :job_appication_with_recruiter
-
       # post :import_job
     end
     resources :companies, only: [] do
@@ -559,7 +558,9 @@ Rails.application.routes.draw do
         post :buy_emp_doc_create
         post :buy_ven_doc_create
         post :get_hr_admins
+        post :get_reporting_managers
         delete :delete_hr_admin
+        delete :delete_reporting_manager
       end
       member do
         get :download
