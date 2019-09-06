@@ -3,7 +3,9 @@ class Static::JobsController < ApplicationController
   before_action :set_jobs, only: [:index]
   before_action :find_job, only: [:show, :apply, :job_appication_without_registeration, :job_appication_with_recruiter,:iframe_apply]
 
-  layout 'static'
+  layout 'static', except: [:iframe_apply]
+  layout 'static_headers_less', only: [:iframe_apply]
+
   add_breadcrumb "Home", '/'
   add_breadcrumb "Jobs", :static_jobs_path
 
