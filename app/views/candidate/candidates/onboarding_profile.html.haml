@@ -442,7 +442,6 @@
 
       $(".p_date").datepicker({dateFormat : 'yy-mm-dd'});
       insertedItem.find('.filepicker-attach').each(function(i,e){
-        filepicker.constructWidget(e);
         $(".filepicker-attach").on('click',function() {
           $('.fp__overlay').css({'z-index':'99999'})
         });

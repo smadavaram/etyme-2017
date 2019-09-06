@@ -96,7 +96,6 @@
   $(document).ready(function() {
 
     $(".conversation_attchment_<%= @conversation.id %>").each(function(i,e){
-      filepicker.constructWidget(e);
     });
 
     $(".conversation_attchment_<%= @conversation.id %>").on("change", function(e){

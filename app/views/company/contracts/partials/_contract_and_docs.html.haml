@@ -503,7 +503,6 @@
 :javascript
    $('.contract-attachment').on('cocoon:after-insert', function(e, insertedItem) {
       insertedItem.find('.filepicker-attach').each(function(i,e){
-        filepicker.constructWidget(e);
         $(".filepicker-attach").on('click',function() {
           $('.fp__overlay').css({'z-index':'99999'})
         });

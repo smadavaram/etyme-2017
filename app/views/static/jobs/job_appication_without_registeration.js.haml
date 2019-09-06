@@ -3,14 +3,12 @@ $('.modals').empty().append(("#{ j render('partials/job_application_without_regi
 $('#job-apply-#{@job.id }').modal('toggle');
 
 var element = $('#accept-filepiker');
-filepicker.constructWidget(element);
 
 $( ".file-pick" ).on('click',function() {
 
 $('.fp__overlay').css({'z-index':'99999'});
 });
 var reqelement = $('#req-accept-filepiker');
-filepicker.constructWidget(reqelement);
 $( ".req-file-pick" ).on('click',function() {
 $(".fp__overlay").css({'z-index':'99999'});
 });

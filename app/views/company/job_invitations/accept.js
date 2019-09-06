@@ -9,7 +9,6 @@ tinymce.init({
     selection_toolbar: 'bold italic | quicklink h2 h3 blockquote'
 });
 var element = $('#accept-filepiker')
-filepicker.constructWidget(element)
 
 $( ".file-pick" ).on('click',function() {
 

@@ -1,6 +1,5 @@
 $("#conversation-section").html("<%= j render 'candidate/conversations/conversation' %>");
 $("#conversation-r-section").html("<%= j render 'candidate/conversations/conversation_right_side' %>");
-filepicker.constructWidget($('#req-accept-filepiker'));
 $(".chat-content-scroll").data('ajaxready', true);
 $.ajax({
     url: "<%= messages_conversation_conversation_messages_path(@conversation) %>",

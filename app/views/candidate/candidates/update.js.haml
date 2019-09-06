@@ -4,7 +4,6 @@
   $(".file_select").select2({placeholder: "Select Company Document"});
   $("##{@tab.gsub('_', '-')}-form .can-filepicker-attach").each(function(e){
   $(this).unbind();
-  filepicker.constructWidget($(this));
   });
   $('.p_date').datepicker({
   dateFormat: "yy-mm-dd"
