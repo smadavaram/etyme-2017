@@ -1,22 +1,23 @@
 #bootstrap-wizard-1.col-sm-12
   .form-bootstrapWizard
-    %ul.bootstrapWizard.form-wizard{style: 'display: flex; justify-content: space-evenly;'}
-      %li.w-100.active{"data-target" => "#step1"}
-        %a{"data-toggle" => "tab", :href => "#tab1"}
-          %span.step 1
-          %span.title Contract Header
-      %li.w-100{"data-target" => "#step2"}
-        %a{"data-toggle" => "tab", :href => "#tab2"}
-          %span.step 2
-          %span.title Onboard Customer / Sell Side
-      %li.w-100{"data-target" => "#step3"}
-        %a{"data-toggle" => "tab", :href => "#tab3"}
-          %span.step 3
-          %span.title Onboard Consultant / Buy Side
-      %li.w-100{"data-target" => "#step4"}
-        %a{"data-toggle" => "tab", :href => "#tab4"}
-          %span.step 4
-          %span.title Activate / Timeline
+    .mt-3.mb-3
+      %ul.bootstrapWizard.form-wizard{style: 'display: flex; justify-content: space-evenly;'}
+        %li.w-100.active{"data-target" => "#step1"}
+          %a{"data-toggle" => "tab", :href => "#tab1"}
+            %span.step 1
+            %span.title Contract Header
+        %li.w-100{"data-target" => "#step2"}
+          %a{"data-toggle" => "tab", :href => "#tab2"}
+            %span.step 2
+            %span.title Onboard Customer / Sell Side
+        %li.w-100{"data-target" => "#step3"}
+          %a{"data-toggle" => "tab", :href => "#tab3"}
+            %span.step 3
+            %span.title Onboard Consultant / Buy Side
+        %li.w-100{"data-target" => "#step4"}
+          %a{"data-toggle" => "tab", :href => "#tab4"}
+            %span.step 4
+            %span.title Activate / Timeline
 
       / %li{"data-target" => "#step4"}
       /   %a{"data-toggle" => "tab", :href => "#tab4"}
@@ -483,22 +484,22 @@
       $('#contract_buy_contracts_attributes_0_candidate_id').val($('#select_candidates').select2('data')[0]['name'])
     })
 
-    $( document ).on( "select2:unselect", ".select_company_contacts", function( e ) {
-      $(this).closest('.company_contacts').find('div.contact-nested-fields').find(':input.contact-id[value=' + e.params.data.id + ']').closest('div.contact-nested-fields').remove();
-    });
-
-    $( document ).on( "select2:select", ".select_company_contacts", function( e ) {
-      var sign_btn = $(this).closest('.company_contacts').find("a.link-company-contacts");
-      var obj = $( sign_btn.attr('data-form-prepend') );
-      var time_stamp = (new Date()).getTime() ;
-      obj.find('input').each( function() {
-        $(this).attr( 'name', function() {
-          return $(this).attr('name').replace( 'new_record', time_stamp);
-        });
-      });
-      obj.insertBefore( sign_btn );
-      $(this).closest('.company_contacts').find('div.contact-nested-fields:last').find("input.contact-id").val(e.params.data.id);
-    });
+    // $( document ).on( "select2:unselect", ".select_company_contacts", function( e ) {
+    //   $(this).closest('.company_contacts').find('div.contact-nested-fields').find(':input.contact-id[value=' + e.params.data.id + ']').closest('div.contact-nested-fields').remove();
+    // });
+    //
+    // $( document ).on( "select2:select", ".select_company_contacts", function( e ) {
+    //   var sign_btn = $(this).closest('.company_contacts').find("a.link-company-contacts");
+    //   var obj = $( sign_btn.attr('data-form-prepend') );
+    //   var time_stamp = (new Date()).getTime() ;
+    //   obj.find('input').each( function() {
+    //     $(this).attr( 'name', function() {
+    //       return $(this).attr('name').replace( 'new_record', time_stamp);
+    //     });
+    //   });
+    //   obj.insertBefore( sign_btn );
+    //   $(this).closest('.company_contacts').find('div.contact-nested-fields:last').find("input.contact-id").val(e.params.data.id);
+    // });
 
 
     $( document ).on( "select2:unselect", ".whois_sign", function( e ) {

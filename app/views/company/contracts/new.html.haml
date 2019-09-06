@@ -7,7 +7,8 @@
           %header
             %span.widget-icon
               %i.fa.fa-check
-            %h2 Adding New Contract
+            %h2#contract_header_title
+              =@contract.new_record? ? "Adding New Contract" : "Updating Contract"
           %div
             .jarviswidget-editbox
             .widget-body

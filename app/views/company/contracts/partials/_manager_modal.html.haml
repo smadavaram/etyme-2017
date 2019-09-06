@@ -1,0 +1,21 @@
+.modal{ id: "manager-team"}
+  .modal-dialog
+    .modal-content
+      .modal-header
+        %h2#PageTitle.modal-title
+          %strong Reporting Managers
+        %button.close{"aria-hidden" => "true", "data-dismiss" => "modal", :type => "button"}
+          ×
+      = form_tag get_reporting_managers_contracts_path, remote: true ,html: {class: 'form-horizontal'} do
+        .modal-body#rate-confirmation-modal-body
+          - if @contract.present?
+            %input{name: "contract_id",value: @contract.id,hidden: "hidden"}
+          .row
+            .col-md-12
+              %label Hr Admins
+              .form-group
+                = select_tag "company_contacts_ids[]", [] ,class:"select_company_contacts w-100", id: "select_sell_company_contacts"
+        .modal-footer
+          %button.btn.btn-secondary.btn-sm.mr-1{"data-dismiss"=>"modal", "type"=>"button"} Cancel
+          %button.btn.btn-secondary.btn-sm{type: "submit"} Save
+

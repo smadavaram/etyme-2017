@@ -6,6 +6,7 @@ flash_error("<%= e %>");
 <% if flash[:success].present? %>
 flash_success("<%= flash[:success] %>");
 <% end %>
+$('#contract_header_title').text("Updating Contract")
 $('.new_contract').remove();
 <% if @tab_number == 2 %>
 $('.tab-pane.active').html("<%= j render 'company/contracts/partials/contract_and_docs' , contract: @contract %>");
@@ -459,22 +460,22 @@ $(document).on("change", '#select_candidates', function (event) {
     $('#contract_buy_contracts_attributes_0_candidate_id').val($('#select_candidates').select2('data')[0]['name'])
 })
 
-$(document).on("select2:unselect", ".select_company_contacts", function (e) {
-    $(this).closest('.company_contacts').find('div.contact-nested-fields').find(':input.contact-id[value=' + e.params.data.id + ']').closest('div.contact-nested-fields').remove();
-});
+//$(document).on("select2:unselect", ".select_company_contacts", function (e) {
+//    $(this).closest('.company_contacts').find('div.contact-nested-fields').find(':input.contact-id[value=' + e.params.data.id + ']').closest('div.contact-nested-fields').remove();
+//});
 
-$(document).on("select2:select", ".select_company_contacts", function (e) {
-    var sign_btn = $(this).closest('.company_contacts').find("a.link-company-contacts");
-    var obj = $(sign_btn.attr('data-form-prepend'));
-    var time_stamp = (new Date()).getTime();
-    obj.find('input').each(function () {
-        $(this).attr('name', function () {
-            return $(this).attr('name').replace('new_record', time_stamp);
-        });
-    });
-    obj.insertBefore(sign_btn);
-    $(this).closest('.company_contacts').find('div.contact-nested-fields:last').find("input.contact-id").val(e.params.data.id);
-});
+//$(document).on("select2:select", ".select_company_contacts", function (e) {
+//    var sign_btn = $(this).closest('.company_contacts').find("a.link-company-contacts");
+//    var obj = $(sign_btn.attr('data-form-prepend'));
+//    var time_stamp = (new Date()).getTime();
+//    obj.find('input').each(function () {
+//        $(this).attr('name', function () {
+//            return $(this).attr('name').replace('new_record', time_stamp);
+//        });
+//    });
+//    obj.insertBefore(sign_btn);
+//    $(this).closest('.company_contacts').find('div.contact-nested-fields:last').find("input.contact-id").val(e.params.data.id);
+//});
 
 
 $(document).on("select2:unselect", ".whois_sign", function (e) {

@@ -6,21 +6,21 @@
     =contract.hidden_field :parent_contract_id , value: params[:id]
   .contract-fields_wrapper
     .row
-      .col-md-4
+      .col-md-6
         .form-group
           %label.control-label
             Project Name
             %sup.text-danger
           .contract-fild
             = f.text_field :project_name ,class: "form-control" , required: 'true',disabled: 'disabled', placeholder: "Contract ID - Job title - Client - Auto generated"
-      .col-md-4
+      .col-md-3
         .form-group
           %label.control-label
             Start Date
             %sup.text-danger *
           .contract-fild
             = f.text_field :start_date ,class: "form-control" , required: 'true', placeholder: "Contract Start Date"
-      .col-md-4
+      .col-md-3
         .form-group
           %label.control-label
             End Date
@@ -52,15 +52,13 @@
                 = link_to(content_tag(:i, nil, class: 'os-icon os-icon-ui-15').html_safe, delete_hr_admin_contracts_path(contract_id: @contract.id,contract_admin_id: admin.id), method: :delete,remote: :true, title: "Delete #{user.full_name}", class: 'data-table-icons')
 
 
-
-  .contract-fields_wrapper.mt-4
-    .row
-      .col-md-12.col-12
-        -#= link_to 'Add New', new_job_path, class: 'btn btn-sm btn-primary pull-right'
+  .mt-4.p-4
     .row
       .col-md-12
         .form-group
-          %label.control-label  Jobs
+          %label.control-label Jobs
+          %label.control-label.pull-right
+            = link_to 'Add New', new_job_path,target:'_blank', class: 'btn btn-sm btn-secondary'
           .contract-fild
             - if @contract.new_record?
               .plain-select
@@ -69,9 +67,11 @@
               = text_field_tag :job_title , @contract.job.title, disabled: 'disabled'
   .contract-fields_wrapper.mt-4
     .row
-      .col-md-12
+      .col-md-5
         .form-group
-          %label.control-label  Consultant
+          %label.control-label Consultant
+          %label.control-label.pull-right
+            = link_to 'Add New', new_company_candidate_path,target:'_blank', class: 'btn btn-sm btn-secondary'
           .contract-fild
             - if @contract.new_record?
               .plain-select
@@ -93,7 +93,9 @@
                 %label.control-label Corp-Corp (Third Party)
         .col-md-5.hidden.vendor_company
           .form-group
-            %label.control-label  Add Vendor Company
+            %label.control-label Vendor(Pay To)
+            %label.control-label.pull-right
+              = link_to 'Add New', new_company_company_path,target:'_blank', class: 'btn btn-sm btn-secondary'
             .contract-fild
               .plain-select
                 = bc.select :company_id, {}, {}, id: "buy_contract_company"
@@ -103,22 +105,24 @@
       =f.fields_for :sell_contract do |sc|
         .col-md-6
           .form-group
-            %label.control-label  Customer Company
+            %label.control-label Customer(Bill To)
+            %label.control-label.pull-right
+              = link_to 'Add New', new_company_company_path,target:'_blank', class: 'btn btn-sm btn-secondary'
             .contract-fild
               - if @contract.new_record?
                 .plain-select
                   = sc.select :company_id, {}, {}, id: "sell_contract_company", required: true
               - else
                 = text_field_tag :customer_name, @contract.sell_contract.company.name.capitalize, disabled: "disabled"
-          - if @contract.new_record?
-            .form-group.company_contacts
-              -sc.object.contract_sell_business_details.build
-              =sc.fields_for :contract_sell_business_details do |csbd|
-                = link_to_add_fields 'available_tour_fields', sc, :contract_sell_business_details, {partial: 'company/contracts/contract_sell_business_details_fields'}, {class: 'link-company-contacts hidden'}
-              = select_tag 'contract[job_1_id]', nil, id: "select_sell_company_contacts", class: "form-control select_company_contacts"
+          -#- if @contract.new_record?
+          -#  .form-group.company_contacts
+          -#    -sc.object.contract_sell_business_details.build
+          -#    =sc.fields_for :contract_sell_business_details do |csbd|
+          -#      = link_to_add_fields 'available_tour_fields', sc, :contract_sell_business_details, {partial: 'company/contracts/contract_sell_business_details_fields'}, {class: 'link-company-contacts hidden'}
+          -#    -#= select_tag 'contract[job_1_id]', nil, id: "select_sell_company_contacts", class: "form-control select_company_contacts"
       .col-md-6
         .form-group
-          %label.control-label  Work location
+          %label.control-label Work location
           .contract-fild
             = f.text_field :work_location, class: "form-control", placeholder: "Contract Work location"
 
@@ -133,32 +137,57 @@
             %labe.control-label No
       .col-md-6
         .form-group.contract_client.hidden
-          %label.control-label  Client
+          %label.control-label Client Company
           .contract-fild
             .plain-select
               = f.select :client_id, [[f.object.client&.full_name,f.object.client_id]], {}, id: 'select_clients'
-
-  - unless @contract.new_record?
-    .contract-fields_wrapper.mt-4
-      - headers =  %w(domain name contact role(s) reminder action(s))
-      .table-responsive
-        %table.table.text-center.table-bordered.table-lg.table-v2.table-striped.data-table-font#contract_admins_table
-          %thead
-            %tr
-            - headers.each do |header|
-              %th= header.capitalize
-          %tbody
+  .contract-fields_wrapper.mt-4
+    %h5.mb-4.d-inline-block Reporting Manager(s)
+    %h5.mb-4.d-inline-block.pull-right
+      %button.btn.btn-secondary.btn-sm{"data-target" => "#manager-team", "data-toggle" => "modal", :type => "button"} Add Manager
+    - headers =  %w(domain name contact role(s) reminder action(s))
+    .table-responsive
+      %table.table.text-center.table-bordered.table-lg.table-v2.table-striped.data-table-font#contract_manager_table
+        %thead
+          %tr
+          - headers.each do |header|
+            %th= header.capitalize
+        %tbody.hr_reporting_admins_table_body
+          - unless @contract.new_record?
             - @contract.sell_contract.contract_sell_business_details.each do |bussiness_detail|
-              - company_contact = bussiness_detail.company_contact.user
+              - user = bussiness_detail.company_contact&.user
               %tr
-                %td= company_contact.company.domain
-                %td= company_contact.full_name
-                %td= contact_widget(company_contact.email,company_contact.phone)
-                %td= company_contact.roles.pluck(:name).join(', ')
-                %td= content_tag(:span, do_ellipsis(current_user.reminders.where(reminderable_id: company_contact.id, reminderable_type: 'Admin')&.last&.title), class: 'bg-info badge mr-1').html_safe
-                %td= link_to(content_tag(:i, nil, class: 'picons-thin-icon-thin-0014_notebook_paper_todo').html_safe, add_reminder_company_users_path(user_id: company_contact.id), remote: :true, title: "Remind Me", class: 'data-table-icons')
+                %td= user.company.domain
+                %td= user.full_name
+                %td= contact_widget(user.email,user.phone)
+                %td= user.roles.pluck(:name).join(', ')
+                %td= content_tag(:span, do_ellipsis(current_user.reminders.where(reminderable_id: user.id, reminderable_type: 'Admin')&.last&.title), class: 'bg-info badge mr-1').html_safe
+                %td
+                  = link_to(content_tag(:i, nil, class: 'picons-thin-icon-thin-0014_notebook_paper_todo').html_safe, add_reminder_company_users_path(user_id: user.id), remote: :true, title: "Remind Me", class: 'data-table-icons')
+                  = link_to(content_tag(:i, nil, class: 'os-icon os-icon-ui-15').html_safe, delete_reporting_manager_contracts_path(contract_id: @contract.id,reporting_manager_id: bussiness_detail.id), method: :delete,remote: :true, title: "Delete #{user.full_name}", class: 'data-table-icons')
+
+  -#- unless @contract.new_record?
+  -#  .contract-fields_wrapper.mt-4
+  -#    - headers =  %w(domain name contact role(s) reminder action(s))
+  -#    .table-responsive
+  -#      %table.table.text-center.table-bordered.table-lg.table-v2.table-striped.data-table-font#contract_admins_table
+  -#        %thead
+  -#          %tr
+  -#          - headers.each do |header|
+  -#            %th= header.capitalize
+  -#        %tbody
+  -#          - @contract.sell_contract.contract_sell_business_details.each do |bussiness_detail|
+  -#            - company_contact = bussiness_detail.company_contact.user
+  -#            %tr
+  -#              %td= company_contact.company.domain
+  -#              %td= company_contact.full_name
+  -#              %td= contact_widget(company_contact.email,company_contact.phone)
+  -#              %td= company_contact.roles.pluck(:name).join(', ')
+  -#              %td= content_tag(:span, do_ellipsis(current_user.reminders.where(reminderable_id: company_contact.id, reminderable_type: 'Admin')&.last&.title), class: 'bg-info badge mr-1').html_safe
+  -#              %td= link_to(content_tag(:i, nil, class: 'picons-thin-icon-thin-0014_notebook_paper_todo').html_safe, add_reminder_company_users_path(user_id: company_contact.id), remote: :true, title: "Remind Me", class: 'data-table-icons')
 
 
 - content_for :modals do
   .hr_admins
     =render 'company/contracts/partials/admin_team_modal',contract: @contract || nil
+    =render 'company/contracts/partials/manager_modal',contract: @contract || nil

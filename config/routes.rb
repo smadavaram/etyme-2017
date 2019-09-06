@@ -559,7 +559,9 @@ Rails.application.routes.draw do
         post :buy_emp_doc_create
         post :buy_ven_doc_create
         post :get_hr_admins
+        post :get_reporting_managers
         delete :delete_hr_admin
+        delete :delete_reporting_manager
       end
       member do
         get :download
