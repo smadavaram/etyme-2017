@@ -21,7 +21,7 @@
     = filepicker_js_include_tag
     -#= tinymce_assets
     = yield(:scripts).present? ? yield(:scripts) : render(partial: 'shared/scripts')
-
+  = render 'shared/flash_messages'
 :css
   .error{
     color: red;
