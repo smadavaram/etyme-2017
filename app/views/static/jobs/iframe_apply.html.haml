@@ -1,11 +1,3 @@
--#- if @view_point.nil?
--#  .w-75.pt-3{style: "margin: auto auto;"}
--#    %a{href: static_job_iframe_path(job_id: @job.id,view_point: "recruiter")} Switch To Recruiter
--#- if @view_point == "recruiter"
--#  .w-75.pt-3{style: "margin: auto auto;"}
--#    %a{href: static_job_iframe_path(job_id: @job.id)} Switch To Candidate
--#
--#
 .w-75.pt-3.d-flex.margin-auto.pt-4.pb-4{style: "flex-direction: column"}
   %button.margin-auto.w-50.btn.btn-primary.candidate.mt-4{onclick: "recruiter()"} Apply As Recruiter
   %button.margin-auto.w-50.btn.btn-primary.recruiter.mt-4{onclick: "candidate()"} Apply As Candidate
