@@ -16,9 +16,9 @@ xml.rss :version => "2.0" do
         else
           xml.title ""
         end
-        xml.author "Achim Fischer"
+        xml.createdBy job.created_by.full_name
         xml.pubDate job.created_at.to_s(:rfc822)
-        xml.link "https://www.codingfish.com/blog/" + job.id.to_s + "-"
+        xml.link "https://www.etyme.com/static/jobs/" + job.id.to_s
         xml.guid job.id
 
         text = job.description
