@@ -8,55 +8,49 @@
               %b
                 %span Contract ID:
                 =@contract.number
-              %h1.clearfix
-                %b
-                  =@contract.job.title
-              %h5
-                %b Contract type:
-                %span
-                  = @contract&.buy_contract&.contract_type
+              %h4
+                =@contract.project_name
             %div.col-sm-6.text-right
               %h5{:class => "#{@contract.status=='is_ended' || @contract.status == 'pending' || @contract.status == 'cancelled' ? 'text-danger' : 'text-success'}"}
                 = @contract.status == "is_ended" ? "Ended" : @contract.status == 'pending'  ? 'Pending Activation'  :  @contract.status == 'accepted'  ? 'Active' : @contract.status&.titleize
               %h6
                 %span Contract Date:
-                =@contract.created_at.strftime("%d %B %Y")
+                %small= @contract.created_at.strftime("%d/%m/%Y")
+              %h6
+                %span Contract type:
+                %small= @contract&.buy_contract&.contract_type
               / =link_to "Tree View", tree_view_contract_path(@contract.number)
           .row
             %div.job-header.clearfix.col-sm-6
-              = image_tag @contract.company.logo
-              %p.job_title.thumb_name
-                %b End Client:
-                %b= @contract.client.try(:full_name)
-            %div.col-sm-6.job-header
-              = image_tag "avatars/m_sunny_big.png"
-              %p.job_title.thumb_name
-                %b Candidate:
-                %b= @contract.candidate.try(:full_name)
-          %br
-          %div.row
+              %h6
+                %span Client
+                %small= @contract.client&.name
+              %h6
+                %span Candidate(s)
+                %small= @contract.candidate.try(:full_name)
+              %h6
+                %span Work Location
+                %small= @contract.work_location
             %div.col-sm-6.col-md-6.col-lg-6
-              .job-location
-                %b Work location:
-                %span
-                  %i.fa.fa-map-marker
-                  =@contract.work_location
-            %div.col-sm-6.col-md-6.col-lg-6
-              %div.divided
-                %span.date_box
-                  %span
-                    Start Date
-                  %br
-                  %span
-                    = @contract.start_date.strftime('%d %B %Y')
-                %span.contract_progress
-                %span.divider
-                %span.date_box
-                  %span
-                    End Date
-                  %br
-                  %span
-                    = @contract.end_date.strftime('%d %B %Y')
+              .d-flex.justify-content-between.mt-3
+                %h6
+                  %span Start Date
+                  %small= @contract.start_date.strftime('%d/%m/%Y')
+                  -#%span.contract_progress
+                %h6
+                  %span End Date
+                  %small= @contract.end_date.strftime('%d/%m/%Y')
+              .os-progress-bar.primary
+                .bar-labels
+                  .bar-label-left
+                    %span Progress
+                    %span.positive= "#{@contract.contract_progress.to_f.round}%"
+                  .bar-label-right
+                    %span.info= "#{@contract.contract_progress.to_f.round}/100"
+                .bar-level-1{:style => "width: 100%"}
+                  .bar-level-2{:style => "100%"}
+                    .bar-level-3{:style => "width: #{@contract.contract_progress.to_f.round}%"}
+
         %div.text-center.col-sm-12
           =link_to_if @contract.pending?, "Activate", update_contract_status_contract_path(@contract, status: "in_progress"), method: :patch, class: "btn btn-success" do; end
           =link_to_if @contract.is_ended?, "Re-Activate Now", update_contract_status_contract_path(@contract, status: "accepted"), method: :patch, class: "btn btn-success" do; end
