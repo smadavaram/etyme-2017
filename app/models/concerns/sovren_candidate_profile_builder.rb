@@ -42,13 +42,13 @@ module SovrenCandidateProfileBuilder
   def sovren_update_experience(experiences)
     return unless experiences
     experiences&.each do |experience|
-      self.designations.build(
-          comp_name: experience.dig("EmployerOrgName"),
+      self.clients.build(
+          name: experience.dig("EmployerOrgName"),
           start_date: sovren_extract_date(experience.dig("PositionHistory")&.first&.dig("StartDate")&.first&.second),
           end_date: sovren_extract_date(experience.dig("PositionHistory")&.first&.dig("EndDate")&.first&.second),
-          company_role: experience.dig("PositionHistory")&.first&.dig("Title")
+          role: experience.dig("PositionHistory")&.first&.dig("Title")
       ).save
-      self.update(designation_status: "Employee") if self.designation_status.nil?
+      self.update(ever_worked_with_company: "Yes") if [nil,"No"].include?(self.ever_worked_with_company)
     end
   end
 

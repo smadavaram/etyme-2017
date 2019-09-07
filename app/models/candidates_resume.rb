@@ -17,7 +17,6 @@ class CandidatesResume < ApplicationRecord
   end
 
 
-
   def build_sovren_profile
     begin
       if self.candidate.first_resume?

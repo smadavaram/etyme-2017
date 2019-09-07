@@ -18,6 +18,23 @@ class Candidate::CandidatesController < Candidate::BaseController
     @activities = PublicActivity::Activity.order("created_at desc")
   end
 
+  def move_to_employer
+    @client = current_candidate.clients.find_by(id: params[:client_id])
+    @designation = current_candidate.designations.new(start_date: @client.start_date,
+                                                      end_date: @client.end_date,
+                                                      comp_name: @client.name,
+                                                      company_role: @client.role
+    )
+    if @designation.save
+      flash[:success] = "Successfully transfer Client to employer"
+      @client.destroy
+      current_candidate.update(ever_worked_with_company: "No") if current_candidate.clients.count == 0
+    else
+      flash[:errors] = @designation.errors.full_messages
+    end
+    redirect_to onboarding_profile_path(tag: "skill")
+  end
+
   def filter_cards
     respond_to do |format|
       format.js {
@@ -96,7 +113,7 @@ class Candidate::CandidatesController < Candidate::BaseController
       if current_candidate.update_attributes candidate_params
         if params[:candidate][:educations_attributes].present?
           params[:candidate][:educations_attributes].each_pair do |mul_field|
-            unless params[:candidate][:educations_attributes][mul_field].reject {|p| p == "id"}.present?
+            unless params[:candidate][:educations_attributes][mul_field].reject { |p| p == "id" }.present?
               Education.where(id: params[:candidate][:educations_attributes][mul_field]["id"]).destroy_all
             end
           end
@@ -107,7 +124,7 @@ class Candidate::CandidatesController < Candidate::BaseController
         #   redirect_to candidate_candidate_dashboard_path(tab: params[:tab])
         # }
 
-        format.json {respond_with current_candidate}
+        format.json { respond_with current_candidate }
         format.html {
           flash[:success] = "Candidate Updated"
           redirect_to onboarding_profile_path(tag: params["tab"])
@@ -117,11 +134,28 @@ class Candidate::CandidatesController < Candidate::BaseController
         }
 
       else
-        format.html {redirect_back fallback_location: root_path}
-        format.json {redirect_back fallback_location: root_path}
-        format.js {render json: :ok}
+        format.html { redirect_back fallback_location: root_path }
+        format.json { redirect_back fallback_location: root_path }
+        format.js { render json: :ok }
       end
     end
+  end
+
+  def build_profile
+    resume = current_candidate.candidates_resumes.find_by(id: params[:id])
+    response = ResumeParser.new(resume.resume).sovren_parse
+    begin
+      if response.code == "200"
+        parsed_hash = JSON.parse(JSON.parse(response.body)["Value"]["ParsedDocument"])["Resume"]
+        current_candidate.sovren_build_profile(parsed_hash)
+        flash[:success] = "Profile build request from resume is processed"
+      else
+        flash[:errors] = [response.body]
+      end
+    rescue => e
+      flash[:errors] = [e]
+    end
+    redirect_to onboarding_profile_path(tag: "verify-phone")
   end
 
   def upload_resume
@@ -131,23 +165,17 @@ class Candidate::CandidatesController < Candidate::BaseController
     new_resume.candidate_id = current_candidate.id
     new_resume.is_primary = current_candidate.candidates_resumes.count == 0 ? true : false
     if new_resume.save
-      flash[:success] = "Resume uploaded successfully."
+      flash.now[:success] = "Resume uploaded successfully."
     else
-      flash[:errors] = 'Resume not updated'
+      flash.now[:errors] = ['Resume not updated']
     end
 
-    # if current_candidate.update(resume: params[:resume])
-    #   flash[:success] = "Resume uploaded successfully."
-    # else
-    #   flash[:errors] = 'Resume not updated'
-    # end
-    # redirect_back fallback_location: root_path
   end
 
   def delete_resume
     resume = CandidatesResume.find(params["id"]) rescue nil
     if resume.is_primary
-      resumes = CandidatesResume.where(:candidate_id => resume.candidate_id).map {|data| data.id}
+      resumes = CandidatesResume.where(:candidate_id => resume.candidate_id).map { |data| data.id }
       resumes.delete(resume.id)
       resume.destroy()
       if resumes.count > 0

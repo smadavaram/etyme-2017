@@ -3,8 +3,10 @@
     .col-sm-12
       .form-group
         %label Name
-        = f.text_field :name,placeholder: "Client Name",class: 'form-control input'
-
+        .col-sm-8.d-inline-block.p-0
+          = f.text_field :name,placeholder: "Client Name",class: 'form-control input'
+        .col-sm-3.d-inline-block.p-0
+          %a.btn.btn-primary{href:move_to_employer_candidate_candidates_path(client_id: f.object.id)} Move To Employers
     .col-sm-4
       .form-group
         %label Industry
@@ -29,7 +31,7 @@
       .form-group
         %label Refrence Phone
         = f.text_field :refrence_phone, class: 'form-control input'
-    .col-sm-3
+    %div{class: f.object.refrence_one ? "col-sm-3" : "col-sm-4"}
       .form-group
         %label Refrence Email
         = f.text_field :refrence_email,placeholder: "Email",class: 'form-control input'
@@ -47,7 +49,7 @@
       .form-group
         %label Refrence Phone
         = f.text_field :refrence_two_phone, class: 'form-control input'
-    .col-sm-3
+    %div{class: f.object.refrence_two ? "col-sm-3" : "col-sm-4"}
       .form-group
         %label Refrence Email
         = f.text_field :refrence_two_email,placeholder: "Email",class: 'form-control input'

@@ -466,3 +466,8 @@ div.nested_headers{
 .select2-selection__choice{
     color: black !important;
 }
+
+.build_profile_icon{
+    font-size: 1.33333333em;
+    color: green;
+}

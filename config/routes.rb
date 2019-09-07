@@ -126,7 +126,7 @@ Rails.application.routes.draw do
 
   namespace :candidate do
 
-    resources :document_signs, only: [:index,:update,:show]
+    resources :document_signs, only: [:index, :update, :show]
 
     post 'update_photo', to: 'candidates#update_photo'
     delete 'delete_resume', to: 'candidates#delete_resume'
@@ -164,7 +164,8 @@ Rails.application.routes.draw do
       get 'current_status', on: :collection
       get 'status_update', on: :collection
       get 'chat_status_update', on: :collection
-
+      get 'move_to_employer', on: :collection
+      get 'build_profile/:id/resume',to: "candidates#build_profile", on: :collection,as: :resume_profile
     end
     resources :jobs do
       # resources :contracts , except: [:index] do
@@ -190,7 +191,7 @@ Rails.application.routes.draw do
       resources :conversation_messages
     end
 
-    resources :contracts, only: [:index,:show] do
+    resources :contracts, only: [:index, :show] do
       collection do
         get :timeline
         post :request_document
@@ -233,7 +234,7 @@ Rails.application.routes.draw do
   namespace :company do
 
     resources :plugins, only: [:create]
-    resources :document_signs, only:[] do
+    resources :document_signs, only: [] do
       post :e_sign_completed, on: :collection
     end
     resources :departments, only: [:create, :update]

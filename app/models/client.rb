@@ -6,8 +6,8 @@ class Client < ActiveRecord::Base
 
 
   def send_reference_mail
-    Candidate::CandidateMailer.client_reference(refrence_email, candidate.full_name, id, slug_one).deliver!
-    Candidate::CandidateMailer.client_reference(refrence_two_email, candidate.full_name, id,slug_two).deliver!
+    Candidate::CandidateMailer.client_reference(refrence_email, candidate.full_name, id, slug_one).deliver! if refrence_email.present?
+    Candidate::CandidateMailer.client_reference(refrence_two_email, candidate.full_name, id,slug_two).deliver! if refrence_two_email.present?
   end
 
   def generate_slug
