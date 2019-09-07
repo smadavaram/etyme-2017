@@ -28,9 +28,9 @@ class Static::JobsController < ApplicationController
 
   def iframe_apply
     @job_application = @job.job_applications.new
-    respond_to do |format|
-      format.html {render layout: "static_headers_less"}
-    end
+    # respond_to do |format|
+    #   format.html {render layout: "static_headers_less"}
+    # end
     response.headers.delete "X-Frame-Options"
   end
 

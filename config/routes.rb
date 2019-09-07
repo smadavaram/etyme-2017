@@ -62,7 +62,7 @@ Rails.application.routes.draw do
       get '(page/:page)', action: :index, on: :collection, as: ''
       match :search, action: :index, via: [:get, :post], on: :collection
       post :apply
-      get "/iframe", to: "jobs#iframe_apply"
+      get "/job_application", to: "jobs#iframe_apply"
       resources :job_applications, only: [:create]
       # get 'job_appication_without_registeration' ,to: 'job_applications#job_appication_without_registeration'
       post :job_appication_without_registeration
