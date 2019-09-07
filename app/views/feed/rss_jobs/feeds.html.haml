@@ -13,6 +13,12 @@
                   .icon-part
                     .fa.fa-briefcase
                   .link-part Job Feed
+            .col-md-3.col-6
+              .feed
+                %a.modal-opener.display-flex{"data-target" => "#embedRssModal", "data-toggle" => "modal", href: '#embedModal'}
+                  .icon-part
+                    .fa.fa-briefcase
+                  .link-part Job Rss Feed
 
             .col-md-3.col-6
               .feed
@@ -20,6 +26,12 @@
                   .icon-part
                     .fa.fa-product-hunt
                   .link-part Product Feed
+            .col-md-3.col-6
+              .feed
+                %a.modal-opener.display-flex{"data-target" => "#embedProductRssModal", "data-toggle" => "modal", href: '#embedProductModal'}
+                  .icon-part
+                    .fa.fa-product-hunt
+                  .link-part Product Rss Feed
 
             .col-md-3.col-6
               .feed
@@ -27,6 +39,12 @@
                   .icon-part
                     .fa.fa-street-view
                   .link-part Service Feed
+            .col-md-3.col-6
+              .feed
+                %a.modal-opener.display-flex{"data-target" => "#embedServiceRssModal", "data-toggle" => "modal", href: '#embedServiceModal'}
+                  .icon-part
+                    .fa.fa-street-view
+                  .link-part Service Rss Feed
 
             .col-md-3.col-6
               .feed
@@ -36,10 +54,22 @@
                   .link-part Blog Feed
             .col-md-3.col-6
               .feed
+                %a.modal-opener.display-flex{"data-target" => "#embedBlogRssModal", "data-toggle" => "modal", href: '#embedBlogModal'}
+                  .icon-part
+                    .fa.fa-rss
+                  .link-part Blog Rss Feed
+            .col-md-3.col-6
+              .feed
                 %a.modal-opener.display-flex{"data-target" => "#embedBenchModal", "data-toggle" => "modal", href: '#embedBlogModal'}
                   .icon-part
                     .fa.fa-user
                   .link-part Bench Feed
+            .col-md-3.col-6
+              .feed
+                %a.modal-opener.display-flex{"data-target" => "#embedBenchRssModal", "data-toggle" => "modal", href: '#embedBlogModal'}
+                  .icon-part
+                    .fa.fa-user
+                  .link-part Bench Rss Feed
 
 
     .margin-top-10.main_accordion
@@ -211,6 +241,17 @@
                   &nbsp;})
                   %br
                   &lt;/script&gt;
+  #embedRssModal.modal{:role => "dialog"}
+    .modal-dialog
+      .modal-content
+        .modal-body
+          .card
+            .card-body
+              .card-subtitle
+                ="Copy and paste the following link inside the <code>&lt;body&gt;&lt;/body&gt;</code> or #{link_to "click me", feed_job_feed_path,target: '_blank'} to open the rss feed".html_safe
+              .p-4.border
+                %code
+                  &lt;a href="https://#{current_company.etyme_url}/feed/job_feed" target="_blank"&gt;&lt;/a&gt;
 
   #embedTrainingModal.modal{:role => "dialog"}
     .modal-dialog
@@ -240,7 +281,17 @@
                   &nbsp;})
                   %br
                   &lt;/script&gt;
-
+  #embedTrainingRssModal.modal{:role => "dialog"}
+    .modal-dialog
+      .modal-content
+        .modal-body
+          .card
+            .card-body
+              .card-subtitle
+                ="Copy and paste the following link inside the <code>&lt;body&gt;&lt;/body&gt;</code> or #{link_to "click me", feed_training_feed_path,target: '_blank'} to open the rss feed".html_safe
+              .p-4.border
+                %code
+                  &lt;a href="https://#{current_company.etyme_url}/feed/training_feed" target="_blank"&gt;&lt;/a&gt;
 
   #embedServiceModal.modal{:role => "dialog"}
     .modal-dialog
@@ -270,11 +321,20 @@
                   &nbsp;})
                   %br
                   &lt;/script&gt;
-
+  #embedServiceRssModal.modal{:role => "dialog"}
+    .modal-dialog
+      .modal-content
+        .modal-body
+          .card
+            .card-body
+              .card-subtitle
+                ="Copy and paste the following link inside the <code>&lt;body&gt;&lt;/body&gt;</code> or #{link_to "click me", feed_service_feed_path,target: '_blank'} to open the rss feed".html_safe
+              .p-4.border
+                %code
+                  &lt;a href="https://#{current_company.etyme_url}/feed/service_feed" target="_blank"&gt;&lt;/a&gt;
 
   #embedProductModal.modal{:role => "dialog"}
     .modal-dialog
-      / Modal content
       .modal-content
         .modal-body
           .card
@@ -300,6 +360,18 @@
                   &nbsp;})
                   %br
                   &lt;/script&gt;
+
+  #embedProductRssModal.modal{:role => "dialog"}
+    .modal-dialog
+      .modal-content
+        .modal-body
+          .card
+            .card-body
+              .card-subtitle
+                ="Copy and paste the following link inside the <code>&lt;body&gt;&lt;/body&gt;</code> or #{link_to "click me", feed_product_feed_path,target: '_blank'} to open the rss feed".html_safe
+              .p-4.border
+                %code
+                  &lt;a href="https://#{current_company.etyme_url}/feed/product_feed" target="_blank"&gt;&lt;/a&gt;
 
   #embedBlogModal.modal{:role => "dialog"}
     .modal-dialog
@@ -329,6 +401,18 @@
                   &nbsp;})
                   %br
                   &lt;/script&gt;
+  #embedBlogRssModal.modal{:role => "dialog"}
+    .modal-dialog
+      .modal-content
+        .modal-body
+          .card
+            .card-body
+              .card-subtitle
+                ="Copy and paste the following link inside the <code>&lt;body&gt;&lt;/body&gt;</code> or #{link_to "click me", feed_blog_feed_path,target: '_blank'} to open the rss feed".html_safe
+              .p-4.border
+                %code
+                  &lt;a href="https://#{current_company.etyme_url}/feed/blog_feed" target="_blank"&gt;&lt;/a&gt;
+
   #embedBenchModal.modal{:role => "dialog"}
     .modal-dialog
       / Modal content
@@ -358,5 +442,16 @@
                   %br
                   &lt;/script&gt;
 
+  #embedBenchRssModal.modal{:role => "dialog"}
+    .modal-dialog
+      .modal-content
+        .modal-body
+          .card
+            .card-body
+              .card-subtitle
+                ="Copy and paste the following link inside the <code>&lt;body&gt;&lt;/body&gt;</code> or #{link_to "click me", feed_bench_feed_path,target: '_blank'} to open the rss feed".html_safe
+              .p-4.border
+                %code
+                  &lt;a href="https://#{current_company.etyme_url}/feed/bench_feed" target="_blank"&gt;&lt;/a&gt;
 
 = render 'shared/skype_cred'
