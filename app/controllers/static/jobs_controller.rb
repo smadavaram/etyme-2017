@@ -62,7 +62,8 @@ class Static::JobsController < ApplicationController
     job_attributes[:price] = get_attr_value(data_array, "pay").to_f
     job_attributes[:education_list] = get_attr_value(data_array, "education")
     job_attributes[:tag_list] = get_attr_value(data_array, "skills")
-    job_attributes[:description] = get_attr_value(data_array, "description")
+   # debugger
+    job_attributes[:description] = request.POST['body-html'] #get_attr_value(data_array, "description")
     update_status(job_attributes)
   end
 
