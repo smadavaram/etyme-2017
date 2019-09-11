@@ -7,10 +7,10 @@
     <!--   START Notifications -->
 
     <div class="messages-notifications os-dropdown-trigger os-dropdown-position-left">
-      <a href="<%= "#" %>"><i class="ti-bell"></i></a>
-      <%# if current_user.notifications.unread.count > 0 %>
-      <!--        <div class="new-messages-count"><%#= current_user.notifications.unread.count %></div>-->
-      <%# end %>
+      <a href="<%= notify_notifications_candidates_path(status: "unread", notification_type: "new_application") %>"><i class="ti-bell"></i></a>
+      <% if current_candidate.notifications.unread.count > 0 %>
+        <div class="new-messages-count"><%= current_candidate.notifications.unread.count %></div>
+      <% end %>
     </div>
 
     <!--   END Notifications -->

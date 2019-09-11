@@ -85,8 +85,14 @@ Rails.application.routes.draw do
   scope module: :candidate do
 
     resources :candidates, path: :candidate, only: [:update] do
+      resources :notifications do
+        member do
+          get 'read'
+        end
+      end
       collection do
         get :notify_notifications
+        get "notification/:id", to: 'candidates#notification', as: "get_notification"
         post :upload_resume
         post :update_video
         post :get_sub_category

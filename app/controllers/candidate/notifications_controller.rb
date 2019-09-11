@@ -1,8 +1,8 @@
-class Company::NotificationsController < Company::BaseController
+class Candidate::NotificationsController < Candidate::BaseController
   before_action :set_user
 
   def read
-    @notification = @user.notifications.find_by(id: params[:id])
+    @notification = @candidate.notifications.find_by(id: params[:id])
     if @notification.read!
       flash[:success] = "Status Changed Successfully"
     else
@@ -11,12 +11,12 @@ class Company::NotificationsController < Company::BaseController
   end
 
   def destroy
-    @notification = @user.notifications.find_by(id: params[:id])
+    @notification = @candidate.notifications.find_by(id: params[:id])
     type = @notification.notification_type
     status = @notification.status
     if @notification.destroy
       flash[:success] = "Successfully Deleted"
-      redirect_to notify_notifications_company_users_path(status: status, notification_type: type)
+      redirect_to notify_notifications_candidates_path(status: status, notification_type: type)
     else
       flash[:error] = "Something went wrong"
       redirect_back(fallback_location: root_path)
@@ -24,6 +24,6 @@ class Company::NotificationsController < Company::BaseController
   end
 
   def set_user
-    @user = current_company.users.find_by(id: params[:user_id])
+    @candidate = Candidate.find_by(id: params[:candidate_id])
   end
 end

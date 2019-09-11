@@ -19,7 +19,7 @@
                   </button>
                   <div class="custom_drop" id="status-menue">
                     <% Notification.statuses.keys.each do |name| %>
-                      <%= link_to(snake_to_words(name), notify_notifications_company_users_path(status: name, notification_type: params[:notification_type]), class: "dropdown-item") %>
+                      <%= link_to(snake_to_words(name), notify_notifications_candidates_path(status: name, notification_type: params[:notification_type]), class: "dropdown-item") %>
                     <% end %>
                   </div>
                 </div>
@@ -32,14 +32,14 @@
                   </button>
                   <div id="type-menu" class='custom_drop'>
                     <% Notification.notification_types.keys.each do |name| %>
-                      <%= link_to(snake_to_words(name), notify_notifications_company_users_path(status: params[:status], notification_type: name), class: "dropdown-item") %>
+                      <%= link_to(snake_to_words(name), notify_notifications_candidates_path(status: params[:status], notification_type: name), class: "dropdown-item") %>
                     <% end %>
                   </div>
                 </div>
               </div>
             </div>
           </div>
-          <%= render 'company/users/partials/notifications_cards', notifications: @notifications %>
+          <%= render 'candidate/candidates/partials/notification_cards', notifications: @notifications %>
           <div class="m-4">
             <%= will_paginate @notifications %>
           </div>

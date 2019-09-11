@@ -10,8 +10,8 @@
       </h6>
         <div class="ticket-description d-inline-block"><%= notification.createable&.full_name.capitalize %></div>
         <div class="ticket-description d-inline-block pull-right text-primary">
-        <%= notification.created_at.to_formatted_s(:short) %>
-      </div></div>
+          <%= notification.created_at.to_formatted_s(:short) %>
+        </div></div>
     </div>
   </div>
 <% end %>
@@ -19,21 +19,21 @@
 
 <% content_for :scripts do %>
   <script>
-    <% unless notifications.empty? %>
-    $.ajax({
-      url: "/company/users/notification/<%= notifications.first.id %>",
-      type: "GET",
-      dataType: "script"
-    });
-    <% end %>
-    $('.support-ticket').on('click', function () {
-      $('.support-index').addClass('show-ticket-content');
+      <% unless notifications.empty? %>
       $.ajax({
-        url: `/company/users/notification/${$(this).attr("id")}`,
-        type: "GET",
-        dataType: "script"
+          url: "/candidate/notification/<%= notifications.first.id %>",
+          type: "GET",
+          dataType: "script"
       });
-      return false;
-    });
+      <% end %>
+      $('.support-ticket').on('click', function () {
+          $('.support-index').addClass('show-ticket-content');
+          $.ajax({
+              url: `/candidate/notification/${$(this).attr("id")}`,
+              type: "GET",
+              dataType: "script"
+          });
+          return false;
+      });
   </script>
 <% end %>

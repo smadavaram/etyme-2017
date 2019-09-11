@@ -213,10 +213,13 @@ class Candidate::CandidatesController < Candidate::BaseController
     flash.now[:success] = "Video Successfully Updated"
   end
 
+  def notification
+    @notification = current_candidate.notifications.find_by(id: params[:id])
+  end
+
   def notify_notifications
-    @notifications = current_candidate.notifications || []
-    @contract_cycles = current_candidate.contract_cycles.incomplete || []
-    render layout: false
+    add_breadcrumb "NOTIFICATIONS", '#'
+    @notifications = current_candidate.notifications.where(status: (params[:status] || 0), notification_type: (params[:notification_type] || 0)).page(params[:page]).per_page(10)
   end
 
   def get_sub_category
