@@ -90,6 +90,10 @@ class User < ApplicationRecord
 
 
 
+  def conversations
+    Conversation.all_onversations(self)
+  end
+
   def self.like_any(fields, values)
     conditions = fields.product(values).map do |(field, value)|
       [arel_table[field].matches("#{value}%"), arel_table[field].matches("% #{value}%")]
@@ -109,6 +113,8 @@ class User < ApplicationRecord
   def time_zone_now
     self.time_zone.present? ? Time.now.in_time_zone(self.time_zone) : Time.now
   end
+
+
 
   def etyme_url
     company&.etyme_url

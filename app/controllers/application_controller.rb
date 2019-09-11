@@ -11,9 +11,8 @@ class ApplicationController < ActionController::Base
   rescue_from ActionController::UnknownController, with: :render_not_found if Rails.env.production?
   rescue_from AbstractController::ActionNotFound, with: :render_not_found if Rails.env.production?
   rescue_from ActiveRecord::RecordNotFound, with: :render_not_found if Rails.env.production?
-  rescue_from StandardError,with: :render_not_found if Rails.env.production?
-  rescue_from Exception::NoMethodError,with: :render_not_found if Rails.env.production?
-
+  rescue_from StandardError, with: :render_not_found if Rails.env.production?
+  rescue_from Exception::NoMethodError, with: :render_not_found if Rails.env.production?
 
 
   # before_filter :authenticate_user!
@@ -27,30 +26,38 @@ class ApplicationController < ActionController::Base
   end
 
   def cities
-    render json: CS.cities(params[:state].to_sym, params[:country].to_sym).map{ |k| [k.downcase.tr(" " , "_") , k] }.to_h.to_json
+    render json: CS.cities(params[:state].to_sym, params[:country].to_sym).map { |k| [k.downcase.tr(" ", "_"), k] }.to_h.to_json
   end
 
   def set_devise_layout
     'static' if devise_controller?
   end
 
+
   def after_sign_in_path_for(resource)
     class_name = resource.class.name
+    get_new_notification_flash(resource)
     if session[:previous_url]
       return session[:previous_url]
-    elsif class_name == 'Admin' || class_name=='Consultant' || class_name=='User'
+    elsif class_name == 'Admin' || class_name == 'Consultant' || class_name == 'User'
       return dashboard_path
-    elsif class_name=='Candidate'
+    elsif class_name == 'Candidate'
       return '/candidate'
     else
       super
     end
   end
 
+  def get_new_notification_flash(resource)
+    notifications_count = resource.notifications.unread.where("created_at >= ?", resource.last_sign_in_at).count
+    messages_count = ConversationMessage.where(conversation_id: resource.conversations.ids).where("created_at >= ?", resource.last_sign_in_at).count
+    flash[:notice] = "You have #{notifications_count} new notification(s) and #{messages_count} message(s)" unless (notifications_count.zero? and messages_count.zero?)
+  end
+
   def render_exception(status = 500, message = 'An Error Occurred', exception)
     @status = status
     @message = message
-    UserMailer.exception_notify(exception,exception.backtrace[0..25].join('\n'),params.inspect).deliver if Rails.env.production?
+    UserMailer.exception_notify(exception, exception.backtrace[0..25].join('\n'), params.inspect).deliver if Rails.env.production?
     render template: "shared/404", formats: [:html], layout: false
   end
 

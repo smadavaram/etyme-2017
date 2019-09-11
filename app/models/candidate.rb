@@ -134,6 +134,10 @@ class Candidate < ApplicationRecord
     errors[:skill_list] << "8 skills maximum" if skill_list.count > 8
   end
 
+  def conversations
+    Conversation.all_onversations(self)
+  end
+
   def etyme_url
     Rails.env.development? ? "#{ENV['domain']}" : "#{ENV['domain']}"
   end
