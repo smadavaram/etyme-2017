@@ -19,20 +19,21 @@
           .element-content#dashboard_cards
             =render 'candidate/candidates/partials/dashboard_cards', cards: @cards
       .row
-        - if candidate_activity_hash.present?
+        -activities = candidate_activity_hash
+        - if activities.present?
           .col-sm-12
             .element-wrapper
               %h6.element-header
                 User Activity
               .timed-activities.compact
-                -candidate_activity_hash.each do |key,value|
+                -activities.each do |key,value|
                   .timed-activity
                     .ta-date
                       %span
                         = key
                     .ta-record-w
                       - value.each do |activity|
-                        -#= render_activity activity
+                        = render_activity activity
     .content-panel
       .content-panel-close
         %i.os-icon.os-icon-close
