@@ -1,3 +1,13 @@
+- if flash[:success].present?
+  .w-75.pt-3.d-flex.margin-auto.pt-4.pb-4{style: "flex-direction: column"}
+    .row
+      .col-sm-75.margin-auto
+        .element-box-content.w-50.margin-auto
+          .alert.alert-info.alert-dismissible.show{:role => "alert"}
+            %button.close{"aria-label" => "Close", "data-dismiss" => "alert", :type => "button"}
+              %span{"aria-hidden" => "true"} ×
+            %h4.alert-heading Thank you for applying
+            %p You can now be part of world’s first on-demand staffing market place. You can now track your application and apply for more jobs, engage with recruiters and hiring managers easily
 .w-75.pt-3.d-flex.margin-auto.pt-4.pb-4{style: "flex-direction: column"}
   %button.margin-auto.w-50.btn.btn-primary.candidate.mt-4{onclick: "recruiter()"} Apply As Recruiter
   %button.margin-auto.w-50.btn.btn-primary.recruiter.mt-4{onclick: "candidate()"} Apply As Candidate
