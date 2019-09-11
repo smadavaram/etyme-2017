@@ -11,7 +11,7 @@ class Company::CandidatesController < Company::BaseController
   def index
     respond_to do |format|
       format.html {}
-      format.json {render json: CompanyCandidateDatatable.new(params, view_context: view_context)}
+      format.json { render json: CompanyCandidateDatatable.new(params, view_context: view_context) }
     end
   end
 
@@ -62,7 +62,7 @@ class Company::CandidatesController < Company::BaseController
     @manage_candidate = current_company.candidates.find(params[:candidate_id])
     if request.patch?
       groups = params[:candidate][:group_ids]
-      groups = groups.reject {|t| t.empty?}
+      groups = groups.reject { |t| t.empty? }
       groups_id = groups.map(&:to_i)
       @manage_candidate.update_attribute(:group_ids, groups_id)
       if @manage_candidate.save
@@ -74,74 +74,35 @@ class Company::CandidatesController < Company::BaseController
     end
   end
 
+  def get_or_create_bench_candidate
+    candidate = Candidate.find_by(email: params[:candidate][:email]) || current_company.candidates.new(create_candidate_params.merge(send_welcome_email_to_candidate: false, invited_by_id: current_user.id, invited_by_type: 'User', status: "campany_candidate"))
+    if candidate.new_record? and candidate.save
+      current_company.candidates << candidate
+      candidate.create_activity :create, owner: current_company, recipient: current_company
+      CandidatesResume.create(:candidate_id => candidate.id, :resume => candidate.resume, :is_primary => true)
+      Address.create(:address_1 => candidate.location, :addressable_type => "Candidate", :addressable_id => candidate.id)
+      current_company.candidates_companies.where(candidate: candidate).first.hot_candidate! if params["is_add_to_bench"]
+    else
+      flash[:errors] = candidate.errors.full_messages
+    end
+    candidate
+  end
 
   def create
-    if Candidate.signup.where(email: params[:candidate][:email]).present? && !current_company.candidates.find_by(email: params[:candidate][:email]).present?
-      flash[:already_exist] = true
-      flash[:email] = params[:candidate][:email]
-      respond_to do |format|
-        format.html {flash[:success] = "successfully Created."; redirect_to company_candidates_path}
-        format.js {flash.now[:success] = "successfully Created."}
-      end
-    elsif Candidate.signup.where(email: params[:candidate][:email]).present? && current_company.candidates.find_by(email: params[:candidate][:email]).present?
-      flash[:notice] = "Candidate Already Present in Your Network!"
-      respond_to do |format|
-        format.html {flash[:success] = "successfully Created."; redirect_to company_candidates_path}
-        format.js {flash.now[:success] = "successfully Created."}
+    @candidate = get_or_create_bench_candidate
+    @candidates_company = current_company.candidates_companies.where(candidate: @candidate).first
+    if @candidates_company.normal? and @candidate
+      if params["is_add_to_bench"]
+        flash[:success] = "Candidate is added to the bench"
+        @candidates_company.hot_candidate!
+      else
+        flash[:notice] = "New candidate added successfully"
       end
     else
-
-      if params["is_add_to_bench"]
-
-        @candidate = current_company.candidates.new(create_candidate_params.merge(send_welcome_email_to_candidate: false, invited_by_id: current_user.id, invited_by_type: 'User', status: "campany_candidate"))
-        if @candidate.save
-          current_company.candidates << @candidate
-          @candidate.create_activity :create, owner: current_company, recipient: current_company
-
-          CandidatesResume.create(:candidate_id => @candidate.id, :resume => @candidate.resume, :is_primary => true)
-          Address.create(:address_1 => @candidate.location, :addressable_type => "Candidate", :addressable_id => @candidate.id)
-
-          @company_candidate = CandidatesCompany.normal.where(candidate_id: @candidate.id, company_id: current_company.id)
-          @company_candidate.update_all(status: 1)
-
-          flash[:success] = "Successfull Added."
-          respond_to do |format|
-            format.html {flash[:success] = "successfully Created."; redirect_to company_bench_jobs_path}
-            format.js {flash.now[:success] = "successfully Created."}
-          end
-        else
-          respond_to do |format|
-            format.html {flash[:errors] = @candidate.errors.full_messages; redirect_back fallback_location: root_path}
-            format.js {flash.now[:errors] = @candidate.errors.full_messages}
-          end
-        end
-
-
-      else
-
-        @candidate = current_company.candidates.new(create_candidate_params.merge(send_welcome_email_to_candidate: false, invited_by_id: current_user.id, invited_by_type: 'User', status: "campany_candidate"))
-        if @candidate.save
-          current_company.candidates << @candidate
-          @candidate.create_activity :create, owner: current_company, recipient: current_company
-
-          CandidatesResume.create(:candidate_id => @candidate.id, :resume => @candidate.resume, :is_primary => true)
-          Address.create(:address_1 => @candidate.location, :addressable_type => "Candidate", :addressable_id => @candidate.id)
-          flash[:success] = "Successfull Added."
-          respond_to do |format|
-            format.html {flash[:success] = "successfully Created."; redirect_to candidates_path}
-            format.js {flash.now[:success] = "successfully Created."}
-          end
-        else
-          respond_to do |format|
-            format.html {flash[:errors] = @candidate.errors.full_messages; redirect_back fallback_location: root_path}
-            format.js {flash.now[:errors] = @candidate.errors.full_messages}
-          end
-        end
-
-      end
-
-
+      @candidates_company.present? ? @candidates_company.hot_candidate! : current_company.candidates_companies.create(candidate: @candidate, status: :hot_candidate)
+      flash[:success] = "Candidate is added to the bench"
     end
+    redirect_back(fallback_location: current_company.etyme_url)
   end
 
   def new_candidate_to_bench
@@ -155,12 +116,12 @@ class Company::CandidatesController < Company::BaseController
     if @company_candidate.update_all(status: 1)
       flash[:success] = "Candidate is now Hot Candidate."
       respond_to do |format|
-        format.js {render inline: "location.reload();"}
+        format.js { render inline: "location.reload();" }
       end
     else
       flash[:errors] = @company_candidate.errors.full_messages
       respond_to do |format|
-        format.js {render inline: "location.reload();"}
+        format.js { render inline: "location.reload();" }
       end
     end
 
@@ -171,12 +132,12 @@ class Company::CandidatesController < Company::BaseController
     if @company_candidate.update_all(status: 0)
       flash[:success] = "Candidate is now Normal Candidate."
       respond_to do |format|
-        format.js {render inline: "location.reload();"}
+        format.js { render inline: "location.reload();" }
       end
     else
       flash[:errors] = @company_candidate.errors.full_messages
       respond_to do |format|
-        format.js {render inline: "location.reload();"}
+        format.js { render inline: "location.reload();" }
       end
     end
 
@@ -187,7 +148,7 @@ class Company::CandidatesController < Company::BaseController
     ActiveRecord::Base.connection.execute("DELETE FROM candidates_companies WHERE candidate_id = #{params[:candidate_id]} AND company_id = #{current_company.id} ")
     flash[:success] = "Candidate is Remove Sucessfully."
     respond_to do |format|
-      format.js {render inline: "location.reload();"}
+      format.js { render inline: "location.reload();" }
     end
   end
 
@@ -220,7 +181,7 @@ class Company::CandidatesController < Company::BaseController
   # for sharing of hot candidates
   def share_candidates
 
-    c_ids = params[:candidates_ids].split(",").map {|s| s.to_i}
+    c_ids = params[:candidates_ids].split(",").map { |s| s.to_i }
     emails = []
     params[:emails].each do |e|
       company = User.where(email: e).first
