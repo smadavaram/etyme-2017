@@ -28,7 +28,7 @@
             .form-group
               %label.col-md-2.control-label Message (optional)
               .col-md-12
-                = f.text_area :message, class: "form-control", rows: "2" ,placeholder: 'Write tour message'
+                = f.text_area :message, class: "form-control", rows: "2" ,placeholder: 'Write your message'
             .nested-fields
               - job.job_requirements.each do |r|
                 = f.fields_for :job_applicant_reqs do |ja|

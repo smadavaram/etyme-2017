@@ -17,9 +17,9 @@
             %p.d-inline-block.uploaded_file_name  No File Selected
         = f.fields_for :candidate_with_recruiter do |b|
           .col-sm-6
-            %label Email
+            %label Candidate Email
             .form-group
-              = b.text_field :email,placeholder: "Email",class: 'form-control input'
+              = b.text_field :email,placeholder: "Email",class: 'form-control input',placeholder: "example@domain.com"
           .col-sm-6
             %label First Name
             .form-group
@@ -35,7 +35,7 @@
           .col-sm-6
             %label Recruiter Email
             .form-group
-              = b.text_field :recruiter_email,placeholder: "Recruiter Email",class: 'form-control input'
+              = b.text_field :recruiter_email,placeholder: "Recruiter Email",class: 'form-control input',placeholder: "example@domain.com"
       .row
         .col-sm-12
           .form-group
@@ -46,7 +46,7 @@
         .col-sm-12
           .form-group
             %p Message (optional)
-            = f.text_area :message, class: "form-control", rows: "2" ,placeholder: 'Write tour message'
+            = f.text_area :message, class: "form-control", rows: "2" ,placeholder: 'Write your message'
 
 
     %fieldset
@@ -108,9 +108,9 @@
             .form-group
               = b.text_field :last_name,placeholder: "Last Name",class: 'form-control input'
           .col-sm-6
-            %label Email
+            %label Candidate Email
             .form-group
-              = b.text_field :email,placeholder: "Email",class: 'form-control input'
+              = b.text_field :email,placeholder: "Email",class: 'form-control input',placeholder: "example@domain.com"
           .col-sm-6
             %label Phone
             .form-group
@@ -126,7 +126,7 @@
         .col-sm-12
           .form-group
             %p Message (optional)
-            = f.text_area :message, class: "form-control", rows: "2" ,placeholder: 'Write tour message'
+            = f.text_area :message, class: "form-control", rows: "2" ,placeholder: 'Write your message'
     %fieldset
       .nested-fields
         - @job.job_requirements.each do |r|

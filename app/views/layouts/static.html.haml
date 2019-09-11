@@ -10,6 +10,7 @@
 
     = csrf_meta_tags
     = yield :head
+
   %body{class: "#{yield :body_class}"}
 
     .all-wrapper
@@ -18,9 +19,9 @@
       = yield
       = render 'static/shared/footer'
     = javascript_include_tag 'static'
-    = filepicker_js_include_tag
     -#= tinymce_assets
     = yield(:scripts).present? ? yield(:scripts) : render(partial: 'shared/scripts')
+  = render 'shared/flash_messages'
 
 :css
   .error{

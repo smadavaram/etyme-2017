@@ -1,4 +1,3 @@
-
 //= require static/js/modernizr-custom
 //= require static/js/jQuery-2.1.4.min
 //= require jquery-ui
@@ -22,7 +21,9 @@
 //= require addevent
 //= require_tree ./clean_admin/.
 //= require shared/uploader
+//= require custom
+
 function display_file_name(event) {
-  // alert(event.fpfile.filename );
-  $('.uploaded_file_name').text(event.fpfile.filename)
+    // alert(event.fpfile.filename );
+    $('.uploaded_file_name').text(event.fpfile.filename)
 }
