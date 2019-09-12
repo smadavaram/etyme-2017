@@ -371,7 +371,8 @@ class Company::ContractsController < Company::BaseController
   end
 
   def filter_timeline
-    @contract_cycles = ContractCycle.includes(:ts_submitteds, :candidate, contract: [:sell_contract, :buy_contract, :company]).where(params[:cycle_type].present? ? {cycle_type: params[:cycle_type], contract: current_company.contracts} : nil)
+    @contract_cycles = ContractCycle.includes(:ts_submitteds, :candidate, contract: [:sell_contract, :buy_contract, :company])
+                           .where(params[:cycle_type].present? ? {cycle_type: params[:cycle_type], contract: current_company.contracts} : {contract: current_company.contracts})
     filtering_params(params).each do |key, value|
       @contract_cycles = @contract_cycles.public_send(key, value) if value.present?
     end
