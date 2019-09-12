@@ -7,12 +7,20 @@ class Candidate::JobApplicationsController < Candidate::BaseController
   add_breadcrumb "JobApplications", :candidate_job_applications_path
 
   def create
-    @job_application = current_candidate.job_applications.new(job_application_params.merge!({job_id: @job.id, application_type: :candidate_direct}))
+    @job_application = current_candidate.job_applications.new(job_application_params.merge({job_id: @job.id, application_type: :candidate_direct}))
     respond_to do |format|
       if @job_application.save
-        format.js {flash.now[:success] = "Successfully Applied."}
+        format.html {
+          flash[:success] = "Successfully Applied."
+          redirect_back(fallback_location: candidate_job_invitations_path)
+        }
+        format.js { flash.now[:success] = "Successfully Applied." }
       else
-        format.js {flash.now[:errors] = @job_application.errors.full_messages}
+        format.html {
+          flash[:errors] = @job_application.errors.full_messages
+          redirect_back(fallback_location: candidate_job_invitations_path)
+        }
+        format.js { flash.now[:errors] = @job_application.errors.full_messages }
       end
     end
   end
@@ -34,7 +42,7 @@ class Candidate::JobApplicationsController < Candidate::BaseController
     if @job_application.accept_rate
       flash[:errors] = ['You cannot change the rate once accepted by you.']
     else
-      if @job_application.update(job_application_rate.merge(rate_initiator: current_candidate.full_name,accept_rate: false, accept_rate_by_company: false))
+      if @job_application.update(job_application_rate.merge(rate_initiator: current_candidate.full_name, accept_rate: false, accept_rate_by_company: false))
         @conversation = @job_application.conversation
         @conversation.conversation_messages.rate_confirmation.update_all(message_type: :job_conversation)
         body = current_candidate.full_name + " has Countered #{@job_application.rate_per_hour}/hr with reference to #{@job_application.job.title} job."
@@ -55,9 +63,9 @@ class Candidate::JobApplicationsController < Candidate::BaseController
         @conversation.conversation_messages.schedule_interview.update_all(message_type: :job_conversation)
         body = current_candidate.full_name + " has schedule an interview on #{@interview.date} at #{@interview.date} <a href='http://#{@job_application.job.created_by.company.etyme_url + job_application_path(@job_application)}'> with reference to the job </a>#{@job_application.job.title}."
         current_candidate.conversation_messages.create(conversation_id: @conversation.id, body: body, message_type: :schedule_interview, resource_id: @interview.id)
-        format.html {flash[:success] = "Interview details updated, pending confirmation"}
+        format.html { flash[:success] = "Interview details updated, pending confirmation" }
       else
-        format.html {flash[:errors] = @job_application.errors.full_messages}
+        format.html { flash[:errors] = @job_application.errors.full_messages }
       end
     end
     redirect_back fallback_location: root_path

@@ -2,7 +2,6 @@
   %table#resultTable.table.table-striped.table-bordered.table-hover
     %thead
       %tr
-        %th{style: "width:30px"} Pic
         %th Sender
         %th Company
         %th Job
@@ -14,20 +13,19 @@
     %tbody
       - data.each do |invitation|
         %tr{class: "#{set_background_status_color(invitation.status)}"}
-          %td= image_tag invitation.created_by.photo, alt: '', width: '20'
-          %td= link_to invitation.created_by.full_name , '#'
+          %td.no-wrap
+            = image_tag(invitation.created_by.photo, class: 'data-table-image mr-1').html_safe
+            = link_to(do_ellipsis(invitation.created_by.full_name), '#', class: 'data-table-font')
           %td= link_to invitation.created_by.company.name , '#' if invitation.created_by.type!="Candidate"
-          %td= link_to invitation.job.title , '#'
+          %td= link_to  do_ellipsis(invitation.job.title) , static_job_path(invitation.job)
           %td
-            = invitation.created_by.email
-            %a.pull-right{:href => "javascript:void(0);"}
-              %i.fa.fa-key
-          %td= link_to invitation.created_by.full_name , '#'
+            = do_ellipsis(invitation.created_by.email)
+          %td= link_to do_ellipsis(invitation.created_by.full_name) , '#'
           %td= invitation.recipient.phone
           %td= invitation.expiry
           %td
             - if invitation.pending? && invitation.is_active?
-              = link_to 'Accept' , candidate_job_invitation_show_invitation_path( invitation , status: 'accept') , method: :get , remote: true , class: 'btn btn-xs btn-default'
-              = link_to 'Reject' , candidate_job_invitation_show_invitation_path(invitation , status: 'reject') , method: :get , remote: true ,  class: 'btn btn-xs btn-default'
+              = link_to 'Accept' , candidate_job_invitation_show_invitation_path( invitation , status: 'accept') , method: :get , remote: true , class: ''
+              = link_to 'Reject' , candidate_job_invitation_show_invitation_path(invitation , status: 'reject') , method: :get , remote: true ,  class: ''
             -else
               %span.label.label-success= invitation.status

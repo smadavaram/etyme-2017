@@ -1,15 +1,11 @@
 .modal{ id: "job-invite-#{job_invitation.id}"}
   .modal-dialog.modal-lg
     .modal-content
-      .modal-header
+      .modal-header.w-100
+        %h2
+          %strong Job Application - #{job.title}
         %button.close{"aria-hidden" => "true", "data-dismiss" => "modal", :type => "button"}
           ×
-        %h2#myModalLabel.modal-title
-          %strong Job Invitation - #{job.title}
-        %hr
-        .modal-title
-          = raw job.description
-
       .modal-body
         = form_for job_invitation, url: candidate_job_invitation_reject_path(job_invitation), html: {class: 'form-horizontal'} ,remote: true, method: :post do |f|
           = f.hidden_field :status , value: :rejected
