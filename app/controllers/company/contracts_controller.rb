@@ -355,7 +355,7 @@ class Company::ContractsController < Company::BaseController
   end
 
   def generate_cycles
-    if @contract.in_progress?
+    unless @contract.in_progress?
       @contract.create_cycles
       flash[:success] = "Contract Cycles are generated successfully"
     else
