@@ -3,71 +3,20 @@
     %section#widget-grid.clearfix
       .newsfeed-right{style: "border: none;"}
         .job-title
-          .contract-top.clearfix.row
-            %div.col-sm-6
-              %b
-                %span Contract ID:
-                =@contract.number
-              %h1.clearfix
-                %b
-                  =@contract.job.title
-              %h5
-                %b Contract type:
-                %span
-                  = @contract&.buy_contract&.contract_type
-            %div.col-sm-6.text-right
-              %h5{:class => "#{@contract.status=='is_ended' || @contract.status == 'pending' || @contract.status == 'cancelled' ? 'text-danger' : 'text-success'}"}
-                = @contract.status == "is_ended" ? "Ended" : @contract.status == 'pending'  ? 'Pending Activation'  :  @contract.status == 'accepted'  ? 'Active' : @contract.status&.titleize
-              %h6
-                %span Contract Date:
-                =@contract.created_at.strftime("%d %B %Y")
-              / =link_to "Tree View", tree_view_contract_path(@contract.number)
-          .row
-            %div.job-header.clearfix.col-sm-6
-              = image_tag @contract.company.logo
-              %p.job_title.thumb_name
-                %b End Client:
-                %b= @contract.client.try(:full_name)
-            %div.col-sm-6.job-header
-              = image_tag "avatars/m_sunny_big.png"
-              %p.job_title.thumb_name
-                %b Candidate:
-                %b= @contract.candidate.try(:full_name)
-          %br
-          %div.row
-            %div.col-sm-6.col-md-6.col-lg-6
-              .job-location
-                %b Work location:
-                %span
-                  %i.fa.fa-map-marker
-                  =@contract.work_location
-            %div.col-sm-6.col-md-6.col-lg-6
-              %div.divided
-                %span.date_box
-                  %span
-                    Start Date
-                  %br
-                  %span
-                    = @contract.start_date.strftime('%d %B %Y')
-                %span.contract_progress
-                %span.divider
-                %span.date_box
-                  %span
-                    End Date
-                  %br
-                  %span
-                    = @contract.end_date.strftime('%d %B %Y')
+          =render 'company/contracts/partials/contract_header',contract: @contract
+
         %div.text-center.col-sm-12
-          =link_to_if @contract.pending?, "Activate", update_contract_status_contract_path(@contract, status: "in_progress"), method: :patch, class: "btn btn-success" do; end
-          =link_to_if @contract.is_ended?, "Re-Activate Now", update_contract_status_contract_path(@contract, status: "accepted"), method: :patch, class: "btn btn-success" do; end
-          =link_to_if @contract.accepted? || @contract.in_progress? , "End Contract", update_contract_status_contract_path(@contract, status: "is_ended"),method: :patch, class: "btn btn-danger" do; end
-          =link_to_if @contract.accepted? || @contract.in_progress?, "Cancel Contract", update_contract_status_contract_path(@contract, status: "cancelled"),method: :patch, class: "btn btn-primary" do; end
           / =link_to_if @contract.accepted?, "Pause Contract", update_contract_status_contract_path(@contract, status: "paused"),method: :patch, class: "btn btn-primary" do; end
           =link_to "Timeline", timeline_contracts_path, class: "btn btn-primary"
           =link_to "Tree View", tree_view_contract_path(@contract.number), class: "btn btn-primary"
           =link_to 'Download', download_contract_path(@contract), class: 'btn btn-primary'
           =link_to 'Edit', new_contract_path(contract_id: @contract.id), class: 'btn btn-primary'
-          =link_to 'Generate Salary Cycle', generate_salary_cycles_company_accountings_path(contract_id: @contract.id), class: 'btn btn-primary'
+          =link_to 'Generate Timeline Cycle',  generate_cycles_contract_path(@contract), class: 'btn btn-success' unless @contract.in_progress?
+          -#=link_to 'Generate Salary Cycle', generate_salary_cycles_company_accountings_path(contract_id: @contract.id), class: 'btn btn-primary'
+          =link_to_if @contract.pending?, "Activate", update_contract_status_contract_path(@contract, status: "in_progress"), method: :patch, class: "btn btn-outline-success" do; end
+          =link_to_if @contract.is_ended?, "Re-Activate Now", update_contract_status_contract_path(@contract, status: "accepted"), method: :patch, class: "btn btn-success" do; end
+          =link_to_if @contract.accepted? || @contract.in_progress? , "End Contract", update_contract_status_contract_path(@contract, status: "is_ended"),method: :patch, class: "btn btn-danger" do; end
+          =link_to_if @contract.accepted? || @contract.in_progress?, "Cancel Contract", update_contract_status_contract_path(@contract, status: "cancelled"),method: :patch, class: "btn btn-primary" do; end
         %div.row
           .col-sm-6.col-md-6.col-lg-6
             %h2.contract_heading
@@ -445,7 +394,6 @@
                             %td= docusign.is_sign_done ? "Signed" : "Pending"
                             %td= do_ellipsis(docusign.envelope_id.present? ? docusign.envelope_id : "Not Submitted",15)
                             %td= link_to content_tag(:i,'',class:'fa fa-paperclip fa-lg').html_safe, docusign.signed_file if docusign.is_sign_done
-
 
 
 - if @contract.pending? && !@contract.is_sent?(current_company)

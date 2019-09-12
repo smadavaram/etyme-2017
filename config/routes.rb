@@ -576,6 +576,7 @@ Rails.application.routes.draw do
         get :tree_view
         get :received_contract
         patch :update_contract_status
+        get :generate_cycles
       end
 
       post :change_invoice_date

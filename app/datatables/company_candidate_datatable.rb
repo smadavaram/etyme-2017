@@ -9,6 +9,7 @@ class CompanyCandidateDatatable < ApplicationDatatable
   def_delegator :@view, :ban_company_black_listers_path
   def_delegator :@view, :unban_company_black_listers_path
   def_delegator :@view, :candidate_remove_from_comapny_path
+  def_delegator :@view, :public_profile_static_candidates_path
 
   def view_columns
     @view_columns ||= {
@@ -47,7 +48,7 @@ class CompanyCandidateDatatable < ApplicationDatatable
 
   def candidate_profile user
     image_tag(user.photo, class: 'data-table-image mr-1').html_safe +
-        link_to(do_ellipsis(user.full_name), '#', class: 'data-table-font')
+        link_to(do_ellipsis(user.full_name), public_profile_static_candidates_path(user), class: 'data-table-font')
   end
 
   def get_raw_records

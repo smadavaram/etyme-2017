@@ -1,13 +1,13 @@
 class Candidate::JobInvitationsController < Candidate::BaseController
-  before_action :set_job_invitations ,only: :index
-  before_action :find_job_invitation ,only: [:reject , :show_invitation]
+  before_action :set_job_invitations, only: :index
+  before_action :find_job_invitation, only: [:reject, :show_invitation]
 
   def index
 
   end
 
   def show_invitation
-    if(params[:status]=='accept')
+    if (params[:status] == 'accept')
       @job_application = @job_invitation.build_job_application
       @job_application.job_applicant_reqs.build
       @job_application.custom_fields.build
@@ -17,8 +17,13 @@ class Candidate::JobInvitationsController < Candidate::BaseController
   end
 
   def reject
-    @job_invitation.update_attributes(job_invitation_params)
+    if @job_invitation.update_attributes(job_invitation_params)
+      flash[:success] = "Updates Successfully"
+    else
+      flash[:errors] = @job_invitation.errors.full_messages
+    end
   end
+
   private
 
   def find_job_invitation
@@ -27,9 +32,10 @@ class Candidate::JobInvitationsController < Candidate::BaseController
   end
 
   def set_job_invitations
-    @job_invitations  = current_candidate.job_invitations.all
+    @job_invitations = current_candidate.job_invitations.all
   end
+
   def job_invitation_params
-    params.require(:job_invitation).permit(:job_id , :message , :response_message,:recipient_id , :email , :status , :expiry , :recipient_type,:invitation_type)
+    params.require(:job_invitation).permit(:job_id, :message, :response_message, :recipient_id, :email, :status, :expiry, :recipient_type, :invitation_type)
   end
 end

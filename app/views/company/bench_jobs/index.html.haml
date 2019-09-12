@@ -31,7 +31,7 @@
                       %td
                         = check_box_tag "ids[]", c.candidate.id
                       %td
-                        = link_to c.candidate.try(:full_name).try(:titleize),"#","data-content" => "<p class= 'text-center' ><image style='border-radius:50%;' src=#{image_url(c.candidate.photo)}/></br><div class='well well-sm'>#{c.candidate.full_name}</br>Email : #{c.candidate.email} </div></p>", "data-placement" => "top",:rel => "hover"
+                        = link_to c.candidate.try(:full_name).try(:titleize),public_profile_static_candidates_path(c.candidate),"data-content" => "<p class= 'text-center' ><image style='border-radius:50%;' src=#{image_url(c.candidate.photo)}/></br><div class='well well-sm'>#{c.candidate.full_name}</br>Email : #{c.candidate.email} </div></p>", "data-placement" => "top",:rel => "hover"
                       %td
                         - if c.candidate.try(:roles).present?
                           - c.candidate.try(:roles).each do |role|
