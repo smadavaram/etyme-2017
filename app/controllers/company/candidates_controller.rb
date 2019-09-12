@@ -90,7 +90,7 @@ class Company::CandidatesController < Company::BaseController
 
   def create
     @candidate = get_or_create_bench_candidate
-    @candidates_company = current_company.candidates_companies.where(candidate: @candidate).first
+    @candidates_company = current_company.candidates_companies.where(candidate: @candidate).first || current_company.candidates_companies.create(candidate: @candidate, status: :normal)
     if @candidates_company.normal? and @candidate
       if params["is_add_to_bench"]
         flash[:success] = "Candidate is added to the bench"
