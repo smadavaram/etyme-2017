@@ -59,7 +59,7 @@ $(document).ready(function () {
                 searchable: true,
                 orderable: true,
                 'createdCell': function (td, cellData, rowData, row, col) {
-                    $(td).addClass('text-left');
+                    $(td).addClass('text-left no-wrap');
                 }
             }
         ],
@@ -156,7 +156,7 @@ $(document).ready(function () {
                 searchable: true,
                 orderable: true,
                 'createdCell': function (td, cellData, rowData, row, col) {
-                    $(td).addClass('text-left');
+                    $(td).addClass('text-left no-wrap');
                 }
             }
         ],
@@ -265,7 +265,7 @@ $(document).ready(function () {
                 searchable: true,
                 orderable: true,
                 'createdCell': function (td, cellData, rowData, row, col) {
-                    $(td).addClass('text-left');
+                    $(td).addClass('text-left no-wrap');
                 }
             }
         ],
