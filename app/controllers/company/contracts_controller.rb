@@ -2,7 +2,7 @@ class Company::ContractsController < Company::BaseController
 
   before_action :find_job, only: [:create]
   before_action :find_receive_contract, only: [:open_contract, :update_contract_response, :create_sub_contract]
-  before_action :find_contract, only: [:show, :download, :update_attachable_doc, :change_invoice_date, :update, :edit, :update_contract_status]
+  before_action :find_contract, only: [:show, :generate_cycles, :download, :update_attachable_doc, :change_invoice_date, :update, :edit, :update_contract_status]
   before_action :set_contracts, only: [:index]
   before_action :find_attachable_doc, only: [:update_attachable_doc]
   before_action :authorize_user_for_new_contract, only: :new
@@ -46,8 +46,8 @@ class Company::ContractsController < Company::BaseController
   def add_approval
     @approval = Approval.find_or_initialize_by(approval_params.merge(company_id: current_company.id))
     @approvals = current_company.approvals.where(contractable_type: approval_params[:contractable_type],
-                               contractable_id: approval_params[:contractable_id],
-                                approvable_type: approval_params[:approvable_type])
+                                                 contractable_id: approval_params[:contractable_id],
+                                                 approvable_type: approval_params[:approvable_type])
     if @approval.save
       flash.now[:success] = "Collaborator Added"
       render 'add_approval'
@@ -85,7 +85,7 @@ class Company::ContractsController < Company::BaseController
     response = (Time.current - @plugin.updated_at).to_i.abs / 3600 <= 5 ? true : RefreshToken.new(@plugin).refresh_docusign_token
     if response.present?
       @company_candidate_docs.each do |sign_doc|
-        @document_sign = current_company.document_signs.create(requested_by: current_user,documentable: sign_doc, signable: @buy_contract.contract.candidate, is_sign_done: false,part_of: @buy_contract, signers_ids: params[:signers].to_s.gsub('[','{').gsub(']','}'))
+        @document_sign = current_company.document_signs.create(requested_by: current_user, documentable: sign_doc, signable: @buy_contract.contract.candidate, is_sign_done: false, part_of: @buy_contract, signers_ids: params[:signers].to_s.gsub('[', '{').gsub(']', '}'))
         result = DocusignEnvelope.new(@document_sign, @plugin).create_envelope
         if (result.status == "sent")
           @document_sign.update(envelope_id: result.envelope_id, envelope_uri: result.uri)
@@ -103,7 +103,7 @@ class Company::ContractsController < Company::BaseController
   def buy_emp_doc_create
     @company_candidate_docs = current_company.company_candidate_docs.where(id: params[:ids])
     @company_candidate_docs.each do |sign_doc|
-      current_company.document_signs.create(requested_by: current_user,documentable: sign_doc, signable: @buy_contract.contract.candidate, is_sign_done: false,part_of: @buy_contract,signers_ids: params[:signers].to_s.gsub('[','{').gsub(']','}'))
+      current_company.document_signs.create(requested_by: current_user, documentable: sign_doc, signable: @buy_contract.contract.candidate, is_sign_done: false, part_of: @buy_contract, signers_ids: params[:signers].to_s.gsub('[', '{').gsub(']', '}'))
     end
     flash.now[:success] = 'Document(s) submission request is submitted to the Company'
     @document_signs = @buy_contract.document_signs.where(signable: @buy_contract.contract.candidate, documentable: current_company.company_candidate_docs.where(is_require: "Document").ids)
@@ -115,7 +115,7 @@ class Company::ContractsController < Company::BaseController
     response = (Time.current - @plugin.updated_at).to_i.abs / 3600 <= 5 ? true : RefreshToken.new(@plugin).refresh_docusign_token
     if response.present?
       @company_candidate_docs.each do |sign_doc|
-        @document_sign = current_company.document_signs.create(requested_by: current_user,documentable: sign_doc, signable: @buy_contract.company.owner, is_sign_done: false,part_of: @buy_contract,signers_ids: params[:signers].to_s.gsub('[','{').gsub(']','}'))
+        @document_sign = current_company.document_signs.create(requested_by: current_user, documentable: sign_doc, signable: @buy_contract.company.owner, is_sign_done: false, part_of: @buy_contract, signers_ids: params[:signers].to_s.gsub('[', '{').gsub(']', '}'))
         result = DocusignEnvelope.new(@document_sign, @plugin).create_envelope
         if (result.status == "sent")
           @document_sign.update(envelope_id: result.envelope_id, envelope_uri: result.uri)
@@ -136,7 +136,7 @@ class Company::ContractsController < Company::BaseController
     response = (Time.current - @plugin.updated_at).to_i.abs / 3600 <= 5 ? true : RefreshToken.new(@plugin).refresh_docusign_token
     if response.present?
       @company_candidate_docs.each do |sign_doc|
-        @document_sign = current_company.document_signs.create(requested_by: current_user,documentable: sign_doc, signable: @sell_contract.company.owner, is_sign_done: false, part_of: @sell_contract,signers_ids: params[:signers].to_s.gsub('[','{').gsub(']','}'))
+        @document_sign = current_company.document_signs.create(requested_by: current_user, documentable: sign_doc, signable: @sell_contract.company.owner, is_sign_done: false, part_of: @sell_contract, signers_ids: params[:signers].to_s.gsub('[', '{').gsub(']', '}'))
         result = DocusignEnvelope.new(@document_sign, @plugin).create_envelope
         if (result.status == "sent")
           @document_sign.update(envelope_id: result.envelope_id, envelope_uri: result.uri)
@@ -154,7 +154,7 @@ class Company::ContractsController < Company::BaseController
   def create_document_request
     @company_candidate_docs = current_company.company_candidate_docs.where(id: params[:ids])
     @company_candidate_docs.each do |sign_doc|
-      current_company.document_signs.create(requested_by: current_user,documentable: sign_doc, signable: @sell_contract.company.owner, is_sign_done: false,part_of: @sell_contract)
+      current_company.document_signs.create(requested_by: current_user, documentable: sign_doc, signable: @sell_contract.company.owner, is_sign_done: false, part_of: @sell_contract)
     end
     flash.now[:success] = 'Document(s) submission request is submitted to the Company'
     @document_signs = @sell_contract.document_signs.where(signable: @sell_contract.company.owner, documentable: current_company.company_candidate_docs.where(is_require: "Document").ids)
@@ -167,18 +167,18 @@ class Company::ContractsController < Company::BaseController
   def update
     @tab_number = params[:tab].to_i
     if @tab_number == 2
-      @signature_templates = current_company.company_candidate_docs.where(is_require: "signature",document_for: "Customer")
-      @documents_templates = current_company.company_candidate_docs.where(is_require: "Document",document_for: "Customer")
-      @signature_documents = @contract.send("sell_contract").document_signs.where(part_of: @contract.sell_contract,signable: @contract.sell_contract.company.owner, documentable: @signature_templates.ids)
-      @request_documents = @contract.send("sell_contract").document_signs.where(part_of: @contract.sell_contract,signable: @contract.sell_contract.company.owner, documentable: @documents_templates.ids)
+      @signature_templates = current_company.company_candidate_docs.where(is_require: "signature", document_for: "Customer")
+      @documents_templates = current_company.company_candidate_docs.where(is_require: "Document", document_for: "Customer")
+      @signature_documents = @contract.send("sell_contract").document_signs.where(part_of: @contract.sell_contract, signable: @contract.sell_contract.company.owner, documentable: @signature_templates.ids)
+      @request_documents = @contract.send("sell_contract").document_signs.where(part_of: @contract.sell_contract, signable: @contract.sell_contract.company.owner, documentable: @documents_templates.ids)
     else
-      @signature_templates_candidate = current_company.company_candidate_docs.where(is_require: "signature",document_for: "Candidate",title_type: "Contract")
-      @signature_templates_vendor = current_company.company_candidate_docs.where(is_require: "signature",document_for: "Vendor",title_type: "Contract")
-      @documents_templates_candidate = current_company.company_candidate_docs.where(is_require: "Document",document_for: "Candidate",title_type: "Contract")
+      @signature_templates_candidate = current_company.company_candidate_docs.where(is_require: "signature", document_for: "Candidate", title_type: "Contract")
+      @signature_templates_vendor = current_company.company_candidate_docs.where(is_require: "signature", document_for: "Vendor", title_type: "Contract")
+      @documents_templates_candidate = current_company.company_candidate_docs.where(is_require: "Document", document_for: "Candidate", title_type: "Contract")
 
-      @candidate_signature_documents = @contract.send("buy_contract").document_signs.where(part_of: @contract.buy_contract,signable: @contract.buy_contract.contract.candidate, documentable: @signature_templates_candidate.ids)
-      @vendor_signature_documents = @contract.buy_contract.company.present? ? @contract.send("buy_contract").document_signs.where(part_of: @contract.buy_contract,signable: @contract.buy_contract.company.owner, documentable: @signature_templates_vendor.ids) : []
-      @candidate_request_documents = @contract.send("buy_contract").document_signs.where(part_of: @contract.buy_contract,signable: @contract.buy_contract.contract.candidate, documentable: @documents_templates_candidate.ids)
+      @candidate_signature_documents = @contract.send("buy_contract").document_signs.where(part_of: @contract.buy_contract, signable: @contract.buy_contract.contract.candidate, documentable: @signature_templates_candidate.ids)
+      @vendor_signature_documents = @contract.buy_contract.company.present? ? @contract.send("buy_contract").document_signs.where(part_of: @contract.buy_contract, signable: @contract.buy_contract.company.owner, documentable: @signature_templates_vendor.ids) : []
+      @candidate_request_documents = @contract.send("buy_contract").document_signs.where(part_of: @contract.buy_contract, signable: @contract.buy_contract.contract.candidate, documentable: @documents_templates_candidate.ids)
     end
     respond_to do |format|
       if @contract.update(contract_params)
@@ -226,8 +226,8 @@ class Company::ContractsController < Company::BaseController
     @contract.status = :draft
     @signature_templates = current_company.customer_contract_templates("signature")
     @documents_templates = current_company.customer_contract_templates("Document")
-    @signature_documents = @contract.send("sell_contract").document_signs.where(part_of: @contract.sell_contract,signable: @contract.sell_contract.company.owner, documentable: @signature_templates.ids)
-    @request_documents = @contract.send("sell_contract").document_signs.where(part_of: @contract.sell_contract,signable: @contract.sell_contract.company.owner, documentable: @documents_templates.ids)
+    @signature_documents = @contract.send("sell_contract").document_signs.where(part_of: @contract.sell_contract, signable: @contract.sell_contract.company.owner, documentable: @signature_templates.ids)
+    @request_documents = @contract.send("sell_contract").document_signs.where(part_of: @contract.sell_contract, signable: @contract.sell_contract.company.owner, documentable: @documents_templates.ids)
     respond_to do |format|
       if @contract.save
         params[:contract][:reporting_manager_ids]&.each do |id|
@@ -348,11 +348,21 @@ class Company::ContractsController < Company::BaseController
   def update_contract_status
     if @contract.update(status: params[:status])
       create_custom_activity(@contract, 'contracts.update', {status: params[:status]}, @contract)
-      @contract.create_cycles if @contract.in_progress?
+      #TODO: enable it if cycles should be generated when contract is in progress
+      # @contract.create_cycles if @contract.in_progress?
       redirect_back fallback_location: root_path
     end
   end
 
+  def generate_cycles
+    if @contract.in_progress?
+      @contract.create_cycles
+      flash[:success] = "Contract Cycles are generated successfully"
+    else
+      flash[:errors] = ["Contract is not in progress"]
+    end
+    redirect_back(fallback_location: contract_path(@contract))
+  end
 
   def timeline
     @contracts = current_company.contracts.includes(:job).where.not(status: "pending")
@@ -361,7 +371,7 @@ class Company::ContractsController < Company::BaseController
   end
 
   def filter_timeline
-    @contract_cycles = ContractCycle.includes(:ts_submitteds, :candidate, contract: [:sell_contract, :buy_contract, :company]).where(params[:cycle_type].present? ? {cycle_type: params[:cycle_type],contract: current_company.contracts} : nil)
+    @contract_cycles = ContractCycle.includes(:ts_submitteds, :candidate, contract: [:sell_contract, :buy_contract, :company]).where(params[:cycle_type].present? ? {cycle_type: params[:cycle_type], contract: current_company.contracts} : nil)
     filtering_params(params).each do |key, value|
       @contract_cycles = @contract_cycles.public_send(key, value) if value.present?
     end
@@ -413,7 +423,7 @@ class Company::ContractsController < Company::BaseController
       @users = @users + Contract.find_by(id: params[:contract_id]).contract_admins.to_a
     end
     respond_to do |format|
-      format.js{}
+      format.js {}
     end
   end
 
@@ -423,7 +433,7 @@ class Company::ContractsController < Company::BaseController
       @contract_sell_business_details = @contract_sell_business_details + Contract.find_by(id: params[:contract_id]).sell_contract.contract_sell_business_details.to_a
     end
     respond_to do |format|
-      format.js{}
+      format.js {}
     end
   end
 
@@ -549,7 +559,7 @@ class Company::ContractsController < Company::BaseController
                                                  document_signs_attributes: [:id, :signable_type, :signable_id, :_destroy]]
          ],
          buy_contract_attributes: [
-             :ts_2day_of_week ,:ta_2day_of_week,
+             :ts_2day_of_week, :ta_2day_of_week,
              :invoice_2day_of_week,
              :ce_2day_of_week,
              :ce_ap_2day_of_week,
