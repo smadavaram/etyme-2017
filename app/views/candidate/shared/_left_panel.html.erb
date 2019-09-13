@@ -43,18 +43,13 @@
         </div>
         <span>Inbox</span>
       </a>
-<!--      <a href="<%#= %>" class="side-bar_tab side-bar_links">-->
-<!--        <div class="icon-w">-->
-<!--          <i class="ti-pulse"></i>-->
-<!--        </div>-->
-<!--        <span>Activity Log</span>-->
-<!--      </a>-->
-      <a href="<%= candidate_job_invitations_path %>" class="side-bar_tab side-bar_links">
-        <div class="icon-w">
-          <i class="fa fa-envelope-open-o"></i>
-        </div>
-        <span>Invitations</span>
-      </a>
+      <!--      <a href="<%#= %>" class="side-bar_tab side-bar_links">-->
+      <!--        <div class="icon-w">-->
+      <!--          <i class="ti-pulse"></i>-->
+      <!--        </div>-->
+      <!--        <span>Activity Log</span>-->
+      <!--      </a>-->
+
       <a class="sidebar_collapsible side-bar_tab">
         <div class="icon-w">
           <i class="ti-world"></i>
@@ -76,7 +71,7 @@
         <span>Bench</span>
       </a>
       <div class="pl-4 w-100 text-justify nav-sidebar-collaps">
-        <a href="<%= "#" %>" class="l2 side-bar_links nested_tab boarder_bottom">My Company/Contacts</a>
+        <a href="<%= "#" %>" class="l2 side-bar_links nested_tab boarder_bottom">My Company</a>
         <a href="<%= candidate_jobs_path %>" class="l2 side-bar_links nested_tab boarder_bottom">Public Jobs</a>
         <a href="<%= "#" %>" class="l2 side-bar_links nested_tab boarder_bottom">Bench Jobs</a>
         <a href="<%= "#" %>" class="l2 side-bar_links nested_tab boarder_bottom">Add Bench Job</a>
@@ -88,20 +83,9 @@
         <span>Jobs</span>
       </a>
       <div class="pl-4 w-100 text-justify nav-sidebar-collaps">
-        <a href="<%= "#" %>" class="l2 side-bar_links nested_tab boarder_bottom">My Jobs</a>
-        <a href="<%= "#" %>" class="l2 side-bar_links nested_tab boarder_bottom">Invited</a>
+        <a href="<%= candidate_job_invitations_path %>" class="l2 side-bar_links nested_tab boarder_bottom">Invited
+          Jobs</a>
         <a href="<%= candidate_jobs_path %>" class="l2 side-bar_links nested_tab boarder_bottom">Public Jobs</a>
-      </div>
-      <a class="sidebar_collapsible side-bar_tab">
-        <div class="icon-w">
-          <i class="os-icon os-icon-hierarchy-structure-2"></i>
-        </div>
-        <span>HR</span>
-      </a>
-      <div class="pl-4 w-100 text-justify nav-sidebar-collaps">
-        <a class="l2 side-bar_links nested_tab boarder_bottom" href="<%= candidate_contracts_path %>">Contracts</a>
-        <a class="l2 side-bar_links nested_tab boarder_bottom" href="<%= timeline_candidate_contracts_path %>">Timeline</a>
-        <a class="l2 side-bar_links nested_tab boarder_bottom" href="<%= candidate_document_signs_path %>">Doduments Request</a>
       </div>
       <a class="sidebar_collapsible side-bar_tab">
         <div class="icon-w">
@@ -116,6 +100,78 @@
         <a class="l2 side-bar_links nested_tab boarder_bottom" href="<%= "#" %>">Pre-interview</a>
         <a class="l2 side-bar_links nested_tab boarder_bottom" href="<%= "#" %>">Client interview</a>
       </div>
+      <a class="sidebar_collapsible side-bar_tab">
+        <div class="icon-w">
+          <i class="os-icon os-icon-hierarchy-structure-2"></i>
+        </div>
+        <span>HR</span>
+      </a>
+      <div class="pl-4 w-100 text-justify nav-sidebar-collaps">
+        <a class="l2 side-bar_links nested_tab boarder_bottom" href="<%= candidate_contracts_path %>">Contracts</a>
+        <a class="l2 side-bar_links nested_tab boarder_bottom" href="<%= timeline_candidate_contracts_path %>">Timeline</a>
+        <a class="l2 side-bar_links nested_tab boarder_bottom" href="<%= candidate_document_signs_path %>">Doduments
+          Request</a>
+      </div>
+      <a class="sidebar_collapsible side-bar_tab">
+        <div class="icon-w">
+          <i class="icon-plane"></i>
+        </div>
+        <span>Expenses</span>
+      </a>
+      <div class="pl-4 w-100 text-justify nav-sidebar-collaps">
+        <a href="#" class="side-bar_links nested_tab boarder_bottom">Open Bills</a>
+        <a href="#" class="side-bar_links nested_tab boarder_bottom">Bill Payments</a>
+        <a href="#" class="side-bar_links nested_tab boarder_bottom">Expense Payments</a>
+      </div>
+
+      <a class="sidebar_collapsible side-bar_tab">
+        <div class="icon-w">
+          <i class="picons-thin-icon-thin-0417_calculator"></i>
+        </div>
+        <span>Accounting</span>
+      </a>
+      <div class="pl-4 w-100 text-justify nav-sidebar-collaps">
+        <a class="sidebar_collapsible nested_tab">
+          <div class="icon-w">
+            <i class="icon-handbag"></i>
+          </div>
+          <span>Sales</span>
+        </a>
+        <div class="pl-4 w-100 text-justify l3 nav-sidebar-collaps">
+          <a href="<%= "#" %>" class="side-bar_links nested_tab boarder_bottom">Open Invoices</a>
+          <a href="<%= "#" %>" class="side-bar_links nested_tab boarder_bottom">Cleared
+            Invoices</a>
+          <a href="<%= "#" %>" class="side-bar_links nested_tab boarder_bottom">Payments</a>
+        </div>
+        <a class="sidebar_collapsible nested_tab">
+          <div class="icon-w">
+            <i class="ti-shopping-cart"></i>
+          </div>
+          <span>Purchasing</span>
+        </a>
+        <div class="pl-4 w-100 l3 text-justify nav-sidebar-collaps">
+          <a href="<%= "#" %>" class="side-bar_links nested_tab boarder_bottom">Open
+            Bills</a>
+          <a href="<%= "#" %>" class="side-bar_links nested_tab boarder_bottom">Vendor
+            Bills</a>
+          <a href="<%= "#" %>" class="side-bar_links nested_tab boarder_bottom">Bill
+            Pay</a>
+        </div>
+        <a class="sidebar_collapsible nested_tab">
+          <div class="icon-w">
+            <i class="picons-thin-icon-thin-0420_money_cash_coins_payment_dollars"></i>
+          </div>
+          <span>Salaries</span>
+        </a>
+        <div class="pl-4 w-100 l3 text-justify nav-sidebar-collaps">
+          <a href="<%= "#" %>" class="side-bar_links nested_tab boarder_bottom">Salary
+            to Pay</a>
+          <a href="<%= "#" %>" class="side-bar_links nested_tab boarder_bottom">Salary Advance</a>
+          <a href="<%= "#" %>" class="side-bar_links nested_tab boarder_bottom">Salary Calculations</a>
+          <a href="#" class="side-bar_links nested_tab boarder_bottom">Salary Payments</a>
+        </div>
+      </div>
+
       <a href="<%= candidate_timesheets_path %>" class="side-bar_tab side-bar_links">
         <div class="icon-w">
           <i class="ti-timer"></i>
