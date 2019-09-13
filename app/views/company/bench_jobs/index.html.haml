@@ -8,7 +8,8 @@
               .row.mr-1.ml-1
                 .col-sm-6
                   %a.btn.btn-sm.btn-secondary{ :href => "#", :title => "Share Candidate" } Share
-                  %a.btn.btn-sm.btn-secondary{ :href => "#{company_new_candidate_to_bench_path}", :title => "New Candidate" } New
+                  = link_to "New", "#candidate-bench_invite", :class => "btn btn-sm btn-secondary", "data-toggle" => "modal"
+                  -#%a.btn.btn-sm.btn-secondary{ :href => "#{company_new_candidate_to_bench_path}", :title => "New Candidate" } New
                 .col-sm-6
                   .form-inline.justify-content-sm-end
                     %input.form-control.form-control-sm.rounded.bright{placeholder: "Search", type: "text", type: 'search', id: 'my_bench_datatable-search'}
@@ -72,6 +73,7 @@
 - content_for :modals do
   = render 'company/candidates/partials/add_to_my_network'
   = render 'company/candidates/partials/share_hot_candidates'
+  = render 'company/bench_jobs/candidate_bench_invite_modal'
 
 - content_for :scripts do
   :javascript

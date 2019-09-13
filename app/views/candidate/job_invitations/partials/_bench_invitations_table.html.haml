@@ -1,0 +1,29 @@
+.table-responsive
+  %table#resultTable.table.table-striped.table-bordered.table-hover
+    %thead
+      %tr
+        %th Sender
+        %th Company
+        %th Email / Username
+        %th Created By
+        %th Phone
+        %th Expiry
+        %th Status
+    %tbody
+      - data.each do |invitation|
+        %tr{class: "#{set_background_status_color(invitation.status)}"}
+          %td.no-wrap
+            = image_tag(invitation.created_by.photo, class: 'data-table-image mr-1').html_safe
+            = link_to(do_ellipsis(invitation.created_by.full_name), '#', class: 'data-table-font')
+          %td= link_to invitation.created_by.company.name , '#' if invitation.created_by.type!="Candidate"
+          %td
+            = do_ellipsis(invitation.created_by.email)
+          %td= link_to do_ellipsis(invitation.created_by.full_name) , '#'
+          %td= invitation.recipient.phone
+          %td= invitation.expiry
+          %td
+            - if invitation.pending? && invitation.is_active?
+              = link_to 'Accept' , candidate_job_invitation_accept_bench_path( invitation)
+              = link_to 'Reject' , candidate_job_invitation_reject_bench_path(invitation)
+            -else
+              %span.label.label-success= invitation.status

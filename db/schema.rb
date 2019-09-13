@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema.define(version: 20190903084646) do
+ActiveRecord::Schema.define(version: 20190913093719) do
 
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
@@ -1149,6 +1149,14 @@ ActiveRecord::Schema.define(version: 20190903084646) do
     t.index ["company_id"], name: "index_groups_on_company_id"
   end
 
+  create_table "integrations", force: :cascade do |t|
+    t.integer "company_id"
+    t.integer "plugin_id"
+    t.string "plugin_type"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+  end
+
   create_table "interviews", force: :cascade do |t|
     t.string "date"
     t.string "time"
@@ -1286,6 +1294,7 @@ ActiveRecord::Schema.define(version: 20190903084646) do
     t.integer "company_id"
     t.integer "invitation_type"
     t.text "response_message"
+    t.integer "invitation_purpose", default: 0
   end
 
   create_table "job_requirements", force: :cascade do |t|

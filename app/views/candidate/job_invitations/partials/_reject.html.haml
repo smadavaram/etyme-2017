@@ -3,7 +3,7 @@
     .modal-content
       .modal-header.w-100
         %h2
-          %strong Job Application - #{job.title}
+          %strong= job.present? ? "Job Application - #{job.title}" : "Bench Invitation"
         %button.close{"aria-hidden" => "true", "data-dismiss" => "modal", :type => "button"}
           ×
       .modal-body
