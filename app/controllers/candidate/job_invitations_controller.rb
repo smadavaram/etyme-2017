@@ -1,9 +1,39 @@
 class Candidate::JobInvitationsController < Candidate::BaseController
   before_action :set_job_invitations, only: :index
-  before_action :find_job_invitation, only: [:reject, :show_invitation]
+  before_action :find_job_invitation, only: [:reject, :show_invitation, :accept_bench, :reject_bench]
 
   def index
 
+  end
+
+  def bench_invitations
+    add_breadcrumb 'Dashboard', "/candidate", :title => ""
+    add_breadcrumb 'Invitations', "#"
+    @invitations = current_candidate.job_invitations.all.bench
+  end
+
+  def accept_bench
+    if @job_invitation.update(status: :accepted)
+      @job_invitation.company.candidates_companies.where(candidate_id: @job_invitation.recipient_id).update_all(status: :hot_candidate)
+      @job_invitation.recipient.update(associated_company: @job_invitation.company)
+      flash[:success] = "Updates Successfully"
+    else
+      flash[:errors] = @job_invitation.errors.full_messages
+    end
+    @invitations = current_candidate.job_invitations.all.bench
+    render :bench_invitations
+  end
+
+  def reject_bench
+    if @job_invitation.update(status: :rejected)
+      @job_invitation.company.candidates_companies.where(candidate_id: @job_invitation.recipient_id).update_all(status: :normal)
+      @job_invitation.recipient.update(associated_company: Company.get_freelancer_company)
+      flash[:success] = "Updates Successfully"
+    else
+      flash[:errors] = @job_invitation.errors.full_messages
+    end
+    @invitations = current_candidate.job_invitations.all.bench
+    render :bench_invitations
   end
 
   def show_invitation
@@ -32,7 +62,7 @@ class Candidate::JobInvitationsController < Candidate::BaseController
   end
 
   def set_job_invitations
-    @job_invitations = current_candidate.job_invitations.all
+    @job_invitations = current_candidate.job_invitations.all.job
   end
 
   def job_invitation_params

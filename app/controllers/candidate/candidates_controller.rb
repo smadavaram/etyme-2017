@@ -18,6 +18,10 @@ class Candidate::CandidatesController < Candidate::BaseController
     @activities = PublicActivity::Activity.order("created_at desc")
   end
 
+  def bench_invitatons
+    @invitations = current_candidates
+  end
+
   def move_to_employer
     @client = current_candidate.clients.find_by(id: params[:client_id])
     @designation = current_candidate.designations.new(start_date: @client.start_date,

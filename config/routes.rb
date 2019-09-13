@@ -134,7 +134,6 @@ Rails.application.routes.draw do
   namespace :candidate do
 
     resources :document_signs, only: [:index, :update, :show]
-
     post 'update_photo', to: 'candidates#update_photo'
     delete 'delete_resume', to: 'candidates#delete_resume'
     get 'make_primary_resume', to: 'candidates#make_primary_resume'
@@ -162,9 +161,12 @@ Rails.application.routes.draw do
         post "accept_interview/:interview_id", to: "job_applications#accept_interview", as: :accept_interview
       end
     end
+    get '/invitations/bench' , to: "job_invitations#bench_invitations"
     resources :job_invitations, only: [:index, :show] do
       post :reject
       get :show_invitation
+      get :accept_bench
+      get :reject_bench
     end
     # resources :contracts        , only: [:index]
     resources :candidates, only: [:show, :update, :create] do
@@ -455,7 +457,9 @@ Rails.application.routes.draw do
     resources :prefer_vendors, concerns: :paginatable do
       # end
     end
-    resources :job_invitations, concerns: :paginatable, only: [:index, :show]
+    resources :job_invitations, concerns: :paginatable, only: [:index, :show] do
+      post :bench_candidate_invitation, on: :collection
+    end
     resources :candidates, concerns: :paginatable, only: [:index] do
       match :manage_groups, via: [:get, :patch]
       post :make_hot
