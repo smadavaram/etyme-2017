@@ -4,30 +4,11 @@ $(".<%= @tab %>").addClass('active');
 <% events = [] %>
 <% @timesheets.each{|ts|  ts.transactions.each{|tt| events << {allDay: true,description: 'timesheet transaction',title: "Transaction-#{tt.id}",id: tt.id, total_time: tt.total_time, timesheet_id:tt.timesheet_id, start: tt.start_time.strftime("%Y-%m-%d")} }}  %>
 var e=JSON.parse("<%= escape_javascript(render(inline: events.to_json)) %>")
+let startCelandar = "<%= j render(inline: (@timesheets.first.present? ? @timesheets.first&.start_date.to_s : DateTime.now.beginning_of_month.strftime('%Y-%m-%d'))) %>"
+let endCelandar = "<%= j render(inline: (@timesheets.last.present? ? @timesheets.last&.end_date.to_s : DateTime.now.end_of_month.strftime('%Y-%m-%d'))) %>"
 
+console.log(startCelandar,endCelandar)
 
-
-
-
-$('#timesheet_calendar').fullCalendar({
-    selectable: true,
-    height: 700,
-    width: 500,
-    header: {center: 'dayGridMonth,timeGridWeek'}, // buttons for switching between views
-    views: {
-        dayGridMonth: { // name of view
-            titleFormat: {year: 'numeric', month: '2-digit'}
-            // other view-specific options here
-        }
-    },
-    events: e,
-    eventRender: function (info, event, el, view) {
-        event[0].removeChild(event[0].firstChild)
-        event.append(`<input name='${info.title}' onchange="handle_input(this)" value='${info.total_time}' style='width: -moz-available;width: -webkit-fill-available;' />`)
-        event.append(`<input name='${info.title}' value="1st value" style='width: -moz-available;width: -webkit-fill-available;' />`)
-    },
-    selectConstraint: {
-        start: $.fullCalendar.moment().subtract(1, 'days'),
-        end: $.fullCalendar.moment().startOf('month').add(1, 'month')
-    }
-});
+$('#timesheet_calendar').fullCalendar( "removeEvents")
+$('#timesheet_calendar').fullCalendar( "renderEvents", e ,true)
+flash_success('Celandar Rendered Successfully');

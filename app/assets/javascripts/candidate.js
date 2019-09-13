@@ -177,11 +177,11 @@
 //= require trix
 
 $("input[name='candidate[designation_status]']").click(function () {
-  if ($("input[name='candidate[designation_status]']:checked").val() == "Employee") {
-    $('#employee-designations').removeClass('display-none');
-  } else if ($("input[name='candidate[designation_status]']:checked").val() == "Freelancer") {
-    $('#employee-designations').addClass('display-none');
-  }
+    if ($("input[name='candidate[designation_status]']:checked").val() == "Employee") {
+        $('#employee-designations').removeClass('display-none');
+    } else if ($("input[name='candidate[designation_status]']:checked").val() == "Freelancer") {
+        $('#employee-designations').addClass('display-none');
+    }
 });
 $('.up-head-w').mouseover(function () {
     $('.up-main-info').addClass('profile-wrapper')
@@ -189,9 +189,11 @@ $('.up-head-w').mouseover(function () {
 $('.up-head-w').mouseleave(function () {
     $('.up-main-info').removeClass('profile-wrapper')
 })
+
 function display_file_name(event) {
-  $('.uploaded_file_name').text(event.fpfile.filename)
+    $('.uploaded_file_name').text(event.fpfile.filename)
 }
+
 $('#dataTable').dataTable({
     columnDefs: [{
         'targets': 0,
@@ -199,7 +201,21 @@ $('#dataTable').dataTable({
         orderable: false
     }]
 });
-function handle_input(event){
-    alert(event.value);
+
+function handle_input(event, candidate) {
+    let transaction_id = event.getAttribute('data-transaction');
+    let timesheet_id = event.getAttribute('data-timesheet');
+    let hrs = event.value;
+    let url = null
+    if (candidate == "candidate") {
+        url = `/candidate/timesheets/${timesheet_id}/transaction/${transaction_id}/update`
+    } else {
+        url = ``
+    }
+    $.post(url, {total_hrs: hrs}).done(function (data) {
+        flash_success(data.status)
+    }).fail(function (data) {
+        flash_error(data.status)
+    });
 }
 

@@ -1,7 +1,7 @@
 class Candidate::TimesheetsController < Candidate::BaseController
 
   include CandidateHelper
-  before_action :set_time_sheet, only: [:update, :submit_timesheet]
+  before_action :set_time_sheet, only: [:update, :submit_timesheet, :add_hrs]
 
   def index
     @cycles = current_candidate.contract_cycles.where(cycle_type: 'TimesheetSubmit')
@@ -36,6 +36,15 @@ class Candidate::TimesheetsController < Candidate::BaseController
     @start_date = Date.strptime(dates[0].gsub('/', '-'), '%m-%d-%Y')
     @end_date = Date.strptime(dates[1].gsub('/', '-'), '%m-%d-%Y')
     @timesheets = current_candidate.timesheets.includes(:contract).open_timesheets.where("(start_date >= ? AND start_date <= ?) OR (end_date >= ? AND end_date <= ?) ", @start_date, @end_date, @start_date, @end_date)
+  end
+
+  def add_hrs
+    @transaction = @timesheet.transactions.find_by(id: params[:transaction_id])
+    if @transaction.update(total_time: params[:total_hrs])
+      render json: {status: "Hours added successfully"}, status: :ok
+    else
+      render json: {status: @transaction.errors.full_messages}, status: :unprocessable_entity
+    end
   end
 
   def new
