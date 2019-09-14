@@ -66,7 +66,6 @@ function set_conversation (data) {
   } else {
 
     file_url = data.file_url ? "<hr/><a href='"+data.file_url+"' target='_blank'>Attachment</a>" : ''
-
     if (current_user_id == data.usr && current_user_type == data.usr_typ) {
       $(data.dom).append("<div class='chat-message self'>" +
         "<div class='chat-message-content-w'>" +

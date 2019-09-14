@@ -231,19 +231,17 @@ class Company::JobApplicationsController < Company::BaseController
   end
 
   def show
-    set_conversation(@job_application.user)
+    set_conversation(@job_application.applicationable)
     @activities = PublicActivity::Activity.where(recipient: @job_application).order("created_at desc")
   end
 
   def open_inbox_conversation
-    user = @job_application.user
-    set_conversation(user)
+    set_conversation(@job_application.applicationable)
     redirect_to(company_conversations_path(conversation: @conversation.id))
   end
 
   def proposal
-    user = @job_application.user
-    set_conversation(user)
+    set_conversation(@job_application.applicationable)
     @conversation_messages = @conversation.conversation_messages.last(50)
     @unread_message_count = Conversation.joins(:conversation_messages).where("(senderable_type = ? AND senderable_id = ? ) OR (recipientable_type = ? AND recipientable_id = ?)", current_user.class.to_s, current_user.id, current_user.class.to_s, current_user.id).where.not(conversation_messages: {is_read: true, userable: current_user}).uniq.count
     @conversation_message = ConversationMessage.new

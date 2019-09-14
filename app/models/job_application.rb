@@ -11,7 +11,6 @@ class JobApplication < ApplicationRecord
   belongs_to :applicationable, polymorphic: true, optional: true
   belongs_to :job, optional: true
   belongs_to :company, optional: true
-  belongs_to :user, class_name: "User", foreign_key: "applicationable_id", optional: true
   has_one :contract
   has_many :custom_fields, as: :customizable
   has_many :comments, as: :commentable

@@ -21,9 +21,8 @@ class Conversation < ApplicationRecord
   end
 
   scope :all_onversations, -> (user) do
-    where(chatable: Group.where(member_type: "Chat")
-                        .joins(:groupables)
-                        .where("groupables.groupable_id = ? and groupables.groupable_type = ?", user.id, user.class.to_s == "Candidate" ? "Candidate" : "User").uniq)
+    where(chatable: Group.where(member_type: "Chat").joins(:groupables).candidate_or_user_admin_groupable(user)).uniq
+
   end
 
   scope :conversation_of, -> (company, query_string) do
@@ -35,7 +34,7 @@ class Conversation < ApplicationRecord
     )
   end
 
-  def self.create_conversation(users, title, topic,company)
+  def self.create_conversation(users, title, topic, company)
     group = nil
     Group.transaction do
       group = company.groups.create(group_name: title, member_type: 'Chat')

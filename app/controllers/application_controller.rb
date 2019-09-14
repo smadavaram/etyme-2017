@@ -50,7 +50,7 @@ class ApplicationController < ActionController::Base
 
   def get_new_notification_flash(resource)
     notifications_count = resource.notifications.unread.where("created_at >= ?", resource.last_sign_in_at).count
-    messages_count = ConversationMessage.where(conversation_id: resource.conversations.ids).where("created_at >= ?", resource.last_sign_in_at).count
+    messages_count = ConversationMessage.where(conversation_id: resource.conversations.pluck(:id)).where("created_at >= ?", resource.last_sign_in_at).count
     flash[:success] = (notifications_count.zero? and messages_count.zero?) ? "Wellcome back, You do not have any new notification or message" : "Wellcome back, You have #{notifications_count} new notification(s) and #{messages_count} message(s)"
   end
 

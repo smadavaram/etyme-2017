@@ -54,7 +54,7 @@
 </div>
 
 <% content_for :modals do %>
-  <%= render 'shared/chat_document_templates', conversation: @conversation %>
+  <%= render('shared/chat_document_templates', conversation: @conversation) if @conversation.present? %>
 <% end %>
 
 <% content_for :scripts do %>
