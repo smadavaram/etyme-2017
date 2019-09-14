@@ -43,6 +43,7 @@ module SovrenCandidateProfileBuilder
     return unless experiences
     experiences&.each do |experience|
       self.clients.build(
+          project_description: experience.dig("PositionHistory")&.first&.dig("Description") || '',
           name: experience.dig("EmployerOrgName"),
           start_date: sovren_extract_date(experience.dig("PositionHistory")&.first&.dig("StartDate")&.first&.second),
           end_date: sovren_extract_date(experience.dig("PositionHistory")&.first&.dig("EndDate")&.first&.second),

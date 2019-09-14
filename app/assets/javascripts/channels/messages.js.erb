@@ -31,7 +31,7 @@ function set_conversation (data) {
   current_user_id = $('meta[name=user-id]').attr("content");
   current_user_type = $('meta[name=user-type]').attr("content");
 
-  if (current_user_id == data.recpt_id && current_user_type == data.recpt_type) {
+  if (current_user_id == data.recpt_id && current_user_type == (data.recpt_type == 'Candidate' ? "Candidate" : "User")) {
     if ($("#conversation-chat-box").data("conversation-id") == data.con_id) {
       mark_as_read(data.con_id, data.msg_id, current_user_id, current_user_type, data.chat_typ, data.group_id)
     } else {
@@ -50,7 +50,7 @@ function set_conversation (data) {
   $("#conversation_message_file_url").val('');
   $("#file-name_uploaded").html('');
   if ($(data.dom).hasClass("popup-chat")) {
-    if (current_user_id == data.usr && current_user_type == data.usr_typ) {
+    if (current_user_id == data.usr && current_user_type == (data.usr_typ == 'Candidate' ? "Candidate" : "User")) {
       $(data.dom).append("<div class='message self'>" +
         "<div class='message-content'>" +
         data.msg +
@@ -66,7 +66,7 @@ function set_conversation (data) {
   } else {
 
     file_url = data.file_url ? "<hr/><a href='"+data.file_url+"' target='_blank'>Attachment</a>" : ''
-    if (current_user_id == data.usr && current_user_type == data.usr_typ) {
+    if (current_user_id == data.usr && current_user_type == (data.usr_typ == 'Candidate' ? "Candidate" : "User")) {
       $(data.dom).append("<div class='chat-message self'>" +
         "<div class='chat-message-content-w'>" +
         "<div class='chat-message-content'>" +
