@@ -3,10 +3,19 @@
     .col-sm-12
       .form-group
         %label Name
-        .col-sm-8.d-inline-block.p-0
+        .col-sm-5.d-inline-block.p-0
           = f.text_field :name,placeholder: "Client Name",class: 'form-control input'
-        .col-sm-3.d-inline-block.p-0
-          %a.btn.btn-primary{href:move_to_employer_candidate_candidates_path(client_id: f.object.id)} Move To Employers
+        .col-sm-6.d-inline-block.pl-2
+          %b Is this
+          %label.radio-container
+            Client?
+            %input{:checked => "checked",onchange: "radio_change(this)", :name => "client_or_employer_#{f.object.id}",id: f.object.id,class: "client_or_employer", :type => "radio", :value => "client"}/
+            %span.radio-checkmark
+          %label.radio-container
+            Employer?
+            %input{:name => "client_or_employer_#{f.object.id}",onchange: "radio_change(this)",id: f.object.id,class: "client_or_employer", :type => "radio", :value => "employer"}/
+            %span.radio-checkmark
+          %a.btn.btn-primary.ml-2{id: "link_#{f.object.id}",href:move_to_employer_candidate_candidates_path(client_id: f.object.id), style: "display: none;"} Update
     .col-sm-4
       .form-group
         %label Industry
@@ -75,11 +84,12 @@
         %i.fa.fa-trash
 
 
--#- content_for :scripts do
--#  :javascript
--#
--#    $(document).ready(function() {
--#      $('.cl_start_year, .cl_end_year').datepicker({
--#       dateFormat: "yy-mm-dd"
--#      });
--#    });
+- content_for :scripts do
+  :javascript
+    function radio_change(e){
+      if(e.value == "employer"){
+        $('#link_'+e.id).show()
+      }else{
+      $('#link_'+e.id).hide()
+      }
+    }

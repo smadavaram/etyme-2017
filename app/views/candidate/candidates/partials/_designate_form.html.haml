@@ -16,4 +16,4 @@
     = f.fields_for :designations, f.object.designations do |b|
       = render 'candidate/candidates/designations_fields', f: b
     .links.education_links.pull-right
-      = link_to_add_association '+ Add Designations', f, :designations, class: 'btn btn-success', partial: 'candidate/candidates/designations_fields'
+      = link_to_add_association '+ Add Employer', f, :designations, class: 'btn btn-success', partial: 'candidate/candidates/designations_fields'
