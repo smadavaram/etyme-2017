@@ -85,7 +85,7 @@
             </div>
 
           </div>
-          <div class="element-box element-box-show">
+          <div class="element-box element-box-show p-2">
             <h5 class="form-header">Applications</h5>
             <div class="table-responsive">
               <% if @job_applications.count > 0 %>
@@ -108,27 +108,6 @@
                 <%= link_to "View Conversation", company_conversations_path(conversation: @conversation.id), class: "mb-1 btn btn-primary", method: :post %>
               <% end %>
               <%= link_to "Company Candidates", job_create_multiple_for_candidate_path(@job), remote: true, method: :get, class: "mb-1 btn btn-primary" %>
-            </div>
-          </div>
-          <div class="element-box element-box-show">
-            <h5 class="form-header">Media</h5>
-            <div class="form-group">
-              <% if @job.comp_video.present? %>
-                <% if @job.media_type == "video/mp4" %>
-                  <div class="embed-responsive embed-responsive-16by9">
-                    <video class="embed-responsive-item" controls>
-                      <source src='<%= @job.comp_video %>' type="video/mp4"/>
-                    </video>
-                  </div>
-                <% else %>
-                  <img class="img-fluid" src='<%= @job.comp_video %>'/>
-                <% end %>
-              <% else %>
-              <% end %>
-            </div>
-            <div class="form-group">
-              <%#= filepicker_field_tag "", class: "hidden media-file", onchange: "mediaUpload(event)", "data-fp-crop-ratio" => "2/2" %>
-              <button type="button" class="w-100 btn btn-default btn-primary btn-upload-media">Upload Media</button>
             </div>
           </div>
           <div class="element-box element-box-show">
@@ -193,62 +172,65 @@
                 Collaborators</a>
             </div>
           </div>
+          <div class="element-box element-box-show">
+            <%=render 'company/jobs/partials/job_chat_box', conversation: @job.conversation %>
+          </div>
         </div>
-      </div>
 
+      </div>
     </div>
   </div>
 </div>
+  <%= javascript_tag do %>
+    $(function() {
+    // Initialize datatable
+    // var table = $("#dataTable").DataTable();
 
-<%= javascript_tag do %>
-  $(function() {
-  // Initialize datatable
-  // var table = $("#dataTable").DataTable();
+    // File picker handler
+    $( ".btn-upload-media" ).click(function() {
+    upload_file_ajax(mediaUpload)
+    });
+    $( ".btn-upload-images" ).click(function() {
+    upload_multi_file_ajax(imagesUpload,false,true)
+    });
+    })
 
-  // File picker handler
-  $( ".btn-upload-media" ).click(function() {
-  upload_file_ajax(mediaUpload)
-  });
-  $( ".btn-upload-images" ).click(function() {
-  upload_multi_file_ajax(imagesUpload,false,true)
-  });
-  })
+    function imagesUpload(url){
+    media_url = url
+    $.ajax({
+    type: 'POST',
+    contentType: 'application/json; charset=utf-8', //dataType: 'json',
+    url: "/jobs/update_images",
+    data: JSON.stringify({ job_id: <%= @job.id %>, files: media_url,authenticity_token: window._token }),
+    success: function (data) {
+    console.log("reload!")
+    window.location.reload(true);
+    },
+    done: function (data) {
+    console.log("done!");
+    window.location.reload(true);
+    }
+    });
+    }
 
-  function imagesUpload(url){
-  media_url = url
-  $.ajax({
-  type: 'POST',
-  contentType: 'application/json; charset=utf-8', //dataType: 'json',
-  url: "/jobs/update_images",
-  data: JSON.stringify({ job_id: <%= @job.id %>, files: media_url,authenticity_token: window._token }),
-  success: function (data) {
-  console.log("reload!")
-  window.location.reload(true);
-  },
-  done: function (data) {
-  console.log("done!");
-  window.location.reload(true);
-  }
-  });
-  }
-
-  function mediaUpload(url,type) {
-  media_url = url
-  media_type= type
-  $('.btn-upload-media').html('');
-  $.ajax({
-  type: 'POST',
-  contentType: 'application/json; charset=utf-8', //dataType: 'json',
-  url: "/jobs/update_media",
-  data: JSON.stringify({ job_id: <%= @job.id %>, media: media_url,authenticity_token: window._token, media_type: media_type }),
-  success: function (data) {
-  console.log("reload!")
-  window.location.reload(true);
-  },
-  done: function (data) {
-  console.log("done!");
-  window.location.reload(true);
-  }
-  });
-  }
-<% end %>
+    function mediaUpload(url,type) {
+    media_url = url
+    media_type= type
+    $('.btn-upload-media').html('');
+    $.ajax({
+    type: 'POST',
+    contentType: 'application/json; charset=utf-8', //dataType: 'json',
+    url: "/jobs/update_media",
+    data: JSON.stringify({ job_id: <%= @job.id %>, media: media_url,authenticity_token: window._token, media_type:
+    media_type }),
+    success: function (data) {
+    console.log("reload!")
+    window.location.reload(true);
+    },
+    done: function (data) {
+    console.log("done!");
+    window.location.reload(true);
+    }
+    });
+    }
+  <% end %>

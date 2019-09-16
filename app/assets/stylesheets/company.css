@@ -18,7 +18,6 @@
  * SmartAdmin Styles : Caution! DO NOT change the order
  *= require smartadmin-production-plugins
  *= require smartadmin-production
- *
  * We recommend you use "your_style.scss" to override SmartAdmin
  * specific styles this will also ensure you retrain your customization with
  * each SmartAdmin update.
@@ -57,5 +56,6 @@
  *= require company/contracts
  *= require navigation
  *= require top_navigation
+ *= require jobs_small_chat
  *= require intl-tel-input-13.0.0/build/css/intlTelInput.min
  */
