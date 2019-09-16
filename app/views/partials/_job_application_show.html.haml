@@ -8,13 +8,13 @@
               = do_ellipsis(job_application.user.full_name.titleize)
           #links-yeild
             = yield( :links)
-        .row
-          .col-lg-12.col-sm-12
-            = render 'company/job_applications/partials/job_status_links', app: job_application,conversation: job_application.conversation, btn_size_class: 'btn btn-primary mt-12 '
-        .row.mt-4
-          .col-sm-5
-            %h3
-              = link_to job_application.job.title,job_path(job_application.job)
+        -#.row
+          -#.col-lg-12.col-sm-12
+            -#= render 'company/job_applications/partials/job_status_links', app: job_application,conversation: job_application.conversation, btn_size_class: 'btn btn-primary mt-12 '
+        -#.row.mt-4
+        -#  .col-sm-5
+        -#    %h3
+        -#      = link_to job_application.job.title,job_path(job_application.job)
           -#.col-sm-7
           -#  - if @job_application.share_key
           -#    = button_tag 'Client Submission' ,class: 'btn btn-primary pull-right' , "data-toggle": "modal" , "data-target":"#share_application_#{@job_application.id}"

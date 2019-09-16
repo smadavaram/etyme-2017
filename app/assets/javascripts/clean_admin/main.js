@@ -777,7 +777,7 @@ $(function(){
   function add_full_chat_message($input){
     $('.chat-content').append('<div class="chat-message self"><div class="chat-message-content-w"><div class="chat-message-content">' + $input.val() + '</div></div><div class="chat-message-date">1:23pm</div><div class="chat-message-avatar"><img alt="" src="img/avatar1.jpg"></div></div>');
     $input.val('');
-    var $messages_w = $('.chat-content-w');
+    var $messages_w = $('.chat-content-w').length > 0 ? $('.chat-content-w') : $('.chat-content-small');
     $messages_w.scrollTop($messages_w[0].scrollHeight);
   }
 

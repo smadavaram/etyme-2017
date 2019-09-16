@@ -9,6 +9,10 @@ module ApplicationHelper
     left_menu_entries(left_menu_content)
   end
 
+  def is_inbox_path
+    controller_name == "conversations" && action_name == "index"
+  end
+
   def candidate_left_menu
     left_menu_entries(candidate_left_menu_content)
   end

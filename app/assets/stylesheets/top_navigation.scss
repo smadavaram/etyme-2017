@@ -44,6 +44,23 @@
     display: none;
   }
 }
+.togglebtncontainerinbox
+{
+  position: absolute;
+  top: 4px;
+  cursor: pointer;
+  z-index: 999999;
+  height: 50px;
+  width: 50px;
+  color: #047bf8;
+  border-radius: 6px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  //@media (min-width: 1024px) {
+  //  display: none;
+  //}
+}
 .mm-logo-buttons-w
 {
   margin-top:55px;
