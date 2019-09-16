@@ -16,6 +16,10 @@
 
 set :output, '/var/www/etyme/shared/log/cron.log'
 
+every 2.hours do
+  rake "messages_and_notifications_notifier:reminder",environment: 'production'
+end
+
 every 1.day, :at => '11:59 pm' do
   runner "Contract.end_contracts"
 end
