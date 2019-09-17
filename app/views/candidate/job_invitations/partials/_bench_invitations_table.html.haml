@@ -22,6 +22,7 @@
           %td= invitation.recipient.phone
           %td= invitation.expiry
           %td
+            =link_to 'Remove', candidate_job_invitation_remove_bench_path(invitation) if (invitation.accepted? and invitation.company == current_candidate.associated_company)
             - if invitation.pending? && invitation.is_active?
               = link_to 'Accept' , candidate_job_invitation_accept_bench_path( invitation)
               = link_to 'Reject' , candidate_job_invitation_reject_bench_path(invitation)

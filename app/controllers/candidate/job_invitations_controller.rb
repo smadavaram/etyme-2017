@@ -1,6 +1,6 @@
 class Candidate::JobInvitationsController < Candidate::BaseController
   before_action :set_job_invitations, only: :index
-  before_action :find_job_invitation, only: [:reject, :show_invitation, :accept_bench, :reject_bench]
+  before_action :find_job_invitation, only: [:reject, :show_invitation, :accept_bench, :reject_bench, :remove_bench]
 
   def index
 
@@ -10,6 +10,17 @@ class Candidate::JobInvitationsController < Candidate::BaseController
     add_breadcrumb 'Dashboard', "/candidate", :title => ""
     add_breadcrumb 'Invitations', "#"
     @invitations = current_candidate.job_invitations.all.bench
+  end
+
+  def remove_bench
+    @candidate = current_candidate
+    if current_candidate.update(associated_company: Company.get_freelancer_company)
+      flash[:success] = "Candidate's bench is removed"
+      @job_invitation.company.candidates_companies.where(candidate: current_candidate).update_all(status: :normal)
+    else
+      flash[:errors] = @candidate.errors.full_messages
+    end
+    redirect_back(fallback_location: candidate_invitations_bench_path)
   end
 
   def accept_bench

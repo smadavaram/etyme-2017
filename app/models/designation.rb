@@ -3,7 +3,7 @@ class Designation < ActiveRecord::Base
   after_create :notify_recruiter
 
   belongs_to :candidate
-
+  belongs_to :client, optional: true
   enum confirmation: [:unverified, :verified, :notified, :not_found]
 
   def notify_recruiter

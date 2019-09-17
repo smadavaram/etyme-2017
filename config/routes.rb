@@ -167,6 +167,7 @@ Rails.application.routes.draw do
       get :show_invitation
       get :accept_bench
       get :reject_bench
+      get :remove_bench
     end
     # resources :contracts        , only: [:index]
     resources :candidates, only: [:show, :update, :create] do

@@ -1,16 +1,16 @@
 .row
-  .col-md-12
-    .form-group
-      %h5
-        %b What is your current status ?
-        %label.radio-container
-          Freelancer
-          = f.radio_button :designation_status, "Freelancer"
-          %span.radio-checkmark
-        %label.radio-container
-          Employee
-          = f.radio_button :designation_status, "Employee"
-          %span.radio-checkmark
+  -#.col-md-12
+  -#  .form-group
+  -#    %h5
+  -#      %b What is your current status ?
+  -#      %label.radio-container
+  -#        Freelancer
+  -#        = f.radio_button :designation_status, "Freelancer"
+  -#        %span.radio-checkmark
+  -#      %label.radio-container
+  -#        Employee
+  -#        = f.radio_button :designation_status, "Employee"
+  -#        %span.radio-checkmark
 
   %div{id: "employee-designations", class: f.object.designation_status == "Employee" ? "candidate-association" : "candidate-association display-none"}
     = f.fields_for :designations, f.object.designations do |b|

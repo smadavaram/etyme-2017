@@ -35,11 +35,13 @@
       </div>
       <div class="chat-input-extra">
         <div class="chat-extra-actions">
-          <%= button_tag "<i class='fi-clipboard-pencil' style='font-size: 26px;'></i>".html_safe, type: "button", class: "btn p-0", style: "background: transparent;box-shadow: none;", onclick: "$('##{"chat-templates-#{conversation.id}"}').modal('show')" %>
+          <%= button_tag type: "button", class: "btn p-0", style: "background: transparent;box-shadow: none;", onclick: "$('##{"chat-templates-#{conversation.id}"}').modal('show')" do %>
+            <%= image_tag("/docusign.png",size: "25x25") %>
+          <% end %>
           <%= render 'shared/file_attachement', f: f, attr_name: :file_url, name_selector: ".uploaded_file_name", cstm_class: "p-0", cstm_style: "background: transparent;box-shadow: none;", button_name: "<i class='os-icon os-icon-ui-51' style='font-size: 26px;'></i>".html_safe, name_selector: '#file-name_uploaded' %>
         </div>
         <div class="chat-btn">
-          <%= button_tag(type: "submit", class: "btn p-0", style: "background: transparent;box-shadow: none;") do %>
+          <%= button_tag(type: "submit", class: "btn p-0", style: "background: transparent;box-shadow: none;",id:"send-message") do %>
             <i class="os-icon os-icon-mail-18" style='font-size: 26px; margin: 0px;'></i>
           <% end %>
         </div>
@@ -59,28 +61,28 @@
 
 <% content_for :scripts do %>
   <script>
-    function onCompanyFileUpload (event) {
-      $('#file-name_uploaded').html("<span>" + event.fpfile.filename + "</span><hr/>");
-    }
+      function onCompanyFileUpload(event) {
+          $('#file-name_uploaded').html("<span>" + event.fpfile.filename + "</span><hr/>");
+      }
 
-    $(document).ready(function () {
-        set_company_users_select('#select_sell_company_contacts', "Please Select Signers", "#sell_contract_company");
-      <%# unless conversation&.job_application %>
-      <% unless request.fullpath.include?("job_applications") %>
-      $('.collapsible').css('padding', '6px 18px');
-      $('#collapsible_job_application').removeClass('ml-2 mr-2')
-      $('#collapsible_job_application').removeClass('mt-4')
-      $('#collapsible_job_application').addClass('mt-2')
-      <% end %>
-      <%# end %>
-      $.ajax({
-        url: "<%= messages_conversation_conversation_messages_path(conversation||0) %>",
-        type: "GET",
-        dataType: "script",
-        success: function (data) {
-          $("#conversation_<%=conversation&.id||0 %>").parent().scrollTop($("#conversation_<%=conversation&.id||0 %>").parent()[0].scrollHeight);
-        }
+      $(document).ready(function () {
+          set_company_users_select('#select_sell_company_contacts', "Please Select Signers", "#sell_contract_company");
+          <%# unless conversation&.job_application %>
+          <% unless request.fullpath.include?("job_applications") %>
+          $('.collapsible').css('padding', '6px 18px');
+          $('#collapsible_job_application').removeClass('ml-2 mr-2')
+          $('#collapsible_job_application').removeClass('mt-4')
+          $('#collapsible_job_application').addClass('mt-2')
+          <% end %>
+          <%# end %>
+          $.ajax({
+              url: "<%= messages_conversation_conversation_messages_path(conversation||0) %>",
+              type: "GET",
+              dataType: "script",
+              success: function (data) {
+                  $("#conversation_<%=conversation&.id||0 %>").parent().scrollTop($("#conversation_<%=conversation&.id||0 %>").parent()[0].scrollHeight);
+              }
+          });
       });
-    });
   </script>
 <% end %>

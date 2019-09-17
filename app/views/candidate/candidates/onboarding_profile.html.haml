@@ -205,6 +205,11 @@
                 %br/
                 = form_for current_candidate,url: candidate_candidate_path(current_candidate.id),method: :put do |f|
                   .row
+                    .col-sm-12
+                      .form-group
+                        %label Skills
+                        = f.text_field :skill_list, placeholder: "Add Skills Comma seperated",class: 'form-control p-location input', 'data-role'=>'tagsinput',value: current_candidate.skill_list.join(", ")
+                  .row
                     .col-sm-6
                       .form-group
                         %label Category

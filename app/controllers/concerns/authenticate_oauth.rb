@@ -9,6 +9,7 @@ module AuthenticateOauth
     @user = Candidate.find_by(email: @auth[:email])
     logger.info "Setting up oauth for #{@auth[:first_name]} #{@auth[:last_name]} with #{@auth[:provider]}"
     if @user.present?
+      cookies.permanent.signed[:candidateid] = @user.id
       sign_in(:candidate, @user)
     else
       create_user_from_auth

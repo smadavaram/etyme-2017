@@ -114,7 +114,7 @@
           <%= render 'shared/file_attachement', f: f, attr_name: :file_url, name_selector: ".uploaded_file_name", cstm_class: "p-0", cstm_style: "background: transparent;box-shadow: none;", button_name: "<i class='os-icon os-icon-ui-51' style='font-size: 26px;'></i>".html_safe, name_selector: '#file-name_uploaded' %>
         </div>
         <div class="chat-btn">
-          <%= button_tag(type: "submit", class: "btn p-0", style: "background: transparent;box-shadow: none;") do %>
+          <%= button_tag(type: "submit", class: "btn p-0",id:"send-message", style: "background: transparent;box-shadow: none;") do %>
             <i class="os-icon os-icon-mail-18" style='font-size: 26px; margin: 0px;'></i>
           <% end %>
         </div>

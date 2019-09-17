@@ -787,7 +787,8 @@ $(function(){
   })
   $('.chat-input input').on('keypress', function(e){
     if (e.which == 13) {
-      add_full_chat_message($(this));
+        $('#send-message').trigger('click')
+        // add_full_chat_message($(this));
       return false;
     }
   });
