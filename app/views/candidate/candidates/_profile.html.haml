@@ -123,23 +123,24 @@
                       Work Experience
               - if candidate.designations.present? || (candidate.ever_worked_with_company && candidate.clients.present?)
                 - candidate.designations.each do |c|
-                  .element-info
-                    .element-info-text
-                      .mb-2
-                        %div
-                          %h5.mb-1.text-primary #{c.comp_name}
-                          %span.mb-1.h6.d-block.text-secondary as #{c.company_role}
-                          %strong.font-weight-bold.font-sm.text-capitalize
-                            #{c.start_date&.strftime('%B-%Y')} - #{c.end_date&.strftime('%B-%Y')}
+                  - unless c.comp_name && c.company_role
+                    .element-info
+                      .element-info-text
+                        .mb-2
+                          %div
+                            %h5.mb-1.text-primary #{c.comp_name}
+                            %span.mb-1.h6.d-block.text-secondary=  "As #{c.company_role}" if c.company_role.present?
+                            %strong.font-weight-bold.font-sm.text-capitalize
+                              ="#{c.start_date&.strftime('%B-%Y')} #{"-" if c.start_date.present? and c.end_date.present?}  #{c.end_date&.strftime('%B-%Y')}"
                 - candidate.clients.each do |c|
                   .element-info
                     .element-info-text
                       .mb-2
                         %div
                           %h5.mb-1.text-primary #{c.name}
-                          %span.mb-1.h6.d-block.text-secondary at #{c.industry}
+                          %span.mb-1.h6.d-block.text-secondary=  "At #{c.industry}" if c.industry.present?
                           %strong.font-weight-bold.font-sm.text-capitalize
-                            #{c.start_date&.strftime('%B-%Y')} - #{c.end_date&.strftime('%B-%Y')}
+                            = "#{c.start_date&.strftime('%B-%Y')} #{"-" if c.start_date.present? and c.end_date.present?} #{c.end_date&.strftime('%B-%Y')}"
                         .element-inner-desc
                           %P
                             #{c.project_description}
@@ -153,39 +154,6 @@
                         -if own
                           %P
                             = link_to "Add New One", '/onboarding_profile?tag=skill'
-
-          -#.element-wrapper
-          -#  .element-box
-          -#    .element-info
-          -#      .element-info-with-icon
-          -#        .element-info-icon
-          -#          %i.icon-badge
-          -#        .element-info-text
-          -#          %h4.element-inner-header
-          -#            Company history
-          -#    - unless candidate.designations.empty?
-          -#      - candidate.designations.each do |c|
-          -#        .element-info
-          -#          .element-info-text
-          -#            .mb-2
-          -#              %div
-          -#                %h5.mb-1.text-primary #{c.comp_name}
-          -#                %span.mb-1.h6.d-block.text-secondary as #{c.company_role}
-          -#                %strong.font-weight-bold.font-sm.text-capitalize
-          -#                  #{c.start_date&.strftime('%B-%Y')} - #{c.end_date&.strftime('%B-%Y')}
-          -#              -#.element-inner-desc
-          -#              -#  %P
-          -#              -#    #{c.project_description}
-          -#    - else
-          -#      .element-info
-          -#        .element-info-text
-          -#          .mb-2
-          -#            %div
-          -#              %span.mb-1.h6.d-block.text-secondary There is no Company history
-          -#            .element-inner-desc
-          -#              -if own
-          -#                %P
-          -#                  = link_to "Add New One", '/onboarding_profile?tag=designate'
 
 
 :javascript

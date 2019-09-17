@@ -34,16 +34,16 @@
   .row
     .col-sm-4
       .form-group
-        %label Refrence name
+        %label Manager name
         = f.text_field :refrence_name,placeholder: "Degree level",class: 'form-control input'
 
     .col-sm-4
       .form-group
-        %label Refrence Phone
+        %label  Phone
         = f.text_field :refrence_phone, class: 'form-control input'
     %div{class: f.object.refrence_one ? "col-sm-3" : "col-sm-4"}
       .form-group
-        %label Refrence Email
+        %label  Email
         = f.text_field :refrence_email,placeholder: "Email",class: 'form-control input',title: f.object.refrence_one ? 'Verified' :'Not Verified Yet'
     - if f.object.refrence_one
       .col-sm-1
@@ -53,15 +53,15 @@
   .row
     .col-sm-4
       .form-group
-        %label Refrence name
+        %label Manager name
         = f.text_field :refrence_two_name,placeholder: "Degree level",class: 'form-control input'
     .col-sm-4
       .form-group
-        %label Refrence Phone
+        %label  Phone
         = f.text_field :refrence_two_phone, class: 'form-control input'
     %div{class: f.object.refrence_two ? "col-sm-3" : "col-sm-4"}
       .form-group
-        %label Refrence Email
+        %label  Email
         = f.text_field :refrence_two_email,placeholder: "Email",class: 'form-control input',title: f.object.refrence_two ? 'Verified' :'Not Verified Yet'
     - if f.object.refrence_two
       .col-sm-1

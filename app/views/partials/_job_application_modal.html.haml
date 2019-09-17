@@ -11,22 +11,30 @@
           = hidden_field_tag 'candidate_id', candidate_id if local_assigns[:candidate_id].present?
           = hidden_field_tag 'is_candidate', is_candidate if local_assigns[:is_candidate].present?
 
-          .row
-            .col-sm-12
-              %label.d-block Resume
-              .file_selector{style: "display: flex;"}
-                .form-group.d-inline-block
-                  = render 'shared/file_attachement',f:f,attr_name: :applicant_resume,button_name: "Attach Resume", name_selector: ".uploaded_file_name",cstm_style: "border-radius: 0; height:38px;"
-                  -#= f.filepicker_field :applicant_resume , class: 'btn btn-primary file-pick file-pick_height', id: 'accept-filepiker' ,onchange: 'display_file_name(event)',"data-fp-extensions" => ".pdf,.doc,.docx,.txt"
-                %p.d-inline-block.uploaded_file_name  No File Selected
-          %fieldset
+
+          %fieldset.mt-0
+            .row{style: "padding: 14px;"}
+              .col-sm-5.margin-auto.pt-4
+                %label.radio-container
+                  Use Primary Resume
+                  %input{onchange: "$('#resume_field').addClass('d-none')", :name => "primary_resume", :type => "radio", :value => "yes"}/
+                  %span.radio-checkmark
+              .col-sm-7
+                #resume_field
+                  %label.d-block Resume
+                  .file_selector{style: "display: flex;"}
+                    .form-group.d-inline-block
+                      = render 'shared/file_attachement',f:f,attr_name: :applicant_resume,button_name: "Attach Resume", name_selector: ".uploaded_file_name",cstm_style: "border-radius: 0; height:38px;"
+                      -#= f.filepicker_field :applicant_resume , class: 'btn btn-primary file-pick file-pick_height', id: 'accept-filepiker' ,onchange: 'display_file_name(event)',"data-fp-extensions" => ".pdf,.doc,.docx,.txt"
+                    %p.d-inline-block.uploaded_file_name  No File Selected
+
             .form-group
               %label.col-md-2.control-label Cover Letter
               .col-md-12
                 =  f.text_area :cover_letter , class: "form-control tinymce", rows: 8, cols: 25, placeholder: 'Cover Letter'
                 =  tinymce :default
             .form-group
-              %label.col-md-2.control-label Message (optional)
+              %label.col-md-4.control-label Message (optional)
               .col-md-12
                 = f.text_area :message, class: "form-control", rows: "2" ,placeholder: 'Write your message'
             .nested-fields
