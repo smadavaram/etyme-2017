@@ -54,7 +54,7 @@
                           .label-info.badge.margin-bottom-5.badge-info
                             = c.candidate.invited_by_user.full_name if c.candidate.invited_by_user.present?
                       %td
-                        = link_to(content_tag(:i, nil, class: 'fa fa-comment').html_safe, chat_link(c.candidate), title: 'chat', class: 'start-conversation',remote: true)
+                        = link_to(content_tag(:i, nil, class: 'fa fa-comment').html_safe,  chat_link(c.candidate), title: 'chat', class: 'start-conversation',remote: true)
                         = link_to raw("<i class='fa fa-file-text'></i>") , c.candidate.resume ,download: true , class: '',title: "#{c.candidate.full_name} Resume",'data-toggle'=>"tooltip" ,'data-placement'=>"top"
                         = link_to raw("<i class='fa fa-eye'></i>") , static_candidate_resume_path(c.candidate) , class: '',title: "Detail Show" ,target: "_blank",'data-toggle'=>"tooltip" ,'data-placement'=>"top"
                         = link_to raw("<i class='fa fa-users'></i>"), candidate_manage_groups_path(c.candidate) , remote:true,class: '',title: "Assign Groups",'data-toggle'=>"tooltip" ,'data-placement'=>"top"
