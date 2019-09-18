@@ -44,7 +44,7 @@ class CompanyDirectoryDatatable < ApplicationDatatable
   end
 
   def contact_icon record
-    contact_widget(record.email, record.phone)
+    contact_widget(record.email, record.phone,record,chat_link: chat_link(record))
   end
 
   def delete_link_for_owner(record)

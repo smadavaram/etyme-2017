@@ -18,8 +18,11 @@
 //= require tinymce-jquery
 //= require plugin/jquery-validate/jquery.validate.min
 //= require notification/SmartNotification.min.js
-//= require addevent
-//= require_tree ./clean_admin/.
+//=require cable
+//=require addevent
+//= require load_more_chat
+//= require conversation/chat
+// = require_tree ./clean_admin/.
 //= require shared/uploader
 //= require custom
 

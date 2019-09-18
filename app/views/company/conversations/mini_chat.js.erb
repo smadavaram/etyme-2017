@@ -6,7 +6,6 @@
   }
 
   $(document).ready(function () {
-    set_company_users_select('#select_sell_company_contacts', "Please Select Signers", "#sell_contract_company");
     $.ajax({
       url: "<%= messages_conversation_conversation_messages_path(@conversation) %>",
       type: "GET",

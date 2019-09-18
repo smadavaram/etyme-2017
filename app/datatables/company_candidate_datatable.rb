@@ -57,7 +57,7 @@ class CompanyCandidateDatatable < ApplicationDatatable
 
   def contact_icon record
     link_to(content_tag(:i, nil, class: 'fa fa-ellipsis-h').html_safe, bench_info_candidate_path(record), remote: true, method: :get, title: 'Show Bench Detail', class: 'data-table-icons') +
-        contact_widget(record.email, record.phone)
+        contact_widget(record.email, record.phone,record,chat_link: chat_link(record))
   end
 
   def ban_unban_link(record)

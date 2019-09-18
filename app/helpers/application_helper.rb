@@ -25,8 +25,20 @@ module ApplicationHelper
     tag.tableize.singularize.split("_").join(" ").capitalize
   end
 
+  def chat_link(user, conversation_id = nil)
+    mini_chat_company_conversations_path(conversation_id: conversation_id, utype: user&.class&.to_s, uid: user&.id)
+  end
+
+  def chat_remote_link(options)
+    if options[:remote_false]
+      link_to(content_tag(:i, nil, class: 'fa fa-comment-o').html_safe, options[:chat_link] || '#', title: 'chat', class: 'data-table-icons')
+    else
+      link_to(content_tag(:i, nil, class: 'fa fa-comment-o').html_safe, options[:chat_link] || '#', remote: true, title: 'chat', class: 'data-table-icons')
+    end
+  end
+
   def contact_widget(email, phone, user_id = nil, options = {})
-    link_to(content_tag(:i, nil, class: 'fa fa-comment-o').html_safe, options[:chat_link] || '#', title: 'chat', class: 'data-table-icons') +
+    chat_remote_link(options) +
         mail_to(email, content_tag(:i, nil, class: 'os-icon os-icon-email-2-at2').html_safe, title: email, class: 'data-table-icons') +
         link_to(content_tag(:i, nil, class: 'os-icon os-icon-phone ').html_safe, '#', title: phone, class: 'data-table-icons') +
         "<div title = 'Add to Calendar' class = 'addeventatc'>
@@ -52,7 +64,7 @@ module ApplicationHelper
 
   def selected_locale
     locale = FastGettext.locale
-    locale_list.detect {|entry| entry[:locale] == locale}
+    locale_list.detect { |entry| entry[:locale] == locale }
   end
 
   def locale_list
@@ -125,7 +137,7 @@ module ApplicationHelper
     entries.each do |entry|
       next if entry.nil?
       children_selected = entry[:children] &&
-          (entry[:children] - [nil]).any? {|child| current_page?(child[:href])}
+          (entry[:children] - [nil]).any? { |child| current_page?(child[:href]) }
       entry_selected = current_page?(entry[:href])
       li_class =
           case
@@ -1037,7 +1049,7 @@ module ApplicationHelper
     format("%02d:%02d:%02d", hours, minutes, seconds)
   end
 
-  def digg_pagination(data, tab=nil,options={})
+  def digg_pagination(data, tab = nil, options = {})
     # will_paginate @collection, {link_options: {'data-remote': true}, params: {action: 'other_action'}}
     digg = ""
     digg = "<div class='text-center'><div class='digg_pagination'>"

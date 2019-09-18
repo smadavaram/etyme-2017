@@ -6,7 +6,7 @@
       = user.full_name
       - if ["User","Admin"].include?(admin.class.to_s)
         %input{id: user.id,:name => "contract[hr_admins_ids][]", :value => user.id,hidden: "hidden"}/
-    %td= contact_widget(user.email,user.phone)
+    %td= contact_widget(user.email,user.phone,user,chat_link: chat_link(user))
     %td= user.roles.pluck(:name).join(', ')
     %td= content_tag(:span, do_ellipsis(current_user.reminders.where(reminderable_id: user.id, reminderable_type: 'Admin')&.last&.title), class: 'bg-info badge mr-1').html_safe
     %td

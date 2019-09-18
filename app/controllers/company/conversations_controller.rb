@@ -144,11 +144,16 @@ class Company::ConversationsController < Company::BaseController
   def find_mini_chat_user
     params[:utype].constantize.find_by(id: params[:uid])
   end
+
   def create_or_find_conversation
     @chat_with = find_mini_chat_user
-    user_groups = Group.where(member_type: 'Chat').joins(:users).where("groupables.groupable_id = ?",current_user.id).ids
-    chat_with_groups = Group.where(member_type: 'Chat').joins(@chat_with.class.to_s.downcase.pluralize.to_sym).where("groupables.groupable_id = ?",@chat_with.id).ids
+    user_groups = Group.where(member_type: 'Chat').joins(user_or_admin(current_user)).where("groupables.groupable_id = ?", current_user.id).ids
+    chat_with_groups = Group.where(member_type: 'Chat').joins(user_or_admin(@chat_with)).where("groupables.groupable_id = ?", @chat_with.id).ids
+    groups = user_groups & chat_with_groups
+    conversation = Conversation.OneToOne.where(chatable_id: groups).first
+    conversation ? conversation : create_one_to_one_conversation
   end
+
   def create_one_to_one_conversation
     group = current_company.groups.create(group_name: "#{@chat_with.full_name} #{current_user.full_name}", member_type: 'Chat')
     group.groupables.create(groupable: @chat_with)

@@ -2,6 +2,8 @@
 %html{:id => "#{yield :html_id}"}
   %head
     %meta{:content => "text/html; charset=UTF-8", "http-equiv" => "Content-Type"}/
+    %meta{:content => "#{user_signed_in? ? current_user.id : ''}", :name => "user-id"}
+    %meta{:content => "#{user_signed_in? ? current_user.class.to_s == "Candidate" ? "Candidate" : "User" : ''}", :name => "user-type"}
     %title Etyme
     = stylesheet_link_tag    'static'
     = action_cable_meta_tag
@@ -11,11 +13,12 @@
     = csrf_meta_tags
     = yield :head
 
-  %body{class: "#{yield :body_class}"}
+  %body.p-0{class: "#{yield :body_class}"}
 
     .all-wrapper
       = render 'static/shared/header'
       .modals
+      #modals
       = yield
       = render 'static/shared/footer'
     = javascript_include_tag 'static'
