@@ -1,121 +1,51 @@
 .modal{ id: "new-contract-company","aria-hidden": "true", "aria-labelledby": "myModalLabel", :role => "dialog", :style => "display: none;", :tabindex => "-1"}
-  .modal-dialog.modal-md
+  .modal-dialog.modal-lg
     .modal-content
       .modal-header
-        %button.close{"aria-hidden" => "true", "data-dismiss" => "modal", :type => "button"}
-          ×
         %h2#myModalLabel.modal-title
           %strong= @company.new_record? ? "New Contact/Company" : "Edit or Add Contacts"
+        %button.close{"aria-hidden" => "true", "data-dismiss" => "modal", :type => "button"}
+          ×
       .modal-body
-        = form_for [:company,@company] , html:{ class:'form-horizontal', remote: ((defined? for_remote) ? true :false)} do |f|
-          - if @company.new_record?
-            = f.fields_for :invited_by do |i|
-              = i.hidden_field :user_id , value: current_user.id
-              = i.hidden_field :invited_by_company_id , value: current_company.id
-          %fieldset
-            .row
-              .col-md-6
-                %h3 Contact
-                - f.object.company_contacts.build
-                = f.fields_for :company_contacts do |contact|
-                  = render 'company/companies/partials/company_contact_fields', f: contact
-
-                .col-md-6
-                  = link_to_add_association 'Add Contact', f, :company_contacts , partial: 'company/companies/partials/company_contact_fields',class:'btn btn-primary pull-right mr-top--30'
-
-
-                  -#.form-group
-                  -#  %label.col-md-4.control-label
-                  -#    Send Email for On-Boarding
-                  -#  .col-md-8
-                  -#    = f.check_box :send_email
-                  %br/
-              .col-md-6
-                %h3 company
+        .content-box
+          .element-wrapper
+            .element-box
+              = render 'shared/alert_message'
+              = render partial: 'shared/errors', locals: {object: @company}
+              = bootstrap_form_for [:company, @company], inline_errors: false, html: {class: 'form-horizontal', remote: true,data: {domain_checker_form: true, default_error_message: 'Something went wrong', url: domain_suggestion_path}} do |f|
                 - if @company.new_record?
-                  .form-group
-                    %label.control-label
-                      Sub Domain
-                      %sup.text-danger *
-                    = f.text_field :slug  ,:placeholder => "Domain", required: true,minlength: "3",class:'form-control', readonly: true
-                    = f.hidden_field :domain  ,:placeholder => "Domain", required: true,minlength: "3",class:'form-control', readonly: true
-                    .note.text-muted.errors.text-danger
-                    .note.text-muted
-                      Please Enter Domain like https://address
-                  .form-group
-                    %label.control-label
-                      Name
-                    = f.text_field :name , class: 'form-control' , placeholder: 'Enter Company Name'
-                  .form-group
-                    %label.control-label
-                      Website
-                    = f.text_field :website , class: 'form-control' , placeholder: 'Enter Website'
-                  .form-group
-                    %label.control-label
-                      Phone
-                    = f.phone_field :phone , class: 'form-control' , placeholder: 'Phone'
-                  .form-group
-                    = f.fields_for :custom_fields do |lt|
-                      = render 'shared/custom_fields', f: lt
-                    %strong
-                      .links.col-sm-12
-                        = link_to_add_association '+ Add Custom Field', f, :custom_fields, class: 'text-info pull-right', partial: 'shared/custom_fields'
+                  = f.fields_for :invited_by do |i|
+                    = i.hidden_field :user_id, value: current_user.id
+                    = i.hidden_field :invited_by_company_id, value: current_company.id
+                .row
+                  .col-md-6
+                    - f.object.company_contacts.build unless f.object.company_contacts.last&.new_record?
+                    = f.fields_for :company_contacts do |contact|
+                      = render 'company/companies/partials/company_contact_fields', f: contact
+                    %br/
+                    .col-md-12
+                      = link_to_add_association '+ Add Contact', f, :company_contacts, partial: 'company/companies/partials/company_contact_fields', class: 'text-info pull-right'
                       %br/
-          .form-actions
-            .row
-              .col-md-12
-                = button_tag 'Cancel' , class: 'btn btn-default' , "data-dismiss"=> "modal"
-                = f.button "Submit".html_safe, data: {disable_with: disable_spinning("Saving...")} , class: 'btn btn-primary'
+                  .col-md-6
+                    - if @company.new_record?
+                      = f.text_field :name, placeholder: 'Company Name', data: {name_field: true}
+                      .row
+                        .col-md-6
+                          = f.text_field :website, :placeholder => 'Website', required: true, data: {website_field: true}
+                        .col-md-6
+                          = f.text_field :domain, :placeholder => "https://address.com", required: true, minlength: "3", data: {domain_field: true}
+                      = f.select :company_type, [["Staffing/Training/Vendors", 'vendor'], ["Client/Implementation Patner", 'hiring_manager']], {include_blank: '-- Select Type --'}, :class => 'company_type select-height', style: "height: 45px;padding: 0px;", required: true, label: "Select type", data: {company_type_field: true}
+                      = f.phone_field :phone, placeholder: 'Phone', data: {phone_field: true}
+                      = f.fields_for :custom_fields do |lt|
+                        = render 'shared/custom_fields', f: lt
+                      %br/
+                      -#.links.col-sm-12
+                      -#  = link_to_add_association '+ Add Custom Field', f, :custom_fields, class: 'text-info pull-right', partial: 'shared/custom_fields'
+                .form-actions
+                  .row
+                    .col-md-12
+                      = button_tag 'Cancel', class: 'btn btn-default', "data-dismiss" => "modal"
+                      = f.button "Submit".html_safe, data: {disable_with: disable_spinning("Saving...")}, class: 'btn btn-primary'
+
 - content_for :scripts do
-  :javascript
-    function validate_email() {
-      var email = $('#company_company_contacts_attributes_0_email').val();
-      var split_email = email.split("@");
-      //checkDomain(split_email[1] ,split_email[1].split(".")[0])
-      // checkDomain(split_email[1])
-      $("#company_slug").val(split_email[1].split(".")[0]);
-      $("#company_domain").val(split_email[1].split(".")[0]);
-    }
-
-    //function validate_domain() {
-    //  checkDomain($("#company_domain").val())
-    //}
-
-    function checkDomain(website, domain_name) {
-      if(domain_name){
-        $.ajax({
-          url: '/check_for_domain',
-          type: "POST",
-          data: {domain_name: domain_name, website: website },
-          success: function (data) {
-            if(data.company_slug != ""){
-              $("#company_slug").val(data.company_slug);
-              $("#company_domain").val(domain_name);
-              $("#company_website").val(website);
-              $("#company_name").val(domain_name);
-              $('#company_company_type select option[value= data.company_type]').attr("selected",true);
-
-              $(".errors").text("Domain Already Register So Just Add contact to this Domain.")
-            }else if(data.present_count > 0){
-              $("#company_slug").val(domain_name + data.present_count);
-              $("#company_domain").val(domain_name + data.present_count);
-              $("#company_website").val(website);
-              $("#company_name").val(domain_name);
-
-              $(".errors").text("Domain Already Register So we added '" + data.present_count + "'." )
-
-            }else {
-
-              $(".errors").text("")
-              $("#company_slug").val(domain_name);
-              $("#company_domain").val(domain_name);
-              $("#company_name").val(domain_name);
-              $("#company_website").val(website);
-
-            }
-          }
-        });
-      } else {
-        $("#company_domain").val("");
-      }
-    }
+  = javascript_include_tag 'shared/domain_checker'

@@ -71,7 +71,7 @@
         .form-group
           %label.control-label Consultant
           %label.control-label.pull-right
-            = link_to 'Add New', new_company_candidate_path,target:'_blank', class: 'btn btn-sm btn-secondary'
+            %button{onclick: "set_job_application()",type: 'button', class: 'btn btn-sm btn-secondary'} Add New
           .contract-fild
             - if @contract.new_record?
               .plain-select
@@ -107,7 +107,7 @@
           .form-group
             %label.control-label Customer(Bill To)
             %label.control-label.pull-right
-              = link_to 'Add New', new_company_company_path,target:'_blank', class: 'btn btn-sm btn-secondary'
+              %button{class: 'btn btn-sm btn-secondary',type: 'button', onclick: "$('#new-contract-company').modal('show')"} Add New
             .contract-fild
               - if @contract.new_record?
                 .plain-select
@@ -129,7 +129,7 @@
       .col-md-12
         .form-group.mb-3.mt-3
           %label.control-label.mr-4
-            %b Is Client different from your Customer ?
+            %b End Client different from your Customer ?
           %span.is_client_customer_radio
             =f.radio_button  :is_client_customer, true, checked: f.object.is_client_customer == true
             %label.control-label.mr-4 Yes
@@ -142,7 +142,7 @@
             .plain-select
               = f.select :client_id, [[f.object.client&.full_name,f.object.client_id]], {}, id: 'select_clients'
   .contract-fields_wrapper.mt-4
-    %h5.mb-4.d-inline-block Reporting Manager(s)
+    %h5.mb-4.d-inline-block End Client(s)/Reporting Manager(s)
     %h5.mb-4.d-inline-block.pull-right
       %button.btn.btn-secondary.btn-sm{"data-target" => "#manager-team", "data-toggle" => "modal", :type => "button"} Add Manager
     - headers =  %w(domain name contact role(s) reminder action(s))

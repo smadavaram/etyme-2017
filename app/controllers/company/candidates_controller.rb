@@ -77,6 +77,7 @@ class Company::CandidatesController < Company::BaseController
   def get_or_create_bench_candidate
     candidate = Candidate.find_by(email: params[:candidate][:email]) || current_company.candidates.new(create_candidate_params.merge(send_welcome_email_to_candidate: false, invited_by_id: current_user.id, invited_by_type: 'User', status: "campany_candidate"))
     if candidate.new_record? and candidate.save
+      flash[:success] = "New Candidate Is Added"
       current_company.candidates << candidate
       candidate.create_activity :create, owner: current_company, recipient: current_company
       CandidatesResume.create(:candidate_id => candidate.id, :resume => candidate.resume, :is_primary => true)
@@ -90,19 +91,25 @@ class Company::CandidatesController < Company::BaseController
 
   def create
     @candidate = get_or_create_bench_candidate
-    @candidates_company = current_company.candidates_companies.where(candidate: @candidate).first || current_company.candidates_companies.create(candidate: @candidate, status: :normal)
-    if @candidates_company.normal? and @candidate
-      if params["is_add_to_bench"]
-        flash[:success] = "Candidate is added to the bench"
-        @candidates_company.hot_candidate!
-      else
-        flash[:notice] = "New candidate added successfully"
+    respond_to do |format|
+      if @candidate
+        format.html { redirect_back(fallback_location: current_company.etyme_url) }
+        format.js {   }
       end
-    else
-      @candidates_company.present? ? @candidates_company.hot_candidate! : current_company.candidates_companies.create(candidate: @candidate, status: :hot_candidate)
-      flash[:success] = "Candidate is added to the bench"
     end
-    redirect_back(fallback_location: current_company.etyme_url)
+    # @candidates_company = current_company.candidates_companies.where(candidate: @candidate).first || current_company.candidates_companies.create(candidate: @candidate, status: :normal)
+    # if @candidates_company.normal? and @candidate
+    #   if params["is_add_to_bench"]
+    #     flash[:success] = "Candidate is added to the bench"
+    #     @candidates_company.hot_candidate!
+    #   else
+    #     flash[:notice] = "New candidate added successfully"
+    #   end
+    # else
+    #   @candidates_company.present? ? @candidates_company.hot_candidate! : current_company.candidates_companies.create(candidate: @candidate, status: :hot_candidate)
+    #   flash[:success] = "Candidate is added to the bench"
+    # end
+
   end
 
   def new_candidate_to_bench
@@ -114,7 +121,7 @@ class Company::CandidatesController < Company::BaseController
     @candidate = Candidate.find_by_id(params[:candidate_id])
     @company_candidate = CandidatesCompany.normal.where(candidate_id: @candidate.id, company_id: current_company.id)
     if @company_candidate.update_all(status: 1)
-      current_company.sent_job_invitations.bench.create(recipient: @candidate,created_by: current_user,invitation_type: :candidate,expiry:Date.today+1.year )
+      current_company.sent_job_invitations.bench.create(recipient: @candidate, created_by: current_user, invitation_type: :candidate, expiry: Date.today + 1.year)
       flash[:success] = "Candidate is now Hot Candidate."
       respond_to do |format|
         format.js { render inline: "location.reload();" }

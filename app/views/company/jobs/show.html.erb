@@ -173,7 +173,7 @@
             </div>
           </div>
           <div class="element-box element-box-show">
-            <%=render 'company/jobs/partials/job_chat_box', conversation: @job.conversation %>
+            <button onclick="open_chat(<%=@conversation.id %>)" class="w-100 btn btn-default btn-primary">Conversation</button>
           </div>
         </div>
 
@@ -194,7 +194,7 @@
     upload_multi_file_ajax(imagesUpload,false,true)
     });
     })
-
+    function open_chat(id){$.get(`/company/conversations/mini_chat?conversation_id=${id}`)}
     function imagesUpload(url){
     media_url = url
     $.ajax({

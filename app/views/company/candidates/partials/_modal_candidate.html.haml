@@ -1,10 +1,10 @@
 .modal{id:"candidate-new-modal"}
-  .modal-dialog
+  .modal-dialog{style: "max-width: 700px;"}
     .modal-content
       .modal-header
-        %button.close{"aria-hidden" => "true", "data-dismiss" => "modal", :type => "button"}
-          ×
         %h4.modal-title
           %strong= "Candidate"
+        %button.close{"aria-hidden" => "true", "data-dismiss" => "modal", :type => "button"}
+          ×
       .modal-body.no-padding
         = render 'company/candidates/partials/form', for_remote: (defined? for_remote)
