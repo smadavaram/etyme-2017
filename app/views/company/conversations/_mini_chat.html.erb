@@ -1,0 +1,44 @@
+<div class="floated-chat-w active">
+  <div class="floated-chat-i">
+    <div class="chat-close"><i class="os-icon os-icon-close"></i></div>
+    <div class="chat-head">
+      <div class="flex-row w-100 chat-heat_justify">
+        <div>
+          <span>To:</span>
+          <a class="d-inline" href="#"><%= conversation.chatable.full_name %></a>
+        </div>
+      </div>
+    </div>
+    <div class="chat-messages ps ps--theme_default" data-ps-id="2f3100d8-938b-8535-97e8-f6f574450d91">
+      <div class="chat-content-small chat-content-scroll chat-content_height">
+        <div class="p-2 small-chat-height" id="conversation_<%= conversation.id %>">
+          <div id="all-infinite-scrolling-msg" style="display:none"></div>
+          <%= hidden_field_tag "prev_date", nil %>
+        </div>
+      </div>
+    </div>
+    <div class="chat-controls">
+      <%= form_for([conversation, ConversationMessage.new], :remote => true, :html => {id: "conversation_form_#{conversation.id}"}) do |f| %>
+        <div class="chat-input1 chat-input" style=" border-top: 1px solid rgba(0, 0, 0, 0.2);">
+          <%= f.text_field :body, class: 'form-control input-sm chat_input ', autocomplete: "off", placeholder: 'Type your message here...', required: true, "data-cid" => conversation.id, id: "con-text-#{conversation.id}-#{current_user.class}-#{current_user.id}" %>
+        </div>
+        <div id="file-name_uploaded">
+
+        </div>
+        <div class="chat-input-extra d-flex pl-1 pr-1 justify-content-between">
+          <div class="chat-extra-actions">
+            <%= button_tag type: "button", class: "btn p-0", style: "background: transparent;box-shadow: none;", onclick: "$('##{"chat-templates-#{conversation.id}"}').modal('show')" do %>
+              <%= image_tag("/docusign.png", size: "25x25") %>
+            <% end %>
+            <%= render 'shared/file_attachement', f: f, attr_name: :file_url, name_selector: ".uploaded_file_name", cstm_class: "p-0", cstm_style: "background: transparent;box-shadow: none;", button_name: "<i class='os-icon os-icon-ui-51' style='font-size: 26px;'></i>".html_safe, name_selector: '#file-name_uploaded' %>
+          </div>
+          <div class="chat-btn">
+            <%= button_tag(type: "submit", class: "btn p-0", style: "background: transparent;box-shadow: none;", id: "send-message") do %>
+              <i class="os-icon os-icon-mail-18" style='font-size: 26px; margin: 0px;'></i>
+            <% end %>
+          </div>
+        </div>
+      <% end if conversation.present? %>
+    </div>
+  </div>
+</div>

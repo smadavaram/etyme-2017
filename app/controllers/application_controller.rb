@@ -70,6 +70,10 @@ class ApplicationController < ActionController::Base
     render_exception(404, 'Not Found', exception)
   end
 
+  def user_or_admin(user)
+    user.class.to_s == "Candidate" ? :candidates : :users
+  end
+
   def current_company
     @current_company = Company.find_by(slug: request.subdomain)
   end

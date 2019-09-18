@@ -17,7 +17,7 @@ class CompanyDatatable < ApplicationDatatable
           id: record.id,
           name: company_profile(record),
           users: record.users.count,
-          contact: contact_icon(record),
+          contact: contact_icon(record.owner),
           status: ban_unban_link(record),
           reminder_note: reminder_note(record),
           actions: actions(record)
@@ -46,8 +46,8 @@ class CompanyDatatable < ApplicationDatatable
     content_tag(:span, do_ellipsis(record.reminders.where(user_id: current_user)&.last&.title), class: 'bg-info badge mr-1').html_safe
   end
 
-  def contact_icon record
-    contact_widget(record.email, record.phone)
+  def contact_icon owner
+    contact_widget(owner&.email, owner&.phone,owner,chat_link: owner.present? ? chat_link(owner) : '#')
   end
 
 

@@ -360,7 +360,7 @@ Rails.application.routes.draw do
       post :chat_docusign
       get :mute, on: :member
       get :unmute, on: :member
-
+      get :mini_chat, on: :collection
       resources :conversation_messages do
         get :mark_as_read, on: :member
       end

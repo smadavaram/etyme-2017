@@ -44,7 +44,7 @@
             %tr
               %td= user.company.domain
               %td= user.full_name
-              %td= contact_widget(user.email,user.phone)
+              %td= contact_widget(user.email,user.phone,user,chat_link: chat_link(user))
               %td= user.roles.pluck(:name).join(', ')
               %td= content_tag(:span, do_ellipsis(current_user.reminders.where(reminderable_id: user.id, reminderable_type: 'Admin')&.last&.title), class: 'bg-info badge mr-1').html_safe
               %td
@@ -159,7 +159,7 @@
               %tr
                 %td= user.company.domain
                 %td= user.full_name
-                %td= contact_widget(user.email,user.phone)
+                %td= contact_widget(user.email,user.phone,user,chat_link: chat_link(user))
                 %td= user.roles.pluck(:name).join(', ')
                 %td= content_tag(:span, do_ellipsis(current_user.reminders.where(reminderable_id: user.id, reminderable_type: 'Admin')&.last&.title), class: 'bg-info badge mr-1').html_safe
                 %td

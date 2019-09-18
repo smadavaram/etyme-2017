@@ -28,7 +28,7 @@ class CompanyContactDatatable < ApplicationDatatable
           name: company_profile(record.try(:user_company)),
           first_name: company_user_profile(record.user),
           title: do_ellipsis(record.title),
-          contact: contact_icon(record),
+          contact: contact_icon(record.user),
           status: ban_unban_link(record),
           groups: groups(record),
           reminder_note: reminder_note(record),
@@ -54,8 +54,8 @@ class CompanyContactDatatable < ApplicationDatatable
     content_tag(:span, do_ellipsis(record.user_company&.reminders.where(user_id: current_user.id)&.last&.title), class: 'bg-info badge mr-1').html_safe
   end
 
-  def contact_icon record
-    contact_widget(record.email, record.phone)
+  def contact_icon user
+    contact_widget(user.email, user.phone, user, chat_link: chat_link(user))
   end
 
   def groups record
@@ -69,7 +69,7 @@ class CompanyContactDatatable < ApplicationDatatable
   def actions record
     link_to(content_tag(:i, nil, class: 'picons-thin-icon-thin-0014_notebook_paper_todo').html_safe, company_company_add_reminder_path(record.user_company), remote: :true, title: "Remind Me", class: 'data-table-icons') +
         link_to(image_tag('groups.png', size: '16x16', class: '').html_safe, company_company_assign_groups_to_contact_path(record), remote: true, title: 'Add to Group', class: 'data-table-icons')
-        # link_to(content_tag(:i, nil, class: 'fa fa-edit').html_safe, "#", remote: true, title: "Edit #{record.full_name}", class: 'data-table-icons')
+    # link_to(content_tag(:i, nil, class: 'fa fa-edit').html_safe, "#", remote: true, title: "Edit #{record.full_name}", class: 'data-table-icons')
   end
 
   # company_path(d.invited_company)

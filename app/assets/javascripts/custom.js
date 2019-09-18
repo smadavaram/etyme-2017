@@ -215,6 +215,10 @@ $(document).on("click", ".remove-multi-fields", function () {
     }
 });
 
+$(document).on("click",".chat-close",function(){
+  $('.floated-chat-w').remove()
+});
+
 function callAjaxSearch(ajax_url, ajax_method, params_data) {
     $.ajax({
         type: ajax_method,
