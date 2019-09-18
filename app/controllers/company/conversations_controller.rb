@@ -11,6 +11,10 @@ class Company::ConversationsController < Company::BaseController
     # @unread_message_count = Conversation.joins(:conversation_messages).where("(senderable_type = ? AND senderable_id = ? ) OR (recipientable_type = ? AND recipientable_id = ?)", current_user.class.to_s, current_user.id, current_user.class.to_s, current_user.id).where.not(conversation_messages: {is_read: true, userable: current_user}).uniq.count
   end
 
+  def mini_chat
+    @conversation = params[:conversation_id].present? ? Conversation.find_by(id: params[:conversation_id]) : create_or_find_conversation
+  end
+
   def chat_docusign
 
     @conversation = Conversation.find_by(id: params[:conversation_id])
@@ -136,6 +140,22 @@ class Company::ConversationsController < Company::BaseController
   end
 
   private
+
+  def find_mini_chat_user
+    params[:utype].constantize.find_by(id: params[:uid])
+  end
+  def create_or_find_conversation
+    @chat_with = find_mini_chat_user
+    user_groups = Group.where(member_type: 'Chat').joins(:users).where("groupables.groupable_id = ?",current_user.id).ids
+    chat_with_groups = Group.where(member_type: 'Chat').joins(@chat_with.class.to_s.downcase.pluralize.to_sym).where("groupables.groupable_id = ?",@chat_with.id).ids
+  end
+  def create_one_to_one_conversation
+    group = current_company.groups.create(group_name: "#{@chat_with.full_name} #{current_user.full_name}", member_type: 'Chat')
+    group.groupables.create(groupable: @chat_with)
+    group.groupables.create(groupable: current_user)
+    Conversation.OneToOne.create(chatable: group)
+  end
+
 
   def set_activity_for_job_application
     if @conversation&.job_application.present?

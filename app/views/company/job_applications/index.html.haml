@@ -42,8 +42,9 @@
                       %td
                         = application.job_invitation_id ? "Invited/#{application.application_type}" : "Direct/#{application.application_type}"
                       %td
+                        - candidate = application.applicationable
                         = link_to(content_tag(:i, nil, class: 'fa fa-eye').html_safe, job_application_path(application), title: 'View Detail', class: 'data-table-icons')
-                        = link_to(content_tag(:i, nil, class: 'fa fa-comment-o').html_safe, open_inbox_conversation_job_application_path(application), title: 'chat', class: 'data-table-icons', data: {chattopic: "Job", cid: application.job.id, ctype: application.job.class.to_s, rid: application.applicationable_id, rtype: application.applicationable_type})
+                        = link_to(content_tag(:i, nil, class: 'fa fa-comment-o').html_safe, mini_chat_company_conversations_path(conversation_id: application&.conversation&.id,utype:candidate.class.to_s,uid: candidate.id), title: 'chat', class: 'data-table-icons',remote: true)
                         = link_to(content_tag(:i, nil, class: 'picons-thin-icon-thin-0014_notebook_paper_todo').html_safe, candidate_add_reminder_path(application.applicationable_id), remote: :true, title: "Remind Me", class: 'data-table-icons')
                         = link_to(content_tag(:i, nil, class: 'picons-thin-icon-thin-0122_download_file_computer_drive').html_safe, application.applicant_resume, download: true, title: "Download Resume", class: 'data-table-icons')
                         = link_to(content_tag(:i, nil, class: 'icon-feather-user-plus').html_safe, make_company_candidate_path(application.applicationable), method: :post, title: 'Add to candidates', class: 'data-table-icons')

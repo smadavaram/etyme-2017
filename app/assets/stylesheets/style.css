@@ -1,6 +1,9 @@
 .pac-container {
     z-index: 1051;
 }
+.floated-chat-w{
+    z-index: 800 !important;
+}
 .form-horizontal  input[type="text"],
 .form-horizontal  input[type="number"],
 .form-horizontal  input[type="email"],

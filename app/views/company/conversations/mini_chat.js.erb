@@ -1,0 +1,18 @@
+  $('#modals').append("<%= j render 'company/conversations/mini_chat',conversation: @conversation %>")
+  $('#modals').append("<%= j render('shared/chat_document_templates', conversation: @conversation) if @conversation.present? %>")
+
+  function onCompanyFileUpload(event) {
+    $('#file-name_uploaded').html("<span>" + event.fpfile.filename + "</span><hr/>");
+  }
+
+  $(document).ready(function () {
+    set_company_users_select('#select_sell_company_contacts', "Please Select Signers", "#sell_contract_company");
+    $.ajax({
+      url: "<%= messages_conversation_conversation_messages_path(@conversation) %>",
+      type: "GET",
+      dataType: "script",
+      success: function (data) {
+        $("#conversation_<%=@conversation&.id%>").parent().scrollTop($("#conversation_<%=@conversation&.id %>").parent()[0].scrollHeight);
+      }
+    });
+  });
