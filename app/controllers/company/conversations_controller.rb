@@ -96,7 +96,7 @@ class Company::ConversationsController < Company::BaseController
     elsif params[:candidateid].present?
       user = current_company.candidates.where(id: params[:candidateid]).first
     elsif params[:contactid].present?
-      user = current_company.company_contacts.where(id: params[:contactid]).first
+      user = current_company.company_contacts.where(id: params[:contactid]).first.user
     else
       flash[:error] = "Select any one option."
       redirect_to company_conversations_path(conversation: conversation.id)

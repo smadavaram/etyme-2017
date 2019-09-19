@@ -12,6 +12,7 @@ class ConversationMessagesController < ApplicationController
                                      msg_id: message.id,
                                      # msg: message_content,
                                      msg: message.body,
+                                     sender_name: message.userable.full_name.capitalize,
                                      file_url: message.file_url ? message.file_url : "",
                                      msg_url: message.userable.photo,
                                      msg_time: message.created_at.strftime("%l:%M%P"),

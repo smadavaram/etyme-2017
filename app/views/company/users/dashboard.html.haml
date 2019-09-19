@@ -290,7 +290,7 @@
                       .user-role
                         =user.class.to_s
                     %a.user-action{:href => "users_profile_small.html"}
-                      = contact_widget(user.email,user.phone)
+                      = contact_widget(user.email,user.phone,user,chat_link: chat_link(user))
       .element-wrapper
         .col-sm-12.col-md-12
           .element-box.el-tablo.centered

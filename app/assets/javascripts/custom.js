@@ -1,10 +1,10 @@
-function flash(color, msg, icon) {
+function flash(color, msg, icon,time=null) {
     $.smallBox({
         title: msg,
         // content : "<i class='fa fa-clock-o'></i> <i>2 seconds ago...</i>",
         color: color,
         iconSmall: icon + " bounce animated",
-        timeout: 4000
+        timeout: !!time ? time : 4000
     });
 }
 
@@ -15,9 +15,9 @@ function flash_error(msg) {
     flash($error, msg, 'fa fa-exclamation-triangle');
 }
 
-function flash_success(msg) {
+function flash_success(msg,time= null) {
     var $success = '#80C14B';
-    flash($success, msg, 'fa fa-check');
+    flash($success, msg, 'fa fa-check',time);
 }
 
 function flash_info(msg) {

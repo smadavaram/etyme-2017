@@ -50,7 +50,6 @@ module ApplicationHelper
           <span class='os-icon os-icon-calendar' style='color: #{options[:color]}'></span>
           <span class='attendees'></span>
         </div >".html_safe
-
   end
 
   def do_ellipsis(value, length = 20)

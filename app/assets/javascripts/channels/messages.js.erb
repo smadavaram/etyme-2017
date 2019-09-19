@@ -48,6 +48,7 @@ function set_conversation (data) {
 //  $(data.dom).append(data.msg);
 
   $("#conversation_message_file_url").val('');
+
   $("#file-name_uploaded").html('');
   if ($(data.dom).hasClass("popup-chat")) {
     if (current_user_id == data.usr && current_user_type == (data.usr_typ == 'Candidate' ? "Candidate" : "User")) {
@@ -64,7 +65,6 @@ function set_conversation (data) {
         "</div>");
     }
   } else {
-
     file_url = data.file_url ? "<hr/><a href='"+data.file_url+"' target='_blank'>Attachment</a>" : ''
     if (current_user_id == data.usr && current_user_type == (data.usr_typ == 'Candidate' ? "Candidate" : "User")) {
       $(data.dom).append("<div class='chat-message self'>" +
@@ -82,6 +82,10 @@ function set_conversation (data) {
         "</div>" +
         "</div>");
     } else {
+        flash_success(`${data.sender_name} has send you a message`,4000);
+        if (document.hidden) {
+            $('title').text(`${data.sender_name} has send you a message`)
+        }
       $(data.dom).append("<div class='chat-message'>" +
         "<div class='chat-message-content-w'>" +
         "<div class='chat-message-content'>" +
