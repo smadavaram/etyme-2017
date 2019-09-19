@@ -185,4 +185,4 @@
 // Uploader
 //= require shared/uploader
 
-
+//= require trix

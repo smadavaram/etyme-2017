@@ -25,7 +25,7 @@
 // = require_tree ./clean_admin/.
 //= require shared/uploader
 //= require custom
-
+//= require trix
 function display_file_name(event) {
     // alert(event.fpfile.filename );
     $('.uploaded_file_name').text(event.fpfile.filename)

@@ -173,6 +173,7 @@
 //= require shared/uploader
 // BulletTrain
 //= require_tree ./clean_admin
+//= require trix
 
 $("input[name='candidate[designation_status]']").click(function () {
   if ($("input[name='candidate[designation_status]']:checked").val() == "Employee") {
