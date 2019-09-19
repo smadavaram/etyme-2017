@@ -31,7 +31,8 @@
             .form-group
               %label.col-md-2.control-label Cover Letter
               .col-md-12
-                =  f.text_area :cover_letter , class: "form-control tinymce", rows: 8, cols: 25, placeholder: 'Cover Letter'
+                = f.trix_editor :cover_letter, required: true, autofocus: true,class: "trix-content"
+                -#=  f.text_area :cover_letter , class: "form-control tinymce", rows: 8, cols: 25, placeholder: 'Cover Letter'
                 =  tinymce :default
             .form-group
               %label.col-md-4.control-label Message (optional)

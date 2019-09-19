@@ -12,7 +12,8 @@
             .form-group
               %label.col-md-2.control-label Cover Letter
               .col-md-10
-                =  f.text_area :cover_letter , class: 'form-control tinymce', :rows => 8, :cols => 60, placeholder: 'Cover Lette'
+                = f.trix_editor :cover_letter, required: true, autofocus: true,class: "trix-content"
+                -#=  f.text_area :cover_letter , class: 'form-control tinymce', :rows => 8, :cols => 60, placeholder: 'Cover Lette'
                 = tinymce :default
             .form-group
               %label.col-md-2.control-label Resume

@@ -58,4 +58,5 @@
  *= require top_navigation
  *= require jobs_small_chat
  *= require intl-tel-input-13.0.0/build/css/intlTelInput.min
+ *= require trix
  */

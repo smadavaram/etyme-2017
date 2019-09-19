@@ -43,8 +43,9 @@
               .col-sm-12
                 .form-group
                   %p Cover Letter
-                  =  f.text_area :cover_letter , class: "form-control tinymce", rows: 8, cols: 25, placeholder: 'Cover Letter'
-                  =  tinymce :default
+                  = f.trix_editor :cover_letter, required: true, autofocus: true,class: "trix-content"
+                  -#=  f.text_area :cover_letter , class: "form-control tinymce", rows: 8, cols: 25, placeholder: 'Cover Letter'
+                  -#=  tinymce :default
             .row
               .col-sm-12
                 .form-group

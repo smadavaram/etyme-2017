@@ -15,7 +15,9 @@
       <%= render 'shared/file_attachement', f: form, attr_name: :files, button_name: "Attach Images", name_selector: ".uploaded_file_name", cstm_style: "border-radius: 0; height:38px;", multiple: true %>
       <p class="d-inline-block uploaded_file_name">No Image(s) Selected</p>
     </div>
-    <%= render 'company/jobs/partials/forms/field', form: form, attribute: :description, field_type: :text_area, field_attributes: {} %>
+    <label>Description</label>
+    <%= form.trix_editor :description, required: true, autofocus: true,class: "trix-content" %>
+    <%#= render 'company/jobs/partials/forms/field', form: form, attribute: :description, field_type: :text_area, field_attributes: {} %>
   <% else %>
     <%= render 'company/jobs/partials/forms/field', form: form, attribute: :title, field_type: :text_field, field_attributes: {autofocus: true} %>
     <%= render 'company/jobs/partials/forms/field', form: form, attribute: :source, field_type: :text_field, field_attributes: {autofocus: true} %>
@@ -63,7 +65,10 @@
       <%= render 'shared/file_attachement', f: form, attr_name: :files, button_name: "Attach Images", name_selector: ".uploaded_file_name", cstm_style: "border-radius: 0; height:38px;", multiple: true %>
       <p class="d-inline-block uploaded_file_name">No Image(s) Selected</p>
     </div>
-    <%= render 'company/jobs/partials/forms/field', form: form, attribute: :description, field_type: :text_area, field_attributes: {} %>
+    <label>Description</label>
+    <%= form.trix_editor :description, required: true, autofocus: true,class: "trix-content" %>
+    <div class="mt-2"></div>
+    <%#= render 'company/jobs/partials/forms/field', form: form, attribute: :description, field_type: :text_area, field_attributes: {} %>
     <%= render 'company/jobs/partials/forms/field', form: form, attribute: :education_list, field_type: :text_field, field_attributes: {"data-role": "tagsinput", placeholder: "Educations and Certification", class: "form-control tagsinput", value: @job.education_list.join(", ")}, note: "Education are separated with comma" %>
     <%= render 'company/jobs/partials/forms/field', form: form, attribute: :tag_list, title: "Skills", field_type: :text_field, field_attributes: {"data-role": "tagsinput", placeholder: "Skills are separated with comma", class: "form-control tagsinput", value: @job.tag_list.join(", ")}, note: "Skills are separated with comma" %>
     <div class="custome">
