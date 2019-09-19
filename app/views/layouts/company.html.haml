@@ -56,7 +56,6 @@
           = render partial: 'shared/add_to_chat_modal'
     = javascript_include_tag 'company'
     = javascript_include_tag 'https://cdn.ckeditor.com/4.11.4/standard/ckeditor.js'
-    = filepicker_js_include_tag
 
   /[if IE 8]
   = yield(:scripts).present? ? yield(:scripts) : render(partial: 'shared/scripts')
