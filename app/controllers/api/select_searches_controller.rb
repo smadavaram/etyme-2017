@@ -72,7 +72,8 @@ class Api::SelectSearchesController < ApplicationController
   end
 
   def find_hr_admins
-    @users = current_company.users.joins(:roles).where('roles.name': "HR admin").like_any([:first_name], params[:q].to_s.split).paginate(:page => params[:page], :per_page => params[:per_page])
+    # @users = current_company.users.joins(:roles).where('roles.name': "HR admin").like_any([:first_name], params[:q].to_s.split).paginate(:page => params[:page], :per_page => params[:per_page])
+    @users = current_company.users.all.joins(:roles).like_any([:first_name], params[:q].to_s.split).paginate(:page => params[:page], :per_page => params[:per_page])
     respond_with @users
   end
 

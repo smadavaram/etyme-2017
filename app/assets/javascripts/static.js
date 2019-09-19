@@ -1,6 +1,7 @@
 //= require static/js/modernizr-custom
 //= require static/js/jQuery-2.1.4.min
 //= require jquery-ui
+//= require jquery_ujs
 
 //= require static/js/bootstrap.min
 //= require static/js/waypoints.min

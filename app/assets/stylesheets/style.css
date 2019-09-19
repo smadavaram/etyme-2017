@@ -1554,3 +1554,41 @@ input:checked + .slider1:before {
 .resources .single_resource img{
   max-width: 70px;
 }
+
+
+
+ .mini_chat_users img{
+     vertical-align: middle;
+     border-style: none;
+     height: 35px;
+     width: 35px;
+ }
+ .mini_chat_users .more{
+     background-color: #047bf8;
+     display: inline-block;
+     vertical-align: middle;
+     position: relative;
+     left: -6px;
+     padding: 2px 7px;
+     border-radius: 12px;
+     color: #fff;
+     font-size: .63rem;
+ }
+ .mini_chat_users .avatar{
+     margin-left: -10px;
+    width: 35px;
+    height: 35px;
+    border-radius: 35px;
+    -webkit-box-shadow: 0px 0px 0px 5px #fff;
+    box-shadow: 0px 0px 0px 5px #fff;
+    display: inline-block;
+    overflow: hidden;
+    vertical-align: middle;
+}
+
+.mini_chat_users{
+-webkit-box-flex: 0;
+-ms-flex: 0 0 220px;
+flex: 0 0 220px;
+text-align: right;
+}

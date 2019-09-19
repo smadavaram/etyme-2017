@@ -1,6 +1,14 @@
 module ChatboxHelper
 
 
+  def mini_chat_title(conversation)
+    if (conversation.job.present?)
+      "#{conversation.job.status}"
+    elsif (conversation.job_application)
+      "#{conversation.job_application.status}"
+    end
+  end
+
   def set_company_chat_user_data(current_chat_user, user)
     conversation = Conversation.where(chatable: user).first
     message = conversation.conversation_messages.order("created_at DESC").first if conversation.present?
@@ -62,11 +70,11 @@ module ChatboxHelper
         if conversation.chatable_type == "Group"
           conversation.chatable.group_name
         elsif conversation.chatable_type == "Job"
-          conversation.chatable.title + " (" + (conversation.senderable == current_user ? conversation.recipientable.full_name : conversation.senderable.full_name) +" )"
+          conversation.chatable.title + " (" + (conversation.senderable == current_user ? conversation.recipientable.full_name : conversation.senderable.full_name) + " )"
         else
           ''
         end
-      elsif  conversation.senderable == current_user
+      elsif conversation.senderable == current_user
         conversation.recipientable.full_name
       else
         conversation.senderable.full_name

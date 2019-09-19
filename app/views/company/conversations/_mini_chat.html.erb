@@ -4,8 +4,15 @@
     <div class="chat-head">
       <div class="flex-row w-100 chat-heat_justify">
         <div>
-          <span>To:</span>
-          <a class="d-inline" href="#"><%= conversation.chatable.full_name %></a>
+          <div class="mini_chat_users">
+            <% conversation.chatable.groupables.sample(4).each do |groupable| %>
+              <div class="avatar"><img alt="" src="<%= groupable.groupable.photo %>"></div>
+            <% end %>
+            <% if conversation.chatable.groupables.count > 4 %>
+              <div class="more"><%= "+ #{(conversation.chatable.groupables.count-4).abs} more"  %> </div>
+            <% end %>
+            <div class="more"><%= mini_chat_title(conversation) %></div>
+          </div>
         </div>
       </div>
     </div>
