@@ -115,6 +115,6 @@ Rails.application.configure do
                                           email: {
                                               email_prefix: '[Production] ',
                                               sender_address: %{"notifier" <error@etyme.com>},
-                                              exception_recipients: %w{'umair.raza101@gmail.com', 'smadavaram@gmail.com', 'we.ror.devs@gmail.com'}
+                                              exception_recipients: ['umair.raza101@gmail.com', 'smadavaram@gmail.com', 'we.ror.devs@gmail.com']
                                           }
 end
