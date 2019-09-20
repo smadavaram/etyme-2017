@@ -107,8 +107,14 @@ Rails.application.configure do
   config.active_record.dump_schema_after_migration = false
 
   HOSTNAME='http://etyme.com'
-  COMPANY_URL = 'demoetyme.com'
+  COMPANY_URL = 'etyme.com'
   Rails.application.routes.default_url_options[:host] = HOSTNAME
   config.action_mailer.default_url_options = {host: HOSTNAME}
 
+  Rails.application.config.middleware.use ExceptionNotification::Rack,
+                                          email: {
+                                              email_prefix: '[Production] ',
+                                              sender_address: %{"notifier" <error@etyme.com>},
+                                              exception_recipients: %w{'umair.raza101@gmail.com', 'smadavaram@gmail.com', 'we.ror.devs@gmail.com'}
+                                          }
 end
