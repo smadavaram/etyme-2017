@@ -12,25 +12,25 @@
             Project Name
             %sup.text-danger
           .contract-fild
-            = f.text_field :project_name ,class: "form-control" , required: 'true',disabled: 'disabled', placeholder: "Contract ID - Job title - Client - Auto generated"
+            = f.text_field :project_name ,class: "form-control" , required: 'true',disabled: 'disabled', placeholder: "#{SecureRandom.hex(5)} - #{current_company.name} - Auto generated"
       .col-md-3
         .form-group
           %label.control-label
             Start Date
             %sup.text-danger *
           .contract-fild
-            = f.text_field :start_date ,class: "form-control" , required: 'true', placeholder: "Contract Start Date"
+            = f.text_field :start_date ,class: "form-control" , required: 'true' #, placeholder: "Contract Start Date"
       .col-md-3
         .form-group
           %label.control-label
             End Date
             %sup.text-danger *
           .contract-fild
-            = f.text_field :end_date ,class: "form-control" , required: 'true', placeholder: "Contract End Date"
+            = f.text_field :end_date ,class: "form-control" , required: 'true' #, placeholder: "Contract End Date"
   .contract-fields_wrapper.mt-4
     %h5.mb-4.d-inline-block Contract Admin Team
     %h5.mb-4.d-inline-block.pull-right
-      %button.btn.btn-secondary.btn-sm{"data-target" => "#contract-admin-team", "data-toggle" => "modal", :type => "button"} Add Admin
+      %button.btn.btn-primary.btn-sm{"data-target" => "#contract-admin-team", "data-toggle" => "modal", :type => "button"} Add Admin
     - headers =  %w(domain name contact role(s) reminder action(s))
     .table-responsive
       %table.table.text-center.table-bordered.table-lg.table-v2.table-striped.data-table-font#contract_admins_table
@@ -58,11 +58,11 @@
         .form-group
           %label.control-label Jobs
           %label.control-label.pull-right
-            = link_to 'Add New', new_job_path,target:'_blank', class: 'btn btn-sm btn-secondary'
+            = link_to 'Add New', new_job_path,target:'_blank', class: 'btn btn-sm btn-primary'
           .contract-fild
             - if @contract.new_record?
               .plain-select
-                = f.select :job_id, '', {}, id: 'select_jobs', class: 'form-control'
+                = f.select :job_id, '', {}, id: 'select_jobs', class: 'form-control',required: 'true'
             - else
               = text_field_tag :job_title , @contract.job.title, disabled: 'disabled'
   .contract-fields_wrapper.mt-4
@@ -71,7 +71,7 @@
         .form-group
           %label.control-label Consultant
           %label.control-label.pull-right
-            %button{onclick: "set_job_application()",type: 'button', class: 'btn btn-sm btn-secondary'} Add New
+            %button{onclick: "set_job_application()",type: 'button', class: 'btn btn-sm btn-primary'} Add New
           .contract-fild
             - if @contract.new_record?
               .plain-select
@@ -83,19 +83,19 @@
         .col-md-7
           .form-group
             %label.control-label Contract Type
-            .contract-fild.pt-3
+            .contract-fild{style: "margin-top: 20px;"}
               %span.contract-type-radio
-                = bc.radio_button :contract_type, "W2"
+                = bc.radio_button :contract_type, "W2",required: 'true'
                 %label.control-label W2 (Fulltime)
-                = bc.radio_button :contract_type, "1099"
+                = bc.radio_button :contract_type, "1099",required: 'true'
                 %label.control-label 1099 (Freelancers)
-                = bc.radio_button :contract_type, "C2C"
+                = bc.radio_button :contract_type, "C2C",required: 'true'
                 %label.control-label Corp-Corp (Third Party)
         .col-md-5.hidden.vendor_company
           .form-group
             %label.control-label Vendor(Pay To)
             %label.control-label.pull-right
-              = link_to 'Add New', new_company_company_path,target:'_blank', class: 'btn btn-sm btn-secondary'
+              = link_to 'Add New', new_company_company_path,target:'_blank', class: 'btn btn-sm btn-primary'
             .contract-fild
               .plain-select
                 = bc.select :company_id, {}, {}, id: "buy_contract_company"
@@ -107,7 +107,7 @@
           .form-group
             %label.control-label Customer(Bill To)
             %label.control-label.pull-right
-              %button{class: 'btn btn-sm btn-secondary',type: 'button', onclick: "$('#new-contract-company').modal('show')"} Add New
+              %button{class: 'btn btn-sm btn-primary',type: 'button', onclick: "$('#new-contract-company').modal('show')"} Add New
             .contract-fild
               - if @contract.new_record?
                 .plain-select
@@ -144,7 +144,7 @@
   .contract-fields_wrapper.mt-4
     %h5.mb-4.d-inline-block End Client(s)/Reporting Manager(s)
     %h5.mb-4.d-inline-block.pull-right
-      %button.btn.btn-secondary.btn-sm{"data-target" => "#manager-team", "data-toggle" => "modal", :type => "button"} Add Manager
+      %button.btn.btn-primary.btn-sm{"data-target" => "#manager-team", "data-toggle" => "modal", :type => "button"} Add Manager
     - headers =  %w(domain name contact role(s) reminder action(s))
     .table-responsive
       %table.table.text-center.table-bordered.table-lg.table-v2.table-striped.data-table-font#contract_manager_table

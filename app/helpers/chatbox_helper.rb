@@ -4,8 +4,12 @@ module ChatboxHelper
   def mini_chat_title(conversation)
     if (conversation.job.present?)
       "#{conversation.job.status}"
-    elsif (conversation.job_application)
+    elsif (conversation.job_application.present?)
       "#{conversation.job_application.status}"
+    elsif (conversation.sell_contract.present?)
+      "SellContract"
+    elsif (conversation.buy_contract.present?)
+      "BuyContract"
     end
   end
 

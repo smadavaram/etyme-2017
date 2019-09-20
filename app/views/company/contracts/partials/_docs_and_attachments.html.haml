@@ -14,6 +14,7 @@
               .form-group
                 %h3.control-label.pull-right.text-muted
                   = @contract.buy_contract.number
+
         .row
           .col-md-6
             .form-group
@@ -30,6 +31,8 @@
               - else
                 %h3.control-label.pull-right.text-muted
                   = @contract.buy_contract.number
+                  - if @contract&.buy_contract&.conversation.present?
+                    = link_to 'Conversation', mini_chat_company_conversations_path(conversation_id: @contract.buy_contract.conversation.id), remote: true,class: 'btn btn-sm btn-primary mb-1'
 
             -#.col-md-6
             -#.row.c2c-type.hidden
@@ -65,7 +68,8 @@
           -#  .links
           -#    = link_to_add_association '+ Add Business Details', bc, :contract_buy_business_details, class: 'bttn text-info pull-left', partial: 'company/contracts/contract_sell_business_details_fields'
           -#    %br/
-      .contract-fields_wrapper.mt-4
+      %label.control-label.font-weight-bold.mt-2 Accounting
+      .contract-fields_wrapper.mt-2
         %div
           .widget-body
             %ul#myTab1.nav.nav-tabs.smaller{style: "border-bottom: 0px;"}
@@ -442,32 +446,32 @@
                     .col-md-6.button_main
                       %a.btn.btn-sm.btn-secondary.float-right{href: '#', title: 'Add More'} Add More
 
-      .contract-fields_wrapper.mt-4
+      %label.control-label.font-weight-bold.mt-2  Employee/Vender Documents
+      .contract-fields_wrapper.mt-2
         .row
-          %label.control-label  Employye/Vender Documents
           .col-md-12.contract-attachment
             %ul#myTab2.nav.nav-tabs.smaller{style: "border-bottom: 0px;"}
-              %li.nav-item.active.cumstom_nav-tab
+              %li.nav-item.active.primary-nav.mr-0
                 %a{"data-toggle" => "tab", :href => "#buy_send_documents", class: "nav-link cumstom_nav-tab"}
                   %span.badge.bg-color-blue.txt-color-white
                   Employee Submit Documents
-              %li.nav-item.cumstom_nav-tab
+              %li.nav-item.primary-nav.mr-0
                 %a{"data-toggle" => "tab", :href => "#buy_emp_req_docs", class: "nav-link cumstom_nav-tab"}
                   %span.badge.bg-color-blue.txt-color-white
                   Employee Request Documents
               - if @contract.buy_contract.company.present?
-                %li.nav-item.cumstom_nav-tab
+                %li.nav-item.primary-nav.mr-0
                   %a{"data-toggle" => "tab", :href => "#buy_ven_req_docs", class: "nav-link cumstom_nav-tab"}
                     %span.badge.bg-color-blue.txt-color-white
                     Vendor Request Documents
             .col-md-12.pl-0
-              .tab-content{style: 'border: 1px solid #b6bcbf;'}
+              .tab-content
                 #buy_send_documents.tab-pane.padding-top-15.active.in
                   .row
                     .col-md-12
                       .form-group
                         .table-responsive.p-4
-                          %a.btn.btn-sm.btn-secondary.float-right.margin-bottom-10{"data-toggle": "modal", "data-target":"#buy_send_documents_modal", style: "color: #fff;"} Create Checklist
+                          %a.btn.btn-sm.btn-primary.float-right.margin-bottom-10{"data-toggle": "modal", "data-target":"#buy_send_documents_modal", style: "color: #fff;"} Create Checklist
                           %table.table.text-center.table-bordered.table-lg.table-v2.table-striped.data-table-font
                             %thead
                               %tr{:role => "row"}
@@ -494,7 +498,7 @@
                     .col-md-12
                       .form-group
                         .table-responsive.p-4
-                          %a.btn.btn-sm.btn-secondary.float-right.margin-bottom-10{"data-toggle": "modal", "data-target":"#buy_emp_req_docs_modal", style: "color: #fff;"} Create Checklist
+                          %a.btn.btn-sm.btn-primary.float-right.margin-bottom-10{"data-toggle": "modal", "data-target":"#buy_emp_req_docs_modal", style: "color: #fff;"} Create Checklist
                           %table.table.text-center.table-bordered.table-lg.table-v2.table-striped.data-table-font
                             %thead
                               %tr{:role => "row"}
@@ -514,7 +518,7 @@
                     .col-md-12
                       .form-group
                         .table-responsive.p-4
-                          %a.btn.btn-sm.btn-secondary.float-right.margin-bottom-10{"data-toggle": "modal", "data-target":"#buy_ven_req_docs_modal", style: "color: #fff;"} Create Checklist
+                          %a.btn.btn-sm.btn-primary.float-right.margin-bottom-10{"data-toggle": "modal", "data-target":"#buy_ven_req_docs_modal", style: "color: #fff;"} Create Checklist
                           %table.table.text-center.table-bordered.table-lg.table-v2.table-striped.data-table-font
                             %thead
                               %tr{:role => "row"}

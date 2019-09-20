@@ -1,3 +1,6 @@
+.zero-bottom{
+    bottom: 0px !important;
+}
 .chat-content-small {
     /*height: 00px;*/
     overflow-y: auto;

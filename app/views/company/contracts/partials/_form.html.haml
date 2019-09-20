@@ -50,7 +50,7 @@
             %li.previous.disabled.pull-left
               %a{:href => new_contract_path(contract_id: @contract.id || nil)} Contract Tab
             %li.next.pull-right
-              %a{:href => "javascript:void(0);"} Next
+              %a{:href => "javascript:void(0);"} Save & Continue
             %li.pull-right.finish{:style=>"di"}
               %a.next_submit_link{:href => "javascript:;"} Finish
 
@@ -96,12 +96,16 @@
     $( document ).ready(function() {
       $('#contract_start_date').datepicker({
         dateFormat : 'dd/mm/yy',
+        defaultDate: moment().format("DD/MM/YYYY"),
         prevText : '<i class="fa fa-chevron-left"></i>',
-        nextText : '<i class="fa fa-chevron-right"></i>',
-        onSelect : function(selectedDate) {
-          $('#contract_end_date').datepicker('option', 'minDate', selectedDate );
-        }
-      });
+        nextText : '<i class="fa fa-chevron-right"></i>'
+      }).datepicker("setDate", moment().format("DD/MM/YYYY"));
+      $('#contract_end_date').datepicker({
+        dateFormat : 'dd/mm/yy',
+        defaultDate: moment('1/1/2099').format("DD/MM/YYYY"),
+        prevText : '<i class="fa fa-chevron-left"></i>',
+        nextText : '<i class="fa fa-chevron-right"></i>'
+      }).datepicker("setDate", moment('1/1/2099').format("DD/MM/YYYY"))
 
       $(document).on('click', '.commission-user-type', function(){
         if(this.value == 'Admin'){
@@ -580,10 +584,12 @@
       toggleFields();
       $(".multi-select2-company-docs").select2({placeholder: "Select a Doc(s)"});
       $('#contract_start_date').datepicker({
-        dateFormat : 'dd/mm/yy'
+        dateFormat: 'dd/mm/yy',
+        setDate: moment()
       });
       $('#contract_end_date').datepicker({
-        dateFormat : 'dd/mm/yy'
+        dateFormat : 'dd/mm/yy',
+        setDate: moment('1/1/2099')
       });
       $("#contract_is_commission , #contract_commission_type").change(function () {
         toggleFields();

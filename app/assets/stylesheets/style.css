@@ -1592,3 +1592,22 @@ input:checked + .slider1:before {
 flex: 0 0 220px;
 text-align: right;
 }
+
+.has-error .contract-fild .contract-type-radio{
+    padding: 13px;
+    border: 2px solid red;
+    border-radius: 4px;
+    height: 45px;
+    margin-top: 8px;
+}
+
+.active.primary-nav > a{
+    color: white !important;
+}
+.primary-nav{
+ border: 2px solid #047bf8;
+}
+ .active.primary-nav{
+    background-color: #047bf8;
+    border-color: #047bf8;
+}

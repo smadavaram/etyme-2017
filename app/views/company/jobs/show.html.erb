@@ -173,7 +173,7 @@
             </div>
           </div>
           <div class="element-box element-box-show">
-            <button onclick="open_chat(<%=@conversation.id %>)" class="w-100 btn btn-default btn-primary">Conversation</button>
+            <button onclick="open_chat(<%=@conversation.id %>)" class="w-100 btn btn-default btn-primary open_chat">Conversation</button>
           </div>
         </div>
 
@@ -181,7 +181,12 @@
     </div>
   </div>
 </div>
+
 <%= javascript_tag do %>
+  document.addEventListener('DOMContentLoaded', function(){
+      $(".open_chat").trigger('click');
+  }, false);
+
   function open_chat(id){$.get(`/company/conversations/mini_chat?conversation_id=${id}`)}
   function imagesUpload(url){
   media_url = url
@@ -190,17 +195,16 @@
   contentType: 'application/json; charset=utf-8', //dataType: 'json',
   url: "/jobs/update_images",
   data: JSON.stringify({ job_id: <%= @job.id %>, files: media_url,authenticity_token: window._token }),
-  success: function (data) {
-  console.log("reload!")
-  window.location.reload(true);
-  },
-  done: function (data) {
-  console.log("done!");
-  window.location.reload(true);
-  }
+    success: function (data) {
+      console.log("reload!")
+      window.location.reload(true);
+    },
+    done: function (data) {
+      console.log("done!");
+      window.location.reload(true);
+    }
   });
   }
-
   function mediaUpload(url,type) {
   media_url = url
   media_type= type
