@@ -45,10 +45,6 @@
                       = u.text_field :last_name, :placeholder => "Lastname", required: true,class: 'field'
 
                     .form-row
-                      = u.password_field :password, :placeholder => "Password", required: true,minlength: "6",class: 'field'
-                    .form-row
-                      = u.password_field :password_confirmation, :placeholder => "Confirm password", "data-rule-equalTo": "#company_owner_attributes_password",class: 'field'
-                    .form-row
                       = f.text_field :domain  ,:placeholder => "Domain", required: true,minlength: "3",class:'field', id: "domain-field", value: params[:site], readonly: true
                       .note.text-muted.errors.text-danger
 

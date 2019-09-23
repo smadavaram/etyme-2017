@@ -133,6 +133,7 @@ class Company < ApplicationRecord
   after_create      :welcome_email_to_owner, if: Proc.new{|comp| !comp.invited_by.present?}
   after_create      :create_defult_roles
   after_create      :create_associated_roles
+  after_create      :send_owner_password_reset_email , if: Proc.new{|com| com.owner.present?}
   # after_create  :set_account_on_seq
 
   scope :vendors, -> {where(company_type: 1)}
@@ -230,6 +231,9 @@ class Company < ApplicationRecord
 
   private
 
+  def send_owner_password_reset_email
+    owner.send_password_reset_email
+  end
   def create_slug
     if domain.present? && slug.blank?
       total_slug = Company.where("slug like ?", "#{domain.split('.')[0].gsub(/[^0-9A-Za-z.]/, '').downcase}_").count
