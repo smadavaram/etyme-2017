@@ -186,3 +186,4 @@
 //= require shared/uploader
 
 //= require trix
+//= require company/contracts

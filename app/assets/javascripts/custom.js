@@ -8,8 +8,6 @@ function flash(color, msg, icon,time=null) {
     });
 }
 
-1
-
 function flash_error(msg) {
     $error = '#D04B2B';
     flash($error, msg, 'fa fa-exclamation-triangle');
