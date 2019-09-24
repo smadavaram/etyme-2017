@@ -126,7 +126,7 @@ var set_job_select = function(selector, place_holder){
     }
 }
 
-var set_job_candidate_select = function(selector, place_holder){
+var set_job_candidate_select = function(selector, place_holder,job_id){
     if ($(selector).length > 0) {
         $(selector).select2({
             ajax: {
@@ -137,7 +137,7 @@ var set_job_candidate_select = function(selector, place_holder){
                     return {
                         per_page: 10,
                         q: params.term, // search term
-                        job_id: $("#select_jobs").val(),
+                        job_id: !!job_id ? job_id : $("#select_jobs").val(),
                         page: params.page
                     };
                 },
@@ -153,7 +153,7 @@ var set_job_candidate_select = function(selector, place_holder){
                 cache: true
             },
             language: {
-                noResults: function() {return "No one <a class='pull-right header-btn hidden-mobile' onclick='set_job_application();' >Add New</a>"; }
+                noResults: function() {return "No one <a class='pull-right header-btn hidden-mobile' onclick='set_job_application(job_id);' >Add New</a>"; }
             },
             placeholder: place_holder,
             escapeMarkup: function (markup) { return markup; },
@@ -527,10 +527,10 @@ var set_candidate_select = function(selector, place_holder){
     }
 }
 
-function set_job_application(){
+function set_job_application(id){
     $.ajax({
         url: '/contracts/set_job_application',
         dataType: 'script',
-        data: {job_id:  $("#select_jobs").val()}
+        data: {job_id:  !!id ? id : $("#select_jobs").val()}
     });
 }

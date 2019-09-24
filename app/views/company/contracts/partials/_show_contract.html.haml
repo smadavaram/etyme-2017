@@ -226,7 +226,7 @@
                   %h5
                     Business Contact Name
                   %div.row
-                    -@contract.sell_contract.contract_sell_business_details.each do |csbd|
+                    -@contract.sell_contract&.contract_sell_business_details&.each do |csbd|
                       .col-sm-6.col-md-6.col-lg-6
                         %b
                           =csbd.company_contact.full_name

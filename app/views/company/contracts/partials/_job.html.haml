@@ -65,14 +65,15 @@
                 = f.select :job_id, '', {}, id: 'select_jobs', class: 'form-control',required: 'true'
             - else
               = text_field_tag :job_title , @contract.job.title, disabled: 'disabled'
-  - if @contract.new_record? or @contract.buy_contract&.persisted?
+              = hidden_field_tag 'job_id', 	 @contract.job&.id, id: "job_id"
+  - if true #@contract.new_record? or @contract.buy_contract&.persisted?
     .row
       .col-md-12
         %h5.pt-1
           %b Do you want to onboard consultant?
           %label.ml-3.radio-container.d-inline-block
             Yes
-            %input{:checked => "checked",onchange: "toogle_consultant(this,'.consultant_toggle')",name: "toogle_consultant_contract", :type => "radio", :value => "yes"}/
+            %input{:checked => "checked" ,onchange: "toogle_consultant(this,'.consultant_toggle')",name: "toogle_consultant_contract", :type => "radio", :value => "yes"}/
             %span.radio-checkmark
           %label.radio-container.d-inline-block
             No
@@ -85,15 +86,15 @@
           .form-group
             %label.control-label Consultant
             %label.control-label.pull-right
-              %button{onclick: "set_job_application()",type: 'button', class: 'btn btn-sm btn-primary'} Add New
+              %button{onclick: "set_job_application(#{@contract.job&.id})",type: 'button', class: 'btn btn-sm btn-primary'} Add New
             .contract-fild
-              - if @contract.new_record?
+              - if @contract.new_record? or @contract.candidate_id.nil?
                 .plain-select
                   = f.select :candidate_id, '', {}, id: 'select_candidates', required: true
               - else
                 = text_field_tag :consultant_name, @contract.candidate.full_name.capitalize, disabled: "disabled"
 
-        =f.fields_for :buy_contract do |bc|
+        =f.fields_for :buy_contract, @contract.buy_contract || @contract.build_buy_contract do |bc|
           .col-md-7
             .form-group
               %label.control-label Contract Type
@@ -114,7 +115,7 @@
                 .plain-select
                   = bc.select :company_id, {}, {}, id: "buy_contract_company"
 
-  - if @contract.new_record? or @contract.sell_contract&.persisted?
+  - if true #@contract.new_record? or @contract.sell_contract&.persisted?
     .row.mt-1
       .col-md-12
         %h5.pt-1
@@ -130,14 +131,14 @@
     .toggle_sell_contract
       .contract-fields_wrapper.mt-2
         .row
-          =f.fields_for :sell_contract do |sc|
+          =f.fields_for :sell_contract, @contract.sell_contract || @contract.build_sell_contract do |sc|
             .col-md-6
               .form-group
                 %label.control-label Customer(Bill To)
                 %label.control-label.pull-right
                   %button{class: 'btn btn-sm btn-primary',type: 'button', onclick: "$('#new-contract-company').modal('show')"} Add New
                 .contract-fild
-                  - if @contract.new_record?
+                  - if @contract.new_record? or sc.object.id.nil?
                     .plain-select
                       = sc.select :company_id, {}, {}, id: "sell_contract_company", required: true
                   - else
@@ -176,7 +177,7 @@
                 %th= header.capitalize
             %tbody.hr_reporting_admins_table_body
               - unless @contract.new_record?
-                - @contract.sell_contract.contract_sell_business_details.each do |bussiness_detail|
+                - @contract.sell_contract&.contract_sell_business_details&.each do |bussiness_detail|
                   - user = bussiness_detail.company_contact&.user
                   %tr
                     %td= user.company.domain

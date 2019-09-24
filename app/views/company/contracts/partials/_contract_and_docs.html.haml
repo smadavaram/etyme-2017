@@ -4,7 +4,7 @@
   =hidden_field_tag :tab, "3"
   - if params.has_key?('id')
     =f.hidden_field :parent_contract_id , value: params[:id]
-  - if @contract.sell_contract
+  - if @contract.sell_contract&.persisted?
     %fieldset
       =f.fields_for :sell_contract do |sc|
         = sc.hidden_field :id
@@ -40,37 +40,6 @@
                     %td= link_to(content_tag(:i, nil, class: 'picons-thin-icon-thin-0014_notebook_paper_todo').html_safe, add_reminder_company_users_path(user_id: company_contact.id), remote: :true, title: "Remind Me", class: 'data-table-icons')
 
 
-        -#          -#= hidden_field :company_id,
-        -#          =# select_tag 'contract[contractable_id]', options_for_select(current_company.invited_companies.collect { |c|[c.invited_company.name, c.invited_company.id] })  , class: "form-control"
-        -#.form-group.company_contacts
-        -#  -sc.object.contract_sell_business_details.build
-        -#  =sc.fields_for :contract_sell_business_details do |csbd|
-        -#    = link_to_add_fields 'available_tour_fields', sc, :contract_sell_business_details, {partial: 'company/contracts/contract_sell_business_details_fields'}, {class: 'link-company-contacts hidden'}
-        -#  = select_tag 'contract[job_1_id]', nil, id: "select_sell_company_contacts", class: "form-control select_company_contacts"
-
-        -#.row
-        -#  .col-md-12
-        -#    .form-group.company_contacts
-        -#      -sc.object.contract_sell_business_details.build
-        -#      =sc.fields_for :contract_sell_business_details do |csbd|
-        -#        = link_to_add_fields 'available_tour_fields', csbd, :document_signs, {partial: 'company/contracts/contract_sell_business_details_fields'}, {class: 'doc-user-generater hidden'}
-        -#        -#= link_to_add_fields 'available_tour_fields', csbd, :csbd, {partial: 'company/contracts/contract_document_users_fields'}, {class: 'doc-user-generater hidden'}
-        -#        = select_tag 'contract[job_1_id]', nil, id: "select_sell_company_contacts", class: "form-control"
-        -#        -#= ds.select :signable, {}, {}, class: "form-control whois_sign" , placeholder: ""
-        -#
-        -#    .form-group.company_contacts
-        -#      -#=f.fields_for :document_signs do |ds|
-        -#      -#  = link_to_add_fields 'available_tour_fields', f, :document_signs, {partial: 'company/contracts/contract_document_users_fields'}, {class: 'doc-user-generater hidden'}
-        -#      -#  = ds.select :signable, {}, {}, class: "form-control whois_sign" , placeholder: ""
-        -#      =sc.fields_for :contract_sell_business_details do |custom_field|
-        -#        = link_to_add_association '+ Add Business Details', sc, :contract_sell_business_details, class: 'bttn text-info pull-left buy-contract-contacts hidden', partial: 'company/contracts/contract_sell_business_details_fields'
-        -#        = select_tag 'contract[job_1_id]', nil, id: "select_sell_company_contacts", class: "form-control"
-        -#      -#=sc.fields_for :contract_sell_business_details do |custom_field|
-        -#      -#  = render 'company/contracts/contract_sell_business_details_fields', f: custom_field
-        -#    -#%strong
-        -#    -#  .links
-        -#        =# link_to_add_association '+ Add Business Details', sc, :contract_sell_business_details, class: 'bttn text-info pull-left', partial: 'company/contracts/contract_sell_business_details_fields'
-        -#        -#%br/
         %label.control-label.font-weight-bold.mt-2 Accounting
         .contract-fields_wrapper.mt-2
           %div
@@ -505,6 +474,10 @@
       = render 'company/contracts/request_document_modal', contract: @contract
       = render 'company/contracts/submit_document_modal', contract: @contract
       = render 'company/contracts/partials/collaborator_modal',contract: @contract, contractable_type: @contract.sell_contract.class.name, contractable_id: @contract.sell_contract.id
+  - else
+    .div.w-75.margin-auto
+      %p.contract_warning_text= "You haven't onboarded the customer to this contract. You can always #{link_to "GoBack",new_contract_path(contract_id: @contract.id)} to onboard a customer. Incase it's entended, Please click 'Save and Continue' to proceed as it is.".html_safe
+  	
 :javascript
    $('.contract-attachment').on('cocoon:after-insert', function(e, insertedItem) {
       insertedItem.find('.filepicker-attach').each(function(i,e){
