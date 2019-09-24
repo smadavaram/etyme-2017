@@ -103,3 +103,32 @@ select{
   font-size: medium;
   text-align: justify;
 }
+
+.bg-shade{
+  background-color: #F2F4F8;
+}
+
+.individual_contracts_headers{
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+}
+
+.contract_links{
+  text-align: center;
+  margin-top: 40px !important;
+  margin-bottom: 40px !important;
+}
+
+.contract_sub_heading{
+  font-size: 18px;
+  padding-top: 20px !important;
+  padding-bottom: 20px !important;
+  padding-left: 10px !important;
+  background-color: #C7C3FA;
+}
+
+.customer_detail{
+  display: flex;
+  flex-direction: column;
+}

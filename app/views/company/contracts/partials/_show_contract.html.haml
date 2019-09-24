@@ -1,421 +1,41 @@
-#content.newsfeed.contracts{style:"overflow-y: hidden;"}
-  %container
-    %section#widget-grid.clearfix
-      .newsfeed-right{style: "border: none;"}
-        .job-title
-          =render 'company/contracts/partials/contract_header',contract: @contract
-
-        %div.text-center.col-sm-12
-          / =link_to_if @contract.accepted?, "Pause Contract", update_contract_status_contract_path(@contract, status: "paused"),method: :patch, class: "btn btn-primary" do; end
-          =link_to "Timeline", timeline_contracts_path, class: "btn btn-primary"
-          =link_to "Tree View", tree_view_contract_path(@contract.number), class: "btn btn-primary"
-          =link_to 'Download', download_contract_path(@contract), class: 'btn btn-primary'
-          =link_to 'Edit', new_contract_path(contract_id: @contract.id), class: 'btn btn-primary'
-          =link_to 'Generate Timeline Cycle',  generate_cycles_contract_path(@contract), class: 'btn btn-success' unless @contract.in_progress?
-          -#=link_to 'Generate Salary Cycle', generate_salary_cycles_company_accountings_path(contract_id: @contract.id), class: 'btn btn-primary'
-          =link_to_if @contract.pending?, "Activate", update_contract_status_contract_path(@contract, status: "in_progress"), method: :patch, class: "btn btn-outline-success" do; end
-          =link_to_if @contract.is_ended?, "Re-Activate Now", update_contract_status_contract_path(@contract, status: "accepted"), method: :patch, class: "btn btn-success" do; end
-          =link_to_if @contract.accepted? || @contract.in_progress? , "End Contract", update_contract_status_contract_path(@contract, status: "is_ended"),method: :patch, class: "btn btn-danger" do; end
-          =link_to_if @contract.accepted? || @contract.in_progress?, "Cancel Contract", update_contract_status_contract_path(@contract, status: "cancelled"),method: :patch, class: "btn btn-primary" do; end
-        %div.row
-          .col-sm-6.col-md-6.col-lg-6
-            - if @contract.sell_contract.present?
-              %h2.contract_heading
-                sell-  #{@contract.sell_contract.number}
-              %br
-              %h3.contract_sub_heading
-                Customer Details
-              %div.sell-side.box
-                %div.contract-custome-details.line-bottom
-                  %h5
-                    Company Name : #{@contract.sell_contract.try(:company).try(:full_name)}
-                  %div.row
-                    .col-sm-6.col-md-6.col-lg-6
-                      %strong
-                        Website :
-                      %span
-                        =@contract.sell_contract&.company&.website
-                      %br
-                      %strong
-                        Location :
-                      %span
-                        - @contract.sell_contract&.company&.addresses.each do |address|
-                          =address.address_1
-                    .col-sm-6.col-md-6.col-lg-6.text-center
-                      %div.rate_info
-                        %h5
-                          Customer Rate
-                        %span
-                          = number_to_currency(get_rate(Date.today,@contract.id,'sell'))
-                          %br
-                          %span.btn.btn-primary.sell-change-rate Change rate
-                    = form_for :change_rate, url: change_rates_path(contract_id: @contract.id, type: 'sell'), method: :post, html:{class: 'contract-expense-type hidden', id: 'sell-change-rate'} do |f|
-                      = f.label :rate
-                      = f.text_field :rate
-                      %br
-                        = f.label 'From'
-                        = f.date_field :from_date
-                      %br
-                      = f.submit 'Save', class: 'btn btn-primary'
-                %div
-                  %div.contract-custome-details
-                    %h5
-                      Business Contact Name
-                    %div.row
-                      -@contract.sell_contract.contract_sell_business_details.each do |contract_sell_business_detail|
-                        .col-sm-6.col-md-6.col-lg-6
-                          %div
-                            %b
-                              =contract_sell_business_detail.company_contact&.full_name
-                            %div
-                              =contract_sell_business_detail.company_contact&.department
-                            %div
-                              =contract_sell_business_detail.company_contact&.phone
-                            %div
-                              =contract_sell_business_detail.company_contact&.email
-              %br
-              %div
-                / %div.contract-custome-details.line-bottom
-                %h3.contract_sub_heading
-                  Accounting & Work hours terms
-                %div.sell-side.box
-                  %div.row
-                    .col-sm-12.col-md-12.col-lg-12
-                      %div
-                        %span
-                          Customer Rate:
-                        %span
-                          =@contract.sell_contract&.customer_rate.present? ? '$' + @contract.sell_contract.customer_rate.to_s + " / " + @contract.sell_contract.customer_rate_type.to_s : ""
-
-                      %div.row
-                        .col-sm-12.col-md-12.col-lg-12
-
-                      %br
-                      %div.row
-                        .col-sm-4.col-md-4.col-lg-4
-                          %div.sell-side.contract_box
-                            %p
-                              Submit Timesheet
-                            %h5
-                              =@contract.sell_contract&.time_sheet
-                            %p
-                              =sell_contract_time_sheet('time_sheet', @contract.sell_contract&.time_sheet)
-                        .col-sm-4.col-md-4.col-lg-4
-                          %div.sell-side.contract_box
-                            %p
-                              Approve Timesheet
-                            %h5
-                              =@contract.sell_contract&.ts_approve
-                            %p
-                              =sell_contract_time_sheet('ts_approve', @contract.sell_contract&.ts_approve)
-
-                        .col-sm-4.col-md-4.col-lg-4
-                          %div.sell-side.contract_box
-                            %p
-                              Invoice
-                            %h5
-                              =@contract.sell_contract&.invoice_terms_period
-                            %p
-                              =sell_contract_time_sheet('invoice_terms_period', @contract.sell_contract&.invoice_terms_period)
-                      %div.row
-                        .col-sm-4.col-md-4.col-lg-4
-                          %div.sell-side.contract_box
-                            %p
-                              Receive Payment
-                            %h5
-                              = @contract.sell_contract&.payment_term.to_i > 1 ? @contract.sell_contract&.payment_term.to_i.to_s+' Days' : @contract.sell_contract&.payment_term.to_i.to_s+' Day'
-
-                      %div.row
-                        .col-sm-12.col-md-12.col-lg-12
-                          %span
-                            %b
-                              Show Accounting to employee:
-                              = @contract.sell_contract.show_accounting_to_employee == true ? "Yes" : "No"
-              %br
-              %div.contract-custome-details
-                %h3.contract_sub_heading
-                  Customer Submitted Documents
-                %div.sell-side.box
-                  %table.table.text-center.table-bordered.table-lg.table-v2.table-striped.data-table-font
-                    %thead
-                      %tr{:role => "row"}
-                        %th Document Title
-                        %th Sent Date
-                        %th Status
-                        %th Envelope No
-                        %th Signed Document
-                    %tbody#submit_doc
-                      - @signature_documents&.each do |docusign|
-                        %tr
-                          %td= docusign.documentable.title
-                          %td= docusign.created_at.strftime("%Y-%m-%d")
-                          %td= docusign.is_sign_done ? "Signed" : "Pending"
-                          %td= do_ellipsis(docusign.envelope_id.present? ? docusign.envelope_id : "Not Submitted",15)
-                          %td= link_to content_tag(:i,'',class:'fa fa-paperclip fa-lg').html_safe, docusign.signed_file if docusign.is_sign_done
-              %br
-              %div.contract-custome-details
-                %h3.contract_sub_heading
-                  Customer Request Documents
-                %div.sell-side.box
-                  %div.row
-                    %table.table.text-center.table-bordered.table-lg.table-v2.table-striped.data-table-font
-                      %thead
-                        %tr{:role => "row"}
-                          %th Document Title
-                          %th Sent Date
-                          %th Status
-                          %th Submitted Document
-                      %tbody#request_doc
-                        - @request_documents&.each do |docusign|
-                          %tr
-                            %td= docusign.documentable.title
-                            %td= docusign.created_at.strftime("%Y-%m-%d")
-                            %td= docusign.signed_file.present? ? "Submitted" : "Document Not Submitted"
-                            %td= link_to content_tag(:i,'',class:'fa fa-paperclip fa-lg').html_safe, docusign.signed_file if docusign.signed_file.present?
-          .col-sm-6.col-md-6.col-lg-6
-            - if @contract.buy_contract.present?
-              %h2.contract_heading
-                Buy-  #{@contract.buy_contract.number}
-              %br
-              %h3.contract_sub_heading
-                Vendor Details
-              %div.contract-custome-details.box
-                %h5
-                  = @contract.candidate.full_name+' ($'+@contract.buy_contract&.payrate&.to_i.to_s+' / '+@contract.buy_contract&.payrate_type+')' if @contract.buy_contract&.payrate.present?
-                %div.contract-custome-details.line-bottom
-                  .row
-                    .col-sm-6.col-md-6.col-lg-6
-                      %strong
-                        Contract type :
-                      %span
-                        =@contract.buy_contract.try(:contract_type)
-                      %br
-                      %strong
-                        Candidate Address :
-                      %span
-                        =@contract.candidate&.addresses&.first&.address_1 if @contract.candidate && @contract.candidate.addresses.present?
-                    .col-sm-6.col-md-6.col-lg-6.rate_info.text-center
-                      %h5
-                        Freelancer rate
-                      %span
-                        = number_to_currency(get_rate(Date.today,@contract.id, 'buy'))
-                        %br
-                        %span.btn.btn-primary.buy-change-rate Change rate
-                    = form_for :change_rate, url: change_rates_path(contract_id: @contract.id, type: 'buy'), method: :post, html:{class: 'contract-expense-type hidden', id: 'buy-change-rate'} do |f|
-                      = f.label :rate
-                      = f.text_field :rate
-                      %br
-                      = f.label 'From'
-                      = f.date_field :from_date
-                      %br
-                      = f.submit 'Save', class: 'btn btn-primary'
-                  %br
-                  %h5
-                    Company Name : #{@contract.buy_contract&.candidate&.companies&.first&.full_name}
-                  %strong
-                    Website:
+.w-100.p-4.bg_white
+  .contract-fields_wrapper.mb-4.bg-shade
+    =render 'company/contracts/partials/contract_header',contract: @contract
+  .contract_links.col-sm-12.mt-2.mb-2
+    = render 'company/contracts/partials/contracts_links', contract: @contract
+  .row
+    .col-sm-6.col-md-6.col-lg-6
+      .individual_contracts_headers
+        %h3= "sell-  #{@contract.sell_contract.number}"
+        .text-right
+          =link_to 'Add', '#', class: 'btn btn-primary'
+          =link_to 'Remove', '#', class: 'btn btn-danger'
+      - if @contract.sell_contract.present?
+        %h3.contract_sub_heading
+          Customer Details
+        %div.sell-side.box
+          .contract-customer-details.line-bottom
+            .row
+              .col-sm-8.customer_detail
+                .w-100
+                  %strong.pull-left= "Company Name: "
+                  .pull-left= do_ellipsis(@contract.sell_contract.try(:company).try(:full_name),15)
+                .w-100
+                  %strong.pull-left= "Website: "
+                  .pull-left= do_ellipsis(@contract.sell_contract&.company&.website,15)
+                .w-100
+                  %strong.pull-left= "Location: "
+                  .pull-left= do_ellipsis(@contract.sell_contract&.company&.addresses.first&.address_1,15)
+              .col-sm-4
+                .rate_info.text-center
+                  %strong Customer Rate
                   %span
-                    =@contract.buy_contract&.candidate&.companies&.first&.website
-                  %br
-                  %strong
-                    Location :
-                  %span
-                    =@contract.buy_contract&.candidate&.companies&.first&.addresses&.first&.address_1
-
-                %div.contract-custome-details
-                  %h5
-                    Business Contact Name
-                  %div.row
-                    -@contract.sell_contract&.contract_sell_business_details&.each do |csbd|
-                      .col-sm-6.col-md-6.col-lg-6
-                        %b
-                          =csbd.company_contact.full_name
-                        %div
-                          =csbd.company_contact.phone
-                        %div
-                          =csbd.company_contact.email
-                        %div
-                          =csbd.company_contact.department
-              %br
-              %div.contract-accounting
-                %h3.contract_sub_heading
-                  Accounting & Work hours terms
-                %div.contract-custome-details.box
-                  %div
-                    %strong
-                      FreeLancer Rate :
-                    %span
-                      = '$ '+@contract.buy_contract.payrate.to_s+' / '+@contract.buy_contract.payrate_type if @contract.buy_contract&.payrate.present?
-                  %br
-                    %div
-                      %strong
-                        Period :
-                      %span
-                        = @contract.buy_contract.pr_start_date&.try(:strftime, "#{@contract&.buy_contract.pr_start_date&.day&.ordinalize} %b %Y ").to_s+' to '+@contract&.buy_contract.pr_end_date&.strftime("#{@contract.buy_contract.pr_end_date&.day&.ordinalize} %b %Y ").to_s
+                    = number_to_currency(get_rate(Date.today,@contract.id,'sell'))
                     %br
-                    %div
-                      %strong
-                        USCIS Rate :
-                      %span
-                        = '$'+@contract.buy_contract.uscis_rate.to_s
-                    %div.row
-                      .col-sm-4.col-md-4.col-lg-4
-                        %div.sell-side.contract_box
-                          %p
-                            Submit Timesheet
-                          %h5
-                            =@contract.buy_contract&.time_sheet
-                          %p
-                            =buy_contract_time_sheet('time_sheet', @contract.buy_contract&.time_sheet)
-                      .col-sm-4.col-md-4.col-lg-4
-                        %div.buy-side.contract_box
-                          %p
-                            Approve Timesheet
-                          %h5
-                            =@contract.buy_contract&.ts_approve
-                          %p
-                            =buy_contract_time_sheet('ts_approve',@contract.buy_contract&.ts_approve)
+                    %span.btn.btn-primary.sell-change-rate{"data-toggle": "modal","data-target": "#customer_rate_change"} Change rate
+              =render 'company/contracts/partials/customer_rate_modal'
 
-                      .col-sm-4.col-md-4.col-lg-4
-                        %div.buy-side.contract_box
-                          %p
-                            =@contract&.buy_contract&.contract_type == 'C2C' ? 'Vendor Bill' : 'Salary Calculation'
-                          %h5
-                            =@contract.buy_contract&.salary_calculation
-                          %p
-                            =buy_contract_time_sheet('salary_calculation', @contract.buy_contract&.salary_calculation)
-                    - if @contract&.buy_contract&.contract_type == 'C2C'
-                      %div.row
-                        .col-sm-4.col-md-4.col-lg-4
-                          %div.sell-side.contract_box
-                            %p
-                              Vendor Payment
-                            %h5
-                              =@contract.buy_contract&.invoice_recepit
-                            %p
-                              =buy_contract_time_sheet('invoice_recepit', @contract.buy_contract&.invoice_recepit)
-
-                    %h5
-                      Salary Date:
-                      = @contract&.company&.payroll_infos&.first&.sal_cal_date.try(:strftime, '%d').to_s+ ' of each month'
-                %br
-                %div.table-responsive
-                  %h3.contract_sub_heading
-                    Comission
-                  %div.contract-custome-details.box
-                    %table.table.table-bordered
-                      %thead
-                        %tr
-                          %th Name
-                          %th Rate
-                          %th Frequency
-                          %th Limit
-                        -@contract.buy_contract.contract_sale_commisions.each do |csc|
-                          %tr
-                            %td
-                              =csc.csc_accounts.map{ |a|  a.accountable.full_name}.join(', ')
-                            %td
-                              =csc.rate
-                            %td
-                              =csc.frequency
-                            %td
-                              =csc.limit
-                    %div.contract-custome-details.line-bottom
-                      %strong
-                        Payroll date:
-                      %span
-                        = @contract.buy_contract.payroll_date&.try(:strftime, '%e').to_s+' of each month'
-                    %div.contract-custome-details
-                      %strong
-                        Comissiom Payment terms:
-                      %span
-                        = @contract.buy_contract.commission_payment_term
-                %br
-                %div.contract-custome-details
-                  %h3.contract_sub_heading
-                    Employee Submitted Documents
-                  %div.contract-custome-details.box
-                    %div.row
-                      .table-responsive
-                        %table.table.text-center.table-bordered.table-lg.table-v2.table-striped.data-table-font
-                          %thead
-                            %tr{:role => "row"}
-                              %th Document Title
-                              %th Sent Date
-                              %th Status
-                              %th Envelope No
-                              %th Signed Document
-                          %tbody#buy_send_documents_table
-                            - @candidate_signature_documents&.each do |docusign|
-                              %tr
-                                %td= docusign.documentable.title
-                                %td= docusign.created_at.strftime("%Y-%m-%d")
-                                %td= docusign.is_sign_done ? "Signed" : "Pending"
-                                %td= do_ellipsis(docusign.envelope_id.present? ? docusign.envelope_id : "Not Submitted",15)
-                                %td= link_to content_tag(:i,'',class:'fa fa-paperclip fa-lg').html_safe, docusign.signed_file if docusign.is_sign_done
-                %br
-                %div.contract-custome-details
-                  %h3.contract_sub_heading
-                    Employee Request Documents
-                  %div.contract-custome-details.box
-                    %div.row
-                      %table.table.text-center.table-bordered.table-lg.table-v2.table-striped.data-table-font
-                        %thead
-                          %tr{:role => "row"}
-                            %th Document Title
-                            %th Sent Date
-                            %th Status
-                            %th Submitted Document
-                        %tbody#buy_emp_req_docs_table
-                          - @candidate_request_documents&.each do |docusign|
-                            %tr
-                              %td= docusign.documentable.title
-                              %td= docusign.created_at.strftime("%Y-%m-%d")
-                              %td= docusign.signed_file.present? ? "Submitted" : "Document Not Submitted"
-                              %td= link_to content_tag(:i,'',class:'fa fa-paperclip fa-lg').html_safe, docusign.signed_file if docusign.signed_file.present?
-                %br
-                - if @contract.buy_contract.company.present?
-                  %div.contract-custome-details
-                    %h3.contract_sub_heading
-                      Vendor Submitted Documents
-                    %div.contract-custome-details.box
-                      %div.row
-                        %table.table.text-center.table-bordered.table-lg.table-v2.table-striped.data-table-font
-                        %thead
-                          %tr{:role => "row"}
-                            %th Document Title
-                            %th Sent Date
-                            %th Status
-                            %th Envelope No
-                            %th Signed Document
-                        %tbody#buy_ven_req_docs_table
-                          - @vendor_signature_documents.each do |docusign|
-                            %tr
-                              %td= docusign.documentable.title
-                              %td= docusign.created_at.strftime("%Y-%m-%d")
-                              %td= docusign.is_sign_done ? "Signed" : "Pending"
-                              %td= do_ellipsis(docusign.envelope_id.present? ? docusign.envelope_id : "Not Submitted",15)
-                              %td= link_to content_tag(:i,'',class:'fa fa-paperclip fa-lg').html_safe, docusign.signed_file if docusign.is_sign_done
-
-
-- if @contract.pending? && !@contract.is_sent?(current_company)
-  - content_for :modals do
-    #ajax-modal
-    = render 'company/contracts/partials/accept_contract_modal' , contract: @contract , status: 'accept'
-    = render 'company/contracts/partials/accept_contract_modal' , contract: @contract , status: 'reject'
-
-
-#content
-  - if @contract.sell_contract
-    %section
-      .row
-        %article.col-sm-12.col-md-12.col-lg-12
-          #wid-id-0.jarviswidget{"data-widget-deletebutton" => "false", "data-widget-editbutton" => "false"}
-            %header
-              %span.widget-icon
-                %i.fa.fa-check
-              %h2 Sell Rates
-            %div.table-responsive
+            .table-responsive.pt-3
               %table.table.table-bordered.account_detail
                 %thead
                   %tr
@@ -435,17 +55,160 @@
                       %td
                         = cr.rate_type.capitalize
 
-#content
-  - if @contract.buy_contract
-    %section
-      .row
-        %article.col-sm-12.col-md-12.col-lg-12
-          #wid-id-0.jarviswidget{"data-widget-deletebutton" => "false", "data-widget-editbutton" => "false"}
-            %header
-              %span.widget-icon
-                %i.fa.fa-check
-              %h2 Buy Rates
-            %div.table-responsive
+          %div
+            %div.contract-custome-details
+              %h5
+                Business Contact Name
+              %div.row
+                -@contract.sell_contract.contract_sell_business_details.each do |contract_sell_business_detail|
+                  .col-sm-6.col-md-6.col-lg-6
+                    %div
+                      %b
+                        =contract_sell_business_detail.company_contact&.full_name
+                      %div
+                        =contract_sell_business_detail.company_contact&.department
+                      %div
+                        =contract_sell_business_detail.company_contact&.phone
+                      %div
+                        =contract_sell_business_detail.company_contact&.email
+        %br
+        %div
+          / %div.contract-custome-details.line-bottom
+          %h3.contract_sub_heading
+            Accounting & Work hours terms
+          %div.sell-side.box
+            %div.row
+              .col-sm-12.col-md-12.col-lg-12
+                %div
+                  %span
+                    Customer Rate:
+                  %span
+                    =@contract.sell_contract&.customer_rate.present? ? '$' + @contract.sell_contract.customer_rate.to_s + " / " + @contract.sell_contract.customer_rate_type.to_s : ""
+
+                %div.row
+                  .col-sm-12.col-md-12.col-lg-12
+
+                %br
+                %div.row
+                  .col-sm-4.col-md-4.col-lg-4
+                    %div.sell-side.contract_box
+                      %p
+                        Submit Timesheet
+                      %h5
+                        =@contract.sell_contract&.time_sheet
+                      %p
+                        =sell_contract_time_sheet('time_sheet', @contract.sell_contract&.time_sheet)
+                  .col-sm-4.col-md-4.col-lg-4
+                    %div.sell-side.contract_box
+                      %p
+                        Approve Timesheet
+                      %h5
+                        =@contract.sell_contract&.ts_approve
+                      %p
+                        =sell_contract_time_sheet('ts_approve', @contract.sell_contract&.ts_approve)
+
+                  .col-sm-4.col-md-4.col-lg-4
+                    %div.sell-side.contract_box
+                      %p
+                        Invoice
+                      %h5
+                        =@contract.sell_contract&.invoice_terms_period
+                      %p
+                        =sell_contract_time_sheet('invoice_terms_period', @contract.sell_contract&.invoice_terms_period)
+                %div.row
+                  .col-sm-4.col-md-4.col-lg-4
+                    %div.sell-side.contract_box
+                      %p
+                        Receive Payment
+                      %h5
+                        = @contract.sell_contract&.payment_term.to_i > 1 ? @contract.sell_contract&.payment_term.to_i.to_s+' Days' : @contract.sell_contract&.payment_term.to_i.to_s+' Day'
+
+                %div.row
+                  .col-sm-12.col-md-12.col-lg-12
+                    %span
+                      %b
+                        Show Accounting to employee:
+                        = @contract.sell_contract.show_accounting_to_employee == true ? "Yes" : "No"
+        %br
+        %div.contract-custome-details
+          %h3.contract_sub_heading
+            Customer Submitted Documents
+          %div.sell-side.box
+            %table.table.text-center.table-bordered.table-lg.table-v2.table-striped.data-table-font
+              %thead
+                %tr{:role => "row"}
+                  %th Document Title
+                  %th Sent Date
+                  %th Status
+                  %th Envelope No
+                  %th Signed Document
+              %tbody#submit_doc
+                - @signature_documents&.each do |docusign|
+                  %tr
+                    %td= docusign.documentable.title
+                    %td= docusign.created_at.strftime("%Y-%m-%d")
+                    %td= docusign.is_sign_done ? "Signed" : "Pending"
+                    %td= do_ellipsis(docusign.envelope_id.present? ? docusign.envelope_id : "Not Submitted",15)
+                    %td= link_to content_tag(:i,'',class:'fa fa-paperclip fa-lg').html_safe, docusign.signed_file if docusign.is_sign_done
+        %br
+        %div.contract-custome-details
+          %h3.contract_sub_heading
+            Customer Request Documents
+          %div.sell-side.box
+            %div.row
+              %table.table.text-center.table-bordered.table-lg.table-v2.table-striped.data-table-font
+                %thead
+                  %tr{:role => "row"}
+                    %th Document Title
+                    %th Sent Date
+                    %th Status
+                    %th Submitted Document
+                %tbody#request_doc
+                  - @request_documents&.each do |docusign|
+                    %tr
+                      %td= docusign.documentable.title
+                      %td= docusign.created_at.strftime("%Y-%m-%d")
+                      %td= docusign.signed_file.present? ? "Submitted" : "Document Not Submitted"
+                      %td= link_to content_tag(:i,'',class:'fa fa-paperclip fa-lg').html_safe, docusign.signed_file if docusign.signed_file.present?
+    .col-sm-6.col-md-6.col-lg-6
+      .individual_contracts_headers
+        %h3= "Buy-  #{@contract.buy_contract.number}"
+        .text-right
+          =link_to 'Add', '#', class: 'btn btn-primary'
+          =link_to 'Remove', '#', class: 'btn btn-danger'
+      - if @contract.buy_contract.present?
+        %h3.contract_sub_heading
+          Vendor Details
+        .sell-side.box
+          .contract-customer-details.line-bottom
+            .row
+              .col-sm-6.pr-0.customer_detail
+                .w-100
+                  %strong.pull-left= "Name: "
+                  .pull-left= do_ellipsis(@contract.candidate.full_name,15)
+                .w-100
+                  %strong.pull-left= "Contract Type: "
+                  .pull-left{title: @contract.buy_contract.get_contract_type_label}= @contract.buy_contract.contract_type
+                .w-100
+                  %strong.pull-left= "Address: "
+                  .pull-left= do_ellipsis(@contract.candidate.addresses.first&.address_1,15)
+              .col-sm-6.pr-0
+                .rate_info.text-center.d-inline-block
+                  %strong{title: "Freelancer Rate"} Fre. Rate
+                  %span
+                    %br
+                    =  number_to_currency(get_rate(Date.today,@contract.id, 'buy'))
+                    %br
+                    %span.btn.btn-primary.sell-change-rate{"data-toggle": "modal","data-target": "#freelancer_rate_change"} Change
+                .rate_info.text-center.d-inline-block
+                  %strong USCIS
+                  %span
+                    %br
+                    =  number_to_currency(@contract.buy_contract.uscis_rate)
+                    %br
+                    %span.btn.btn-primary.sell-change-rate.disabled Change
+              =render 'company/contracts/partials/freelancer_rate_modal'
+            .table-responsive.pt-3
               %table.table.table-bordered.account_detail
                 %thead
                   %tr
@@ -464,6 +227,190 @@
                         = cr.to_date.inspect
                       %td
                         = cr.rate_type.capitalize
+
+
+            %div.contract-custome-details
+              %h5
+                Business Contact Name
+              %div.row
+                -@contract.sell_contract&.contract_sell_business_details&.each do |csbd|
+                  .col-sm-6.col-md-6.col-lg-6
+                    %b
+                      =csbd.company_contact.full_name
+                    %div
+                      =csbd.company_contact.phone
+                    %div
+                      =csbd.company_contact.email
+                    %div
+                      =csbd.company_contact.department
+          %br
+          %div.contract-accounting
+            %h3.contract_sub_heading
+              Accounting & Work hours terms
+            %div.contract-custome-details.box
+              %div
+                %strong
+                  FreeLancer Rate :
+                %span
+                  = '$ '+@contract.buy_contract.payrate.to_s+' / '+@contract.buy_contract.payrate_type if @contract.buy_contract&.payrate.present?
+              %br
+                %div
+                  %strong
+                    Period :
+                  %span
+                    = @contract.buy_contract.pr_start_date&.try(:strftime, "#{@contract&.buy_contract.pr_start_date&.day&.ordinalize} %b %Y ").to_s+' to '+@contract&.buy_contract.pr_end_date&.strftime("#{@contract.buy_contract.pr_end_date&.day&.ordinalize} %b %Y ").to_s
+                %br
+                %div
+                  %strong
+                    USCIS Rate :
+                  %span
+                    = '$'+@contract.buy_contract.uscis_rate.to_s
+                %div.row
+                  .col-sm-4.col-md-4.col-lg-4
+                    %div.sell-side.contract_box
+                      %p
+                        Submit Timesheet
+                      %h5
+                        =@contract.buy_contract&.time_sheet
+                      %p
+                        =buy_contract_time_sheet('time_sheet', @contract.buy_contract&.time_sheet)
+                  .col-sm-4.col-md-4.col-lg-4
+                    %div.buy-side.contract_box
+                      %p
+                        Approve Timesheet
+                      %h5
+                        =@contract.buy_contract&.ts_approve
+                      %p
+                        =buy_contract_time_sheet('ts_approve',@contract.buy_contract&.ts_approve)
+
+                  .col-sm-4.col-md-4.col-lg-4
+                    %div.buy-side.contract_box
+                      %p
+                        =@contract&.buy_contract&.contract_type == 'C2C' ? 'Vendor Bill' : 'Salary Calculation'
+                      %h5
+                        =@contract.buy_contract&.salary_calculation
+                      %p
+                        =buy_contract_time_sheet('salary_calculation', @contract.buy_contract&.salary_calculation)
+                - if @contract&.buy_contract&.contract_type == 'C2C'
+                  %div.row
+                    .col-sm-4.col-md-4.col-lg-4
+                      %div.sell-side.contract_box
+                        %p
+                          Vendor Payment
+                        %h5
+                          =@contract.buy_contract&.invoice_recepit
+                        %p
+                          =buy_contract_time_sheet('invoice_recepit', @contract.buy_contract&.invoice_recepit)
+
+                %h5
+                  Salary Date:
+                  = @contract&.company&.payroll_infos&.first&.sal_cal_date.try(:strftime, '%d').to_s+ ' of each month'
+            %br
+            %div.table-responsive
+              %h3.contract_sub_heading
+                Comission
+              %div.contract-custome-details.box
+                %table.table.table-bordered
+                  %thead
+                    %tr
+                      %th Name
+                      %th Rate
+                      %th Frequency
+                      %th Limit
+                    -@contract.buy_contract.contract_sale_commisions.each do |csc|
+                      %tr
+                        %td
+                          =csc.csc_accounts.map{ |a|  a.accountable.full_name}.join(', ')
+                        %td
+                          =csc.rate
+                        %td
+                          =csc.frequency
+                        %td
+                          =csc.limit
+                %div.contract-custome-details.line-bottom
+                  %strong
+                    Payroll date:
+                  %span
+                    = @contract.buy_contract.payroll_date&.try(:strftime, '%e').to_s+' of each month'
+                %div.contract-custome-details
+                  %strong
+                    Comissiom Payment terms:
+                  %span
+                    = @contract.buy_contract.commission_payment_term
+            %br
+            %div.contract-custome-details
+              %h3.contract_sub_heading
+                Employee Submitted Documents
+              %div.contract-custome-details.box
+                %div.row
+                  .table-responsive
+                    %table.table.text-center.table-bordered.table-lg.table-v2.table-striped.data-table-font
+                      %thead
+                        %tr{:role => "row"}
+                          %th Document Title
+                          %th Sent Date
+                          %th Status
+                          %th Envelope No
+                          %th Signed Document
+                      %tbody#buy_send_documents_table
+                        - @candidate_signature_documents&.each do |docusign|
+                          %tr
+                            %td= docusign.documentable.title
+                            %td= docusign.created_at.strftime("%Y-%m-%d")
+                            %td= docusign.is_sign_done ? "Signed" : "Pending"
+                            %td= do_ellipsis(docusign.envelope_id.present? ? docusign.envelope_id : "Not Submitted",15)
+                            %td= link_to content_tag(:i,'',class:'fa fa-paperclip fa-lg').html_safe, docusign.signed_file if docusign.is_sign_done
+            %br
+            %div.contract-custome-details
+              %h3.contract_sub_heading
+                Employee Request Documents
+              %div.contract-custome-details.box
+                %div.row
+                  %table.table.text-center.table-bordered.table-lg.table-v2.table-striped.data-table-font
+                    %thead
+                      %tr{:role => "row"}
+                        %th Document Title
+                        %th Sent Date
+                        %th Status
+                        %th Submitted Document
+                    %tbody#buy_emp_req_docs_table
+                      - @candidate_request_documents&.each do |docusign|
+                        %tr
+                          %td= docusign.documentable.title
+                          %td= docusign.created_at.strftime("%Y-%m-%d")
+                          %td= docusign.signed_file.present? ? "Submitted" : "Document Not Submitted"
+                          %td= link_to content_tag(:i,'',class:'fa fa-paperclip fa-lg').html_safe, docusign.signed_file if docusign.signed_file.present?
+            %br
+            - if @contract.buy_contract.company.present?
+              %div.contract-custome-details
+                %h3.contract_sub_heading
+                  Vendor Submitted Documents
+                %div.contract-custome-details.box
+                  %div.row
+                    %table.table.text-center.table-bordered.table-lg.table-v2.table-striped.data-table-font
+                    %thead
+                      %tr{:role => "row"}
+                        %th Document Title
+                        %th Sent Date
+                        %th Status
+                        %th Envelope No
+                        %th Signed Document
+                    %tbody#buy_ven_req_docs_table
+                      - @vendor_signature_documents.each do |docusign|
+                        %tr
+                          %td= docusign.documentable.title
+                          %td= docusign.created_at.strftime("%Y-%m-%d")
+                          %td= docusign.is_sign_done ? "Signed" : "Pending"
+                          %td= do_ellipsis(docusign.envelope_id.present? ? docusign.envelope_id : "Not Submitted",15)
+                          %td= link_to content_tag(:i,'',class:'fa fa-paperclip fa-lg').html_safe, docusign.signed_file if docusign.is_sign_done
+
+
+- if @contract.pending? && !@contract.is_sent?(current_company)
+  - content_for :modals do
+    #ajax-modal
+    = render 'company/contracts/partials/accept_contract_modal' , contract: @contract , status: 'accept'
+    = render 'company/contracts/partials/accept_contract_modal' , contract: @contract , status: 'reject'
+
 
   - content_for :scripts do
     :javascript
