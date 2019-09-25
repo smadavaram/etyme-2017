@@ -1,0 +1,19 @@
+.modal#freelancer_rate_change
+  .modal-dialog
+    .modal-content
+      .modal-header
+        %h4#myModalLabel.modal-title
+          %strong Freelancer Rate Change
+        %button.close{"aria-hidden" => "true", "data-dismiss" => "modal", :type => "button"}
+        ×
+      .modal-body
+        = form_for :change_rate, url: change_rates_path(contract_id: @contract.id, type: 'buy'), method: :post, html:{class: 'contract-expense-type'} do |f|
+          .row
+            .col-sm-12
+              %label Rate
+              = f.text_field :rate, class: "form-control"
+            .col-sm-12
+              %label From
+              = f.date_field :from_date, class: "form-control"
+          %br
+          = f.submit 'Save', class: 'btn btn-primary pull-right'

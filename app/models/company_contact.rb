@@ -25,11 +25,11 @@ class CompanyContact < ApplicationRecord
   end
 
   def full_name
-    self.first_name.to_s + " " + self.last_name.to_s
+    self.user.full_name
   end
 
   def photo
-    super.present? ? super : 'avatars/m_sunny_big.png'
+    self.user.photo
   end
 
 end

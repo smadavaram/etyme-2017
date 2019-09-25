@@ -30,13 +30,13 @@
             %td= link_to contract.created_by.full_name , '#'
             %td= contract.start_date
             %td
-              = link_to contract.sell_contract.try(:number), company_sell_contract_path(contract.sell_contract.try(:number))
+              = link_to contract.sell_contract.try(:number), company_sell_contract_path(contract.sell_contract.try(:number)) if contract.sell_contract
               =contract.sell_contract.try(:customer_rate)
               =contract.sell_contract.try(:time_sheet)
               =contract.sell_contract.try(:invoice_terms_period)
               =contract.sell_contract.try(:show_accounting_to_employee)
             %td
-              = link_to contract.buy_contract.try(:number), company_buy_contract_path(contract.buy_contract.try(:number))
+              = link_to contract.buy_contract.try(:number), company_buy_contract_path(contract.buy_contract.try(:number)) if contract.buy_contract
               =contract.buy_contract.try(:contract_type)
               =contract.buy_contract.try(:payrate)
               =contract.buy_contract.try(:time_sheet)

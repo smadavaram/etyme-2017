@@ -191,7 +191,7 @@ class Contract < ApplicationRecord
 
   def rate
     # self.contract_terms.active.first.rate
-    self.sell_contract.customer_rate
+    self.sell_contract&.customer_rate
   end
 
   def note
@@ -295,9 +295,13 @@ class Contract < ApplicationRecord
   end
 
   def create_cycles
-    buy_contract_time_sheet_cycles unless contract_cycles.where(cycle_type: 'TimesheetSubmit').present?
-    buy_contract_time_sheet_aprove_cycle unless contract_cycles.where(cycle_type: 'TimesheetApprove').present?
-    sell_contract_invoice_cycle unless contract_cycles.where(cycle_type: 'InvoiceGenerate').present?
+    if buy_contract.present?
+      buy_contract_time_sheet_cycles unless contract_cycles.where(cycle_type: 'TimesheetSubmit').present?
+      buy_contract_time_sheet_aprove_cycle unless contract_cycles.where(cycle_type: 'TimesheetApprove').present?
+    end
+    if sell_contract
+      sell_contract_invoice_cycle unless contract_cycles.where(cycle_type: 'InvoiceGenerate').present?
+    end
   end
 
   def self.set_cycle
@@ -361,8 +365,12 @@ class Contract < ApplicationRecord
   # end
 
   def create_rate_change
-    ChangeRate.create(rate: self.buy_contract.payrate.to_i, from_date: self.start_date, to_date: Date.new(9999, 12, 31), rate_type: 'buy', contract: self) unless self.change_rates.where(rate_type: 'buy').present?
-    ChangeRate.create(rate: self.sell_contract.customer_rate.to_i, from_date: self.start_date, to_date: Date.new(9999, 12, 31), rate_type: 'sell', contract: self) unless self.change_rates.where(rate_type: 'sell').present?
+    if self.buy_contract
+      ChangeRate.create(rate: self.buy_contract.payrate.to_i, from_date: self.start_date, to_date: Date.new(9999, 12, 31), rate_type: 'buy', contract: self) unless self.change_rates.where(rate_type: 'buy').present?
+    end
+    if self.sell_contract
+      ChangeRate.create(rate: self.sell_contract.customer_rate.to_i, from_date: self.start_date, to_date: Date.new(9999, 12, 31), rate_type: 'sell', contract: self) unless self.change_rates.where(rate_type: 'sell').present?
+    end
   end
 
 

@@ -89,9 +89,9 @@ module Cycle::CycleMaker
     when 'biweekly'
       utils.group_by_biweekly(buy_or_sell.send("#{resource_initial}_day_of_week"), buy_or_sell.send("#{resource_initial}_2day_of_week"), start_date, end_date)
     when 'monthly'
-      utils.group_by_monthly(buy_or_sell.send("#{resource_initial}_date_1").day, start_date, end_date)
+      utils.group_by_monthly(buy_or_sell.send("#{resource_initial}_date_1").try(:day), start_date, end_date)
     when 'twice a month'
-      utils.group_by_twice_a_month(buy_or_sell.send("#{resource_initial}_date_1").day, buy_or_sell.send("#{resource_initial}_date_2").day, start_date, end_date)
+      utils.group_by_twice_a_month(buy_or_sell.send("#{resource_initial}_date_1").try(:day), buy_or_sell.send("#{resource_initial}_date_2").try(:day), start_date, end_date)
     end
   end
 
