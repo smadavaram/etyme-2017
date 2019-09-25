@@ -348,7 +348,7 @@ class Company::ContractsController < Company::BaseController
       create_custom_activity(@contract, 'contracts.update', {status: params[:status]}, @contract)
       #TODO: enable it if cycles should be generated when contract is in progress
       # @contract.create_cycles if @contract.in_progress?
-      redirect_back fallback_location: root_path
+      redirect_to contract_path(@contract)
     end
   end
 
@@ -359,7 +359,7 @@ class Company::ContractsController < Company::BaseController
     else
       flash[:errors] = ["Contract is not in progress"]
     end
-    redirect_back(fallback_location: contract_path(@contract))
+    redirect_to contract_path(@contract)
   end
 
   def timeline
