@@ -1,14 +1,9 @@
 .w-100.p-4.bg_white
   .contract-fields_wrapper.mb-4.bg-shade
     =render 'company/contracts/partials/contract_header',contract: @contract
-  .contract_links.col-sm-12.mt-2.mb-2
-    = render 'company/contracts/partials/contracts_links', contract: @contract
   .row
-    .col-sm-6.col-md-6.col-lg-6
+    .col-sm-12.col-md-12.col-lg-12
       = render 'company/contracts/partials/sell_side'
-    .col-sm-6.col-md-6.col-lg-6
-      = render 'company/contracts/partials/buy_side'
-
 - if @contract.pending? && !@contract.is_sent?(current_company)
   - content_for :modals do
     #ajax-modal

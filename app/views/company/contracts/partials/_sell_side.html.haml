@@ -1,0 +1,174 @@
+.individual_contracts_headers
+  %h3= "sell-  #{@contract.sell_contract.number}"
+  .text-right
+    =link_to 'Add', '#', class: 'btn btn-primary'
+    =link_to 'Remove', '#', class: 'btn btn-danger'
+- if @contract.sell_contract.present?
+  %h3.contract_sub_heading
+    Customer Details
+  %div.sell-side.box
+    .contract-customer-details
+      .row
+        .col-sm-8.customer_detail
+          .w-100
+            %strong.pull-left= "Company Name: "
+            .pull-left= do_ellipsis(@contract.sell_contract.try(:company).try(:full_name),15)
+          .w-100
+            %strong.pull-left= "Website: "
+            .pull-left= do_ellipsis(@contract.sell_contract&.company&.website,15)
+          .w-100
+            %strong.pull-left= "Location: "
+            .pull-left= do_ellipsis(@contract.sell_contract&.company&.addresses.first&.address_1,15)
+        .col-sm-4
+          .rate_info.text-center
+            %strong Customer Rate
+            %span
+              = number_to_currency(get_rate(Date.today,@contract.id,'sell'))
+              %br
+              %span.btn.btn-primary.sell-change-rate{"data-toggle": "modal","data-target": "#customer_rate_change"} Change
+        =render 'company/contracts/partials/customer_rate_modal'
+      .table-responsive.pt-3.line-bottom
+        %table.table.table-bordered.account_detail
+          %thead
+            %tr
+              %th Rate
+              %th From
+              %th To
+              %th Type
+          %tbody
+            - @contract.change_rates.sell_rates.each do |cr|
+              %tr
+                %td
+                  = cr.rate.to_i
+                %td
+                  = cr.from_date.inspect
+                %td
+                  = cr.to_date.inspect
+                %td
+                  = cr.rate_type.capitalize
+      %div
+        .w-100
+          %strong.pull-left Business Contacts
+        .contract_users_team
+          -@contract.sell_contract.contract_sell_business_details.each do |sell_business_detail|
+            - user = sell_business_detail.company_contact.user
+            .logged-user-w.no_border_bottom{style: "width: 120px;"}
+              .avatar-w
+                %img{:alt => "", :src => user.photo}/
+              .logged-user-name= do_ellipsis(user.full_name,12)
+              .logged-user-role= user.roles.first.try(:name).try(:capitalize)
+              .logged-user-role= contact_widget(user.email, user.phone,user,chat_link: chat_link(user),color: '#BFBFC7')
+  %div
+    %h3.mt-2.mb-2
+      Accounting & Work hours terms
+    %div.sell-side.box
+      %div.row
+        .col-sm-12.col-md-12.col-lg-12
+          %div.row
+            .col-sm-4.col-md-4.col-lg-4.p-1
+              .rate_info.text-center
+                %small
+                  Submit Timesheet
+                %br
+                %small.lead
+                  =@contract.sell_contract&.time_sheet.capitalize
+                %p
+                  =sell_contract_time_sheet('time_sheet', @contract.sell_contract&.time_sheet)
+            .col-sm-4.col-md-4.col-lg-4.p-1
+              .rate_info.text-center
+                %small
+                  Approve Timesheet
+                %br
+                %small.lead
+                  =@contract.sell_contract&.ts_approve.capitalize
+                %p
+                  =sell_contract_time_sheet('ts_approve', @contract.sell_contract&.ts_approve)
+
+            .col-sm-4.col-md-4.col-lg-4.p-1
+              .rate_info.text-center
+                %small
+                  Invoice
+                %br
+                %small.lead
+                  =@contract.sell_contract&.invoice_terms_period.capitalize
+                %p
+                  =sell_contract_time_sheet('invoice_terms_period', @contract.sell_contract&.invoice_terms_period)
+          %div.row
+            .col-sm-4.col-md-4.col-lg-4.p-1
+              .rate_info.text-center
+                %small
+                  Receive Payment
+                %br
+                %small.lead
+                  = @contract.sell_contract&.payment_term.to_i > 1 ? 'Days' : 'Day'
+                %p
+                  = @contract.sell_contract&.payment_term.to_i
+
+          %div.row
+            .col-sm-12.col-md-12.col-lg-12
+              %span
+                %b
+                  Show Accounting to employee:
+                  = @contract.sell_contract.show_accounting_to_employee == true ? "Yes" : "No"
+  %div.contract-custome-details
+    %h3.mt-2.mb-2
+      Documents
+    %div.sell-side.box
+      .row
+        .col-md-12.contract-attachment
+          %ul#myTab2.nav.nav-tabs.smaller{style: "border-bottom: 0px; font-size: 0.60rem !important"}
+            %li.nav-item.active.mr-0.primary-nav
+              %a{"data-toggle" => "tab", :href => "#doc-request", class: "nav-link cumstom_nav-tab"}
+                %span.badge.bg-color-blue.txt-color-white
+                Request Decuments
+            %li.nav-item.mr-0.primary-nav
+              %a{"data-toggle" => "tab", :href => "#doc-submit", class: "nav-link cumstom_nav-tab"}
+                %span.badge.bg-color-blue.txt-color-white
+                Submit Decuments
+          .col-md-12.pl-0
+            .tab-content
+              #doc-request.tab-pane.padding-top-15.active.in
+                .row
+                  .col-md-12
+                    .form-group
+                      .table-responsive
+                        %table.table.text-center.table-bordered.table-lg.table-v2.table-striped.data-table-font
+                          %thead
+                            %tr{:role => "row"}
+                              %th Title
+                              %th Sent at
+                              %th Status
+                              %th Submitted Doc.
+                          %tbody#request_doc
+                            - @request_documents.each do |docusign|
+                              %tr
+                                %td= docusign.documentable.title
+                                %td= docusign.created_at.strftime("%Y-%m-%d")
+                                %td= docusign.envelope_id.present? ? "Submitted" : "Document Not Submitted"
+                                %td= link_to content_tag(:i,'',class:'fa fa-paperclip fa-lg').html_safe, docusign.signed_file if docusign.signed_file.present?
+              #doc-submit.tab-pane.padding-top-15
+                .row
+                  .col-md-12
+                    .form-group
+                      .table-responsive
+                        %table.table.text-center.table-bordered.table-lg.table-v2.table-striped.data-table-font
+                          %thead
+                            %tr{:role => "row"}
+                              %th Title
+                              %th Sent at
+                              %th Status
+                              %th Signers
+                              %th Envelope No
+                              %th Signed Doc.
+                          %tbody#submit_doc
+                            - @signature_documents.each do |docusign|
+                              %tr
+                                %td= docusign.documentable.title
+                                %td= docusign.created_at.strftime("%Y-%m-%d")
+                                %td= docusign.is_sign_done ? "Signed" : "Pending"
+                                %td.d-flex
+                                  = image_tag(docusign&.signable&.photo, class: 'data-table-image mr-1') if docusign&.signable.present?
+                                  - docusign.signers&.each do |signer|
+                                    =image_tag(signer.photo, class: 'data-table-image mr-1')
+                                %td= docusign.envelope_id.present? ? docusign.envelope_id : "Document Not Submitted"
+                                %td= link_to content_tag(:i,'',class:'fa fa-paperclip fa-lg').html_safe, docusign.signed_file if docusign.is_sign_done
