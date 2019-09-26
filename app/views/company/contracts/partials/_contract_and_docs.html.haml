@@ -470,14 +470,16 @@
                                         =image_tag(signer.photo, class: 'data-table-image mr-1')
                                     %td= docusign.envelope_id.present? ? docusign.envelope_id : "Document Not Submitted"
                                     %td= link_to content_tag(:i,'',class:'fa fa-paperclip fa-lg').html_safe, docusign.signed_file if docusign.is_sign_done
-
-      = render 'company/contracts/request_document_modal', contract: @contract
-      = render 'company/contracts/submit_document_modal', contract: @contract
-      = render 'company/contracts/partials/collaborator_modal',contract: @contract, contractable_type: @contract.sell_contract.class.name, contractable_id: @contract.sell_contract.id
   - else
     .div.w-75.margin-auto
       %p.contract_warning_text= "You haven't onboarded the customer to this contract. You can always #{link_to "GoBack",new_contract_path(contract_id: @contract.id)} to onboard a customer. Incase it's entended, Please click 'Save and Continue' to proceed as it is.".html_safe
-  	
+
+- if @contract
+  = render 'company/contracts/request_document_modal', contract: @contract
+  = render 'company/contracts/submit_document_modal', contract: @contract
+  = render 'company/contracts/partials/collaborator_modal',contract: @contract, contractable_type: @contract.sell_contract.class.name, contractable_id: @contract.sell_contract.id
+
+
 :javascript
    $('.contract-attachment').on('cocoon:after-insert', function(e, insertedItem) {
       insertedItem.find('.filepicker-attach').each(function(i,e){

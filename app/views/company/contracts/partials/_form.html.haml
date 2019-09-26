@@ -99,16 +99,16 @@
     $( document ).ready(function() {
       $('#contract_start_date').datepicker({
         dateFormat : 'dd/mm/yy',
-        defaultDate: moment().format("DD/MM/YYYY"),
+        defaultDate: "#{@contract.persisted? ? @contract.start_date&.strftime('%d/%m/%Y') : DateTime.now.strftime('%d/%m/%Y')}",
         prevText : '<i class="fa fa-chevron-left"></i>',
         nextText : '<i class="fa fa-chevron-right"></i>'
-      }).datepicker("setDate", moment().format("DD/MM/YYYY"));
+      }).datepicker("setDate", "#{ @contract.persisted? ? @contract.start_date&.strftime('%d/%m/%Y') : DateTime.now.strftime('%d/%m/%Y')}")
       $('#contract_end_date').datepicker({
         dateFormat : 'dd/mm/yy',
-        defaultDate: moment('1/1/2099').format("DD/MM/YYYY"),
+        defaultDate: "#{@contract.persisted? ? @contract.end_date&.strftime('%d/%m/%Y') : (DateTime.now + 1.year).strftime('%d/%m/%Y')}",
         prevText : '<i class="fa fa-chevron-left"></i>',
         nextText : '<i class="fa fa-chevron-right"></i>'
-      }).datepicker("setDate", moment('1/1/2099').format("DD/MM/YYYY"))
+      }).datepicker("setDate", "#{@contract.persisted? ? @contract.end_date&.strftime('%d/%m/%Y') : (DateTime.now + 1.year).strftime('%d/%m/%Y')}")
 
       $(document).on('click', '.commission-user-type', function(){
         if(this.value == 'Admin'){

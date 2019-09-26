@@ -104,14 +104,14 @@
             -Plugin.plugin_types.keys.each do |plugin_type|
               -unless current_company.plugins.send(plugin_type).present?
                 -if plugin_type == "docusign"
-                  .col-md-3.col-6
+                  .col-md-4.col-6
                     .feed
                       %a.modal-opener.display-flex{:href => plugin_company_company_path(current_company,plugin_type: plugin_type)}
                         .icon-part
-                          = image_tag('docusign.png', width: '60', height: '50')
+                          = image_tag('/docusign.png', width: '35', height: '35')
                         .link-part Integrate #{plugin_type}
 
-            .col-md-3.col-6
+            .col-md-4.col-6
               .feed
                 %a.modal-opener.display-flex{"data-target" => "#embedProductModal", "data-toggle" => "modal", href: '#embedProductModal'}
                   .icon-part

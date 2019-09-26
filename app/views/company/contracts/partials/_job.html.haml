@@ -106,14 +106,17 @@
                   %label.control-label 1099 (Freelancers)
                   = bc.radio_button :contract_type, "C2C",required: 'true'
                   %label.control-label Corp-Corp (Third Party)
-          .col-md-5.hidden.vendor_company
+          .col-md-5.vendor_company{class: bc.object.contract_type == "C2C" ? '' : 'hidden'}
             .form-group
               %label.control-label Vendor(Pay To)
               %label.control-label.pull-right
                 %button{class: 'btn btn-sm btn-primary',type: 'button', onclick: "$('#new-contract-company').modal('show')"} Add New
               .contract-fild
-                .plain-select
-                  = bc.select :company_id, {}, {}, id: "buy_contract_company"
+                - if @contract.new_record? or @contract.company_id.nil?
+                  .plain-select
+                    = bc.select :company_id, {}, {}, id: "buy_contract_company"
+                - else
+                  = text_field_tag :vendor_name, @contract.buy_contract.company.full_name.capitalize, disabled: "disabled"
 
   - if true #@contract.new_record? or @contract.sell_contract&.persisted?
     .row.mt-1
