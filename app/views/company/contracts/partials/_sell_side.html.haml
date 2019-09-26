@@ -22,6 +22,7 @@
         .col-sm-4
           .rate_info.text-center
             %strong Customer Rate
+            %br
             %span
               = number_to_currency(get_rate(Date.today,@contract.id,'sell'))
               %br
@@ -71,7 +72,7 @@
                   Submit Timesheet
                 %br
                 %small.lead
-                  =@contract.sell_contract&.time_sheet.capitalize
+                  =@contract.sell_contract&.time_sheet&.capitalize
                 %p
                   =sell_contract_time_sheet('time_sheet', @contract.sell_contract&.time_sheet)
             .col-sm-4.col-md-4.col-lg-4.p-1
@@ -80,7 +81,7 @@
                   Approve Timesheet
                 %br
                 %small.lead
-                  =@contract.sell_contract&.ts_approve.capitalize
+                  =@contract.sell_contract&.ts_approve&.capitalize
                 %p
                   =sell_contract_time_sheet('ts_approve', @contract.sell_contract&.ts_approve)
 
@@ -90,7 +91,7 @@
                   Invoice
                 %br
                 %small.lead
-                  =@contract.sell_contract&.invoice_terms_period.capitalize
+                  =@contract.sell_contract&.invoice_terms_period&.capitalize
                 %p
                   =sell_contract_time_sheet('invoice_terms_period', @contract.sell_contract&.invoice_terms_period)
           %div.row

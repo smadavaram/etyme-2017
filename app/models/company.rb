@@ -96,7 +96,6 @@ class Company < ApplicationRecord
   # validates           :domain, uniqueness:   true
   has_many :activities, as: :trackable, class_name: 'PublicActivity::Activity', dependent: :destroy
 
-
   # validates_uniqueness_of   :name, message: "This company is already registered on etyme. You can connect with its Admin and he can allow you to be added into the company"
   # validates_length_of :name,  minimum:    3   , message: "must be atleat 3 characters"
   validates :name, presence: true
@@ -145,6 +144,8 @@ class Company < ApplicationRecord
                                         .where(status: [:applied,:prescreen,:rate_confirmation,:client_submission,:interviewing,:hired])
                                         .group(:status)}
 
+  scope :vendor_contracts, ->(company) { Contract.join(:buy_contract).where("buy_contracts.company_id": company.id) }
+  
   attr_accessor :send_email
 
   def self.like_any(fields, values)

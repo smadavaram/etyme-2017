@@ -11,45 +11,22 @@
       %th Cost
       %th Created By
       %th Start date
-      %th Sell Contract
-      %th Buy Contract
+      %th Contract
       %th Status
       %th Action
     %tbody
       - data.each do |contract|
         %tr{class: "#{set_background_status_color(contract.status)}"}
-          %td=link_to contract.try(:number) ,contract_path(contract)
+          %td=link_to contract.buy_contract.try(:number) , company_buy_contract_contract_path(contract)
           %td=contract.try(:title)
-          %td
-            = contract.client.try(:full_name)
-          %td
-            = contract.rate
+          %td= contract.client.try(:full_name)
+          %td= contract.rate
           %td= contract.candidate.try(:full_name)
           %td not know
           %td= link_to contract.created_by.full_name , '#'
           %td= (contract.start_date)
-          %td
-            = link_to contract.sell_contract.try(:number), company_sell_contract_path(contract.sell_contract.try(:number)) if contract.sell_contract.present?
-            %br
-            =contract.sell_contract.try(:customer_rate)
-            %br
-            =contract.sell_contract.try(:time_sheet)
-            %br
-            =contract.sell_contract.try(:invoice_terms_period)
-            %br
-            =contract.sell_contract.try(:show_accounting_to_employee)
-          %td
-            = link_to contract.buy_contract.try(:number), company_buy_contract_path(contract.buy_contract.try(:number)) if contract.buy_contract.present?
-            %br
-            =contract.buy_contract.try(:contract_type)
-            %br
-            =contract.buy_contract.try(:payrate)
-            %br
-            =contract.buy_contract.try(:time_sheet)
-            %br
-            =contract.buy_contract.try(:payment_term)
-          %td
-            = contract.status
+          %td= contract.try(:number)
+          %td= contract.status
           %td not know
 .mt-3
   = digg_pagination(data, "buy_contract")

@@ -580,6 +580,7 @@ Rails.application.routes.draw do
         post :update_attachable_doc
         get :tree_view
         get :company_sell_contract
+        get :company_buy_contract
         get :received_contract
         patch :update_contract_status
         get :generate_cycles
