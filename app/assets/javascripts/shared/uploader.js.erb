@@ -1084,10 +1084,14 @@ function trix_upload(){
         if( urls !== false ) {
           let upload = urls[0];
           if(trix){
+              console.log(upload)
               if(upload.type.includes('image')){
-                  var attachment = new Trix.Attachment({content: `<img style='width: 100%;height: 100%;' src=${upload.url}>` })
+                  var attachment = new Trix.Attachment({size:`${upload.size}` ,contentType: `${upload.type}`,caption: `${upload.name}`,content: `<img style='width: 100%;height: 100%;' src=${upload.url}>` })
                   trix.editor.insertAttachment(attachment)
-              }else{
+              }else if(upload.type.includes('video')){
+                  var attachment = new Trix.Attachment({size:`${upload.size}` ,contentType: `${upload.type}`,caption: `${upload.name}`,content: `<video width="100%" height="100%" controls><source src=${upload.url} type=${upload.type}></video>` })
+                  trix.editor.insertAttachment(attachment)
+              } else{
                   trix.editor.insertHTML(`<a href=${upload.url} target='_blank'>${upload.name}</a>`)
               }
           }

@@ -1,4 +1,4 @@
-function flash(color, msg, icon,time=null) {
+function flash(color, msg, icon, time=null) {
     $.smallBox({
         title: msg,
         // content : "<i class='fa fa-clock-o'></i> <i>2 seconds ago...</i>",
@@ -13,9 +13,9 @@ function flash_error(msg) {
     flash($error, msg, 'fa fa-exclamation-triangle');
 }
 
-function flash_success(msg,time= null) {
+function flash_success(msg, time= null) {
     var $success = '#80C14B';
-    flash($success, msg, 'fa fa-check',time);
+    flash($success, msg, 'fa fa-check', time);
 }
 
 function flash_info(msg) {
@@ -35,7 +35,7 @@ function flash_alert(msg) {
 
 $(document).ready(function () {
 
-    $('#quick-add').on('click',function (e) {
+    $('#quick-add').on('click', function (e) {
         $(this).find('.project-dropdown').toggle();
     })
 
@@ -213,8 +213,8 @@ $(document).on("click", ".remove-multi-fields", function () {
     }
 });
 
-$(document).on("click",".chat-close",function(){
-  $('.floated-chat-w').remove()
+$(document).on("click", ".chat-close", function () {
+    $('.floated-chat-w').remove()
 });
 
 function callAjaxSearch(ajax_url, ajax_method, params_data) {
@@ -228,9 +228,12 @@ function callAjaxSearch(ajax_url, ajax_method, params_data) {
     });
 }
 
-$(document).on('trix-initialize', function(){
-    let buttonHTML = '<button type="button" onclick="trix_upload()" class="trix-button uploader"'+
-    'title="Upload Image" tabindex="-1"><img src="/uploader_win.svg" style=" width: 2.6em; height: 1.6em;max-width: calc(0.8em + 4vw);text-indent: -9999px;"></img></button>'
-    $('.trix-button-group--block-tools').find('.uploader')[0] ? null : $('.trix-button-group--block-tools').append(buttonHTML)
-
+$(document).on('trix-initialize', function () {
+    $('.trix-button--icon-attach').removeAttr('data-trix-action');
+    $('.trix-button--icon-attach').click(function () {
+        trix_upload();
+    });
+});
+$(document).on('trix-file-accept', function (e) {
+    e.preventDefault();
 });

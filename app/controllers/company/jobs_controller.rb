@@ -40,7 +40,7 @@ class Company::JobsController < Company::BaseController
     @job = current_company.jobs.new(company_job_params.merge!(created_by_id: current_user.id))
     respond_to do |format|
       if @job.save
-        CreateGoogleIndex.new(@job, "URL_UPDATED").index_job
+        CreateGoogleIndex.new(@job, "URL_UPDATED").index_job if @job.published?
         format.html { redirect_to @job, success: 'Job was successfully created.' }
         format.js { flash.now[:success] = "successfully Created." }
       else

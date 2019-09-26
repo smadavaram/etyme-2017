@@ -78,6 +78,10 @@ class Job < ApplicationRecord
     end
   end
 
+  def is_published?
+    status == "Published"
+  end
+  
   def is_active?
     self.end_date.nil? ? true : self.end_date >= Date.today
   end
