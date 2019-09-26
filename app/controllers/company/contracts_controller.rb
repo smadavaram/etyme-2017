@@ -2,7 +2,7 @@ class Company::ContractsController < Company::BaseController
 
   before_action :find_job, only: [:create]
   before_action :find_receive_contract, only: [:open_contract, :update_contract_response, :create_sub_contract]
-  before_action :find_contract, only: [:show, :generate_cycles, :download, :update_attachable_doc, :change_invoice_date, :update, :edit, :update_contract_status]
+  before_action :find_contract, only: [:company_sell_contract,:show, :generate_cycles, :download, :update_attachable_doc, :change_invoice_date, :update, :edit, :update_contract_status]
   before_action :set_contracts, only: [:index]
   before_action :find_attachable_doc, only: [:update_attachable_doc]
   before_action :authorize_user_for_new_contract, only: :new
@@ -20,6 +20,11 @@ class Company::ContractsController < Company::BaseController
   add_breadcrumb 'Bank reconciliation', :bank_reconciliation_contracts_path, only: %w(bank_reconciliation)
   include Company::ChangeRatesHelper
 
+  def company_sell_contract
+    @signature_documents = @contract.send("sell_contract").document_signs.where(signable: @contract.sell_contract.company.owner, documentable: current_company.company_candidate_docs.where(is_require: "signature").ids)
+    @request_documents = @contract.send("sell_contract").document_signs.where(signable: @contract.sell_contract.company.owner, documentable: current_company.company_candidate_docs.where(is_require: "Document").ids)
+  end
+  
   def index
     @contract_activity = PublicActivity::Activity.where(trackable: current_company.contracts).order('created_at DESC').paginate(page: 1, per_page: 15)
     @buy_contracts = Contract.joins(:buy_contract).where(buy_contracts: {company_id: current_company.id}).order('created_at DESC').paginate(page: 1, per_page: 15)

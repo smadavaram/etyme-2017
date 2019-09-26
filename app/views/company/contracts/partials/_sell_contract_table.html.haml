@@ -16,7 +16,7 @@
         - data.each do |contract|
           %tr
             %td=image_tag show_recipient_picture(contract.contractable), alt: '', width: '20'
-            %td= contract.try(:title)
+            %td= link_to contract.try(:title),  company_sell_contract_contract_path(contract)
             %td= show_recipient_name(contract.contractable)
             %td= contract.created_by.full_name
             %td= (contract.end_date)

@@ -579,6 +579,7 @@ Rails.application.routes.draw do
         get :download
         post :update_attachable_doc
         get :tree_view
+        get :company_sell_contract
         get :received_contract
         patch :update_contract_status
         get :generate_cycles
