@@ -229,7 +229,8 @@ function callAjaxSearch(ajax_url, ajax_method, params_data) {
 }
 
 $(document).on('trix-initialize', function(){
-    let buttonHTML = '<button type="button" onclick="trix_upload()" class="trix-button uploader" title="Upload Image" tabindex="-1"><i class="icon-paper-clip"></i></button>'
+    let buttonHTML = '<button type="button" onclick="trix_upload()" class="trix-button uploader"'+
+    'title="Upload Image" tabindex="-1"><img src="/uploader_win.svg" style=" width: 2.6em; height: 1.6em;max-width: calc(0.8em + 4vw);text-indent: -9999px;"></img></button>'
     $('.trix-button-group--block-tools').find('.uploader')[0] ? null : $('.trix-button-group--block-tools').append(buttonHTML)
 
 });
