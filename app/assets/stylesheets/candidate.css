@@ -50,6 +50,8 @@
  *= require navigation
  *= require top_navigation
  *= require shared/datatable
+ *= require fullcalendar
+ *= require calendar_custom
  *= require company/contracts
  *= require trix
 

@@ -1,3 +1,14 @@
-$('.time_sheets_submission').html("<%= j render 'time_sheets_submit', timesheets: @timesheets %>");
+//$('.time_sheets_submission').html("<%= j render 'time_sheets_submit', timesheets: @timesheets %>");
 $('.fd').removeClass('active')
 $(".<%= @tab %>").addClass('active');
+<% events = [] %>
+<% @timesheets.each{|ts|  ts.transactions.each{|tt| events << {allDay: true,description: 'timesheet transaction',title: "Transaction-#{tt.id}",id: tt.id, total_time: tt.total_time, timesheet_id:tt.timesheet_id, start: tt.start_time.strftime("%Y-%m-%d")} }}  %>
+var e=JSON.parse("<%= escape_javascript(render(inline: events.to_json)) %>")
+let startCelandar = "<%= j render(inline: (@timesheets.first.present? ? @timesheets.first&.start_date.to_s : DateTime.now.beginning_of_month.strftime('%Y-%m-%d'))) %>"
+let endCelandar = "<%= j render(inline: (@timesheets.last.present? ? @timesheets.last&.end_date.to_s : DateTime.now.end_of_month.strftime('%Y-%m-%d'))) %>"
+
+console.log(startCelandar,endCelandar)
+
+$('#timesheet_calendar').fullCalendar( "removeEvents")
+$('#timesheet_calendar').fullCalendar( "renderEvents", e ,true)
+flash_success('Celandar Rendered Successfully');
