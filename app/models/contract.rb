@@ -51,7 +51,6 @@ class Contract < ApplicationRecord
 
   has_many :contract_cycles, dependent: :destroy
   has_many :contract_expense, dependent: :destroy
-  has_many :change_rates, dependent: :destroy
   # has_many :contract_buy_business_details
   # has_many :contract_sell_business_details
   # has_many :contract_sale_commisions
@@ -365,12 +364,12 @@ class Contract < ApplicationRecord
   # end
 
   def create_rate_change
-    if self.buy_contract
-      ChangeRate.create(rate: self.buy_contract.payrate.to_i, from_date: self.start_date, to_date: Date.new(9999, 12, 31), rate_type: 'buy', contract: self) unless self.change_rates.where(rate_type: 'buy').present?
-    end
-    if self.sell_contract
-      ChangeRate.create(rate: self.sell_contract.customer_rate.to_i, from_date: self.start_date, to_date: Date.new(9999, 12, 31), rate_type: 'sell', contract: self) unless self.change_rates.where(rate_type: 'sell').present?
-    end
+    # if self.buy_contract
+    #   ChangeRate.create(rate: self.buy_contract.payrate.to_i, from_date: self.start_date, to_date: Date.new(9999, 12, 31), rate_type: 'buy', contract: self) unless self.change_rates.where(rate_type: 'buy').present?
+    # end
+    # if self.sell_contract
+    #   ChangeRate.create(rate: self.sell_contract.customer_rate.to_i, from_date: self.start_date, to_date: Date.new(9999, 12, 31), rate_type: 'sell', contract: self) unless self.change_rates.where(rate_type: 'sell').present?
+    # end
   end
 
 

@@ -17,6 +17,7 @@ class BuyContract < ApplicationRecord
   has_many :approvals, as: :contractable, dependent: :destroy
   # include DateCalculation.new({prefix: 'BC', length: 7})
   has_one :conversation
+  has_many :change_rates, as: :rateable,dependent: :destroy
   include DateCalculation
 
   before_create :set_number
@@ -31,7 +32,8 @@ class BuyContract < ApplicationRecord
   accepts_nested_attributes_for :buy_send_documents, allow_destroy: true, reject_if: :all_blank
   accepts_nested_attributes_for :buy_emp_req_docs, allow_destroy: true, reject_if: :all_blank
   accepts_nested_attributes_for :buy_ven_req_docs, allow_destroy: true, reject_if: :all_blank
-
+  accepts_nested_attributes_for :change_rates, allow_destroy: true,reject_if: proc { |attributes| attributes['rate'].blank? }
+  
   validates_presence_of :ts_date_1, if: Proc.new { |b_con| b_con.time_sheet == "twice a month" }, :message => "Please select first date for timesheet"
   validates_presence_of :ts_date_1, if: Proc.new { |b_con| b_con.time_sheet == "month" && !b_con.ts_end_of_month }, :message => "Please select first date for timesheet"
   validates_presence_of :ts_date_2, if: Proc.new { |b_con| b_con.time_sheet == "twice a month" && !b_con.ts_end_of_month }, :message => "Please select second date or end of month"
@@ -87,6 +89,11 @@ class BuyContract < ApplicationRecord
     {"W2":"W2 (Fulltime)", "1099":"1099 (Freelancers)","C2C":"Corp-Corp (Third Party)"}[contract_type.to_sym]
   end
 
+  def today_rate
+    rate = change_rates.where("? between from_date and to_date",Date.today).order(:from_date).first
+    rate.present? ? rate : change_rates.all.order(:from_date).first
+  end
+  
   private
 
   def create_buy_contract_conversation

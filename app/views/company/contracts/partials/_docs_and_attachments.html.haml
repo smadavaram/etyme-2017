@@ -67,28 +67,31 @@
                 .tab-content.p-4{style: 'border: 1px solid #b6bcbf;'}
                   #tab-buy-ct.tab-pane.padding-top-15.active.in
                     .row
-                      .col-md-12
-                        .form-group
-                          %label.control-label
-                            PayRate
-                            %sup.text-danger *
-                          .select
-                            .row
-                              .col-md-6
-                                = bc.number_field :payrate, class: "form-control"
-                              .col-md-6
-                                .plain-select
-                                  = bc.select :payrate_type, ["hourly", "daily", "weekly", "monthly"], class: "form-control"
-                    .row
-                      .col-md-12
-                        .form-groupc
-                          %label.control-label
-                            USCIS Rate
-                            %sup.text-danger *
-                          .select
-                            .row
-                              .col-md-6
-                                = bc.number_field :uscis_rate, class: "form-control"
+                      = bc.fields_for :change_rates, bc.object.change_rates.build do |cr|
+                        .col-md-12.display-flex
+                          =cr.hidden_field :rateable_type, value: bc.object.class.to_s
+                          =cr.hidden_field :rateable_id, value: bc.object.id
+                          =render 'company/contracts/partials/rate_fields', f: cr, usics: true
+                    - if bc.object.change_rates.present?
+                      .row
+                        %table.table.text-center.table-bordered.table-lg.table-v2.table-striped.data-table-font
+                          %thead
+                            %tr{:role => "row"}
+                              %th Rate
+                              %th Expected Hrs
+                              %th Rate Type
+                              %th USCIS
+                              %th From
+                              %th To
+                          %tbody
+                            - bc.object.change_rates.each do |change_rate|
+                              %tr
+                                %td= change_rate.rate
+                                %td= change_rate.working_hrs
+                                %td= change_rate.rate_type
+                                %td= change_rate.uscis
+                                %td= change_rate.from_date
+                                %td= change_rate.to_date
                   #tab-buy-ts.tab-pane.padding-top-15
                     .row
                       .col-md-12
