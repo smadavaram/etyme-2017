@@ -50,6 +50,7 @@
  *= require navigation
  *= require top_navigation
  *= require shared/datatable
+ *= require company/contracts
  *= require trix
 
  */

@@ -116,7 +116,7 @@
                   .plain-select
                     = bc.select :company_id, {}, {}, id: "buy_contract_company"
                 - else
-                  = text_field_tag :vendor_name, @contract.buy_contract.company.full_name.capitalize, disabled: "disabled"
+                  = text_field_tag :vendor_name, @contract.buy_contract.company.full_name.capitalize, disabled: "disabled" if  @contract.buy_contract.company.present?
 
   - if true #@contract.new_record? or @contract.sell_contract&.persisted?
     .row.mt-1
