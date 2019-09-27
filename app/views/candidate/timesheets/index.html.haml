@@ -24,12 +24,19 @@
         %option{value: 'twice a month'} Twice A Month
         %option{value: 'biweekly'} Twice A Week
 
+.row
+  .col-sm-12.submit_ts_hidden.hidden
+    .col-sm-5.float-right
+      .file_selector{style: "display: flex;"}
+        .form-group.d-inline-block
+          = link_to 'Submit TimeSheet','#',class:'btn btn-primary submit_link', style: "border-radius: 0; height:38px; padding:10px 8px;"
+        %p.d-inline-block.uploaded_file_name= "dd/mm/yyyy - dd/mm/yyyy"
 
 #timesheet_calendar.p-4
 
 
 -events = []
--@timesheets.each{|ts|  ts.transactions.each{|tt| events << {allDay: true,description: 'timesheet transaction',title: "Transaction-#{tt.id}",id: tt.id, total_time: tt.total_time, timesheet_id:tt.timesheet_id, start: tt.start_time.strftime("%Y-%m-%d")} }}
+-@timesheets.each{|ts|  ts.transactions.each{|tt| events << {allDay: true,status: ts.status ,description: 'timesheet transaction',title: "Transaction-#{tt.id}",id: tt.id, total_time: tt.total_time, timesheet_id:tt.timesheet_id, start: tt.start_time.strftime("%Y-%m-%d")} }}
 
 - content_for :scripts do
   :javascript
@@ -57,12 +64,16 @@
         },
         events: e,
         eventRender: function (info, event, el, view) {
-          event[0].removeChild(event[0].firstChild)
+          event[0].removeChild(event[0].firstChild);
           let inputDisabled = `<input name='${info.title}' data-transaction='${info.id}'  data-timesheet='${info.timesheet_id}'  onchange="handle_input(this,'candidate')" value='${info.total_time}' disabled='disabled' style='width: -moz-available;width: -webkit-fill-available;' />`
           let input = `<input name='${info.title}' data-transaction='${info.id}'  data-timesheet='${info.timesheet_id}' onchange="handle_input(this,'candidate')" value='${info.total_time}' style='width: -moz-available;width: -webkit-fill-available;' />`
-          let today = moment()
-          let transactionDay = moment(info.start)
-          event.append(today < transactionDay ? inputDisabled : input)
+          let today = moment();
+          let transactionDay = moment(info.start);
+          if(today < transactionDay || info.status == "submitted"){
+            event.append(inputDisabled)
+          }else{
+            event.append(input)
+          }
         },
         selectConstraint: {
           start: $.fullCalendar.moment(startCelandar),
