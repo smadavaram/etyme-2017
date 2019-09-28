@@ -33,7 +33,11 @@
                   %h3.control-label.pull-right.text-muted
                     = @contract.buy_contract.number
                     - if @contract&.buy_contract&.conversation.present?
-                      = link_to 'Conversation', mini_chat_company_conversations_path(conversation_id: @contract.buy_contract.conversation.id), remote: true,class: 'btn btn-sm btn-primary mb-1'
+                      =# link_to 'Conversation', mini_chat_company_conversations_path(conversation_id: @contract.buy_contract.conversation.id), remote: true,class: 'btn btn-sm btn-primary mb-1'
+                      .floated-chat-btn
+                        %i.os-icon.os-icon-mail-07
+                        %span
+                        = link_to 'Conversation', mini_chat_company_conversations_path(conversation_id: @contract.sell_contract.conversation.id) ,id: 'ChatBtn', remote: true
         %label.control-label.font-weight-bold.mt-2 Accounting
         .contract-fields_wrapper.mt-2
           %div

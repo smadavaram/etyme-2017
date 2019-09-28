@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema.define(version: 20190917090149) do
+ActiveRecord::Schema.define(version: 20190927093201) do
 
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
@@ -815,6 +815,7 @@ ActiveRecord::Schema.define(version: 20190917090149) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.integer "company_contact_id"
+    t.integer "role", default: 0
     t.index ["sell_contract_id"], name: "index_contract_sell_business_details_on_sell_contract_id"
   end
 
@@ -1028,6 +1029,17 @@ ActiveRecord::Schema.define(version: 20190917090149) do
     t.boolean "is_legal_doc", default: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+  end
+
+  create_table "docusigns", force: :cascade do |t|
+    t.string "ds_expires_at"
+    t.string "ds_user_name"
+    t.string "ds_access_token"
+    t.string "ds_refresh_token"
+    t.string "ds_account_id"
+    t.string "ds_account_name"
+    t.string "ds_base_path"
+    t.integer "company_id"
   end
 
   create_table "educations", id: :serial, force: :cascade do |t|
@@ -1472,6 +1484,8 @@ ActiveRecord::Schema.define(version: 20190917090149) do
     t.string "base_path"
     t.integer "plugin_type"
     t.integer "company_id"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
     t.string "app_key"
     t.string "app_secret"
   end

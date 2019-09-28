@@ -6,8 +6,9 @@ class CreateContractSellBusinessDetails < ActiveRecord::Migration[4.2][5.1]
       t.string :phone
       t.string :email
       t.string :department
-
       t.timestamps
     end
   end
 end
+    
+

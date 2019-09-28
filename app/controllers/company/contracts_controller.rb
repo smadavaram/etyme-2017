@@ -85,6 +85,7 @@ class Company::ContractsController < Company::BaseController
       # @contract.contract_sale_commisions.build
     else
       find_contract
+      @have_admin = ContractSellBusinessDetail.have_admin(@contract.id)
     end
     @company = Company.new
     @candidate = Candidate.new
@@ -459,6 +460,25 @@ class Company::ContractsController < Company::BaseController
     @contract_sell_business_details = @contract.sell_contract.contract_sell_business_details.includes(:company_contact)
   end
 
+  def update_role
+    unless ContractSellBusinessDetail.have_admin(params[:contract_id])
+      @bussiness_detail = ContractSellBusinessDetail.find(params[:bussiness_detail])
+      @bussiness_detail.role='admin'
+      if @bussiness_detail.save
+        respond_to do |format|
+         format.js {}
+        end
+      else
+        flash.now[:errors] = @bussiness_detail.errors.full_messages
+        respond_to do |format|
+          format.js {render inline: "location.reload();" }
+        end
+      end
+    else
+      # flash[:errors] = ["Already Admin selected"]
+    end
+  end
+     
   def delete_hr_admin
     @contract = Contract.find_by(id: params[:contract_id])
     @contract_admin = @contract.contract_admins.find_by(id: params[:contract_admin_id])

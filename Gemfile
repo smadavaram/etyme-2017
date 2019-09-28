@@ -151,8 +151,9 @@ gem "paranoia"#, "~> 2.2"
 # gem 'capistrano-rails', group: :development
 gem "googleauth"
 group :development, :test do
+# Gem rbnacl-libsodium should be placed before then gem rbnacl else sodium pkg error may occour
+  gem 'rbnacl-libsodium'  
   gem 'rbnacl','< 5.0' 
-  gem 'rbnacl-libsodium' 
   gem 'bcrypt_pbkdf', '< 2.0'
   gem 'ed25519', '< 2.0'
   gem 'better_errors'#, '~> 1.1.0'

@@ -565,6 +565,7 @@ Rails.application.routes.draw do
         get :salary_process
         get :set_commission_user
         get :create_contract
+        get :update_role
         post :create_document_request
         post :submit_document_create
         post :buy_document_create
