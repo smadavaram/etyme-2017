@@ -77,22 +77,29 @@
                 .tab-content.p-4{style: 'border: 1px solid #b6bcbf;'}
                   #tab-sell-pri.tab-pane.padding-top-15.active.in
                     .row
-                      .col-md-12
-                        .form-group
-                          %label.control-label
-                            Customer Rate $
-                          .select
-                            .row
-                              .col-md-6
-                                = sc.number_field :customer_rate, class: "form-control"
-                              .col-md-6
-                                .plain-select
-                                  = sc.select :customer_rate_type, ["hourly", "daily", "weekly", "monthly"], class: "form-control"
-                      .col-md-6
-                        .form-group
-                          %label.control-label
-                            Expected Hours per Day
-                          = sc.number_field :expected_hour, class: "form-control"
+                      = sc.fields_for :change_rates , sc.object.change_rates.build do |cr|
+                        =cr.hidden_field :rateable_type, value: sc.object.class.to_s
+                        =cr.hidden_field :rateable_id, value: sc.object.id
+                        .col-md-12.display-flex
+                          =render 'company/contracts/partials/rate_fields', f: cr, usics: false
+                    - if sc.object.change_rates.present?
+                      .row
+                        %table.table.text-center.table-bordered.table-lg.table-v2.table-striped.data-table-font
+                          %thead
+                            %tr{:role => "row"}
+                              %th Rate
+                              %th Expected Hrs
+                              %th Rate Type
+                              %th From
+                              %th To
+                          %tbody
+                            - sc.object.change_rates.each do |change_rate|
+                              %tr
+                                %td= change_rate.rate
+                                %td= change_rate.working_hrs
+                                %td= change_rate.rate_type
+                                %td= change_rate.from_date
+                                %td= change_rate.to_date
                   #tab-sell-ts.tab-pane.padding-top-15
                     .row
                       .col-md-12

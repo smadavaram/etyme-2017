@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema.define(version: 20190917090149) do
+ActiveRecord::Schema.define(version: 20190927155516) do
 
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
@@ -457,13 +457,16 @@ ActiveRecord::Schema.define(version: 20190917090149) do
   end
 
   create_table "change_rates", force: :cascade do |t|
-    t.integer "contract_id"
+    t.integer "rateable_id"
     t.date "from_date"
     t.date "to_date"
-    t.string "rate_type"
+    t.integer "rate_type", default: 0
     t.float "rate"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.string "rateable_type"
+    t.float "uscis"
+    t.float "working_hrs"
   end
 
   create_table "chat_users", id: :serial, force: :cascade do |t|
@@ -1030,6 +1033,17 @@ ActiveRecord::Schema.define(version: 20190917090149) do
     t.datetime "updated_at", null: false
   end
 
+  create_table "docusigns", force: :cascade do |t|
+    t.string "ds_expires_at"
+    t.string "ds_user_name"
+    t.string "ds_access_token"
+    t.string "ds_refresh_token"
+    t.string "ds_account_id"
+    t.string "ds_account_name"
+    t.string "ds_base_path"
+    t.integer "company_id"
+  end
+
   create_table "educations", id: :serial, force: :cascade do |t|
     t.string "degree_title"
     t.string "grade"
@@ -1472,6 +1486,8 @@ ActiveRecord::Schema.define(version: 20190917090149) do
     t.string "base_path"
     t.integer "plugin_type"
     t.integer "company_id"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
     t.string "app_key"
     t.string "app_secret"
   end

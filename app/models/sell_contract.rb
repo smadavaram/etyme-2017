@@ -15,6 +15,7 @@ class SellContract < ApplicationRecord
   has_many :approvals, as: :contractable, dependent: :destroy
 
   has_one :conversation
+  has_many :change_rates, as: :rateable,dependent: :destroy
 
   # include NumberGenerator.new({prefix: 'SC', length: 7})
   before_create :set_number
@@ -24,6 +25,7 @@ class SellContract < ApplicationRecord
   accepts_nested_attributes_for :sell_send_documents, allow_destroy: true, reject_if: :all_blank
   accepts_nested_attributes_for :sell_request_documents, allow_destroy: true, reject_if: :all_blank
   accepts_nested_attributes_for :approvals, allow_destroy: true, reject_if: :all_blank
+  accepts_nested_attributes_for :change_rates, allow_destroy: true,reject_if:  proc { |attributes| attributes['rate'].blank? }
 
   after_create :set_contract_customer_rate_history
   after_update :set_contract_customer_rate_history, :if => proc { self.customer_rate_changed? }
@@ -49,7 +51,11 @@ class SellContract < ApplicationRecord
     end
     build_conversation({chatable: group, topic: :SellContract}).save if group
   end
-
+  
+  def today_rate
+    rate = change_rates.where("? between from_date and to_date",Date.today).order(:from_date).first
+    rate.present? ? rate  : change_rates.all.order(:from_date).first
+  end
   # def display_number
   #   "SC"+self.number
   # end

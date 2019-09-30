@@ -219,6 +219,7 @@ gem 'docusign_esign'
 gem 'aws-sdk', '~> 3'
 gem 'hashie'
 gem 'chronic'
+
 # gem 'trix',  '1.2.0'
 gem 'trix-rails', '~> 2.2', require: 'trix'
 gem 'exception_notification'
