@@ -10,7 +10,8 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema.define(version: 20190927093201) do
+
+ActiveRecord::Schema.define(version: 20190927155516) do
 
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
@@ -457,13 +458,16 @@ ActiveRecord::Schema.define(version: 20190927093201) do
   end
 
   create_table "change_rates", force: :cascade do |t|
-    t.integer "contract_id"
+    t.integer "rateable_id"
     t.date "from_date"
     t.date "to_date"
-    t.string "rate_type"
+    t.integer "rate_type", default: 0
     t.float "rate"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.string "rateable_type"
+    t.float "uscis"
+    t.float "working_hrs"
   end
 
   create_table "chat_users", id: :serial, force: :cascade do |t|

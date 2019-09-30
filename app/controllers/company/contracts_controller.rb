@@ -586,7 +586,8 @@ class Company::ContractsController < Company::BaseController
              ],
              sell_request_documents_attributes: [:id, :doc_file, :request, :file_name, :file_size, :file_type, :when_expire, :is_sign_required, :creatable_type,
                                                  :creatable_id, :_destroy,
-                                                 document_signs_attributes: [:id, :signable_type, :signable_id, :_destroy]]
+                                                 document_signs_attributes: [:id, :signable_type, :signable_id, :_destroy]],
+             change_rates_attributes: [:id, :from_date,:to_date,:rate_type,:rate,:rateable_type,:rateable_id,:working_hrs,:_destroy]
          ],
          buy_contract_attributes: [
              :ts_2day_of_week, :ta_2day_of_week,
@@ -654,7 +655,8 @@ class Company::ContractsController < Company::BaseController
                  document_signs_attributes: [
                      :id, :signable_type, :signable_id, :_destroy
                  ]
-             ]
+             ],
+             change_rates_attributes: [:id, :from_date,:to_date,:rate_type,:rate,:uscis,:rateable_type,:rateable_id,:working_hrs,:_destroy]
          ],
          contract_terms_attributes: [
              :id, :created_by, :contract_id, :status, :terms_condition, :rate, :note, :_destroy

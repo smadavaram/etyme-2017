@@ -213,6 +213,7 @@ Rails.application.routes.draw do
       get :submitted_timesheets, on: :collection
       get :approve_timesheets, on: :collection
       get :submit_timesheet
+      post "/:id/transaction/:transaction_id/update", on: :collection,to: "timesheets#add_hrs", as: :add_hrs
       # post "/:id", to: "timesheets#update", on: :collection, as: :update
     end
     resources :client_expenses, only: [:index, :update] do

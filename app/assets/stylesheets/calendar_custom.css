@@ -1,0 +1,30 @@
+.events{
+    background-color: transparent;
+    border-color: transparent;
+    box-shadow: none;
+}
+
+.events > input {
+    border-radius: 4px;
+    padding: 5px;
+    height: 20px;
+    border-style: ridge;
+}
+
+.fc-day-number{
+    width: 95%;
+    text-align: center !important;
+    background: #545F7A;
+    color: white;
+}
+
+.fc-day-header{
+    height: 40px;
+    vertical-align: middle !important;
+    background: #545f7a;
+    color: white;
+}
+
+.hidden{
+    display: none;
+}

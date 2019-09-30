@@ -120,6 +120,7 @@
                 - else
                   = text_field_tag :vendor_name, @contract.buy_contract.company.present? ? @contract.buy_contract.company.full_name.capitalize : '', disabled: "disabled"
 
+
   - if true #@contract.new_record? or @contract.sell_contract&.persisted?
     .a
       
