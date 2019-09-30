@@ -443,7 +443,7 @@ var set_contract_admins = function(selector, place_holder){
             },
             placeholder: place_holder,
             language: {
-                noResults: function() {return "No results <a class='pull-right header-btn hidden-mobile' target='_blank' href='/admins'>Add Roles</a>"; }
+                noResults: function() {return "No results <a class='pull-right header-btn hidden-mobile' target='_blank' href='/admins'>Add Admin</a>"; }
             },
             multiple: true,
             escapeMarkup: function (markup) { return markup; },

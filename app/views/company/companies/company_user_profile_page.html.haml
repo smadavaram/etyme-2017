@@ -3,7 +3,8 @@
     .row
       .col-sm-4
         .user-profile.compact
-          .up-head-w{:style => "background-image:url(#{current_user.photo})"}
+          .up-head-w{:style => "background-image:url(#{current_user.photo})", class: 'profile-pic'}
+            / = image_tag user.photo,  style:"width:100px;height:100px", fit: 'clip',:class =>"profile-pic image-setting"
             .up-social
               -#%a{:href => current_user.twitter_url, target: "_blank"}
               -#  %i.os-icon.os-icon-twitter
@@ -128,3 +129,70 @@
                     .element-inner-desc
                       %P
                         = link_to "Add New One", company_user_path(current_user)
+
+
+- content_for :scripts do
+  :javascript
+    $(document).ready(function() {
+
+      $( ".profile-pic" ).click(function()
+      {
+        upload_file_ajax(userLogoUpload);
+      });
+       $(".best_in_place").best_in_place();
+       $(".best_in_place").on('change', function(event) {
+          flash_success('Change Saved!');
+      });
+      $( ".video-pic" ).click(function() {
+        upload_file_ajax(usersVideoUpload);
+     });
+     $( ".resume" ).click(function() {
+        $( ".resume_file" ).trigger( "click" );
+     });
+      $('.p_date').datepicker({
+        dateFormat: "yy-mm-dd"
+      });
+    });
+    function userLogoUpload(url,type){
+      photo_url = url
+      $('.profile-pic').html('');
+      $.ajax({
+       type: 'POST',
+       dataType: 'json',
+       url: "#{update_photo_path}",
+       data: { photo: photo_url,authenticity_token: window._token },
+       success: function (data) {
+        $('.text img').attr("src",photo_url);
+        location.reload();
+       }
+     });
+    }
+    function usersVideoUpload(url,type){
+      video_url = url
+      video_type=type
+      $('.video-pic').html('');
+      $.ajax({
+       type: 'POST',
+       dataType: 'json',
+       url: "#{company_user_update_video_path(user_id:current_user.id)}",
+       data: { video: video_url,authenticity_token: window._token, video_type: video_type },
+       success: function (data) {
+         location.reload();
+       }
+     });
+    }
+    $.datepicker.setDefaults({
+        changeYear: true,
+        yearRange: "1900:2016",
+        showMonthAfterYear: true,
+        showButtonPanel: true,
+        showAnim: "fold",
+        selectOtherMonths: true,
+        autoSize: true,
+        dateFormat: "yy-mm-dd"
+
+      });
+    $(".edit_in_line").css("display","none");
+    $('td').on('mouseover mouseout',function(){
+    $(this).find('.editprofile-pic_in_line').toggle();
+    });

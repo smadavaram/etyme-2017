@@ -1620,4 +1620,8 @@ text-align: right;
 }
 .right-flux{
     float: right;
+   margin-bottom: 20px;
+}
+.table-v2 td{
+    text-align: left !important;
 }

@@ -3,7 +3,7 @@
     .modal-content
       .modal-header
         %h4.modal-title
-          %strong Add New Reminder
+          %strong Add Reminders/Work Notes
         %button.close{"aria-hidden" => "true", "data-dismiss" => "modal", :type => "button"}
           ×
 
@@ -12,18 +12,19 @@
           = f.hidden_field :reminderable_id ,value: assignee.id
           = f.hidden_field :reminderable_type ,value: assignee.class
           %br
+          
+          .form-group
+            %label.col-md-3.control-label
+              Work Notes
+              %sup.text-danger *
+            .col-md-8
+              = f.text_area :title , required: true ,class:'form-control' ,placeholder: "Work Notes here"
           .form-group
             %label.col-md-3.control-label
               Remind At
-              %sup.text-danger *
+              %sup.text-danger 
             .col-md-8
-              = f.text_field :remind_at ,required: true ,class:'form-control',id:"remind"
-          .form-group
-            %label.col-md-3.control-label
-              Memo
-              %sup.text-danger *
-            .col-md-8
-              = f.text_area :title , required: true ,class:'form-control' ,placeholder: "Memo here"
+              = f.text_field :remind_at ,class:'form-control',id:"remind"    
           .modal-footer
             = f.button "submit".html_safe , class: 'btn btn-primary btn-sm' , data: {disable_with: ("Submitting...")} ,id: 'form_id'
             %button.btn.btn-default{"data-dismiss" => "modal", :type => "button"}
