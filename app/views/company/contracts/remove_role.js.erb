@@ -1,5 +1,4 @@
-
-$(".hr_reporting_admins_table_body").html("<%= j(render 'company/contracts/update_role', business_detail_objs: @sell_contract_bussiness_details)%>");
+$(".hr_reporting_admins_table_body").html("<%= j(render 'company/contracts/remove_role', business_detail_objs: @sell_contract_bussiness_details)%>");
 // $(".remove_admin_link").hide();
 <% if flash[:errors].present? %>
   <% flash[:errors].each do |e| %>
@@ -9,4 +8,5 @@ $(".hr_reporting_admins_table_body").html("<%= j(render 'company/contracts/updat
  <% if flash[:success].present? %>
  flash_success("<%= flash[:success] %>");
  <% end %>
+
 

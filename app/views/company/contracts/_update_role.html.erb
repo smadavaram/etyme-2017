@@ -1,0 +1,33 @@
+<% business_detail_objs.each do |bussiness_detail| %>
+  <% user = bussiness_detail.company_contact&.user %>
+  <tr>
+    <td>
+      <%= user.company.domain %>
+    </td>
+    <td>
+      <%= user.full_name %>
+    </td>
+    <td>
+      <%= contact_widget(user.email,user.phone,user,chat_link: chat_link(user)) %>
+    </td>
+    <td>
+      <%= do_ellipsis(user.roles.pluck(:name).join(', '),40) %>
+    </td>
+    <td>
+      <%= content_tag(:span, do_ellipsis(current_user.reminders.where(reminderable_id: user.id, reminderable_type: 'Admin')&.last&.title), class: 'bg-info badge mr-1').html_safe %>
+    </td>
+    <td>
+      <%= link_to(content_tag(:i, nil, class: 'picons-thin-icon-thin-0014_notebook_paper_todo').html_safe, add_reminder_company_users_path(user_id: user.id), remote: :true, title: "Remind Me", class: 'data-table-icons') %>
+     	 <% if bussiness_detail.role=="admin"  %>
+          <br/>
+          <%= link_to(content_tag(:i, nil, class: 'picons-thin-icon-thin-0699_user_profile_avatar_man_male').html_safe, remove_role_contracts_path(bussiness_detail: bussiness_detail.id,status:'remove admin'), remote: :true, title: "Remove Admin", class: 'data-table-icons',style: "color:red") %>
+        <% else %>
+          <br/>
+          <i class="picons-thin-icon-thin-0710_business_tie_user_profile_avatar_man_male" title="Member"></i>
+        <% end %>
+      <br/>
+      <%= link_to(content_tag(:i, nil, class: 'os-icon os-icon-ui-15').html_safe, delete_reporting_manager_contracts_path(contract_id: bussiness_detail.sell_contract_id,reporting_manager_id: bussiness_detail.id), method: :delete,remote: :true, title: "Delete #{user.full_name}", class: 'data-table-icons') %>
+    </td>
+  </tr>
+<% end %>
+<%#= link_to(content_tag(:i, nil, class: 'picons-thin-icon-thin-0699_user_profile_avatar_man_male').html_safe, remove_role_contracts_path(bussiness_detail: params[:bussiness_detail],status:'remove admin'), remote: :true, title: 'Remove Admin', class: 'data-table-icons',style: 'color:red')%>
