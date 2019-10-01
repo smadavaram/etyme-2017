@@ -1,8 +1,9 @@
 .individual_contracts_headers
   %h3= "Buy-  #{@contract.buy_contract.number}"
-  .text-right
-    =link_to 'Add', '#', class: 'btn btn-primary'
-    =link_to 'Remove', '#', class: 'btn btn-danger'
+  - if local_assigns[:editable] and editable
+    .text-right
+      =link_to 'Add', '#', class: 'btn btn-primary'
+      =link_to 'Remove', '#', class: 'btn btn-danger'
 - if @contract.buy_contract.present?
   %h3.contract_sub_heading
     Vendor Details
@@ -20,20 +21,22 @@
             %strong.pull-left= "Address: "
             .pull-left= do_ellipsis(@contract.candidate.addresses.first&.address_1,15)
         .col-sm-6.pr-0.pl-0
-          .rate_info.text-center.d-inline-block
-            %strong{title: "Freelancer Rate"} Fre. Rate
+          .rate_info.text-center.d-inline-block.p-0
+            %strong.rate_label{title: "Freelancer Rate"} Fre. Rate
             %span
               %br
               =  number_to_currency(@contract.buy_contract.today_rate.try(:rate)||0)
               %br
-              %span.btn.btn-primary.sell-change-rate{"data-toggle": "modal","data-target": "#freelancer_rate_change"} Change
-          .rate_info.text-center.d-inline-block
-            %strong USCIS
+              - if local_assigns[:editable] and editable
+                %span.btn.btn-primary.sell-change-rate{"data-toggle": "modal","data-target": "#freelancer_rate_change"} Add Rate
+          .rate_info.text-center.d-inline-block.p-0
+            %strong.rate_label USCIS
             %span
               %br
               =  number_to_currency(@contract.buy_contract.today_rate.try(:uscis)||0)
               %br
-              %span.btn.btn-primary.sell-change-rate.disabled Change
+              - if local_assigns[:editable] and editable
+                %span.btn.btn-primary.sell-change-rate{"data-toggle": "modal","data-target": "#freelancer_rate_change"} Add Rate
         =render 'company/contracts/partials/freelancer_rate_modal'
       .table-responsive.pt-3.line-bottom
         %table.table.text-center.table-bordered.table-lg.table-v2.table-striped.data-table-font
@@ -113,21 +116,23 @@
             %p
               =buy_contract_time_sheet('salary_process', @contract.buy_contract&.salary_calculation)
         .col-sm-4.col-md-4.col-lg-4.p-1
-          .rate_info.text-center.d-inline-block
-            %strong{title: "Freelancer Rate"} Freelancer Rate
+          .rate_info.text-center.box_rate
+            %strong.rate_label{title: "Freelancer Rate"} Freelancer Rate
             %span
               %br
               =  number_to_currency(@contract.buy_contract.today_rate.try(:rate)||0)
               %br
-              %span.btn.btn-primary.sell-change-rate{"data-toggle": "modal","data-target": "#freelancer_rate_change"} Change Rate
+              - if local_assigns[:editable] and editable
+                %span.btn.btn-primary.sell-change-rate{"data-toggle": "modal","data-target": "#freelancer_rate_change"} Add Rate
         .col-sm-4.col-md-4.col-lg-4.p-1
-          .rate_info.text-center.d-inline-block
-            %strong USCIS
+          .rate_info.text-center.box_rate
+            %strong.rate_label USCIS
             %span
               %br
               =  number_to_currency(@contract.buy_contract.today_rate.try(:uscis)||0)
               %br
-              %span.btn.btn-primary.sell-change-rate.disabled Change Rate
+              - if local_assigns[:editable] and editable
+                %span.btn.btn-primary.sell-change-rate{"data-toggle": "modal","data-target": "#freelancer_rate_change"} Add Rate
       - if @contract&.buy_contract&.contract_type == 'C2C'
         .row
           .col-sm-4.col-md-4.col-lg-4.p-1

@@ -38,7 +38,7 @@
                     /     %input.form-control{:placeholder => "End Cycle", :type => "text"}/
                     /   %th.hasinput{ :style => "width:10%"}
                     /     %input.form-control{:placeholder => "Status", :type => "text"}/
-                    /   %th.hasinput{ :style => "width:10%"}
+                    /   %th.hasinput{ :style => "widthtim:10%"}
                     /     %input.form-control{:placeholder => "Actions", :type => "text"}/
                     %tr{:role => "row"}
                       %th Id
@@ -53,7 +53,7 @@
                       
                   %tbody
                     - data.each_with_index do |timesheet , index|
-                      - rate = get_rate(timesheet.start_date, timesheet.contract_id, 'buy')
+                      - rate = timesheet.contract_cycle.cycle_of.get_rate(timesheet.start_date).rate||0
                       - content_for :modals do
                         = render 'company/timesheets/partials/histroy_modal' , timesheet: timesheet
                       %tr.even{:role => "row"}
@@ -63,9 +63,9 @@
                           %br
                           = "-"+timesheet.contract.title[0..10]
                           %br
-                          = "-"+timesheet.contract.client.full_name[0..10]
+                          = "#{timesheet.contract.client.present? ? "-#{timesheet.contract.client.full_name[0..10]}-" : ''}"
                           %br
-                          = "-"+timesheet.contract.buy_contracts.contract_type.to_s
+                          = "-"+timesheet.contract.buy_contract.contract_type.to_s
                           %br
                           = "-"+timesheet.contract.buy_contract.candidate.full_name[0..10]
                         %td= timesheet.total_time
@@ -73,7 +73,7 @@
                         %td= rate * timesheet.total_time
                         %td= timesheet.start_date
                         %td= timesheet.end_date
-                        %td= timesheet.ts_cycle.next_date.strftime("%m/%d/%Y")
+                        %td TBD
                         %td= timesheet.status.titleize
                         =# link_to raw("<i class='fa fa-eye '></i>")  ,timesheet_timesheet_log_path(timesheet, timesheet.timesheet_logs.last) ,  target: '_blank' ,class: 'btn btn-xs btn-default ',title:'View Details','rel'=>"tooltip" ,'data-placement'=>"top"
                         =# link_to raw("<i class='fa  fa-fax '></i>"), timesheet_check_invoice_path(timesheet) , class: 'btn btn-xs btn-default ',title:'Generate Invoice','rel'=>"tooltip" ,'data-placement'=>"top", remote: true

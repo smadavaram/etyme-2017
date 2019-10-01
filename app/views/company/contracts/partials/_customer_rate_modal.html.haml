@@ -1,5 +1,5 @@
 .modal#customer_rate_change
-  .modal-dialog
+  .modal-dialog.modal-lg
     .modal-content
       .modal-header
         %h4#myModalLabel.modal-title
@@ -7,13 +7,8 @@
         %button.close{"aria-hidden" => "true", "data-dismiss" => "modal", :type => "button"}
         ×
       .modal-body
-        = form_for :change_rate, url: change_rates_path(contract_id: @contract.id, type: 'sell'), method: :post, html:{class: 'contract-expense-type'} do |f|
-          .row
-            .col-sm-12
-              %label Rate
-              = f.text_field :rate, class: "form-control"
-            .col-sm-12
-              %label From
-              = f.date_field :from_date, class: "form-control"
+        = form_for @contract.sell_contract.change_rates.build, url: change_rates_path(contract_id: @contract.sell_contract.id, type: 'SellContract'), method: :post, html:{class: 'contract-expense-type'} do |f|
+          .col-md-12.display-flex
+            =render 'company/contracts/partials/rate_fields', f: f, usics: false
           %br
           = f.submit 'Save', class: 'btn btn-primary pull-right'

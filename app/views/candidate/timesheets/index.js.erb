@@ -1,6 +1,6 @@
 //$('.time_sheets_submission').html("<%= j render 'time_sheets_submit', timesheets: @timesheets %>");
 
-<% if @timesheets.count == 1  and DateTime.now >= @timesheets.first.end_date and @tab != 'submitted_timesheets' %>
+<% if @timesheets.count == 1  and DateTime.now >= @timesheets.first.end_date and @tab != 'submitted_timesheets' and @timesheets.first.open? %>
   $('.submit_link').attr('href', "<%= candidate_timesheet_submit_timesheet_path(@timesheets.first) %>")
   $('.uploaded_file_name').html("<%= "#{@timesheets.first.contract_cycle.start_date.strftime("%Y-%m-%d")} - #{@timesheets.first.contract_cycle.end_date.strftime("%Y-%m-%d")}".to_s %>")
   $('.submit_ts_hidden').show()

@@ -144,3 +144,24 @@ select{
   width: 162px !important;
   height: 45px !important;
 }
+.sell-change-rate{
+  width: 100%;
+  border-radius: 0px;
+}
+
+.rate_label{
+  padding-top: 3px;
+}
+
+.box_rate{
+  padding: 0px !important;
+  display: inline-block;
+  width: inherit;
+}
+
+.c_red{
+  color: red;
+}
+.c_green{
+  color: green;
+}

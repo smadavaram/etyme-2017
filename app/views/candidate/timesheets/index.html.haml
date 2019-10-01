@@ -69,7 +69,7 @@
           let input = `<input name='${info.title}' data-transaction='${info.id}'  data-timesheet='${info.timesheet_id}' onchange="handle_input(this,'candidate')" value='${info.total_time}' style='width: -moz-available;width: -webkit-fill-available;' />`
           let today = moment();
           let transactionDay = moment(info.start);
-          if(today < transactionDay || info.status == "submitted"){
+          if(today < transactionDay || [ "submitted", "approved", "partially_approved", "rejected", "invoiced"].includes(info.status)){
             event.append(inputDisabled)
           }else{
             event.append(input)

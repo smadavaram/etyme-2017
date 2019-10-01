@@ -5,9 +5,9 @@
     = render 'company/contracts/partials/contracts_links', contract: @contract
   .row
     .col-sm-6.col-md-6.col-lg-6
-      = render 'company/contracts/partials/sell_side'
+      = render 'company/contracts/partials/sell_side',editable: @contract.company == current_company
     .col-sm-6.col-md-6.col-lg-6
-      = render 'company/contracts/partials/buy_side'
+      = render 'company/contracts/partials/buy_side',editable: @contract.company == current_company
 
 - if @contract.pending? && !@contract.is_sent?(current_company)
   - content_for :modals do
