@@ -4,12 +4,16 @@ class ContractCycle < ApplicationRecord
                  'CommissionProcess', 'CommissionClear', 'VendorBillCalculation', 'ClientBillCalculation',
                  'VendorPaymentProcess', 'VendorBillClear', 'ClientPaymentProcess', 'ClientBillClear',
                  'ClientExpenseCalculation', 'ClientExpenseApprove', 'ClientExpenseInvoice','ClientExpenseSubmission'  ]
+  
   enum cycle_frequency: ["daily","weekly","biweekly","monthly","twice a month"]
+  enum status: [:pending,:completed,:rejected]
+  
   belongs_to :contract, optional: true
   belongs_to :company, optional: true
   belongs_to :candidate, optional: true
   belongs_to :cyclable, polymorphic: true, optional: true
-
+  belongs_to :cycle_of, polymorphic: true
+  
   has_many :ts_submitteds, foreign_key: :ts_cycle_id, class_name: 'Timesheet'
   has_many :ta_approveds, foreign_key: :ta_cycle_id, class_name: 'Timesheet'
 

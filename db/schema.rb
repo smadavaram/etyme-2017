@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema.define(version: 20190927155516) do
+ActiveRecord::Schema.define(version: 20191001094359) do
 
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
@@ -747,7 +747,6 @@ ActiveRecord::Schema.define(version: 20190927155516) do
     t.bigint "cyclable_id"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
-    t.string "status", default: "pending"
     t.datetime "completed_at"
     t.datetime "start_date"
     t.datetime "end_date"
@@ -757,6 +756,9 @@ ActiveRecord::Schema.define(version: 20190927155516) do
     t.date "doc_date"
     t.date "post_date"
     t.bigint "cycle_frequency"
+    t.integer "status", default: 0
+    t.string "cycle_of_type"
+    t.bigint "cycle_of_id"
     t.index ["candidate_id"], name: "index_contract_cycles_on_candidate_id"
     t.index ["company_id"], name: "index_contract_cycles_on_company_id"
     t.index ["contract_id"], name: "index_contract_cycles_on_contract_id"

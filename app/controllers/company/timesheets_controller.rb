@@ -13,7 +13,7 @@ class Company::TimesheetsController < Company::BaseController
   include Company::ChangeRatesHelper
 
   def index
-    @timesheets = current_company.timesheets.includes(contract: [:change_rates, buy_contract: [:company, :candidate]]).submitted_timesheets.paginate(page: params[:page], per_page: 10).order(id: :desc)
+    @timesheets = current_company.timesheets.includes(contract: [buy_contract: [:company, :candidate]]).submitted_timesheets.paginate(page: params[:page], per_page: 10).order(id: :desc)
     # @rec_search = current_company.received_timesheets.search(params[:q])
     # @received_timesheets   = @rec_search.result(distinct: true).paginate(page: params[:page], per_page: 10) || []
   end
@@ -88,7 +88,7 @@ class Company::TimesheetsController < Company::BaseController
 
   def approve
     if @timesheet.approved!
-      @timesheet.contract_cycle.update(status: "completed")
+      @timesheet.contract_cycle.update(status: :completed)
       flash[:success] = "Successfully Approved The Timesheet"
     else
       flash[:errors] = @timesheet.errors.full_messages

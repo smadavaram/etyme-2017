@@ -28,36 +28,36 @@
                   %strong{title: "Freelancer Rate"} Fre. Rate
                   %span
                     %br
-                    =  number_to_currency(get_rate(Date.today,@contract.id, 'buy'))
+                    =  number_to_currency(@contract.buy_contract.today_rate.try(:rate)||0)
                     %br
-                    %span.btn.btn-primary.sell-change-rate{"data-toggle": "modal","data-target": "#freelancer_rate_change"} Change
+                    -#%span.btn.btn-primary.sell-change-rate{"data-toggle": "modal","data-target": "#freelancer_rate_change"} Change
                 .rate_info.text-center.d-inline-block
                   %strong USCIS
                   %span
                     %br
-                    =  number_to_currency(@contract.buy_contract.uscis_rate)
+                    =  number_to_currency(@contract.buy_contract.today_rate.try(:uscis)||0)
                     %br
-                    %span.btn.btn-primary.sell-change-rate.disabled Change
-              =render 'company/contracts/partials/freelancer_rate_modal'
+                    -#%span.btn.btn-primary.sell-change-rate.disabled Change
+              -#=render 'company/contracts/partials/freelancer_rate_modal'
             .table-responsive.pt-3.line-bottom
-              %table.table.table-bordered.account_detail
+              %table.table.text-center.table-bordered.table-lg.table-v2.table-striped.data-table-font
                 %thead
-                  %tr
+                  %tr{:role => "row"}
                     %th Rate
+                    %th Expected Hrs
+                    %th Rate Type
+                    %th USCIS
                     %th From
                     %th To
-                    %th Type
                 %tbody
-                  - @contract.change_rates.buy_rates.each do |cr|
+                  - @contract.buy_contract.change_rates.each do |change_rate|
                     %tr
-                      %td
-                        = cr.rate.to_i
-                      %td
-                        = cr.from_date.inspect
-                      %td
-                        = cr.to_date.inspect
-                      %td
-                        = cr.rate_type.capitalize
+                      %td= change_rate.rate
+                      %td= change_rate.working_hrs
+                      %td= change_rate.rate_type
+                      %td= change_rate.uscis
+                      %td= change_rate.from_date
+                      %td= change_rate.to_date
         %div
           %h3.mt-2.mb-2
             Accounting & Work hours terms
@@ -97,21 +97,21 @@
                   %p
                     =buy_contract_time_sheet('salary_process', @contract.buy_contract&.salary_calculation)
               .col-sm-4.col-md-4.col-lg-4.p-1
-                .rate_info.text-center.d-inline-block
+                .rate_info.text-center.box_rate
                   %strong{title: "Freelancer Rate"} Freelancer Rate
                   %span
                     %br
-                    =  number_to_currency(get_rate(Date.today,@contract.id, 'buy'))
+                    =  number_to_currency(@contract.buy_contract.today_rate.try(:rate)||0)
                     %br
-                    %span.btn.btn-primary.sell-change-rate{"data-toggle": "modal","data-target": "#freelancer_rate_change"} Change Rate
+                    -#%span.btn.btn-primary.sell-change-rate{"data-toggle": "modal","data-target": "#freelancer_rate_change"} Change Rate
               .col-sm-4.col-md-4.col-lg-4.p-1
-                .rate_info.text-center.d-inline-block
+                .rate_info.text-center.box_rate
                   %strong USCIS
                   %span
                     %br
-                    =  number_to_currency(@contract.buy_contract.uscis_rate)
+                    =  number_to_currency(@contract.buy_contract.today_rate.try(:uscis)||0)
                     %br
-                    %span.btn.btn-primary.sell-change-rate.disabled Change Rate
+                    -#%span.btn.btn-primary.sell-change-rate.disabled Change Rate
             - if @contract&.buy_contract&.contract_type == 'C2C'
               .row
                 .col-sm-4.col-md-4.col-lg-4.p-1

@@ -18,6 +18,7 @@ class BuyContract < ApplicationRecord
   # include DateCalculation.new({prefix: 'BC', length: 7})
   has_one :conversation
   has_many :change_rates, as: :rateable,dependent: :destroy
+  has_many :contract_cycles, as: :cycle_of
   include DateCalculation
 
   before_create :set_number
@@ -89,13 +90,22 @@ class BuyContract < ApplicationRecord
     {"W2":"W2 (Fulltime)", "1099":"1099 (Freelancers)","C2C":"Corp-Corp (Third Party)"}[contract_type.to_sym]
   end
 
-  def today_rate
-    rate = change_rates.where("? between from_date and to_date",Date.today).order(:from_date).first
-    rate.present? ? rate : change_rates.all.order(:from_date).first
+  def get_rate(date)
+    rate_on(date)
   end
+  
+  def today_rate
+    rate_on(Date.today)
+  end
+
   
   private
 
+    def rate_on(date)
+      rate = change_rates.where("? between from_date and to_date",date).order(:from_date).first
+      rate.present? ? rate : change_rates.all.order(:from_date).first
+    end
+    
   def create_buy_contract_conversation
     group = nil
     Group.transaction do

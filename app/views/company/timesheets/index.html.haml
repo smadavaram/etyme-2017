@@ -47,13 +47,13 @@
       %table#jqgrid
 - @temp = []
 -@timesheets.each do |ts|
-  - rate = get_rate(ts.start_date, ts.contract_id, 'buy')
+  - rate =   ts.contract_cycle.contract.buy_contract.get_rate(ts.start_date).rate || 0
   -@temp.push({ timesheet_id: ts.id,
-                cycle_id: ts.ts_cycle_id,
+                cycle_id: ts.contract_cycle.id,
                 creation_date: ts.created_at.strftime('%Y-%m-%d'),
                 contract: ts.contract.number,
                 client: ts.contract.client.try(:full_name),
-                tax_type: ts.contract.buy_contract.contract_type,
+                contract_type: ts.contract.buy_contract.get_contract_type_label,
                 candidate: ts.contract.buy_contract.candidate.try(:full_name),
                 company_vender: ts.contract.buy_contract.company.present? ? ts.contract.buy_contract.company.full_name : '',
                 buy_rate: rate,
@@ -107,8 +107,8 @@
         align : "right",
         editable : true
       }, {
-        name : 'tax_type',
-        index : 'tax_type',
+        name : 'contract_type',
+        index : 'contract_type',
         align : "right",
         editable : true
       }, {
@@ -167,10 +167,10 @@
           se = "<button class='btn btn-xs btn-default' data-original-title='Save Row' onclick=\"jQuery('#jqgrid').saveRow('" + cl + "');\"><i class='fa fa-save'></i></button>";
           ca = "<button class='btn btn-xs btn-default' data-original-title='Cancel' onclick=\"jQuery('#jqgrid').restoreRow('" + cl + "');\"><i class='fa fa-times'></i></button>";
 
-          ta = "<a href='/timesheets/" + id + "/approve' class='btn btn-xs btn-default' title='Approve Timesheet' rel='tooltip' 'data-placement'= 'top' data-confirm ="+ JSON.stringify(message) +"  verify='Approve' verify_text=\" Type 'Approve' to confirm\"> <i class='fa fa-check '></i> </a> " ;
+          ta = "<a href='/timesheets/" + id + "/approve' class='c_green' title='Approve Timesheet' rel='tooltip' 'data-placement'= 'top' data-confirm ="+ JSON.stringify(message) +"  verify='Approve' verify_text=\" Type 'Approve' to confirm\"> <i class='fa fa-check '></i> </a> " ;
           tr = "" ;
 
-          trr = "<a href='/timesheets/" + id + "/reject' class='btn btn-xs btn-default' title='Reject Timesheet' rel='tooltip' 'data-placement'= 'top' data-confirm ="+ JSON.stringify(message) +"  verify='Reject' verify_text=\" Type 'Reject' to confirm\"> <i class='fa fa-times-circle'></i> </a> " ;
+          trr = "<a href='/timesheets/" + id + "/reject' class='c_red' title='Reject Timesheet' rel='tooltip' 'data-placement'= 'top' data-confirm ="+ JSON.stringify(message) +"  verify='Reject' verify_text=\" Type 'Reject' to confirm\"> <i class='fa fa-times-circle'></i> </a> " ;
           tr = "" ;
 
 
