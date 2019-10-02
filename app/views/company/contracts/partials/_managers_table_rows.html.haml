@@ -13,3 +13,7 @@
       = link_to(content_tag(:i, nil, class: 'picons-thin-icon-thin-0014_notebook_paper_todo').html_safe, add_reminder_company_users_path(user_id: user.id), remote: :true, title: "Remind Me", class: 'data-table-icons')
       - unless ["CompanyContact"].include?(can_be_admin.class.to_s)
         = link_to(content_tag(:i, nil, class: 'os-icon os-icon-ui-15').html_safe, delete_reporting_manager_contracts_path(contract_id: can_be_admin.sell_contract.contract_id,reporting_manager_id: can_be_admin&.id), method: :delete,remote: :true, title: "Delete #{user.full_name}", class: 'data-table-icons')
+        - if can_be_admin.admin? 
+          = link_to(content_tag(:i, nil, class: 'picons-thin-icon-thin-0699_user_profile_avatar_man_male').html_safe, remove_role_contracts_path(bussiness_detail: can_be_admin.id,status:'remove admin'), remote: :true, title: "Remove Admin", class: 'data-table-icons',style: "color:red")
+        -else
+          %i.picons-thin-icon-thin-0710_business_tie_user_profile_avatar_man_male{:title => "Member"}
