@@ -20,6 +20,7 @@ class SellContract < ApplicationRecord
 
   # include NumberGenerator.new({prefix: 'SC', length: 7})
   before_create :set_number
+  before_save :enforce_admin
   after_create :create_sell_contract_conversation
   
   accepts_nested_attributes_for :contract_sell_business_details, allow_destroy: true, reject_if: :all_blank
@@ -60,11 +61,15 @@ class SellContract < ApplicationRecord
   def today_rate
     rate_on(Date.today)
   end
+  def count_contract_bussiness_details
+    self.contract_sell_business_details.count
+  end
+
 
   
   
   private
-    
+   
     def rate_on(date)
       rate = change_rates.where("? between from_date and to_date", date).order(:from_date).first
       rate.present? ? rate : change_rates.all.order(:from_date).first

@@ -189,18 +189,10 @@ class Company::ContractsController < Company::BaseController
     respond_to do |format|
       if @contract.update(contract_params)
         @have_admin = @contract.sell_contract.contract_sell_business_details.admin.count!=0
-        # @have_admin = ContractSellBusinessDetail.have_admin(@contract.sell_contract)
-        params[:contract][:reporting_manager_ids]&.each_with_index  do |id,index|
-           if @contract.sell_contract.contract_sell_business_details.count==0
-            if index==0
-              @contract.sell_contract.contract_sell_business_details.create(company_contact_id: id, role:1)
-            else
-             @contract.sell_contract.contract_sell_business_details.create(company_contact_id: id, role:0)
-            end
-          else
-            @contract.sell_contract.contract_sell_business_details.create(company_contact_id: id)
-          end
+        params[:contract][:reporting_manager_ids]&.each  do |id|
+          @contract.sell_contract.contract_sell_business_details.create(company_contact_id: id)
         end
+          
         params[:contract][:hr_admins_ids]&.each do |id|
           @contract.contract_admins.create(user_id: id, company_id: current_company.id)
         end
