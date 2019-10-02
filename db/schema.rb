@@ -820,6 +820,7 @@ ActiveRecord::Schema.define(version: 20191001094359) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.integer "company_contact_id"
+    t.integer "role", default: 0
     t.index ["sell_contract_id"], name: "index_contract_sell_business_details_on_sell_contract_id"
   end
 

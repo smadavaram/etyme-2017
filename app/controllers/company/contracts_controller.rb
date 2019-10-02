@@ -85,6 +85,9 @@ class Company::ContractsController < Company::BaseController
       # @contract.contract_sale_commisions.build
     else
       find_contract
+      @have_admin = @contract.sell_contract.contract_sell_business_details.admin.count!=0
+      
+
     end
     @company = Company.new
     @candidate = Candidate.new
@@ -185,9 +188,11 @@ class Company::ContractsController < Company::BaseController
     set_docusign_documents
     respond_to do |format|
       if @contract.update(contract_params)
-        params[:contract][:reporting_manager_ids]&.each do |id|
+        @have_admin = @contract.sell_contract.contract_sell_business_details.admin.count!=0
+        params[:contract][:reporting_manager_ids]&.each  do |id|
           @contract.sell_contract.contract_sell_business_details.create(company_contact_id: id)
         end
+          
         params[:contract][:hr_admins_ids]&.each do |id|
           @contract.contract_admins.create(user_id: id, company_id: current_company.id)
         end
@@ -458,7 +463,43 @@ class Company::ContractsController < Company::BaseController
     end
     @contract_sell_business_details = @contract.sell_contract.contract_sell_business_details.includes(:company_contact)
   end
+  def remove_role
+    @bussiness_detail = ContractSellBusinessDetail.find(params[:bussiness_detail])
+    @sell_contract_bussiness_details = @bussiness_detail.sell_contract.contract_sell_business_details
+    @bussiness_detail.role='member'
+    if @bussiness_detail.save
+      respond_to do |format|
+         flash[:success] = ["Role updated to  Member successfully"]
+         # format.js {render inline: "location.reload();" }
+         format.js {}
 
+      end
+    else
+      respond_to do |format|
+        flash.now[:errors] = @bussiness_detail.errors.full_messages
+
+        # format.js {render inline: "location.reload();" }
+    end
+  end
+  end
+  def update_role
+      @bussiness_detail = ContractSellBusinessDetail.find(params[:bussiness_detail])
+      @sell_contract_bussiness_details = @bussiness_detail.sell_contract.contract_sell_business_details
+      @bussiness_detail.role='admin'
+      if @bussiness_detail.save
+        respond_to do |format|
+         flash[:success] = ["Role updated to  Admin successfully"]
+         format.js {}
+        end
+      else
+        flash.now[:errors] = @bussiness_detail.errors.full_messages
+        respond_to do |format|
+          # format.js {render inline: "location.reload();" }
+          flash.now[:errors] = @bussiness_detail.errors.full_messages
+        end
+      end 
+  end
+     
   def delete_hr_admin
     @contract = Contract.find_by(id: params[:contract_id])
     @contract_admin = @contract.contract_admins.find_by(id: params[:contract_admin_id])

@@ -33,7 +33,11 @@
                   %h3.control-label.pull-right.text-muted
                     = @contract.buy_contract.number
                     - if @contract&.buy_contract&.conversation.present?
-                      = link_to 'Conversation', mini_chat_company_conversations_path(conversation_id: @contract.buy_contract.conversation.id), remote: true,class: 'btn btn-sm btn-primary mb-1'
+                      =# link_to 'Conversation', mini_chat_company_conversations_path(conversation_id: @contract.buy_contract.conversation.id), remote: true,class: 'btn btn-sm btn-primary mb-1'
+                      .floated-chat-btn
+                        %i.os-icon.os-icon-mail-07
+                        %span
+                        = link_to 'Conversation', mini_chat_company_conversations_path(conversation_id: @contract.sell_contract.conversation.id) ,id: 'ChatBtn', remote: true
         %label.control-label.font-weight-bold.mt-2 Accounting
         .contract-fields_wrapper.mt-2
           %div
@@ -80,7 +84,7 @@
                               %th Rate
                               %th Expected Hrs
                               %th Rate Type
-                              %th USCIS
+                              %th USICS
                               %th From
                               %th To
                           %tbody
@@ -416,11 +420,11 @@
                 %li.nav-item.active.primary-nav.mr-0
                   %a{"data-toggle" => "tab", :href => "#buy_send_documents", class: "nav-link cumstom_nav-tab"}
                     %span.badge.bg-color-blue.txt-color-white
-                    Employee Submit Documents
+                    Submit Documents
                 %li.nav-item.primary-nav.mr-0
                   %a{"data-toggle" => "tab", :href => "#buy_emp_req_docs", class: "nav-link cumstom_nav-tab"}
                     %span.badge.bg-color-blue.txt-color-white
-                    Employee Request Documents
+                    Request Documents
                 - if @contract.buy_contract.company.present?
                   %li.nav-item.primary-nav.mr-0
                     %a{"data-toggle" => "tab", :href => "#buy_ven_req_docs", class: "nav-link cumstom_nav-tab"}

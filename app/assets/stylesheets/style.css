@@ -1634,3 +1634,17 @@ text-align: right;
     margin: auto;
     width: 60%;
 }
+#ChatBtn{
+    color: white !important;
+}
+.btn-secondary{
+    background-color: blue !important;
+    border-color: blue !important;
+}
+.right-flux{
+    float: right;
+   margin-bottom: 20px;
+}
+.table-v2 td{
+    text-align: left !important;
+}

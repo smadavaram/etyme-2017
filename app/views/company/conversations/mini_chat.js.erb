@@ -1,6 +1,6 @@
   $('#modals').append("<%= j render 'company/conversations/mini_chat',conversation: @conversation %>")
   $('#modals').append("<%= j render('shared/chat_document_templates', conversation: @conversation) if @conversation.present? %>")
-
+$('#ChatBtn').hide();
   function onCompanyFileUpload(event) {
     $('#file-name_uploaded').html("<span>" + event.fpfile.filename + "</span><hr/>");
   }

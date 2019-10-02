@@ -4,6 +4,7 @@
   =hidden_field_tag :tab, "2"
   - if params.has_key?('id')
     =contract.hidden_field :parent_contract_id , value: params[:id]
+
   .contract-fields_wrapper
     .row
       .col-md-6
@@ -27,47 +28,50 @@
             %sup.text-danger *
           .contract-fild
             = f.text_field :end_date ,class: "form-control" , required: 'true' #, placeholder: "Contract End Date"
-  .contract-fields_wrapper.mt-4
-    %h5.mb-4.d-inline-block Contract Admin Team
-    %h5.mb-4.d-inline-block.pull-right
-      %button.btn.btn-primary.btn-sm{"data-target" => "#contract-admin-team", "data-toggle" => "modal", :type => "button"} Add Admin
-    - headers =  %w(domain name contact role(s) reminder action(s))
-    .table-responsive
-      %table.table.text-center.table-bordered.table-lg.table-v2.table-striped.data-table-font#contract_admins_table
-        %thead
-          %tr
-          - headers.each do |header|
-            %th= header.capitalize
-        %tbody.hr_admins_table_body
-          - @contract.contract_admins&.each do |admin|
-            - user = admin.user
+    .mt-4
+      %h5.mb-4.d-inline-block Contract Admin Team
+      %h5.mb-4.d-inline-block.pull-right
+        %button.btn.btn-primary.btn-sm{"data-target" => "#contract-admin-team", "data-toggle" => "modal", :type => "button"} Add Admin
+      - headers =  %w(domain name contact role(s) reminder action(s))
+      .table-responsive
+        %table.table.text-center.table-bordered.table-lg.table-v2.table-striped.data-table-font#contract_admins_table
+          %thead
             %tr
-              %td= user.company.domain
-              %td= user.full_name
-              %td= contact_widget(user.email,user.phone,user,chat_link: chat_link(user))
-              %td= user.roles.pluck(:name).join(', ')
-              %td= content_tag(:span, do_ellipsis(current_user.reminders.where(reminderable_id: user.id, reminderable_type: 'Admin')&.last&.title), class: 'bg-info badge mr-1').html_safe
-              %td
-                = link_to(content_tag(:i, nil, class: 'picons-thin-icon-thin-0014_notebook_paper_todo').html_safe, add_reminder_company_users_path(user_id: user.id), remote: :true, title: "Remind Me", class: 'data-table-icons')
-                = link_to(content_tag(:i, nil, class: 'os-icon os-icon-ui-15').html_safe, delete_hr_admin_contracts_path(contract_id: @contract.id,contract_admin_id: admin.id), method: :delete,remote: :true, title: "Delete #{user.full_name}", class: 'data-table-icons')
+            - headers.each do |header|
+              %th= header.capitalize
+          %tbody.hr_admins_table_body
+            - @contract.contract_admins&.each do |admin|
+              - user = admin.user
+              %tr
+                %td= user.company.domain
+                %td= user.full_name
+                %td= contact_widget(user.email,user.phone,user,chat_link: chat_link(user))
+                %td= user.roles.pluck(:name).join(', ')
+                %td= content_tag(:span, do_ellipsis(current_user.reminders.where(reminderable_id: user.id, reminderable_type: 'Admin')&.last&.title), class: 'bg-info badge mr-1').html_safe
+                %td
+                  = link_to(content_tag(:i, nil, class: 'picons-thin-icon-thin-0014_notebook_paper_todo').html_safe, add_reminder_company_users_path(user_id: user.id), remote: :true, title: "Remind Me", class: 'data-table-icons')
+                  = link_to(content_tag(:i, nil, class: 'os-icon os-icon-ui-15').html_safe, delete_hr_admin_contracts_path(contract_id: @contract.id,contract_admin_id: admin.id), method: :delete,remote: :true, title: "Delete #{user.full_name}", class: 'data-table-icons')
 
 
-  .mt-4.p-4
-    .row
-      .col-md-12
-        .form-group
-          %label.control-label Jobs
-          %label.control-label.pull-right
-            = link_to 'Add New', new_job_path,target:'_blank', class: 'btn btn-sm btn-primary'
-          .contract-fild
-            - if @contract.new_record?
-              .plain-select
-                = f.select :job_id, '', {}, id: 'select_jobs', class: 'form-control',required: 'true'
-            - else
-              = text_field_tag :job_title , @contract.job.title, disabled: 'disabled'
-              = hidden_field_tag 'job_id', 	 @contract.job&.id, id: "job_id"
+    .mt-4.p-4
+      .row
+        .col-md-12
+          .form-group
+            %label.control-label Jobs
+            %label.control-label.pull-right
+              = link_to 'Add New', new_job_path,target:'_blank', class: 'btn btn-sm btn-primary'
+            .contract-fild
+              - if @contract.new_record?
+                .plain-select
+                  = f.select :job_id, '', {}, id: 'select_jobs', class: 'form-control',required: 'true'
+              - else
+                = text_field_tag :job_title , @contract.job.title, disabled: 'disabled'
+                = hidden_field_tag 'job_id', 	 @contract.job&.id, id: "job_id"
   - if true #@contract.new_record? or @contract.buy_contract&.persisted?
-    .row
+    
+
+    .contract-fields_wrapper.mt-4
+      .row
       .col-md-12
         %h5.pt-1
           %b Do you want to onboard consultant?
@@ -79,9 +83,7 @@
             No
             %input{onchange: "toogle_consultant(this,'.consultant_toggle')", :type => "radio",name: "toogle_consultant_contract", :value => "no"}/
             %span.radio-checkmark
-
-    .contract-fields_wrapper.mt-4.consultant_toggle
-      .row
+      .row.consultant_toggle
         .col-md-5
           .form-group
             %label.control-label Consultant
@@ -116,11 +118,15 @@
                   .plain-select
                     = bc.select :company_id, {}, {}, id: "buy_contract_company"
                 - else
-                  = text_field_tag :vendor_name, @contract.buy_contract.company.full_name.capitalize, disabled: "disabled" if  @contract.buy_contract.company.present?
+                  = text_field_tag :vendor_name, @contract.buy_contract.company.present? ? @contract.buy_contract.company.full_name.capitalize : '', disabled: "disabled"
+
 
   - if true #@contract.new_record? or @contract.sell_contract&.persisted?
-    .row.mt-1
-      .col-md-12
+    .a
+      
+    
+      .contract-fields_wrapper.mt-2
+        .col-md-12
         %h5.pt-1
           %b Do you want to onboard customer?
           %label.ml-3.radio-container.d-inline-block
@@ -131,9 +137,7 @@
             No
             %input{onchange: "toogle_seller(this,'.toggle_sell_contract')", :type => "radio",name: "toogle_seller_contract", :value => "no"}/
             %span.radio-checkmark
-    .toggle_sell_contract
-      .contract-fields_wrapper.mt-2
-        .row
+        .row.toggle_sell_contract
           =f.fields_for :sell_contract, @contract.sell_contract || @contract.build_sell_contract do |sc|
             .col-md-6
               .form-group
@@ -155,7 +159,7 @@
           .col-md-12
             .form-group.mb-3.mt-3
               %label.control-label.mr-4
-                %b End Client different from your Customer ?
+                %b Add End Client different from your Customer ?
               %span.is_client_customer_radio
                 =f.radio_button  :is_client_customer, true, checked: f.object.is_client_customer == true
                 %label.control-label.mr-4 Yes
@@ -180,17 +184,7 @@
                 %th= header.capitalize
             %tbody.hr_reporting_admins_table_body
               - unless @contract.new_record?
-                - @contract.sell_contract&.contract_sell_business_details&.each do |bussiness_detail|
-                  - user = bussiness_detail.company_contact&.user
-                  %tr
-                    %td= user.company.domain
-                    %td= user.full_name
-                    %td= contact_widget(user.email,user.phone,user,chat_link: chat_link(user))
-                    %td= user.roles.pluck(:name).join(', ')
-                    %td= content_tag(:span, do_ellipsis(current_user.reminders.where(reminderable_id: user.id, reminderable_type: 'Admin')&.last&.title), class: 'bg-info badge mr-1').html_safe
-                    %td
-                      = link_to(content_tag(:i, nil, class: 'picons-thin-icon-thin-0014_notebook_paper_todo').html_safe, add_reminder_company_users_path(user_id: user.id), remote: :true, title: "Remind Me", class: 'data-table-icons')
-                      = link_to(content_tag(:i, nil, class: 'os-icon os-icon-ui-15').html_safe, delete_reporting_manager_contracts_path(contract_id: @contract.id,reporting_manager_id: bussiness_detail.id), method: :delete,remote: :true, title: "Delete #{user.full_name}", class: 'data-table-icons')
+                = render 'company/contracts/partials/add_manager', business_detail_objs: @contract.sell_contract&.contract_sell_business_details
 
 - content_for :modals do
   .hr_admins

@@ -11,6 +11,7 @@ class Group < ApplicationRecord
 
 
   scope :chat_groups, -> { where(member_type: 'Chat') }
+  scope :contact_groups, -> { where("member_type IN('Candidate', 'Contact')" ) }
 
   scope :user_chat_groups, -> (user, company) do
     company.present? ?

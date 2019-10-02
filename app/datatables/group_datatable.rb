@@ -17,14 +17,14 @@ class GroupDatatable < ApplicationDatatable
   def data
     records.map do |record|
       {
-          id: record.id,
-          name: do_ellipsis(record.group_name),
-          type: record.member_type,
-          member: record.groupables.count,
-          created_at: record.created_at.try(:strftime, '%B %d, %Y'),
-          status: ban_unban_link(record),
-          reminder_note: reminder_note(record),
-          actions: actions(record)
+        id: record.id,
+        name: do_ellipsis(record.group_name),
+        type: record.member_type,
+        member: record.groupables.count,
+        created_at: record.created_at.try(:strftime, '%B %d, %Y'),
+        status: ban_unban_link(record),
+        reminder_note: reminder_note(record),
+        actions: actions(record)
       }
     end
   end
@@ -43,7 +43,7 @@ class GroupDatatable < ApplicationDatatable
   end
 
   def get_raw_records
-    current_company.groups
+    current_company.groups.contact_groups
   end
 
   def actions record
