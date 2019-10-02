@@ -85,7 +85,9 @@ class Company::ContractsController < Company::BaseController
       # @contract.contract_sale_commisions.build
     else
       find_contract
-      @have_admin = ContractSellBusinessDetail.have_admin(@contract.id)
+      @have_admin = @contract.sell_contract.contract_sell_business_details.admin.count!=0
+      
+
     end
     @company = Company.new
     @candidate = Candidate.new
@@ -186,9 +188,10 @@ class Company::ContractsController < Company::BaseController
     set_docusign_documents
     respond_to do |format|
       if @contract.update(contract_params)
-        @have_admin = ContractSellBusinessDetail.have_admin(@contract.sell_contract)
+        @have_admin = @contract.sell_contract.contract_sell_business_details.admin.count!=0
+        # @have_admin = ContractSellBusinessDetail.have_admin(@contract.sell_contract)
         params[:contract][:reporting_manager_ids]&.each_with_index  do |id,index|
-           if ContractSellBusinessDetail.where(sell_contract_id:@contract.sell_contract).count==0
+           if @contract.sell_contract.contract_sell_business_details.count==0
             if index==0
               @contract.sell_contract.contract_sell_business_details.create(company_contact_id: id, role:1)
             else
@@ -488,8 +491,6 @@ class Company::ContractsController < Company::BaseController
   end
   end
   def update_role
-   
-    unless ContractSellBusinessDetail.have_admin(params[:contract_id])
       @bussiness_detail = ContractSellBusinessDetail.find(params[:bussiness_detail])
       @sell_contract_bussiness_details = @bussiness_detail.sell_contract.contract_sell_business_details
       @bussiness_detail.role='admin'
@@ -504,11 +505,7 @@ class Company::ContractsController < Company::BaseController
           # format.js {render inline: "location.reload();" }
           flash.now[:errors] = @bussiness_detail.errors.full_messages
         end
-      end
-    else
-      # flash[:errors] = ["Already Admin selected"]
-    end
-
+      end 
   end
      
   def delete_hr_admin

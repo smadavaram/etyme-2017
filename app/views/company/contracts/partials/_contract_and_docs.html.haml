@@ -20,7 +20,6 @@
                 %h3.control-label.pull-right.text-muted
                   = @contract.sell_contract.number
                   - if @contract&.sell_contract&.conversation.present?
-                    =# link_to 'Conversation', mini_chat_company_conversations_path(conversation_id: @contract.sell_contract.conversation.id), remote: true,class: 'btn btn-sm btn-primary mb-1'
                     .floated-chat-btn
                       %i.os-icon.os-icon-mail-07
                       %span

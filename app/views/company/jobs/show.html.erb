@@ -191,7 +191,6 @@
 <%= javascript_tag do %>
   document.addEventListener('DOMContentLoaded', function(){
       $(".open_chat").trigger('click');
-      alert("hi");
   }, false);
 
   function open_chat(id){$.get(`/company/conversations/mini_chat?conversation_id=${id}`)}

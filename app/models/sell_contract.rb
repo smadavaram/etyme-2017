@@ -60,6 +60,7 @@ class SellContract < ApplicationRecord
   def today_rate
     rate_on(Date.today)
   end
+
   
   
   private
