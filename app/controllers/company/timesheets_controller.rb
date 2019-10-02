@@ -13,9 +13,11 @@ class Company::TimesheetsController < Company::BaseController
   include Company::ChangeRatesHelper
 
   def index
-    @timesheets = current_company.timesheets.includes(contract: [buy_contract: [:company, :candidate]]).submitted_timesheets.paginate(page: params[:page], per_page: 10).order(id: :desc)
-    # @rec_search = current_company.received_timesheets.search(params[:q])
-    # @received_timesheets   = @rec_search.result(distinct: true).paginate(page: params[:page], per_page: 10) || []
+    @tab = params[:tab]
+    @start_date = params[:start_date]
+    @end_date = params[:end_date]
+    @cycle_type = params[:ts_type]
+    @timesheets = current_company.timesheets.includes(contract: [buy_contract: [:company, :candidate]]).send("#{@tab&.downcase || 'all'}_timesheets").joins(:contract_cycle).where('contract_cycles.cycle_frequency IN (?)', @cycle_type.present? ? ContractCycle.cycle_frequencies[@cycle_type.to_sym] : ContractCycle.cycle_frequencies.values ).between_date(@start_date,@end_date).paginate(page: params[:page], per_page: 10).order(start_date: :asc)
   end
 
   def approved

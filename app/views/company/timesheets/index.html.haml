@@ -1,257 +1,65 @@
--#:css
--#  .chardin_box {
--#    display: inline-block;
--#    padding: 0 3px;
--#  }
--#  .span3 {
--#    width: 220px;
--#  }
--#  [class*="span"]{
--#    float: left;
--#    min-height: 1px;
--#    margin-left: 20px;
--#  }
--##content
--#  #wid-id-5.no-border.jarviswidget
--#    .col-xs-12.col-sm-9.col-md-9.col-lg-9.pull-left{style: 'border-bottom-color: #fff !important;'}
--#      = render'company/timesheets/partials/submitted_timesheets' , data: @timesheets
--#
--#- content_for :modals do
--#  #ajax-modal
--#- content_for :scripts do
--#  :javascript
--#    // DO NOT REMOVE : GLOBAL FUNCTIONS!
--#
--#    $(document).ready(function() {
--#
--#    $('#myTab1 a[href="' + localStorage.getItem('mainActiveTab') + '"]').tab('show');
--#
--#    $('.sub-tab a[href="' + localStorage.getItem('subActiveTab') + '"]').tab('show');
--#    pageSetUp();
--#
--#    });
--#    $('#myTab1').on('show.bs.tab', function(e) {
--#      localStorage.setItem('mainActiveTab', $(e.target).attr('href'));
--#    });
--#
--#    $('.sub-tab').on('show.bs.tab', function(e) {
--#      localStorage.setItem('subActiveTab', $(e.target).attr('href'));
--#    });
--#
-
-
-
-%section#widget-grid
-  .row
-    %article.col-xs-12.col-sm-12.col-md-12.col-lg-12
-      %table#jqgrid
-- @temp = []
--@timesheets.each do |ts|
-  - rate =   ts.contract_cycle.contract.buy_contract.get_rate(ts.start_date).rate || 0
-  -@temp.push({ timesheet_id: ts.id,
-                cycle_id: ts.contract_cycle.id,
-                creation_date: ts.created_at.strftime('%Y-%m-%d'),
-                contract: ts.contract.number,
-                client: ts.contract.client.try(:full_name),
-                contract_type: ts.contract.buy_contract.get_contract_type_label,
-                candidate: ts.contract.buy_contract.candidate.try(:full_name),
-                company_vender: ts.contract.buy_contract.company.present? ? ts.contract.buy_contract.company.full_name : '',
-                buy_rate: rate,
-                timesheet_clyver: "#{ts.start_date} - #{ts.end_date}",
-                hours: ts.total_time,
-                amount: (ts.total_time * rate),
-                attachment: ts.timesheet_attachment,
-                status: ts.status,
-                act: time_sheet_approve_date(ts&.contract&.buy_contract)})
-
--# var ajqgrid_data = #{raw(@temp.to_json)};
-.page.text-center
-  %ul.pagination
-    = will_paginate(@timesheets,class: "pagination ")
-
-/ END SHORTCUT AREA
-/ ==================================================
-%script{"data-pace-options" => "{ \"restartOnRequestAfter\": true }", :src => "js/plugin/pace/pace.min.js"}
-%script{:src => "https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"}
-%script{:src => "https://ajax.googleapis.com/ajax/libs/jqueryui/1.12.1/jquery-ui.min.js"}
-:javascript
-  $(document).ready(function() {
-    pageSetUp();
-    var jqgrid_data = #{raw(@temp.to_json)};
-
-    jQuery("#jqgrid").jqGrid({
-      data : jqgrid_data,
-      datatype : "local",
-      height : 'auto',
-      colNames : ['Timesheet ID', 'Cycle ID', 'Creation Date', 'Contract', 'Client', 'Tax Type',
-                  'candidate', 'Company Vendor', 'Buy Rate', 'Timesheet Cycle', 'Hours', 'Amount', 'Attachment',
-                  'status', 'Actions'],
-      colModel : [ {
-        name : 'timesheet_id',
-        index : 'timesheet_id'
-      },{
-        name : 'cycle_id',
-        index : 'cycle_id'
-
-      }, {
-        name : 'creation_date',
-        index : 'creation_date',
-        editable : true
-      }, {
-        name : 'contract',
-        index : 'contract',
-        editable : true
-      }, {
-        name : 'client',
-        index : 'client',
-        align : "right",
-        editable : true
-      }, {
-        name : 'contract_type',
-        index : 'contract_type',
-        align : "right",
-        editable : true
-      }, {
-        name : 'candidate',
-        index : 'candidate',
-        align : "right",
-        editable : true
-      },{
-        name : 'company_vender',
-        index : 'company_vender',
-        sortable : false
-      },{
-        name : 'buy_rate',
-        index : 'buy_rate',
-        sortable : false
-      },{
-        name : 'timesheet_clyver',
-        index : 'timesheet_clyver',
-        sortable : false
-      },{
-        name : 'hours',
-        index : 'hours',
-        sortable : false
-      },{
-        name : 'amount',
-        index : 'amount',
-        sortable : false
-      },{
-        name : 'attachment',
-        index : 'attachment',
-        sortable : false
-      },{
-        name : 'status',
-        index : 'status',
-        sortable : false
-      },{
-        name : 'act',
-        index : 'act',
-        sortable : false
-      }],
-      rowNum : 10,
-      rowList : [10, 20, 30],
-      pager : '#pjqgrid',
-      sortname : 'id',
-      toolbarfilter : true,
-      viewrecords : true,
-      sortorder : "asc",
-      gridComplete : function() {
-        var ids = jQuery("#jqgrid").jqGrid('getDataIDs');
-        for (var i = 0; i < ids.length; i++) {
-          var cl = ids[i];
-          var id = $("#jqgrid").jqGrid('getCell', cl, "timesheet_id");
-          var message = $("#jqgrid").jqGrid('getCell', cl, "act");
-
-          be = "<button class='btn btn-xs btn-default' data-original-title='Edit Row' onclick=\"jQuery('#jqgrid').editRow('" + cl + "');\"><i class='fa fa-pencil'></i></button>";
-          se = "<button class='btn btn-xs btn-default' data-original-title='Save Row' onclick=\"jQuery('#jqgrid').saveRow('" + cl + "');\"><i class='fa fa-save'></i></button>";
-          ca = "<button class='btn btn-xs btn-default' data-original-title='Cancel' onclick=\"jQuery('#jqgrid').restoreRow('" + cl + "');\"><i class='fa fa-times'></i></button>";
-
-          ta = "<a href='/timesheets/" + id + "/approve' class='c_green' title='Approve Timesheet' rel='tooltip' 'data-placement'= 'top' data-confirm ="+ JSON.stringify(message) +"  verify='Approve' verify_text=\" Type 'Approve' to confirm\"> <i class='fa fa-check '></i> </a> " ;
-          tr = "" ;
-
-          trr = "<a href='/timesheets/" + id + "/reject' class='c_red' title='Reject Timesheet' rel='tooltip' 'data-placement'= 'top' data-confirm ="+ JSON.stringify(message) +"  verify='Reject' verify_text=\" Type 'Reject' to confirm\"> <i class='fa fa-times-circle'></i> </a> " ;
-          tr = "" ;
-
-
-          jQuery("#jqgrid").jqGrid('setRowData', ids[i], {
-            act : ta+trr
-          });
-        }
-      },
-      editurl : "dummy.html",
-      caption : "Timesheet",
-      multiselect : true,
-      autowidth : true,
-
-    });
-    jQuery("#jqgrid").jqGrid('navGrid', "#pjqgrid", {
-      edit : false,
-      add : false,
-      del : true
-    });
-    jQuery("#jqgrid").jqGrid('inlineNav', "#pjqgrid");
-    /* Add tooltips */
-    $('.navtable .ui-pg-button').tooltip({
-      container : 'body'
-    });
-
-    jQuery("#m1").click(function() {
-      var s;
-      s = jQuery("#jqgrid").jqGrid('getGridParam', 'selarrrow');
-      alert(s);
-    });
-    jQuery("#m1s").click(function() {
-      jQuery("#jqgrid").jqGrid('setSelection', "13");
-    });
-
-    // remove classes
-    $(".ui-jqgrid").removeClass("ui-widget ui-widget-content");
-    $(".ui-jqgrid-view").children().removeClass("ui-widget-header ui-state-default");
-    $(".ui-jqgrid-labels, .ui-search-toolbar").children().removeClass("ui-state-default ui-th-column ui-th-ltr");
-    $(".ui-jqgrid-pager").removeClass("ui-state-default");
-    $(".ui-jqgrid").removeClass("ui-widget-content");
-
-    // add classes
-    $(".ui-jqgrid-htable").addClass("table table-bordered table-hover");
-    $(".ui-jqgrid-btable").addClass("table table-bordered table-striped");
-
-    $(".ui-pg-div").removeClass().addClass("btn btn-sm btn-primary");
-    $(".ui-icon.ui-icon-plus").removeClass().addClass("fa fa-plus");
-    $(".ui-icon.ui-icon-pencil").removeClass().addClass("fa fa-pencil");
-    $(".ui-icon.ui-icon-trash").removeClass().addClass("fa fa-trash-o");
-    $(".ui-icon.ui-icon-search").removeClass().addClass("fa fa-search");
-    $(".ui-icon.ui-icon-refresh").removeClass().addClass("fa fa-refresh");
-    $(".ui-icon.ui-icon-disk").removeClass().addClass("fa fa-save").parent(".btn-primary").removeClass("btn-primary").addClass("btn-success");
-    $(".ui-icon.ui-icon-cancel").removeClass().addClass("fa fa-times").parent(".btn-primary").removeClass("btn-primary").addClass("btn-danger");
-
-    $(".ui-icon.ui-icon-seek-prev").wrap("<div class='btn btn-sm btn-default'></div>");
-    $(".ui-icon.ui-icon-seek-prev").removeClass().addClass("fa fa-backward");
-
-    $(".ui-icon.ui-icon-seek-first").wrap("<div class='btn btn-sm btn-default'></div>");
-    $(".ui-icon.ui-icon-seek-first").removeClass().addClass("fa fa-fast-backward");
-
-    $(".ui-icon.ui-icon-seek-next").wrap("<div class='btn btn-sm btn-default'></div>");
-    $(".ui-icon.ui-icon-seek-next").removeClass().addClass("fa fa-forward");
-
-    $(".ui-icon.ui-icon-seek-end").wrap("<div class='btn btn-sm btn-default'></div>");
-    $(".ui-icon.ui-icon-seek-end").removeClass().addClass("fa fa-fast-forward");
-
-  })
-
-  $(window).on('resize.jqGrid', function() {
-    $("#jqgrid").jqGrid('setGridWidth', $("#content").width());
-  })
-:javascript
-  var _gaq = _gaq || [];
-  _gaq.push(['_setAccount', 'UA-XXXXXXXX-X']);
-  _gaq.push(['_trackPageview']);
-
-  (function() {
-    var ga = document.createElement('script');
-    ga.type = 'text/javascript';
-    ga.async = true;
-    ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
-    var s = document.getElementsByTagName('script')[0];
-    s.parentNode.insertBefore(ga, s);
-  })();
+.element-wrapper.m-2
+  .element-box
+    = form_with(url: timesheets_path, method: :get, id: 'timesheets') do |f|
+      .ts_header.mt-2
+        .d-flex.pt-2
+          %label.radio-container.m-1
+            Weekly
+            %input{:name => "ts_type",:type => "radio", :value => 'weekly', checked: @cycle_type == 'weekly'}/
+            %span.radio-checkmark
+          %label.radio-container.m-1
+            Monthly
+            %input{:name => "ts_type",:type => "radio", :value => "monthly", checked: @cycle_type == 'monthly'}/
+            %span.radio-checkmark
+        .form-group.w-50.d-flex
+          = f.text_field :start_date, class: 'p_date form-control m-1',placeholder: 'Select Start Data', value: @start_date
+          = f.text_field :end_date, class: 'p_date form-control m-1',placeholder: 'Select End Date', value: @end_date
+          = f.hidden_field :tab, id: 'ts_tag', value: "Uppcomming"
+      %ul.nav.nav-pills.w-100.smaller.mt-3{style: "border-bottom: none;"}
+        %li.nav-item.ml-3
+          %a{class: "nav-link ts fd upcomming_timesheets #{ "active" if @tab.eql?("Upcomming") }", href:'#'} Upcomming
+        %li.nav-item
+          %a{class: "nav-link ts fd submitted_timesheets #{ "active" if @tab.eql?("Submitted") }",href:'#'} Submitted
+        %li.nav-item
+          %a{class: "nav-link ts fd approved_timesheets #{ "active" if @tab.eql?("Approved") }", href:'#'} Approved
+        %li.nav-item
+          %a{class: "nav-link ts fd approved_timesheets #{ "active" if @tab.eql?("Rejected") }", href:'#'} Rejected
+        %li.nav-item
+          %a{class: "nav-link fd open_timesheets #{ "active" if @tab.nil? || @tab.eql?("All") }", href: timesheets_path} All
+    .table_divider.mt-3
+    .mt-3
+      - if @tab.eql?('Upcomming')
+        = render 'company/timesheets/partials/upcomming_timeline'
+      - else
+        .table-responsive
+          %table.table.table-striped.table-bordered
+            %thead
+              %tr
+                %td Ts ID
+                %td Ts Type
+                %td Contract ID & Title - Client
+                %td Client
+                %td From & To Date
+                %td Plan. Hr
+                %td Act. Hr
+                %td Log
+                %td Reference
+                %td Actions
+            %tbody
+              - @timesheets.each do |ts|
+                %tr
+                  %td= ts.id
+                  %td= ts.contract_cycle.cycle_frequency.capitalize
+                  %td= ts.contract.title
+                  %td= image_tag(ts.contract.client.photo, class: 'data-table-image mr-1', title: ts.contract.client.full_name) if ts.contract.client.present?
+                  %td= "#{ts.start_date} - #{ts.end_date}"
+                  %td= ts.contract_cycle.cycle_of.get_rate(ts.start_date).working_hrs
+                  %td= ts.total_time
+                  %td= 'TBD'
+                  %td= 'TBD'
+                  %td
+                    - if ts.submitted?
+                      = link_to "<i class='fa fa-check '></i>".html_safe,timesheet_approve_path(ts),class:'c_green',title: 'Approve Timesheet', :data => {:confirm => 'Are you sure?'}
+                      = link_to "<i class='fa fa-times-circle'></i>".html_safe,timesheet_reject_path(ts),class:'c_red',title: 'Reject Timesheet', :data => {:confirm => 'Are you sure?'}
+      .pagination_timesheet
+        = will_paginate(@timesheets,class: "pagination ")

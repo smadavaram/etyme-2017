@@ -165,3 +165,10 @@ select{
 .c_green{
   color: green;
 }
+
+.upcomming_timeline{
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  float: none !important;
+}

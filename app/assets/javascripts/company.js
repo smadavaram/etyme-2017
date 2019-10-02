@@ -187,3 +187,4 @@
 
 //= require trix
 //= require company/contracts
+//= require company/timesheets

@@ -1611,3 +1611,26 @@ text-align: right;
     background-color: #047bf8;
     border-color: #047bf8;
 }
+
+.ts_header{
+    display: flex;
+    justify-content: space-between;
+    padding-left: 20px;
+}
+
+.table-bordered{
+    border: 1px solid rgba(83, 101, 140, 0.33) !important;
+}
+
+.table_divider{
+    border-top: 1px solid rgba(83, 101, 140, 0.33) !important;
+}
+
+.pagination_timesheet > .pagination{
+    justify-content: space-between !important;
+    margin: 30px auto;
+}
+.pagination_timesheet{
+    margin: auto;
+    width: 60%;
+}
