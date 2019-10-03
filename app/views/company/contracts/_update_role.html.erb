@@ -19,10 +19,8 @@
     <td>
       <%= link_to(content_tag(:i, nil, class: 'picons-thin-icon-thin-0014_notebook_paper_todo').html_safe, add_reminder_company_users_path(user_id: user.id), remote: :true, title: "Remind Me", class: 'data-table-icons') %>
      	 <% if bussiness_detail.admin?  %>
-          <br/>
           <%= link_to(content_tag(:i, nil, class: 'picons-thin-icon-thin-0699_user_profile_avatar_man_male').html_safe, remove_role_contracts_path(bussiness_detail: bussiness_detail.id,status:'remove admin'), remote: :true, title: "Remove Admin", class: 'data-table-icons',style: "color:red") %>
         <% else %>
-          <br/>
           <i class="picons-thin-icon-thin-0710_business_tie_user_profile_avatar_man_male" title="Member"></i>
         <% end %>
       <br/>

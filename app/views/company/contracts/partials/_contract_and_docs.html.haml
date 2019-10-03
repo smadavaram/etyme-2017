@@ -23,7 +23,8 @@
                     .floated-chat-btn
                       %i.os-icon.os-icon-mail-07
                       %span
-                      = link_to 'Conversation', mini_chat_company_conversations_path(conversation_id: @contract.sell_contract.conversation.id),id: 'ChatBtn', remote: true
+                      =contact_widget(@contract.sell_contract.conversation.conversation_users.join(','),nil,nil,chat_link: chat_link(nil,@contract.sell_contract.conversation.id))
+                      / = link_to 'Conversation', mini_chat_company_conversations_path(conversation_id: @contract.sell_contract.conversation.id),id: 'ChatBtn', remote: true
           - headers =  %w(domain name contact role(s) reminder action(s))
           .table-responsive
             %table.table.text-center.table-bordered.table-lg.table-v2.table-striped.data-table-font#contract_admins_table
@@ -90,12 +91,13 @@
                               %th To
                           %tbody
                             - sc.object.change_rates.each do |change_rate|
-                              %tr
-                                %td= change_rate.rate
-                                %td= change_rate.working_hrs
-                                %td= change_rate.rate_type
-                                %td= change_rate.from_date
-                                %td= change_rate.to_date
+                              %tr 
+                                =if change_rate.persisted?
+                                  %td= change_rate.rate
+                                  %td= change_rate.working_hrs
+                                  %td= change_rate.rate_type 
+                                  %td= change_rate.from_date
+                                  %td= change_rate.to_date
                   #tab-sell-ts.tab-pane.padding-top-15
                     .row
                       .col-md-12
@@ -430,7 +432,7 @@
                     .row
                       .col-md-12
                         .form-group
-                          .table-responsive.p-4
+                          .table-responsive
                             %a.btn.btn-sm.btn-primary.float-right.margin-bottom-10{"data-toggle": "modal", "data-target":"#request_document", style: "color: #fff;"} Create Checklist
                             %table.table.text-center.table-bordered.table-lg.table-v2.table-striped.data-table-font
                               %thead
@@ -450,7 +452,7 @@
                     .row
                       .col-md-12
                         .form-group
-                          .table-responsive.p-4
+                          .table-responsive
                             %a.btn.btn-sm.btn-primary.float-right.margin-bottom-10{"data-toggle": "modal", "data-target":"#submit_document", style: "color: #fff;"} Create Checklist
                             %table.table.text-center.table-bordered.table-lg.table-v2.table-striped.data-table-font
                               %thead

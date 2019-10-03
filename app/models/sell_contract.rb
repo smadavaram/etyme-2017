@@ -20,7 +20,6 @@ class SellContract < ApplicationRecord
 
   # include NumberGenerator.new({prefix: 'SC', length: 7})
   before_create :set_number
-  before_save :enforce_admin
   after_create :create_sell_contract_conversation
   
   accepts_nested_attributes_for :contract_sell_business_details, allow_destroy: true, reject_if: :all_blank
