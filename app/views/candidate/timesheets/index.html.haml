@@ -50,11 +50,10 @@
       var e=JSON.parse("#{ escape_javascript(render(inline: events.to_json))}");
       let startCelandar = "#{ j render(inline: (@timesheets.first.present? ? @timesheets.first&.start_date.to_s : DateTime.now.beginning_of_month.strftime('%Y-%m-%d'))) }";
       let endCelandar = "#{ j render(inline: (@timesheets.last.present? ? @timesheets.last&.end_date.to_s : DateTime.now.end_of_month.strftime('%Y-%m-%d'))) }";
-      console.log(startCelandar,endCelandar);
       $('#timesheet_calendar').fullCalendar({
+        dayNamesShort: ['S', 'M', 'T', 'W', 'T', 'F', 'S'],
         selectable: false,
-        // height: 700,
-        // width: 500,
+        height: "auto",
         header: {center: 'dayGridMonth,timeGridWeek'}, // buttons for switching between views
         views: {
           dayGridMonth: { // name of view
