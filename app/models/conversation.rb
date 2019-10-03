@@ -47,5 +47,11 @@ class Conversation < ApplicationRecord
   def opt_participant(user)
     chatable.present? ? chatable : (senderable == user ? recipientable : senderable)
   end
+   def conversation_users
+#     self.chatable.groupables.where(groupable_type:'User').pluck("groupable_id").pluck(:email)
+# users=Contract.find(54).sell_contract.conversation.chatable.groupables.where(groupable_type:'User').pluck("groupable_id")
+    self.chatable.users.pluck(:email)
+
+   end
 
 end
