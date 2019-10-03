@@ -61,10 +61,14 @@ class SellContract < ApplicationRecord
   def today_rate
     rate_on(Date.today)
   end
+
   def count_contract_bussiness_details
     self.contract_sell_business_details.count
   end
-
+  
+  def team_admin
+    contract_sell_business_details.admin&.first&.company_contact&.user || company.owner
+  end
 
   
   
