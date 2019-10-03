@@ -27,4 +27,10 @@ $('#buy_approval').modal('hide');
 <% elsif params[:approval][:approvable_type] == "slaray_process" and params[:approval][:contractable_type] == 'BuyContract' %>
 $('#buy_s_p').html("<%= j render 'company/contracts/partials/approval' , approvals: @approvals%>");
 $('#buy_approval').modal('hide');
+<% elsif params[:approval][:approvable_type] == "expanse_invoice" and params[:approval][:contractable_type] == 'SellContract' %>
+$('#expanse_invoice').html("<%= j render 'company/contracts/partials/approval' , approvals: @approvals%>");
+$('#collaborator_modal').modal('hide');
+<% elsif params[:approval][:approvable_type] == "expanse_approve" and params[:approval][:contractable_type] == 'SellContract' %>
+$('#collaborator_modal').html("<%= j render 'company/contracts/partials/approval' , approvals: @approvals%>");
+$('#buy_approval').modal('hide');
 <% end %>

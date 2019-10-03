@@ -1,5 +1,8 @@
 .collaborators
-  - approvals.each do |approval|
-    %div.margin-right-5
-      =link_to "#" do
-        = image_tag(approval.user.photo, class: 'img-fluid rounded-circle', width: "50")
+  .mini_chat_users.text-left
+    - approvals.sample(4).each do |approval|
+      .avatar
+        %img{:alt => "", :src => "#{approval.user.photo}",title: approval.user.full_name}/
+    - if approvals.count > 4
+      .more
+        = "+ #{(approvals.count-4).abs} more"

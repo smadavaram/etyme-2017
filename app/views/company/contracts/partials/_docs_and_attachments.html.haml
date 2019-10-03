@@ -149,7 +149,7 @@
                               %label.control-label
                                 Collaborators
                               .row
-                                .col-md-12
+                                .col-md-12.d-flex
                                   #buy_collaborators
                                     = render 'company/contracts/partials/approval', approvals: @contract.buy_contract.approvals.where(approvable_type: 'timesheet')
                                   %a.fa.fa-plus.fa-3x.pull-right.add_contacts{"data-toggle": "modal", "data-target":"#buy_approval", id: 'timesheet'}
@@ -205,7 +205,7 @@
                               %label.control-label
                                 Collaborators
                               .row
-                                .col-md-12
+                                .col-md-12.d-flex
                                   #buy_ts_approver
                                     = render 'company/contracts/partials/approval', approvals: @contract.buy_contract.approvals.where(approvable_type: 'timesheet_approve')
                                   %a.fa.fa-plus.fa-3x.pull-right.add_contacts{"data-toggle": "modal", "data-target":"#buy_approval", id: 'timesheet_approve'}
@@ -262,7 +262,7 @@
                               %label.control-label
                                 Collaborators
                               .row
-                                .col-md-12
+                                .col-md-12.d-flex
                                   #buy_s_c
                                     = render 'company/contracts/partials/approval', approvals: @contract.buy_contract.approvals.where(approvable_type: 'slaray_calculation')
                                   %a.fa.fa-plus.fa-3x.pull-right.add_contacts{"data-toggle": "modal", "data-target":"#buy_approval", id: 'slaray_calculation'}
@@ -311,7 +311,7 @@
                               %label.control-label
                                 Collaborators
                               .row
-                                .col-md-12
+                                .col-md-12.d-flex
                                   #buy_s_p
                                     = render 'company/contracts/partials/approval', approvals: @contract.buy_contract.approvals.where(approvable_type: 'slaray_process')
                                   %a.fa.fa-plus.fa-3x.pull-right.add_contacts{"data-toggle": "modal", "data-target":"#buy_approval", id: 'slaray_process'}
