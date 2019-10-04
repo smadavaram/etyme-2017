@@ -297,6 +297,9 @@ class Contract < ApplicationRecord
     if buy_contract.present?
       buy_contract_time_sheet_cycles unless contract_cycles.where(cycle_type: 'TimesheetSubmit').present?
       buy_contract_time_sheet_aprove_cycle unless contract_cycles.where(cycle_type: 'TimesheetApprove').present?
+      buy_contract_salary_calculation_cycle unless contract_cycles.where(cycle_type: 'SalaryCalculation').present?
+      buy_contract_salary_process_cycle unless contract_cycles.where(cycle_type: 'SalaryProcess').present?
+      buy_contract_salary_clear_cycle unless contract_cycles.where(cycle_type: 'SalaryClear').present?
     end
     if sell_contract
       sell_contract_invoice_cycle unless contract_cycles.where(cycle_type: 'InvoiceGenerate').present?
