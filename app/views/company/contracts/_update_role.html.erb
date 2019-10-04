@@ -23,7 +23,6 @@
         <% else %>
           <i class="picons-thin-icon-thin-0710_business_tie_user_profile_avatar_man_male" title="Member"></i>
         <% end %>
-      <br/>
       <%= link_to(content_tag(:i, nil, class: 'os-icon os-icon-ui-15').html_safe, delete_reporting_manager_contracts_path(contract_id: bussiness_detail.sell_contract_id,reporting_manager_id: bussiness_detail.id), method: :delete,remote: :true, title: "Delete #{user.full_name}", class: 'data-table-icons') %>
     </td>
   </tr>
