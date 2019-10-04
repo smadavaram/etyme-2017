@@ -74,11 +74,14 @@
     padding: 10px;
 }
 
+.add_contacts{
+    color: #047bf8 !important;
+}
 .collaborators {
     display: flex;
     flex-wrap: wrap;
     justify-content: flex-start;
-    width: 80%;
+    width: 100%;
 }
 
 .height-45 {
