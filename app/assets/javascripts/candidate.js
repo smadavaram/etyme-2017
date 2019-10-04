@@ -142,7 +142,7 @@
 
 // Custom Fields
 //= require cocoon
-
+//= require nested_form_fields
 // Amaran For Alerts
 //= require jquery.amaran
 
@@ -175,6 +175,7 @@
 // BulletTrain
 //= require_tree ./clean_admin
 //= require trix
+//= require company/select_autocomplete
 
 $("input[name='candidate[designation_status]']").click(function () {
     if ($("input[name='candidate[designation_status]']:checked").val() == "Employee") {

@@ -14,7 +14,7 @@ class Expense < ApplicationRecord
   serialize :ce_ap_cycle_id
   serialize :salary_ids
 
-  after_create :set_expense_on_seq
+  # after_create :set_expense_on_seq
 
 
   def set_expense_on_seq

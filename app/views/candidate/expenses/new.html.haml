@@ -1,7 +1,7 @@
 #content
   %section
     .row
-      = form_for @expense , html:{class: 'form-horizontal w-100'}  do |f|
+      = form_for @expense, url: candidate_expenses_path , html:{class: 'form-horizontal w-100'}  do |f|
         %article.col-sm-12.col-md-12.col-lg-12
           #wid-id-0.jarviswidget{"data-widget-deletebutton" => "false", "data-widget-editbutton" => "false"}
             %header

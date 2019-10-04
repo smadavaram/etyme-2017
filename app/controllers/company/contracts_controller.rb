@@ -85,7 +85,7 @@ class Company::ContractsController < Company::BaseController
       # @contract.contract_sale_commisions.build
     else
       find_contract
-      @have_admin = @contract.sell_contract.contract_sell_business_details.admin.count!=0
+      # @have_admin = @contract.sell_contract.contract_sell_business_details.admin.count!=0
       
 
     end
@@ -188,7 +188,7 @@ class Company::ContractsController < Company::BaseController
     set_docusign_documents
     respond_to do |format|
       if @contract.update(contract_params)
-        @have_admin = @contract.sell_contract.contract_sell_business_details.admin.count!=0
+        # @have_admin = @contract.sell_contract.contract_sell_business_details.admin.count != 0
         params[:contract][:reporting_manager_ids]&.each  do |id|
           @contract.sell_contract.contract_sell_business_details.create(company_contact_id: id)
         end
