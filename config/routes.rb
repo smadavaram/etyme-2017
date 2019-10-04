@@ -216,6 +216,7 @@ Rails.application.routes.draw do
       post "/:id/transaction/:transaction_id/update", on: :collection,to: "timesheets#add_hrs", as: :add_hrs
       # post "/:id", to: "timesheets#update", on: :collection, as: :update
     end
+    resources :expenses, only: [:new,:create]
     resources :client_expenses, only: [:index, :update] do
       post :get_client_expenses, on: :collection
       get :submitted_client_expenses, on: :collection

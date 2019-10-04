@@ -37,7 +37,7 @@
                       .floated-chat-btn
                         %i.os-icon.os-icon-mail-07
                         %span
-                        = link_to 'Conversation', mini_chat_company_conversations_path(conversation_id: @contract.sell_contract.conversation.id) ,id: 'ChatBtn', remote: true
+                        = link_to 'Conversation', mini_chat_company_conversations_path(conversation_id: @contract.buy_contract.conversation.id) ,id: 'ChatBtn', remote: true
         %label.control-label.font-weight-bold.mt-2 Accounting
         .contract-fields_wrapper.mt-2
           %div
@@ -510,7 +510,7 @@
     .div.w-75.margin-auto
       %p.contract_warning_text= "You haven't onboarded the consultant/vendor to this contract. You can always #{link_to "GoBack",new_contract_path(contract_id: @contract.id)} to onboard a consultant/vendor. Incase it's entended, Please click 'Save and Continue'  to proceed as it is.".html_safe
 
-- if @contract
+- if @contract and @contract&.buy_contract&.persisted?
   = render 'company/contracts/buy_send_documents_modal', contract: @contract
   = render 'company/contracts/buy_emp_req_docs_modal', contract: @contract
   = render 'company/contracts/partials/buy_ven_req_docs_modal', contract: @contract

@@ -1,9 +1,10 @@
 .individual_contracts_headers
-  %h3= "sell-  #{@contract.sell_contract.number}"
-  - if local_assigns[:editable] and editable
-    .text-right
-      =link_to 'Add', '#', class: 'btn btn-primary'
-      =link_to 'Remove', '#', class: 'btn btn-danger'
+  - if @contract.sell_contract
+    %h3= "sell-  #{@contract.sell_contract.number}"
+    - if local_assigns[:editable] and editable
+      .text-right
+        =link_to 'Add', '#', class: 'btn btn-primary'
+        =link_to 'Remove', '#', class: 'btn btn-danger'
 - if @contract.sell_contract.present?
   %h3.contract_sub_heading
     Customer Details

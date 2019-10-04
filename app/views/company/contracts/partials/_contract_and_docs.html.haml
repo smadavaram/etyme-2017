@@ -494,7 +494,7 @@
     .div.w-75.margin-auto
       %p.contract_warning_text= "You haven't onboarded the customer to this contract. You can always #{link_to "GoBack",new_contract_path(contract_id: @contract.id)} to onboard a customer. Incase it's entended, Please click 'Save and Continue' to proceed as it is.".html_safe
 
-- if @contract
+- if @contract and @contract&.sell_contract&.persisted?
   = render 'company/contracts/request_document_modal', contract: @contract
   = render 'company/contracts/submit_document_modal', contract: @contract
   = render 'company/contracts/partials/collaborator_modal',contract: @contract, contractable_type: @contract.sell_contract.class.name, contractable_id: @contract.sell_contract.id
