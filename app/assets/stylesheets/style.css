@@ -1,8 +1,8 @@
 .pac-container {
-    z-index: 1051;
+	z-index: 1051;
 }
 .floated-chat-w{
-    z-index: 800 !important;
+	z-index: 800 !important;
 }
 .form-horizontal  input[type="text"],
 .form-horizontal  input[type="number"],
@@ -11,454 +11,454 @@
 .form-horizontal textarea.form-control,
 .form-horizontal select,
 .form-horizontal textarea {
-    -moz-appearance: none;
-    background-color: #ffffff !important;
-    border: 1px solid #dbdbdb;
-    border-radius: 3px !important;
-    box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.06) !important;
-    box-sizing: border-box;
-    color: #808080;
-    display: block;
-    font-size: 15px;
-    font-weight: 400;
-    height: 45px;
-    line-height: 45px;
-    margin: 0 0 16px;
-    max-width: 100%;
-    opacity: 1;
-    outline: medium none;
-    padding: 10px;
-    width: 100%;
+	-moz-appearance: none;
+	background-color: #ffffff !important;
+	border: 1px solid #dbdbdb;
+	border-radius: 3px !important;
+	box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.06) !important;
+	box-sizing: border-box;
+	color: #808080;
+	display: block;
+	font-size: 15px;
+	font-weight: 400;
+	height: 45px;
+	line-height: 45px;
+	margin: 0 0 16px;
+	max-width: 100%;
+	opacity: 1;
+	outline: medium none;
+	padding: 10px;
+	width: 100%;
 }
 textarea {
-    height: 120px !important;
-    line-height: 1.5 !important;
+	height: 120px !important;
+	line-height: 1.5 !important;
 }
 .form-horizontal .bootstrap-tagsinput {
-    border-radius: 3px;
-    box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.06) !important;
+	border-radius: 3px;
+	box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.06) !important;
 }
 .form-horizontal .form-group,
 .form-horizontal .form-group {
-    margin: 0;
+	margin: 0;
 }
 .form-horizontal .bootstrap-tagsinput input[type="text"] {
-    border: medium none;
-    margin: 0;
-    display: inline-block;
-    height: 45px;
+	border: medium none;
+	margin: 0;
+	display: inline-block;
+	height: 45px;
 }
 .plain-select::after {
-    /*background:#2196f3;*/
-    border-bottom-right-radius: 3px;
-    border-top-right-radius: 3px;
-    color: #ffffff;
-    /*content: "";*/
-    font-family: FontAwesome;
-    height: 37px;
-    line-height: 45px;
-    pointer-events: none;
-    position: absolute;
-    right: 0;
-    text-align: center;
-    top: 0;
-    width: 40px;
-    z-index: 2;
+	/*background:#2196f3;*/
+	border-bottom-right-radius: 3px;
+	border-top-right-radius: 3px;
+	color: #ffffff;
+	/*content: "";*/
+	font-family: FontAwesome;
+	height: 37px;
+	line-height: 45px;
+	pointer-events: none;
+	position: absolute;
+	right: 0;
+	text-align: center;
+	top: 0;
+	width: 40px;
+	z-index: 2;
 }
 .plain-select {
-    box-sizing: border-box;
-    display: inline-block;
-    position: relative;
-    vertical-align: middle;
-    width: 100%;
+	box-sizing: border-box;
+	display: inline-block;
+	position: relative;
+	vertical-align: middle;
+	width: 100%;
 }
 .plain-select select.form-control{
-    -moz-appearance: none;
-    background-color: #ffffff;
-    border: 1px solid #dbdbdb;
-    border-radius: 3px;
-    /*box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.06);*/
-    box-sizing: border-box;
-    /*color: #808080;*/
-    display: block;
-    font-size: 15px;
-    font-weight: 400;
-    height: 45px;
-    line-height: 45px;
-    margin: 0 0 16px;
-    max-width: 100%;
-    opacity: 1;
-    outline: medium none;
-    padding: 0 20px;
-    width: 100%;
+	-moz-appearance: none;
+	background-color: #ffffff;
+	border: 1px solid #dbdbdb;
+	border-radius: 3px;
+	/*box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.06);*/
+	box-sizing: border-box;
+	/*color: #808080;*/
+	display: block;
+	font-size: 15px;
+	font-weight: 400;
+	height: 45px;
+	line-height: 45px;
+	margin: 0 0 16px;
+	max-width: 100%;
+	opacity: 1;
+	outline: medium none;
+	padding: 0 20px;
+	width: 100%;
 }
 .form-sign .plain-select select.form-control {
-    height: 57px;
-    margin-bottom: 0;
+	height: 57px;
+	margin-bottom: 0;
 }
 .form-sign .plain-select{
-    height: 57px;
+	height: 57px;
 }
 .form-sign .plain-select::after{
-    height: 57px;
-    line-height:57px;
-    width: 45px;
-    background:#7b53c1;
+	height: 57px;
+	line-height:57px;
+	width: 45px;
+	background:#7b53c1;
 }
 .videp-btn {
-    display: inline-block;
-    height: 45px;
-    max-width: 200px;
-    overflow: hidden;
-    position: relative;
+	display: inline-block;
+	height: 45px;
+	max-width: 200px;
+	overflow: hidden;
+	position: relative;
 }
 .videp-btn input[type="file"] {
-    cursor: pointer;
-    height: 100%;
-    opacity: 0;
-    position: relative;
-    z-index: 1;
+	cursor: pointer;
+	height: 100%;
+	opacity: 0;
+	position: relative;
+	z-index: 1;
 }
 .videp-btn::before {
-    background:#2196f3;
-    color: #fff;
-    content: "Create job video";
-    font-size: 18px;
-    height: 100%;
-    left: 0;
-    line-height: 45px;
-    position: absolute;
-    text-align: center;
-    text-transform: capitalize;
-    top: 0;
-    width: 100%;
+	background:#2196f3;
+	color: #fff;
+	content: "Create job video";
+	font-size: 18px;
+	height: 100%;
+	left: 0;
+	line-height: 45px;
+	position: absolute;
+	text-align: center;
+	text-transform: capitalize;
+	top: 0;
+	width: 100%;
 }
 .video-file {
-    margin-bottom: 15px;
+	margin-bottom: 15px;
 }
 .video-file span.file-text {
-    line-height: 45px;
-    display: inline-block;
-    vertical-align: top;
-    margin-left: 10px;
+	line-height: 45px;
+	display: inline-block;
+	vertical-align: top;
+	margin-left: 10px;
 }
 .video-file p.note {
-    margin-top: 0;
+	margin-top: 0;
 }
 .form-horizontal .control-label {
-    text-align: left;
+	text-align: left;
 }
 header .add_job {
-    background: #4c4f53 !important;
-    border-radius: 0 !important;
-    display: block !important;
-    font-size: 12px !important;
-    padding: 2px 10px !important;
+	background: #4c4f53 !important;
+	border-radius: 0 !important;
+	display: block !important;
+	font-size: 12px !important;
+	padding: 2px 10px !important;
 }
 
 body.smart-style-6 #content.newsfeed {
-    background: #fff none repeat scroll 0 0;
-    border-left: 3px solid #2196f3;
-    margin: 0 !important;
-    padding: 0;
+	background: #fff none repeat scroll 0 0;
+	border-left: 3px solid #2196f3;
+	margin: 0 !important;
+	padding: 0;
 }
 .newsfeed-left > ul {
-    list-style: outside none none;
-    margin: 0;
-    max-height: 660px;
-    overflow: auto;
-    padding: 0;
+	list-style: outside none none;
+	margin: 0;
+	max-height: 660px;
+	overflow: auto;
+	padding: 0;
 }
 .newsfeed-right {
-    background: #f3f5f7 none repeat scroll 0 0;
-    border-left: 3px solid #2196f3;
-    float: right;
-    min-height: 660px;
-    width: 70%;
+	background: #f3f5f7 none repeat scroll 0 0;
+	border-left: 3px solid #2196f3;
+	float: right;
+	min-height: 660px;
+	width: 70%;
 }
 body.smart-style-6 #ribbon {
-    background: #fff none repeat scroll 0 0;
-    border-bottom: 1px solid #ddd;
+	background: #fff none repeat scroll 0 0;
+	border-bottom: 1px solid #ddd;
 }
 .newsfeed-left {
-    float: left;
-    width: 30%;
+	float: left;
+	width: 30%;
 }
 .newsfeed-left li {
-    border-bottom: 1px solid #ddd;
-    margin-bottom: 0;
-    list-style: outside none none;
+	border-bottom: 1px solid #ddd;
+	margin-bottom: 0;
+	list-style: outside none none;
 }
 .newsfeed-left li a {
-    color: #333333;
-    display: block;
-    font-size: 16px;
-    padding:10px;
+	color: #333333;
+	display: block;
+	font-size: 16px;
+	padding:10px;
 }
 .newsfeed-left li a:hover {
-    background: #E8EFF6;
+	background: #E8EFF6;
 }
 .newsfeed h2 {
-    background: #fff none repeat scroll 0 0;
-    border-bottom: 1px solid #ddd;
-    display: block;
-    font-size: 20px;
-    font-weight: 500;
-    letter-spacing: 0;
-    line-height: 100%;
-    margin: 0;
-    padding: 5px 0 10px;
-    text-align: center;
-    text-transform: capitalize;
+	background: #fff none repeat scroll 0 0;
+	border-bottom: 1px solid #ddd;
+	display: block;
+	font-size: 20px;
+	font-weight: 500;
+	letter-spacing: 0;
+	line-height: 100%;
+	margin: 0;
+	padding: 5px 0 10px;
+	text-align: center;
+	text-transform: capitalize;
 }
 
 .newsfeed .job-description {
-    background: #fff none repeat scroll 0 0;
-    margin-top: 0;
-    padding: 20px;
+	background: #fff none repeat scroll 0 0;
+	margin-top: 0;
+	padding: 20px;
 }
 .job-description > span {
-    border-radius: 5px;
-    color: #777;
-    display: block;
-    border-bottom: 1px solid #ddd;
+	border-radius: 5px;
+	color: #777;
+	display: block;
+	border-bottom: 1px solid #ddd;
 }
 .job-info > strong {
-    display: block;
-    font-weight: 600;
-    color: #333;
-    margin-bottom: 5px;
+	display: block;
+	font-weight: 600;
+	color: #333;
+	margin-bottom: 5px;
 }
 .job-description .job-info {
-    border-bottom: 1px solid #ccc;
-    margin-bottom: 10px;
-    padding-bottom: 10px;
+	border-bottom: 1px solid #ccc;
+	margin-bottom: 10px;
+	padding-bottom: 10px;
 }
 .job-description .job-info:last-child {
-    margin: 0;
-    padding: 0;
-    border: none;
+	margin: 0;
+	padding: 0;
+	border: none;
 }
 .job-info ul {
-    margin: 0;
-    list-style: none;
-    padding: 0;
+	margin: 0;
+	list-style: none;
+	padding: 0;
 }
 .job-description .job-info li {
-    background: #e8eff6 none repeat scroll 0 0;
-    border: 1px solid #ddd;
-    border-radius: 5px;
-    color: #000;
-    display: inline-block;
-    line-height: 20px;
-    padding: 5px 10px;
+	background: #e8eff6 none repeat scroll 0 0;
+	border: 1px solid #ddd;
+	border-radius: 5px;
+	color: #000;
+	display: inline-block;
+	line-height: 20px;
+	padding: 5px 10px;
 }
 .job-match-candidates {
-    margin-top: 20px;
+	margin-top: 20px;
 }
 .newsfeed-left span {
-    color: #777;
-    display: block;
-    font-size: 12px;
-    line-height: 100%;
-    margin-bottom: 5px;
+	color: #777;
+	display: block;
+	font-size: 12px;
+	line-height: 100%;
+	margin-bottom: 5px;
 }
 .job-header > img {
-    border-radius: 50%;
-    display: block;
-    float: left;
-    height: 50px;
-    object-fit: cover;
-    width: 50px;
+	border-radius: 50%;
+	display: block;
+	float: left;
+	height: 50px;
+	object-fit: cover;
+	width: 50px;
 }
 .job-header p.job_title {
-    display: inline-block;
-    margin: 0 0 0 10px;
-    font-size: 15px;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    width: calc(100% - 60px);
+	display: inline-block;
+	margin: 0 0 0 10px;
+	font-size: 15px;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	width: calc(100% - 60px);
 }
 .newsfeed-left span:last-child {
-    margin-bottom: 0;
+	margin-bottom: 0;
 }
 .newsfeed-right .job-info .job-location {
-    margin-top: 20px;
+	margin-top: 20px;
 }
 .newsfeed-right .job-location > span {
-    color: #777;
-    display: block;
+	color: #777;
+	display: block;
 }
 .job-title {
-    background: #e8eff6 none repeat scroll 0 0;
-    padding: 20px;
-    border-bottom: 1px solid #ddd;
+	background: #e8eff6 none repeat scroll 0 0;
+	padding: 20px;
+	border-bottom: 1px solid #ddd;
 }
 .newsfeed-right .job-header p.job_title {
-    overflow: inherit;
-    text-overflow: inherit;
-    white-space: normal;
+	overflow: inherit;
+	text-overflow: inherit;
+	white-space: normal;
 }
 body.smart-style-6 #content.newsfeed.contracts {
-    border: none;
+	border: none;
 }
 .newsfeed.contracts .newsfeed-right {
-    width: 100%;
+	width: 100%;
 }
 .contract-top.clearfix {
-    margin-bottom: 5px;
+	margin-bottom: 5px;
 }
 .box{
-    background: #fff none repeat scroll 0 0;
-    border: 1px solid #ddd;
-    padding: 20px;
-    border-radius: 5px;
+	background: #fff none repeat scroll 0 0;
+	border: 1px solid #ddd;
+	padding: 20px;
+	border-radius: 5px;
 }
 .box.np{
-    padding:0;
+	padding:0;
 }
 .line-bottom {
-    border-bottom: 1px solid #eee;
-    margin-bottom: 10px;
-    padding-bottom: 10px;
+	border-bottom: 1px solid #eee;
+	margin-bottom: 10px;
+	padding-bottom: 10px;
 }
 .contracts h3 {
-    background: rgb(33,150,243);
-    border-radius: 5px 5px 0 0;
-    color: #fff;
-    font-weight: 600;
-    margin: 0;
-    padding: 5px 20px;
-    text-transform: capitalize;
+	background: rgb(33,150,243);
+	border-radius: 5px 5px 0 0;
+	color: #fff;
+	font-weight: 600;
+	margin: 0;
+	padding: 5px 20px;
+	text-transform: capitalize;
 }
 .contracts h5 {
-    font-size: 16px;
-    font-weight: bold;
-    margin: 0 0 10px;
-    text-transform: capitalize;
+	font-size: 16px;
+	font-weight: bold;
+	margin: 0 0 10px;
+	text-transform: capitalize;
 }
 .contracts .box {
-    border-radius: 0 0 5px 5px;
+	border-radius: 0 0 5px 5px;
 }
 .contracts .job-title {
-    margin-bottom: 15px;
+	margin-bottom: 15px;
 }
 .contracts .table th, .contracts .table td {
-    padding: 8px 10px !important;
+	padding: 8px 10px !important;
 }
 
 
 
 .ctree, .ctree ul {
-    margin:0;
-    padding:0;
-    list-style:none
+	margin:0;
+	padding:0;
+	list-style:none
 }
 .ctree ul {
-    margin-left:1em;
-    position:relative
+	margin-left:1em;
+	position:relative
 }
 .ctree ul ul {
-    margin-left:.5em
+	margin-left:.5em
 }
 .ctree ul:before {
-    content:"";
-    display:block;
-    width:0;
-    position:absolute;
-    top:0;
-    bottom:0;
-    left:0;
-    border-left:1px solid
+	content:"";
+	display:block;
+	width:0;
+	position:absolute;
+	top:0;
+	bottom:0;
+	left:0;
+	border-left:1px solid
 }
 .ctree li {
-    margin:0;
-    padding:0 1em;
-    line-height:2em;
-    color:#333;
-    font-weight:700;
-    position:relative
+	margin:0;
+	padding:0 1em;
+	line-height:2em;
+	color:#333;
+	font-weight:700;
+	position:relative
 }
 .ctree ul li:before {
-    content:"";
-    display:block;
-    width:10px;
-    height:0;
-    border-top:1px solid;
-    margin-top:-1px;
-    position:absolute;
-    top:1em;
-    left:0
+	content:"";
+	display:block;
+	width:10px;
+	height:0;
+	border-top:1px solid;
+	margin-top:-1px;
+	position:absolute;
+	top:1em;
+	left:0
 }
 .ctree ul li:last-child:before {
-    /*background:#fff;*/
-    height:auto;
-    top:1em;
-    bottom:0
+	/*background:#fff;*/
+	height:auto;
+	top:1em;
+	bottom:0
 }
 .indicator {
-    margin-right:5px;
+	margin-right:5px;
 }
 .ctree li a {
-    text-decoration: none;
-    color:#369;
+	text-decoration: none;
+	color:#369;
 }
 .ctree li button, .ctree li button:active, .ctree li button:focus {
-    text-decoration: none;
-    color:#369;
-    border:none;
-    background:transparent;
-    margin:0px 0px 0px 0px;
-    padding:0px 0px 0px 0px;
-    outline: 0;
+	text-decoration: none;
+	color:#369;
+	border:none;
+	background:transparent;
+	margin:0px 0px 0px 0px;
+	padding:0px 0px 0px 0px;
+	outline: 0;
 }
 .ctree li.last-node:hover {
-    cursor: pointer;
+	cursor: pointer;
 }
 .form-sign label.error {
-    display: block;
-    float: none;
-    font-size: 14px;
-    font-weight: normal;
-    margin-top: 5px;
-    text-align: left;
+	display: block;
+	float: none;
+	font-size: 14px;
+	font-weight: normal;
+	margin-top: 5px;
+	text-align: left;
 }
 .form-sign .field.error {
-    float: none;
+	float: none;
 }
 
 /*job-form*/
 .custome-filed-item {
-    background: #fff none repeat scroll 0 0;
-    border-radius: 10px;
-    box-shadow: 0 2px 16px rgba(0, 0, 0, 0.05);
-    padding: 20px;
+	background: #fff none repeat scroll 0 0;
+	border-radius: 10px;
+	box-shadow: 0 2px 16px rgba(0, 0, 0, 0.05);
+	padding: 20px;
 }
 .custome-filed-list {
-    background: rgb(246, 246, 246) none repeat scroll 0 0;
-    padding: 20px 0;
+	background: rgb(246, 246, 246) none repeat scroll 0 0;
+	padding: 20px 0;
 }
 .custome-filed-item .plain-select {
-    display: inline-block;
-    margin: 0 20px;
-    max-width: 200px;
-    vertical-align: top;
+	display: inline-block;
+	margin: 0 20px;
+	max-width: 200px;
+	vertical-align: top;
 }
 .custome-filed-item .select-filed {
-    margin-top: 20px;
+	margin-top: 20px;
 }
 .custome-filed-item h3 {
-    color: #000;
-    font-size: 18px;
-    margin:0 0 20px;
-    text-transform: capitalize;
+	color: #000;
+	font-size: 18px;
+	margin:0 0 20px;
+	text-transform: capitalize;
 }
 .custome-filed-item p > span {
-    color: #777;
-    display: block;
-    font-size: 12px;
-    line-height: 100%;
+	color: #777;
+	display: block;
+	font-size: 12px;
+	line-height: 100%;
 }
 .custome-filed-item p {
     color: #000;
@@ -469,26 +469,26 @@ body.smart-style-6 #content.newsfeed.contracts {
 .select-filed input[type="checkbox"] + .label-text::before,
 .select-filed label,
 .select-filed label.fancy span{
-    line-height: 45px;
+	line-height: 45px;
 }
 
 .custome-filed-list .filed-option input[type="checkbox"] + .label-text::before,
 .custome-filed-list .filed-option label.fancy span {
-    line-height:30px;
+	line-height:30px;
 }
 .custome-filed-item .filed-Add {
-    display: inline-block;
-    margin-top: 20px;
+	display: inline-block;
+	margin-top: 20px;
 }
 .custome-filed-item input.btn {
-    margin: 0 5px;
+	margin: 0 5px;
 }
 .custome-filed-list .filed-option label.fancy {
-    display: block;
+	display: block;
 }
 .custome-filed-item .checkbox-option .filed-Add {
-    margin-top: 0;
-    cursor: pointer;
+	margin-top: 0;
+	cursor: pointer;
 }
 .checkbox-option label.fancy {
     display: block;
@@ -1652,9 +1652,30 @@ text-align: right;
     height: 45px !important;
 }
 
+
 .account_destroy_btn{
     height: 45px;
     padding: 12px !important;
     margin-top: 7px;
     border-radius: 0 !important;
+}
+.os-icon-email-2-at2 {
+	color: #000000 !important;
+}
+.os-icon-phone{
+
+	color: #000000 !important;
+}
+.os-icon-calendar{
+
+	color: #000000 !important;
+}
+.ChatBtn{
+	color: #000000 !important;
+
+}
+@media only screen and (max-width: 600px) {
+  #ChatBtn {
+		display: none;
+	}
 }
