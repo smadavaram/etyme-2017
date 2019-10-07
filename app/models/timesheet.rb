@@ -41,7 +41,7 @@ class Timesheet < ApplicationRecord
   validates :end_date, presence: true
   validates :status, inclusion: {in: statuses.keys}
   
-  validates_uniqueness_of :start_date, scope: :contract_id, :message => "Timesheet already submitted."
+  # validates_uniqueness_of :start_date, scope: :contract_id, :message => "Timesheet already submitted."
   
   
   scope :not_invoiced, -> { where(invoice_id: nil) }

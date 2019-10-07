@@ -2,7 +2,7 @@ class ClientExpense < ApplicationRecord
 
   enum status: [:not_submitted, :submitted, :approved, :bill_generated, :invoice_generated, :paid]
 
-  belongs_to :candidate
+  belongs_to :candidate, optional: true
   belongs_to :company, optional: true
   belongs_to :contract, optional: true
   belongs_to :user, optional: true

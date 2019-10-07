@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema.define(version: 20191001094359) do
+ActiveRecord::Schema.define(version: 20191007180957) do
 
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
@@ -759,6 +759,7 @@ ActiveRecord::Schema.define(version: 20191001094359) do
     t.integer "status", default: 0
     t.string "cycle_of_type"
     t.bigint "cycle_of_id"
+    t.bigint "user_id"
     t.index ["candidate_id"], name: "index_contract_cycles_on_candidate_id"
     t.index ["company_id"], name: "index_contract_cycles_on_company_id"
     t.index ["contract_id"], name: "index_contract_cycles_on_contract_id"
