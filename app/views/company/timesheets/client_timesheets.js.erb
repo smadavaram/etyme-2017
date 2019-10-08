@@ -1,4 +1,11 @@
 
+$('.fd').removeClass('active')
+$(".<%= @tab %>").addClass('active');
+
+
+<% if @tab.eql?("open_timesheets") %>
+$('.timesheet_table').hide();
+$('#timesheet_calendar').show();
 <% if @timesheets.count == 1  and DateTime.now >= @timesheets.first.end_date and @tab != 'submitted_timesheets' and @timesheets.first.open? %>
 $('.submit_link').attr('href', "<%= timesheet_submit_timesheet_path(@timesheets.first) %>")
 $('.uploaded_file_name').html("<%= "#{@timesheets.first.contract_cycle.start_date.strftime("%Y-%m-%d")} - #{@timesheets.first.contract_cycle.end_date.strftime("%Y-%m-%d")}".to_s %>")
@@ -7,8 +14,7 @@ $('.submit_ts_hidden').show()
 $('.submit_ts_hidden').hide()
 <% end %>
 
-$('.fd').removeClass('active')
-$(".<%= @tab %>").addClass('active');
+
 <% events = [] %>
 <% @timesheets.each{|ts|  ts.transactions.each{|tt| events << {allDay: true,description: 'timesheet transaction',status: ts.status,title: "Transaction-#{tt.id}",id: tt.id, total_time: tt.total_time, timesheet_id:tt.timesheet_id, start: tt.start_time.strftime("%Y-%m-%d")} }}  %>
 var e=JSON.parse("<%= escape_javascript(render(inline: events.to_json)) %>")
@@ -21,3 +27,15 @@ $('#timesheet_calendar').fullCalendar( "removeEvents")
 console.log(e)
 $('#timesheet_calendar').fullCalendar( "renderEvents", e ,true)
 flash_success('Celandar Rendered Successfully');
+<% else %>
+$('.timesheet_table').show();
+$('.timesheet_table').html("<%= j render 'company/timesheets/partials/timesheet_table', timesheets: @timesheets %>")
+$('#timesheet_datatable').dataTable({
+    columnDefs: [{
+        'targets': 0,
+        searchable: false,
+        orderable: false
+    }]
+});
+$('#timesheet_calendar').hide();
+<% end %>

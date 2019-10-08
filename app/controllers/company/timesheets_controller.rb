@@ -4,7 +4,7 @@ class Company::TimesheetsController < Company::BaseController
   before_action :find_timesheet, except: [:index]
   # before_action :received_timesheet , only: [:approve]
   # before_action :set_timesheets , only: [:index]
-  before_action :user_timesheet, only: [:submit_timesheet, :add_hrs, :approve,:reject]
+  before_action :user_timesheet, only: [:submit_timesheet, :add_hrs, :approve, :reject]
   before_action :authorized_user, only: [:show, :approve]
   
   add_breadcrumb "TIMESHEETS", :timesheets_path, options: {title: "TIMESHEETS"}
@@ -34,7 +34,7 @@ class Company::TimesheetsController < Company::BaseController
         elsif params[:contract_id] != "all" and if_all?(params[:cycle_id])
           @timesheets = current_user.timesheets.send(@tab).where(id: current_user.contract_cycles.where(contract_id: params[:contract_id], cycle_type: 'TimesheetSubmit', cyclable_type: "Timesheet").pluck(:cyclable_id))
         elsif params[:cycle_id] != "all"
-          @timesheets = current_user.timesheets.send(@tab).where(id: current_user.contract_cycles.where(id: params[:cycle_id],cyclable_type: "Timesheet").pluck(:cyclable_id))
+          @timesheets = current_user.timesheets.send(@tab).where(id: current_user.contract_cycles.where(id: params[:cycle_id], cyclable_type: "Timesheet").pluck(:cyclable_id))
         end
         @cycle_frequency = @timesheets&.first.contract_cycle.cycle_frequency if @timesheets.present?
       }
@@ -46,20 +46,11 @@ class Company::TimesheetsController < Company::BaseController
     @start_date = params[:start_date]
     @end_date = params[:end_date]
     @cycle_type = params[:ts_type]
+    @ts_for = params[:ts_for].present? ? params[:ts_for] : "candidate"
     
-    @timesheets = Timesheet.joins(:contract_cycle).where("contract_cycles.contract_id": current_company.contracts.ids,cycle_of_type: "BuyContract")
-                      .includes(contract: [buy_contract: [:company, :candidate]]).send("#{@tab&.downcase || 'all'}_timesheets")
-                      .joins(:contract_cycle).where('contract_cycles.cycle_frequency IN (?)', @cycle_type.present? ? ContractCycle.cycle_frequencies[@cycle_type.to_sym] : ContractCycle.cycle_frequencies.values)
-                      .between_date(@start_date, @end_date).paginate(page: params[:page], per_page: 10).order(start_date: :asc)
-    
-    @timesheets = Timesheet.joins(contract_cycle: [contract: :sell_contract])
-                              .where("contract_cycles.contract_id": SellContract.all.select(:contract_id),
-                                     "contract_cycles.cycle_of_type": "SellContract","sell_contracts.company_id": current_company.id)
-                              .includes(contract: [buy_contract: [:company, :candidate]])
-                              .send("#{@tab&.downcase || 'all'}_timesheets")
-                              .joins(:contract_cycle)
-                              .where('contract_cycles.cycle_frequency IN (?)', @cycle_type.present? ? ContractCycle.cycle_frequencies[@cycle_type.to_sym] : ContractCycle.cycle_frequencies.values)
-                              .between_date(@start_date, @end_date).paginate(page: params[:page], per_page: 10).order(start_date: :asc)
+    @timesheets = @ts_for == "candidate" ?
+                      Timesheet.joins(:contract_cycle).where("contract_cycles.contract_id": current_company.contracts.ids, "contract_cycles.cycle_of_type": "BuyContract").includes(contract: [buy_contract: [:company, :candidate]]).send("#{@tab&.downcase || 'all'}_timesheets").joins(:contract_cycle).where('contract_cycles.cycle_frequency IN (?)', @cycle_type.present? ? ContractCycle.cycle_frequencies[@cycle_type.to_sym] : ContractCycle.cycle_frequencies.values).between_date(@start_date, @end_date).paginate(page: params[:page], per_page: 10).order(start_date: :asc) :
+                      Timesheet.joins(contract_cycle: [contract: :sell_contract]).where("contract_cycles.contract_id": SellContract.all.select(:contract_id), "contract_cycles.cycle_of_type": "SellContract", "sell_contracts.company_id": current_company.id).includes(contract: [buy_contract: [:company, :candidate]]).send("#{@tab&.downcase || 'all'}_timesheets").joins(:contract_cycle).where('contract_cycles.cycle_frequency IN (?)', @cycle_type.present? ? ContractCycle.cycle_frequencies[@cycle_type.to_sym] : ContractCycle.cycle_frequencies.values).between_date(@start_date, @end_date).paginate(page: params[:page], per_page: 10).order(start_date: :asc)
   end
   
   def approved
