@@ -43,7 +43,7 @@
     function time_line_filter(tab,cycle_selector,contract_selector){
       let cycle = $(cycle_selector).val();
       let contract = $(contract_selector).val();
-      $.get(`/candidate/timesheets.js?cycle_id=${cycle}&&contract_id=${contract}&&tab=${tab}`);
+      $.get(`/timesheets/client_timesheets.js?cycle_id=${cycle}&&contract_id=${contract}&&tab=${tab}`);
     }
     $(document).ready(function() {
       pageSetUp();
@@ -64,8 +64,8 @@
         events: e,
         eventRender: function (info, event, el, view) {
           event[0].removeChild(event[0].firstChild);
-          let inputDisabled = `<input name='${info.title}' data-transaction='${info.id}'  data-timesheet='${info.timesheet_id}'  onchange="handle_input(this,'candidate')" value='${info.total_time}' disabled='disabled' style='width: -moz-available;width: -webkit-fill-available;' />`
-          let input = `<input name='${info.title}' data-transaction='${info.id}'  data-timesheet='${info.timesheet_id}' onchange="handle_input(this,'candidate')" value='${info.total_time}' style='width: -moz-available;width: -webkit-fill-available;' />`
+          let inputDisabled = `<input name='${info.title}' data-transaction='${info.id}'  data-timesheet='${info.timesheet_id}'  onchange="handle_input(this,'company')" value='${info.total_time}' disabled='disabled' style='width: -moz-available;width: -webkit-fill-available;' />`
+          let input = `<input name='${info.title}' data-transaction='${info.id}'  data-timesheet='${info.timesheet_id}' onchange="handle_input(this,'company')" value='${info.total_time}' style='width: -moz-available;width: -webkit-fill-available;' />`
           let today = moment();
           let transactionDay = moment(info.start);
           if(today < transactionDay || [ "submitted", "approved", "partially_approved", "rejected", "invoiced"].includes(info.status)){
@@ -81,10 +81,10 @@
       });
       flash_success('Celandar Rendered Successfully');
       $('.cycle-type').change(function(){
-        $.get(`/candidate/timesheets.js?cycle_id=${false}&&contract_id=${false}&&tab=open_timesheets&&cycle_frequency=${$(this).val()}`);
+        $.get(`/timesheets/client_timesheets.js?cycle_id=${false}&&contract_id=${false}&&tab=open_timesheets&&cycle_frequency=${$(this).val()}`);
       });
       $('.select-contract').change(function() {
-        $.get(`/api/candidate/candidates/contract_cycles.json?contract_type=BuyContract&contract_id=${$(this).val()}`).then(function(data) {
+        $.get(`/api/candidate/candidates/contract_cycles.json?contract_type=SellContract&contract_id=${$(this).val()}`).then(function(data) {
           $('.select-time-cycle').empty().append($("<option>").val("all").text("Select Cycle"));
           data.forEach(function(cycle) {
             $('.select-time-cycle').append($("<option>").val(cycle.id).text(cycle.range))
@@ -96,7 +96,7 @@
       $('.select-time-cycle').change(function(){
         let cycle = $(this).val();
         let contract = $('.select-contract').val();
-        $.get(`/candidate/timesheets.js?cycle_id=${cycle}&&contract_id=${contract}&&tab=open_timesheets`);
+        $.get(`/timesheets/client_timesheets.js?cycle_id=${cycle}&&contract_id=${contract}&&tab=open_timesheets`);
       });
 
       $(".all-select").on("change", function(){

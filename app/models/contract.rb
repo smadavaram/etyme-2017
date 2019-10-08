@@ -681,6 +681,10 @@ class Contract < ApplicationRecord
     end
   end
 
+  def admin_user
+    contract_admins&.first&.user || company.users.joins(:roles).where('roles.name': "HR admin").limit(1)
+  end
+  
   private
 
   def appraiser

@@ -53,7 +53,7 @@
                   %td= ts.contract.title
                   %td= image_tag(ts.contract.client.photo, class: 'data-table-image mr-1', title: ts.contract.client.full_name) if ts.contract.client.present?
                   %td= "#{ts.start_date} - #{ts.end_date}"
-                  %td= ts.contract_cycle.cycle_of.get_rate(ts.start_date).working_hrs
+                  %td= ts.contract_cycle.cycle_of.get_rate(ts.start_date)&.working_hrs
                   %td= ts.total_time
                   %td= 'TBD'
                   %td= 'TBD'

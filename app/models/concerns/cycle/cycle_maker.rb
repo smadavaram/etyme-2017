@@ -103,11 +103,11 @@ module Cycle::CycleMaker
       # contract_cycles.build(company)
       start_date = date_group.first
       end_date = date_group.last
-      time_sheet = self.timesheets.build(status: :open, job: self.job, user: sell_contract.team_admin, start_date: start_date, end_date: end_date)
+      time_sheet = self.timesheets.build( status: :open, job: self.job, user: self.admin_user, start_date: start_date, end_date: end_date )
       if time_sheet.save
         contract_cycles.create(cycle_type: 'TimesheetSubmit',
                                cyclable: time_sheet,
-                               user: sell_contract.team_admin,
+                               user: self.admin_user,
                                contract: self,
                                start_date: start_date,
                                end_date: end_date,

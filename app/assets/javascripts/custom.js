@@ -238,3 +238,20 @@ $(document).on('trix-initialize', function () {
 $(document).on('trix-file-accept', function (e) {
     e.preventDefault();
 });
+function handle_input(event, candidate) {
+    let transaction_id = event.getAttribute('data-transaction');
+    let timesheet_id = event.getAttribute('data-timesheet');
+    let hrs = event.value;
+    let url = null
+    if (candidate == "candidate") {
+        url = `/candidate/timesheets/${timesheet_id}/transaction/${transaction_id}/update`
+    } else {
+        url = `/timesheets/${timesheet_id}/transaction/${transaction_id}/update`
+    }
+    $.post(url, {total_hrs: hrs}).done(function (data) {
+        flash_success(data.status)
+    }).fail(function (data) {
+        flash_error(data.status)
+    });
+}
+
