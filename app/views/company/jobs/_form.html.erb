@@ -3,7 +3,6 @@
 
   <% if params[:type] == "Blog" %>
     <%= render 'company/jobs/partials/forms/field', form: form, attribute: :title, field_type: :text_field, field_attributes: {autofocus: true} %>
-
     <div class="row">
       <div class="col-lg-6">
         <%= render 'company/jobs/partials/forms/select', form: form, attribute: :status, options: [" ","Draft", "Bench", "Published", "Archived", "Cancelled"], field_attributes: {} %>
@@ -21,6 +20,8 @@
     <%#= render 'company/jobs/partials/forms/field', form: form, attribute: :description, field_type: :text_area, field_attributes: {} %>
   <% else %>
     <%= render 'company/jobs/partials/forms/field', form: form, attribute: :title, field_type: :text_field, field_attributes: {autofocus: true} %>
+    <label>Description</label>
+    <%= form.trix_editor :description, required: true, autofocus: true,class: "trix-content" %>
     <div class="row">
       <div class="col-md-6">
         <%= render 'company/jobs/partials/forms/field', form: form, attribute: :education, field_type: :text_field, field_attributes: {"data-role": "tagsinput", placeholder: "Educations and Certification", class: "form-control tagsinput", value: @job.education_list.join(", ")}, note: "Education are separated with comma" %>
@@ -29,9 +30,8 @@
        <%= render 'company/jobs/partials/forms/field', form: form, attribute: :tag_list, title: "Skills", field_type: :text_field, field_attributes: {"data-role": "tagsinput", placeholder: "Skills are separated with comma", class: "form-control tagsinput", value: @job.tag_list.join(", ")}, note: "Skills are separated with comma" %>
       </div>
     </div>
-    <%= render 'company/jobs/partials/forms/field', form: form, attribute: :source, field_type: :text_field, field_attributes: {autofocus: true} %>
     <div class="row">
-      <div class="col-lg-6">
+      <div class="col-lg-6 <%=params[:action]=='edit' ? 'hidden' : ''%>">
         <%= render 'company/jobs/partials/forms/select', form: form, attribute: :listing_type, options: ["Job", "Training", "Service", "Product", "Blog"], field_attributes: {}, select_option: {selected: params[:type] || "Job"}, note: "If you choose \"Published\", We will show this job to all candidates in your system and will be posted on etyme. So anyone can apply. To control job applications by invitations only" %>
       </div>
       <div class="col-lg-12">
@@ -76,11 +76,9 @@
       <%= render 'shared/file_attachement', f: form, attr_name: :files, button_name: "Attach Images", name_selector: ".uploaded_file_name", cstm_style: "border-radius: 0; height:38px;", multiple: true %>
       <p class="d-inline-block uploaded_file_name">No Image(s) Selected</p>
     </div>
-    <label>Description</label>
-    <%= form.trix_editor :description, required: true, autofocus: true,class: "trix-content" %>
     <div class="mt-2"></div>
     <%#= render 'company/jobs/partials/forms/field', form: form, attribute: :description, field_type: :text_area, field_attributes: {} %>
-
+ <%= render 'company/jobs/partials/forms/field', form: form, attribute: :source, field_type: :text_field, field_attributes: {autofocus: true} %>
     <div class="custome">
       <legend><span>Add Additional Requirements</span></legend>
       <div class="row">
