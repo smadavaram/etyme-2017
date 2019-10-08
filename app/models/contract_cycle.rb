@@ -17,6 +17,7 @@ class ContractCycle < ApplicationRecord
   belongs_to :contract, optional: true
   belongs_to :company, optional: true
   belongs_to :candidate, optional: true
+  belongs_to :user, optional: true
   belongs_to :cyclable, polymorphic: true, optional: true
   belongs_to :cycle_of, polymorphic: true
   
@@ -45,6 +46,13 @@ class ContractCycle < ApplicationRecord
   
   def self.get_cycle_types
     CYCLETYPES
+  end
+  
+  def sell_contract?
+    cycle_of_type == "SellContract"
+  end
+  def buy_contract?
+    cycle_of_type == "BuyContract"
   end
   
   def get_next_action_date(new_next_action)

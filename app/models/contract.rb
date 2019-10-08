@@ -295,14 +295,17 @@ class Contract < ApplicationRecord
 
   def create_cycles
     if buy_contract.present?
-      buy_contract_time_sheet_cycles unless contract_cycles.where(cycle_type: 'TimesheetSubmit').present?
-      buy_contract_time_sheet_aprove_cycle unless contract_cycles.where(cycle_type: 'TimesheetApprove').present?
-      buy_contract_salary_calculation_cycle unless contract_cycles.where(cycle_type: 'SalaryCalculation').present?
-      buy_contract_salary_process_cycle unless contract_cycles.where(cycle_type: 'SalaryProcess').present?
-      buy_contract_salary_clear_cycle unless contract_cycles.where(cycle_type: 'SalaryClear').present?
+      buy_contract_time_sheet_cycles unless contract_cycles.where(cycle_type: 'TimesheetSubmit', cycle_of: buy_contract).present?
+      buy_contract_time_sheet_aprove_cycle unless contract_cycles.where(cycle_type: 'TimesheetApprove', cycle_of: buy_contract).present?
+      buy_contract_salary_calculation_cycle unless contract_cycles.where(cycle_type: 'SalaryCalculation', cycle_of: buy_contract).present?
+      buy_contract_salary_process_cycle unless contract_cycles.where(cycle_type: 'SalaryProcess', cycle_of: buy_contract).present?
+      buy_contract_salary_clear_cycle unless contract_cycles.where(cycle_type: 'SalaryClear', cycle_of: buy_contract).present?
     end
-    if sell_contract
-      sell_contract_invoice_cycle unless contract_cycles.where(cycle_type: 'InvoiceGenerate').present?
+    if sell_contract.present?
+      sell_contract_time_sheet_cycles unless contract_cycles.where(cycle_type: 'TimesheetSubmit', cycle_of: sell_contract).present?
+      sell_contract_time_sheet_aprove_cycle unless contract_cycles.where(cycle_type: 'TimesheetApprove', cycle_of: sell_contract).present?
+      sell_contract_invoice_cycle unless contract_cycles.where(cycle_type: 'InvoiceGenerate', cycle_of: sell_contract).present?
+      sell_contract_client_expense_cycle unless contract_cycles.where(cycle_type: 'ClientExpenseSubmission', cycle_of: sell_contract).present?
     end
   end
 
@@ -678,6 +681,10 @@ class Contract < ApplicationRecord
     end
   end
 
+  def admin_user
+    contract_admins&.first&.user || company.users.joins(:roles).where('roles.name': "HR admin").limit(1)
+  end
+  
   private
 
   def appraiser
