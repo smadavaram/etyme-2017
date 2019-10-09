@@ -41,7 +41,4 @@ class Group < ApplicationRecord
   def full_name
     group_name.to_s.titleize
   end
-  def get_users
-    self.groupables.groupable
-  end
 end

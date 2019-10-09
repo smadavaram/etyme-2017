@@ -1660,9 +1660,6 @@ text-align: right;
 	  
 	color: #000000 !important; 
 }
-.ChatBtn{
-	color: #000000 !important; 
-}
 .select2-selection--single{
     height: 45px !important;
 }
@@ -1689,7 +1686,7 @@ text-align: right;
 	color: #000000 !important;
 }
 @media only screen and (max-width: 600px) {
-  #ChatBtn {
+  .ChatBtn {
 		display: none;
 	}
 }

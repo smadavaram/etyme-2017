@@ -36,7 +36,7 @@
                       .floated-chat-btn
                         %i.os-icon.os-icon-mail-07
                         %span
-                        = link_to 'Conversation', mini_chat_company_conversations_path(conversation_id: @contract.buy_contract.conversation.id) ,id: 'ChatBtn', remote: true
+                        = link_to 'Conversation', mini_chat_company_conversations_path(conversation_id: @contract.buy_contract.conversation.id) ,class: 'ChatBtn',id: 'ChatBtn', remote: true
         %label.control-label.font-weight-bold.mt-2 Accounting
         .contract-fields_wrapper.mt-2
           %div

@@ -215,7 +215,6 @@ $(document).on("click", ".remove-multi-fields", function () {
 
 $(document).on("click", ".chat-close", function () {
     $('.floated-chat-w').remove()
-    $('#ChatBtn').show();
     $('.ChatBtn').show();
 });
 
