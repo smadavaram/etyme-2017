@@ -117,7 +117,7 @@
             %p
               =buy_contract_time_sheet('salary_process', @contract.buy_contract&.salary_calculation)
         .col-sm-4.col-md-4.col-lg-4.p-1
-          .rate_info.text-center.box_rate
+          .rate_info.text-center
             %strong.rate_label{title: "Freelancer Rate"} Freelancer Rate
             %span
               %br
@@ -126,7 +126,7 @@
               - if local_assigns[:editable] and editable
                 %span.btn.btn-primary.sell-change-rate{"data-toggle": "modal","data-target": "#freelancer_rate_change"} Add Rate
         .col-sm-4.col-md-4.col-lg-4.p-1
-          .rate_info.text-center.d-inline-block
+          .rate_info.text-center
             %strong USICS
             %span
               %br

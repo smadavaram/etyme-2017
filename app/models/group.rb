@@ -1,4 +1,5 @@
 class Group < ApplicationRecord
+
   belongs_to :company, optional: true
   has_many :groupables, dependent: :destroy
   has_many :candidates, through: :groupables, source: "groupable", source_type: "Candidate"
@@ -9,6 +10,8 @@ class Group < ApplicationRecord
   has_many :statuses, as: :statusable, dependent: :destroy
   has_many :reminders, as: :reminderable
 
+  scope :user_emails, ->(group_id) {Group.find(group_id).users.select(:email)}
+  scope :candidate_emails, ->(group_id) {Group.find(group_id).candidates.select(:email)}
 
   scope :chat_groups, -> { where(member_type: 'Chat') }
   scope :contact_groups, -> { where("member_type IN('Candidate', 'Contact')" ) }

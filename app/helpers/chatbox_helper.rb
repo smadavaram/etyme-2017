@@ -99,5 +99,4 @@ module ChatboxHelper
       current_candidate
     end
   end
-
 end
