@@ -39,6 +39,7 @@ class Users::PasswordsController < Devise::PasswordsController
      if resource.errors.empty?
        resource.unlock_access! if unlockable?(resource)
        if Devise.sign_in_after_reset_password
+         resource.update(confirmed_at: Time.current) unless resource.confirmed?
          flash_message = resource.active_for_authentication? ? :updated : :updated_not_active
          set_flash_message!(:notice, flash_message)
          sign_in(resource_name, resource)
