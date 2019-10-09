@@ -7,7 +7,7 @@
         %button.close{"aria-hidden" => "true", "data-dismiss" => "modal", :type => "button"}
         ×
       .modal-body
-        = form_for @contract.sell_contract.change_rates.build, url: change_rates_path(contract_id: @contract.sell_contract.id, type: 'BuyContract'), method: :post, html:{class: 'contract-expense-type'} do |f|
+        = form_for @contract.buy_contract.change_rates.build, url: change_rates_path(contract_id: @contract.buy_contract.id, type: 'BuyContract'), method: :post, html:{class: 'contract-expense-type'} do |f|
           .col-md-12.display-flex
             =render 'company/contracts/partials/rate_fields', f: f, usics: true
             %br

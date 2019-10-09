@@ -1662,7 +1662,31 @@ text-align: right;
 }
 .ChatBtn{
 	color: #000000 !important; 
+}
+.select2-selection--single{
+    height: 45px !important;
+}
 
+
+.account_destroy_btn{
+    height: 45px;
+    padding: 12px !important;
+    margin-top: 7px;
+    border-radius: 0 !important;
+}
+.os-icon-email-2-at2 {
+	color: #000000 !important;
+}
+.os-icon-phone{
+
+	color: #000000 !important;
+}
+.os-icon-calendar{
+
+	color: #000000 !important;
+}
+.ChatBtn{
+	color: #000000 !important;
 }
 @media only screen and (max-width: 600px) {
   #ChatBtn {

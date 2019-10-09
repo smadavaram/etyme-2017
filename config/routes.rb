@@ -216,6 +216,7 @@ Rails.application.routes.draw do
       post "/:id/transaction/:transaction_id/update", on: :collection,to: "timesheets#add_hrs", as: :add_hrs
       # post "/:id", to: "timesheets#update", on: :collection, as: :update
     end
+    resources :expenses, only: [:new,:create]
     resources :client_expenses, only: [:index, :update] do
       post :get_client_expenses, on: :collection
       get :submitted_client_expenses, on: :collection
@@ -643,7 +644,9 @@ Rails.application.routes.draw do
     get 'filter_data/:filter', to: 'users#filter_cards', as: :filter_cards_data
     post 'update_photo', to: 'users#update_photo'
     resources :timesheets, concerns: :paginatable, only: [:show, :index, :new, :create, :edit, :update] do
+      get 'client_timesheets', on: :collection
       get 'submit_timesheet'
+      post "/:id/transaction/:transaction_id/update", on: :collection,to: "timesheets#add_hrs", as: :add_hrs
       get 'approved', on: :collection
       get 'generate_invoice'
       get 'check_invoice'

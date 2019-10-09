@@ -83,7 +83,11 @@ class Company::ExpensesController < Company::BaseController
   end
 
   def filter_approved_client_expense
-    @client_expenses = current_company.client_expenses.joins(contract: [:client, [buy_contracts: :candidate]]).approved_client_expenses.where(contract_id: params[:contract_id]).select("DISTINCT(client_expenses.ce_ap_cycle_id), contracts.number, companies.name, buy_contracts.contract_type, candidates.first_name, candidates.last_name, sum(amount) as total_amount").group('client_expenses.ce_ap_cycle_id', 'contracts.number', 'companies.name', 'buy_contracts.contract_type', 'candidates.first_name', 'candidates.last_name').map(&:attributes)
+    @client_expenses = current_company.client_expenses.joins(contract: [:client, [buy_contract: :candidate]])
+                           .approved_client_expenses.where(contract_id: params[:contract_id])
+                           .select("DISTINCT(client_expenses.ce_ap_cycle_id), contracts.number, companies.name, buy_contracts.contract_type, candidates.first_name, candidates.last_name, sum(amount) as total_amount")
+                           .group('client_expenses.ce_ap_cycle_id', 'contracts.number', 'companies.name', 'buy_contracts.contract_type', 'candidates.first_name', 'candidates.last_name')
+                           .map(&:attributes)
   end
 
   def get_bank_balance

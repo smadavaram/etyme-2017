@@ -142,7 +142,7 @@
 
 // Custom Fields
 //= require cocoon
-
+//= require nested_form_fields
 // Amaran For Alerts
 //= require jquery.amaran
 
@@ -175,6 +175,7 @@
 // BulletTrain
 //= require_tree ./clean_admin
 //= require trix
+//= require company/select_autocomplete
 
 $("input[name='candidate[designation_status]']").click(function () {
     if ($("input[name='candidate[designation_status]']:checked").val() == "Employee") {
@@ -201,21 +202,3 @@ $('#dataTable').dataTable({
         orderable: false
     }]
 });
-
-function handle_input(event, candidate) {
-    let transaction_id = event.getAttribute('data-transaction');
-    let timesheet_id = event.getAttribute('data-timesheet');
-    let hrs = event.value;
-    let url = null
-    if (candidate == "candidate") {
-        url = `/candidate/timesheets/${timesheet_id}/transaction/${transaction_id}/update`
-    } else {
-        url = ``
-    }
-    $.post(url, {total_hrs: hrs}).done(function (data) {
-        flash_success(data.status)
-    }).fail(function (data) {
-        flash_error(data.status)
-    });
-}
-
