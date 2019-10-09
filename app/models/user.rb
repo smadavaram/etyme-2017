@@ -89,7 +89,6 @@ class User < ApplicationRecord
 
   validate :max_skill_size
 
-
   def conversations
     Conversation.all_onversations(self)
   end

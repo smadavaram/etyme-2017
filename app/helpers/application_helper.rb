@@ -31,9 +31,9 @@ module ApplicationHelper
   
   def chat_remote_link(options)
     if options[:remote_false]
-      link_to(content_tag(:i, nil, class: 'fa fa-comment-o').html_safe, options[:chat_link] || '#', title: 'chat', class: 'data-table-icons')
+      link_to(content_tag(:i, nil, class: 'fa fa-comment-o ChatBtn').html_safe, options[:chat_link] || '#', title: 'chat', class: 'data-table-icons')
     else
-      link_to(content_tag(:i, nil, class: 'fa fa-comment-o').html_safe, options[:chat_link] || '#', remote: true, title: 'chat', class: 'data-table-icons')
+      link_to(content_tag(:i, nil, class: 'fa fa-comment-o ChatBtn').html_safe, options[:chat_link] || '#', remote: true, title: 'chat', class: 'data-table-icons')
     end
   end
   

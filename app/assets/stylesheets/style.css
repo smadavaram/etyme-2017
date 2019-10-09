@@ -1648,6 +1648,18 @@ text-align: right;
 .table-v2 td{
     text-align: left !important;
 }
+.os-icon-email-2-at2 {
+
+	color: #000000 !important;
+}
+.os-icon-phone{
+
+	color: #000000 !important;
+}
+.os-icon-calendar{
+
+	color: #000000 !important;
+}
 .select2-selection--single{
     height: 45px !important;
 }
