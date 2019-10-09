@@ -15,6 +15,8 @@ class Candidate::TimesheetsController < Candidate::BaseController
         @tab = params[:tab].present? ? params[:tab] : "open_timesheets"
       }
       format.js {
+        @cycle_id = params[:cycle_id]
+        @contract_id = params[:contract_id]
         @tab = params[:tab]
         if params[:cycle_frequency].present?
           @cycle_frequency = params[:cycle_frequency]
@@ -26,6 +28,7 @@ class Candidate::TimesheetsController < Candidate::BaseController
         elsif params[:cycle_id] != "all"
           @timesheets = current_candidate.timesheets.send(@tab).where(id: current_candidate.contract_cycles.where(id: params[:cycle_id]).pluck(:cyclable_id))
         end
+        @timesheets = @timesheets.paginate(page: params[:page], per_page: 10) unless @tab == "open_timesheets"
         @cycle_frequency = @timesheets&.first.contract_cycle.cycle_frequency if @timesheets.present?
       }
     end

@@ -29,13 +29,7 @@ $('#timesheet_calendar').fullCalendar( "renderEvents", e ,true)
 flash_success('Celandar Rendered Successfully');
 <% else %>
 $('.timesheet_table').show();
-$('.timesheet_table').html("<%= j render 'company/timesheets/partials/timesheet_table', timesheets: @timesheets %>")
-$('#timesheet_datatable').dataTable({
-    columnDefs: [{
-        'targets': 0,
-        searchable: false,
-        orderable: false
-    }]
-});
+$('.timesheet_table').html("<%= j render 'company/timesheets/partials/timesheet_table', timesheets: @timesheets,contract_id: @contract_id,tab: @tab, cycle_id: @cycle_id %>")
 $('#timesheet_calendar').hide();
+$('.timesheet_pagination_links a').attr('data-remote','true');
 <% end %>

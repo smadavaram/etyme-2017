@@ -46,19 +46,19 @@
           = render 'company/timesheets/partials/upcomming_timeline'
         - else
           .table-responsive
-            %table.table.table-striped.table-bordered
+            %table.table.table-striped.table-bordered.table-v2.table-lg
               %thead
                 %tr
-                  %td Ts ID
-                  %td Ts Type
-                  %td Contract ID & Title - Client
-                  %td Client
-                  %td From & To Date
-                  %td Plan. Hr
-                  %td Act. Hr
-                  %td Log
-                  %td Reference
-                  %td Actions
+                  %th Ts ID
+                  %th Ts Type
+                  %th Contract ID & Title - Client
+                  %th Client
+                  %th From & To Date
+                  %th Plan. Hr
+                  %th Act. Hr
+                  %th Log
+                  %th Reference
+                  %th Actions
               %tbody
                 - @timesheets.each do |ts|
                   %tr

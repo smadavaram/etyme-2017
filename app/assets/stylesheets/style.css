@@ -1658,3 +1658,11 @@ text-align: right;
     margin-top: 7px;
     border-radius: 0 !important;
 }
+.timesheet_pagination_links{
+    display: inline-block;
+}
+.timesheet_pagination_wrap{
+    display: flex;
+    justify-content: space-between;
+}
+

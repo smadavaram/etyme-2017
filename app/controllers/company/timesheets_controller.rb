@@ -6,7 +6,7 @@ class Company::TimesheetsController < Company::BaseController
   # before_action :set_timesheets , only: [:index]
   before_action :user_timesheet, only: [:submit_timesheet, :add_hrs, :approve, :reject]
   before_action :authorized_user, only: [:show, :approve]
-  
+  skip_before_action :verify_authenticity_token, only: [:client_timesheets]
   add_breadcrumb "TIMESHEETS", :timesheets_path, options: {title: "TIMESHEETS"}
   
   include CandidateHelper
@@ -25,6 +25,8 @@ class Company::TimesheetsController < Company::BaseController
         @tab = params[:tab].present? ? params[:tab] : "open_timesheets"
       }
       format.js {
+        @cycle_id = params[:cycle_id]
+        @contract_id = params[:contract_id]
         @tab = params[:tab]
         if params[:cycle_frequency].present?
           @cycle_frequency = params[:cycle_frequency]
@@ -36,6 +38,7 @@ class Company::TimesheetsController < Company::BaseController
         elsif params[:cycle_id] != "all"
           @timesheets = current_user.timesheets.send(@tab).where(id: current_user.contract_cycles.where(id: params[:cycle_id], cyclable_type: "Timesheet").pluck(:cyclable_id))
         end
+        @timesheets = @timesheets.paginate(page: params[:page], per_page: 10) unless @tab == "open_timesheets"
         @cycle_frequency = @timesheets&.first.contract_cycle.cycle_frequency if @timesheets.present?
       }
     end

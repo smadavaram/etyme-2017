@@ -17,9 +17,8 @@
       %br
       Contract ID - #{cc.contract.id} - Cycle ID #{cc.id}
       %p.mb-0.submitted-name
-        %b Name: #{cc.candidate.present? ? cc.candidate.full_name : cc.company.full_name}
-        %b
-          = link_to 'Approve', timesheets_path, class: 'btn' if cc.note == 'Timesheet Approve'
+        %b= "Name: #{cc.buy_contract? ? cc.candidate.present? ? cc.candidate.full_name.capitalize : cc.company.full_name.capitalize : cc.user.full_name.capitalize}"
+        %b= link_to 'Approve', timesheets_path, class: 'btn' if cc.note == 'Timesheet Approve'
       %p Client: #{cc&.contract&.company&.full_name}
       %p Tax type: #{cc.contract.buy_contract.contract_type}
       - if cc.note == 'Timesheet submit'
