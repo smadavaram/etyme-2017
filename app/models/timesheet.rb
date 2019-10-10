@@ -11,19 +11,15 @@ class Timesheet < ApplicationRecord
   belongs_to :job, optional: true
   belongs_to :invoice, optional: true
   belongs_to :candidate, optional: true
-  
   has_one :contract_cycle, as: :cyclable
-  
   # has_many   :timesheet_logs , dependent: :destroy
   has_many :timesheet_approvers, dependent: :destroy
   has_many :transactions
   # has_many   :transactions  , through: :timesheet_logs
-  
   has_many :contract_salary_histories, as: :salable, dependent: :destroy
-  
-  
   belongs_to :ts_cycle, optional: true, foreign_key: :ts_cycle_id, class_name: 'ContractCycle'
   belongs_to :ta_cycle, optional: true, foreign_key: :ta_cycle_id, class_name: 'ContractCycle'
+  has_many :invoice_items, as: :itemable
   
   accepts_nested_attributes_for :transactions
   
@@ -35,8 +31,10 @@ class Timesheet < ApplicationRecord
   # after_create  :notify_timesheet_created
   # after_update :update_pending_timesheet_logs, if: Proc.new{|t| t.status_changed? && t.approved?}
   
-  after_update :set_contract_salary_histories, if: Proc.new { |t| t.status_changed? && t.approved? }
   
+  after_update :set_contract_salary_histories, if: Proc.new { |t| t.status_changed? && t.approved? }
+  after_update :set_cost_and_time,  if: Proc.new { |t| t.approved? }
+
   validates :start_date, presence: true
   validates :end_date, presence: true
   validates :status, inclusion: {in: statuses.keys}
@@ -77,6 +75,11 @@ class Timesheet < ApplicationRecord
   
   def total_time
     transactions.sum(:total_time)
+  end
+  
+  def set_cost_and_time
+    rate = contract_cycle.cycle_of.change_rates.where("from_date <= ? and to_date >= ?", start_date,end_date ).order(:from_date).first&.rate || 0
+    update(total_time: total_time,total_time: rate * time)
   end
   
   def approved_total_time

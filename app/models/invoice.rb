@@ -8,10 +8,10 @@ class Invoice < ApplicationRecord
   belongs_to  :contract, optional: true
   belongs_to  :submitted_by   , class_name:"Admin", foreign_key: :submitted_by, optional: true
   belongs_to  :parent_invoice , class_name: "Invoice" , foreign_key: :parent_id, optional: true
+  belongs_to  :sender_company , class_name: "Company", foreign_key: "sender_company_id"
+  belongs_to  :receiver_company , class_name: "Company", foreign_key: "receiver_company_id"
   has_one     :child_invoice  , class_name: "Invoice", foreign_key: :parent_id
-  has_one     :company        , through: :company
-  has_many    :timesheets
-  has_many    :timesheet_logs , through: :timesheets
+  has_many    :invoice_items
   has_many    :receive_payments
 
   # before_validation :set_rate , on: :create

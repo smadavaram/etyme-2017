@@ -441,6 +441,7 @@ Rails.application.routes.draw do
 
     resources :invoices, concerns: :paginatable, only: [:index, :edit, :update] do
       collection do
+        post :client_submit_invoice
         get :cleared_invoice
       end
       resources :receive_payments
