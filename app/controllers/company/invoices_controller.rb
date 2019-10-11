@@ -3,13 +3,15 @@ class Company::InvoicesController < Company::BaseController
   before_action :find_contract, only: [:show, :download, :index, :accept_invoice, :reject_invoice, :paid_invoice]
   before_action :find_invoice, only: [:show, :download, :accept_invoice, :reject_invoice, :paid_invoice]
   before_action :set_invoices, only: [:reject_invoice]
-  before_action :set_company_contract_invoices, only: [:index]
+  # before_action :set_company_contract_invoices, only: [:index]
   before_action :authorized_user, only: [:index, :reject_invoice, :show]
   
   add_breadcrumb "INVOICES", '#', options: {title: "INVOICES"}
   
   def index
-    @invoices = Invoice.open_invoices.joins(:contract).where(contracts: {company_id: current_company.id}, invoice_type: 'timesheet_invoice').order("created_at DESC")
+    @tab = params[:tab] || 'received_invoices'
+    @receive_invoices = current_company.receive_invoices.joins(:contract).paginate(page: params[:page], per_page: 1)
+    @sent_invoices = current_company.sent_invoices.joins(:contract).paginate(page: params[:page], per_page: 1)
   end
   
   def cleared_invoice
