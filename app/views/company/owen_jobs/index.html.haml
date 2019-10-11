@@ -1,6 +1,6 @@
 #content.newsfeed
   %body
-    %section#widget-grid.clearfix
+    %section#widget-grid
       .newsfeed-left
         %ul
           - @jobs.each do |job|
@@ -28,5 +28,5 @@
                     %i.fa.fa-user
                     =job.created_by.full_name
         = digg_pagination(@jobs)
-      .newsfeed-right
+      .newsfeed
         %div#public-job-description

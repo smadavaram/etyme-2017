@@ -42,12 +42,12 @@ class CompanyCandidateDatatable < ApplicationDatatable
   end
 
   def company_profile(record)
-    image_tag(record.associated_company.photo, class: 'data-table-image mr-1').html_safe +
-        link_to(do_ellipsis(record.associated_company.name), profile_company_path(record.associated_company), class: 'data-table-font')
+    image_tag(record.associated_company.photo, title: "#{record.associated_company.name}", class: 'data-table-image mr-1').html_safe +
+    link_to(do_ellipsis(record.associated_company.name), profile_company_path(record.associated_company), class: 'data-table-font')
   end
 
   def candidate_profile user
-    image_tag(user.photo, class: 'data-table-image mr-1').html_safe +
+    image_tag(user.photo, class: 'data-table-image mr-1',title: "#{user.full_name}").html_safe +
         link_to(do_ellipsis(user.full_name), public_profile_static_candidates_path(user), class: 'data-table-font')
   end
 

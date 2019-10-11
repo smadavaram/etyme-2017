@@ -1,10 +1,7 @@
-%h2 Job Invitations
 .table-responsive
   %table#datatable_fixed_column.table.table-striped.table-bordered.table-v2.table-lg.dataTable.no-footer{"aria-describedby" => "datatable_fixed_column_info", :role => "grid", :style => "width: 100%;", :width => "100%"}
     %thead
       %tr{:role => "row"}
-        %th.hasinput{ :style => "width:10%"}
-          %input.form-control{:placeholder => "Pic", :type => "text"}/
         %th.hasinput{ :style => "width:10%"}
           %input.form-control{:placeholder => "Recipient Name", :type => "text"}/
         %th.hasinput{ :style => "width:10%"}
@@ -24,7 +21,6 @@
         %th.hasinput{ :style => "width:10%"}
           %input.form-control{:placeholder => "Actions", :type => "text"}/
       %tr{:role => "row"}
-        %th.expand.sorting_asc Pic
         %th.sorting{} Recipient Name
         %th.sorting{} Company
         %th.sorting{} Job
@@ -37,18 +33,20 @@
     %tbody
       - data.each_with_index  do |invitation,index|
         %tr.even{:role => "row"}
-          %td= image_tag invitation.recipient.photo, alt: '', width: '20' if invitation.recipient.present?
-          %td= link_to do_ellipsis(invitation.recipient.full_name,10) , '#' if invitation.recipient.present?
-          %td= link_to invitation.recipient.company.name , '#' if invitation.recipient.present? && invitation.recipient_type != "Candidate"
-          %td= link_to invitation.job.title , job_path(invitation.job)
           %td
-            = do_ellipsis(invitation.recipient.email) if invitation.recipient.present?
-            %a.pull-right{:href => "javascript:void(0);"}
-              %i.fa.fa-key
-          %td= link_to invitation.created_by.full_name , '#'
+            = image_tag(invitation.recipient.photo, class: 'data-table-image mr-1',title:"#{invitation.recipient.full_name}").html_safe if invitation.recipient.present?
+            = link_to bind_initials(invitation.recipient.first_name,invitation.recipient.last_name), public_profile_static_candidates_path(invitation.recipient.id),class: 'data-table-font' if invitation.recipient.present?
+          %td.no-wrap.pr-5
+            = link_to image_tag(invitation.recipient.company.logo,class: 'data-table-image') , profile_company_path(invitation.recipient.company.id) if invitation.recipient.present? && invitation.recipient_type != "Candidate"
+            =link_to do_ellipsis(invitation.recipient.company.name,5), profile_company_path(invitation.recipient.company.id),class: 'data-table-font' if invitation.recipient.present? && invitation.recipient_type != "Candidate"
+          %td= link_to do_ellipsis(invitation.job.title), job_path(invitation.job),class: 'data-table-font'
+          %td= do_ellipsis(invitation.recipient.email,15) if invitation.recipient.present?
+          %td
+            = image_tag(invitation.recipient.photo, class: 'data-table-image').html_safe if invitation.recipient.present?
+            = link_to bind_initials(invitation.created_by.first_name,invitation.created_by.last_name),public_profile_static_candidates_path(invitation.created_by.id),class: 'data-table-font' if invitation.recipient.present?
           %td= invitation.recipient.phone if invitation.recipient.present?
-          %td= invitation.expiry
-          %td= invitation_status_color(invitation.status)
+          %td= colorfull_text(invitation.expiry.strftime("%d of %B, %Y"),'#1AAE9F') 
+          %td= colorfull_text(invitation.status,'orange')
           %td= link_to raw("<i class='fa fa-eye '></i>") , job_invitation_path(invitation),title:"Detail of #{invitation.job.title}",class:"btn btn-xs btn-default",'data-toggle'=>"tooltip" ,'data-placement'=>"top"
   
   

@@ -35,7 +35,8 @@ class CompanyDatatable < ApplicationDatatable
 
 
   def company_profile company
-    link_to(do_ellipsis(company.name), profile_company_path(company), class: 'data-table-font').html_safe
+     image_tag(company.logo, class: 'data-table-image mr-1',title: "#{company.name}").html_safe +
+    link_to(do_ellipsis(company.name), profile_company_path(company), class: 'data-table-font')
   end
 
   def get_raw_records

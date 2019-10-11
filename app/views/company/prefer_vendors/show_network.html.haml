@@ -1,69 +1,60 @@
 #content
-  %section#widget-grid
-    .row
-      %article.col-xs-12.col-sm-12.col-md-12.col-lg-12.sortable-grid.ui-sortable
-        #wid-id-1.jarviswidget.jarviswidget-color-blueDark.jarviswidget-sortable{"data-widget-editbutton" => "false", :role => "widget"}
-          %header{:role => "heading"}
-            %span.widget-icon
-              %i.fa.fa-table
-            %h2.text-white Prefer Vendors
-          / widget div
-          %div{:role => "content"}
-            .jarviswidget-editbox
-            .widget-body.no-padding
-              #datatable_fixed_column_wrapper.dataTables_wrapper.form-inline.dt-bootstrap.no-footer
-                %table#datatable_fixed_column.table.table-striped.table-bordered.dataTable.no-footer{"aria-describedby" => "datatable_fixed_column_info", :role => "grid", :style => "width: 100%;", :width => "100%"}
-                  %thead
-                    %tr{:role => "row"}
-                      %th.hasinput{ :style => "width:10%"}
-                        %input.form-control{:placeholder => "Pic", :type => "text"}/
-                      %th.hasinput{ :style => "width:10%"}
-                        .input-group
-                          %input.form-control{:placeholder => "Name", :type => "text"}/
-                      %th.hasinput{ :style => "width:10%"}
-                        %input.form-control{:placeholder => "Owner", :type => "text"}/
-                      %th.hasinput{ :style => "width:10%"}
-                        %input.form-control{:placeholder => "Owner Email", :type => "text"}/
-                      %th.hasinput{ :style => "width:10%"}
-                        %input.form-control{:placeholder => "Domain", :type => "text"}/
-                      %th.hasinput{ :style => "width:10%"}
-                        %input.form-control{:placeholder => "Phone", :type => "text"}/
-                      %th.hasinput{ :style => "width:10%"}
-                        %input.form-control{:placeholder => "Actions", :type => "text"}/
-                    %tr{:role => "row"}
-                      %th.expand.sorting_asc Pic
-                      %th.sorting{} Name
-                      %th.sorting{} Owner
-                      %th.sorting{} Owner Email
-                      %th.sorting{} Domain
-                      %th.sorting{} Phone
-                      %th.sorting{} Actions
-                  %tbody
-                    - @network.each_with_index  do |d|
-                      %tr.even{:role => "row"}
-                        - if d.prefer_vendor ==current_company
-                          %td= image_tag show_recipient_picture(d.company.try(:logo)) , alt: '', width: '40'
-                          %td= link_to d.company.name ,profile_company_path(d.company)
-                          %td= d.company.owner.full_name  rescue "  --"
-                          %td= d.company.owner.try(:email) rescue "  --"
-                          %td= d.company.domain rescue "  --"
-                          %td= d.company.phone rescue "  --"
+  %div{:role => "content"}
+    .jarviswidget-editbox
+    .widget-body.no-padding
+      #datatable_fixed_column_wrapper.dataTables_wrapper.form-inline.dt-bootstrap.no-footer
+        %table#datatable_fixed_column.table.table-striped.table-bordered.dataTable.no-footer{"aria-describedby" => "datatable_fixed_column_info", :role => "grid", :style => "width: 100%;", :width => "100%"}
+          %thead
+            %tr{:role => "row"}
+              %th.hasinput{ :style => "width:10%"}
+                %input.form-control{:placeholder => "Pic", :type => "text"}/
+              %th.hasinput{ :style => "width:10%"}
+                .input-group
+                  %input.form-control{:placeholder => "Name", :type => "text"}/
+              %th.hasinput{ :style => "width:10%"}
+                %input.form-control{:placeholder => "Owner", :type => "text"}/
+              %th.hasinput{ :style => "width:10%"}
+                %input.form-control{:placeholder => "Owner Email", :type => "text"}/
+              %th.hasinput{ :style => "width:10%"}
+                %input.form-control{:placeholder => "Domain", :type => "text"}/
+              %th.hasinput{ :style => "width:10%"}
+                %input.form-control{:placeholder => "Phone", :type => "text"}/
+              %th.hasinput{ :style => "width:10%"}
+                %input.form-control{:placeholder => "Actions", :type => "text"}/
+            %tr{:role => "row"}
+              %th.expand.sorting_asc Pic
+              %th.sorting{} Name
+              %th.sorting{} Owner
+              %th.sorting{} Owner Email
+              %th.sorting{} Domain
+              %th.sorting{} Phone
+              %th.sorting{} Actions
+          %tbody
+            - @network.each_with_index  do |d|
+              %tr.even{:role => "row"}
+                - if d.prefer_vendor ==current_company
+                  %td= image_tag show_recipient_picture(d.company.try(:logo)) , alt: '', width: '40'
+                  %td= link_to d.company.name ,profile_company_path(d.company)
+                  %td= d.company.owner.full_name  rescue "  --"
+                  %td= d.company.owner.try(:email) rescue "  --"
+                  %td= d.company.domain rescue "  --"
+                  %td= d.company.phone rescue "  --"
 
-                          %td
-                            = link_to raw("<i class='fa fa-comment '></i>"), company_company_create_chat_path(d.company),remote: true,method: :get,class: '',title:"Chat with Company  #{d.prefer_vendor.name}",'data-toggle'=>"tooltip" ,'data-placement'=>"top"
+                  %td
+                    = link_to raw("<i class='fa fa-comment '></i>"), company_company_create_chat_path(d.company),remote: true,method: :get,class: '',title:"Chat with Company  #{d.prefer_vendor.name}",'data-toggle'=>"tooltip" ,'data-placement'=>"top"
 
-                            = link_to 'HOT Candidates', company_company_hot_candidates_path(d.company) , class: 'btn btn-xs btn-danger btn-Danger' ,title:"Show Hot Candidates of  #{d.company.name}",'data-toggle'=>"tooltip" ,'data-placement'=>"top"
-                        -elsif d.company == current_company
-                          %td= image_tag show_recipient_picture(d.prefer_vendor.try(:logo)) , alt: '', width: '40'
-                          %td= link_to d.prefer_vendor.name ,profile_company_path(d.prefer_vendor)
-                          %td= d.prefer_vendor.owner.full_name  rescue "  --"
-                          %td= d.prefer_vendor.owner.try(:email) rescue "  --"
-                          %td= d.prefer_vendor.domain rescue "  --"
-                          %td= d.prefer_vendor.phone rescue "  --"
-                          %td
-                            = link_to raw("<i class='fa fa-comment '></i>"), company_company_create_chat_path(d.prefer_vendor),remote: true,method: :get,class: '',title:"Chat with Company  #{d.prefer_vendor.name}",'data-toggle'=>"tooltip" ,'data-placement'=>"top"
-                            = link_to 'HOT Candidates', company_company_hot_candidates_path(d.prefer_vendor) , class: 'btn btn-xs btn-danger btn-Danger' ,title:"Show Hot Candidates of  #{d.prefer_vendor.name}",'data-toggle'=>"tooltip" ,'data-placement'=>"top"
-                            -#  = link_to raw("<i class='fa fa-times '></i>") , company_path(d.invited_company) ,method: :delete, class: 'btn btn-xs btn-default btn-danger' ,title:"Delete #{d.invited_company.name}",data: {confirm: "Are you sure you want to Delete this Company ?", verify: 'Confirm', verify_text: "Type 'Confirm' to Continue"}
+                    = link_to 'HOT Candidates', company_company_hot_candidates_path(d.company) , class: 'btn btn-xs btn-danger btn-Danger' ,title:"Show Hot Candidates of  #{d.company.name}",'data-toggle'=>"tooltip" ,'data-placement'=>"top"
+                -elsif d.company == current_company
+                  %td= image_tag show_recipient_picture(d.prefer_vendor.try(:logo)) , alt: '', width: '40'
+                  %td= link_to d.prefer_vendor.name ,profile_company_path(d.prefer_vendor)
+                  %td= d.prefer_vendor.owner.full_name  rescue "  --"
+                  %td= d.prefer_vendor.owner.try(:email) rescue "  --"
+                  %td= d.prefer_vendor.domain rescue "  --"
+                  %td= d.prefer_vendor.phone rescue "  --"
+                  %td
+                    = link_to raw("<i class='fa fa-comment '></i>"), company_company_create_chat_path(d.prefer_vendor),remote: true,method: :get,class: '',title:"Chat with Company  #{d.prefer_vendor.name}",'data-toggle'=>"tooltip" ,'data-placement'=>"top"
+                    = link_to 'HOT Candidates', company_company_hot_candidates_path(d.prefer_vendor) , class: 'btn btn-xs btn-danger btn-Danger' ,title:"Show Hot Candidates of  #{d.prefer_vendor.name}",'data-toggle'=>"tooltip" ,'data-placement'=>"top"
+                    -#  = link_to raw("<i class='fa fa-times '></i>") , company_path(d.invited_company) ,method: :delete, class: 'btn btn-xs btn-default btn-danger' ,title:"Delete #{d.invited_company.name}",data: {confirm: "Are you sure you want to Delete this Company ?", verify: 'Confirm', verify_text: "Type 'Confirm' to Continue"}
 
 :css
   .form-control

@@ -21,7 +21,7 @@ class GroupDatatable < ApplicationDatatable
         name: do_ellipsis(record.group_name),
         type: record.member_type,
         member: record.groupables.count,
-        created_at: record.created_at.try(:strftime, '%B %d, %Y'),
+        created_at: colorfull_text(record.created_at.try(:strftime, '%d of %B, %Y'),'#1AAE9F'),
         status: ban_unban_link(record),
         reminder_note: reminder_note(record),
         actions: actions(record)

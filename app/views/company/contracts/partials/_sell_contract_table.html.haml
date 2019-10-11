@@ -17,16 +17,16 @@
     %tbody
       - data.each do |contract|
         %tr{class: "#{set_background_status_color(contract.status)}"}
-          %td=link_to contract.sell_contract.try(:number) , company_sell_contract_contract_path(contract)
+          %td=link_to contract.sell_contract.try(:number) , company_sell_contract_contract_path(contract),class: 'data-table-font'
           %td=contract.try(:title)
           %td= contract.sell_contract.company.try(:full_name)
           %td= contract.rate
           %td= contract.client.try(:full_name)
           %td not know
-          %td= link_to contract.created_by.full_name , '#'
+          %td= link_to contract.created_by.full_name , company_user_profile_path(contract.created_by.id),class: 'data-table-font'
           %td= (contract.start_date)
           %td= contract.try(:number)
-          %td= contract.status
+          %td= colorfull_text(contract.status,contract.status=="draft" ? 'green' : 'orange')
           %td
 .mt-3
   = digg_pagination(data, "sell_contract")

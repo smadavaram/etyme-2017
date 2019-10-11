@@ -15,6 +15,7 @@ class ApplicationDatatable < AjaxDatatablesRails::ActiveRecord
   def_delegator :@view, :company_contacts_company_companies_path
   def_delegator :@view, :company_company_assign_groups_to_contact_path
   def_delegator :@view, :contact_widget
+  def_delegator :@view, :colorfull_text
   def_delegator :@view, :chat_link
 
   def initialize(params, opts = {})
