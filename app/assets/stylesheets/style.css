@@ -1648,17 +1648,14 @@ text-align: right;
 .table-v2 td{
     text-align: left !important;
 }
-.os-icon-email-2-at2 {
+.mini_chat_widget {
 
 	color: #000000 !important;
+    font-size: 20px !important;
 }
-.os-icon-phone{
-
-	color: #000000 !important;
-}
-.os-icon-calendar{
-
-	color: #000000 !important;
+.chat-extra-actions{
+    display: flex;
+    align-items: center;
 }
 .select2-selection--single{
     height: 45px !important;
@@ -1677,4 +1674,8 @@ text-align: right;
     display: flex;
     justify-content: space-between;
 }
-
+.image_center{
+  display: block;
+  margin-left: auto;
+  margin-right: auto; 
+}

@@ -40,13 +40,13 @@
                 <% @company_jobs.each do |job| %>
                   <tr data-id="<%= job.id %>">
                     <td><%= check_box_tag "ids[]", job.id %></td>
-                    <td><%= link_to job.title, job_path(job) %></td>
+                    <td><%= link_to job.title, job_path(job),class: 'data-table-font' %></td>
                     <td><%= job.job_category %></td>
-                    <td><%= display_date_and_time(job.end_date || Time.now) %></td>
+                    <td><%= colorfull_text(display_date_and_time(job.end_date || Time.now),'#1AAE9F') %></td>
                     <td><%= job.location %></td>
-                    <td><%= job.created_by.full_name %></td>
-                    <td><%= job.status %></td>
-                    <td class="" style="white-space: nowrap;">
+                    <td><%= link_to job.created_by.full_name,company_user_profile_path(job.created_by.id),class: 'data-table-font' %></td>
+                    <td><%= colorfull_text(job.status,job.status=='Published' ? '#1AAE9F' : 'orange') %></td>
+                    <td class="no-wrap pr-5">
                       <% if (job.conversation ? true : job.create_job_conversation) %>
                         <%= link_to company_conversations_path(conversation: job.conversation.id), class: 'data-table-icons btn btn-link btn-sm m-0 p-0' do %>
                           <i class="fa fa-comment-o"></i>

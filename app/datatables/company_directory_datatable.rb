@@ -34,7 +34,7 @@ class CompanyDirectoryDatatable < ApplicationDatatable
   end
 
   def company_user_profile user
-    image_tag(user.photo, class: 'data-table-image mr-1').html_safe +
+    image_tag(user.photo, class: 'data-table-image mr-1',title: "#{user.full_name}").html_safe +
         link_to(do_ellipsis(user.first_name), company_user_profile_path(user), class: 'data-table-font')
   end
 

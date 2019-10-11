@@ -1,43 +1,36 @@
-%body
-  %section#widget-grid
-    .row
-      %article.col-xs-12.col-sm-12.col-md-12.col-lg-12.sortable-grid.ui-sortable
-        #wid-id-1.jarviswidget.jarviswidget-color-blueDark.jarviswidget-sortable{"data-widget-editbutton" => "false", :role => "widget"}
-          %header{:role => "heading"}
-            %span.widget-icon
-              %i.fa.fa-table
-            %h2.text-white Sell Contract
-          / widget div
-          %div{:role => "content"}
-            .jarviswidget-editbox
-            .widget-body.no-padding
-              #datatable_fixed_column_wrapper.dataTables_wrapper.form-inline.dt-bootstrap.no-footer
-                %table#datatable_fixed_column.table.table-striped.table-bordered.dataTable.no-footer{"aria-describedby" => "datatable_fixed_column_info", :role => "grid", :style => "width: 100%;", :width => "100%"}
-                  %thead
-                    %tr{:role => "row"}
-                      %th number
-                      %th.sorting{} Contract
-                      %th.sorting{} company
-                      %th.expand.sorting_asc customer_rate
-                      %th.sorting{} time_sheet
-                      %th.sorting{} invoice_terms_period
-                      %th.sorting{} show_accounting_to_employee
-                  %tbody
-                    - @sell_contracts.each_with_index  do |sc, index|
-                      %tr.even{:role => "row"}
-                        %td= link_to sc.number, company_sell_contract_path(sc.number)
-                        %td= link_to sc.contract.try(:title) ,contract_path(sc.contract)
-                        %td= sc.company.try(:full_name)
-                        %td= sc.customer_rate
-                        %td= sc.time_sheet
-                        %td= sc.invoice_terms_period
-                        %td= sc.show_accounting_to_employee
+.table-responsive.p-1
+  %table#datatable_fixed_column.table.table-striped.table-bordered.dataTable.table-v2.table-lg.no-footer{"aria-describedby" => "datatable_fixed_column_info", :role => "grid", :style => "width: 100%;", :width => "100%"}
+    %thead
+      %tr{:role => "row"}
+        %th number
+        %th.sorting{} Contract
+        %th.sorting{} company
+        %th.expand.sorting_asc customer_rate
+        %th.sorting{} time_sheet
+        %th.sorting{} invoice_terms_period
+        %th.sorting{} show_accounting_to_employee
+    %tbody
+      - @sell_contracts.each_with_index  do |sc, index|
+        %tr.even{:role => "row"}
+          %td= link_to sc.number, company_sell_contract_path(sc.number),class: 'data-table-font'
+          %td= link_to sc.contract.try(:title) ,contract_path(sc.contract),class: 'data-table-font'
+          %td.no-wrap
+            = image_tag(sc.company.logo, title: "#{sc.company.try(:full_name)}", class: 'data-table-image mr-1').html_safe
+            = link_to(do_ellipsis(sc.company.try(:full_name),6), profile_company_path(sc.company.id), class: 'data-table-font mr-5')
+
+          %td= sc.customer_rate
+          %td= sc.time_sheet
+          %td= sc.invoice_terms_period
+          %td= sc.show_accounting_to_employee
 
 
 :css
   .form-control
   {
     background-color: white !important;
+  }
+  .dt-toolbar-footer{
+  display: flex !important;
   }
 -content_for :scripts do
   :javascript

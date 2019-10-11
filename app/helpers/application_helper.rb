@@ -51,6 +51,19 @@ module ApplicationHelper
           <span class='attendees'></span>
         </div >".html_safe
   end
+   def mini_chat_contact_widget(email, phone, user_id = nil, options = {})
+        mail_to(email, content_tag(:i, nil, class: 'os-icon os-icon-email-2-at2 mini_chat_widget pt-3').html_safe, title: email, class: 'data-table-icons') +
+        link_to(content_tag(:i, nil, class: 'os-icon os-icon-phone mini_chat_widget').html_safe, '#', title: phone, class: 'data-table-icons') +
+        "<div title = 'Add to Calendar' class = 'addeventatc'>
+          <span class = 'start' >06/10/2019 08:00 AM</span>
+          <span class='end'>06/10/2019 10:00 AM</span>
+          <span class='timezone'>America/Los_Angeles </span>
+          <span class='title'></span>
+          <span class = 'description' ></span>
+          <span class='os-icon os-icon-calendar mini_chat_widget' style='font-size: 20px !important; color: black;'></span>
+          <span class='attendees'></span>
+        </div >".html_safe
+  end
   
   def do_ellipsis(value, length = 20)
     if value
@@ -1274,4 +1287,18 @@ module ApplicationHelper
       end
     end
 
+    def get_initial(name_text)
+      if name_text
+         name_text.first.capitalize
+      end
+    end
+
+    def bind_initials(first_name,last_name)
+      content_tag(:span, get_initial(first_name)+"."+get_initial(last_name), title: first_name+" "+last_name).html_safe
+    end
+
+    def colorfull_text(value,color_code)
+     content_tag(:span, value, style: "color: #{color_code}")
+    end
 end
+

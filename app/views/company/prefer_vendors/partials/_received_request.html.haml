@@ -1,61 +1,53 @@
 
 %body
-  %section#widget-grid
-    .row
-      %article.col-xs-12.col-sm-12.col-md-12.col-lg-12.sortable-grid.ui-sortable
-        #wid-id-1.jarviswidget.jarviswidget-color-blueDark.jarviswidget-sortable{"data-widget-editbutton" => "false", :role => "widget"}
-          %header{:role => "heading"}
-            %span.widget-icon
-              %i.fa.fa-table
-            %h2.text-white Network Requests
-          / widget div
-          %div{:role => "content"}
-            .jarviswidget-editbox
-            .widget-body.no-padding
-              #datatable_fixed_column_wrapper.dataTables_wrapper.form-inline.dt-bootstrap.no-footer
-                %table#datatable_fixed_column2.table.table-striped.table-bordered.dataTable.no-footer{"aria-describedby" => "datatable_fixed_column_info", :role => "grid", :style => "width: 100%;", :width => "100%"}
-                  %thead
-                    %tr{:role => "row"}
-                      %th.hasinput{:colspan => "1", :rowspan => "1", :style => "width:10%"}
-                        %input.form-control{:placeholder => "Pic", :type => "text"}/
-                      %th.hasinput{:colspan => "1", :rowspan => "1", :style => "width:10%"}
-                        .input-group
-                          %input.form-control{:placeholder => "Name", :type => "text"}/
-                      %th.hasinput{:colspan => "1", :rowspan => "1", :style => "width:10%"}
-                        %input.form-control{:placeholder => "Owner", :type => "text"}/
-                      %th.hasinput{:colspan => "1", :rowspan => "1", :style => "width:10%"}
-                        %input.form-control{:placeholder => "Owner Email", :type => "text"}/
-                      %th.hasinput{:colspan => "1", :rowspan => "1", :style => "width:10%"}
-                        %input.form-control{:placeholder => "Domain", :type => "text"}/
-                      %th.hasinput{:colspan => "1", :rowspan => "1", :style => "width:10%"}
-                        %input.form-control{:placeholder => "Phone", :type => "text"}/
-                      %th.hasinput{:colspan => "1", :rowspan => "1", :style => "width:10%"}
-                        %input.form-control{:placeholder => "Status", :type => "text"}/
-                      %th.hasinput{:colspan => "1", :rowspan => "1", :style => "width:10%"}
-                        %input.form-control{:placeholder => "Actions", :type => "text"}/
-                    %tr{:role => "row"}
-                      %th.expand.sorting_asc Pic
-                      %th.sorting{} Name
-                      %th.sorting{} Owner
-                      %th.sorting{} Owner Email
-                      %th.sorting{} Domain
-                      %th.sorting{} Phone
-                      %th.sorting{} Status
-                      %th.sorting{} Actions
-                  %tbody
-                    - data.each_with_index  do |d,index|
-                      %tr.even{:role => "row"}
-                        %td= image_tag show_recipient_picture(d.company.try(:logo)) , alt: '', width: '40'
-                        %td= link_to d.company.name ,profile_company_path(d.company)
-                        %td= d.company.owner.full_name  rescue "  --"
-                        %td= d.company.owner.try(:email) rescue "  --"
-                        %td= d.company.domain rescue "  --"
-                        %td= d.company.phone rescue "  --"
-                        %td=invitation_status_color( d.status) rescue "  --"
-                        %td
-                          -if d.pending?
-                            = link_to raw("<i class='fa fa-check '></i>") , accept_vendor_path(company_id: d.company) ,method: :post,class: 'btn btn-xs btn-default ',remote: :true ,title:"Accept #{d.company.name} Request",data: {confirm: "Are you sure you want to Accept this Request ? Once Accepted the company will be able to see your company contacts and in return you will be able to access theirs.", verify: 'Accept', verify_text: "Type 'Accept' to Continue"},'data-toggle'=>"tooltip" ,'data-placement'=>"top"
-                            = link_to raw("<i class='fa fa-times '></i>") , reject_vendor_path(company_id: d.company) ,method: :post, class: 'btn btn-xs btn-default ' ,remote: :true,title:"Reject #{d.company.name} Request",data: {confirm: "Are you sure you want to Reject this Request ?", verify: 'Reject', verify_text: "Type 'Reject' to Continue"},'data-toggle'=>"tooltip" ,'data-placement'=>"top"
+  %div{:role => "content"}
+    .jarviswidget-editbox
+    .widget-body.no-padding
+      #datatable_fixed_column_wrapper.dataTables_wrapper.form-inline.dt-bootstrap.no-footer
+        %table#datatable_fixed_column2.table.table-striped.table-bordered.dataTable.no-footer{"aria-describedby" => "datatable_fixed_column_info", :role => "grid", :style => "width: 100%;", :width => "100%"}
+          %thead
+            %tr{:role => "row"}
+              %th.hasinput{:colspan => "1", :rowspan => "1", :style => "width:10%"}
+                %input.form-control{:placeholder => "Pic", :type => "text"}/
+              %th.hasinput{:colspan => "1", :rowspan => "1", :style => "width:10%"}
+                .input-group
+                  %input.form-control{:placeholder => "Name", :type => "text"}/
+              %th.hasinput{:colspan => "1", :rowspan => "1", :style => "width:10%"}
+                %input.form-control{:placeholder => "Owner", :type => "text"}/
+              %th.hasinput{:colspan => "1", :rowspan => "1", :style => "width:10%"}
+                %input.form-control{:placeholder => "Owner Email", :type => "text"}/
+              %th.hasinput{:colspan => "1", :rowspan => "1", :style => "width:10%"}
+                %input.form-control{:placeholder => "Domain", :type => "text"}/
+              %th.hasinput{:colspan => "1", :rowspan => "1", :style => "width:10%"}
+                %input.form-control{:placeholder => "Phone", :type => "text"}/
+              %th.hasinput{:colspan => "1", :rowspan => "1", :style => "width:10%"}
+                %input.form-control{:placeholder => "Status", :type => "text"}/
+              %th.hasinput{:colspan => "1", :rowspan => "1", :style => "width:10%"}
+                %input.form-control{:placeholder => "Actions", :type => "text"}/
+            %tr{:role => "row"}
+              %th.expand.sorting_asc Pic
+              %th.sorting{} Name
+              %th.sorting{} Owner
+              %th.sorting{} Owner Email
+              %th.sorting{} Domain
+              %th.sorting{} Phone
+              %th.sorting{} Status
+              %th.sorting{} Actions
+          %tbody
+            - data.each_with_index  do |d,index|
+              %tr.even{:role => "row"}
+                %td= image_tag show_recipient_picture(d.company.try(:logo)) , alt: '', width: '40'
+                %td= link_to d.company.name ,profile_company_path(d.company)
+                %td= d.company.owner.full_name  rescue "  --"
+                %td= d.company.owner.try(:email) rescue "  --"
+                %td= d.company.domain rescue "  --"
+                %td= d.company.phone rescue "  --"
+                %td=invitation_status_color( d.status) rescue "  --"
+                %td
+                  -if d.pending?
+                    = link_to raw("<i class='fa fa-check '></i>") , accept_vendor_path(company_id: d.company) ,method: :post,class: 'btn btn-xs btn-default ',remote: :true ,title:"Accept #{d.company.name} Request",data: {confirm: "Are you sure you want to Accept this Request ? Once Accepted the company will be able to see your company contacts and in return you will be able to access theirs.", verify: 'Accept', verify_text: "Type 'Accept' to Continue"},'data-toggle'=>"tooltip" ,'data-placement'=>"top"
+                    = link_to raw("<i class='fa fa-times '></i>") , reject_vendor_path(company_id: d.company) ,method: :post, class: 'btn btn-xs btn-default ' ,remote: :true,title:"Reject #{d.company.name} Request",data: {confirm: "Are you sure you want to Reject this Request ?", verify: 'Reject', verify_text: "Type 'Reject' to Continue"},'data-toggle'=>"tooltip" ,'data-placement'=>"top"
+  
 
 = digg_pagination(data)
 

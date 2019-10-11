@@ -10,6 +10,8 @@ module ChatboxHelper
       "SellContract"
     elsif (conversation.buy_contract.present?)
       "BuyContract"
+    else
+      "Personal"
     end
   end
 

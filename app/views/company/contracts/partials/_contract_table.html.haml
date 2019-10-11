@@ -1,5 +1,5 @@
 .x_overflow_y_h
-  = link_to 'Create New',create_contract_contracts_path ,class: 'btn btn-sm btn-secondary float-right'
+  = link_to 'Create New',create_contract_contracts_path ,class: 'btn btn-sm btn-secondary float-left mb-2'
   .table-responsive
     %table#company-contracts-datatable.table.text-center.table-bordered.table-lg.table-v2.table-striped.data-table-font
       %thead
@@ -19,7 +19,7 @@
       %tbody
         - data.each do |contract|
           %tr
-            %td=link_to contract.try(:number) ,contract_path(contract)
+            %td=link_to contract.try(:number) ,contract_path(contract),class: 'data-table-font'
             %td=contract.try(:title)
             %td
               = contract.client.try(:full_name)
@@ -27,22 +27,22 @@
               = contract.rate
             %td= contract.candidate.try(:full_name)
             %td not know
-            %td= link_to contract.created_by.full_name , '#'
+            %td= link_to contract.created_by.full_name , company_user_profile_path(contract.created_by.id),class: 'data-table-font'
             %td= contract.start_date
             %td
-              = link_to contract.sell_contract.try(:number), company_sell_contract_path(contract.sell_contract.try(:number)) if contract.sell_contract
+              = link_to contract.sell_contract.try(:number), company_sell_contract_path(contract.sell_contract.try(:number)),class: 'data-table-font' if contract.sell_contract
               =contract.sell_contract.try(:customer_rate)
               =contract.sell_contract.try(:time_sheet)
               =contract.sell_contract.try(:invoice_terms_period)
               =contract.sell_contract.try(:show_accounting_to_employee)
             %td
-              = link_to contract.buy_contract.try(:number), company_buy_contract_path(contract.buy_contract.try(:number)) if contract.buy_contract
+              = link_to contract.buy_contract.try(:number), company_buy_contract_path(contract.buy_contract.try(:number)),class: 'data-table-font' if contract.buy_contract
               =contract.buy_contract.try(:contract_type)
               =contract.buy_contract.try(:payrate)
               =contract.buy_contract.try(:time_sheet)
               =contract.buy_contract.try(:payment_term)
             %td
-              = contract.status
+              = colorfull_text(contract.status, contract.status=="pending" ? 'orange' : 'green')
             %td not know
 .mt-3
   = digg_pagination(data, "contract_table")
