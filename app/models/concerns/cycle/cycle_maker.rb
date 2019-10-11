@@ -142,11 +142,13 @@ module Cycle::CycleMaker
     date_groups.each do |date_group|
       start_date = date_group.first
       end_date = date_group.last
+      invoice = invoices.timesheet_invoice.pending_invoice.build(sender_company_id: company.id, receiver_company_id: sell_contract.company.id, start_date: start_date, end_date: end_date)
       contract_cycles.create(cycle_type: 'InvoiceGenerate',
-                             user: sell_contract.team_admin,
+                             user: admin_user,
                              contract: self,
                              start_date: start_date,
                              end_date: end_date,
+                             cyclable: invoice,
                              cycle_of: self.sell_contract,
                              cycle_frequency: sell_contract.invoice_terms_period,
                              note: "Invoice generate"

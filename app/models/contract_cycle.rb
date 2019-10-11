@@ -18,7 +18,7 @@ class ContractCycle < ApplicationRecord
   belongs_to :company, optional: true
   belongs_to :candidate, optional: true
   belongs_to :user, optional: true
-  belongs_to :cyclable, polymorphic: true, optional: true
+  belongs_to :cyclable, polymorphic: true, optional: true, dependent: :destroy
   belongs_to :cycle_of, polymorphic: true
   
   has_many :ts_submitteds, foreign_key: :ts_cycle_id, class_name: 'Timesheet'

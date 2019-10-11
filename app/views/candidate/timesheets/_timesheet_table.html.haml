@@ -19,7 +19,7 @@
           %td= image_tag(company.photo, class: 'data-table-image mr-1', title: company.full_name, size: "35x40")
           %td= "#{ts.start_date} - #{ts.end_date}"
           %td= ts.contract_cycle.cycle_of.get_rate(ts.start_date)&.working_hrs
-          %td= ts.total_time
+          %td= ts.calculate_total_time
 
 .timesheet_pagination_wrap
   .pagination_label

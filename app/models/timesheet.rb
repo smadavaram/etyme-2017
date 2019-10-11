@@ -24,7 +24,7 @@ class Timesheet < ApplicationRecord
   accepts_nested_attributes_for :transactions
   
   # before_validation :set_recurring_timesheet_cycle
-  after_update :set_ts_on_seq, if: Proc.new { |t| t.status_changed? && t.submitted? && t.total_time.to_f > 0 }
+  # after_update :set_ts_on_seq, if: Proc.new { |t| t.status_changed? && t.submitted? && t.total_time.to_f > 0 }
   # after_update  :set_ta_on_seq, if: Proc.new{|t| t.status_changed? && t.approved? && t.total_time.to_f > 0}
   
   # after_create  :create_timesheet_logs
@@ -32,7 +32,7 @@ class Timesheet < ApplicationRecord
   # after_update :update_pending_timesheet_logs, if: Proc.new{|t| t.status_changed? && t.approved?}
   
   
-  after_update :set_contract_salary_histories, if: Proc.new { |t| t.status_changed? && t.approved? }
+  # after_update :set_contract_salary_histories, if: Proc.new { |t| t.status_changed? && t.approved? }
   after_update :set_cost_and_time,  if: Proc.new { |t| t.approved? }
 
   validates :start_date, presence: true
@@ -73,13 +73,14 @@ class Timesheet < ApplicationRecord
     self.timesheet_approvers.where('timesheet_approvers.user_id = ? AND (timesheet_approvers.status = ? OR timesheet_approvers.status = ?)', user.id, Timesheet.statuses[:approved], Timesheet.statuses[:rejected]).present?
   end
   
-  def total_time
+  def calculate_total_time
     transactions.sum(:total_time)
   end
   
   def set_cost_and_time
+    time = transactions.sum(:total_time)
     rate = contract_cycle.cycle_of.change_rates.where("from_date <= ? and to_date >= ?", start_date,end_date ).order(:from_date).first&.rate || 0
-    update(total_time: total_time,total_time: rate * time)
+    update!(total_time: time,amount: rate * time)
   end
   
   def approved_total_time

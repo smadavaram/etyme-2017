@@ -10,8 +10,8 @@ class Company::InvoicesController < Company::BaseController
   
   def index
     @tab = params[:tab] || 'received_invoices'
-    @receive_invoices = current_company.receive_invoices.joins(:contract).paginate(page: params[:page], per_page: 1)
-    @sent_invoices = current_company.sent_invoices.joins(:contract).paginate(page: params[:page], per_page: 1)
+    @receive_invoices = current_company.receive_invoices.submitted.joins(:contract).paginate(page: params[:page], per_page: 1)
+    @sent_invoices = current_company.sent_invoices.open.joins(:contract).paginate(page: params[:page], per_page: 1)
   end
   
   def cleared_invoice
@@ -163,32 +163,20 @@ class Company::InvoicesController < Company::BaseController
   
   def edit
     @invoice = Invoice.find(params[:id])
+    @timesheets = current_user.timesheets.approved
   end
   
   def update
-    inv = Invoice.find(params[:id])
-    next_inv = inv.contract.invoices.where(start_date: inv.end_date + 1.days).first
-    new_date = Date.strptime(params[:invoice][:end_date], '%m/%d/%Y') rescue nil
-    if !new_date.nil? && inv.start_date <= new_date
-      if next_inv.present?
-        if next_inv.end_date >= new_date
-          inv.update!(end_date: new_date)
-          set_invoice_timesheets(inv)
-          next_inv.update!(start_date: inv.end_date + 1.days)
-          set_invoice_timesheets(next_inv)
-          flash[:errors] = "End Date Updated"
-        else
-          flash[:errors] = "Invalid Invoice End Date."
-        end
-      else
-        inv.update!(end_date: params[:invoice][:end_date])
-        set_invoice_timesheets(inv)
-        flash[:errors] = "End Date Updated"
+    @invoice = Invoice.find(params[:id])
+    @timesheets = Timesheet.where(id: params[:ids])
+    Invoice.transaction do
+      @timesheets.each do |ts|
+        @invoice.invoice_items.build(itemable: ts).save
       end
-    else
-      flash[:errors] = "Invalid Invoice End Date."
+      @invoice.open! if @invoice.pending_invoice?
     end
-    redirect_to invoices_path
+    flash[:success] = 'Updated Successfully'
+    redirect_to invoices_path(tab: "sent_invoices")
   end
   
   private
