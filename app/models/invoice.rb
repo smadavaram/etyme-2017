@@ -12,6 +12,7 @@ class Invoice < ApplicationRecord
   belongs_to :receiver_company, class_name: "Company", foreign_key: "receiver_company_id"
   has_one :child_invoice, class_name: "Invoice", foreign_key: :parent_id
   has_many :invoice_items
+  has_many :timesheets, through: :invoice_items, source: :itemable ,source_type: "Timesheet"
   has_many :receive_payments
   
   # before_validation :set_rate , on: :create
@@ -36,6 +37,21 @@ class Invoice < ApplicationRecord
   scope :open_invoices, -> { where(status: [:pending_invoice, :open]) }
   scope :cleared_invoices, -> { where(status: [:paid]) }
   scope :submitted_invoices, -> { where(status: :open) }
+  
+  
+  def set_total_amount_hours
+    update(total_amount: timesheets.sum(:amount),total_approve_time: timesheets.sum(:total_time))
+  end
+  
+  def update_payment_receive
+    status = :partially_paid
+    paid = receive_payments.sum(:amount_received)
+    discount_in_any =
+    if billing_amount >= paid
+      status = :paid
+    end
+    update(billing_amount: paid, balance: total_amount - paid,status: status )
+  end
   
   def set_number
     i = self.contract.invoices.order("created_at DESC").first

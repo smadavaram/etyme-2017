@@ -24,8 +24,8 @@
                   %th Sender
                   %th Created at - Due
                   %th Hours
-                  %th Rate
                   %th Total
+                  %th Paid
                   %th Status
                   %th Actions
               %tbody
@@ -38,15 +38,12 @@
                       =link_to(do_ellipsis(invoice.sender_company.full_name), profile_company_path(invoice.sender_company), class: 'data-table-font')
                     %td= invoice.start_date.to_s + " - " + invoice.end_date.to_s
                     %td= invoice.total_approve_time
-                    %td= invoice.rate
-                    %td= invoice.total_approve_time.to_i *  invoice.rate.to_i
+                    %td= invoice.total_amount
+                    %td= invoice.billing_amount
                     %td= invoice.status.humanize
                     %td
                       = link_to raw("<i class='fa fa-eye'></i>"), timesheet_check_invoice_path(invoice), remote: true, class: 'data-table-icons',title: "Details"
-                      = link_to raw("<i class='fa fa-fax'></i>"), accept_invoice_contract_invoice_path(invoice.contract, invoice), class: 'data-table-icons',title: "Submit Invoice", method: "POST", data: {confirm:  'Are you sure?'} if invoice.pending_invoice?
-                      = link_to raw("<i class='fa fa-dollar'></i>"), new_invoice_receive_payment_path(invoice), class: 'data-table-icons',title: "Paid Invoice", data: {confirm:  'Are you sure?'} if invoice.open?
-                      = link_to raw("<i class='fa fa-calendar'></i>"), edit_invoice_path( invoice), class: 'data-table-icons',title: "Chnage end date" if invoice.open?
-                      =# link_to raw("<i class='fa fa-fax'></i>") , timesheet_check_invoice_path(invoice), target: '_blank', class: 'btn btn-md btn-default btn-primary',title: "Submit Invoice"
+                      = link_to raw("<i class='fa fa-dollar'></i>"), new_invoice_receive_payment_path(invoice), class: 'data-table-icons',title: "Pay Invoice", data: {confirm:  'Are you sure?'} if [:submitted, :paid, :partially_paid].include?(invoice.status.to_sym)
             .timesheet_pagination_wrap
               .pagination_label
                 = page_entries_info @receive_invoices
@@ -61,8 +58,8 @@
                   %th Sender
                   %th Created at - Due
                   %th Hours
-                  %th Rate
                   %th Total
+                  %th Paid
                   %th Status
                   %th Actions
               %tbody
@@ -75,27 +72,26 @@
                       =link_to(do_ellipsis(invoice.sender_company.full_name), profile_company_path(invoice.sender_company), class: 'data-table-font')
                     %td= invoice.start_date.to_s + " - " + invoice.end_date.to_s
                     %td= invoice.total_approve_time
-                    %td= invoice.rate
-                    %td= invoice.total_approve_time.to_i *  invoice.rate.to_i
+                    %td= invoice.total_amount
+                    %td= invoice.billing_amount
                     %td= invoice.status.humanize
                     %td
-                      -#= link_to raw("<i class='fa fa-eye'></i>"), timesheet_check_invoice_path(invoice), remote: true, class: 'data-table-icons',title: "Details"
-                      = link_to raw("<i class='fa fa-fax'></i>"), accept_invoice_contract_invoice_path(invoice.contract, invoice), class: 'data-table-icons',title: "Submit Invoice", method: "POST", data: {confirm:  'Are you sure?'} if invoice.open?
-                      = link_to raw("<i class='fa fa-edit'></i>"), edit_invoice_path( invoice), class: 'data-table-icons',title: "Chnage end date" if invoice.pending_invoice?
-                      =# link_to raw("<i class='fa fa-fax'></i>") , timesheet_check_invoice_path(invoice), target: '_blank', class: 'btn btn-md btn-default btn-primary',title: "Submit Invoice"
+                      = link_to raw("<i class='fa fa-eye'></i>"), timesheet_check_invoice_path(invoice), remote: true, class: 'data-table-icons',title: "Details"
+                      = link_to raw("<i class='fa fa-fax'></i>"), submit_invoice_contract_invoice_path(contract_id: invoice.contract,id: invoice), class: 'data-table-icons',title: "Submit Invoice", data: {confirm:  'Do you want to submit this invoice?'} if invoice.open?
+                      = link_to raw("<i class='fa fa-edit'></i>"), edit_invoice_path( invoice), class: 'data-table-icons',title: "Add Timesheet(s)" if invoice.open?
             .timesheet_pagination_wrap
               .pagination_label
                 = page_entries_info @sent_invoices
               = will_paginate(@sent_invoices, {params: {tab: 'sent_invoices'},previous_label: "Previous",next_label: "Next",inner_window: 2,class: 'invoices_pagination_links'})
 
 .modal{id: "invoice-confirmation-model"}
-  .modal-dialog
+  .modal-dialog.modal-lg
     .modal-content
       .modal-header
-        %button.close{"aria-hidden" => "true", "data-dismiss" => "modal", :type => "button"}
-          ×
         %h4.modal-title
           %strong Invoice Details
+        %button.close{"aria-hidden" => "true", "data-dismiss" => "modal", :type => "button"}
+          ×
       #invoice-confirmation-model-body.modal-body
 
 

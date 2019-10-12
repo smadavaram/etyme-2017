@@ -3,8 +3,8 @@ class Company::ReceivePaymentsController < Company::BaseController
   def new
     @invoice = Invoice.find(params[:invoice_id])
     @receive_payment = @invoice.receive_payments.new
-    if @invoice.balance <= 0
-      flash[:success] = "Invalid Amount."
+    if @invoice.paid?
+      flash[:success] = "Already Paid"
       redirect_to invoices_path
     end
   end

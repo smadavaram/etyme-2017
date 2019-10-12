@@ -10,8 +10,8 @@ class Company::InvoicesController < Company::BaseController
   
   def index
     @tab = params[:tab] || 'received_invoices'
-    @receive_invoices = current_company.receive_invoices.submitted.joins(:contract).paginate(page: params[:page], per_page: 1)
-    @sent_invoices = current_company.sent_invoices.open.joins(:contract).paginate(page: params[:page], per_page: 1)
+    @receive_invoices = current_company.receive_invoices.where(status: [:submitted, :paid, :partially_paid, :cancelled]).joins(:contract).paginate(page: params[:page], per_page: 1)
+    @sent_invoices = current_company.sent_invoices.where(status: [:open, :submitted, :paid, :partially_paid, :cancelled]).joins(:contract).paginate(page: params[:page], per_page: 1)
   end
   
   def cleared_invoice
@@ -35,37 +35,13 @@ class Company::InvoicesController < Company::BaseController
   end
   
   def submit_invoice
-    inv = Invoice.where(id: params[:id]).first
-    
-    if inv
-      timesheets = inv.contract.timesheets.approved_timesheets.where("start_date <= ? AND end_date <= ?", inv.start_date, inv.end_date)
-      
-      total_amount = 0
-      total_approve_time = 0
-      payrate = inv.contract.buy_contract.payrate
-      
-      timesheets.each do |t|
-        t.days.each_key do |k|
-          if (inv.start_date <= k.to_date && inv.end_date >= k.to_date)
-            total_amount += t.days[k].to_i * payrate
-            total_approve_time += t.days[k].to_i
-          end
-        end
-      end
-      
-      inv.total_amount = total_amount,
-          inv.total_approve_time = total_approve_time,
-          inv.rate = payrate
-      inv.status = :open
-      
-      inv.save
+    @invoice = Invoice.where(id: params[:id]).first
+    if @invoice.submitted!
       flash[:success] = "Successfully Submitted"
-    
     else
-      flash[:errors] = ["Unable to accept this Invoice. "]
+      flash[:errors] = ["Unable to submit this Invoice."]
     end
-    
-    redirect_back fallback_location: root_path
+    redirect_back fallback_location: invoices_path
   end
   
   def accept_invoice
@@ -111,15 +87,7 @@ class Company::InvoicesController < Company::BaseController
         flash[:errors] = "You are Not authorized to Submitt this Invoice. "
       end
     end
-    
     redirect_back fallback_location: root_path
-    
-    # if @invoice.total_approve_time <= 0 || @invoice.rate <= 0
-    #   flash[:errors] = "Invoice not contains any amount. "
-    #   redirect_back fallback_location: root_path
-    # else
-    #   @receive_payment = @invoice.receive_payments.new
-    # end
   end
   
   def reject_invoice
@@ -163,7 +131,7 @@ class Company::InvoicesController < Company::BaseController
   
   def edit
     @invoice = Invoice.find(params[:id])
-    @timesheets = current_user.timesheets.approved
+    @timesheets = current_user.timesheets.approved.where.not(id: @invoice.timesheets)
   end
   
   def update

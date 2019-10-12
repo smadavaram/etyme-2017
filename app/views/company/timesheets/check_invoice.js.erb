@@ -1,2 +1,2 @@
-$("#invoice-confirmation-model-body").html("<%= j render 'company/timesheets/partials/invoice_details' %>")
+$("#invoice-confirmation-model-body").html("<%= j render 'company/invoices/partials/invoice_header', invoice: @invoice %>")
 $("#invoice-confirmation-model").modal("show");

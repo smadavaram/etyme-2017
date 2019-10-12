@@ -33,7 +33,7 @@ class Timesheet < ApplicationRecord
   
   
   # after_update :set_contract_salary_histories, if: Proc.new { |t| t.status_changed? && t.approved? }
-  after_update :set_cost_and_time,  if: Proc.new { |t| t.approved? }
+  # after_update :set_cost_and_time,  if: Proc.new { |t| t.approved? }
 
   validates :start_date, presence: true
   validates :end_date, presence: true
@@ -79,8 +79,10 @@ class Timesheet < ApplicationRecord
   
   def set_cost_and_time
     time = transactions.sum(:total_time)
-    rate = contract_cycle.cycle_of.change_rates.where("from_date <= ? and to_date >= ?", start_date,end_date ).order(:from_date).first&.rate || 0
-    update!(total_time: time,amount: rate * time)
+    change_rate = contract_cycle.cycle_of.change_rates.where("from_date <= ? and to_date >= ?", start_date,end_date ).order(:from_date).first
+    rate = change_rate&.rate || 0
+    total_hrs = change_rate&.working_hrs || 0
+    update!(total_time: time,amount: rate * time,rate: rate,expected_hrs: total_hrs)
   end
   
   def approved_total_time

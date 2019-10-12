@@ -1,0 +1,57 @@
+.contract-fields_wrapper.m-4
+  .row
+    .col-sm-6
+      .col-sm-12
+        %b Contract
+        %p= invoice.contract.title
+      .col-sm-12
+        %b Sent Date - Due Date
+        %p{style: 'color: #1AAE9F;'}= "#{invoice.contract.start_date.strftime('%d/%m/%Y')} - #{invoice.contract.end_date.strftime('%d/%m/%Y')}"
+
+    .col-sm-6
+      .col-sm-12.ts_header
+        .col-sm-6
+          %b Sender Company
+          %p
+            =image_tag(invoice.sender_company.photo, class: 'data-table-image mr-1').html_safe
+            =link_to(do_ellipsis(invoice.sender_company.name), profile_company_path(invoice.sender_company), class: 'data-table-font')
+        .col-sm-6
+          %b Receiver Company
+          %p
+            =image_tag(invoice.receiver_company.photo, class: 'data-table-image mr-1').html_safe
+            =link_to(do_ellipsis(invoice.receiver_company.name), profile_company_path(invoice.sender_company), class: 'data-table-font')
+      .col-sm-12.ts_header
+        .col-sm-6
+          %b Invoice Type
+          %br
+          %span.badge.badge-success= snake_to_words(invoice.invoice_type)
+        .col-sm-6
+          %b Invoice Status
+          %br
+          %span.badge.badge-success= invoice.status.capitalize
+
+  .row
+    .table-responsive.p-4
+      %b.mb-1 Added Timesheet(s)
+      %table.table.table-striped.table-bordered.table-v2.table-lg
+        %thead
+          %tr
+            %th Ts Id
+            %th Ts Type
+            %th Contract ID & Title - Client
+            %th Client
+            %th From & To Date
+            %th Plan. Hr
+            %th Act. Hr
+        %tbody
+          - invoice.invoice_items.each do |ii|
+            %tr
+              - ts = ii.itemable
+              - user = ts.contract_cycle.cycle_of.company
+              %td= ts.id
+              %td= ts.contract_cycle.cycle_frequency.capitalize
+              %td= ts.contract.title
+              %td= image_tag( user.photo , class: 'data-table-image mr-1', title: user.full_name,size: "35x40")
+              %td= "#{ts.start_date} - #{ts.end_date}"
+              %td= ts.contract_cycle.cycle_of.get_rate(ts.start_date)&.working_hrs
+              %td= ts.calculate_total_time
