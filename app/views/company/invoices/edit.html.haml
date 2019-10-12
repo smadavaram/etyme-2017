@@ -1,5 +1,5 @@
 = render 'company/invoices/partials/invoice_header', invoice: @invoice
-- if @invoice.open?
+- if [:pending_invoice, :open].include?(@invoice.status.to_sym)
   = form_for @invoice do |f|
     .table-responsive.p-4
       %b.mb-1 Add Timesheet(s)

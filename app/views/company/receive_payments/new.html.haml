@@ -1,41 +1,50 @@
-#content
-  %body
-    %section#widget-grid
+.w-75.margin-auto
+  = form_for @receive_payment, url: invoice_receive_payments_path(@invoice), multipart: true do |f|
+    %fieldset.form-group.mt-4
       .row
-        %div
-          Invoice No :
-          = @invoice.number
-        = form_for @receive_payment, url: invoice_receive_payments_path(@invoice), multipart: true do |f|
-          %p
-            = f.label :payment_date
-            = f.text_field :payment_date, class: "date"
-          %p
-            = f.label :payment_method
-            = f.text_field :payment_method
-          %p
-            = f.label :reference_no
-            = f.text_field :reference_no
-          %p
-            = f.label :deposit_to
-            = f.text_field :deposit_to
-          %p
-            %div
-              Balance :
-              = @invoice.balance
-            = f.label :amount_received
-            = f.number_field :amount_received
-          %p
-            = f.label :posted_as_discount
-            = f.check_box :posted_as_discount
-          %p
-            = f.label :memo
-            = f.text_area :memo
-          %p
-            = f.label :attachment
-            = render "shared/file_attachement", f:f,attr_name: :attachment, button_name: "Pick File",multiple: false
-            -#= f.filepicker_field :attachment, :button_text => "Pick File", class: 'file-pick btn btn-primary'
-          %p
-            = f.submit :save
+        .col-sm-6
+          .form-group
+            %label{:for => ""} Payment Data
+            = f.text_field :payment_date, class: "date form-control"
+        .col-sm-6
+          .form-group
+            %label{:for => ""} Payment Method
+            = f.text_field :payment_method, class: "form-control"
+      .row
+        .col-sm-6
+          .form-group
+            %label{:for => ""} Reference No
+            = f.text_field :reference_no, class: "form-control"
+        .col-sm-6
+          .form-group
+            %label{:for => ""} Deposit To
+            = f.text_field :deposit_to, class: "form-control"
+      .row
+        .col-sm-6
+          .form-group
+            %label Payment
+            = f.number_field :amount_received, class: "form-control"
+            %small= "Amount of #{@invoice.billing_amount} is already paid from #{@invoice.total_amount}"
+        .col-sm-6
+          .form-group.mt-2
+            %label Discount Payment
+            %br
+            = f.check_box :posted_as_discount, class: "form-control mt-1"
+            Payment With Discount
+      .row
+        .col-sm-12
+          .form-group
+            %label Memo
+            =f.text_area :memo, class: "form-control"
+      .row
+        .col-sm-12
+          %label.d-block Resume
+          .file_selector{style: "display: flex;"}
+            .form-group.d-inline-block
+              = render 'shared/file_attachement',f:f,attr_name: :attachment,button_name: "Attach Document", name_selector: ".uploaded_file_name",cstm_style: "border-radius: 0; height:38px;"
+            %p.d-inline-block.uploaded_file_name No File Selected
+      .row.pull-right
+        = f.submit "Make Payment", class: 'btn btn-primary'
 
 - content_for :scripts do
   :javascript
