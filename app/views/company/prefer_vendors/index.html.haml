@@ -1,24 +1,24 @@
 #content
   #wid-id-5.no-border.jarviswidget
-    .col-xs-12.col-sm-9.col-md-9.col-lg-9.pull-left{style: 'border-bottom-color: #fff !important;'}
-      = search_form_for @sent_vendors , url: search_prefer_vendors_path , method: :get do |f|
-        %ul#internal-tab-1.nav.nav-tabs.tabs-pull-right.sub-tab
-          %br
-          .input-group.input-group-lg.hidden-mobile
-            -#.input-group-btn.select
-              = f.text_field :status_eq , Contract.statuses.map { |key, value| [key.humanize, value] }.push(['All', '']).reverse.to_h, {} , {class: "btn btn-default dropdown-toggle" ,  onChange: "this.form.submit();"}
-            = f.text_field :company_name_cont, class: "form-control input-lg bg-white", placeholder: "Search Network..."
-            .input-group-btn
-              = f.button raw("<i class='fa fa-fw fa-search fa-lg'></i>") , class: 'btn btn-default'
+    / .col-md-12.pull-left{style: 'border-bottom-color: #fff !important;'}
+    /   = search_form_for @sent_vendors , url: search_prefer_vendors_path , method: :get do |f|
+    /     %ul#internal-tab-1.nav.nav-tabs.tabs-pull-right.sub-tab
+    /       %br
+    /       .input-group.input-group-lg.hidden-mobile
+    /         -#.input-group-btn.select
+    /           = f.text_field :status_eq , Contract.statuses.map { |key, value| [key.humanize, value] }.push(['All', '']).reverse.to_h, {} , {class: "btn btn-default dropdown-toggle" ,  onChange: "this.form.submit();"}
+    /         = f.text_field :company_name_cont, class: "form-control input-lg bg-white", placeholder: "Search Network..."
+    /         .input-group-btn
+    /           = f.button raw("<i class='fa fa-fw fa-search fa-lg'></i>") , class: 'btn btn-default'
     %div
       .widget-body
         %ul#myTab1.nav.nav-tabs.no-border
           %li.active
-            %a{"data-toggle" => "tab", :href => "#tab-r1"}
+            %a{"data-toggle" => "tab", :href => "#tab-r1",class: "nav-link cumstom_nav-tab display-flex"}
               %span.badge.bg-color-blue.txt-color-white= @vendors.count
               Sent Invitation(s)
           %li
-            %a{"data-toggle" => "tab", :href => "#tab-r2"}
+            %a{"data-toggle" => "tab", :href => "#tab-r2",class: "nav-link cumstom_nav-tab display-flex"}
               %span.badge.bg-color-blueDark.txt-color-white= @recived_vendors.count
               Received Invitation(s)
         .col-md-12
