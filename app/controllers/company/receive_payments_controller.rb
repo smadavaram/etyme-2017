@@ -2,6 +2,8 @@ class Company::ReceivePaymentsController < Company::BaseController
 
   def new
     @invoice = Invoice.find(params[:invoice_id])
+    add_breadcrumb 'Invoice', invoices_path()
+    add_breadcrumb 'Edit Invoice', new_invoice_receive_payment_path()
     @receive_payment = @invoice.receive_payments.new
     if @invoice.paid?
       flash[:success] = "Already Paid"
