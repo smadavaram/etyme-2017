@@ -54,7 +54,7 @@
                         %span
                           -if c.candidate.invited_by_user.present? 
                             .label-info.badge.margin-bottom-5.badge-info
-                              s= c.candidate.invited_by_user.full_name 
+                              = c.candidate.invited_by_user.full_name 
 
                       %td
                         = link_to(content_tag(:i, nil, class: 'fa fa-comment').html_safe,  chat_link(c.candidate), title: 'chat', class: 'start-conversation',remote: true)
