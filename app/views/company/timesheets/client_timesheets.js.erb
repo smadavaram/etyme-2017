@@ -32,4 +32,9 @@ $('.timesheet_table').show();
 $('.timesheet_table').html("<%= j render 'company/timesheets/partials/timesheet_table', timesheets: @timesheets,contract_id: @contract_id,tab: @tab, cycle_id: @cycle_id %>")
 $('#timesheet_calendar').hide();
 $('.timesheet_pagination_links a').attr('data-remote','true');
+$('#ts_select_all').on('click', function(e){
+    $('input[id=ts_ids]').each(function () {
+        $(this).prop('checked', e.target.checked);
+    });
+});
 <% end %>

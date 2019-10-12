@@ -7,11 +7,7 @@
       / - cy = ContractCycle.find_by(contract_id: cc.contract_id, end_date: cc.end_date, candidate_id: cc.candidate_id)
       .timeline-block
         %span.badge.status-badge.red-badge
-          - if ['TimesheetSubmit'].include? cc.cycle_type
-            -#= link_to cc.note, final_salary_salaries_path(cycle_id: cc.id, note: cc.note), :style=>'color:#FFFFFF;'
-            = link_to cc.cyclable_type, get_cyclable_contracts_path(cyclable_id: cc.cyclable_id,cyclable_type: cc.cyclable_type), remote: :true,:style=>'color:#FFFFFF;'
-          - else
-            = cc.cycle_type.tableize.singularize.split("_").join(" ").capitalize
+          =cyclable_link(cc)
         %span.due-txt
           #{cc&.doc_date&.strftime("%d %B %Y")}
         %br

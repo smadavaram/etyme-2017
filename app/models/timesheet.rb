@@ -11,32 +11,30 @@ class Timesheet < ApplicationRecord
   belongs_to :job, optional: true
   belongs_to :invoice, optional: true
   belongs_to :candidate, optional: true
-  
   has_one :contract_cycle, as: :cyclable
-  
   # has_many   :timesheet_logs , dependent: :destroy
   has_many :timesheet_approvers, dependent: :destroy
   has_many :transactions
   # has_many   :transactions  , through: :timesheet_logs
-  
   has_many :contract_salary_histories, as: :salable, dependent: :destroy
-  
-  
   belongs_to :ts_cycle, optional: true, foreign_key: :ts_cycle_id, class_name: 'ContractCycle'
   belongs_to :ta_cycle, optional: true, foreign_key: :ta_cycle_id, class_name: 'ContractCycle'
+  has_many :invoice_items, as: :itemable
   
   accepts_nested_attributes_for :transactions
   
   # before_validation :set_recurring_timesheet_cycle
-  after_update :set_ts_on_seq, if: Proc.new { |t| t.status_changed? && t.submitted? && t.total_time.to_f > 0 }
+  # after_update :set_ts_on_seq, if: Proc.new { |t| t.status_changed? && t.submitted? && t.total_time.to_f > 0 }
   # after_update  :set_ta_on_seq, if: Proc.new{|t| t.status_changed? && t.approved? && t.total_time.to_f > 0}
   
   # after_create  :create_timesheet_logs
   # after_create  :notify_timesheet_created
   # after_update :update_pending_timesheet_logs, if: Proc.new{|t| t.status_changed? && t.approved?}
   
-  after_update :set_contract_salary_histories, if: Proc.new { |t| t.status_changed? && t.approved? }
   
+  # after_update :set_contract_salary_histories, if: Proc.new { |t| t.status_changed? && t.approved? }
+  # after_update :set_cost_and_time,  if: Proc.new { |t| t.approved? }
+
   validates :start_date, presence: true
   validates :end_date, presence: true
   validates :status, inclusion: {in: statuses.keys}
@@ -75,8 +73,16 @@ class Timesheet < ApplicationRecord
     self.timesheet_approvers.where('timesheet_approvers.user_id = ? AND (timesheet_approvers.status = ? OR timesheet_approvers.status = ?)', user.id, Timesheet.statuses[:approved], Timesheet.statuses[:rejected]).present?
   end
   
-  def total_time
+  def calculate_total_time
     transactions.sum(:total_time)
+  end
+  
+  def set_cost_and_time
+    time = transactions.sum(:total_time)
+    change_rate = contract_cycle.cycle_of.change_rates.where("from_date <= ? and to_date >= ?", start_date,end_date ).order(:from_date).first
+    rate = change_rate&.rate || 0
+    total_hrs = change_rate&.working_hrs || 0
+    update!(total_time: time,amount: rate * time,rate: rate,expected_hrs: total_hrs)
   end
   
   def approved_total_time

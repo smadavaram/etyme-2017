@@ -2,14 +2,10 @@ class ReceivePayment < ApplicationRecord
   belongs_to :invoice
 
   after_create :set_invoice_balance
-
+  
   def set_invoice_balance
-    if self.invoice.balance == self.amount_received || self.posted_as_discount
-      self.invoice.update_attributes(balance: 0, status: :paid)
-    else
-      self.invoice.update(balance: (self.invoice.balance - self.amount_received))
-    end
-    set_seq_paid_in
+    self.invoice.update_payment_receive
+    # set_seq_paid_in
   end
 
   def set_seq_paid_in

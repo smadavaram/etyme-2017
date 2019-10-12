@@ -38,8 +38,14 @@ class Company < ApplicationRecord
   has_many :leaves                    , through:   :users
   has_many :timesheet_logs            , through:   :timesheets
   has_many :timesheet_approvers       , through:   :timesheets
-  has_many :sent_invoices             , through:   :received_contracts ,source:  :invoices
-  has_many :received_invoices         , through:   :sent_contracts ,source:  :invoices
+  
+  # has_many :sent_invoices             , through:   :received_contracts ,source:  :invoices
+  # has_many :received_invoices         , through:   :sent_contracts ,source:  :invoices
+  
+  has_many :sent_invoices, class_name: 'Invoice', foreign_key: 'sender_company_id'
+  has_many :receive_invoices, class_name: 'Invoice', foreign_key: 'receiver_company_id'
+  
+  
   has_many :groups
   # has_many :invoices                  , through:   :timesheets
   has_one  :package                   , through:   :subscription

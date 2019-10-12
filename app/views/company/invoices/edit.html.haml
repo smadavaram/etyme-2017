@@ -1,3 +1,30 @@
-= form_for @invoice do |f|
-  = f.text_field :end_date
-  = f.submit :save
+= render 'company/invoices/partials/invoice_header', invoice: @invoice
+- if @invoice.open?
+  = form_for @invoice do |f|
+    .table-responsive.p-4
+      %b.mb-1 Add Timesheet(s)
+      %table.table.table-striped.table-bordered.table-v2.table-lg
+        %thead
+          %tr
+            %th= "<input type='checkbox' name='select_all' id='ts_select_all'>".html_safe
+            %th Ts ID
+            %th Ts Type
+            %th Contract ID & Title - Client
+            %th Client
+            %th From & To Date
+            %th Plan. Hr
+            %th Act. Hr
+        %tbody
+          - @timesheets.each do |ts|
+            %tr
+              - user = ts.contract_cycle.cycle_of.company
+              %td= "<input type='checkbox' id='ts_ids' name='ids[]' value='#{ts.id}'>".html_safe
+              %td= ts.id
+              %td= ts.contract_cycle.cycle_frequency.capitalize
+              %td= ts.contract.title
+              %td= image_tag( user.photo , class: 'data-table-image mr-1', title: user.full_name,size: "35x40")
+              %td= "#{ts.start_date} - #{ts.end_date}"
+              %td= ts.contract_cycle.cycle_of.get_rate(ts.start_date)&.working_hrs
+              %td= ts.calculate_total_time
+      = f.submit 'Add Timesheets', class: 'btn btn-primary pull-right'
+

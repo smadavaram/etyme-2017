@@ -176,5 +176,9 @@
     .new-messages-count{
         right: -10px !important;
     }
+    #toggledmenubar{
+        position: absolute;
+        z-index: 99999;
+    }
 }
 

@@ -1,55 +1,71 @@
 class Invoice < ApplicationRecord
-
+  
   include Rails.application.routes.url_helpers
-
-  enum status: [:pending_invoice, :open, :paid , :partially_paid , :cancelled ]
+  
+  enum status: [:pending_invoice, :open, :submitted, :paid, :partially_paid, :cancelled]
   enum invoice_type: [:timesheet_invoice, :client_expense_invoice]
-
-  belongs_to  :contract, optional: true
-  belongs_to  :submitted_by   , class_name:"Admin", foreign_key: :submitted_by, optional: true
-  belongs_to  :parent_invoice , class_name: "Invoice" , foreign_key: :parent_id, optional: true
-  has_one     :child_invoice  , class_name: "Invoice", foreign_key: :parent_id
-  has_one     :company        , through: :company
-  has_many    :timesheets
-  has_many    :timesheet_logs , through: :timesheets
-  has_many    :receive_payments
-
+  
+  belongs_to :contract, optional: true
+  belongs_to :submitted_by, class_name: "Admin", foreign_key: :submitted_by, optional: true
+  belongs_to :parent_invoice, class_name: "Invoice", foreign_key: :parent_id, optional: true
+  belongs_to :sender_company, class_name: "Company", foreign_key: "sender_company_id"
+  belongs_to :receiver_company, class_name: "Company", foreign_key: "receiver_company_id"
+  has_one :child_invoice, class_name: "Invoice", foreign_key: :parent_id
+  has_many :invoice_items
+  has_many :timesheets, through: :invoice_items, source: :itemable ,source_type: "Timesheet"
+  has_many :receive_payments
+  
   # before_validation :set_rate , on: :create
   # before_validation :set_consultant_and_total_amount, on: :create , if: Proc.new{|invoice| !invoice.contract.has_child?}
-    # before_validation :set_total_amount , on: :create , if: Proc.new{|invoice| !invoice.contract.has_child?}
-  before_validation :set_commissions , on: :create , if: Proc.new{|invoice| !invoice.contract.has_child?}
+  # before_validation :set_total_amount , on: :create , if: Proc.new{|invoice| !invoice.contract.has_child?}
+  # before_validation :set_commissions , on: :create , if: Proc.new{|invoice| !invoice.contract.has_child?}
   # before_validation :set_start_date_and_end_date , on: :create , if: Proc.new{|invoice| !invoice.contract.has_child?}
-
+  
   # after_create      :set_next_invoice_date , if: Proc.new{|invoice| !invoice.contract.has_child?}
   # after_create      :update_timesheet_status_to_invoiced , if: Proc.new{|invoice| !invoice.contract.has_child?}
   # after_create      :notify_contract_responder ,  if: Proc.new{|invoice| invoice.contract.respond_by.present?}
   # after_update      :create_invoice_for_parent, if: Proc.new{|invoice| invoice.status_changed? && invoice.submitted? && invoice.contract.parent_contract?}
   # after_update      :notify_contract_creator , if: Proc.new{ |invoice| invoice.status_changed?  && invoice.submitted?}
-
-  before_create     :set_number
-
+  
+  before_create :set_number
+  
   validate :start_date_cannot_be_less_than_end_date
-  validate :contract_validation , if: Proc.new{|invoice| !invoice.contract.in_progress?}
+  # validate :contract_validation , if: Proc.new{|invoice| !invoice.contract.in_progress?}
   # validates_numericality_of :total_amount , :rate , presence: true, greater_than_or_equal_to: 1
   validates_numericality_of :billing_amount
-
-  scope :open_invoices, -> {where(status: [:pending_invoice, :open])}
-  scope :cleared_invoices, -> {where(status: [:paid])}
-  scope :submitted_invoices, -> {where(status: :open)}
-
+  
+  scope :open_invoices, -> { where(status: [:pending_invoice, :open]) }
+  scope :cleared_invoices, -> { where(status: [:paid]) }
+  scope :submitted_invoices, -> { where(status: :open) }
+  
+  
+  def set_total_amount_hours
+    update(total_amount: timesheets.sum(:amount),total_approve_time: timesheets.sum(:total_time))
+  end
+  
+  def update_payment_receive
+    status = :partially_paid
+    paid = receive_payments.sum(:amount_received)
+    discount_in_any =
+    if billing_amount >= paid
+      status = :paid
+    end
+    update(billing_amount: paid, balance: total_amount - paid,status: status )
+  end
+  
   def set_number
     i = self.contract.invoices.order("created_at DESC").first
     if i.present?
-      self.number = "IN_" + self.contract.only_number.to_s+"_"+(i.only_number.to_i + 1).to_s.rjust(3, "0")
+      self.number = "IN_" + self.contract.only_number.to_s + "_" + (i.only_number.to_i + 1).to_s.rjust(3, "0")
     else
-      self.number = "IN_" + self.contract.only_number.to_s+"_001"
+      self.number = "IN_" + self.contract.only_number.to_s + "_001"
     end
   end
-
+  
   def only_number
     self.number.split("_")[2]
   end
-
+  
   def set_seq_accept_in
     ledger = Sequence::Client.new(
         ledger_name: 'company-dev',
@@ -77,13 +93,13 @@ class Invoice < ApplicationRecord
       )
     end
   end
-
+  
   def set_seq_paid_in
     ledger = Sequence::Client.new(
         ledger_name: ENV['seq_ledgers'],
         credential: ENV['seq_token']
     )
-
+    
     tx = ledger.transactions.transact do |builder|
       builder.transfer(
           flavor_id: 'tym',
@@ -106,36 +122,36 @@ class Invoice < ApplicationRecord
       )
     end
   end
-
+  
   def set_consultant_and_total_amount
-    assignee_rate    = 0 #self.contract.assignee.hourly_rate
-    contract_rate    = self.contract.rate
+    assignee_rate = 0 #self.contract.assignee.hourly_rate
+    contract_rate = self.contract.rate
     total_time_in_sec = 0.0
-    self.contract.timesheets.approved.not_invoiced.each{ |t| total_time_in_sec += t.approved_total_time }
+    self.contract.timesheets.approved.not_invoiced.each { |t| total_time_in_sec += t.approved_total_time }
     self.total_approve_time = total_time_in_sec
-    self.consultant_amount = assignee_rate * (total_time_in_sec/3600.0)
+    self.consultant_amount = assignee_rate * (total_time_in_sec / 3600.0)
     self.total_amount = (total_time_in_sec / 3600.0) * contract_rate
   end
-
+  
   # private
-
+  
   def start_date_cannot_be_less_than_end_date
     errors.add(:start_date, ' cannot be less than end date.') if self.end_date < self.start_date
   end
-
+  
   def contract_validation
-    errors.add(:base , "Contract is #{self.contract.status.humanize}" )
+    errors.add(:base, "Contract is #{self.contract.status.humanize}")
   end
-
+  
   # def set_total_amount
-    # timesheets      = self.contract.timesheets.approved.not_invoiced || []
-    # timesheets.each do |t|
-    #   # self.total_amount += t.total_amount
-    #   self.total_amount += t.approved_total_time
-    # end
-    # self.total_amount = (self.total_approve_time / 3600.0) * self.rate
+  # timesheets      = self.contract.timesheets.approved.not_invoiced || []
+  # timesheets.each do |t|
+  #   # self.total_amount += t.total_amount
+  #   self.total_amount += t.approved_total_time
   # end
-
+  # self.total_amount = (self.total_approve_time / 3600.0) * self.rate
+  # end
+  
   def set_commissions
     commission = 0.0
     if self.contract.is_commission
@@ -147,52 +163,52 @@ class Invoice < ApplicationRecord
       end
     end
     self.commission_amount = commission
-    self.billing_amount    = self.total_amount - self.commission_amount - self.consultant_amount
+    self.billing_amount = self.total_amount - self.commission_amount - self.consultant_amount
   end
-
+  
   def set_next_invoice_date
     # temp_date = self.contract.next_invoice_date + TIMESHEET_FREQUENCY[self.contract.time_sheet_frequency].days
     temp_date = self.contract.next_invoice_date + self.contract.sell_contract.invoice_terms_period.to_i.days # TIMESHEET_FREQUENCY[self.contract.time_sheet_frequency].days
     self.contract.next_invoice_date = temp_date > self.contract.end_date ? self.contract.end_date : temp_date
     self.contract.save
   end
-
+  
   def update_timesheet_status_to_invoiced
-    timesheets  = self.contract.timesheets.approved.not_invoiced || []
+    timesheets = self.contract.timesheets.approved.not_invoiced || []
     timesheets.each do |t|
-      t.update_attributes!(invoice_id:  self.id, status: 'invoiced')
+      t.update_attributes!(invoice_id: self.id, status: 'invoiced')
     end
   end
-
+  
   def set_start_date_and_end_date
-    self.start_date   = self.contract.invoices.empty? ? self.contract.start_date : (self.contract.invoices.last.end_date + 1)
-    self.end_date     = self.contract.next_invoice_date
+    self.start_date = self.contract.invoices.empty? ? self.contract.start_date : (self.contract.invoices.last.end_date + 1)
+    self.end_date = self.contract.next_invoice_date
   end
-
+  
   def set_rate
     self.rate = self.contract.rate
   end
-
+  
   def create_invoice_for_parent
     invoice = self.contract.parent_contract.invoices.new
-    invoice.start_date         = self.start_date
-    invoice.end_date           = self.end_date
+    invoice.start_date = self.start_date
+    invoice.end_date = self.end_date
     invoice.total_approve_time = self.total_approve_time
-    invoice.total_amount       = invoice.contract.rate * (self.total_approve_time / 3600.0)
-    invoice.consultant_amount  = self.total_amount
-    invoice.billing_amount     = invoice.total_amount - invoice.consultant_amount
-    invoice.parent_id          = self.id
+    invoice.total_amount = invoice.contract.rate * (self.total_approve_time / 3600.0)
+    invoice.consultant_amount = self.total_amount
+    invoice.billing_amount = invoice.total_amount - invoice.consultant_amount
+    invoice.parent_id = self.id
     invoice.save
   end
-
+  
   def notify_contract_responder
-    self.contract.respond_by.notifications.create(message: "Your <a href='http://#{self.contract.respond_by.company.etyme_url + contract_invoice_path(self.contract , self)}'>Invoice</a> for <a href='http://#{self.contract.respond_by.company.etyme_url + contract_path(self.contract)}'>contract</a>",title: "Invoice# #{self.id}")
+    self.contract.respond_by.notifications.create(message: "Your <a href='http://#{self.contract.respond_by.company.etyme_url + contract_invoice_path(self.contract, self)}'>Invoice</a> for <a href='http://#{self.contract.respond_by.company.etyme_url + contract_path(self.contract)}'>contract</a>", title: "Invoice# #{self.id}")
   end
-
+  
   def notify_contract_creator
-    self.contract.created_by.notifications.create(message: "Your <a href='http://#{self.contract.created_by.company.etyme_url + contract_invoice_path(self.contract , self)}'>Invoice</a> for <a href='http://#{self.contract.created_by.company.etyme_url + contract_path(self.contract)}'>contract</a>",title: "Invoice# #{self.id}")
+    self.contract.created_by.notifications.create(message: "Your <a href='http://#{self.contract.created_by.company.etyme_url + contract_invoice_path(self.contract, self)}'>Invoice</a> for <a href='http://#{self.contract.created_by.company.etyme_url + contract_path(self.contract)}'>contract</a>", title: "Invoice# #{self.id}")
   end
-
+  
   def self.set_con_cycle_invoice_date(sell_contract, con_cycle)
     @invoice_type = sell_contract&.invoice_terms_period
     @invoice_day_of_week = Date.parse(sell_contract&.invoice_day_of_week&.titleize).try(:strftime, '%A')
@@ -202,45 +218,45 @@ class Invoice < ApplicationRecord
     @invoice_day_time = sell_contract&.invoice_day_time.try(:strftime, '%H:%M')
     # binding.pry
     case @invoice_type
-    when 'daily'
-      con_cycle_invoice_start_date = con_cycle&.start_date
-    when 'weekly'   
-      con_cycle_invoice_start_date = date_of_next(@invoice_day_of_week,con_cycle)
+      when 'daily'
+        con_cycle_invoice_start_date = con_cycle&.start_date
+      when 'weekly'
+        con_cycle_invoice_start_date = date_of_next(@invoice_day_of_week, con_cycle)
       # binding.pry 
-    when 'monthly'
-      # binding.pry
-      if @invoice_end_of_month
-        con_cycle_invoice_start_date = con_cycle.start_date.end_of_month
+      when 'monthly'
+        # binding.pry
+        if @invoice_end_of_month
+          con_cycle_invoice_start_date = con_cycle.start_date.end_of_month
+        else
+          con_cycle_invoice_start_date = montly_approval_date(con_cycle)
+        end
+      when 'twice a month'
+        con_cycle_invoice_start_date = twice_a_month_approval_date(con_cycle)
       else
-        con_cycle_invoice_start_date = montly_approval_date(con_cycle)
-      end 
-    when 'twice a month'
-      con_cycle_invoice_start_date = twice_a_month_approval_date(con_cycle)
-    else
-      con_cycle_invoice_start_date = con_cycle&.start_date
-    end 
+        con_cycle_invoice_start_date = con_cycle&.start_date
+    end
     return con_cycle_invoice_start_date
   end
-
-  def self.date_of_next(day_of_week,con_cycle)
+  
+  def self.date_of_next(day_of_week, con_cycle)
     day_of_week = DateTime.parse(day_of_week).wday
     date = con_cycle.start_date.to_date + ((day_of_week - con_cycle.start_date.to_date.wday) % 7)
     if day_of_week >= con_cycle.start_date.wday
-      (date - con_cycle.start_date.to_date <= 5) && con_cycle.start_date.wday != 0 ? date+7.days : date
+      (date - con_cycle.start_date.to_date <= 5) && con_cycle.start_date.wday != 0 ? date + 7.days : date
     else
       date
     end
   end
-
+  
   def self.montly_approval_date(con_cycle)
     # binding.pry
     day = @invoice_date_1&.to_i.present? ? @invoice_date_1&.to_i : 0
-    next_month_year = DateTime.now.strftime("%d").to_i <= day ? DateTime.now : (DateTime.now+1.month)
+    next_month_year = DateTime.now.strftime("%d").to_i <= day ? DateTime.now : (DateTime.now + 1.month)
     month = next_month_year&.strftime("%m").to_i
     year = next_month_year&.strftime("%Y").to_i
     con_cycle_invoice_start_date = DateTime.new(year, month, day)
   end
-
+  
   def self.twice_a_month_approval_date(con_cycle)
     # binding.pry
     day_1 = @invoice_date_1&.to_i
@@ -257,7 +273,7 @@ class Invoice < ApplicationRecord
       year = next_month_year&.strftime("%Y").to_i
     elsif con_cycle.start_date.strftime("%d").to_i > day_2 && !@ta_end_of_month
       day = @invoice_date_1&.to_i
-      next_month_year = con_cycle.start_date+1.month
+      next_month_year = con_cycle.start_date + 1.month
       month = next_month_year&.strftime("%m").to_i
       year = next_month_year&.strftime("%Y").to_i
     elsif @ta_end_of_month
