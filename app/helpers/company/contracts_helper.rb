@@ -35,6 +35,8 @@ module Company::ContractsHelper
         return link_to contract_cycle.cyclable_type, get_cyclable_contracts_path(cyclable_id: contract_cycle.cyclable_id, cyclable_type: contract_cycle.cyclable_type), remote: :true, :style => 'color:#FFFFFF;'
       when "InvoiceGenerate"
         return link_to contract_cycle.cycle_type, edit_invoice_path(contract_cycle.cyclable),:style => 'color:#FFFFFF;'
+      when "ClientExpenseSubmission"
+        return link_to contract_cycle.cycle_type, edit_client_expense_path(contract_cycle.cyclable),:style => 'color:#FFFFFF;'
       else
         return contract_cycle.cycle_type.tableize.singularize.split("_").join(" ").capitalize
     end
