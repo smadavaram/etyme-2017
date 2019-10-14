@@ -54,10 +54,10 @@
               %tr
                 %td= change_rate.rate
                 %td= change_rate.working_hrs
-                %td= change_rate.rate_type
+                %td= colorfull_text(change_rate.rate_type.upcase,'#1AAE9F')
                 %td= change_rate.uscis
-                %td= change_rate.from_date
-                %td= change_rate.to_date
+                %td= colorfull_text(change_rate.from_date,'orange')
+                %td= colorfull_text(change_rate.to_date,'red')
       %div
         .w-100
           %strong.pull-left Business Contacts
@@ -117,7 +117,7 @@
             %p
               =buy_contract_time_sheet('salary_process', @contract.buy_contract&.salary_calculation)
         .col-sm-4.col-md-4.col-lg-4.p-1
-          .rate_info.text-center
+          .rate_info.text-center.p-0
             %strong.rate_label{title: "Freelancer Rate"} Freelancer Rate
             %span
               %br
@@ -126,7 +126,7 @@
               - if local_assigns[:editable] and editable
                 %span.btn.btn-primary.sell-change-rate{"data-toggle": "modal","data-target": "#freelancer_rate_change"} Add Rate
         .col-sm-4.col-md-4.col-lg-4.p-1
-          .rate_info.text-center
+          .rate_info.text-center.p-0
             %strong USICS
             %span
               %br
@@ -188,14 +188,15 @@
                           %tbody#buy_send_documents_table
                             - @candidate_signature_documents.each do |docusign|
                               %tr
-                                %td= docusign.documentable.title
+                                %td= do_ellipsis(docusign.documentable.title,6)
                                 %td= docusign.created_at.strftime("%Y-%m-%d")
-                                %td= docusign.is_sign_done ? "Signed" : "Pending"
-                                %td.d-flex
+                                %td= docusign.is_sign_done ? colorfull_text("Signed",'orange') : colorfull_text("Pending",'red')
+                                %td.d-flex.no-wrap.pr-5
                                   = image_tag(docusign&.signable&.photo, class: 'data-table-image mr-1')
                                   - docusign.signers&.each do |signer|
                                     =image_tag(signer.photo, class: 'data-table-image mr-1')
-                                %td= docusign.envelope_id.present? ? docusign.envelope_id : "Document Not Submitted"
+                                %td.no-wrap
+                                  = do_ellipsis(docusign.envelope_id.present? ? docusign.envelope_id : "Document Not Submitted",10)
                                 %td= link_to content_tag(:i,'',class:'fa fa-paperclip fa-lg').html_safe, docusign.signed_file if docusign.is_sign_done
               #buy_emp_req_docs.tab-pane.padding-top-15
                 .row

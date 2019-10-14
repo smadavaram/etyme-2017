@@ -88,14 +88,14 @@
                               %th To
                           %tbody
                             - bc.object.change_rates.each do |change_rate|
-                              %tr
                               -if change_rate.persisted?
-                                %td= change_rate.rate
-                                %td= change_rate.working_hrs
-                                %td= change_rate.rate_type
-                                %td= change_rate.uscis
-                                %td= change_rate.from_date
-                                %td= change_rate.to_date
+                                %tr
+                                  %td= change_rate.rate
+                                  %td= change_rate.working_hrs
+                                  %td= change_rate.rate_type
+                                  %td= change_rate.uscis
+                                  %td= change_rate.from_date
+                                  %td= change_rate.to_date
                   #tab-buy-ts.tab-pane.padding-top-15
                     .row
                       .col-md-12
@@ -427,7 +427,7 @@
                     .row
                       .col-md-12
                         .form-group
-                          .table-responsive.p-4
+                          .table-responsive
                             %a.btn.btn-sm.btn-primary.float-right.margin-bottom-10{"data-toggle": "modal", "data-target":"#buy_send_documents_modal", style: "color: #fff;"} Create Checklist
                             %table.table.text-center.table-bordered.table-lg.table-v2.table-striped.data-table-font
                               %thead
@@ -454,7 +454,7 @@
                     .row
                       .col-md-12
                         .form-group
-                          .table-responsive.p-4
+                          .table-responsive
                             %a.btn.btn-sm.btn-primary.float-right.margin-bottom-10{"data-toggle": "modal", "data-target":"#buy_emp_req_docs_modal", style: "color: #fff;"} Create Checklist
                             %table.table.text-center.table-bordered.table-lg.table-v2.table-striped.data-table-font
                               %thead
