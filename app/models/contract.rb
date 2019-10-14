@@ -306,6 +306,8 @@ class Contract < ApplicationRecord
       sell_contract_time_sheet_aprove_cycle unless contract_cycles.where(cycle_type: 'TimesheetApprove', cycle_of: sell_contract).present?
       sell_contract_invoice_cycle unless contract_cycles.where(cycle_type: 'InvoiceGenerate', cycle_of: sell_contract).present?
       sell_contract_client_expense_cycle unless contract_cycles.where(cycle_type: 'ClientExpenseSubmission', cycle_of: sell_contract).present?
+      sell_contract_client_expense_approve_cycle unless contract_cycles.where(cycle_type: 'ClientExpenseApprove', cycle_of: sell_contract).present?
+      sell_contract_client_expense_invoice_cycle unless contract_cycles.where(cycle_type: 'ClientExpenseInvoice', cycle_of: sell_contract).present?
     end
   end
 

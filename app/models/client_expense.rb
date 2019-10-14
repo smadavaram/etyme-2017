@@ -1,6 +1,6 @@
 class ClientExpense < ApplicationRecord
 
-  enum status: [:not_submitted, :submitted, :approved, :bill_generated, :invoice_generated, :paid]
+  enum status: [:pending_expense,:not_submitted, :submitted, :approved, :bill_generated, :invoice_generated, :paid]
 
   belongs_to :candidate, optional: true
   belongs_to :company, optional: true
@@ -9,7 +9,7 @@ class ClientExpense < ApplicationRecord
   belongs_to :job, optional: true
   belongs_to :ce_cycle, optional: true, foreign_key: :ce_cycle_id, class_name: 'ContractCycle'
   belongs_to :ce_ap_cycle, optional: true, foreign_key: :ce_ap_cycle_id, class_name: 'ContractCycle'
-
+  has_many :expense_items, as: :expenseable, source_type: 'ClientExpense'
   # after_update :set_ce_on_seq
   
   scope :not_submitted_expenses, -> {where(status: 0)}
@@ -34,7 +34,10 @@ class ClientExpense < ApplicationRecord
     self.save
   end
 
-
+  def update_amount
+    update(amount: expense_items.sum('unit_price * quantity'))
+  end
+  
   def set_ce_on_seq
     self.contract.set_on_seq
     if self&.amount.to_i > 0 && self.status == 'submitted'

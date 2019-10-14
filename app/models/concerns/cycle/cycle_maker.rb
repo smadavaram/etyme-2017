@@ -27,6 +27,7 @@ module Cycle::CycleMaker
       end
     end
   end
+  
   def buy_contract_time_sheet_aprove_cycle
     date_groups = get_date_groups(self.buy_contract, 'ta', 'ts_approve')
     date_groups.each do |date_group|
@@ -43,6 +44,7 @@ module Cycle::CycleMaker
       )
     end
   end
+  
   def buy_contract_salary_process_cycle
     date_groups = get_date_groups(self.buy_contract, 'sp', 'salary_calculation')
     date_groups.each do |date_group|
@@ -60,6 +62,7 @@ module Cycle::CycleMaker
       )
     end
   end
+  
   def buy_contract_salary_clear_cycle
     date_groups = get_date_groups(self.buy_contract, 'sclr', 'salary_calculation')
     date_groups.each do |date_group|
@@ -77,6 +80,7 @@ module Cycle::CycleMaker
       )
     end
   end
+  
   def buy_contract_salary_calculation_cycle
     date_groups = get_date_groups(self.buy_contract, 'sc', 'salary_calculation')
     date_groups.each do |date_group|
@@ -94,7 +98,7 @@ module Cycle::CycleMaker
       )
     end
   end
-
+  
   # Sell Contract Cycles
   
   def sell_contract_time_sheet_cycles
@@ -103,7 +107,7 @@ module Cycle::CycleMaker
       # contract_cycles.build(company)
       start_date = date_group.first
       end_date = date_group.last
-      time_sheet = self.timesheets.build( status: :open, job: self.job, user: self.admin_user, start_date: start_date, end_date: end_date )
+      time_sheet = self.timesheets.build(status: :open, job: self.job, user: self.admin_user, start_date: start_date, end_date: end_date)
       if time_sheet.save
         contract_cycles.create(cycle_type: 'TimesheetSubmit',
                                cyclable: time_sheet,
@@ -121,13 +125,14 @@ module Cycle::CycleMaker
       end
     end
   end
+  
   def sell_contract_time_sheet_aprove_cycle
     date_groups = get_date_groups(self.sell_contract, 'ta', 'ts_approve')
     date_groups.each do |date_group|
       start_date = date_group.first
       end_date = date_group.last
       contract_cycles.create(cycle_type: 'TimesheetApprove',
-                             user: sell_contract.team_admin,
+                             user: self.admin_user,
                              contract: self,
                              start_date: start_date,
                              end_date: end_date,
@@ -137,6 +142,7 @@ module Cycle::CycleMaker
       )
     end
   end
+  
   def sell_contract_invoice_cycle
     date_groups = get_date_groups(self.sell_contract, 'invoice', 'invoice_terms_period')
     date_groups.each do |date_group|
@@ -155,23 +161,59 @@ module Cycle::CycleMaker
       )
     end
   end
+  
   def sell_contract_client_expense_cycle
     date_groups = get_date_groups(self.sell_contract, 'ce', 'client_expense')
     date_groups.each do |date_group|
       start_date = date_group.first
       end_date = date_group.last
-      client_expense = self.client_expenses.build(user: sell_contract.team_admin, company: sell_contract.company, job: job)
+      client_expense = self.client_expenses.build(user: self.admin_user, company: sell_contract.company, job: job)
       if client_expense.save
         contract_cycles.create(cycle_type: 'ClientExpenseSubmission',
                                cyclable: client_expense,
-                               user: sell_contract.team_admin,
+                               user: self.admin_user,
                                contract: self,
                                start_date: start_date,
                                end_date: end_date,
+                               cycle_of: sell_contract,
                                cycle_frequency: sell_contract.client_expense,
                                note: 'Client expense submission'
         )
       end
+    end
+  end
+  
+  def sell_contract_client_expense_approve_cycle
+    date_groups = get_date_groups(self.sell_contract, 'ce_ap', 'ce_approve')
+    date_groups.each do |date_group|
+      start_date = date_group.first
+      end_date = date_group.last
+      contract_cycles.create(cycle_type: 'ClientExpenseApprove',
+                             user: self.admin_user,
+                             contract: self,
+                             start_date: start_date,
+                             end_date: end_date,
+                             cycle_of: sell_contract,
+                             cycle_frequency: sell_contract.ce_approve,
+                             note: 'Client expense Approval'
+      )
+    end
+  end
+  
+  def sell_contract_client_expense_invoice_cycle
+    date_groups = get_date_groups(self.sell_contract, 'ce_in', 'ce_invoice')
+    date_groups.each do |date_group|
+      start_date = date_group.first
+      end_date = date_group.last
+      contract_cycles.create(cycle_type: 'ClientExpenseInvoice',
+                             user: self.admin_user,
+                             contract: self,
+                             start_date: start_date,
+                             end_date: end_date,
+                             cycle_of: sell_contract,
+                             cycle_frequency: sell_contract.ce_invoice,
+                             note: 'Client Expense Invoice'
+      )
     end
   end
   
