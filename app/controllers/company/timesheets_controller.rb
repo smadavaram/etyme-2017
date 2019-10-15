@@ -136,7 +136,7 @@ class Company::TimesheetsController < Company::BaseController
   
   def approve
     if @timesheet.approved!
-      @timesheet.contract_cycle.update(status: :completed)
+      @timesheet.contract_cycle.completed!
       @timesheet.set_cost_and_time
       flash[:success] = "Successfully Approved The Timesheet"
     else

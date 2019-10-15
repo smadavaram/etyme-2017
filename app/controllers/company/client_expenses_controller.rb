@@ -1,10 +1,28 @@
 class Company::ClientExpensesController < Company::BaseController
   include CandidateHelper
-  before_action :set_client_expense, only: [:edit, :update]
+  before_action :set_client_expense, only: [:edit, :update, :submit,:reject,:approve]
   add_breadcrumb 'home', '/'
+  
   def index
     add_breadcrumb 'Client Expenses', client_expenses_path
-    @client_expenses = current_company.client_expenses.includes(:candidate, contract: [:buy_contract, sell_contract: [:company]]).submitted_client_expenses #.joins(contract: [:client, [buy_contracts: :candidate]]).submitted_client_expenses.select("DISTINCT(client_expenses.ce_ap_cycle_id), contracts.number, companies.name, buy_contracts.contract_type, candidates.first_name, candidates.last_name, sum(amount) as total_amount").group('client_expenses.ce_ap_cycle_id', 'contracts.number', 'companies.name', 'buy_contracts.contract_type', 'candidates.first_name', 'candidates.last_name').map(&:attributes)
+    @tab = params[:tab]
+    @start_date = params[:start_date]
+    @end_date = params[:end_date]
+    @cycle_type = params[:ts_type]
+    @ts_for = params[:ts_for].present? ? params[:ts_for] : "sent_client_expenses"
+    @client_expenses = @ts_for == "sent_client_expenses" ?
+                           ClientExpense.where.not(status: [:pending_expense]).joins(:contract_cycle)
+                               .where("contract_cycles.contract_id": current_company.contracts.ids, "contract_cycles.cycle_of_type": "SellContract")
+                               .includes(contract: [sell_contract: [:company]]).send("#{@tab&.downcase || 'all'}_client_expenses")
+                               .joins(:contract_cycle).where('contract_cycles.cycle_frequency IN (?)', @cycle_type.present? ? ContractCycle.cycle_frequencies[@cycle_type.to_sym] : ContractCycle.cycle_frequencies.values)
+                               .between_date(@start_date, @end_date)
+                               .paginate(page: params[:page], per_page: 10).order(start_date: :asc) :
+                           ClientExpense.where.not(status: [:pending_expense,:not_submitted]).joins(contract_cycle: [contract: :sell_contract])
+                               .where("contract_cycles.contract_id": SellContract.all.select(:contract_id), "contract_cycles.cycle_of_type": "SellContract", "sell_contracts.company_id": current_company.id)
+                               .includes(contract: [sell_contract: [:company]]).send("#{@tab&.downcase || 'all'}_client_expenses")
+                               .joins(:contract_cycle).where('contract_cycles.cycle_frequency IN (?)', @cycle_type.present? ? ContractCycle.cycle_frequencies[@cycle_type.to_sym] : ContractCycle.cycle_frequencies.values)
+                               .between_date(@start_date, @end_date)
+                               .paginate(page: params[:page], per_page: 10).order(start_date: :asc)
   end
   
   def edit
@@ -24,21 +42,32 @@ class Company::ClientExpensesController < Company::BaseController
   
   end
   
+  def submit
+    if @client_expense.submitted!
+      flash[:success] = "Exense Submitted for approval Successfully"
+    else
+      flash[:errors] = @client_expense.errors.full_messages
+    end
+    redirect_back(fallback_location: client_expenses_path)
+  end
+  
   def approve
-    client_expense = ClientExpense.find_by(id: params[:cycle_id])
-    client_expense.update(status: 2)
-    ClientExpense.transfer_after_approve_on_seq(client_expense, client_expense.amount)
-    flash[:success] = 'Successfully Approved !'
-    redirect_to client_expenses_path
+    if @client_expense.approved!
+      flash[:success] = "Expense accepted Successfully"
+      @client_expenses.contract_cycle.completed!
+    else
+      flash[:errors] = @client_expense.errors.full_messages
+    end
+    redirect_back(fallback_location: client_expenses_path)
   end
   
   def reject
-    client_expense = ClientExpense.find_by(id: params[:cycle_id])
-    client_expense.update(status: 0)
-    client_expense.ce_cycle.update(status: 'pending')
-    ClientExpense.retire_after_reject_on_seq(client_expense, client_expense.amount)
-    flash[:errors] = 'Expense approval rejected'
-    redirect_to client_expenses_path
+    if @client_expense.not_submitted!
+      flash[:success] = "Expense has been rejected and opend for resubmission successfully"
+    else
+      flash[:errors] = @client_expense.errors.full_messages
+    end
+    redirect_back(fallback_location: client_expenses_path(ts_for: "received_client_expenses"))
   end
   
   
@@ -49,7 +78,7 @@ class Company::ClientExpensesController < Company::BaseController
     end
     
     def set_client_expense
-      @client_expense = ClientExpense.find_by(id: params[:id])
+      @client_expense = ClientExpense.find_by(id: params[:id] || params[:client_expense_id])
     end
     
     def timesheet_params

@@ -24,7 +24,7 @@
           %li.nav-item
             %a{class: "nav-link ts fd approved_timesheets #{ "active" if @tab.eql?("Approved") }", href:'#'} Approved
           %li.nav-item
-            %a{class: "nav-link ts fd approved_timesheets #{ "active" if @tab.eql?("Rejected") }", href:'#'} Rejected
+            %a{class: "nav-link ts fd rejected_timesheets #{ "active" if @tab.eql?("Rejected") }", href:'#'} Rejected
           %li.nav-item
             %a{class: "nav-link fd open_timesheets #{ "active" if @tab.nil? || @tab.eql?("All") }", href: timesheets_path} All
         .d-flex.pt-2
@@ -76,5 +76,8 @@
                       - if ts.submitted?
                         = link_to "<i class='fa fa-check '></i>".html_safe,timesheet_approve_path(ts),class:'c_green',title: 'Approve Timesheet', :data => {:confirm => 'Are you sure?'}
                         = link_to "<i class='fa fa-times-circle'></i>".html_safe,timesheet_reject_path(ts),class:'c_red',title: 'Reject Timesheet', :data => {:confirm => 'Are you sure?'}
-        .pagination_timesheet
-          = will_paginate(@timesheets,class: "pagination ")
+
+        .timesheet_pagination_wrap.mt-2
+          .pagination_label
+            = page_entries_info @timesheets
+          = will_paginate(@timesheets, {params: params.merge(tab: @tab,cycle_type:@cycle_type),previous_label: "Previous",next_label: "Next",inner_window: 2,class: 'timesheets_pagination_links'})

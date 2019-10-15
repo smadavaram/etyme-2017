@@ -1,6 +1,6 @@
 class ClientExpense < ApplicationRecord
   
-  enum status: [:pending_expense, :not_submitted, :submitted, :approved, :bill_generated, :invoice_generated, :paid]
+  enum status: [:pending_expense, :not_submitted, :submitted, :approved, :bill_generated, :rejected, :invoice_generated, :paid]
   
   belongs_to :candidate, optional: true
   belongs_to :company, optional: true
@@ -10,12 +10,17 @@ class ClientExpense < ApplicationRecord
   belongs_to :ce_cycle, optional: true, foreign_key: :ce_cycle_id, class_name: 'ContractCycle'
   belongs_to :ce_ap_cycle, optional: true, foreign_key: :ce_ap_cycle_id, class_name: 'ContractCycle'
   has_many :expense_items, as: :expenseable, source_type: 'ClientExpense'
+  has_one :contract_cycle, as: :cyclable
+
   # after_update :set_ce_on_seq
   accepts_nested_attributes_for :expense_items, allow_destroy: true, reject_if: :all_blank
-  
-  scope :not_submitted_expenses, -> { where(status: 0) }
+  scope :not_submitted_expenses, -> { where(status: :not_submitted) }
   scope :submitted_client_expenses, -> { where(status: :submitted) }
   scope :approved_client_expenses, -> { where(status: :approved) }
+  scope :rejected_client_expenses, -> { where(status: :rejected) }
+  scope :all_client_expenses, -> { where(status: [:submitted, :approved, :rejected, :not_submitted]) }
+  scope :upcomming_client_expenses, -> { where('DATE(client_expenses.start_date) > ?', DateTime.now.end_of_day.to_date) }
+  scope :between_date, -> (start_date, end_date) { start_date.present? and end_date.present? ? where('client_expenses.start_date BETWEEN ? AND ?', start_date, end_date).or(where('client_expenses.end_date BETWEEN ? AND ?', start_date, end_date)) : nil }
   
   
   def submitted(client_expense_params, days, total_amount)
@@ -36,7 +41,7 @@ class ClientExpense < ApplicationRecord
   end
   
   def update_amount
-    update(amount: expense_items.sum('unit_price * quantity'))
+    update(amount: expense_items.sum('unit_price * quantity'), status: :not_submitted)
   end
   
   def set_ce_on_seq

@@ -167,7 +167,7 @@ module Cycle::CycleMaker
     date_groups.each do |date_group|
       start_date = date_group.first
       end_date = date_group.last
-      client_expense = self.client_expenses.build(user: self.admin_user, company: sell_contract.company, job: job)
+      client_expense = self.client_expenses.build(user: self.admin_user, company: sell_contract.company, job: job, start_date: start_date, end_date: end_date)
       if client_expense.save
         contract_cycles.create(cycle_type: 'ClientExpenseSubmission',
                                cyclable: client_expense,

@@ -665,8 +665,9 @@ Rails.application.routes.draw do
     end
     
     resources :client_expenses, only: [:edit,:update, :show, :index] do
-      get 'approve', on: :collection
-      get 'reject', on: :collection
+      get :approve
+      get :reject
+      get :submit
     end
     # get 'configuration' ,   to: 'companies#edit' ,              as: :configuration
     resources :companies, concerns: :paginatable, only: [:update, :show, :index, :edit, :destroy] do
