@@ -442,11 +442,12 @@
                                   %tr
                                     %td= docusign.documentable.title
                                     %td= docusign.created_at.strftime("%Y-%m-%d")
-                                    %td= docusign.is_sign_done ? "Signed" : "Pending"
+                                    %td= docusign.is_sign_done ? colorfull_text('Signed','#1AAE9F') : colorfull_text('Pending','orange')
                                     %td.d-flex
-                                      = image_tag(docusign&.signable&.photo, class: 'data-table-image mr-1')
-                                      - docusign.signers&.each do |signer|
-                                        =image_tag(signer.photo, class: 'data-table-image mr-1')
+                                      =show_users(docusign)
+                                      / = image_tag(docusign&.signable&.photo, class: 'data-table-image mr-1')
+                                      / - docusign.signers&.each do |signer|
+                                      /   =image_tag(signer.photo, class: 'data-table-image mr-1')
                                     %td= docusign.envelope_id.present? ? docusign.envelope_id : "Document Not Submitted"
                                     %td= link_to content_tag(:i,'',class:'fa fa-paperclip fa-lg').html_safe, docusign.signed_file if docusign.is_sign_done
                   #buy_emp_req_docs.tab-pane.padding-top-15
@@ -467,7 +468,7 @@
                                   %tr
                                     %td= docusign.documentable.title
                                     %td= docusign.created_at.strftime("%Y-%m-%d")
-                                    %td= docusign.envelope_id.present? ? "Submitted" : "Document Not Submitted"
+                                    %td= docusign.envelope_id.present? ? colorfull_text('Submitted','#1AAE9F') : colorfull_text('Document Not Submitted','orange')
                                     %td= link_to content_tag(:i,'',class:'fa fa-paperclip fa-lg').html_safe, docusign.signed_file if docusign.signed_file.present?
                   #buy_ven_req_docs.tab-pane.padding-top-15
                     .row

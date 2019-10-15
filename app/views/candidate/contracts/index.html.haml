@@ -20,16 +20,16 @@
                 - @contracts.each do |d|
                   %tr{class: "#{set_background_status_color(d.status)}"}
                     %td
-                      = d.project_name
-                      %a.pull-right{:href => candidate_contract_path(d)}
-                        %i.fa.fa-key
+                      = link_to do_ellipsis(d.project_name,10),candidate_contract_path(d)
+                      
                     %td= d.created_by.full_name.capitalize
                     %td= d.created_by.company.name.capitalize if d.created_by.company.present?
-                    %td= link_to d.job.title.capitalize , static_job_path(d.job)
+                    %td= link_to d.job.title.capitalize , static_job_path(d.job),class: 'data_table_font'
                     %td= "#{d.start_date} - #{d.end_date}"
                     %td= link_to "TimeSheet", new_candidate_timesheet_path if d.accepted?
                     %td= snake_to_words(d.status)
-                    %td= contact_widget(d.created_by.email,d.created_by.phone,nil,color: "#047bf8",chat_link: candidate_conversations_path(d.buy_contract.conversation.present? ? {conversation: d.buy_contract.conversation} : {}))
+                    %td.no-wrap
+                      = contact_widget(d.created_by.email,d.created_by.phone,nil,color: "#3E4B5B",chat_link: candidate_conversations_path(d.buy_contract.conversation.present? ? {conversation: d.buy_contract.conversation} : {}))
                     -#- if d.pending?
                     -#  = link_to 'Accept' , open_contract_candidate_job_contract_path(d.job , d , status: 'accept') , method: :post , remote: true , class: 'btn btn-xs btn-default'
                     -#  = link_to 'Reject' , open_contract_candidate_job_contract_path(d.job , d , status: 'reject') , method: :post , remote: true ,  class: 'btn btn-xs btn-default'

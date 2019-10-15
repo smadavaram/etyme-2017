@@ -49,7 +49,7 @@
                             .label-info.badge.margin-bottom-5.badge-info
                               = skill.name
                       %td
-                        = c.candidate.try(:location)
+                        = do_ellipsis(c.candidate.try(:location),40)
                       %td
                         = c.candidate.candidate_visa
                       %td

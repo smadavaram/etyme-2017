@@ -199,7 +199,7 @@
                                   -else
                                     =image_tag(signer.photo, class: 'data-table-image mr-1')
 
-                
+
                                   - docusign.signers&.each do |signer|
                                     -if signer.photo.nil?
                                       =entity_image(signer.first_name,signer.last_name)

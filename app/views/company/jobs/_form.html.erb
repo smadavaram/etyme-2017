@@ -72,13 +72,14 @@
         <%= render 'company/jobs/partials/forms/select', form: form, attribute: :job_type, options: ["","Contract", "Full Time", "Contract To Hire"], field_attributes: {} %>
       </div>
     </div>
+     <%= render 'company/jobs/partials/forms/field', form: form, attribute: :source,title: "Source", field_type: :text_field, field_attributes: {autofocus: true}, note: "Please Add Original Link" %>
     <div class="d-flex">
       <%= render 'shared/file_attachement', f: form, attr_name: :files, button_name: "Attach Images", name_selector: ".uploaded_file_name", cstm_style: "border-radius: 0; height:38px;", multiple: true %>
       <p class="d-inline-block uploaded_file_name">No Image(s) Selected</p>
     </div>
     <div class="mt-2"></div>
     <%#= render 'company/jobs/partials/forms/field', form: form, attribute: :description, field_type: :text_area, field_attributes: {} %>
- <%= render 'company/jobs/partials/forms/field', form: form, attribute: :source,title: "Source", field_type: :text_field, field_attributes: {autofocus: true}, note: "Please Add Original Link" %>
+
     <div class="custome">
       <legend><span>Add Additional Requirements</span></legend>
       <div class="row">
