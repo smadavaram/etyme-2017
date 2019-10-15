@@ -134,6 +134,24 @@ class Company::InvoicesController < Company::BaseController
     @timesheets = current_user.timesheets.approved.where.not(id: @invoice.timesheets)
   end
   
+  def client_expense_invoice
+    @invoice = Invoice.find(params[:id])
+    @client_expenses = ClientExpense.approved.joins(:contract_cycle).where.not(id: @invoice.client_expenses).where("contract_cycles.contract_id": current_company.contracts.ids, "contract_cycles.cycle_of_type": "SellContract")
+  end
+  
+  def update_expense_invoice
+    @invoice = Invoice.find(params[:id])
+    @client_expenses = ClientExpense.where(id: params[:ids])
+    ClientExpense.transaction do
+      @client_expenses.each do |ce|
+        @invoice.invoice_items.build(itemable: ce).save
+      end
+      @invoice.open! if @invoice.pending_invoice?
+    end
+    flash[:success] = 'Updated Successfully'
+    redirect_to invoices_path(tab: "sent_invoices")
+  end
+  
   def update
     @invoice = Invoice.find(params[:id])
     @timesheets = Timesheet.where(id: params[:ids])

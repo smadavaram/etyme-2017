@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema.define(version: 20191012092942) do
+ActiveRecord::Schema.define(version: 20191014112647) do
 
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
@@ -1074,6 +1074,16 @@ ActiveRecord::Schema.define(version: 20191012092942) do
     t.integer "expense_type_id"
     t.bigint "expense_id"
     t.index ["expense_id"], name: "index_expense_accounts_on_expense_id"
+  end
+
+  create_table "expense_items", force: :cascade do |t|
+    t.string "expenseable_type"
+    t.bigint "expenseable_id"
+    t.integer "quantity"
+    t.string "description"
+    t.integer "expense_type"
+    t.decimal "unit_price"
+    t.index ["expenseable_type", "expenseable_id"], name: "index_expense_items_on_expenseable_type_and_expenseable_id"
   end
 
   create_table "expense_types", force: :cascade do |t|

@@ -1,181 +1,81 @@
-%section#widget-grid
-  .row
-    %article.col-xs-12.col-sm-12.col-md-12.col-lg-12
-      %table#jqgrid
+.element-wrapper.m-2
+  .element-box
+    = form_with(url: client_expenses_path, method: :get, id: 'timesheets') do |f|
+      .ts_header.mt-2
+        .d-flex.pt-2
+          %label.radio-container.m-1
+            Weekly
+            %input{:name => "ts_type",:type => "radio", :value => 'weekly', checked: @cycle_type == 'weekly'}/
+            %span.radio-checkmark
+          %label.radio-container.m-1
+            Monthly
+            %input{:name => "ts_type",:type => "radio", :value => "monthly", checked: @cycle_type == 'monthly'}/
+            %span.radio-checkmark
+        .form-group.w-50.d-flex
+          = f.text_field :start_date, class: 'p_date form-control m-1',placeholder: 'Select Start Data', value: @start_date
+          = f.text_field :end_date, class: 'p_date form-control m-1',placeholder: 'Select End Date', value: @end_date
+          = f.hidden_field :tab, id: 'ts_tag', value: "All"
+      .d-flex{style: "flex-wrap: wrap;justify-content: space-between;"}
+        %ul.nav.nav-pills.smaller.mt-3{style: "border-bottom: none;"}
+          %li.nav-item.ml-3
+            %a{class: "nav-link ts fd upcomming_timesheets #{ "active" if @tab.eql?("Upcomming") }", href:'#'} Upcomming
+          %li.nav-item
+            %a{class: "nav-link ts fd submitted_timesheets #{ "active" if @tab.eql?("Submitted") }",href:'#'} Submitted
+          %li.nav-item
+            %a{class: "nav-link ts fd approved_timesheets #{ "active" if @tab.eql?("Approved") }", href:'#'} Approved
+          %li.nav-item
+            %a{class: "nav-link ts fd rejected_timesheets #{ "active" if @tab.eql?("Rejected") }", href:'#'} Rejected
+          %li.nav-item
+            %a{class: "nav-link fd open_timesheets #{ "active" if @tab.nil? || @tab.eql?("All") }", href: timesheets_path} All
+        .d-flex.pt-2
+          %label.radio-container.m-1
+            Sent Client Expense(s)
+            %input.ts_for{:name => "ts_for",:type => "radio", :value => 'sent_client_expenses', checked: @ts_for == 'sent_client_expenses'}/
+            %span.radio-checkmark
+          %label.radio-container.m-1
+            Received Client Expense(s)
+            %input.ts_for{:name => "ts_for",:type => "radio", :value => "received_client_expenses", checked: @ts_for == 'received_client_expenses'}/
+            %span.radio-checkmark
+    .table_divider.mt-3
+    .mt-3
+      - unless @client_expenses.present?
+        .div.w-75.margin-auto
+          %p.contract_warning_text= "No Expense has been created to process, please goto #{link_to 'Timeline', timeline_contracts_path, target: '_blank'} to add expense".html_safe
+      - else
+        - if @tab.eql?('Upcomming')
+          = render 'company/client_expenses/partials/upcomming_timeline'
+        - else
+          .table-responsive
+            %table.table.table-striped.table-bordered.table-v2.table-lg
+              %thead
+                %tr
+                  %th Exp ID
+                  %th Exp Type
+                  %th Contract ID & Title - Client
+                  %th Customer
+                  %th Status
+                  %th From & To Date
+                  %th Total Price
+                  %th Actions
+              %tbody
+                - @client_expenses.each do |ce|
+                  %tr
+                    %td= ce.id
+                    %td= ce.contract_cycle.cycle_frequency.capitalize
+                    %td= ce.contract.title
+                    %td= image_tag(ce.company.photo, class: 'data-table-image mr-1', title: ce.company.full_name)
+                    %td= snake_to_words(ce.status)
+                    %td= "#{ce.start_date} - #{ce.end_date}"
+                    %td= ce.amount
+                    %td
+                      - if ce.not_submitted? and ce.company != current_company
+                        = link_to "<i class='fa fa-check '></i>".html_safe,client_expense_submit_path(ce),class:'c_green',title: 'Submit Client Expense', :data => {:confirm => 'Are you sure?'}
+                        = link_to "<i class='fa fa-edit '></i>".html_safe,edit_client_expense_path(ce),class:'',title: 'Edit Client Expense'
+                      - elsif ce.submitted? and ce.company == current_company
+                        = link_to "<i class='fa fa-check '></i>".html_safe,client_expense_approve_path(ce),class:'c_green',title: 'Accept Client Expense', :data => {:confirm => 'Are you sure?'}
+                        = link_to "<i class='fa fa-times '></i>".html_safe,client_expense_reject_path(ce),class:'c_red',title: 'Reject Client Expense', :data => {:confirm => 'Are you sure?'}
 
-- @temp = []
--@client_expenses.each do |ce|
-  -@temp.push({ cycle_id: ce.id,
-                approve_cycle_id: ce.ce_ap_cycle_id,
-                contract: ce.contract.number,
-                client: ce.contract.sell_contract.company.full_name,
-                tax_type: ce.contract.buy_contract.contract_type,
-                candidate: ce.candidate.full_name,
-                total_amount: ce.amount,
-                status: ce.status.titleize,
-                act: ''})
-
--# var ajqgrid_data = #{raw(@temp.to_json)};
-
-/ END SHORTCUT AREA
-/ ==================================================
-%script{"data-pace-options" => "{ \"restartOnRequestAfter\": true }", :src => "js/plugin/pace/pace.min.js"}
-%script{:src => "https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"}
-%script{:src => "https://ajax.googleapis.com/ajax/libs/jqueryui/1.12.1/jquery-ui.min.js"}
-:javascript
-  $(document).ready(function() {
-    pageSetUp();
-    var jqgrid_data = #{raw(@temp.to_json)};
-
-    jQuery("#jqgrid").jqGrid({
-      data : jqgrid_data,
-      datatype : "local",
-      height : 'auto',
-      colNames : ['Cycle ID', 'Approve Cycle ID','Contract', 'Client', 'Tax Type',
-                  'candidate', 'Total Amount',
-                  'status', 'Actions'],
-      colModel : [{
-        name : 'cycle_id',
-        index : 'cycle_id'
-      }, {
-        name : 'approve_cycle_id',
-        index : 'approve_cycle_id'
-      }, {
-        name : 'contract',
-        index : 'contract',
-        editable : true
-      }, {
-        name : 'client',
-        index : 'client',
-        align : "right",
-        editable : true
-      }, {
-        name : 'tax_type',
-        index : 'tax_type',
-        align : "right",
-        editable : true
-      }, {
-        name : 'candidate',
-        index : 'candidate',
-        align : "right",
-        editable : true
-      },{
-        name : 'total_amount',
-        index : 'total_amount',
-        sortable : false
-      },{
-        name : 'status',
-        index : 'status',
-        sortable : false
-      },{
-        name : 'act',
-        index : 'act',
-        sortable : false
-      }],
-      rowNum : 10,
-      rowList : [10, 20, 30],
-      pager : '#pjqgrid',
-      sortname : 'id',
-      toolbarfilter : true,
-      viewrecords : true,
-      sortorder : "asc",
-      gridComplete : function() {
-        var ids = jQuery("#jqgrid").jqGrid('getDataIDs');
-        for (var i = 0; i < ids.length; i++) {
-          var cl = ids[i];
-          var id = $("#jqgrid").jqGrid('getCell', cl, "cycle_id");
-          var message = $("#jqgrid").jqGrid('getCell', cl, "act");
-          var total_amount = $("#jqgrid").jqGrid('getCell', cl, "total_amount");
-
-          be = "<button class='btn btn-xs btn-default' data-original-title='Edit Row' onclick=\"jQuery('#jqgrid').editRow('" + cl + "');\"><i class='fa fa-pencil'></i></button>";
-          se = "<button class='btn btn-xs btn-default' data-original-title='Save Row' onclick=\"jQuery('#jqgrid').saveRow('" + cl + "');\"><i class='fa fa-save'></i></button>";
-          ca = "<button class='btn btn-xs btn-default' data-original-title='Cancel' onclick=\"jQuery('#jqgrid').restoreRow('" + cl + "');\"><i class='fa fa-times'></i></button>";
-
-          ta = "<a href='/client_expenses/approve?cycle_id="+id+"' class='btn btn-xs btn-default' title='Approve Timesheet' rel='tooltip' 'data-placement'= 'top' data-confirm ="+ JSON.stringify(message) +"  verify='Approve' verify_text=\" Type 'Approve' to confirm\"> <i class='fa fa-check '></i> </a> " ;
-          tr = "" ;
-
-          trr = "<a href='/client_expenses/reject?cycle_id="+id+"' class='btn btn-xs btn-default' title='Reject Timesheet' rel='tooltip' 'data-placement'= 'top' data-confirm ="+ JSON.stringify(message) +"  verify='Reject' verify_text=\" Type 'Rejct' to confirm\"> <i class='fa fa-times-circle '></i> </a> " ;
-          tr = "" ;
-
-
-          jQuery("#jqgrid").jqGrid('setRowData', ids[i], {
-            act : ta+trr
-          });
-        }
-      },
-      editurl : "dummy.html",
-      caption : "Timesheet",
-      multiselect : true,
-      autowidth : true,
-
-    });
-    jQuery("#jqgrid").jqGrid('navGrid', "#pjqgrid", {
-      edit : false,
-      add : false,
-      del : true
-    });
-    jQuery("#jqgrid").jqGrid('inlineNav', "#pjqgrid");
-    /* Add tooltips */
-    $('.navtable .ui-pg-button').tooltip({
-      container : 'body'
-    });
-
-    jQuery("#m1").click(function() {
-      var s;
-      s = jQuery("#jqgrid").jqGrid('getGridParam', 'selarrrow');
-      alert(s);
-    });
-    jQuery("#m1s").click(function() {
-      jQuery("#jqgrid").jqGrid('setSelection', "13");
-    });
-
-    // remove classes
-    $(".ui-jqgrid").removeClass("ui-widget ui-widget-content");
-    $(".ui-jqgrid-view").children().removeClass("ui-widget-header ui-state-default");
-    $(".ui-jqgrid-labels, .ui-search-toolbar").children().removeClass("ui-state-default ui-th-column ui-th-ltr");
-    $(".ui-jqgrid-pager").removeClass("ui-state-default");
-    $(".ui-jqgrid").removeClass("ui-widget-content");
-
-    // add classes
-    $(".ui-jqgrid-htable").addClass("table table-bordered table-hover");
-    $(".ui-jqgrid-btable").addClass("table table-bordered table-striped");
-
-    $(".ui-pg-div").removeClass().addClass("btn btn-sm btn-primary");
-    $(".ui-icon.ui-icon-plus").removeClass().addClass("fa fa-plus");
-    $(".ui-icon.ui-icon-pencil").removeClass().addClass("fa fa-pencil");
-    $(".ui-icon.ui-icon-trash").removeClass().addClass("fa fa-trash-o");
-    $(".ui-icon.ui-icon-search").removeClass().addClass("fa fa-search");
-    $(".ui-icon.ui-icon-refresh").removeClass().addClass("fa fa-refresh");
-    $(".ui-icon.ui-icon-disk").removeClass().addClass("fa fa-save").parent(".btn-primary").removeClass("btn-primary").addClass("btn-success");
-    $(".ui-icon.ui-icon-cancel").removeClass().addClass("fa fa-times").parent(".btn-primary").removeClass("btn-primary").addClass("btn-danger");
-
-    $(".ui-icon.ui-icon-seek-prev").wrap("<div class='btn btn-sm btn-default'></div>");
-    $(".ui-icon.ui-icon-seek-prev").removeClass().addClass("fa fa-backward");
-
-    $(".ui-icon.ui-icon-seek-first").wrap("<div class='btn btn-sm btn-default'></div>");
-    $(".ui-icon.ui-icon-seek-first").removeClass().addClass("fa fa-fast-backward");
-
-    $(".ui-icon.ui-icon-seek-next").wrap("<div class='btn btn-sm btn-default'></div>");
-    $(".ui-icon.ui-icon-seek-next").removeClass().addClass("fa fa-forward");
-
-    $(".ui-icon.ui-icon-seek-end").wrap("<div class='btn btn-sm btn-default'></div>");
-    $(".ui-icon.ui-icon-seek-end").removeClass().addClass("fa fa-fast-forward");
-
-  })
-
-  $(window).on('resize.jqGrid', function() {
-    $("#jqgrid").jqGrid('setGridWidth', $("#content").width());
-  })
-:javascript
-  var _gaq = _gaq || [];
-  _gaq.push(['_setAccount', 'UA-XXXXXXXX-X']);
-  _gaq.push(['_trackPageview']);
-
-  (function() {
-    var ga = document.createElement('script');
-    ga.type = 'text/javascript';
-    ga.async = true;
-    ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
-    var s = document.getElementsByTagName('script')[0];
-    s.parentNode.insertBefore(ga, s);
-  })();
+        .timesheet_pagination_wrap.mt-2
+          .pagination_label
+            = page_entries_info @client_expenses
+          = will_paginate(@client_expenses, {params: params.merge(tab: @tab,cycle_type:@cycle_type),previous_label: "Previous",next_label: "Next",inner_window: 2,class: 'client_expenses_pagination_links'})
