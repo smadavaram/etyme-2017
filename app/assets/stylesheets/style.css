@@ -1679,3 +1679,6 @@ text-align: right;
   margin-left: auto;
   margin-right: auto; 
 }
+.dt-toolbar-footer{
+    display: flex;
+}
