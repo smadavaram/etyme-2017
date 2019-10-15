@@ -1,6 +1,6 @@
 .w-75.margin-auto
   = form_with(model: @client_expense) do |ce|
-    = ce.nested_fields_for  :expense_items, @client_expense.expense_items do |ei|
+    = ce.nested_fields_for  :expense_items, @client_expense.expense_items.present? ? @client_expense.expense_items : @client_expense.expense_items.build do |ei|
       =render 'company/client_expenses/partials/fields', f: ei
       = ei.remove_nested_fields_link  wrapper_class: "nested-fields5", class: "bttn btn-add pull-right delete_icon" do
         %i.fa.fa-trash
