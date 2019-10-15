@@ -205,8 +205,10 @@ module Cycle::CycleMaker
     date_groups.each do |date_group|
       start_date = date_group.first
       end_date = date_group.last
+      invoice = invoices.client_expense_invoice.pending_invoice.build(sender_company_id: company.id, receiver_company_id: sell_contract.company.id, start_date: start_date, end_date: end_date)
       contract_cycles.create(cycle_type: 'ClientExpenseInvoice',
                              user: self.admin_user,
+                             cyclable: invoice,
                              contract: self,
                              start_date: start_date,
                              end_date: end_date,

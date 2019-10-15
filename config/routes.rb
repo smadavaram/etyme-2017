@@ -440,6 +440,10 @@ Rails.application.routes.draw do
     delete 'delete_company_employee_docs', to: 'company_candidate_docs#delete_company_employee_docs'
     
     resources :invoices, concerns: :paginatable, only: [:index, :edit, :update] do
+      member do
+        get :client_expense_invoice
+        post :update_expense_invoice
+      end
       collection do
         post :client_submit_invoice
         get :cleared_invoice

@@ -13,8 +13,10 @@ class Invoice < ApplicationRecord
   has_one :child_invoice, class_name: "Invoice", foreign_key: :parent_id
   has_many :invoice_items
   has_many :timesheets, through: :invoice_items, source: :itemable ,source_type: "Timesheet"
+  has_many :client_expenses, through: :invoice_items, source: :itemable ,source_type: "ClientExpense"
   has_many :receive_payments
-  
+  has_one :contract_cycle, as: :cyclable
+
   # before_validation :set_rate , on: :create
   # before_validation :set_consultant_and_total_amount, on: :create , if: Proc.new{|invoice| !invoice.contract.has_child?}
   # before_validation :set_total_amount , on: :create , if: Proc.new{|invoice| !invoice.contract.has_child?}
@@ -44,11 +46,12 @@ class Invoice < ApplicationRecord
   end
   
   def update_payment_receive
+    # debugger
     status = :partially_paid
     paid = receive_payments.sum(:amount_received)
-    discount_in_any =
-    if billing_amount >= paid
+    if total_amount <= paid
       status = :paid
+      contract_cycle.completed!
     end
     update(billing_amount: paid, balance: total_amount - paid,status: status )
   end
