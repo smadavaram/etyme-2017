@@ -1312,10 +1312,10 @@ module ApplicationHelper
     end
     def show_users(users,width=32,height=32)
       user_photo=""
-      user_photo=user_photo+"<div class='mini_chat_users',style=''>"
-        user_photo=user_photo+"<div class='avatar'><img  src='#{users&.signable&.photo}' title='#{users.signable.full_name}' style='width:#{width}px; height:#{height}px;'></div>"
+      user_photo=user_photo+"<div class='mini_chat_users pl-1',style=''>"
+        user_photo=user_photo+"<div class='table_avatar'><img  src='#{users&.signable&.photo}' title='#{users.signable.full_name}' style='width:#{width}px; height:#{height}px;'></div>"
         users.signers&.take(3).each do |signer|
-          user_photo=user_photo+"<div class='avatar'><img  src='#{signer.photo}' title='#{signer.full_name}' style='width:#{width}px; height:#{height}px;'></div>"
+          user_photo=user_photo+"<div class='table_avatar'><img  src='#{signer.photo}' title='#{signer.full_name}' style='width:#{width}px; height:#{height}px;'></div>"
         end
       if users.signers&.count > 3
         user_photo=user_photo+"<span class='more'>#{(users.signers&.count-3).abs} More</span>"

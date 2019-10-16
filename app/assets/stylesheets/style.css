@@ -1585,6 +1585,17 @@ input:checked + .slider1:before {
     overflow: hidden;
     vertical-align: middle;
 }
+ .table_avatar{
+     margin-left: -10px;
+    width: 29px;
+    height: 27px;
+    border-radius: 35px;
+    -webkit-box-shadow: 0px 0px 0px 5px #fff;
+    box-shadow: 0px 0px 0px 5px #fff;
+    display: inline-block;
+    overflow: hidden;
+    vertical-align: middle;
+}
 
 .mini_chat_users{
 -webkit-box-flex: 0;
