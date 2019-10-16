@@ -1300,5 +1300,8 @@ module ApplicationHelper
     def colorfull_text(value,color_code)
      content_tag(:span, value, style: "color: #{color_code}")
     end
+    def default_user_img(first_name,last_name)
+      content_tag(:span, bind_initials(first_name,last_name),class: "circle")
+    end
 end
 

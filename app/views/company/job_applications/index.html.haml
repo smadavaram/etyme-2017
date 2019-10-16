@@ -35,10 +35,13 @@
                         = application.id
                       %td.no-wrap
                         = link_to do_ellipsis(application.job.title.capitalize, 15),job_path(application.job.id),class: 'data-table-font'
+                      %td.no-wrap.pr-3
+                        = link_to image_tag(application.job.company.logo,class: 'data-table-image') , profile_company_path(application.job.company.id) if application.job.present? 
+                        = application.applicationable.associated_company.is_freelancer? ? application.applicationable.associated_company&.name.capitalize : link_to(do_ellipsis(application.applicationable.associated_company&.name.capitalize, 10), profile_company_path(application.applicationable.associated_company&.id), class: "data-table-font")
+
+                        
                       %td
-                        = application.applicationable.associated_company.is_freelancer? ? application.applicationable.associated_company&.name.capitalize : link_to(do_ellipsis(application.applicationable.associated_company&.name.capitalize, 15), profile_company_path(application.applicationable.associated_company&.id), class: "data-table-font")
-                      %td
-                        = colorfull_text(application.status,application.status=='applied' ? 'orange' : 'green')
+                        = colorfull_text(application.status.capitalize,application.status=='applied' ? 'orange' : 'green')
                       %td
                         = application.job_invitation_id ? "Invited/#{application.application_type}" : "Direct/#{application.application_type}"
                       %td

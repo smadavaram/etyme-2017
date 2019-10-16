@@ -2,7 +2,9 @@
   - user = bussiness_detail.company_contact&.user
   %tr
     %td= user.company.domain
-    %td= do_ellipsis(user.full_name,10)
+    %td.no-wrap
+      = image_tag(user.photo, class: 'data-table-image mr-1',title: "#{user.full_name}")
+      = do_ellipsis(user.full_name,10)
     %td= contact_widget(user.email,user.phone,user,chat_link: chat_link(user))
     %td= do_ellipsis(user.roles.pluck(:name).join(', '),40)
     %td= content_tag(:span, do_ellipsis(current_user.reminders.where(reminderable_id: user.id, reminderable_type: 'Admin')&.last&.title), class: 'bg-info badge mr-1').html_safe

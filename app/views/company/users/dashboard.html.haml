@@ -147,7 +147,7 @@
                               - cache d do
                                 .col-sm-12.col-md-6.col-lg-4
                                   .well.text-center.connect
-                                    = image_tag d.photo ,class:"margin-bottom-5 margin-top-5",alt:'img',width: '20px;',height: '20px;'
+                                    / = image_tag d.photo ,class:"margin-bottom-5 margin-top-5",alt:'img',width: '20px;',height: '20px;' 
                                     %br/
                                     %span.font-xs
                                       %b
@@ -283,7 +283,10 @@
                   .user-w.toggleable
                     .user-avatar-w
                       .user-avatar
-                        = image_tag user.photo
+                        -if user.photo.nil?
+                          = default_user_img(current_user.first_name,current_user.last_name)
+                        -else
+                          = image_tag user.photo
                     .user-name
                       %h6.user-title
                         = do_ellipsis(user.full_name,17)
@@ -303,7 +306,10 @@
                     - current_company.candidates.take(30).each do |candidate|
                       - cache candidate do
                         %li
-                          = link_to image_tag( candidate.try(:photo) ,class:"margin-bottom-5 margin-top-5",alt:image_path('avatars/m_sunny_big.png')) , static_candidate_resume_path(candidate),target: "_blank" , title: candidate.full_name,"data-content" => "Email : #{candidate.email}", "data-placement" => "top",:rel => "hover"
+                          -if candidate.photo.nil?
+                            = default_user_img(candidate.first_name,candidate.last_name)
+                          -else
+                            = link_to image_tag( candidate.try(:photo) ,class:"margin-bottom-5 margin-top-5",alt:image_path('avatars/m_sunny_big.png')) , static_candidate_resume_path(candidate),target: "_blank" , title: candidate.full_name,"data-content" => "Email : #{candidate.email}", "data-placement" => "top",:rel => "hover"
 
               -else
                 .text
@@ -320,7 +326,10 @@
                     - current_company.invited_companies_contacts.take(30).each do |contact|
                       - cache contact do
                         %li
-                          = link_to (image_tag contact.try(:photo) ,class:"margin-bottom-5 margin-top-5",alt: image_path('avatars/m_sunny_big.png') ), profile_company_path(contact) ,title: contact.full_name ,"data-content" => "Email : #{contact.email}", "data-placement" => "top",:rel => "hover"
+                          -if contact.photo.nil?
+                            = default_user_img(contact.first_name,contact.last_name)
+                          -else
+                            = link_to (image_tag contact.try(:photo) ,class:"margin-bottom-5 margin-top-5",alt: image_path('avatars/m_sunny_big.png') ), profile_company_path(contact) ,title: contact.full_name ,"data-content" => "Email : #{contact.email}", "data-placement" => "top",:rel => "hover"
               -else
                 .text
                   .font-md.text-center

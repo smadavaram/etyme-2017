@@ -44,7 +44,9 @@
               - user = admin.user
               %tr
                 %td= user.company.domain
-                %td= do_ellipsis(user.full_name,7)
+                %td
+                  = image_tag(user.photo, class: 'data-table-image mr-1',title: "#{user.full_name}")
+                  = do_ellipsis(user.full_name,7)
                 %td.no-wrap
                   = contact_widget(user.email,user.phone,user,chat_link: chat_link(user))
                 %td= do_ellipsis(user.roles.pluck(:name).join(', '),40)

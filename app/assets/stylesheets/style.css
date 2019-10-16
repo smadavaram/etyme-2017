@@ -1682,3 +1682,14 @@ text-align: right;
 .dt-toolbar-footer{
     display: flex;
 }
+.circle{
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    font-size: 20px;
+    color: #fff;
+    padding: 5px;
+    text-align: center;
+    background: #000;
+    display: inline-block;
+}

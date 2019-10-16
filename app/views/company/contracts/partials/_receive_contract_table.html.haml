@@ -1,19 +1,18 @@
 .x_overflow_y_h
-  = link_to 'Add Contract',create_contract_contracts_path ,class: 'btn btn-sm btn-secondary float-left mb-2'
   %table#company-contracts-datatable.table.table-bordered.table-lg.table-v2.table-striped
     %thead
       %tr
-      %th Id
-      %th Title
-      %th Customer
-      %th Rate
-      %th Candidate
-      %th Cost
-      %th Created By
-      %th Start date
-      %th Contract
-      %th Status
-      %th Action
+        %th Id
+        %th Title
+        %th Customer
+        %th Rate
+        %th Candidate
+        %th Cost
+        %th Created By
+        %th Start date
+        %th Contract
+        %th Status
+        %th Action
     %tbody
       - data.each do |contract|
         %tr{class: "#{set_background_status_color(contract.status)}"}
