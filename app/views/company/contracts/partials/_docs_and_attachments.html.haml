@@ -387,13 +387,12 @@
                               .select
                                 .row
                                   = bc.text_field :payroll_date, value: current_company&.payroll_infos&.first&.payroll_date, class: "date_1"
-                    .row
+                    .row.mt-2
                       .col-md-12
                         .form-group
-                          =bc.nested_fields_for :contract_sale_commisions do |custom_field|
-                            = render 'company/contracts/contract_sale_commisions_fields', f: custom_field
-                          .links
-                            = link_to_add_association '+ Add Sale Comission', bc, :contract_sale_commisions, class: 'btn btn-sm btn-secondary float-right margin-bottom-10', partial: 'company/contracts/contract_sale_commisions_fields'
+                          = link_to "+ Commission", new_company_buy_contract_contract_sale_commission_path(@contract.buy_contract), remote: true
+                      .col-md-12.commissions_table
+                        = render "company/contract_sale_commissions/partials/commissions", commissions: @contract.buy_contract.contract_sale_commisions
                   #tab-buy-integration.tab-pane.padding-top-15
                     .row.integration
                       .col-md-6

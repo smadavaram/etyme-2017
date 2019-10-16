@@ -3,6 +3,7 @@ class ContractSaleCommision < ApplicationRecord
   has_many :csc_accounts, dependent: :destroy
 
   accepts_nested_attributes_for :csc_accounts, allow_destroy: true,reject_if: :all_blank
+  
   has_many :com_calculateds, foreign_key: :com_cal_cycle_id, class_name: 'ContractSaleCommision'
   has_many :com_processeds, foreign_key: :com_pro_cycle_id, class_name: 'ContractSaleCommision'
   has_many :com_cleareds, foreign_key: :com_clr_cycle_id, class_name: 'ContractSaleCommision'

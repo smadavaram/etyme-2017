@@ -1,6 +1,6 @@
 class Company::ClientExpensesController < Company::BaseController
   include CandidateHelper
-  before_action :set_client_expense, only: [:edit, :update, :submit,:reject,:approve]
+  before_action :set_client_expense, only: [:edit, :update, :submit, :reject, :approve]
   add_breadcrumb 'home', '/'
   
   def index
@@ -17,7 +17,7 @@ class Company::ClientExpensesController < Company::BaseController
                                .joins(:contract_cycle).where('contract_cycles.cycle_frequency IN (?)', @cycle_type.present? ? ContractCycle.cycle_frequencies[@cycle_type.to_sym] : ContractCycle.cycle_frequencies.values)
                                .between_date(@start_date, @end_date)
                                .paginate(page: params[:page], per_page: 10).order(start_date: :asc) :
-                           ClientExpense.where.not(status: [:pending_expense,:not_submitted]).joins(contract_cycle: [contract: :sell_contract])
+                           ClientExpense.where.not(status: [:pending_expense, :not_submitted]).joins(contract_cycle: [contract: :sell_contract])
                                .where("contract_cycles.contract_id": SellContract.all.select(:contract_id), "contract_cycles.cycle_of_type": "SellContract", "sell_contracts.company_id": current_company.id)
                                .includes(contract: [sell_contract: [:company]]).send("#{@tab&.downcase || 'all'}_client_expenses")
                                .joins(:contract_cycle).where('contract_cycles.cycle_frequency IN (?)', @cycle_type.present? ? ContractCycle.cycle_frequencies[@cycle_type.to_sym] : ContractCycle.cycle_frequencies.values)

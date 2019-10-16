@@ -58,9 +58,11 @@ $(document).ready(function () {
 
     $(document).on('click', '.commission-user-type', function () {
         if (this.value == 'Admin') {
+            $('#accountable_type').val("Admin")
             set_company_admin('.commission_user')
         }
         if ((this.value == 'Candidate')) {
+            $('#accountable_type').val("Candidate")
             set_company_candidate('.commission_user')
         }
     })

@@ -369,7 +369,9 @@ Rails.application.routes.draw do
     end
     
     resources :sell_contracts
-    resources :buy_contracts
+    resources :buy_contracts do
+      resources :contract_sale_commissions, only: [:new,:create]
+    end
     
     resources :accountings do
       get :recieved_payment, on: :collection

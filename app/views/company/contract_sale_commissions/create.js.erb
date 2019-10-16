@@ -1,0 +1,10 @@
+$("#commissionUserModal<%=@buy_contract.id%>").modal('hide')
+<% if flash[:errors].present? %>
+  <% flash[:errors].each do |e| %>
+    flash_error("<%= e %>");
+  <% end %>
+<% end %>
+<% if flash[:success].present? %>
+  flash_success("<%= flash[:success] %>");
+  $(".commissions_table").html("<%= j render 'company/contract_sale_commissions/partials/commissions',commissions: @commissions %>")
+<% end %>
