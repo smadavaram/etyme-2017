@@ -1,7 +1,7 @@
 class Salary < ApplicationRecord
   require 'sequence'
   include Rails.application.routes.url_helpers
-  enum status: [:open, :calculated, :commission_calculated, :processed, :aggregated, :cleared]
+  enum status: [:pending,:open, :calculated, :commission_calculated, :processed, :aggregated, :cleared]
   belongs_to :company, optional: true
   belongs_to :contract, optional: true
   belongs_to :candidate, optional: true
@@ -12,7 +12,10 @@ class Salary < ApplicationRecord
   has_many :sc_calculateds, foreign_key: :sc_cycle_id, class_name: 'Salary'
   has_many :sp_processeds, foreign_key: :sp_cycle_id, class_name: 'Salary'
   has_many :sclr_cleareds, foreign_key: :sclr_cycle_id, class_name: 'Salary'
-
+  
+  has_many :salary_items
+  has_one :contract_cycle, as: :cyclable
+  
   scope :open_salaries, -> {where(status: :open)}
   scope :calculated_salaries, -> {where(status: :calculated)}
   scope :processed_salaries, -> {where(status: :processed)}

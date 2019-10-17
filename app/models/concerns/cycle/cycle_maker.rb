@@ -86,16 +86,20 @@ module Cycle::CycleMaker
     date_groups.each do |date_group|
       start_date = date_group.first
       end_date = date_group.last
-      contract_cycles.create(
-          cycle_type: 'SalaryCalculation',
-          candidate: self.candidate,
-          contract: self,
-          start_date: start_date,
-          end_date: end_date,
-          cycle_of: self.buy_contract,
-          cycle_frequency: buy_contract.salary_calculation,
-          note: "Salary Calculation"
-      )
+      salary = salaries.pending.build(candidate: self.candidate)
+      if salary.save
+        contract_cycles.create(
+            cycle_type: 'SalaryCalculation',
+            candidate: self.candidate,
+            contract: self,
+            cyclable: salary,
+            start_date: start_date,
+            end_date: end_date,
+            cycle_of: self.buy_contract,
+            cycle_frequency: buy_contract.salary_calculation,
+            note: "Salary Calculation"
+        )
+      end
     end
   end
   

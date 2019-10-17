@@ -20,6 +20,7 @@ class Timesheet < ApplicationRecord
   belongs_to :ts_cycle, optional: true, foreign_key: :ts_cycle_id, class_name: 'ContractCycle'
   belongs_to :ta_cycle, optional: true, foreign_key: :ta_cycle_id, class_name: 'ContractCycle'
   has_many :invoice_items, as: :itemable
+  has_many :salary_items, as: :salaryable
   
   accepts_nested_attributes_for :transactions
   
