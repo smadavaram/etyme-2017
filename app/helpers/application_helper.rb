@@ -68,7 +68,7 @@ module ApplicationHelper
   def do_ellipsis(value, length = 20)
     if value
       post_fix = value.length > length ? '...' : ''
-      content_tag(:span, "#{value[0..length].strip}#{post_fix}", class: 'ellipsis', title: value).html_safe
+      content_tag(:span, "#{value.capitalize[0..length].strip}#{post_fix}", class: 'ellipsis', title: value).html_safe
     end
   end
   
@@ -1288,7 +1288,7 @@ module ApplicationHelper
     end
 
     def get_initial(name_text)
-         name_text.first.capitalize
+      name_text.first.capitalize
     end
 
     def bind_initials(first_name,last_name)
