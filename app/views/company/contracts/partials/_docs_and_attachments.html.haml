@@ -445,9 +445,6 @@
                                     %td= docusign.is_sign_done ? colorfull_text('Signed','#1AAE9F') : colorfull_text('Pending','orange')
                                     %td.d-flex
                                       =show_users(docusign)
-                                      / = image_tag(docusign&.signable&.photo, class: 'data-table-image mr-1')
-                                      / - docusign.signers&.each do |signer|
-                                      /   =image_tag(signer.photo, class: 'data-table-image mr-1')
                                     %td= docusign.envelope_id.present? ? docusign.envelope_id : "Document Not Submitted"
                                     %td= link_to content_tag(:i,'',class:'fa fa-paperclip fa-lg').html_safe, docusign.signed_file if docusign.is_sign_done
                   #buy_emp_req_docs.tab-pane.padding-top-15
