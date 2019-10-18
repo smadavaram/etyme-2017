@@ -34,9 +34,7 @@ class ApplicationDatatable < AjaxDatatablesRails::ActiveRecord
     image_tag(company.logo, class: "data-table-image").html_safe + " " + company.name
   end
   def get_initial(name_text)
-    if name_text
        name_text.first.capitalize
-    end
   end
 
   def bind_initials(first_name,last_name)

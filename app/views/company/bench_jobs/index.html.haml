@@ -33,10 +33,7 @@
                         = check_box_tag "ids[]", c.candidate.id
                       %td.no-wrap
                         -if c.candidate.photo.nil?
-                          / = default_user_img(c.candidate.first_name,c.candidate.last_name)
                           =link_to  entity_image(c.candidate.first_name,c.candidate.last_name,'circle','circle_img'),public_profile_static_candidates_path(c.candidate)
-                          
-
                         -else 
                           = image_tag(c.candidate.photo, class: 'data-table-image mr-1',title: "#{c.candidate.full_name}").html_safe if c.candidate
                         = link_to  do_ellipsis(c.candidate.try(:full_name).try(:titleize),10),public_profile_static_candidates_path(c.candidate),class: "data-table-font pr-5"
@@ -61,7 +58,6 @@
                           -if c.candidate.invited_by_user.present? 
                             .label-info.badge.margin-bottom-5.badge-info
                               = c.candidate.invited_by_user.full_name 
-
                       %td
                         = link_to(content_tag(:i, nil, class: 'fa fa-comment').html_safe,  chat_link(c.candidate), title: 'chat', class: 'start-conversation',remote: true)
                         = link_to raw("<i class='fa fa-file-text'></i>") , c.candidate.resume ,download: true , class: '',title: "#{c.candidate.full_name} Resume",'data-toggle'=>"tooltip" ,'data-placement'=>"top"
@@ -183,4 +179,5 @@
       });
 
     });
+
 

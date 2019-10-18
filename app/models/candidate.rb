@@ -142,12 +142,6 @@ class Candidate < ApplicationRecord
   def etyme_url
     Rails.env.development? ? "#{ENV['domain']}" : "#{ENV['domain']}"
   end
-
-  def photo
-     # super.present? ? super : ActionController::Base.helpers.asset_path('avatars/m_sunny_big.png')
-    # ActionController::Base.helpers.asset_path('avatars/m_sunny_big.png')
-  end
-
   def full_name
     self.first_name + " " + self.last_name
   end

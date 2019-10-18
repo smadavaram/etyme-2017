@@ -1288,9 +1288,7 @@ module ApplicationHelper
     end
 
     def get_initial(name_text)
-      if name_text
          name_text.first.capitalize
-      end
     end
 
     def bind_initials(first_name,last_name)
