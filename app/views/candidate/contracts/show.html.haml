@@ -175,6 +175,8 @@
                                       %td
                                         =link_to content_tag(:i,'',class:'fa fa-paperclip fa-lg').html_safe, '#', onclick: "init_request_document_upload(#{docusign.id})", title: "Upload Document" unless docusign.signed_file.present?
                                         =link_to content_tag(:i,'',class:'fa fa-paperclip fa-lg').html_safe, docusign.signed_file, title: "Download Document" if docusign.signed_file.present?
+                                  
+
                     #buy_emp_req_docs.tab-pane.padding-top-15
                       .row
                         .col-md-12
@@ -194,8 +196,6 @@
                                       %td= docusign.created_at.strftime("%Y-%m-%d")
                                       %td= docusign.envelope_id.present? ? "Submitted" : "Document Not Submitted"
                                       %td= link_to content_tag(:i,'',class:'fa fa-paperclip fa-lg').html_safe, docusign.signed_file if docusign.is_sign_done
-
-
 - content_for :scripts do
   :javascript
 
