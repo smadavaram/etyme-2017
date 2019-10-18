@@ -34,8 +34,14 @@ class CompanyDirectoryDatatable < ApplicationDatatable
   end
 
   def company_user_profile user
-    image_tag(user.photo, class: 'data-table-image mr-1',title: "#{user.full_name}").html_safe +
-        link_to(do_ellipsis(user.first_name), company_user_profile_path(user), class: 'data-table-font')
+    if user.photo.nil?
+      (link_to  entity_image(user.first_name,user.last_name,'circle','circle_img'),company_user_profile_path(user) )+
+      link_to(do_ellipsis(user.first_name), company_user_profile_path(user), class: 'data-table-font pl-2')
+
+    else
+      image_tag(user.photo, class: 'data-table-image mr-1',title: "#{user.full_name}").html_safe+
+      link_to(do_ellipsis(user.first_name), company_user_profile_path(user), class: 'data-table-font')
+    end
   end
 
 
@@ -58,4 +64,5 @@ class CompanyDirectoryDatatable < ApplicationDatatable
         # link_to(content_tag(:i, nil, class: 'fa fa-edit').html_safe, '#', title: "Edit #{record.full_name}", class: 'data-table-icons') +
         delete_link_for_owner(record)
   end
+
 end

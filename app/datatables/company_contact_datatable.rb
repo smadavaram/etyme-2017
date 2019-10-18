@@ -20,7 +20,6 @@ class CompanyContactDatatable < ApplicationDatatable
     }
   end
 
-
   def data
     records.map do |record|
       {
@@ -37,9 +36,15 @@ class CompanyContactDatatable < ApplicationDatatable
     end
   end
 
+
   def company_user_profile user
-    image_tag(user.photo, class: 'data-table-image mr-1',title: "#{user.full_name}").html_safe +
-        link_to(do_ellipsis(user.first_name), company_user_profile_path(user), class: 'data-table-font')
+    if user.photo.nil?
+      (link_to  entity_image(user.first_name,user.last_name,'circle','circle_img'),company_user_profile_path(user) )+
+      link_to(do_ellipsis(user.first_name), company_user_profile_path(user), class: 'data-table-font pl-2')
+    else
+      image_tag(user.photo, class: 'data-table-image mr-1',title: "#{user.full_name}").html_safe+
+      link_to(do_ellipsis(user.first_name), company_user_profile_path(user), class: 'data-table-font')
+    end
   end
 
   def company_profile company
@@ -69,11 +74,8 @@ class CompanyContactDatatable < ApplicationDatatable
 
   def actions record
     link_to(content_tag(:i, nil, class: 'picons-thin-icon-thin-0014_notebook_paper_todo').html_safe, company_company_add_reminder_path(record.user_company), remote: :true, title: "Remind Me", class: 'data-table-icons') +
-        link_to(image_tag('groups.png', size: '16x16', class: '').html_safe, company_company_assign_groups_to_contact_path(record), remote: true, title: 'Add to Group', class: 'data-table-icons')
-    # link_to(content_tag(:i, nil, class: 'fa fa-edit').html_safe, "#", remote: true, title: "Edit #{record.full_name}", class: 'data-table-icons')
+     link_to(image_tag('groups.png', size: '16x16', class: '').html_safe, company_company_assign_groups_to_contact_path(record), remote: true, title: 'Add to Group', class: 'data-table-icons')
   end
-
-  # company_path(d.invited_company)
 
   def ban_unban_link(record)
     record.user_company.get_blacklist_status(record.company_id) == 'banned' ?

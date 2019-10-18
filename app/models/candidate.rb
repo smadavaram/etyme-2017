@@ -10,6 +10,7 @@ class Candidate < ApplicationRecord
   include ArchilliCandidateProfileBuilder
   include SovrenCandidateProfileBuilder
 
+
   enum status: [:signup, :campany_candidate]
   enum visa: [:Us_citizen, :GC, :OPT, :OPT_third_party, :H1B, :H1B_third_party]
 
@@ -141,11 +142,6 @@ class Candidate < ApplicationRecord
   def etyme_url
     Rails.env.development? ? "#{ENV['domain']}" : "#{ENV['domain']}"
   end
-
-  def photo
-    super.present? ? super : ActionController::Base.helpers.asset_path('avatars/m_sunny_big.png')
-  end
-
   def full_name
     self.first_name + " " + self.last_name
   end

@@ -329,7 +329,7 @@
       <div class="logged-user-w" style="padding-left: 0px; padding-right: 0px;">
         <div class="logged-user-i">
           <div class="avatar-w">
-            <%= image_tag "avatars/m_sunny_big.png" %>
+            <%= default_user_img(current_user.first_name,current_user.last_name)%>
           </div>
           <div class="os-dropdown">
             <div class="icon-w">

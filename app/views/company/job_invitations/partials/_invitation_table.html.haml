@@ -34,7 +34,10 @@
       - data.each_with_index  do |invitation,index|
         %tr.even{:role => "row"}
           %td
-            = image_tag(invitation.recipient.photo, class: 'data-table-image mr-1',title:"#{invitation.recipient.full_name}").html_safe if invitation.recipient.present?
+            -if invitation.recipient.try(:photo).nil?
+              =default_user_img(invitation.recipient.try(:first_name),invitation.recipient.try(:last_name))if invitation.recipient
+            -else
+              = image_tag(invitation.recipient.photo, class: 'data-table-image mr-1',title:"#{invitation.recipient.full_name}").html_safe if invitation.recipient.present?
             = link_to bind_initials(invitation.recipient.first_name,invitation.recipient.last_name), public_profile_static_candidates_path(invitation.recipient.id),class: 'data-table-font' if invitation.recipient.present?
           %td.no-wrap.pr-5
             = link_to image_tag(invitation.recipient.company.logo,class: 'data-table-image') , profile_company_path(invitation.recipient.company.id) if invitation.recipient.present? && invitation.recipient_type != "Candidate"
@@ -42,7 +45,10 @@
           %td= link_to do_ellipsis(invitation.job.title), job_path(invitation.job),class: 'data-table-font'
           %td= do_ellipsis(invitation.recipient.email,15) if invitation.recipient.present?
           %td
-            = image_tag(invitation.recipient.photo, class: 'data-table-image').html_safe if invitation.recipient.present?
+            -if invitation.created_by.try(:photo).nil?
+              =default_user_img(invitation.created_by.first_name,invitation.created_by.last_name) if invitation.created_by
+            -else
+              = image_tag(invitation.created_by.photo, class: 'data-table-image').html_safe if invitation.created_by.present?
             = link_to bind_initials(invitation.created_by.first_name,invitation.created_by.last_name),public_profile_static_candidates_path(invitation.created_by.id),class: 'data-table-font' if invitation.recipient.present?
           %td= invitation.recipient.phone if invitation.recipient.present?
           %td= colorfull_text(invitation.expiry.strftime("%d of %B, %Y"),'#1AAE9F') 

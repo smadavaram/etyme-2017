@@ -6,7 +6,10 @@
         %ul.list-inline.friends-list
           %li
             / = link_to (image_tag data.company.logo ,class:'',alt: "Logo" ,style: "width: 60px !important; height: 60px !important;") ,profile_company_path(data.company),title: "#{data.try(:company).try(:name) } Profile",'data-toggle'=>"tooltip" ,'data-placement'=>"top"
-      = image_tag data.photo,class:'',alt: "job",style:"width: 60px !important ; height: 60px !important; "
+      -if data.photo.nil?
+        default_user_img(data.first_name,data.last_name)
+      -else      
+        = image_tag data.photo,class:'',alt: "job",style:"width: 60px !important ; height: 60px !important; "
       %h6.text-muted #{data.full_name.humanize}
       %h6.text-muted #{data.company ? data.company.name.humanize : ''}
       %span.name.font-sm.text-muted.margin-top-10

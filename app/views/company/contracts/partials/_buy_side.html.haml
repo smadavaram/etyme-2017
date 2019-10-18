@@ -67,7 +67,8 @@
           - user = @contract.candidate
           .logged-user-w.no_border_bottom{style: "width: 120px;"}
             .avatar-w
-              %img{:alt => "", :src => user.photo}/
+              -if user.photo.nil?
+                =entity_image(user.first_name,user.last_name)
             .logged-user-name= do_ellipsis(user.full_name,12)
             .logged-user-role= contact_widget(user.email, user.phone,user,chat_link: chat_link(user),color: '#BFBFC7')
           - if @contract.buy_contract.company.present?
@@ -192,9 +193,18 @@
                                 %td= docusign.created_at.strftime("%Y-%m-%d")
                                 %td= docusign.is_sign_done ? colorfull_text("Signed",'orange') : colorfull_text("Pending",'red')
                                 %td.d-flex.no-wrap.pr-5
-                                  = image_tag(docusign&.signable&.photo, class: 'data-table-image mr-1')
-                                  - docusign.signers&.each do |signer|
+
+                                  -if docusign&.signable&.photo.nil?
+                                    =entity_image(docusign&.signable&.first_name,docusign&.signable&.last_name,'circle','circle_img')
+                                  -else
                                     =image_tag(signer.photo, class: 'data-table-image mr-1')
+
+                
+                                  - docusign.signers&.each do |signer|
+                                    -if signer.photo.nil?
+                                      =entity_image(signer.first_name,signer.last_name)
+                                    -else
+                                      =image_tag(signer.photo, class: 'data-table-image mr-1')
                                 %td.no-wrap
                                   = do_ellipsis(docusign.envelope_id.present? ? docusign.envelope_id : "Document Not Submitted",10)
                                 %td= link_to content_tag(:i,'',class:'fa fa-paperclip fa-lg').html_safe, docusign.signed_file if docusign.is_sign_done

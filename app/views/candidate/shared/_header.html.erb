@@ -94,7 +94,13 @@
         <div class="logged-user-i">
           <div class="avatar-w">
             <%= link_to my_profile_path do %>
-              <%= image_tag current_candidate.photo, alt: 'Profile Pic' %>
+              <%if current_candidate.photo.nil?%>
+               <%= entity_image(current_candidate.first_name,current_candidate.last_name)%>
+                
+              <%else%>
+               <%= image_tag current_candidate.photo, alt: 'Profile Pic' %>
+              <%end%>
+             
             <% end %>
           </div>
           <div class="os-dropdown">
