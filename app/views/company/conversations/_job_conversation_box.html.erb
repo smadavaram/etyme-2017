@@ -37,7 +37,7 @@
           <% if conversation.present? and conversation.JobApplication? %>
             <div>
               <% candidate = conversation.chatable&.groupables.find_by_groupable_type(:Candidate).groupable %>
-              <%= mini_chat_contact_widget('candidate.email@gmail.com', 'candidate.phone',1) %>
+              <%= mini_chat_contact_widget(candidate.email, candidate.phone,candidate.id) %>
             </div>
           <% end %>
 

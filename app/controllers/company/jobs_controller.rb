@@ -37,6 +37,7 @@ class Company::JobsController < Company::BaseController
   end
 
   def create
+    byebug
     @job = current_company.jobs.new(company_job_params.merge!(created_by_id: current_user.id))
     respond_to do |format|
       if @job.save

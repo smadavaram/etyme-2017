@@ -284,7 +284,7 @@
                     .user-avatar-w
                       .user-avatar
                         -if user.photo.nil?
-                          = default_user_img(current_user.first_name,current_user.last_name)
+                          =entity_image(current_user.first_name,current_user.last_name)
                         -else
                           = image_tag user.photo
                     .user-name
@@ -307,7 +307,7 @@
                       - cache candidate do
                         %li
                           -if candidate.photo.nil?
-                            = default_user_img(candidate.first_name,candidate.last_name)
+                            =entity_image(candidate.first_name,candidate.last_name)
                           -else
                             = link_to image_tag( candidate.try(:photo) ,class:"margin-bottom-5 margin-top-5",alt:image_path('avatars/m_sunny_big.png')) , static_candidate_resume_path(candidate),target: "_blank" , title: candidate.full_name,"data-content" => "Email : #{candidate.email}", "data-placement" => "top",:rel => "hover"
 
@@ -327,7 +327,7 @@
                       - cache contact do
                         %li
                           -if contact.photo.nil?
-                            = default_user_img(contact.first_name,contact.last_name)
+                            =entity_image(contact.first_name,contact.last_name)
                           -else
                             = link_to (image_tag contact.try(:photo) ,class:"margin-bottom-5 margin-top-5",alt: image_path('avatars/m_sunny_big.png') ), profile_company_path(contact) ,title: contact.full_name ,"data-content" => "Email : #{contact.email}", "data-placement" => "top",:rel => "hover"
               -else

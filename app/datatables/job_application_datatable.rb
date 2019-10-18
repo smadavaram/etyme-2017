@@ -34,8 +34,15 @@ class JobApplicationDatatable < ApplicationDatatable
   end
 
   def candidate_profile record
-    image_tag(record.applicationable.photo, class: 'data-table-image mr-1').html_safe +
-        link_to(do_ellipsis(record.applicationable.full_name), '#', class: 'data-table-font')
+    if user.photo.nil?
+      default_user_img(record.applicationable.first_name,record.applicationable.last_name)+
+      link_to(do_ellipsis(record.applicationable.full_name), '#', class: 'data-table-font')
+    else
+      image_tag(record.applicationable.photo, class: 'data-table-image mr-1').html_safe +
+      link_to(do_ellipsis(record.applicationable.full_name), '#', class: 'data-table-font')
+    end
+
+   
   end
 
   def get_raw_records

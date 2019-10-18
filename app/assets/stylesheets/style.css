@@ -1575,7 +1575,7 @@ input:checked + .slider1:before {
      font-size: .63rem;
  }
  .mini_chat_users .avatar{
-     margin-left: -10px;
+    margin-left: -10px;
     width: 35px;
     height: 35px;
     border-radius: 35px;
@@ -1683,13 +1683,18 @@ text-align: right;
     display: flex;
 }
 .circle{
-    width: 40px;
-    height: 40px;
+    width: 35px;
+    height: 35px;
     border-radius: 50%;
-    font-size: 20px;
+    font-size: 15px;
     color: #fff;
     padding: 5px;
     text-align: center;
-    background: #000;
+    background: gray;
     display: inline-block;
+}
+.circle_img{
+    border-radius: 50%;
+    width:40px;
+    height: auto;
 }

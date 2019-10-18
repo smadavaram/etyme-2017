@@ -47,8 +47,16 @@ class CompanyCandidateDatatable < ApplicationDatatable
   end
 
   def candidate_profile user
-    image_tag(user.photo, class: 'data-table-image mr-1',title: "#{user.full_name}").html_safe +
-        link_to(do_ellipsis(user.full_name), public_profile_static_candidates_path(user), class: 'data-table-font')
+     
+
+    if user.photo.nil?
+      (link_to  entity_image(user.first_name,user.last_name,'circle','circle_img'),public_profile_static_candidates_path(user) )+
+       link_to(do_ellipsis(user.first_name), public_profile_static_candidates_path(user), class: 'data-table-font pl-2')
+
+    else
+      image_tag(user.photo, class: 'data-table-image mr-1',title: "#{user.full_name}").html_safe+
+      link_to(do_ellipsis(user.first_name), public_profile_static_candidates_path(user), class: 'data-table-font')
+    end
   end
 
   def get_raw_records
