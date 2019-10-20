@@ -56,8 +56,11 @@
             - user = sell_business_detail.company_contact.user
             .logged-user-w.no_border_bottom{style: "width: 120px;"}
               .avatar-w
-                %img{:alt => "", :src => user.photo}/
-              .logged-user-name= do_ellipsis(user.full_name,12)
+                -if user.photo.nil?
+                  =entity_image(user.first_name,user.last_name)
+                -else
+                  %img{:alt => user.full_name, title: user.full_name, :src => user.photo, style: 'width:40px !important; height:40px !important;'}
+              .logged-user-name.no-wrap= do_ellipsis(user.full_name,12)
               .logged-user-role= user.roles.first.try(:name).try(:capitalize)
               .logged-user-role= contact_widget(user.email, user.phone,user,chat_link: chat_link(user),color: '#BFBFC7')
   %div

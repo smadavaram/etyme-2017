@@ -1585,12 +1585,29 @@ input:checked + .slider1:before {
     overflow: hidden;
     vertical-align: middle;
 }
+.table_avatar{
+     margin-left: -10px;
+    width: 29px;
+    height: 27px;
+    border-radius: 35px;
+    -webkit-box-shadow: 0px 0px 0px 5px #fff;
+    box-shadow: 0px 0px 0px 5px #fff;
+    display: inline-block;
+    overflow: hidden;
+    vertical-align: middle;
+}
 
 .mini_chat_users{
 -webkit-box-flex: 0;
 -ms-flex: 0 0 220px;
 flex: 0 0 220px;
 text-align: right;
+}
+.mini_chat_users_left{
+-webkit-box-flex: 0;
+-ms-flex: 0 0 220px;
+flex: 0 0 220px;
+text-align: left;
 }
 
 .has-error .contract-fild .contract-type-radio{
@@ -1693,8 +1710,19 @@ text-align: right;
     background: gray;
     display: inline-block;
 }
+.avatar_circle{
+    width: 35px;
+    height: 35px;
+    border-radius: 50%;
+    font-size: 10px;
+    color: #fff;
+    padding: 5px;
+    text-align: center;
+    background: gray;
+    display: inline-block;
+}
 .circle_img{
     border-radius: 50%;
-    width:40px;
-    height: auto;
+    width:40px !important;
+    height: 40px !important;
 }

@@ -19,10 +19,8 @@
                   %td= do_ellipsis(docusign.documentable.title.capitalize,15)
                   %td{style: "color: #1AAE9F"}= do_ellipsis(docusign.created_at.strftime("%B %e, %Y at %I:%M %p"),15)
                   %td{style: "color: #EFA544"}= docusign.is_sign_done ? "Completed" : "Pending"
-                  %td.d-flex
-                    = image_tag(docusign&.signable.photo, class: 'data-table-image mr-1')
-                    - docusign.signers&.each do |signer|
-                      =image_tag(signer.photo, class: 'data-table-image mr-1')
+                  %td.no-wrap
+                    =show_users(docusign)
                   %td=  docusign.documentable.is_require.capitalize
                   %td
                     - if docusign.documentable.is_require == "Website"

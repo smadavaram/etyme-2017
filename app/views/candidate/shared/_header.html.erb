@@ -98,7 +98,7 @@
                <%= entity_image(current_candidate.first_name,current_candidate.last_name)%>
                 
               <%else%>
-               <%= image_tag current_candidate.photo, alt: 'Profile Pic' %>
+               <%= image_tag current_candidate.photo, alt: 'Profile Pic',class: 'circle_img' %>
               <%end%>
              
             <% end %>

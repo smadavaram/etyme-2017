@@ -2,7 +2,6 @@
   %table#resultTable.table.table-striped.table-bordered.table-hover
     %thead
       %tr
-        %th{:style => "width:30px"} Pic
         %th Name
         %th Job
         %th Email / Username
@@ -11,14 +10,17 @@
     %tbody
       - data.each do |application|
         %tr{class: "#{set_background_status_color(application.status)}"}
-          %td= image_tag application.user.photo, alt: '', width: '20'
-          %td= link_to application.user.full_name , '#'
-          %td= link_to application.job.title , candidate_job_path(application.job)
+          %td
+            - if application.user.photo.nil?
+              =entity_image(application.user.first_name,application.user.last_name)
+            -else
+              = image_tag application.user.photo, alt: '', class: 'circle_img'
+            = link_to application.user.full_name , '#',title: application.user.full_name
+          %td= link_to do_ellipsis(application.job.title,10) , candidate_job_path(application.job),class: 'data-table-font'
           %td
             = application.user.email
             %a.pull-right{:href => "javascript:void(0);"}
-              %i.fa.fa-key
           %td
-            %span.label.label-success= application.status
+            %span.label.label-success= colorfull_text(application.status.capitalize,'orange')
           %td
             = link_to "View Detail",candidate_job_application_path(application), class: 'btn btn-xs btn-default'

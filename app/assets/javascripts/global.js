@@ -40,3 +40,22 @@ $(selector).on('click', function(){
             },1000);
         }
     }
+
+$(document).ready(function(){
+  $( window ).resize(function()
+   {
+        if ($(window).width() < 960) 
+        {
+          $('.os-icon-mail-07').hide();
+          $("#ChatBtn").html("<i class='os-icon os-icon-mail-07'></i>");   
+        }
+        else 
+        {
+            $('.os-icon-mail-07').show();
+          $("#ChatBtn").text("Conversation");    
+        }
+      // $('.os-icon-mail-07').show();
+      // $(".ChatBtn").text("Conversation");
+    });
+});
+

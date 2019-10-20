@@ -40,7 +40,7 @@
                 <% @company_jobs.each do |job| %>
                   <tr data-id="<%= job.id %>">
                     <td><%= check_box_tag "ids[]", job.id %></td>
-                    <td><%= link_to job.title, job_path(job),class: 'data-table-font' %></td>
+                    <td><%= link_to do_ellipsis(job.title,10), job_path(job),class: 'data-table-font' %></td>
                     <td><%= job.job_category %></td>
                     <td><%= colorfull_text(display_date_and_time(job.end_date || Time.now),'#1AAE9F') %></td>
                     <td><%= job.location %></td>
