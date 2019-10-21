@@ -2,7 +2,8 @@
   .mini_chat_users.text-left
     - approvals.sample(4).each do |approval|
       .avatar
-        %img{:alt => "", :src => "#{approval.user.photo}",title: approval.user.full_name}/
+        =entity_image(approval.user.first_name,approval.user.last_name)
+
     - if approvals.count > 4
       .more
         = "+ #{(approvals.count-4).abs} more"

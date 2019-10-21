@@ -1,32 +1,39 @@
-.form-group
-  %label.control-label
-    PayRate
-  .col-sm-12.pl-0
-    = f.number_field :rate,class: "form-control",placeholder: "i.e 2.5 or 3"
-.form-group
-  %label.control-label
-    Expected Hrs
-  .col-sm-12.pl-0
-    = f.number_field :working_hrs,class: "form-control",placeholder: "i.e 2.5 or 3"
-- if usics
-  .form-group
-    %label.control-label
-      UCSIS Rate
-    .col-sm-12.pl-0
-      = f.number_field :uscis,class: "form-control"
-.form-group
-  %label.control-label
-    Rate Type
-  .col-sm-12.pl-0
-    = f.select :rate_type, ["hourly", "daily", "weekly", "monthly"],{}, class: "form-control select_rate_type"
-.form-group
-  %label.control-label
-    From Date
-  .col-sm-12.pl-0
-    = f.text_field :from_date, class: "form-control date_1", placeholder: "Pick From Date"
-.form-group
-  %label.control-label
-    To Date
-  .col-sm-12.pl-0
-    = f.text_field :to_date, class: "form-control date_1", placeholder: "Pick To Date"
+.row
+  .col-md-2
+    .form-group
+      %label.control-label
+        PayRate
+      .col-sm-12.pl-0
+        = f.number_field :rate,class: "form-control",placeholder: "i.e 2.5 or 3"
+  .col-md-2
+    .form-group
+      %label.control-label
+        Expected Hrs
+      .col-sm-12.pl-0
+        = f.number_field :working_hrs,class: "form-control",placeholder: "i.e 2.5 or 3"
+    - if usics
+      .col-md-2
+        .form-group
+          %label.control-label
+            UCSIS Rate
+          .col-sm-12.pl-0
+            = f.number_field :uscis,class: "form-control"
+  .col-md-2
+    .form-group
+      %label.control-label
+        Rate Type
+      .col-sm-12.pl-0
+        = f.select :rate_type, ["hourly", "daily", "weekly", "monthly"],{}, class: "form-control select_rate_type"
+  .col-md-2
+    .form-group
+      %label.control-label
+        From Date
+      .col-sm-12.pl-0
+        = f.text_field :from_date, class: "form-control date_1", placeholder: "Pick From Date"
+  .col-md-2  
+    .form-group
+      %label.control-label
+        To Date
+      .col-sm-12.pl-0
+        = f.text_field :to_date, class: "form-control date_1", placeholder: "Pick To Date"
 

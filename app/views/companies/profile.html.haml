@@ -246,7 +246,10 @@
               .profile-tile
                 %a.profile-tile-box{:href => "users_profile_small.html"}
                   .pt-avatar-w
-                    = image_tag d.photo
+                    -if d.photo.nil?
+                      =entity_image(d.first_name,d.last_name)
+                    -else
+                      = image_tag d.photo
                   .pt-user-name
                     = d.full_name
                 .profile-tile-meta

@@ -282,11 +282,11 @@
                 - cache user do
                   .user-w.toggleable
                     .user-avatar-w
-                      .user-avatar
+                      .avatar-w
                         -if user.photo.nil?
                           =entity_image(current_user.first_name,current_user.last_name)
                         -else
-                          = image_tag user.photo
+                          = image_tag user.photo, class: 'circle_img'
                     .user-name
                       %h6.user-title
                         = do_ellipsis(user.full_name,17)

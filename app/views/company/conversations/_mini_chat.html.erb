@@ -7,8 +7,6 @@
           <div class="mini_chat_users">
             <% conversation.chatable.groupables.sample(4).each do |groupable| %>
               <div class="avatar">
-<!--                 <img alt="" src="<%#= groupable.groupable.photo %>">
- -->                
                 <%=entity_image(groupable.groupable.first_name,groupable.groupable.last_name)%>
               </div>
             <% end %>

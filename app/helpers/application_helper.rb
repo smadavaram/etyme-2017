@@ -68,7 +68,7 @@ module ApplicationHelper
   def do_ellipsis(value, length = 20)
     if value
       post_fix = value.length > length ? '...' : ''
-      content_tag(:span, "#{value[0..length].strip}#{post_fix}", class: 'ellipsis', title: value).html_safe
+      content_tag(:span, "#{value.capitalize[0..length].strip}#{post_fix}", class: 'ellipsis', title: value).html_safe
     end
   end
   
@@ -1288,11 +1288,11 @@ module ApplicationHelper
     end
 
     def get_initial(name_text)
-         name_text.first.capitalize
+      name_text.first.capitalize
     end
 
     def bind_initials(first_name,last_name)
-      content_tag(:span, get_initial(first_name)+"."+get_initial(last_name), title: first_name+" "+last_name).html_safe
+      content_tag(:span, get_initial(first_name)+"."+get_initial(last_name), title: first_name.capitalize+" "+last_name.capitalize).html_safe
     end
 
     def colorfull_text(value,color_code)
@@ -1310,5 +1310,36 @@ module ApplicationHelper
       end
       return default_img.html_safe
     end
+
+
+    def show_users(users,width=32,height=32)
+      user_photo=""
+      user_photo=user_photo+"<div class='mini_chat_users pl-1' style=''>"
+        user_photo=user_photo+"<div class='table_avatar'>"
+          if users&.signable&.photo.nil?
+            user_photo=user_photo+ entity_image(users.signable.first_name,users.signable.last_name,'avatar_circle')
+          else
+            user_photo=user_photo+ "<img  src='#{users.signable&.photo}' title='#{users.signable.full_name}' style='width:#{width}px; height:#{height}px;'>"
+          end
+        user_photo=user_photo + "</div>"
+
+        users.signers&.take(3).each do |signer|
+          user_photo=user_photo+"<div class='table_avatar'>"
+            if signer.photo.nil?
+              user_photo=user_photo+ entity_image(signer.first_name,signer.last_name)
+            else
+              user_photo=user_photo+ "<img  src='#{signer.photo}' title='#{signer.full_name}' style='width:#{width}px; height:#{height}px;'>"
+            end
+          user_photo=user_photo+"</div>"
+        end
+
+      if users.signers&.count > 3
+        user_photo=user_photo+"<div class='more'>#{(users.signers&.count-3).abs} More</div>"
+      end
+      user_photo = user_photo + "</div>" 
+      return user_photo.html_safe
+    end
+
+
 end
 
