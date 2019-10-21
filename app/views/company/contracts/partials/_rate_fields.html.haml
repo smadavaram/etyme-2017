@@ -11,13 +11,13 @@
         Expected Hrs
       .col-sm-12.pl-0
         = f.number_field :working_hrs,class: "form-control",placeholder: "i.e 2.5 or 3"
-    - if usics
-      .col-md-2
-        .form-group
-          %label.control-label
-            UCSIS Rate
-          .col-sm-12.pl-0
-            = f.number_field :uscis,class: "form-control"
+  - if usics
+    .col-md-2
+      .form-group
+        %label.control-label
+          UCSIS Rate
+        .col-sm-12.pl-0
+          = f.number_field :uscis,class: "form-control"
   .col-md-2
     .form-group
       %label.control-label

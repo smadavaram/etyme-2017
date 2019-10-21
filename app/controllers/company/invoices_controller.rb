@@ -18,6 +18,18 @@ class Company::InvoicesController < Company::BaseController
     @invoices = Invoice.cleared_invoices.joins(:contract).where(contracts: {company_id: current_company.id}).order("created_at DESC")
     render 'index'
   end
+  def custom_invoice
+    @tab = params[:invoice_category]
+    unless params[:invoice_category] == 'all'&&  params[:status] == 'paid'
+    
+      @receive_invoices = current_company.receive_invoices.where(status: [:submitted, :paid, :partially_paid, :cancelled]).joins(:contract).paginate(page: params[:page], per_page: 15)
+      @sent_invoices = current_company.sent_invoices.where(status: [:open, :submitted, :paid, :partially_paid, :cancelled]).joins(:contract).paginate(page: params[:page], per_page: 15)  
+    else
+      @receive_invoices = current_company.receive_invoices.where(status: [:paid]).joins(:contract).paginate(page: params[:page], per_page: 15)
+      @sent_invoices = current_company.sent_invoices.where(status: [:paid]).joins(:contract).paginate(page: params[:page], per_page: 15)
+      @paid_invoice = @receive_invoices.merge(@sent_invoices)
+    end
+  end
   
   def client_submit_invoice
     @timesheets = Timesheet.where(id: params[:ids])

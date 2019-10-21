@@ -1,5 +1,8 @@
 class Company::ExpensesController < Company::BaseController
 
+  def index
+    @expenses = Expense.all
+  end
   def new
     @expense = Expense.new
     @expense_type = ExpenseType.new

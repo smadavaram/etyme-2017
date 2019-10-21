@@ -1726,3 +1726,15 @@ text-align: left;
     width:40px !important;
     height: 40px !important;
 }
+.border_btn{
+    border:2px solid #EAE5E4;
+}
+.fa-chevron-circle-left{
+    font-size: 25px !important;
+}
+.fa-chevron-circle-right{
+    font-size: 25px !important;
+}
+.btn_style{
+    color:white !important;
+}

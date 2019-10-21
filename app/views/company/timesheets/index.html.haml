@@ -5,28 +5,32 @@
         .d-flex.pt-2
           %label.radio-container.m-1
             Weekly
-            %input{:name => "ts_type",:type => "radio", :value => 'weekly', checked: @cycle_type == 'weekly'}/
-            %span.radio-checkmark
+            %a{:name => "ts_type", :value => 'weekly', checked: @cycle_type == 'weekly'}/
+            / %span.radio-checkmark
           %label.radio-container.m-1
             Monthly
-            %input{:name => "ts_type",:type => "radio", :value => "monthly", checked: @cycle_type == 'monthly'}/
-            %span.radio-checkmark
+            %a{:name => "ts_type",:type => "", :value => "monthly", checked: @cycle_type == 'monthly'}/
+            / %span.radio-checkmark
         .form-group.w-50.d-flex
-          = f.text_field :start_date, class: 'p_date form-control m-1',placeholder: 'Select Start Data', value: @start_date
-          = f.text_field :end_date, class: 'p_date form-control m-1',placeholder: 'Select End Date', value: @end_date
+          %i.fa.fa-chevron-circle-left.mt-2
+          = f.text_field :start_date, class: 'p_date form-control m-1',placeholder: 'From Date', value: @start_date
+          
+          = f.text_field :end_date, class: 'p_date form-control m-1',placeholder: 'To Date', value: @end_date
+          %i.fa.fa-chevron-circle-right.mt-2
           = f.hidden_field :tab, id: 'ts_tag', value: "All"
+      .table_divider.mt-3
       .d-flex{style: "flex-wrap: wrap;justify-content: space-between;"}
         %ul.nav.nav-pills.smaller.mt-3{style: "border-bottom: none;"}
           %li.nav-item.ml-3
-            %a{class: "nav-link ts fd upcomming_timesheets #{ "active" if @tab.eql?("Upcomming") }", href:'#'} Upcomming
+            %a{class: "nav-link ts fd upcomming_timesheets border_btn #{ "active" if @tab.eql?("Upcomming") }", href:'#'} Upcomming
           %li.nav-item
-            %a{class: "nav-link ts fd submitted_timesheets #{ "active" if @tab.eql?("Submitted") }",href:'#'} Submitted
+            %a{class: "nav-link ts fd submitted_timesheets border_btn #{ "active" if @tab.eql?("Submitted") }",href:'#'} Submitted
           %li.nav-item
-            %a{class: "nav-link ts fd approved_timesheets #{ "active" if @tab.eql?("Approved") }", href:'#'} Approved
+            %a{class: "nav-link ts fd approved_timesheets border_btn #{ "active" if @tab.eql?("Approved") }", href:'#'} Approved
           %li.nav-item
-            %a{class: "nav-link ts fd rejected_timesheets #{ "active" if @tab.eql?("Rejected") }", href:'#'} Rejected
+            %a{class: "nav-link ts fd rejected_timesheets border_btn #{ "active" if @tab.eql?("Rejected") }", href:'#'} Rejected
           %li.nav-item
-            %a{class: "nav-link fd open_timesheets #{ "active" if @tab.nil? || @tab.eql?("All") }", href: timesheets_path} All
+            %a{class: "nav-link fd open_timesheets border_btn #{ "active" if @tab.nil? || @tab.eql?("All") }", href: timesheets_path} All
         .d-flex.pt-2
           %label.radio-container.m-1
             Candidate Timesheet(s)
@@ -36,7 +40,12 @@
             Company Timesheet(s)
             %input.ts_for{:name => "ts_for",:type => "radio", :value => "company", checked: @ts_for == 'company'}/
             %span.radio-checkmark
-    .table_divider.mt-3
+
+
+
+
+    %a.btn.btn-primary.btn_style.mt-3 new
+    %input.btn_style.mt-3{placeholder: 'Search',style: "float: right;"}
     .mt-3
       - unless @timesheets.present?
         .div.w-75.margin-auto
@@ -46,7 +55,7 @@
           = render 'company/timesheets/partials/upcomming_timeline'
         - else
           .table-responsive
-            %table.table.table-striped.table-bordered.table-v2.table-lg
+            %table.table.table-bordered.table-lg.table-v2.table-striped
               %thead
                 %tr
                   %th Ts ID

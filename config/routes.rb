@@ -445,10 +445,15 @@ Rails.application.routes.draw do
       member do
         get :client_expense_invoice
         post :update_expense_invoice
+
+        # get 'custom_invoice/:id/:user_id', to: 'photos#show'
+        # get :'custom_invoice/:status/:invoice_category'
       end
       collection do
         post :client_submit_invoice
         get :cleared_invoice
+        get 'custom_invoice/:status/:invoice_category', to: 'invoices#custom_invoice', as: :custom_invoice
+
       end
       resources :receive_payments
     end

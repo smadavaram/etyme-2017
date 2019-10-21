@@ -131,8 +131,77 @@
       </a>
 
       <div class="pl-4 w-100 text-justify nav-sidebar-collaps">
-        <a class="l2 side-bar_links nested_tab boarder_bottom" href="">Banking</a>
-        <a class="l2 side-bar_links nested_tab boarder_bottom" href="<%= invoices_path %>">Invoices</a>
+        <a class="sidebar_collapsible nested_tab">
+          <div class="icon-w">
+            <i class="ti-bar-chart"></i>
+          </div>
+          <span>Sales</span>
+        </a>
+        <div class="pl-4 w-100 l3 text-justify nav-sidebar-collaps">
+          <a href="<%= custom_invoice_invoices_path('all','sent_invoices') %>" class=" side-bar_links nested_tab boarder_bottom">Open Invoices</a>
+          <a href="<%= custom_invoice_invoices_path('paid','all') %>" class=" side-bar_links nested_tab boarder_bottom">Clear Invoices</a>
+          <!-- <a href="<%#= network_path %>" class=" side-bar_links nested_tab boarder_bottom">Payment</a> -->
+        </div>
+
+
+        <a class="sidebar_collapsible nested_tab">
+          <div class="icon-w">
+            <i class="ti-bar-chart"></i>
+          </div>
+          <span>Purchasing</span>
+        </a>
+        <div class="pl-4 w-100 l3 text-justify nav-sidebar-collaps">
+          <a href="<%= custom_invoice_invoices_path('all','received_invoices') %>" class=" side-bar_links nested_tab boarder_bottom">Open Bills</a>
+         
+        </div>
+
+
+        <a class="sidebar_collapsible nested_tab">
+          <div class="icon-w">
+            <i class="ti-bar-chart"></i>
+          </div>
+          <span>Salray</span>
+        </a>
+        <div class="pl-4 w-100 l3 text-justify nav-sidebar-collaps">
+          <a href="<%= companies_path(status: 'all') %>" class=" side-bar_links nested_tab boarder_bottom">Salary To Pay</a>
+          <a href="<%= prefer_vendors_path %>" class=" side-bar_links nested_tab boarder_bottom">Salary Advance</a>
+          <a href="<%= network_path %>" class=" side-bar_links nested_tab boarder_bottom">Salary Calculation</a>
+          <a href="<%= prefer_vendors_path %>" class=" side-bar_links nested_tab boarder_bottom">Salary Calculation(s)</a>
+          <a href="<%= prefer_vendors_path %>" class=" side-bar_links nested_tab boarder_bottom">Salary Payment(s)</a>
+
+        </div>
+
+
+
+        <a href="<%=expenses_path%>" class="l2 side-bar_links nested_tab boarder_bottom">Expense</a>
+       <!--  <div class="pl-4 w-100 l3 text-justify nav-sidebar-collaps">
+          <a href="<%= companies_path(status: 'all') %>" class=" side-bar_links nested_tab boarder_bottom">Open Bills</a>
+          <a href="<%= prefer_vendors_path %>" class=" side-bar_links nested_tab boarder_bottom">Bills Payment(s)</a>
+          <a href="<%= network_path %>" class=" side-bar_links nested_tab boarder_bottom">Expense Payment(s)</a>
+   
+       
+          
+
+        </div> -->
+
+
+
+
+
+         <a href="" class="l2 side-bar_links nested_tab boarder_bottom">Reporting</a>
+        <!-- <div class="pl-4 w-100 l3 text-justify nav-sidebar-collaps">
+          <a href="<%= companies_path(status: 'all') %>" class=" side-bar_links nested_tab boarder_bottom">Open Bills</a>
+          <a href="<%= prefer_vendors_path %>" class=" side-bar_links nested_tab boarder_bottom">Bills Payment(s)</a>
+          <a href="<%= network_path %>" class=" side-bar_links nested_tab boarder_bottom">Expense Payment(s)</a>
+   
+       
+          
+
+        </div> -->
+
+
+       <!--  <a class="l2 side-bar_links nested_tab boarder_bottom" href="">Banking</a>
+        <a class="l2 side-bar_links nested_tab boarder_bottom" href="<%= invoices_path %>">Invoices</a> -->
         
       
 <!-- 

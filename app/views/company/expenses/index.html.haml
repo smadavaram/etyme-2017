@@ -1,0 +1,154 @@
+%div
+  .ts_header.mt-2{style:'position:relative; left:750px;'}
+    .d-flex
+      .form-group.w-50.d-flex
+        %i.fa.fa-chevron-circle-left.mt-2
+        %input{:type=>"text", class: 'p_date form-control m-1',placeholder: 'From Date'}
+        
+        %input{:type=>"text", class: 'p_date form-control m-1',placeholder: 'To Date'}
+        %i.fa.fa-chevron-circle-right.mt-2
+  
+    
+      
+       
+        
+      
+  .table_divider.mt-3
+  .row
+    .col-md-6
+      .d-flex{style: ""}
+        %ul.nav.nav-pills.smaller.mt-3{style: "border-bottom: none;"}
+          %li.nav-item.ml-3
+            %a{class: "nav-link ts fd upcomming_timesheets border_btn #{ "active" if @tab.eql?("Upcomming") }", href:'#'} Upcomming
+          %li.nav-item
+            %a{class: "nav-link ts fd submitted_timesheets border_btn #{ "active"  }",href:'#'} Current
+          %li.nav-item
+            %a{class: "nav-link ts fd approved_timesheets border_btn #{ "active" if @tab.eql?("Approved") }", href:'#'} Close
+          
+          %li.nav-item
+            %a{class: "nav-link fd open_timesheets border_btn #{ "active" if @tab.nil? || @tab.eql?("All") }", href: timesheets_path} All
+      
+    .col-md-6
+
+      %ul.nav.nav-pills.smaller.mt-3{style: "border-bottom: none;float:right;margin-right:30px !important;"}
+        %li.nav-item.ml-3
+          %a{class: "nav-link ts fd upcomming_timesheets border_btn #{ "active" if @tab.eql?("Upcomming") }", href:'#'} Export
+        %li.nav-item.ml-3
+          %a{class: "nav-link ts fd submitted_timesheets border_btn #{ "active" if @tab.eql?("Submitted") }",href:'#'} Print
+        
+      
+
+
+
+
+ 
+
+
+  .col-md-12
+    .row.mr-1.ml-1.mt-2
+      .col-sm-6
+       
+        %a.btn.btn-primary.btn_style.mt-3 New Expense
+       
+      .col-sm-6  
+        .form-inline.justify-content-sm-end
+          %input.form-control.form-control-sm.rounded.bright{placeholder: "Search", type: "text", type: 'search', id: 'my_bench_datatable-search'}
+
+
+
+
+    .tab-content
+      #tab-r1.tab-pane.padding-top-15{ class: "#{'active in' if @tab == 'received_invoices'}"  }
+
+      .table-responsive.p-3
+        %table.table.table-bordered.table-lg.table-v2.table-striped
+          %thead
+            %tr{:role => "row"}
+              %th Bill id
+              %th Rec Bil
+              %th Contract ID & Title- Client/Candidate
+              %th Exp Type
+              %th Exp cate
+              %th From & To Date
+              %th File
+              %th $
+              %th Action
+          %tbody
+            %tr
+              %td= '1'
+              %td= 'ROR Jobs'
+              %td= 'cloudepa'
+              %td= 'billing'
+              %td= 'test category'
+              %td= '01/05/2018' + " - " + '01/05/2019'
+              %td= ''
+              %td= '500'
+              %td= 'in progress'
+            %tr
+              %td= '1'
+              %td= 'ROR Jobs'
+              %td= 'cloudepa'
+              %td= 'billing'
+              %td= 'test category'
+              %td= '01/05/2018' + " - " + '01/05/2019'
+              %td= ''
+              %td= '500'
+              %td= 'in progress'
+            %tr
+              %td= '1'
+              %td= 'ROR Jobs'
+              %td= 'cloudepa'
+              %td= 'billing'
+              %td= 'test category'
+              %td= '01/05/2018' + " - " + '01/05/2019'
+              %td= ''
+              %td= '500'
+              %td= 'in progress'
+            %tr
+              %td= '1'
+              %td= 'ROR Jobs'
+              %td= 'cloudepa'
+              %td= 'billing'
+              %td= 'test category'
+              %td= '01/05/2018' + " - " + '01/05/2019'
+              %td= ''
+              %td= '500'
+              %td= 'in progress'
+            %tr
+              %td= '1'
+              %td= 'ROR Jobs'
+              %td= 'cloudepa'
+              %td= 'billing'
+              %td= 'test category'
+              %td= '01/05/2018' + " - " + '01/05/2019'
+              %td= ''
+              %td= '500'
+              %td= 'in progress'
+            
+       
+          
+
+
+.modal{id: "invoice-confirmation-model"}
+  .modal-dialog.modal-lg
+    .modal-content
+      .modal-header
+        %h4.modal-title
+          %strong Invoice Details
+        %button.close{"aria-hidden" => "true", "data-dismiss" => "modal", :type => "button"}
+          ×
+      #invoice-confirmation-model-body.modal-body
+
+
+:css
+  .form-control
+  {
+    background-color: white !important;
+  }
+
+- content_for :scripts do
+  :javascript
+    $(document).ready(function() {
+      $(".best_in_place").best_in_place();
+      $(".best_in_place").bind("ajax:success", function(){ location.reload() });
+    });
