@@ -19,6 +19,7 @@ class Company::InvoicesController < Company::BaseController
     render 'index'
   end
   def custom_invoice
+
     @tab = params[:invoice_category]
     unless params[:invoice_category] == 'all'&&  params[:status] == 'paid'
       if @tab == 'received_invoices'
@@ -26,15 +27,18 @@ class Company::InvoicesController < Company::BaseController
       else
         add_breadcrumb "Sale Invoices", '#', options: {title: "INVOICES"}
       end
-
-      @receive_invoices = current_company.receive_invoices.where(status: [:submitted, :paid, :partially_paid, :cancelled]).joins(:contract).paginate(page: params[:page], per_page: 15)
-      @sent_invoices = current_company.sent_invoices.where(status: [:open, :submitted, :paid, :partially_paid, :cancelled]).joins(:contract).paginate(page: params[:page], per_page: 15)  
+        @sent_invoices= Invoice.take(10)
+        @sent_invoices= Invoice.take(10)
+      # @receive_invoices = current_company.receive_invoices.where(status: [:submitted, :paid, :partially_paid, :cancelled]).joins(:contract).paginate(page: params[:page], per_page: 15)
+      # @sent_invoices = current_company.sent_invoices.where(status: [:open, :submitted, :paid, :partially_paid, :cancelled]).joins(:contract).paginate(page: params[:page], per_page: 15)  
     else
       add_breadcrumb "Paid Invoices", '#', options: {title: "INVOICES"}
 
-      @receive_invoices = current_company.receive_invoices.where(status: [:paid]).joins(:contract).paginate(page: params[:page], per_page: 15)
-      @sent_invoices = current_company.sent_invoices.where(status: [:paid]).joins(:contract).paginate(page: params[:page], per_page: 15)
-      @paid_invoice = @receive_invoices.merge(@sent_invoices)
+      # @receive_invoices = current_company.receive_invoices.where(status: [:paid]).joins(:contract).paginate(page: params[:page], per_page: 15)
+      # @sent_invoices = current_company.sent_invoices.where(status: [:paid]).joins(:contract).paginate(page: params[:page], per_page: 15)
+      @paid_invoice =  Invoice.where(status:'paid')
+     
+      # @paid_invoice = @receive_invoices.merge(@sent_invoices)
     end
   end
   

@@ -76,62 +76,8 @@
                   %th Paid
                   %th Status
                   %th Actions
+                
               %tbody
-                %tr
-                  %td= '1'
-                  %td= 'ROR Jobs'
-                  %td= 'cloudepa'
-                  %td= '01/05/2018' + " - " + '01/05/2019'
-                  %td= '5hrs'
-                  %td= 'billing'
-                  %td= '500'
-                  %td= '300'
-                  %td= 'In Progress'
-                  %td
-                %tr
-                  %td= '1'
-                  %td= 'ROR Jobs'
-                  %td= 'cloudepa'
-                  %td= '01/05/2018' + " - " + '01/05/2019'
-                  %td= '5hrs'
-                  %td= 'billing'
-                  %td= '500'
-                  %td= '300'
-                  %td= 'In Progress'
-                  %td
-                %tr
-                  %td= '1'
-                  %td= 'ROR Jobs'
-                  %td= 'cloudepa'
-                  %td= '01/05/2018' + " - " + '01/05/2019'
-                  %td= '5hrs'
-                  %td= 'billing'
-                  %td= '500'
-                  %td= '300'
-                  %td= 'In Progress'
-                  %td
-                %tr
-                  %td= '1'
-                  %td= 'ROR Jobs'
-                  %td= 'cloudepa'
-                  %td= '01/05/2018' + " - " + '01/05/2019'
-                  %td= '5hrs'
-                  %td= 'billing'
-                  %td= '500'
-                  %td= '300'
-                  %td= 'In Progress'
-                  %td
-                %tr
-                  %td= '1'
-                  %td= 'ROR Jobs'
-                  %td= 'cloudepa'
-                  %td= '01/05/2018' + " - " + '01/05/2019'
-                  %td= '5hrs'
-                  %td= 'billing'
-                  %td= '500'
-                  %td= '300'
-                  %td= 'In Progress'
-                  %td
                 -  @receive_invoices.each_with_index do |invoice , index|
                   %tr
                     %td= invoice.id
@@ -170,60 +116,7 @@
                   %th Actions
               %tbody
                 %tr
-                  %td= '1'
-                  %td= 'ROR Jobs'
-                  %td= 'cloudepa'
-                  %td= '01/05/2018' + " - " + '01/05/2019'
-                  %td= '5hrs'
-                  %td= 'billing'
-                  %td= '500'
-                  %td= '500'
-                  %td= 'paid'
-                  %td
-                %tr
-                  %td= '1'
-                  %td= 'ROR Jobs'
-                  %td= 'cloudepa'
-                  %td= '01/05/2018' + " - " + '01/05/2019'
-                  %td= '5hrs'
-                  %td= 'billing'
-                  %td= '500'
-                  %td= '500'
-                  %td= 'paid'
-                  %td
-                %tr
-                  %td= '1'
-                  %td= 'ROR Jobs'
-                  %td= 'cloudepa'
-                  %td= '01/05/2018' + " - " + '01/05/2019'
-                  %td= '5hrs'
-                  %td= 'billing'
-                  %td= '500'
-                  %td= '500'
-                  %td= 'paid'
-                  %td
-                %tr
-                  %td= '1'
-                  %td= 'ROR Jobs'
-                  %td= 'cloudepa'
-                  %td= '01/05/2018' + " - " + '01/05/2019'
-                  %td= '5hrs'
-                  %td= 'billing'
-                  %td= '500'
-                  %td= '500'
-                  %td= 'paid'
-                  %td
-                %tr
-                  %td= '1'
-                  %td= 'ROR Jobs'
-                  %td= 'cloudepa'
-                  %td= '01/05/2018' + " - " + '01/05/2019'
-                  %td= '5hrs'
-                  %td= 'billing'
-                  %td= '500'
-                  %td= '500'
-                  %td= 'paid'
-                  %td
+                  
                 -  @sent_invoices.each_with_index do |invoice , index|
                   %tr
                     %td= invoice.id
@@ -243,8 +136,8 @@
                       = link_to raw("<i class='fa fa-edit'></i>"), invoice.timesheet_invoice? ? edit_invoice_path( invoice) : client_expense_invoice_invoice_path(invoice) , class: 'data-table-icons',title: "Add Timesheet(s)" if invoice.open?
             .timesheet_pagination_wrap
               .pagination_label
-                = page_entries_info @sent_invoices
-              = will_paginate(@sent_invoices, {params: {tab: 'sent_invoices'},previous_label: "Previous",next_label: "Next",inner_window: 2,class: 'invoices_pagination_links'})
+                /= page_entries_info @sent_invoices
+              /= will_paginate(@sent_invoices, {params: {tab: 'sent_invoices'},previous_label: "Previous",next_label: "Next",inner_window: 2,class: 'invoices_pagination_links'})
       - if @tab == 'all'          
         #tab-r2.tab-pane.padding-top-15{ class: "#{'active in' if @tab == 'all'}" }
           .table-responsive.p-3
@@ -262,61 +155,7 @@
                   %th Status
                   %th Actions
               %tbody
-                %tr
-                  %td= '1'
-                  %td= 'ROR Jobs'
-                  %td= 'cloudepa'
-                  %td= '01/05/2018' + " - " + '01/05/2019'
-                  %td= '5hrs'
-                  %td= 'billing'
-                  %td= '500'
-                  %td= '500'
-                  %td= 'paid'
-                  %td
-                %tr
-                  %td= '1'
-                  %td= 'ROR Jobs'
-                  %td= 'cloudepa'
-                  %td= '01/05/2018' + " - " + '01/05/2019'
-                  %td= '5hrs'
-                  %td= 'billing'
-                  %td= '500'
-                  %td= '500'
-                  %td= 'paid'
-                  %td
-                %tr
-                  %td= '1'
-                  %td= 'ROR Jobs'
-                  %td= 'cloudepa'
-                  %td= '01/05/2018' + " - " + '01/05/2019'
-                  %td= '5hrs'
-                  %td= 'billing'
-                  %td= '500'
-                  %td= '500'
-                  %td= 'paid'
-                  %td
-                %tr
-                  %td= '1'
-                  %td= 'ROR Jobs'
-                  %td= 'cloudepa'
-                  %td= '01/05/2018' + " - " + '01/05/2019'
-                  %td= '5hrs'
-                  %td= 'billing'
-                  %td= '500'
-                  %td= '500'
-                  %td= 'paid'
-                  %td
-                %tr
-                  %td= '1'
-                  %td= 'ROR Jobs'
-                  %td= 'cloudepa'
-                  %td= '01/05/2018' + " - " + '01/05/2019'
-                  %td= '5hrs'
-                  %td= 'billing'
-                  %td= '500'
-                  %td= '500'
-                  %td= 'paid'
-                  %td
+                
                 -  @paid_invoice.each_with_index do |invoice , index|
                   %tr
                     %td= invoice.id
@@ -336,8 +175,8 @@
                       = link_to raw("<i class='fa fa-edit'></i>"), invoice.timesheet_invoice? ? edit_invoice_path( invoice) : client_expense_invoice_invoice_path(invoice) , class: 'data-table-icons',title: "Add Timesheet(s)" if invoice.open?
             .timesheet_pagination_wrap
               .pagination_label
-                = page_entries_info @paid_invoice
-              = will_paginate(@paid_invoice, {params: {tab: 'sent_invoices'},previous_label: "Previous",next_label: "Next",inner_window: 2,class: 'invoices_pagination_links'})          
+                /= page_entries_info @paid_invoice
+              /= will_paginate(@paid_invoice, {params: {tab: 'sent_invoices'},previous_label: "Previous",next_label: "Next",inner_window: 2,class: 'invoices_pagination_links'})          
 
 
 .modal{id: "invoice-confirmation-model"}

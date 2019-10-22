@@ -131,29 +131,10 @@
       </a>
 
       <div class="pl-4 w-100 text-justify nav-sidebar-collaps">
-        <a class="sidebar_collapsible nested_tab">
-          <div class="icon-w">
-            <i class="ti-bar-chart"></i>
-          </div>
-          <span>Sales</span>
-        </a>
-        <div class="pl-4 w-100 l3 text-justify nav-sidebar-collaps">
-          <a href="<%= custom_invoice_invoices_path('all','sent_invoices') %>" class=" side-bar_links nested_tab boarder_bottom">Open Invoices</a>
-          <a href="<%= custom_invoice_invoices_path('paid','all') %>" class=" side-bar_links nested_tab boarder_bottom">Clear Invoices</a>
-          <!-- <a href="<%#= network_path %>" class=" side-bar_links nested_tab boarder_bottom">Payment</a> -->
-        </div>
+        
 
 
-        <a class="sidebar_collapsible nested_tab">
-          <div class="icon-w">
-            <i class="ti-bar-chart"></i>
-          </div>
-          <span>Purchasing</span>
-        </a>
-        <div class="pl-4 w-100 l3 text-justify nav-sidebar-collaps">
-          <a href="<%= custom_invoice_invoices_path('all','received_invoices') %>" class=" side-bar_links nested_tab boarder_bottom">Open Bills</a>
-         
-        </div>
+        
 
 
         <a class="sidebar_collapsible nested_tab">
@@ -171,7 +152,9 @@
 
         </div>
 
+        <a href="<%= custom_invoice_invoices_path('all','sent_invoices')%>" class="l2 side-bar_links nested_tab boarder_bottom">Sale</a>
 
+        <a href="<%= custom_invoice_invoices_path('all','received_invoices') %>" class="l2 side-bar_links nested_tab boarder_bottom">Purchase</a>
 
         <a href="<%=expenses_path%>" class="l2 side-bar_links nested_tab boarder_bottom">Expense</a>
        <!--  <div class="pl-4 w-100 l3 text-justify nav-sidebar-collaps">
