@@ -1,6 +1,7 @@
 class Company::SalariesController < Company::BaseController
   require 'sequence'
-  before_action :set_salary, :show
+  before_action :set_salary, only: [:show]
+  add_breadcrumb 'Home', '/bashboard'
   
   def salary_list
     filter_salary_cycles
@@ -21,10 +22,43 @@ class Company::SalariesController < Company::BaseController
     end
   end
   
+  def dates
+    @start_date.present? and @end_date.present?
+  end
+  
+  def index
+    add_breadcrumb 'Salaries', salaries_path
+    @tab = params[:tab].present? ? params[:tab] : "calculate"
+    @start_date = params[:start_date]
+    @end_date = params[:end_date]
+    @cycle_type = params[:ts_type]
+    if dates
+      start = Date.parse(@start_date)
+      end_date = Date.parse(@end_date)
+      @cycle = nil
+    else
+      @cycle = params[:cycle]
+      start = params[:cycle].present? ? Date.parse(params[:cycle]) : Date.today.beginning_of_month
+      end_date = params[:cycle].present? ? Date.parse(params[:cycle]).end_of_month : Date.today.end_of_month
+    end
+    @contract_cycles = ContractCycle.where(cycle_type: "SalaryCalculation")
+                           .joins(contract: [:buy_contract])
+                           .where("contracts.id": current_company.contracts.select(:id))
+                           .where("contract_cycles.start_date between ? and ? and contract_cycles.end_date between ? and ?", start, end_date, start, end_date)
+    @contract_cycles.each do |cc|
+      timesheets = Timesheet.approved.joins(:contract_cycle)
+                       .where("contract_cycles.contract_id": cc.contract_id, "contract_cycles.cycle_of_type": "BuyContract", candidate: cc.contract.candidate)
+                       .where("timesheets.end_date <= ? ", cc.end_date.to_date)
+      timesheets.each do |ts|
+        cc.cyclable.salary_items.build(salaryable: ts).save
+      end
+    end
+  end
+  
   def show
     cycle_type = @salary.contract_cycle.cycle_frequency
     @buy_contract = @salary.contract_cycle.cycle_of
-    @contract_cycles = ContractCycle.where(cycle_type: "SalaryCalculation").joins(contract: [:buy_contract]).where("contracts.id": current_company.contracts.select(:id)).where(salary_cycle_filter(cycle_type)).where("? between contract_cycles.start_date and contract_cycles.end_date",DateTime.now).where.not("contract_cycles.id": @salary.contract_cycle.id)
+    @contract_cycles = ContractCycle.where(cycle_type: "SalaryCalculation").joins(contract: [:buy_contract]).where("contracts.id": current_company.contracts.select(:id)).where(salary_cycle_filter(cycle_type)).where("? between contract_cycles.start_date and contract_cycles.end_date", DateTime.now).where.not("contract_cycles.id": @salary.contract_cycle.id)
   end
   
   def filter_salary_cycles

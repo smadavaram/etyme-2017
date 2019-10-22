@@ -1,0 +1,19 @@
+.cmc{
+    border: 1px solid blue;
+    margin-bottom: 10px;
+    border-radius: unset !important;
+    padding: 10px;
+    /*padding-top:5px;*/
+    /*padding-bottom:5px;*/
+}
+
+.divider_salaries{
+    margin-top: 10px;
+    border: 1px solid #dde2ec;
+}
+
+.salary-button_holder{
+    margin-bottom: 20px !important;
+    display: flex;
+    justify-content: space-between;
+}

@@ -3,7 +3,7 @@ class Timesheet < ApplicationRecord
   include Rails.application.routes.url_helpers
   
   # enum status: [:open,:pending_review, :approved , :partially_approved , :rejected , :submitted , :invoiced]
-  enum status: [:open, :submitted, :approved, :partially_approved, :rejected, :invoiced]
+  enum status: [:open, :submitted, :approved, :partially_approved, :rejected, :invoiced,:salaried]
   
   belongs_to :company, optional: true
   belongs_to :contract, optional: true
