@@ -1,0 +1,30 @@
+ <!-- Modal -->
+  <div class="modal fade" id="myModal" role="dialog">
+    <div class="modal-dialog">
+    
+      <!-- Modal content-->
+      <div class="modal-content">
+        <div class="modal-header">
+          <button type="button" class="close" data-dismiss="modal">&times;</button>
+          <h4 class="modal-title">Modal Header</h4>
+        </div>
+        <div class="modal-body">
+
+          <%= simple_form_for BankDetail.new do |f| %>
+          <%=f.label :bank_name%>
+            <%= f.input_field :bank_name, collection: BankDetail.bank_names,class: 'form-control'%>
+            <%=f.label :balance%>
+            <%= f.number_field :balance,class: 'form-control'%>
+            <%= f.input :company_id, :as => :hidden, :input_html => { :value => params[:company_id]} %>
+            <%= f.submit 'Save' ,class: 'btn btn-primary mt-2'%>
+          <% end %>
+
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
+        </div>
+      </div>
+      
+    </div>
+  </div>
+  

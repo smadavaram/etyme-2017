@@ -4,6 +4,23 @@ class Company::BankDetailsController < Company::BaseController
     @bank_detail = current_company.bank_details.new
   end
 
+  def index
+    @bank_detail = BankDetail.all
+  end
+  def new
+    @bank_details = BankDetail.new
+  end
+  def create
+    @bank_detail = BankDetail.new(company_id: params[:bank_detail][:company_id].to_i , bank_name: params[:bank_detail][:bank_name].to_i, balance: params[:bank_detail][:balance].to_i)
+    if @bank_detail.save
+      flash[:success] = "Bank Detail has been Added successfully"
+      redirect_to(bank_details_bank_details_path(params[:bank_detail][:company_id].to_i))
+    else
+      flash[:errors] = @bank_detail.errors.full_messages
+      redirect_to(bank_details_bank_details_path(params[:bank_detail][:company_id].to_i))
+    end
+  end
+
   def update_acc_info
     @bank_detail = BankDetail.find_by(bank_name: params[:bank_detail][:bank_name], company_id: current_company.id)
     params[:bank_detail][:balance] = params[:bank_detail][:new_balance] if  params[:bank_detail][:new_balance].to_i > params[:bank_detail][:balance].to_i 
