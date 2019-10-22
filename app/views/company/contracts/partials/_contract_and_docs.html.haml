@@ -418,7 +418,7 @@
                       .col-md-6
                         %label.control-label.w-100
                           Payment Terms
-                        = number_field_tag :payment_terms, class: 'form-control'
+                        = number_field_tag :payment_terms,nil, class: 'form-control',min: 0, max: 365
                       .col-md-6
                         %label.control-label.w-100
                           Collaborators
