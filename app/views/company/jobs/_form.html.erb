@@ -43,7 +43,7 @@
         <%= render 'company/jobs/partials/forms/field', form: form, attribute: :location, field_type: :text_field, field_attributes: {} %>
       </div>
       <div class="col-lg-6">
-        <%= render 'company/jobs/partials/forms/select', form: form, attribute: :job_category, options: {:""=>""}.merge(WORK_CATEGORIES), field_attributes: {} %>
+        <%= render 'company/jobs/partials/forms/select', form: form, attribute: :job_category, options: {:""=>""}.merge(WORK_CATEGORIES), field_attributes: {label:'Category'} %>
 
       </div>
     </div>
