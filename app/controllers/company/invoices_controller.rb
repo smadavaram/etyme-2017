@@ -21,10 +21,17 @@ class Company::InvoicesController < Company::BaseController
   def custom_invoice
     @tab = params[:invoice_category]
     unless params[:invoice_category] == 'all'&&  params[:status] == 'paid'
-    
+      if @tab == 'received_invoices'
+       add_breadcrumb "Purchase Invoices", '#', options: {title: "INVOICES"}
+      else
+        add_breadcrumb "Sale Invoices", '#', options: {title: "INVOICES"}
+      end
+
       @receive_invoices = current_company.receive_invoices.where(status: [:submitted, :paid, :partially_paid, :cancelled]).joins(:contract).paginate(page: params[:page], per_page: 15)
       @sent_invoices = current_company.sent_invoices.where(status: [:open, :submitted, :paid, :partially_paid, :cancelled]).joins(:contract).paginate(page: params[:page], per_page: 15)  
     else
+      add_breadcrumb "Paid Invoices", '#', options: {title: "INVOICES"}
+
       @receive_invoices = current_company.receive_invoices.where(status: [:paid]).joins(:contract).paginate(page: params[:page], per_page: 15)
       @sent_invoices = current_company.sent_invoices.where(status: [:paid]).joins(:contract).paginate(page: params[:page], per_page: 15)
       @paid_invoice = @receive_invoices.merge(@sent_invoices)

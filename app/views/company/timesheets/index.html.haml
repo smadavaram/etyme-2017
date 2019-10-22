@@ -1,50 +1,49 @@
 .element-wrapper.m-2
-  .element-box
-    = form_with(url: timesheets_path, method: :get, id: 'timesheets') do |f|
-      .ts_header.mt-2
-        .d-flex.pt-2
-          %label.radio-container.m-1
-            Weekly
-            %a{:name => "ts_type", :value => 'weekly', checked: @cycle_type == 'weekly'}/
-            / %span.radio-checkmark
-          %label.radio-container.m-1
-            Monthly
-            %a{:name => "ts_type",:type => "", :value => "monthly", checked: @cycle_type == 'monthly'}/
-            / %span.radio-checkmark
-        .form-group.w-50.d-flex
-          %i.fa.fa-chevron-circle-left.mt-2
-          = f.text_field :start_date, class: 'p_date form-control m-1',placeholder: 'From Date', value: @start_date
-          
-          = f.text_field :end_date, class: 'p_date form-control m-1',placeholder: 'To Date', value: @end_date
-          %i.fa.fa-chevron-circle-right.mt-2
-          = f.hidden_field :tab, id: 'ts_tag', value: "All"
-      .table_divider.mt-3
-      .d-flex{style: "flex-wrap: wrap;justify-content: space-between;"}
-        %ul.nav.nav-pills.smaller.mt-3{style: "border-bottom: none;"}
-          %li.nav-item.ml-3
-            %a{class: "nav-link ts fd upcomming_timesheets border_btn #{ "active" if @tab.eql?("Upcomming") }", href:'#'} Upcomming
-          %li.nav-item
-            %a{class: "nav-link ts fd submitted_timesheets border_btn #{ "active" if @tab.eql?("Submitted") }",href:'#'} Submitted
-          %li.nav-item
-            %a{class: "nav-link ts fd approved_timesheets border_btn #{ "active" if @tab.eql?("Approved") }", href:'#'} Approved
-          %li.nav-item
-            %a{class: "nav-link ts fd rejected_timesheets border_btn #{ "active" if @tab.eql?("Rejected") }", href:'#'} Rejected
-          %li.nav-item
-            %a{class: "nav-link fd open_timesheets border_btn #{ "active" if @tab.nil? || @tab.eql?("All") }", href: timesheets_path} All
-        .d-flex.pt-2
-          %label.radio-container.m-1
-            Candidate Timesheet(s)
-            %input.ts_for{:name => "ts_for",:type => "radio", :value => 'candidate', checked: @ts_for == 'candidate'}/
-            %span.radio-checkmark
-          %label.radio-container.m-1
-            Company Timesheet(s)
-            %input.ts_for{:name => "ts_for",:type => "radio", :value => "company", checked: @ts_for == 'company'}/
-            %span.radio-checkmark
+  = form_with(url: timesheets_path, method: :get, id: 'timesheets') do |f|
+    .ts_header.mt-2
+      .d-flex.pt-2
+        %label.radio-container.m-1
+          Weekly
+          %a{:name => "ts_type", :value => 'weekly', checked: @cycle_type == 'weekly'}/
+          / %span.radio-checkmark
+        %label.radio-container.m-1
+          Monthly
+          %a{:name => "ts_type",:type => "", :value => "monthly", checked: @cycle_type == 'monthly'}/
+          / %span.radio-checkmark
+      .form-group.w-50.d-flex{style:'float:right;'}
+        %i.fa.fa-chevron-circle-left.mt-2
+        = f.text_field :start_date, class: 'p_date form-control m-1',placeholder: 'From Date', value: @start_date
+        
+        = f.text_field :end_date, class: 'p_date form-control m-1',placeholder: 'To Date', value: @end_date
+        %i.fa.fa-chevron-circle-right.mt-2
+        = f.hidden_field :tab, id: 'ts_tag', value: "All"
+    .table_divider.mt-3
+    .d-flex{style: "flex-wrap: wrap;justify-content: space-between;position: relative;right: 105px;"}
+      %ul.nav.nav-pills.smaller.mt-3{style: "border-bottom: none;"}
+        %li.nav-item.ml-3
+          %a{class: "nav-link ts fd upcomming_timesheets border_btn #{ "active" if @tab.eql?("Upcomming") }", href:'#'} Upcomming
+        %li.nav-item
+          %a{class: "nav-link ts fd submitted_timesheets border_btn #{ "active" if @tab.eql?("Submitted") }",href:'#'} Submitted
+        %li.nav-item
+          %a{class: "nav-link ts fd approved_timesheets border_btn #{ "active" if @tab.eql?("Approved") }", href:'#'} Approved
+        %li.nav-item
+          %a{class: "nav-link ts fd rejected_timesheets border_btn #{ "active" if @tab.eql?("Rejected") }", href:'#'} Rejected
+        %li.nav-item
+          %a{class: "nav-link fd open_timesheets border_btn #{ "active" if @tab.nil? || @tab.eql?("All") }", href: timesheets_path} All
+      .d-flex.pt-2
+        %label.radio-container.m-1
+          Candidate Timesheet(s)
+          %input.ts_for{:name => "ts_for",:type => "radio", :value => 'candidate', checked: @ts_for == 'candidate'}/
+          %span.radio-checkmark
+        %label.radio-container.m-1
+          Company Timesheet(s)
+          %input.ts_for{:name => "ts_for",:type => "radio", :value => "company", checked: @ts_for == 'company'}/
+          %span.radio-checkmark
 
 
 
 
-    %a.btn.btn-primary.btn_style.mt-3 new
+    %a.btn.btn-primary.btn_style.mt-3 new TimeSheet
     %input.btn_style.mt-3{placeholder: 'Search',style: "float: right;"}
     .mt-3
       - unless @timesheets.present?
