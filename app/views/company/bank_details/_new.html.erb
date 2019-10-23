@@ -1,5 +1,5 @@
  <!-- Modal -->
-  <div class="modal" id="myModal" role="dialog">
+  <div class="modal" id="bank_detail_model" role="dialog">
     <div class="modal-dialog">
     
       <!-- Modal content-->
@@ -16,28 +16,14 @@
             <%=f.label :balance%>
             <%= f.number_field :balance,class: 'form-control'%>
             <%= hidden_field_tag 'company_id', params[:company_id]  %>
-          <div class="modal-footer">
-            <button name="button" type="submit" class="btn btn-primary btn-sm" data-disable-with="Submitting..." id="form_id">submit</button>
-            <button class="btn btn-default" data-dismiss="modal" type="button">
-            Cancel
-            </button>
-          </div>
+            <div class="modal-footer">
+              <button name="button" type="submit" class="btn btn-primary btn-sm" data-disable-with="Submitting..." id="form_id">submit</button>
+              <button class="btn btn-default" data-dismiss="modal" type="button">
+              Cancel
+              </button>
+            </div>
 
           <%end%>
-
-
-
-
-                <%#= simple_form_for BankDetail.new ,remote: true, :html => {:novalidate => false} do |f| %>
-          <%#=f.label :bank_name%>
-            <%#= f.input_field :bank_name, collection: BankDetail.bank_names,class: 'form-control'%>
-            <%#=f.label :balance%>
-            <%#= f.number_field :balance,class: 'form-control'%>
-            <%#= f.input :company_id, :as => :hidden, :input_html => { :value => params[:company_id]} %>
-            <%#= f.submit 'Save' ,class: 'btn btn-primary mt-2'%>
-
-          <%# end %>
-
         </div>
         
       </div>

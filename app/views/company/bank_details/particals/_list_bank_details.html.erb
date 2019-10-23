@@ -1,4 +1,4 @@
-
+<div id="bank_detail_form">
 <div class="content-i">
   <div class="content-box">
     <div class="row">
@@ -8,9 +8,7 @@
             <div class="controls-above-table">
               <div class="row mr-1 ml-1">
                 <div class="col-sm-6">
-                  <%unless bank_details.select('bank_name').uniq==BankDetail.bank_names.keys%>
-                    <%= link_to "Add Bank Detail",'', class: 'btn btn-sm btn-secondary ml-2', 'data-toggle':"modal", 'data-target':"#myModal"%>
-                  <%end%>
+                  <%= link_to "Add Bank Detail",'', class: 'btn btn-sm btn-secondary ml-2', 'data-toggle':"modal", 'data-target':"#bank_detail_model"%>
                 </div>
                 <div class="col-sm-6">
                   <div class="form-inline justify-content-sm-end">
@@ -66,6 +64,7 @@
       </div>
     </div>
   </div>
+</div>
 </div>
 <%= render 'company/bank_details/new.html.erb'%>                       
                     

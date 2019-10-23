@@ -80,11 +80,7 @@ $(document).ready(function () {
         placeholder: $('#' + $('.multi-select2').attr('id')).attr('placeholder'),
         tokenSeparators: [',', ' ']
     })
-     $("#bank_detail_company_id").select2({
-       
-    })
-
-
+    
     $("#comment_body").keypress(function (event) {
         if (event.which == 13) {
             event.preventDefault();

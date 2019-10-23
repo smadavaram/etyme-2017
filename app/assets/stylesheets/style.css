@@ -1,9 +1,6 @@
 .pac-container {
     z-index: 1051;
 }
-abbr[title="required"] {
-  display: none;
-}
 .floated-chat-w{
     z-index: 800 !important;
 }
