@@ -1,33 +1,33 @@
 .os-tabs-w.mx-4
   .os-tabs-controls
     %ul.nav.nav-tabs.upper
-      %li.nav-item
+      %li.nav-item{:class => ("active" if params[:controller]=="company/companies")}
         = link_to company_path(current_company), class:"nav-link" do
           Company Info
-      %li.nav-item
+      %li.nav-item{:class => ("active" if params[:controller]=="company/departments")}
         = link_to departments_path, class:"nav-link" do
           Department
-      %li.nav-item
+      %li.nav-item{:class => ("active" if params[:controller]=="company/roles")}
         = link_to roles_path, class:"nav-link" do
           Roles
-      %li.nav-item
+      %li.nav-item{:class => ("active" if params[:controller]=="company/admins")}
         = link_to admins_path, class:"nav-link" do
           Users
-      %li.nav-item
+      %li.nav-item{:class => ("active" if params[:controller]=="company/departments")}
         = link_to nil, class:"nav-link" do
           Social
-      %li.nav-item
+      %li.nav-item{:class => ("active" if params[:controller]=="company/attachments")}
         = link_to attachments_path, class:"nav-link" do
           Template
-      %li.nav-item
+      %li.nav-item{:class => ("active" if params[:controller]=="company/company_legal_docs")}
         = link_to company_legal_docs_path, class:"nav-link" do
           Legal Doc
-      %li.nav-item
+      %li.nav-item{:class => ("active" if params[:controller]=="company/payroll_term_infos")}
         = link_to payroll_term_infos_path, class:"nav-link" do
           Payroll
-      %li.nav-item
+      %li.nav-item{:class => ("active" if params[:controller]=="company/invoice_term_infos")}
         = link_to invoice_term_infos_path, class:"nav-link" do
           Billing
-      %li.nav-item
+      %li.nav-item{:class => ("active" if params[:controller]=="company/departments")}
         = link_to bank_details_bank_details_path(current_company), class:"nav-link" do
-          Banks   
+          Banks

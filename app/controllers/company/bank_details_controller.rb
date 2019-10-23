@@ -1,24 +1,29 @@
 class Company::BankDetailsController < Company::BaseController
+  before_action :index, only: [:create]
 
   def bank_reconciliation
     @bank_detail = current_company.bank_details.new
   end
 
   def index
-    @bank_detail = BankDetail.all
+    @bank_details = BankDetail.all
   end
   def new
     @bank_details = BankDetail.new
   end
   def create
-    @bank_detail = BankDetail.new(company_id: params[:bank_detail][:company_id].to_i , bank_name: params[:bank_detail][:bank_name].to_i, balance: params[:bank_detail][:balance].to_i)
-    if @bank_detail.save
+    @bank_detail = BankDetail.new(company_id: params[:company_id].to_i , bank_name: params[:bank_detail][:bank_name].to_i, balance: params[:bank_detail][:balance].to_i)
+     if @bank_detail.save
       flash[:success] = "Bank Detail has been Added successfully"
-      redirect_to(bank_details_bank_details_path(params[:bank_detail][:company_id].to_i))
-    else
+      respond_to do |format|
+        format.js{}
+      end 
+     else
       flash[:errors] = @bank_detail.errors.full_messages
-      redirect_to(bank_details_bank_details_path(params[:bank_detail][:company_id].to_i))
-    end
+      respond_to do |format|
+        format.js{}
+      end 
+     end
   end
 
   def update_acc_info
