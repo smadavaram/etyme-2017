@@ -25,8 +25,12 @@
           %td= link_to contract.created_by.full_name , company_user_profile_path(contract.created_by.id),class: 'data-table-font'
           %td= (contract.start_date)
           %td= contract.try(:number)
-          %td= colorfull_text(contract.status,contract.status=="draft" ? 'green' : 'orange')
-          %td
+          %td.no-wrap
+            = colorfull_text(snake_to_words(contract.status), contract.status=="pending" ? 'orange' : 'green')
+          %td.no-wrap 
+            - if ['pending','draft'].include?(contract.status)
+              = link_to(content_tag(:i, nil, class: 'fa fa-edit').html_safe, new_contract_path(contract_id: contract.id), title: "Edit #{contract.title}", class: 'data-table-icons')
+            = link_to(content_tag(:i, nil, class: 'fa fa-eye').html_safe, contract_path(contract), title: "Edit #{contract.title}", class: 'data-table-icons')
 .timesheet_pagination_wrap.pt-3
   .pagination_label
     = page_entries_info data

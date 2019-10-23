@@ -65,16 +65,16 @@
             .row
               .col-sm-4.col-md-4.col-lg-4.p-1
                 .rate_info.text-center
-                  %small
-                    Submit Timesheet
+                  %small Submit Timesheet
+                  %br
                   %small.lead
                     =@contract.buy_contract&.time_sheet&.capitalize
                   %p
                     =buy_contract_time_sheet('time_sheet', @contract.buy_contract&.time_sheet)
               .col-sm-4.col-md-4.col-lg-4.p-1
                 .rate_info.text-center
-                  %small
-                    Approve Timesheet
+                  %small Approve Timesheet
+                  %br
                   %small.lead
                     =@contract.buy_contract&.ts_approve&.capitalize
                   %p
@@ -83,6 +83,7 @@
                 .rate_info.text-center
                   %small
                     =@contract&.buy_contract&.contract_type == 'C2C' ? 'Vendor Bill' : 'Salary Calculation'
+                  %br
                   %small.lead
                     =@contract.buy_contract&.salary_calculation&.capitalize
                   %p
@@ -169,10 +170,11 @@
                                       %td= docusign.documentable.title
                                       %td= docusign.created_at.strftime("%Y-%m-%d")
                                       %td= docusign.is_sign_done ? "Signed" : "Pending"
-                                      %td.d-flex
-                                        = image_tag(docusign&.signable&.photo, class: 'data-table-image mr-1')
-                                        - docusign.signers&.each do |signer|
-                                          =image_tag(signer.photo, class: 'data-table-image mr-1')
+                                      %td
+                                        =show_users(docusign)
+                                        / = image_tag(docusign&.signable&.photo, class: 'data-table-image mr-1')
+                                        / - docusign.signers&.each do |signer|
+                                        /   =image_tag(signer.photo, class: 'data-table-image mr-1')
                                       %td= docusign.envelope_id.present? ? docusign.envelope_id : "Document Not Submitted"
                                       %td
                                         =link_to content_tag(:i,'',class:'fa fa-paperclip fa-lg').html_safe, '#', onclick: "init_request_document_upload(#{docusign.id})", title: "Upload Document" unless docusign.signed_file.present?

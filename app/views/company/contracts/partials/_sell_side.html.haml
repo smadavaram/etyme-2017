@@ -42,12 +42,13 @@
               %th To
           %tbody
             - @contract.sell_contract.change_rates.each do |change_rate|
-              %tr
-                %td= change_rate.rate
-                %td= change_rate.working_hrs
-                %td= colorfull_text(change_rate.rate_type.upcase,'#1AAE9F')
-                %td= colorfull_text(change_rate.from_date,'orange')
-                %td= colorfull_text(change_rate.to_date,'red')
+              - if change_rate.persisted?
+                %tr
+                  %td= change_rate.rate
+                  %td= change_rate.working_hrs
+                  %td= colorfull_text(change_rate.rate_type.upcase,'#1AAE9F')
+                  %td= colorfull_text(change_rate.from_date,'orange')
+                  %td= colorfull_text(change_rate.to_date,'red')
       %div
         .w-100
           %strong.pull-left Business Contacts

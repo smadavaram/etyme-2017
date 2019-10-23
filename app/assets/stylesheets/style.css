@@ -1595,6 +1595,7 @@ input:checked + .slider1:before {
     display: inline-block;
     overflow: hidden;
     vertical-align: middle;
+    float:left;
 }
 
 .mini_chat_users{

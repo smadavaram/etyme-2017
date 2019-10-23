@@ -41,9 +41,14 @@
               =contract.buy_contract.try(:payrate)
               =contract.buy_contract.try(:time_sheet)
               =contract.buy_contract.try(:payment_term)
-            %td
-              = colorfull_text(contract.status, contract.status=="pending" ? 'orange' : 'green')
-            %td not know
+            %td.no-wrap
+              = colorfull_text(snake_to_words(contract.status), contract.status=="pending" ? 'orange' : 'green')
+            %td.no-wrap 
+              - if ['pending','draft'].include?(contract.status)
+                = link_to(content_tag(:i, nil, class: 'fa fa-edit').html_safe, new_contract_path(contract_id: contract.id), title: "Edit #{contract.title}", class: 'data-table-icons')
+              = link_to(content_tag(:i, nil, class: 'fa fa-eye').html_safe, contract_path(contract), title: "Edit #{contract.title}", class: 'data-table-icons')
+
+
 .timesheet_pagination_wrap.pt-3
   .pagination_label
     = page_entries_info data
