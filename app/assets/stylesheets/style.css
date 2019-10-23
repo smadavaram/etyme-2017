@@ -1726,3 +1726,13 @@ text-align: left;
     width:40px !important;
     height: 40px !important;
 }
+.trix-button-row { 
+   display: flex !important; 
+   flex-wrap: nowrap !important; 
+   justify-content: space-between !important; 
+ } 
+ .trix-button-group{
+   display: flex !important; 
+   flex-wrap: nowrap !important; 
+   justify-content: space-between !important; 
+ }
