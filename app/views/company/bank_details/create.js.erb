@@ -1,14 +1,15 @@
 $('#bank_detail_form').html("<%= j(render 'company/bank_details/particals/list_bank_details',bank_details: @bank_details)%>");
 
 <% if flash[:errors].present? %>
-  <% flash[:errors].each do |e| %>
+	<% flash[:errors].each do |e| %>
      flash_error("<%= e %>");
 	<% end %>
 <% end %>
- <% if flash[:success].present? %>
-  $(".modal.in").modal("hide");
- flash_success("<%= flash[:success] %>");
+<% if flash[:success].present? %>
+   $(".modal#bank_detail_model").modal("hide");
+	 flash_success("<%= flash[:success] %>");
  <% end %>
+
 
 
 

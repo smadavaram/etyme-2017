@@ -7,22 +7,16 @@ class Company::BankDetailsController < Company::BaseController
   def index
     @bank_details = current_company.bank_details.all
   end
-  def new
-    @bank_details = BankDetail.new
-  end
   def create
     @bank_detail = BankDetail.new(company_id: params[:company_id].to_i , bank_name: params[:bank_detail][:bank_name].to_i, balance: params[:bank_detail][:balance].to_i)
       if @bank_detail.save
         flash[:success] = "Bank Detail has been Added successfully"
-        respond_to do |format|
-        format.js{}
-        end 
      else
         flash[:errors] = @bank_detail.errors.full_messages
-        respond_to do |format|
-          format.js{}
-        end 
      end
+      respond_to do |format|
+        format.js{}
+      end 
     @bank_details = current_company.bank_details.all
   end
 
