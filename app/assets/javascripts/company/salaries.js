@@ -13,3 +13,7 @@ $('.cmc').on('click', function (e) {
     $('.p_date').val(null);
     $('#salaries').submit();
 });
+
+$('.cc_form_submitter').on('click',function(e){
+   $('#cc_form').submit();
+});

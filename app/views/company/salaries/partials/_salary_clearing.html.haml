@@ -8,6 +8,8 @@
       %th Contract ID & Title
       %th Hr
       %th Comm Amt
+      %th Salary Adv
+      %th Expense
       %th $
       %th Status
       %th Actions
@@ -15,7 +17,7 @@
     - contract_cycles.each do |cc|
       %tr
         %td
-          = "<input type='checkbox' id='ts_ids' name='ids[]' value='#{cc.cyclable.id}'>".html_safe if cc.cyclable.pending? or cc.cyclable.open?
+          = "<input type='checkbox' id='ts_ids' name='ids[]' value='#{cc.cyclable.id}'>".html_safe if cc.cyclable.processed?
         %td= cc.id
         %td
         %td
@@ -25,6 +27,8 @@
         %td= cc.contract.title
         %td= cc.cyclable.total_approve_time
         %td
+        %td= cc.cyclable.calculate_advance
+        %td= cc.cyclable.calculate_expense
         %td= cc.cyclable.total_amount
         %td= snake_to_words(cc.cyclable.status)
         %td

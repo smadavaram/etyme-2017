@@ -46,11 +46,20 @@ class Company::SalariesController < Company::BaseController
                            .where("contracts.id": current_company.contracts.select(:id))
                            .where("contract_cycles.start_date between ? and ? and contract_cycles.end_date between ? and ?", start, end_date, start, end_date)
     @contract_cycles.each do |cc|
-      timesheets = Timesheet.approved.joins(:contract_cycle)
-                       .where("contract_cycles.contract_id": cc.contract_id, "contract_cycles.cycle_of_type": "BuyContract", candidate: cc.contract.candidate)
-                       .where("timesheets.end_date <= ? ", cc.end_date.to_date)
-      timesheets.each do |ts|
-        cc.cyclable.salary_items.build(salaryable: ts).save
+      if [:pending, :open].include?(cc.cyclable.status.to_sym)
+        timesheets = Timesheet.approved.joins(:contract_cycle)
+                         .where("contract_cycles.contract_id": cc.contract_id, "contract_cycles.cycle_of_type": "BuyContract", candidate: cc.contract.candidate)
+                         .where("timesheets.end_date <= ? ", cc.end_date.to_date)
+        timesheets.each do |ts|
+          cc.cyclable.salary_items.build(salaryable: ts).save
+        end
+        expenses = cc.contract.expenses.where(bill_type: [:salary_advanced,:company_expense]).where.not(status: :salaried)
+        expenses.each do |expense|
+          if eval(expense.salary_ids).include?(cc.id.to_s)
+            cc.cyclable.salary_items.build(salaryable: expense).save
+          end
+        end
+      
       end
     end
   end
@@ -120,6 +129,7 @@ class Company::SalariesController < Company::BaseController
     flash[:notice] = 'Salary Updated'
     redirect_to report_salaries_path
   end
+  
   
   def calculate_salary
     # binding.pry
@@ -232,20 +242,47 @@ class Company::SalariesController < Company::BaseController
   
   end
   
-  def add_contract_expense_amount
-    
-    salary = Salary.find_by(sclr_cycle_id: params[:sclr_cycle_id])
-    if salary.present?
-      ce = ContractExpense.find_by(contract_id: salary.contract_id, candidate_id: salary.candidate_id, cycle_id: params[:sclr_cycle_id], con_ex_type: params[:cet_id])
-      # binding.pry
-      unless ce
-        ce = ContractExpense.create(contract_id: salary.contract_id, candidate_id: salary.candidate_id, amount: params[:amount], cycle_id: params[:sclr_cycle_id], con_ex_type: params[:cet_id])
-      else
-        ce.update(amount: params[:amount])
-      end
+  
+  def process_salary_expenses
+    @salaries = Salary.where(id: params[:ids])
+    @salaries.each do |salary|
+      salary.update_attributes(total_amount: salary.total_amount + (salary.calculate_advance) + (salary.calculate_advance), status: :processed)
     end
-    flash[:notice] = 'Expense saved.'
-    render json: flash
+    flash[:errors] = :@salaries.errors.full_messages
+    flash[:success] = "Salary processed successfully"
+    redirect_to salaries_path(tab: "pay")
+  end
+  def process_salary_clear
+    @salaries = Salary.where(id: params[:ids])
+    if @salaries.update_all(status: "cleared")
+      flash[:success] = "Salary cleared successfully"
+      redirect_to salaries_path(tab: "clearing")
+    else
+      flash[:errors] = :@salaries.errors.full_messages
+      redirect_to salaries_path(tab: "pay")
+    end
+  end
+  def add_contract_expense_amount
+    @salaries = Salary.where(id: params[:ids])
+    if @salaries.update_all(status: "calculated")
+      flash[:success] = "Salary calculated successfully"
+      redirect_to salaries_path(tab: "process")
+    else
+      flash[:errors] = :@salaries.errors.full_messages
+      redirect_to salaries_path(tab: "calculate")
+    end
+    # salary = Salary.find_by(sclr_cycle_id: params[:sclr_cycle_id])
+    # if salary.present?
+    #   ce = ContractExpense.find_by(contract_id: salary.contract_id, candidate_id: salary.candidate_id, cycle_id: params[:sclr_cycle_id], con_ex_type: params[:cet_id])
+    #   # binding.pry
+    #   unless ce
+    #     ce = ContractExpense.create(contract_id: salary.contract_id, candidate_id: salary.candidate_id, amount: params[:amount], cycle_id: params[:sclr_cycle_id], con_ex_type: params[:cet_id])
+    #   else
+    #     ce.update(amount: params[:amount])
+    #   end
+    # end
+    # flash[:notice] = 'Expense saved.'
+    # render json: flash
   end
   
   private
