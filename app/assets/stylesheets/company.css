@@ -54,6 +54,7 @@
  *= require shared/datatable
  *= require company/job_applications
  *= require company/contracts
+ *= require company/salaries
  *= require navigation
  *= require top_navigation
  *= require jobs_small_chat

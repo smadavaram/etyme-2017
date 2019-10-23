@@ -39,8 +39,10 @@ module Company::ContractsHelper
         return link_to contract_cycle.cycle_type, edit_client_expense_path(contract_cycle.cyclable), :style => 'color:#FFFFFF;'
       when "ClientExpenseInvoice"
         return link_to contract_cycle.cycle_type, client_expense_invoice_invoice_path(contract_cycle.cyclable), :style => 'color:#FFFFFF;'
+      when "SalaryCalculation"
+        return link_to contract_cycle.cycle_type, salary_path(contract_cycle.cyclable), :style => 'color:#FFFFFF;'
       else
-        return contract_cycle.cycle_type.tableize.singularize.split("_").join(" ").capitalize
+        return contract_cycle.cycle_type
     end
   end
   

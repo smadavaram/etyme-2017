@@ -536,6 +536,8 @@ Rails.application.routes.draw do
         get :calculate_salary
         get :check_salary_status
         get :process_salary
+        post :process_salary_expenses
+        post :process_salary_clear
         get :aggregate_salary
         post :add_contract_expense_type
         post :add_contract_expense_amount

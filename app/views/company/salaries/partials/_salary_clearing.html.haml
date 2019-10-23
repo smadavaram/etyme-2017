@@ -1,0 +1,34 @@
+%table.table.table-striped.table-bordered.table-v2.table-lg
+  %thead
+    %tr
+      %th= "<input type='checkbox' name='select_all' id='ts_select_all'>".html_safe
+      %th Sal Cy ID
+      %th Comm ID
+      %th Emp
+      %th Contract ID & Title
+      %th Hr
+      %th Comm Amt
+      %th Salary Adv
+      %th Expense
+      %th $
+      %th Status
+      %th Actions
+  %tbody
+    - contract_cycles.each do |cc|
+      %tr
+        %td
+          = "<input type='checkbox' id='ts_ids' name='ids[]' value='#{cc.cyclable.id}'>".html_safe if cc.cyclable.processed?
+        %td= cc.id
+        %td
+        %td
+          - user = cc.contract.candidate
+          =image_tag(user.photo, class: 'data-table-image mr-1',title: "#{user.full_name}").html_safe
+          =link_to(do_ellipsis(user.full_name), public_profile_static_candidates_path(user), class: 'data-table-font')
+        %td= cc.contract.title
+        %td= cc.cyclable.total_approve_time
+        %td
+        %td= cc.cyclable.calculate_advance
+        %td= cc.cyclable.calculate_expense
+        %td= cc.cyclable.total_amount
+        %td= snake_to_words(cc.cyclable.status)
+        %td

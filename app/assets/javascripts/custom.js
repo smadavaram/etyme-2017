@@ -206,11 +206,11 @@ $(document).ready(function () {
         })
     });
 
-$( window ).load(function() {
- $('#public_job_link')[0].click();
-});
-
-
+    $(window).load(function () {
+        if (!!$('#public_job_link')[0]) {
+            $('#public_job_link')[0].click();
+        }
+    });
 
 
 });
@@ -247,6 +247,7 @@ $(document).on('trix-initialize', function () {
 $(document).on('trix-file-accept', function (e) {
     e.preventDefault();
 });
+
 function handle_input(event, candidate) {
     let transaction_id = event.getAttribute('data-transaction');
     let timesheet_id = event.getAttribute('data-timesheet');

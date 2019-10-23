@@ -1065,7 +1065,7 @@ ActiveRecord::Schema.define(version: 20191022123354) do
   create_table "expense_accounts", force: :cascade do |t|
     t.text "description"
     t.integer "status"
-    t.string "amount"
+    t.float "amount"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.integer "payment"
@@ -1100,7 +1100,7 @@ ActiveRecord::Schema.define(version: 20191022123354) do
     t.date "bill_date"
     t.date "due_date"
     t.string "bill_no"
-    t.string "total_amount"
+    t.float "total_amount"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.integer "bill_type"
@@ -1412,6 +1412,20 @@ ActiveRecord::Schema.define(version: 20191022123354) do
     t.index ["messageable_type", "messageable_id"], name: "index_messages_on_messageable_type_and_messageable_id"
   end
 
+  create_table "money_transactions", force: :cascade do |t|
+    t.string "part_of_type"
+    t.bigint "part_of_id"
+    t.string "payable_type"
+    t.bigint "payable_id"
+    t.bigint "company_id"
+    t.decimal "previous"
+    t.decimal "total"
+    t.decimal "paid"
+    t.decimal "remaining"
+    t.index ["part_of_type", "part_of_id"], name: "index_money_transactions_on_part_of_type_and_part_of_id"
+    t.index ["payable_type", "payable_id"], name: "index_money_transactions_on_payable_type_and_payable_id"
+  end
+
   create_table "notifications", id: :serial, force: :cascade do |t|
     t.integer "notifiable_id"
     t.string "notifiable_type"
@@ -1592,6 +1606,12 @@ ActiveRecord::Schema.define(version: 20191022123354) do
     t.float "pending_amount"
     t.float "salary_advance"
     t.float "approved_amount"
+  end
+
+  create_table "salary_items", force: :cascade do |t|
+    t.string "salaryable_type"
+    t.bigint "salaryable_id"
+    t.bigint "salary_id"
   end
 
   create_table "sell_contracts", force: :cascade do |t|

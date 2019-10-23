@@ -1,0 +1,61 @@
+%div
+  .element-wrapper.m-2
+    .element-box
+      = form_with(url: salaries_path, method: :get, id: 'salaries') do |f|
+        %ul.nav.nav-pills.smaller.d-md-flex{style: "justify-content: space-evenly;"}
+          - (Date.today.beginning_of_year...Date.today.end_of_year).map(&:beginning_of_month).uniq.each_slice(2) do |months|
+            %div
+              - months.each do |month|
+                %li.nav-item
+                  %a{class:"nav-link cmc #{@cycle.to_s == month.to_s ? "active show" : 'show'}", "data-month" => "#{month}" ,"data-toggle" => "tab", :href => "#"}
+                    = "#{month.strftime("%Y-%m")}(#{month.strftime("%d")}-#{month.end_of_month.strftime("%d")})"
+            %br
+        .d-flex{style: "flex-wrap: wrap;justify-content: space-between;"}
+          %ul.nav.nav-pills.smaller.mt-3{style: "border-bottom: none;"}
+            %li.nav-item.ml-3
+              %a{class: "nav-link ss fd upcomming #{ "active" if @tab.eql?("upcomming") }","data-tab"=> 'upcomming', href:'#'} Upcomming
+            %li.nav-item
+              %a{class: "nav-link ss fd commission #{ "active" if @tab.eql?("commission") }","data-tab"=> 'commission',href:'#'} Commission Cal
+            %li.nav-item
+              %a{class: "nav-link ss fd calculate #{ "active" if @tab.eql?("calculate") }","data-tab"=> 'calculate', href:'#'} Sal Calculate
+            %li.nav-item
+              %a{class: "nav-link ss fd process #{ "active" if @tab.eql?("process") }","data-tab"=> 'process', href:'#'} Salary Process
+            %li.nav-item
+              %a{class: "nav-link ss fd pay #{ "active" if @tab.eql?("pay") }","data-tab"=> 'pay', href:'#'} Finalize & Pay
+            %li.nav-item
+              %a{class: "nav-link ss fd clearing #{ "active" if @tab.eql?("clearing") }","data-tab"=> 'clearing', href:'#'} Clearing
+          .pt-2
+            = link_to "Export", '#', class: "btn btn-outline-primary"
+            = link_to "Print", '#', class: "btn btn-outline-primary"
+        .divider_salaries
+        .ts_header.mt-2
+          .form-group.w-50.d-flex
+            = f.text_field :start_date, class: 'p_date form-control m-1',placeholder: 'Select Start Data', value: @start_date,autocomplete: 'off'
+            = f.text_field :end_date, class: 'p_date form-control m-1',placeholder: 'Select End Date', value: @end_date,autocomplete: 'off'
+            = f.hidden_field :tab, id: 'ts_tag', value: "All"
+            = f.hidden_field :cycle, id: 'ss_cycle'
+    .element-box
+      .salary-button_holder
+        .buttons_wrap
+          - if ["commission"].include?(@tab)
+            =link_to "Aggregate", '#', class: 'btn btn-primary'
+            =link_to "Save & Next", '#', class: 'btn btn-primary'
+          - if ["calculate"].include?(@tab)
+            =link_to "Aggregate", '#', class: 'btn btn-primary'
+            =link_to "Save & Next", '#', class: 'btn btn-primary cc_form_submitter'
+            - @tab_ref = add_contract_expense_amount_salaries_path
+          - if  @tab.eql?("process")
+            =link_to "Input from last time", '#', class: 'btn btn-primary mr-2'
+            =link_to "Save Salary", '#', class: 'btn btn-primary cc_form_submitter'
+            =link_to "Get Approval", '#', class: 'btn btn-primary'
+            - @tab_ref = process_salary_expenses_salaries_path
+          - if @tab.eql?("pay")
+            =link_to "Share with payroll", '#', class: 'btn btn-primary'
+          - if  @tab.eql?("clearing")
+            =link_to "Copy from last time", '#', class: 'btn btn-primary'
+            =link_to "Sattle company expenses per contract", '#', class: 'btn btn-primary'
+        .search_wrap
+          .form-group
+            = text_field_tag :search,nil, class: 'form-control', placeholder: "Search"
+      = form_with url: @tab_ref, id: "cc_form" do |f|
+        = render "company/salaries/partials/salary_#{@tab}", contract_cycles: @contract_cycles,tab: @tab

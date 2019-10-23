@@ -61,9 +61,8 @@ class Api::SelectSearchesController < ApplicationController
   end
 
   def find_contract_salary_cycles
-    @salary_cycles = ContractCycle.SalaryClear(params[:contract_id]).pluck("date(start_date), date(end_date), id")
+    @salary_cycles = ContractCycle.SalaryCalculation(params[:contract_id]).pluck("date(start_date), date(end_date), id")
     respond_with @salary_cycles
-
   end
 
   def find_company_admin

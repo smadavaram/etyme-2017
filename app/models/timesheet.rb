@@ -3,7 +3,7 @@ class Timesheet < ApplicationRecord
   include Rails.application.routes.url_helpers
   
   # enum status: [:open,:pending_review, :approved , :partially_approved , :rejected , :submitted , :invoiced]
-  enum status: [:open, :submitted, :approved, :partially_approved, :rejected, :invoiced]
+  enum status: [:open, :submitted, :approved, :partially_approved, :rejected, :invoiced,:salaried]
   
   belongs_to :company, optional: true
   belongs_to :contract, optional: true
@@ -20,6 +20,7 @@ class Timesheet < ApplicationRecord
   belongs_to :ts_cycle, optional: true, foreign_key: :ts_cycle_id, class_name: 'ContractCycle'
   belongs_to :ta_cycle, optional: true, foreign_key: :ta_cycle_id, class_name: 'ContractCycle'
   has_many :invoice_items, as: :itemable
+  has_many :salary_items, as: :salaryable
   
   accepts_nested_attributes_for :transactions
   

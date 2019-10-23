@@ -86,6 +86,7 @@ class Candidate < ApplicationRecord
   belongs_to :invited_by_user, class_name: "User", foreign_key: :invited_by_id, optional: true
   belongs_to :associated_company, class_name: "Company", foreign_key: :company_id, optional: true
 
+  has_many :contract_sale_commisions, through: :csc_accounts
 
   attr_accessor :job_id, :expiry, :message, :invitation_type
   attr_accessor :send_welcome_email_to_candidate

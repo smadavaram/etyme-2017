@@ -5,14 +5,15 @@ class Expense < ApplicationRecord
 
   has_many :expense_accounts, dependent: :destroy
   has_many :activities, as: :trackable, class_name: 'PublicActivity::Activity', dependent: :destroy
+  has_many :salary_items, as: :salaryable
 
   accepts_nested_attributes_for :expense_accounts, allow_destroy: true ,reject_if: :all_blank
 
   enum bill_type:     [:salary_advanced, :company_expense, :client_expense]
-  enum status: [:bill_generated, :invoice_generated, :paid]
+  enum status: [:bill_generated, :invoice_generated, :paid,:salaried]
 
   serialize :ce_ap_cycle_id
-  serialize :salary_ids
+  # serialize :salary_ids
 
   # after_create :set_expense_on_seq
 
