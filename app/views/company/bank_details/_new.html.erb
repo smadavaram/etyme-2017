@@ -1,0 +1,33 @@
+ <!-- Modal -->
+  <div class="modal" id="bank_detail_model" role="dialog">
+    <div class="modal-dialog">
+    
+      <!-- Modal content-->
+      <div class="modal-content">
+        <div class="modal-header">
+          <h4 class="modal-title">New Bank Detail</h4>
+          <button type="button" class="close" data-dismiss="modal">&times;</button>
+        </div>
+        <div class="modal-body">
+
+          <%= form_for BankDetail.new ,remote: true, :html => {:novalidate => false} do |f| %>    
+            <%=f.label :bank_name%>
+            <%= f.select :bank_name,BankDetail.bank_names,{},class:"form-control"%>
+            <%=f.label :balance%>
+            <%= f.number_field :balance,class: 'form-control'%>
+            <%= hidden_field_tag 'company_id', params[:company_id]  %>
+            <div class="modal-footer">
+              <button name="button" type="submit" class="btn btn-primary btn-sm" data-disable-with="Submitting..." id="form_id">submit</button>
+              <button class="btn btn-default" data-dismiss="modal" type="button">
+              Cancel
+              </button>
+            </div>
+
+          <%end%>
+        </div>
+        
+      </div>
+      
+    </div>
+  </div>
+  

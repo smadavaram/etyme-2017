@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema.define(version: 20191014112647) do
+ActiveRecord::Schema.define(version: 20191022123354) do
 
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
@@ -116,7 +116,7 @@ ActiveRecord::Schema.define(version: 20191014112647) do
 
   create_table "bank_details", force: :cascade do |t|
     t.string "company_id"
-    t.string "bank_name"
+    t.integer "bank_name"
     t.string "balance"
     t.string "new_balance"
     t.date "recon_date"

@@ -1,9 +1,13 @@
 class BankDetail < ApplicationRecord
 
   belongs_to :company
+    validates :bank_name, uniqueness: true
+    validates :balance, presence: true
+    validates :bank_name, presence: true
+    validates :balance, numericality: { greater_than: 0 }
 
-  BANK_NAME = [ 'bank_of_america', 'texas_bank', 'wells_fargo' ]
-
+  # BANK_NAME = [ 'bank_of_america', 'texas_bank', 'wells_fargo' ]
+enum bank_name: [ :bank_of_america, :texas_bank, :wells_fargo ]
   def init_ledger
     @ledger = Sequence::Client.new(
         ledger_name: 'bank-details',

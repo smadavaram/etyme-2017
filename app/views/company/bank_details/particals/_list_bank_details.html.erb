@@ -1,0 +1,29 @@
+<div id="bank_detail_form">
+  <div class="col-sm-12">
+    <div class="element-wrapper"style="background-color: #f2f4f8; padding: 20px;">
+      <div class="element-actions">
+        <%= link_to "Add Bank Detail",'', class: 'btn btn-sm btn-secondary ml-2', 'data-toggle':"modal", 'data-target':"#bank_detail_model"%>
+      </div>
+      <h6 class="element-header">Bank Details</h6>
+      <div class="element-content" style="background-color: #f2f4f8">
+        <div class="row">
+          <% bank_details.each do |bank| %>
+            <div class="col-sm-4 col-xxxl-3">
+              <a class="element-box el-tablo" href="#">
+                <div class="label"><%=snake_to_words(bank.bank_name)%></div>
+                <div class="value">
+                   <%= bank.balance %>
+                </div>
+              </a>
+            </div>
+          <%end%>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<%= render 'company/bank_details/new.html.erb'%>                       
+      
+
+      
