@@ -72,14 +72,15 @@
                         %td.remaining_balance
                           =  ex.amount.to_i - ex.payment.to_i
                         = form_for ex, url: submit_bill_expenses_path(pay_bill_id: ex.id), method: :post do |f| 
-                          = hidden_field_tag :bank_id, '' , class: 'bank_id'    
+                          = hidden_field_tag :bank_id, '' , class: 'bank_id'   
                           %td
-                            = f.number_field :payment, value: '', class: 'payment'
+                            = f.number_field :payment, value: '', class: 'payment' if ex.opened? 
                           %td.balance_due
-                            = f.number_field :balance_due, value: '', class: 'balance_due'
+                            = f.number_field :balance_due, value: '', class: 'balance_due' if ex.opened? 
                           %td
-                            = f.submit 'Pay' , name: 'pay_type',value: 'pay'
-                            = f.submit 'Reject' , name: 'pay_type',value: 'reject' if ex.expense.bill_type != 'company_expense'
+                            - if ex.opened?
+                              = f.submit 'Pay' , name: 'pay_type',value: 'pay'
+                              = f.submit 'Reject' , name: 'pay_type',value: 'reject' if ex.expense.bill_type != 'company_expense'
 
 
               %br
