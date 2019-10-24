@@ -13,6 +13,18 @@ class Company::InvoicesController < Company::BaseController
     @receive_invoices = current_company.receive_invoices.where(status: [:submitted, :paid, :partially_paid, :cancelled]).joins(:contract).paginate(page: params[:page], per_page: 15)
     @sent_invoices = current_company.sent_invoices.where(status: [:open, :submitted, :paid, :partially_paid, :cancelled]).joins(:contract).paginate(page: params[:page], per_page: 15)
   end
+
+  def sale
+    add_breadcrumb "Sale Invoices", '#', options: {title: "INVOICES"}
+    @sent_invoices = current_company.sent_invoices.where(status: [:open, :submitted, :paid, :partially_paid, :cancelled]).joins(:contract).paginate(page: params[:page], per_page: 15)
+
+  end
+
+  def purchase
+    add_breadcrumb "Purchase Invoices", '#', options: {title: "INVOICES"}
+    @receive_invoices = current_company.receive_invoices.where(status: [:submitted, :paid, :partially_paid, :cancelled]).joins(:contract).paginate(page: params[:page], per_page: 15)
+
+  end
   
   def cleared_invoice
     @invoices = Invoice.cleared_invoices.joins(:contract).where(contracts: {company_id: current_company.id}).order("created_at DESC")

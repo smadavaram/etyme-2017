@@ -1,0 +1,103 @@
+%div
+  .ts_header.mt-2{style:'position:relative; left:750px;'}
+    .d-flex
+      .form-group.w-50.d-flex
+        %i.fa.fa-chevron-circle-left.mt-2
+        %input{:type=>"text", class: 'p_date form-control m-1',placeholder: 'From Date'}
+        
+        %input{:type=>"text", class: 'p_date form-control m-1',placeholder: 'To Date'}
+        %i.fa.fa-chevron-circle-right.mt-2
+  
+  .table_divider.mt-3
+  .row
+    .col-md-6
+      .d-flex{style: ""}
+        %ul.nav.nav-pills.smaller.mt-3{style: "border-bottom: none;"}
+          %li.nav-item.ml-3
+            %a{class: "nav-link ts fd upcomming_timesheets border_btn #{ "active" if @tab.eql?("Upcomming") }", href:'#'} Upcomming
+          %li.nav-item
+            %a{class: "nav-link ts fd submitted_timesheets border_btn #{ "active" if @tab.eql?("Upcomming") }", href:'#'}  Current
+          %li.nav-item
+            %a{class: "nav-link ts fd approved_timesheets border_btn #{ "active" if @tab.eql?("Approved") }", href:'#'} Clear
+          
+          %li.nav-item
+            %a{class: "nav-link fd open_timesheets border_btn #{ "active" if @tab.nil? || @tab.eql?("All") }", href: timesheets_path} All
+      
+    .col-md-6
+
+      %ul.nav.nav-pills.smaller.mt-3{style: "border-bottom: none;float:right;margin-right:30px !important;"}
+        %li.nav-item.ml-3
+          %a{class: "nav-link ts fd upcomming_timesheets border_btn #{ "active" if @tab.eql?("Upcomming") }", href:'#'} Export
+        %li.nav-item.ml-3
+          %a{class: "nav-link ts fd submitted_timesheets border_btn #{ "active" if @tab.eql?("Submitted") }",href:'#'} Print
+        
+  .col-md-12
+    .row.mr-1.ml-1.mt-2
+      .col-sm-6
+        %a.btn.btn-primary.btn_style.mt-3 New 
+      .col-sm-6  
+        .form-inline.justify-content-sm-end
+          %input.form-control.form-control-sm.bright{placeholder: "Search", type: "text", type: 'search', id: 'my_bench_datatable-search'}
+
+
+    #tab-r2.tab-pane.padding-top-15
+      .table-responsive.p-3
+        %table.table.table-striped.table-bordered.table-v2.table-lg
+          %thead
+            %tr{:role => "row"}
+              %th id
+              %th Contract
+              %th Receiver
+              %th Created at - Due
+              %th Hours
+              %th Type
+              %th Total
+              %th Paid
+              %th Status
+              %th Actions
+          %tbody
+            -  @sent_invoices.each_with_index do |invoice , index|
+              %tr
+                %td= invoice.id
+                %td= link_to do_ellipsis(invoice.contract.title,15),  company_sell_contract_contract_path(invoice.contract)
+                %td
+                  =image_tag(invoice.receiver_company.photo, class: 'data-table-image mr-1').html_safe
+                  =link_to(do_ellipsis(invoice.receiver_company.full_name), profile_company_path(invoice.receiver_company), class: 'data-table-font')
+                %td= invoice.start_date.to_s + " - " + invoice.end_date.to_s
+                %td= invoice.total_approve_time
+                %td= snake_to_words(invoice.invoice_type)
+                %td= invoice.total_amount
+                %td= invoice.billing_amount
+                %td= invoice.status.humanize
+                %td
+                  = link_to raw("<i class='fa fa-eye'></i>"), timesheet_check_invoice_path(invoice), remote: true, class: 'data-table-icons',title: "Details"
+                  = link_to raw("<i class='fa fa-fax'></i>"), submit_invoice_contract_invoice_path(contract_id: invoice.contract,id: invoice), class: 'data-table-icons',title: "Submit Invoice", data: {confirm:  'Do you want to submit this invoice?'} if invoice.open?
+                  = link_to raw("<i class='fa fa-edit'></i>"), invoice.timesheet_invoice? ? edit_invoice_path( invoice) : client_expense_invoice_invoice_path(invoice) , class: 'data-table-icons',title: "Add Timesheet(s)" if invoice.open?
+        .timesheet_pagination_wrap
+          .pagination_label
+            = page_entries_info @sent_invoices
+          = will_paginate(@sent_invoices, {params: {tab: 'sale'},previous_label: "Previous",next_label: "Next",inner_window: 2,class: 'invoices_pagination_links'})
+
+.modal{id: "invoice-confirmation-model"}
+  .modal-dialog.modal-lg
+    .modal-content
+      .modal-header
+        %h4.modal-title
+          %strong Invoice Details
+        %button.close{"aria-hidden" => "true", "data-dismiss" => "modal", :type => "button"}
+          ×
+      #invoice-confirmation-model-body.modal-body
+
+
+:css
+  .form-control
+  {
+    background-color: white !important;
+  }
+
+- content_for :scripts do
+  :javascript
+    $(document).ready(function() {
+      $(".best_in_place").best_in_place();
+      $(".best_in_place").bind("ajax:success", function(){ location.reload() });
+    });
