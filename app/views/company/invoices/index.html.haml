@@ -1,20 +1,20 @@
 %div
   .widget-body
     %ul#myTab1.nav.nav-tabs.smaller.p-4{style: "border-bottom: 0px;"}
-      %li.nav-item.cumstom_nav-tab{class: "#{'active' if @tab == 'received_invoices'}"}
+      %li.nav-item.cumstom_nav-tab{class: "#{'active' if @tab == 'purchase'}"}
         %a{"data-toggle" => "tab", :href => "#tab-r1", class: "nav-link cumstom_nav-tab display-flex"}
           %span.badge.bg-color-blue.txt-color-white
-          Received Invoices
+          Purchase
           %span.badge.bg-color-blue.txt-color-white= @receive_invoices.count
-      %li.nav-item.cumstom_nav-tab{class: "#{'active in' if @tab == 'sent_invoices'}"}
+      %li.nav-item.cumstom_nav-tab{class: "#{'active in' if @tab == 'sale'}"}
         %a{"data-toggle" => "tab", :href => "#tab-r2",class: "nav-link cumstom_nav-tab display-flex"}
           %span.badge.bg-color-blue.txt-color-white
-          Sent Invoices
+          Sale
           %span.badge.bg-color-blue.txt-color-white= @sent_invoices.count
 
     .col-md-12
       .tab-content
-        #tab-r1.tab-pane.padding-top-15{ class: "#{'active in' if @tab == 'received_invoices'}"  }
+        #tab-r1.tab-pane.padding-top-15{ class: "#{'active in' if @tab == 'purchase'}"  }
           .table-responsive.p-3
             %table.table.table-striped.table-bordered.table-v2.table-lg
               %thead
@@ -49,8 +49,8 @@
             .timesheet_pagination_wrap
               .pagination_label
                 = page_entries_info @receive_invoices
-              = will_paginate(@receive_invoices, {params: {tab: 'received_invoices'},previous_label: "Previous",next_label: "Next",inner_window: 2,class: 'invoices_pagination_links'})
-        #tab-r2.tab-pane.padding-top-15{ class: "#{'active in' if @tab == 'sent_invoices'}" }
+              = will_paginate(@receive_invoices, {params: {tab: 'purchase'},previous_label: "Previous",next_label: "Next",inner_window: 2,class: 'invoices_pagination_links'})
+        #tab-r2.tab-pane.padding-top-15{ class: "#{'active in' if @tab == 'sale'}" }
           .table-responsive.p-3
             %table.table.table-striped.table-bordered.table-v2.table-lg
               %thead
@@ -86,7 +86,7 @@
             .timesheet_pagination_wrap
               .pagination_label
                 = page_entries_info @sent_invoices
-              = will_paginate(@sent_invoices, {params: {tab: 'sent_invoices'},previous_label: "Previous",next_label: "Next",inner_window: 2,class: 'invoices_pagination_links'})
+              = will_paginate(@sent_invoices, {params: {tab: 'sale'},previous_label: "Previous",next_label: "Next",inner_window: 2,class: 'invoices_pagination_links'})
 
 .modal{id: "invoice-confirmation-model"}
   .modal-dialog.modal-lg

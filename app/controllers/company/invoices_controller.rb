@@ -9,7 +9,7 @@ class Company::InvoicesController < Company::BaseController
   add_breadcrumb "INVOICES", '#', options: {title: "INVOICES"}
   
   def index
-    @tab = params[:tab] || 'received_invoices'
+    @tab = params[:tab] || 'purchase'
     @receive_invoices = current_company.receive_invoices.where(status: [:submitted, :paid, :partially_paid, :cancelled]).joins(:contract).paginate(page: params[:page], per_page: 15)
     @sent_invoices = current_company.sent_invoices.where(status: [:open, :submitted, :paid, :partially_paid, :cancelled]).joins(:contract).paginate(page: params[:page], per_page: 15)
   end
