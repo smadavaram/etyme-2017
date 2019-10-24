@@ -16,7 +16,7 @@
           %li.nav-item.ml-3
             %a{class: "nav-link ts fd upcomming_timesheets border_btn #{ "active" if @tab.eql?("Upcomming") }", href:'#'} Upcomming
           %li.nav-item
-            %a{class: "nav-link ts fd submitted_timesheets border_btn #{ "active"  }",href:'#'} Current
+            %a{class: "nav-link ts fd submitted_timesheets border_btn #{ "active" if @tab.eql?("Upcomming") }", href:'#'}  Current
           %li.nav-item
             %a{class: "nav-link ts fd approved_timesheets border_btn #{ "active" if @tab.eql?("Approved") }", href:'#'} Clear
           

@@ -1,4 +1,35 @@
 %div
+  .ts_header.mt-2{style:'position:relative; left:750px;'}
+    .d-flex
+      .form-group.w-50.d-flex
+        %i.fa.fa-chevron-circle-left.mt-2
+        %input{:type=>"text", class: 'p_date form-control m-1',placeholder: 'From Date'}
+        
+        %input{:type=>"text", class: 'p_date form-control m-1',placeholder: 'To Date'}
+        %i.fa.fa-chevron-circle-right.mt-2
+  
+  .table_divider.mt-3
+  .row
+    .col-md-6
+      .d-flex{style: ""}
+        %ul.nav.nav-pills.smaller.mt-3{style: "border-bottom: none;"}
+          %li.nav-item.ml-3
+            %a{class: "nav-link ts fd upcomming_timesheets border_btn #{ "active" if @tab.eql?("Upcomming") }", href:'#'} Upcomming
+          %li.nav-item
+            %a{class: "nav-link ts fd submitted_timesheets border_btn #{ "active" if @tab.eql?("Upcomming") }", href:'#'}  Current
+          %li.nav-item
+            %a{class: "nav-link ts fd approved_timesheets border_btn #{ "active" if @tab.eql?("Approved") }", href:'#'} Clear
+          
+          %li.nav-item
+            %a{class: "nav-link fd open_timesheets border_btn #{ "active" if @tab.nil? || @tab.eql?("All") }", href: timesheets_path} All
+      
+    .col-md-6
+
+      %ul.nav.nav-pills.smaller.mt-3{style: "border-bottom: none;float:right;margin-right:30px !important;"}
+        %li.nav-item.ml-3
+          %a{class: "nav-link ts fd upcomming_timesheets border_btn #{ "active" if @tab.eql?("Upcomming") }", href:'#'} Export
+        %li.nav-item.ml-3
+          %a{class: "nav-link ts fd submitted_timesheets border_btn #{ "active" if @tab.eql?("Submitted") }",href:'#'} Print
   .widget-body
     .col-md-12
       #tab-r2.tab-pane.padding-top-15
