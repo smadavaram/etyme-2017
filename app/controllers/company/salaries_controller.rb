@@ -53,7 +53,7 @@ class Company::SalariesController < Company::BaseController
         timesheets.each do |ts|
           cc.cyclable.salary_items.build(salaryable: ts).save
         end
-        expenses = cc.contract.expenses.where(bill_type: [:salary_advanced,:company_expense]).where.not(status: :salaried)
+        expenses = cc.contract.expenses.where(bill_type: [:salary_advanced, :company_expense]).where.not(status: :salaried)
         expenses.each do |expense|
           if eval(expense.salary_ids).include?(cc.id.to_s)
             cc.cyclable.salary_items.build(salaryable: expense).save
@@ -222,7 +222,6 @@ class Company::SalariesController < Company::BaseController
     render :js => "window.location = '#{request.headers["HTTP_REFERER"]}'"
   end
   
-  
   def check_salary_status
     salary = Salary.find_by(sclr_cycle_id: params[:sclr_cycle_id])
     respond_to do |format|
@@ -252,6 +251,7 @@ class Company::SalariesController < Company::BaseController
     flash[:success] = "Salary processed successfully"
     redirect_to salaries_path(tab: "pay")
   end
+  
   def process_salary_clear
     @salaries = Salary.where(id: params[:ids])
     if @salaries.update_all(status: "cleared")
@@ -262,6 +262,7 @@ class Company::SalariesController < Company::BaseController
       redirect_to salaries_path(tab: "pay")
     end
   end
+  
   def add_contract_expense_amount
     @salaries = Salary.where(id: params[:ids])
     if @salaries.update_all(status: "calculated")
