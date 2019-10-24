@@ -265,9 +265,8 @@ class Company::SalariesController < Company::BaseController
   def process_salary_expenses
     @salaries = Salary.where(id: params[:ids])
     @salaries.each do |salary|
-      salary.update_attributes(total_amount: salary.total_amount + (salary.calculate_advance) + (salary.calculate_advance), status: :processed)
+      salary.update_attributes(total_amount: salary.total_amount + (salary.calculate_advance) + (salary.calculate_expense), status: :processed)
     end
-    flash[:errors] = :@salaries.errors.full_messages
     flash[:success] = "Salary processed successfully"
     redirect_to salaries_path(tab: "pay")
   end
@@ -278,7 +277,7 @@ class Company::SalariesController < Company::BaseController
       flash[:success] = "Salary cleared successfully"
       redirect_to salaries_path(tab: "clearing")
     else
-      flash[:errors] = :@salaries.errors.full_messages
+      flash[:errors] = @salaries.errors.full_messages
       redirect_to salaries_path(tab: "pay")
     end
   end
@@ -289,7 +288,7 @@ class Company::SalariesController < Company::BaseController
       flash[:success] = "Salary calculated successfully"
       redirect_to salaries_path(tab: "process")
     else
-      flash[:errors] = :@salaries.errors.full_messages
+      flash[:errors] = @salaries.errors.full_messages
       redirect_to salaries_path(tab: "calculate")
     end
     # salary = Salary.find_by(sclr_cycle_id: params[:sclr_cycle_id])
