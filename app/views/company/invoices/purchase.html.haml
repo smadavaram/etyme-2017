@@ -32,6 +32,12 @@
           %a{class: "nav-link ts fd submitted_timesheets border_btn #{ "active" if @tab.eql?("Submitted") }",href:'#'} Print
   .widget-body
     .col-md-12
+      .row.mr-1.ml-1.mt-2
+        .col-sm-6
+          %a.btn.btn-primary.btn_style.mt-3 New 
+        .col-sm-6  
+          .form-inline.justify-content-sm-end
+            %input.form-control.form-control-sm.bright{placeholder: "Search", type: "text", type: 'search', id: 'my_bench_datatable-search'}
       #tab-r2.tab-pane.padding-top-15
         .table-responsive.p-3
           %table.table.table-striped.table-bordered.table-v2.table-lg
