@@ -1,0 +1,15 @@
+.modal{id: "pay_salary_#{salary.id}" ,"aria-hidden" => "true", "aria-labelledby" => "exampleModalLabel", :role => "dialog", :style => "display: none;", :tabindex => "-1"}
+  .modal-dialog{:role => "document"}
+    .modal-content
+      .modal-header
+        %h5#exampleModalLabel.modal-title Pay Salary
+        %button.close{"aria-label" => "Close", "data-dismiss" => "modal", :type => "button"}
+          %span{"aria-hidden" => "true"} ×
+      = form_tag salary_add_payment_path(salary),remote: true do
+        .modal-body
+          .form-group
+            %label{:for => ""} Paid Amount
+            =number_field_tag :payment,nil, class:"form-control",min: 0,max: salary.total_amount.to_i
+        .modal-footer
+          %button.btn.btn-secondary{"data-dismiss" => "modal", :type => "button"} Close
+          =submit_tag "Pay", class: "btn btn-primary"

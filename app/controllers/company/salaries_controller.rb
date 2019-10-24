@@ -1,6 +1,6 @@
 class Company::SalariesController < Company::BaseController
   require 'sequence'
-  before_action :set_salary, only: [:show]
+  before_action :set_salary, only: [:show, :pay, :add_payment]
   add_breadcrumb 'Home', '/bashboard'
   
   def salary_list
@@ -177,12 +177,12 @@ class Company::SalariesController < Company::BaseController
   end
   
   def aggregate_salary
-    csv = Salary.generate_csv(params[:sclr_cycle_ids])
+    csv = Salary.generate_csv(params[:ids])
     respond_to do |format|
       format.csv { send_data csv, file_name: 'aggregate_salary.csv' }
     end
     NotificationMailer.send_csv(csv).deliver if params[:send_mail] == 'true'
-    flash[:notice] = 'Salary Aggregated'
+    flash.now[:notice] = 'Salary Aggregated'
     # render :js => "window.location = '#{request.headers["HTTP_REFERER"]}'"
   end
   
@@ -201,6 +201,26 @@ class Company::SalariesController < Company::BaseController
     end
     flash[:notice] = 'Salary cleared'
     render :js => "window.location = '#{request.headers["HTTP_REFERER"]}'"
+  end
+  
+  def pay
+  end
+  
+  def add_payment
+    respond_to do |format|
+      if (params[:payment].to_f + @salary.billing_amount <= @salary.total_amount)
+        if @salary.update(billing_amount: params[:payment].to_f + @salary.billing_amount)
+          flash.now[:success] = "Payment is added to salary"
+          format.js {}
+        else
+          flash.now[:errors] = @salary.errors.full_messages
+          format.js {}
+        end
+      else
+        flash.now[:errors] = ["Cannot pay more then total salary amount"]
+        format.js {}
+      end
+    end
   end
   
   def calculate_commission
@@ -293,7 +313,7 @@ class Company::SalariesController < Company::BaseController
     end
     
     def set_salary
-      @salary = Salary.find_by(id: params[:id])
+      @salary = Salary.find_by(id: params[:id] || params[:salary_id])
     end
     
     def contract_expense_type_params

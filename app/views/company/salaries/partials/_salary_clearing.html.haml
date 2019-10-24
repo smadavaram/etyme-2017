@@ -10,7 +10,8 @@
       %th Comm Amt
       %th Salary Adv
       %th Expense
-      %th $
+      %th Total
+      %th Paid
       %th Status
       %th Actions
   %tbody
@@ -30,5 +31,8 @@
         %td= cc.cyclable.calculate_advance
         %td= cc.cyclable.calculate_expense
         %td= cc.cyclable.total_amount
+        %td{id:"#{cc.cyclable.id}"}= cc.cyclable.billing_amount
         %td= snake_to_words(cc.cyclable.status)
         %td
+          =link_to "Pay", salary_pay_path(cc.cyclable), remote: true if cc.cyclable.processed?
+

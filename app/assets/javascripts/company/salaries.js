@@ -14,6 +14,11 @@ $('.cmc').on('click', function (e) {
     $('#salaries').submit();
 });
 
-$('.cc_form_submitter').on('click',function(e){
-   $('#cc_form').submit();
+$('.cc_form_submitter').on('click', function (e) {
+    $('#cc_form').submit();
+});
+
+$('.aggregate').on('click', function (e) {
+    $('#cc_form').attr("action", $(this).data("link"));
+    $('#cc_form').submit();
 });
