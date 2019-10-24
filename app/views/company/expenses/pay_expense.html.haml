@@ -74,13 +74,15 @@
                         = form_for ex, url: submit_bill_expenses_path(pay_bill_id: ex.id), method: :post do |f| 
                           = hidden_field_tag :bank_id, '' , class: 'bank_id'   
                           %td
-                            = f.number_field :payment, value: '', class: 'payment' if ex.opened? 
+                            - if !ex.expense.salary_advanced? 
+                              = f.number_field :payment, value: '', class: 'payment' if ex.opened?
                           %td.balance_due
-                            = f.number_field :balance_due, value: '', class: 'balance_due' if ex.opened? 
+                            - if !ex.expense.salary_advanced? 
+                              = f.number_field :balance_due, value: '', class: 'balance_due' if ex.opened?
                           %td
-                            - if ex.opened?
-                              = f.submit 'Pay' , name: 'pay_type',value: 'pay'
-                              = f.submit 'Reject' , name: 'pay_type',value: 'reject' if ex.expense.bill_type != 'company_expense'
+                            - if !ex.expense.salary_advanced? 
+                              = f.submit 'Pay' , name: 'pay_type',value: 'pay' if ex.opened?
+                              = f.submit 'Reject' , name: 'pay_type',value: 'reject' if ex.expense.bill_type != 'company_expense' || ex.opened?
 
 
               %br

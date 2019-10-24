@@ -45,31 +45,25 @@ class Company::ExpensesController < Company::BaseController
   end
 
   def submit_bill
-
-
-
-     ActiveRecord::Base.transaction do
+    ActiveRecord::Base.transaction do
       bd = BankDetail.find_by(id: params[:bank_id].to_i)
-      if bd.balance.to_i >= params[:expense_account][:payment].to_i
-        ex = ExpenseAccount.find_by(id: params[:pay_bill_id])
-        ex.status = 'cleared' if ex.amount.to_i == (ex.payment.to_i + params[:expense_account][:payment].to_i)
-        ex.status = 'cancelled' if params[:pay_type] == 'reject'
-        ex.payment = ex.payment.to_i + params[:expense_account][:payment].to_i
-        ex.balance_due = params[:expense_account][:balance_due]
-        ex.pay_type = params[:pay_type]
-        ex.save
+        if bd.balance.to_i >= params[:expense_account][:payment].to_i
+          ex = ExpenseAccount.find_by(id: params[:pay_bill_id])
+          ex.status = 'cleared' if ex.amount.to_i == (ex.payment.to_i + params[:expense_account][:payment].to_i)
+          ex.status = 'cancelled' if params[:pay_type] == 'reject'
+          ex.payment = ex.payment.to_i + params[:expense_account][:payment].to_i
+          ex.balance_due = params[:expense_account][:balance_due]
+          ex.pay_type = params[:pay_type]
+          ex.save
 
-        bd.update(balance: bd.balance.to_i - params[:expense_account][:payment].to_i)
-        flash[:success] = 'Payment done successfully'
-      else
-        flash[:alert] = 'Insufficient balance in your account please try with another account.'
-      end
+          bd.update(balance: bd.balance.to_i - params[:expense_account][:payment].to_i)
+          flash[:success] = 'Payment done successfully'
+        else
+          flash[:alert] = 'Insufficient balance in your account please try with another account.'
+        end
       redirect_to pay_expense_expenses_path
     end
-
   end
-
-
 
   def client_expense_generate_invoice
     expense = Expense.find_by(id: params[:ex_id])
