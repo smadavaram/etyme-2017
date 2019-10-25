@@ -15,6 +15,7 @@ class Salary < ApplicationRecord
   
   has_many :salary_items
   has_one :contract_cycle, as: :cyclable
+  has_many :contract_books, as: :bookable
   
   scope :open_salaries, -> { where(status: :open) }
   scope :calculated_salaries, -> { where(status: :calculated) }
@@ -26,13 +27,12 @@ class Salary < ApplicationRecord
   # after_update :set_salary_process_on_seq, :if => proc { |obj| obj.status == 'processed' }
   
   
-  def self.generate_csv(sclr_cycle_ids)
+  def self.generate_csv(ids)
     
     attributes = %w{ Name Status Living_State City Address Zip Amount}
-    salaries = Salary.where(sclr_cycle_id: sclr_cycle_ids)
+    salaries = Salary.where(id: ids)
     amounts = salaries.group(:candidate_id).sum(:total_amount)
-    salaries.update_all(status: 'aggregated')
-    
+    # salaries.update_all(status: 'aggregated')
     CSV.generate(headers: true) do |csv|
       csv << attributes
       amounts.each do |s|
@@ -288,9 +288,10 @@ class Salary < ApplicationRecord
   end
   
   def calculate_advance
-    -(salary_items.joins("JOIN expenses ON expenses.id = salary_items.salaryable_id").where("expenses.bill_type": Expense.bill_types[:salary_advanced]).sum("expenses.total_amount"))
+    -(salary_items.joins("JOIN expenses ON expenses.id = salary_items.salaryable_id JOIN expense_accounts ON expenses.id = expense_accounts.expense_id").where("expenses.bill_type": Expense.bill_types[:salary_advanced],"expense_accounts.status": ExpenseAccount.statuses[:cleared]).sum("expense_accounts.payment"))
   end
+  
   def calculate_expense
-    salary_items.joins("JOIN expenses ON expenses.id = salary_items.salaryable_id").where("expenses.bill_type": Expense.bill_types[:company_expense]).sum("expenses.total_amount")
+    salary_items.joins("JOIN expenses ON expenses.id = salary_items.salaryable_id JOIN expense_accounts ON expenses.id = expense_accounts.expense_id").where("expenses.bill_type": Expense.bill_types[:company_expense],"expense_accounts.status": ExpenseAccount.statuses[:cleared]).sum("expense_accounts.payment")
   end
 end

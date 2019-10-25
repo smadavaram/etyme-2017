@@ -38,11 +38,11 @@
       .salary-button_holder
         .buttons_wrap
           - if ["commission"].include?(@tab)
-            =link_to "Aggregate", '#', class: 'btn btn-primary'
-            =link_to "Save & Next", '#', class: 'btn btn-primary'
+            =button_tag "Aggregate",type: "button", "data-link": aggregate_salary_salaries_path(format: :csv), class: 'btn btn-primary aggregate'
+            =button_tag "Save & Next",type: "button", class: 'btn btn-primary'
           - if ["calculate"].include?(@tab)
-            =link_to "Aggregate", '#', class: 'btn btn-primary'
-            =link_to "Save & Next", '#', class: 'btn btn-primary cc_form_submitter'
+            =button_tag "Aggregate",type: "button", "data-link": aggregate_salary_salaries_path(format: :csv), class: 'btn btn-primary aggregate'
+            =button_tag "Save & Next",type: "button", "data-link": add_contract_expense_amount_salaries_path, class: 'btn btn-primary aggregate'
             - @tab_ref = add_contract_expense_amount_salaries_path
           - if  @tab.eql?("process")
             =link_to "Input from last time", '#', class: 'btn btn-primary mr-2'
@@ -53,9 +53,11 @@
             =link_to "Share with payroll", '#', class: 'btn btn-primary'
           - if  @tab.eql?("clearing")
             =link_to "Copy from last time", '#', class: 'btn btn-primary'
-            =link_to "Sattle company expenses per contract", '#', class: 'btn btn-primary'
+            =link_to "Sattle company expenses per contract", '#', class: 'btn btn-primary cc_form_submitter'
+            - @tab_ref = add_contract_addable_expense_amount_salaries_path
         .search_wrap
           .form-group
             = text_field_tag :search,nil, class: 'form-control', placeholder: "Search"
       = form_with url: @tab_ref, id: "cc_form" do |f|
-        = render "company/salaries/partials/salary_#{@tab}", contract_cycles: @contract_cycles,tab: @tab
+        .table-responsive
+          = render "company/salaries/partials/salary_#{@tab}", contract_cycles: @contract_cycles,tab: @tab

@@ -1750,3 +1750,10 @@ text-align: left;
 .btn_style{
     color:white !important;
 }
+
+.input-50{
+    width: 50px !important;
+}
+.input-60{
+    width: 60px !important;
+}

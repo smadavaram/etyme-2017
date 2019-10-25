@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema.define(version: 20191022123354) do
+ActiveRecord::Schema.define(version: 20191025162639) do
 
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
@@ -115,13 +115,13 @@ ActiveRecord::Schema.define(version: 20191022123354) do
   end
 
   create_table "bank_details", force: :cascade do |t|
-    t.string "company_id"
+    t.bigint "company_id"
     t.integer "bank_name"
-    t.string "balance"
-    t.string "new_balance"
+    t.decimal "balance"
+    t.decimal "new_balance"
     t.date "recon_date"
-    t.string "unidentified_bal"
-    t.string "current_unidentified_bal"
+    t.decimal "unidentified_bal"
+    t.decimal "current_unidentified_bal"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
   end
@@ -717,6 +717,22 @@ ActiveRecord::Schema.define(version: 20191022123354) do
     t.bigint "contract_id"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+  end
+
+  create_table "contract_books", force: :cascade do |t|
+    t.bigint "contract_id"
+    t.string "bookable_type"
+    t.bigint "bookable_id"
+    t.string "beneficiary_type"
+    t.bigint "beneficiary_id"
+    t.integer "transaction_type"
+    t.integer "contract_type"
+    t.decimal "previous"
+    t.decimal "total"
+    t.decimal "paid"
+    t.decimal "remainings"
+    t.index ["beneficiary_type", "beneficiary_id"], name: "index_contract_books_on_beneficiary_type_and_beneficiary_id"
+    t.index ["bookable_type", "bookable_id"], name: "index_contract_books_on_bookable_type_and_bookable_id"
   end
 
   create_table "contract_buy_business_details", force: :cascade do |t|
@@ -1606,6 +1622,7 @@ ActiveRecord::Schema.define(version: 20191022123354) do
     t.float "pending_amount"
     t.float "salary_advance"
     t.float "approved_amount"
+    t.decimal "contract_expenses", default: "0.0"
   end
 
   create_table "salary_items", force: :cascade do |t|

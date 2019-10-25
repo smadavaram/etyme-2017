@@ -51,6 +51,8 @@ class Contract < ApplicationRecord
 
   has_many :contract_cycles, dependent: :destroy
   has_many :contract_expense, dependent: :destroy
+  has_many :contract_books
+  
   # has_many :contract_buy_business_details
   # has_many :contract_sell_business_details
   # has_many :contract_sale_commisions

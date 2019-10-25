@@ -1,6 +1,6 @@
 class Company::SalariesController < Company::BaseController
   require 'sequence'
-  before_action :set_salary, only: [:show]
+  before_action :set_salary, only: [:show, :pay, :add_payment]
   add_breadcrumb 'Home', '/bashboard'
   
   def salary_list
@@ -53,13 +53,12 @@ class Company::SalariesController < Company::BaseController
         timesheets.each do |ts|
           cc.cyclable.salary_items.build(salaryable: ts).save
         end
-        expenses = cc.contract.expenses.where(bill_type: [:salary_advanced,:company_expense]).where.not(status: :salaried)
+        expenses = cc.contract.expenses.where(bill_type: [:salary_advanced, :company_expense]).where.not(status: :salaried)
         expenses.each do |expense|
           if eval(expense.salary_ids).include?(cc.id.to_s)
             cc.cyclable.salary_items.build(salaryable: expense).save
           end
         end
-      
       end
     end
   end
@@ -177,12 +176,12 @@ class Company::SalariesController < Company::BaseController
   end
   
   def aggregate_salary
-    csv = Salary.generate_csv(params[:sclr_cycle_ids])
+    csv = Salary.generate_csv(params[:ids])
     respond_to do |format|
       format.csv { send_data csv, file_name: 'aggregate_salary.csv' }
     end
     NotificationMailer.send_csv(csv).deliver if params[:send_mail] == 'true'
-    flash[:notice] = 'Salary Aggregated'
+    flash.now[:notice] = 'Salary Aggregated'
     # render :js => "window.location = '#{request.headers["HTTP_REFERER"]}'"
   end
   
@@ -203,6 +202,26 @@ class Company::SalariesController < Company::BaseController
     render :js => "window.location = '#{request.headers["HTTP_REFERER"]}'"
   end
   
+  def pay
+  end
+  
+  def add_payment
+    respond_to do |format|
+      if (params[:payment].to_f + @salary.billing_amount <= @salary.total_amount)
+        if @salary.update(billing_amount: params[:payment].to_f + @salary.billing_amount)
+          flash.now[:success] = "Payment is added to salary"
+          format.js {}
+        else
+          flash.now[:errors] = @salary.errors.full_messages
+          format.js {}
+        end
+      else
+        flash.now[:errors] = ["Cannot pay more then total salary amount"]
+        format.js {}
+      end
+    end
+  end
+  
   def calculate_commission
     # binding.pry
     if params[:comm_ids].present?
@@ -221,7 +240,6 @@ class Company::SalariesController < Company::BaseController
     flash[:notice] = 'Commission calculated'
     render :js => "window.location = '#{request.headers["HTTP_REFERER"]}'"
   end
-  
   
   def check_salary_status
     salary = Salary.find_by(sclr_cycle_id: params[:sclr_cycle_id])
@@ -244,45 +262,49 @@ class Company::SalariesController < Company::BaseController
   
   
   def process_salary_expenses
-    @salaries = Salary.where(id: params[:ids])
+    @salaries = Salary.calculated.where(id: params[:ids])
     @salaries.each do |salary|
-      salary.update_attributes(total_amount: salary.total_amount + (salary.calculate_advance) + (salary.calculate_advance), status: :processed)
+      book_entry = salary.contract.contract_books.salary.buy_contract.build(bookable: salary, beneficiary: salary.candidate, total: salary.total_amount, paid: salary.billing_amount)
+      if book_entry.save
+        salary.processed!
+      end
     end
-    flash[:errors] = :@salaries.errors.full_messages
-    flash[:success] = "Salary processed successfully"
     redirect_to salaries_path(tab: "pay")
   end
+  
   def process_salary_clear
     @salaries = Salary.where(id: params[:ids])
     if @salaries.update_all(status: "cleared")
       flash[:success] = "Salary cleared successfully"
       redirect_to salaries_path(tab: "clearing")
     else
-      flash[:errors] = :@salaries.errors.full_messages
+      flash[:errors] = @salaries.errors.full_messages
       redirect_to salaries_path(tab: "pay")
     end
   end
+  
+  def add_contract_addable_expense_amount
+    @salaries = Salary.processed.where(id: params[:ids])
+    @salaries.each do |salary|
+      salary.update_attributes(contract_expenses: salary.calculate_expense)
+    end
+    flash[:success] = "Contract expenses are calculated"
+    redirect_to salaries_path(tab: 'clearing')
+  end
+  
   def add_contract_expense_amount
-    @salaries = Salary.where(id: params[:ids])
+    @salaries = Salary.where(id: params[:ids], status: [:open, :pending])
+    @salaries.each do |salary|
+      advance = salary.calculate_advance
+      salary.update_attributes(total_amount: salary.total_amount + advance, salary_advance: advance)
+    end
     if @salaries.update_all(status: "calculated")
       flash[:success] = "Salary calculated successfully"
       redirect_to salaries_path(tab: "process")
     else
-      flash[:errors] = :@salaries.errors.full_messages
+      flash[:errors] = @salaries.errors.full_messages
       redirect_to salaries_path(tab: "calculate")
     end
-    # salary = Salary.find_by(sclr_cycle_id: params[:sclr_cycle_id])
-    # if salary.present?
-    #   ce = ContractExpense.find_by(contract_id: salary.contract_id, candidate_id: salary.candidate_id, cycle_id: params[:sclr_cycle_id], con_ex_type: params[:cet_id])
-    #   # binding.pry
-    #   unless ce
-    #     ce = ContractExpense.create(contract_id: salary.contract_id, candidate_id: salary.candidate_id, amount: params[:amount], cycle_id: params[:sclr_cycle_id], con_ex_type: params[:cet_id])
-    #   else
-    #     ce.update(amount: params[:amount])
-    #   end
-    # end
-    # flash[:notice] = 'Expense saved.'
-    # render json: flash
   end
   
   private
@@ -292,7 +314,7 @@ class Company::SalariesController < Company::BaseController
     end
     
     def set_salary
-      @salary = Salary.find_by(id: params[:id])
+      @salary = Salary.find_by(id: params[:id] || params[:salary_id])
     end
     
     def contract_expense_type_params

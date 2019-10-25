@@ -1,0 +1,7 @@
+- if flash[:errors].present?
+  - flash[:errors].each do |e|
+    flash_error("#{e}");
+- if flash[:success].present?
+  $('#pay_salary_#{@salary.id}').modal('hide');
+  $("##{@salary.id}").text("#{@salary.billing_amount}")
+  flash_success("#{flash[:success]}");
