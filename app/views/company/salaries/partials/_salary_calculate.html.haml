@@ -15,7 +15,7 @@
     - contract_cycles.each do |cc|
       %tr
         %td
-          = "<input type='checkbox' id='ts_ids' name='ids[]' value='#{cc.cyclable.id}'>".html_safe if cc.cyclable.pending? or cc.cyclable.open? or cc.cyclable.calculated?
+          = "<input type='checkbox' id='ts_ids' name='ids[]' value='#{cc.cyclable.id}'>".html_safe
         %td= cc.id
         %td
         %td

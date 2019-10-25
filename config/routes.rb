@@ -545,6 +545,7 @@ Rails.application.routes.draw do
         post :aggregate_salary
         post :add_contract_expense_type
         post :add_contract_expense_amount
+        post :add_contract_addable_expense_amount
         get :clear_salary
         delete :delete_contract_expense_type
         get :report

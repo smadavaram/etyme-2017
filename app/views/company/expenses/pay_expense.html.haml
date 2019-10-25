@@ -23,10 +23,9 @@
                     %div.bank-balance $ 0
                     = link_to 'Bank Reconciliation', bank_reconciliation_bank_details_path 
                 .col-md-3
-                  %label  Payment Date
+                  %label Payment Date
                   = date_field_tag 'pay_date', Date.today, class: 'form-control' 
 
-  
 
               %br
               .row
@@ -48,7 +47,7 @@
                       %th Open Balance
                       %th Remaining Balance
                       %th Payment
-                      %th Balance due
+                      %th Due
                       %th Action
                   %tbody
                     - @expense_accounts.each do |ex|
@@ -74,16 +73,13 @@
                         = form_for ex, url: submit_bill_expenses_path(pay_bill_id: ex.id), method: :post do |f| 
                           = hidden_field_tag :bank_id, '' , class: 'bank_id'   
                           %td
-                            - if !ex.expense.salary_advanced? 
-                              = f.number_field :payment, value: '', class: 'payment' if ex.opened?
+                            = f.number_field :payment, value: '', class: 'payment input-50'
                           %td.balance_due
-                            - if !ex.expense.salary_advanced? 
-                              = f.number_field :balance_due, value: '', class: 'balance_due' if ex.opened?
-                          %td
-                            - if !ex.expense.salary_advanced? 
-                              = f.submit 'Pay' , name: 'pay_type',value: 'pay' if ex.opened?
-                              = f.submit 'Reject' , name: 'pay_type',value: 'reject' if ex.expense.bill_type != 'company_expense' || ex.opened?
-
+                            = f.number_field :balance_due, value: '', class: 'balance_due input-50'
+                          %td.d-flex
+                            -unless ex.cancelled? || ex.cleared? || ex.expense.salaried?
+                              = f.submit "Pay" , name: 'pay_type',value: 'pay', class: "btn btn-primary btn-sm mr-1"
+                              = f.submit "Reject" , name: 'pay_type',value: 'reject', class: "btn btn-danger btn-sm"
 
               %br
               .row

@@ -28,11 +28,9 @@
         %td= cc.contract.title
         %td= cc.cyclable.total_approve_time
         %td
-        %td= cc.cyclable.calculate_advance
-        %td= cc.cyclable.calculate_expense
+        %td= cc.cyclable.salary_advance
+        %td= cc.cyclable.contract_expenses
         %td= cc.cyclable.total_amount
         %td{id:"#{cc.cyclable.id}"}= cc.cyclable.billing_amount
         %td= snake_to_words(cc.cyclable.status)
         %td
-          =link_to "Pay", salary_pay_path(cc.cyclable), remote: true if cc.cyclable.processed?
-

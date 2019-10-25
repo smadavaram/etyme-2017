@@ -287,10 +287,10 @@ class Salary < ApplicationRecord
   end
   
   def calculate_advance
-    -(salary_items.joins("JOIN expenses ON expenses.id = salary_items.salaryable_id").where("expenses.bill_type": Expense.bill_types[:salary_advanced]).sum("expenses.total_amount"))
+    -(salary_items.joins("JOIN expenses ON expenses.id = salary_items.salaryable_id JOIN expense_accounts ON expenses.id = expense_accounts.expense_id").where("expenses.bill_type": Expense.bill_types[:salary_advanced],"expense_accounts.status": ExpenseAccount.statuses[:cleared]).sum("expense_accounts.payment"))
   end
   
   def calculate_expense
-    salary_items.joins("JOIN expenses ON expenses.id = salary_items.salaryable_id JOIN expense_accounts ON expenses.id = expense_accounts.expense_id").where("expenses.bill_type": Expense.bill_types[:company_expense]).sum("expense_accounts.amount")
+    salary_items.joins("JOIN expenses ON expenses.id = salary_items.salaryable_id JOIN expense_accounts ON expenses.id = expense_accounts.expense_id").where("expenses.bill_type": Expense.bill_types[:company_expense],"expense_accounts.status": ExpenseAccount.statuses[:cleared]).sum("expense_accounts.payment")
   end
 end
