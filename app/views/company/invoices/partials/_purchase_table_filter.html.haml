@@ -1,0 +1,43 @@
+.mt-2
+  .d-flex{style: 'justify-content: flex-end'}
+    .form-group.d-flex
+      %i.fa.fa-chevron-circle-left.mt-2
+      %input{:type=>"text", class: 'p_date form-control m-1',placeholder: 'From Date'}
+      
+      %input{:type=>"text", class: 'p_date form-control m-1',placeholder: 'To Date'}
+      %i.fa.fa-chevron-circle-right.mt-2
+
+.table_divider.mt-3
+.row
+  .col-md-8
+    .d-flex{style: ""}
+      %ul.nav.nav-pills.smaller.mt-3{style: "border-bottom: none;"}
+        %li.nav-item.ml-3
+          %a{class: "nav-link ts fd upcomming_timesheets border_btn #{ "active" if @tab.eql?("pending") }", href: purchase_pending_invoices_path} pending invoice
+        %li.nav-item
+          %a{class: "nav-link ts fd submitted_timesheets border_btn #{ "active" if @tab.eql?("open") }", href: purchase_open_invoices_path}  Open
+        %li.nav-item
+          %a{class: "nav-link ts fd approved_timesheets border_btn #{ "active" if @tab.eql?("submitted") }", href: purchase_submitted_invoices_path } Submitted
+        %li.nav-item
+          %a{class: "nav-link ts fd approved_timesheets border_btn #{ "active" if @tab.eql?("partically_paid") }", href: purchase_partically_paid_invoices_path} Partially Paid 
+        %li.nav-item
+          %a{class: "nav-link ts fd approved_timesheets border_btn #{ "active" if @tab.eql?("paid") }", href: purchase_paid_invoices_path} Paid
+        %li.nav-item
+          %a{class: "nav-link ts fd approved_timesheets border_btn #{ "active" if @tab.eql?("cancel") }", href: purchase_cancel_invoices_path} Cancel  
+        %li.nav-item
+          %a{class: "nav-link fd open_timesheets border_btn #{ "active" if @tab.nil? || @tab.eql?("all") }", href: purchase_invoices_path} All
+    
+  .col-md-4
+    / style: "border-bottom: none;float:right;margin-right:30px !important;"
+    %ul.nav.nav-pills.smaller.mt-3.d-flex{style: 'justify-content: flex-end'}
+      %li.nav-item.ml-3
+        %a{class: "nav-link ts fd upcomming_timesheets border_btn #{ "active" if @tab.eql?("Upcomming") }", href:'#'} Export
+      %li.nav-item.ml-3
+        %a{class: "nav-link ts fd submitted_timesheets border_btn #{ "active" if @tab.eql?("Submitted") }",href:'#'} Print
+%br      
+.row.ml-2
+  .col-sm-6{style: 'justify-content: flex-start'}
+    %a.btn.btn-primary.btn_style.mt-3 New 
+  .col-sm-6{style: 'justify-content: flex-end'}  
+    .form-inline.justify-content-sm-end
+      %input.form-control.form-control-sm.bright{placeholder: "Search", type: "text", type: 'search', id: 'my_bench_datatable-search'}

@@ -1,7 +1,6 @@
 .element-wrapper.m-2
   .element-box
-    =render('company/invoices/partials/table_filter')
-
+    =render('company/invoices/partials/purchase_table_filter')
     #tab-r2.tab-pane.padding-top-15
       .table-responsive.p-3
         %table.table.table-striped.table-bordered.table-v2.table-lg
@@ -9,7 +8,7 @@
             %tr{:role => "row"}
               %th id
               %th Contract
-              %th Receiver
+              %th Sender
               %th Created at - Due
               %th Hours
               %th Type
@@ -18,14 +17,14 @@
               %th Status
               %th Actions
           %tbody
-            -  @sent_invoices.each_with_index do |invoice , index|
+            -  @partically_paid_invoices.each_with_index do |invoice , index|
               %tr
                 %td= invoice.id
                 %td.no-wrap.pr-3
                   = link_to do_ellipsis(invoice.contract.title,15),  company_sell_contract_contract_path(invoice.contract)
                 %td.no-wrap.pr-5
-                  =image_tag(invoice.receiver_company.photo, class: 'data-table-image mr-1').html_safe
-                  =link_to(do_ellipsis(invoice.receiver_company.full_name), profile_company_path(invoice.receiver_company), class: 'data-table-font')
+                  =image_tag(invoice.sender_company.photo, class: 'data-table-image mr-1').html_safe
+                  =link_to(do_ellipsis(invoice.sender_company.full_name), profile_company_path(invoice.sender_company), class: 'data-table-font')
                 %td= invoice.start_date.to_s + " - " + invoice.end_date.to_s
                 %td= invoice.total_approve_time
                 %td= snake_to_words(invoice.invoice_type)
@@ -38,8 +37,8 @@
                   = link_to raw("<i class='fa fa-edit'></i>"), invoice.timesheet_invoice? ? edit_invoice_path( invoice) : client_expense_invoice_invoice_path(invoice) , class: 'data-table-icons',title: "Add Timesheet(s)" if invoice.open?
         .timesheet_pagination_wrap
           .pagination_label
-            = page_entries_info @sent_invoices
-          = will_paginate(@sent_invoices, {params: {tab: 'sale'},previous_label: "Previous",next_label: "Next",inner_window: 2,class: 'invoices_pagination_links'})
+            = page_entries_info @partically_paid_invoices
+          = will_paginate(@partically_paid_invoices, {params: {tab: 'sale'},previous_label: "Previous",next_label: "Next",inner_window: 2,class: 'invoices_pagination_links'})
 
 .modal{id: "invoice-confirmation-model"}
   .modal-dialog.modal-lg

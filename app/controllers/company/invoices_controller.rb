@@ -15,16 +15,92 @@ class Company::InvoicesController < Company::BaseController
   end
 
   def sale
+    @tab = 'all'
     add_breadcrumb "Sale Invoices", '#', options: {title: "INVOICES"}
     @sent_invoices = current_company.sent_invoices.where(status: [:open, :submitted, :paid, :partially_paid, :cancelled]).joins(:contract).paginate(page: params[:page], per_page: 15)
+  end
 
+  def sale_submitted
+    @tab = 'submitted'
+    add_breadcrumb "Sale / Submitted Invoices", '#', options: {title: "INVOICES"}
+    @submitted_invoices = current_company.sent_invoices.where(status: [:submitted]).joins(:contract).paginate(page: params[:page], per_page: 15)
+  end
+
+
+  def sale_paid
+    @tab = 'paid'
+    add_breadcrumb "Sale / Paid Invoices", '#', options: {title: "INVOICES"}
+    @paid_invoices = current_company.sent_invoices.where(status: [:paid]).joins(:contract).paginate(page: params[:page], per_page: 15)
+  end
+
+  def sale_partically_paid
+    @tab = 'partically_paid'
+    add_breadcrumb "Sale / Partically Paid Invoices", '#', options: {title: "INVOICES"}
+    @partically_paid_invoices = current_company.sent_invoices.where(status: [:partially_paid]).joins(:contract).paginate(page: params[:page], per_page: 15)
+  end
+
+  def sale_open
+    @tab = 'open'
+    add_breadcrumb "Sale / Open Invoices", '#', options: {title: "INVOICES"}
+    @open_invoices = current_company.sent_invoices.where(status: [:open]).joins(:contract).paginate(page: params[:page], per_page: 15)
+  end
+
+  def sale_pending
+    @tab = 'pending'
+    add_breadcrumb "Sale / pending Invoices", '#', options: {title: "INVOICES"}
+    @pending_invoices = current_company.sent_invoices.where(status: [:pending_invoice]).joins(:contract).paginate(page: params[:page], per_page: 15)
+  end
+
+  def sale_cancel
+    @tab = 'cancel'
+    add_breadcrumb "Sale / cancelled Invoices", '#', options: {title: "INVOICES"}
+    @cancelled_invoices = current_company.sent_invoices.where(status: [:cancelled]).joins(:contract).paginate(page: params[:page], per_page: 15)
   end
 
   def purchase
     add_breadcrumb "Purchase Invoices", '#', options: {title: "INVOICES"}
     @receive_invoices = current_company.receive_invoices.where(status: [:submitted, :paid, :partially_paid, :cancelled]).joins(:contract).paginate(page: params[:page], per_page: 15)
-
   end
+
+  def purchase_submitted
+    @tab = 'submitted'
+    add_breadcrumb "Sale / Submitted Invoices", '#', options: {title: "INVOICES"}
+    @submitted_invoices = current_company.receive_invoices.where(status: [:submitted]).joins(:contract).paginate(page: params[:page], per_page: 15)
+  end
+
+
+  def purchase_paid
+    @tab = 'paid'
+    add_breadcrumb "Sale / Paid Invoices", '#', options: {title: "INVOICES"}
+    @paid_invoices = current_company.receive_invoices.where(status: [:paid]).joins(:contract).paginate(page: params[:page], per_page: 15)
+  end
+
+  def purchase_partically_paid
+    @tab = 'partically_paid'
+    add_breadcrumb "Sale / Partically Paid Invoices", '#', options: {title: "INVOICES"}
+    @partically_paid_invoices = current_company.receive_invoices.where(status: [:partially_paid]).joins(:contract).paginate(page: params[:page], per_page: 15)
+  end
+
+  def purchase_open
+    @tab = 'open'
+    add_breadcrumb "Sale / Open Invoices", '#', options: {title: "INVOICES"}
+    @open_invoices = current_company.receive_invoices.where(status: [:open]).joins(:contract).paginate(page: params[:page], per_page: 15)
+  end
+
+  def purchase_pending
+    @tab = 'pending'
+    add_breadcrumb "Sale / pending Invoices", '#', options: {title: "INVOICES"}
+    @pending_invoices = current_company.receive_invoices.where(status: [:pending_invoice]).joins(:contract).paginate(page: params[:page], per_page: 15)
+  end
+
+  def purchase_cancel
+    @tab = 'cancel'
+    add_breadcrumb "Sale / cancelled Invoices", '#', options: {title: "INVOICES"}
+    @cancelled_invoices = current_company.receive_invoices.where(status: [:cancelled]).joins(:contract).paginate(page: params[:page], per_page: 15)
+  end
+
+
+
   
   def cleared_invoice
     @invoices = Invoice.cleared_invoices.joins(:contract).where(contracts: {company_id: current_company.id}).order("created_at DESC")

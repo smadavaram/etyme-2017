@@ -18,7 +18,7 @@
               %th Status
               %th Actions
           %tbody
-            -  @sent_invoices.each_with_index do |invoice , index|
+            -  @pending_invoices.each_with_index do |invoice , index|
               %tr
                 %td= invoice.id
                 %td.no-wrap.pr-3
@@ -38,8 +38,8 @@
                   = link_to raw("<i class='fa fa-edit'></i>"), invoice.timesheet_invoice? ? edit_invoice_path( invoice) : client_expense_invoice_invoice_path(invoice) , class: 'data-table-icons',title: "Add Timesheet(s)" if invoice.open?
         .timesheet_pagination_wrap
           .pagination_label
-            = page_entries_info @sent_invoices
-          = will_paginate(@sent_invoices, {params: {tab: 'sale'},previous_label: "Previous",next_label: "Next",inner_window: 2,class: 'invoices_pagination_links'})
+            = page_entries_info @pending_invoices
+          = will_paginate(@pending_invoices, {params: {tab: 'sale'},previous_label: "Previous",next_label: "Next",inner_window: 2,class: 'invoices_pagination_links'})
 
 .modal{id: "invoice-confirmation-model"}
   .modal-dialog.modal-lg
