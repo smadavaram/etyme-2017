@@ -15,7 +15,7 @@
                 .row
                   .col-md-4
                     %label Treasury Account
-                    = f.select :bank_name, options_for_select(BankDetail::BANK_NAME.map { |key| [key.titleize, key] }),{required: true}
+                    = f.select :bank_name, options_for_select(BankDetail.bank_names.keys.map { |key| [key.titleize, key] }),{required: true}
 
                   .col-md-4
                     %label Balance
