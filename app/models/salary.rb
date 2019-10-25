@@ -15,6 +15,7 @@ class Salary < ApplicationRecord
   
   has_many :salary_items
   has_one :contract_cycle, as: :cyclable
+  has_many :contract_books, as: :bookable
   
   scope :open_salaries, -> { where(status: :open) }
   scope :calculated_salaries, -> { where(status: :calculated) }

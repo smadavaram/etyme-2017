@@ -262,11 +262,12 @@ class Company::SalariesController < Company::BaseController
   
   
   def process_salary_expenses
-    @salaries = Salary.where(id: params[:ids])
-    if @salaries.update_all(status: :processed)
-      flash[:success] = "Salary processed successfully"
-    else
-      flash[:errors] = @salaries.errors.full_messages
+    @salaries = Salary.calculated.where(id: params[:ids])
+    @salaries.each do |salary|
+      book_entry = salary.contract.contract_books.salary.buy_contract.build(bookable: salary, beneficiary: salary.candidate, total: salary.total_amount, paid: salary.billing_amount)
+      if book_entry.save
+        salary.processed!
+      end
     end
     redirect_to salaries_path(tab: "pay")
   end
