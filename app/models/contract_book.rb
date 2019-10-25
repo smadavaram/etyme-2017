@@ -32,7 +32,7 @@ class ContractBook < ApplicationRecord
     end
     
     def update_bank_balance
-      bank.increment!(:balance, by = paid)
+      bank.decrement!(:balance, by = paid)
     end
 
 end
