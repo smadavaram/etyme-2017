@@ -13,17 +13,17 @@
     .d-flex{style: ""}
       %ul.nav.nav-pills.smaller.mt-3{style: "border-bottom: none;"}
         %li.nav-item.ml-3
-          %a{class: "nav-link ts fd upcomming_timesheets border_btn #{ "active" if @tab.eql?("pending") }", href: purchase_pending_invoices_path} pending invoice
+          %a{class: "nav-link ts fd upcomming_timesheets border_btn #{ "active" if @tab.eql?("pending") }", href: ''} pending invoice
         %li.nav-item
-          %a{class: "nav-link ts fd submitted_timesheets border_btn #{ "active" if @tab.eql?("open") }", href: purchase_open_invoices_path}  Open
+          %a{class: "nav-link ts fd submitted_timesheets border_btn #{ "active" if @tab.eql?("open") }", href: ''}  Open
         %li.nav-item
-          %a{class: "nav-link ts fd approved_timesheets border_btn #{ "active" if @tab.eql?("submitted") }", href: purchase_submitted_invoices_path } Submitted
+          %a{class: "nav-link ts fd approved_timesheets border_btn #{ "active" if @tab.eql?("submitted") }", href: '' } Submitted
         %li.nav-item
-          %a{class: "nav-link ts fd approved_timesheets border_btn #{ "active" if @tab.eql?("partically_paid") }", href: purchase_partically_paid_invoices_path} Partially Paid 
+          %a{class: "nav-link ts fd approved_timesheets border_btn #{ "active" if @tab.eql?("partically_paid") }", href: ''} Partially Paid 
         %li.nav-item
-          %a{class: "nav-link ts fd approved_timesheets border_btn #{ "active" if @tab.eql?("paid") }", href: purchase_paid_invoices_path} Paid
+          %a{class: "nav-link ts fd approved_timesheets border_btn #{ "active" if @tab.eql?("paid") }", href: ''} Paid
         %li.nav-item
-          %a{class: "nav-link ts fd approved_timesheets border_btn #{ "active" if @tab.eql?("cancel") }", href: purchase_cancel_invoices_path} Cancel  
+          %a{class: "nav-link ts fd approved_timesheets border_btn #{ "active" if @tab.eql?("cancel") }", href: ''} Cancel  
         %li.nav-item
           %a{class: "nav-link fd open_timesheets border_btn #{ "active" if @tab.nil? || @tab.eql?("all") }", href: purchase_invoices_path} All
     

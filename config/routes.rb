@@ -448,20 +448,8 @@ Rails.application.routes.draw do
       end
       collection do
         get :sale
-        get :sale_submitted
-        get :sale_paid
-        get :sale_partically_paid
-        get :sale_open
-        get :sale_pending
-        get :sale_cancel
-        
         get :purchase
-        get :purchase_submitted
-        get :purchase_paid
-        get :purchase_partically_paid
-        get :purchase_open
-        get :purchase_pending
-        get :purchase_cancel
+       
 
         post :client_submit_invoice
         get :cleared_invoice
