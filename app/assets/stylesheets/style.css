@@ -1757,3 +1757,10 @@ text-align: left;
 .input-60{
     width: 60px !important;
 }
+.table.salary_table tbody tr td{
+    padding: 5px 19px !important;
+}
+.table.salary_table tbody tr td.emp
+{
+    padding: 5px 9px !important;
+}
