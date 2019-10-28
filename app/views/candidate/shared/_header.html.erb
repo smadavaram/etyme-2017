@@ -94,7 +94,7 @@
         <div class="logged-user-i">
           <div class="avatar-w">
             <%= link_to my_profile_path do %>
-              <%if current_candidate.photo.nil? || current_candidate.photo.empty?%>
+              <%if current_candidate.photo.blank?%>
                <%= entity_image(current_candidate.first_name,current_candidate.last_name)%>
                 
               <%else%>

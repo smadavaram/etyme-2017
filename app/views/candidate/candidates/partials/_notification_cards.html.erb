@@ -4,7 +4,7 @@
       <div class="badge badge-warning-inverted"><%= snake_to_words(notification.notification_type) %></div>
     </div>
     <div class="st-body">
-      <div class="avatar"><img alt="" src="<%= notification.createable&.photo.nil? ||notification.createable&.photo.empty?  ? entity_image(notification.createable.first_name,notification.createable.last_name) : notification.createable&.photo %>"></div>
+      <div class="avatar"><img alt="" src="<%= notification.createable&.photo.blank?  ? entity_image(notification.createable.first_name,notification.createable.last_name) : notification.createable&.photo %>"></div>
       <div class="ticket-content w-100"><h6 class="ticket-title">
         <%= do_ellipsis(notification.title.capitalize) %>
       </h6>

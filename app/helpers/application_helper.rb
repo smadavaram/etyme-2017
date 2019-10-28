@@ -1316,7 +1316,7 @@ module ApplicationHelper
       user_photo=""
       user_photo=user_photo+"<div class='mini_chat_users pl-1' style=''>"
         user_photo=user_photo+"<div class='table_avatar'>"
-          if users&.signable&.photo.nil? || users&.signable&.photo.empty?
+          if users&.signable&.photo.blank?
             user_photo=user_photo+ entity_image(users.signable.first_name,users.signable.last_name,'avatar_circle')
           else
             user_photo=user_photo+ "<img  src='#{users.signable&.photo}' title='#{users.signable.full_name}' style='width:#{width}px; height:#{height}px;'>"
@@ -1325,7 +1325,7 @@ module ApplicationHelper
 
         users.signers&.take(3).each do |signer|
           user_photo=user_photo+"<div class='table_avatar'>"
-            if signer.photo.nil? || signer.photo.empty?
+            if signer.photo.blank?
               user_photo=user_photo+ entity_image(signer.first_name,signer.last_name)
             else
               user_photo=user_photo+ "<img  src='#{signer.photo}' title='#{signer.full_name}' style='width:#{width}px; height:#{height}px;'>"

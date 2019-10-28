@@ -228,7 +228,7 @@
             Buy
           %div.contract-custome-details.box
             %h5
-              = @contract.candidate.full_name+' ($'+@contract.buy_contract&.payrate&.to_i.to_s+' / '+@contract.buy_contract&.payrate_type+')'
+              = @contract.candidate&.full_name+' ($'+@contract.buy_contract&.payrate&.to_i.to_s+' / '+@contract.buy_contract&.payrate_type+')'
             %div.contract-custome-details.line-bottom
               .row
                 .col-sm-6.col-md-6.col-lg-6

@@ -283,7 +283,7 @@
                   .user-w.toggleable
                     .user-avatar-w
                       .avatar-w
-                        -if user.photo.nil? || user.photo.empty?
+                        -if user.photo.blank? 
                           =entity_image(current_user.first_name,current_user.last_name)
                         -else
                           = image_tag user.photo, class: 'circle_img'
@@ -306,7 +306,7 @@
                     - current_company.candidates.take(30).each do |candidate|
                       - cache candidate do
                         %li
-                          -if candidate.photo.nil? || candidate.photo.empty?
+                          -if candidate.photo.blank?
                             =entity_image(candidate.first_name,candidate.last_name)
                           -else
                             = link_to image_tag( candidate.try(:photo) ,class:"margin-bottom-5 margin-top-5",alt:image_path('avatars/m_sunny_big.png')) , static_candidate_resume_path(candidate),target: "_blank" , title: candidate.full_name,"data-content" => "Email : #{candidate.email}", "data-placement" => "top",:rel => "hover"
@@ -326,7 +326,7 @@
                     - current_company.invited_companies_contacts.take(30).each do |contact|
                       - cache contact do
                         %li
-                          -if contact.photo.nil? || contact.photo.empty?
+                          -if contact.photo.blank?
                             =entity_image(contact.first_name,contact.last_name)
                           -else
                             = link_to (image_tag contact.try(:photo) ,class:"margin-bottom-5 margin-top-5",alt: image_path('avatars/m_sunny_big.png') ), profile_company_path(contact) ,title: contact.full_name ,"data-content" => "Email : #{contact.email}", "data-placement" => "top",:rel => "hover"

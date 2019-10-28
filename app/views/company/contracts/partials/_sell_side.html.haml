@@ -57,7 +57,7 @@
             - user = sell_business_detail.company_contact.user
             .logged-user-w.no_border_bottom{style: "width: 120px;"}
               .avatar-w
-                -if user.photo.nil? || user.photo.empty?
+                -if user.photo.blank?
                   =entity_image(user.first_name,user.last_name)
                 -else
                   %img{:alt => user.full_name, title: user.full_name, :src => user.photo, style: 'width:40px !important; height:40px !important;'}

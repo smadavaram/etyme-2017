@@ -12,7 +12,7 @@
     <% @job_applications.each do |application| %>
       <tr data-id="<%= application.id %>">
         <td>
-          <%if application.user.photo.nil? || application.user.photo.empty? %>
+          <%if application.user.photo.blank?%>
             <%=entity_image(application.user.first_name,application.user.last_name,'circle','circle_img')%>
           <%else%>
             <%= link_to application.user.try(:full_name).try(:titleize), job_application_path(application.id), "data-content" => "<p class= 'text-center' ><image style='border-radius:50%;' src=#{image_url(application.user.photo)}/></br><div class='well well-sm'>#{application.user.full_name}</br>Email : #{application.user.email} </div></p>", "data-placement" => "top", :rel => "hover" %>

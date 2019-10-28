@@ -6,7 +6,7 @@
         %ul.list-inline.friends-list
           %li
             / = link_to (image_tag data.company.logo ,class:'',alt: "Logo" ,style: "width: 60px !important; height: 60px !important;") ,profile_company_path(data.company),title: "#{data.try(:company).try(:name) } Profile",'data-toggle'=>"tooltip" ,'data-placement'=>"top"
-      -if data.photo.nil? || data.photo.empty?
+      -if data.photo.blank?
         =default_user_img(data.first_name,data.last_name)
       -else      
         = image_tag data.photo,class:'',alt: "job",style:"width: 60px !important ; height: 60px !important; "

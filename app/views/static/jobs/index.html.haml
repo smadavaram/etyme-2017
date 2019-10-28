@@ -38,7 +38,7 @@
               .row.top-sec
                 .col-lg-2.col-xs-12
                   %a{:href => "#"}
-                    - unless job.created_by&.photo.nil? || job.created_by&.photo.empty?
+                    - unless job.created_by&.photo.blank?
                       = image_tag job.created_by&.photo ,class: "img-responsive"
                     - else
                       = image_tag 'https://etyme.club/static/js/jobs.png' ,class: "img-responsive"
