@@ -20,9 +20,9 @@
           = "<input type='checkbox' id='ts_ids' name='ids[]' value='#{cc.cyclable.id}'>".html_safe if cc.cyclable.calculated?
         %td= cc.id
         %td
-        %td
+        %td.no-wrap
           - user = cc.contract.candidate
-          =image_tag(user.photo, class: 'data-table-image mr-1',title: "#{user.full_name}").html_safe
+          =entity_image(user.first_name,user.last_name)
           =link_to(do_ellipsis(user.full_name), public_profile_static_candidates_path(user), class: 'data-table-font')
         %td= cc.contract.title
         %td= cc.cyclable.total_approve_time

@@ -29,7 +29,7 @@
                       %td
                         = check_box_tag "ids[]", application.id
                       %td.no-wrap
-                        -if application.applicationable.photo.nil?
+                        -if application.applicationable.photo.nil? || application.applicationable.photo.empty?
                           =entity_image(application.applicationable.first_name,application.applicationable.last_name,'circle','circle_img')
                         -else
                           = image_tag(application.applicationable.photo, class: 'data-table-image mr-1',title: "#{application.applicationable.full_name}")

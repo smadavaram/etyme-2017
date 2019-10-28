@@ -5,7 +5,7 @@
       <%= user.company.domain %>
     </td>
     <td>
-      <%if user.photo.nil?%>
+      <%if user.photo.nil? || user.photo.empty?%>
         <%=entity_image(user.first_name,user.last_name,'circle','circle_img')%>
       <%else%>
         <%= image_tag(user.photo, class: 'data-table-image mr-1',title: "#{user.full_name}")%>

@@ -6,7 +6,7 @@
     .row
       .col-sm-4
         .user-profile.compact
-          .up-head-w{:style => "background-image:url(#{candidate.photo})"}
+          .up-head-w{:style => "background-image:url(#{candidate.photo.nil? || candidate.photo.empty? ? asset_path('avatars/m_sunny_big.png') : candidate.photo})"}
             - if own
               = link_to '#', class: 'profile--link', onclick: "upload_file_ajax(candidateLogoUpload)" do
                 .up-main-info

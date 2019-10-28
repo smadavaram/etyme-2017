@@ -14,7 +14,7 @@
         <ul>
           <% @conversation.chatable.groupables.each do |g| %>
             <li>
-              <%if g.groupable.photo.nil?%>
+              <%if g.groupable.photo.nil? || g.groupable.photo.empty?%>
                 <%if g.groupable.first_name=='' || g.groupable.last_name=='' %>
                   <%= image_tag asset_path('avatars/m_sunny_big.png'), class: 'superbox-img', style: 'border-radius: 50%;width:30px !important;height:30px !important' %>
                 <%else%>

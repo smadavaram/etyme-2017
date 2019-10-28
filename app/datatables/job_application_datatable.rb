@@ -34,7 +34,7 @@ class JobApplicationDatatable < ApplicationDatatable
   end
 
   def candidate_profile record
-    if user.photo.nil?
+    if user.photo.nil? || user.photo.empty?
       default_user_img(record.applicationable.first_name,record.applicationable.last_name)+
       link_to(do_ellipsis(record.applicationable.full_name), '#', class: 'data-table-font')
     else

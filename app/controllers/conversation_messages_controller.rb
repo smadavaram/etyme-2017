@@ -14,7 +14,7 @@ class ConversationMessagesController < ApplicationController
                                      msg: message.body,
                                      sender_name: message.userable.full_name.capitalize,
                                      file_url: message.file_url ? message.file_url : "",
-                                     msg_url: message.userable.photo,
+                                     msg_url: message.userable.photo.nil? || message.userable.photo.empty? ? asset_path('avatars/m_sunny_big.png') : message.userable.photo ,
                                      msg_time: message.created_at.strftime("%l:%M%P"),
                                      # msg_att: message.attachment_file,
                                      # msg_att_name: message.file_name,
