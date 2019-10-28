@@ -447,7 +447,7 @@ Rails.application.routes.draw do
         post :update_expense_invoice
       end
       collection do
-        get :sale
+        get 'sale/:tab', to: 'invoices#sale', as: 'sale'
         get :purchase
        
 

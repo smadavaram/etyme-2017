@@ -15,9 +15,18 @@ class Company::InvoicesController < Company::BaseController
   end
 
   def sale
-    @tab = 'all'
-    add_breadcrumb "Sale Invoices", '#', options: {title: "INVOICES"}
-    @sent_invoices = current_company.sent_invoices.where(status: [:open, :submitted, :paid, :partially_paid, :cancelled]).joins(:contract).paginate(page: params[:page], per_page: 15)
+
+    @tab = params[:tab]
+    if @tab == 'all'
+       @tab = 'all'
+       add_breadcrumb "Sale Invoices", '#', options: {title: "INVOICES"}
+       @sent_invoices = current_company.sent_invoices.where(status: [:open, :submitted, :paid, :partially_paid, :cancelled]).joins(:contract).paginate(page: params[:page], per_page: 15)
+    else
+      add_breadcrumb @tab, '#', options: {title: "INVOICES"}
+      @sent_invoices = current_company.sent_invoices.submitted.joins(:contract).paginate(page: params[:page], per_page: 15)
+
+
+    end
   end
 
   def sale_submitted
