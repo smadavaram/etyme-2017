@@ -38,7 +38,11 @@
               .row.top-sec
                 .col-lg-2.col-xs-12
                   %a{:href => "#"}
-                    = image_tag job.created_by.photo ,class: "img-responsive"
+                    - unless job.created_by&.photo.nil?
+                      = image_tag job.created_by&.photo ,class: "img-responsive"
+                    - else
+                      = image_tag 'https://etyme.club/static/js/jobs.png' ,class: "img-responsive"
+                        
                 .col-lg-10.col-xs-12
                   %h4
                     = link_to truncate(job.title,length: 50) ,static_job_path(job)
