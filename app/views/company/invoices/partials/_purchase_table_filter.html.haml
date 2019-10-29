@@ -17,9 +17,6 @@
       .d-flex{style: ""}
         %ul.nav.nav-pills.smaller.mt-3{style: "border-bottom: none;"}
           %li.nav-item
-            %a{id: "open", class: "invoice_table_filter nav-link ts fd submitted_timesheets border_btn #{ "active" if @tab.eql?("open") }","data-tab"=> 'open', href:  '#' } Open
-         
-          %li.nav-item
             %a{id: "submitted", class: "invoice_table_filter nav-link ts fd approved_timesheets border_btn #{ "active" if @tab.eql?("submitted") }","data-tab"=> 'submitted', href: '#' } Submitted
          
           %li.nav-item
@@ -34,7 +31,7 @@
           
 
           %li.nav-item
-            %a{id: "all", class: "invoice_table_filter nav-link fd open_timesheets border_btn #{ "active" if @tab.nil? || @tab.eql?("all") }","data-tab"=> 'all', href: '#'} All
+            %a{id: "all", class: "invoice_table_filter nav-link fd open_timesheets border_btn #{ "active" if @tab.nil? || @tab.eql?("all_invoices") }","data-tab"=> 'all_invoices', href: '#'} All
       
     .col-md-4
       / style: "border-bottom: none;float:right;margin-right:30px !important;"
