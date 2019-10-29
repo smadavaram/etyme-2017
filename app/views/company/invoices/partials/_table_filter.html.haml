@@ -1,4 +1,5 @@
-= form_tag sale_invoices_path(@tab), method: :get, id: "sale_invoices_form" do
+= form_tag sale_invoices_path, method: :get, id: "sale_invoices_form" do
+  = hidden_field_tag "tab", 'all'
   .mt-2
     .d-flex{style: 'justify-content: flex-end'}
       .form-group.d-flex
@@ -6,6 +7,8 @@
         = text_field_tag :start_date, params[:start_date], autofocus: false,class: "p_date form-control m-1",placeholder: 'To Date'
         
         = text_field_tag :end_date, params[:start_date], autofocus: false,class: "p_date form-control m-1",placeholder: 'To Date'
+
+
         %i.fa.fa-chevron-circle-right.mt-2
 
   .table_divider.mt-3
@@ -13,20 +16,25 @@
     .col-md-8
       .d-flex{style: ""}
         %ul.nav.nav-pills.smaller.mt-3{style: "border-bottom: none;"}
-          %li.nav-item.ml-3
-            %a{class: "invoice_table_filter nav-link ts fd upcomming_timesheets border_btn #{ "active" if @tab.eql?("pending") }", href: sale_invoices_path(:pending_invoice) } pending invoice
           %li.nav-item
-            %a{class: "invoice_table_filter nav-link ts fd submitted_timesheets border_btn #{ "active" if @tab.eql?("open") }", href:  sale_invoices_path(:open) }  Open
+            %a{id: "open", class: "invoice_table_filter nav-link ts fd submitted_timesheets border_btn #{ "active" if @tab.eql?("open") }","data-tab"=> 'open', href:  '#' }  Open
+         
           %li.nav-item
-            %a{class: "invoice_table_filter nav-link ts fd approved_timesheets border_btn #{ "active" if @tab.eql?("submitted") }", href:  sale_invoices_path(:submitted) } Submitted
+            %a{id: "submitted", class: "invoice_table_filter nav-link ts fd approved_timesheets border_btn #{ "active" if @tab.eql?("submitted") }","data-tab"=> 'submitted', href: '#' } Submitted
+         
           %li.nav-item
-            %a{class: "invoice_table_filter nav-link ts fd approved_timesheets border_btn #{ "active" if @tab.eql?("partically_paid") }", href:  sale_invoices_path(:partially_paid)} Partially Paid 
+            %a{id: "partially_paid", class: "invoice_table_filter nav-link ts fd approved_timesheets border_btn #{ "active" if @tab.eql?("partially_paid") }","data-tab"=> 'partially_paid', href:  '#'} Partially Paid 
+          
           %li.nav-item
-            %a{class: "invoice_table_filter nav-link ts fd approved_timesheets border_btn #{ "active" if @tab.eql?("paid") }", href: sale_invoices_path(:paid) } Paid
+            %a{id: "paid", class: "invoice_table_filter nav-link ts fd approved_timesheets border_btn #{ "active" if @tab.eql?("paid") }","data-tab"=> 'paid', href: '#' } Paid
+          
+ 
           %li.nav-item
-            %a{class: "invoice_table_filter nav-link ts fd approved_timesheets border_btn #{ "active" if @tab.eql?("cancel") }", href:  sale_invoices_path(:cancelled)} Cancel  
+            %a{id: "cancelled", class: "invoice_table_filter nav-link ts fd approved_timesheets border_btn #{ "active" if @tab.eql?("cancelled") }","data-tab"=> 'cancelled', href: '#'} Cancel
+          
+
           %li.nav-item
-            %a{class: "invoice_table_filter nav-link fd open_timesheets border_btn #{ "active" if @tab.nil? || @tab.eql?("all") }", href: sale_invoices_path} All
+            %a{id: "all", class: "invoice_table_filter nav-link fd open_timesheets border_btn #{ "active" if @tab.nil? || @tab.eql?("all") }","data-tab"=> 'all', href: '#'} All
       
     .col-md-4
       / style: "border-bottom: none;float:right;margin-right:30px !important;"
@@ -38,7 +46,6 @@
   %br      
   .row.ml-2
     .col-sm-6{style: 'justify-content: flex-start'}
-      %a.btn.btn-primary.btn_style.mt-3 New 
     .col-sm-6{style: 'justify-content: flex-end'}  
       .form-inline.justify-content-sm-end
-        %input.form-control.form-control-sm.bright{placeholder: "Search", type: "text", type: 'search', id: 'my_bench_datatable-search'}
+        = text_field_tag :search, params[:search], placeholder: "Search", type: 'search', class: "form-control form-control-sm bright" , id: 'my_bench_datatable-search'
