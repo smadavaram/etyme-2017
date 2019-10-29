@@ -45,7 +45,7 @@
           %td= link_to do_ellipsis(invitation.job.title), job_path(invitation.job),class: 'data-table-font'
           %td= do_ellipsis(invitation.recipient.email,15) if invitation.recipient.present?
           %td
-            -if invitation.created_by.try(:photo).nil?
+            -if invitation.created_by.try(:photo).nil? || invitation.created_by.try(:photo).empty?
               =default_user_img(invitation.created_by.first_name,invitation.created_by.last_name) if invitation.created_by
             -else
               = image_tag(invitation.created_by.photo, class: 'data-table-image').html_safe if invitation.created_by.present?

@@ -4,11 +4,17 @@
       <div class="badge badge-warning-inverted"><%= snake_to_words(notification.notification_type) %></div>
     </div>
     <div class="st-body">
-      <div class="avatar"><img alt="" src="<%= notification.createable&.photo %>"></div>
+      <div class="avatar">
+        <% if notification.createable&.photo .nil? || notification.createable&.photo.empty? %>
+          <%=entity_image(notification.createable.first_name,notification.createable.last_name) if notification.createable.present?%>
+          <%else%>
+           <img alt="" src="<%= notification.createable&.photo %>">
+          <%end%>
+        </div>
       <div class="ticket-content w-100"><h6 class="ticket-title">
         <%= do_ellipsis(notification.title.capitalize) %>
       </h6>
-        <div class="ticket-description d-inline-block"><%= notification.createable&.full_name.capitalize %></div>
+        <div class="ticket-description d-inline-block"><%= do_ellipsis(notification.createable&.full_name) %></div>
         <div class="ticket-description d-inline-block pull-right text-primary">
         <%= notification.created_at.to_formatted_s(:short) %>
       </div></div>

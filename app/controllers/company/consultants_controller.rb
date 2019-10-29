@@ -126,7 +126,7 @@ class Company::ConsultantsController < Company::BaseController
       @job_application = current_company.received_job_applications.find_by_id(params[:job_application_id])
       if @job_application.is_candidate_applicant?
         candidate = @job_application.user
-        params_hash = params_hash.merge!(candidate_id: candidate.id , gender: candidate.gender , photo: candidate.photo , phone: candidate.phone , dob: candidate.dob )
+        params_hash = params_hash.merge!(candidate_id: candidate.id , gender: candidate.gender , photo: candidate.photo  , phone: candidate.phone , dob: candidate.dob )
       end
     end
     params_hash

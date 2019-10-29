@@ -38,7 +38,7 @@ class CompanyContactDatatable < ApplicationDatatable
 
 
   def company_user_profile user
-    if user.photo.nil?
+    if user.photo.blank?
       (link_to  entity_image(user.first_name,user.last_name,'circle','circle_img'),company_user_profile_path(user) )+
       link_to(do_ellipsis(user.first_name), company_user_profile_path(user), class: 'data-table-font pl-2')
     else

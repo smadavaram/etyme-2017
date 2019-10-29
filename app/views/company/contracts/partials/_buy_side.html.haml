@@ -68,7 +68,7 @@
           - user = @contract.candidate
           .logged-user-w.no_border_bottom{style: "width: 120px;"}
             .avatar-w
-              -if user.photo.nil?
+              -if user.photo.blank?
                 =entity_image(user.first_name,user.last_name)
               -else
                 %img{:alt => user.full_name, title: user.full_name, :src => user.photo, style: 'width:40px !important; height:40px !important;'}
@@ -252,23 +252,24 @@
     %h3.mt-2.mb-2
       Commission
     %div.contract-custome-details.box
-      %table.table.table-bordered
-        %thead
-          %tr
-            %th Name
-            %th Rate
-            %th Frequency
-            %th Limit
-          -@contract.buy_contract.contract_sale_commisions.each do |csc|
+      .table-responsive
+        %table.table.table-bordered
+          %thead
             %tr
-              %td
-                =csc.csc_accounts.map{ |a|  a.accountable.full_name}.join(', ')
-              %td
-                =csc.rate
-              %td
-                =csc.frequency
-              %td
-                =csc.limit
+              %th Name
+              %th Rate
+              %th Frequency
+              %th Limit
+            -@contract.buy_contract.contract_sale_commisions.each do |csc|
+              %tr
+                %td
+                  =csc.csc_accounts.map{ |a|  a.accountable.full_name}.join(', ')
+                %td
+                  =csc.rate
+                %td
+                  =csc.frequency
+                %td
+                  =csc.limit
       %div.contract-custome-details
         %strong
           Payroll date:

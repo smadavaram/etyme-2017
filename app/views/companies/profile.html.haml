@@ -246,7 +246,7 @@
               .profile-tile
                 %a.profile-tile-box{:href => "users_profile_small.html"}
                   .pt-avatar-w
-                    -if d.photo.nil?
+                    -if d.photo.blank?
                       =entity_image(d.first_name,d.last_name)
                     -else
                       = image_tag d.photo

@@ -28,7 +28,7 @@
           <% @conversation.chatable.groupables.each do |g| %>
             <% if current_company.id == @conversation.chatable.company_id && g.groupable != current_user %>
               <li>
-                <%if g.groupable.photo.nil? %>
+                <%if g.groupable.photo.blank?%>
                   <%=entity_image(g.groupable.first_name,g.groupable.last_name)=%>
                 <%else%>
                  <%= image_tag g.groupable.photo ,class: 'superbox-img',style: 'border-radius: 50%;width:30px !important;height:30px !important'%>
@@ -39,7 +39,7 @@
               </li>
             <% else %>
               <li>
-                <%if g.groupable.photo.nil? %>
+                <%if g.groupable.photo.blank? %>
                   <%=entity_image(g.groupable.first_name,g.groupable.last_name)=%>
                 <%else%>
                  <%= image_tag g.groupable.photo ,class: 'superbox-img',style: 'border-radius: 50%;width:30px !important;height:30px !important'%>

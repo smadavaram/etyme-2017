@@ -11,7 +11,7 @@
       - data.each do |application|
         %tr{class: "#{set_background_status_color(application.status)}"}
           %td
-            - if application.user.photo.nil?
+            - if application.user.photo.blank?
               =entity_image(application.user.first_name,application.user.last_name)
             -else
               = image_tag application.user.photo, alt: '', class: 'circle_img'
