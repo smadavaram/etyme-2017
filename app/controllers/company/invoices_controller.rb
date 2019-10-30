@@ -15,7 +15,6 @@ class Company::InvoicesController < Company::BaseController
   end
 
   def sale
-    
     @tab = params[:tab]||'all_invoices'
     @start_date  = params[:start_date].blank? ? Time.now.strftime("%m/%d/%Y") : params[:start_date]
     @end_date  = params[:end_date].blank? ? '2018-01-01' : params[:start_date]
@@ -27,23 +26,13 @@ class Company::InvoicesController < Company::BaseController
 
   
   def purchase
-
-
     @tab = params[:tab] ||  'all_invoices'
     @start_date  = params[:start_date].blank? ? Time.now.strftime("%m/%d/%Y") : params[:start_date]
     @end_date  = params[:end_date].blank? ? '2018-01-01' : params[:start_date]
     add_breadcrumb @tab, '#', options: {title: "INVOICES"}
     @receive_invoices = current_company.receive_invoices.send(@tab.to_s).where('invoices.start_date < ? AND invoices.end_date > ?', @start_date, @end_date).joins(:contract).paginate(page: params[:page], per_page: 15)
-
-    
-
   end
 
-  
-
-
-
-  
   def cleared_invoice
     @invoices = Invoice.cleared_invoices.joins(:contract).where(contracts: {company_id: current_company.id}).order("created_at DESC")
     render 'index'
