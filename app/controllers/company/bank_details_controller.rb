@@ -9,7 +9,6 @@ class Company::BankDetailsController < Company::BaseController
   end
   def create
     @bank_detail = current_company.bank_details.new(create_bank_detail_params)
-    debugger
       if @bank_detail.save
         flash[:success] = "Bank Detail has been Added successfully"
      else

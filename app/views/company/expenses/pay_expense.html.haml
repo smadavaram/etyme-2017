@@ -28,7 +28,8 @@
                     = date_field_tag 'pay_date', Date.today, class: 'form-control'
               - else
                 .div.w-75.margin-auto
-                  %p.contract_warning_text{style: 'margin: 0px !important;'}= "You haven't any bank. Click  #{link_to "ADD BANK ",add_bank_details_path(current_company.id)}  ".html_safe
+                  %p.contract_warning_text{style: 'margin: 0px !important;'}
+                    = "There is no Bank associated with your company. Please #{link_to "ADD BANK ",add_bank_details_path(current_company.id)} To pay bill ".html_safe
   
 
               %br
@@ -87,7 +88,7 @@
 
               %br
               .row
-                .col-md-2
+                .col-md-3
                   %label Client Expense Invoices
               %br
               %div.table-responsive

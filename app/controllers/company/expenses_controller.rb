@@ -63,11 +63,11 @@ class Company::ExpensesController < Company::BaseController
         else
           flash[:alert] = 'Insufficient balance in your account please try with another account.'
         end
+        redirect_to pay_expense_expenses_path
       else
         flash[:alert] = 'please Add Bank to Pay Bill'
+        redirect_to add_bank_details_path(current_company.id)
       end
-      redirect_to pay_expense_expenses_path
-
     end
   end
 
