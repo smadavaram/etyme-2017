@@ -63,7 +63,6 @@ enum bank_name: [ :bank_of_america, :texas_bank, :wells_fargo ]
         ledger_name: 'company-dev',
         credential: 'OUUY4ZFYQO4P3YNC5JC3GMY7ZQJCSNTH'
     )
-
     # create company account
     company_key = ledger.keys.query({aliases: [self.company.name]}).first
     unless company_key 
