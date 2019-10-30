@@ -40,6 +40,7 @@ class Company::ExpensesController < Company::BaseController
   end
 
   def pay_expense
+    @banks = BankDetail.where(company_id: current_company.id)
     @expense_accounts = ExpenseAccount.joins(:expense).where("expenses.contract_id in (?)", current_company&.in_progress_contracts&.ids)
     @client_expenses_invoice = Expense.where(bill_type: 'client_expense', status: 'invoice_generated').where(contract_id: current_company&.in_progress_contracts&.ids)
   end
@@ -47,6 +48,7 @@ class Company::ExpensesController < Company::BaseController
   def submit_bill
     ActiveRecord::Base.transaction do
       bd = BankDetail.find_by(id: params[:bank_id].to_i)
+      if bd.present?
         if bd.balance.to_i >= params[:expense_account][:payment].to_i
           ex = ExpenseAccount.find_by(id: params[:pay_bill_id])
           ex.status = 'cleared' if ex.amount.to_i == (ex.payment.to_i + params[:expense_account][:payment].to_i)
@@ -61,7 +63,11 @@ class Company::ExpensesController < Company::BaseController
         else
           flash[:alert] = 'Insufficient balance in your account please try with another account.'
         end
+      else
+        flash[:alert] = 'please Add Bank to Pay Bill'
+      end
       redirect_to pay_expense_expenses_path
+
     end
   end
 

@@ -558,7 +558,7 @@ Rails.application.routes.draw do
     resources :bank_details, only: [] do
       collection do
         
-        get "index/:company_id", to: "bank_details#index", as: :bank_details
+        get "index/:company_id", to: "bank_details#index", as: :add
         get :acc_info
         get :bank_reconciliation
         post :update_acc_info

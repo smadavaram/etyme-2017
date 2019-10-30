@@ -11,21 +11,25 @@
           %div
             .jarviswidget-editbox
             .widget-body
-              .row
-                .col-md-3
-                  %label Treasury Account
-                  = select_tag "bank_names",options_for_select((BankDetail.where(company_id: current_company.id).collect{|u| [u.bank_name.titleize, u.id]})),{class: 'form-control select2 bank_names'}
+              - unless @banks.blank?
+                .row
+                  .col-md-3
+                    %label Treasury Account
+                    = select_tag "bank_names",options_for_select(@banks.collect{|u| [u.bank_name.titleize, u.id]}),{class: 'form-control select2 bank_names'}
 
-                .col-md-3
-                  %br
-                  %div
-                    %b Balance:
-                    %div.bank-balance $ 0
-                    = link_to 'Bank Reconciliation', bank_reconciliation_bank_details_path 
-                .col-md-3
-                  %label Payment Date
-                  = date_field_tag 'pay_date', Date.today, class: 'form-control' 
-
+                  .col-md-3
+                    %br
+                    %div
+                      %b Balance:
+                      %div.bank-balance $ 0
+                      = link_to 'Bank Reconciliation', bank_reconciliation_bank_details_path
+                  .col-md-3
+                    %label  Payment Date
+                    = date_field_tag 'pay_date', Date.today, class: 'form-control'
+              - else
+                .div.w-75.margin-auto
+                  %p.contract_warning_text{style: 'margin: 0px !important;'}= "You haven't any bank. Click  #{link_to "ADD BANK ",add_bank_details_path(current_company.id)}  ".html_safe
+  
 
               %br
               .row
