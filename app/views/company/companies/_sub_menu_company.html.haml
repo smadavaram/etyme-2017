@@ -29,5 +29,5 @@
         = link_to invoice_term_infos_path, class:"nav-link" do
           Billing
       %li.nav-item{:class => ("active" if params[:controller]=="company/bank_details")}
-        = link_to bank_details_bank_details_path(current_company), class:"nav-link" do
+        = link_to add_bank_details_path(current_company), class:"nav-link" do
           Banks

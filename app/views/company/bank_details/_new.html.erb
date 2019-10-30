@@ -12,7 +12,7 @@
 
           <%= form_for BankDetail.new ,remote: true, :html => {:novalidate => false} do |f| %>    
             <%=f.label :bank_name%>
-            <%= f.select :bank_name,BankDetail.bank_names,{},class:"form-control"%>
+            <%= f.select :bank_name,BankDetail.bank_names.keys,{},class:"form-control"%>
             <%=f.label :balance%>
             <%= f.number_field :balance,class: 'form-control'%>
             <%= hidden_field_tag 'company_id', params[:company_id]  %>
