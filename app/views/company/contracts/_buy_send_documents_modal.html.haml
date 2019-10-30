@@ -43,7 +43,7 @@
 
           %br
           #toggle_signers{class: current_company.candidate_job_templates.present? ? 'w-100 ': 'w-100 d-none'}
-            = select_tag 'signers[]', nil, id: "select_sell_company_contacts_signers", class: "mb-2", style: "width: 100%"
+            = select_tag 'signers[]', nil, id: "select_buy_company_signers", class: "mb-2", style: "width: 100%"
           %br
           = button_tag 'submit',type: 'submit', class: 'btn btn-sm btn-secondary pull-right'
 

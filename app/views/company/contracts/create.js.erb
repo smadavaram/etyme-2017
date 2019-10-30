@@ -26,6 +26,8 @@ $(document).ready(function () {
         buy_approval_type.value = this.id;
     })
     addeventatc.refresh();
+    //company_contract_signers('#select_sell_company_signers',<%#= @contract.sell_contract.company.id %>);
+    company_contract_signers('#select_sell_company_signers',1);
     set_client_company_select('#select_clients', "Please Select Or Add new Client");
     set_job_candidate_select('#select_candidates', "Please Select Or Add new Candidate");
     set_company_select('#sell_contract_company', "Please Select Or Add new Company");
@@ -36,6 +38,9 @@ $(document).ready(function () {
     set_company_contacts_select('#select_sell_company_contacts', "Please Select Or Add new Contacts", "#sell_contract_company");
     set_company_contacts_select('#select_sell_company_contacts', "Please Select Or Add new Contacts", "#sell_contract_company_1");
     set_company_contacts_select('#select_buy_company_contacts', "Please Select Or Add new Contacts", "#buy_contract_company");
+    company_contract_signers('#select_sell_company_signers',"<%=@contract.sell_contract.company.id %>")
+    company_contract_signers('#select_buy_company_signers',"<%=@contract.company.id %>")
+    company_contract_signers('#select_vendor_company_signers',"<%=@contract.company.id %>")
     $(".file-pick").on('click', function () {
         $(".fp__overlay").css({'z-index': '99999'});
     });

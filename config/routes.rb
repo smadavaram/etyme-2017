@@ -745,6 +745,7 @@ Rails.application.routes.draw do
       get :find_candidates, on: :collection
       get :find_contacts, on: :collection
       get :find_users, on: :collection
+      get :find_signers, on: :collection
       get :find_job_applicants, on: :collection
       get :find_user_sign, on: :collection
       get :find_jobs, on: :collection
