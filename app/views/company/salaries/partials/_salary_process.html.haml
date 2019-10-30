@@ -2,34 +2,69 @@
   %thead
     %tr
       %th= "<input type='checkbox' name='select_all' id='ts_select_all'>".html_safe
-      %th Sal Cy ID
-      %th Comm ID
       %th Emp
       %th Contract ID & Title
+      %th Sal Cy ID
+      %th
       %th Hr
-      %th Comm Amt
-      %th Salary Adv
+      %th Timesheet
+      %th Sal Advances
+      %th Perdium/Expenses
+      %th Commission
       %th Total
       %th Paid
-      %th Status
       %th Actions
   %tbody
     - contract_cycles.each do |cc|
+
       %tr
-        %td
-          = "<input type='checkbox' id='ts_ids' name='ids[]' value='#{cc.cyclable.id}'>".html_safe if cc.cyclable.calculated?
-        %td= cc.id
-        %td
-        %td.no-wrap
+        %td{:rowspan => 4}= "<input type='checkbox' id='ts_ids' name='ids[]' value='#{cc.cyclable.id}'>".html_safe if cc.cyclable.calculated?
+        %td.emp{:rowspan => 4}
           - user = cc.contract.candidate
-          =entity_image(user.first_name,user.last_name)
-          =link_to(do_ellipsis(user.full_name), public_profile_static_candidates_path(user), class: 'data-table-font')
-        %td= cc.contract.title
+          =image_tag(user.photo, style: 'width: 60px; height: 60px;', class: 'data-table-image mr-1',title: "#{user.full_name}",alt: image_alt(user) ).html_safe
+        %td{:rowspan => 4}= cc.contract.title
+        %td{:rowspan => 4}= cc.id
+
+        %td= "Calculation"
         %td= cc.cyclable.total_approve_time
+        %td= cc.cyclable.approved_amount
         %td
+        %td
+        %td
+        %td= cc.cyclable.total_amount
+        %td
+        %td
+
+      %tr
+        %td= "Process"
+        %td= cc.cyclable.total_approve_time
+        %td= cc.cyclable.approved_amount
         %td= cc.cyclable.calculate_advance
+        %td
+        %td
         %td= cc.cyclable.total_amount
         %td{id:"#{cc.cyclable.id}"}= cc.cyclable.billing_amount
-        %td= snake_to_words(cc.cyclable.status)
+        %td= link_to "Pay", salary_pay_path(cc.cyclable), remote: true if cc.cyclable.calculated?
+
+
+      %tr.disabled-row
+        %td= "Send"
         %td
-          =link_to "Pay", salary_pay_path(cc.cyclable), remote: true if cc.cyclable.calculated?
+        %td
+        %td
+        %td
+        %td
+        %td
+        %td
+        %td
+
+      %tr.disabled-row
+        %td= "Settlement"
+        %td
+        %td
+        %td
+        %td
+        %td
+        %td
+        %td
+        %td

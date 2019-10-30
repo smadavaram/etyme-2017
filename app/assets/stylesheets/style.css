@@ -1757,3 +1757,7 @@ text-align: left;
 .input-60{
     width: 60px !important;
 }
+
+.disabled-row{
+    background-color: #aeabab !important;
+}

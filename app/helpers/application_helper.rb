@@ -51,8 +51,9 @@ module ApplicationHelper
           <span class='attendees'></span>
         </div >".html_safe
   end
-   def mini_chat_contact_widget(email, phone, user_id = nil, options = {})
-        mail_to(email, content_tag(:i, nil, class: 'os-icon os-icon-email-2-at2 mini_chat_widget pt-3').html_safe, title: email, class: 'data-table-icons') +
+  
+  def mini_chat_contact_widget(email, phone, user_id = nil, options = {})
+    mail_to(email, content_tag(:i, nil, class: 'os-icon os-icon-email-2-at2 mini_chat_widget pt-3').html_safe, title: email, class: 'data-table-icons') +
         link_to(content_tag(:i, nil, class: 'os-icon os-icon-phone mini_chat_widget').html_safe, '#', title: phone, class: 'data-table-icons') +
         "<div title = 'Add to Calendar' class = 'addeventatc'>
           <span class = 'start' >06/10/2019 08:00 AM</span>
@@ -1286,57 +1287,67 @@ module ApplicationHelper
         ''
       end
     end
-
+    
     def get_initial(name_text)
       name_text.first.capitalize if name_text
     end
-
-    def bind_initials(first_name,last_name)
-      content_tag(:span, get_initial(first_name)+"."+get_initial(last_name), title: first_name.capitalize+" "+last_name.capitalize).html_safe
+    
+    def image_alt(user = nil)
+      begin
+        "#{get_initial(user.first_name)}.#{get_initial(user.last_name)}"
+      rescue
+        'N/A'
+      end
     end
-
-    def colorfull_text(value,color_code)
-     content_tag(:span, value, style: "color: #{color_code}")
+    
+    def bind_initials(first_name, last_name)
+      content_tag(:span, get_initial(first_name) + "." + get_initial(last_name), title: first_name.capitalize + " " + last_name.capitalize).html_safe
     end
-    def default_user_img(first_name,last_name,circle_div_class='circle')
-      content_tag(:span, bind_initials(first_name,last_name),class: "#{circle_div_class}")
+    
+    def colorfull_text(value, color_code)
+      content_tag(:span, value, style: "color: #{color_code}")
     end
-    def entity_image(first_name,last_name,circle_div_class='circle',default_img_classes='')
-      default_img =''
-      if first_name=='' || last_name=='' 
-        default_img = default_img+ "<img src='#{asset_path('avatars/m_sunny_big.png')}' alt: '#{first_name} #{last_name}' class='#{default_img_classes}'/>"
+    
+    def default_user_img(first_name, last_name, circle_div_class = 'circle')
+      content_tag(:span, bind_initials(first_name, last_name), class: "#{circle_div_class}")
+    end
+    
+    def entity_image(first_name, last_name, circle_div_class = 'circle', default_img_classes = '')
+      default_img = ''
+      if first_name == '' || last_name == ''
+        default_img = default_img + "<img src='#{asset_path('avatars/m_sunny_big.png')}' alt: '#{first_name} #{last_name}' class='#{default_img_classes}'/>"
       else
-        default_img = default_img + default_user_img(first_name,last_name,circle_div_class)
+        default_img = default_img + default_user_img(first_name, last_name, circle_div_class)
       end
       return default_img.html_safe
     end
-
-
-    def show_users(users,width=32,height=32)
-      user_photo=""
-      user_photo=user_photo+"<div class='mini_chat_users pl-1' style=''>"
-        user_photo=user_photo+"<div class='table_avatar'>"
-          if users&.signable&.photo.blank?
-            user_photo=user_photo+ entity_image(users.signable.first_name,users.signable.last_name,'avatar_circle')
-          else
-            user_photo=user_photo+ "<img  src='#{users.signable&.photo}' title='#{users.signable.full_name}' style='width:#{width}px; height:#{height}px;'>"
-          end
-        user_photo=user_photo + "</div>"
-
-        users.signers&.take(3).each do |signer|
-          user_photo=user_photo+"<div class='table_avatar'>"
-            if signer.photo.blank?
-              user_photo=user_photo+ entity_image(signer.first_name,signer.last_name)
-            else
-              user_photo=user_photo+ "<img  src='#{signer.photo}' title='#{signer.full_name}' style='width:#{width}px; height:#{height}px;'>"
-            end
-          user_photo=user_photo+"</div>"
-        end
-
-      if users.signers&.count > 3
-        user_photo=user_photo+"<div class='more'>#{(users.signers&.count-3).abs} More</div>"
+    
+    
+    def show_users(users, width = 32, height = 32)
+      user_photo = ""
+      user_photo = user_photo + "<div class='mini_chat_users pl-1' style=''>"
+      user_photo = user_photo + "<div class='table_avatar'>"
+      if users&.signable&.photo.blank?
+        user_photo = user_photo + entity_image(users.signable.first_name, users.signable.last_name, 'avatar_circle')
+      else
+        user_photo = user_photo + "<img  src='#{users.signable&.photo}' title='#{users.signable.full_name}' style='width:#{width}px; height:#{height}px;'>"
       end
-      user_photo = user_photo + "</div>" 
+      user_photo = user_photo + "</div>"
+      
+      users.signers&.take(3).each do |signer|
+        user_photo = user_photo + "<div class='table_avatar'>"
+        if signer.photo.blank?
+          user_photo = user_photo + entity_image(signer.first_name, signer.last_name)
+        else
+          user_photo = user_photo + "<img  src='#{signer.photo}' title='#{signer.full_name}' style='width:#{width}px; height:#{height}px;'>"
+        end
+        user_photo = user_photo + "</div>"
+      end
+      
+      if users.signers&.count > 3
+        user_photo = user_photo + "<div class='more'>#{(users.signers&.count - 3).abs} More</div>"
+      end
+      user_photo = user_photo + "</div>"
       return user_photo.html_safe
     end
 

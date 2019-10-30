@@ -13,20 +13,23 @@
         .d-flex{style: "flex-wrap: wrap;justify-content: space-between;"}
           %ul.nav.nav-pills.smaller.mt-3{style: "border-bottom: none;"}
             %li.nav-item.ml-3
-              %a{class: "nav-link ss fd upcomming #{ "active" if @tab.eql?("upcomming") }","data-tab"=> 'upcomming', href:'#'} Upcomming
+              %a{class: " border_btn nav-link ss fd upcomming #{ "active" if @tab.eql?("upcomming") }","data-tab"=> 'upcomming', href:'#'} Upcomming
             %li.nav-item
-              %a{class: "nav-link ss fd commission #{ "active" if @tab.eql?("commission") }","data-tab"=> 'commission',href:'#'} Commission Cal
+              %a{class: "border_btn nav-link ss fd commission #{ "active" if @tab.eql?("commission") }","data-tab"=> 'commission',href:'#'} Commission Cal
             %li.nav-item
-              %a{class: "nav-link ss fd calculate #{ "active" if @tab.eql?("calculate") }","data-tab"=> 'calculate', href:'#'} Sal Calculate
+              %a{class: "border_btn nav-link ss fd calculate #{ "active" if @tab.eql?("calculate") }","data-tab"=> 'calculate', href:'#'} Sal Calculate
             %li.nav-item
-              %a{class: "nav-link ss fd process #{ "active" if @tab.eql?("process") }","data-tab"=> 'process', href:'#'} Salary Process
+              %a{class: "border_btn nav-link ss fd process #{ "active" if @tab.eql?("process") }","data-tab"=> 'process', href:'#'} Salary Process
             %li.nav-item
-              %a{class: "nav-link ss fd pay #{ "active" if @tab.eql?("pay") }","data-tab"=> 'pay', href:'#'} Finalize & Pay
+              %a{class: "border_btn nav-link ss fd pay #{ "active" if @tab.eql?("pay") }","data-tab"=> 'pay', href:'#'} Finalize & Pay
             %li.nav-item
-              %a{class: "nav-link ss fd clearing #{ "active" if @tab.eql?("clearing") }","data-tab"=> 'clearing', href:'#'} Clearing
-          .pt-2
-            = link_to "Export", '#', class: "btn btn-outline-primary"
-            = link_to "Print", '#', class: "btn btn-outline-primary"
+              %a{class: "border_btn nav-link ss fd clearing #{ "active" if @tab.eql?("clearing") }","data-tab"=> 'clearing', href:'#'} Clearing
+
+          %ul.nav.nav-pills.smaller.mt-3{:style => "border-bottom: none;float:right;margin-right:30px !important;"}
+            %li.nav-item.ml-3
+              %a.nav-link.ts.fd.upcomming_timesheets.border_btn{:href => "#"} Export
+            %li.nav-item.ml-3
+              %a.nav-link.ts.fd.submitted_timesheets.border_btn{:href => "#"} Print
         .divider_salaries
         .ts_header.mt-2
           .form-group.w-50.d-flex

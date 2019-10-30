@@ -4,9 +4,10 @@ class SalaryItem < ApplicationRecord
   after_create :update_salary_timesheet, if: Proc.new { |s| s.salaryable.class.to_s == "Timesheet" }
   after_create :update_salary_expenses, if: Proc.new { |s| s.salaryable.class.to_s == "Expense" }
   scope :expenses, -> {where(salaryable_type: "Expense")}
+  
   def update_salary_timesheet
     if (salaryable.salaried!)
-      salary.update_attributes(total_amount: salary.total_amount + salaryable.amount,
+      salary.update_attributes(approved_amount: salary.approved_amount + salaryable.amount,
                                total_approve_time: salary.total_approve_time + salaryable.total_time,
                                status: :open
       )

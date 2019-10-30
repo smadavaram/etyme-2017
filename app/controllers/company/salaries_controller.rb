@@ -26,6 +26,7 @@ class Company::SalariesController < Company::BaseController
     @start_date.present? and @end_date.present?
   end
   
+  
   def index
     add_breadcrumb 'Salaries', salaries_path
     @tab = params[:tab].present? ? params[:tab] : "calculate"
@@ -43,6 +44,7 @@ class Company::SalariesController < Company::BaseController
     end
     @contract_cycles = ContractCycle.where(cycle_type: "SalaryCalculation")
                            .joins(contract: [:buy_contract])
+                           .joins("INNER JOIN salaries ON salaries.id = contract_cycles.cyclable_id")
                            .where("contracts.id": current_company.contracts.select(:id))
                            .where("contract_cycles.start_date between ? and ? and contract_cycles.end_date between ? and ?", start, end_date, start, end_date)
     @contract_cycles.each do |cc|
@@ -296,7 +298,7 @@ class Company::SalariesController < Company::BaseController
     @salaries = Salary.where(id: params[:ids], status: [:open, :pending])
     @salaries.each do |salary|
       advance = salary.calculate_advance
-      salary.update_attributes(total_amount: salary.total_amount + advance, salary_advance: advance)
+      salary.update_attributes(total_amount: salary.approved_amount + advance, salary_advance: advance)
     end
     if @salaries.update_all(status: "calculated")
       flash[:success] = "Salary calculated successfully"
@@ -320,5 +322,20 @@ class Company::SalariesController < Company::BaseController
     def contract_expense_type_params
       params.require(:contract_expense_type).permit(:name)
     end
-
+    
+    def salary_status_index(tab)
+      # .where("salaries.status IN (?)", salary_status_index(@tab))
+      case tab
+        when "commission"
+          return [Salary.statuses[:pending], Salary.statuses[:open]]
+        when "calculate"
+          return [Salary.statuses[:pending], Salary.statuses[:open]]
+        when "process"
+          return [Salary.statuses[:calculated]]
+        when "pay"
+          return [Salary.statuses[:processed]]
+        when "clearing"
+          return [Salary.statuses[:processed]]
+      end
+    end
 end
