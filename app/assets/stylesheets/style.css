@@ -1712,8 +1712,8 @@ text-align: left;
     display: inline-block;
 }
 .avatar_circle{
-    width: 35px;
-    height: 35px;
+    width: 27px;
+    height: 27px;
     border-radius: 50%;
     font-size: 10px;
     color: #fff;

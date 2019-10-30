@@ -176,6 +176,8 @@
 //= require_tree ./clean_admin
 //= require trix
 //= require company/select_autocomplete
+//= require mobile_responsive
+
 
 $("input[name='candidate[designation_status]']").click(function () {
     if ($("input[name='candidate[designation_status]']:checked").val() == "Employee") {
