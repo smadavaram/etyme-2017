@@ -189,3 +189,4 @@
 //= require company/contracts
 //= require company/timesheets
 //= require company/salaries
+//= require company/sale_invoices

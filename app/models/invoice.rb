@@ -39,7 +39,7 @@ class Invoice < ApplicationRecord
   scope :open_invoices, -> { where(status: [:pending_invoice, :open]) }
   scope :cleared_invoices, -> { where(status: [:paid]) }
   scope :submitted_invoices, -> { where(status: :open) }
-  
+  scope :all_invoices, -> {where(status: [:open, :submitted, :paid, :partially_paid, :cancelled] )}
   
   def set_total_amount_hours
     update(total_amount: timesheets.sum(:amount),total_approve_time: timesheets.sum(:total_time))
