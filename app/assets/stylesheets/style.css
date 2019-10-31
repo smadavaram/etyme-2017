@@ -4,6 +4,7 @@
 .floated-chat-w{
     z-index: 800 !important;
 }
+.floated-chat-btn i{margin-left: -14px !important;}
 .form-horizontal  input[type="text"],
 .form-horizontal  input[type="number"],
 .form-horizontal  input[type="email"],
