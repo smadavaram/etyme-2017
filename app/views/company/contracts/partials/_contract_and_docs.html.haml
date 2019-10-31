@@ -160,6 +160,7 @@
                                   = sc.select :client_expense, Contract.time_sheet_frequencies.map { |key, value| [key.humanize, key] }, {},{class: "form-control sell-client-expense height-45" }
                               .col-md-6
                                 .s-ce-set
+                                  - sc.object.client_expense = sc.object.client_expense || 'daily'
                                   %div{:class => "form-group daily #{sc.object.client_expense != 'daily' ? 'hidden' : ''}"}
                                     %label.control-label.w-100
                                       Select Time
@@ -194,6 +195,7 @@
                                   = sc.select :ce_approve, Contract.time_sheet_frequencies.map { |key, value| [key.humanize, key] }, {},{class: "form-control sell-client-expense-approve height-45" }
                               .col-md-4
                                 .s-ce-ap-set
+                                  - sc.object.ce_approve = sc.object.ce_approve || 'daily'
                                   %div{:class => "form-group daily #{sc.object.ce_approve != 'daily' ? 'hidden' : ''}"}
                                     %label.control-label.w-100
                                       Select Time
@@ -237,6 +239,7 @@
                                   = sc.select :ce_invoice, Contract.time_sheet_frequencies.map { |key, value| [key.humanize, key] }, {},{class: "form-control sell-client-expense-invoice height-45" }
                               .col-md-4
                                 .s-ce-in-set
+                                  - sc.object.ce_invoice = sc.object.ce_invoice || 'daily'
                                   %div{:class => "form-group daily #{sc.object.ce_invoice != 'daily' ? 'hidden' : ''}"}
                                     %label.control-label.w-100
                                       Select Time
@@ -283,6 +286,7 @@
                                   = sc.select :performance_review, Contract.time_sheet_frequencies.map { |key, value| [key.humanize, key] }, {},{class: "form-control sell-performance-review height-45" }
                               .col-md-6
                                 .s-pr-set
+                                  - sc.object.performance_review = sc.object.performance_review || 'daily'
                                   %div{:class => "form-group daily #{sc.object.performance_review != 'daily' ? 'hidden' : ''}"}
                                     %label.control-label.w-100
                                       Select Time
@@ -529,3 +533,5 @@
      set_user_select(".whois_sign:not([class*='added']", "Select User who is sign document");
      $(".whois_sign:not([class*='added']").addClass('added');
    });
+   
+
