@@ -16,6 +16,7 @@ class Salary < ApplicationRecord
   has_many :salary_items
   has_one :contract_cycle, as: :cyclable
   has_many :contract_books, as: :bookable
+  has_many :commission_queues
   
   scope :open_salaries, -> { where(status: :open) }
   scope :calculated_salaries, -> { where(status: :calculated) }
@@ -288,10 +289,15 @@ class Salary < ApplicationRecord
   end
   
   def calculate_advance
-    -(salary_items.joins("JOIN expenses ON expenses.id = salary_items.salaryable_id JOIN expense_accounts ON expenses.id = expense_accounts.expense_id").where("expenses.bill_type": Expense.bill_types[:salary_advanced],"expense_accounts.status": ExpenseAccount.statuses[:cleared]).sum("expense_accounts.payment"))
+    -(salary_items.joins("JOIN expenses ON expenses.id = salary_items.salaryable_id JOIN expense_accounts ON expenses.id = expense_accounts.expense_id").where("expenses.bill_type": Expense.bill_types[:salary_advanced], "expense_accounts.status": ExpenseAccount.statuses[:cleared]).sum("expense_accounts.payment"))
   end
   
   def calculate_expense
-    salary_items.joins("JOIN expenses ON expenses.id = salary_items.salaryable_id JOIN expense_accounts ON expenses.id = expense_accounts.expense_id").where("expenses.bill_type": Expense.bill_types[:company_expense],"expense_accounts.status": ExpenseAccount.statuses[:cleared]).sum("expense_accounts.payment")
+    salary_items.joins("JOIN expenses ON expenses.id = salary_items.salaryable_id JOIN expense_accounts ON expenses.id = expense_accounts.expense_id").where("expenses.bill_type": Expense.bill_types[:company_expense], "expense_accounts.status": ExpenseAccount.statuses[:cleared]).sum("expense_accounts.payment")
   end
+  
+  def earned_commissions
+    CommissionQueue.pending.joins(contract_sale_commision: :csc_accounts).where("accountable_id = ? AND accountable_type = ?", candidate.id, "Candidate")
+  end
+
 end

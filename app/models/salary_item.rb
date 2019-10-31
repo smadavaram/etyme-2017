@@ -7,7 +7,7 @@ class SalaryItem < ApplicationRecord
   
   def update_salary_timesheet
     if (salaryable.salaried!)
-      salary.update_attributes(approved_amount: salary.approved_amount + salaryable.amount,
+      salary.update_attributes(approved_amount: salary.approved_amount.to_f + salaryable.amount,
                                total_approve_time: salary.total_approve_time + salaryable.total_time,
                                status: :open
       )

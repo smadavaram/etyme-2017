@@ -42,7 +42,8 @@
         .buttons_wrap
           - if ["commission"].include?(@tab)
             =button_tag "Aggregate",type: "button", "data-link": aggregate_salary_salaries_path(format: :csv), class: 'btn btn-primary aggregate'
-            =button_tag "Save & Next",type: "button", class: 'btn btn-primary'
+            =button_tag "Save & Next",type: "button","data-link": calculate_salary_commission_salaries_path, class: 'btn btn-primary aggregate'
+            - @tab_ref =  calculate_salary_commission_salaries_path
           - if ["calculate"].include?(@tab)
             =button_tag "Aggregate",type: "button", "data-link": aggregate_salary_salaries_path(format: :csv), class: 'btn btn-primary aggregate'
             =button_tag "Save & Next",type: "button", "data-link": add_contract_expense_amount_salaries_path, class: 'btn btn-primary aggregate'

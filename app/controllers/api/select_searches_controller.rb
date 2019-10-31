@@ -81,7 +81,7 @@ class Api::SelectSearchesController < ApplicationController
   end
 
   def find_commission_candidates
-    @commission_candidates = Candidate.where(id: current_company.contracts.includes(:candidate).pluck(:candidate_id).uniq).like_any([:first_name], params[:q].to_s.split)
+    @commission_candidates = current_company.candidates.like_any([:first_name], params[:q].to_s.split).paginate(:page => params[:page], :per_page => params[:per_page])
     respond_with @commission_candidates
   end
 

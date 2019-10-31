@@ -7,7 +7,8 @@ class ContractSaleCommision < ApplicationRecord
   has_many :com_calculateds, foreign_key: :com_cal_cycle_id, class_name: 'ContractSaleCommision'
   has_many :com_processeds, foreign_key: :com_pro_cycle_id, class_name: 'ContractSaleCommision'
   has_many :com_cleareds, foreign_key: :com_clr_cycle_id, class_name: 'ContractSaleCommision'
-
+  
+  has_many :commission_queues
 
   def self.set_con_cycle_com_pro_date(buy_contract, con_cycle)
     @com_pro_type = buy_contract&.commission_process
