@@ -20,7 +20,10 @@
         %td{:rowspan => 4}= "<input type='checkbox' id='ts_ids' name='ids[]' value='#{cc.cyclable.id}'>".html_safe if cc.cyclable.processed?
         %td.emp{:rowspan => 4}
           - user = cc.contract.candidate
-          =user_image(user, style: 'width: 60px; height: 60px;', class: 'data-table-image mr-1',title: "#{user.full_name}" )
+          - if user.blank?
+            = entity_image(user.first_name,user.last_name)
+          - else
+            =image_tag(user.photo, style: 'width: 60px; height: 60px;', class: 'data-table-image mr-1',title: "#{user.full_name}",alt: image_alt(user) ).html_safe
         %td{:rowspan => 4}= cc.contract.title
         %td{:rowspan => 4}= cc.id
 
