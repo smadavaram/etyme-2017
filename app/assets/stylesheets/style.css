@@ -1591,7 +1591,7 @@ input:checked + .slider1:before {
     height: 27px;
     border-radius: 35px;
     -webkit-box-shadow: 0px 0px 0px 5px #fff;
-    box-shadow: 0px 0px 0px 5px #fff;
+    box-shadow: 0px 0px 0px 3px #fff;
     display: inline-block;
     overflow: hidden;
     vertical-align: middle;
@@ -1604,11 +1604,10 @@ input:checked + .slider1:before {
 flex: 0 0 220px;
 text-align: right;
 }
-.mini_chat_users_left{
+.contracts_mini_chat_users{
 -webkit-box-flex: 0;
 -ms-flex: 0 0 220px;
 flex: 0 0 220px;
-text-align: left;
 }
 
 .has-error .contract-fild .contract-type-radio{
@@ -1757,6 +1756,19 @@ text-align: left;
 .input-60{
     width: 60px !important;
 }
+.contracts_mini_chat_users .more_users{
+    margin-top: 4px;
+     background-color: #047bf8;
+     display: inline-block;
+     vertical-align: middle;
+     position: relative;
+     left: -3px;
+     padding: 2px 7px;
+     border-radius: 12px;
+     color: #fff;
+     font-size: .63rem;
+     height: fit-content
+ }
 .bank_balance{
     font-size: 30px !important;
 }

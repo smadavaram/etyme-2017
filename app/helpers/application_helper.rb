@@ -1324,7 +1324,7 @@ module ApplicationHelper
     def show_users(users,width=32,height=32)
 
       user_photo=""
-      user_photo=user_photo+"<div class='mini_chat_users pl-1' style=''>"
+      user_photo=user_photo+"<div class='contracts_mini_chat_users pl-1 d-flex' style=''>"
         user_photo=user_photo+"<div class='table_avatar'>"
           if users&.signable&.photo.blank?
             user_photo=user_photo+ entity_image(users.signable.first_name,users.signable.last_name,'avatar_circle')
