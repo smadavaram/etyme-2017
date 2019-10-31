@@ -224,6 +224,7 @@ class Company::SalariesController < Company::BaseController
     end
   end
   
+  
   def calculate_commission
     # binding.pry
     if params[:comm_ids].present?
@@ -272,6 +273,16 @@ class Company::SalariesController < Company::BaseController
       end
     end
     redirect_to salaries_path(tab: "pay")
+  end
+  
+  def calculate_salary_commission
+    Salary.open.where(id: params[:ids]).each do |salary|
+      salary.commission_amount = get_commission(salary)
+      send_commission(salary, salary.contract.buy_contract) unless salary.commission_calculated
+      salary.save
+    end
+    flash[:success] = 'Commissions has been calculated and added for further processing'
+    redirect_to salaries_path(tab: "calculate")
   end
   
   def process_salary_clear
@@ -336,6 +347,25 @@ class Company::SalariesController < Company::BaseController
           return [Salary.statuses[:processed]]
         when "clearing"
           return [Salary.statuses[:processed]]
+      end
+    end
+    
+    def get_commission(salary)
+      amount = 0
+      salary.earned_commissions.each do |commission|
+        if commission.salaried!
+          amount += commission.total_amount
+          salary.commission_ids << commission.id
+        end
+      end
+      amount
+    end
+    
+    def send_commission(salary, buy_contract)
+      buy_contract.contract_sale_commisions.each do |commission|
+        amount = commission.frequency == "perhour" ? (salary.approved_amount * commission.rate) / 100.0 : commission.limit
+        buy_contract.commission_queues.pending.create(salary: salary, contract_sale_commision: commission, total_amount: amount)
+        salary.commission_calculated = true
       end
     end
 end

@@ -19,6 +19,8 @@ class BuyContract < ApplicationRecord
   has_one :conversation
   has_many :change_rates, as: :rateable,dependent: :destroy
   has_many :contract_cycles, as: :cycle_of
+  has_many :commission_queues
+  
   include DateCalculation
 
   before_create :set_number

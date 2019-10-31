@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema.define(version: 20191025162639) do
+ActiveRecord::Schema.define(version: 20191031123159) do
 
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
@@ -548,6 +548,16 @@ ActiveRecord::Schema.define(version: 20191025162639) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.index ["created_by_id"], name: "index_comments_on_created_by_id"
+  end
+
+  create_table "commission_queues", force: :cascade do |t|
+    t.bigint "contract_sale_commision_id"
+    t.integer "status"
+    t.bigint "buy_contract_id"
+    t.bigint "salary_id"
+    t.decimal "total_amount"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
   end
 
   create_table "companies", id: :serial, force: :cascade do |t|
@@ -1623,6 +1633,8 @@ ActiveRecord::Schema.define(version: 20191025162639) do
     t.float "salary_advance"
     t.float "approved_amount"
     t.decimal "contract_expenses", default: "0.0"
+    t.text "commission_ids", default: [], array: true
+    t.boolean "commission_calculated", default: false
   end
 
   create_table "salary_items", force: :cascade do |t|

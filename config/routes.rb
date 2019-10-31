@@ -538,6 +538,7 @@ Rails.application.routes.draw do
         get :final_salary
         get :open_salary_process
         get :calculate_salary
+        post :calculate_salary_commission
         get :check_salary_status
         get :process_salary
         post :process_salary_expenses
