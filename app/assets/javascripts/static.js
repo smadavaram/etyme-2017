@@ -27,6 +27,8 @@
 //= require shared/uploader
 //= require custom
 //= require trix
+//= require mobile_responsive
+
 function display_file_name(event) {
     // alert(event.fpfile.filename );
     $('.uploaded_file_name').text(event.fpfile.filename)

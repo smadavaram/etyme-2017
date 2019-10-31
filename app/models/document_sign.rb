@@ -21,7 +21,7 @@ class DocumentSign < ApplicationRecord
   end
 
   def signers
-    company.users.where(id: signers_ids)
+    part_of.class.to_s == "SellContract" ? part_of.company.users.where(id: signers_ids) : company.users.where(id: signers_ids)
   end
 
   private

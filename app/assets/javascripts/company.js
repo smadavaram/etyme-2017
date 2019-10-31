@@ -190,3 +190,4 @@
 //= require company/timesheets
 //= require company/salaries
 //= require company/sale_invoices
+//= require mobile_responsive

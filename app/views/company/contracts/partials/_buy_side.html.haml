@@ -193,9 +193,9 @@
                             - @candidate_signature_documents.each do |docusign|
                               %tr
                                 %td= do_ellipsis(docusign.documentable.title,6)
-                                %td= docusign.created_at.strftime("%Y-%m-%d")
+                                %td.no-wrap= docusign.created_at.strftime("%Y-%m-%d")
                                 %td= docusign.is_sign_done ? colorfull_text("Signed",'orange') : colorfull_text("Pending",'red')
-                                %td.no-wrap
+                                %td.d-flex.pr-5.no-wrap
                                   =show_users(docusign)
                                 %td.no-wrap
                                   = do_ellipsis(docusign.envelope_id.present? ? docusign.envelope_id : "Document Not Submitted",10)
@@ -241,10 +241,7 @@
                                 %td= docusign.documentable.title
                                 %td= docusign.created_at.strftime("%Y-%m-%d")
                                 %td= docusign.is_sign_done ? "Signed" : "Pending"
-                                %td.d-flex
-                                  = image_tag(docusign&.signable&.photo, class: 'data-table-image mr-1')
-                                  - docusign.signers&.each do |signer|
-                                    =image_tag(signer.photo, class: 'data-table-image mr-1')
+                                %td.d-flex= show_users(docusign)
                                 %td= docusign.envelope_id.present? ? docusign.envelope_id : "Document Not Submitted"
                                 %td= link_to content_tag(:i,'',class:'fa fa-paperclip fa-lg').html_safe, docusign.signed_file if docusign.is_sign_done
 

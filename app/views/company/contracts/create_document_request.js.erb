@@ -6,5 +6,5 @@ flash_error("<%= e %>");
 <% if flash[:success].present? %>
 flash_success("<%= flash[:success] %>");
 <% end %>
-$('#request_doc').html("<%= j render 'company/contracts/request_document_table' , sell_request: @sell_request%>");
+$('#request_doc').html("<%= j render 'company/contracts/request_document_table' , sell_request: @document_signs%>");
 $('#request_document').modal('hide')
