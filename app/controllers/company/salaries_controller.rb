@@ -277,7 +277,7 @@ class Company::SalariesController < Company::BaseController
   
   def calculate_salary_commission
     Salary.open.where(id: params[:ids]).each do |salary|
-      salary.commission_amount = get_commission(salary)
+      salary.commission_amount = get_commission(salary) unless salary.commission_calculated
       send_commission(salary, salary.contract.buy_contract) unless salary.commission_calculated
       salary.save
     end
@@ -309,7 +309,7 @@ class Company::SalariesController < Company::BaseController
     @salaries = Salary.where(id: params[:ids], status: [:open, :pending])
     @salaries.each do |salary|
       advance = salary.calculate_advance
-      salary.update_attributes(total_amount: salary.approved_amount + advance, salary_advance: advance)
+      salary.update_attributes(total_amount: salary.approved_amount + advance + salary.commission_amount.to_f, salary_advance: advance)
     end
     if @salaries.update_all(status: "calculated")
       flash[:success] = "Salary calculated successfully"

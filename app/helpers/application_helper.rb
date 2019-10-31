@@ -1287,7 +1287,7 @@ module ApplicationHelper
         ''
       end
     end
-
+    
     def get_initial(name_text)
       name_text.first.capitalize if name_text
     end
@@ -1310,10 +1310,19 @@ module ApplicationHelper
     def default_user_img(first_name,last_name,circle_div_class='circle')
       content_tag(:span, bind_initials(first_name,last_name),class: "#{circle_div_class}")
     end
-    def entity_image(first_name,last_name,circle_div_class='circle',default_img_classes='')
-      default_img =''
-      if first_name=='' || last_name=='' 
-        default_img = default_img+ "<img src='#{asset_path('avatars/m_sunny_big.png')}' alt: '#{first_name} #{last_name}' class='#{default_img_classes}'/>"
+
+    def user_image(user,attrs)
+      if user.photo.present?
+        image_tag(user.photo, style: "#{attrs[:style]}", class: "data-table-image #{attrs[:class]}" ,title: "#{attrs[:title]}",alt: image_alt(user) ).html_safe
+      else
+        entity_image(user.first_name,user.last_name)
+      end
+    end
+    
+    def entity_image(first_name, last_name, circle_div_class = 'circle', default_img_classes = '')
+      default_img = ''
+      if first_name == '' || last_name == ''
+        default_img = default_img + "<img src='#{asset_path('avatars/m_sunny_big.png')}' alt: '#{first_name} #{last_name}' class='#{default_img_classes}'/>"
       else
         default_img = default_img + default_user_img(first_name,last_name,circle_div_class)
       end
@@ -1346,7 +1355,7 @@ module ApplicationHelper
       if users.signers&.count > 3
         user_photo=user_photo+"<div class='more_users'>#{(users.signers&.count-3).abs} More</div>"
       end
-      user_photo = user_photo + "</div>" 
+      user_photo = user_photo + "</div>"
       return user_photo.html_safe
     end
 

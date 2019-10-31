@@ -19,8 +19,10 @@
       %tr
         %td{:rowspan => 4}= "<input type='checkbox' id='ts_ids' name='ids[]' value='#{cc.cyclable.id}'>".html_safe
         %td.emp{:rowspan => 4}
+
           - user = cc.contract.candidate
-          =image_tag(user.photo, style: 'width: 60px; height: 60px;', class: 'data-table-image mr-1',title: "#{user.full_name}",alt: image_alt(user) ).html_safe
+          =user_image(user, style: 'width: 60px; height: 60px;', class: 'data-table-image mr-1',title: "#{user.full_name}")
+
         %td{:rowspan => 4}= cc.contract.title
         %td{:rowspan => 4}= cc.id
 
@@ -29,7 +31,7 @@
         %td= cc.cyclable.approved_amount
         %td
         %td
-        %td
+        %td= cc.cyclable.commission_amount
         %td= cc.cyclable.total_amount
         %td
         %td
