@@ -1344,7 +1344,7 @@ module ApplicationHelper
         end
 
       if users.signers&.count > 3
-        user_photo=user_photo+"<div class='more'>+2#{(users.signers&.count-3).abs} More</div>"
+        user_photo=user_photo+"<div class='more_users'>#{(users.signers&.count-3).abs} More</div>"
       end
       user_photo = user_photo + "</div>" 
       return user_photo.html_safe
