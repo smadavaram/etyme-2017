@@ -1,0 +1,19 @@
+.support-ticket-content-w
+  .support-ticket-content
+    .support-ticket-content-header
+      %h3.ticket-header
+        =job.title
+    .ticket-thread
+      .ticket-reply
+        .ticket-reply-info
+          %a.author.no-decoration{:href => "#"}
+            =user_image(job.created_by, style: 'width: 35px; height: 35px;', class: 'data-table-image mr-1',title: "#{job.created_by&.full_name}" )
+            %span= job.created_by&.full_name
+          %span.info-data.pull-right
+            %span.value
+              = job.created_at.strftime("Created on %m/%d/%Y")
+              = job.created_at.strftime("at %I:%M%p")
+
+        .ticket-reply-content
+          = job.description.html_safe
+

@@ -1,0 +1,5 @@
+-if @job
+  $('.job_ticket').removeClass('active')
+  $("##{@job.id}").addClass('active')
+  $('.job_description').html("#{j render 'candidate/candidates/partials/job', job: @job}")
+

@@ -74,9 +74,10 @@
     padding: 10px;
 }
 
-.add_contacts{
+.add_contacts {
     color: #047bf8 !important;
 }
+
 .collaborators {
     display: flex;
     flex-wrap: wrap;
@@ -480,14 +481,42 @@ div.nested_headers {
     color: green;
 }
 
-.active-conversation  .user-name {
+.active-conversation .user-name {
     color: white !important;
 }
 
-.active-conversation  .last-message {
+.active-conversation .last-message {
     color: #23A0FB !important;
 }
 
 .active-conversation {
     background-color: #047BF8;
+}
+
+.job_ticket.active {
+    border: 2px solid #047BF8;
+}
+
+.job_ticket {
+    background-color: #fff;
+    border-radius: 6px;
+    box-shadow: 0px 2px 4px rgba(126, 142, 177, 0.12);
+    transition: all 0.3s ease;
+    position: relative;
+    display: block;
+    text-decoration: none !important;
+    margin-bottom: 20px;
+    border: 2px solid white;
+}
+
+.no-decoration{
+    text-decoration: none !important;
+}
+
+.job_ticket:hover {
+    border: 2px solid #047BF8;
+}
+
+.jb-bg-colr{
+    background-color: #6daae9;
 }

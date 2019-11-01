@@ -1,0 +1,11 @@
+-if @jobs.present?
+  $('.dashboard_jobs').html("#{j render 'candidate/candidates/partials/jobs', jobs: @jobs}")
+  $('.jobs_pagination_links a').attr('data-remote','true');
+- else
+  flash_alert('No job with this title has been found')
+
+
+$("#jobs_search").on('change',function(){
+url = "/candidate?q="+$(this).val()
+$.get(url);
+});
