@@ -119,7 +119,7 @@
         </a>
         <div class="pl-4 w-100 text-justify nav-sidebar-collaps">
           <a href="<%= timesheets_path %>" class=" l2 side-bar_links nested_tab boarder_bottom">Timesheet(s)</a>
-          <a href="<%= client_timesheets_timesheets_path %>" class="l2 side-bar_links nested_tab boarder_bottom disableClick">Appointment(s)</a>
+          <a href="<%= client_timesheets_timesheets_path %>" class=" l2 side-bar_links nested_tab boarder_bottom">Appointment(s)</a>
           <a href="<%= client_expenses_path %>" class="l2 side-bar_links nested_tab boarder_bottom"> Client
             Expense(s)</a>
         </div>
@@ -132,11 +132,19 @@
       </a>
       
       <div class="pl-4 w-100 text-justify nav-sidebar-collaps">
+        <a class="sidebar_collapsible nested_tab">
+          <div class="icon-w">
+            <i class="ti-bar-chart"></i>
+          </div>
+          <span>Salray</span>
+        </a>
+        <div class="pl-4 w-100 l3 text-justify nav-sidebar-collaps">
+          <a href="<%= salaries_path %>" class=" side-bar_links nested_tab boarder_bottom">Salary To Pay</a>
+          <a href="<%= pay_expense_expenses_path() %>" class=" side-bar_links nested_tab boarder_bottom">Salary Advance</a>
+        </div>
         <a class="l2 side-bar_links nested_tab boarder_bottom" href="">Banking</a>
-        <a class="l2 side-bar_links nested_tab boarder_bottom" href="<%= sale_invoices_path%>">Sale(s)</a>
-        <a class="l2 side-bar_links nested_tab boarder_bottom" href="<%= purchase_invoices_path %>">Purchase(s)</a>
-        <a class="l2 side-bar_links nested_tab boarder_bottom" href="<%= pay_expense_expenses_path() %>">Expense(s)</a>
-        <a class="l2 side-bar_links nested_tab boarder_bottom" href="<%= salaries_path() %>">Salary(s)</a>
+        <a class="l2 side-bar_links nested_tab boarder_bottom" href="<%= sale_invoices_path%>">Sale</a>
+        <a class="l2 side-bar_links nested_tab boarder_bottom" href="<%= purchase_invoices_path %>">Purchase</a>
       </div>
     
     </div>

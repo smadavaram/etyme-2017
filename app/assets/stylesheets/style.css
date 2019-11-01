@@ -1777,6 +1777,3 @@ flex: 0 0 220px;
 .disabled-row{
     background-color: #aeabab !important;
 }
-.disableClick{
-    pointer-events: none;
-}
