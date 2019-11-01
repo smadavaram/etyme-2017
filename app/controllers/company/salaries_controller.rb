@@ -29,7 +29,6 @@ class Company::SalariesController < Company::BaseController
   
   def index
     add_breadcrumb 'Salaries', salaries_path
-    @tab_hash = {'upcomming': 0,'commission': 1,'calculate': 2,'process': 3,'pay': 4,'clearing': 5}
     @tab = params[:tab].present? ? params[:tab] : "calculate"
     @start_date = params[:start_date]
     @end_date = params[:end_date]

@@ -1,34 +1,6 @@
 %div
   .element-wrapper.m-2
     .element-box
-      .mt-3.mb-5{style: "margin-left: -21px;"}
-        %ul.bootstrapWizard.form-wizard{style: 'display: flex; justify-content: space-evenly;'}
-          - is_active = @tab_hash[:"#{@tab}"]
-          %li{class: "w-100 #{"active" if is_active == 0}","data-target" => "#step1"}
-            %a{"data-toggle" => "tab", :href => "#tab1"}
-              %span.step 1
-              %span.title Upcomming
-          %li{class: "w-100 #{"active" if is_active == 1}","data-target" => "#step2"}
-            %a{"data-toggle" => "tab", :href => "#tab2"}
-              %span.step 2
-              %span.title Commision Cal
-          %li{class: "w-100 #{"active" if is_active == 2}","data-target" => "#step3"}
-            %a{"data-toggle" => "tab", :href => "#tab3"}
-              %span.step 3
-              %span.title Sal Calculate
-          %li{class: "w-100 #{"active" if is_active == 3}","data-target" => "#step4"}
-            %a{"data-toggle" => "tab", :href => "#tab4"}
-              %span.step 4
-              %span.title Salary Process
-          %li{class: "w-100 #{"active" if is_active == 4}","data-target" => "#step5"}
-            %a{"data-toggle" => "tab", :href => "#tab5"}
-              %span.step 5
-              %span.title Finalize & Pay
-          %li{class: "w-100 #{"active" if is_active == 5}","data-target" => "#step6"}
-            %a{"data-toggle" => "tab", :href => "#tab6"}
-              %span.step 6
-              %span.title Clearing        
-
       = form_with(url: salaries_path, method: :get, id: 'salaries') do |f|
         %ul.nav.nav-pills.smaller.d-md-flex{style: "justify-content: space-evenly;"}
           - (Date.today.beginning_of_year...Date.today.end_of_year).map(&:beginning_of_month).uniq.each_slice(2) do |months|
