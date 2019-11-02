@@ -28,25 +28,25 @@
           <% @conversation.chatable.groupables.each do |g| %>
             <% if current_company.id == @conversation.chatable.company_id && g.groupable != current_user %>
               <li>
-                <%if g.groupable.photo.blank?%>
-                  <%=entity_image(g.groupable.first_name,g.groupable.last_name)=%>
+                <%if g.groupable&.photo&.blank?%>
+                  <%=entity_image(g.groupable.first_name,g.groupable.last_name)%>
                 <%else%>
-                 <%= image_tag g.groupable.photo ,class: 'superbox-img',style: 'border-radius: 50%;width:30px !important;height:30px !important'%>
+                 <%= user_image( g.groupable ,class: 'superbox-img',style: 'border-radius: 50%;width:30px !important;height:30px !important',alt: g.groupable&.full_name) %>
                 <%end%>
                
-                <%= do_ellipsis(g.groupable.full_name.capitalize,13) %>
+                <%= do_ellipsis(g.groupable&.full_name&.capitalize,13) %>
                 <%= link_to "<i class='icon-feather-x'></i>".html_safe, remove_from_group_groups_path(groupable: g.id, conversation: @conversation.id) %>
               </li>
             <% else %>
               <li>
-                <%if g.groupable.photo.blank? %>
-                  <%=entity_image(g.groupable.first_name,g.groupable.last_name)=%>
+                <%if g.groupable&.photo.blank? %>
+                  <%=entity_image(g.groupable&.first_name,g.groupable&.last_name)%>
                 <%else%>
-                 <%= image_tag g.groupable.photo ,class: 'superbox-img',style: 'border-radius: 50%;width:30px !important;height:30px !important'%>
+                 <%= user_image( g.groupable ,class: 'superbox-img',style: 'border-radius: 50%;width:30px !important;height:30px !important',alt: g.groupable&.full_name)%>
                 <%end%>
                 
                 
-                <strong> <%= do_ellipsis(g.groupable.full_name.capitalize,15) %> </strong>
+                <strong> <%= do_ellipsis(g.groupable&.full_name&.capitalize,15) %> </strong>
               </li>
             <% end %>
           <% end %>
