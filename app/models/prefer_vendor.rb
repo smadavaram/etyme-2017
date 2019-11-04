@@ -14,7 +14,7 @@ class PreferVendor < ApplicationRecord
 
 
   def send_notifcation_to_vendor
-   self.prefer_vendor.owner.notifications.create(title:"Company Network Request",message:self.company.name + " has requested to add you in his company network")
+   self.prefer_vendor.owner.notifications.create(title:"Company Network Request",message:self.company.name + " has requested to add you in his company network") if prefer_vendor.owner.present?
   end
 
   def send_notifcation_to_companies

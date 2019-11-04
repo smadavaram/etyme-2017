@@ -7,7 +7,7 @@
             -#%img.ribbon{:alt => "", :src => "img/ribbon.png"}/
             .panel-heading
               %h3.panel-title
-                = image_tag c.candidate.try(:photo), alt: '', width: '90',style: "border-radius:3em;"
+                = user_image(c.candidate, width: '90',style: "border-radius:3em;")
             .panel-body.no-padding.text-align-center{style:"height:190px;"}
               .the-price
                 %h1

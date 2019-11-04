@@ -1777,3 +1777,7 @@ flex: 0 0 220px;
 .disabled-row{
     background-color: #aeabab !important;
 }
+
+.hot{
+    color: #FF9933;
+}

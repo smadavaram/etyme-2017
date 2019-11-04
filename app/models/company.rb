@@ -239,6 +239,9 @@ class Company < ApplicationRecord
     company_candidate_docs.where(document_for: "Customer", title_type: "Contract", is_require: is_require)
   end
   
+  def is_vendor?(company)
+    prefer_vendors.find_by_vendor_id(company.id)
+  end
   
   private
     

@@ -50,21 +50,19 @@
           <a href="<%= companies_path %>" class="l2 side-bar_links nested_tab boarder_bottom">Companies</a>
         <% end %>
         <a href="<%= company_contacts_company_companies_path %>" class="l2 side-bar_links nested_tab boarder_bottom">Contacts</a>
-        <a class="sidebar_collapsible nested_tab">
-          <div class="icon-w">
-            <i class="ti-bar-chart"></i>
-          </div>
-          <span>Supplier</span>
-        </a>
-        <div class="pl-4 w-100 l3 text-justify nav-sidebar-collaps">
-          <a href="<%= companies_path(status: 'all') %>" class=" side-bar_links nested_tab boarder_bottom">All
-            Companies</a>
-          <a href="<%= prefer_vendors_path %>" class=" side-bar_links nested_tab boarder_bottom">Network Requests</a>
-          <% if has_permission?('manage_vendors') %>
-            <a href="<%= network_path %>" class=" side-bar_links nested_tab boarder_bottom">Clients / Vendors</a>
-          <% end %>
+      </div>
+      <a class="sidebar_collapsible side-bar_tab">
+        <div class="icon-w">
+          <i class="ti-bar-chart"></i>
         </div>
-      
+        <span>Supplier</span>
+      </a>
+      <div class="pl-4 w-100 l2 text-justify nav-sidebar-collaps">
+        <a href="<%= companies_path(status: 'all') %>" class=" side-bar_links nested_tab boarder_bottom">Market Place</a>
+        <a href="<%= prefer_vendors_path %>" class=" side-bar_links nested_tab boarder_bottom">Network Requests</a>
+        <% if has_permission?('manage_vendors') %>
+          <a href="<%= network_path %>" class=" side-bar_links nested_tab boarder_bottom">Clients / Vendors</a>
+        <% end %>
       </div>
       <a class="sidebar_collapsible side-bar_tab">
         <div class="icon-w">
