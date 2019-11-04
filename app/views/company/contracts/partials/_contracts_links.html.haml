@@ -1,5 +1,5 @@
 / =link_to_if contract.accepted?, "Pause Contract", update_contract_status_contract_path(contract, status: "paused"),method: :patch, class: "btn btn-primary" do; end
-=link_to "Timeline", timeline_contracts_path, class: "btn btn-primary"
+=link_to "Timeline", timeline_contracts_path(contract_id: contract.id), class: "btn btn-primary"
 =link_to "Tree View", tree_view_contract_path(contract.number), class: "btn btn-primary"
 =link_to 'Download', download_contract_path(contract), class: 'btn btn-primary'
 =link_to 'Edit', new_contract_path(contract_id: contract.id), class: 'btn btn-primary'
