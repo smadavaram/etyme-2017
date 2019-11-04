@@ -4,7 +4,7 @@
       %span.pull-right.font-xs.text-muted
         %ul.list-inline.friends-list
           %li
-            = link_to (image_tag data.created_by.photo,class:'',alt: "Photo",style: 'width: 60px !important;height: 60px !important' ) ,'#'
+            = link_to user_image( data.created_by,style: 'width: 60px !important;height: 60px !important' ),'#'
       = image_tag 'jobs.png',class:'',alt: "job",style: "width: 60px !important; height: 60px !important;"
       %h6 Title-#{data.title.humanize}
       %span.name.font-sm.text-muted

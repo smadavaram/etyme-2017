@@ -175,7 +175,7 @@ Rails.application.routes.draw do
       get 'status_update', on: :collection
       get 'chat_status_update', on: :collection
       get 'move_to_employer', on: :collection
-      get 'job/:id',to: "candidates#get_job", on: :collection, as: :fetch_job
+      get 'job/:id', to: "candidates#get_job", on: :collection, as: :fetch_job
       get 'build_profile/:id/resume', to: "candidates#build_profile", on: :collection, as: :resume_profile
     end
     resources :jobs do
@@ -371,7 +371,7 @@ Rails.application.routes.draw do
     
     resources :sell_contracts
     resources :buy_contracts do
-      resources :contract_sale_commissions, only: [:new,:create]
+      resources :contract_sale_commissions, only: [:new, :create]
     end
     
     resources :accountings do
@@ -468,7 +468,7 @@ Rails.application.routes.draw do
       end
     end
     resources :prefer_vendors, concerns: :paginatable do
-      # end
+      get :vendor_activity, on: :collection
     end
     resources :job_invitations, concerns: :paginatable, only: [:index, :show] do
       post :bench_candidate_invitation, on: :collection
@@ -566,7 +566,7 @@ Rails.application.routes.draw do
         post :update_acc_info
         get :new
         post :create
-
+      
       end
     end
     resources :contracts, concerns: :paginatable, except: [:destroy] do
@@ -684,7 +684,7 @@ Rails.application.routes.draw do
     
     end
     
-    resources :client_expenses, only: [:edit,:update, :show, :index] do
+    resources :client_expenses, only: [:edit, :update, :show, :index] do
       get :approve
       get :reject
       get :submit

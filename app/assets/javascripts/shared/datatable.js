@@ -128,6 +128,24 @@ $(document).ready(function () {
             orderable: false
         }]
     });
+
+    $('#prefer_vendors_table').dataTable();
+    $('#prefer_vendors_table-search').keyup(function(){
+        $('#prefer_vendors_table').DataTable().search( $(this).val() ).draw();
+    });
+    $('#receive_prefer_vendors_table').dataTable();
+    $('#receive_prefer_vendors_table-search').keyup(function(){
+        $('#receive_prefer_vendors_table').DataTable().search( $(this).val() ).draw();
+    });
+    $('#network_prefer_vendors_table').dataTable();
+    $('#network_prefer_vendors_table-search').keyup(function(){
+        $('#network_prefer_vendors_table').DataTable().search( $(this).val() ).draw();
+    });
+    $('#company_bench_datatable').dataTable();
+    $('#company_bench_datatable-search').keyup(function(){
+        $('#company_bench_datatable').DataTable().search( $(this).val() ).draw();
+    });
+
     $('#dataTable').dataTable({
         columnDefs: [{
             'targets': 0,

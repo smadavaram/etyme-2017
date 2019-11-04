@@ -12,15 +12,17 @@
     /           = f.button raw("<i class='fa fa-fw fa-search fa-lg'></i>") , class: 'btn btn-default'
     %div
       .widget-body
-        %ul#myTab1.nav.nav-tabs.no-border
-          %li.active
+        %ul#myTab1.nav.nav-tabs.smaller{style: "border-bottom: 0px;"}
+          %li.nav-item.cumstom_nav-tab.active
             %a{"data-toggle" => "tab", :href => "#tab-r1",class: "nav-link cumstom_nav-tab display-flex"}
-              %span.badge.bg-color-blue.txt-color-white= @vendors.count
+              %span.badge.bg-color-blue.txt-color-white
               Sent Invitation(s)
-          %li
+              %span.badge.bg-color-blue.txt-color-white= @vendors.count
+          %li.nav-item.cumstom_nav-tab
             %a{"data-toggle" => "tab", :href => "#tab-r2",class: "nav-link cumstom_nav-tab display-flex"}
-              %span.badge.bg-color-blueDark.txt-color-white= @recived_vendors.count
+              %span.badge.bg-color-blueDark.txt-color-white
               Received Invitation(s)
+              %span.badge.bg-color-blueDark.txt-color-white= @recived_vendors.count
         .col-md-12
           .tab-content
             #tab-r1.tab-pane.padding-top-15.active.in

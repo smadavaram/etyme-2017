@@ -26,6 +26,15 @@ class Company::PreferVendorsController < Company::BaseController
     end
   end
   
+  def vendor_activity
+    add_breadcrumb "Vendor Activities", vendor_activity_prefer_vendors_path, :title => "Vendor Companies Activities"
+    @activities = PublicActivity::Activity.where(owner_type: 'Company',
+                                                 owner_id: current_company.prefer_vendors.accepted.pluck(:vendor_id))
+                      .or(PublicActivity::Activity.where(owner_type: 'User',
+                                                         owner_id: User.where(company_id: current_company.prefer_vendors.accepted.pluck(:vendor_id))))
+                      .paginate(page: params[:page], per_page: 15)
+  end
+  
   def show_network
     add_breadcrumb "Prefer Vendors".humanize, :network_path, :title => "Prefer Vendors"
   end
@@ -52,7 +61,7 @@ class Company::PreferVendorsController < Company::BaseController
     vendor.create_activity :create, owner: vendor.company, recipient: vendor.prefer_vendor
     flash[:success] = 'Vendor Request Successfully Sent.'
     respond_to do |format|
-      format.html{}
+      format.html {}
       format.js { render inline: "location.reload();" }
     end
   end
@@ -67,7 +76,7 @@ class Company::PreferVendorsController < Company::BaseController
   
   #
   def set_prefer_vendors
-    @network = current_company.send_or_received_network
+    @network = current_company.prefer_vendors.accepted
   end
   
   def set_prefer_vendors_request
