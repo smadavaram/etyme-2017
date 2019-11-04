@@ -46,7 +46,22 @@ class ApplicationDatatable < AjaxDatatablesRails::ActiveRecord
   end
   def default_user_img(first_name,last_name,circle_div_class='circle')
       content_tag(:span, bind_initials(first_name,last_name),class: "#{circle_div_class}")
+  end
+  def user_image(user,attrs)
+    return  if user.nil?
+    if user.photo.present?
+      image_tag(user.photo, style: "#{attrs[:style]}", class: "data-table-image #{attrs[:class]}" ,title: "#{attrs[:title]}",alt: image_alt(user) ).html_safe
+    else
+      entity_image(user.first_name,user.last_name)
     end
+  end
+  def image_alt(user = nil)
+    begin
+      "#{get_initial(user.first_name)}.#{get_initial(user.last_name)}"
+    rescue
+      'N/A'
+    end
+  end
   def entity_image(first_name,last_name,circle_div_class='circle',default_img_classes='')
     default_img =''
     if first_name=='' || last_name=='' 

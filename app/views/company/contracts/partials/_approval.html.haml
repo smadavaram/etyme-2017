@@ -2,7 +2,7 @@
   .mini_chat_users.text-left
     - approvals.sample(4).each do |approval|
       .avatar
-        =entity_image(approval.user.first_name,approval.user.last_name)
+        =user_image(approval.user, style: 'width: 35px; height: 35px;', class: 'data-table-image mr-1',title: "#{approval.user.full_name}" )
 
     - if approvals.count > 4
       .more

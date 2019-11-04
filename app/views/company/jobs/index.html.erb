@@ -45,11 +45,7 @@
                     <td><%= colorfull_text(display_date_and_time(job.end_date || Time.now),'#1AAE9F') %></td>
                     <td><%= job.location %></td>
                     <td class="no-wrap">
-                      <%if job.created_by&.photo.blank? %>
-                        <%=entity_image(job.created_by&.first_name.nil? ? '' : job.created_by&.first_name , job.created_by&.last_name.nil? ? '' : job.created_by&.last_name,'circle','circle_img')%>
-                      <%else%>
-                        <%= image_tag(job.created_by.photo, class: 'data-table-image mr-1',title: "#{job.created_by.full_name}").html_safe %>
-                      <%end%>
+                      <%= user_image(job.created_by, style: 'width: 35px; height: 35px;', class: 'data-table-image mr-1',title: "#{job.created_by&.full_name}" ) %>
                       <%= link_to do_ellipsis(job.created_by.full_name,8),company_user_profile_path(job.created_by.id),class: 'data-table-font' if job.created_by.present? %>
                     </td>
                     <td><%= colorfull_text(job.status,job.status=='Published' ? '#1AAE9F' : 'orange') %></td>

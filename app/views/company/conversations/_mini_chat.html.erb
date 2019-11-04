@@ -7,7 +7,7 @@
           <div class="mini_chat_users">
             <% conversation.chatable.groupables.sample(4).each do |groupable| %>
               <div class="avatar">
-                <%=entity_image(groupable.groupable.first_name,groupable.groupable.last_name)%>
+                <%= user_image(groupable.groupable, style: 'width: 35px; height: 35px;', class: 'data-table-image mr-1',title: "#{groupable.groupable.full_name}" )%>
               </div>
             <% end %>
             <% if conversation.chatable.groupables.count > 4 %>

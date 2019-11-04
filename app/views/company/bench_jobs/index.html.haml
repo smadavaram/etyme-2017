@@ -31,10 +31,7 @@
                       %td
                         = check_box_tag "ids[]", c.candidate.id
                       %td.no-wrap
-                        -if c.candidate.photo.blank?
-                          =link_to  entity_image(c.candidate.first_name,c.candidate.last_name,'circle','circle_img'),public_profile_static_candidates_path(c.candidate)
-                        -else 
-                          = image_tag(c.candidate.photo, class: 'data-table-image mr-1',title: "#{c.candidate.full_name}").html_safe if c.candidate
+                        =link_to user_image(c.candidate, style: 'width: 35px; height: 35px;', class: 'data-table-image mr-1',title: "#{c.candidate.full_name}" ),public_profile_static_candidates_path(c.candidate)
                         = link_to  do_ellipsis(c.candidate.try(:full_name).try(:titleize),10),public_profile_static_candidates_path(c.candidate),class: "data-table-font pr-5"
                       %td
                         - if c.candidate.try(:roles).present?
