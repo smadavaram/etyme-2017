@@ -24,10 +24,7 @@
                   %td{style: "color: #EFA544"}=activty.trackable.try(:status).camelcase
                   %td{style: "color: #1AAE9F"}= "#{time_ago_in_words(activty.trackable.try(:updated_at))} ago"
                   %td.no-wrap
-                    -if activty.owner.photo.blank?
-                      =default_user_img(activty.owner.first_name,activty.owner.last_name)
-                    -else
-                      =image_tag(activty.owner.photo, class: 'data-table-image mr-1').html_safe
+                    =user_image(activty.owner, style: 'width: 35px; height: 35px;', class: 'data-table-image mr-1',title: "#{activty.owner.full_name}" )
                     = link_to do_ellipsis(activty.owner.full_name.capitalize,15).html_safe,company_user_profile_path(activty.owner.id),class: 'data-table-font'
                   %td Updated terms & conditions for contract
 .timesheet_pagination_wrap.pt-3

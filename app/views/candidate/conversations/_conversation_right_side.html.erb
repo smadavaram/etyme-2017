@@ -14,15 +14,7 @@
         <ul>
           <% @conversation.chatable.groupables.each do |g| %>
             <li>
-              <%if g.groupable.photo.blank?%>
-                <%if g.groupable.first_name=='' || g.groupable.last_name=='' %>
-                  <%= image_tag asset_path('avatars/m_sunny_big.png'), class: 'superbox-img', style: 'border-radius: 50%;width:30px !important;height:30px !important' %>
-                <%else%>
-                  <%= default_user_img(g.groupable.first_name,g.groupable.last_name)%>
-                <%end%>
-              <%else%>
-               <%= image_tag g.groupable.photo, class: 'superbox-img', style: 'border-radius: 50%;width:30px !important;height:30px !important' %>
-              <%end%>
+             <%=user_image(g.groupable, style: 'width: 35px; height: 35px;', class: 'data-table-image mr-1 superbox-img',title: "#{g.groupable.full_name}" )%>
               <%= do_ellipsis(g.groupable.full_name.capitalize, 13) %>
               <% if g.groupable == current_candidate %>
                 <%= link_to "<i class='icon-feather-x'></i>".html_safe, leave_group_candidate_conversations_path(group: @conversation.chatable_id) %>

@@ -147,7 +147,7 @@
                               - cache d do
                                 .col-sm-12.col-md-6.col-lg-4
                                   .well.text-center.connect
-                                    / = image_tag d.photo ,class:"margin-bottom-5 margin-top-5",alt:'img',width: '20px;',height: '20px;' 
+                                    / = image_tag d.photo ,class:"margin-bottom-5 margin-top-5",alt:'img',width: '20px;',height: '20px;'
                                     %br/
                                     %span.font-xs
                                       %b
@@ -303,7 +303,7 @@
                     - current_company.candidates.take(30).each do |candidate|
                       - cache candidate do
                         %li
-                          =user_image(candidate, style: 'width: 35px; height: 35px;', class: 'data-table-image mr-1',title: "#{candidate.full_name}" )
+                          =user_image(candidate, style: 'outline: 0px !important; width: 35px; height: 35px;', class: 'data-table-image mr-1',title: "#{candidate.full_name}" )
               -else
                 .text
                   .font-md.text-center
@@ -319,7 +319,7 @@
                     - current_company.invited_companies_contacts.take(30).each do |contact|
                       - cache contact do
                         %li
-                          =user_image(contact, style: 'width: 35px; height: 35px;', class: 'data-table-image mr-1',title: "#{contact.full_name}" )
+                          =user_image(contact, style: 'outline: 0px !important; width: 35px; height: 35px;', class: 'data-table-image mr-1',title: "#{contact.full_name}" )
               -else
                 .text
                   .font-md.text-center

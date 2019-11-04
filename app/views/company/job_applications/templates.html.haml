@@ -58,9 +58,7 @@
                   %td{style: "color: #1AAE9F"}= do_ellipsis(docusign.created_at.strftime("%B %e, %Y at %I:%M %p"),15)
                   %td{style: "color: #EFA544"}= docusign.is_sign_done ? "Completed" : "Pending"
                   %td.d-flex
-                    = image_tag(docusign&.signable.photo, class: 'data-table-image mr-1')
-                    - docusign.signers&.each do |signer|
-                      =image_tag(signer.photo, class: 'data-table-image mr-1')
+                    =show_users(docusign)
                   %td= do_ellipsis(docusign.envelope_id.present? ? docusign.envelope_id : "Document Not Submitted",15) if docusign.is_signable?
                   %td
                     - if docusign.documentable.is_require == "Website"

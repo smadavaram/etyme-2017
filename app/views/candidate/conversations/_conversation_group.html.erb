@@ -2,7 +2,8 @@
 
 <%= link_to  candidate_conversations_path(chat_topic: "Group", chatable_id: grp.id, chatable_type: grp.class.to_s), class: "user-w", remote: true, method: :post do %>
   <div class="avatar with-status status-green">
-    <%= image_tag grp.photo %>
+    <%= user_image(grp, style: 'width: 35px; height: 35px;', class: 'data-table-image mr-1',title: "#{grp.full_name}" )
+ %>
   </div>
   <div class="user-info">
     <div class="user-date">

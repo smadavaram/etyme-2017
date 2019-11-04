@@ -17,7 +17,7 @@
     </div>
   </div>
   <div class="chat-message-avatar">
-    <%= image_tag message.userable.photo %>
+    <%=user_image(message.userable, style: 'width: 35px; height: 35px;', class: 'data-table-image mr-1',title: "#{message.userable&.full_name}" )%>
   </div>
   <div class="chat-message-date">
     <%= message.created_at.strftime("%l:%M%P") %>
