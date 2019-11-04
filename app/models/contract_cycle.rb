@@ -34,7 +34,7 @@ class ContractCycle < ApplicationRecord
   scope :candidate_id, -> (candidate_id) { where candidate_id: candidate_id }
   scope :contract_id, -> (contract_id) { where contract_id: contract_id }
   scope :note, -> (note) { where cycle_type: note }
-  
+  scope :cycle_type, ->(type) { (type == 'All' or type.nil?) ? where(cycle_type: ContractCycle::CYCLETYPES) : where(cycle_type: type) }
   scope :completed, -> { where(status: 'completed') }
   scope :overdue, -> { where('DATE(contract_cycles.end_date) < ?', DateTime.now.end_of_day.to_date) }
   scope :todo, -> { where('DATE(contract_cycles.end_date) BETWEEN ? AND ?', Date.today, 365.days.from_now.to_date) }

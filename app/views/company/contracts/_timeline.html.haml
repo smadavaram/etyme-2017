@@ -98,3 +98,8 @@
             .col-sm-8.text-center
               / #{cc.start_date.strftime("%d/%m/%Y").to_s+' - '+cc.end_date.utc.strftime("%d/%m/%Y")}
             / .col-sm-2.text-center #{cc.ts_submitteds&.first&.total_time}
+
+-#.timesheet_pagination_wrap.w-100.mt-3
+-#  .pagination_label
+-#    = page_entries_info @contract_cycles
+-#  = will_paginate(@contract_cycles, {previous_label: "Previous",next_label: "Next",inner_window: 1,class: 'timeline_pagination_links',link_options: {'data-remote': true}})
