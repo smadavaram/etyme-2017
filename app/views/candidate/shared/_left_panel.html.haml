@@ -4,7 +4,7 @@
     %span
       / User image size is adjusted inside CSS, it should stay as it
       %a{:href => my_profile_path}
-        = image_tag((current_candidate.photo.present? ? current_candidate.photo : 'default_user.png'), alt: 'me', class: 'online')
+       =user_image(current_candidate, style: 'width: 35px; height: 35px;', class: 'online data-table-image mr-1',title: "#{current_candidate.full_name}" )
         %span
           = current_candidate.full_name
         %i.fa.fa-angle-down

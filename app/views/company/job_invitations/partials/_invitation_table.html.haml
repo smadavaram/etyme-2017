@@ -34,10 +34,7 @@
       - data.each_with_index  do |invitation,index|
         %tr.even{:role => "row"}
           %td
-            -if invitation.recipient.try(:photo).nil?
-              =default_user_img(invitation.recipient.try(:first_name),invitation.recipient.try(:last_name))if invitation.recipient
-            -else
-              = image_tag(invitation.recipient.photo, class: 'data-table-image mr-1',title:"#{invitation.recipient.full_name}").html_safe if invitation.recipient.present?
+            =user_image(invitation.recipient, style: 'width: 35px; height: 35px;', class: 'data-table-image mr-1',title: "#{invitation.recipient&.full_name}" )
             = link_to bind_initials(invitation.recipient.first_name,invitation.recipient.last_name), public_profile_static_candidates_path(invitation.recipient.id),class: 'data-table-font' if invitation.recipient.present?
           %td.no-wrap.pr-5
             = link_to image_tag(invitation.recipient.company.logo,class: 'data-table-image') , profile_company_path(invitation.recipient.company.id) if invitation.recipient.present? && invitation.recipient_type != "Candidate"

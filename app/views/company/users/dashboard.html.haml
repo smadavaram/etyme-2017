@@ -147,7 +147,7 @@
                               - cache d do
                                 .col-sm-12.col-md-6.col-lg-4
                                   .well.text-center.connect
-                                    / = image_tag d.photo ,class:"margin-bottom-5 margin-top-5",alt:'img',width: '20px;',height: '20px;' 
+                                    / = image_tag d.photo ,class:"margin-bottom-5 margin-top-5",alt:'img',width: '20px;',height: '20px;'
                                     %br/
                                     %span.font-xs
                                       %b
@@ -283,10 +283,7 @@
                   .user-w.toggleable
                     .user-avatar-w
                       .avatar-w
-                        -if user.photo.blank? 
-                          =entity_image(current_user.first_name,current_user.last_name)
-                        -else
-                          = image_tag user.photo, class: 'circle_img'
+                        =user_image(current_user, style: 'width: 35px; height: 35px;', class: 'data-table-image mr-1',title: "#{current_user.full_name}" )
                     .user-name
                       %h6.user-title
                         = do_ellipsis(user.full_name,17)
@@ -306,11 +303,7 @@
                     - current_company.candidates.take(30).each do |candidate|
                       - cache candidate do
                         %li
-                          -if candidate.photo.blank?
-                            =entity_image(candidate.first_name,candidate.last_name)
-                          -else
-                            = link_to image_tag( candidate.try(:photo) ,class:"margin-bottom-5 margin-top-5",alt:image_path('avatars/m_sunny_big.png')) , static_candidate_resume_path(candidate),target: "_blank" , title: candidate.full_name,"data-content" => "Email : #{candidate.email}", "data-placement" => "top",:rel => "hover"
-
+                          =user_image(candidate, style: 'outline: 0px !important; width: 35px; height: 35px;', class: 'data-table-image mr-1',title: "#{candidate.full_name}" )
               -else
                 .text
                   .font-md.text-center
@@ -326,10 +319,7 @@
                     - current_company.invited_companies_contacts.take(30).each do |contact|
                       - cache contact do
                         %li
-                          -if contact.photo.blank?
-                            =entity_image(contact.first_name,contact.last_name)
-                          -else
-                            = link_to (image_tag contact.try(:photo) ,class:"margin-bottom-5 margin-top-5",alt: image_path('avatars/m_sunny_big.png') ), profile_company_path(contact) ,title: contact.full_name ,"data-content" => "Email : #{contact.email}", "data-placement" => "top",:rel => "hover"
+                          =user_image(contact, style: 'outline: 0px !important; width: 35px; height: 35px;', class: 'data-table-image mr-1',title: "#{contact.full_name}" )
               -else
                 .text
                   .font-md.text-center

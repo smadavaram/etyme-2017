@@ -5,11 +5,7 @@
       <%= user.company.domain %>
     </td>
     <td>
-      <%if user.photo.blank?%>
-        <%=entity_image(user.first_name,user.last_name,'circle','circle_img')%>
-      <%else%>
-        <%= image_tag(user.photo, class: 'data-table-image mr-1',title: "#{user.full_name}")%>
-      <%end%>
+      <%= user_image(user, style: 'width: 35px; height: 35px;', class: 'data-table-image mr-1',title: "#{user.full_name}" ) %>
       <%= do_ellipsis(user.full_name,10)%>
     </td>
     <td>

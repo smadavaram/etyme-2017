@@ -23,11 +23,8 @@
                         %div.profile-hover
                           %div.pictureContainer
                             = button_tag "" ,class: "hidden candi-logo", onclick:"upload_file()",type: "button"
-                            -if(current_candidate.photo.present?)
-                              = image_tag current_candidate.photo,  style:"width:100px;height:100px", fit: 'clip',:class =>"candi-profile-pic img_pic"
+                            =user_image(current_candidate, style: 'width: 35px; height: 35px;', class: 'data-table-image mr-1',title: "#{current_candidate.full_name}" )
 
-                            -else
-                              = image_tag image_path('avatars/m_sunny_big.png'),  style: "width:100px;height:100px", fit: 'clip', class: "img_pic"
                       %p.text-center
                         %i.fa.fa-camera
                         %i.fa.fa-upload

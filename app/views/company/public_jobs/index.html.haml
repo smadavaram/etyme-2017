@@ -32,7 +32,7 @@
             %span.label Agent:
             %span.value.with-avatar{:href => "#"}
               %span
-                =job.created_by.full_name
+                =job.created_by&.full_name
             %span.label Updated:
             %span.value
               =job.created_at.strftime("%d/%m/%Y")
@@ -117,7 +117,7 @@
                     =job.location
                   %span
                     %i.fa.fa-user
-                    =job.created_by.full_name
+                    =job.created_by&.full_name
         / = digg_pagination(@jobs)
         .timesheet_pagination_wrap.pt-3
           .pagination_label
