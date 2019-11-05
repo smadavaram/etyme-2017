@@ -1,0 +1,27 @@
+
+$(document).ready(function () {
+    var collapse = document.getElementsByClassName("sidebar_collapsible");
+    var i;
+    for (i = 0; i < collapse.length; i++) {
+        collapse[i].addEventListener("click", function () {
+            var root = this;
+            $('.sidebar_collapsible').each(
+                function () {
+                    if ($(this).hasClass('active') && root != this && !$(this).hasClass('nested_tab')) {
+                        this.classList.toggle('active');
+                        if (this.nextElementSibling.style.display === "block") {
+                            this.nextElementSibling.style.display = "none";
+                        }
+                    }
+                }
+            );
+            if ($(this).hasClass('active')) {
+                $(this).removeClass('active');
+                root.nextElementSibling.style.display = "none";
+            } else {
+                $(this).addClass('active');
+                root.nextElementSibling.style.display = "block";
+            }
+        });
+    }
+});

@@ -191,3 +191,4 @@
 //= require company/salaries
 //= require company/sale_invoices
 //= require mobile_responsive
+//= require company/left_menu
