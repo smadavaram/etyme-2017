@@ -66,12 +66,23 @@ $(document).ready(function () {
     var i;
     for (i = 0; i < collapse.length; i++) {
         collapse[i].addEventListener("click", function () {
-            this.classList.toggle("active");
-            var content = this.nextElementSibling;
-            if (content.style.display === "block") {
-                content.style.display = "none";
+            var root = this;
+            $('.sidebar_collapsible').each(
+                function () {
+                    if ($(this).hasClass('active') && root != this && !$(this).hasClass('nested_tab')) {
+                        this.classList.toggle('active');
+                        if (this.nextElementSibling.style.display === "block") {
+                            this.nextElementSibling.style.display = "none";
+                        }
+                    }
+                }
+            );
+            if ($(this).hasClass('active')) {
+                $(this).removeClass('active');
+                root.nextElementSibling.style.display = "none";
             } else {
-                content.style.display = "block";
+                $(this).addClass('active');
+                root.nextElementSibling.style.display = "block";
             }
         });
     }
@@ -80,7 +91,7 @@ $(document).ready(function () {
         placeholder: $('#' + $('.multi-select2').attr('id')).attr('placeholder'),
         tokenSeparators: [',', ' ']
     })
-    
+
     $("#comment_body").keypress(function (event) {
         if (event.which == 13) {
             event.preventDefault();
