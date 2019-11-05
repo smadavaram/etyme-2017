@@ -1781,3 +1781,7 @@ flex: 0 0 220px;
 .hot{
     color: #FF9933;
 }
+.field_disable{
+    pointer-events:none;
+    cursor: pointer;
+}

@@ -13,3 +13,11 @@ function toogle_seller(target,selector){
         $(selector).hide()
     }
 }
+
+$(function() {
+    $('#change_rate_from_date , #change_rate_to_date').datepicker({
+        dateFormat : 'yy/mm/dd',
+        prevText : '<i class="fa fa-chevron-left"></i>',
+        nextText : '<i class="fa fa-chevron-right"></i>',
+    });
+});
