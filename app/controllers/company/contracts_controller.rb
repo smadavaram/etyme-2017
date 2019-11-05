@@ -194,6 +194,7 @@ class Company::ContractsController < Company::BaseController
     respond_to do |format|
       if @contract.update(contract_params)
         @have_admin = @contract.sell_contract.contract_sell_business_details.admin.count != 0
+        @sc = @contract.sell_contract
         params[:contract][:reporting_manager_ids]&.each do |id|
           @contract.sell_contract.contract_sell_business_details.create(company_contact_id: id)
         end
