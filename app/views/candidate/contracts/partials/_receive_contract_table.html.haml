@@ -14,7 +14,7 @@
     %tbody
       - data.each do |d|
         %tr{class: "#{set_background_status_color(d.status)}"}
-          %td= image_tag d.created_by.photo, alt: '', width: '20'
+          %td =user_image(d.created_by, style: 'width: 35px; height: 35px;', class: 'data-table-image mr-1',title: "#{d.created_by.full_name}" )
           %td= link_to d.created_by.full_name , '#'
           %td= link_to d.created_by.company.name , '#' if d.created_by.company.present?
           %td= link_to d.job.title , '#'

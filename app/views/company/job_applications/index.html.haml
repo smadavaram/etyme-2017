@@ -29,10 +29,7 @@
                       %td
                         = check_box_tag "ids[]", application.id
                       %td.no-wrap
-                        -if application.applicationable.photo.blank?
-                          =entity_image(application.applicationable.first_name,application.applicationable.last_name,'circle','circle_img')
-                        -else
-                          = image_tag(application.applicationable.photo, class: 'data-table-image mr-1',title: "#{application.applicationable.full_name}")
+                        =user_image(application.applicationable, style: 'width: 35px; height: 35px;', class: 'data-table-image mr-1',title: "#{application.applicationable.full_name}" )
                         = link_to(do_ellipsis(application.applicationable.full_name,15), public_profile_static_candidates_path(application.applicationable), class: 'data-table-font')
                       %td.text-center
                         = application.id

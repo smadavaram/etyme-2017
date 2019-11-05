@@ -94,13 +94,7 @@
         <div class="logged-user-i">
           <div class="avatar-w">
             <%= link_to my_profile_path do %>
-              <%if current_candidate.photo.blank?%>
-               <%= entity_image(current_candidate.first_name,current_candidate.last_name)%>
-                
-              <%else%>
-               <%= image_tag current_candidate.photo, alt: 'Profile Pic',class: 'circle_img' %>
-              <%end%>
-             
+              <%= user_image(current_candidate, style: 'width: 35px; height: 35px;', class: 'data-table-image mr-1',title: "#{current_candidate.full_name}" ) %>
             <% end %>
           </div>
           <div class="os-dropdown">

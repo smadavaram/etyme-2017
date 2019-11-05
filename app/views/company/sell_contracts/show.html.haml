@@ -36,13 +36,13 @@
           -@sell_contract.contract_sell_business_details.each do |csbd|
             %tr
               %td
-                =csbd.contact_name
+                = do_ellipsis(csbd.company_contact.full_name,8)
               %td
-                =csbd.phone
+                =csbd.company_contact.phone
               %td
-                =csbd.email
+                =csbd.company_contact.email
               %td
-                =csbd.department
+                =csbd.company_contact.department
     %div
       %ul
         Send Documents

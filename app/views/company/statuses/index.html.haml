@@ -7,7 +7,7 @@
             -@statuses.each do |status|
               %li.well.margin-bottom-10
                 .smart-timeline-icon
-                  = image_tag status.user.photo,class:'',alt: "Company"
+                  =user_image(status.user, style: 'width: 35px; height: 35px;', class: 'data-table-image mr-1',title: "#{status.user.full_name}" )
                 .smart-timeline-time
                   %small
                   =  time_ago_in_words(status.try(:created_at).try(:localtime))+" ago"

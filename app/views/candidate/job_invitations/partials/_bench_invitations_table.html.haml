@@ -13,7 +13,8 @@
       - data.each do |invitation|
         %tr{class: "#{set_background_status_color(invitation.status)}"}
           %td.no-wrap
-            = image_tag(invitation.created_by.photo, class: 'data-table-image mr-1').html_safe
+            =user_image(invitation.created_by, style: 'width: 35px; height: 35px;', class: 'data-table-image mr-1',title: "#{invitation.created_by.full_name}" )
+
             = link_to(do_ellipsis(invitation.created_by.full_name), '#', class: 'data-table-font')
           %td= link_to invitation.created_by.company.name , '#' if invitation.created_by.type!="Candidate"
           %td

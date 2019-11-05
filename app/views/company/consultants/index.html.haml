@@ -56,7 +56,7 @@
                     %tbody
                       - @consultants.each_with_index do |consultant , index|
                         %tr.even{:role => "row"}
-                          %td= image_tag consultant.photo, alt: '', width: '20'
+                          %td= user_image(consultant, style: 'width: 35px; height: 35px;', class: 'data-table-image mr-1',title: "#{consultant.full_name}" )
                           %td= link_to consultant.try(:full_name) , company_user_profile_path(consultant) , target: '_blank'
                           %td= consultant.try(:email)
                           %td= consultant.try(:phone)

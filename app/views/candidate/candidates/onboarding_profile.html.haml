@@ -99,10 +99,7 @@
                     .profile-tile.profile-tile-inlined
                       -#= filepicker_field_tag "" ,class: "hidden candi-logo", onchange:"candidateLogoUpload(event)","data-fp-crop-ratio" => "2/2",mimetypes: "image/*"
                       .profile-tile-box.faded.candi-profile-pic
-                        -if(current_candidate.photo.present?)
-                          = image_tag current_candidate.photo,  style:"width:100px;height:100px", fit: 'clip',:class =>"img_pic"
-                        -else
-                          = image_tag current_candidate.photo,  style:"width:100px;height:100px", fit: 'clip',:class =>"hidden img_pic"
+                        =user_image(current_candidate, style: 'width: 35px; height: 35px;', class: 'data-table-image mr-1',title: "#{current_candidate.full_name}" )
                           .pt-new-icon.img_pic_r
                             %i.os-icon.os-icon-plus
                           .pt-user-name.img_pic_r

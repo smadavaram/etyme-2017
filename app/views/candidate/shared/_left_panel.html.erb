@@ -11,11 +11,7 @@
   <div class="logged-user-w avatar-inline p-1 m-1">
     <div class="logged-user-i">
       <div class="avatar-w">
-        <% if current_candidate.associated_company %>
-          <%= link_to image_tag(current_candidate.associated_company.photo, alt: 'me'), '#' %>
-        <% else %>
-          <%= image_tag 'default_logo.png' %>
-        <% end %>
+        <%=user_image(current_candidate.associated_company, style: 'width: 35px; height: 35px;', class: 'data-table-image mr-1',title: "#{current_candidate.associated_company.full_name}" )%>
       </div>
       <div class="logged-user-info-w">
         <div class="logged-user-name">

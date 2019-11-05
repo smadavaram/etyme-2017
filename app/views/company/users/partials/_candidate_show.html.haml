@@ -6,10 +6,7 @@
         %ul.list-inline.friends-list
           %li
             = link_to (image_tag data.invited_by.present? ? data.invited_by.company.logo : image_path('default_logo.png'),class:'',alt: "LOGO",style: 'width: 60px !important ;height: 60px !important'),data.invited_by.present? ? profile_company_path(data.invited_by.company) : '#',title: "#{data.invited_by.try(:company).try(:name) } Profile",'data-toggle'=>"tooltip" ,'data-placement'=>"top"
-      -if data.photo.blank?
-        = default_user_img(data.first_name,data.last_name)
-      -else   
-        = link_to (image_tag data.photo,class:'',alt: "job",width:"100px !important",hieght:"100px !important",style: "width: 60px !important; height: 60px !important;"),static_candidate_resume_path(data),title: "#{data.try(:full_name) } Resume",'data-toggle'=>"tooltip" ,'data-placement'=>"top",target: '_blank'
+      =user_image(data, style: 'width: 35px; height: 35px;', class: 'data-table-image mr-1',title: "#{data.full_name}" ) 
       %h6.text-muted #{data.full_name.humanize}
       %h6.text-muted #{data.try(:invited_by).present? ? data.try(:invited_by).try(:company).try(:name).try(:humanize) : "Direct Candidate"}
       %span.name.font-sm.text-muted.margin-top-10
