@@ -4,16 +4,19 @@
       .col-sm-12
         .element-wrapper
           .element-box-tp
-            .controls-above-table
-              %ul#myTab1.nav.nav-tabs.pb-1
-                %li
-                  %a{"data-toggle" => "tab", :href => "#tab-r1",class: " active nav-link cumstom_nav-tab display-flex",id: 'sent_job_active'}
-                    %span.badge.bg-color-blue.txt-color-white= @sent_job_invitations.count
+            .widget-body
+              %ul#myTab1.nav.nav-tabs.smaller
+                %li.nav-item.cumstom_nav-tab.active
+                  %a{"data-toggle" => "tab", :href => "#tab-r1",class: "nav-link cumstom_nav-tab display-flex"}
+                    %span.badge.bg-color-blue.txt-color-white
                     Sent Invitations
-                %li
-                  %a{"data-toggle" => "tab", :href => "#tab-r2",class: "nav-link cumstom_nav-tab display-flex",id: 'receive_job_active'}
-                    %span.badge.bg-color-blueDark.txt-color-white= @received_job_invitations.count
+                    %span.badge.bg-color-blue.txt-color-white= @sent_job_invitations.count
+
+                %li.nav-item.cumstom_nav-tab
+                  %a{"data-toggle" => "tab", :href => "#tab-r2",class: "nav-link cumstom_nav-tab display-flex"}
+                    %span.badge.bg-color-blueDark.txt-color-white
                     Received Invitations
+                    %span.badge.bg-color-blueDark.txt-color-white= @received_job_invitations.count
                 .col-md-12
                   .tab-content
                     #tab-r1.tab-pane.active
