@@ -1785,3 +1785,11 @@ flex: 0 0 220px;
     pointer-events:none;
     cursor: pointer;
 }
+figure.attachment.attachment--content{
+    display: inline-block;
+    /*max-width: 45%;*/
+    max-hight: 400%;
+    min-hight: 250%;
+    margin: 10px;
+    padding: 10px;
+}
