@@ -23,7 +23,7 @@
       %label.control-label
         Rate Type
       .col-sm-12.pl-0
-        = f.select :rate_type, ["hourly", "daily", "weekly", "monthly"],{}, class: "form-control select_rate_type"
+        = f.select :rate_type, ["hourly", "daily", "weekly", "monthly"],{}, class: "form-control"
   .col-md-2
     .form-group
       %label.control-label
@@ -36,4 +36,3 @@
         To Date
       .col-sm-12.pl-0
         = f.text_field :to_date, class: "form-control date_1", placeholder: "Pick To Date"
-

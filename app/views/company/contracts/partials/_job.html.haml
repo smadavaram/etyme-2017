@@ -174,7 +174,7 @@
               .contract-fild
                 .plain-select
                   = f.select :client_id, [[f.object.client&.full_name,f.object.client_id]], {}, id: 'select_clients'
-      .contract-fields_wrapper.mt-4
+      .contract-fields_wrapper.mt-4.toggle_sell_contract
         %h5.mb-4.d-inline-block End Client(s)/Reporting Manager(s)
         %h5.mb-4.d-inline-block.pull-right
           %button.btn.btn-primary.btn-sm{"data-target" => "#manager-team", "data-toggle" => "modal", :type => "button"} Add Manager
