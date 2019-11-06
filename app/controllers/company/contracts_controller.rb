@@ -739,7 +739,6 @@ class Company::ContractsController < Company::BaseController
       @signature_templates_candidate = []
       @signature_templates_vendor = []
       @documents_templates_candidate = []
-      debugger
       if [2, 4].include?(@tab_number) && @contract&.sell_contract&.persisted?
         @signature_templates = current_company.company_candidate_docs.where(is_require: "signature", document_for: "Customer")
         @documents_templates = current_company.company_candidate_docs.where(is_require: "Document", document_for: "Customer")
