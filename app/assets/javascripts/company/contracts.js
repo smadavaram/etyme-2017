@@ -15,9 +15,12 @@ function toogle_seller(target,selector){
 }
 
 $(function() {
-    $('#change_rate_from_date , #change_rate_to_date').datepicker({
+    $('#change_rate_from_date , #change_rate_to_date, #job_end_date,#job_start_date').datepicker({
         dateFormat : 'yy/mm/dd',
         prevText : '<i class="fa fa-chevron-left"></i>',
         nextText : '<i class="fa fa-chevron-right"></i>',
     });
+
+
+
 });

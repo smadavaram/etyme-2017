@@ -86,7 +86,7 @@
       </a>
       <div class="pl-4 w-100 text-justify nav-sidebar-collaps">
         <% if has_permission?('manage_jobs') %>
-          <a href="<%= jobs_path %>" class=" l2 side-bar_links nested_tab boarder_bottom">Job(s)</a>
+          <a href="<%= jobs_path(type: "Job") %>" class=" l2 side-bar_links nested_tab boarder_bottom">Job(s)</a>
         <% end %>
         <% if has_permission?('manage_job_invitations') %>
           <a href="<%= job_invitations_path %>" class="l2 side-bar_links nested_tab boarder_bottom">Invitation(s)</a>
