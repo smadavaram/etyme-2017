@@ -88,3 +88,9 @@
       = form_with url: @tab_ref, id: "cc_form" do |f|
         .table-responsive
           = render "company/salaries/partials/salary_#{@tab}", contract_cycles: @contract_cycles,tab: @tab
+
+- content_for :scripts do
+  :javascript
+    $(document).ready(function() {
+      default_active_nav('.ln-9');
+    });

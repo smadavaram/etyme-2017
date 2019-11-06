@@ -3,7 +3,7 @@
 .job-info
   .job-title
     %div.job-header.clearfix
-      = image_tag @job.company.logo,  style:"width:50px;height:50px", fit: 'clip'
+      = user_image( @job.company,  style:"width:50px;height:50px", fit: 'clip')
       %p.job_title
         = @job.title
       %p.job_title
@@ -15,7 +15,7 @@
         = @job.location
       %span
         %i.fa.fa-user
-        =@job.created_by.full_name
+        =@job.created_by&.full_name
   .job-description
     .job-info
       %strong
@@ -54,7 +54,7 @@
           - if (job_skills & c.skills.pluck(:name)).count >= count
             %tr
               %td
-                = link_to c.try(:full_name).try(:titleize),"#","data-content" => "<p class= 'text-center' ><image style='border-radius:50%;' src=#{image_url(c.photo)}/></br><div class='well well-sm'>#{c.full_name}</br>Email : #{c.email} </div></p>", "data-placement" => "top",:rel => "hover"
+                = link_to c.try(:full_name).try(:titleize),"#","data-content" => "<p class= 'text-center' >#{user_image(c, style: "border-radius:50%;")}</br><div class='well well-sm'>#{c.full_name}</br>Email : #{c.email} </div></p>", "data-placement" => "top",:rel => "hover"
               %td
                 - if c.try(:roles).present?
                   - c.try(:roles).each do |role|

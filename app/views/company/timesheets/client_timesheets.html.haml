@@ -50,6 +50,7 @@
     }
     $(document).ready(function() {
       pageSetUp();
+      default_active_nav('.ln-8');
       var e=JSON.parse("#{ escape_javascript(render(inline: events.to_json))}");
       let startCelandar = "#{ j render(inline: (@timesheets.first.present? ? @timesheets.first&.start_date.to_s : DateTime.now.beginning_of_month.strftime('%Y-%m-%d'))) }";
       let endCelandar = "#{ j render(inline: (@timesheets.last.present? ? @timesheets.last&.end_date.to_s : DateTime.now.end_of_month.strftime('%Y-%m-%d'))) }";

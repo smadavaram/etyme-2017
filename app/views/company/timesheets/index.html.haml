@@ -89,3 +89,9 @@
           .pagination_label
             = page_entries_info @timesheets
           = will_paginate(@timesheets, {params: params.merge(tab: @tab,cycle_type:@cycle_type),previous_label: "Previous",next_label: "Next",inner_window: 2,class: 'timesheets_pagination_links'})
+
+- content_for :scripts do
+  :javascript
+    $(document).ready(function() {
+      default_active_nav('.ln-8');
+    });

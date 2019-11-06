@@ -33,5 +33,6 @@
     $(document).ready(function(){
       $('#company-contacts-datatable-search').keyup(function(){
         $('#company-contacts-datatable').DataTable().search( $(this).val() ).draw();
-      })
-    })
+      });
+      default_active_nav('.ln-3');
+    });

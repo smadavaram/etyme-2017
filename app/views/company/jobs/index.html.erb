@@ -93,19 +93,11 @@
   $('#jobs_datatable-search').keyup(function(){
   $('#jobs_datatable').DataTable().search( $(this).val() ).draw();
   });
-
-  // // Apply the filter
-  // $("#dataTable thead th input[type=text]").on( 'keyup change', function () {
-  // table
-  // .column( $(this).parent().index()+':visible' )
-  // .search( this.value )
-  // .draw();
-  //
-  // } );
+  
   $("#select_all_" ).on( "click", function() {
   $("input[name='ids[]']").prop('checked', this.checked);
   });
-
+  default_active_nav('.ln-6');
   var checkedRows = new Array();
   $(".share" ).on( "click", function() {
   $("input[name='ids[]']:checked").each(function(){

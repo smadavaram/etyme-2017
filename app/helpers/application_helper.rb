@@ -1313,7 +1313,7 @@ module ApplicationHelper
 
     def user_image(user,attrs)
       return  if user.nil?
-      if user.photo.present?
+      if user.photo&.present?
         image_tag(user.photo, style: "#{attrs[:style]}", class: "data-table-image #{attrs[:class]}" ,title: "#{attrs[:title]}",alt: image_alt(user) ).html_safe
       else
         entity_image(user.first_name,user.last_name)

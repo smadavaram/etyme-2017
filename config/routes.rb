@@ -396,6 +396,7 @@ Rails.application.routes.draw do
     post 'reject_vendor', to: 'prefer_vendors#reject'
     post 'accept_vendor', to: 'prefer_vendors#accept'
     get 'network', to: 'prefer_vendors#show_network'
+    get 'marketplace', to: 'prefer_vendors#marketplace',as: :marketplace
     # get  'hot_candidate', to: 'companies#hot_candidate'
     
     resources :consultants, concerns: :paginatable do

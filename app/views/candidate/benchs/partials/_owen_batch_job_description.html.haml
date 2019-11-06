@@ -3,7 +3,7 @@
 .job-info
   .job-title
     %div.job-header.clearfix
-      = image_tag @job.company.logo,  style:"width:50px;height:50px", fit: 'clip'
+      = user_image(@job.company,  style:"width:50px;height:50px", fit: 'clip')
       %p.job_title
         = @job.title
       %p.job_title
@@ -15,7 +15,7 @@
         = @job.location
       %span
         %i.fa.fa-user
-        =@job.created_by.full_name
+        =@job.created_by&.full_name
   .job-description
     .job-info
       %strong

@@ -32,7 +32,8 @@
     $(document).ready(function(){
       $('#company-directory-datatable-search').keyup(function(){
         $('#company-directory-datatable').DataTable().search( $(this).val() ).draw();
-      })
+      });
+      default_active_nav('.ln-3');
     })
 
 

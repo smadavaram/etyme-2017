@@ -16,3 +16,9 @@
       .pagination_label
         = page_entries_info @activities
       = will_paginate(@activities, {previous_label: "Previous",next_label: "Next",inner_window: 2,class: 'activities_pagination_links'})
+
+-content_for :scripts do
+  :javascript
+    $(document).ready(function(){
+      default_active_nav('.ln-4');
+    })

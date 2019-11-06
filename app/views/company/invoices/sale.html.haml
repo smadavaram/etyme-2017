@@ -61,6 +61,7 @@
 - content_for :scripts do
   :javascript
     $(document).ready(function() {
+      default_active_nav('.ln-9');
       $(".best_in_place").best_in_place();
       $(".best_in_place").bind("ajax:success", function(){ location.reload() });
     });

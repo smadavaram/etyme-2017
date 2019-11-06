@@ -30,3 +30,9 @@
             %td
               = link_to raw("<i class='fa fa-comment-o '></i>"), chat_link(d.prefer_vendor.owner),remote: true,method: :get,class: 'data-table-icons',title:"Chat with Company  #{d.prefer_vendor.name}",'data-toggle'=>"tooltip" ,'data-placement'=>"top"
               = link_to raw("<i class='picons-thin-icon-thin-0703_users_profile_group_two'></i>"), company_company_hot_candidates_path(d.prefer_vendor) , class:'data-table-icons' ,title:"Bench of  #{d.prefer_vendor.name}",'data-toggle'=>"tooltip" ,'data-placement'=>"top"
+
+-content_for :scripts do
+  :javascript
+    $(document).ready(function(){
+      default_active_nav('.ln-4');
+    })

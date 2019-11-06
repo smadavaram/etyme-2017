@@ -30,5 +30,6 @@
     $(document).ready(function(){
       $('#companies-datatable-search').keyup(function(){
         $('#companies-datatable').DataTable().search( $(this).val() ).draw();
-      })
-    })
+      });
+      default_active_nav('.ln-3');
+    });

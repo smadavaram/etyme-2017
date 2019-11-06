@@ -76,12 +76,14 @@
 
 - content_for :scripts do
   :javascript
-
+-content_for :scripts do
+  :javascript
      $(document).ready(function(){
       $('#my_bench_datatable-search').keyup(function(){
         $('#my_bench_datatable').DataTable().search( $(this).val() ).draw();
-      })
-    })
+      });
+      default_active_nav('.ln-5');
+    });
 
     if ("#{flash[:already_exist]}"){
         $('#add-network').modal('toggle');

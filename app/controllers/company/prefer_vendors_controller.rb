@@ -9,6 +9,10 @@ class Company::PreferVendorsController < Company::BaseController
     add_breadcrumb "Prefer Vendors Requests".humanize, :prefer_vendors_path, :title => "Prefer Vendors"
   end
   
+  def marketplace
+    add_breadcrumb "Marketplace".humanize, '#', :title => "MarketPlace"
+  end
+  
   def accept
     @prefer_vendor = current_company.perfer_vendor_companies.find_by(company_id: params[:company_id])
     if @prefer_vendor.pending?

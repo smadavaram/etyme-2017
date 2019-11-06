@@ -58,5 +58,6 @@
     $(document).ready(function(){
       $('#job_application-datatable-search').keyup(function(){
         $('#job_application_dataTable').DataTable().search( $(this).val() ).draw();
-      })
+      });
+      default_active_nav('.ln-6');
     })
