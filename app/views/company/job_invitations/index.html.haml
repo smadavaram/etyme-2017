@@ -1,36 +1,32 @@
-#content.no-border
-  #wid-id-5.no-border.jarviswidget
-    / .col-xs-12.col-sm-9.col-md-9.col-lg-9.pull-left{style: 'border-bottom-color: #fff !important;'}
-    /   = search_form_for @rec_search , url: search_job_invitations_path , method: :post do |f|
-    /     %ul#internal-tab-1.nav.nav-tabs.tabs-pull-right.sub-tab
-    /       %br
-    /       .input-group.input-group-lg.hidden-mobile
-    /         .input-group-btn.select
-    /           = f.select :status_eq , JobInvitation.statuses.map { |key, value| [key.humanize, value] }.push(['All', '']).reverse.to_h, {} , {class: "btn btn-default dropdown-toggle" ,  onChange: "this.form.submit();"}
-    /         = f.text_field :recipient_of_User_type_email_or_recipient_of_User_type_first_name_or_created_by_first_name_or_created_by_last_name_or_email_or_job_title_cont, class: "form-control input-lg bg-white", placeholder: "Search Job Invitations..."
-    /         .input-group-btn
-    /           = f.button raw("<i class='fa fa-fw fa-search fa-lg'></i>") , class: 'btn btn-default'
-    %div
-      .widget-body.pb-3
-        %ul#myTab1.nav.nav-tabs.pb-1
-          %li.active
-            %a{"data-toggle" => "tab", :href => "#tab-r1",class: "nav-link cumstom_nav-tab display-flex"}
-              %span.badge.bg-color-blue.txt-color-white= @sent_job_invitations.count
-              Sent Invitations
-          %li
-            %a{"data-toggle" => "tab", :href => "#tab-r2",class: "nav-link cumstom_nav-tab display-flex"}
-              %span.badge.bg-color-blueDark.txt-color-white= @received_job_invitations.count
-              Received Invitations
-        .col-md-12
-          .tab-content
-            #tab-r1.tab-pane.active
-              .tab-content.padding-10
-                #is-all.tab-pane.fade.active.in
-                  = render 'company/job_invitations/partials/invitation_table' , data: @sent_job_invitations
-            #tab-r2.tab-pane
-              .tab-content.padding-10
-                #isall.tab-pane.fade.active.in
-                  = render 'company/job_invitations/partials/receive_invitation_table' , data: @received_job_invitations
+.content-i
+  .content-box
+    .row
+      .col-sm-12
+        .element-wrapper
+          .element-box-tp
+            .widget-body
+              %ul#myTab1.nav.nav-tabs.smaller
+                %li.nav-item.cumstom_nav-tab.active
+                  %a{"data-toggle" => "tab", :href => "#tab-r1",class: "nav-link cumstom_nav-tab display-flex"}
+                    %span.badge.bg-color-blue.txt-color-white
+                    Sent Invitations
+                    %span.badge.bg-color-blue.txt-color-white= @sent_job_invitations.count
+
+                %li.nav-item.cumstom_nav-tab
+                  %a{"data-toggle" => "tab", :href => "#tab-r2",class: "nav-link cumstom_nav-tab display-flex"}
+                    %span.badge.bg-color-blueDark.txt-color-white
+                    Received Invitations
+                    %span.badge.bg-color-blueDark.txt-color-white= @received_job_invitations.count
+                .col-md-12
+                  .tab-content
+                    #tab-r1.tab-pane.active
+                      .tab-content.padding-10
+                        #is-all.tab-pane.fade.active.in
+                          = render 'company/job_invitations/partials/invitation_table' , data: @sent_job_invitations
+                    #tab-r2.tab-pane
+                      .tab-content.padding-10
+                        #isall.tab-pane.fade.active.in
+                          = render 'company/job_invitations/partials/receive_invitation_table' , data: @received_job_invitations
 
 - content_for :scripts do
   :javascript
