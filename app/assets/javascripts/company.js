@@ -192,3 +192,4 @@
 //= require company/sale_invoices
 //= require mobile_responsive
 //= require company/left_menu
+//= require company/job_invitations

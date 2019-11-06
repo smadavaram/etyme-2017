@@ -145,6 +145,23 @@ $(document).ready(function () {
     $('#company_bench_datatable-search').keyup(function(){
         $('#company_bench_datatable').DataTable().search( $(this).val() ).draw();
     });
+    $('#job_sent_inv_dataTable').dataTable();
+    $('#job_sent_inv_dataTable-search').keyup(function(){
+        $('#job_sent_inv_dataTable').DataTable().search( $(this).val() ).draw();
+    });
+    $('#job_receive_inv_dataTable').dataTable();
+    $('#job_receive_inv_dataTable-search').keyup(function(){
+        $('#job_receive_inv_dataTable').DataTable().search( $(this).val() ).draw();
+    });
+    $('#company_sell_contract-datatable').dataTable();
+    $('#company_sell_contract-datatable-search').keyup(function(){
+        $('#company_sell_contract-datatable').DataTable().search( $(this).val() ).draw();
+    });
+    $('#company-buy-contracts-datatable').dataTable();
+    $('#company-buy-contracts-datatable-search').keyup(function(){
+        $('#company-buy-contracts-datatable').DataTable().search( $(this).val() ).draw();
+    });
+
 
     $('#dataTable').dataTable({
         columnDefs: [{
