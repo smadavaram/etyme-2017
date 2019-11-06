@@ -33,7 +33,7 @@
       <div class="col-lg-12">
       <%= render 'company/jobs/partials/forms/select', form: form, attribute: :status, options: ["","Draft", "Bench", "Published", "Archived", "Cancelled"], field_attributes: {} %>
       </div>
-      <div class="col-lg-12">
+      <div class="col-lg-12 hidden">
         <%= render 'company/jobs/partials/forms/select', form: form, attribute: :listing_type, options: ["Job", "Training", "Service", "Product", "Blog"], field_attributes: {}, select_option: {selected: params[:type] || "Job"}, note: "If you choose \"Published\", We will show this job to all candidates in your system and will be posted on etyme. So anyone can apply. To control job applications by invitations only" unless form.object.persisted?%>
 
       </div>
@@ -43,7 +43,7 @@
         <%= render 'company/jobs/partials/forms/field', form: form, attribute: :location, field_type: :text_field, field_attributes: {} %>
       </div>
       <div class="col-lg-6">
-        <%= render 'company/jobs/partials/forms/select', form: form, attribute: :job_category, options: {:""=>""}.merge(WORK_CATEGORIES), field_attributes: {label:'Category'} %>
+        <%= render 'company/jobs/partials/forms/select', form: form, attribute: :job_category, options: WORK_CATEGORIES.keys.unshift(""), field_attributes: {label:'Category'} %>
 
       </div>
     </div>
@@ -73,7 +73,7 @@
       </div>
     </div>
     <div class="d-flex">
-      <%= render 'shared/file_attachement', f: form, attr_name: :files, button_name: "Attach Images", name_selector: ".uploaded_file_name", cstm_style: "border-radius: 0; height:38px;", multiple: true %>
+      <%= render 'shared/file_attachement', f: form, attr_name: :files, button_name: "Cover Images", name_selector: ".uploaded_file_name", cstm_style: "border-radius: 0; height:38px;", multiple: true %>
       <p class="d-inline-block uploaded_file_name">No Image(s) Selected</p>
     </div>
     <div class="mt-2"></div>
