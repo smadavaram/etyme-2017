@@ -11,6 +11,8 @@ class Company::PreferVendorsController < Company::BaseController
   
   def marketplace
     add_breadcrumb "Marketplace".humanize, '#', :title => "MarketPlace"
+
+    @prefer_vendors = current_company.prefer_vendors.accepted.paginate(page: params[:page], per_page: 10) || []
   end
   
   def accept
