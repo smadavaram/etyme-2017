@@ -3,7 +3,7 @@
     .row.container
       .col-md-5.offset-md-3.pt-3
         .element-search.autosuggest-search-activator
-          = text_field_tag :search_by_skills, params[:search_by_skills],placeholder: "search by skills", autofocus: false,class: "market_place_field form-control form-control-sm rounded bright p-3"
+          = text_field_tag :search_by_skills, params[:search_by_skills],placeholder: "search by skills", autofocus: false,class: "market_place_field form-control form-control-sm bright p-3"
       .col-md-4.pt-3.end-flex
         %i.picons-social-icon-periscope.mr-3{style: "font-size: 30px;"}
         %i.ti-layout-grid2-thumb{style: "font-size: 30px;"}
@@ -23,7 +23,7 @@
     .row
       .col-md-10.offset-md-1.pt-2
         .element-search.autosuggest-search-activator
-          = text_field_tag :search_by_skills_and_tag, params[:search_by_skills_and_tag],placeholder: "search by skills & tag", autofocus: false,class: "market_place_field form-control form-control-sm rounded bright market_place_field p-3"
+          = text_field_tag :search_by_skills_and_tag, params[:search_by_skills_and_tag],placeholder: "search by skills & tag", autofocus: false,class: "market_place_field form-control form-control-sm bright market_place_field p-3"
     - @prefer_vendors.each do |prefer_vendor|
       .container.mb-md-2.mb-xxl-3.mt-4.end-flex
         .col-sm-3
