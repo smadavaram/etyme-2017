@@ -1,9 +1,62 @@
+.marketplacebody{style: "overflow-x: hidden;"}
+  .row.container
+    .col-md-5.offset-md-3.pt-3
+      .element-search.autosuggest-search-activator
+        %input.form-control.form-control-sm.rounded.bright.p-3{placeholder: "Search By Skills", type: "search", id: ''}
+    .col-md-4.pt-3.end-flex
+      %i.picons-social-icon-periscope.mr-3{style: "font-size: 30px;"}
+      %i.ti-layout-grid2-thumb{style: "font-size: 30px;"}
+  .row.pt-2.end-flex
+    .col-md-2
+      %input{:type => "checkbox"}Agency/Vendor
+    .col-md-2
+      %input{:type => "checkbox"}Candidates(S)
+    .col-md-1
+      %input{:type => "checkbox"}Jobs
+    .col-md-2
+      %input{:type => "checkbox"}Products
+    .col-md-2
+      %input{:type => "checkbox"}Services
+    .col-md-2
+      %input{:type => "checkbox"}Trainings
+  .row
+    .col-md-10.offset-md-1.pt-2
+      .element-search.autosuggest-search-activator
+        %input.form-control.form-control-sm.rounded.bright.p-3{placeholder: "Default Skills & Tags", type: "search", id: ''}
+  - 10.times do
+    .container.mb-md-2.mb-xxl-3.mt-4.end-flex
+      .col-sm-3
+        %a.element-box.el-tablo.centered.trend-in-corner.padded.bold-label{:href => "#"}
+          .label Agency Name
+          .trending
+            %i.picons-thin-icon-thin-0709_user_profile_avatar_man_male{style: "font-size: 40px;"}
+      .col-sm-3
+        %a.element-box.el-tablo.centered.trend-in-corner.padded.bold-label{:href => "#"}
+          .label Candidate Name
+          .trending.trending-down-basic
+            %i.picons-thin-icon-thin-0709_user_profile_avatar_man_male{style: "font-size: 40px;"}
+      .col-sm-3
+        %a.element-box.el-tablo.centered.trend-in-corner.padded.bold-label{:href => "#"}
+          .label Job Title
+          .trending
+            %i.picons-thin-icon-thin-0709_user_profile_avatar_man_male{style: "font-size: 40px;"}
+      .col-sm-3
+        %a.element-box.el-tablo.centered.trend-in-corner.padded.bold-label{:href => "#"}
+          .label Service Title
+          .trending
+            %i.picons-thin-icon-thin-0709_user_profile_avatar_man_male{style: "font-size: 40px;"}
 
+
+    .popup-custom.hidden
 
 
 
 -content_for :scripts do
   :javascript
     $(document).ready(function(){
+    $(".ti-layout-grid2-thumb").click(function(){
+      $(".popup-custom").fadeToggle("slow");
+
+    });
       default_active_nav('.ln-4');
     })
