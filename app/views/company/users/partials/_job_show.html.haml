@@ -1,22 +1,23 @@
 .panel.panel-default
   .panel-body.status
     .who.clearfix
-      %span.pull-right.font-xs.text-muted
-        %ul.list-inline.friends-list
-          %li
-            = link_to user_image( data.created_by,style: 'width: 60px !important;height: 60px !important' ),'#'
-      = image_tag 'jobs.png',class:'',alt: "job",style: "width: 60px !important; height: 60px !important;"
-      %h6 Title-#{data.title.humanize}
-      %span.name.font-sm.text-muted
-        Location: #{data.location&.humanize}
-      %p= raw(data.description)
-      %i.fa.fa-tags
-      - data.tags.each do |tag|
-        %span
-          .label-info.badge
-            = tag.name
-      .row
-        .col-md-12.margin-top-5
+      %div.pull-right.font-xs.text-muted
+        .avatar-w.d-flex
+          =user_image(data.created_by, style: 'width: 35px; height: 35px; display:block;', class: 'data-table-image mr-1',title: "#{data.created_by&.full_name}" )
+          .logged-user-name.d-block= do_ellipsis(data.created_by&.full_name,5)
+          .logged-user-role.d-block= contact_widget(data.created_by&.email, data.created_by&.phone,data.created_by,chat_link: chat_link(data.created_by),color: '#BFBFC7')
           - if current_company == data.company && data.chat.present?
             = link_to raw("<i class='fa fa-share-alt '></i>") ,send_invitation_job_path(data) , method: :post ,remote: true,  class: 'btn btn-xs btn-default',title: "Send invitation" ,'data-toggle'=>"tooltip" ,'data-placement'=>"top"
-            = link_to raw("<i class='fa fa-comments '></i>") ,company_chat_path(data.chat),class: "btn btn-xs btn-default",title: " #{data.title} Chat", 'data-toggle'=>"tooltip" ,'data-placement'=>"top"
+          -#= link_to raw("<i class='fa fa-comments '></i>") ,company_chat_path(data.chat),class: "btn btn-xs btn-default",title: " #{data.title} Chat", 'data-toggle'=>"tooltip" ,'data-placement'=>"top"
+
+      = image_tag 'jobs.png',class:'',alt: "job",style: "width: 40px !important; height: 40px !important;"
+
+      %h6 Title- #{do_ellipsis(data.title.humanize,15)}
+      %span.name.font-sm.text-muted
+        %i.picons-social-icon-periscope  #{data.location&.humanize}
+      %i.fa.fa-tags
+        - data.tags.take(3).each do |tag|
+          = tag.name
+      .data_description
+        = data.description.html_safe
+

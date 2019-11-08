@@ -4,16 +4,114 @@ class Company::PreferVendorsController < Company::BaseController
   # add_breadcrumb "Prefer vendors", , options: { title: "Prefer vendors" }
   before_action :authorized_user, only: [:create, :show_network, :index, :accept, :reject]
   add_breadcrumb "Home", :dashboard_path, :title => "Home"
-  
+  has_scope :search_by, only: :marketplace
+
   def index
     add_breadcrumb "Prefer Vendors Requests".humanize, :prefer_vendors_path, :title => "Prefer Vendors"
   end
   
   def marketplace
     add_breadcrumb "Marketplace".humanize, '#', :title => "MarketPlace"
+    get_cards
+    if current_company&.vendor?
+      @data = []
+      respond_to do |format|
+        format.html {
+          if params[:Jobs] == 'on'
+            unless  params[:title].blank?
+              @data += apply_scopes(Job.where(company_id: current_company.prefer_vendor_companies.map(&:id),title: params[:job_titles]))
 
-    @prefer_vendors = current_company.prefer_vendors.accepted.paginate(page: params[:page], per_page: 10) || []
+            end
+            unless params[:job_departments].blank?
+            @data += apply_scopes(Job.where(company_id: current_company.prefer_vendor_companies.map(&:id),department: params[:job_departments]))
+
+            end
+            unless params[:job_industry].blank?
+            @data += apply_scopes(Job.where(company_id: current_company.prefer_vendor_companies.map(&:id),industry: params[:job_industry]))
+
+            end
+            unless params[:job_category].blank?
+            @data += apply_scopes(Job.where(company_id: current_company.prefer_vendor_companies.map(&:id),job_category: params[:job_category]))
+
+            end
+            @data += apply_scopes(Job.where(company_id: current_company.prefer_vendor_companies.map(&:id)))
+          end
+
+          if params[:product] == 'on'
+            @data += apply_scopes(Job.where(company_id: current_company.prefer_vendor_companies.map(&:id),listing_type: 'product'))
+          end
+          if params[:service] == 'on'
+            @data += apply_scopes(Job.where(company_id: current_company.prefer_vendor_companies.map(&:id),listing_type: 'service'))
+          end
+          if params[:training] == 'on'
+            @data += apply_scopes(Job.where(company_id: current_company.prefer_vendor_companies.map(&:id),listing_type: 'Training'))
+          end
+          if (params[:Candidates] == 'on')
+            @data += apply_scopes(current_company.candidates)
+          end
+          if params[:company] == 'on'
+
+            @data += apply_scopes(Job.where(company_id: current_company.prefer_vendor_companies.map(&:id)))
+            @data += apply_scopes(current_company.invited_companies_contacts)
+            @data += apply_scopes(current_company.candidates)
+          end
+          @data = @data.sort {|y, z| z.created_at <=> y.created_at}
+        }
+      end
+    end
+    @activities = PublicActivity::Activity.order("created_at desc")
+
   end
+
+
+  # End of dashboard
+
+  def filter_cards
+    respond_to do |format|
+      format.js {
+        get_cards
+      }
+    end
+  end
+
+  def get_cards
+    @cards = {}
+    start_date = get_start_date
+    end_date = get_end_date
+    @cards["JOB"] = current_company.jobs.where(created_at: start_date...end_date).count
+    @cards["BENCH JOB"] = current_company.jobs.where(status: 'Bench').where(created_at: start_date...end_date).count
+    @cards["BENCH"] = current_company.candidates.where(company_id: current_company.id).where(created_at: start_date...end_date).count
+    @cards["APPLICATION"] = current_company.received_job_applications.where(created_at: start_date...end_date).count
+    @cards["STATUS"] = Company.status_count(current_company,start_date,end_date)
+    @cards["ACTIVE"] = params[:filter]
+  end
+
+  def get_start_date
+    case params[:filter] ? params[:filter] : 'year'
+    when 'period'
+      return DateTime.parse(params[:start_date]).beginning_of_day
+    when 'month'
+      return DateTime.current.beginning_of_month
+    when 'quarter'
+      return DateTime.current.beginning_of_quarter
+    when 'year'
+      return DateTime.current.beginning_of_year
+    end
+  end
+
+  def get_end_date
+    case params[:filter] ? params[:filter] : 'year'
+    when 'period'
+      return DateTime.parse(params[:end_date]).end_of_day
+    when 'month'
+      return DateTime.current.end_of_month
+    when 'quarter'
+      return DateTime.current.end_of_quarter
+    when 'year'
+      return DateTime.current.end_of_year
+    end
+  end
+
   
   def accept
     @prefer_vendor = current_company.perfer_vendor_companies.find_by(company_id: params[:company_id])

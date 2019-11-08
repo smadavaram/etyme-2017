@@ -12,6 +12,7 @@
  *
  * Basic Styles
  * require bootstrap
+ *= require trix
  *= require bootstarp-year-calendar
  *= require font-awesome
  *
@@ -23,7 +24,7 @@
  * each SmartAdmin update.
  *= require your_style
  *
- * Demo purpose only: goes with demo.js, you can delete this css when designing
+ * Demo purpose only:  *= require trixgoes with demo.js, you can delete this css when designing
  * your own WebApp
  *= require demo
  *= require_self
@@ -60,5 +61,6 @@
  *= require jobs_small_chat
  *= require intl-tel-input-13.0.0/build/css/intlTelInput.min
  *= require calendar_custom
- *= require trix
+
+ *= require company/prefer_vendors
  */
