@@ -1,5 +1,5 @@
 class Company::TimesheetsController < Company::BaseController
-  
+
   include Company::ChangeRatesHelper
   before_action :find_timesheet, except: [:index]
   # before_action :received_timesheet , only: [:approve]
@@ -8,11 +8,11 @@ class Company::TimesheetsController < Company::BaseController
   before_action :authorized_user, only: [:show, :approve]
   skip_before_action :verify_authenticity_token, only: [:client_timesheets]
   add_breadcrumb "TIMESHEETS", :timesheets_path, options: {title: "TIMESHEETS"}
-  
+
   include CandidateHelper
   include Company::ChangeRatesHelper
-  
-  
+
+
   def client_timesheets
     @cycles = current_user.contract_cycles.where(cycle_type: 'TimesheetSubmit')
     @contracts = Contract.joins(:sell_contract).where(company: current_company)
@@ -43,31 +43,31 @@ class Company::TimesheetsController < Company::BaseController
       }
     end
   end
-  
+
   def index
     @tab = params[:tab]
     @start_date = params[:start_date]
     @end_date = params[:end_date]
     @cycle_type = params[:ts_type]
     @ts_for = params[:ts_for].present? ? params[:ts_for] : "candidate"
-    
+
     @timesheets = @ts_for == "candidate" ?
                       Timesheet.joins(:contract_cycle).where("contract_cycles.contract_id": current_company.contracts.ids, "contract_cycles.cycle_of_type": "BuyContract").includes(contract: [buy_contract: [:company, :candidate]]).send("#{@tab&.downcase || 'all'}_timesheets").joins(:contract_cycle).where('contract_cycles.cycle_frequency IN (?)', @cycle_type.present? ? ContractCycle.cycle_frequencies[@cycle_type.to_sym] : ContractCycle.cycle_frequencies.values).between_date(@start_date, @end_date).paginate(page: params[:page], per_page: 10).order(start_date: :asc) :
                       Timesheet.joins(contract_cycle: [contract: :sell_contract]).where("contract_cycles.contract_id": SellContract.all.select(:contract_id), "contract_cycles.cycle_of_type": "SellContract", "sell_contracts.company_id": current_company.id).includes(contract: [buy_contract: [:company, :candidate]]).send("#{@tab&.downcase || 'all'}_timesheets").joins(:contract_cycle).where('contract_cycles.cycle_frequency IN (?)', @cycle_type.present? ? ContractCycle.cycle_frequencies[@cycle_type.to_sym] : ContractCycle.cycle_frequencies.values).between_date(@start_date, @end_date).paginate(page: params[:page], per_page: 10).order(start_date: :asc)
   end
-  
+
   def approved
     @timesheets = current_company.timesheets.approved_timesheets.paginate(page: params[:page], per_page: 10).order(id: :desc)
   end
-  
+
   def show
   end
-  
+
   def new
     @timesheet = current_user.timesheets.new
     @contracts = current_company.contracts.pluck(:number, :id)
   end
-  
+
   def add_hrs
     @transaction = @timesheet.transactions.find_by(id: params[:transaction_id])
     if @transaction.update(total_time: params[:total_hrs])
@@ -76,7 +76,7 @@ class Company::TimesheetsController < Company::BaseController
       render json: {status: @transaction.errors.full_messages}, status: :unprocessable_entity
     end
   end
-  
+
   def submit_timesheet
     @timesheet = Timesheet.find_by(id: params[:timesheet_id])
     if @timesheet.end_date <= DateTime.now
@@ -92,7 +92,7 @@ class Company::TimesheetsController < Company::BaseController
       redirect_back(fallback_location: root_path)
     end
   end
-  
+
   def create
     @timesheet = current_company.timesheets.new(timesheet_params)
     @timesheet.user_id = current_user.id
@@ -106,7 +106,7 @@ class Company::TimesheetsController < Company::BaseController
       redirect_to timesheets_path
     end
   end
-  
+
   def submit
     @timesheet_approver = current_user.timesheet_approvers.new(timesheet_id: @timesheet.id, status: Timesheet.statuses[:submitted].to_i)
     if @timesheet_approver.save
@@ -116,7 +116,7 @@ class Company::TimesheetsController < Company::BaseController
     end
     redirect_back fallback_location: root_path
   end
-  
+
   def reject
     if @timesheet.open!
       flash[:success] = "Successfully Rejected The Timesheet"
@@ -133,107 +133,44 @@ class Company::TimesheetsController < Company::BaseController
     # end
     # redirect_back fallback_location: root_path
   end
-  
+
   def approve
     if @timesheet.approved!
       @timesheet.contract_cycle.completed!
       @timesheet.set_cost_and_time
+      if @timesheet.contract_cycle.cycle_of_type == "BuyContract" and @timesheet.contract.sell_contract.present?
+        Timesheet.transaction do
+          dup_ts = @timesheet.dup
+          dup_ts.candidate = nil
+          dup_ts.user = @timesheet.contract.admin_user
+          dup_ts.status = :submitted
+          if dup_ts.save
+            dup_cc = @timesheet.contract_cycle.dup
+            dup_cc.candidate = nil
+            dup_cc.cyclable = dup_ts
+            dup_cc.cycle_of = @timesheet.contract.sell_contract
+            dup_cc.user = @timesheet.contract.admin_user
+            if dup_cc.save
+              @timesheet.transactions.each do |tt|
+                dup_tt = tt.dup
+                dup_tt.timesheet = dup_ts
+                dup_tt.save
+              end
+            end
+          end
+        end
+      end
       flash[:success] = "Successfully Approved The Timesheet"
     else
       flash[:errors] = @timesheet.errors.full_messages
     end
     redirect_back(fallback_location: root_path)
-    # i = 0
-    # # if current_user.timesheet_approvers.create!(timesheet_id: @timesheet.id , status: Timesheet.statuses[:approved].to_i)
-    # rate = get_rate(@timesheet.start_date, @timesheet.contract_id, 'buy')
-    # if @timesheet.update_attributes(status: "approved", amount: rate*@timesheet.total_time)
-    #   i += 1
-    #   con_cycle = ContractCycle.find(@timesheet.ta_cycle_id)
-    #   arr = Timesheet.where(ta_cycle_id: @timesheet.ta_cycle_id).pluck(:ta_cycle_id).uniq.compact.first
-    #
-    #   total_count = Timesheet.where(ta_cycle_id: arr).count
-    #   approved_count = Timesheet.where(ta_cycle_id: arr, status: 'approved').count
-    #   if total_count == approved_count
-    #     con_cycle.update_attributes(completed_at: Time.now, status: "completed")
-    #   end
-    #
-    #
-    #   # if con_cycle.end_date.utc.to_date-1.day == @timesheet.end_date
-    #   #   con_cycle.update_attributes(completed_at: Time.now, status: "completed")
-    #   # end
-    #   # @timesheet.contract.invoice_generate(con_cycle)
-    #
-    #   invoices = @timesheet.contract.invoices.where(invoice_type: 'timesheet_invoice').where("(start_date <= ? AND end_date >= ?) OR (start_date <= ? AND end_date >= ?)", @timesheet.start_date, @timesheet.start_date, @timesheet.end_date, @timesheet.end_date)
-    #   invoices.each do |i|
-    #     hours = 0
-    #     if @timesheet.start_date >= i.start_date && @timesheet.end_date <= i.end_date
-    #       i.update_attributes(total_approve_time: (i.total_approve_time+@timesheet.total_time), balance: (i.balance + (@timesheet.total_time * get_rate(@timesheet.start_date , @timesheet.contract_id, 'sell' ))))
-    #       @timesheet.update(inv_numbers: (@timesheet.inv_numbers+[i.id]))
-    #     else
-    #       @timesheet.days.each do |t|
-    #         if i.start_date <= t[0] && t[0] <= i.end_date
-    #           hours += t[1].to_i
-    #         end
-    #       end
-    #       i.update(total_approve_time: (i.total_approve_time+hours))
-    #       @timesheet.update(inv_numbers: (@timesheet.inv_numbers+[i.id]))
-    #     end
-    #   end
-    #   csca_accounts = CscAccount.where(contract_id: @timesheet.contract_id)
-    #   # binding.pry
-    #   csca_accounts.each do |csca|
-    #     if csca.contract_sale_commision.limit.to_i > (csca.total_amount.to_i+@timesheet&.total_time*csca&.contract_sale_commision&.rate.to_i)
-    #       # binding.pry
-    #       csca.update(total_amount: (csca&.total_amount+@timesheet&.total_time*csca&.contract_sale_commision&.rate.to_i).to_i)
-    #       csca.set_commission_on_seq(@timesheet&.total_time*csca&.contract_sale_commision&.rate.to_i)
-    #     else
-    #       csca.set_commission_on_seq(csca.contract_sale_commision.limit.to_i - csca&.total_amount.to_i)
-    #       csca.update(total_amount: (csca.contract_sale_commision.limit.to_i))
-    #     end
-    #   end
-    #
-    #
-    #   # salaries = @timesheet.contract.salaries.where("(start_date <= ? AND end_date >= ?) OR (start_date <= ? AND end_date >= ?)", @timesheet.start_date, @timesheet.start_date, @timesheet.end_date, @timesheet.end_date)
-    #   # salaries.each do |i|
-    #   #   hours = 0
-    #   #   if @timesheet.start_date >= i.start_date && @timesheet.end_date <= i.end_date
-    #   #     i.update_attributes(total_approve_time: (i.total_approve_time+@timesheet.total_time), balance: (i.balance + (@timesheet.total_time * i.rate)))
-    #   #     @timesheet.update(inv_numbers: (@timesheet.inv_numbers+[i.id]))
-    #   #   else
-    #   #     @timesheet.days.each do |t|
-    #   #       if i.start_date <= t[0] && t[0] <= i.end_date
-    #   #         hours += t[1].to_i
-    #   #       end
-    #   #     end
-    #   #     i.update(total_approve_time: (i.total_approve_time+hours))
-    #   #   end
-    #   # end
-    #
-    #   # @timesheet.contract.invoices.where("start_date <= ? AND end_date >= ?", self.start_date, self.start_date )
-    #   # timesheets = self.contract.timesheets.where("start_date >= ? AND start_date <= ?", self.start_date, self.end_date )
-    #   # hours = 0
-    #   # timesheets.each do |t|
-    #   #   if t.start_date >= self.start_date && t.end_date <= self.end_date
-    #   #     hours += t.total_time
-    #   #     t.update(inv_numbers: (t.inv_numbers+[t.id]))
-    #   #   else
-    #   #     # t.days.each
-    #   #   end
-    #   # end
-    #
-    #
-    #   @timesheet.set_ta_on_seq
-    #   flash[:success] = "Successfully Approved"
-    # else
-    #   flash[:errors] = @timesheet.errors.full_messages
-    # end
-    # redirect_back fallback_location: root_path
   end
-  
+
   def authorized_user
     has_access?("manage_timesheets")
   end
-  
+
   def check_invoice
     @invoice = Invoice.where(id: (params[:id] || params[:timesheet_id])).first
     if @invoice.present?
@@ -242,7 +179,7 @@ class Company::TimesheetsController < Company::BaseController
       @errors = true
     end
   end
-  
+
   def generate_invoice
     timesheet = current_company.timesheets.approved_timesheets.where(id: (params[:id] || params[:timesheet_id])).first
     if timesheet.present?
@@ -250,7 +187,7 @@ class Company::TimesheetsController < Company::BaseController
       if timesheets.present?
         min_date = timesheets.minimum(:start_date)
         max_date = timesheets.maximum(:end_date)
-        
+
         invoice = Invoice.new(contract_id: timesheet.contract_id, start_date: min_date, end_date: max_date,
                               total_amount: (timesheets.pluck(:total_time).sum * (timesheet.contract.buy_contract.payrate)),
                               total_approve_time: timesheets.pluck(:total_time).sum, submitted_on: Time.now,
@@ -268,42 +205,42 @@ class Company::TimesheetsController < Company::BaseController
     else
       flash[:errors] = ["Invlid Timesheet."]
     end
-    
+
     redirect_to approved_timesheets_path
   end
-  
+
   private
-    
-    def timesheet_params
-      params.require(:timesheet).permit(:job_id, :user_id, :company_id, :contract_id, :status, :total_time, :start_date, :end_date, :submitted_date, :next_timesheet_created_date, :invoice_id, :timesheet_attachment)
-    end
-    
-    def user_timesheet
-      @timesheet = Timesheet.find_by(id: params[:timesheet_id] || params[:id])
-    end
-    
-    def find_timesheet
-      @timesheet = Timesheet.find_sent_or_received(params[:id] || params[:timesheet_id], current_company)
-    end
-    
-    def received_timesheet
-      @timesheet = current_company.received_timesheets.find_by_id(params[:id] || params[:timesheet_id]) || []
-    end
-    
-    def set_timesheets
-      @search = current_company.timesheets.search(params[:q])
-      @timesheets = @search.result(distinct: true).paginate(page: params[:page], per_page: 10) || []
-      @rec_search = current_company.received_timesheets.search(params[:q])
-      @received_timesheets = @rec_search.result(distinct: true).paginate(page: params[:page], per_page: 10) || []
-    end
-    
-    def get_next_invoice_date(contract)
-      last_invoice = contract.invoices.order("created_at DESC").first
-      sell_contract = contract.sell_contract
-      get_next_date(Time.now, sell_contract.invoice_terms_period, sell_contract.invoice_date_1, sell_contract.invoice_date_2, sell_contract.invoice_end_of_month, sell_contract.invoice_day_of_week, (last_invoice.present? ? last_invoice.end_date : contract.start_date))
-    end
-    
-    def if_all?(value)
-      value == "all"
-    end
+
+  def timesheet_params
+    params.require(:timesheet).permit(:job_id, :user_id, :company_id, :contract_id, :status, :total_time, :start_date, :end_date, :submitted_date, :next_timesheet_created_date, :invoice_id, :timesheet_attachment)
+  end
+
+  def user_timesheet
+    @timesheet = Timesheet.find_by(id: params[:timesheet_id] || params[:id])
+  end
+
+  def find_timesheet
+    @timesheet = Timesheet.find_sent_or_received(params[:id] || params[:timesheet_id], current_company)
+  end
+
+  def received_timesheet
+    @timesheet = current_company.received_timesheets.find_by_id(params[:id] || params[:timesheet_id]) || []
+  end
+
+  def set_timesheets
+    @search = current_company.timesheets.search(params[:q])
+    @timesheets = @search.result(distinct: true).paginate(page: params[:page], per_page: 10) || []
+    @rec_search = current_company.received_timesheets.search(params[:q])
+    @received_timesheets = @rec_search.result(distinct: true).paginate(page: params[:page], per_page: 10) || []
+  end
+
+  def get_next_invoice_date(contract)
+    last_invoice = contract.invoices.order("created_at DESC").first
+    sell_contract = contract.sell_contract
+    get_next_date(Time.now, sell_contract.invoice_terms_period, sell_contract.invoice_date_1, sell_contract.invoice_date_2, sell_contract.invoice_end_of_month, sell_contract.invoice_day_of_week, (last_invoice.present? ? last_invoice.end_date : contract.start_date))
+  end
+
+  def if_all?(value)
+    value == "all"
+  end
 end
