@@ -1316,18 +1316,16 @@ module ApplicationHelper
       if user.photo&.present?
         image_tag(user.photo, style: "#{attrs[:style]}", class: "data-table-image #{attrs[:class]}" ,title: "#{attrs[:title]}",alt: image_alt(user) ).html_safe
       else
-        entity_image(user.first_name,user.last_name)
+        entity_image(user.first_name,user.last_name, 'circle' ,attrs[:class] )
       end
     end
     
     def entity_image(first_name, last_name, circle_div_class = 'circle', default_img_classes = '')
-      default_img = ''
       if first_name == '' || last_name == ''
-        default_img = default_img + "<img src='#{asset_path('avatars/m_sunny_big.png')}' alt: '#{first_name} #{last_name}' class='#{default_img_classes}'/>"
+        return image_tag(asset_path('avatars/m_sunny_big.png'), class: " #{default_img_classes}")
       else
-        default_img = default_img + default_user_img(first_name,last_name,circle_div_class)
+        return default_user_img(first_name, last_name, circle_div_class)
       end
-      return default_img.html_safe
     end
 
 

@@ -22,16 +22,11 @@ class Conversation < ApplicationRecord
 
   scope :all_onversations, -> (user) do
     where(chatable: Group.where(member_type: "Chat").joins(:groupables).candidate_or_user_admin_groupable(user)).uniq
-
   end
 
-  scope :conversation_of, -> (company, query_string) do
-    where(chatable_type: "Group", chatable_id: Group.joins(:groupables)
-                                                   .where("groupables.groupable_type": "User", "groupables.groupable_id":
-                                                       User.where("first_name LIKE ? OR last_name LIKE ?", "%#{query_string}%", "%#{query_string}%"))
-                                                   .or(Group.joins(:groupables).where("groupables.groupable_type": "Candidate", "groupables.groupable_id":
-                                                       Candidate.where("first_name LIKE ? OR last_name LIKE ?", "%#{query_string}%", "%#{query_string}%")))
-    )
+  scope :conversation_of, -> (company, query_string, user) do
+    where(chatable: Group.candidate_or_user_admin_groupable(user).joins(:groupables).where("group_name LIKE '%#{query_string}%' OR (groupables.groupable_type = 'User' and groupables.groupable_id IN  (?))",User.where("first_name LIKE ? OR last_name LIKE ?", "%#{query_string}%", "%#{query_string}%").ids))
+    .or(where(chatable: Group.candidate_or_user_admin_groupable(user).joins(:groupables).where("group_name LIKE '%#{query_string}%' OR (groupables.groupable_type = 'Candidate' and groupables.groupable_id IN  (?))", Candidate.where("first_name LIKE ? OR last_name LIKE ?", "%#{query_string}%", "%#{query_string}%").ids)))
   end
 
   def self.create_conversation(users, title, topic, company)
@@ -46,5 +41,5 @@ class Conversation < ApplicationRecord
 
   def opt_participant(user)
     chatable.present? ? chatable : (senderable == user ? recipientable : senderable)
-  end   
+  end
 end

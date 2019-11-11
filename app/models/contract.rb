@@ -304,7 +304,7 @@ class Contract < ApplicationRecord
       buy_contract_salary_clear_cycle unless contract_cycles.where(cycle_type: 'SalaryClear', cycle_of: buy_contract).present?
     end
     if sell_contract.present?
-      sell_contract_time_sheet_cycles unless contract_cycles.where(cycle_type: 'TimesheetSubmit', cycle_of: sell_contract).present?
+      sell_contract_time_sheet_cycles unless contract_cycles.where(cycle_type: 'TimesheetSubmit', cycle_of: sell_contract).present? and buy_contract.present?
       sell_contract_time_sheet_aprove_cycle unless contract_cycles.where(cycle_type: 'TimesheetApprove', cycle_of: sell_contract).present?
       sell_contract_invoice_cycle unless contract_cycles.where(cycle_type: 'InvoiceGenerate', cycle_of: sell_contract).present?
       sell_contract_client_expense_cycle unless contract_cycles.where(cycle_type: 'ClientExpenseSubmission', cycle_of: sell_contract).present?
