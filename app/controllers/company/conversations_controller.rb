@@ -67,8 +67,8 @@ class Company::ConversationsController < Company::BaseController
   def search
     if params[:keyword].present? and params[:topic].present?
       @conversations = params[:topic] == "All" ?
-                           Conversation.conversation_of(current_company, params[:keyword]) :
-                           Conversation.send(params[:topic]).conversation_of(current_company, params[:keyword])
+                           Conversation.conversation_of(current_company, params[:keyword],online_user) :
+                           Conversation.send(params[:topic]).conversation_of(current_company, params[:keyword],online_user)
     else
       @conversations = params[:topic] == "All" ?
                            Conversation.all_onversations(online_user) :
