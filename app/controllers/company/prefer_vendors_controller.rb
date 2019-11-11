@@ -18,24 +18,24 @@ class Company::PreferVendorsController < Company::BaseController
       respond_to do |format|
         format.html {
           if params[:Jobs] == 'on'
-            unless  params[:title].blank?
-              @data += apply_scopes(Job.where(company_id: current_company.prefer_vendor_companies.map(&:id),title: params[:job_titles]))
-
-            end
-            unless params[:job_departments].blank?
-            @data += apply_scopes(Job.where(company_id: current_company.prefer_vendor_companies.map(&:id),department: params[:job_departments]))
-
-            end
-            unless params[:job_industry].blank?
-            @data += apply_scopes(Job.where(company_id: current_company.prefer_vendor_companies.map(&:id),industry: params[:job_industry]))
-
-            end
-            unless params[:job_category].blank?
-            @data += apply_scopes(Job.where(company_id: current_company.prefer_vendor_companies.map(&:id),job_category: params[:job_category]))
-
-            end
             @data += apply_scopes(Job.where(company_id: current_company.prefer_vendor_companies.map(&:id)))
           end
+          unless  params[:title].blank?
+            @data += apply_scopes(Job.where(company_id: current_company.prefer_vendor_companies.map(&:id),title: params[:job_titles]))
+          end
+          unless params[:job_departments].blank?
+            @data += apply_scopes(Job.where(company_id: current_company.prefer_vendor_companies.map(&:id),department: params[:job_departments]))
+          end
+          unless params[:job_industry].blank?
+            @data += apply_scopes(Job.where(company_id: current_company.prefer_vendor_companies.map(&:id),industry: params[:job_industry]))
+          end
+          unless params[:job_category].blank?
+            @data += apply_scopes(Job.where(company_id: current_company.prefer_vendor_companies.map(&:id),job_category: params[:job_category]))
+          end
+
+
+
+
 
           if params[:product] == 'on'
             @data += apply_scopes(Job.where(company_id: current_company.prefer_vendor_companies.map(&:id),listing_type: 'product'))
@@ -50,10 +50,12 @@ class Company::PreferVendorsController < Company::BaseController
             @data += apply_scopes(current_company.candidates)
           end
           if params[:company] == 'on'
+            @data += apply_scopes(Company.where(id: current_company.prefer_vendors.pluck(:vendor_id)))
 
-            @data += apply_scopes(Job.where(company_id: current_company.prefer_vendor_companies.map(&:id)))
-            @data += apply_scopes(current_company.invited_companies_contacts)
-            @data += apply_scopes(current_company.candidates)
+
+            # @data += apply_scopes(current_company.prefer_vendor_companies)
+            # @data += apply_scopes(current_company.invited_companies_contacts)
+            # @data += apply_scopes(current_company.candidates)
           end
           @data = @data.sort {|y, z| z.created_at <=> y.created_at}
         }

@@ -1,16 +1,18 @@
 .panel.panel-default
-  .panel-body.status
-    %h6.padding-5 Contact
+  .panel-body.status.container
+
+
     .who.clearfix
+      %h6.d-inline-block Company
+      = link_to (image_tag data.logo ,class:'',alt: "Logo" ,style: "float:right; width: 60px !important; height: 60px !important;") ,profile_company_path(data.id),title: "#{data.try(:name) } Profile",'data-toggle'=>"tooltip" ,'data-placement'=>"top"
+
       %span.pull-right.font-xs.text-muted
-        %ul.list-inline.friends-list
-          %li
-            / = link_to (image_tag data.company.logo ,class:'',alt: "Logo" ,style: "width: 60px !important; height: 60px !important;") ,profile_company_path(data.company),title: "#{data.try(:company).try(:name) } Profile",'data-toggle'=>"tooltip" ,'data-placement'=>"top"
-      =user_image(data, style: 'width: 35px; height: 35px;', class: 'data-table-image mr-1',title: "#{data.full_name}" )
-      %h6.text-muted #{data.full_name.humanize}
-      %h6.text-muted #{data.company ? data.company.name.humanize : ''}
+      -#=user_image(data, style: 'width: 35px; height: 35px;', class: 'data-table-image mr-1',title: "#{data.full_name}" )
+      %h6.text-muted.font-weight-bold #{data.name.capitalize}
+      -#%h6.text-muted #{data.company ? data.company.name.humanize : ''}
       %span.name.font-sm.text-muted.margin-top-10
-        Email: #{data.email}
+        = contact_widget(data&.email, data&.phone,data,chat_link: chat_link(data),color: '#636c71 !important')
+
       .row
         .col-md-12.margin-top-5
           -#= link_to raw("<i class='fa fa-comment '></i>"), company_company_create_chat_path(data.company),remote: true,method: :get,class: 'btn btn-default btn-xs',title:"Chat with Company  #{d.prefer_vendor.name}",'data-toggle'=>"tooltip" ,'data-placement'=>"top"

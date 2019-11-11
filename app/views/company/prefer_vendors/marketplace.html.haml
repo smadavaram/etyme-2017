@@ -1,56 +1,70 @@
-.marketplacebody{style: "overflow-x: hidden;"}
+
+.marketplacebody{style: "overflow: hidden;"}
   = form_tag marketplace_path, :method => :get , id: "market_place_form" do
-    .row.container
-      .col-md-5.offset-md-3.pt-3
-        .element-search.autosuggest-search-activator
-          = text_field_tag :search_by, params[:search_by],placeholder: "search by skills", autofocus: false,class: "market_place_field form-control form-control-sm bright p-3"
-      .col-md-4.pt-3.end-flex
-        %i.picons-social-icon-periscope.mr-3{style: "font-size: 30px;"}
-
-        .messages-notifications.os-dropdown-trigger.os-dropdown-position-left{style: "font-size: 30px;"}
-          %i.os-icon.os-icon-mail-14
-          .os-dropdown.light.message-list.mb-3{style: 'width: 270px;'}
-            = select_tag 'job_departments', options_for_select(department_list,:selected=>params[:job_departments]), class: 'form-control', id: 'job_departments',include_blank: "Select Department"
-            = select_tag 'job_industry', options_for_select(industry_list,:selected=>params[:job_industry]),class: 'form-control',include_blank: "Select Job Industry"
-            = select_tag 'job_category', options_for_select(WORK_CATEGORIES.keys,:selected=>params[:job_category]),class: 'form-control',id: 'candidate_category',include_blank: "Select Job category"
-            = select_tag 'job_sub_category', options_for_select([],:selected=>params[:job_sub_category]),class: 'form-control',id: 'candidate_subcategory',include_blank: "Select Sub Category"
-            = select_tag 'company_user_skills', options_for_select(current_company.skills.to_a,:selected=>params[:company_user_skills]),class: 'form-control',include_blank: "Select Skills"
-            = select_tag 'Job_titles', options_for_select(current_company.jobs.pluck("title").uniq,:selected=>params[:job_titles]),class: 'form-control',include_blank: "Select Job Title"
+    .container
+      .row
+        .col-md-5.offset-md-3.pt-4.col-8
+          .element-search.autosuggest-search-activator
+            = text_field_tag :search_by, params[:search_by],placeholder: "search by skills", autofocus: false,class: "market_place_field form-control form-control-sm bright p-3"
+        .col-md-4.pt-4.end-flex.mt-3.col-4          
+          .custom-control.custom-switch
+            - if params[:prefer_vendor].eql?('on')
+              %input#customSwitch1.custom-control-input{:type => "checkbox", :name => "prefer_vendor",class: "market_place_field",checked: true }
+                %label.custom-control-label{:for => "customSwitch1"} Prefer Vendor Search
+            - else
+              %input#customSwitch1.custom-control-input{:type => "checkbox", :name => "prefer_vendor",class: "market_place_field" }
+                %label.custom-control-label{:for => "customSwitch1"} Prefer Vendor Search
+              
 
 
 
-    .row.pt-2.end-flex
-      .col-md-2
-        - if params[:company].blank?
-          %input{:type => "checkbox", :name => "company",class: "market_place_field" }Agency/Vendor
-        - else
-          %input{:type => "checkbox", :name => "company",class: "market_place_field",checked: true }Agency/Vendor
-      .col-md-2
-        - if params[:Candidates].blank?
-          %input{:type => "checkbox", :name => "Candidates",class: "market_place_field"}Candidates(S)
-        - else
-          %input{:type => "checkbox", :name => "Candidates",class: "market_place_field",checked: true}Candidates(S)  
-      .col-md-1
-        - if params[:Jobs].blank?
-          %input{:type => "checkbox", :name => "Jobs",class: "market_place_field"}Jobs
-        - else
-          %input{:type => "checkbox", :name => "Jobs",class: "market_place_field",checked: true}Jobs  
-      .col-md-2
-        - if params[:product].blank?
-          %input{:type => "checkbox", :name => "product",class: "market_place_field"}Products
-        - else
-          %input{:type => "checkbox", :name => "product",class: "market_place_field",checked: true}Products  
-      .col-md-2
-        -if params[:service].blank?
-          %input{:type => "checkbox", :name => "service",class: "market_place_field"}Services
-        - else
-          %input{:type => "checkbox", :name => "service",class: "market_place_field",checked: true}Services  
-      .col-md-2
-        - if params[:training].blank?
-          %input{:type => "checkbox", :name => "training",class: "market_place_field"}Trainings
-        - else
-          %input{:type => "checkbox", :name => "training",class: "market_place_field",checked: true}Trainings
-          
+
+          %i.picons-social-icon-periscope.mr-3{style: "font-size: 30px; color: #636c71;"}
+
+          .messages-notifications.os-dropdown-trigger.os-dropdown-position-left{style: "font-size: 30px; color: #636c71;"}
+            %i.icon-equalizer
+            .os-dropdown.light.message-list.mb-3{style: 'width: 270px;'}
+              = select_tag 'job_departments', options_for_select(department_list,:selected=>params[:job_departments]), class: 'form-control', id: 'job_departments',include_blank: "Select Department"
+              = select_tag 'job_industry', options_for_select(industry_list,:selected=>params[:job_industry]),class: 'form-control',include_blank: "Select Job Industry"
+              = select_tag 'job_category', options_for_select(WORK_CATEGORIES.keys,:selected=>params[:job_category]),class: 'form-control',id: 'candidate_category',include_blank: "Select Job category"
+              = select_tag 'job_sub_category', options_for_select([],:selected=>params[:job_sub_category]),class: 'form-control',id: 'candidate_subcategory',include_blank: "Select Sub Category"
+              = select_tag 'company_user_skills', options_for_select(current_company.skills.to_a,:selected=>params[:company_user_skills]),class: 'form-control',include_blank: "Select Skills"
+              = select_tag 'Job_titles', options_for_select(current_company.jobs.pluck("title").uniq,:selected=>params[:job_titles]),class: 'form-control',include_blank: "Select Job Title"
+
+
+
+      .row.pl-3.pt-2
+        .col-md-2
+          - if params[:company].blank?
+            %input{:type => "checkbox", :name => "company",class: "market_place_field" }Agency/Vendor
+          - else
+            %input{:type => "checkbox", :name => "company",class: "market_place_field",checked: true }Agency/Vendor
+        .col-md-2
+          - if params[:Candidates].blank?
+            %input{:type => "checkbox", :name => "Candidates",class: "market_place_field"}Candidates(S)
+          - else
+            %input{:type => "checkbox", :name => "Candidates",class: "market_place_field",checked: true}Candidates(S)
+        .col-md-1
+          - if params[:Jobs].blank?
+            %input{:type => "checkbox", :name => "Jobs",class: "market_place_field"}Jobs
+          - else
+            %input{:type => "checkbox", :name => "Jobs",class: "market_place_field",checked: true}Jobs
+        .col-md-2
+          - if params[:product].blank?
+            %input{:type => "checkbox", :name => "product",class: "market_place_field"}Products
+          - else
+            %input{:type => "checkbox", :name => "product",class: "market_place_field",checked: true}Products
+        .col-md-2
+          -if params[:service].blank?
+            %input{:type => "checkbox", :name => "service",class: "market_place_field"}Services
+          - else
+            %input{:type => "checkbox", :name => "service",class: "market_place_field",checked: true}Services
+        .col-md-2
+          - if params[:training].blank?
+            %input{:type => "checkbox", :name => "training",class: "market_place_field"}Trainings
+          - else
+            %input{:type => "checkbox", :name => "training",class: "market_place_field",checked: true}Trainings
+
 
     / .row
     /   .col-md-10.offset-md-1.pt-2
@@ -66,17 +80,6 @@
                   - @data.each do |d|
                     .col-md-6#dynamic-content{style: "width: 100%;"}
                       = render "company/users/partials/#{d.class.name.downcase}_show" ,data: d,cached: true
-
-
-
-    .popup-custom.hidden
-
-      = select_tag 'job_departments', options_for_select(department_list,:selected=>params[:job_departments]), class: 'form-control', id: 'job_departments',include_blank: "Select Department"
-      = select_tag 'job_industry', options_for_select(industry_list,:selected=>params[:job_industry]),class: 'form-control',include_blank: "Select Job Industry"
-      = select_tag 'job_category', options_for_select(WORK_CATEGORIES.keys,:selected=>params[:job_category]),class: 'form-control',id: 'candidate_category',include_blank: "Select Job category"
-      = select_tag 'job_sub_category', options_for_select([],:selected=>params[:job_sub_category]),class: 'form-control',id: 'candidate_subcategory',include_blank: "Select Sub Category"
-      = select_tag 'company_user_skills', options_for_select(current_company.skills.to_a,:selected=>params[:company_user_skills]),class: 'form-control',include_blank: "Select Skills"
-      = select_tag 'Job_titles', options_for_select(current_company.jobs.pluck("title").uniq,:selected=>params[:job_titles]),class: 'form-control',include_blank: "Select Job Title"
 
 
 -content_for :scripts do

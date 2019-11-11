@@ -1,27 +1,27 @@
 .panel.panel-default
   .panel-body.status
-    %h6.padding-5{style: 'margin-left: 15px;margin-top: 10px;'} Candidate
     .who.clearfix
-      %span.pull-right.font-xs.text-muted
-        %ul.list-inline.friends-list
-          %li
-            = link_to (image_tag data.invited_by.present? ? data.invited_by.company.logo : image_path('default_logo.png'),class:'',alt: "LOGO",style: 'width: 60px !important ;height: 60px !important'),data.invited_by.present? ? profile_company_path(data.invited_by.company) : '#',title: "#{data.invited_by.try(:company).try(:name) } Profile",'data-toggle'=>"tooltip" ,'data-placement'=>"top"
-      =user_image(data, style: 'width: 35px; height: 35px;', class: 'data-table-image mr-1',title: "#{data.full_name}" )
-      %h6.text-muted #{data.full_name.humanize}
-      %h6.text-muted #{data.try(:invited_by).present? ? data.try(:invited_by).try(:company).try(:name).try(:humanize) : "Direct Candidate"}
-      %span.name.font-sm.text-muted.margin-top-10
-        Email: #{data.email}
-      .row
-        .col-md-12.margin-top-5
-          = link_to raw("<i class='fa fa-sticky-note '></i>")  ,candidate_assign_status_path(data)   ,class: 'btn btn-default btn-xs margin-bottom-5 ', remote: :true,title: "Assign Status",'data-toggle'=>"tooltip" ,'data-placement'=>"top"
-          = link_to raw("<i class='fa fa-bell '></i>")     ,candidate_add_reminder_path(data) ,class: 'btn btn-default btn-xs margin-bottom-5', remote: :true,title:"Remind Me",'data-toggle'=>"tooltip" ,'data-placement'=>"top"
-          -#= link_to 'Activity'     ,company_activities_index_path(index: true), class: 'btn btn-xs btn-primary  margin-bottom-5',title:"Activity Log"
-          = link_to raw("<i class='fa fa-file-text '></i>") , data.resume ,download: true , class: 'btn btn-xs  btn-default  margin-bottom-5',title:"Resume",'data-toggle'=>"tooltip" ,'data-placement'=>"top"
-          = link_to raw("<i class='fa fa-eye '></i>") , static_candidate_resume_path(data) , class: 'btn btn-xs  btn-default  margin-bottom-5',title:"Details View",target: '_blank','data-toggle'=>"tooltip" ,'data-placement'=>"top"
-          = link_to raw("<i class='fa fa-users '></i>"), candidate_manage_groups_path(data) , remote:true,class: 'btn btn-xs btn-default  margin-bottom-5',title:"Assign Groups",'data-toggle'=>"tooltip" ,'data-placement'=>"top"
-          - if is_hot?(data)
-            = link_to raw("<i class='fa fa-fire '></i>"), candidate_make_hot_path(data) , remote:true,method: :post,class: 'btn btn-xs  btn-default  margin-bottom-5',title:"Make Hot", data: {confirm: " Do you want to make #{data.full_name} Hot?",commit: 'Continue', cancel: 'Cancel'},'data-toggle'=>"tooltip" ,'data-placement'=>"top"
-          - if !is_hot?(data)
-            = link_to raw("<i class='fa fa-fire '></i>"), candidate_make_normal_path(data) , remote:true,method: :post,class: 'btn btn-xs btn-default  margin-bottom-5',title:"Remove from Hot", data: {confirm: " Do you want to make #{data.full_name} Normal?",commit: 'Continue', cancel: 'Cancel'},'data-toggle'=>"tooltip" ,'data-placement'=>"top"
-          - if data.campany_candidate?
-            = link_to raw("<i class='fa fa-edit '></i>") , edit_company_candidate_path(data) , class: 'btn btn-xs btn-default   margin-bottom-5', title: "Edit #{data.full_name}",'data-toggle'=>"tooltip" ,'data-placement'=>"top"
+      %h6.d-inline-block Candidate
+      = link_to (image_tag data.invited_by.present? ? data.invited_by.company.logo : image_path('default_logo.png'),class:'',alt: "LOGO",style: 'float:right; width: 60px !important ;height: 60px !important'),data.invited_by.present? ? profile_company_path(data.invited_by.company) : '#',title: "#{data.invited_by.try(:company).try(:name) } Profile",'data-toggle'=>"tooltip" ,'data-placement'=>"top"
+
+
+      .logged-user-w.no_border_bottom{style: "width: 120px;"}
+        .avatar-w
+          =user_image(data, style: 'width: 35px; height: 35px;', class: 'data-table-image mr-1',title: "#{data.full_name}" )
+        .logged-user-name.no-wrap= do_ellipsis(data.full_name,12)
+       
+        .logged-user-role.d-block= contact_widget(data.email, data.phone,data,chat_link: chat_link(data),color: '#636c71 !important')
+        / .row
+        /   .col-md-12.margin-top-5
+        /     = link_to raw("<i class='fa fa-sticky-note '></i>")  ,candidate_assign_status_path(data)   ,class: 'btn btn-default btn-xs margin-bottom-5 ', remote: :true,title: "Assign Status",'data-toggle'=>"tooltip" ,'data-placement'=>"top"
+        /     = link_to raw("<i class='fa fa-bell '></i>")     ,candidate_add_reminder_path(data) ,class: 'btn btn-default btn-xs margin-bottom-5', remote: :true,title:"Remind Me",'data-toggle'=>"tooltip" ,'data-placement'=>"top"
+        /     -#= link_to 'Activity'     ,company_activities_index_path(index: true), class: 'btn btn-xs btn-primary  margin-bottom-5',title:"Activity Log"
+        /     = link_to raw("<i class='fa fa-file-text '></i>") , data.resume ,download: true , class: 'btn btn-xs  btn-default  margin-bottom-5',title:"Resume",'data-toggle'=>"tooltip" ,'data-placement'=>"top"
+        /     = link_to raw("<i class='fa fa-eye '></i>") , static_candidate_resume_path(data) , class: 'btn btn-xs  btn-default  margin-bottom-5',title:"Details View",target: '_blank','data-toggle'=>"tooltip" ,'data-placement'=>"top"
+        /     = link_to raw("<i class='fa fa-users '></i>"), candidate_manage_groups_path(data) , remote:true,class: 'btn btn-xs btn-default  margin-bottom-5',title:"Assign Groups",'data-toggle'=>"tooltip" ,'data-placement'=>"top"
+        /     - if is_hot?(data)
+        /       = link_to raw("<i class='fa fa-fire '></i>"), candidate_make_hot_path(data) , remote:true,method: :post,class: 'btn btn-xs  btn-default  margin-bottom-5',title:"Make Hot", data: {confirm: " Do you want to make #{data.full_name} Hot?",commit: 'Continue', cancel: 'Cancel'},'data-toggle'=>"tooltip" ,'data-placement'=>"top"
+        /     - if !is_hot?(data)
+        /       = link_to raw("<i class='fa fa-fire '></i>"), candidate_make_normal_path(data) , remote:true,method: :post,class: 'btn btn-xs btn-default  margin-bottom-5',title:"Remove from Hot", data: {confirm: " Do you want to make #{data.full_name} Normal?",commit: 'Continue', cancel: 'Cancel'},'data-toggle'=>"tooltip" ,'data-placement'=>"top"
+        /     - if data.campany_candidate?
+        /       = link_to raw("<i class='fa fa-edit '></i>") , edit_company_candidate_path(data) , class: 'btn btn-xs btn-default   margin-bottom-5', title: "Edit #{data.full_name}",'data-toggle'=>"tooltip" ,'data-placement'=>"top"
