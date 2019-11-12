@@ -76,8 +76,11 @@
                           <input type="text" class="form-control" placeholder="Search Company/Candidates" id="conversation-users-search">
                         </div>
                       </div>
-                      <ul class="nav flex-column nav-tabs" role="tablist" id="company-conversation-list">
+                      <ul class="nav flex-column nav-tabs nav-tabs_height company-conversation-scorll" role="tablist" id="company-conversation-list">
                         <%= render 'conversations_list', conversations: @conversations %>
+                        <div id="all-infinite-scrolling-con" style="display: none">
+                          <%= will_paginate @conversations, {params: params.merge(keyword: @query, topic: @topic)} %>
+                        </div>
                         <%#= render 'conversation_users', users: @companies, candidates: @candidates, groups: @groups %>
                       </ul>
                     </div>

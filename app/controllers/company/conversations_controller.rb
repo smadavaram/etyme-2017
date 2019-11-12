@@ -4,10 +4,19 @@ class Company::ConversationsController < Company::BaseController
   before_action :find_attachments, :find_signers, only: [:chat_docusign]
 
   def index
-    @conversations = Conversation.all_onversations(current_user).uniq
-    @conversation = params[:conversation].present? ? Conversation.find(params[:conversation]) : @conversations.first
-    @favourites = current_user.favourables.uniq
-    set_activity_for_job_application
+    respond_to do |format|
+      @query = nil
+      @topic = nil
+      format.html do
+        @conversations = Conversation.all_onversations(current_user).uniq.paginate(page: params[:page], per_page: 10)
+        @conversation = params[:conversation].present? ? Conversation.find(params[:conversation]) : @conversations.first
+        @favourites = current_user.favourables.uniq
+        set_activity_for_job_application
+      end
+      format.js do
+        @conversations = Conversation.all_onversations(current_user).uniq.paginate(page: params[:page], per_page: 10)
+      end
+    end
     # @unread_message_count = Conversation.joins(:conversation_messages).where("(senderable_type = ? AND senderable_id = ? ) OR (recipientable_type = ? AND recipientable_id = ?)", current_user.class.to_s, current_user.id, current_user.class.to_s, current_user.id).where.not(conversation_messages: {is_read: true, userable: current_user}).uniq.count
   end
 
@@ -65,18 +74,21 @@ class Company::ConversationsController < Company::BaseController
 
 
   def search
-    if params[:keyword].present? and params[:topic].present?
-      @conversations = params[:topic] == "All" ?
-                           Conversation.conversation_of(current_company, params[:keyword],online_user) :
-                           Conversation.send(params[:topic]).conversation_of(current_company, params[:keyword],online_user)
+    @query = params[:keyword]
+    @topic = params[:topic].present? ? params[:topic] : "All"
+    if @query.present? and @topic.present?
+      @conversations = @topic == "All" ?
+                           Conversation.conversation_of(current_company, @query, online_user).paginate(page: params[:page], per_page: 10) :
+                           Conversation.send(@topic).conversation_of(current_company, @query, online_user).paginate(page: params[:page], per_page: 10)
     else
-      @conversations = params[:topic] == "All" ?
-                           Conversation.all_onversations(online_user) :
-                           Conversation.send(params[:topic]).all_onversations(online_user)
+      @conversations = @topic == "All" ?
+                           Conversation.all_onversations(online_user).paginate(page: params[:page], per_page: 10) :
+                           Conversation.send(@topic).all_onversations(online_user).paginate(page: params[:page], per_page: 10)
 
     end
-    group_ids = Group.user_chat_groups(online_user, current_company).ids
-    @conversations = @conversations.select { |con| group_ids.include?(con.chatable_id) }
+    # group_ids = Group.user_chat_groups(online_user, current_company).ids
+    # debugger
+    # @conversationsselect { |con| group_ids.include?(con.chatable_id) }
   end
 
   def add_to_favourite
