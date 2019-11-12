@@ -58,7 +58,7 @@
         <span>Supplier(s)</span>
       </a>
       <div class="pl-4 w-100 l2 text-justify nav-sidebar-collaps">
-        <a href="<%= marketplace_path(company: 'on') %>" class=" side-bar_links nested_tab boarder_bottom">Marketplace</a>
+        <a href="<%= marketplace_path(company: 'on','search_by[term]': '','search_scope': '' ) %>" class=" side-bar_links nested_tab boarder_bottom">Marketplace</a>
         <a href="<%= prefer_vendors_path %>" class=" side-bar_links nested_tab boarder_bottom">Network Request(s)</a>
         <% if has_permission?('manage_vendors') %>
           <a href="<%= network_path %>" class=" side-bar_links nested_tab boarder_bottom">Client(s) / Vendor(s)</a>

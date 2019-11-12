@@ -1,0 +1,13 @@
+.panel.panel-default
+  .panel-body.status
+    .who.clearfix
+      %h6.d-inline-block Candidate
+      = link_to (image_tag data.present? ? data.company.logo : image_path('default_logo.png'),class:'',alt: "LOGO",style: 'float:right; width: 60px !important ;height: 60px !important'),data.present? ? profile_company_path(data.company) : '#',title: "#{data.try(:company).try(:name) } Profile",'data-toggle'=>"tooltip" ,'data-placement'=>"top"
+
+
+      .logged-user-w.no_border_bottom{style: "width: 120px;"}
+        .avatar-w
+          =user_image(data, style: 'width: 35px; height: 35px;', class: 'data-table-image mr-1',title: "#{data.first_name}" )
+        .logged-user-name.no-wrap= do_ellipsis(data.first_name,12)
+       
+        .logged-user-role.d-block= contact_widget(data.email, data.phone,data,chat_link: chat_link(data),color: '#636c71 !important')

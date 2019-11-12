@@ -131,8 +131,8 @@ class Company < ApplicationRecord
   accepts_nested_attributes_for :company_vendor_docs, allow_destroy: true, reject_if: :all_blank
   accepts_nested_attributes_for :company_customer_docs, allow_destroy: true, reject_if: :all_blank
   accepts_nested_attributes_for :company_employee_docs, allow_destroy: true, reject_if: :all_blank
-  
-  
+
+
   before_validation :create_slug
   after_create :set_owner_company_id, if: Proc.new { |com| com.owner.present? }
   after_create :welcome_email_to_owner, if: Proc.new { |comp| !comp.invited_by.present? }
@@ -140,10 +140,12 @@ class Company < ApplicationRecord
   after_create :create_associated_roles
   after_create :send_owner_password_reset_email, if: Proc.new { |com| com.owner.present? }
   # after_create  :set_account_on_seq
-  
+
   scope :vendors, -> { where(company_type: 1) }
   scope :signup_companies, -> { Company.where.not(:id => InvitedCompany.select(:invited_company_id)) }
-  scope :search_by, ->(terms) { Company.where('lower(name) like :term', {term: "#{term.downcase}%"}) }
+  # scope :search_by, ->term,search_scop {Job.where('lower(title) like :term or lower(description) like :term or lower(location) like :term or lower(job_category) like :term', {term: "#{term.downcase}%"})}
+  scope :search_by, ->term,search_scop {Company.where('lower(name) like :term or lower(description) like :term or lower(email) like :term or lower(phone) like :term', {term: "#{term.downcase}%"})}
+
   scope :status_count, ->(company, start_date, end_date) { company.received_job_applications.reorder('')
                                                                .select('COUNT(*) as count, job_applications.status')
                                                                .where(created_at: start_date...end_date)

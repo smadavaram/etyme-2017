@@ -5,6 +5,8 @@ class Company::PreferVendorsController < Company::BaseController
   before_action :authorized_user, only: [:create, :show_network, :index, :accept, :reject]
   add_breadcrumb "Home", :dashboard_path, :title => "Home"
   has_scope :search_by, only: :marketplace
+  has_scope :search_by, using: %i[term search_scop], type: :hash
+
 
   def index
     add_breadcrumb "Prefer Vendors Requests".humanize, :prefer_vendors_path, :title => "Prefer Vendors"
@@ -15,54 +17,35 @@ class Company::PreferVendorsController < Company::BaseController
     get_cards
     if current_company&.vendor?
       @data = []
+      @query_hash = {company_id: current_company.prefer_vendor_companies.pluck('id'),title: params[:Job_titles],department: params[:job_departments],industry: params[:job_industry],job_category: params[:job_category]}
+      @query_hash.delete_if {|key, value| value.blank? }
       respond_to do |format|
         format.html {
           if params[:Jobs] == 'on'
-            @data += apply_scopes(Job.where(company_id: current_company.prefer_vendor_companies.map(&:id)))
+            @data += apply_scopes(Job.where(@query_hash))
           end
-          unless  params[:title].blank?
-            @data += apply_scopes(Job.where(company_id: current_company.prefer_vendor_companies.map(&:id),title: params[:job_titles]))
-          end
-          unless params[:job_departments].blank?
-            @data += apply_scopes(Job.where(company_id: current_company.prefer_vendor_companies.map(&:id),department: params[:job_departments]))
-          end
-          unless params[:job_industry].blank?
-            @data += apply_scopes(Job.where(company_id: current_company.prefer_vendor_companies.map(&:id),industry: params[:job_industry]))
-          end
-          unless params[:job_category].blank?
-            @data += apply_scopes(Job.where(company_id: current_company.prefer_vendor_companies.map(&:id),job_category: params[:job_category]))
-          end
-
-
-
-
 
           if params[:product] == 'on'
-            @data += apply_scopes(Job.where(company_id: current_company.prefer_vendor_companies.map(&:id),listing_type: 'product'))
+            @data += apply_scopes(Job.where(company_id: current_company.prefer_vendor_companies.pluck('id'),listing_type: 'product'))
           end
           if params[:service] == 'on'
-            @data += apply_scopes(Job.where(company_id: current_company.prefer_vendor_companies.map(&:id),listing_type: 'service'))
+            @data += apply_scopes(Job.where(company_id: current_company.prefer_vendor_companies,listing_type: 'service'))
           end
           if params[:training] == 'on'
-            @data += apply_scopes(Job.where(company_id: current_company.prefer_vendor_companies.map(&:id),listing_type: 'Training'))
+            @data += apply_scopes(Job.where(company_id: current_company.prefer_vendor_companies.pluck('id'),listing_type: 'Training'))
           end
           if (params[:Candidates] == 'on')
-            @data += apply_scopes(current_company.candidates)
+            @data += apply_scopes(current_company.candidates_companies.hot_candidate.joins(:candidate).select("candidates.*"))
           end
           if params[:company] == 'on'
-            @data += apply_scopes(Company.where(id: current_company.prefer_vendors.pluck(:vendor_id)))
+            @data += apply_scopes(Company.where(id: current_company.prefer_vendors.accepted.pluck(:vendor_id)))
 
-
-            # @data += apply_scopes(current_company.prefer_vendor_companies)
-            # @data += apply_scopes(current_company.invited_companies_contacts)
-            # @data += apply_scopes(current_company.candidates)
           end
           @data = @data.sort {|y, z| z.created_at <=> y.created_at}
         }
       end
     end
     @activities = PublicActivity::Activity.order("created_at desc")
-
   end
 
 

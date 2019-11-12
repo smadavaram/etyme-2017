@@ -1,25 +1,56 @@
 
-.marketplacebody{style: "overflow: hidden;"}
+.marketplacebody
   = form_tag marketplace_path, :method => :get , id: "market_place_form" do
     .container
       .row
         .col-md-5.offset-md-3.pt-4.col-8
           .element-search.autosuggest-search-activator
-            = text_field_tag :search_by, params[:search_by],placeholder: "search by skills", autofocus: false,class: "market_place_field form-control form-control-sm bright p-3"
+
+            = text_field_tag 'search_by[term]', params[:search_by][:term],placeholder: "search by skills", autofocus: false,class: "market_place_field form-control form-control-sm bright p-3"
         .col-md-4.pt-4.end-flex.mt-3.col-4          
           .custom-control.custom-switch
-            - if params[:prefer_vendor].eql?('on')
-              %input#customSwitch1.custom-control-input{:type => "checkbox", :name => "prefer_vendor",class: "market_place_field",checked: true }
+            - if params[:search_by][:search_scop].eql?('on')
+              %input#customSwitch1.custom-control-input{:type => "checkbox", :name => "search_by[search_scop]",class: "market_place_field",checked: true }
                 %label.custom-control-label{:for => "customSwitch1"} Prefer Vendor Search
             - else
-              %input#customSwitch1.custom-control-input{:type => "checkbox", :name => "prefer_vendor",class: "market_place_field" }
+              %input#customSwitch1.custom-control-input{:type => "checkbox", :name => "search_by[search_scop]",class: "market_place_field" }
                 %label.custom-control-label{:for => "customSwitch1"} Prefer Vendor Search
               
 
 
 
 
-          %i.picons-social-icon-periscope.mr-3{style: "font-size: 30px; color: #636c71;"}
+
+          .messages-notifications.os-dropdown-trigger.os-dropdown-position-left{style: "font-size: 30px; color: #636c71;"}
+            %i.picons-social-icon-periscope.mr-3{style: "font-size: 30px; color: #636c71;"}
+            .os-dropdown.light.message-list.mb-3{style: 'width: 570px; height: 200px;'}
+              %table
+                %thead
+                  %tr
+                    %th Company
+                    %th Candidate
+                    %th Job
+                %tbody
+                  - @data.each do |loc|
+                    %tr
+                      %td
+                        - if loc.class.name.eql?('Company')
+                          -loc.locations.each do |location|
+                            =location.name
+                      %td      
+                        - if loc.class.name.eql?('Candidate')
+                          =location.address
+                      %td    
+                        - if loc.class.name.eql?('Job')
+                          =loc.location
+
+
+
+
+
+
+
+
 
           .messages-notifications.os-dropdown-trigger.os-dropdown-position-left{style: "font-size: 30px; color: #636c71;"}
             %i.icon-equalizer
@@ -29,7 +60,6 @@
               = select_tag 'job_category', options_for_select(WORK_CATEGORIES.keys,:selected=>params[:job_category]),class: 'form-control',id: 'candidate_category',include_blank: "Select Job category"
               = select_tag 'job_sub_category', options_for_select([],:selected=>params[:job_sub_category]),class: 'form-control',id: 'candidate_subcategory',include_blank: "Select Sub Category"
               = select_tag 'company_user_skills', options_for_select(current_company.skills.to_a,:selected=>params[:company_user_skills]),class: 'form-control',include_blank: "Select Skills"
-              = select_tag 'Job_titles', options_for_select(current_company.jobs.pluck("title").uniq,:selected=>params[:job_titles]),class: 'form-control',include_blank: "Select Job Title"
 
 
 
