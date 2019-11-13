@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema.define(version: 20191031123159) do
+ActiveRecord::Schema.define(version: 20191113121035) do
 
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
@@ -901,6 +901,7 @@ ActiveRecord::Schema.define(version: 20191031123159) do
     t.decimal "salary_to_pay", default: "0.0"
     t.string "project_name"
     t.boolean "is_client_customer"
+    t.integer "cc_job"
   end
 
   create_table "conversation_messages", force: :cascade do |t|
