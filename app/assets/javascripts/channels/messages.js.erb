@@ -39,14 +39,6 @@ function set_conversation(data) {
         }
     }
 
-//  message = (data.msg_att) ? data.msg +" <br/><a href='" + data.msg_att + "' target='_blank'>" + data.msg_att_name +"</a> "  : data.msg
-//  $(data.dom).append(
-//    "<div class='" + ((current_user_id == data.usr && current_user_type == data.usr_typ ) ? 'message self' : 'message') + "'>" +
-//      "<div class='message-content'>" + message + "</div>" +
-//    "</div>"
-//  );
-//  $(data.dom).append(data.msg);
-
     $("#conversation_message_file_url").val('');
 
     $("#file-name_uploaded").html('');
@@ -88,7 +80,7 @@ function set_conversation(data) {
             }
             if (!$(`.usr_Group_${data.grp_id}`).hasClass('active-conversation')) {
                 $(`.usr_Group_${data.grp_id}`)[0].style.backgroundColor = "#cfd1de"
-                $('.usr_Group_155').find('.last-message').text(data.msg.slice(0, 25)+'...')
+                $('.usr_Group_155').find('.last-message').html('<div class="status-pill green" title="New Message"></div>'+data.msg.slice(0, 25)+'...')
             }
             $(data.dom).append("<div class='chat-message'>" +
                 "<div class='chat-message-content-w'>" +

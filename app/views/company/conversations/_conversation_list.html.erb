@@ -6,7 +6,9 @@
   <div class="user-info">
     <div class="user-date"><%= chat_user_data[:last_msg_time] %></div>
     <div class="user-name"><%= usr.full_name %></div>
-    <div class="last-message"><%= chat_user_data[:last_msg] %></div>
+    <div class="last-message">
+      <%= chat_user_data[:last_msg] %>
+    </div>
   </div>
 <% end %>
 
