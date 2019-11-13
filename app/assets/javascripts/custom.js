@@ -180,6 +180,7 @@ $(document).ready(function () {
     $('[rel="tooltip"]').tooltip();
 
     $("#chat_topic").change(function () {
+        $('#company-conversation-list').html('')
         callAjaxSearch('/company/conversations/search', "GET", {
             keyword: $("#conversation-users-search").val(),
             topic: $("#chat_topic").val()

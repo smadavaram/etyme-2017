@@ -1,10 +1,20 @@
 class Candidate::ConversationsController < Candidate::BaseController
 
   def index
-    @conversations = Conversation.all_onversations(current_candidate).uniq
-    @conversation = params[:conversation].present? ? Conversation.find(params[:conversation]) : @conversations.first
-    @favourites = current_candidate.favourables.uniq
-    set_activity_for_job_application
+
+    respond_to do |format|
+      @query = nil
+      @topic = nil
+      format.html do
+        @conversations = Conversation.all_onversations(current_candidate).uniq.paginate(page: params[:page], per_page: 10)
+        @conversation = params[:conversation].present? ? Conversation.find(params[:conversation]) : @conversations.first
+        @favourites = current_candidate.favourables.uniq
+        set_activity_for_job_application
+      end
+      format.js do
+        @conversations = Conversation.all_onversations(current_candidate).uniq.paginate(page: params[:page], per_page: 10)
+      end
+    end
   end
 
   def create

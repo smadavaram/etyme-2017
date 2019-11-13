@@ -1,12 +1,12 @@
 <% if current_user.present? %>
   <% if @conversations.present? %>
-   $("#company-conversation-list").html("<%= j render 'company/conversations/conversations_list', conversations: @conversations %>");
+    $("#company-conversation-list").append("<%= j render 'company/conversations/conversations_list', conversations: @conversations %>");
   <% else %>
-   $("#company-conversation-list").html("<%= j render 'company/conversations/conversation_users', users: @companies, candidates: @candidates, groups: @groups %>");
+    $("#company-conversation-list").html("<%= j render 'company/conversations/conversation_users', users: @companies, candidates: @candidates, groups: @groups %>");
   <% end %>
 <% elsif current_candidate.present? %>
   <% if @conversations.present? %>
-   $("#company-conversation-list").html("<%= j render 'candidate/conversations/conversations_list', conversations: @conversations %>");
+    $("#company-conversation-list").append("<%= j render 'candidate/conversations/conversations_list', conversations: @conversations %>");
   <% else %>
     $("#company-conversation-list").html("<%= j render 'candidate/conversations/conversation_users', users: @companies, candidates: @candidates, groups: @groups %>");
   <% end %>
@@ -16,4 +16,13 @@
   <% else %>
     $("#company-conversation-list").html("<%= j render 'candidate/conversations/conversation_users', users: @companies, candidates: @candidates, groups: @groups %>");
   <% end %>
+<% end %>
+
+<% if @conversations.present? %>
+  $("#company-conversation-list").append("<div id='all-infinite-scrolling-con' style='display: none;' ></div>")
+  $("#all-infinite-scrolling-con").html("<%= j will_paginate @conversations, {params: params.merge(keyword: @query, topic: @topic)} %>");
+  $(".company-conversation-scorll").data('ajaxready', true);
+  $(".company-conversation-scorll").on('scroll', function (e) {
+    checkForConScrollEvent($(this));
+  });
 <% end %>

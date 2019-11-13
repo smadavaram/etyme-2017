@@ -11,7 +11,7 @@ class Contract < ApplicationRecord
   enum time_sheet_frequency: [:daily, :weekly, :biweekly, "twice a month", :monthly]
   enum commission_type: [:perhour, :fixed]
   enum contract_type: [:W2, "1099", :C2C, :contract_independent, :contract_w2, :contract_C2H_independent, :contract_C2H_w2, :third_party_crop_to_crop, :third_party_C2H_crop_to_crop]
-
+  enum cc_job: [:remaining,:started,:finished, :errored]
   CONTRACTABLE = [:company, :candidate]
 
   attr_accessor :company_doc_ids
@@ -52,7 +52,7 @@ class Contract < ApplicationRecord
   has_many :contract_cycles, dependent: :destroy
   has_many :contract_expense, dependent: :destroy
   has_many :contract_books
-  
+
   # has_many :contract_buy_business_details
   # has_many :contract_sell_business_details
   # has_many :contract_sale_commisions
@@ -296,20 +296,22 @@ class Contract < ApplicationRecord
   end
 
   def create_cycles
-    if buy_contract.present?
-      buy_contract_time_sheet_cycles unless contract_cycles.where(cycle_type: 'TimesheetSubmit', cycle_of: buy_contract).present?
-      buy_contract_time_sheet_aprove_cycle unless contract_cycles.where(cycle_type: 'TimesheetApprove', cycle_of: buy_contract).present?
-      buy_contract_salary_calculation_cycle unless contract_cycles.where(cycle_type: 'SalaryCalculation', cycle_of: buy_contract).present?
-      buy_contract_salary_process_cycle unless contract_cycles.where(cycle_type: 'SalaryProcess', cycle_of: buy_contract).present?
-      buy_contract_salary_clear_cycle unless contract_cycles.where(cycle_type: 'SalaryClear', cycle_of: buy_contract).present?
-    end
-    if sell_contract.present?
-      sell_contract_time_sheet_cycles unless contract_cycles.where(cycle_type: 'TimesheetSubmit', cycle_of: sell_contract).present?
-      sell_contract_time_sheet_aprove_cycle unless contract_cycles.where(cycle_type: 'TimesheetApprove', cycle_of: sell_contract).present?
-      sell_contract_invoice_cycle unless contract_cycles.where(cycle_type: 'InvoiceGenerate', cycle_of: sell_contract).present?
-      sell_contract_client_expense_cycle unless contract_cycles.where(cycle_type: 'ClientExpenseSubmission', cycle_of: sell_contract).present?
-      sell_contract_client_expense_approve_cycle unless contract_cycles.where(cycle_type: 'ClientExpenseApprove', cycle_of: sell_contract).present?
-      sell_contract_client_expense_invoice_cycle unless contract_cycles.where(cycle_type: 'ClientExpenseInvoice', cycle_of: sell_contract).present?
+    ActiveRecord::Base.transaction do
+      if buy_contract.present?
+        buy_contract_time_sheet_cycles unless contract_cycles.where(cycle_type: 'TimesheetSubmit', cycle_of: buy_contract).present?
+        buy_contract_time_sheet_aprove_cycle unless contract_cycles.where(cycle_type: 'TimesheetApprove', cycle_of: buy_contract).present?
+        buy_contract_salary_calculation_cycle unless contract_cycles.where(cycle_type: 'SalaryCalculation', cycle_of: buy_contract).present?
+        buy_contract_salary_process_cycle unless contract_cycles.where(cycle_type: 'SalaryProcess', cycle_of: buy_contract).present?
+        buy_contract_salary_clear_cycle unless contract_cycles.where(cycle_type: 'SalaryClear', cycle_of: buy_contract).present?
+      end
+      if sell_contract.present?
+        sell_contract_time_sheet_cycles unless contract_cycles.where(cycle_type: 'TimesheetSubmit', cycle_of: sell_contract).present? and buy_contract.present?
+        sell_contract_time_sheet_aprove_cycle unless contract_cycles.where(cycle_type: 'TimesheetApprove', cycle_of: sell_contract).present?
+        sell_contract_invoice_cycle unless contract_cycles.where(cycle_type: 'InvoiceGenerate', cycle_of: sell_contract).present?
+        sell_contract_client_expense_cycle unless contract_cycles.where(cycle_type: 'ClientExpenseSubmission', cycle_of: sell_contract).present?
+        sell_contract_client_expense_approve_cycle unless contract_cycles.where(cycle_type: 'ClientExpenseApprove', cycle_of: sell_contract).present?
+        sell_contract_client_expense_invoice_cycle unless contract_cycles.where(cycle_type: 'ClientExpenseInvoice', cycle_of: sell_contract).present?
+      end
     end
   end
 
@@ -688,7 +690,7 @@ class Contract < ApplicationRecord
   def admin_user
     contract_admins&.first&.user || company.users.joins(:roles).where('roles.name': "HR admin").limit(1)
   end
-  
+
   private
 
   def appraiser
