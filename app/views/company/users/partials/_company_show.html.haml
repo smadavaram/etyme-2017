@@ -1,0 +1,19 @@
+.panel.panel-default.pt-1
+  .panel-body.status.container
+
+
+    .who.row
+      .col-md-8
+        %h6.d-inline-block Company Name = #{do_ellipsis(data.name.capitalize,15)}
+        %i.picons-social-icon-periscope.d-block{style: " color: #636c71;"}
+          -data.locations.each do|location|
+            =location.address.address_1
+
+      .col-md-4{style: 'align-items: center;flex-direction: column;display: flex'}
+        = link_to (image_tag data.logo ,class:'',alt: "Logo" ,style: "") ,profile_company_path(data.id),title: "#{data.try(:name) } Profile",'data-toggle'=>"tooltip" ,'data-placement'=>"top"
+        .logged-user-role.d-block= contact_widget(data.owner&.email, data.owner&.phone,data.owner,chat_link: chat_link(data.owner),color: '#636c71 !important')
+
+
+
+
+

@@ -1785,6 +1785,15 @@ flex: 0 0 220px;
     pointer-events:none;
     cursor: pointer;
 }
+.end-flex{
+    display: flex;
+    justify-content: flex-end;
+}
+
+a:visited {
+    color: blue !important;
+}
 .space_between{
     justify-content: space-between;
 }
+

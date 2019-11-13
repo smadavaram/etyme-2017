@@ -1,22 +1,19 @@
 .panel.panel-default
   .panel-body.status
     .who.clearfix
-      %span.pull-right.font-xs.text-muted
-        %ul.list-inline.friends-list
-          %li
-            = link_to user_image( data.created_by,style: 'width: 60px !important;height: 60px !important' ),'#'
-      = image_tag 'jobs.png',class:'',alt: "job",style: "width: 60px !important; height: 60px !important;"
-      %h6 Title-#{data.title.humanize}
-      %span.name.font-sm.text-muted
-        Location: #{data.location&.humanize}
-      %p= raw(data.description)
-      %i.fa.fa-tags
-      - data.tags.each do |tag|
-        %span
-          .label-info.badge
-            = tag.name
-      .row
-        .col-md-12.margin-top-5
-          - if current_company == data.company && data.chat.present?
-            = link_to raw("<i class='fa fa-share-alt '></i>") ,send_invitation_job_path(data) , method: :post ,remote: true,  class: 'btn btn-xs btn-default',title: "Send invitation" ,'data-toggle'=>"tooltip" ,'data-placement'=>"top"
-            = link_to raw("<i class='fa fa-comments '></i>") ,company_chat_path(data.chat),class: "btn btn-xs btn-default",title: " #{data.title} Chat", 'data-toggle'=>"tooltip" ,'data-placement'=>"top"
+      %div.pull-right.font-xs.text-muted
+        .pt-avatar-w.d-flex{style: 'flex-direction: column;align-items: center;'}
+          =image_tag data.company.logo,class:'circle_img',alt: "job",style: "width: 40px !important; height: 40px !important;"
+          .d-flex
+            .logged-user-role.d-block= contact_widget(data.company.email, data.company.phone,data.company,chat_link: chat_link(data.company),color: '#636c71 !important')
+
+      = image_tag data.files.blank? ? 'jobs.png' : data.files,class:'circle_img',alt: "job",style: "width: 40px !important; height: 40px !important;"
+      .title.d-flex
+        - if current_company == data.company && data.chat.present?
+          = link_to raw("<i class='fa fa-share-alt ' style='color: #636c71'></i>") ,send_invitation_job_path(data) , method: :post ,remote: true,  class: '',title: "Send invitation" ,'data-toggle'=>"tooltip" ,'data-placement'=>"top"
+        %h6.pl-2 Title- #{do_ellipsis(data.title.humanize,15)}
+      .name.font-sm.text-mutedd
+        %i.picons-social-icon-periscope{style: 'color: #636c71;'}  #{data.location&.humanize}
+      .data_description.mt-5
+        = data.description.html_safe
+

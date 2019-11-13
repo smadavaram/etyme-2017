@@ -110,7 +110,7 @@ class Candidate < ApplicationRecord
   accepts_nested_attributes_for :legal_documents, allow_destroy: true, reject_if: :all_blank
 
 
-  scope :search_by, ->(term) {Candidate.where('lower(first_name) like :term or lower(last_name) like :term ', {term: "%#{term.downcase}%"})}
+  scope :search_by, ->term,search_scop{Candidate.where('lower(first_name) like :term or lower(last_name) like :term or lower(phone) like :term or lower(email) like :term ', {term: "%#{term.downcase}%"})}
   scope :application_status_count, ->(candidate,start_date, end_date) {candidate.job_applications.reorder('')
                                                                  .select('COUNT(*) as count, job_applications.status')
                                                                  .where(created_at: start_date...end_date)
