@@ -3,6 +3,7 @@ class ApplicationController < ActionController::Base
   protect_from_forgery
   before_action :set_permissions
   layout :set_devise_layout
+  before_action :prepare_exception_notifier
 
   add_flash_types :error, :success, :errors, :alert
 
@@ -78,6 +79,12 @@ class ApplicationController < ActionController::Base
     @current_company = Company.find_by(slug: request.subdomain)
   end
 
+  def prepare_exception_notifier
+    request.env["exception_notifier.exception_data"] = {
+        current_user: current_user,
+        current_company: current_company
+    }
+  end
   helper_method :current_company
 
 end

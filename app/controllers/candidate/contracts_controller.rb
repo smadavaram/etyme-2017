@@ -22,6 +22,7 @@ class Candidate::ContractsController < Candidate::BaseController
   def submit_timesheet
     @timesheet = current_candidate.timesheets.find_by(id: params[:timesheet_id])
   end
+
   def timeline
     @contract_cycles = params[:cycle_type]&.eql?('timesheet') ? current_candidate.contract_cycles.where(cycle_type: "TimesheetSubmit") : current_candidate.contract_cycles
     @contracts = Contract.where(candidate: current_candidate)
