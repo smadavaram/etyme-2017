@@ -31,12 +31,8 @@ set :linked_dirs, fetch(:linked_dirs, []).push('log', 'tmp/pids', 'tmp/cache', '
 
 namespace :deploy do
 
-  after :restart, :clear_cache do
-    on roles(:web), in: :groups, limit: 3, wait: 10 do
-      within release_path do
-        invoke! 'bin/delayed_job restart'
-      end
-    end
+  after 'deploy:published', 'restart' do
+    invoke 'delayed_job:restart'
   end
 
 end
