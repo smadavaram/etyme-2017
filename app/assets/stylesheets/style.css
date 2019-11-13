@@ -1785,3 +1785,6 @@ flex: 0 0 220px;
     pointer-events:none;
     cursor: pointer;
 }
+.space_between{
+    justify-content: space-between;
+}

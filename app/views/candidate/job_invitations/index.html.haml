@@ -22,13 +22,13 @@
               All
         .tab-content.padding-top-15
           #is4.tab-pane
-            = render partial: 'candidate/job_invitations/partials/invitations_table' , locals: {data: @job_invitations.rejected}
+            = render partial: 'candidate/job_invitations/partials/invitations_table' , locals: {data: @job_invitations.rejected,id: 1}
           #is1.tab-pane
-            = render partial: 'candidate/job_invitations/partials/invitations_table' , locals: {data: @job_invitations.accepted}
+            = render partial: 'candidate/job_invitations/partials/invitations_table' , locals: {data: @job_invitations.accepted,id: 2}
           #is2.tab-pane.fade
-            = render partial: 'candidate/job_invitations/partials/invitations_table' , locals: {data: @job_invitations.pending}
+            = render partial: 'candidate/job_invitations/partials/invitations_table' , locals: {data: @job_invitations.pending,id: 3}
           #is3.tab-pane.fade.active.in
-            = render partial: 'candidate/job_invitations/partials/invitations_table' , locals: {data: @job_invitations}
+            = render partial: 'candidate/job_invitations/partials/invitations_table' , locals: {data: @job_invitations,id: 4}
 
 #job_invitation
 - content_for :scripts do
