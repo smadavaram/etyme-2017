@@ -901,7 +901,7 @@ ActiveRecord::Schema.define(version: 20191113121035) do
     t.decimal "salary_to_pay", default: "0.0"
     t.string "project_name"
     t.boolean "is_client_customer"
-    t.integer "cc_job"
+    t.integer "cc_job", default: 0
   end
 
   create_table "conversation_messages", force: :cascade do |t|
