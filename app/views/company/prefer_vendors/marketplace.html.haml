@@ -1,20 +1,11 @@
-
 .marketplacebody
   = form_tag marketplace_path, :method => :get , id: "market_place_form" do
     .container
       .row
         .col-md-5.offset-md-3.pt-4.col-8
           .element-search.autosuggest-search-activator
-
             = text_field_tag 'search_by[term]', params[:search_by][:term],placeholder: "search ...", autofocus: false,class: "market_place_field form-control form-control-sm bright p-3"
         .col-md-4.pt-4.end-flex.mt-3.col-4          
-
-              
-
-
-
-
-
           .messages-notifications.os-dropdown-trigger.os-dropdown-position-left{style: "font-size: 30px; color: #636c71;"}
             %i.picons-social-icon-periscope.mr-3{style: "font-size: 30px; color: #636c71;"}
             .os-dropdown.light.message-list.mb-3{style: 'width: 570px; height: 200px;'}
@@ -32,14 +23,6 @@
                       %td      
 
                       %td
-
-
-
-
-
-
-
-
 
           .messages-notifications.os-dropdown-trigger.os-dropdown-position-left{style: "font-size: 30px; color: #636c71;"}
             %i.icon-equalizer
@@ -65,18 +48,6 @@
                     %input.form-check-input{:checked => "checked",:name => "search_by[search_scop]", :type => "radio", :value => ""}>/
                     %span.radio-checkmark
 
-
-
-
-
-              -#.custom-control.custom-switch
-              -#  - if params[:search_by][:search_scop].eql?('on')
-              -#    %input#customSwitch1{:type => "checkbox", :name => "search_by[search_scop]",class: "market_place_field",checked: true }
-              -#    %label{:style => "color: red;"}Search In Prefer Vendor
-              -#
-              -#  - else
-              -#    %input#customSwitch1{:type => "checkbox", :name => "search_by[search_scop]",class: "market_place_field" }
-              -#    %label{:style => "color: red;"} Search In Prefer Vendor
 
               = select_tag 'job_departments', options_for_select(department_list,:selected=>params[:job_departments]), class: 'form-control', id: 'job_departments',include_blank: "Select Department"
               = select_tag 'job_industry', options_for_select(industry_list,:selected=>params[:job_industry]),class: 'form-control',include_blank: "Select Job Industry"
@@ -119,10 +90,6 @@
             %input{:type => "checkbox", :name => "training",class: "market_place_field",checked: true}Trainings
 
 
-    / .row
-    /   .col-md-10.offset-md-1.pt-2
-    /     .element-search.autosuggest-search-activator
-    /       = text_field_tag :search_by_skills_and_tag, params[:search_by_skills_and_tag],placeholder: "search by skills & tag", autofocus: false,class: "market_place_field form-control form-control-sm bright market_place_field p-3"
     .container
       .row
         .col-sm-12
