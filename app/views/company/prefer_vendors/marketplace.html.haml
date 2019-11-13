@@ -6,15 +6,9 @@
         .col-md-5.offset-md-3.pt-4.col-8
           .element-search.autosuggest-search-activator
 
-            = text_field_tag 'search_by[term]', params[:search_by][:term],placeholder: "search by skills", autofocus: false,class: "market_place_field form-control form-control-sm bright p-3"
+            = text_field_tag 'search_by[term]', params[:search_by][:term],placeholder: "search ...", autofocus: false,class: "market_place_field form-control form-control-sm bright p-3"
         .col-md-4.pt-4.end-flex.mt-3.col-4          
-          .custom-control.custom-switch
-            - if params[:search_by][:search_scop].eql?('on')
-              %input#customSwitch1.custom-control-input{:type => "checkbox", :name => "search_by[search_scop]",class: "market_place_field",checked: true }
-                %label.custom-control-label{:for => "customSwitch1"} Prefer Vendor Search
-            - else
-              %input#customSwitch1.custom-control-input{:type => "checkbox", :name => "search_by[search_scop]",class: "market_place_field" }
-                %label.custom-control-label{:for => "customSwitch1"} Prefer Vendor Search
+
               
 
 
@@ -34,15 +28,10 @@
                   - @data.each do |loc|
                     %tr
                       %td
-                        - if loc.class.name.eql?('Company')
-                          -loc.locations.each do |location|
-                            =location.name
+
                       %td      
-                        - if loc.class.name.eql?('Candidate')
-                          =location.address
-                      %td    
-                        - if loc.class.name.eql?('Job')
-                          =loc.location
+
+                      %td
 
 
 
@@ -55,6 +44,40 @@
           .messages-notifications.os-dropdown-trigger.os-dropdown-position-left{style: "font-size: 30px; color: #636c71;"}
             %i.icon-equalizer
             .os-dropdown.light.message-list.mb-3{style: 'width: 270px;'}
+              - if params[:search_by][:search_scop].eql?('on')
+                .form-group.mb-0
+                  %label.radio-container
+                    %span{style: 'color:#636c71;'}Search in Prefer Vendor
+                    %input.form-check-input{:checked => "checked", :name => "search_by[search_scop]", :type => "radio", :value => "on"}>/
+                    %span.radio-checkmark
+                  %label.radio-container
+                    %span{style: 'color:#636c71;'}Search In Etyme
+                    %input.form-check-input{:name => "search_by[search_scop]", :type => "radio", :value => ""}>/
+                    %span.radio-checkmark
+              - else
+                .form-group.mb-0
+                  %label.radio-container
+                    %span{style: 'color:#636c71;'}Search in Prefer Vendor
+                    %input.form-check-input{:name => "search_by[search_scop]", :type => "radio", :value => "on"}>/
+                    %span.radio-checkmark
+                  %label.radio-container
+                    %span{style: 'color:#636c71;'}Search In Etyme
+                    %input.form-check-input{:checked => "checked",:name => "search_by[search_scop]", :type => "radio", :value => ""}>/
+                    %span.radio-checkmark
+
+
+
+
+
+              -#.custom-control.custom-switch
+              -#  - if params[:search_by][:search_scop].eql?('on')
+              -#    %input#customSwitch1{:type => "checkbox", :name => "search_by[search_scop]",class: "market_place_field",checked: true }
+              -#    %label{:style => "color: red;"}Search In Prefer Vendor
+              -#
+              -#  - else
+              -#    %input#customSwitch1{:type => "checkbox", :name => "search_by[search_scop]",class: "market_place_field" }
+              -#    %label{:style => "color: red;"} Search In Prefer Vendor
+
               = select_tag 'job_departments', options_for_select(department_list,:selected=>params[:job_departments]), class: 'form-control', id: 'job_departments',include_blank: "Select Department"
               = select_tag 'job_industry', options_for_select(industry_list,:selected=>params[:job_industry]),class: 'form-control',include_blank: "Select Job Industry"
               = select_tag 'job_category', options_for_select(WORK_CATEGORIES.keys,:selected=>params[:job_category]),class: 'form-control',id: 'candidate_category',include_blank: "Select Job category"
@@ -81,17 +104,17 @@
             %input{:type => "checkbox", :name => "Jobs",class: "market_place_field",checked: true}Jobs
         .col-md-2
           - if params[:product].blank?
-            %input{:type => "checkbox", :name => "product",class: "market_place_field"}Products
+            %input{:type => "checkbox", :name => "product",class: "market_place_field", value: 'product'}Products
           - else
             %input{:type => "checkbox", :name => "product",class: "market_place_field",checked: true}Products
         .col-md-2
           -if params[:service].blank?
-            %input{:type => "checkbox", :name => "service",class: "market_place_field"}Services
+            %input{:type => "checkbox", :name => "service",class: "market_place_field", value: 'service'}Services
           - else
             %input{:type => "checkbox", :name => "service",class: "market_place_field",checked: true}Services
         .col-md-2
           - if params[:training].blank?
-            %input{:type => "checkbox", :name => "training",class: "market_place_field"}Trainings
+            %input{:type => "checkbox", :name => "training",class: "market_place_field", value: 'Training'}Trainings
           - else
             %input{:type => "checkbox", :name => "training",class: "market_place_field",checked: true}Trainings
 

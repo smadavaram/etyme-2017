@@ -4,10 +4,8 @@
       %div.pull-right.font-xs.text-muted
         .pt-avatar-w.d-flex{style: 'flex-direction: column;align-items: center;'}
           =image_tag data.company.logo,class:'circle_img',alt: "job",style: "width: 40px !important; height: 40px !important;"
-          .abc.d-flex
+          .d-flex
             .logged-user-role.d-block= contact_widget(data.company.email, data.company.phone,data.company,chat_link: chat_link(data.company),color: '#636c71 !important')
-
-          -#= link_to raw("<i class='fa fa-comments '></i>") ,company_chat_path(data.chat),class: "btn btn-xs btn-default",title: " #{data.title} Chat", 'data-toggle'=>"tooltip" ,'data-placement'=>"top"
 
       = image_tag data.files.blank? ? 'jobs.png' : data.files,class:'circle_img',alt: "job",style: "width: 40px !important; height: 40px !important;"
       .title.d-flex
@@ -16,10 +14,6 @@
         %h6.pl-2 Title- #{do_ellipsis(data.title.humanize,15)}
       .name.font-sm.text-mutedd
         %i.picons-social-icon-periscope{style: 'color: #636c71;'}  #{data.location&.humanize}
-      -#.name.font-sm.text-mutedd
-      -#  %i.fa.fa-tags
-      -#    - data.tags.take(3).each do |tag|
-      -#      = tag.name
       .data_description.mt-5
         = data.description.html_safe
 

@@ -11,41 +11,33 @@ class Company::PreferVendorsController < Company::BaseController
   def index
     add_breadcrumb "Prefer Vendors Requests".humanize, :prefer_vendors_path, :title => "Prefer Vendors"
   end
-  
+
   def marketplace
     add_breadcrumb "Marketplace".humanize, '#', :title => "MarketPlace"
-    get_cards
-    if current_company&.vendor?
-      @data = []
-      @query_hash = {company_id: current_company.prefer_vendor_companies.pluck('id'),title: params[:Job_titles],department: params[:job_departments],industry: params[:job_industry],job_category: params[:job_category]}
-      @query_hash.delete_if {|key, value| value.blank? }
-      respond_to do |format|
-        format.html {
-          if params[:Jobs] == 'on'
-            @data += apply_scopes(Job.where(@query_hash))
-          end
-
-          if params[:product] == 'on'
-            @data += apply_scopes(Job.where(company_id: current_company.prefer_vendor_companies.pluck('id'),listing_type: 'product'))
-          end
-          if params[:service] == 'on'
-            @data += apply_scopes(Job.where(company_id: current_company.prefer_vendor_companies,listing_type: 'service'))
-          end
-          if params[:training] == 'on'
-            @data += apply_scopes(Job.where(company_id: current_company.prefer_vendor_companies.pluck('id'),listing_type: 'Training'))
-          end
-          if (params[:Candidates] == 'on')
-            @data += apply_scopes(current_company.candidates_companies.hot_candidate.joins(:candidate).select("candidates.*"))
-          end
-          if params[:company] == 'on'
-            @data += apply_scopes(Company.where(id: current_company.prefer_vendors.accepted.pluck(:vendor_id)))
-
-          end
-          @data = @data.sort {|y, z| z.created_at <=> y.created_at}
-        }
-      end
+    @data = []
+    @search_scop_on = params[:search_by][:search_scop].eql?('on')
+    @query_hash = {
+        title: params[:Job_titles], department: params[:job_departments],
+        industry: params[:job_industry],
+        job_category: params[:job_category],
+        listing_type: params[:product],
+        listing_type: params[:service],
+        listing_type: params[:training]
+    }.delete_if { |key, value| value.blank? }
+    respond_to do |format|
+      format.html {
+        if params[:Jobs] == 'on' || params[:product] == 'product' || params[:service] == 'service' || params[:training] == 'Training'
+          @data += apply_scopes(Job.where(@search_scop_on ? {company_id: current_company.prefer_vendor_companies.pluck('id')} : {company_id: Company.ids}.merge(@query_hash)))
+        end
+        if (params[:Candidates] == 'on')
+          @data += apply_scopes(@search_scop_on ? current_company.candidates_companies.hot_candidate.joins(:candidate).where(company_id: Company.where(id: current_company.prefer_vendors.accepted.pluck(:vendor_id))).select("candidates.*") : Candidate.all)
+        end
+        if params[:company] == 'on'
+          @data += apply_scopes(@search_scop_on ? Company.where(id: current_company.prefer_vendors.accepted.pluck(:vendor_id)) : Company.all)
+        end
+        @data = @data.sort { |y, z| z.created_at <=> y.created_at }
+      }
     end
-    @activities = PublicActivity::Activity.order("created_at desc")
   end
 
 
@@ -67,7 +59,7 @@ class Company::PreferVendorsController < Company::BaseController
     @cards["BENCH JOB"] = current_company.jobs.where(status: 'Bench').where(created_at: start_date...end_date).count
     @cards["BENCH"] = current_company.candidates.where(company_id: current_company.id).where(created_at: start_date...end_date).count
     @cards["APPLICATION"] = current_company.received_job_applications.where(created_at: start_date...end_date).count
-    @cards["STATUS"] = Company.status_count(current_company,start_date,end_date)
+    @cards["STATUS"] = Company.status_count(current_company, start_date, end_date)
     @cards["ACTIVE"] = params[:filter]
   end
 
@@ -97,7 +89,7 @@ class Company::PreferVendorsController < Company::BaseController
     end
   end
 
-  
+
   def accept
     @prefer_vendor = current_company.perfer_vendor_companies.find_by(company_id: params[:company_id])
     if @prefer_vendor.pending?
@@ -114,7 +106,7 @@ class Company::PreferVendorsController < Company::BaseController
       end
     end
   end
-  
+
   def vendor_activity
     add_breadcrumb "Vendor Activities", vendor_activity_prefer_vendors_path, :title => "Vendor Companies Activities"
     @activities = PublicActivity::Activity.where(owner_type: 'Company',
@@ -123,11 +115,11 @@ class Company::PreferVendorsController < Company::BaseController
                                                          owner_id: User.where(company_id: current_company.prefer_vendors.accepted.pluck(:vendor_id))))
                       .paginate(page: params[:page], per_page: 15)
   end
-  
+
   def show_network
     add_breadcrumb "Prefer Vendors".humanize, :network_path, :title => "Prefer Vendors"
   end
-  
+
   def reject
     @prefer_vendor = current_company.perfer_vendor_companies.find_by(company_id: params[:company_id])
     if @prefer_vendor.pending?
@@ -144,7 +136,7 @@ class Company::PreferVendorsController < Company::BaseController
       end
     end
   end
-  
+
   def create
     vendor = current_company.prefer_vendors.create(vendor_id: params[:id], status: :pending)
     vendor.create_activity :create, owner: vendor.company, recipient: vendor.prefer_vendor
@@ -154,27 +146,27 @@ class Company::PreferVendorsController < Company::BaseController
       format.js { render inline: "location.reload();" }
     end
   end
-  
-  
+
+
   def authorized_user
     has_access?("manage_vendors")
   end
-  
-  
+
+
   private
-  
+
   #
   def set_prefer_vendors
     @network = current_company.prefer_vendors.accepted
   end
-  
+
   def set_prefer_vendors_request
     @sent_vendors = current_company.prefer_vendors.search(params[:q]) || []
     @vendors = @sent_vendors.result.paginate(page: params[:page], per_page: 30) || []
     @recived_vendors_search = current_company.perfer_vendor_companies.search(params[:q]) || []
     @recived_vendors = @recived_vendors_search.result.paginate(page: params[:page], per_page: 30) || []
   end
-  
+
   def vendor_params
     params.require(:prefer_vendor).permit(:company_ids[])
   end

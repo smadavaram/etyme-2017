@@ -43,7 +43,7 @@ class Job < ApplicationRecord
   scope :is_public, -> {where(is_public: true)}
   scope :not_system_generated, -> {where(is_system_generated: false)}
 
-  scope :search_by, ->term,search_scop {Job.where('lower(title) like :term or lower(description) like :term or lower(location) like :term or lower(job_category) like :term', {term: "#{term.downcase}%"}) unless search_scop == 'on'}
+  scope :search_by, ->term,search_scop {Job.where('lower(title) like :term or lower(description) like :term or lower(location) like :term or lower(job_category) like :term', {term: "#{term&.downcase}%"})}
 
 
   # def self.ransackable_attributes(auth_object = nil)
