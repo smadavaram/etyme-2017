@@ -35,7 +35,7 @@ class BuyContract < ApplicationRecord
   accepts_nested_attributes_for :buy_send_documents, allow_destroy: true, reject_if: :all_blank
   accepts_nested_attributes_for :buy_emp_req_docs, allow_destroy: true, reject_if: :all_blank
   accepts_nested_attributes_for :buy_ven_req_docs, allow_destroy: true, reject_if: :all_blank
-  accepts_nested_attributes_for :change_rates, allow_destroy: true,reject_if: proc { |attributes| attributes['rate'].blank? }
+  accepts_nested_attributes_for :change_rates, allow_destroy: true,reject_if:proc { |attributes|attributes['rate'].blank? || attributes['working_hrs'].blank? ||attributes['working_hrs'].blank? ||attributes['rate_type'].blank? || attributes['from_date'].blank? || attributes['to_date'].blank? ||  attributes['uscis'].blank? }
   
   validates_presence_of :ts_date_1, if: Proc.new { |b_con| b_con.time_sheet == "twice a month" }, :message => "Please select first date for timesheet"
   validates_presence_of :ts_date_1, if: Proc.new { |b_con| b_con.time_sheet == "month" && !b_con.ts_end_of_month }, :message => "Please select first date for timesheet"
