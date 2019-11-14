@@ -34,6 +34,7 @@
     -#= favicon_link_tag 'splash/ipad-portrait.png', type: 'image/png', rel: 'apple-touch-startup-image', media: 'screen and (min-device-width: 481px) and (max-device-width: 1024px) and (orientation:portrait)'
     -#= favicon_link_tag 'splash/iphone.png', type: 'image/png', rel: 'apple-touch-startup-image', media: 'screen and (max-device-width: 320px)'
     = yield :head
+    = yield :google_address_search_api if block_given?
 
   %body.smart-style-6{class: "#{yield :body_class} menu-position-side menu-side-left full-screen"}
     .all-wrapper

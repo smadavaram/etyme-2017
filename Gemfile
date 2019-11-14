@@ -150,6 +150,7 @@ gem "paranoia"#, "~> 2.2"
 # Use Capistrano for deployment
 # gem 'capistrano-rails', group: :development
 gem "googleauth"
+gem "geocoder"
 group :development, :test do
 # Gem rbnacl-libsodium should be placed before then gem rbnacl else sodium pkg error may occour
   gem 'rbnacl-libsodium'  

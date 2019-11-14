@@ -10,6 +10,9 @@ class Candidate < ApplicationRecord
   include ArchilliCandidateProfileBuilder
   include SovrenCandidateProfileBuilder
 
+  attr_accessor :address
+  geocoded_by :address
+  after_validation :geocode
 
   enum status: [:signup, :campany_candidate]
   enum visa: [:Us_citizen, :GC, :OPT, :OPT_third_party, :H1B, :H1B_third_party]

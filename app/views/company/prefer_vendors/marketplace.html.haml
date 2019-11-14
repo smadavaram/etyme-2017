@@ -1,3 +1,5 @@
+-content_for :google_address_search_api do
+  %script{:src => "https://maps.googleapis.com/maps/api/js?key=AIzaSyAdf6df60vd1qmUPN7A8kwNDRc9qWx7CF4&libraries=places", :type => "text/javascript"}
 .marketplacebody
   = form_tag marketplace_path, :method => :get , id: "market_place_form" do
     .container
@@ -8,21 +10,11 @@
         .col-md-4.pt-4.end-flex.mt-3.col-4          
           .messages-notifications.os-dropdown-trigger.os-dropdown-position-left{style: "font-size: 30px; color: #636c71;"}
             %i.picons-social-icon-periscope.mr-3{style: "font-size: 30px; color: #636c71;"}
-            .os-dropdown.light.message-list.mb-3{style: 'width: 570px; height: 200px;'}
-              %table
-                %thead
-                  %tr
-                    %th Company
-                    %th Candidate
-                    %th Job
-                %tbody
-                  - @data.each do |loc|
-                    %tr
-                      %td
+            .os-dropdown.light.message-list.mb-3{style: 'width: 400px; height: 100px;'}
+              -#%input#searchTextField{:size => "50", :type => "text"}/
+              = text_field_tag 'search_by[address]', params[:search_by][:address],placeholder: "search Address ...", autofocus: false, id: 'google_search_location' ,class: " market_place_field form-control form-control-sm bright p-3"
 
-                      %td      
 
-                      %td
 
           .messages-notifications.os-dropdown-trigger.os-dropdown-position-left{style: "font-size: 30px; color: #636c71;"}
             %i.icon-equalizer

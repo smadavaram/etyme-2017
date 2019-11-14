@@ -1,5 +1,6 @@
 class Job < ApplicationRecord
 
+  attr_accessor :location
   # validates :end_date , presence: true , if: Proc.new{ |job| !job.is_system_generated }
   validates :title, presence: true
   # validates :start_date, presence: true, date: { after_or_equal_to: Proc.new { Date.today }, message: "must be at least #{(Date.today + 1).to_s}" }, on: :create
@@ -44,6 +45,11 @@ class Job < ApplicationRecord
   scope :not_system_generated, -> {where(is_system_generated: false)}
 
   scope :search_by, ->term,search_scop {Job.where('lower(title) like :term or lower(description) like :term or lower(location) like :term or lower(job_category) like :term', {term: "#{term&.downcase}%"})}
+
+  geocoded_by :location
+  after_validation :geocode
+
+
 
 
   # def self.ransackable_attributes(auth_object = nil)
