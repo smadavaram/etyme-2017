@@ -17,13 +17,13 @@
       %tbody
         - @network.each do |d|
           %tr
-            %td
+            %td.no-wrap.pr-4
               = user_image(d.prefer_vendor, class: 'data-table-image mr-1',title: "#{d.prefer_vendor&.full_name}")
-              = link_to d.prefer_vendor.name ,profile_company_path(d.prefer_vendor)
-            %td
+              = link_to do_ellipsis(d.prefer_vendor.name,8) ,profile_company_path(d.prefer_vendor)
+            %td.no-wrap
               = user_image(d.prefer_vendor.owner, class: 'data-table-image mr-1',title: "#{d.prefer_vendor.owner&.full_name}")
-              = d.prefer_vendor.owner.full_name  rescue "  --"
-            %td= d.prefer_vendor.owner.try(:email)
+              = do_ellipsis(d.prefer_vendor.owner.full_name,15)  rescue "  --"
+            %td= do_ellipsis(d.prefer_vendor.owner.try(:email),15)
             %td= d.company.domain rescue "  --"
             %td= d.company.phone rescue "  --"
             %td= colorfull_text(d.status.capitalize, d.rejected? ? 'red' : 'green')

@@ -1,31 +1,33 @@
 %script{:src => "https://sdk.accountkit.com/en_US/sdk.js"}
 %script{:src => "https://sdk.accountkit.com/en_EN/sdk.js"}
-.row.panel.panel-default
-  .col-sm-12
-    .row
+.element-wrapper.m-2
+  .element-box
+    .row.panel.panel-default
       .col-sm-12
-        .form-group
-      .col-sm-12
-        %p.imgDescription.col-sm-offset-4  Please Confirm your Mobile Number
-        .col-sm-1
-        .col-sm-1
-          .form-group
-            %input#country_code.form-control.input-lg{:name => "country_code", :type => "text", :value=>"+1"}/  
-              
-        .col-sm-6
-          .form-group
-            .input-group
-              %span.input-group-addon
-                %i.fa.fa-mobile-phone.fa-lg.fa-fw
-              %input#phone_no.form-control.input-lg{:name => "phone_no", :placeholder => "Enter Phone number", :type => "text", :value=>current_company.phone}/
+        .row
+          .col-sm-12
+            .form-group
+          .col-sm-12
+            %p.imgDescription.col-sm-offset-4  Please Confirm your Mobile Number
+            .col-sm-1
+            .col-sm-1
+              .form-group
+                %input#country_code.form-control.input-lg{:name => "country_code", :type => "text", :value=>"+1"}/
 
-        .col-sm-4
-          .form-group
-            .input-group
-              %a.btn.btn-primary.btn-lg{:href => "javascript:void(0);", :onclick => "smsLogin();"} Send OTP
-              -if current_company.is_number_verify == true
-                %span{:style=>"font-size: 25px;color: green;"}
-                  %i.fa.fa-check-circle.fa-lg.fa-fw  
+            .col-sm-6
+              .form-group
+                .input-group
+                  %span.input-group-addon
+                    %i.fa.fa-mobile-phone.fa-lg.fa-fw
+                  %input#phone_no.form-control.input-lg{:name => "phone_no", :placeholder => "Enter Phone number", :type => "text", :value=>current_company.phone}/
+
+            .col-sm-4
+              .form-group
+                .input-group
+                  %a.btn.btn-primary.btn-lg{:href => "javascript:void(0);", :onclick => "smsLogin();"} Send OTP
+                  -if current_company.is_number_verify == true
+                    %span{:style=>"font-size: 25px;color: green;"}
+                      %i.fa.fa-check-circle.fa-lg.fa-fw
               
 
 

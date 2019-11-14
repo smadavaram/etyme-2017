@@ -1798,28 +1798,4 @@ flex: 0 0 220px;
     display: flex;
     justify-content: flex-end;
 }
-.popup-custom{
-    position: fixed;
-    height: 70vh;
-    right: 16px;
-    width: 184px !important;
-    top: 163px;
-    background-color: #fff;
-    box-shadow: 0 3px 6px 0 rgba(0,0,0,.2);
-    transition: width .3s;
-    z-index: 999;
-}
-.popup-custom-hide{
-    position: fixed;
-    height: 100vh;
-    right: 0;
-    width: 0px;
-}
-.end-flex{
-    display: flex;
-    justify-content: flex-end;
-}
-.space_between{
-    justify-content: space-between;
-}
 
