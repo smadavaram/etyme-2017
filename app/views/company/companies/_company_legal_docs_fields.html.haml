@@ -14,7 +14,7 @@
     .col-md-2
       .form-group
         %p Expiry Date
-        = f.text_field :exp_date, placeholder: "YYYY-MM-DD",class: 'form-control input legal_doc_exp_date'    
+        = f.text_field :exp_date, placeholder: "YYYY-MM-DD",class: 'form-control input legal_doc_exp_date',:autocomplete => :off
     
     
     .col-md-5

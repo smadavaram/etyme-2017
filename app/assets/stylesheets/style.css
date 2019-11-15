@@ -1785,15 +1785,17 @@ flex: 0 0 220px;
     pointer-events:none;
     cursor: pointer;
 }
+/*TODO: remove this and add to trix div*/
+.element-box{
+    min-height: 170px !important;
+}
+.el-tablo.trend-in-corner .trending {
+    top: 100px !important;
+    right: 10px !important;
+    font-size: 30px !important;
+}
 .end-flex{
     display: flex;
     justify-content: flex-end;
-}
-
-a:visited {
-    color: blue !important;
-}
-.space_between{
-    justify-content: space-between;
 }
 

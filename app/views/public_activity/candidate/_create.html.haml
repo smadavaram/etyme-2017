@@ -3,7 +3,7 @@
     %strong #{a.try(:created_at).strftime('%I:%M %P')}
   .ta-activity
     #{a.owner.name.titleize}   created candidate
-    = link_to a.trackable.try(:full_name).try(:titleize), static_candidate_resume_path( a.trackable), class: 'font-md'
+    = link_to a.trackable.try(:full_name).try(:titleize), static_candidate_resume_path( a.trackable), class: 'font-md' if a.blank?
 
 
 -#- if params[:index]
