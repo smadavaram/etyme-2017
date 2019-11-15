@@ -130,36 +130,52 @@ $(document).ready(function () {
     });
 
     $('#prefer_vendors_table').dataTable();
-    $('#prefer_vendors_table-search').keyup(function(){
-        $('#prefer_vendors_table').DataTable().search( $(this).val() ).draw();
+    $('#prefer_vendors_table-search').keyup(function () {
+        $('#prefer_vendors_table').DataTable().search($(this).val()).draw();
     });
     $('#receive_prefer_vendors_table').dataTable();
-    $('#receive_prefer_vendors_table-search').keyup(function(){
-        $('#receive_prefer_vendors_table').DataTable().search( $(this).val() ).draw();
+    $('#receive_prefer_vendors_table-search').keyup(function () {
+        $('#receive_prefer_vendors_table').DataTable().search($(this).val()).draw();
     });
     $('#network_prefer_vendors_table').dataTable();
-    $('#network_prefer_vendors_table-search').keyup(function(){
-        $('#network_prefer_vendors_table').DataTable().search( $(this).val() ).draw();
+    $('#network_prefer_vendors_table-search').keyup(function () {
+        $('#network_prefer_vendors_table').DataTable().search($(this).val()).draw();
     });
     $('#company_bench_datatable').dataTable();
-    $('#company_bench_datatable-search').keyup(function(){
-        $('#company_bench_datatable').DataTable().search( $(this).val() ).draw();
+    $('#company_bench_datatable-search').keyup(function () {
+        $('#company_bench_datatable').DataTable().search($(this).val()).draw();
     });
     $('#job_sent_inv_dataTable').dataTable();
-    $('#job_sent_inv_dataTable-search').keyup(function(){
-        $('#job_sent_inv_dataTable').DataTable().search( $(this).val() ).draw();
+    $('#job_sent_inv_dataTable-search').keyup(function () {
+        $('#job_sent_inv_dataTable').DataTable().search($(this).val()).draw();
     });
     $('#job_receive_inv_dataTable').dataTable();
-    $('#job_receive_inv_dataTable-search').keyup(function(){
-        $('#job_receive_inv_dataTable').DataTable().search( $(this).val() ).draw();
+    $('#job_receive_inv_dataTable-search').keyup(function () {
+        $('#job_receive_inv_dataTable').DataTable().search($(this).val()).draw();
     });
     $('#company_sell_contract-datatable').dataTable();
-    $('#company_sell_contract-datatable-search').keyup(function(){
-        $('#company_sell_contract-datatable').DataTable().search( $(this).val() ).draw();
+    $('#company_sell_contract-datatable-search').keyup(function () {
+        $('#company_sell_contract-datatable').DataTable().search($(this).val()).draw();
     });
     $('#company-buy-contracts-datatable').dataTable();
-    $('#company-buy-contracts-datatable-search').keyup(function(){
-        $('#company-buy-contracts-datatable').DataTable().search( $(this).val() ).draw();
+    $('#company-buy-contracts-datatable-search').keyup(function () {
+        $('#company-buy-contracts-datatable').DataTable().search($(this).val()).draw();
+    });
+    $('#candidate_job_invite_datatable_1').dataTable();
+    $('#candidate_job_invite_datatable-search_1').keyup(function () {
+        $('#candidate_job_invite_datatable_1').DataTable().search($(this).val()).draw();
+    });
+    $('#candidate_job_invite_datatable_2').dataTable();
+    $('#candidate_job_invite_datatable-search_2').keyup(function () {
+        $('#candidate_job_invite_datatable_2').DataTable().search($(this).val()).draw();
+    });
+    $('#candidate_job_invite_datatable_3').dataTable();
+    $('#candidate_job_invite_datatable-search_3').keyup(function () {
+        $('#candidate_job_invite_datatable_3').DataTable().search($(this).val()).draw();
+    });
+    $('#candidate_job_invite_datatable_4').dataTable();
+    $('#candidate_job_invite_datatable-search_4').keyup(function () {
+        $('#candidate_job_invite_datatable_4').DataTable().search($(this).val()).draw();
     });
 
 

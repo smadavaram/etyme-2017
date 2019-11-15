@@ -1,0 +1,5 @@
+$("#company-conversation-list").append("<%= j render 'company/conversations/conversations_list', conversations: @conversations %>");
+<% if @conversations %>
+  $("#all-infinite-scrolling-con").html("<%= j will_paginate @conversations, {params: params.merge(keyword: @query, topic: @topic)} %>");
+  $(".company-conversation-scorll").data('ajaxready', true);
+<% end %>

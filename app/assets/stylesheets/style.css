@@ -1785,6 +1785,7 @@ flex: 0 0 220px;
     pointer-events:none;
     cursor: pointer;
 }
+/*TODO: remove this and add to trix div*/
 .element-box{
     min-height: 170px !important;
 }
@@ -1814,3 +1815,11 @@ flex: 0 0 220px;
     right: 0;
     width: 0px;
 }
+.end-flex{
+    display: flex;
+    justify-content: flex-end;
+}
+.space_between{
+    justify-content: space-between;
+}
+

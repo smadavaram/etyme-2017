@@ -153,6 +153,7 @@
 //= require best_in_place.jquery-ui
 
 //= require custom
+//= require shared/datatable
 
 //= require highcharts.js
 //= require highcharts-exporting.js

@@ -52,7 +52,11 @@
       <%= msg.created_at.strftime("%l:%M%P") %>
     </div>
     <div class="chat-message-avatar">
-      <%#= image_tag msg.userable.photo %>
+      <% if msg.userable.photo&.present? %>
+        <%= image_tag(msg.userable.photo, class: "image-35-imp", alt: image_alt(msg.userable)) %>
+      <% else %>
+        <%= entity_image(msg.userable.first_name, msg.userable.last_name, 'circle', "image-35-imp") %>
+      <% end %>
     </div>
   </div>
 <% else %>
@@ -83,6 +87,13 @@
           <a href=<%= msg.file_url %> target="_blank">Attachment</a>
         <% end %>
       </div>
+    </div>
+    <div class="chat-message-avatar">
+      <% if false #msg.userable.photo&.present? %>
+        <%= image_tag(msg.userable.photo, class: "image-35-imp", alt: image_alt(msg.userable)) %>
+      <% else %>
+        <%= entity_image(msg.userable.first_name, msg.userable.last_name, 'circle', "image-35-imp") %>
+      <% end %>
     </div>
     <div class="chat-message-date">
       <%= msg.created_at.strftime("%l:%M%P") %>
