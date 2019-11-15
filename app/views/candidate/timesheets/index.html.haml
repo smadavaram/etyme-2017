@@ -1,22 +1,17 @@
 .row.mb-4.w-100
   %ul.nav.nav-tabs.w-100.mt-3{style: "border-bottom: none;"}
-    %li.nav-item.ml-3
-      %a{class: "nav-link fd upcomming_timesheets #{ "active" if @tab.eql?("upcomming_timesheets") }", href:'#', onclick: "time_line_filter('upcomming_timesheets','.select-time-cycle','.select-contract')","data-toggle" => "tab"} Upcomming
-    %li.nav-item
-      %a{class: "nav-link fd submitted_timesheets #{ "active" if @tab.eql?("submitted_timesheets") } ",href:'#', onclick: "time_line_filter('submitted_timesheets','.select-time-cycle','.select-contract')","data-toggle" => "tab"} Submitted
-    %li.nav-item
-      %a{class: "nav-link fd approved_timesheets #{ "active" if @tab.eql?("approved_timesheets") } ", href:'#', onclick: "time_line_filter('approved_timesheets','.select-time-cycle','.select-contract')","data-toggle" => "tab"} Approved
-    %li.nav-item
-      %a{class: "nav-link fd open_timesheets #{ "active" if @tab.eql?("open_timesheets") } ", href:'#', onclick: "time_line_filter('open_timesheets','.select-time-cycle','.select-contract')","data-toggle" => "tab"} All
+    %li{class: "nav-item #{ "active" if @tab.eql?("upcomming_timesheets") }"}
+      %a{class: "nav-link fd upcomming_timesheets ", href:'#', onclick: "time_line_filter('upcomming_timesheets','.select-time-cycle','.select-contract.active')","data-toggle" => "tab"} Upcomming
+    %li{class: "nav-item #{ "active" if @tab.eql?("submitted_timesheets") }"}
+      %a{class: "nav-link fd submitted_timesheets ",href:'#', onclick: "time_line_filter('submitted_timesheets','.select-time-cycle','.select-contract.active')","data-toggle" => "tab"} Submitted
+    %li{class: "nav-item #{ "active" if @tab.eql?("approved_timesheets") }"}
+      %a{class: "nav-link fd approved_timesheets ", href:'#', onclick: "time_line_filter('approved_timesheets','.select-time-cycle','.select-contract.active')","data-toggle" => "tab"} Approved
+    %li{class: "nav-item #{ "active" if @tab.eql?("open_timesheets") }"}
+      %a{class: "nav-link fd open_timesheets", href:'#', onclick: "time_line_filter('open_timesheets','.select-time-cycle','.select-contract.active')","data-toggle" => "tab"} All
     %li.nav-item.mt-2{style: "margin-left: auto;"}
-      %select.select-contract
-        %option{value: 'all'} Select Contract
-        -@contracts.each do |t|
-          %option{value: t.id}= t.project_name
-      %select.select-time-cycle{disabled:"disabled"}
+      %select.select-time-cycle.form-control-sm{disabled:"disabled"}
         %option{value: 'all'} Select Cycle
-
-      %select.cycle-type
+      %select.cycle-type.form-control-sm
         %option{value: false} Select Cycle Type
         %option{value: 'weekly'} Weekly
         %option{value: 'daily'} Daily
@@ -32,11 +27,32 @@
           = link_to 'Submit TimeSheet','#',class:'btn btn-primary submit_link', style: "border-radius: 0; height:38px; padding:10px 8px;"
         %p.d-inline-block.uploaded_file_name= "dd/mm/yyyy - dd/mm/yyyy"
 
+
 .row
-  .timesheet_table.margin-auto
+  .col-sm-5
+    .content-box
+      .support-index
+        .support-tickets
+          - @contracts.each_with_index do |contract,index|
+            = link_to '#',id: contract.id, class:"select-contract job_ticket" do
+              .st-body
+                .avatar
+                  = image_tag contract.company.logo
+                .ticket-content
+                  %h6.ticket-title
+                    = truncate(contract.project_name,length: 30)
+              .st-foot
+                %span.label Created by:
+                %span.value.with-avatar{:href => "#"}
+                  %span
+                    =contract.created_by&.full_name
+                %span.label Created at:
+                %span.value
+                  =contract.created_at.strftime("%d/%m/%Y")
 
-#timesheet_calendar.p-4
-
+  .col-sm-7
+    #timesheet_calendar.p-4
+    .timesheet_table.margin-auto.p-4
 
 -events = []
 -@timesheets.each{|ts|  ts.transactions.each{|tt| events << {allDay: true,status: ts.status ,description: 'timesheet transaction',title: "Transaction-#{tt.id}",id: tt.id, total_time: tt.total_time, timesheet_id:tt.timesheet_id, start: tt.start_time.strftime("%Y-%m-%d")} }}
@@ -45,7 +61,7 @@
   :javascript
     function time_line_filter(tab,cycle_selector,contract_selector){
       let cycle = $(cycle_selector).val();
-      let contract = $(contract_selector).val();
+      let contract = $(contract_selector)[0].id;
       $.get(`/candidate/timesheets.js?cycle_id=${cycle}&&contract_id=${contract}&&tab=${tab}`);
     }
     $(document).ready(function() {
@@ -56,7 +72,6 @@
       $('#timesheet_calendar').fullCalendar({
         dayNamesShort: ['S', 'M', 'T', 'W', 'T', 'F', 'S'],
         selectable: false,
-        height: "auto",
         header: {center: 'dayGridMonth,timeGridWeek'}, // buttons for switching between views
         views: {
           dayGridMonth: { // name of view
@@ -86,19 +101,22 @@
       $('.cycle-type').change(function(){
         $.get(`/candidate/timesheets.js?cycle_id=${false}&&contract_id=${false}&&tab=open_timesheets&&cycle_frequency=${$(this).val()}`);
       });
-      $('.select-contract').change(function() {
-        $.get(`/api/candidate/candidates/contract_cycles.json?contract_type=BuyContract&contract_id=${$(this).val()}`).then(function(data) {
+      $('.select-contract').click(function() {
+        $.get(`/api/candidate/candidates/contract_cycles.json?contract_type=BuyContract&contract_id=${this.id}`).then(function(data) {
           $('.select-time-cycle').empty().append($("<option>").val("all").text("Select Cycle"));
           data.forEach(function(cycle) {
             $('.select-time-cycle').append($("<option>").val(cycle.id).text(cycle.range))
           });
           $('.select-time-cycle').removeAttr('disabled');
         })
+        $('.job_ticket.active').removeClass('active')
+        $(this).addClass('active')
+        // e.preventDefault();
       });
 
       $('.select-time-cycle').change(function(){
         let cycle = $(this).val();
-        let contract = $('.select-contract').val();
+        let contract = $('.select-contract.active')[0].id;
         $.get(`/candidate/timesheets.js?cycle_id=${cycle}&&contract_id=${contract}&&tab=open_timesheets`);
       });
 

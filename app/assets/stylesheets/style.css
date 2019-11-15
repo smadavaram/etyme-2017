@@ -1799,4 +1799,7 @@ flex: 0 0 220px;
     justify-content: flex-end;
 }
 
+.space_between{
+    justify-content: space-between;
+}
 

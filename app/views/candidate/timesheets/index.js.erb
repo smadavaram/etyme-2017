@@ -1,6 +1,6 @@
 
-$('.fd').removeClass('active')
-$(".<%= @tab %>").addClass('active');
+$('.nav-item').removeClass('active')
+$(".<%= @tab %>").parent().addClass('active');
 
 
 <% if @tab.eql?("open_timesheets") %>
@@ -24,6 +24,7 @@ console.log(startCelandar,endCelandar)
 
 $('#timesheet_calendar').fullCalendar( "removeEvents")
 $('#timesheet_calendar').fullCalendar( "renderEvents", e ,true)
+$('#timesheet_calendar').fullCalendar('gotoDate', startCelandar);
 flash_success('Celandar Rendered Successfully');
 <% else %>
 $('.timesheet_table').show();
