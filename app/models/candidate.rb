@@ -10,8 +10,8 @@ class Candidate < ApplicationRecord
   include ArchilliCandidateProfileBuilder
   include SovrenCandidateProfileBuilder
 
-  attr_accessor :address
-  geocoded_by :address
+  attr_accessor :location
+  geocoded_by :location
   after_validation :geocode
 
   enum status: [:signup, :campany_candidate]

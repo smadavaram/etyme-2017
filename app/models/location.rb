@@ -2,6 +2,8 @@ class Location < ApplicationRecord
 
   # validates :name , presence: true
 
+  attr_accessor :locations
+
 
   belongs_to  :company, optional: true
   # has_many    :jobs

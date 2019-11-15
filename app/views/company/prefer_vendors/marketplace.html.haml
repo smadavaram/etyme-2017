@@ -12,7 +12,8 @@
             %i.picons-social-icon-periscope.mr-3{style: "font-size: 30px; color: #636c71;"}
             .os-dropdown.light.message-list.mb-3{style: 'width: 400px; height: 100px;'}
               -#%input#searchTextField{:size => "50", :type => "text"}/
-              = text_field_tag 'search_by[address]', params[:search_by][:address],placeholder: "search Address ...", autofocus: false, id: 'google_search_location' ,class: " market_place_field form-control form-control-sm bright p-3"
+              = text_field_tag :address, params[:address],placeholder: "search Address ...", autofocus: false, id: 'google_search_location' ,class: " market_place_field form-control form-control-sm bright p-3"
+
 
 
 
@@ -67,19 +68,19 @@
             %input{:type => "checkbox", :name => "Jobs",class: "market_place_field",checked: true}Jobs
         .col-md-2
           - if params[:product].blank?
-            %input{:type => "checkbox", :name => "product",class: "market_place_field", value: 'product'}Products
+            %input{:type => "checkbox", :name => "product",class: "market_place_field", value: 'Product'}Products
           - else
-            %input{:type => "checkbox", :name => "product",class: "market_place_field",checked: true}Products
+            %input{:type => "checkbox", :name => "product",class: "market_place_field",checked: true, value: 'Product'}Products
         .col-md-2
           -if params[:service].blank?
-            %input{:type => "checkbox", :name => "service",class: "market_place_field", value: 'service'}Services
+            %input{:type => "checkbox", :name => "service",class: "market_place_field", value: 'Service'}Services
           - else
-            %input{:type => "checkbox", :name => "service",class: "market_place_field",checked: true}Services
+            %input{:type => "checkbox", :name => "service",class: "market_place_field",checked: true, value: 'Service'}Services
         .col-md-2
           - if params[:training].blank?
-            %input{:type => "checkbox", :name => "training",class: "market_place_field", value: 'Training'}Trainings
+            %input{:type => "checkbox", :name => "training",class: "market_place_field",value: 'Training'}Trainings
           - else
-            %input{:type => "checkbox", :name => "training",class: "market_place_field",checked: true}Trainings
+            %input{:type => "checkbox", :name => "training",class: "market_place_field",checked: true, value: 'Training'}Trainings
 
 
     .container
