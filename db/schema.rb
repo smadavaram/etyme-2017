@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema.define(version: 20191113121035) do
+ActiveRecord::Schema.define(version: 20191114140535) do
 
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
@@ -60,6 +60,8 @@ ActiveRecord::Schema.define(version: 20191113121035) do
     t.date "to_date"
     t.string "addressable_type"
     t.bigint "addressable_id"
+    t.float "latitude"
+    t.float "longitude"
     t.index ["addressable_type", "addressable_id"], name: "index_addresses_on_addressable_type_and_addressable_id"
   end
 
@@ -417,6 +419,8 @@ ActiveRecord::Schema.define(version: 20191113121035) do
     t.boolean "relocation", default: false
     t.string "work_authorization"
     t.string "visa_type"
+    t.float "latitude"
+    t.float "longitude"
     t.index ["invitation_token"], name: "index_candidates_on_invitation_token", unique: true
     t.index ["invitations_count"], name: "index_candidates_on_invitations_count"
     t.index ["invited_by_id"], name: "index_candidates_on_invited_by_id"
@@ -1392,6 +1396,8 @@ ActiveRecord::Schema.define(version: 20191113121035) do
     t.bigint "conversation_id"
     t.boolean "is_indexed", default: false
     t.text "files"
+    t.float "latitude"
+    t.float "longitude"
     t.index ["deleted_at"], name: "index_jobs_on_deleted_at"
   end
 

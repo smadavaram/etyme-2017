@@ -1,3 +1,7 @@
+<% content_for :google_address_search_api do %>
+  <script src="https://maps.googleapis.com/maps/api/js?key=<%= ENV['google_search_location_api_key'] %>&libraries=places" type="text/javascript"></script>
+<% end %>
+
 <%= form_with(model: [@job], local: true) do |form| %>
   <%= render 'company/jobs/partials/forms/errors', form: form %>
   <% if params[:type] == "Blog" %>
@@ -40,7 +44,7 @@
     </div>
     <div class="row">
       <div class="col-lg-6">
-        <%= render 'company/jobs/partials/forms/field', form: form, attribute: :location, field_type: :text_field, field_attributes: {} %>
+        <%= render 'company/jobs/partials/forms/field', form: form, attribute: :location, field_type: :text_field, field_attributes: {id: 'google_search_location',autocomplete: 'off'} %>
       </div>
       <div class="col-lg-6">
         <%= render 'company/jobs/partials/forms/select', form: form, attribute: :job_category, options: WORK_CATEGORIES.keys.unshift(""), field_attributes: {label:'Category'} %>

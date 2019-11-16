@@ -1,3 +1,5 @@
+-content_for :google_address_search_api do
+  %script{:src => "https://maps.googleapis.com/maps/api/js?key=#{ENV['google_search_location_api_key']}&libraries=places", :type => "text/javascript"}
 = form_for @user,as: "user",url: company_user_path(@user.id),method: :put do |f|
   .row
     .col-md-6
@@ -26,11 +28,12 @@
       .col-md-12
         .form-group
           %label Address 1
-          = b.text_field :address_1 ,placeholder: "Address 1",class: 'form-control'
+          = b.text_field :address_1 ,placeholder: "Address 1",class: 'form-control', id: 'google_search_location'
       .col-md-12
         .form-group
           %label Address 2
-          = b.text_field :address_2, placeholder: "Address 2",class: 'form-control'
+          = b.text_field :address_2, placeholder: "Address 2",class: 'form-control', id: 'google_search_location'
+
   .row
     .col-md-12
       .form-group
