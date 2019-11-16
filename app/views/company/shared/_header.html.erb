@@ -1,40 +1,17 @@
 <div class="top-bar color-scheme-transparent" style="z-index: 1000;">
-  <!--------------------START - Top Menu Controls-------------------->
   <div class="top-menu-controls w-100" style="display: flex; justify-content: flex-end;">
     <div class="element-search autosuggest-search-activator os-dropdown-position-left">
       <input placeholder="Find reports and more" type="text">
     </div>
-    <!--   START Notifications -->
     <div class="messages-notifications os-dropdown-trigger os-dropdown-position-left">
       <a href="<%= notify_notifications_company_users_path(status: "unread", notification_type: "new_application") %>"><i class="ti-bell"></i></a>
       <% if current_user.notifications.unread.count > 0 %>
         <div class="new-messages-count"><%= current_user.notifications.unread.count %></div>
       <% end %>
     </div>
-    <!--   END Notifications -->
-    <!--------------------START - Messages Link in secondary top menu-------------------->
     <div class="messages-notifications os-dropdown-trigger os-dropdown-position-left">
       <a href="<%= company_conversations_path %>"><i class="os-icon os-icon-mail-14"></i></a>
-      <!-- Below is message count icon. Uncomment to add back in. -->
-      <!--div class="new-messages-count">1</div-->
-      <!--      <div class="os-dropdown light message-list">-->
-      <!--        <ul>-->
-      <!--          <li>-->
-      <!--            <a href="#">-->
-      <!--              <div class="user-avatar-w">-->
-      <%#= image_tag "avatars/m_sunny_big.png" %>
-      <!--              </div>-->
-      <!--              <div class="message-content">-->
-      <!--                <h6 class="message-from">John Mayers</h6>-->
-      <!--                <h6 class="message-title">Sample Message</h6>-->
-      <!--              </div>-->
-      <!--            </a>-->
-      <!--          </li>-->
-      <!--        </ul>-->
-      <!--      </div>-->
     </div>
-    <!--------------------END - Messages Link in secondary top menu-------------------->
-    <!--------------------START - Features Link in secondary top menu-------------------->
     <div class="top-icon btn-header transparent pull-right open" id="quick-add">
       <i class="ti-plus"></i>
       <ul class="dropdown-menu project-dropdown" style="right: 120px !important; left: initial;">
@@ -172,164 +149,13 @@
       </ul>
     </div>
 
-
-<!--    <div class="top-icon top-settings os-dropdown-trigger os-dropdown-position-left">-->
-<!--      <i class="ti-plus"></i>-->
-<!--      <div class="os-dropdown" style="width: 600px;">-->
-<!--        <div class="icon-w">-->
-<!--          <i class="os-icon os-icon-ui-46"></i>-->
-<!--        </div>-->
-<!--        <a class="mr-2 mb-2 btn btn-rounded" style="background-color:#0d1e73; color: white; " href="<%#= new_company_candidate_path %>">-->
-<!--          <span>Add Candidates</span>-->
-<!--        </a>-->
-<!--        <a class="mr-2 mb-2 btn btn-rounded" style="background-color:#0d1e73; color: white; " href="<%#= new_company_company_path %>">-->
-<!--          <span>Add Contacts</span>-->
-<!--        </a>-->
-<!--        <a class="mr-2 mb-2 btn btn-rounded" style="background-color:#0d1e73; color: white; " href="<%#= new_job_path %>">-->
-<!--          <span>Add Job</span>-->
-<!--        </a>-->
-<!--        <a class="mr-2 mb-2 btn btn-rounded" style="background-color:#0d1e73; color: white; " href="<%#= new_contract_path %>">-->
-<!--          <span>Add Contracts</span>-->
-<!--        </a>-->
-
-<!--        <ul style="display: inline-block; vertical-align: top; width: 180px;">-->
-<!--          <li class="sub-header"><h6 class="text-white font-weight-bold">Payments</h6></li>-->
-<!--          <li>-->
-<!--            <a href="<%#= nil %>">-->
-<!--              <span>Vendor Bills</span>-->
-<!--            </a>-->
-<!--          </li>-->
-<!--          <li>-->
-<!--            <a href="<%#= nil %>">-->
-<!--              <span>Pay Vendor</span>-->
-<!--            </a>-->
-<!--          </li>-->
-<!--          <li>-->
-<!--            <a href="<%#= nil %>">-->
-<!--              <span>Salary Settlement</span>-->
-<!--            </a>-->
-<!--          </li>-->
-<!--          <li>-->
-<!--            <a href="<%#= nil %>">-->
-<!--              <span>Salary Processing</span>-->
-<!--            </a>-->
-<!--          </li>-->
-<!--          <li>-->
-<!--            <a href="<%#= nil %>">-->
-<!--              <span>Salary Clearing</span>-->
-<!--            </a>-->
-<!--          </li>-->
-
-<!--          <br/>-->
-<!--          <li class="sub-header"><h6 class="text-white font-weight-bold">Orders</h6></li>-->
-<!--          <li>-->
-<!--            <a href="<%#= timesheets_path %>">-->
-<!--              <span>Approve Timesheets</span>-->
-<!--            </a>-->
-<!--          </li>-->
-<!--        </ul>-->
-<!--        <ul style="display: inline-block; vertical-align: top; width: 180px;">-->
-<!--          <li class="sub-header"><h6 class="text-white font-weight-bold">Receivables</h6></li>-->
-<!--          <li>-->
-<!--            <a href="<%#= invoices_path %>">-->
-<!--              <span>Invoices</span>-->
-<!--            </a>-->
-<!--          </li>-->
-<!--          <li>-->
-<!--            <a href="<%#= nil %>">-->
-<!--              <span>Received Payments</span>-->
-<!--            </a>-->
-<!--          </li>-->
-<!--          <li>-->
-<!--            <a href="<%#= client_expense_invoices_expenses_path %>">-->
-<!--              <span>Client Expense Invoices</span>-->
-<!--            </a>-->
-<!--          </li>-->
-<!--          <br/>-->
-<!--          <li class="sub-header"><h6 class="text-white font-weight-bold">Offerings</h6></li>-->
-<!--          <li>-->
-<!--            <a href="<%#= new_job_path %>">-->
-<!--              <span>Jobs</span>-->
-<!--            </a>-->
-<!--          </li>-->
-<!--          <li>-->
-<!--            <a href="<%#= nil %>">-->
-<!--              <span>Products</span>-->
-<!--            </a>-->
-<!--          </li>-->
-<!--          <li>-->
-<!--            <a href="<%#= nil %>">-->
-<!--              <span>Services</span>-->
-<!--            </a>-->
-<!--          </li>-->
-<!--          <li>-->
-<!--            <a href="<%#= nil %>">-->
-<!--              <span>Trainings</span>-->
-<!--            </a>-->
-<!--          </li>-->
-<!--          <li>-->
-<!--            <a href="<%#= nil %>">-->
-<!--              <span>Blogs</span>-->
-<!--            </a>-->
-<!--          </li>-->
-<!--          <li>-->
-<!--            <a href="<%#= nil %>">-->
-<!--              <span>Book an Event</span>-->
-<!--            </a>-->
-<!--          </li>-->
-<!--          <li>-->
-<!--            <a href="<%#= nil %>">-->
-<!--              <span>Survey</span>-->
-<!--            </a>-->
-<!--          </li>-->
-<!--        </ul>-->
-<!--        <ul style="display: inline-block; vertical-align: top; width: 180px;">-->
-<!--          <li class="sub-header"><h6 class="text-white font-weight-bold">Expenses</h6></li>-->
-<!--          <li>-->
-<!--            <a href="<%#= bank_reconciliation_bank_details_path %>">-->
-<!--              <span>Bank Reconcilliation</span>-->
-<!--            </a>-->
-<!--          </li>-->
-<!--          <li>-->
-<!--            <a href="<%#= new_expense_path %>">-->
-<!--              <span>Request Expenses</span>-->
-<!--            </a>-->
-<!--          </li>-->
-<!--          <li>-->
-<!--            <a href="<%#= pay_expense_expenses_path %>">-->
-<!--              <span>Pay: Salary Advance</span>-->
-<!--            </a>-->
-<!--          </li>-->
-<!--          <li>-->
-<!--            <a href="<%#= pay_expense_expenses_path %>">-->
-<!--              <span>Pay: Company Expense</span>-->
-<!--            </a>-->
-<!--          </li>-->
-<!--          <li>-->
-<!--            <a href="<%#= client_expenses_path %>">-->
-<!--              <span>Approve Client Expenses</span>-->
-<!--            </a>-->
-<!--          </li>-->
-<!--          <li>-->
-<!--            <a href="<%#= client_expense_bill_expenses_path %>">-->
-<!--              <span>Create Bill - Client Expenses</span>-->
-<!--            </a>-->
-<!--          </li>-->
-<!--          <li>-->
-<!--            <a href="<%#= pay_expense_expenses_path %>">-->
-<!--              <span>Pay Client Expense</span>-->
-<!--            </a>-->
-<!--          </li>-->
-<!--        </ul>-->
-<!--      </div>-->
-<!--    </div>-->
     <!--------------------END - Features Link in secondary top menu-------------------->
     <!--------------------START - User Link in secondary top menu-------------------->
     <div class="top-icon top-settings os-dropdown-trigger os-dropdown-position-left">
       <div class="logged-user-w" style="padding-left: 0px; padding-right: 0px;">
         <div class="logged-user-i">
           <div class="avatar-w">
-            <%= default_user_img(current_user.first_name,current_user.last_name)%>
+            <%= default_user_img(current_user.first_name, current_user.last_name) %>
           </div>
           <div class="os-dropdown">
             <div class="icon-w">

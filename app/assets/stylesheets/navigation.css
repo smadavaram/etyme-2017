@@ -182,3 +182,56 @@
     }
 }
 
+
+.left_project_menue{
+    display: flex;
+    bottom: 68px;
+    top: 25%;
+    left: 50px;
+}
+
+
+/*menu customization css*/
+.lpm{
+    /*display: block;*/
+    margin-top:0px!important;
+    padding: 10px 20px;
+    width:max-content;
+    top: 48%;
+    left: 10px;
+}
+.lpm > li{
+    display: inline-block;
+    vertical-align: top;
+    margin:0px 10px;
+}
+.lpm > li ul{
+    padding-left: 5px;
+    list-style: none;
+    margin:10px 0px;
+}
+.lpm > li ul li{
+    margin:5px 0px;
+}
+.lpm > li ul li a{
+    color: #3b5998;
+    font-size: 12px;
+}
+.lpm > li ul li a:hover{
+    text-decoration:underline;
+}
+.lpm  .sub-title{
+    font-size: 16px;
+    padding-bottom: 0px;
+    border-bottom: 1px solid;
+    font-weight: bold;
+}
+@media(max-width: 868px){
+    .lpm{
+        max-height: 300px;
+        overflow:auto;
+    }
+    .lpm > li{
+        display: block;
+    }
+}

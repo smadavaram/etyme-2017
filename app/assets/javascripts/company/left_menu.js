@@ -1,6 +1,8 @@
-
 $(document).ready(function () {
-
+    $('.left_project_menue_icon').on('click', function (e) {
+    // $('.left_project_menue_icon').hover(function (e) {
+        $('.lpm').toggle();
+    });
     var collapse = document.getElementsByClassName("sidebar_collapsible");
     var i;
     for (i = 0; i < collapse.length; i++) {
@@ -27,7 +29,8 @@ $(document).ready(function () {
     }
 });
 
-function default_active_nav(selector){
+function default_active_nav(selector) {
     $(selector).addClass('active');
     $(selector).next()[0].style.display = "block";
 }
+

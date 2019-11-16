@@ -38,6 +38,90 @@
 
   %body.smart-style-6{class: "#{yield :body_class} menu-position-side menu-side-left full-screen"}
     .all-wrapper
+      %ul.dropdown-menu.lpm
+        %li
+          .sub-title
+            Master
+          %ul
+            %li
+              %a{:href => "/company/candidates/new"} Add Candidate(s)
+            %li
+              %a{:href => "/company/companies/new"} Add Company(s)
+            %li
+              %a{:href => "/company/companies/new"} Add Contact(s)
+            %li
+              %a{:href => "/groups/new"} Add Group(s)
+        %li
+          .sub-title
+            Offerings
+          %ul
+            %li
+              %a{:href => "/jobs/new"} Jobs
+            %li
+              %a{:href => "#"} Products
+            %li
+              %a{:href => "#"} Services
+            %li
+              %a{:href => "#"} Trainings
+            %li
+              %a{:href => "#"} Blogs
+            %li
+              %a{:href => "#"} Book An Event
+            %li
+              %a{:href => "#"} Survey
+        %li.active
+          .sub-title
+            Orders
+          %ul
+            %li
+              %a{:href => "/contracts/new"} Add Contract(s)
+            %li
+              %a{:href => "/timesheets"} Approve Timesheet(s)
+        %li
+          .sub-title
+            Payments
+          %ul
+            %li
+              %a{:href => "#"} Vendor Bills
+            %li
+              %a{:href => "#"} Pay Vendor
+            %li
+              %a{:href => "#"} Salary Settlement
+            %li
+              %a{:href => "#"} Salary Processing
+            %li
+              %a{:href => "#"} Salary Clearing
+        %li
+          .sub-title
+            Recievables
+          %ul
+            %li
+              %a{:href => "/invoices"} Invoices
+            %li
+              %a{:href => "#"} Received Payment(s)
+            %li
+              %a{:href => "/expenses/client_expense_invoices"} Client Expense Invoices
+        %li
+          .sub-title
+            Expenses
+          %ul
+            %li
+              %a{:href => "/bank_details/bank_reconciliation"} Bank Reconcilliation
+            %li
+              %a{:href => "/expenses/new"} Request Expenses
+            %li
+              Pay Expense
+              %ul
+                %li
+                  %a{:href => "/expenses/pay_expense"} Salary Advance
+                %li
+                  %a{:href => "/expenses/pay_expense"} Company expense
+            %li
+              %a{:href => "/client_expenses"} Approve client expenses
+            %li
+              %a{:href => "/expenses/client_expense_bill"} Create Bill - Client Expenses
+            %li
+          %a{:href => "/expenses/pay_expense"} Pay Client expense..
       .layout-w.flex-d-column
         = render partial: 'company/shared/left_panel'
         .content-w.fixed-height

@@ -58,12 +58,13 @@
         <span>Supplier(s)</span>
       </a>
       <div class="pl-4 w-100 l2 text-justify nav-sidebar-collaps">
-        <a href="<%= marketplace_path(company: 'on','search_by[term]': '','search_scope': '' ) %>" class=" side-bar_links nested_tab boarder_bottom">Marketplace</a>
+        <a href="<%= marketplace_path(company: 'on', 'search_by[term]': '', 'search_scope': '') %>" class=" side-bar_links nested_tab boarder_bottom">Marketplace</a>
         <a href="<%= prefer_vendors_path %>" class=" side-bar_links nested_tab boarder_bottom">Network Request(s)</a>
         <% if has_permission?('manage_vendors') %>
           <a href="<%= network_path %>" class=" side-bar_links nested_tab boarder_bottom">Client(s) / Vendor(s)</a>
         <% end %>
-        <a href="<%= vendor_activity_prefer_vendors_path %>" class=" side-bar_links nested_tab boarder_bottom">Vendor Activity(s)</a>
+        <a href="<%= vendor_activity_prefer_vendors_path %>" class=" side-bar_links nested_tab boarder_bottom">Vendor
+          Activity(s)</a>
       </div>
       <a class="ln-5 sidebar_collapsible side-bar_tab">
         <div class="icon-w">
@@ -95,7 +96,7 @@
         <% end %>
       </div>
       <% if has_permission?('manage_contracts') %>
-        
+
         <a class="ln-7 sidebar_collapsible side-bar_tab">
           <div class="icon-w">
             <i class="os-icon os-icon-hierarchy-structure-2"></i>
@@ -133,11 +134,16 @@
         <a class="l2 side-bar_links nested_tab boarder_bottom" href="">Banking</a>
         <a class="l2 side-bar_links nested_tab boarder_bottom" href="<%= sale_invoices_path %>">Sale(s)</a>
         <a class="l2 side-bar_links nested_tab boarder_bottom" href="<%= purchase_invoices_path %>">Purchase(s)</a>
-        <a class="l2 side-bar_links nested_tab boarder_bottom" href="<%= pay_expense_expenses_path() %>" >Expense(s)</a>
-        <a class="l2 side-bar_links nested_tab boarder_bottom" href="<%= salaries_path %>" >Salary(s)</a>
+        <a class="l2 side-bar_links nested_tab boarder_bottom" href="<%= pay_expense_expenses_path() %>">Expense(s)</a>
+        <a class="l2 side-bar_links nested_tab boarder_bottom" href="<%= salaries_path %>">Salary(s)</a>
       </div>
     </div>
     <div class="side-bar_icons">
+      <a class="left_project_menue_icon">
+        <div class="icon-w">
+          <i class="ti-plus"></i>
+        </div>
+      </a>
       <a class="">
         <div class="icon-w">
           <i class="os-icon os-icon-search"></i>
