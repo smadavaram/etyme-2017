@@ -1786,7 +1786,7 @@ flex: 0 0 220px;
     cursor: pointer;
 }
 /*TODO: remove this and add to trix div*/
-.element-box{
+.trix-description{
     min-height: 170px !important;
 }
 .el-tablo.trend-in-corner .trending {
