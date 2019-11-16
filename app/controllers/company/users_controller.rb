@@ -151,6 +151,7 @@ class Company::UsersController < Company::BaseController
 
   def notification
     @notification = current_user.notifications.find_by(id: params[:id])
+    @notification.read!
   end
 
   def current_status
