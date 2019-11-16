@@ -19,12 +19,12 @@
       <p class="d-inline-block uploaded_file_name">No Image(s) Selected</p>
     </div>
     <label>Description</label>
-    <%= form.trix_editor :description, required: true, autofocus: true,class: "trix-content" %>
+    <%= form.trix_editor :description, required: true, autofocus: true,class: "trix-content trix-description" %>
     <%#= render 'company/jobs/partials/forms/field', form: form, attribute: :description, field_type: :text_area, field_attributes: {} %>
   <% else %>
     <%= render 'company/jobs/partials/forms/field', form: form, attribute: :title, field_type: :text_field, field_attributes: {autofocus: true} %>
     <label>Description</label>
-    <%= form.trix_editor :description, required: true, autofocus: true,class: "trix-content" %>
+    <%= form.trix_editor :description, required: true, autofocus: true,class: "trix-content trix-description" %>
     <div class="row">
       <div class="col-md-6">
         <%= render 'company/jobs/partials/forms/field', form: form, attribute: :education, field_type: :text_field, field_attributes: {"data-role": "tagsinput", placeholder: "Educations and Certification", class: "form-control tagsinput", value: @job.education_list.join(", ")}, note: "Education are separated with comma" %>
