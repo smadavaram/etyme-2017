@@ -5,7 +5,7 @@
     </div>
     <div class="st-body">
       <div class="avatar">
-        <%= user_image(notification.createable, style: 'width: 35px; height: 35px;', class: 'data-table-image mr-1',title: "#{otification.createable.full_name}" )%>
+        <%= user_image(notification.createable, style: 'width: 35px; height: 35px;', class: 'data-table-image mr-1',title: "#{notification.createable.full_name}" )%>
       </div>
       <div class="ticket-content w-100"><h6 class="ticket-title">
         <%= do_ellipsis(notification.title.capitalize) %>

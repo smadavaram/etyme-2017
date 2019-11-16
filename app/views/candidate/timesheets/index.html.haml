@@ -7,7 +7,7 @@
     %li{class: "nav-item #{ "active" if @tab.eql?("approved_timesheets") }"}
       %a{class: "nav-link fd approved_timesheets ", href:'#', onclick: "time_line_filter('approved_timesheets','.select-time-cycle','.select-contract.active')","data-toggle" => "tab"} Approved
     %li{class: "nav-item #{ "active" if @tab.eql?("open_timesheets") }"}
-      %a{class: "nav-link fd open_timesheets", href:'#', onclick: "time_line_filter('open_timesheets','.select-time-cycle','.select-contract.active')","data-toggle" => "tab"} All
+      %a{class: "nav-link fd open_timesheets", href:'#', onclick: "time_line_filter('open_timesheets','.select-time-cycle','.select-contract.active')","data-toggle" => "tab"} Calendar
     %li.nav-item.mt-2{style: "margin-left: auto;"}
       %select.select-time-cycle.form-control-sm{disabled:"disabled"}
         %option{value: 'all'} Select Cycle
@@ -61,7 +61,7 @@
   :javascript
     function time_line_filter(tab,cycle_selector,contract_selector){
       let cycle = $(cycle_selector).val();
-      let contract = $(contract_selector)[0].id;
+      let contract = $(contract_selector)[0] ? $(contract_selector)[0].id : "all";
       $.get(`/candidate/timesheets.js?cycle_id=${cycle}&&contract_id=${contract}&&tab=${tab}`);
     }
     $(document).ready(function() {

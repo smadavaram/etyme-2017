@@ -40,7 +40,7 @@
         = render partial: 'candidate/shared/left_panel'
         .content-w.fixed-height
           = render partial: 'candidate/shared/header'
-          #main{:role => "main",style: "min-height: 750px !important"}
+          #main{:role => "main",style: "min-height: 750px !important; overflow-x: hidden;"}
             #ribbon
               %ol.breadcrumb
                 = render_breadcrumbs tag: :li, separator: " / "
