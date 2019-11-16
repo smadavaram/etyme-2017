@@ -42,7 +42,7 @@
         <% if local_assigns[:messages] && messages %>
           <div class="mt-2">
             <div class="collapsible">
-              <h6 class="collapsible-click">Messages</h6>
+              <h6 class="collapsible-click" id="application_chat">Messages</h6>
             </div>
             <div class="element-box w-100 text-justify chat-collaps">
               <%= render "company/conversations/job_conversation_box", conversation: conversation, nested_colap: nested_col %>

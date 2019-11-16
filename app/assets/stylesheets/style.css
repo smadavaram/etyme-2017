@@ -2,7 +2,7 @@
     z-index: 1051;
 }
 .floated-chat-w{
-    z-index: 800 !important;
+    z-index: 999999 !important;
 }
 .floated-chat-btn i{margin-left: -14px !important;}
 .form-horizontal  input[type="text"],
@@ -1803,3 +1803,12 @@ flex: 0 0 220px;
     justify-content: space-between;
 }
 
+.z-100{
+    z-index: 500 !important;
+}
+
+.active_status{
+    text-decoration: underline;
+    text-decoration-color: #047bf8;
+    text-decoration-style: wavy;
+}

@@ -13,7 +13,7 @@
             <% if conversation.chatable.groupables.count > 4 %>
               <div class="more"><%= "+ #{(conversation.chatable.groupables.count-4).abs}"  %>More</div>
             <% end %>
-            <div class="more"><%= mini_chat_title(conversation) %></div>
+            <div class="more"><%= snake_to_words(mini_chat_title(conversation)) %></div>
           </div>
         </div>
       </div>

@@ -1,47 +1,47 @@
 # :nodoc:
 module ApplicationHelper
-  
+
   def disable_spinning text
     return "<i class='fa fa-spinner fa-pulse fa-spin pull-left'></i> #{text}"
   end
-  
+
   def left_menu
     left_menu_entries(left_menu_content)
   end
-  
+
   def is_inbox_path
     controller_name == "conversations" && action_name == "index"  || controller_name == "prefer_vendors" && action_name == "marketplace"
   end
-  
+
   def candidate_left_menu
     left_menu_entries(candidate_left_menu_content)
   end
-  
+
   def is_verify(status)
     status ? "verified" : "unverified"
   end
-  
+
   def snake_to_words(tag)
-    tag.tableize.singularize.split("_").join(" ").capitalize
+    tag.tableize.singularize.split("_").join(" ").capitalize if tag.present?
   end
-  
+
   def chat_link(user, conversation_id = nil)
     mini_chat_company_conversations_path(conversation_id: conversation_id, utype: user&.class&.to_s, uid: user&.id)
   end
-  
+
   def chat_remote_link(options)
     if options[:remote_false]
-      link_to(content_tag(:i, nil, class: 'fa fa-comment-o ChatBtn').html_safe, options[:chat_link] || '#', title: 'chat', class: 'data-table-icons')
+      link_to(content_tag(:i, nil, class: 'fa fa-comment-o ChatBtn').html_safe, options[:chat_link] || '#', title: 'chat', class: "data-table-icons #{options[:remote_false]}")
     else
       link_to(content_tag(:i, nil, class: 'fa fa-comment-o ChatBtn').html_safe, options[:chat_link] || '#', remote: true, title: 'chat', class: 'data-table-icons')
     end
   end
-  
+
   def contact_widget(email, phone, user_id = nil, options = {})
     chat_remote_link(options) +
         mail_to(email, content_tag(:i, nil, class: 'os-icon os-icon-email-2-at2').html_safe, title: email, class: 'data-table-icons') +
         link_to(content_tag(:i, nil, class: 'os-icon os-icon-phone ').html_safe, '#', title: phone, class: 'data-table-icons') +
-        "<div title = 'Add to Calendar' class = 'addeventatc'>
+        "<div title = 'Add to Calendar' class = 'addeventatc z-100'>
           <span class = 'start' >06/10/2019 08:00 AM</span>
           <span class='end'>06/10/2019 10:00 AM</span>
           <span class='timezone'>America/Los_Angeles </span>
@@ -55,7 +55,7 @@ module ApplicationHelper
   def mini_chat_contact_widget(email, phone, user_id = nil, options = {})
     mail_to(email, content_tag(:i, nil, class: 'os-icon os-icon-email-2-at2 mini_chat_widget pt-3').html_safe, title: email, class: 'data-table-icons') +
         link_to(content_tag(:i, nil, class: 'os-icon os-icon-phone mini_chat_widget').html_safe, '#', title: phone, class: 'data-table-icons') +
-        "<div title = 'Add to Calendar' class = 'addeventatc'>
+        "<div title = 'Add to Calendar' class = 'addeventatc z-100'>
           <span class = 'start' >06/10/2019 08:00 AM</span>
           <span class='end'>06/10/2019 10:00 AM</span>
           <span class='timezone'>America/Los_Angeles </span>
@@ -65,21 +65,21 @@ module ApplicationHelper
           <span class='attendees'></span>
         </div >".html_safe
   end
-  
+
   def do_ellipsis(value, length = 20)
     if value
       post_fix = value.length > length ? '...' : ''
       content_tag(:span, "#{value.capitalize[0..length].strip}#{post_fix}", class: 'ellipsis', title: value).html_safe
     end
   end
-  
+
   private
-    
+
     def selected_locale
       locale = FastGettext.locale
       locale_list.detect { |entry| entry[:locale] == locale }
     end
-    
+
     def locale_list
       [
           {
@@ -144,7 +144,7 @@ module ApplicationHelper
           },
       ]
     end
-    
+
     def left_menu_entries(entries = [])
       output = ''
       entries.each do |entry|
@@ -173,7 +173,7 @@ module ApplicationHelper
                         link_text += '<b class="collapse-sign"><em class="fa fa-plus-square-o"></em></b>'
                       end
                     end
-                    
+
                     link_text.html_safe
                   end
               if entry[:children]
@@ -187,13 +187,13 @@ module ApplicationHelper
                         left_menu_entries(entry[:children]) +
                         "</ul>"
               end
-              
+
               subentry.html_safe
             end
       end
       output.html_safe
     end
-    
+
     def left_menu_content
       [
           {
@@ -211,7 +211,7 @@ module ApplicationHelper
                       title: 'Dashboard (My Company,My)',
                       content: "<span class='menu-item-parent'> Dashboard </span>"
                   },
-                  
+
                   {
                       href: activities_path(index: true),
                       title: 'Log',
@@ -287,7 +287,7 @@ module ApplicationHelper
                       title: 'Network Request',
                       content: "<span class='menu-item-parent'> Network Request(s) </span>"
                   },
-                  
+
                   {
                       href: network_path,
                       title: 'Clients / Vendors',
@@ -295,7 +295,7 @@ module ApplicationHelper
                   }
               ]
           },
-          
+
           {
               href: '#',
               title: 'BENCH',
@@ -306,7 +306,7 @@ module ApplicationHelper
                       title: 'My Bench (Hot Candidates, Third Party)',
                       content: "<span class='menu-item-parent'> My Bench </span>",
                   },
-                  
+
                   {
                       href: company_job_receives_path,
                       title: 'Received',
@@ -324,7 +324,7 @@ module ApplicationHelper
                   }
               ]
           },
-          
+
           {
               href: '#',
               title: 'JOBS',
@@ -335,7 +335,7 @@ module ApplicationHelper
                       title: 'All Jobs',
                       content: "<span class='menu-item-parent'> All Posted Job(s) </span>"
                   },
-                  
+
                   {
                       href: job_invitations_path,
                       title: 'Job Invitations',
@@ -348,7 +348,7 @@ module ApplicationHelper
                   }
               ]
           },
-          
+
           {
               href: "#",
               title: 'HR',
@@ -359,19 +359,19 @@ module ApplicationHelper
                   #     title: 'Consultants',
                   #     content: "<span class='menu-item-parent'>" + 'Consultant(s)' + "</span>",
                   # },
-                  
+
                   {
                       href: contracts_path,
                       title: 'Contracts',
                       content: "<span class='menu-item-parent'> Contract(s) </span>",
                   },
-                  
+
                   {
                       href: company_sell_contracts_path,
                       title: 'Sell',
                       content: "<span class='menu-item-parent'> Sell </span>",
                   },
-                  
+
                   {
                       href: company_buy_contracts_path,
                       title: 'Buy',
@@ -522,7 +522,7 @@ module ApplicationHelper
           }
       ]
     end
-    
+
     def candidate_left_menu_content
       [
           {
@@ -540,7 +540,7 @@ module ApplicationHelper
                       title: 'Dashboard (My Company,My)',
                       content: "<span class='menu-item-parent'> Dashboard </span>"
                   },
-                  
+
                   {
                       href: "#",
                       title: 'Log',
@@ -624,7 +624,7 @@ module ApplicationHelper
               # }
               ]
           },
-          
+
           {
               href: '#',
               title: 'JOBS',
@@ -635,7 +635,7 @@ module ApplicationHelper
                       title: 'All Jobs',
                       content: "<span class='menu-item-parent'> All Posted Job(s) </span>"
                   },
-                  
+
                   {
                       href: candidate_job_invitations_path,
                       title: 'Job Invitations',
@@ -648,7 +648,7 @@ module ApplicationHelper
                   }
               ]
           },
-          
+
           {
               href: "#",
               title: 'HR',
@@ -659,19 +659,19 @@ module ApplicationHelper
                   #     title: 'Consultants',
                   #     content: "<span class='menu-item-parent'>" + 'Consultant(s)' + "</span>",
                   # },
-                  
+
                   {
                       href: "#",
                       title: 'Contracts',
                       content: "<span class='menu-item-parent'> Contract(s) </span>",
                   },
-                  
+
                   {
                       href: "#",
                       title: 'Sell',
                       content: "<span class='menu-item-parent'> Sell </span>",
                   },
-                  
+
                   {
                       href: "#",
                       title: 'Buy',
@@ -684,7 +684,7 @@ module ApplicationHelper
               title: 'Timesheet ',
               content: "<i class='fa fa-lg fa-fw fa-money'></i> <span class='menu-item-parent'>" + 'Timesheet' + "</span>",
               children: [
-                  
+
                   {
                       href: candidate_timesheets_path,
                       title: 'Timesheets',
@@ -712,7 +712,7 @@ module ApplicationHelper
               title: 'Client Expense ',
               content: "<i class='fa fa-lg fa-fw fa-money'></i> <span class='menu-item-parent'>" + 'Client Expense' + "</span>",
               children: [
-                  
+
                   {
                       href: candidate_client_expenses_path,
                       title: 'Client Expenses',
@@ -762,7 +762,7 @@ module ApplicationHelper
                       title: 'Bill Payment(s)',
                       content: "<span class='menu-item-parent'> Bill Pay </span>"
                   },
-                  
+
                   {
                       href: "#",
                       title: 'Salary Payment(s)',
@@ -817,8 +817,8 @@ module ApplicationHelper
           }
       ]
     end
-    
-    
+
+
     # def candidate_left_menu_content
     #   [
     #       {
@@ -1053,7 +1053,7 @@ module ApplicationHelper
     #       }
     #   ]
     # end
-    
+
     def time_format s
       return "--" if s.nil?
       seconds = s % 60
@@ -1061,7 +1061,7 @@ module ApplicationHelper
       hours = s / (60 * 60)
       format("%02d:%02d:%02d", hours, minutes, seconds)
     end
-    
+
     def digg_pagination(data, tab = nil, options = {})
       # will_paginate @collection, {link_options: {'data-remote': true}, params: {action: 'other_action'}}
       digg = ""
@@ -1070,11 +1070,11 @@ module ApplicationHelper
       digg += "</div></div>"
       raw(digg)
     end
-    
+
     def has_permission?(permission)
       session[:permissions].include?(permission) || current_user.is_owner?
     end
-    
+
     def assign_fa_icon(group)
       if group == "Job"
         "fa-briefcase"
@@ -1084,7 +1084,7 @@ module ApplicationHelper
         'fa-building'
       end
     end
-    
+
     def industry_list
       [
           "Banking, Investment Services & Insurance",
@@ -1101,7 +1101,7 @@ module ApplicationHelper
           "Hospitality"
       ]
     end
-    
+
     def department_list
       [
           "IT - Services & Product Development",
@@ -1118,7 +1118,7 @@ module ApplicationHelper
           "Research and Development"
       ]
     end
-    
+
     def job_status
       [
           "Draft",
@@ -1129,41 +1129,41 @@ module ApplicationHelper
           "Archived"
       ]
     end
-    
+
     def link_to_add_fields(name = nil, f = nil, association = nil, options = nil, html_options = nil, &block)
       # If a block is provided there is no name attribute and the arguments are
       # shifted with one position to the left. This re-assigns those values.
       f, association, options, html_options = name, f, association, options if block_given?
-      
+
       options = {} if options.nil?
       html_options = {} if html_options.nil?
-      
+
       if options.include? :locals
         locals = options[:locals]
       else
         locals = {}
       end
-      
+
       if options.include? :partial
         partial = options[:partial]
       else
         partial = association.to_s.singularize + '_fields'
       end
-      
+
       # Render the form fields from a file with the association name provided
       new_object = f.object.class.reflect_on_association(association).klass.new
       fields = f.fields_for(association, new_object, child_index: 'new_record') do |builder|
         render(partial, locals.merge!(f: builder))
       end
-      
+
       # The rendered fields are sent with the link within the data-form-prepend attr
       html_options['data-form-prepend'] = raw CGI::escapeHTML(fields)
       html_options['href'] = '#'
       html_options['class'] = 'bttn btn-add btn'
-      
+
       content_tag(:a, "+", html_options, &block)
     end
-    
+
     def buy_contract_time_sheet(pay_type, pay_schedule)
       # for time sheet
       if pay_type == 'time_sheet' && pay_schedule == 'immediately'
@@ -1178,7 +1178,7 @@ module ApplicationHelper
         "On " + @contract.buy_contract&.ts_date_1&.try(:strftime, '%e').to_i.ordinalize.to_s + ' and ' + (@contract.buy_contract&.ts_date_2&.try(:strftime, '%e').to_i.ordinalize.to_s if @contract.buy_contract&.ts_date_2.present?).to_s + (' End of month' if @contract.buy_contract&.ts_end_of_month).to_s
       elsif pay_type == 'time_sheet' && pay_schedule == 'monthly'
         "On " + (@contract.buy_contract&.ts_date_1&.try(:strftime, '%e').to_i.ordinalize.to_s if @contract.buy_contract&.ts_date_1.present?).to_s + (' End of month' if @contract.buy_contract&.ts_end_of_month).to_s
-        
+
         # for time sheet approve
       elsif pay_type == 'ts_approve' && pay_schedule == 'immediately'
         ''
@@ -1192,7 +1192,7 @@ module ApplicationHelper
         "On " + @contract.buy_contract&.ta_date_1&.try(:strftime, '%e').to_i.ordinalize.to_s + ' and ' + (@contract.buy_contract&.ta_date_2&.try(:strftime, '%e').to_i.ordinalize.to_s if @contract.buy_contract&.ta_date_2.present?).to_s + (' End of month' if @contract.buy_contract&.ta_end_of_month).to_s
       elsif pay_type == 'ts_approve' && pay_schedule == 'monthly'
         "On " + (@contract.buy_contract&.ta_date_1&.try(:strftime, '%e').to_i.ordinalize.to_s if @contract.buy_contract&.ta_date_1.present?).to_s + (' End of month' if @contract.buy_contract&.ta_end_of_month).to_s
-        
+
         # for salary calculation
       elsif pay_type == 'salary_calculation' && pay_schedule == 'immediately'
         ''
@@ -1206,7 +1206,7 @@ module ApplicationHelper
         "On " + @contract.buy_contract&.sc_date_1&.try(:strftime, '%e').to_i.ordinalize.to_s + ' and ' + (@contract.buy_contract&.sc_date_2&.try(:strftime, '%e').to_i.ordinalize.to_s if @contract.buy_contract&.sc_date_2).to_s + (' End of month' if @contract.buy_contract&.sc_end_of_month).to_s
       elsif pay_type == 'salary_calculation' && pay_schedule == 'monthly'
         "On " + (@contract.buy_contract&.sc_date_1&.try(:strftime, '%e').to_i.ordinalize.to_s if @contract.buy_contract&.sc_date_1).to_s + (' End of month' if @contract.buy_contract&.sc_end_of_month).to_s
-        
+
         # for salary process
       elsif pay_type == 'salary_process' && pay_schedule == 'immediately'
         ''
@@ -1220,7 +1220,7 @@ module ApplicationHelper
         "On " + @contract.buy_contract&.sp_date_1&.try(:strftime, '%e').to_i.ordinalize.to_s + ' and ' + (@contract.buy_contract&.sp_date_2&.try(:strftime, '%e').to_i.ordinalize.to_s if @contract.buy_contract&.sp_date_2).to_s + (' End of month' if @contract.buy_contract&.sp_end_of_month).to_s
       elsif pay_type == 'salary_process' && pay_schedule == 'monthly'
         "On " + (@contract.buy_contract&.sp_date_1&.try(:strftime, '%e').to_i.ordinalize.to_s if @contract.buy_contract&.sp_date_1).to_s + (' End of month' if @contract.buy_contract&.sp_end_of_month).to_s
-        
+
         # for vendor payment (invoice receipt)
       elsif pay_type == 'invoice_recepit' && pay_schedule == 'immediately'
         ''
@@ -1234,12 +1234,12 @@ module ApplicationHelper
         "On " + @contract.buy_contract&.ir_date_1&.try(:strftime, '%e').to_i.ordinalize.to_s + ' and ' + (@contract.buy_contract&.ir_date_2&.try(:strftime, '%e').to_i.ordinalize.to_s if @contract.buy_contract&.ir_date_2).to_s + (' End of month' if @contract.buy_contract&.ir_end_of_month)
       elsif pay_type == 'invoice_recepit' && pay_schedule == 'monthly'
         "On " + (@contract.buy_contract&.ir_date_1&.try(:strftime, '%e').to_i.ordinalize.to_s if @contract.buy_contract&.ir_date_1).to_s + (' End of month' if @contract.buy_contract&.ir_end_of_month).to_s
-      
+
       else
         ''
       end
     end
-    
+
     def sell_contract_time_sheet(pay_type, pay_schedule)
       # for time sheet
       if pay_type == 'time_sheet' && pay_schedule == 'immediately'
@@ -1254,7 +1254,7 @@ module ApplicationHelper
         "On " + @contract.sell_contract&.ts_date_1&.try(:strftime, '%e').to_i.ordinalize.to_s + ' and ' + (@contract.sell_contract&.ts_date_2&.try(:strftime, '%e').to_i.ordinalize.to_s if @contract.sell_contract&.ts_date_2.present?).to_s + (' End of month' if @contract.sell_contract&.ts_end_of_month).to_s
       elsif pay_type == 'time_sheet' && pay_schedule == 'monthly'
         "On " + (@contract.sell_contract&.ts_date_1&.try(:strftime, '%e').to_i.ordinalize.to_s if @contract.sell_contract&.ts_date_1).to_s + (' End of month' if @contract.sell_contract&.ts_end_of_month).to_s
-        
+
         # for time sheet approve
       elsif pay_type == 'ts_approve' && pay_schedule == 'immediately'
         ''
@@ -1268,7 +1268,7 @@ module ApplicationHelper
         "On " + @contract.sell_contract&.ta_date_1&.try(:strftime, '%e').to_i.ordinalize.to_s + ' and ' + (@contract.sell_contract&.ta_date_2&.try(:strftime, '%e').to_i.ordinalize.to_s if @contract.sell_contract&.ta_date_2).to_s + (' End of month' if @contract.sell_contract&.ta_end_of_month).to_s
       elsif pay_type == 'ts_approve' && pay_schedule == 'monthly'
         "On " + (@contract.sell_contract&.ta_date_1&.try(:strftime, '%e').to_i.ordinalize.to_s if @contract.sell_contract&.ta_date_1).to_s + (' End of month' if @contract.sell_contract&.ta_end_of_month).to_s
-        
+
         # for salary calculation
       elsif pay_type == 'invoice_terms_period' && pay_schedule == 'immediately'
         ''
@@ -1282,12 +1282,12 @@ module ApplicationHelper
         "On " + @contract.sell_contract&.invoice_date_1&.try(:strftime, '%e').to_i.ordinalize.to_s + ' and ' + (@contract.sell_contract&.invoice_date_2&.try(:strftime, '%e').to_i.ordinalize.to_s if @contract.sell_contract&.invoice_date_2).to_s + (' End of month' if @contract.sell_contract&.invoice_end_of_month).to_s
       elsif pay_type == 'invoice_terms_period' && pay_schedule == 'monthly'
         "On " + (@contract.sell_contract&.invoice_date_1&.try(:strftime, '%e').to_i.ordinalize.to_s if @contract.sell_contract&.invoice_date_1).to_s + (' End of month' if @contract.sell_contract&.invoice_end_of_month).to_s
-      
+
       else
         ''
       end
     end
-    
+
     def get_initial(name_text)
       name_text.first.capitalize if name_text
     end
@@ -1319,7 +1319,7 @@ module ApplicationHelper
         entity_image(user.first_name,user.last_name, 'circle' ,attrs[:class] )
       end
     end
-    
+
     def entity_image(first_name, last_name, circle_div_class = 'circle', default_img_classes = '')
       if first_name == '' || last_name == ''
         return image_tag(asset_path('avatars/m_sunny_big.png'), class: " #{default_img_classes}")
