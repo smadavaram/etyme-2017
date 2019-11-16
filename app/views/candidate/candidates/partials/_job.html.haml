@@ -1,8 +1,8 @@
 .support-ticket-content-w
   .support-ticket-content
     .support-ticket-content-header.space_between
-      %h3.ticket-header
-        =job.title
+      %h3.ticket-header.pr-5
+        =do_ellipsis(job.title,15)
       = link_to  "Apply",apply_candidate_job_path(job), method: :post , remote: true ,  class: " btn text-right btn-default btn-primary btn-md  #{current_candidate.is_already_applied?(job.id)  ? "disabled" : ""} "
     .ticket-thread
       .ticket-reply

@@ -1,5 +1,5 @@
 -content_for :google_address_search_api do
-  %script{:src => "https://maps.googleapis.com/maps/api/js?key=AIzaSyAdf6df60vd1qmUPN7A8kwNDRc9qWx7CF4&libraries=places", :type => "text/javascript"}
+  %script{:src => "https://maps.googleapis.com/maps/api/js?key=#{ENV['google_search_location_api_key']}&libraries=places", :type => "text/javascript"}
 .marketplacebody
   = form_tag marketplace_path, :method => :get , id: "market_place_form" do
     .container
