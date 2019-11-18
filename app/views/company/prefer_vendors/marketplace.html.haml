@@ -5,10 +5,8 @@
     .container
       .row
         .col-md-5.offset-md-3.pt-4.col-8
-          .search-field-with-icon.d-flex
-            = text_field_tag 'search_by[term]', params[:search_by][:term],placeholder: "search in Companies, Candidates & Jobs ...", autofocus: false,class: "market_place_field form-control form-control-sm bright p-3"
-            %button{style: 'width:60px;'}
-              %i.fa.fa-search
+          .search-with-icon.os-icon.os-icon-ui-37
+            = text_field_tag 'search_by[term]', params[:search_by][:term],placeholder: "search in Companies, Candidates & Jobs ...", autofocus: false,class: " market_place_field ", style: 'background-color: #E9EDF4;'
 
 
         .col-md-4.pt-4.end-flex.mt-3.col-4

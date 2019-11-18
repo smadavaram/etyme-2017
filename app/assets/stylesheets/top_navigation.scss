@@ -80,3 +80,27 @@
   display: block !important;
 }
 
+.search-with-icon {
+  position: relative;
+  &:before {
+    position: absolute;
+    left: 15px;
+    top: 48%;
+    transform: translateY(-50%);
+    font-size: 20px;
+    color: rgba(0,0,0,0.2);
+  }
+  input {
+    border: none;
+    box-shadow: none;
+    background-color: #F1F1F1;
+    border-radius: 30px;
+    padding: 10px 15px 10px 50px;
+    display: block;
+    width: 100%;
+    outline: none;
+    &::placeholder {
+      color: rgba(0,0,0,0.3);
+    }
+  }
+}
