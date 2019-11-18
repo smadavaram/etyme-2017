@@ -18,12 +18,7 @@
               %svg.decor{:height => "219px", :preserveaspectratio => "xMaxYMax meet", :version => "1.1", :viewbox => "0 0 842 219", :width => "842px", :xmlns => "http://www.w3.org/2000/svg", "xmlns:xlink" => "http://www.w3.org/1999/xlink"}
                 %g{:fill => "#FFFFFF", :transform => "translate(-381.000000, -362.000000)"}
                   %path.decor-path{:d => "M1223,362 L1223,581 L381,581 C868.912802,575.666667 1149.57947,502.666667 1223,362 Z"}
-            .up-controls
-              .row
-                .col-sm-12.text-right
-                  %a.btn.btn-success.btn-sm{:href => ""}
-                    %i.os-icon.os-icon-email-forward
-                    %span Send Message
+
             .up-contents
               .m-b
                 .row.m-b
@@ -33,13 +28,14 @@
                         .value
                           = current_company.jobs.not_system_generated.count
                         .label
-                          Job
+                          Job(s)
                   .col-sm-6.b-b
-                    .el-tablo.centered.padded-v
-                      .value
-                        = current_company.company_contacts.count
-                      .label
-                        contact
+                    = link_to company_contacts_company_companies_path do
+                      .el-tablo.centered.padded-v
+                        .value
+                          = current_company.company_contacts.count
+                        .label
+                          contact(s)
                 .padded
                   .os-progress-bar.primary
                     .bar-labels
@@ -81,7 +77,7 @@
           .element-wrapper
             -if @jobs.present?
               .d-flex.justify-content-between.align-items-center.mb-3.element-header
-                %h6.mb-0 Job
+                %h6.mb-0 Job(s)
                 =link_to "View All", jobs_path, class: "link-muted font-xs"
               .element-box
                 .table-responsive
@@ -97,15 +93,12 @@
                     %tbody
                       - @jobs.each do |j|
                         %tr
-                          %td.nowrap
-                            =link_to j.title, job_path(j)
-                          %td
-                            =j.location
-                          %td.text-right
-                            =j.created_by.full_name
+                          %td.nowrap=link_to do_ellipsis(j.title), job_path(j)
+                          %td=j.location
+                          %td.text-right=j.created_by.try(:full_name)
             - else
               .d-flex.justify-content-between.align-items-center.mb-3.element-header
-                %h6.mb-0 Job
+                %h6.mb-0 Job(s)
                 =link_to "Create New", jobs_path, class: "link-muted font-xs"
               .element-box.p-3.text-center
                 %h6.mb-0 There is no Job Right now.
@@ -119,21 +112,15 @@
                   %table.table.table-lightborder
                     %thead
                       %tr
-                        %th
-                          Title
-                        %th
-                          Name
-                        %th.text-center
-                          Location
+                        %th Title
+                        %th Name
+                        %th.text-center Location
                     %tbody
                       -@benches.each do |b|
                         %tr
-                          %td.nowrap
-                            - b.candidate.candidate_title
-                          %td
-                            - b.candidate.try(:full_name)
-                          %td.text-right
-                            - b.candidate.try(:location)
+                          %td.nowrap= b.candidate.candidate_title
+                          %td= b.candidate.try(:full_name)
+                          %td.text-right= b.candidate.try(:location)
             - else
               .d-flex.justify-content-between.align-items-center.mb-3.element-header
                 %h6.mb-0 Bench
@@ -143,93 +130,75 @@
           .element-wrapper
             -if @training.present?
               .d-flex.justify-content-between.align-items-center.mb-3.element-header
-                %h6.mb-0 Training
+                %h6.mb-0 Training(s)
                 =link_to "View All", jobs_path, class: "link-muted font-xs"
               .element-box
                 .table-responsive
                   %table.table.table-lightborder
                     %thead
                       %tr
-                        %th
-                          Title
-                        %th
-                          Location
-                        %th.text-center
-                          Posted By
+                        %th Title
+                        %th Location
+                        %th.text-center Posted By
                     %tbody
                       - @training.each do |t|
                         %tr
-                          %td.nowrap
-                            =link_to t.title, job_path(t)
-                          %td
-                            =t.location
-                          %td.text-right
-                            =t.created_by.full_name
+                          %td.nowrap= link_to do_ellipsis(t.title), job_path(t)
+                          %td= t.location
+                          %td.text-right= t.created_by.full_name
             - else
               .d-flex.justify-content-between.align-items-center.mb-3.element-header
-                %h6.mb-0 Training
+                %h6.mb-0 Training(s)
                 =link_to "Create New", jobs_path, class: "link-muted font-xs"
               .element-box.p-3.text-center
                 %h6.mb-0 There is no Training Right now.
           .element-wrapper
             -if @products.present?
               .d-flex.justify-content-between.align-items-center.mb-3.element-header
-                %h6.mb-0 Products
+                %h6.mb-0 Product(s)
                 =link_to "View All", jobs_path, class: "link-muted font-xs"
               .element-box
                 .table-responsive
                   %table.table.table-lightborder
                     %thead
                       %tr
-                        %th
-                          Title
-                        %th
-                          Location
-                        %th.text-center
-                          Posted By
+                        %th Title
+                        %th Location
+                        %th.text-center Posted By
                     %tbody
                       - @products.each do |p|
                         %tr
-                          %td.nowrap
-                            =p.title
-                          %td
-                            =p.location
-                          %td.text-right
-                            =p.created_by.full_name
+                          %td.nowrap=do_ellipsis(p.title)
+                          %td=p.location
+                          %td.text-right=p.created_by.full_name
             - else
               .d-flex.justify-content-between.align-items-center.mb-3.element-header
-                %h6.mb-0 Products
+                %h6.mb-0 Product(s)
                 =link_to "Create New", jobs_path, class: "link-muted font-xs"
               .element-box.p-3.text-center
                 %h6.mb-0 There is no Products Right now.
           .element-wrapper
             - if @services.present?
               .d-flex.justify-content-between.align-items-center.mb-3.element-header
-                %h6.mb-0 Services
+                %h6.mb-0 Service(s)
                 =link_to "View All", jobs_path, class: "link-muted font-xs"
               .element-box
                 .table-responsive
                   %table.table.table-lightborder
                     %thead
                       %tr
-                        %th
-                          Title
-                        %th
-                          Location
-                        %th.text-center
-                          Posted By
+                        %th Title
+                        %th Location
+                        %th.text-center Posted By
                     %tbody
                       - @services.each do |s|
                         %tr
-                          %td.nowrap
-                            =s.title
-                          %td
-                            =s.location
-                          %td.text-right
-                            =s.created_by.full_name
+                          %td.nowrap= do_ellipsis(s.title)
+                          %td= s.location
+                          %td.text-right= s.created_by.full_name
             - else
               .d-flex.justify-content-between.align-items-center.mb-3.element-header
-                %h6.mb-0 Services
+                %h6.mb-0 Service(s)
                 =link_to "Create New", jobs_path, class: "link-muted font-xs"
               .element-box.p-3.text-center
                 %h6.mb-0 There is no Services Right now.
@@ -245,21 +214,11 @@
           .element-box-tp
             - @directories.each do |d|
               .profile-tile
-                %a.profile-tile-box{:href => "users_profile_small.html"}
+                %a.profile-tile-box{:href => company_user_profile_path(d)}
                   .pt-avatar-w
                     .pt-user-name= user_image(d, style: 'width: 35px; height: 35px;', class: 'data-table-image mr-1',title: "#{d.full_name}" )
-                  .pt-user-name
--                   = d.full_name
-                .profile-tile-meta
-                  %ul
-                    %li
-                      = d.email
-                    %li
-                      = d.phone
-                  .pt-btn
-                    = link_to raw("<i class='fa fa-comment '></i> Send Message"), "#", class: "btn btn-success btn-sm start-conversation",title: "Chat",
-                                "data-sid" => current_company.id, "data-rid" => d.id, "data-chattopic" => "OneToOne",
-                                "data-stype" => current_company.class, "data-rtype" => d.class.to_s
+                  .pt-user-name= d.full_name
+                .profile-tile-meta= contact_widget(d.email, d.phone, d, chat_link: chat_link(d))
         - else
           .d-flex.justify-content-between.align-items-center.mb-3.element-header
             %h6.mb-0 Office Directory
@@ -274,19 +233,14 @@
           .element-box-tp
             .users-list-w
               - @clients.each do |c|
+                - company = c.prefer_vendor
                 .user-w.with-status.status-green
                   .user-avatar-w
-                    .user-avatar
-                      = image_tag show_recipient_picture(c.company.try(:logo))
+                    .user-avatar= image_tag show_recipient_picture(company.try(:logo))
                   .user-name
-                    %h6.user-title
-                      = c.prefer_vendor.full_name rescue ""
-                    .user-role
-                      = c.prefer_vendor.phone rescue ""
-                  .user-action
-                    = link_to '', "#", class: "os-icon os-icon-email-forward start-conversation", title: "Chat",
-                                "data-sid" => current_company.id, "data-rid" => c.prefer_vendor.id, "data-chattopic" => "OneToOne",
-                                "data-stype" => current_company.class, "data-rtype" => c.prefer_vendor.class.to_s
+                    %h6.user-title= company.full_name rescue ""
+                    .data-table-icons= contact_widget(company.owner.email, company.owner.phone, company.owner, chat_link: chat_link(company.owner))
+
         - else
           %h6.mb-0 Clients
           .element-box-tp

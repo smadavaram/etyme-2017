@@ -193,13 +193,12 @@
 
 /*menu customization css*/
 .lpm{
-    /*display: block;*/
     margin-top:0px!important;
     padding: 10px 20px;
     width:max-content;
     top: calc( 100vh - 352px);
     left: 10px;
-    z-index: 999999
+    z-index: 999999;
 }
 .lpm > li{
     display: inline-block;
