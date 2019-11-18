@@ -8,6 +8,7 @@
         %i.picons-social-icon-periscope.d-block{style: " color: #636c71;"}
           -data&.locations&.each do|location|
             =location.address&.address_1
+            =location.address&.address_2
 
       .col-md-4{style: 'align-items: center;flex-direction: column;display: flex'}
         = link_to (image_tag data.logo ,class:'',alt: "Logo" ,style: "") ,profile_company_path(data.id),title: "#{data.try(:name) } Profile",'data-toggle'=>"tooltip" ,'data-placement'=>"top"

@@ -10,7 +10,6 @@ class Candidate < ApplicationRecord
   include ArchilliCandidateProfileBuilder
   include SovrenCandidateProfileBuilder
 
-  attr_accessor :location
   geocoded_by :location
   after_validation :geocode
 

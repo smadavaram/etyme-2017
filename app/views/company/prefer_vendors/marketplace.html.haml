@@ -5,13 +5,15 @@
     .container
       .row
         .col-md-5.offset-md-3.pt-4.col-8
-          .element-search.autosuggest-search-activator
-            = text_field_tag 'search_by[term]', params[:search_by][:term],placeholder: "search ...", autofocus: false,class: "market_place_field form-control form-control-sm bright p-3"
-        .col-md-4.pt-4.end-flex.mt-3.col-4          
+          .search-with-icon.os-icon.os-icon-ui-37
+            = text_field_tag 'search_by[term]', params[:search_by][:term],placeholder: "search in Companies, Candidates & Jobs ...", autofocus: false,class: " market_place_field ", style: 'background-color: #E9EDF4;'
+
+
+        .col-md-4.pt-4.end-flex.mt-3.col-4
           .messages-notifications.os-dropdown-trigger.os-dropdown-position-left{style: "font-size: 30px; color: #636c71;"}
             %i.picons-social-icon-periscope.mr-3{style: "font-size: 30px; color: #636c71;"}
-            .os-dropdown.light.message-list.mb-3{style: 'width: 400px; height: 100px;'}
-              -#%input#searchTextField{:size => "50", :type => "text"}/
+            .os-dropdown.light.message-list.mb-3.search_by_address.custom-os-dropdown{style: 'width: 285px;'}
+              %label{style: 'color:gray;'} Search By Address
               = text_field_tag :address, params[:address],placeholder: "search Address ...", autofocus: false, id: 'google_search_location' ,class: " market_place_field form-control form-control-sm bright p-3"
 
 
@@ -19,7 +21,7 @@
 
           .messages-notifications.os-dropdown-trigger.os-dropdown-position-left{style: "font-size: 30px; color: #636c71;"}
             %i.icon-equalizer
-            .os-dropdown.light.message-list.mb-3{style: 'width: 270px;'}
+            .os-dropdown.light.message-list.mb-3.custom-os-dropdown{style: 'width: 270px;'}
               - if params[:search_by][:search_scop].eql?('on')
                 .form-group.mb-0
                   %label.radio-container

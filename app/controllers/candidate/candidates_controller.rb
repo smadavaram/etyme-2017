@@ -231,6 +231,8 @@ class Candidate::CandidatesController < Candidate::BaseController
   
   def notification
     @notification = current_candidate.notifications.find_by(id: params[:id])
+    @notification.read!
+    @unread_notifications = current_candidate.notifications.unread.count
   end
   
   def notify_notifications

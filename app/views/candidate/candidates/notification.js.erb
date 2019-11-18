@@ -4,3 +4,4 @@ $('.back-to-index').on('click', function () {
 });
 $('.support-ticket').removeClass('active');
 $("#<%= @notification.id %>").addClass('active');
+$('.new-messages-count').html(<%=@unread_notifications%>);
