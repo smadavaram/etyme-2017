@@ -4,7 +4,6 @@ class Address < ApplicationRecord
   has_one             :user, foreign_key: :primary_address_id
   has_one             :candidate, foreign_key: :primary_address_id
 
-  attr_accessor :address_1, :address_2
 
   def address
     [address_1, address_2].compact.join(', ')
