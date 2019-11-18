@@ -20,6 +20,7 @@ class Company::PreferVendorsController < Company::BaseController
         title: params[:Job_titles],
         department: params[:job_departments],
         industry: params[:job_industry],
+        company_user_skills: params[:company_user_skills],
         job_category: params[:job_category]
     }.delete_if { |key, value| value.blank? }
     @listing_type_array = [params[:product],params[:service],params[:training]].reject { |listing_type| listing_type.blank? }

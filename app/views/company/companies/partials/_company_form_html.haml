@@ -6,7 +6,7 @@
         .form-group
           = f.text_field :name,placeholder: "Company Name",class: 'form-control'
       .col-md-6
-        %button.btn.btn-info{"data-target" => "#myModal", "data-toggle" => "modal", :type => "button"} Designate business owner or application admin
+        %button.btn.btn-info{"data-target" => "#myModal", "data-toggle" => "modal", :type => "button",style: 'font-size:12px; color:white;'} Designate business owner or application admin
     .row
       .col-md-6
         = f.text_field :phone , class: 'form-control' , placeholder: 'Phone Number'
@@ -67,7 +67,7 @@
           / = link_to_add_fields 'company/companies/branch_fields', f, :branches
           %strong
             .links
-              = link_to_add_association '+ Add Branch', f, :branches, class: 'btn btn-success', partial: 'company/companies/branch_fields'
+              = link_to_add_association '+ Add Branch', f, :branches, class: 'btn btn-xs', partial: 'company/companies/branch_fields'
     .row
     .col-lg-12
       %button.btn.pull-left{:type => "button"}

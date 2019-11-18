@@ -60,29 +60,62 @@
                 .os-progress-bar.primary
                   .bar-labels
                     .bar-label-left
-                      %span Email
+                      %span Full Name
                     .bar-label-right
+                      %span=do_ellipsis(candidate.full_name,15)
                       %span.text-success
-                        = is_verify(!!candidate.confirmed_at)
                 .os-progress-bar.primary
                   .bar-labels
                     .bar-label-left
-                      %span Phone
+                      %span Contact Info
                     .bar-label-right
+                      %span=do_ellipsis(candidate.phone,15)
                       %span.text-success
-                        = is_verify(candidate.is_number_verify)
+                  .os-progress-bar.primary
+                    .bar-labels
+                      .bar-label-left
+                        %span Email
+                      .bar-label-right
+                        %span=do_ellipsis(candidate.email,15)
+                        %span.text-success
+                          = is_verify(!!candidate.confirmed_at)
                 .os-progress-bar.primary
                   .bar-labels
                     .bar-label-left
-                      %span Visa
+                      %span Date of Birth
                     .bar-label-right
-                      %span.text-success verified
+                      %span=do_ellipsis(candidate.dob,15)
+                      %span.text-success
                 .os-progress-bar.primary
                   .bar-labels
                     .bar-label-left
-                      %span Identity
+                      %span Visa Status
                     .bar-label-right
-                      %span.text-success verified
+                      %span=do_ellipsis(candidate.visa,15)
+                .os-progress-bar.primary
+                  .bar-labels
+                    .bar-label-left
+                      %span Current Location
+                    .bar-label-right
+                      %span=do_ellipsis(candidate.location,15)
+                .os-progress-bar.primary
+                  .bar-labels
+                    .bar-label-left
+                      %span Skyp ID
+                    .bar-label-right
+                      %span=do_ellipsis(candidate.skypeid,15)
+                .os-progress-bar.primary
+                  .bar-labels
+                    .bar-label-left
+                      %span Linkdin
+                    .bar-label-right
+                      %span=do_ellipsis(candidate.linkedin_url,15)
+                .os-progress-bar.primary
+                  .bar-labels
+                    .bar-label-left
+                      %span SSN(YES / NO)
+                    .bar-label-right
+                      %span=do_ellipsis(candidate.ssn,15)
 
         .element-wrapper
           .element-box
