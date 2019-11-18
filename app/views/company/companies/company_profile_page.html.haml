@@ -5,20 +5,6 @@
         .col-sm-5
           .user-profile.compact
             .up-head-w{:style => "background-image:url(#{current_company.logo })"}
-              .up-social
-                %a{:href => "#"}
-                  %i.os-icon.os-icon-twitter
-                %a{:href => "#"}
-                  %i.os-icon.os-icon-facebook
-              .up-main-info
-                %h2.up-header
-                  =current_company.full_name
-                %h6.up-sub-header
-                  Product Designer at Facebook
-              %svg.decor{:height => "219px", :preserveaspectratio => "xMaxYMax meet", :version => "1.1", :viewbox => "0 0 842 219", :width => "842px", :xmlns => "http://www.w3.org/2000/svg", "xmlns:xlink" => "http://www.w3.org/1999/xlink"}
-                %g{:fill => "#FFFFFF", :transform => "translate(-381.000000, -362.000000)"}
-                  %path.decor-path{:d => "M1223,362 L1223,581 L381,581 C868.912802,575.666667 1149.57947,502.666667 1223,362 Z"}
-
             .up-contents
               .m-b
                 .row.m-b
@@ -99,7 +85,7 @@
             - else
               .d-flex.justify-content-between.align-items-center.mb-3.element-header
                 %h6.mb-0 Job(s)
-                =link_to "Create New", jobs_path, class: "link-muted font-xs"
+                =link_to "Create New", jobs_path(type='Job'), class: "link-muted font-xs"
               .element-box.p-3.text-center
                 %h6.mb-0 There is no Job Right now.
           .element-wrapper
@@ -124,7 +110,7 @@
             - else
               .d-flex.justify-content-between.align-items-center.mb-3.element-header
                 %h6.mb-0 Bench
-                =link_to "Create New", jobs_path, class: "link-muted font-xs"
+                =link_to "Create New", company_bench_jobs_path, class: "link-muted font-xs"
               .element-box.p-3.text-center
                 %h6.mb-0 There is no Bench Right now.
           .element-wrapper
@@ -149,7 +135,7 @@
             - else
               .d-flex.justify-content-between.align-items-center.mb-3.element-header
                 %h6.mb-0 Training(s)
-                =link_to "Create New", jobs_path, class: "link-muted font-xs"
+                =link_to "Create New", jobs_path(type: "Training"), class: "link-muted font-xs"
               .element-box.p-3.text-center
                 %h6.mb-0 There is no Training Right now.
           .element-wrapper
@@ -174,7 +160,7 @@
             - else
               .d-flex.justify-content-between.align-items-center.mb-3.element-header
                 %h6.mb-0 Product(s)
-                =link_to "Create New", jobs_path, class: "link-muted font-xs"
+                =link_to "Create New", jobs_path(type: "Product"), class: "link-muted font-xs"
               .element-box.p-3.text-center
                 %h6.mb-0 There is no Products Right now.
           .element-wrapper
@@ -199,7 +185,7 @@
             - else
               .d-flex.justify-content-between.align-items-center.mb-3.element-header
                 %h6.mb-0 Service(s)
-                =link_to "Create New", jobs_path, class: "link-muted font-xs"
+                =link_to "Create New", jobs_path(type: "Service"), class: "link-muted font-xs"
               .element-box.p-3.text-center
                 %h6.mb-0 There is no Services Right now.
 
