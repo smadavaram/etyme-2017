@@ -1437,6 +1437,7 @@ input:checked + .slider1:before {
   .project-dropdown{
     max-height: 300px;
     overflow:auto;
+    left: 165px !important;
   }
   .project-dropdown > li{
     display: block;

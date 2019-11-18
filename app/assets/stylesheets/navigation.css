@@ -197,8 +197,9 @@
     margin-top:0px!important;
     padding: 10px 20px;
     width:max-content;
-    top: 48%;
+    top: calc( 100vh - 352px);
     left: 10px;
+    z-index: 999999
 }
 .lpm > li{
     display: inline-block;
@@ -230,6 +231,7 @@
     .lpm{
         max-height: 300px;
         overflow:auto;
+        top: calc( 100vh - 373px);
     }
     .lpm > li{
         display: block;

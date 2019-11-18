@@ -4,7 +4,8 @@
 <script>
     function toglleMenu() {
         var menu = document.querySelector('#toggledmenubar').classList.toggle("displayblock");
-        document.querySelector('#togglebutton').classList.toggle('leftChanged')
+        document.querySelector('#togglebutton').classList.toggle('leftChanged');
+        $('.lpm').hide();
     }
 </script>
 <div id="toggledmenubar" style="<%= "display: none;" if is_inbox_path %>" class="menu-w color-scheme-light fixed-height color-style-default menu-position-side menu-side-left menu-layout-compact sub-menu-style-flyout sub-menu-color-light selected-menu-color-light menu-activated-on-hover menu-has-selected-link">
