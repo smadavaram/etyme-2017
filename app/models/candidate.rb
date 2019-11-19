@@ -3,7 +3,8 @@ class Candidate < ApplicationRecord
   # :confirmable, :lockable, :timeoutable and :omniauthable
   devise :invitable, :database_authenticatable, :registerable,
          :recoverable, :rememberable, :trackable #, :confirmable
-
+  validates :first_name, presence: true
+  validates :last_name, presence: true
   has_paper_trail only: [:address]
 
   include PublicActivity::Model
