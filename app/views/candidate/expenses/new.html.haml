@@ -34,7 +34,7 @@
                     .form-group
                       %label.col-sm-4.control-label Salary Cycle
                       .col-md-12#salary_cycle
-                        = select_tag "expense[salary_ids]", options_for_select(@salary_cycles.collect{|p| [p.start_date.to_s+' - '+p.end_date.to_s, p.id]}, selected: params[:salary_cycles]), class: "form-control select2", id: 'salary_ids', multiple: true
+                        = select_tag "expense[salary_ids]", options_for_select(@salary_cycles&.collect{|p| [p.start_date.to_s+' - '+p.end_date.to_s, p.id]}, selected: params[:salary_cycles]), class: "form-control select2", id: 'salary_ids', multiple: true
 
                 .row.mt-4.mb-2
                   .col-md-4
@@ -117,7 +117,7 @@
       });
       $('.add_row').click();
       var count = 0;
-      set_expense_type_select('#expense_expense_accounts_attributes_0_expense_type_id', "Please select");
+      set_expense_type_select('#expense_expense_accounts_attributes_0_expense_type_id', "select expense type ");
       var expense_terms = $( "#expense_terms option:selected" ).val().split("Net")[1];
       var due_date = "";
       $('#expense_terms').on('change', function() {

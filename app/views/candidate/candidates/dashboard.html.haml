@@ -47,7 +47,7 @@
               %span Upload Resume
 
 .dashboard_jobs
-  =render 'candidate/candidates/partials/jobs',jobs: @jobs
+  =render 'candidate/candidates/partials/jobs',jobs: @jobs unless @jobs.blank?
 
 
 - content_for :modals do

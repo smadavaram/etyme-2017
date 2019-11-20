@@ -8,7 +8,7 @@
               .col-md-2
                 .form-group
                   %label Contract
-                  = select_tag "contracts", options_from_collection_for_select(@contracts, 'id', 'title',@contract.id),{class: "form-control contract_list", prompt: "All"}
+                  = select_tag "contracts", options_from_collection_for_select(@contracts, 'id', 'title',@contract&.id),{class: "form-control contract_list", prompt: "All"}
               .col-md-2
                 .form-group
                   %label Consultant
