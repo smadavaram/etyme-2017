@@ -285,7 +285,7 @@
                       .avatar-w
                         =user_image(current_user, style: 'width: 35px; height: 35px;', class: 'data-table-image mr-1',title: "#{current_user.full_name}" )
                     .user-name
-                      %h6.user-title
+                      %h6.user-title.no-wrap
                         = do_ellipsis(user.full_name,17)
                       .user-role
                         =user.class.to_s

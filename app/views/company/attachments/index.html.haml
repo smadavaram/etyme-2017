@@ -74,7 +74,7 @@
                                       - doc.file.split(",").each do |file_path|
                                         %br
                                         %a{:download => "", :href => file_path, :target=>"_blank"}
-                                          = "#{index}: #{file_path.split('/').last}"
+                                          = "modal-dialog#{index}: #{file_path.split('/').last}"
                                           - index = index +1
                                   %td.candidate-file-upload-btn
                                     = link_to "", delete_company_candidate_docs_path(:id=>doc.id), :title=>"Delete", class: "fa fa-trash-o fa-lg fa-fw delete_primary_doc", method: :delete, data: { confirm: 'Are you sure?' }

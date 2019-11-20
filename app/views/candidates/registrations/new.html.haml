@@ -20,11 +20,23 @@
               .form-body
                 - flash.each do |key, value|
                   = flash_message(key,value)
+                .row
+                  .col-md-6
+                    .form-row
+                      %label First Name:
+                      = f.text_field :first_name, :placeholder => "Your First Name", required: true,class: 'field'
+                  .col-md-6
+                    .form-row
+                      %label Last Name:
+                      = f.text_field :last_name, :placeholder => "Your Last Name", required: true, class: 'field'
                 .form-row
+                  %label Email:
                   = f.email_field :email, :placeholder => "Your Email", required: true, email: true,class: 'field',onblur: 'validate_email();'
                 .form-row
+                  %label Password:
                   = f.password_field :password, :placeholder => "Password", required: true,minlength: "6",class: 'field',id: "password"
                 .form-row
+                  %label Conform Password:
                   = f.password_field :password_confirmation, :placeholder => "Confirm password", "data-rule-equalTo": "#password",class: 'field'
                 -#.form-row
                   .form-controls
