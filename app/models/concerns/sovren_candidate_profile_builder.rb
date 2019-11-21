@@ -18,7 +18,6 @@ module SovrenCandidateProfileBuilder
   end
 
   def sovren_update_basic_info(parsed_resume)
-
     return unless parsed_resume
     parsed_resume.extend Hashie::Extensions::DeepFind
     self.update(
@@ -29,8 +28,6 @@ module SovrenCandidateProfileBuilder
   def sovren_update_flname_info(parsed_resume)
 
     return unless parsed_resume
-    # parsed_resume.dig("StructuredXMLResume", "ContactInfo","PersonName").extend Hashie::Extensions::DeepFind
-    # a.deep_find('GivenName')
     parsed_resume.extend Hashie::Extensions::DeepFind
     self.update(
         first_name: parsed_resume.deep_find("GivenName"),
