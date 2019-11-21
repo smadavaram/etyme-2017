@@ -2,6 +2,7 @@ module SovrenCandidateProfileBuilder
   extend ActiveSupport::Concern
 
   def sovren_build_profile(parsed_resume)
+    sovren_update_flname_info(parsed_resume.dig("StructuredXMLResume", "ContactInfo","PersonName"))
     sovren_update_basic_info(parsed_resume.dig("StructuredXMLResume", "ContactInfo", "ContactMethod"))
     sovren_update_education(parsed_resume.dig("StructuredXMLResume", "EducationHistory", "SchoolOrInstitution"))
     sovren_update_experience(parsed_resume.dig("StructuredXMLResume", "EmploymentHistory", "EmployerOrg"))
@@ -17,11 +18,23 @@ module SovrenCandidateProfileBuilder
   end
 
   def sovren_update_basic_info(parsed_resume)
+
     return unless parsed_resume
     parsed_resume.extend Hashie::Extensions::DeepFind
     self.update(
         phone: parsed_resume.deep_find("FormattedNumber"),
         address: parsed_resume.deep_find("AddressLine")&.join(',')
+    )
+  end
+  def sovren_update_flname_info(parsed_resume)
+
+    return unless parsed_resume
+    # parsed_resume.dig("StructuredXMLResume", "ContactInfo","PersonName").extend Hashie::Extensions::DeepFind
+    # a.deep_find('GivenName')
+    parsed_resume.extend Hashie::Extensions::DeepFind
+    self.update(
+        first_name: parsed_resume.deep_find("GivenName"),
+        last_name: parsed_resume.deep_find("MiddleName")+" "+parsed_resume.deep_find("FamilyName")
     )
   end
 
