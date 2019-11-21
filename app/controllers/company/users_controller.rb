@@ -35,7 +35,19 @@ class Company::UsersController < Company::BaseController
         }
       end
     end
-    @activities = PublicActivity::Activity.order("created_at desc")
+    # @activities = PublicActivity::Activity.order("created_at desc")
+
+
+
+    @activities = PublicActivity::Activity.where(owner_type: 'Company',
+                                                 owner_id: current_company.prefer_vendors.accepted.pluck(:vendor_id))
+                      .or(PublicActivity::Activity.where(owner_type: 'User',
+                                                         owner_id: User.where(company_id: current_company.prefer_vendors.accepted.pluck(:vendor_id))))
+                      .paginate(page: params[:page], per_page: 15)
+
+
+
+
   end
 
   # End of dashboard
