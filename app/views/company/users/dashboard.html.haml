@@ -105,21 +105,7 @@
                         %span Hire
                         .legend-sub-value
                           15%, 45 Visits
-      .row
-        - if company_activities_hash.present?
-          .col-sm-12
-            .element-wrapper
-              %h6.element-header
-                User Activity
-              .timed-activities.compact
-                -company_activities_hash.each do |key,value|
-                  .timed-activity
-                    .ta-date
-                      %span
-                        = key
-                    .ta-record-w
-                      - value.each do |activity|
-                        = render_activity activity if activity.trackable.present?
+
         -#.col-sm-12
         -#  .element-wrapper
         -#    - if current_company.hiring_manager? || current_company.vendor?
@@ -373,6 +359,21 @@
                 .text
                   .font-md.text-center
                     No Company Right now.
+          .row
+            - if company_activities_hash.present?
+              .col-sm-12
+                .element-wrapper
+                  %h6.element-header
+                    User Activity
+                  .timed-activities.compact
+                    -company_activities_hash.each do |key,value|
+                      .timed-activity
+                        .ta-date
+                          %span
+                            = key
+                        .ta-record-w
+                          - value.each do |activity|
+                            = render_activity activity if activity.trackable.present?
 
 
 - if current_user.is_consultant?
