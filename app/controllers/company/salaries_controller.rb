@@ -47,6 +47,7 @@ class Company::SalariesController < Company::BaseController
                            .joins("INNER JOIN salaries ON salaries.id = contract_cycles.cyclable_id")
                            .where("contracts.id": current_company.contracts.select(:id))
                            .where("contract_cycles.start_date between ? and ? and contract_cycles.end_date between ? and ?", start, end_date, start, end_date)
+                            .order('created_at')
     @contract_cycles.each do |cc|
       if [:pending, :open].include?(cc.cyclable.status.to_sym)
         timesheets = Timesheet.approved.joins(:contract_cycle)
@@ -309,7 +310,7 @@ class Company::SalariesController < Company::BaseController
     @salaries = Salary.where(id: params[:ids], status: [:open, :pending])
     @salaries.each do |salary|
       advance = salary.calculate_advance
-      salary.update_attributes(total_amount: salary.approved_amount + advance + salary.commission_amount.to_f, salary_advance: advance)
+      salary.update_attributes(total_amount: salary.approved_amount.to_f + advance + salary.commission_amount.to_f, salary_advance: advance)
     end
     if @salaries.update_all(status: "calculated")
       flash[:success] = "Salary calculated successfully"

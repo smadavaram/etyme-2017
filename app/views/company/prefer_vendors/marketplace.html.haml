@@ -122,7 +122,7 @@
           $('#candidate_subcategory').empty();
           $.each(data, function(i, value) {
 
-            if(value == "#{current_company.candidates.first.subcategory}"){
+            if(value == "#{current_company&.candidates&.first&.subcategory}"){
               $('#candidate_subcategory').append($('<option selected="selected">').text(value).attr('value', value));
             }else{
               $('#candidate_subcategory').append($('<option>').text(value).attr('value', value));

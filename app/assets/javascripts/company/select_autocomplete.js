@@ -270,6 +270,7 @@ var set_expense_type_select = function (selector, place_holder) {
                 },
                 processResults: function (data, params) {
                     // params.page = params.page || 1;
+
                     return {
                         results: data
                     };
@@ -278,7 +279,9 @@ var set_expense_type_select = function (selector, place_holder) {
             },
             language: {
                 noResults: function () {
-                    return "No results <a class='pull-right header-btn hidden-mobile' data-toggle='modal' data-target='#new-expense-type' href='#'>Add New</a>";
+                   if (!place_holder.includes('expense')){
+                       return "No results <a class='pull-right header-btn hidden-mobile' data-toggle='modal' data-target='#new-expense-type' href='#'>Add New</a>";
+                   }
                 }
             },
             placeholder: place_holder,
