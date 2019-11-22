@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema.define(version: 20191114140535) do
+ActiveRecord::Schema.define(version: 20191122120240) do
 
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
@@ -1352,6 +1352,8 @@ ActiveRecord::Schema.define(version: 20191114140535) do
     t.integer "invitation_type"
     t.text "response_message"
     t.integer "invitation_purpose", default: 0
+    t.integer "sender_id"
+    t.string "sender_type"
   end
 
   create_table "job_requirements", force: :cascade do |t|

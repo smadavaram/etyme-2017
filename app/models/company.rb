@@ -40,7 +40,9 @@ class Company < ApplicationRecord
   has_many :leaves, through: :users
   has_many :timesheet_logs, through: :timesheets
   has_many :timesheet_approvers, through: :timesheets
-  
+  has_many :job_invitations, as: :sender
+
+
   # has_many :sent_invoices             , through:   :received_contracts ,source:  :invoices
   # has_many :received_invoices         , through:   :sent_contracts ,source:  :invoices
   

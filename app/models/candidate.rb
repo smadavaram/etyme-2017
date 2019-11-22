@@ -41,8 +41,10 @@ class Candidate < ApplicationRecord
   has_many :custom_fields, as: :customizable, dependent: :destroy
   has_many :job_applications, as: :applicationable
   has_many :job_invitations, as: :recipient
+
   has_many :contracts, through: :job_applications, dependent: :destroy
-  has_many :job_invitations, as: :recipient
+  has_many :job_invitations_sender, as: :sender, class_name: 'JobInvitation'
+
   has_many :educations, dependent: :destroy, foreign_key: 'user_id'
   has_many :experiences, dependent: :destroy, foreign_key: 'user_id'
   has_many :candidates_companies, dependent: :destroy

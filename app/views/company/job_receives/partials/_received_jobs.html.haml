@@ -23,7 +23,7 @@
 
                 %tbody
                   - data.each_with_index  do |job_inv|
-                    -received=job_inv.recipient
+                    -received=job_inv.sender
                     %tr.even{:role => "row"}
                       %td= received.full_name
                       %td

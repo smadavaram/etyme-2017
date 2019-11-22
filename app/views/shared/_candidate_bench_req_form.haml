@@ -7,9 +7,10 @@
           ×
       = form_for JobInvitation.new , url:  bench_company_invitation_candidate_job_invitations_path, html:{ class:'form-horizontal',id: 'candidate-val'} do |f|
         .modal-body
-          = f.hidden_field :recipient_type , value: 'Candidate'
-          = f.hidden_field :recipient_id , value: current_candidate.id
-          = f.hidden_field :invitation_type , value: 'vendor'
+          = f.hidden_field :recipient_type , value: 'Company'
+          = f.hidden_field :sender_id , value: current_candidate.id
+          = f.hidden_field :sender_type , value: 'Candidate'
+          = f.hidden_field :invitation_type , value: 'candidate'
           = f.hidden_field :invitation_purpose , value: 'bench'
           %br
           .form-group

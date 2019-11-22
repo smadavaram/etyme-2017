@@ -1,7 +1,7 @@
 class Company::JobReceivesController < Company::BaseController
 
   def index
-    @received_jobs = current_company.sent_job_invitations.vendor
+    @received_jobs = current_company.sent_job_invitations.where(sender_type: 'Candidate')
 
   end
 

@@ -18,7 +18,10 @@ class Company::JobInvitationsController < Company::BaseController
     @job_invitation = JobInvitation.find params[:job_invitation_id]
     if @job_invitation.update(status: :accepted)
       @job_invitation.company.candidates_companies.where(candidate_id: @job_invitation.recipient_id).update_all(status: :hot_candidate)
-      @job_invitation.recipient.update(associated_company: @job_invitation.company)
+      @job_invitation.sender.update(associated_company: @job_invitation.company)
+
+
+
       flash[:success] = "Updates Successfully"
     else
       flash[:errors] = @job_invitation.errors.full_messages

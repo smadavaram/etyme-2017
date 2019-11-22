@@ -29,6 +29,9 @@ class JobInvitation < ApplicationRecord
 
   belongs_to :created_by, class_name: "User", foreign_key: :created_by_id, optional: true
   belongs_to :recipient, polymorphic: true, optional: true
+  belongs_to :sender, polymorphic: true, optional: true
+
+
   belongs_to :company, optional: true
   belongs_to :job, optional: true
   has_one :job_application
@@ -36,8 +39,11 @@ class JobInvitation < ApplicationRecord
 
   # after_create :send_invitation_mail
   after_create :associate_invitation_with_candidate, if: Proc.new { |invitation| invitation.email.present? }
+  after_update :reject_request, if: Proc.new { |invitation| invitation.accepted? && invitation.bench? }
+
   after_create :notify_recipient
   after_update :notify_on_status_change, if: Proc.new { |invitation| invitation.status_changed? }
+
 
   attr_accessor :email, :first_name, :last_name
 
@@ -55,6 +61,9 @@ class JobInvitation < ApplicationRecord
 
 
   private
+  def reject_request
+    JobInvitation.where(recipient_id: self.recipient_id,company_id: self.company_id).bench.pending.update_all(status: :rejected)
+  end
 
   # Call after create
   def notify_recipient
@@ -63,8 +72,14 @@ class JobInvitation < ApplicationRecord
           self.recipient.notifications.create(message: self.company.name + " has invited you for <a href='http://#{self.recipient.etyme_url + job_invitation_path(self)}'>#{self.job&.title}</a> <br/> <p> #{self.message} </p>", title: "Job Invitation",createable: created_by)
           :
           self.recipient.notifications.create(message: self.company.name + " has invited you to add into their bench, <a href='http://#{self.recipient.etyme_url + job_invitation_path(self)}'> click here</a> to accept or reject. <br/> <p> #{self.message} </p>", title: "Add To Bench Invitation",createable: created_by)
+
+    elsif self.recipient_type == "Company"
+          self.sender.notifications.create(message: self.company.name + " has invited you for <a href='http://#{self.recipient.etyme_url + job_invitation_path(self)}'>#{self.job&.title}</a> <br/> <p> #{self.message} </p>", title: "Job Invitation",createable: created_by)
+
+          self.sender.notifications.create(message: self.company.name + " has invited you to add into their bench, <a href='http://#{self.sender.etyme_url + job_invitation_path(self)}'> click here</a> to accept or reject. <br/> <p> #{self.message} </p>", title: "Add To Bench Invitation",createable: created_by)
     else
       self.recipient.notifications.create(message: self.company.name + " has invited you for <a href='http://#{self.recipient.company.etyme_url + job_invitation_path(self)}'>#{self.job.title}</a>", title: "Job Invitation",createable: created_by)
+
     end
 
   end
