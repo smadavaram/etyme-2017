@@ -1,0 +1,47 @@
+.modal{ id: "candidate-bench_req","aria-hidden": "true", "aria-labelledby": "myModalLabel", :role => "dialog", :style => "display: none;", :tabindex => "-1"}
+  .modal-dialog.modal-lg
+    .modal-content
+      .modal-header
+        %h1 Request Company To Bench
+        %button.close{"aria-hidden" => "true", "data-dismiss" => "modal", :type => "button"}
+          ×
+      = form_for JobInvitation.new , url:  bench_company_invitation_candidate_job_invitations_path, html:{ class:'form-horizontal',id: 'candidate-val'} do |f|
+        .modal-body
+          = f.hidden_field :recipient_type , value: 'Candidate'
+          = f.hidden_field :recipient_id , value: current_candidate.id
+          = f.hidden_field :invitation_type , value: 'vendor'
+          = f.hidden_field :invitation_purpose , value: 'bench'
+          %br
+          .form-group
+            %label.col-md-3.control-label
+              Select Company
+              %sup.text-danger *
+            .col-md-10
+              -#current_candidate.candidates_companies.joins(:company).select('companies.*')
+              = f.select :company_id, options_for_select(Company.all.map {|c| [ c.name, c.id ] }), { include_blank: true,id: 'company_ids' }
+          .form-group
+            %label.col-md-3.control-label
+              Expiry Date
+              %sup.text-danger *
+            .col-md-10
+              = f.text_field :expiry ,class: "form-control end_date" , required: 'required', placeholder: "Expire Date"
+          .form-group
+            %label.col-md-3.control-label
+              Message
+              %sup.text-danger
+            .col-md-10
+              = f.text_area :message ,class: "form-control" ,row: '3' , placeholder: "Enter Description"
+          .modal-footer
+            -#= button_tag 'Cancel' , class: 'btn btn-default' , data: {"dismiss": "modal"}
+            %button.btn.btn-default{"data-dismiss" => "modal", :type => "button"}
+              Cancel
+            = f.button "Send".html_safe, data: {disable_with: disable_spinning("Sending...")} , class: 'btn btn-primary btn-sm'
+
+
+-content_for :scripts do
+  :javascript
+    $('.end_date').datepicker({dateFormat : 'dd/mm/yy'});
+    $(document).ready(function() {
+      $('#job_invitation_company_id').select2();
+    });
+

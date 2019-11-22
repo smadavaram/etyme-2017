@@ -6,6 +6,22 @@ class Candidate::JobInvitationsController < Candidate::BaseController
 
   end
 
+  def bench_company_invitation
+    if current_candidate.job_invitations.where(company_id:params[:job_invitation][:company_id]).blank?
+
+      @job_invitation = Company.find(params[:job_invitation][:company_id]).sent_job_invitations.new(job_invitation_params.merge!(created_by_id: current_user&.id))
+        if (@job_invitation.save)
+          flash[:success] = 'Invitation is  sent to Company'
+        else
+          flash[:errors] = @job_invitation.errors.full_messages
+        end
+    else
+      flash[:errors] = 'Invitation has been sent already'
+    end
+        redirect_back(fallback_location: root_path)
+  end
+
+
   def bench_invitations
     add_breadcrumb 'Dashboard', "/candidate", :title => ""
     add_breadcrumb 'Invitations', "#"

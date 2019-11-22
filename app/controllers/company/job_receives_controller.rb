@@ -1,7 +1,8 @@
 class Company::JobReceivesController < Company::BaseController
 
   def index
-    @received_jobs = current_company.passive_relationships.includes(:candidate, :shared_by).paginate(page: params[:page], per_page: 10) || []
+    @received_jobs = current_company.sent_job_invitations.vendor
+
   end
 
   def destroy

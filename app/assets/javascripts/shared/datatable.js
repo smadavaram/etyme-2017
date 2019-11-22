@@ -177,6 +177,10 @@ $(document).ready(function () {
     $('#candidate_job_invite_datatable-search_4').keyup(function () {
         $('#candidate_job_invite_datatable_4').DataTable().search($(this).val()).draw();
     });
+    $('#Req_by_candi_to_bench').dataTable();
+    $('#Req_by_candi_to_bench_search').keyup(function () {
+        $('#Req_by_candi_to_bench').DataTable().search($(this).val()).draw();
+    });
 
 
     $('#dataTable').dataTable({
