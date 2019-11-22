@@ -19,7 +19,6 @@ class Candidate::DocumentSignsController < Candidate::BaseController
   def upload_document
     @document_sign = DocumentSign.find_by(id: params[:document_sign_id])
     @legal_doc = LegalDocument.find_by(id: params[:legal_doc_id])
-    debugger
     if @document_sign.update(save_doc: @legal_doc, is_sign_done: true)
       flash[:success] = 'Submitted file from documents'
     else

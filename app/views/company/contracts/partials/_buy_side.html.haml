@@ -217,7 +217,7 @@
                                 %td= docusign.documentable.title
                                 %td= docusign.created_at.strftime("%Y-%m-%d")
                                 %td= docusign.envelope_id.present? ? "Submitted" : "Document Not Submitted"
-                                %td= link_to content_tag(:i,'',class:'fa fa-paperclip fa-lg').html_safe, docusign.signed_file if docusign.signed_file.present?
+                                %td= link_to content_tag(:i,'',class:'fa fa-paperclip fa-lg').html_safe, docusign_file(docusign), title: 'Download Document' if docusign.is_sign_done
               #buy_ven_req_docs.tab-pane.padding-top-15
                 .row
                   .col-md-12

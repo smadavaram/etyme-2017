@@ -12,8 +12,23 @@ class Company::DocumentSignsController < ApplicationController
     render json: {status: "ok"}, status: :ok
   end
 
-  def my_documents
-    
+  def upload_document
+    @document_sign = DocumentSign.find_by(id: params[:document_sign_id])
+    @legal_doc = CompanyLegalDoc.find_by(id: params[:legal_doc_id])
+    if @document_sign.update(save_doc: @legal_doc, is_sign_done: true)
+      flash[:success] = 'Submitted file from documents'
+    else
+      flash[:errors] = @document_sign.errors.full_messages
+    end
+    redirect_back fallback_location: root_path
+  end
+
+  def documents
+    @document_sign = DocumentSign.find_by(id: params[:document_sign_id])
+    @legal_docs = current_company.company_legal_docs
+    respond_to do |format|
+      format.js {}
+    end
   end
 
   private
