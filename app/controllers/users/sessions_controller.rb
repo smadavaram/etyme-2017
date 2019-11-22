@@ -28,7 +28,6 @@ class Users::SessionsController < Devise::SessionsController
        flash[:error] = "User is not registerd on this domain"
        redirect_back fallback_location: root_path
      end
-
    end
 
   # DELETE /resource/sign_out

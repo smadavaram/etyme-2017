@@ -1,9 +1,7 @@
 class ApplicationController < ActionController::Base
 
   protect_from_forgery
-  before_action :set_permissions
   layout :set_devise_layout
-  before_action :prepare_exception_notifier
 
   add_flash_types :error, :success, :errors, :alert
 
@@ -38,6 +36,8 @@ class ApplicationController < ActionController::Base
   def after_sign_in_path_for(resource)
     class_name = resource.class.name
     get_new_notification_flash(resource)
+    prepare_exception_notifier
+    set_permissions
     if session[:previous_url]
       return session[:previous_url]
     elsif class_name == 'Admin' || class_name == 'Consultant' || class_name == 'User'
