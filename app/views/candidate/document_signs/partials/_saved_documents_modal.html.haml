@@ -1,0 +1,17 @@
+.modal{id: "my_documents_#{document_sign.id}"}
+  .modal-dialog
+    .modal-content
+      .modal-header
+        %h2#myModalLabel.modal-title
+          %strong My Documents
+        %button.close{"aria-hidden" => "true", "data-dismiss" => "modal", :type => "button"}
+        ×
+      .modal-body
+        .legal_documents
+          - legal_docs.each do |doc|
+            .document_row
+              %p.mb-0= doc.title.capitalize
+              =link_to :upload , candidate_document_sign_upload_document_path(document_sign_id: document_sign.id,legal_doc_id: doc.id )
+
+
+

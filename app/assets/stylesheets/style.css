@@ -1813,3 +1813,23 @@ flex: 0 0 220px;
     text-decoration-color: #047bf8;
     text-decoration-style: wavy;
 }
+
+.f-align_center{
+    display: flex;
+    align-items: center !important;
+}
+
+.document_row{
+    display: flex;
+    justify-content: space-between;
+    padding: 8px;
+    border: 1px solid #ACADC2;
+    align-items: center;
+    margin-bottom: 3px;
+}
+
+.legal_documents{
+    min-height: 200px;
+    max-height: 250px;
+    overflow-y: scroll;
+}

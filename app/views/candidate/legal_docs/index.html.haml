@@ -1,0 +1,65 @@
+.content-box
+  .element-wrapper
+    .element-box
+      %body.bg_white
+        .container-fluid.bg_white
+          .row{style: "padding: 0px 15px 15px 15px;"}
+            .form-group
+              .multi-field-wrapper
+                .multi-fields
+                  = form_for LegalDocument.new ,url: candidate_legal_docs_path,method: :post do |f|
+                    %br
+                    %hr
+                    .row
+                      .col-md-12
+                        %h4
+                          %b Legal Document
+                        %br
+                        .form-group.candidate-association
+                          .row.multi-field-container{style: "padding: 0px 15px 15px 15px;"}
+                            .row
+                              .col-sm-3
+                                .form-group
+                                  %p Title
+                                  = f.text_field :title, placeholder: "Title",class: 'form-control  input'
+                              .col-sm-3
+                                .form-group
+                                  %p Expiry Date
+                                  = f.text_field :exp_date, placeholder: "YYYY-MM-DD",class: 'form-control p_date',:autocomplete => :off
+                              .col-sm-5
+                                .form-group
+                                  %p Select File
+                                  .flex-row
+                                    = render "shared/file_attachement", f:f,attr_name: :file, button_name: "Upload Document",name_selector: ".uploaded_file_name",cstm_style: "border-radius: 0; height:38px;"
+                                    %p.uploaded_file_name No Document Selected
+                              .col-sm-1.f-align_center
+                                %button.btn.btn-primary{:type => "submit"} Save
+
+          .row
+            .table-responsive
+              %table#datatable_fixed_column.table.table-striped.table-bordered
+                %thead
+                  %tr{:role => "row"}
+                    %th Title
+                    %th Expiry Date
+                    %th Attachment
+                    %th Action(s)
+                %tbody
+                  - @legal_docs.each do |doc|
+                    %tr
+                      %td= doc.title
+                      %td= doc.exp_date
+                      %td
+                        %a{:download => "", :href => doc.file, :target=>"_blank"}
+                          = "Attachment"
+                      %td= link_to "", candidate_legal_doc_path(doc), :title=>"Delete", class: "fa fa-trash-o fa-lg fa-fw delete_primary_doc", method: :delete, data: { confirm: 'Are you sure?', :style=>"float: right !important;" }
+
+- content_for :scripts do
+  :javascript
+    function select_visa_file(prev){
+      prev.trigger("click");
+    }
+    function uploadVisaDoc(event, file_el){
+      document_url = event.fpfile.url
+      $("#"+file_el.attr("id")).val(document_url)
+    }

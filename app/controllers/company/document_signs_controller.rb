@@ -12,6 +12,10 @@ class Company::DocumentSignsController < ApplicationController
     render json: {status: "ok"}, status: :ok
   end
 
+  def my_documents
+    
+  end
+
   private
 
   def get_documents(xml_doc)

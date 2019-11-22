@@ -1,0 +1,2 @@
+$('#modals').append("#{j render 'candidate/document_signs/partials/saved_documents_modal' , document_sign: @document_sign, legal_docs: @legal_docs}");
+$("#my_documents_#{@document_sign.id}").modal('show');
