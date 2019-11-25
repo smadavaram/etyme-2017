@@ -40,7 +40,7 @@ function set_conversation(data) {
     }
 
     $("#conversation_message_file_url").val('');
-
+    $(".filepicker-attach-doc").val('');
     $("#file-name_uploaded").html('');
     if ($(data.dom).hasClass("popup-chat")) {
         if (current_user_id == data.usr && current_user_type == (data.usr_typ == 'Candidate' ? "Candidate" : "User")) {
@@ -70,7 +70,7 @@ function set_conversation(data) {
                 data.msg_time +
                 "</div>" +
                 "<div class='chat-message-avatar'>" +
-                "<img src='" + data.msg_url + "' alt='N/A'>" +
+                "<img src='" + data.msg_url + "' alt='"+ data.img_alt +"'>" +
                 "</div>" +
                 "</div>");
         } else {
@@ -92,7 +92,7 @@ function set_conversation(data) {
                 "</div>" +
                 "</div>" +
                 "<div class='chat-message-avatar'>" +
-                "<img src='" + data.msg_url + "' alt='N/A'>" +
+                "<img src='" + data.msg_url + "' alt='"+ data.img_alt +"'>" +
                 "</div>" +
                 "<div class=chat-message-date>" +
                 data.msg_time +

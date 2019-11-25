@@ -12,6 +12,7 @@ class ConversationMessagesController < ApplicationController
                                      msg_id: message.id,
                                      # msg: message_content,
                                      msg: message.body,
+                                     img_alt: "#{message.userable.first_name[0]&.capitalize || 'N'}.#{message.userable.last_name[0]&.capitalize || 'A'}",
                                      sender_name: message.userable.full_name.capitalize,
                                      file_url: message.file_url ? message.file_url : "",
                                      msg_url: message.userable.photo,

@@ -89,7 +89,7 @@
       </div>
     </div>
     <div class="chat-message-avatar">
-      <% if false #msg.userable.photo&.present? %>
+      <% if msg.userable.photo&.present? %>
         <%= image_tag(msg.userable.photo, class: "image-35-imp", alt: image_alt(msg.userable)) %>
       <% else %>
         <%= entity_image(msg.userable.first_name, msg.userable.last_name, 'circle', "image-35-imp") %>
