@@ -2,3 +2,6 @@
 
 require ::File.expand_path('../config/environment', __FILE__)
 run Rails.application
+if defined?(PhusionPassenger)
+  PhusionPassenger.advertised_concurrency_level = 0
+end
