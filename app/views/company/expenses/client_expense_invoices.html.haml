@@ -1,42 +1,41 @@
-#content
-  .row
-  %section
-#content
-  .row
-  %section
+.content-i
+  .content-box
     .row
-      %article.col-sm-12.col-md-12.col-lg-12
-        #wid-id-0.jarviswidget{"data-widget-deletebutton" => "false", "data-widget-editbutton" => "false"}
-          %header
-            %span.widget-icon
-              %i.fa.fa-check
-            %h2.text-white Open Invoices
-          %div.table-responsive
-            %table.table.table-bordered.account_detail
-              %thead
-                %tr
-                  %th Contract
-                  %th Bill no/ Item description
-                  %th Status
-                  %th Due date
-                  %th Bill Type
-                  %th Open Balance
-                  %th Action
-              %tbody
-                - @client_expenses.each do |ex|
+      .col-sm-12
+        .element-wrapper
+          .element-box-tp
+            .controls-above-table
+              .row.mr-1.ml-1
+                .col-sm-6
+                .col-sm-6
+                  .form-inline.justify-content-sm-end
+                    %input.form-control.form-control-sm.rounded.bright{placeholder: "Search", type: "search", id: 'client-expense-invoice-datatable-search'}
+            .table-responsive
+              %table#client-expense-invoice-datatable.table.table-bordered.account_detail
+                %thead
                   %tr
-                    %td
-                      = ex.contract_id
-                    %td
-                      = ex.bill_no
-                    %td
-                      = ex.status.titleize
-                    %td
-                      = ex.due_date
-                    %td
-                      = ex.bill_type.titleize
-                    %td
-                      =  ex.total_amount
-                    %td
-                      = form_for ex, url: client_expense_generate_invoice_expenses_path(ex_id: ex.id), method: :post do |f|
-                        = f.submit 'Generate Invoice'
+                    %th Contract
+                    %th Bill no/ Item description
+                    %th Status
+                    %th Due date
+                    %th Bill Type
+                    %th Open Balance
+                    %th Action
+                %tbody
+                  - @client_expenses.each do |ex|
+                    %tr
+                      %td
+                        = ex.contract_id
+                      %td
+                        = ex.bill_no
+                      %td
+                        = ex.status.titleize
+                      %td
+                        = ex.due_date
+                      %td
+                        = ex.bill_type.titleize
+                      %td
+                        =  ex.total_amount
+                      %td
+                        = form_for ex, url: client_expense_generate_invoice_expenses_path(ex_id: ex.id), method: :post do |f|
+                          = f.submit 'Generate Invoice'

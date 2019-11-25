@@ -43,11 +43,11 @@
 
                   .col-md-2
                     %label{:for => 'due_date'} Due Date:
-                    = f.date_field :due_date , class: 'form-control' 
+                    = f.date_field :due_date , class: 'form-control'
 
                   .col-md-2
                     %label{:for => 'bill_no'} Bill no.
-                    = f.text_field :bill_no, class: 'form-control'               
+                    = f.text_field :bill_no, class: 'form-control'
 
                 .approved_client_expense
                   = render partial: 'approved_client_expense'

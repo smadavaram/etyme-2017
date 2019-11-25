@@ -186,6 +186,17 @@ $(document).ready(function () {
         $('#company-legal-doc').DataTable().search($(this).val()).draw();
     });
 
+    $('#client-expense-invoice-datatable').dataTable();
+    $('#client-expense-invoice-datatable-search').keyup(function () {
+        $('#client-expense-invoice-datatable').DataTable().search($(this).val()).draw();
+    });
+
+    $('#account-detail-datatable').dataTable();
+    $('#account-detail-datatable-search').keyup(function () {
+        $('#account-detail-datatable').DataTable().search($(this).val()).draw();
+    });
+
+
 
     $('#dataTable').dataTable({
         columnDefs: [{
