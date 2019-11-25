@@ -1,87 +1,42 @@
-#content
-  #wid-id-5.no-border.jarviswidget{"data-widget-colorbutton" => "false", "data-widget-custombutton" => "false", "data-widget-editbutton" => "false", "data-widget-fullscreenbutton" => "false", "data-widget-sortable" => "false"}
-    %div
-      .jarviswidget-editbox
-      .widget-body
-        .col-md-12
-          .table-responsive
-            %table#resultTable.table.table-striped.table-bordered.table-hover.table-lg
-              %thead
-                %tr
-                  %th Contract
-                  %th Sender
-                  %th Company
-                  %th Job
-                  %th Valid Period
-                  %th Time sheet
-                  %th Status
-                  %th Contact
-              %tbody
-                - @contracts.each do |d|
-                  %tr{class: "#{set_background_status_color(d.status)}"}
-                    %td
-                      = d.project_name
-                      %a.pull-right{:href => candidate_contract_path(d)}
-                        %i.fa.fa-key
-                    %td= d.created_by.full_name.capitalize
-                    %td= d.created_by.company.name.capitalize if d.created_by.company.present?
-                    %td= link_to d.job.title.capitalize , static_job_path(d.job)
-                    %td= "#{d.start_date} - #{d.end_date}"
-                    %td= link_to "TimeSheet", new_candidate_timesheet_path if d.accepted?
-                    %td= snake_to_words(d.status)
-                    %td= contact_widget(d.created_by.email,d.created_by.phone,nil,color: "#047bf8",chat_link: candidate_conversations_path(d.buy_contract.conversation.present? ? {conversation: d.buy_contract.conversation} : {}))
-                    -#- if d.pending?
-                    -#  = link_to 'Accept' , open_contract_candidate_job_contract_path(d.job , d , status: 'accept') , method: :post , remote: true , class: 'btn btn-xs btn-default'
-                    -#  = link_to 'Reject' , open_contract_candidate_job_contract_path(d.job , d , status: 'reject') , method: :post , remote: true ,  class: 'btn btn-xs btn-default'
-                    -#-else
-                    -#  %span.label.label-success= d.status
+.content-i
+  .content-box
+    .row
+      .col-sm-12
+        .element-wrapper
+          .element-box-tp
+            .controls-above-table
+              .row.mr-1.ml-1
+                .col-sm-12
+                  .form-inline.justify-content-sm-end
+                    %input.form-control.form-control-sm.rounded.bright{placeholder: "Search", type: "text", type: 'search', id: "candidate_contracts_datatable-search"}
+            .table-responsive
+              %table.table.table-striped.table-bordered.table-hover.table-lg{id: "candidate_contracts_datatable"}
+                %thead
+                  %tr
+                    %th Contract
+                    %th Sender
+                    %th Company
+                    %th Job
+                    %th Valid Period
+                    %th Time sheet
+                    %th Status
+                    %th Contact
+                %tbody
+                  - @contracts.each do |d|
+                    %tr{class: "#{set_background_status_color(d.status)}"}
+                      %td
+                        = d.project_name
+                        %a.pull-right{:href => candidate_contract_path(d)}
+                          %i.fa.fa-key
+                      %td= d.created_by.full_name.capitalize
+                      %td= d.created_by.company.name.capitalize if d.created_by.company.present?
+                      %td= link_to d.job.title.capitalize , static_job_path(d.job)
+                      %td= "#{d.start_date} - #{d.end_date}"
+                      %td= link_to "TimeSheet", new_candidate_timesheet_path if d.accepted?
+                      %td= snake_to_words(d.status)
+                      %td= contact_widget(d.created_by.email,d.created_by.phone,nil,color: "#047bf8",chat_link: candidate_conversations_path(d.buy_contract.conversation.present? ? {conversation: d.buy_contract.conversation} : {}))
 
 
-          -#.tab-content
-          -#  #tab-r1.tab-pane.active
-          -#    #hb2.tab-pane.active
-          -#      %ul#internal-tab-1.nav.nav-tabs.tabs-pull-right
-          -#        %br
-          -#        .input-group.input-group-lg.hidden-mobile
-          -#          .input-group-btn
-          -#            %button.btn.btn-default.dropdown-toggle.textbtn{"data-toggle" => "dropdown", :type => "button"}
-          -#              All
-          -#              %span.caret
-          -#            %ul.dropdown-menu
-          -#              %li.active
-          -#                %a{:href => "javascript:void(0)"}
-          -#                  All
-          -#              %li.divider
-          -#              %li
-          -#                %a{:href => "javascript:void(0)"} Rejected
-          -#              %li
-          -#                %a{:href => "javascript:void(0)"} Accepted
-          -#              %li
-          -#                %a{:href => "javascript:void(0)"} Pending
-          -#          %input#search-project.form-control.input-lg{:placeholder => "Search Contract...", :type => "text"}/
-          -#          .input-group-btn
-          -#            %button.btn.btn-default{:type => "submit"}
-          -#              \   
-          -#              %i.fa.fa-fw.fa-search.fa-lg>
-          -#              \  
-          -#        %br 
-          -#        %li
-          -#          %a{"aria-expanded" => "false", "data-toggle" => "tab", :href => "#is4"} Rejected
-          -#        %li
-          -#          %a{"aria-expanded" => "false", "data-toggle" => "tab", :href => "#is1"} Accepted
-          -#        %li
-          -#          %a{"aria-expanded" => "false", "data-toggle" => "tab", :href => "#is2"} Pending
-          -#        %li.active
-          -#          %a{"aria-expanded" => "true", "data-toggle" => "tab", :href => "#is3"} All
-          -#      .tab-content.padding-10
-          -#        #is4.tab-pane
-          -#          -#= render partial: 'candidate/contracts/partials/receive_contract_table' , locals: {data: @received_contracts.rejected}
-          -#        #is1.tab-pane
-          -#          -#= render partial: 'candidate/contracts/partials/receive_contract_table' , locals: {data: @received_contracts.accepted}
-          -#        #is2.tab-pane.fade
-          -#          -#= render partial: 'candidate/contracts/partials/receive_contract_table' , locals: {data: @received_contracts.pending}
-          -#        #is3.tab-pane.fade.active.in
-          -#          -#= render partial: 'candidate/contracts/partials/receive_contract_table' , locals: { data: @received_contracts}
 - content_for :modals do
   #ajax-modal
 - content_for :scripts do

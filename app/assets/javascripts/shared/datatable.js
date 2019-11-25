@@ -179,6 +179,40 @@ $(document).ready(function () {
     });
 
 
+    $('#candidate_job_applications_datatable_1').dataTable();
+    $('#candidate_job_applications_datatable-search_1').keyup(function () {
+        $('#candidate_job_applications_datatable_1').DataTable().search($(this).val()).draw();
+    });
+    $('#candidate_job_applications_datatable_2').dataTable();
+    $('#candidate_job_applications_datatable-search_2').keyup(function () {
+        $('#candidate_job_applications_datatable_2').DataTable().search($(this).val()).draw();
+    });
+    $('#candidate_job_applications_datatable_3').dataTable();
+    $('#candidate_job_applications_datatable-search_3').keyup(function () {
+        $('#candidate_job_applications_datatable_3').DataTable().search($(this).val()).draw();
+    });
+    $('#candidate_job_applications_datatable_4').dataTable();
+    $('#candidate_job_applications_datatable-search_4').keyup(function () {
+        $('#candidate_job_applications_datatable_4').DataTable().search($(this).val()).draw();
+    });
+    $('#candidate_job_applications_datatable_5').dataTable();
+    $('#candidate_job_applications_datatable-search_5').keyup(function () {
+        $('#candidate_job_applications_datatable_5').DataTable().search($(this).val()).draw();
+    });
+    $('#candidate_job_applications_datatable_6').dataTable();
+    $('#candidate_job_applications_datatable-search_6').keyup(function () {
+        $('#candidate_job_applications_datatable_6').DataTable().search($(this).val()).draw();
+    });
+    $('#candidate_contracts_datatable').dataTable();
+    $('#candidate_contracts_datatable-search').keyup(function () {
+        $('#candidate_contracts_datatable').DataTable().search($(this).val()).draw();
+    });
+    $('#candidate_documents_datatable').dataTable();
+    $('#candidate_documents_datatable-search').keyup(function () {
+        $('#candidate_documents_datatable').DataTable().search($(this).val()).draw();
+    });
+
+
     $('#dataTable').dataTable({
         columnDefs: [{
             'targets': 0,
