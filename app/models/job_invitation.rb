@@ -63,13 +63,13 @@ class JobInvitation < ApplicationRecord
   private
   def reject_request
     if self.sender_type.eql?('Candidate')
-      JobInvitation.where(sender_id: self.sender_id,company_id: self.company_id).bench.pending.update_all(status: :rejected)
-      JobInvitation.where(recipient_id: self.sender_id,recipient_type: 'Candidate',company_id: self.company_id).bench.pending.update_all(status: :rejected)
+      JobInvitation.where(sender_id: self.sender_id).bench.pending.update_all(status: :rejected)
+      JobInvitation.where(recipient_id: self.sender_id,recipient_type: 'Candidate').bench.pending.update_all(status: :rejected)
 
     end
     if self.recipient_type.eql?('Candidate')
-      JobInvitation.where(recipient_id: self.recipient_id,company_id: self.company_id).bench.pending.update_all(status: :rejected)
-      JobInvitation.where(sender_id: self.recipient_id,sender_type: 'Candidate',company_id: self.company_id).bench.pending.update_all(status: :rejected)
+      JobInvitation.where(recipient_id: self.recipient_id).bench.pending.update_all(status: :rejected)
+      JobInvitation.where(sender_id: self.recipient_id,sender_type: 'Candidate').bench.pending.update_all(status: :rejected)
 
     end
   end
@@ -96,9 +96,23 @@ class JobInvitation < ApplicationRecord
   # Call after update
   def notify_on_status_change
     if self.recipient_type == "Candidate"
-      self.recipient.notifications.create(message: self.company.name + " has invited you for <a href='http://#{self.recipient.etyme_url + job_invitation_path(self)}'>#{self.job&.title}</a> <br/> <p> #{self.message} </p>", title: "Job Invitation",createable: created_by)
+      if self.job?
+        self.recipient.notifications.create(message: self.recipient.full_name+ " Job Status has been changed to "+ self.status+" <a href='http://#{self.recipient.etyme_url + job_invitation_path(self)}'>#{self.job&.title}</a> <br/> <p> #{self.message} </p>", title: "Job Invitation",createable: created_by)
+
+      end
+      if self.bench?
+        self.recipient.notifications.create(message: self.recipient.full_name + " Bench Job Invitation Status has been changed to "+ self.status+" <a href='http://#{self.recipient.etyme_url + job_invitation_path(self)}'>#{self.job&.title}</a> <br/> <p> #{self.message} </p>", title: "Job Invitation",createable: created_by)
+
+      end
     else
-      self.created_by.notifications.create(message: self.recipient.full_name + " has " + self.status + " your request for <a href='http://#{self.created_by.company.etyme_url + job_invitation_path(self)}'>invitation</a>", title: "Job Invitation") if self.status != "accepted" && self.created_by.present?
+      if self.job?
+        self.recipient.notifications.create(message:  self.recipient.name+ " has " + self.status + " your request for <a href='http://#{self.created_by.company.etyme_url + job_invitation_path(self)}'>invitation</a>", title: "Job Invitation")
+
+      end
+      if self.bench?
+        self.recipient.notifications.create(message:  self.recipient.name+ " has " + self.status + " your request for <a href='http://#{self.created_by.company.etyme_url + job_invitation_path(self)}'>invitation</a>", title: "Job Invitation")
+
+      end
     end
   end
 

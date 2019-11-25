@@ -7,7 +7,7 @@ class Candidate::JobInvitationsController < Candidate::BaseController
   end
 
   def bench_company_invitation
-    # if current_candidate.job_invitations.where(company_id:params[:job_invitation][:company_id]).blank?
+    if current_candidate.job_invitations_sender.where.not(status: 'rejected').where(company_id:params[:job_invitation][:company_id]).blank?
 
       @job_invitation = Company.find(params[:job_invitation][:company_id]).sent_job_invitations.new(job_invitation_params.merge!(recipient_id: params[:job_invitation][:company_id]))
         if (@job_invitation.save)
@@ -15,9 +15,9 @@ class Candidate::JobInvitationsController < Candidate::BaseController
         else
           flash[:errors] = @job_invitation.errors.full_messages
         end
-    # else
-    #   flash[:errors] = 'Invitation has been sent already'
-    # end
+    else
+      flash[:errors] = 'Invitation has been sent already'
+    end
         redirect_back(fallback_location: root_path)
   end
 

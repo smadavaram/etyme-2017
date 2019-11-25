@@ -41,12 +41,16 @@ class Company::JobInvitationsController < Company::BaseController
   end
 
   def bench_candidate_invitation
-    @job_invitation = current_company.sent_job_invitations.new(job_invitation_params.merge!(created_by_id: current_user.id))
-    if (@job_invitation.save)
-      CandidatesCompany.where(candidate: @job_invitation.recipient, company: current_company).update_all(status: :hot_candidate)
-      flash[:success] = 'Candidate is added to Bench and invitation is also sent'
+    if current_company.job_invitations_sender.where.not(status: 'rejected').where(recipient_id:params[:job_invitation][:recipient_id]).blank?
+      @job_invitation = current_company.sent_job_invitations.new(job_invitation_params.merge!(created_by_id: current_user.id,sender_id: current_company.id,sender_type: 'Company'))
+      if (@job_invitation.save)
+        CandidatesCompany.where(candidate: @job_invitation.recipient, company: current_company).update_all(status: :hot_candidate)
+        flash[:success] = 'Candidate is added to Bench and invitation is also sent'
+      else
+        flash[:errors] = @job_invitation.errors.full_messages
+      end
     else
-      flash[:errors] = @job_invitation.errors.full_messages
+      flash[:errors] = 'Invitation has been sent already'
     end
     redirect_back(fallback_location: company_bench_jobs_path)
   end
