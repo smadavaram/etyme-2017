@@ -181,6 +181,10 @@ $(document).ready(function () {
     $('#Req_by_candi_to_bench_search').keyup(function () {
         $('#Req_by_candi_to_bench').DataTable().search($(this).val()).draw();
     });
+    $('#company-legal-doc').dataTable();
+    $('#company-legal-doc-search').keyup(function () {
+        $('#company-legal-doc').DataTable().search($(this).val()).draw();
+    });
 
 
     $('#dataTable').dataTable({

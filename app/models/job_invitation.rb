@@ -62,7 +62,16 @@ class JobInvitation < ApplicationRecord
 
   private
   def reject_request
-    JobInvitation.where(recipient_id: self.recipient_id,company_id: self.company_id).bench.pending.update_all(status: :rejected)
+    if self.sender_type.eql?('Candidate')
+      JobInvitation.where(sender_id: self.sender_id,company_id: self.company_id).bench.pending.update_all(status: :rejected)
+      JobInvitation.where(recipient_id: self.sender_id,recipient_type: 'Candidate',company_id: self.company_id).bench.pending.update_all(status: :rejected)
+
+    end
+    if self.recipient_type.eql?('Candidate')
+      JobInvitation.where(recipient_id: self.recipient_id,company_id: self.company_id).bench.pending.update_all(status: :rejected)
+      JobInvitation.where(sender_id: self.recipient_id,sender_type: 'Candidate',company_id: self.company_id).bench.pending.update_all(status: :rejected)
+
+    end
   end
 
   # Call after create
@@ -86,7 +95,11 @@ class JobInvitation < ApplicationRecord
 
   # Call after update
   def notify_on_status_change
-    self.created_by.notifications.create(message: self.recipient.full_name + " has " + self.status + " your request for <a href='http://#{self.created_by.company.etyme_url + job_invitation_path(self)}'>invitation</a>", title: "Job Invitation") if self.status != "accepted"
+    if self.recipient_type == "Candidate"
+      self.recipient.notifications.create(message: self.company.name + " has invited you for <a href='http://#{self.recipient.etyme_url + job_invitation_path(self)}'>#{self.job&.title}</a> <br/> <p> #{self.message} </p>", title: "Job Invitation",createable: created_by)
+    else
+      self.created_by.notifications.create(message: self.recipient.full_name + " has " + self.status + " your request for <a href='http://#{self.created_by.company.etyme_url + job_invitation_path(self)}'>invitation</a>", title: "Job Invitation") if self.status != "accepted" && self.created_by.present?
+    end
   end
 
   def associate_invitation_with_candidate

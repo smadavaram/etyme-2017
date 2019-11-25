@@ -67,11 +67,11 @@
           / = link_to_add_fields 'company/companies/branch_fields', f, :branches
           %strong
             .links
-              = link_to_add_association '+ Add Branch', f, :branches, class: 'btn btn-xs', partial: 'company/companies/branch_fields'
+              = link_to_add_association '+ Add Branch', f, :branches, class: '', partial: 'company/companies/branch_fields'
     .row
     .col-lg-12
-      %button.btn.pull-left{:type => "button"}
-        Back
+      -#%button.btn.pull-left{:type => "button"}
+      -#  Back
       %button.btn.btn-primary.pull-right{:type => "button", style: "margin-left: 20px"}
         Next
       %button.btn.btn-primary.pull-right{:type => "submit"}
