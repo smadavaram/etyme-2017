@@ -79,8 +79,10 @@ function set_conversation(data) {
                 $('title').text(`${data.sender_name} has send you a message`)
             }
             if (!$(`.usr_Group_${data.grp_id}`).hasClass('active-conversation')) {
-                $(`.usr_Group_${data.grp_id}`)[0].style.backgroundColor = "#cfd1de"
-                $('.usr_Group_155').find('.last-message').html('<div class="status-pill green" title="New Message"></div>'+data.msg.slice(0, 25)+'...')
+                if ($(`.usr_Group_${data.grp_id}`)[0]) {
+                    $(`.usr_Group_${data.grp_id}`)[0].style.backgroundColor = "#cfd1de"
+                    $(`.usr_Group_${data.grp_id}`).find('.last-message').html('<div class="status-pill green" title="New Message"></div>' + data.msg.slice(0, 25) + '...')
+                }
             }
             $(data.dom).append("<div class='chat-message'>" +
                 "<div class='chat-message-content-w'>" +
