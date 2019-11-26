@@ -93,7 +93,7 @@ class Candidate < ApplicationRecord
 
   has_many :contract_sale_commisions, through: :csc_accounts
   has_many :contract_books, as: :beneficiary
-  
+  has_many :salaries
   
   attr_accessor :job_id, :expiry, :message, :invitation_type
   attr_accessor :send_welcome_email_to_candidate

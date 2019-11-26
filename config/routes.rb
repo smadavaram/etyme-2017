@@ -91,6 +91,11 @@ Rails.application.routes.draw do
         end
       end
       collection do
+        get :companies
+        get :groups
+        get :contacts
+        get :expenses
+        get :salaries
         get :notify_notifications
         get "notification/:id", to: 'candidates#notification', as: "get_notification"
         post :upload_resume

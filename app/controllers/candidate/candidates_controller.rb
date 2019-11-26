@@ -21,7 +21,27 @@ class Candidate::CandidatesController < Candidate::BaseController
       format.html {}
     end
   end
-  
+
+  def companies
+    @companies = Company.all
+  end
+
+  def groups
+    @groups = current_candidate.groups
+  end
+
+  def contacts
+    @companies = Company.joins(jobs: :job_applications).where("job_applications.applicationable_id = ? AND job_applications.applicationable_type = 'Candidate'", current_candidate.id)
+  end
+
+  def expenses
+    @expense_accounts = ExpenseAccount.joins(expense: :contract).where("contracts.candidate_id": current_candidate.id)
+  end
+
+  def salaries
+    @salaries = current_candidate.salaries.includes(:contract_cycle, :contract)
+  end
+
   def bench_invitatons
     @invitations = current_candidates
   end

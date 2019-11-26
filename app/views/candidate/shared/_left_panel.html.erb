@@ -16,7 +16,7 @@
       <div class="logged-user-info-w">
         <div class="logged-user-name">
           <% if current_candidate.associated_company %>
-            <%= link_to current_candidate.associated_company.name, '#', class: "text-muted" %>
+            <%= link_to current_candidate.associated_company.name.capitalize, '#', class: "text-muted" %>
             <%= link_to "<i class='os-icon os-icon-ui-49'></i>".html_safe, "#candidate-bench_req", :class => "", "data-toggle" => "modal" %>
 
           <% else %>
@@ -48,9 +48,9 @@
         <span>Network</span>
       </a>
       <div class="pl-4 w-100 text-justify nav-sidebar-collaps">
-        <a href="<%= "#" %>" class="l2 side-bar_links nested_tab boarder_bottom">Company(s)</a>
-        <a href="<%= "#" %>" class="l2 side-bar_links nested_tab boarder_bottom">Contact(s)</a>
-        <a href="<%= "#" %>" class="l2 side-bar_links nested_tab boarder_bottom">Group(s)</a>
+        <a href="<%= companies_candidates_path %>" class="l2 side-bar_links nested_tab boarder_bottom">Company(s)</a>
+        <a href="<%= contacts_candidates_path %>" class="l2 side-bar_links nested_tab boarder_bottom">Contact(s)</a>
+        <a href="<%= groups_candidates_path %>" class="l2 side-bar_links nested_tab boarder_bottom">Group(s)</a>
       </div>
 
       <a class="ln-2 sidebar_collapsible side-bar_tab">
@@ -98,7 +98,7 @@
       </a>
       <div class="pl-4 w-100 text-justify nav-sidebar-collaps">
         <a href="<%= candidate_timesheets_path %>" class=" l2 side-bar_links nested_tab boarder_bottom">Timesheet(s)</a>
-        <a href="<%= '#' %>" class=" l2 side-bar_links nested_tab boarder_bottom">Expense(s)</a>
+        <a href="<%= expenses_candidates_path %>" class=" l2 side-bar_links nested_tab boarder_bottom">Expense(s)</a>
       </div>
       <a class="ln-7 sidebar_collapsible side-bar_tab">
         <div class="icon-w">
@@ -107,7 +107,7 @@
         <span>Accounting</span>
       </a>
       <div class="pl-4 w-100 text-justify nav-sidebar-collaps">
-        <a href="<%= '#' %>" class=" l2 side-bar_links nested_tab boarder_bottom">Salary(s)</a>
+        <a href="<%= salaries_candidates_path %>" class=" l2 side-bar_links nested_tab boarder_bottom">Salary(s)</a>
       </div>
 
     </div>

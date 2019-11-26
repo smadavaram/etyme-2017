@@ -16,8 +16,8 @@ class Company::InvoicesController < Company::BaseController
 
   def sale
     @tab = params[:tab]||'all_invoices'
-    @start_date  = params[:start_date].blank? ? Time.now.strftime("%m/%d/%Y") : params[:start_date]
-    @end_date  = params[:end_date].blank? ? '2018-01-01' : params[:start_date]
+    @start_date  = params[:start_date].blank? ? Time.now.strftime("%Y/%m/%d") : params[:start_date]
+    @end_date  = params[:end_date].blank? ? Time.now.strftime("%Y/%m/%d") : params[:start_date]
 
     add_breadcrumb @tab, '#', options: {title: "INVOICES"}
     @sent_invoices = current_company.sent_invoices.send(@tab.to_s).where('invoices.start_date < ? AND invoices.end_date > ?', @start_date, @end_date).joins(:contract).paginate(page: params[:page], per_page: 15)
@@ -27,8 +27,8 @@ class Company::InvoicesController < Company::BaseController
   
   def purchase
     @tab = params[:tab] ||  'all_invoices'
-    @start_date  = params[:start_date].blank? ? Time.now.strftime("%m/%d/%Y") : params[:start_date]
-    @end_date  = params[:end_date].blank? ? '2018-01-01' : params[:start_date]
+    @start_date  = params[:start_date].blank? ? Time.now.strftime("%Y/%m/%d") : params[:start_date]
+    @end_date  = params[:end_date].blank? ? Time.now.strftime("%Y/%m/%d") : params[:start_date]
     add_breadcrumb @tab, '#', options: {title: "INVOICES"}
     @receive_invoices = current_company.receive_invoices.send(@tab.to_s).where('invoices.start_date < ? AND invoices.end_date > ?', @start_date, @end_date).joins(:contract).paginate(page: params[:page], per_page: 15)
   end
