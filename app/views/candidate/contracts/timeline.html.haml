@@ -31,7 +31,9 @@
   .timeline_modals
 - content_for :scripts do
   :javascript
-
+    $(document).ready(function () {
+      default_active_nav('.ln-5');
+    });
     $('#custom_range').daterangepicker({
         startDate: moment().startOf('month'),
         endDate: moment().endOf('month'),

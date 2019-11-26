@@ -33,14 +33,6 @@
 #job_invitation
 - content_for :scripts do
   :javascript
-    // DO NOT REMOVE : GLOBAL FUNCTIONS!
-
-    $(document).ready(function() {
-    $('.sub-tab a[href="' + localStorage.getItem('subActiveTab') + '"]').tab('show');
-
-
-    });
-
-    $('.sub-tab').on('show.bs.tab', function(e) {
-      localStorage.setItem('subActiveTab', $(e.target).attr('href'));
+    $(document).ready(function () {
+      default_active_nav('.ln-2');
     });

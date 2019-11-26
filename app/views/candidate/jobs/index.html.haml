@@ -5,6 +5,7 @@
 - content_for :scripts do
   :javascript
     $(document).ready(function() {
+      default_active_nav('.ln-3');
       $("#jobs_search").on('change',function(){
         url = "/candidate?q="+$(this).val()
         $.get(url);

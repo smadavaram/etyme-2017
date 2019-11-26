@@ -39,6 +39,9 @@
 
 - content_for :scripts do
   :javascript
+    $(document).ready(function () {
+      default_active_nav('.ln-5');
+    });
     function init_request_document_upload(docusign_id){
       upload_file_ajax(upload_file_to_server, docusign_id)
     }

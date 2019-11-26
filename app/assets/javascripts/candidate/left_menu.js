@@ -1,4 +1,3 @@
-
 $(document).ready(function () {
     var collapse = document.getElementsByClassName("sidebar_collapsible");
     var i;
@@ -14,3 +13,8 @@ $(document).ready(function () {
         });
     }
 });
+
+function default_active_nav(selector) {
+    $(selector).addClass('active');
+    $(selector).next()[0].style.display = "block";
+}
