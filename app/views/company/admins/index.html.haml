@@ -2,65 +2,49 @@
   .element-wrapper
     .element-box
       = render partial: 'company/companies/sub_menu_company'
-      #content
-        %body
-          %section#widget-grid
-            .row
-              %article.col-xs-12.col-sm-12.col-md-12.col-lg-12.sortable-grid.ui-sortable
-                #wid-id-1.jarviswidget.jarviswidget-color-blueDark.jarviswidget-sortable{"data-widget-editbutton" => "false", :role => "widget"}
-                  %header{:role => "heading"}
-                    %span.widget-icon
-                      %i.fa.fa-table
-                    %h2 Admins
-                    %span.jarviswidget-loader
-                      %i.fa.fa-refresh.fa-spin
-                  / widget div
-                  %div{:role => "content"}
-                    .jarviswidget-editbox
-                    .widget-body.no-padding
-                      #datatable_fixed_column_wrapper.dataTables_wrapper.form-inline.dt-bootstrap.no-footer
-                        %table#example#datatable_fixed_column.table.table-striped.table-bordered.dataTable.no-footer{"aria-describedby" => "datatable_fixed_column_info", :role => "grid", :style => "width: 100%;", :width => "100%"}
-                          %thead
-                            %tr{:role => "row"}
-                              %th.hasinput{ :style => "width:18%"}
-                                %input.form-control{:placeholder => "Filter Name", :type => "text"}/
-                              %th.hasinput{ :style => "width:16%"}
-                                %input.form-control{:placeholder => "Filter Phone", :type => ""}/
-                              %th.hasinput{ :style => "width:16%"}
-                                %input.form-control{:placeholder => "Filter Email", :type => ""}/
-                              %th.hasinput{ :style => "width:16%"}
-                                %input.form-control{:placeholder => "Filter Type", :type => ""}/
-                              %th.hasinput{ :style => "width:17%"}
-                                %input.form-control{:placeholder => "Filter Roles", :type => "text"}/
-                              %th.hasinput{ :style => "width:16%"}
-                                %input.form-control{:placeholder => "Filter Actions", :type => ""}/
-                            %tr{:role => "row"}
-                              %th{"data-hide" => "phone"} Name
-                              %th Phone Number
-                              %th Email
-                              %th Type
-                              %th Roles
-                              %th{"data-hide" => "phone,tablet"}
-                                Actions
-                          %tbody
-                            - @admins.each_with_index do |admin , index|
-                              %tr
-                                %td= link_to admin.full_name , company_user_profile_path(admin)  , target: '_blank'
-                                %td= link_to admin.phone, company_user_profile_path(admin)  , target: '_blank'
-                                %td= link_to admin.email, company_user_profile_path(admin)  , target: '_blank'
-                                %td= admin.type
-                                %td= admin.roles.map(&:name).join(", ").gsub("_"," ").upcase
-                                %td
-                                  = link_to raw("<i class='fa fa-bell '></i>"),company_company_add_reminder_path(admin)  ,class: 'btn  btn-xs btn-default margin-bottom-5', remote: :true,title: "Remind Me",'data-toggle'=>"tooltip" ,'data-placement'=>"top"
-                                  = link_to raw("<i class='fa fa-edit '></i>") , edit_admin_path(admin) , class: 'btn btn-xs btn-default  margin-bottom-5' ,remote: true,title: "Edit #{admin.full_name}",'data-toggle'=>"tooltip" ,'data-placement'=>"top"
-                                  = link_to raw("<i class='fa fa-users '></i>"), company_user_assign_groups_path(admin) , remote:true,class: 'btn btn-xs btn-default margin-bottom-5',title: "Manage Groups",'data-toggle'=>"tooltip" ,'data-placement'=>"top"
-                                  = link_to raw("<i class='fa fa-trash-o '></i>"), company_user_path(admin) ,class: 'btn btn-xs btn-default margin-bottom-5',title: "Manage Groups",'data-toggle'=>"tooltip" ,'data-placement'=>"top", :method=>:delete
-                                  -if admin.roles.where(name: "Manager").present?
-                                    = link_to raw("<i class='os-icon os-icon-users'></i>"), admin_add_member_path(admin) ,class: 'btn btn-xs btn-default margin-bottom-5',title: "Add Team Member",'data-toggle'=>"tooltip" ,'data-placement'=>"top", remote: true
-                                  -#= link_to raw("<i class='fa fa-times '></i>") , admin_path(admin) , method: :delete ,  class: 'btn btn-xs btn-default btn-danger' ,title: "Delete #{admin.full_name}" ,data: {confirm: 'Are you sure?', verify: 'Confirm', verify_text: 'Type "Confirm" to confirm'}
-                        - if @admins.count >15
-                          .dt-toolbar-footer
-                            =  digg_pagination(@admins)
+      .content-i
+        .content-box
+          .row
+            .col-sm-12
+              .element-wrapper
+                .element-box-tp
+                  .controls-above-table
+                    .row.mr-1.ml-1
+                      .col-sm-6
+                        =link_to 'NEW' , new_company_company_path , local: true , class: 'btn btn-success', target: '_blank'
+                      .col-sm-6
+                        .form-inline.justify-content-sm-end
+                          %input.form-control.form-control-sm.rounded.bright{placeholder: "Search", type: "search", id: 'company_admin_search'}
+                  .table-responsive
+                    %table#company_admin.table.table-striped.table-bordered.dataTable
+                      %thead
+                        %tr{:role => "row"}
+                          %th{"data-hide" => "phone"} Name
+                          %th Phone Number
+                          %th Email
+                          %th Type
+                          %th Roles
+                          %th{"data-hide" => "phone,tablet"}
+                            Actions
+                      %tbody
+                        - @admins.each_with_index do |admin , index|
+                          %tr
+                            %td= link_to admin.full_name , company_user_profile_path(admin)  , target: '_blank'
+                            %td= link_to admin.phone, company_user_profile_path(admin)  , target: '_blank'
+                            %td= link_to admin.email, company_user_profile_path(admin)  , target: '_blank'
+                            %td= admin.type
+                            %td= admin.roles.map(&:name).join(", ").gsub("_"," ").upcase
+                            %td
+                              = link_to raw("<i class='fa fa-bell '></i>"),company_company_add_reminder_path(admin)  ,class: 'btn  btn-xs btn-default margin-bottom-5', remote: :true,title: "Remind Me",'data-toggle'=>"tooltip" ,'data-placement'=>"top"
+                              = link_to raw("<i class='fa fa-edit '></i>") , edit_admin_path(admin) , class: 'btn btn-xs btn-default  margin-bottom-5' ,remote: true,title: "Edit #{admin.full_name}",'data-toggle'=>"tooltip" ,'data-placement'=>"top"
+                              = link_to raw("<i class='fa fa-users '></i>"), company_user_assign_groups_path(admin) , remote:true,class: 'btn btn-xs btn-default margin-bottom-5',title: "Manage Groups",'data-toggle'=>"tooltip" ,'data-placement'=>"top"
+                              = link_to raw("<i class='fa fa-trash-o '></i>"), company_user_path(admin) ,class: 'btn btn-xs btn-default margin-bottom-5',title: "Manage Groups",'data-toggle'=>"tooltip" ,'data-placement'=>"top", :method=>:delete
+                              -if admin.roles.where(name: "Manager").present?
+                                = link_to raw("<i class='os-icon os-icon-users'></i>"), admin_add_member_path(admin) ,class: 'btn btn-xs btn-default margin-bottom-5',title: "Add Team Member",'data-toggle'=>"tooltip" ,'data-placement'=>"top", remote: true
+                              -#= link_to raw("<i class='fa fa-times '></i>") , admin_path(admin) , method: :delete ,  class: 'btn btn-xs btn-default btn-danger' ,title: "Delete #{admin.full_name}" ,data: {confirm: 'Are you sure?', verify: 'Confirm', verify_text: 'Type "Confirm" to confirm'}
+                    - if @admins.count >15
+                      .dt-toolbar-footer
+                        =  digg_pagination(@admins)
 :css
   .form-control
   {
@@ -90,7 +74,7 @@
 
         });
 
-      $("div.toolbar").html('<div class="text-right">#{ link_to 'NEW' , new_company_company_path , local: true , class: 'btn btn-success btn-md pull-right header-btn hidden-mobile', target: '_blank'}</div>');
+      $("div.toolbarrrr").html('<div class="text-right">#{ link_to 'NEW' , new_company_company_path , local: true , class: 'btn btn-success btn-md pull-right header-btn hidden-mobile', target: '_blank'}</div>');
 
       // Apply the filter
       $("#datatable_fixed_column thead th input[type=text]").on( 'keyup change', function () {

@@ -1,28 +1,35 @@
-.row.nested-fields.multi-field-container{style: "padding: 15px;"}
-  .row
-    .col-md-12
-      .form-group
-        = f.text_field :branch_name,placeholder: "Company Name",class: 'form-control'
-  .row
-    .col-md-12
-      .form-group
-        = f.text_area :address,placeholder: "address",class: 'form-control'
-  .row
-    .col-md-4
-      .form-group
-        = f.text_field :city,placeholder: "city",class: 'form-control'
-    .col-md-4
-      .form-group
-        = f.text_field :country, placeholder: "country", class: 'form-control'
-    .col-md-4
-      .form-group
-        = f.text_field :zip,placeholder: "zip/pincode",class: 'form-control'
-  .row
-    .col-md-12
-      = link_to_remove_association 'Remove Branch', f, wrapper_class: "nested-fields", class: 'btn btn-xs'
+.nested-fields.multi-field-container{style: "padding: 15px;"}
 
-      -#= link_to_remove_association f, wrapper_class: "nested-fields", class: "bttn btn-add pull-right" do
-        %i.fa.fa-trash
+  .row
+    .col-md-6
+      .row
+        .col-md-12
+          .form-group
+            = f.text_field :branch_name,placeholder: "Company Name",class: 'form-control'
+      .row
+        .col-md-12
+          .form-group
+            = f.text_field :city,placeholder: "city",class: 'form-control'
+      .row
+        .col-md-12
+          .form-group
+            = f.text_field :country, placeholder: "country", class: 'form-control'
+      .row
+        .col-md-12
+          .form-group
+            = f.text_field :zip,placeholder: "zip/pincode",class: 'form-control'
+
+    .col-md-6
+      .form-group
+        = f.text_area :address,placeholder: "address",class: 'form-control',style: 'min-height:195px;'
+  %br
+  .row
+    .col-md-12
+      = link_to_remove_association f, wrapper_class: "nested-fields", class: "bttn btn-add pull-right",style: '' do
+        %i.fa.fa-trash{style: 'color:red;'}
+
+  -#= link_to_remove_association f, wrapper_class: "nested-fields", class: "bttn btn-add pull-right" do
+  -#%i.fa.fa-trash
   -#.row
   -#  .col-md-12
   -#    %a.bttn.btn-add.remove-multi-fields.pull-right.delete_primary_doc

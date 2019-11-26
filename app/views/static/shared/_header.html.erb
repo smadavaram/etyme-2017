@@ -23,7 +23,7 @@
           <div class="dropdown-menu" aria-labelledby="dropdownMenuLink">
             <a class="dropdown-item" href="<%= signin_path %>">Company</a>
             <% if candidate_signed_in? %>
-              <%= link_to  current_candidate.full_name.present?  ? current_candidate.full_name : 'Dashboard',candidate_candidate_dashboard_path %>
+              <%= link_to  current_candidate.full_name.present?  ? current_candidate.full_name : 'Dashboard',candidate_candidate_dashboard_path ,class: 'dropdown-item'%>
             <% else %>
               <a class="dropdown-item" href="<%= new_candidate_session_path %>">Candidate</a>
             <% end %>

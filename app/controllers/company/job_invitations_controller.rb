@@ -14,17 +14,47 @@ class Company::JobInvitationsController < Company::BaseController
 
   end
 
-  def bench_candidate_invitation
-    @job_invitation = current_company.sent_job_invitations.new(job_invitation_params.merge!(created_by_id: current_user.id))
-    if (@job_invitation.save)
-      CandidatesCompany.where(candidate: @job_invitation.recipient, company: current_company).update_all(status: :hot_candidate)
-      flash[:success] = 'Candidate is added to Bench and invitation is also sent'
+  def accept_bench
+    @job_invitation = JobInvitation.find params[:job_invitation_id]
+    if @job_invitation.update(status: :accepted)
+      @job_invitation.company.candidates_companies.where(candidate_id: @job_invitation.recipient_id).update_all(status: :hot_candidate)
+      @job_invitation.sender.update(associated_company: @job_invitation.company)
+
+
+
+      flash[:success] = "Updates Successfully"
     else
       flash[:errors] = @job_invitation.errors.full_messages
     end
-    redirect_back(fallback_location: company_bench_jobs_path)
+    redirect_back(fallback_location: root_path)
   end
 
+  def reject_bench
+    @job_invitation = JobInvitation.find params[:job_invitation_id]
+
+    if @job_invitation.update(status: :rejected)
+      flash[:success] = "Updates Successfully"
+    else
+      flash[:errors] = @job_invitation.errors.full_messages
+    end
+    redirect_back(fallback_location: root_path)
+  end
+
+  def bench_candidate_invitation
+    if current_company.job_invitations_sender.where.not(status: 'rejected').where(recipient_id:params[:job_invitation][:recipient_id]).blank?
+      @job_invitation = current_company.sent_job_invitations.new(job_invitation_params.merge!(created_by_id: current_user.id,sender_id: current_company.id,sender_type: 'Company'))
+      if (@job_invitation.save)
+        CandidatesCompany.where(candidate: @job_invitation.recipient, company: current_company).update_all(status: :hot_candidate)
+        flash[:success] = 'Candidate is added to Bench and invitation is also sent'
+      else
+        flash[:errors] = @job_invitation.errors.full_messages
+      end
+    else
+      flash[:errors] = 'Invitation has been sent already'
+    end
+    redirect_back(fallback_location: company_bench_jobs_path)
+  end
+  
   def create
     @job_invitation = current_company.sent_job_invitations.new(job_invitation_params.merge!(job_id: @job.id, created_by_id: current_user.id))
     respond_to do |format|
@@ -123,4 +153,7 @@ class Company::JobInvitationsController < Company::BaseController
   def job_invitation_params
     params.require(:job_invitation).permit(:job_id, :email, :first_name, :last_name, :message, :invitation_purpose, :response_message, :recipient_id, :email, :status, :expiry, :recipient_type, :invitation_type)
   end
+
+
+
 end

@@ -32,6 +32,8 @@ class Company < ApplicationRecord
   has_many :sent_contracts, class_name: 'Contract', foreign_key: 'company_id', dependent: :destroy
   has_many :sent_job_applications, class_name: 'JobApplication', foreign_key: 'company_id', dependent: :destroy
   has_many :sent_job_invitations, class_name: 'JobInvitation', foreign_key: 'company_id', dependent: :destroy
+  has_many :job_invitations_sender, as: :sender, class_name: 'JobInvitation'
+
   has_many :received_job_applications, through: :jobs, source: 'job_applications'
   has_many :received_job_invitations, through: :admins, source: 'job_invitations'
   has_many :received_timesheets, through: :jobs, source: 'timesheets'
@@ -40,7 +42,9 @@ class Company < ApplicationRecord
   has_many :leaves, through: :users
   has_many :timesheet_logs, through: :timesheets
   has_many :timesheet_approvers, through: :timesheets
-  
+  has_many :job_invitations, as: :sender
+
+
   # has_many :sent_invoices             , through:   :received_contracts ,source:  :invoices
   # has_many :received_invoices         , through:   :sent_contracts ,source:  :invoices
   

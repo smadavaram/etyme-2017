@@ -168,6 +168,7 @@ Rails.application.routes.draw do
       get :accept_bench
       get :reject_bench
       get :remove_bench
+      post :bench_company_invitation,on: :collection
     end
     # resources :contracts        , only: [:index]
     resources :candidates, only: [:show, :update, :create] do
@@ -473,6 +474,8 @@ Rails.application.routes.draw do
     end
     resources :job_invitations, concerns: :paginatable, only: [:index, :show] do
       post :bench_candidate_invitation, on: :collection
+      get :accept_bench
+      get :reject_bench
     end
     resources :candidates, concerns: :paginatable, only: [:index] do
       match :manage_groups, via: [:get, :patch]

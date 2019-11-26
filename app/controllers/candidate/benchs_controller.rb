@@ -50,5 +50,4 @@ class Candidate::BenchsController < Candidate::BaseController
     @candidate.update_all(candidate_status: 1)
     redirect_to benchs_path
   end
-
 end

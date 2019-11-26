@@ -6,6 +6,22 @@ class Candidate::JobInvitationsController < Candidate::BaseController
 
   end
 
+  def bench_company_invitation
+    if current_candidate.job_invitations_sender.where.not(status: 'rejected').where(company_id:params[:job_invitation][:company_id]).blank?
+
+      @job_invitation = Company.find(params[:job_invitation][:company_id]).sent_job_invitations.new(job_invitation_params.merge!(recipient_id: params[:job_invitation][:company_id]))
+        if (@job_invitation.save)
+          flash[:success] = 'Invitation is  sent to Company'
+        else
+          flash[:errors] = @job_invitation.errors.full_messages
+        end
+    else
+      flash[:errors] = 'Invitation has been sent already'
+    end
+        redirect_back(fallback_location: root_path)
+  end
+
+
   def bench_invitations
     add_breadcrumb 'Dashboard', "/candidate", :title => ""
     add_breadcrumb 'Invitations', "#"
@@ -77,6 +93,6 @@ class Candidate::JobInvitationsController < Candidate::BaseController
   end
 
   def job_invitation_params
-    params.require(:job_invitation).permit(:job_id, :message, :response_message, :recipient_id, :email, :status, :expiry, :recipient_type, :invitation_type)
+    params.require(:job_invitation).permit(:invitation_purpose, :sender_id, :sender_type, :job_id, :message, :response_message, :email, :status, :expiry, :recipient_type, :invitation_type)
   end
 end

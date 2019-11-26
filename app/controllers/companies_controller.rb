@@ -44,7 +44,6 @@ class CompaniesController < ApplicationController
 
     render layout: 'company'
   end
-
   private
 
     def find_company

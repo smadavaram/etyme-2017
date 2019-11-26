@@ -17,6 +17,8 @@
         <div class="logged-user-name">
           <% if current_candidate.associated_company %>
             <%= link_to current_candidate.associated_company.name, '#', class: "text-muted" %>
+            <%= link_to "<i class='os-icon os-icon-ui-49'></i>".html_safe, "#candidate-bench_req", :class => "", "data-toggle" => "modal"%>
+
           <% else %>
             <a href="#" class="text-muted"> freelancer</a>
           <% end %>
@@ -192,3 +194,4 @@
     </div>
   </div>
 </div>
+<%= render 'shared/candidate_bench_req_form'%>

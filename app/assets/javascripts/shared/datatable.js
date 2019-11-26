@@ -177,6 +177,43 @@ $(document).ready(function () {
     $('#candidate_job_invite_datatable-search_4').keyup(function () {
         $('#candidate_job_invite_datatable_4').DataTable().search($(this).val()).draw();
     });
+    $('#Req_by_candi_to_bench').dataTable();
+    $('#Req_by_candi_to_bench_search').keyup(function () {
+        $('#Req_by_candi_to_bench').DataTable().search($(this).val()).draw();
+    });
+    $('#company-legal-doc').dataTable();
+    $('#company-legal-doc-search').keyup(function () {
+        $('#company-legal-doc').DataTable().search($(this).val()).draw();
+    });
+
+    $('#client-expense-invoice-datatable').dataTable();
+    $('#client-expense-invoice-datatable-search').keyup(function () {
+        $('#client-expense-invoice-datatable').DataTable().search($(this).val()).draw();
+    });
+
+    $('#account-detail-datatable').dataTable();
+    $('#account-detail-datatable-search').keyup(function () {
+        $('#account-detail-datatable').DataTable().search($(this).val()).draw();
+    });
+
+    $('#company_department_dataTable').dataTable();
+    $('#company_department_dataTable_search').keyup(function () {
+        $('#company_department_dataTable').DataTable().search($(this).val()).draw();
+    });
+    $('#company_role').dataTable();
+    $('#company_role_search').keyup(function () {
+        $('#company_role').DataTable().search($(this).val()).draw();
+    });
+
+    $('#company_admin').dataTable();
+    $('#company_admin_search').keyup(function () {
+        $('#company_admin').DataTable().search($(this).val()).draw();
+    });
+
+    $('#company_attachments').dataTable();
+    $('#company_attachments_search').keyup(function () {
+        $('#company_attachments').DataTable().search($(this).val()).draw();
+    });
 
 
     $('#candidate_job_applications_datatable_1').dataTable();
