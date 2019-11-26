@@ -196,6 +196,24 @@ $(document).ready(function () {
         $('#account-detail-datatable').DataTable().search($(this).val()).draw();
     });
 
+    $('#company_department_dataTable').dataTable();
+    $('#company_department_dataTable_search').keyup(function () {
+        $('#company_department_dataTable').DataTable().search($(this).val()).draw();
+    });
+    $('#company_role').dataTable();
+    $('#company_role_search').keyup(function () {
+        $('#company_role').DataTable().search($(this).val()).draw();
+    });
+
+    $('#company_admin').dataTable();
+    $('#company_admin_search').keyup(function () {
+        $('#company_admin').DataTable().search($(this).val()).draw();
+    });
+
+    $('#company_attachments').dataTable();
+    $('#company_attachments_search').keyup(function () {
+        $('#company_attachments').DataTable().search($(this).val()).draw();
+    });
 
 
     $('#dataTable').dataTable({

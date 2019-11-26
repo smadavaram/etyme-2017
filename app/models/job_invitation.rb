@@ -101,7 +101,7 @@ class JobInvitation < ApplicationRecord
 
       end
       if self.bench?
-        self.recipient.notifications.create(message: self.recipient.full_name + " Bench Job Invitation Status has been changed to "+ self.status+" <a href='http://#{self.recipient.etyme_url + job_invitation_path(self)}'>#{self.job&.title}</a> <br/> <p> #{self.message} </p>", title: "Job Invitation",createable: created_by)
+        self.recipient.notifications.create(message: self.recipient.full_name + " Bench invitation Status has been changed to "+ self.status+" <a href='http://#{self.recipient.etyme_url + job_invitation_path(self)}'>#{self.job&.title}</a> <br/> <p> #{self.message} </p>", title: "Job Invitation",createable: created_by)
 
       end
     else
