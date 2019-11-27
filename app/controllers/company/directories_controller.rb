@@ -1,8 +1,10 @@
 class Company::DirectoriesController < Company::BaseController
+  add_breadcrumb "Dashboard", :dashboard_path
 
-  add_breadcrumb "Home", :dashboard_path, :title => "Home"
 
   def index
+    add_breadcrumb "My Directory"
+
     respond_to do |format|
       format.html {}
       format.json {render json: CompanyDirectoryDatatable.new(params, view_context: view_context)}

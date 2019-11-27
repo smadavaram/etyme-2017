@@ -1,7 +1,9 @@
 class Feed::RssJobsController < ApplicationController
   layout 'company'
+  add_breadcrumb "Dashboard", :dashboard_path
 
   def feeds
+    add_breadcrumb "Feeds Integration"
   end
 
   def bench_feed

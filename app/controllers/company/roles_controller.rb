@@ -1,6 +1,5 @@
 class Company::RolesController < Company::BaseController
-  add_breadcrumb "ROLES", :roles_path, options: { title: "ROLES" }
-
+  add_breadcrumb "Dashboard", :dashboard_path
   before_action :set_new_role , only: [:new]
   before_action :set_role , only: [:destroy,:edit,:update]
   before_action :authorized_user , only: [:new,:edit,:index]
@@ -23,6 +22,7 @@ class Company::RolesController < Company::BaseController
   end
 
   def index
+    add_breadcrumb "ROLES", :roles_path, options: { title: "ROLES" }
     @roles = current_company.roles.includes(:permissions) || []
   end
 

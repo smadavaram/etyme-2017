@@ -1,10 +1,13 @@
 class Company::BankDetailsController < Company::BaseController
-
+  add_breadcrumb "Dashboard", :dashboard_path
   def bank_reconciliation
+    add_breadcrumb "bank reconciliation"
+
     @bank_detail = current_company.bank_details.new
   end
 
   def index
+    add_breadcrumb "Bank Details"
     @bank_details = current_company.bank_details.all
   end
   def create

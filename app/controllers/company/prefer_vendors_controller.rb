@@ -3,17 +3,17 @@ class Company::PreferVendorsController < Company::BaseController
   before_action :set_prefer_vendors, only: [:show_network]
   # add_breadcrumb "Prefer vendors", , options: { title: "Prefer vendors" }
   before_action :authorized_user, only: [:create, :show_network, :index, :accept, :reject]
-  add_breadcrumb "Home", :dashboard_path, :title => "Home"
+  add_breadcrumb "Dashboard", :dashboard_path
   has_scope :search_by, only: :marketplace
   has_scope :search_by, using: %i[term search_scop], type: :hash
 
 
   def index
-    add_breadcrumb "Prefer Vendors Requests".humanize, :prefer_vendors_path, :title => "Prefer Vendors"
+    add_breadcrumb "NetWork Request".humanize, :prefer_vendors_path
   end
 
   def marketplace
-    add_breadcrumb "Marketplace".humanize, '#', :title => "MarketPlace"
+    add_breadcrumb "Marketplace"
     @skills=ActsAsTaggableOn::Tag.all.pluck('name')
     @data = []
     @search_scop_on = params[:search_by][:search_scop].eql?('on')
@@ -143,7 +143,7 @@ class Company::PreferVendorsController < Company::BaseController
   end
 
   def vendor_activity
-    add_breadcrumb "Vendor Activities", vendor_activity_prefer_vendors_path, :title => "Vendor Companies Activities"
+    add_breadcrumb "Vendor Activitie(s)", vendor_activity_prefer_vendors_path, :title => "Vendor Companies Activities"
     @activities = PublicActivity::Activity.where(owner_type: 'Company',
                                                  owner_id: current_company.prefer_vendors.accepted.pluck(:vendor_id))
                       .or(PublicActivity::Activity.where(owner_type: 'User',
@@ -152,7 +152,7 @@ class Company::PreferVendorsController < Company::BaseController
   end
 
   def show_network
-    add_breadcrumb "Prefer Vendors".humanize, :network_path, :title => "Prefer Vendors"
+    add_breadcrumb "Clients(s)-Vendors(s)".humanize, :network_path, :title => "Prefer Vendors"
   end
 
   def reject

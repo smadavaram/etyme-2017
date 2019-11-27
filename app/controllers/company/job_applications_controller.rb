@@ -8,9 +8,9 @@ class Company::JobApplicationsController < Company::BaseController
   before_action :find_received_job_application, only: [:send_templates, :templates, :prescreen, :client_submission, :rate_negotiation, :accept_rate, :accept_interview, :accept, :reject, :interview, :hire, :short_list, :show, :proposal, :share_application_with_companies, :open_inbox_conversation]
   before_action :authorized_user, only: [:accept, :reject, :interview, :hire, :short_list, :show]
   skip_before_action :authenticate_user!, :authorized_user, only: [:share], raise: false
+  add_breadcrumb "Dashboard", :dashboard_path
 
 
-  add_breadcrumb "JOB APPLICATIONS", :job_applications_path, options: {title: "JOBS APPLICATION"}
 
   def applicant
     @job_application = current_company.received_job_applications.find_by(id: params[:id])
@@ -19,6 +19,8 @@ class Company::JobApplicationsController < Company::BaseController
   end
 
   def index
+    add_breadcrumb "JOB APPLICATIONS", :job_applications_path, options: {title: "JOBS APPLICATION"}
+
     respond_to do |format|
       format.html {}
       format.json { render json: JobApplicationDatatable.new(params, view_context: view_context) }
@@ -231,6 +233,10 @@ class Company::JobApplicationsController < Company::BaseController
   end
 
   def show
+    add_breadcrumb "JOB APPLICATIONS", :job_applications_path, options: {title: "JOBS APPLICATION"}
+    add_breadcrumb "JOB APPLICATIONS ID: #{params[:id]}"
+
+
     set_conversation(@job_application.applicationable)
     @activities = PublicActivity::Activity.where(recipient: @job_application).order("created_at desc")
   end

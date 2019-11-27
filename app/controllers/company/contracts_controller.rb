@@ -12,7 +12,7 @@ class Company::ContractsController < Company::BaseController
   before_action :authorized_user, only: :show
   before_action :main_authorized_user, only: :show
 
-
+  add_breadcrumb "Dashboard", :dashboard_path
   add_breadcrumb "CONTRACTS", :contracts_path, options: {title: "CONTRACTS"}, :except => %w(add_expense add_bill add_invoice bank_reconciliation receive_payment salary_settlement salary_process)
   add_breadcrumb "Expenses", :add_expense_contracts_path, only: %w(add_expense)
   add_breadcrumb "Cient Expense Bill / Vendor Bill", :add_bill_contracts_path, only: %w(add_bill)
@@ -77,6 +77,8 @@ class Company::ContractsController < Company::BaseController
   end
 
   def new
+    add_breadcrumb "New"
+
     unless params[:contract_id].present?
       @contract = current_company.sent_contracts.new
       @contract.contract_terms.new
@@ -339,6 +341,8 @@ class Company::ContractsController < Company::BaseController
   end
 
   def tree_view
+    add_breadcrumb "#{params[:id]} tree-view"
+
     @contract = Contract.where(number: params[:id]).first
     unless @contract.present?
       redirect_back fallback_location: root_path
@@ -389,6 +393,8 @@ class Company::ContractsController < Company::BaseController
   end
 
   def timeline
+    add_breadcrumb "timeline"
+
     @contracts = current_company.contracts.includes(:job).where.not(status: "pending")
     @candidates = Candidate.where(id: @contracts.pluck(:candidate_id).uniq)
     filter_timeline

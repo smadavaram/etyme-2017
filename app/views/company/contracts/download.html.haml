@@ -228,7 +228,20 @@
             Buy
           %div.contract-custome-details.box
             %h5
-              = @contract.candidate&.full_name+' ($'+@contract.buy_contract&.payrate&.to_i.to_s+' / '+@contract.buy_contract&.payrate_type+')'
+              = @contract.candidate&.full_name
+              %table.table.table-bordered
+                %thead
+                  %tr
+                    %th Rate
+                    %th Rate Type
+                %tbody
+                  -@contract.buy_contract&.change_rates.each do |change_rate|
+                    %tr
+                      %td='$'+change_rate.rate.to_s
+                      %td=change_rate.rate_type
+
+
+
             %div.contract-custome-details.line-bottom
               .row
                 .col-sm-6.col-md-6.col-lg-6
@@ -245,8 +258,16 @@
                 .col-sm-6.col-md-6.col-lg-6.rate_info.text-center
                   %h5
                     Freelancer rate
-                  %span
-                    = '$'+@contract.buy_contract&.payrate.to_i.to_s+' / '+@contract.buy_contract&.payrate_type
+                  %table.table.table-bordered
+                    %thead
+                      %tr
+                        %th Rate
+                        %th Rate Type
+                    %tbody
+                      -@contract.buy_contract&.change_rates.each do |change_rate|
+                        %tr
+                          %td='$'+change_rate.rate.to_s
+                          %td=change_rate.rate_type
               %h6
                 Company Name : #{@contract.buy_contract&.candidate&.companies&.first&.full_name}
               %strong
@@ -280,8 +301,16 @@
               %div
                 %strong
                   FreeLancer Rate :
-                %span
-                  = '$ '+@contract.buy_contract.payrate.to_s+' / '+@contract.buy_contract.payrate_type
+              %table.table.table-bordered
+                %thead
+                  %tr
+                    %th Rate
+                    %th Rate Type
+                %tbody
+                  -@contract.buy_contract&.change_rates.each do |change_rate|
+                    %tr
+                      %td='$'+change_rate.rate.to_s
+                      %td=change_rate.rate_type
               %br
               %div
                 %strong

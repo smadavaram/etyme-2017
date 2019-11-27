@@ -5,11 +5,12 @@ class Company::JobsController < Company::BaseController
   before_action :set_preferred_vendors, only: [:send_invitation]
   before_action :set_candidates, only: :send_invitation
   before_action :authorize_user, only: [:show, :edit, :update, :destroy]
-
-  add_breadcrumb "JOBS", :jobs_path, options: {title: "JOBS"}
+  add_breadcrumb "Dashboard", :dashboard_path
 
 
   def index
+    add_breadcrumb params[:type].blank? ? 'job(s)' : "#{params[:type]} Job(s)", :jobs_path, options: {title: "JOBS"}
+
     @search = current_company.jobs.not_system_generated.includes(:created_by).order(created_at: :desc).search(params[:q])
     @company_jobs = @search.result.order(created_at: :desc) #.paginate(page: params[:page], per_page: params[:per_page]||=15) || []
     @company_jobs = @company_jobs.where(listing_type: params[:type] || "Job")
@@ -17,6 +18,7 @@ class Company::JobsController < Company::BaseController
   end
 
   def show
+    add_breadcrumb 'job(s)', :jobs_path, options: {title: "JOBS"}
     add_breadcrumb @job.try(:title).try(:titleize)[0..30], :job_path, options: {title: "Job Invitation"}
     @job_applications = @job.job_applications
     # @conversations = @job.conversations
@@ -27,6 +29,7 @@ class Company::JobsController < Company::BaseController
 
 
   def new
+    add_breadcrumb params[:type].blank? ? 'job' : params[:type], :jobs_path, options: {title: "JOBS"}
     add_breadcrumb "NEW", :new_job_path, options: {title: "NEW JOB"}
     @job = current_company.jobs.new
     @job.job_requirements.build
@@ -138,9 +141,7 @@ class Company::JobsController < Company::BaseController
 
 
   def import_job
-    p "222222222222222222222222222222"
-    p "222222222222222222222222222222"
-    p "222222222222222222222222222222"
+    add_breadcrumb "Import Job(s)"
   end
 
   def upload_job

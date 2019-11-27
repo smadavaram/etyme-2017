@@ -1,9 +1,10 @@
 class Company::PayrollTermInfosController < Company::BaseController
+  add_breadcrumb "Dashboard", :dashboard_path
   before_action :set_department , only: [:create]
   respond_to :html,:json
 
   def index
-
+    add_breadcrumb "Pay Role Term info"
     @payroll_detail = current_company&.payroll_infos&.last
     unless @payroll_detail
       @payroll = PayrollInfo.new

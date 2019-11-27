@@ -1,8 +1,7 @@
 class Company::AdminsController < Company::BaseController
 
   autocomplete :user, :email,:full => true
-
-  add_breadcrumb "Admins", :admins_path, options: {title: "Admins"}
+  add_breadcrumb "Dashboard", :dashboard_path
   before_action :authorized_user, only: [:new, :index]
   before_action :find_admin, only: [:edit, :update, :destroy]
 
@@ -17,6 +16,7 @@ class Company::AdminsController < Company::BaseController
   end
 
   def index
+    add_breadcrumb "Admins", :admins_path, options: {title: "Admins"}
     @search = current_company.admins.search(params[:q])
     @admins = @search.result.order(created_at: :desc).includes(:roles).paginate(page: params[:page], per_page: 30) || []
   end

@@ -1,11 +1,11 @@
 class Company::ClientExpensesController < Company::BaseController
   include CandidateHelper
   before_action :set_client_expense, only: [:edit, :update, :submit, :reject, :approve]
-  add_breadcrumb 'home', '/'
+  add_breadcrumb "Dashboard", :dashboard_path
   
   def index
-    add_breadcrumb 'Client Expenses', client_expenses_path
     @tab = params[:tab]
+    add_breadcrumb "#{@tab} Client Expenses", client_expenses_path
     @start_date = params[:start_date]
     @end_date = params[:end_date]
     @cycle_type = params[:ts_type]
