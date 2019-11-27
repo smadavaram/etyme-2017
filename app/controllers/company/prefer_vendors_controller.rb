@@ -14,13 +14,13 @@ class Company::PreferVendorsController < Company::BaseController
 
   def marketplace
     add_breadcrumb "Marketplace".humanize, '#', :title => "MarketPlace"
+    @skills=ActsAsTaggableOn::Tag.all.pluck('name')
     @data = []
     @search_scop_on = params[:search_by][:search_scop].eql?('on')
     @query_hash = {
         title: params[:Job_titles],
         department: params[:job_departments],
         industry: params[:job_industry],
-        company_user_skills: params[:company_user_skills],
         job_category: params[:job_category]
     }.delete_if { |key, value| value.blank? }
     @listing_type_array = [params[:product],params[:service],params[:training]].reject { |listing_type| listing_type.blank? }
@@ -28,7 +28,9 @@ class Company::PreferVendorsController < Company::BaseController
     respond_to do |format|
       format.html {
         if params[:Jobs] == 'on'
+          @data +=Job.joins(:tags).where("name like '#{params[:skills]}'")
           if params[:address].blank?
+
             @data += apply_scopes(Job.where(@search_scop_on ?
                                                 {company_id: current_company.prefer_vendor_companies.pluck('id')}.merge(@query_hash) :
                                                 {company_id: Company.ids}.merge(@query_hash) ))

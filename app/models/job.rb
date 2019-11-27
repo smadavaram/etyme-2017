@@ -43,7 +43,7 @@ class Job < ApplicationRecord
   scope :is_public, -> {where(is_public: true)}
   scope :not_system_generated, -> {where(is_system_generated: false)}
 
-  scope :search_by, ->term,search_scop {Job.where('lower(title) like :term or lower(description) like :term or lower(location) like :term or lower(job_category) like :term', {term: "#{term&.downcase}%"})}
+  scope :search_by, ->term,search_scop { Job.joins(:tags).where('lower(tags.name) like :term or lower(title) like :term or lower(description) like :term or lower(location) like :term or lower(job_category) like :term', {term: "#{term&.downcase}%"})}
 
   geocoded_by :location
   after_validation :geocode
