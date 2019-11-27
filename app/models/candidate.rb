@@ -41,7 +41,6 @@ class Candidate < ApplicationRecord
   has_many :custom_fields, as: :customizable, dependent: :destroy
   has_many :job_applications, as: :applicationable
   has_many :job_invitations, as: :recipient
-
   has_many :contracts, through: :job_applications, dependent: :destroy
   has_many :job_invitations_sender, as: :sender, class_name: 'JobInvitation'
 
@@ -93,8 +92,9 @@ class Candidate < ApplicationRecord
 
   has_many :contract_sale_commisions, through: :csc_accounts
   has_many :contract_books, as: :beneficiary
+  has_many :legal_documents
   has_many :salaries
-  
+
   attr_accessor :job_id, :expiry, :message, :invitation_type
   attr_accessor :send_welcome_email_to_candidate
   attr_accessor :send_invitation

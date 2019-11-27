@@ -148,7 +148,9 @@
                                 %td= docusign.documentable.title
                                 %td= docusign.created_at.strftime("%Y-%m-%d")
                                 %td= docusign.envelope_id.present? ? "Submitted" : "Document Not Submitted"
-                                %td= link_to content_tag(:i,'',class:'fa fa-paperclip fa-lg').html_safe, docusign.signed_file if docusign.signed_file.present?
+                                %td
+                                  = link_to content_tag(:i,'',class:'picons-thin-icon-thin-0089_upload_file').html_safe, company_document_sign_documents_path(docusign),remote: true, title: "Upload Document" if (upload_doc?(docusign) and @contract.sell_contract.company == current_company)
+                                  = link_to content_tag(:i,'',class:'fa fa-paperclip fa-lg').html_safe, docusign_file(docusign), title: 'Download Document' if docusign.is_sign_done
               #doc-submit.tab-pane.padding-top-15
                 .row
                   .col-md-12

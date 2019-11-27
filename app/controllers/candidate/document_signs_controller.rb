@@ -16,6 +16,25 @@ class Candidate::DocumentSignsController < Candidate::BaseController
     redirect_back(fallback_location: candidate_document_signs_path)
   end
 
+  def upload_document
+    @document_sign = DocumentSign.find_by(id: params[:document_sign_id])
+    @legal_doc = LegalDocument.find_by(id: params[:legal_doc_id])
+    if @document_sign.update(save_doc: @legal_doc, is_sign_done: true)
+      flash[:success] = 'Submitted file from documents'
+    else
+      flash[:errors] = @document_sign.errors.full_messages
+    end
+    redirect_back fallback_location: root_path
+  end
+
+  def documents
+    @document_sign = DocumentSign.find_by(id: params[:document_sign_id])
+    @legal_docs = current_candidate.legal_documents
+    respond_to do |format|
+      format.js {}
+    end
+  end
+
   def show
     respond_to do |format|
       format.js {}

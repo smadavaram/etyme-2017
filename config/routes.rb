@@ -1,21 +1,21 @@
 Rails.application.routes.draw do
-  
-  
+
+
   namespace :company do
     get 'activities/index'
   end
-  
+
   concern :commentable do
     resources :comments
   end
-  
+
   concern :image_attachable do
     resources :images, only: :index
   end
-  
+
   resources :messages, concerns: :commentable
   resources :articles, concerns: [:commentable, :image_attachable]
-  
+
   get '/states/:country', to: 'application#states'
   get '/cities/:state/:country', to: 'application#cities'
   get 'register' => 'companies#new'
@@ -33,7 +33,7 @@ Rails.application.routes.draw do
     get 'training_feed' => 'rss_jobs#training_feed', format: 'rss'
     get 'bench_feed' => 'rss_jobs#bench_feed', format: 'rss'
     get 'blog_feed' => 'rss_jobs#blog_feed', format: 'rss'
-    
+
     get 'feeds' => 'rss_jobs#feeds'
     get ':company_id/job_feed' => 'rss_jobs#job_feed', format: 'json'
     get ':company_id/job_feed/:job_id' => 'rss_jobs#job_feed', format: 'json'
@@ -42,15 +42,15 @@ Rails.application.routes.draw do
     get ':company_id/training_feed' => 'rss_jobs#training_feed', format: 'json'
     get ':company_id/bench_feed' => 'rss_jobs#bench_feed', format: 'json'
     get ':company_id/blog_feed' => 'rss_jobs#blog_feed', format: 'json'
-  
+
   end
-  
-  
+
+
   concern :paginatable do
     get '(page/:page)', action: :index, on: :collection, as: ''
     match :search, action: :index, via: [:get, :post], on: :collection
   end
-  
+
   resources :static, only: [:index] do
     collection do
       get '/client/:id/acknowledge/:slug', to: "static#acknowledge_refrence", as: :acknowledge_refrence
@@ -80,10 +80,10 @@ Rails.application.routes.draw do
       get ':id/public/profile', to: 'candidates#candidate_profile', on: :collection, as: :public_profile
     end
   end
-  
-  
+
+
   scope module: :candidate do
-    
+
     resources :candidates, path: :candidate, only: [:update] do
       resources :notifications do
         member do
@@ -122,28 +122,32 @@ Rails.application.routes.draw do
           post :file_message, as: :candidate_file
           post :render_message
         end
-        
+
         # match :share_message ,via: [:get , :post]
-      
+
       end
     end
     get '/profile', to: 'candidates#show'
-    
+
     get '/my_profile', to: 'candidates#my_profile'
     get '/onboarding_profile', to: 'candidates#onboarding_profile'
-  
-  
+
+
   end
-  
-  
+
+
   namespace :candidate do
-    
-    resources :document_signs, only: [:index, :update, :show]
+    resources :document_signs, only: [:index, :update, :show] do
+      get :documents
+      get :upload_document
+    end
     post 'update_photo', to: 'candidates#update_photo'
     delete 'delete_resume', to: 'candidates#delete_resume'
     get 'make_primary_resume', to: 'candidates#make_primary_resume'
     post 'update_mobile_number', to: 'candidates#update_mobile_number'
-    
+
+    resources :legal_docs
+
     resources :public_jobs, only: [:index, :destroy] do
       get :job, on: :member
       get :apply_job_candidate, on: :member
@@ -151,13 +155,13 @@ Rails.application.routes.draw do
       post :create_own_job, on: :member
       post :apply, on: :member
     end
-    
+
     resources :educations, only: [:create, :update]
     resources :experiences, only: [:create, :update]
     get '/', to: 'candidates#dashboard', as: :candidate_dashboard
     get 'filter_data/:filter', to: 'candidates#filter_cards', as: :filter_cards_data
     resources :addresses, only: [:update]
-    
+
     resources :job_applications, only: [:index, :show] do
       member do
         post "rate_negotiation/:conversation_id", to: "job_applications#rate_negotiation", as: :rate_negotiation_for
@@ -191,13 +195,13 @@ Rails.application.routes.draw do
       #     post :update_contract_response        , as: :update_contract_response
       #   end # End of member
       # end # End of :contracts
-      
+
       resources :job_applications
       member do
         post :apply
       end #end of member
     end # End of jobs
-    
+
     resources :conversations do
       get :search, on: :collection
       get :add_to_favourite, on: :collection
@@ -207,7 +211,7 @@ Rails.application.routes.draw do
       get :unmute, on: :member
       resources :conversation_messages
     end
-    
+
     resources :contracts, only: [:index, :show] do
       collection do
         get :timeline
@@ -235,26 +239,28 @@ Rails.application.routes.draw do
       end
     end
   end
-  
-  
+
+
   class NakedEtymeDomain
     def self.matches?(request)
       (request.subdomain.blank? || request.subdomain == 'www') #&& request.domain == ENV['domain']
     end
   end
-  
+
   class Subdomain
     def self.matches?(request)
       request.subdomain.present? && request.subdomain != 'www' && request.subdomain != 'app-etyme'
     end
   end
-  
+
   # COMPANY ROUTES
   namespace :company do
-    
+
     resources :plugins, only: [:create]
     resources :document_signs, only: [] do
       post :e_sign_completed, on: :collection
+      get :documents
+      get :upload_document
     end
     resources :departments, only: [:create, :update]
     resources :black_listers, only: [] do
@@ -269,7 +275,7 @@ Rails.application.routes.draw do
       end
     end
     post 'update_mobile_number', to: 'companies#update_mobile_number'
-    
+
     get 'companies/edit'
     resources :users, only: [:show, :update, :destroy] do
       resources :notifications do
@@ -283,7 +289,7 @@ Rails.application.routes.draw do
         get 'chat_status_update'
         get :add_reminder
       end
-      
+
       match :assign_groups, via: [:get, :post]
       get :profile
       post :update_video
@@ -292,9 +298,9 @@ Rails.application.routes.draw do
         get "notification/:id", to: 'users#notification', as: "get_notification"
       end
     end
-    
+
     resources :company_contacts, only: [:index, :new, :create, :destroy]
-    
+
     resources :companies, only: [:new, :create, :update] do
       member do
         get "plugin/:plugin_type", to: "companies#plugin", as: :plugin
@@ -302,7 +308,7 @@ Rails.application.routes.draw do
       get :add_reminder
       match :assign_groups, via: [:get, :post]
       match :assign_groups_to_contact, via: [:get, :post]
-      
+
       post :verify_website
       get :download_template
       post :add_to_network
@@ -318,10 +324,10 @@ Rails.application.routes.draw do
         post :request_for_more_information
       end
     end
-    
+
     get 'new_candidate_to_bench', to: 'candidates#new_candidate_to_bench'
     # get :new_candidate_to_banch
-    
+
     resources :chats, only: [:show] do
       post :add_users
       resources :messages, only: [:create] do
@@ -332,14 +338,14 @@ Rails.application.routes.draw do
         match :share_message, via: [:get, :post]
       end
     end
-    
+
     get "import_job", to: "jobs#import_job"
     post "upload_job", to: "jobs#upload_job"
     post "upload_candidate", to: "jobs#upload_candidate"
     post "upload_company", to: "jobs#upload_company"
     post "upload_contacts", to: "jobs#upload_contacts"
-    
-    
+
+
     get "download_job_template", to: "jobs#download_job_template"
     get "download_product_template", to: "jobs#download_product_template"
     get "download_service_template", to: "jobs#download_service_template"
@@ -347,8 +353,8 @@ Rails.application.routes.draw do
     get "download_candidate_template", to: "jobs#download_candidate_template"
     get "download_company_template", to: "jobs#download_company_template"
     get "download_contacts_template", to: "jobs#download_contacts_template"
-    
-    
+
+
     resources :bench_jobs, only: [:index, :destroy]
     resources :job_receives, only: [:index, :destroy]
     resources :public_jobs, only: [:index, :destroy] do
@@ -374,37 +380,37 @@ Rails.application.routes.draw do
         get :mark_as_read, on: :member
       end
     end
-    
+
     resources :sell_contracts
     resources :buy_contracts do
       resources :contract_sale_commissions, only: [:new, :create]
     end
-    
+
     resources :accountings do
       get :recieved_payment, on: :collection
       get :bill_to_pay, on: :collection
       get :bill_received, on: :collection
       get :bill_pay, on: :collection
-      
+
       get :salary_to_pay, on: :collection
       get :salary_advance, on: :collection
       get :salary_calculation, on: :collection
       get :check_salary, on: :collection
       get :generate_salary_cycles, on: :collection
     end
-  
+
   end
-  
+
   scope module: :company do
-    
+
     resources :activities, only: [:index]
-    
+
     post 'reject_vendor', to: 'prefer_vendors#reject'
     post 'accept_vendor', to: 'prefer_vendors#accept'
     get 'network', to: 'prefer_vendors#show_network'
-    get 'marketplace', to: 'prefer_vendors#marketplace',as: :marketplace
+    get 'marketplace', to: 'prefer_vendors#marketplace', as: :marketplace
     # get  'hot_candidate', to: 'companies#hot_candidate'
-    
+
     resources :consultants, concerns: :paginatable do
       resources :leaves do
         member do
@@ -426,7 +432,7 @@ Rails.application.routes.draw do
         post :create_bulk_candidates
         post :create_bulk_companies
         post :create_bulk_contacts
-        
+
         get :remove_from_group
         get :leave_group
       end
@@ -442,13 +448,13 @@ Rails.application.routes.draw do
     resources :attachments, concerns: :paginatable, only: [:index]
     resources :company_legal_docs
     delete 'delete_company_legal_docs', to: 'company_legal_docs#delete_company_legal_docs'
-    
+
     resources :company_candidate_docs
     delete 'delete_company_candidate_docs', to: 'company_candidate_docs#delete_company_candidate_docs'
     delete 'delete_company_customer_docs', to: 'company_candidate_docs#delete_company_customer_docs'
     delete 'delete_company_vendor_docs', to: 'company_candidate_docs#delete_company_vendor_docs'
     delete 'delete_company_employee_docs', to: 'company_candidate_docs#delete_company_employee_docs'
-    
+
     resources :invoices, concerns: :paginatable, only: [:index, :edit, :update] do
       member do
         get :client_expense_invoice
@@ -496,7 +502,7 @@ Rails.application.routes.draw do
       collection do
         get :share_candidates, as: :share_hot_candidates
       end
-    
+
     end
     resources :job_applications, concerns: :paginatable, only: [:index, :show] do
       resources :consultants, only: [:new, :create]
@@ -522,7 +528,7 @@ Rails.application.routes.draw do
         post :send_templates
       end
     end
-    
+
     resources :expenses do
       collection do
         post :create_expense_type
@@ -538,7 +544,7 @@ Rails.application.routes.draw do
         get :paid_invoice_list
       end
     end
-    
+
     resources :salaries do
       get :pay
       post :add_payment
@@ -563,19 +569,19 @@ Rails.application.routes.draw do
         get :calculate_commission
       end
     end
-    
+
     resources :change_rates
-    
+
     resources :bank_details, only: [] do
       collection do
-        
+
         get "index/:company_id", to: "bank_details#index", as: :add
         get :acc_info
         get :bank_reconciliation
         post :update_acc_info
         get :new
         post :create
-      
+
       end
     end
     resources :contracts, concerns: :paginatable, except: [:destroy] do
@@ -619,7 +625,7 @@ Rails.application.routes.draw do
         patch :update_contract_status
         get :generate_cycles
       end
-      
+
       post :change_invoice_date
       resources :invoices, only: [:index, :show] do
         member do
@@ -631,11 +637,11 @@ Rails.application.routes.draw do
         end
       end
     end
-    
+
     resources :jobs, concerns: :paginatable do
-      
+
       match 'create_multiple_for_candidate', to: 'job_applications#create_multiple_For_candidate', via: [:get, :post]
-      
+
       resources :contracts, except: [:index, :show] do
         member do
           post :open_contract, as: :open_contract
@@ -643,7 +649,7 @@ Rails.application.routes.draw do
           post :create_sub_contract, as: :create_sub_contract
         end
       end # End of :contracts
-      
+
       resources :job_invitations, except: [:index] do
         collection do
           post :import
@@ -655,18 +661,18 @@ Rails.application.routes.draw do
           post :reject
         end # End of member
       end # End of :job_invitations
-      
+
       member do
         post :send_invitation, as: :send_invitation
       end
-      
+
       collection do
         post :share_jobs, as: :share_jobs
         post :update_media
         post :update_images
       end
     end
-    
+
     #leaves path for owner of company
     get 'leaves', to: 'leaves#employees_leaves', as: :employees_leaves
     # get 'attachment/documents_list',to: 'attachments#document_list'
@@ -690,9 +696,9 @@ Rails.application.routes.draw do
           post 'reject'
         end
       end
-    
+
     end
-    
+
     resources :client_expenses, only: [:edit, :update, :show, :index] do
       get :approve
       get :reject
@@ -710,25 +716,25 @@ Rails.application.routes.draw do
         post :update_video
         post :update_candidate_docs
         post :update_legal_docs
-        
+
         get :company_phone_page
         get :company_profile_page
         get :company_user_profile_page
       end
     end
-  
+
   end # End of module company
-  
+
   resources :companies, only: [:create, :update] do
     member do
       get :profile
     end
   end
-  
-  
+
+
   # Devise Routes
   devise_for :users, controllers: {invitations: 'company/invitations', passwords: 'users/passwords', sessions: 'users/sessions', confirmations: 'users/confirmations', omniauth_callbacks: 'candidates/omniauth_callbacks'}, path_names: {sign_in: 'login', sign_out: 'logout'}
-  
+
   # devise_for :candidates
   devise_for :candidates, controllers: {
       sessions: 'candidates/sessions',
@@ -743,12 +749,12 @@ Rails.application.routes.draw do
       match '/' => 'devise/sessions#new', via: [:get, :post]
     end
   end
-  
+
   # Route set when subdomain is not present
   constraints(NakedEtymeDomain) do
     match '/' => "static#index", via: [:get, :post]
   end
-  
+
   namespace :api do
     resources :select_searches, only: :index do
       get :find_companies, on: :collection
@@ -768,41 +774,41 @@ Rails.application.routes.draw do
       get :find_company_admin, on: :collection
       get :find_hr_admins, on: :collection
     end
-    
+
     namespace :candidate do
       resources :candidates, only: :index do
         post :add_candidate, on: :collection
         get :contract_cycles, on: :collection
       end
     end
-    
+
     namespace :company do
       resources :companies, only: [:index, :create] do
         post :add_company, on: :collection
         get :get_owner, on: :collection
       end
     end
-    
+
     namespace :company do
       resources :jobs, only: [:index, :create] do
         post :add_job, on: :collection
       end
     end
-    
+
     resources :job_applications, only: [:index, :create] do
       post :job_applications, on: :collection
     end
-    
+
     #  resources :rss_jobs, only: [:index, :create] do
     #   get :job_feed, on: :collection
     #   # resources :rss_jobs, only: [:index, :create] do
     #   #   get :job_feed, on: :collection
     #   # end
     # end
-    
+
     # post 'add_candidate',    to: 'candidates#add_candidate'
   end
-  
+
   resources :conversations do
     resources :conversation_messages do
       get :messages, on: :collection

@@ -21,8 +21,8 @@ class Company::ContractsController < Company::BaseController
   include Company::ChangeRatesHelper
 
   def company_sell_contract
-    @signature_documents = @contract.send("sell_contract").document_signs.where(signable: @contract.sell_contract.company.owner, documentable: current_company.company_candidate_docs.where(is_require: "signature").ids)
-    @request_documents = @contract.send("sell_contract").document_signs.where(signable: @contract.sell_contract.company.owner, documentable: current_company.company_candidate_docs.where(is_require: "Document").ids)
+    @signature_documents = @contract.send("sell_contract").document_signs.where(documentable: @contract.company.company_candidate_docs.where(is_require: "signature"))
+    @request_documents = @contract.send("sell_contract").document_signs.where(documentable: @contract.company.company_candidate_docs.where(is_require: "Document"))
   end
 
   def company_buy_contract
@@ -47,13 +47,13 @@ class Company::ContractsController < Company::BaseController
   def show
     add_breadcrumb "#{@contract.number}"
     if @contract.sell_contract
-      @signature_documents = @contract.send("sell_contract").document_signs.where(documentable: current_company.company_candidate_docs.where(is_require: "signature").ids)
-      @request_documents = @contract.send("sell_contract").document_signs.where(documentable: current_company.company_candidate_docs.where(is_require: "Document").ids)
+      @signature_documents = @contract.send("sell_contract").document_signs.where(documentable: CompanyCandidateDoc.where(is_require: "signature").ids)
+      @request_documents = @contract.send("sell_contract").document_signs.where(documentable: CompanyCandidateDoc.where(is_require: "Document").ids)
     end
     if @contract.buy_contract
-      @candidate_signature_documents = @contract.send("buy_contract").document_signs.where(signable: @contract.buy_contract.contract.candidate, documentable: current_company.company_candidate_docs.where(is_require: "signature").ids)
-      @vendor_signature_documents = @contract.buy_contract.company.present? ? @contract.send("buy_contract").document_signs.where(signable: @contract.buy_contract.company.owner, documentable: current_company.company_candidate_docs.where(is_require: "signature").ids) : []
-      @candidate_request_documents = @contract.send("buy_contract").document_signs.where(signable: @contract.buy_contract.contract.candidate, documentable: current_company.company_candidate_docs.where(is_require: "Document").ids)
+      @candidate_signature_documents = @contract.send("buy_contract").document_signs.where(signable: @contract.buy_contract.contract.candidate, documentable: CompanyCandidateDoc.where(is_require: "signature").ids)
+      @vendor_signature_documents = @contract.buy_contract.company.present? ? @contract.send("buy_contract").document_signs.where(signable: @contract.buy_contract.company.owner, documentable: CompanyCandidateDoc.where(is_require: "signature").ids) : []
+      @candidate_request_documents = @contract.send("buy_contract").document_signs.where(signable: @contract.buy_contract.contract.candidate, documentable: CompanyCandidateDoc.where(is_require: "Document").ids)
     end
   end
 

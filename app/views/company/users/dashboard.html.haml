@@ -340,7 +340,7 @@
                     - current_company.consultants.take(30).each do |consultant|
                       - cache consultant do
                         %li
-                          = link_to image_tag( consultant.try(:photo) ,class:"margin-bottom-5 margin-top-5",alt: image_path('avatars/m_sunny_big.png') ), company_user_profile_path(consultant),target: "_blank" , title: consultant.full_name,"data-content" => "Email: #{consultant.email}", "data-placement" => "top","data-img"=>"#{consultant.photo}" ,:rel => "hover"
+                          = link_to user_image( consultant ,class:"margin-bottom-5 margin-top-5",alt: image_path('avatars/m_sunny_big.png') ), company_user_profile_path(consultant),target: "_blank" , title: consultant.full_name,"data-content" => "Email: #{consultant.email}", "data-placement" => "top","data-img"=>"#{consultant.photo}" ,:rel => "hover"
               -else
                 .text
                   .font-md.text-center

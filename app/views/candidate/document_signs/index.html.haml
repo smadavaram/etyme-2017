@@ -1,40 +1,34 @@
 .content-i
   .content-box
-    .row
-      .col-sm-12
-        .element-wrapper
-          .element-box-tp
-            .controls-above-table
-              .row.mr-1.ml-1
-                .col-sm-12
-                  .form-inline.justify-content-sm-end
-                    %input.form-control.form-control-sm.rounded.bright{placeholder: "Search", type: "text", type: 'search', id: "candidate_documents_datatable-search"}
-            .table-responsive
-              %table.table.table-striped.table-bordered.table-hover.table-lg{id: "candidate_documents_datatable"}
-                %thead
-                  %tr{:role => "row"}
-                    %th Document Title
-                    %th Sent Date
-                    %th Status
-                    %th User(s)
-                    %th Request Type
-                    %th Document
-                %tbody
-                  - @document_signs.each do |docusign|
-                    %tr
-                      %td= do_ellipsis(docusign.documentable.title.capitalize,15)
-                      %td{style: "color: #1AAE9F"}= do_ellipsis(docusign.created_at.strftime("%B %e, %Y at %I:%M %p"),15)
-                      %td{style: "color: #EFA544"}= docusign.is_sign_done ? "Completed" : "Pending"
-                      %td.no-wrap
-                        =show_users(docusign)
-                      %td=  docusign.documentable.is_require.capitalize
-                      %td
-                        - if docusign.documentable.is_require == "Website"
-                          = link_to content_tag(:i,'',class:'ti-world').html_safe, docusign.signed_file if docusign.is_sign_done
-                          = link_to content_tag(:i,'',class:'ti-world').html_safe, candidate_document_sign_path(docusign), remote: true unless docusign.signed_file.present?
-                        -else
-                          = link_to content_tag(:i,'',class:'fa fa-paperclip fa-lg').html_safe, '#', onclick: "init_request_document_upload(#{docusign.id})", title: "Upload Document" unless docusign.signed_file.present?
-                          = link_to content_tag(:i,'',class:'fa fa-paperclip fa-lg').html_safe, docusign.signed_file if docusign.is_sign_done
+    .element-wrapper
+      .element-header Document Requests
+      .element-box
+        .table-responsive
+          %table#dataTable.table.text-center.table-bordered.table-lg.table-v2.table-striped.data-table-font
+            %thead
+              %tr{:role => "row"}
+                %th Document Title
+                %th Sent Date
+                %th Status
+                %th User(s)
+                %th Request Type
+                %th Document
+            %tbody
+              - @document_signs.each do |docusign|
+                %tr
+                  %td= do_ellipsis(docusign.documentable.title.capitalize,15)
+                  %td{style: "color: #1AAE9F"}= do_ellipsis(docusign.created_at.strftime("%B %e, %Y at %I:%M %p"),15)
+                  %td{style: "color: #EFA544"}= docusign.is_sign_done ? "Completed" : "Pending"
+                  %td.no-wrap
+                    =show_users(docusign)
+                  %td=  docusign.documentable.is_require.capitalize
+                  %td
+                    - if docusign.documentable.is_require == "Website"
+                      = link_to content_tag(:i,'',class:'ti-world').html_safe, docusign.signed_file if docusign.is_sign_done
+                      = link_to content_tag(:i,'',class:'ti-world').html_safe, candidate_document_sign_path(docusign), remote: true unless docusign.signed_file.present?
+                    -else
+                      = link_to content_tag(:i,'',class:'picons-thin-icon-thin-0089_upload_file').html_safe, candidate_document_sign_documents_path(docusign),remote: true, title: "Upload Document" if upload_doc?(docusign)
+                      = link_to content_tag(:i,'',class:'fa fa-paperclip fa-lg').html_safe, docusign_file(docusign), title: "Download Document" if docusign.is_sign_done
 
 
 - content_for :scripts do

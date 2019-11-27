@@ -5,6 +5,7 @@ class DocumentSign < ApplicationRecord
   belongs_to :initiator, polymorphic: :true, optional: true
   belongs_to :part_of, polymorphic: true, optional: true
   belongs_to :company
+  belongs_to :save_doc, polymorphic: true, optional: true
   belongs_to :requested_by, polymorphic: true
 
 
