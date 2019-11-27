@@ -24,8 +24,8 @@
                     %tr
                       %td= s.contract.project_name
                       %td= s.status
-                      %td= s.start_date
-                      %td= s.end_date
+                      %td= s.contract_cycle.start_date.strftime("%d-%m-%Y")
+                      %td= s.contract_cycle.end_date.strftime("%d-%m-%Y")
                       %td= s.total_amount
                       %td= s.billing_amount
 
