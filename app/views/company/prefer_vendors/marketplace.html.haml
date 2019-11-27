@@ -48,7 +48,7 @@
               = select_tag 'job_industry', options_for_select(industry_list,:selected=>params[:job_industry]),class: 'form-control',include_blank: "Select Job Industry"
               = select_tag 'job_category', options_for_select(WORK_CATEGORIES.keys,:selected=>params[:job_category]),class: 'form-control',id: 'candidate_category',include_blank: "Select Job category"
               = select_tag 'job_sub_category', options_for_select([],:selected=>params[:job_sub_category]),class: 'form-control',id: 'candidate_subcategory',include_blank: "Select Sub Category"
-              = select_tag 'skills', options_for_select(Job.joins(:tags).select('tags.name').uniq.pluck('name')+Candidate.joins(:skills).select('tags.name').uniq.pluck('name'),:selected=>params[:skills]),class: 'form-control',include_blank: "Select Skills"
+              = select_tag 'skills', options_for_select(@skills,:selected=>params[:skills]),class: 'form-control',include_blank: "Select Skills",style: 'max_height:10px;'
 
 
       .row.pl-3.pt-2

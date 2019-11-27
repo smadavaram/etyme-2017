@@ -14,6 +14,7 @@ class Company::PreferVendorsController < Company::BaseController
 
   def marketplace
     add_breadcrumb "Marketplace".humanize, '#', :title => "MarketPlace"
+    @skills=ActsAsTaggableOn::Tag.all.pluck('name')
     @data = []
     @search_scop_on = params[:search_by][:search_scop].eql?('on')
     @query_hash = {
