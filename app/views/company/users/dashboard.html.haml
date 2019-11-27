@@ -82,9 +82,9 @@
                   - {Training: "#5797fc", Job: "#7e6fff", Blog: "#4ecc48", Product: "#ffcc29", Service: "#f37070"}.each do |key,value|
                     .col-auto.col-xxxxl-6.ml-sm-auto.mr-sm-auto.w-100
                       .legend-value-w
-                        .legend-pin.legend-pin-squared{:style => "background-color: #{value};"}
+                        .legend-pin.legend-pin-squared.mt-2{:style => "background-color: #{value};"}
                         .legend-value
-                          %span= key
+                          %span= pluralize(@job_types[key.to_s],key.to_s)
       .row
         .row.m-4
           .col-sm-12
