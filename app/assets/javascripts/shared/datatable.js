@@ -294,6 +294,11 @@ $(document).ready(function () {
         $('#candidate_salaries_datatable').DataTable().search($(this).val()).draw();
     });
 
+    $('#consultants_datatable').dataTable();
+    $('#consultants_datatable-search').keyup(function () {
+        $('#consultants_datatable').DataTable().search($(this).val()).draw();
+    });
+
 
     $('#dataTable').dataTable({
         columnDefs: [{

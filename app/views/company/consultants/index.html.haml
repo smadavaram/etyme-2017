@@ -1,93 +1,62 @@
-#content.margin-top-0
-  %body
-    %section#widget-grid
-      .row
-        %article.col-xs-12.col-sm-12.col-md-12.col-lg-12.sortable-grid.ui-sortable
-          #wid-id-1.jarviswidget.jarviswidget-color-blueDark.jarviswidget-sortable{"data-widget-editbutton" => "false", :role => "widget"}
-            %header{:role => "heading"}
-              %span.widget-icon
-                %i.fa.fa-table
-              %h2 Consultants
-              %span.jarviswidget-loader
-                %i.fa.fa-refresh.fa-spin
-            / widget div
-            %div{:role => "content"}
-              .jarviswidget-editbox
-              .widget-body.no-padding
-                #datatable_fixed_column_wrapper.dataTables_wrapper.form-inline.dt-bootstrap.no-footer
-                  %table#datatable_fixed_column.table.table-striped.table-bordered.dataTable.no-footer{"aria-describedby" => "datatable_fixed_column_info", :role => "grid", :style => "width: 100%;", :width => "100%"}
-                    %thead
-                      %tr{:role => "row"}
-                        %th.hasinput{ :style => "width:5%"}
-                          %input.form-control{:placeholder => "Pic", :type => "text"}/
-                        %th.hasinput{ :style => "width:10%"}
-                          .input-group
-                            %input.form-control{:placeholder => "Name", :type => "text"}/
-                        %th.hasinput{ :style => "width:7%"}
-                          %input.form-control{:placeholder => "Email", :type => "text"}/
-                        %th.hasinput{ :style => "width:7%"}
-                          %input.form-control{:placeholder => "Phone", :type => "text"}/
-                        %th.hasinput
-                          %input.form-control{:placeholder => "Visa", :type => "text"}/
-                        %th.hasinput{ :style => "width:5%"}
-                          %input.form-control{:placeholder => "Roles", :type => "text"}/
-                        %th.hasinput{ :style => "width:15%"}
-                          %input.form-control{:placeholder => "Skills", :type => "text"}/
-                        %th.hasinput{ :style => "width:15%"}
-                          %input.form-control{:placeholder => "Last Login", :type => "text"}/
-                        %th.hasinput
-                          %input.form-control{:placeholder => "Last Reminder", :type => "text"}/
-                        %th.hasinput{ :style => "width:15%"}
-                          %input.form-control{:placeholder => "Actions", :type => "text"}/
-                      %tr{:role => "row"}
-                        %th Pic
-                        %th{style: "width:10%"} Name
-                        %th{style: "width:10%"} Email
-                        %th{style: "width:10%"} Phone
-                        %th{style: "width:5%"} Visa
-                        %th{style: "width:15%"} Roles
-                        %th{style: "width:20%"} Skills
-                        %th{style: "width:10%"}  Last Login
-                        %th{style: "width:10%"} Last Reminder
-                        -#%th Groups
-                        -#%th Salary
-                        %th{style: "width:20%"}
-                          Actions
-                    %tbody
-                      - @consultants.each_with_index do |consultant , index|
-                        %tr.even{:role => "row"}
-                          %td= user_image(consultant, style: 'width: 35px; height: 35px;', class: 'data-table-image mr-1',title: "#{consultant.full_name}" )
-                          %td= link_to consultant.try(:full_name) , company_user_profile_path(consultant) , target: '_blank'
-                          %td= consultant.try(:email)
-                          %td= consultant.try(:phone)
-                          %td= consultant.try(:visa_status)
-                          %td
-                            - consultant.roles.each do |role|
-                              %span.badge.bg-color-blue.margin-bottom-5
-                                = role.try(:name).try(:titleize)
-                          %td
-                            - consultant.skills.each do |skill|
-                              %span
-                                .label-info.badge
-                                  = skill.name
-                          %td= consultant.try(:last_sign_in_at).try(:strftime,"%A, %d %b %Y %l:%M %p")
-                          %td
-                            - reminder = find_reminderable_last_reminder(consultant)
-                            = reminder.present? ? reminder.try(:title).try(:titleize) : ''
-                          -#%td= consultant.consultant_profile.salaried? ? "$#{consultant.consultant_profile.salary} / month"  : "$#{consultant.consultant_profile.salary} / hour"
-                          -#%td
-                            - consultant.groups.each do |group|
-                              %span.badge.bg-color-blue
-                                = group.try(:group_name).try(:titleize)
-                          %td
-                            = link_to raw("<i class='fa fa-bell '></i>")     ,company_user_add_reminder_path(consultant)  ,class: 'btn  btn-default btn-xs margin-bottom-5', remote: :true, title: "Remind Me",'data-toggle'=>"tooltip" ,'data-placement'=>"top"
-                            = link_to raw("<i class='fa fa-tasks '></i>")     ,company_activities_index_path(index: true), class: 'btn btn-xs  btn-default margin-bottom-5', title: "Activity Log",'data-toggle'=>"tooltip" ,'data-placement'=>"top"
-                            = link_to raw("<i class='fa fa-pencil '></i>") , edit_consultant_path(consultant,edit: true) , class: 'btn btn-xs btn-default  margin-bottom-5', title: "Edit #{consultant.full_name}",'data-toggle'=>"tooltip" ,'data-placement'=>"top"
-                            = link_to raw("<i class='fa fa-group '></i>"), company_user_assign_groups_path(consultant) , remote:true,class: 'btn btn-xs btn-default margin-bottom-5', title: "Manage Groups",'data-toggle'=>"tooltip" ,'data-placement'=>"top"
-                          -#= link_to raw("<i class='fa fa-times '></i>") , consultant_path(consultant) , method: :delete ,  class: 'btn btn-xs btn-default btn-danger' , title: "Delete #{consultant.full_name}",data: {confirm: "Are you sure you want to Delete this Consultants ?", verify: 'Confirm', verify_text: "Type 'Confirm' to Continue"}
-                  - if @consultants.count >30
-                    .dt-toolbar-footer
-                      = digg_pagination(@consultants)
+.content-i
+  .content-box
+    .row
+      .col-sm-12
+        .element-wrapper
+          .element-box-tp
+            .controls-above-table
+              .row.mr-1.ml-1
+                .col-sm-12
+                  .form-inline.justify-content-sm-end
+                    %input.form-control.form-control-sm.rounded.bright{placeholder: "Search", type: "text", type: 'search', id: "consultants_datatable-search"}
+            .table-responsive
+              %table.table.table-striped.table-bordered.table-hover.table-lg{id: "consultants_datatable"}
+                %thead
+                  %tr{:role => "row"}
+                    %th{style: "width:10%"} Name
+                    %th{style: "width:10%"} Email
+                    %th{style: "width:10%"} Phone
+                    %th{style: "width:5%"} Visa
+                    %th{style: "width:15%"} Roles
+                    %th{style: "width:20%"} Skills
+                    %th{style: "width:10%"}  Last Login
+                    %th{style: "width:10%"} Last Reminder
+                    -#%th Groups
+                    -#%th Salary
+                    %th{style: "width:20%"}
+                      Actions
+                %tbody
+                  - @consultants.each_with_index do |consultant , index|
+                    %tr.even{:role => "row"}
+                      %td.no-wrap
+                        = user_image(consultant, style: 'width: 35px; height: 35px;', class: 'data-table-image mr-1',title: "#{consultant.full_name}" )
+                        = link_to consultant.try(:full_name) , company_user_profile_path(consultant) , target: '_blank',class: 'data-table-font'
+                      %td= consultant.try(:email)
+                      %td= consultant.try(:phone)
+                      %td= consultant.try(:visa_status)
+                      %td
+                        - consultant.roles.each do |role|
+                          %span.badge.bg-color-blue.margin-bottom-5
+                            = role.try(:name).try(:titleize)
+                      %td
+                        - consultant.skills.each do |skill|
+                          %span.badge.bg-color-blue.margin-bottom-5
+                            = skill.name
+                      %td= consultant.try(:last_sign_in_at).try(:strftime,"%A, %d %b %Y %l:%M %p")
+                      %td
+                        - reminder = find_reminderable_last_reminder(consultant)
+                        = reminder.present? ? reminder.try(:title).try(:titleize) : ''
+                      -#%td= consultant.consultant_profile.salaried? ? "$#{consultant.consultant_profile.salary} / month"  : "$#{consultant.consultant_profile.salary} / hour"
+                      -#%td
+                        - consultant.groups.each do |group|
+                          %span.badge.bg-color-blue
+                            = group.try(:group_name).try(:titleize)
+                      %td
+                        = link_to raw("<i class='picons-thin-icon-thin-0014_notebook_paper_todo'></i>")     ,add_reminder_company_users_path(user_id: consultant.id)  ,class: 'margin-bottom-5 data-table-icons', remote: :true, title: "Remind Me",'data-toggle'=>"tooltip" ,'data-placement'=>"top"
+                        = link_to raw("<i class='fa fa-tasks '></i>")     ,company_activities_index_path(index: true), class: 'margin-bottom-5 data-table-icons', title: "Activity Log",'data-toggle'=>"tooltip" ,'data-placement'=>"top"
+                        = link_to raw("<i class='fa fa-edit '></i>") , edit_consultant_path(consultant,edit: true) , class: 'margin-bottom-5 data-table-icons', title: "Edit #{consultant.full_name}",'data-toggle'=>"tooltip" ,'data-placement'=>"top"
+                        = link_to image_tag('groups.png', size: '16x16', class: '').html_safe, company_user_assign_groups_path(consultant) , remote:true,class: 'margin-bottom-5 data-table-icons', title: "Manage Groups",'data-toggle'=>"tooltip" ,'data-placement'=>"top"
+                      -#= link_to raw("<i class='fa fa-times '></i>") , consultant_path(consultant) , method: :delete ,  class: 'btn btn-xs btn-default btn-danger' , title: "Delete #{consultant.full_name}",data: {confirm: "Are you sure you want to Delete this Consultants ?", verify: 'Confirm', verify_text: "Type 'Confirm' to Continue"}
 :css
   .form-control
   {

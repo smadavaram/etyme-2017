@@ -1,21 +1,21 @@
-= form_for @consultant , url: params[:edit].present? ? consultant_path : params.has_key?(:job_application_id) ? job_application_consultants_path(@job_application) : consultants_path ,html: {id: 'wizard-1',class:"form-horizontal new_consultant"} do |e|
+= form_for @consultant , url: params[:edit].present? ? consultant_path : params.has_key?(:job_application_id) ? job_application_consultants_path(@job_application) : consultants_path ,html: {id: 'wizard-1',class:"form-horizontal new_consultant w-100"} do |e|
   = e.fields_for :consultant_profile do |p|
     #bootstrap-wizard-1.col-sm-12
       .form-bootstrapWizard
-        %ul.bootstrapWizard.form-wizard
-          %li.active{"data-target" => "#step1"}
+        %ul.bootstrapWizard.form-wizard.space-evenly.d-flex
+          %li.active.w-100{"data-target" => "#step1"}
             %a{"data-toggle" => "tab", :href => "#tab1"}
               %span.step 1
               %span.title Basic information
-          %li{"data-target" => "#step2"}
+          %li.w-100{"data-target" => "#step2"}
             %a{"data-toggle" => "tab", :href => "#tab2"}
               %span.step 2
               %span.title Employment Detail
-          %li{"data-target" => "#step3"}
+          %li.w-100{"data-target" => "#step3"}
             %a{"data-toggle" => "tab", :href => "#tab3"}
               %span.step 3
               %span.title Documents & Verification
-          %li{"data-target" => "#step4"}
+          %li.w-100{"data-target" => "#step4"}
             %a{"data-toggle" => "tab", :href => "#tab4"}
               %span.step 4
               %span.title Save Form
@@ -23,21 +23,12 @@
       .tab-content
         #tab1.tab-pane.active
           %br/
-          %h3
-            %strong Step 1
-            \- Basic Information
           = render  'company/consultants/partials/basic_information' , e: e
         #tab2.tab-pane
           %br/
-          %h3
-            %strong Step 2
-            \- Employment Detail
           = render 'company/consultants/partials/employment_details' , p: p , e: e
         #tab3.tab-pane
           %br/
-          %h3
-            %strong Step 3
-            \- Documents & Verification
           = render  'company/consultants/partials/documents_and_verifications' ,  e: e
         -##tab4.tab-pane
         -#  %br/
@@ -68,22 +59,20 @@
                   .links.col-sm-12
                     = link_to_add_association '+ Add Custom Field', e, :custom_fields, class: 'text-info pull-right', partial: 'shared/custom_fields'
                     %br/
-        .form-actions
+        .form-actions.wizard-action
           .row
             .col-sm-12
-              %ul.pager.wizard.no-margin
+              %ul.pager.wizard.no-margin.d-flex.space_between.p-0
                 %li.previous.disabled
-                  %a.btn.btn-lg.btn-default{:href => "javascript:void(0);"} Previous
+                  %a{:href => "javascript:void(0);"} Previous
                 %li.next
-                  %a.btn.btn-lg.txt-color-darken{:href => "javascript:void(0);"} Next
+                  %a{:href => "javascript:void(0);"} Next
                 %li.pull-right.finish{:style=>"di"}
-                  %a.btn.btn-lg.btn-default{:href => "javascript:;"} Finish
-:javascript
-  $( document ).ready(function() {
-    $(".multi-select2-role").select2({
-    placeholder: "Select a Role(s)",
-    tokenSeparators: [',', ' ']
-    });
+                  %a{:href => "javascript:;"} Finish
 
-     // $(".multi-select2-company-docs").select2({placeholder: "Select Document(s)"});
-  });
+- content_for :scripts do
+  :javascript
+    $( document ).ready(function() {
+      $("#roles").select2();
+      $("#docs").select2();
+    });

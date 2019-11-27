@@ -27,7 +27,7 @@ class Candidate::CandidatesController < Candidate::BaseController
   end
 
   def groups
-    @groups = current_candidate.groups
+    @groups = current_candidate.groups.contact_groups
   end
 
   def contacts

@@ -1,16 +1,18 @@
 .nested-fields
-  .form-group
-    %label.col-md-2.control-label
-      File
-      %sup.text-danger *
-    .col-md-2
-      = f.text_field :file_name,class:"name hidden" , disable: true , readonly: true
-      = render "shared/file_attachement", f:f,attr_name: :file,button_name: "Pick File",multiple: false
-      -#= f.filepicker_field :file, :button_text => "Pick File", disable: true , class: 'file-pick btn btn-primary filepicker-attachment', onChange: 'onUpload(event)'
+  .row
+    .col-sm-2
+      Name
+      = f.text_field :file_name,class:"name hidden" , disable: true
+    .col-sm-8.d-flex.pt-4
+      .file_selector{style: "display: flex;"}
+      .form-group.d-inline-block
+        = render 'shared/file_attachement',f:f,attr_name: :file,button_name: "Attach Resume", name_selector: ".uploaded_file_name",cstm_style: "border-radius: 0; height:38px;"
+      %p.d-inline-block.uploaded_file_name  No File Selected
+
       = f.hidden_field :file_type,class:"type"
       = f.hidden_field :file_size,class:"size"
       = f.hidden_field :company_id , value: current_company.id
-    .col-md-2.margin-top-5
+    .col-md-2.margin-top-5.d-flex.align-item-center
       = link_to_remove_association "Remove", f, class: "btn btn-danger remove pull-right"
 
 :javascript
