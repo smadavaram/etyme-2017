@@ -32,6 +32,9 @@ class Company::UsersController < Company::BaseController
           @data += apply_scopes(current_company.invited_companies_contacts)
           @data += apply_scopes(current_company.candidates)
           @data = @data.sort {|y, z| z.created_at <=> y.created_at}
+          @jobs_count = current_company.jobs.count
+          @job_types = {"Training"=>0, "Job"=>0, "Blog"=>0, "Product"=>0, "Service"=>0}.merge(current_company.jobs.group(:listing_type).count)
+          @applications_count = JobApplication.joins(job: :company).where("jobs.company": current_company)
         }
       end
     end

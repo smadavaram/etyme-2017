@@ -73,38 +73,18 @@
               Jobs
             .element-box.less-padding
               .el-chart-w
-                %canvas#donutChart1{:height => "120", :width => "120"}
+                %canvas#jobs_types{:height => "120", :width => "120"}
                 .inside-donut-chart-label
-                  %strong 1,248
+                  %strong= @jobs_count
                   %span Jobs
               .el-legend.condensed
                 .row
-                  .col-auto.col-xxxxl-6.ml-sm-auto.mr-sm-auto
-                    .legend-value-w
-                      .legend-pin.legend-pin-squared{:style => "background-color: #6896f9;"}
-                      .legend-value
-                        %span Jobs
-                        .legend-sub-value
-                          17%, 12 Visits
-                    .legend-value-w
-                      .legend-pin.legend-pin-squared{:style => "background-color: #85c751;"}
-                      .legend-value
-                        %span Application
-                        .legend-sub-value
-                          22%, 763 Visits
-                  .col-sm-6.d-none.d-xxxxl-block
-                    .legend-value-w
-                      .legend-pin.legend-pin-squared{:style => "background-color: #806ef9;"}
-                      .legend-value
-                        %span Interview
-                        .legend-sub-value
-                          3%, 7 Visits
-                    .legend-value-w
-                      .legend-pin.legend-pin-squared{:style => "background-color: #d97b70;"}
-                      .legend-value
-                        %span Hire
-                        .legend-sub-value
-                          15%, 45 Visits
+                  - {Training: "#5797fc", Job: "#7e6fff", Blog: "#4ecc48", Product: "#ffcc29", Service: "#f37070"}.each do |key,value|
+                    .col-auto.col-xxxxl-6.ml-sm-auto.mr-sm-auto.w-100
+                      .legend-value-w
+                        .legend-pin.legend-pin-squared{:style => "background-color: #{value};"}
+                        .legend-value
+                          %span= key
       .row
         .row.m-4
           .col-sm-12
@@ -125,139 +105,6 @@
                 = page_entries_info @activities
               = will_paginate(@activities, {previous_label: "Previous",next_label: "Next",inner_window: 2,class: 'activities_pagination_links'})
 
-        -#.col-sm-12
-        -#  .element-wrapper
-        -#    - if current_company.hiring_manager? || current_company.vendor?
-        -#      .row
-        -#        .col-sm-12.col-md-12
-        -#          - if @data.present?
-        -#            .col-sm-7.margin-bottom-20.d-inline-block
-        -#              %input.form-control#search-term.bg-color-white{placeholder: 'Search by Keywords ...',style: ''}
-        -#            .col-sm-4.margin-bottom-20.d-inline-block.pull-right
-        -#              = select_tag "Select Type", options_for_select([ "Candidates", "Jobs" , "Contacts" ]), include_blank: "All",class: 'form-control bg-color-white' ,id: "show_type",style:''
-        -#            %br
-        -#            .col-sm-12.col-md-12#dynamic-content{style: "width: 100%;"}
-        -#              - @data.each do |d|
-        -#                = render "company/users/partials/#{d.class.name.downcase}_show" ,data: d,cached: true
-        -#    - if current_company.hiring_manager? && !current_user.is_consultant?
-        -#      .row
-        -#        .col-md-6
-        -#          .element-box.el-tablo.centered
-        -#            .panel-body.status
-        -#              %h6.element-header.text-left Company Consultant(s)
-        -#              .row
-        -#                -if current_company.consultants.present?
-        -#                  .text
-        -#                    - current_company.consultants.last(3).each do |d|
-        -#                      - cache d do
-        -#                        .col-sm-12.col-md-6.col-lg-4
-        -#                          .well.text-center.connect
-        -#                            / = image_tag d.photo ,class:"margin-bottom-5 margin-top-5",alt:'img',width: '20px;',height: '20px;'
-        -#                            %br/
-        -#                            %span.font-xs
-        -#                              %b
-        -#                                = d.first_name
-        -#                -else
-        -#                  .text
-        -#                    .font-md.text-center
-        -#                      No Consultant in  Company Right now.
-        -#        .col-md-6
-        -#          .element-box.el-tablo.centered
-        -#            .panel-body.status
-        -#              %h6.element-header.text-left Latest Job Opening
-        -#              - if current_company.jobs.present?
-        -#                - current_company.jobs.last(3).each do |j|
-        -#                  - cache j do
-        -#                    .who.clearfix
-        -#                      = image_tag 'jobs.png',class:'',alt: "job"
-        -#                      %span.name.font-sm
-        -#                        %span.text-muted Posted by
-        -#                        %b
-        -#                          =j.company.owner.first_name
-        -#                          %br/
-        -#                          %span.pull-right.font-xs.text-muted
-        -#                            %i
-        -#                              = time_ago_in_words(j.try(:created_at).try(:localtime))
-        -#                        .font-md
-        -#                          = link_to "#{truncate(j.title)}",job_path(j)
-        -#              -else
-        -#                .text
-        -#                  .font-md.text-center
-        -#                    No Jobs in  Company Right now.
-        -#      .row
-        -#        .col-sm-12.col-md-6
-        -#          .element-box.el-tablo.centered
-        -#            .panel-body.status
-        -#              %h6.element-header.text-left Company Candidates
-        -#              - if current_company.candidates.present?
-        -#                - current_company.candidates.last(3).each do |j|
-        -#                  - cache j do
-        -#                    .who.clearfix
-        -#                      = image_tag 'can.png',class:'',alt: "job"
-        -#                      %span.name.font-sm
-        -#                        %span.text-muted Invited By
-        -#                        %b
-        -#                          =j.invited_by.first_name  rescue ' Admin '
-        -#                          %br/
-        -#                          %span.pull-right.font-xs.text-muted
-        -#                            %i
-        -#                              = time_ago_in_words(j.try(:created_at).try(:localtime))
-        -#                        .font-md
-        -#                          = link_to "#{j.first_name}",static_candidate_resume_path(j)
-        -#              -else
-        -#                .text
-        -#                  .font-md.text-center
-        -#                    No Candidates in  Company Right now.
-        -#        .col-sm-12.col-md-6
-        -#          .element-box.el-tablo.centered
-        -#            .panel-body.status
-        -#              %h6.element-header.text-left Latest Activities
-        -#              -if company_activities.present?
-        -#                -company_activities.take(4).each do |activity|
-        -#                  .who.clearfix
-        -#                    = render_activity activity
-        -#              -else
-        -#                .text
-        -#                  .font-md.text-center
-        -#                    No Activities in  Company Right now.
-        -#        .col-md-3
-        -#          .element-wrapper
-        -#            %h6.element-header
-        -#              Jobs
-        -#            .element-box.less-padding
-        -#              .el-chart-w
-        -#                %canvas#donutChart1{:height => "120", :width => "120"}
-        -#                .inside-donut-chart-label
-        -#                  %strong 1,248
-        -#                  %span Jobs
-        -#              .el-legend.condensed
-        -#                .row
-        -#                  .col-auto.col-xxxxl-6.ml-sm-auto.mr-sm-auto
-        -#                    .legend-value-w
-        -#                      .legend-pin.legend-pin-squared{:style => "background-color: #6896f9;"}
-        -#                      .legend-value
-        -#                        %span Jobs
-        -#                        .legend-sub-value
-        -#                          17%, 12 Visits
-        -#                    .legend-value-w
-        -#                      .legend-pin.legend-pin-squared{:style => "background-color: #85c751;"}
-        -#                      .legend-value
-        -#                        %span Application
-        -#                        .legend-sub-value
-        -#                          22%, 763 Visits
-        -#                  .col-sm-6.d-none.d-xxxxl-block
-        -#                    .legend-value-w
-        -#                      .legend-pin.legend-pin-squared{:style => "background-color: #806ef9;"}
-        -#                      .legend-value
-        -#                        %span Interview
-        -#                        .legend-sub-value
-        -#                          3%, 7 Visits
-        -#                    .legend-value-w
-        -#                      .legend-pin.legend-pin-squared{:style => "background-color: #d97b70;"}
-        -#                      .legend-value
-        -#                        %span Hire
-        -#                        .legend-sub-value
-        -#                          15%, 45 Visits
     .content-panel
       .content-panel-close
         %i.os-icon.os-icon-close
@@ -288,8 +135,8 @@
                   .user-w.toggleable
                     .user-avatar-w
                       .avatar-w
-                        =user_image(current_user, style: 'width: 35px; height: 35px;', class: 'data-table-image mr-1',title: "#{current_user.full_name}" )
-                    .user-name
+                        =user_image(user, style: 'width: 35px; height: 35px;', class: 'data-table-image mr-1',title: "#{current_user.full_name}" )
+                    .user-name.pl-0
                       %h6.user-title.no-wrap
                         = do_ellipsis(user.full_name,17)
                       .user-role
@@ -414,6 +261,32 @@
       content: function(){return '<img src="'+$(this).data('img') + '" />';}
     });
     $('[data-toggle="tooltip"]').tooltip()
+
+    if($("#jobs_types").length){
+      var donutChart1 = $("#jobs_types");
+
+      var data1 = {
+        labels: ["Training", "Job", "Blog", "Product", "Service"],
+        datasets: [
+            {
+                data: ["#{@job_types["Training"]}", "#{@job_types["Job"]}", "#{@job_types["Blog"]}", "#{@job_types["Product"]}", "#{@job_types["Service"]}"],
+                backgroundColor: [ "#5797fc", "#7e6fff", "#4ecc48", "#ffcc29", "#f37070" ],
+                hoverBackgroundColor: [ "#5797fc", "#7e6fff", "#4ecc48", "#ffcc29", "#f37070" ],
+                borderWidth: 6,
+                hoverBorderColor: 'transparent'
+            }]
+      };
+      new Chart(donutChart1, {
+        type: 'doughnut',
+        data: data1,
+        options: {
+          legend: {display: false},
+          animation:{animateScale:true},
+          cutoutPercentage: 80
+        }
+      });
+
+    }
 
     });
     $("#search-term").on("keypress", function (e) {
