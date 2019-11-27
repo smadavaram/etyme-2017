@@ -21,8 +21,8 @@ class Company::ContractsController < Company::BaseController
   include Company::ChangeRatesHelper
 
   def company_sell_contract
-    @signature_documents = @contract.send("sell_contract").document_signs.where(signable: @contract.sell_contract.company.owner, documentable: current_company.company_candidate_docs.where(is_require: "signature").ids)
-    @request_documents = @contract.send("sell_contract").document_signs.where(signable: @contract.sell_contract.company.owner, documentable: current_company.company_candidate_docs.where(is_require: "Document").ids)
+    @signature_documents = @contract.send("sell_contract").document_signs.where(documentable: @contract.company.company_candidate_docs.where(is_require: "signature"))
+    @request_documents = @contract.send("sell_contract").document_signs.where(documentable: @contract.company.company_candidate_docs.where(is_require: "Document"))
   end
 
   def company_buy_contract
