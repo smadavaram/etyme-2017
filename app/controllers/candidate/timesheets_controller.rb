@@ -2,8 +2,12 @@ class Candidate::TimesheetsController < Candidate::BaseController
 
   include CandidateHelper
   before_action :set_time_sheet, only: [:update, :submit_timesheet, :add_hrs]
+  add_breadcrumb 'Dashboard', :candidate_candidate_dashboard_path
+
 
   def index
+    add_breadcrumb 'timesheet(s)', :candidate_timesheets_path
+
     @cycles = current_candidate.contract_cycles.where(cycle_type: 'TimesheetSubmit')
     @contracts = Contract.where(candidate: current_candidate)
     respond_to do |format|

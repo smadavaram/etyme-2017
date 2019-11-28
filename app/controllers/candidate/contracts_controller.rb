@@ -1,7 +1,6 @@
 class Candidate::ContractsController < Candidate::BaseController
   before_action :set_contract, only: [:show]
-  add_breadcrumb "Home", '/candidate'
-
+  add_breadcrumb 'DashBoard', :candidate_candidate_dashboard_path
   def index
     add_breadcrumb "HR-Contract", candidate_contracts_path
     @contracts = Contract.where.not(status: :draft).where(candidate: current_candidate)
@@ -24,6 +23,7 @@ class Candidate::ContractsController < Candidate::BaseController
   end
 
   def timeline
+    add_breadcrumb 'Timeline(s)'
     @contract_cycles = params[:cycle_type]&.eql?('timesheet') ? current_candidate.contract_cycles.where(cycle_type: "TimesheetSubmit") : current_candidate.contract_cycles
     @contracts = Contract.where(candidate: current_candidate)
   end

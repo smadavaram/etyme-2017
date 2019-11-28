@@ -1,6 +1,8 @@
 class Candidate::ConversationsController < Candidate::BaseController
+  add_breadcrumb 'DashBoard', :candidate_candidate_dashboard_path
 
   def index
+    add_breadcrumb 'Inbox'
 
     respond_to do |format|
       @query = nil

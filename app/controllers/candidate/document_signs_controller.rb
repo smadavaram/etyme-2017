@@ -1,6 +1,6 @@
 class Candidate::DocumentSignsController < Candidate::BaseController
   before_action :set_document_sign, only: [:update, :show]
-  add_breadcrumb 'Home', "/candidate", :title => ""
+  add_breadcrumb 'DashBoard', :candidate_candidate_dashboard_path
 
   def index
     add_breadcrumb "Document Requests", candidate_document_signs_path, :title => ""

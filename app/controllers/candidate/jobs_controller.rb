@@ -3,9 +3,10 @@ class Candidate::JobsController < Candidate::BaseController
   #CallBacks
   before_action :set_job,only: [:show, :apply]
   before_action :set_public_jobs,only: [:index]
+  add_breadcrumb 'DashBoard', :candidate_candidate_dashboard_path
+
 
   #Breadcumb
-  add_breadcrumb "JOBS", :candidate_jobs_path, options: { title: "JOBS" }
 
 
   def show
@@ -13,6 +14,7 @@ class Candidate::JobsController < Candidate::BaseController
   end
 
   def index
+    add_breadcrumb "public JOBS", :candidate_jobs_path, options: { title: "JOBS" }
 
   end
 

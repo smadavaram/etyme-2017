@@ -1,6 +1,6 @@
 
 $(".user-fav").removeClass('active-conversation')
-$(".usr_Group_<%= @conversation.chatable.id %>").addClass('active-conversation')
+$(".usr_Group_<%= @conversation&.chatable&.id %>").addClass('active-conversation')
 
 <% if @messages.present? %>
 $("#prev_date").val("<%= @messages.last&.created_at&.strftime('%d %b, %Y') %>");
