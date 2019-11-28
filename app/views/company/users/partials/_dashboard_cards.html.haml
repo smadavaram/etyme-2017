@@ -6,7 +6,7 @@
       .value
         = cards["JOB"]
       .trending.trending-up-basic
-        %span 12%
+        %span= @current_user_cards["JOB"]
         %i.os-icon.os-icon-arrow-up2
   .col-sm-4.col-xxxl-4.col-4.col-md-4
     %a.element-box.el-tablo{:href => "#"}
@@ -15,7 +15,7 @@
       .value
         = cards["BENCH"]
       .trending.trending-up-basic
-        %span 12%
+        %span=@current_user_cards["BENCH"]
         %i.os-icon.os-icon-arrow-up2
   .col-sm-4.col-xxxl-4.col-4.col-md-4
     %a.element-box.el-tablo{:href => "#"}
@@ -24,7 +24,7 @@
       .value
         = cards["BENCH JOB"]
       .trending.trending-up-basic
-        %span 12%
+        %span=@current_user_cards["BENCH JOB"]
         %i.os-icon.os-icon-arrow-up2
 .row
   .col-sm-4.col-xxxl-4.col-4.col-md-4
@@ -34,7 +34,7 @@
       .value
         = cards["APPLICATION"]
       .trending.trending-up-basic
-        %span 12%
+        %span=@current_user_cards["APPLICATION"].count
         %i.os-icon.os-icon-arrow-up2
   .col-sm-4.col-xxxl-4.col-4.col-md-4
     %a.element-box.el-tablo{:href => "#"}
@@ -42,7 +42,7 @@
       .value
         = cards["STATUS"].where(status: :prescreen).present? ? cards["STATUS"].where(status: :prescreen).first.count : 0
       .trending.trending-up-basic
-        %span 12%
+        %span=@current_user_cards["APPLICATION"].prescreen.count
         %i.os-icon.os-icon-arrow-up2
   .col-sm-4.col-xxxl-4.col-4.col-md-4
     %a.element-box.el-tablo{:href => "#"}
@@ -50,7 +50,7 @@
       .value
         = cards["STATUS"].where(status: :rate_confirmation).present? ? cards["STATUS"].where(status: :rate_confirmation).first.count : 0
       .trending.trending-up-basic
-        %span 12%
+        %span=@current_user_cards["APPLICATION"].rate_confirmation.count
         %i.os-icon.os-icon-arrow-up2
 .row
   .col-sm-4.col-xxxl-4.col-4.col-md-4
@@ -59,7 +59,7 @@
       .value
         = cards["STATUS"].where(status: :client_submission).present? ? cards["STATUS"].where(status: :client_submission).first.count : 0
       .trending.trending-up-basic
-        %span 12%
+        %span=@current_user_cards["APPLICATION"].client_submission.count
         %i.os-icon.os-icon-arrow-up2
   .col-sm-4.col-xxxl-4.col-4.col-md-4
     %a.element-box.el-tablo{:href => "#"}
@@ -67,7 +67,7 @@
       .value
         = cards["STATUS"].where(status: :interviewing).present? ? cards["STATUS"].where(status: :interviewing).first.count : 0
       .trending.trending-up-basic
-        %span 12%
+        %span=@current_user_cards["APPLICATION"].interviewing.count
         %i.os-icon.os-icon-arrow-up2
   .col-sm-4.col-xxxl-4.col-4.col-md-4
     %a.element-box.el-tablo{:href => "#"}
@@ -75,5 +75,5 @@
       .value
         = cards["STATUS"].where(status: :hired).present? ? cards["STATUS"].where(status: :hired).first.count : 0
       .trending.trending-up-basic
-        %span 12%
+        %span=@current_user_cards["APPLICATION"].hired.count
         %i.os-icon.os-icon-arrow-up2

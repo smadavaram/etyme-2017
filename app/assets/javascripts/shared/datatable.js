@@ -281,6 +281,12 @@ $(document).ready(function () {
         $('#consultants_datatable').DataTable().search($(this).val()).draw();
     });
 
+    $('#on-board-legal-doc').dataTable();
+    $('#on-board-legal-doc-search').keyup(function () {
+        $('#on-board-legal-doc').DataTable().search($(this).val()).draw();
+    });
+
+
 
 
 
