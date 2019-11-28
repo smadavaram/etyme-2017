@@ -78,11 +78,7 @@ class Company::UsersController < Company::BaseController
     @current_user_cards["BENCH JOB"] = Job.where(created_by_id: current_user,status: 'Bench').where(created_at: start_date...end_date).count
     @current_user_cards["APPLICATION"]=JobApplication.joins(:job).where("jobs.created_by_id= ?",current_user)
     @current_user_cards["BENCH"] = current_user.company.candidates_companies.hot_candidate.joins(:candidate).where('candidates.created_at': start_date...end_date).count
-
-
-
-
-
+    
   end
 
   def get_start_date
