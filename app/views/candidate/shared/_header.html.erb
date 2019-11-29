@@ -37,59 +37,26 @@
     </div>
     <!--------------------END - Messages Link in secondary top menu-------------------->
     <!--------------------START - Features Link in secondary top menu-------------------->
-    <div class="top-icon top-settings os-dropdown-trigger os-dropdown-position-left">
-      <i class="fa fa-plus"></i>
-      <div class="os-dropdown" style="width: 500px;">
-        <div class="icon-w">
-          <i class="os-icon os-icon-ui-46"></i>
-        </div>
-        <a href="<%= new_company_company_path %>" style="background-color:#0d1e73; color: white; " class="mr-2 mb-2 btn btn-rounded">
-          <span>Add Companies</span>
-        </a>
-        <a href="<%= new_company_company_contact_path %>" style="background-color:#0d1e73; color: white; " class="mr-2 mb-2 btn btn-rounded">
-          <span>Add Contacts</span>
-        </a>
-        <a href="<%= new_group_path %>" style="background-color:#0d1e73; color: white; " class="mr-2 mb-2 btn btn-rounded">
-          <span>Add Groups</span>
-        </a>
-        <a href="<%= candidate_legal_docs_path %>" style="background-color:#0d1e73; color: white; " class="mr-2 mb-2 btn btn-rounded">
-          <span>Add Documents</span>
-        </a>
-
-        <br/>
-        <ul style="display: inline-block; vertical-align: top; width: 180px;">
-          <li class="sub-header"><h6 class="text-white font-weight-bold">Delv. Transactions</h6></li>
-          <li>
-            <a href="<%= timeline_candidate_contracts_path(cycle_type: "timesheet") %>">
-              <span>Add Timesheets</span>
-            </a>
-          </li>
-          <li class="sub-header"><h6 class="text-white font-weight-bold">Payments</h6></li>
-          <li>
-            <a href="#">
-              <span>Pay Salary Processing</span>
-            </a>
-          </li>
-        </ul>
-        <ul style="display: inline-block; vertical-align: top; width: 180px;">
-          <li class="sub-header"><h6 class="text-white font-weight-bold">Expenses</h6></li>
-          <li>
-            <a href="<%= "#" %>">
-              <span>Submit CE</span>
-            </a>
-          </li>
-          <li>
-            <a href="<%= new_candidate_expense_path %>">
-              <span>Request Expenses</span>
-            </a>
-          </li>
-          <li>
-            <a href="<%= "#" %>">
-              <span>Req CE Vendor Bill</span>
-            </a>
-          </li>
-        </ul>
-      </div>
+    <div class="top-icon btn-header transparent pull-right open" id="quick-add">
+      <i class="ti-plus"></i>
+      <ul class="dropdown-menu project-dropdown" style="right: 120px !important; left: initial;">
+        <li>
+          <div class=".sub-title">Timer(s)</div>
+          <ul>
+            <li>
+              <a href="<%= timeline_candidate_contracts_path(cycle_type: "timesheet") %>"><span>Add Timesheets</span></a>
+            </li>
+          </ul>
+        </li>
+        <li>
+          <div class=".sub-title">Expense(s)</div>
+          <ul>
+            <li>
+              <a href="<%= new_candidate_expense_path(cycle_type: "timesheet") %>"><span>Request Expenses</span></a>
+            </li>
+          </ul>
+        </li>
+      </ul>
     </div>
 
 

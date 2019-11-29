@@ -251,9 +251,11 @@ $(document).ready(function () {
     $('#candidate_onboard_legal_doc_datatable').dataTable();
     $('#candidate_onboard_legal_doc_datatable_search').keyup(function () {
         $('#candidate_onboard_legal_doc_datatable').DataTable().search($(this).val()).draw();
+    });
     $('#show-sell-contract-datatable').dataTable();
     $('#show-sell-contract-datatable-search').keyup(function () {
         $('#show-sell-contract-datatable').DataTable().search($(this).val()).draw();
+    });
     $('#candidate_companies_datatable').dataTable();
     $('#candidate_companies_datatable-search').keyup(function () {
         $('#candidate_companies_datatable').DataTable().search($(this).val()).draw();
@@ -282,6 +284,11 @@ $(document).ready(function () {
     $('#consultants_datatable').dataTable();
     $('#consultants_datatable-search').keyup(function () {
         $('#consultants_datatable').DataTable().search($(this).val()).draw();
+    });
+
+    $('#candidate_documents_datatable').dataTable();
+    $('#candidate_documents_datatable-search').keyup(function () {
+        $('#candidate_documents_datatable').DataTable().search($(this).val()).draw();
     });
 
 
