@@ -248,6 +248,9 @@ $(document).ready(function () {
         $('#candidate_documents_datatable').DataTable().search($(this).val()).draw();
     });
 
+    $('#candidate_onboard_legal_doc_datatable').dataTable();
+    $('#candidate_onboard_legal_doc_datatable_search').keyup(function () {
+        $('#candidate_onboard_legal_doc_datatable').DataTable().search($(this).val()).draw();
     $('#show-sell-contract-datatable').dataTable();
     $('#show-sell-contract-datatable-search').keyup(function () {
         $('#show-sell-contract-datatable').DataTable().search($(this).val()).draw();
@@ -280,12 +283,6 @@ $(document).ready(function () {
     $('#consultants_datatable-search').keyup(function () {
         $('#consultants_datatable').DataTable().search($(this).val()).draw();
     });
-
-    $('#on-board-legal-doc').dataTable();
-    $('#on-board-legal-doc-search').keyup(function () {
-        $('#on-board-legal-doc').DataTable().search($(this).val()).draw();
-    });
-
 
 
 

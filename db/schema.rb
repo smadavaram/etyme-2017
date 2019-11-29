@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema.define(version: 20191122140039) do
+ActiveRecord::Schema.define(version: 20191129032722) do
 
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
@@ -432,6 +432,8 @@ ActiveRecord::Schema.define(version: 20191122140039) do
     t.integer "company_id"
     t.integer "status", default: 0
     t.integer "candidate_status", default: 0
+    t.datetime "created_at", default: "2019-11-29 03:35:47"
+    t.datetime "updated_at", default: "2019-11-29 03:35:47"
   end
 
   create_table "candidates_groups", id: false, force: :cascade do |t|
@@ -1053,8 +1055,6 @@ ActiveRecord::Schema.define(version: 20191122140039) do
     t.string "requested_by_type"
     t.bigint "requested_by_id"
     t.string "signers_ids", default: [], array: true
-    t.string "save_doc_type"
-    t.bigint "save_doc_id"
     t.index ["documentable_type", "documentable_id"], name: "index_document_signs_on_documentable_type_and_documentable_id"
     t.index ["signable_type", "signable_id"], name: "index_document_signs_on_signable_type_and_signable_id"
   end
