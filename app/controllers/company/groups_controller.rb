@@ -1,9 +1,13 @@
 class Company::GroupsController < Company::BaseController
 
   before_action :set_and_find_group ,only: [:update,:edit, :assign_status, :add_reminder]
-  add_breadcrumb "Groups", :groups_path, options: { title: "COMPANY Groups" }
+  add_breadcrumb "Dashboard", :dashboard_path
 
   def new
+    add_breadcrumb "Group(S)", groups_path
+    add_breadcrumb "new"
+
+
     @group = current_company.groups.new
   end
 
@@ -22,6 +26,8 @@ class Company::GroupsController < Company::BaseController
   end
 
   def index
+    add_breadcrumb "Group(S)", groups_path
+
     respond_to do |format|
       format.html {}
       format.json {render json: GroupDatatable.new(params, view_context: view_context)}

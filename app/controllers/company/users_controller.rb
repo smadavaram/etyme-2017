@@ -1,7 +1,7 @@
 class Company::UsersController < Company::BaseController
 
   respond_to :js, :json, :html
-  add_breadcrumb "HOME", :dashboard_path
+  add_breadcrumb "Dashboard", :dashboard_path
   before_action :find_user, only: [:add_reminder, :profile]
 
   has_scope :search_by, only: :dashboard
@@ -135,7 +135,7 @@ class Company::UsersController < Company::BaseController
   def show
     @user = User.find(current_user.id)
     @user.address.build unless @user.address.present?
-    add_breadcrumb current_user.try(:full_name), :company_user_path
+    add_breadcrumb current_user.try(:full_name), company_user_path
   end
 
   def update
@@ -160,7 +160,7 @@ class Company::UsersController < Company::BaseController
   end
 
   def notify_notifications
-    add_breadcrumb "NOTIFICATIONS", '#'
+    add_breadcrumb "#{params[:status]} NOTIFICATIONS", '#'
     @notifications = current_user.notifications.where(status: (params[:status] || 0), notification_type: (params[:notification_type] || 0)).page(params[:page]).per_page(10)
   end
 

@@ -7,13 +7,16 @@ class Company::TimesheetsController < Company::BaseController
   before_action :user_timesheet, only: [:submit_timesheet, :add_hrs, :approve, :reject]
   before_action :authorized_user, only: [:show, :approve]
   skip_before_action :verify_authenticity_token, only: [:client_timesheets]
-  add_breadcrumb "TIMESHEETS", :timesheets_path, options: {title: "TIMESHEETS"}
+  add_breadcrumb "Dashboard", :dashboard_path
+
 
   include CandidateHelper
   include Company::ChangeRatesHelper
 
 
   def client_timesheets
+    add_breadcrumb "Appointment(s)"
+
     @cycles = current_user.contract_cycles.where(cycle_type: 'TimesheetSubmit')
     @contracts = Contract.joins(:sell_contract).where(company: current_company)
     respond_to do |format|
@@ -46,6 +49,9 @@ class Company::TimesheetsController < Company::BaseController
 
   def index
     @tab = params[:tab]
+
+    add_breadcrumb "#{@tab} TIMESHEETS", timesheets_path, options: {title: "TIMESHEETS"}
+
     @start_date = params[:start_date]
     @end_date = params[:end_date]
     @cycle_type = params[:ts_type]

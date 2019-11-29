@@ -31,7 +31,7 @@ class CompaniesController < ApplicationController
   end
 
   def profile
-    add_breadcrumb @company.name.titleize,"#"
+    add_breadcrumb @company.name.titleize+" profile","#"
 
     @jobs = @company.jobs.not_system_generated.where(:listing_type=>"Job").order(created_at: :desc).limit(5)
     @benches = CandidatesCompany.hot_candidate.where(company_id: @company.id ).limit(5)

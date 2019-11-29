@@ -1,16 +1,16 @@
 class Candidate::CandidatesController < Candidate::BaseController
-  
+
   require 'will_paginate/array'
   respond_to :html, :json, :js
   
   before_action :set_candidate, only: [:show, :update]
   before_action :set_chats, only: [:dashboard]
   
-  add_breadcrumb 'Candidates', "#", :title => ""
+  add_breadcrumb 'Dashboard', :candidate_candidate_dashboard_path
   
   def dashboard
     respond_to do |format|
-      add_breadcrumb current_candidate.full_name.titleize, profile_path, :title => ""
+      add_breadcrumb current_candidate.full_name.titleize, profile_path
       @chat = @chats.try(:last)
       @messages = @chat.try(:messages)
       get_cards
@@ -309,6 +309,8 @@ class Candidate::CandidatesController < Candidate::BaseController
   end
   
   def onboarding_profile
+    add_breadcrumb 'Onboard profile', onboarding_profile_path
+
     @user = current_candidate
     @user.addresses.build unless @user.addresses.present?
     @user.educations.build unless @user.educations.present?

@@ -13,10 +13,12 @@ class Company::CompaniesController < Company::BaseController
 
   has_scope :search_by, only: [:index, :network_contacts, :company_contacts]
   respond_to :html, :json
+  add_breadcrumb "Dashboard", :dashboard_path
 
-  add_breadcrumb 'Companies', :companies_path, :title => ""
+
 
   def index
+    add_breadcrumb 'Companies', companies_path
     respond_to do |format|
       format.html {}
       format.json {render json: CompanyDatatable.new(params, view_context: view_context)}
@@ -24,6 +26,8 @@ class Company::CompaniesController < Company::BaseController
   end
 
   def company_contacts
+    add_breadcrumb 'Contacts', companies_path
+
     respond_to do |format|
       format.html {}
       format.json {render json: CompanyContactDatatable.new(params, view_context: view_context)}
@@ -46,6 +50,10 @@ class Company::CompaniesController < Company::BaseController
   end
 
   def new
+    add_breadcrumb 'Companies', companies_path
+
+    add_breadcrumb 'New'
+
     @company = Company.new
     @company.build_invited_by
   end
@@ -59,7 +67,7 @@ class Company::CompaniesController < Company::BaseController
   end
 
   def hot_index
-    add_breadcrumb 'Hot Companies'.humanize, :company_company_hot_index_path, :title => ""
+    add_breadcrumb 'Hot Companies'.humanize, company_company_hot_index_path, :title => ""
     @candidates = CandidatesCompany.hot_candidate.where(company_id: current_company.id).paginate(:page => params[:page], :per_page => 8)
   end
 
@@ -124,12 +132,12 @@ class Company::CompaniesController < Company::BaseController
   end
 
   def show
+    add_breadcrumb "#{current_company.name} Info"
     @admin = current_company.admins.new
     @company = Company.find(params[:id] || params[:company_id])
     @company.billing_infos.build unless @company.billing_infos.present?
     @company.branches.build unless @company.branches.present?
     @company.addresses.build unless @company.addresses.present?
-    add_breadcrumb current_company.name.titleize, company_path, :title => ""
     @company_doc = current_company.company_docs.new
     @company_doc.build_attachment
     @location = current_company.locations.build
@@ -140,11 +148,14 @@ class Company::CompaniesController < Company::BaseController
   end
 
   def company_phone_page
+    add_breadcrumb 'Phone Page'
+
 
 
   end
 
   def company_profile_page
+    add_breadcrumb "#{current_company.name} profile"
     @jobs = current_company.jobs.not_system_generated.where(:listing_type => "Job").order(created_at: :desc).limit(5)
     @benches = CandidatesCompany.hot_candidate.where(company_id: current_company.id).limit(5)
     @training = current_company.jobs.not_system_generated.where(:listing_type => "Training").order(created_at: :desc).limit(5)
@@ -156,6 +167,8 @@ class Company::CompaniesController < Company::BaseController
   end
 
   def company_user_profile_page
+    add_breadcrumb "Company Profile"
+
     # @jobs = current_company.jobs.not_system_generated.where(:listing_type=>"Job").order(created_at: :desc).limit(5)
     # @benches = CandidatesCompany.hot_candidate.where(company_id: current_company.id ).limit(5)
     # @training = current_company.jobs.not_system_generated.where(:listing_type=>"Training").order(created_at: :desc).limit(5)

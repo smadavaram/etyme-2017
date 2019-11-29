@@ -1,6 +1,8 @@
 class Company::ExpensesController < Company::BaseController
+  add_breadcrumb "Dashboard", :dashboard_path
 
   def new
+    add_breadcrumb "New Expense"
     @expense = Expense.new
     @expense_type = ExpenseType.new
     @salary_cycles = []
@@ -40,6 +42,8 @@ class Company::ExpensesController < Company::BaseController
   end
 
   def pay_expense
+    add_breadcrumb "Pay Expense(s)"
+
     @banks = BankDetail.where(company_id: current_company.id)
     @expense_accounts = ExpenseAccount.joins(:expense).where("expenses.contract_id in (?)", current_company&.in_progress_contracts&.ids)
     @client_expenses_invoice = Expense.where(bill_type: 'client_expense', status: 'invoice_generated').where(contract_id: current_company&.in_progress_contracts&.ids)
@@ -72,6 +76,7 @@ class Company::ExpensesController < Company::BaseController
   end
 
   def client_expense_generate_invoice
+
     expense = Expense.find_by(id: params[:ex_id])
     expense.set_ce_invoice_on_seq(expense)
     expense.update(status: 'invoice_generated')
@@ -81,10 +86,12 @@ class Company::ExpensesController < Company::BaseController
   end
 
   def client_expense_invoices
+    add_breadcrumb "Client Expense(s)", client_expense_invoices_expenses_path
     @client_expenses = Expense.where(bill_type: 'client_expense', status: 'bill_generated').where(contract_id: current_company&.in_progress_contracts&.ids)
   end
 
   def client_expense_bill
+    add_breadcrumb "Client Expense Bill", client_expense_bill_expenses_path
     @expense = Expense.new
   end
 

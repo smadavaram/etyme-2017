@@ -1,7 +1,7 @@
 class Company::SalariesController < Company::BaseController
   require 'sequence'
   before_action :set_salary, only: [:show, :pay, :add_payment]
-  add_breadcrumb 'Home', '/bashboard'
+  add_breadcrumb "Dashboard", :dashboard_path
   
   def salary_list
     filter_salary_cycles
@@ -28,8 +28,9 @@ class Company::SalariesController < Company::BaseController
   
   
   def index
-    add_breadcrumb 'Salaries', salaries_path
     @tab = params[:tab].present? ? params[:tab] : "calculate"
+    add_breadcrumb "#{@tab} Salaries", salaries_path
+
     @start_date = params[:start_date]
     @end_date = params[:end_date]
     @cycle_type = params[:ts_type]

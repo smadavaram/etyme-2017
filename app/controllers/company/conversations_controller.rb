@@ -2,8 +2,12 @@ class Company::ConversationsController < Company::BaseController
 
   skip_before_action :authenticate_user!, only: :search
   before_action :find_attachments, :find_signers, only: [:chat_docusign]
+  add_breadcrumb "Dashboard", :dashboard_path
+
 
   def index
+    add_breadcrumb "Inbox"
+
     respond_to do |format|
       @query = nil
       @topic = nil

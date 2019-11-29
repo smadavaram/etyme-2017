@@ -6,11 +6,13 @@ class Company::JobInvitationsController < Company::BaseController
   before_action :find_received_job_invitations, only: [:reject]
   before_action :authorize_user, only: [:accept, :reject]
   before_action :authorize_send_user, only: [:create, :create_multiple]
+  add_breadcrumb "Dashboard", :dashboard_path
 
 
-  add_breadcrumb "JOB INVITATIONS", :job_invitations_path, options: {title: "JOBS INVITATIONS"}
 
   def index
+    add_breadcrumb "JOB INVITATIONS", job_invitations_path, options: {title: "JOBS INVITATIONS"}
+
 
   end
 

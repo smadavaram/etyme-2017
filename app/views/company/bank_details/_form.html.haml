@@ -1,42 +1,28 @@
-#content
+= form_for @bank_detail , url: update_acc_info_bank_details_path, html:{class: 'form-horizontal'}  do |f|
   .row
-  %section
-    .row
-      = form_for @bank_detail , url: update_acc_info_bank_details_path, html:{class: 'form-horizontal'}  do |f|
-        %article.col-sm-12.col-md-12.col-lg-12
-          #wid-id-0.jarviswidget{"data-widget-deletebutton" => "false", "data-widget-editbutton" => "false"}
-            %header
-              %span.widget-icon
-                %i.fa.fa-check
-              %h2 Bank Reconciliation
-            %div
-              .jarviswidget-editbox
-              .widget-body
-                .row
-                  .col-md-4
-                    %label Treasury Account
-                    = f.select :bank_name, options_for_select(BankDetail.bank_names.keys.map { |key| [key.titleize, key] }),{required: true}
+    .col-md-6
+      %label Treasury Account
+      = f.select :bank_name, options_for_select(BankDetail.bank_names.keys.map { |key| [key.titleize, key] }),{required: true}
 
-                  .col-md-4
-                    %label Balance
-                    = f.number_field :balance, class: 'form-control', required: true
+    .col-md-6
+      %label Balance
+      = f.number_field :balance, class: 'form-control', required: true
 
-                %br
-                .row
-                  .col-md-4
-                    %label New Balance
-                    = f.number_field :new_balance, class: 'form-control', required: true
+  .row
+    .col-md-4
+      %label New Balance
+      = f.number_field :new_balance, class: 'form-control', required: true
 
-                  .col-md-4
-                    %label Reconciliation Date
-                    = f.date_field :recon_date, class: 'form-control'
+    .col-md-4
+      %label Reconciliation Date
+      = f.date_field :recon_date, class: 'form-control'
 
-                  .col-md-4
-                    %label Unidentified Balance
-                    = f.number_field :unidentified_bal, class: 'form-control'
+    .col-md-4
+      %label Unidentified Balance
+      = f.number_field :unidentified_bal, class: 'form-control'
 
-                %br
-                = f.submit 'Submit', class: 'btn btn-primary'
+  %br
+  = f.submit 'Submit', class: 'btn btn-primary'
 
 
 - content_for :scripts do

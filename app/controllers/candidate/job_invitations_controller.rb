@@ -1,12 +1,15 @@
 class Candidate::JobInvitationsController < Candidate::BaseController
   before_action :set_job_invitations, only: :index
   before_action :find_job_invitation, only: [:reject, :show_invitation, :accept_bench, :reject_bench, :remove_bench]
+  add_breadcrumb 'DashBoard', :candidate_candidate_dashboard_path
 
   def index
+    add_breadcrumb 'invited job(s)'
 
   end
 
   def bench_company_invitation
+
     if current_candidate.job_invitations_sender.where.not(status: 'rejected').where(company_id:params[:job_invitation][:company_id]).blank?
 
       @job_invitation = Company.find(params[:job_invitation][:company_id]).sent_job_invitations.new(job_invitation_params.merge!(recipient_id: params[:job_invitation][:company_id]))
@@ -23,8 +26,7 @@ class Candidate::JobInvitationsController < Candidate::BaseController
 
 
   def bench_invitations
-    add_breadcrumb 'Dashboard', "/candidate", :title => ""
-    add_breadcrumb 'Invitations', "#"
+    add_breadcrumb 'Invitations'
     @invitations = current_candidate.job_invitations.all.bench
   end
 

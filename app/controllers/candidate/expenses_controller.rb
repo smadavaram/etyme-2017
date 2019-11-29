@@ -1,6 +1,9 @@
 class Candidate::ExpensesController < Candidate::BaseController
-  
+  add_breadcrumb 'Dashboard', :candidate_candidate_dashboard_path
+
   def new
+    add_breadcrumb 'Request Expense'
+
     @expense = Expense.new
     @expense_type = ExpenseType.new
     @salary_cycles = []

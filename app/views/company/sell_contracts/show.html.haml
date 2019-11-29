@@ -1,5 +1,4 @@
 %h3
-  sell side
   %div.sell-side
     %div.contract-custome-details
       %div.row
@@ -25,24 +24,37 @@
               Faq Id:
             %span
               NEED TO ADD
-    %div.table-responsive
-      %table.table.table-bordered
-        %thead
-          %tr
-            %th Business Contact Name
-            %th Phone Number
-            %th Email
-            %th Dept
-          -@sell_contract.contract_sell_business_details.each do |csbd|
-            %tr
-              %td
-                = do_ellipsis(csbd.company_contact.full_name,8)
-              %td
-                =csbd.company_contact.phone
-              %td
-                =csbd.company_contact.email
-              %td
-                =csbd.company_contact.department
+  .content-i
+    .content-box
+      .row
+        .col-sm-12
+          .element-wrapper
+            .element-box-tp
+              .controls-above-table
+                .row.mr-1.ml-1
+                  .col-sm-6
+                  .col-sm-6
+                    .form-inline.justify-content-sm-end
+                      %input.form-control.form-control-sm.rounded.bright{placeholder: "Search", type: "search", id: 'show-sell-contract-datatable-search'}
+              .table-responsive
+                %table#show-sell-contract-datatable.table.text-center.table-bordered.table-lg.table-v2.table-striped.data-table-font
+                  %thead
+                    %tr
+                      %th Business Contact Name
+                      %th Phone Number
+                      %th Email
+                      %th Dept
+                  %tbody
+                    -@sell_contract.contract_sell_business_details.each do |csbd|
+                      %tr
+                        %td
+                          = do_ellipsis(csbd.company_contact.full_name,8)
+                        %td
+                          =csbd.company_contact.phone
+                        %td
+                          =csbd.company_contact.email
+                        %td
+                          =csbd.company_contact.department
     %div
       %ul
         Send Documents

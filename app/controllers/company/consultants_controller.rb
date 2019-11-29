@@ -9,7 +9,7 @@ class Company::ConsultantsController < Company::BaseController
   before_action :find_consulant       , only: [:edit,:update,:destroy]
 
   def new
-    add_breadcrumb "NEW", :new_consultant_path
+    add_breadcrumb "NEW", new_consultant_path
     @roles = current_company.roles || []
   end
 

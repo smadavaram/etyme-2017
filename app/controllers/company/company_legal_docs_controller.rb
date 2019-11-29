@@ -1,7 +1,8 @@
 class Company::CompanyLegalDocsController < Company::BaseController
-
-
+	add_breadcrumb "Dashboard", :dashboard_path
 	def index
+		add_breadcrumb "Legal Document(s)"
+
 		@company_legal_docs = CompanyLegalDoc.new()
 
   end

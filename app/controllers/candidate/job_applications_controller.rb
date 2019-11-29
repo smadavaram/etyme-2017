@@ -3,8 +3,8 @@ class Candidate::JobApplicationsController < Candidate::BaseController
   before_action :find_job, only: [:create, :accept_rate, :rate_negotiation]
   before_action :job_applications, only: :index
   before_action :find_job_application, only: [:show, :accept_rate, :accept_interview, :interview, :rate_negotiation]
+  add_breadcrumb 'DashBoard', :candidate_candidate_dashboard_path
 
-  add_breadcrumb "JobApplications", :candidate_job_applications_path
 
   def create
     @job_application = current_candidate.job_applications.new(job_application_params.merge({job_id: @job.id, application_type: :candidate_direct}))
@@ -91,10 +91,12 @@ class Candidate::JobApplicationsController < Candidate::BaseController
 
 
   def index
+    add_breadcrumb "JobApplications", candidate_job_applications_path
+
   end
 
   def show
-    add_breadcrumb @job_application.job.title, :candidate_job_application_path
+    add_breadcrumb @job_application.job.title, candidate_job_application_path
   end
 
   def share

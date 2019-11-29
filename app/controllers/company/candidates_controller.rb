@@ -1,14 +1,16 @@
 class Company::CandidatesController < Company::BaseController
+  add_breadcrumb "Dashboard", :dashboard_path
+
   # add_breadcrumb "CANDIDATE", :candidate_path, options: { title: "CANDIDATE" }
   before_action :find_candidate, only: [:edit, :update, :add_reminder, :assign_status, :bench_info]
   before_action :find_signup_candidate, only: [:create_chat]
   before_action :get_conversation, only: :show
-  add_breadcrumb "Company", :dashboard_path
-  add_breadcrumb "Candidates", :company_candidates_path
 
   before_action :authorized_user, only: [:new, :index, :update, :make_hot, :make_normal]
 
   def index
+    add_breadcrumb "Candidate(S)", candidates_path
+
     respond_to do |format|
       format.html {}
       format.json { render json: CompanyCandidateDatatable.new(params, view_context: view_context) }
@@ -16,7 +18,8 @@ class Company::CandidatesController < Company::BaseController
   end
 
   def new
-    add_breadcrumb "New", "#"
+    add_breadcrumb "Candidate(S)", candidates_path
+    add_breadcrumb "New", new_company_candidate_path
     @candidate = Candidate.new
   end
 
