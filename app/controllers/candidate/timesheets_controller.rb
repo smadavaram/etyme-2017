@@ -6,7 +6,7 @@ class Candidate::TimesheetsController < Candidate::BaseController
 
 
   def index
-    add_breadcrumb 'timesheet(s)', :candidate_timesheets_path
+    add_breadcrumb 'timesheet(s)', candidate_timesheets_path
 
     @cycles = current_candidate.contract_cycles.where(cycle_type: 'TimesheetSubmit')
     @contracts = Contract.where(candidate: current_candidate)

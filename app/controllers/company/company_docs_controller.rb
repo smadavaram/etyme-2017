@@ -10,7 +10,7 @@ class Company::CompanyDocsController < Company::BaseController
   end
 
   def new
-    add_breadcrumb "NEW", :new_company_doc_path
+    add_breadcrumb "NEW", new_company_doc_path
     @company_doc = current_company.company_docs.new
     @company_doc.build_attachment
   end

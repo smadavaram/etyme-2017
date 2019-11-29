@@ -16,7 +16,7 @@ class Company::AdminsController < Company::BaseController
   end
 
   def index
-    add_breadcrumb "Admins", :admins_path, options: {title: "Admins"}
+    add_breadcrumb "Admins", admins_path, options: {title: "Admins"}
     @search = current_company.admins.search(params[:q])
     @admins = @search.result.order(created_at: :desc).includes(:roles).paginate(page: params[:page], per_page: 30) || []
   end
@@ -44,7 +44,7 @@ class Company::AdminsController < Company::BaseController
   end
 
   def new
-    add_breadcrumb "NEW", :new_admin_path
+    add_breadcrumb "NEW", new_admin_path
     respond_to do |format|
       format.js
       format.html

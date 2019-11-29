@@ -11,7 +11,7 @@ class Company::JobInvitationsController < Company::BaseController
 
 
   def index
-    add_breadcrumb "JOB INVITATIONS", :job_invitations_path, options: {title: "JOBS INVITATIONS"}
+    add_breadcrumb "JOB INVITATIONS", job_invitations_path, options: {title: "JOBS INVITATIONS"}
 
 
   end

@@ -135,7 +135,7 @@ class Company::UsersController < Company::BaseController
   def show
     @user = User.find(current_user.id)
     @user.address.build unless @user.address.present?
-    add_breadcrumb current_user.try(:full_name), :company_user_path
+    add_breadcrumb current_user.try(:full_name), company_user_path
   end
 
   def update

@@ -4,7 +4,7 @@ class Company::PayrollTermInfosController < Company::BaseController
   respond_to :html,:json
 
   def index
-    add_breadcrumb "Pay Role Term info"
+    add_breadcrumb "PayRole Term info"
     @payroll_detail = current_company&.payroll_infos&.last
     unless @payroll_detail
       @payroll = PayrollInfo.new

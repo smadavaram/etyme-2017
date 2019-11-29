@@ -19,7 +19,7 @@ class Company::JobApplicationsController < Company::BaseController
   end
 
   def index
-    add_breadcrumb "JOB APPLICATIONS", :job_applications_path, options: {title: "JOBS APPLICATION"}
+    add_breadcrumb "JOB APPLICATIONS", job_applications_path, options: {title: "JOBS APPLICATION"}
 
     respond_to do |format|
       format.html {}
@@ -233,7 +233,7 @@ class Company::JobApplicationsController < Company::BaseController
   end
 
   def show
-    add_breadcrumb "JOB APPLICATIONS", :job_applications_path, options: {title: "JOBS APPLICATION"}
+    add_breadcrumb "JOB APPLICATIONS", job_applications_path, options: {title: "JOBS APPLICATION"}
     add_breadcrumb "JOB APPLICATIONS ID: #{params[:id]}"
 
 

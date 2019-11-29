@@ -50,7 +50,7 @@ class Company::TimesheetsController < Company::BaseController
   def index
     @tab = params[:tab]
 
-    add_breadcrumb "#{@tab} TIMESHEETS", :timesheets_path, options: {title: "TIMESHEETS"}
+    add_breadcrumb "#{@tab} TIMESHEETS", timesheets_path, options: {title: "TIMESHEETS"}
 
     @start_date = params[:start_date]
     @end_date = params[:end_date]

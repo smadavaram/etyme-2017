@@ -91,12 +91,12 @@ class Candidate::JobApplicationsController < Candidate::BaseController
 
 
   def index
-    add_breadcrumb "JobApplications", :candidate_job_applications_path
+    add_breadcrumb "JobApplications", candidate_job_applications_path
 
   end
 
   def show
-    add_breadcrumb @job_application.job.title, :candidate_job_application_path
+    add_breadcrumb @job_application.job.title, candidate_job_application_path
   end
 
   def share

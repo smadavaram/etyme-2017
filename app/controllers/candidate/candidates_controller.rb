@@ -309,7 +309,7 @@ class Candidate::CandidatesController < Candidate::BaseController
   end
   
   def onboarding_profile
-    add_breadcrumb 'Onboard profile', :onboarding_profile_path
+    add_breadcrumb 'Onboard profile', onboarding_profile_path
 
     @user = current_candidate
     @user.addresses.build unless @user.addresses.present?

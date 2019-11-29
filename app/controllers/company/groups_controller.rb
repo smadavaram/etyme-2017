@@ -4,7 +4,7 @@ class Company::GroupsController < Company::BaseController
   add_breadcrumb "Dashboard", :dashboard_path
 
   def new
-    add_breadcrumb "Group(S)", :groups_path
+    add_breadcrumb "Group(S)", groups_path
     add_breadcrumb "new"
 
 
@@ -26,7 +26,7 @@ class Company::GroupsController < Company::BaseController
   end
 
   def index
-    add_breadcrumb "Group(S)", :group_path
+    add_breadcrumb "Group(S)", groups_path
 
     respond_to do |format|
       format.html {}

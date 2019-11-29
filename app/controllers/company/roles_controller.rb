@@ -22,7 +22,7 @@ class Company::RolesController < Company::BaseController
   end
 
   def index
-    add_breadcrumb "ROLES", :roles_path, options: { title: "ROLES" }
+    add_breadcrumb "ROLES", roles_path, options: { title: "ROLES" }
     @roles = current_company.roles.includes(:permissions) || []
   end
 

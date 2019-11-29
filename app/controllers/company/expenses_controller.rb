@@ -86,12 +86,12 @@ class Company::ExpensesController < Company::BaseController
   end
 
   def client_expense_invoices
-    add_breadcrumb "Client Expense(s)", :client_expense_invoices_expenses_path
+    add_breadcrumb "Client Expense(s)", client_expense_invoices_expenses_path
     @client_expenses = Expense.where(bill_type: 'client_expense', status: 'bill_generated').where(contract_id: current_company&.in_progress_contracts&.ids)
   end
 
   def client_expense_bill
-    add_breadcrumb "Client Expense Bill", :client_expense_bill_expenses_path
+    add_breadcrumb "Client Expense Bill", client_expense_bill_expenses_path
     @expense = Expense.new
   end
 

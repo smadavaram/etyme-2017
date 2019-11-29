@@ -9,7 +9,7 @@ class Company::PreferVendorsController < Company::BaseController
 
 
   def index
-    add_breadcrumb "NetWork Request".humanize, :prefer_vendors_path
+    add_breadcrumb "NetWork Request".humanize, prefer_vendors_path
   end
 
   def marketplace
@@ -152,7 +152,7 @@ class Company::PreferVendorsController < Company::BaseController
   end
 
   def show_network
-    add_breadcrumb "Clients(s)-Vendors(s)".humanize, :network_path, :title => "Prefer Vendors"
+    add_breadcrumb "Clients(s)-Vendors(s)".humanize, network_path, :title => "Prefer Vendors"
   end
 
   def reject

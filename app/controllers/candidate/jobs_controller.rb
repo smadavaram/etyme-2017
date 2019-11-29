@@ -10,11 +10,11 @@ class Candidate::JobsController < Candidate::BaseController
 
 
   def show
-    add_breadcrumb @job.title.titleize, :candidate_job_path
+    add_breadcrumb @job.title.titleize, candidate_job_path
   end
 
   def index
-    add_breadcrumb "public JOBS", :candidate_jobs_path, options: { title: "JOBS" }
+    add_breadcrumb "public JOBS", candidate_jobs_path, options: { title: "JOBS" }
 
   end
 

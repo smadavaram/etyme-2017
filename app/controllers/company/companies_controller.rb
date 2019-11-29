@@ -18,7 +18,7 @@ class Company::CompaniesController < Company::BaseController
 
 
   def index
-    add_breadcrumb 'Companies', :companies_path
+    add_breadcrumb 'Companies', companies_path
     respond_to do |format|
       format.html {}
       format.json {render json: CompanyDatatable.new(params, view_context: view_context)}
@@ -26,7 +26,7 @@ class Company::CompaniesController < Company::BaseController
   end
 
   def company_contacts
-    add_breadcrumb 'Contacts', :companies_path
+    add_breadcrumb 'Contacts', companies_path
 
     respond_to do |format|
       format.html {}
@@ -50,7 +50,7 @@ class Company::CompaniesController < Company::BaseController
   end
 
   def new
-    add_breadcrumb 'Companies', :companies_path
+    add_breadcrumb 'Companies', companies_path
 
     add_breadcrumb 'New'
 
@@ -67,7 +67,7 @@ class Company::CompaniesController < Company::BaseController
   end
 
   def hot_index
-    add_breadcrumb 'Hot Companies'.humanize, :company_company_hot_index_path, :title => ""
+    add_breadcrumb 'Hot Companies'.humanize, company_company_hot_index_path, :title => ""
     @candidates = CandidatesCompany.hot_candidate.where(company_id: current_company.id).paginate(:page => params[:page], :per_page => 8)
   end
 

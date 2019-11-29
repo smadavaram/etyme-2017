@@ -9,7 +9,7 @@ class Company::CandidatesController < Company::BaseController
   before_action :authorized_user, only: [:new, :index, :update, :make_hot, :make_normal]
 
   def index
-    add_breadcrumb "Candidate(S)", :candidates_path
+    add_breadcrumb "Candidate(S)", candidates_path
 
     respond_to do |format|
       format.html {}
@@ -18,8 +18,8 @@ class Company::CandidatesController < Company::BaseController
   end
 
   def new
-    add_breadcrumb "Candidate(S)", :candidates_path
-    add_breadcrumb "New", :new_company_candidate_path
+    add_breadcrumb "Candidate(S)", candidates_path
+    add_breadcrumb "New", new_company_candidate_path
     @candidate = Candidate.new
   end
 
