@@ -100,7 +100,7 @@
                       -#= filepicker_field_tag "" ,class: "hidden candi-logo", onchange:"candidateLogoUpload(event)","data-fp-crop-ratio" => "2/2",mimetypes: "image/*"
                       .profile-tile-box.faded
                         =image_tag current_candidate.photo,style: 'width: 200px; height: 200px;' unless current_candidate&.photo.blank?
-                        .pt-new-icon.img_pic_r
+                        .pt-new-icon.img_pic_r.candi-profile-pic
                           %i.os-icon.os-icon-plus
                         .pt-user-name.img_pic_r
                           Profile Picture
@@ -114,6 +114,8 @@
                             %source{:src => current_candidate.video, :type => "#{current_candidate.video_type}"}
                           .pt-new-icon
                             %i.os-icon.os-icon-plus
+                          .pt-user-name.can_vid_r
+                            Profile Video
                         -else
                           %video{:controls => "", :width => "100", :height=> "100", :class => "can_vid hidden" }
                             %source{:src => current_candidate.video, :type => "#{current_candidate.video_type}", :class => "can_vid_src"}
