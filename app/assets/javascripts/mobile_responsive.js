@@ -1,5 +1,7 @@
 $(document).ready(function(){
     $(".hasDatepicker").attr('autocomplete', 'off');
+    $(".os-icon-calendar").css("color", "", "!important");
+
     $('.os-icon-mail-07').hide();
     $("#ChatBtn").html("<i class='os-icon os-icon-mail-07'></i>");
   $( window ).resize(function()
