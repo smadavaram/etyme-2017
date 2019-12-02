@@ -286,6 +286,11 @@ $(document).ready(function () {
         $('#consultants_datatable').DataTable().search($(this).val()).draw();
     });
 
+    $('#candidate_documents_datatable').dataTable();
+    $('#candidate_documents_datatable-search').keyup(function () {
+        $('#candidate_documents_datatable').DataTable().search($(this).val()).draw();
+    });
+
 
 
 

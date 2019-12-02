@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema.define(version: 20191129032722) do
+ActiveRecord::Schema.define(version: 20191130154210) do
 
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
@@ -432,8 +432,8 @@ ActiveRecord::Schema.define(version: 20191129032722) do
     t.integer "company_id"
     t.integer "status", default: 0
     t.integer "candidate_status", default: 0
-    t.datetime "created_at", default: "2019-11-29 03:35:47"
-    t.datetime "updated_at", default: "2019-11-29 03:35:47"
+    t.datetime "created_at", default: "2019-11-29 12:33:24"
+    t.datetime "updated_at", default: "2019-11-29 12:33:24"
   end
 
   create_table "candidates_groups", id: false, force: :cascade do |t|
@@ -1648,6 +1648,7 @@ ActiveRecord::Schema.define(version: 20191129032722) do
     t.decimal "contract_expenses", default: "0.0"
     t.text "commission_ids", default: [], array: true
     t.boolean "commission_calculated", default: false
+    t.decimal "previous_balance", default: "0.0"
   end
 
   create_table "salary_items", force: :cascade do |t|

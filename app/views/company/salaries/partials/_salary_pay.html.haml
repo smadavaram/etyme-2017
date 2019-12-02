@@ -11,6 +11,7 @@
       %th Sal Advances
       %th Perdium/Expenses
       %th Commission
+      %th Outstanding
       %th Total
       %th Paid
       %th Actions
@@ -30,6 +31,7 @@
         %td
         %td
         %td= cc.cyclable.commission_amount
+        %td
         %td= cc.cyclable.total_amount
         %td
         %td
@@ -41,6 +43,7 @@
           %td= cc.cyclable.salary_advance
           %td
           %td= cc.cyclable.commission_amount
+          %td
           %td= cc.cyclable.total_amount
           %td{id:"#{cc.cyclable.id}"}= cc.cyclable.billing_amount
           %td
@@ -53,12 +56,14 @@
           %td= cc.cyclable.salary_advance
           %td
           %td= cc.cyclable.commission_amount
+          %td= cc.cyclable.previous_balance
           %td= cc.cyclable.total_amount
           %td{id:"#{cc.cyclable.id}"}= cc.cyclable.billing_amount
           %td
 
         %tr.disabled-row
           %td= "Settlement"
+          %td
           %td
           %td
           %td
