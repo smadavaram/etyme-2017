@@ -21,14 +21,14 @@
                   <div class="tab-content user-list">
                     <div role="tabpanel" class="tab-pane active" id="Company">
                       <div class="chat-search d-flex">
-                        <div class="element-actions w-75" >
+                        <div class="element-actions w-75">
                           <select class="form-control rounded pl-2 height-45" id="chat_topic">
-                            <option value="All">All </option>
-                            <option value="Job">Job/Offer </option>
-                            <option value="JobApplication">Application </option>
-                            <option value="SellContract">SellContract </option>
-                            <option value="BuyContract">BuyContract </option>
-                            <option value="GroupChat">Group </option>
+                            <option value="All">All</option>
+                            <option value="Job">Job/Offer</option>
+                            <option value="JobApplication">Application</option>
+                            <option value="SellContract">SellContract</option>
+                            <option value="BuyContract">BuyContract</option>
+                            <option value="GroupChat">Group</option>
                           </select>
                         </div>
                         <div class="element-search w-100">
@@ -38,7 +38,9 @@
                       <ul class="nav flex-column nav-tabs nav-tabs_height company-conversation-scorll" role="tablist" id="company-conversation-list">
                         <%= render 'conversations_list', conversations: @conversations %>
                         <div id="all-infinite-scrolling-con" style="display: none">
-                          <%= will_paginate @conversations, {params: params.merge(keyword: @query, topic: @topic)} %>
+                          <% if @conversation.present? %>
+                            <%= will_paginate @conversations, {params: params.merge(keyword: @query, topic: @topic)} %>
+                          <% end %>
                         </div>
                       </ul>
                     </div>

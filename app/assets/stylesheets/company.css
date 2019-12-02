@@ -12,6 +12,7 @@
  *
  * Basic Styles
  * require bootstrap
+ *= require company/salaries
  *= require trix
  *= require bootstarp-year-calendar
  *= require font-awesome
@@ -55,7 +56,6 @@
  *= require shared/datatable
  *= require company/job_applications
  *= require company/contracts
- *= require company/salaries
  *= require navigation
  *= require top_navigation
  *= require jobs_small_chat
