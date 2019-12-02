@@ -164,11 +164,11 @@
 //= require signature-pad/json2.min
 
 //= require cable
+//= require candidate/chat_status
+
 //= require load_more_chat
 //= require conversation/chat
 //= require conversation/users
-
-//= require candidate/chat_status
 //= require bootstrap/bootstrap-switch
 
 //=require addevent
