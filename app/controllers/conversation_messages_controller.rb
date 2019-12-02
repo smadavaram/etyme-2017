@@ -6,7 +6,10 @@ class ConversationMessagesController < ApplicationController
     message = ConversationMessage.new(message_params.merge({conversation_id: @conversation.id}))
     message.userable = get_current_user
     if message.save
-      # if @conversation.chatable_type == "Group"
+      #current_conversation = message.conversation
+      #@conversations = Conversation.send(current_conversation.topic).all_onversations(current_user).paginate(page: params[:page], per_page: 10)
+      #@conversations << current_conversation
+      #@conversations = @conversations.uniq
       @conversation.chatable.groupables.each do |gm|
         ActionCable.server.broadcast "Message_#{gm.groupable_type}_#{gm.groupable_id}",
                                      msg_id: message.id,
