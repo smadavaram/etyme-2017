@@ -31,4 +31,7 @@
                         %td= plugin.account_name
                       %tr
                         %td Token Expiry
-                        %td= Time.at(plugin.expires_at.to_i)
+                        %td
+                          - if plugin.plugin_type == 'docusign'
+                            = link_to 'Reauthenticate', plugin_company_company_path(current_company,plugin_type: :docusign), class: 'pull-right'
+                          = Time.at(plugin.expires_at.to_i)
