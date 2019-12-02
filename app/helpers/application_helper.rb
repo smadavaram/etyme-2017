@@ -1357,7 +1357,9 @@ module ApplicationHelper
       user_photo = user_photo + "</div>"
       return user_photo.html_safe
     end
-
-
 end
+def contact_widget_user(user)
+  contact_widget(user.email,user.phone,nil,color: '#3b75e3 !important',chat_link: chat_link(user))
+end
+
 

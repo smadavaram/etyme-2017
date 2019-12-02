@@ -30,8 +30,8 @@ module SovrenCandidateProfileBuilder
     return unless parsed_resume
     parsed_resume.extend Hashie::Extensions::DeepFind
     self.update(
-        first_name: parsed_resume.deep_find("GivenName"),
-        last_name: parsed_resume.deep_find("MiddleName")+" "+parsed_resume.deep_find("FamilyName")
+        first_name: parsed_resume.deep_find("GivenName")||"",
+        last_name: parsed_resume.deep_find("MiddleName")||''+" "+parsed_resume.deep_find("FamilyName")||''
     )
   end
 

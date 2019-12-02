@@ -4,26 +4,23 @@
       .row
         .col-sm-5
           .user-profile.compact
-            .up-head-w{:style => "background-image:url(#{@company.logo })"}
+            .up-head-w#company_profile_pic{:style => "background-image:url(#{@company.logo })"}
               .up-social
                 %a{:href => "#"}
                   %i.os-icon.os-icon-twitter
                 %a{:href => "#"}
                   %i.os-icon.os-icon-facebook
-              .up-main-info
+              .up-main-info.profile-wrapper#company_info
+                %h2.up-header
+                %i.icon-feather-camera
                 %h2.up-header
                   =@company.full_name
                 %h6.up-sub-header
-                  Product Designer at Facebook
-              %svg.decor{:height => "219px", :preserveaspectratio => "xMaxYMax meet", :version => "1.1", :viewbox => "0 0 842 219", :width => "842px", :xmlns => "http://www.w3.org/2000/svg", "xmlns:xlink" => "http://www.w3.org/1999/xlink"}
-                %g{:fill => "#FFFFFF", :transform => "translate(-381.000000, -362.000000)"}
-                  %path.decor-path{:d => "M1223,362 L1223,581 L381,581 C868.912802,575.666667 1149.57947,502.666667 1223,362 Z"}
             .up-controls
-              .row
-                .col-sm-12.text-right
-                  %a.btn.btn-success.btn-sm{:href => ""}
-                    %i.os-icon.os-icon-email-forward
-                    %span Send Message
+            .row
+              .col-sm-12{style: "display: flex;justify-content: space-evenly;"}
+                =contact_widget_user(@company.owner) if @company.owner.present?
+              
             .up-contents
               .m-b
                 .row.m-b
@@ -43,21 +40,31 @@
                   .os-progress-bar.primary
                     .bar-labels
                       .bar-label-left
-                        %span Email
+                        %span Name
                       .bar-label-right
-                        %span.text-success #{ current_user.confirmed_at.present? ? "verified" : "Unverified"}
+                        %span=@company.name
+                        -#%span.text-success #{ current_user.confirmed_at.present? ? "verified" : "Unverified"}
+                  .os-progress-bar.primary
+                    .bar-labels
+                      .bar-label-left
+                        %span Domain
+                      .bar-label-right
+                        %span=@company.domain
+                        -#%span.text-success #{ @company.is_number_verify ? "verified" : "Unverified"}
                   .os-progress-bar.primary
                     .bar-labels
                       .bar-label-left
                         %span Phone
                       .bar-label-right
-                        %span.text-success #{ @company.is_number_verify ? "verified" : "Unverified"}
+                        %span=@company.phone
+                        =colorfull_text(@company.phone,@company.is_number_verify ? 'green' : 'red')
                   .os-progress-bar.primary
                     .bar-labels
                       .bar-label-left
                         %span Owner
                       .bar-label-right
-                        %span.text-success #{ @company.owner_verified ? "verified" : "Unverified"}
+                        =colorfull_text(@company.owner.full_name,@company.owner_verified ? 'green' : 'red')
+                        -#%span.text-success #{ @company.owner_verified ? "verified" : "Unverified"}
           .element-wrapper
             .element-box
               -if @activities.present?
@@ -256,7 +263,7 @@
                     %li
                       = d.phone
                   .pt-btn
-                    = link_to raw("<i class='fa fa-comment '></i> Send Message"), "#", class: "btn btn-success btn-sm start-conversation",title: "Chat",
+                    = link_to raw("<i class='fa fa-comment '></i> Send Message"), "#", class: "btn btn-primary btn-sm start-conversation",title: "Chat",
                                 "data-sid" => @company.id, "data-rid" => d.id, "data-chattopic" => "OneToOne",
                                 "data-stype" => @company.class, "data-rtype" => d.class.to_s
         - else
@@ -290,6 +297,18 @@
           %h6.mb-0 Clients
           .element-box-tp
             There is no client.
+  :css
+    #company_profile_pic:hover #company_info{
+      opacity: 0.7 !important;
+      transform: scaleY(1);
+      transition: all .4s;
+      transform-origin: bottom;
+    }
+    .profile-wrapper{
+      transform: scaleY(0);
+      transition: all .4s;
+      transform-origin: bottom;
+    }
 
 -##content
 -#  .panel

@@ -1,7 +1,7 @@
 class BankDetail < ApplicationRecord
 
   belongs_to :company
-    validates :bank_name, uniqueness: true
+    validates_uniqueness_of :bank_name, :scope => [:bank_name, :company_id]
     validates :balance, presence: true
     validates :bank_name, presence: true
     validates :balance, numericality: { greater_than: 0 }
