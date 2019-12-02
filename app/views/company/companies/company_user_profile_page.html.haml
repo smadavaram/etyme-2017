@@ -3,25 +3,24 @@
     .row
       .col-sm-4
         .user-profile.compact
-          .up-head-w{:style => "background-image:url(#{current_user.photo})", class: 'profile-pic'}
-            / = image_tag user.photo,  style:"width:100px;height:100px", fit: 'clip',:class =>"profile-pic image-setting"
-            .up-social
-              -#%a{:href => current_user.twitter_url, target: "_blank"}
-              -#  %i.os-icon.os-icon-twitter
-              -#%a{:href => current_user.facebook_url, target: "_blank"}
-              -#  %i.os-icon.os-icon-facebook
-            .up-main-info
+          .up-head-w#company_profile_pic{:style => "background-image:url(#{current_user.photo.blank? ? asset_path('avatars/m_sunny_big.png') : current_user.photo})"}
+
+            .up-main-info.profile-wrapper#company_info{style: 'display:none;'}
+              %h2.up-header
+                %i.icon-feather-camera
               %h2.up-header
                 = current_user.full_name
               %h6.up-sub-header
-                Product Designer at Facebook
-            %svg.decor{:height => "219px", :preserveaspectratio => "xMaxYMax meet", :version => "1.1", :viewbox => "0 0 842 219", :width => "842px", :xmlns => "http://www.w3.org/2000/svg", "xmlns:xlink" => "http://www.w3.org/1999/xlink"}
-              %g{:fill => "#FFFFFF", :transform => "translate(-381.000000, -362.000000)"}
-                %path.decor-path{:d => "M1223,362 L1223,581 L381,581 C868.912802,575.666667 1149.57947,502.666667 1223,362 Z"}
+                =current_user.company.name
           .up-controls
             .row
+              .col-sm-6{style: "display: flex;justify-content: space-evenly;"}
+                - if current_user.present?
+                  = contact_widget(current_user.email,current_user.phone,nil,color: '#3b75e3 !important',chat_link: chat_link(current_user))
+                - else
+                  = contact_widget(current_user.email,current_user.phone,nil,color: '#3b75e3 !important',chat_link: register_path,remote_false: true)
               .col-sm-6
-                = link_to candidate_conversations_path, class: "btn btn-success btn-sm" do
+                = link_to candidate_conversations_path, class: "btn btn-primary btn-sm" do
                   %i.ti-email
                   %span Contact Me
 
@@ -45,58 +44,100 @@
                 .os-progress-bar.primary
                   .bar-labels
                     .bar-label-left
+                      %span Name
+                    .bar-label-right
+                      %span=do_ellipsis(current_user.full_name,15)
+                      %span.text-success
+                  .os-progress-bar.primary
+                    .bar-labels
+                      .bar-label-left
+                        %span Contact Info
+                      .bar-label-right
+                        %span=do_ellipsis(current_user.phone,15)
+                        %span.text-success
+                .os-progress-bar.primary
+                  .bar-labels
+                    .bar-label-left
                       %span Email
                     .bar-label-right
-                      %span.text-success verified
+                      %span=do_ellipsis(current_user.email,15)
+                      %span.text-success=is_verify(!!current_user.confirmed_at)
                 .os-progress-bar.primary
                   .bar-labels
                     .bar-label-left
-                      %span Phone
+                      %span Date of Birth
                     .bar-label-right
+                      -#%span=do_ellipsis(current_user.dob,15)
                       %span.text-success
-                        -#=current_user.is_number_verify ? 'verified' : 'unverified'
                 .os-progress-bar.primary
                   .bar-labels
                     .bar-label-left
-                      %span Visa
+                      %span Visa Status
                     .bar-label-right
-                      %span.text-success verified
+                      -#%span=do_ellipsis(current_user.visa,15)
                 .os-progress-bar.primary
                   .bar-labels
                     .bar-label-left
-                      %span Identity
+                      %span Current Location
                     .bar-label-right
-                      %span.text-success verified
+                      -#%span=do_ellipsis(current_user.location,15)
+                .os-progress-bar.primary
+                  .bar-labels
+                    .bar-label-left
+                      %span Skyp ID
+                    .bar-label-right
+                      -#%span=do_ellipsis(current_user.skypeid,15)
+                .os-progress-bar.primary
+                  .bar-labels
+                    .bar-label-left
+                      %span Linkdin
+                    .bar-label-right
+                      -#%span=do_ellipsis(current_user.linkedin_url,15)
+                .os-progress-bar.primary
+                  .bar-labels
+                    .bar-label-left
+                      %span SSN(YES / NO)
+                    .bar-label-right
+                      -#%span=do_ellipsis(current_user.ssn,15)
+
 
         .element-wrapper
           .element-box
             %h4.element-header
               Education
-            .element-info.border-0
-              .element-info-text
-                - current_user.user_educations.each do |edu|
-                  .mb-2
-                    %h6.element-inner-header.m-0
-                      =edu.degree_level
-                    .element-inner-desc
-                      =edu.degree_title
+            .padded
+              - current_user.user_educations.each do |edu|
+                .os-progress-bar.primary
+                  .bar-labels
+                    .bar-label-left
+                      %span=edu.degree_level
+                    .bar-label-right
+                      %span=edu.degree_title
+        .element-wrapper
+          .element-box
             %h4.element-header
               Certification
-            .element-info.border-0
-              .element-info-text
-                - current_user.user_certificates.each do |cert|
-                  .mb-2
-                    %h6.element-inner-header.m-0
-                      =cert.title
-                    .element-inner-desc
-                      =cert.institute
+            .padded
+              - current_user.user_certificates.each do |cert|
+                .os-progress-bar.primary
+                  .bar-labels
+                    .bar-label-left
+                      %span=cert.title
+                    .bar-label-right
+                      %span=cert.institute
+        .element-wrapper
+          .element-box
             %h4.element-header
               Skills
-            .element-info.border-0
-              .element-info-text
-                - current_user.skill_list.each do |sl|
+            .padded
+              - current_user.skill_list.each do |sl|
+                .os-progress-bar.primary
+                  .bar-labels
+                    .bar-label-left
                   .badge.badge-primary.p-2.mb-1
-                    =sl
+                    .bar-label-right
+                      %span=sl
+
       .col-sm-8
         .element-wrapper
           .element-box
@@ -135,7 +176,7 @@
   :javascript
     $(document).ready(function() {
 
-      $( ".profile-pic" ).click(function()
+      $( "#company_info" ).click(function()
       {
         upload_file_ajax(userLogoUpload);
       });
