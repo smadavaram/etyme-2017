@@ -7,7 +7,9 @@ class StaticController < ApplicationController
   before_action :set_company, :set_slug, only: :signin
   before_action :find_user, :set_website, :find_similar_companies, only: :domain_suggestion
 
-  layout 'static'
+  layout 'static', except: [:home]
+  layout 'homepage', only: [:index]
+
   add_breadcrumb "Home", '/'
 
 

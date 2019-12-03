@@ -6,7 +6,7 @@
     %meta{:content => "#{user_signed_in? ? current_user.id : ''}", :name => "user-id"}
     %meta{:content => "#{user_signed_in? ? current_user.class.to_s == "Candidate" ? "Candidate" : "User" : ''}", :name => "user-type"}
     %title Etyme
-    = stylesheet_link_tag    'static'
+    = stylesheet_link_tag    'home'
     = action_cable_meta_tag
     = javascript_include_tag 'http://platform-api.sharethis.com/js/sharethis.js#property=5899b27937570f0011ac3636&product=inline-share-buttons'
     = javascript_include_tag 'application'
