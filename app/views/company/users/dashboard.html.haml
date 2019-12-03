@@ -1,6 +1,16 @@
 .with-side-panel
   .content-i
     .content-box
+      <span class="skype-button rounded" data-contact-id="live:vinusdeveloperstech"></span>
+      #call_32{:style => "width:20%;background-color:#0094ff"}
+        :javascript
+          Skype.ui({
+              name: "call",
+              element: "call_32",
+              participants: ["vinusdeveloperstech"],
+              imageSize: 32,
+              imageColor: "white"
+          });
       .row
         .element-wrapper.w-100
           %h6.element-header
