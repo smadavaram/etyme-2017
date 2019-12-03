@@ -3,9 +3,9 @@
   .modal-dialog
     .modal-content
       .modal-header
-        %button.close{"aria-hidden" => "true", "data-dismiss" => "modal", :type => "button"}
-          ×
         %h4.modal-title
           = @role.new_record? ? "New Role" : "Edit #{@role.name}"
+        %button.close{"aria-hidden" => "true", "data-dismiss" => "modal", :type => "button"}
+          ×
       .modal-body.no-padding
         = render 'company/roles/partials/form' ,role: @role

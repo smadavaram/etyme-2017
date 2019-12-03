@@ -2,7 +2,7 @@
   = form_for dept,html:{ class:'form-horizontal',id: 'location'} do |location|
     = location.fields_for :department do |dept|
       .form-group
-        %label.col-md-2.control-label
+        %label.col-md-2.control-label.no-wrap
           Department Name
           %sup.text-danger *
         .col-md-10

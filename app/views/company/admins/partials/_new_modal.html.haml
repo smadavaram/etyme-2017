@@ -2,9 +2,9 @@
   .modal-dialog.modal-lg
     .modal-content
       .modal-header
-        %button.close{"aria-hidden" => "true", "data-dismiss" => "modal", :type => "button"}
-          ×
         %h2.modal-title
           %strong New Admin
+        %button.close{"aria-hidden" => "true", "data-dismiss" => "modal", :type => "button"}
+          ×
       .modal-body
         = render 'company/admins/partials/form',admin: @admin
