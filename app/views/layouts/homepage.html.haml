@@ -8,8 +8,7 @@
     %title Etyme
     = stylesheet_link_tag    'home'
     = action_cable_meta_tag
-    = javascript_include_tag 'http://platform-api.sharethis.com/js/sharethis.js#property=5899b27937570f0011ac3636&product=inline-share-buttons'
-    = javascript_include_tag 'application'
+    = javascript_include_tag 'home'
 
     = csrf_meta_tags
     = yield :head
@@ -26,41 +25,3 @@
     -#= tinymce_assets
     = yield(:scripts).present? ? yield(:scripts) : render(partial: 'shared/scripts')
   = render 'shared/flash_messages'
-
-:css
-  .error{
-    color: red;
-    float: left;
-  }
-  .alert-error{
-    color: #1D2026;
-    background-color: #F76523;
-    border-color: #bce8f1;
-  }
-  .modal-dialog {
-  width: 40% !important;
-  height: 50%;
-  margin: 0;
-  padding: 0;
-  float: left;
-  position: relative;
-  left: 30%;
-  }
-  .modal-header
-  {
-    padding: 7px !important;
-  }
-
-  .modal-content {
-    height: auto;
-    min-height: 100%;
-    border-radius: 0;
-    padding: 5px !important;
-  }
-
-:javascript
-  $(document).ready(function(){
-    $(window).scrollTop(0);
-  });
-
-

@@ -1,3 +1,34 @@
+.error{
+  color: red;
+  float: left;
+}
+.alert-error{
+  color: #1D2026;
+  background-color: #F76523;
+  border-color: #bce8f1;
+}
+.modal-dialog {
+  width: 40% !important;
+  height: 50%;
+  margin: 0;
+  padding: 0;
+  float: left;
+  position: relative;
+  left: 30%;
+}
+.modal-header
+{
+  padding: 7px !important;
+}
+
+.modal-content {
+  height: auto;
+  min-height: 100%;
+  border-radius: 0;
+  padding: 5px !important;
+}
+
+
 .intro-buttons {
   line-height: 80px;
 
