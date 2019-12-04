@@ -22,10 +22,6 @@
                   = candidate.full_name
                 %h6.up-sub-header
                   = candidate.associated_company.name.capitalize if candidate.associated_company.present?
-
-            %svg.decor{:height => "219px", :preserveaspectratio => "xMaxYMax meet", :version => "1.1", :viewbox => "0 0 842 219", :width => "842px", :xmlns => "http://www.w3.org/2000/svg", "xmlns:xlink" => "http://www.w3.org/1999/xlink"}
-              %g{:fill => "#FFFFFF", :transform => "translate(-381.000000, -362.000000)"}
-                %path.decor-path{:d => "M1223,362 L1223,581 L381,581 C868.912802,575.666667 1149.57947,502.666667 1223,362 Z"}
           .up-controls
             .row
               .col-sm-6{style: "display: flex;justify-content: space-evenly;"}
@@ -121,24 +117,29 @@
           .element-box
             %h4.element-header
               Education
-            .element-info.border-0
-              .element-info-text
-                - candidate.educations.each do |edu|
-                  .mb-2
-                    %h6.element-inner-header.m-0
-                      =edu.degree_level
-                    .element-inner-desc
-                      =edu.degree_title
+            .padded
+              - candidate.educations.each do |edu|
+                .os-progress-bar.primary
+                  .bar-labels
+                    .bar-label-left
+                      %span=edu.degree_level
+                    .bar-label-right
+                      %span=edu.degree_title
+
+        .element-wrapper
+          .element-box
             %h4.element-header
               Certification
-            .element-info.border-0
-              .element-info-text
-                - candidate.certificates.each do |cert|
-                  .mb-2
-                    %h6.element-inner-header.m-0
-                      =cert.title
-                    .element-inner-desc
-                      =cert.institute
+            .padded
+              - candidate.certificates.each do |cert|
+                .os-progress-bar.primary
+                  .bar-labels
+                    .bar-label-left
+                      %span=cert.title
+                    .bar-label-right
+                      %span=cert.institute
+        .element-wrapper
+          .element-box
             %h4.element-header
               Skills
             .element-info.border-0

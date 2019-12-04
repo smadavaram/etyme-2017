@@ -100,14 +100,14 @@ class Candidates::OmniauthCallbacksController < Devise::OmniauthCallbacksControl
   def docusign
     userinfo = request.env['omniauth.auth']
     cred = userinfo.credentials
-    @docusign = current_company.plugins.new(expires_at: userinfo.credentials['expires_at'],
-                                            user_name: userinfo.info.name,
-                                            access_token: cred.token,
-                                            refresh_token: cred.refresh_token,
-                                            account_id: userinfo.extra.account_id,
-                                            account_name: userinfo.extra.account_name,
-                                            base_path: userinfo.extra.base_uri,
-                                            plugin_type: :docusign)
+    @docusign = current_company.plugins.docusign.first || current_company.plugins.docusign.new
+    @docusign.expires_at = userinfo.credentials['expires_at']
+    @docusign.user_name = userinfo.info.name
+    @docusign.access_token = cred.token
+    @docusign.refresh_token = cred.refresh_token
+    @docusign.account_id = userinfo.extra.account_id
+    @docusign.account_name = userinfo.extra.account_name
+    @docusign.base_path = userinfo.extra.base_uri
     if @docusign.save
       flash[:success] = 'Docusign Plugin has been integrated'
     else

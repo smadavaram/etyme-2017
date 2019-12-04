@@ -271,8 +271,8 @@ class Company::SalariesController < Company::BaseController
     @salaries.each do |salary|
       book_entry = salary.contract.contract_books.salary.buy_contract.build(bookable: salary, beneficiary: salary.candidate, total: salary.total_amount, paid: salary.billing_amount)
       if book_entry.save
-        previous = book_entry.total - book_entry.paid
-        salary.update(status: :processed, previous_balance: previous, billing_amount: salary.billing_amount + previous)
+        previous = book_entry.is_first? ? 0.0 : book_entry.previous
+        salary.update(status: :processed, previous_balance: previous, total_amount: salary.total_amount + previous)
       end
     end
     redirect_to salaries_path(tab: "pay")

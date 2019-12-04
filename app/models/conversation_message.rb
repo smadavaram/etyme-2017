@@ -4,7 +4,7 @@ class ConversationMessage < ApplicationRecord
   belongs_to :userable, polymorphic: :true
   enum message_type: [:job_conversation,:rate_confirmation,:schedule_interview,:DocumentRequest]
   # after_create :create_notification
-
+  after_create :set_conversation_updated_at
   scope :unread_messages, -> (sender, recipient) do
     joins(:conversation).where("(
                                   ( senderable_type = ? AND senderable_id = ? )
@@ -39,4 +39,9 @@ class ConversationMessage < ApplicationRecord
       self.conversation.recipientable.notifications.create(notification_type: :chat,createable: self.userable,message: notification_message, title: "Job Application Conversation")
     end
   end
+
+  def set_conversation_updated_at
+    conversation.update({updated_at: DateTime.now})
+  end
+
 end

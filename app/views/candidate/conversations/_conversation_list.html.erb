@@ -1,8 +1,7 @@
 <% chat_user_data = set_company_chat_user_data(con, usr) %>
 <%= link_to  candidate_conversations_path(conversation: con.id), class: "user-w", remote: true, method: :post do %>
   <div class="avatar with-status status-green">
-    <%= user_image(usr, style: 'width: 35px; height: 35px;', class: 'data-table-image mr-1',title: "#{usr.full_name}" )
-%>
+    <%= user_image(usr, style: 'width: 35px; height: 35px;', class: 'data-table-image mr-1',title: "#{usr.full_name}" )%>
   </div>
   <div class="user-info">
     <div class="user-date"><%= chat_user_data[:last_msg_time] %></div>

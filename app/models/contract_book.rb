@@ -21,7 +21,11 @@ class ContractBook < ApplicationRecord
   def self.get_credit(contract, transaction_type, beneficiary)
     contract.contract_books.send(transaction_type).where(beneficiary: beneficiary).sum(:paid)
   end
-  
+
+  def is_first?
+    contract.contract_books.send(self.transaction_type).where(beneficiary: beneficiary).count == 1
+  end
+
   private
     
     def set_salary_remaining

@@ -8,6 +8,17 @@ $.ajax({
     success:function(data){}
 });
 listenForScrollEvent($(".chat-content-scroll"));
+$("#unread-msg-<%= current_candidate.id %>").html("<%= @unread_message_count.to_i > 0 ? @unread_message_count : '' %>");
+if ($("#conversation_<%= @conversation.id %>")[0]) {
+    $("#conversation_<%= @conversation.id %>").scrollTop($("#conversation_<%= @conversation.id %>")[0].scrollHeight);
+}
+
+<% opt_usr = @conversation.opt_participant(current_candidate) %>
+$("#company-conversation-list .usr_<%= opt_usr.class.to_s+'_'+opt_usr.id.to_s %>").remove();
+$("#company-conversation-list").prepend("<div class='user-fav usr_<%= opt_usr.class.to_s+'_'+opt_usr.id.to_s %>'> <%= j render 'conversation_list', con: @conversation, usr: opt_usr, is_favourite: false %> </div>")
+
+
+
 
 $("#unread-msg-<%= current_candidate.id %>").html("<%= @unread_message_count.to_i > 0 ? @unread_message_count : '' %>");
 $('.messages_bs .chat_box .keystroke_msgs_box').slimScroll({

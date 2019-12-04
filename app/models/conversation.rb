@@ -17,16 +17,16 @@ class Conversation < ApplicationRecord
   end
 
   scope :between, -> (sender, recipient) do
-    where(senderable: sender, recipientable: recipient).or where(senderable: recipient, recipientable: sender)
+    where(senderable: sender, recipientable: recipient).or where(senderable: recipient, recipientable: sender).order('updated_at desc')
   end
 
   scope :all_onversations, -> (user) do
-    where(chatable: Group.where(member_type: "Chat").joins(:groupables).candidate_or_user_admin_groupable(user)).uniq
+    where(chatable: Group.where(member_type: "Chat").joins(:groupables).candidate_or_user_admin_groupable(user)).order('updated_at desc').uniq
   end
 
   scope :conversation_of, -> (company, query_string, user) do
-    where(chatable: Group.candidate_or_user_admin_groupable(user).joins(:groupables).where("group_name LIKE '%#{query_string}%' OR (groupables.groupable_type = 'User' and groupables.groupable_id IN  (?))",User.where("first_name LIKE ? OR last_name LIKE ?", "%#{query_string}%", "%#{query_string}%").ids))
-    .or(where(chatable: Group.candidate_or_user_admin_groupable(user).joins(:groupables).where("group_name LIKE '%#{query_string}%' OR (groupables.groupable_type = 'Candidate' and groupables.groupable_id IN  (?))", Candidate.where("first_name LIKE ? OR last_name LIKE ?", "%#{query_string}%", "%#{query_string}%").ids)))
+    where(chatable: Group.candidate_or_user_admin_groupable(user).joins(:groupables).where("group_name LIKE '%#{query_string}%' OR (groupables.groupable_type = 'User' and groupables.groupable_id IN  (?))",User.where("first_name LIKE ? OR last_name LIKE ?", "%#{query_string}%", "%#{query_string}%").ids)).order('updated_at desc')
+    .or(where(chatable: Group.candidate_or_user_admin_groupable(user).joins(:groupables).where("group_name LIKE '%#{query_string}%' OR (groupables.groupable_type = 'Candidate' and groupables.groupable_id IN  (?))", Candidate.where("first_name LIKE ? OR last_name LIKE ?", "%#{query_string}%", "%#{query_string}%").ids)).order('updated_at desc'))
   end
 
   def self.create_conversation(users, title, topic, company)

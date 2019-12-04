@@ -1,6 +1,13 @@
 <div class="floated-chat-w active zero-bottom">
   <div class="floated-chat-i">
-    <div class="chat-close"><i class="os-icon os-icon-close"></i></div>
+    <div class="chat-close">
+      <i class="ti-arrows-horizontal-">
+      <span>
+        <a class="ti-arrows-horizontal" style="font-size: 15px;" href=<%= "#{company_conversations_path}?conversation=#{conversation.id}"%>></a>
+      </span>
+      </i>
+      <i class="os-icon os-icon-close"></i>
+    </div>
     <div class="chat-head">
       <div class="flex-row w-100 chat-heat_justify">
         <div>
@@ -41,10 +48,10 @@
 
             <% end %>
             <%= render 'shared/file_attachement', f: f, attr_name: :file_url, name_selector: ".uploaded_file_name", cstm_class: "p-0", cstm_style: "background: transparent;box-shadow: none;width:30px;", button_name: "<i class='os-icon os-icon-ui-51' style='font-size: 26px;'></i>".html_safe, name_selector: '#file-name_uploaded' %>
-              <%= mini_chat_contact_widget((Group.user_emails(conversation.chatable.id).to_a+Group.candidate_emails(conversation.chatable.id).to_a).join(','),nil,nil,chat_link: chat_link(nil,conversation.id)) %>
-          
-         
-            
+            <%= mini_chat_contact_widget((Group.user_emails(conversation.chatable.id).to_a+Group.candidate_emails(conversation.chatable.id).to_a).join(','),nil,nil,chat_link: chat_link(nil,conversation.id)) %>
+
+
+
           </div>
 
           <div class="chat-btn">
