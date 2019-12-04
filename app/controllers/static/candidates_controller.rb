@@ -1,6 +1,7 @@
 class Static::CandidatesController < ApplicationController
   layout 'static'
 
+
   before_action :find_candidate ,only: [:resume,:send_message]
 
   def resume
