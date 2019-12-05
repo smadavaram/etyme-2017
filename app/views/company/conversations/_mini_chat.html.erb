@@ -3,7 +3,7 @@
     <div class="chat-close">
       <i class="ti-arrows-horizontal-">
       <span>
-        <a class="ti-arrows-horizontal" style="font-size: 15px;" href=<%= "#{company_conversations_path}?conversation=#{conversation.id}"%>></a>
+        <a class="ti-arrows-horizontal" style="font-size: 15px;" href=<%= "#{company_conversations_path}?conversation=#{conversation.id}" %>></a>
       </span>
       </i>
       <i class="os-icon os-icon-close"></i>
@@ -14,11 +14,11 @@
           <div class="mini_chat_users">
             <% conversation.chatable.groupables.sample(4).each do |groupable| %>
               <div class="avatar">
-                <%= user_image(groupable.groupable, style: 'width: 35px; height: 35px;', class: 'data-table-image mr-1',title: "#{groupable.groupable.full_name}" )%>
+                <%= user_image(groupable.groupable, style: 'width: 35px; height: 35px;', class: 'data-table-image mr-1', title: "#{groupable.groupable&.full_name}") %>
               </div>
             <% end %>
             <% if conversation.chatable.groupables.count > 4 %>
-              <div class="more"><%= "+ #{(conversation.chatable.groupables.count-4).abs}"  %>More</div>
+              <div class="more"><%= "+ #{(conversation.chatable.groupables.count - 4).abs}" %>More</div>
             <% end %>
             <div class="more"><%= snake_to_words(mini_chat_title(conversation)) %></div>
           </div>
@@ -33,38 +33,56 @@
         </div>
       </div>
     </div>
-    <div class="chat-controls">
-      <%= form_for([conversation, ConversationMessage.new], :remote => true, :html => {id: "conversation_form_#{conversation.id}"}) do |f| %>
-        <div class="chat-input1 chat-input" style=" border-top: 1px solid rgba(0, 0, 0, 0.2);">
-          <%= f.text_field :body, class: 'form-control input-sm chat_input ', autocomplete: "off", placeholder: 'Type your message here...', required: true, "data-cid" => conversation.id, id: "con-text-#{conversation.id}-#{current_user.class}-#{current_user.id}" %>
-        </div>
-        <div id="file-name_uploaded">
+    <% if conversation.chatable.groupables.count > 2 %>
 
-        </div>
-        <div class="chat-input-extra d-flex pl-1 pr-1 justify-content-between">
-          <div class="chat-extra-actions">
-            <%= button_tag type: "button", class: "btn p-0", style: "background: transparent;box-shadow: none;", onclick: "$('##{"chat-templates-#{conversation.id}"}').modal('show')" do %>
-              <%= image_tag("/docusign.png", size: "25x25") %>
+      <div class="chat-controls">
+        <%= form_for([conversation, ConversationMessage.new], :remote => true, :html => {id: "conversation_form_#{conversation.id}"}) do |f| %>
+          <div class="chat-input1 chat-input" style=" border-top: 1px solid rgba(0, 0, 0, 0.2);">
+            <%= f.text_field :body, class: 'form-control input-sm chat_input ', autocomplete: "off", placeholder: 'Type your message here...', required: true, "data-cid" => conversation.id, id: "con-text-#{conversation.id}-#{current_user.class}-#{current_user.id}" %>
+          </div>
+          <div id="file-name_uploaded">
 
-            <% end %>
-            <%= render 'shared/file_attachement', f: f, attr_name: :file_url, name_selector: ".uploaded_file_name", cstm_class: "p-0", cstm_style: "background: transparent;box-shadow: none;width:30px;", button_name: "<i class='os-icon os-icon-ui-51' style='font-size: 26px;'></i>".html_safe, name_selector: '#file-name_uploaded' %>
-            <%= mini_chat_contact_widget((Group.user_emails(conversation.chatable.id).to_a+Group.candidate_emails(conversation.chatable.id).to_a).join(','),nil,nil,chat_link: chat_link(nil,conversation.id)) %>
+          </div>
+          <div class="chat-input-extra d-flex pl-1 pr-1 justify-content-between">
+            <div class="chat-extra-actions">
+              <%= button_tag type: "button", class: "btn p-0", style: "background: transparent;box-shadow: none;", onclick: "$('##{"chat-templates-#{conversation.id}"}').modal('show')" do %>
+                <%= image_tag("/docusign.png", size: "25x25") %>
 
+              <% end %>
+              <%= render 'shared/file_attachement', f: f, attr_name: :file_url, name_selector: ".uploaded_file_name", cstm_class: "p-0", cstm_style: "background: transparent;box-shadow: none;width:30px;", button_name: "<i class='os-icon os-icon-ui-51' style='font-size: 26px;'></i>".html_safe, name_selector: '#file-name_uploaded' %>
+              <%= mini_chat_contact_widget((Group.user_emails(conversation.chatable.id).to_a + Group.candidate_emails(conversation.chatable.id).to_a).join(','), nil, nil, chat_link: chat_link(nil, conversation.id)) %>
+
+
+            </div>
+
+            <div class="chat-btn">
+
+              <%= button_tag(type: "submit", class: "btn p-0", style: "background: transparent;box-shadow: none;", id: "send-message") do %>
+                <i class="os-icon os-icon-mail-18" style='font-size: 26px; margin: 0px;'></i>
+              <% end %>
+
+            </div>
 
 
           </div>
+        <% end if conversation.present? %>
+      </div>
+    <% else %>
 
-          <div class="chat-btn">
-
-            <%= button_tag(type: "submit", class: "btn p-0", style: "background: transparent;box-shadow: none;", id: "send-message") do %>
-              <i class="os-icon os-icon-mail-18" style='font-size: 26px; margin: 0px;'></i>
-            <% end %>
+      <div class="chat-controls">
+        <%= form_for('#', :remote => true, :html => {id: "conversation_form_#{conversation.id}"}) do |f| %>
+          <div class="chat-input1 chat-input" style=" border-top: 1px solid rgba(0, 0, 0, 0.2);">
+            <%= f.text_field :body, class: 'form-control input-sm chat_input ', autocomplete: "off", placeholder: 'Type your message here...', required: true, "data-cid" => conversation.id, id: "con-text-#{conversation.id}-#{current_user.class}-#{current_user.id}" %>
+          </div>
+          <div id="file-name_uploaded">
 
           </div>
+          <div class="chat-input-extra d-flex pl-1 pr-1 justify-content-between">
 
 
-        </div>
-      <% end if conversation.present? %>
-    </div>
+          </div>
+        <% end if conversation.present? %>
+      </div>
+    <% end %>
   </div>
 </div>

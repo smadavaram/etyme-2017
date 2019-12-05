@@ -22,8 +22,9 @@ class GroupDatatable < ApplicationDatatable
         type: record.member_type,
         member: record.groupables.count,
         created_at: colorfull_text(record.created_at.try(:strftime, '%d of %B, %Y'),'#1AAE9F'),
-        status: ban_unban_link(record),
         reminder_note: reminder_note(record),
+        status: ban_unban_link(record),
+        contact:  contact_widget(record.group_emails,nil,nil,chat_link: chat_link(nil,record.conversation.id))  ,
         actions: actions(record)
       }
     end

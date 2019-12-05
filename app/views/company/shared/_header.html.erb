@@ -14,7 +14,7 @@
     </div>
     <div class="top-icon btn-header transparent pull-right open" id="quick-add">
       <i class="ti-plus"></i>
-      <ul class="dropdown-menu project-dropdown" style="right: 120px !important; left: initial;">
+      <ul class="dropdown-menu project-dropdown" id="links_block" style="right: 120px !important; left: initial;">
         <%=render('company/shared/links_block') %>
       </ul>
     </div>
@@ -25,7 +25,7 @@
       <div class="logged-user-w" style="padding-left: 0px; padding-right: 0px;">
         <div class="logged-user-i">
           <div class="avatar-w">
-            <%= default_user_img(current_user.first_name, current_user.last_name) %>
+            <%= user_image(current_user,class: '') %>
           </div>
           <div class="os-dropdown">
             <div class="icon-w">

@@ -10,7 +10,7 @@ module ApplicationHelper
   end
 
   def is_inbox_path
-    controller_name == "conversations" && action_name == "index"  || controller_name == "prefer_vendors" && action_name == "marketplace"
+    controller_name == "conversations" && action_name == "index"  #|| controller_name == "prefer_vendors" && action_name == "marketplace"
   end
 
   def candidate_left_menu
@@ -34,6 +34,7 @@ module ApplicationHelper
       link_to(content_tag(:i, nil, class: 'fa fa-comment-o ChatBtn').html_safe, options[:chat_link] || '#', title: 'chat', class: "data-table-icons #{options[:remote_false]}")
     else
       link_to(content_tag(:i, nil, class: 'fa fa-comment-o ChatBtn').html_safe, options[:chat_link] || '#', remote: true, title: 'chat', class: 'data-table-icons')
+
     end
   end
 

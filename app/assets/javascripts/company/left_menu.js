@@ -1,4 +1,12 @@
 $(document).ready(function () {
+    $('body').on('click', function (e) {
+        // $('.left_project_menue_icon').hover(function (e) {
+        if (e.target.id === 'links_block' || e.target.className === 'ti-plus') {
+        } else {
+            $('.lpm').hide();
+        }
+    });
+
     $('.left_project_menue_icon').on('click', function (e) {
     // $('.left_project_menue_icon').hover(function (e) {
         $('.lpm').toggle();

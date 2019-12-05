@@ -24,13 +24,13 @@ class CompanyContactDatatable < ApplicationDatatable
     records.map do |record|
       {
           id: record.id,
-          name: company_profile(record.try(:user_company)),
           first_name: company_user_profile(record.user),
+          name: company_profile(record.try(:user_company)),
           title: do_ellipsis(record.title),
-          contact: contact_icon(record.user),
-          status: ban_unban_link(record),
           groups: groups(record),
           reminder_note: reminder_note(record),
+          status: ban_unban_link(record),
+          contact: contact_icon(record.user),
           actions: actions(record)
       }
     end

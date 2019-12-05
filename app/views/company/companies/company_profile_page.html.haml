@@ -54,8 +54,7 @@
                       .bar-label-left
                         %span Phone
                       .bar-label-right
-                        %span=current_company.phone
-                        =colorfull_text(current_company.phone,current_company.is_number_verify ? 'green' : 'red')
+                        %span=colorfull_text(current_company.phone,current_company.is_number_verify ? 'green' : 'red')
                   .os-progress-bar.primary
                     .bar-labels
                       .bar-label-left
@@ -67,7 +66,7 @@
             .element-box
               -if @activities.present?
                 .d-flex.justify-content-between.align-items-center.mb-3.element-header
-                  %h6 User Activity
+                  %h6 Company Activity
                   =link_to "View All", jobs_path, class: "link-muted font-xs"
                 .timed-activities.compact
                   .timed-activity
@@ -77,7 +76,7 @@
                       - @activities.each do |activity|
                         = render_activity activity, index: params[:index]
               -else
-                %h6.element-header User Activity
+                %h6.element-header Company Activity
                 .timed-activities.compact
                   There is no activities.
 

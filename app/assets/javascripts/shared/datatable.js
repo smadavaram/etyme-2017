@@ -75,7 +75,12 @@ $(document).ready(function () {
             {data: "first_name"},
             {data: "title"},
             {
-                data: "contact",
+                data: "groups",
+                searchable: false,
+                orderable: false
+            },
+            {
+                data: "reminder_note",
                 searchable: false,
                 orderable: false
             },
@@ -85,12 +90,7 @@ $(document).ready(function () {
                 orderable: false
             },
             {
-                data: "groups",
-                searchable: false,
-                orderable: false
-            },
-            {
-                data: "reminder_note",
+                data: "contact",
                 searchable: false,
                 orderable: false
             },
@@ -340,7 +340,7 @@ $(document).ready(function () {
                 orderable: false
             },
             {
-                data: "contact",
+                data: "reminder_note",
                 searchable: false,
                 orderable: false
             },
@@ -350,7 +350,7 @@ $(document).ready(function () {
                 orderable: false
             },
             {
-                data: "reminder_note",
+                data: "contact",
                 searchable: false,
                 orderable: false
             },
@@ -390,7 +390,7 @@ $(document).ready(function () {
                 orderable: false
             },
             {
-                data: "contact",
+                data: "reminder_note",
                 searchable: false,
                 orderable: false
             },
@@ -400,7 +400,7 @@ $(document).ready(function () {
                 orderable: false
             },
             {
-                data: "reminder_note",
+                data: "contact",
                 searchable: false,
                 orderable: false
             },
@@ -443,11 +443,6 @@ $(document).ready(function () {
             },
             {data: "domain"},
             {data: "name"},
-            {
-                data: "contact",
-                searchable: false,
-                orderable: false
-            },
             {data: "title"},
             {
                 data: "roles_permissions",
@@ -456,6 +451,11 @@ $(document).ready(function () {
             },
             {
                 data: "reminder_note",
+                searchable: false,
+                orderable: false
+            },
+            {
+                data: "contact",
                 searchable: false,
                 orderable: false
             },
@@ -488,13 +488,19 @@ $(document).ready(function () {
             {data: "type"},
             {data: "member", searchable: false, orderable: false},
             {data: "created_at"},
+
+            {
+                data: "reminder_note",
+                searchable: false,
+                orderable: false
+            },
             {
                 data: "status",
                 searchable: false,
                 orderable: false
             },
             {
-                data: "reminder_note",
+                data: "contact",
                 searchable: false,
                 orderable: false
             },
