@@ -1,5 +1,5 @@
 class Group < ApplicationRecord
-  after_create :create_group_chat
+  after_create :create_group_conversation
 
   belongs_to :company, optional: true
   has_many :groupables, dependent: :destroy
@@ -10,7 +10,7 @@ class Group < ApplicationRecord
   has_many :black_listers, as: :blacklister
   has_many :statuses, as: :statusable, dependent: :destroy
   has_many :reminders, as: :reminderable
-  has_one :conversation, as: :chatable
+  has_one :conversation, as: :chatable, dependent: :destroy
 
 
   scope :user_emails, ->(group_id) {Group.find(group_id).users.select(:email)}
@@ -32,8 +32,9 @@ class Group < ApplicationRecord
         where("groupables.groupable_id = ? and groupables.groupable_type IN (?)", user.id, ["User", "Admin"])
   end
 
-  def create_group_chat
-    Conversation.create(chatable_id:self.id,chatable_type: 'Group', topic:'GroupChat');
+  def create_group_conversation
+    self.create_conversation(topic: 'GroupChat')
+
 
   end
   def get_blacklist_status(black_list_company_id)

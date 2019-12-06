@@ -10,7 +10,7 @@ module ApplicationHelper
   end
 
   def is_inbox_path
-    controller_name == "conversations" && action_name == "index"  #|| controller_name == "prefer_vendors" && action_name == "marketplace"
+    controller_name == "conversations" && action_name == "index"
   end
 
   def candidate_left_menu

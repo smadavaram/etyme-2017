@@ -63,7 +63,7 @@
                       .bar-label-left
                         %span Owner
                       .bar-label-right
-                        =colorfull_text(@company&.owner&.full_name,@company&.owner_verified ? 'green' : 'red')
+                        =colorfull_text(@company.owner&.full_name,@company&.owner_verified ? 'green' : 'red')
                         -#%span.text-success #{ @company.owner_verified ? "verified" : "Unverified"}
           .element-wrapper
             .element-box

@@ -21,17 +21,6 @@
 
             %br
             .panel-body.status.profile-margin
-
-              -#-if(current_company.company_videos.first.present?)
-              -#  -if current_company.company_videos.first.video_type == "video/mp4"
-              -#    %video{:controls => "", :width => "200", :height=> "200"}
-              -#      %source{src: "#{current_company.company_videos.first.video}",type:"#{current_company.company_videos.first.video_type}"}
-              -#  -else
-              -#    = image_tag image_path(current_company.company_videos.first.video),  style: "", fit: 'clip',:class =>"video-pic circle_img"
-              -#
-              -#-else
-              -#  = image_tag image_path('default_user.png'),  style: "width:100px;height:100px;margin-left: 47px;", fit: 'clip',:class =>"video-pic"
-
             %br
             .panel.pl-2.pt-2{style: 'background: #FFF!important;border: 1px solid #ccc;'}
               %h6.text-center Company Videos

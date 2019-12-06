@@ -282,3 +282,13 @@
     height: 440px;
     overflow: auto;
 }
+.nochat-msg{
+    background-color: #d8d2d2;
+    width: 100%;
+    height: 100px;
+    border-radius: 23px;
+    display: block;
+    padding-left: 20px;
+    padding-top: 10px;
+    font-size: 15px;
+}

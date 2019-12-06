@@ -3,7 +3,7 @@
     <div class="chat-close">
       <i class="ti-arrows-horizontal-">
       <span>
-        <a class="ti-arrows-horizontal" style="font-size: 15px;" href=<%= "#{company_conversations_path(conversation: conversation.id)}" %>></a>
+        <a class="ti-arrows-horizontal" style="font-size: 15px;" href=<%=company_conversations_path(conversation: conversation.id) %>></a>
       </span>
       </i>
       <i class="os-icon os-icon-close"></i>
@@ -26,14 +26,14 @@
       </div>
     </div>
     <% if conversation.chatable.groupables.count > 1 %>
-    <div class="chat-messages ps ps--theme_default" data-ps-id="2f3100d8-938b-8535-97e8-f6f574450d91">
-      <div class="chat-content-small chat-content-scroll chat-content_height">
-        <div class="p-2 small-chat-height" id="conversation_<%= conversation.id %>">
-          <div id="all-infinite-scrolling-msg" style="display:none"></div>
-          <%= hidden_field_tag "prev_date", nil %>
+      <div class="chat-messages ps ps--theme_default" data-ps-id="2f3100d8-938b-8535-97e8-f6f574450d91">
+        <div class="chat-content-small chat-content-scroll chat-content_height">
+          <div class="p-2 small-chat-height" id="conversation_<%= conversation.id %>">
+            <div id="all-infinite-scrolling-msg" style="display:none"></div>
+            <%= hidden_field_tag "prev_date", nil %>
+          </div>
         </div>
       </div>
-    </div>
 
 
       <div class="chat-controls">
@@ -71,7 +71,10 @@
     <% else %>
       <div class="chat-messages ps ps--theme_default" data-ps-id="2f3100d8-938b-8535-97e8-f6f574450d91">
         <div class="chat-content-small chat-content-scroll chat-content_height">
-          <div class="nochat-msg"> currently Group has <%=pluralize(conversation.chatable.groupables.count,'Member') %><br><%= link_to 'click here',company_conversations_path(conversation: conversation.id)  %> to add</div>
+          <div class="nochat-msg"> currently Group
+            has <%= pluralize(conversation.chatable.groupables.count, 'Member') %>
+            <br><%= link_to 'click here', company_conversations_path(conversation: conversation.id) %> to add
+          </div>
 
         </div>
       </div>
@@ -92,24 +95,6 @@
     <% end %>
   </div>
 </div>
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 <script type="text/javascript" charset="utf-8">
     $(".chat-content-small div").hide();
     $(".chat-content-small").addClass("loading");
@@ -130,18 +115,5 @@
     height: 32px;
     width: 32px;
   }
-  body {
-    position: relative;
-    display: block;
-  }
-    .nochat-msg{
-      background-color: #d8d2d2;
-      width: 100%;
-      height: 100px;
-      border-radius: 23px;
-      display: block;
-      padding-left: 20px;
-      padding-top: 10px;
-      font-size: 15px;
-    }
+
 </style>
