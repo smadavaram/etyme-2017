@@ -50,7 +50,7 @@ class ApplicationController < ActionController::Base
   end
   def after_sign_out_path_for(resource_or_scope)
     if resource_or_scope.eql?(:user)
-      
+
       request.protocol+request.domain+":#{request.port}/signin"
     elsif resource_or_scope.eql?(:candidate)
       super
