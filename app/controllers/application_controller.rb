@@ -48,7 +48,14 @@ class ApplicationController < ActionController::Base
       super
     end
   end
+  def after_sign_out_path_for(resource_or_scope)
+    if resource_or_scope.eql?(:user)
+      request.protocol+request.domain+":#{request.port}/signin"
+    elsif resource_or_scope.eql?(:candidate)
+      super
+    end
 
+  end
   def get_new_notification_flash(resource)
     notifications_count = resource.notifications.unread.where("created_at >= ?", resource.last_sign_in_at).count
     messages_count = ConversationMessage.where(conversation_id: resource.conversations.pluck(:id)).where("created_at >= ?", resource.last_sign_in_at).count
