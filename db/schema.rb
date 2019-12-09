@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema.define(version: 20191203102729) do
+ActiveRecord::Schema.define(version: 20191209091411) do
 
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
@@ -432,8 +432,8 @@ ActiveRecord::Schema.define(version: 20191203102729) do
     t.integer "company_id"
     t.integer "status", default: 0
     t.integer "candidate_status", default: 0
-    t.datetime "created_at", default: "2019-11-29 12:33:24"
-    t.datetime "updated_at", default: "2019-11-29 12:33:24"
+    t.datetime "created_at", default: "2019-11-29 03:35:47"
+    t.datetime "updated_at", default: "2019-11-29 03:35:47"
   end
 
   create_table "candidates_groups", id: false, force: :cascade do |t|
@@ -733,6 +733,7 @@ ActiveRecord::Schema.define(version: 20191203102729) do
     t.bigint "contract_id"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.string "contract_admin"
   end
 
   create_table "contract_books", force: :cascade do |t|
@@ -1339,6 +1340,7 @@ ActiveRecord::Schema.define(version: 20191203102729) do
     t.string "rate_initiator"
     t.boolean "accept_rate", default: false
     t.boolean "accept_rate_by_company", default: false
+    t.integer "recruiter_company_id"
   end
 
   create_table "job_invitations", id: :serial, force: :cascade do |t|

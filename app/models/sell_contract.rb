@@ -3,7 +3,7 @@ class SellContract < ApplicationRecord
   belongs_to :contract, optional: true
   belongs_to :company, optional: true
   has_many :contract_sell_business_details, dependent: :destroy
-  
+
   has_many :document_signs, as: :initiator
   has_many :document_signs, as: :part_of
   

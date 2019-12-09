@@ -40,7 +40,7 @@
             - headers.each do |header|
               %th= header.capitalize
           %tbody.hr_admins_table_body
-            - @contract.contract_admins&.each do |admin|
+            - @contract.contract_admins&.where(contract_admin: 'own').each do |admin|
               - user = admin.user
               %tr
                 %td= user.company.domain
@@ -192,4 +192,5 @@
 - content_for :modals do
   .hr_admins
     =render 'company/contracts/partials/admin_team_modal',contract: @contract || nil
+    =render 'company/contracts/partials/admin_team_modal_sell_company',contract: @contract || nil
     =render 'company/contracts/partials/manager_modal',contract: @contract || nil
