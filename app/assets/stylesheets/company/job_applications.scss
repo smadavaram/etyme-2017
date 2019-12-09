@@ -102,3 +102,12 @@
 .big-links_widget > os-icon.os-icon-calendar.atc_node{
   font-size: 2.5em !important;
 }
+.btn-to-gray{
+  border-color: gray !important;
+  color:gray;
+}
+.btn-to-gray:hover{
+  background-color: gray !important;
+  color:white;
+
+}

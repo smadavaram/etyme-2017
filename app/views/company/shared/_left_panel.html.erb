@@ -24,7 +24,7 @@
   </div>
   <div class="logged-user-w avatar-inline pl-4 pt-0 pr-0">
     <!--    <div class="side-bar_nav w-100" style="height: 450px;overflow-y: auto;">-->
-    <div class="side-bar_nav w-100 pr-2" style="height: calc(100vh - 136px);overflow-y: auto;">
+    <div id="side-bar-nav" class="side-bar_nav w-100 pr-2" style="height: calc(100vh - 136px);overflow-y: auto;">
       <a href="/dashboard" class="ln-1 side-bar_tab side-bar_links">
         <div class="icon-w">
           <i class="ti-home"></i>
@@ -116,7 +116,7 @@
           <div class="icon-w">
             <i class="ti-timer"></i>
           </div>
-          <span>Timer</span>
+          <span>Timer(s)</span>
         </a>
         <div class="pl-4 w-100 text-justify nav-sidebar-collaps">
           <a href="<%= timesheets_path %>" class=" l2 side-bar_links nested_tab boarder_bottom">Timesheet(s)</a>
@@ -125,14 +125,14 @@
             Expense(s)</a>
         </div>
       <% end %>
-      <a class="ln-9 sidebar_collapsible side-bar_tab">
-        <div class="icon-w">
-          <i class="picons-thin-icon-thin-0417_calculator"></i>
+      <a class="ln-9 sidebar_collapsible side-bar_tab" id="accounting_tab">
+        <div class="icon-w" >
+          <i class="picons-thin-icon-thin-0417_calculator" ></i>
         </div>
         <span>Accounting</span>
       </a>
       <div class="pl-4 w-100 text-justify nav-sidebar-collaps">
-        <a class="l2 side-bar_links nested_tab boarder_bottom" href="">Banking</a>
+        <a class="l2 side-bar_links nested_tab boarder_bottom" href="#">Banking</a>
         <a class="l2 side-bar_links nested_tab boarder_bottom" href="<%= sale_invoices_path %>">Sale(s)</a>
         <a class="l2 side-bar_links nested_tab boarder_bottom" href="<%= purchase_invoices_path %>">Purchase(s)</a>
         <a class="l2 side-bar_links nested_tab boarder_bottom" href="<%= pay_expense_expenses_path() %>">Expense(s)</a>
@@ -145,12 +145,10 @@
           <i class="ti-plus"></i>
         </div>
       </a>
-      <a class="">
-        <div class="icon-w">
-          <i class="os-icon os-icon-search"></i>
-        </div>
+      <a href="<%= marketplace_path(company: 'on', 'search_by[term]': '', 'search_scope': '') %>" class="ti-bar-chart">
+        <div class="icon-w"></div>
       </a>
-      <a class="">
+      <a href="<%=ENV['global_url'] %>">
         <div class="icon-w">
           <i class="ti-world"></i>
         </div>

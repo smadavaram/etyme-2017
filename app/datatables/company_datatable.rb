@@ -18,9 +18,9 @@ class CompanyDatatable < ApplicationDatatable
           id: record.id,
           name: company_profile(record),
           users: record.users.count,
-          contact: contact_icon(record.owner),
-          status: ban_unban_link(record),
           reminder_note: reminder_note(record),
+          status: ban_unban_link(record),
+          contact: contact_icon(record.owner),
           actions: actions(record)
       }
     end

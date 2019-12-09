@@ -34,7 +34,12 @@ function flash_alert(msg) {
 }
 
 $(document).ready(function () {
-
+    $('body').on('click', function (e) {
+        if (e.target.id === 'head_links_block' || e.target.className === 'ti-plus') {
+        } else {
+            $(this).find('.project-dropdown').hide();
+        }
+    });
     $('#quick-add').on('click', function (e) {
         $(this).find('.project-dropdown').toggle();
     })

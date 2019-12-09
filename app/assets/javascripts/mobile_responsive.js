@@ -13,6 +13,12 @@ $(document).ready(function(){
             $(".content-box").css("padding", "0rem");
           }
     });
+
+        $('#accounting_tab').on('click', function (e) {
+            var element = document.getElementById("side-bar-nav");
+            element.scrollTop = element.scrollHeight;
+        });
+
 });
 
 

@@ -282,3 +282,22 @@
     height: 440px;
     overflow: auto;
 }
+.nochat-msg{
+    background-color: #d8d2d2;
+    width: 100%;
+    height: 100px;
+    border-radius: 23px;
+    display: block;
+    padding-left: 20px;
+    padding-top: 10px;
+    font-size: 15px;
+}
+.loading {
+    position: absolute;
+    top: 10%;
+    left: 10%;
+    z-index: 2000;
+    background: url(http://1.bp.blogspot.com/-nfXo9GWbDtM/VOn0vr4yLMI/AAAAAAAABCA/dDNgd7_QCFo/s1600/block-loader.gif) no-repeat center center;
+    height: 32px;
+    width: 32px;
+}

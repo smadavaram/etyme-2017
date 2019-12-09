@@ -323,3 +323,11 @@ var ready = function () {
 
 $(document).ready(ready);
 $(document).on("page:load", ready);
+$(".chat-content-small div").hide();
+$(".chat-content-small").addClass("loading");
+
+$(".chat-content-small div").ready(function() {
+    // alert('Chat div loaded successfully');
+    $(".chat-content-small div").show();
+    $(".chat-content-small").removeClass("loading");
+});

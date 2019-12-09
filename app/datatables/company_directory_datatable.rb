@@ -20,10 +20,10 @@ class CompanyDirectoryDatatable < ApplicationDatatable
           id: record.id,
           domain: record.company.website,
           name: company_user_profile(record),
-          contact: contact_icon(record),
           title: record.type,
           roles_permissions: 'TBD',
           reminder_note: reminder_note(record),
+          contact: contact_icon(record),
           actions: actions(record)
       }
     end
