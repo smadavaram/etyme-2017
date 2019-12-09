@@ -203,7 +203,14 @@ class Company::ContractsController < Company::BaseController
         end
 
         params[:contract][:hr_admins_ids]&.each do |id|
-          @contract.contract_admins.create(user_id: id, company_id: current_company.id)
+          if params[:tab].to_i ==2
+            @contract.contract_admins.create(user_id: id, company_id: current_company.id, contract_admin: 'own')
+          elsif params[:tab].to_i == 3
+            @contract.contract_admins.create(user_id: id, company_id: @contract.sell_contract.company.id, contract_admin: 'sell_contract')
+          else
+            @contract.contract_admins.create(user_id: id, company_id: current_company.id)
+          end
+
         end
         create_custom_activity(@contract, 'contracts.update', contract_params, @contract)
         format.html {
@@ -459,7 +466,16 @@ class Company::ContractsController < Company::BaseController
   def get_hr_admins
     @users = current_company.users.where(id: params[:user_ids]).to_a
     if params[:contract_id].present?
-      @users = @users + Contract.find_by(id: params[:contract_id]).contract_admins.to_a
+      @users = @users + Contract.find_by(id: params[:contract_id]).contract_admins.where(contract_admin: 'own').to_a
+    end
+    respond_to do |format|
+      format.js {}
+    end
+  end
+  def get_hr_admins_sell_company
+    @users =  User.where(id: params[:user_ids]).to_a
+    if params[:contract_id].present?
+      @users = @users +  Contract.find(params[:contract_id]).sell_contract.company.contract_admins.to_a
     end
     respond_to do |format|
       format.js {}
