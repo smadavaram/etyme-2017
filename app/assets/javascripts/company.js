@@ -24,23 +24,9 @@
 // BOOTSTRAP JS
 //= require bootstrap/bootstrap
 
-// CUSTOM NOTIFICATION
-//= require notification/SmartNotification.min
-
-// JARVIS WIDGETS
-//= require smartwidgets/jarvis.widget.min
-
-// EASY PIE CHARTS
-//= require plugin/easy-pie-chart/jquery.easy-pie-chart.min
-
-// SPARKLINES
-//= require plugin/sparkline/jquery.sparkline.min
 
 // JQUERY VALIDATE
 //= require plugin/jquery-validate/jquery.validate.min
-
-// JQUERY MASKED INPUT
-//= require plugin/masked-input/jquery.maskedinput.min
 
 //= require best_in_place
 
@@ -56,14 +42,11 @@
 //= require plugin/msie-fix/jquery.mb.browser.min
 
 // FastClick: For mobile devices
-//= require plugin/fastclick/fastclick.min
+
 //= require data-confirm-modal
 // MAIN APP JS FILE
 //= require app.min
 
-// ENHANCEMENT PLUGINS : NOT A REQUIREMENT
-// Voice command : plugin
-//= require speech/voicecommand.min
 
 // SmartChat UI : plugin
 //= require smart-chat-ui/smart.chat.ui.min
@@ -78,8 +61,7 @@
 //= require plugin/datatables/dataTables.bootstrap.min
 //= require plugin/datatable-responsive/datatables.responsive.min
 
-//= require plugin/jqgrid/jquery.jqGrid.min
-//= require plugin/jqgrid/grid.locale-en.min
+
 
 //= require plugin/maxlength/bootstrap-maxlength.min
 //= require plugin/bootstrap-timepicker/bootstrap-timepicker.min
@@ -87,40 +69,12 @@
 //= require plugin/bootstrap-tags/bootstrap-tagsinput.min
 //= require plugin/noUiSlider/jquery.nouislider.min
 //= require plugin/ion-slider/ion.rangeSlider.min
-//= require plugin/bootstrap-duallistbox/jquery.bootstrap-duallistbox.min
-//= require plugin/colorpicker/bootstrap-colorpicker.min
-//= require plugin/knob/jquery.knob.min
+
 //= require plugin/x-editable/moment.min
 //= require plugin/x-editable/jquery.mockjax.min
 //= require plugin/x-editable/x-editable.min
-//= require plugin/typeahead/typeahead.min
-//= require plugin/typeahead/typeaheadjs.min
 //= require plugin/bootstrapvalidator/bootstrapValidator.min
-//= require plugin/bootstrap-wizard/jquery.bootstrap.wizard.min
-//= require plugin/fuelux/wizard/wizard.min
-
 //= require plugin/dropzone/dropzone.min
-//= require plugin/jcrop/jquery.Jcrop.min
-//= require plugin/jcrop/jquery.color.min
-//= require plugin/jquery-form/jquery-form.min
-
-//= require plugin/summernote/summernote.min
-//= require plugin/markdown/markdown.min
-//= require plugin/markdown/to-markdown.min
-//= require plugin/markdown/bootstrap-markdown.min
-//= require plugin/superbox/superbox.min
-
-
-// Morris Chart Dependencies
-//= require plugin/morris/morris.min
-//= require plugin/morris/raphael.min
-
-//= require plugin/dygraphs/demo-data.min
-// DYGRAPH
-//= require plugin/dygraphs/dygraph-combined.min
-
-//= require plugin/delete-table-row/delete-table-row.min
-//= require plugin/summernote/summernote.min
 
 // PAGE RELATED PLUGIN(S)
 
@@ -133,9 +87,6 @@
 //= require plugin/flot/jquery.flot.orderBar.min
 //= require plugin/flot/jquery.flot.pie.min
 
-// Vector Maps Plugin: Vectormap engine, Vectormap language
-//= require plugin/vectormap/jquery-jvectormap-1.2.2.min
-//= require plugin/vectormap/jquery-jvectormap-world-mill-en
 
 // Full Calendar
 //= require plugin/moment/moment.min
