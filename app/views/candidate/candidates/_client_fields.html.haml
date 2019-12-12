@@ -82,7 +82,7 @@
   .row
     .col-md-12
       - unless f.object.new_record?
-        .pl-4.display-none{id: "employer_#{f.object.id}"}
+        .pl-4{id: "employer_#{f.object.id}", class: "#{'display-none' unless f.object.designation.present?}"}
           %h4.element-header
             Client Employer
           = f.fields_for :designation, f.object.designation.present? ?  f.object.designation : f.object.build_designation do |employer|

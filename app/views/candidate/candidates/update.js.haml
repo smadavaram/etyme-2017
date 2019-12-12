@@ -1,4 +1,4 @@
-- if @tab.present?
+- if @tab.present? && !@tab.eql?("fln_basic_info")
   $("##{@tab.gsub('_', '-')}-form").html("#{j render 'candidate/candidates/partials/'+@tab.gsub('-', '_')+'_form'}")
   $(".select2").select2({placeholder: "Select a User(s)"});
   $(".file_select").select2({placeholder: "Select Company Document"});

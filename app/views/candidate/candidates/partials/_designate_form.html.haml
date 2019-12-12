@@ -12,8 +12,8 @@
   -#        = f.radio_button :designation_status, "Employee"
   -#        %span.radio-checkmark
 
-  %div{id: "employee-designations", class: f.object.designation_status == "Employee" ? "candidate-association" : "candidate-association display-none"}
+  %div{id: "employee-designations", class: f.object.designation_status == "Employee" ? "candidate-association" : "candidate-association display-none "}
     = f.fields_for :designations, f.object.designations do |b|
       = render 'candidate/candidates/designations_fields', f: b
     .links.education_links.pull-right
-      = link_to_add_association '+ Add Employer', f, :designations, class: 'btn btn-success', partial: 'candidate/candidates/designations_fields'
+      = link_to_add_association '+ Add Employer', f, :designations, class: 'btn btn-primary', partial: 'candidate/candidates/designations_fields'
