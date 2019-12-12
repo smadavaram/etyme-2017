@@ -18,11 +18,11 @@
 // IMPORTANT: APP CONFIG
 //= require app.config
 
-// JS TOUCH : include this plugin for mobile drag / drop touch events
-//= require plugin/jquery-touch/jquery.ui.touch-punch.min
-
 // BOOTSTRAP JS
 //= require bootstrap/bootstrap
+
+// CUSTOM NOTIFICATION
+//= require notification/SmartNotification.min
 
 
 // JQUERY VALIDATE
@@ -48,10 +48,6 @@
 //= require app.min
 
 
-// SmartChat UI : plugin
-//= require smart-chat-ui/smart.chat.ui.min
-//= require smart-chat-ui/smart.chat.manager.min
-
 //= require plugin/bootstrap-progressbar/bootstrap-progressbar.min
 //= require plugin/jquery-nestable/jquery.nestable.min
 
@@ -74,6 +70,8 @@
 //= require plugin/x-editable/jquery.mockjax.min
 //= require plugin/x-editable/x-editable.min
 //= require plugin/bootstrapvalidator/bootstrapValidator.min
+//= require plugin/bootstrap-wizard/jquery.bootstrap.wizard.min
+//= require plugin/fuelux/wizard/wizard.min
 //= require plugin/dropzone/dropzone.min
 
 // PAGE RELATED PLUGIN(S)
@@ -99,7 +97,13 @@
 // Amaran For Alerts
 //= require jquery.amaran
 
-//= require tinymce
+// Signature Pad
+//= require signature-pad/jquery.signaturepad
+//= require signature-pad/flashcanvas
+//= require signature-pad/json2.min
+
+//= require cable
+//= require addevent
 
 //= require data-confirm-modal
 
@@ -112,10 +116,6 @@
 //= require highcharts.js
 //= require highcharts-exporting.js
 
-// Signature Pad
-//= require signature-pad/jquery.signaturepad
-//= require signature-pad/flashcanvas
-//= require signature-pad/json2.min
 
 //=require cable
 //=require addevent
