@@ -90,17 +90,4 @@
   #job_application
 - content_for :scripts do
   :javascript
-     function uploadResume(url,type){
-      resume_url = url
-      $.ajax({
-       type: 'POST',
-       url: " #{ upload_resume_candidates_path(format: :js) } ",
-       data: { resume: resume_url,authenticity_token: window._token },
-     });
-    }
-    function upload_resume_file(){
-        upload_file_ajax(uploadResume);
-    }
-
-
 
