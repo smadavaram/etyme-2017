@@ -213,37 +213,35 @@ class Candidate::CandidatesController < Candidate::BaseController
   end
 
   def delete_resume
-    resume = CandidatesResume.find(params["id"]) rescue nil
-    if resume.is_primary
-      resumes = CandidatesResume.where(:candidate_id => resume.candidate_id).map { |data| data.id }
-      resumes.delete(resume.id)
-      resume.destroy()
-      flash.now[:success] = "Resume Destroy Successfully"
-      if resumes.count > 0
-        primary_resume = CandidatesResume.find(resumes[0]) rescue nil
-        primary_resume.update_attributes(:is_primary => true)
-        flash.now[:success] = "Selected Resume has been destroy and First Resume status mark as primary"
+    if params[:id].present?
+      resume = CandidatesResume.find_by(id: params["id"])
+      if resume.is_primary
+        resumes = CandidatesResume.where(:candidate_id => resume.candidate_id).map { |data| data.id }
+        resumes.delete(resume.id)
+        resume.destroy()
+        if resumes.count > 0
+          primary_resume = CandidatesResume.find_by(id: resumes[0])
+          primary_resume.update_attributes(:is_primary => true)
+        end
+        flash.now[:success] = resumes.count > 0 ? "Selected Resume has been destroy and First Resume status mark as primary" : "Resume Destroy Successfully"
+
+      else
+        resume.destroy()
+        flash.now[:success] = "Resume Destroy Successfully"
       end
-    else
-      resume.destroy()
-      flash.now[:success] = "Resume Destroy Successfully"
     end
     render 'upload_resume'
     # redirect_back fallback_location: root_path
   end
 
   def make_primary_resume
-
-    resume = CandidatesResume.find(params["id"]) rescue nil
-
-    resumes = CandidatesResume.where(:candidate_id => resume.candidate_id)
-    resumes.each do |data|
-      data.update_attributes(:is_primary => false)
+    if params[:id].present?
+      resume = CandidatesResume.find_by(id: params["id"])
+      resumes = CandidatesResume.where(:candidate_id => resume.candidate_id)
+      resumes.update_all(:is_primary => false)
+      resume.update_attributes(:is_primary => true)
+      render 'upload_resume'
     end
-    resume.update_attributes(:is_primary => true)
-
-    render 'upload_resume'
-    # redirect_back fallback_location: root_path
   end
 
   def update_photo
@@ -290,22 +288,20 @@ class Candidate::CandidatesController < Candidate::BaseController
   end
 
   def chat_status_update
-
-    @candidate = current_candidate
-    if @candidate.chat_status == "available"
-      @candidate.go_unavailable
+    if current_candidate.chat_status == "available"
+      current_candidate.go_unavailable
     else
-      @candidate.go_available
+      current_candidate.go_available
     end
     # respond_with @candidate
-    render :json => @candidate
+    render :json => current_candidate
 
   end
 
 
   def my_profile
 
-    @user = Candidate.find(current_candidate.id)
+    @user = current_candidate
     @user.addresses.build unless @user.addresses.present?
     @user.educations.build unless @user.educations.present?
     @user.certificates.build unless @user.certificates.present?
@@ -329,10 +325,9 @@ class Candidate::CandidatesController < Candidate::BaseController
   end
 
   def update_mobile_number
-    @candidate = Candidate.find_by_id(params[:id])
     @tab = "verify-phone"
-    if @candidate
-      @candidate.update_attributes(:phone => params["phone_number"], :is_number_verify => true)
+    if current_candidate.present?
+      current_candidate.update_attributes(:phone => params["phone_number"], :is_number_verify => true)
     end
   end
 
