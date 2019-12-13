@@ -1,0 +1,24 @@
+<div id="Chat_links-<%= job_application.id %>" class="modal fade" role="dialog" >
+  <div class="modal-dialog" style="height:250px; margin-top:104px;">
+
+    <!-- Modal content-->
+    <div class="modal-content">
+      <div class="modal-header">
+        <!--<button type="button" class="close" data-dismiss="modal" style="text-align:right;">&times;</button>-->
+        <h4 class="modal-title">Choose Language</h4>
+        <button aria-hidden="true" class="close" data-dismiss="modal" type="button">
+          ×
+        </button>
+      </div>
+      <div class="modal-body body-margin">
+       <%= render 'company/job_applications/partials/job_status_links', app: job_application, conversation: conversation %>
+
+      </div>
+      <div class="modal-footer">
+        <!--<button type="button" class="btn btn-default" data-dismiss="modal">Close</button>-->
+        <!--<button class="btn mt-12 margin-right-5 btn-primary" data-dismiss="modal" type="button">Cancel</button>-->
+      </div>
+    </div>
+
+  </div>
+</div>

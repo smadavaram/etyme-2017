@@ -328,6 +328,7 @@ Rails.application.routes.draw do
     get 'new_candidate_to_bench', to: 'candidates#new_candidate_to_bench'
     # get :new_candidate_to_banch
 
+
     resources :chats, only: [:show] do
       post :add_users
       resources :messages, only: [:create] do
@@ -717,7 +718,6 @@ Rails.application.routes.draw do
         post :update_video
         post :update_candidate_docs
         post :update_legal_docs
-
         get :company_phone_page
         get :company_profile_page
         get :company_user_profile_page

@@ -5,7 +5,7 @@ module ChatboxHelper
     if (conversation.job.present?)
       "#{conversation.job.status}"
     elsif (conversation.job_application.present?)
-      "#{conversation.job_application.status}"
+      link_to conversation.job_application.status.humanize, '#', data: { toggle: "modal", target: "#Chat_links-#{conversation.job_application.id}" }, style: "color:white;"
     elsif (conversation.sell_contract.present?)
       "SellContract"
     elsif (conversation.buy_contract.present?)
