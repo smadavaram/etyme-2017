@@ -1833,3 +1833,7 @@ flex: 0 0 220px;
     max-height: 250px;
     overflow-y: scroll;
 }
+.display_none{
+    display: none;
+}
+

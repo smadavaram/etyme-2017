@@ -17,6 +17,7 @@ class Candidate::CandidatesController < Candidate::BaseController
       # @jobs = Job.joins("INNER JOIN experiences on jobs.industry = experiences.industry AND jobs.department = experiences.department INNER JOIN candidates on experiences.user_id = candidates.id").order("id DESC").uniq.paginate(page: params[:page], per_page: 10) || []
       @jobs = Job.active.order("id DESC").like_any([:title], params[:q].to_s.split).paginate(page: params[:page], per_page: 10) || []
       @activities = PublicActivity::Activity.order("created_at desc")
+      @slick_pop_up = current_candidate.sign_in_count==1 ? '' : 'display_none'
       format.js {}
       format.html {}
     end

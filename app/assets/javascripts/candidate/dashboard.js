@@ -9,8 +9,8 @@ $(document).ready(function()
         infinite: false,
         autoplaySpeed: 2000,
         arrows: true,
-        prevArrow:"<span class='pre'> <i class='icon-feather-arrow-right'>Previous</i></span>",
-        nextArrow:"<span class='next icon-feather-arrow-left'>Next</span>"
+        prevArrow:"<span class='next'><i class='icon-feather-arrow-left'>Previous</i></span>",
+        nextArrow:"<span class='pre'>Next<i class='icon-feather-arrow-right'></i></span>"
         // autoplay: true,
     });
 

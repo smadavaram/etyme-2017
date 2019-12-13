@@ -1,11 +1,11 @@
-.popup-backgroud
-.popup-container
+%div{class: "#{@slick_pop_up} popup-backgroud"}
+%div{class: "#{@slick_pop_up} popup-container"}
   #slideshow.sliders.mt-4
 
     .active-slide.slide
-      .slick_header.container.d-flex
-        %h5 Edit First & Last Name
-        %span.icon-feather-x-circle.close_slick
+      .slick_header.container.d-flex.mb-4
+        %h5 Edit Profile
+        %span.os-icon.os-icon-close.close_slick
       .slider-data-text
         .container
           = form_for current_candidate, url: candidate_candidate_path(current_candidate.id, tab: "fln_basic_info"),method: :put, remote: true do |f|
@@ -18,12 +18,12 @@
                 %label Last Name
                 .form-group
                   = f.text_field :last_name  ,:placeholder => "Enter last Name",class:'form-control input'
-                =f.submit :submit, :class => "btn btn-primary btn-xs"
+                =f.submit :Submit, :class => "pull-right btn btn-primary btn-xs"
 
     .slide
-      .slick_header.container.d-flex
-        %h5 Candidate Resumes
-        %span.icon-feather-x-circle.close_slick
+      .slick_header.container.d-flex.mb-2
+        %h5 Edit Profile
+        %span.os-icon.os-icon-close.close_slick
       .slider-data-text
         .container
           .row
@@ -90,4 +90,5 @@
   #job_application
 - content_for :scripts do
   :javascript
+
 

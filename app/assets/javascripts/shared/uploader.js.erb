@@ -1112,6 +1112,8 @@ function upload_file_ajax(callback_function, id=false) {
         }
         console.log(upload.url);
         // jQuery("<input>", { type: "text", name: "url", value: upload.url}).insertBefore("#submit");
+        $("#resume_on_slick").html('<img src="<%= asset_path 'progress.gif' %>" width="269" height="217" style="" alt="Image result for progress bar circle gif">')
+
     }
 });
     $(".powered-by-holder").remove();
