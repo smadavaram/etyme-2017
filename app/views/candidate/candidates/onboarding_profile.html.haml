@@ -99,7 +99,7 @@
                     .profile-tile.profile-tile-inlined
                       -#= filepicker_field_tag "" ,class: "hidden candi-logo", onchange:"candidateLogoUpload(event)","data-fp-crop-ratio" => "2/2",mimetypes: "image/*"
                       .profile-tile-box.faded
-                        =image_tag current_candidate.photo,style: 'width: 200px; height: 200px;' unless current_candidate&.photo.blank?
+                        =image_tag current_candidate.photo,style: 'width: 200px !important; height: 102px !important;' unless current_candidate&.photo.blank?
                         .pt-new-icon.img_pic_r.candi-profile-pic
                           %i.os-icon.os-icon-plus
                         .pt-user-name.img_pic_r

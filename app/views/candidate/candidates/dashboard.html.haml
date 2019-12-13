@@ -1,4 +1,40 @@
-/ = javascript_include_tag 'libs/jquery-2.1.1.min.js'
+%div{class: "#{@slick_pop_up} popup-backgroud"}
+%div{class: "#{@slick_pop_up} popup-container"}
+  #slideshow.sliders.mt-4
+
+    .active-slide.slide
+      .slick_header.container.d-flex.mb-4
+        %h5 Edit Profile
+        %span.os-icon.os-icon-close.close_slick
+      .slider-data-text
+        .container
+          = form_for current_candidate, url: candidate_candidate_path(current_candidate.id, tab: "fln_basic_info"),method: :put, remote: true do |f|
+            .row
+              .col-sm-12
+                %label First Name
+                .form-group
+                  = f.text_field :first_name  ,:placeholder => "Enter First Name",class:'form-control input'
+              .col-sm-12
+                %label Last Name
+                .form-group
+                  = f.text_field :last_name  ,:placeholder => "Enter last Name",class:'form-control input'
+                =f.submit :Submit, :class => "pull-right btn btn-primary btn-xs"
+
+    .slide
+      .slick_header.container.d-flex.mb-2
+        %h5 Edit Profile
+        %span.os-icon.os-icon-close.close_slick
+      .slider-data-text
+        .container
+          .row
+            .col-sm-12.col-md-12.col-lg-2
+              %div.profile-hover
+                %div.pictureContainer
+                  = button_tag "Upload CV" , class: 'm-0 resume btn btn-primary btn-rounded btn-lg', onclick: "upload_resume_file()"
+                  -#= link_to "Upload CV" ,"#",class: 'm-0 resume btn btn-primary btn-rounded btn-lg', style: "margin-bottom: 10px"
+          #resume_on_slick
+            = render 'candidate/candidates/partials/resumes_on_slick'
+
 .with-side-panel
   .content-i
     .content-box
@@ -54,21 +90,5 @@
   #job_application
 - content_for :scripts do
   :javascript
-    $(document).ready(function() {
-      $('.jobs_pagination_links a').attr('data-remote','true');
-      $('#custom_range').daterangepicker({
-        startDate: moment().startOf('month'),
-        endDate: moment().endOf('month'),
-        locale: {
-          format: 'DD/MM/YYYY'
-        }
-      });
-      $("#custom_range").change(function(){
-        url = "/candidate/filter_data/period?start_date=" + $(this).val().replace(/\s+/g, "").split('-').join("&end_date=")
-        $.get(url);
-      });
-      $("#jobs_search").on('change',function(){
-        url = "/candidate?q="+$(this).val()
-        $.get(url);
-      });
-    });
+
+

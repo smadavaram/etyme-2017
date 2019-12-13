@@ -9,3 +9,6 @@ $font-size-base: 0.9rem !default; // Assumes the browser default, typically `16p
 
 @import 'homepage/plans';
 @import 'homepage/global';
+#sectionIntro{
+margin-top: 30px;
+}

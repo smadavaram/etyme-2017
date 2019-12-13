@@ -1,0 +1,46 @@
+span.pre.slick-arrow  {
+position:absolute;
+top:350px;
+left: 348px;
+}
+span.next.slick-arrow  {
+position:absolute;
+top:350px;
+left:7px;
+}
+span.icon-feather-x-circle{
+}
+.close_slick{
+position: relative;
+left: 256px;
+font-size: 13px;
+  top:4px;
+}
+.popup-backgroud{
+  height: 100%;
+  width: 100%;
+  background-color: rgba(0,0,0, .4);
+  position: fixed;
+  left: 0;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  z-index: 99;
+}
+.popup-container{
+  background-color: #fff;
+  width: 400px;
+  height: 400px;
+  position: fixed;
+  left: 50%;
+  top: 50%;
+  z-index: 999;
+  border-radius: 10px;
+  transform: translate(-50%,-50%);
+}
+#resume_on_slick{
+  height: 272px;
+  overflow-y: auto;
+  overflow-x: hidden;
+
+}

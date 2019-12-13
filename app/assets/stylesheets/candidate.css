@@ -54,5 +54,7 @@
  *= require calendar_custom
  *= require company/contracts
  *= require trix
+ *= require slick-carousel/slick/slick
+ *= require candidate/dashboard
 
  */
