@@ -133,17 +133,18 @@
             .users-list-w{style: "max-height: 624px;overflow-y: scroll;"}
               - @directory&.each do |user|
                 - cache user do
-                  .user-w.toggleable
+                  .user-w.toggleable.pb-0.pt-1
                     .user-avatar-w
                       .avatar-w
                         =user_image(user, style: 'width: 35px; height: 35px;', class: 'data-table-image',title: "#{user.full_name}" )
-                    .user{style: 'flex:1'}
+                    .user.m-0.p-0
                       %h6.user-title.no-wrap
                         = do_ellipsis(user.full_name,17)
                       .user-role
                         =user.class.to_s
-                    %a.user-action{:href => "users_profile_small.html"}
+                      %a.user-action{:href => "users_profile_small.html"}
                       = contact_widget(user.email,user.phone,user,chat_link: chat_link(user))
+
       .element-wrapper
         .col-sm-12.col-md-12
           .element-box.el-tablo.centered

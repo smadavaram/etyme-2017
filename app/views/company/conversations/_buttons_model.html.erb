@@ -1,0 +1,19 @@
+<div id="Chat_links-<%= job_application.id %>" class="modal fade" role="dialog">
+  <div class="modal-dialog" style="height:250px; margin-top:104px;">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h4 class="modal-title">Modify Applicant status</h4>
+        <button aria-hidden="true" class="close" data-dismiss="modal" type="button">
+          ×
+        </button>
+      </div>
+      <div class="modal-body body-margin">
+        <%= render 'company/job_applications/partials/job_status_links', app: job_application, conversation: conversation %>
+
+      </div>
+      <div class="modal-footer">
+      </div>
+    </div>
+
+  </div>
+</div>

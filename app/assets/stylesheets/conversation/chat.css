@@ -243,3 +243,6 @@
     display: flex;
     flex-direction: column;
 }
+.modal-body a{
+    margin:4px;
+}
