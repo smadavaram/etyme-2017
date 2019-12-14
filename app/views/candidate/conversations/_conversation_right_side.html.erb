@@ -13,7 +13,7 @@
       <% if @conversation.chatable_type == "Group" %>
         <ul>
           <% @conversation.chatable.groupables.each do |g| %>
-            <li>
+            <li class="display-flex">
              <%=user_image(g.groupable, style: 'width: 35px; height: 35px;', class: 'data-table-image mr-1 superbox-img',title: "#{g.groupable.full_name}" )%>
               <%= do_ellipsis(g.groupable.full_name.capitalize, 13) %>
               <% if g.groupable == current_candidate %>
