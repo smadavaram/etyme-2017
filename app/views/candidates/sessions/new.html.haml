@@ -1,6 +1,6 @@
 - provide(:body_class, 'full-screen')
 
-#sectionIntro.intro-w.layout-v1
+#sectionIntro.intro-w.layout-v1.p-0
   .os-container
     .fade2
     .call-to-action
@@ -17,9 +17,6 @@
         .col-lg-6.offset-lg-3.text-center
           .form-sign
             = form_for(resource, as: resource_name, url: session_path(resource_name), html: {id: 'login-form', class: 'client-form lockscreen animated flipInY',role:'form'}) do |f|
-              .form-head
-                %h3 Login
-              / /.form-head
               .form-body
                 - flash.each do |key, value|
                   = flash_message(key,value)
