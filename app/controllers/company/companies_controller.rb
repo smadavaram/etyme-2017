@@ -142,6 +142,8 @@ class Company::CompaniesController < Company::BaseController
     @company_doc.build_attachment
     @location = current_company.locations.build
     @location.build_address
+    @slick_pop_up = current_user.sign_in_count==1 ? '' : 'display_none'
+
 
     #pagination
     # @company_docs = current_company.company_docs.paginate(:page => params[:page], :per_page => 15)

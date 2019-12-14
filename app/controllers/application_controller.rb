@@ -41,7 +41,11 @@ class ApplicationController < ActionController::Base
     if session[:previous_url]
       return session[:previous_url]
     elsif class_name == 'Admin' || class_name == 'Consultant' || class_name == 'User'
-      return dashboard_path
+      if resource.sign_in_count==1
+        return company_path(current_company.id)
+      else
+        return dashboard_path
+      end
     elsif class_name == 'Candidate'
       return '/candidate'
     else

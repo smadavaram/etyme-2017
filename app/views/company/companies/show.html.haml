@@ -1,3 +1,24 @@
+%div{class: "#{} popup-backgroud"}
+%div{class: "#{} popup-container"}
+  #slideshow.sliders.mt-4
+
+    .active-slide.slide
+      .slick_header.container.d-flex.mb-4
+        %h5 Import Customers
+        %span.os-icon.os-icon-close.close_slick{style: 'left:190px !important;'}
+      .slider-data-text
+        .container
+
+
+    .slide
+      .slick_header.container.d-flex.mb-2
+        %h5 Import Vendors
+        %span.os-icon.os-icon-close.close_slick{style: 'left:200px !important;'}
+      .slider-data-text
+        .container
+
+          #resume_on_slick
+            -#= render 'candidate/candidates/partials/resumes_on_slick'
 .content-box
   .element-wrapper
     .element-box

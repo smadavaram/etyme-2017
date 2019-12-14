@@ -63,4 +63,6 @@
  *= require calendar_custom
 
  *= require company/prefer_vendors
+ *= require slick-carousel/slick/slick
+ *= require candidate/dashboard
  */
