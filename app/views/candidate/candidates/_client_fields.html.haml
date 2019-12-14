@@ -35,7 +35,7 @@
     .col-sm-4
       .form-group
         %label Manager name
-        = f.text_field :refrence_name,placeholder: "Degree level",class: 'form-control input'
+        = f.text_field :refrence_name,placeholder: "Jhon Doe",class: 'form-control input'
 
     .col-sm-4
       .form-group
@@ -44,7 +44,7 @@
     %div{class: f.object.refrence_one ? "col-sm-3" : "col-sm-4"}
       .form-group
         %label  Email
-        = f.text_field :refrence_email,placeholder: "Email",class: 'form-control input',title: f.object.refrence_one ? 'Verified' :'Not Verified Yet'
+        = f.text_field :refrence_email,placeholder: "example@domain.com",class: 'form-control input',title: f.object.refrence_one ? 'Verified' :'Not Verified Yet'
     - if f.object.refrence_one
       .col-sm-1
         %h3.text-success.mt-4
@@ -54,7 +54,7 @@
     .col-sm-4
       .form-group
         %label Manager name
-        = f.text_field :refrence_two_name,placeholder: "Degree level",class: 'form-control input'
+        = f.text_field :refrence_two_name,placeholder: "Jhon Doe",class: 'form-control input'
     .col-sm-4
       .form-group
         %label  Phone
@@ -62,7 +62,7 @@
     %div{class: f.object.refrence_two ? "col-sm-3" : "col-sm-4"}
       .form-group
         %label  Email
-        = f.text_field :refrence_two_email,placeholder: "Email",class: 'form-control input',title: f.object.refrence_two ? 'Verified' :'Not Verified Yet'
+        = f.text_field :refrence_two_email,placeholder: "example@domain.com",class: 'form-control input',title: f.object.refrence_two ? 'Verified' :'Not Verified Yet'
     - if f.object.refrence_two
       .col-sm-1
         %h3.text-success.mt-4

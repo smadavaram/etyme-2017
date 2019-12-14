@@ -156,8 +156,7 @@
                   .element-info-icon
                     %i.icon-badge
                   .element-info-text
-                    %h4.element-inner-header
-                      Work Experience
+                    %h4.element-inner-header Project History
               - if candidate.designations.present? || (candidate.ever_worked_with_company && candidate.clients.present?)
                 - candidate.designations.each do |c|
                   - unless c.comp_name && c.company_role
@@ -179,8 +178,53 @@
                           %strong.font-weight-bold.font-sm.text-capitalize
                             = "#{c.start_date&.strftime('%B-%Y')} #{"-" if c.start_date.present? and c.end_date.present?} #{c.end_date&.strftime('%B-%Y')}"
                         .element-inner-desc
+                          %P.m-0
+                            %strong Project Description
+                            = c.project_description
+                        .element-inner-desc
                           %P
-                            #{c.project_description}
+                            %strong Role(s)
+                            = c.role
+                        - if c.refrence_email.present?
+                          %strong Reference
+                          .element-inner-desc.pl-2
+                            %p.m-0
+                              %strong Name
+                              ="#{c.refrence_name}"
+                            %p.m-0
+                              %strong Email
+                              ="#{c.refrence_email}"
+                            %p
+                              %strong Phone
+                              ="#{c.refrence_phone}"
+                            %p
+                              %label Note(s)
+                              = text_area_tag :notes, nil,class: "w-100 form-control"
+                              %span.fa.fa-star.rattings
+                              %span.fa.fa-star.rattings
+                              %span.fa.fa-star.rattings
+                              %span.fa.fa-star-o.rattings
+                              %span.fa.fa-star-o.rattings
+                        - if c.refrence_two_email.present?
+                          %strong Reference
+                          .element-inner-desc.pl-2
+                            %p.m-0
+                              %strong Name
+                              ="#{c.refrence_two_name}"
+                            %p.m-0
+                              %strong Email
+                              ="#{c.refrence_two_email}"
+                            %p
+                              %strong Phone
+                              ="#{c.refrence_two_phone}"
+                            %p
+                              %label Note(s)
+                              = text_area_tag :notes, nil,class: "w-100 form-control", rows: '3'
+                              %span.fa.fa-star.rattings
+                              %span.fa.fa-star.rattings
+                              %span.fa.fa-star.rattings
+                              %span.fa.fa-star-o.rattings
+                              %span.fa.fa-star-o.rattings
               - else
                 .element-info
                   .element-info-text

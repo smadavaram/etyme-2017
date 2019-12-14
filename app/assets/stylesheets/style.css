@@ -1837,3 +1837,8 @@ flex: 0 0 220px;
     display: none;
 }
 
+.rattings{
+    color: yellow;
+    font-size: 25px !important;
+    margin-top: 10px;
+}
