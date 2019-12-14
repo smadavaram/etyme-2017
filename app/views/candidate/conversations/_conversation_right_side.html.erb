@@ -1,12 +1,12 @@
 <% if @conversation.present? %>
   <% user = @conversation.chatable_type == "Group" ? @conversation.chatable : (@conversation.senderable == current_candidate ? @conversation.recipientable : @conversation.senderable) %>
   <div class="chat-info-section p-0 pb-3">
-    <div class="ci-header pl-1">
+    <div class="ci-header pl-1 d-flex">
       <span>Chat Member</span>
       <% if ConversationMute.where(conversation: @conversation, mutable: current_candidate).present? %>
-        <%= link_to "<i class='ti-bell'></i>".html_safe, unmute_candidate_conversation_path(@conversation),title: 'Unmute Conversation','data-toggle'=>"tooltip" ,'data-placement'=>"top" %>
+        <%= link_to "<i class='ti-bell'></i>".html_safe, unmute_candidate_conversation_path(@conversation),title: 'Unmute Conversation','data-toggle'=>"tooltip" ,'data-placement'=>"top",class: "ml-auto" %>
       <% else %>
-        <%= link_to "<i class='fa fa-bell-slash-o' style='color: red;'></i>".html_safe, mute_candidate_conversation_path(@conversation),class:'text-danger',title: 'Mute Conversation','data-toggle'=>"tooltip" ,'data-placement'=>"top" %>
+        <%= link_to "<i class='fa fa-bell-slash-o' style='color: red;'></i>".html_safe, mute_candidate_conversation_path(@conversation),class:'text-danger',title: 'Mute Conversation','data-toggle'=>"tooltip" ,'data-placement'=>"top",class: "ml-auto" %>
       <% end %>
     </div>
     <div class="group-member">
@@ -15,9 +15,11 @@
           <% @conversation.chatable.groupables.each do |g| %>
             <li class="display-flex">
              <%=user_image(g.groupable, style: 'width: 35px; height: 35px;', class: 'data-table-image mr-1 superbox-img',title: "#{g.groupable.full_name}" )%>
-              <%= do_ellipsis(g.groupable.full_name.capitalize, 13) %>
+              <span  class="align-self-center">
+                <%= do_ellipsis(g.groupable.full_name.capitalize, 13) %>
+              </span>
               <% if g.groupable == current_candidate %>
-                <%= link_to "<i class='icon-feather-x'></i>".html_safe, leave_group_candidate_conversations_path(group: @conversation.chatable_id) %>
+                <%= link_to "<i class='icon-feather-x'></i>".html_safe, leave_group_candidate_conversations_path(group: @conversation.chatable_id), class: "ml-auto align-self-center" %>
               <% end %>
             </li>
           <% end %>
