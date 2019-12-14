@@ -2,11 +2,11 @@
   -current_candidate.candidates_resumes.order(:created_at).each_with_index  do |resume,index|
     .row
       .document-display.clearfix.col-md-12.slick_doc
-        %p.float-left
+        %p.float-left.mt-2.ml-1
           %i.fa.fa-file-text-o.fa-lg.fa-fw
           = "Resume #{index+1}"
         -if resume.is_primary
-          .primary_doc.float-right
+          .primary_doc.float-right.d-flex{style: 'align-items: center'}
             %i.fa.fa-check-circle-o.fa-lg.fa-fw{:title=>"Primary Resume"}
             = link_to "", candidate_delete_resume_path(:id=>resume.id), :title=>"Delete", class: "fa fa-trash-o fa-lg fa-fw delete_primary_doc", remote: true, method: :delete, data: { confirm: 'Are you sure?' }
         -else

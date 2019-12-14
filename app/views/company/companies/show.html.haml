@@ -1,13 +1,17 @@
-%div{class: "#{} popup-backgroud"}
-%div{class: "#{} popup-container"}
+%div{class: "#{@slick_pop_up} popup-backgroud"}
+%div{class: "#{@slick_pop_up} popup-container"}
   #slideshow.sliders.mt-4
 
-    .active-slide.slide
-      .slick_header.container.d-flex.mb-4
+    .active-slide.slide.mb-5
+      .slick_header.container.d-flex
         %h5 Import Customers
         %span.os-icon.os-icon-close.close_slick{style: 'left:190px !important;'}
       .slider-data-text
         .container
+          = button_tag "Import List" , class: 'm-0 resume btn btn-primary btn-lg', onclick: "company_customer_file()"
+
+          .data_on_slick_customer.scrole
+            = render 'company/companies/partials/import_customer_list',customer_list:@customers_list
 
 
     .slide
@@ -16,9 +20,10 @@
         %span.os-icon.os-icon-close.close_slick{style: 'left:200px !important;'}
       .slider-data-text
         .container
+          = button_tag "Import List" , class: 'm-0 resume btn btn-primary btn-lg', onclick: "company_vendor_file()"
 
-          #resume_on_slick
-            -#= render 'candidate/candidates/partials/resumes_on_slick'
+          .data_on_slick_vendor.scrole
+            = render 'company/companies/partials/import_customer_list',customer_list: @vendors_list
 .content-box
   .element-wrapper
     .element-box

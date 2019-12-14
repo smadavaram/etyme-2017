@@ -192,5 +192,5 @@
 //= require company/salaries
 //= require company/sale_invoices
 //= require mobile_responsive
-//= require candidate/dashboard
+//= require company/companies
 

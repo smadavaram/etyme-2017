@@ -6,6 +6,6 @@ function uploadResume(url,type){
         data: { resume: resume_url,authenticity_token: window._token },
     });
 }
-function upload_resume_file(){
+function upload_resume_file_in_slick(){
     upload_file_ajax(uploadResume);
 }

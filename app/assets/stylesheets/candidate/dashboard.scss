@@ -1,12 +1,14 @@
 span.pre.slick-arrow  {
 position:absolute;
 top:350px;
-left: 348px;
+left: 314px;
+ font-family: 'feather' !important;
 }
 span.next.slick-arrow  {
 position:absolute;
 top:350px;
 left:7px;
+z-index: 999;
 }
 span.icon-feather-x-circle{
 }
@@ -35,12 +37,11 @@ font-size: 13px;
   left: 50%;
   top: 50%;
   z-index: 999;
-  border-radius: 10px;
+  border-radius: 5px;
   transform: translate(-50%,-50%);
 }
 #resume_on_slick{
-  height: 272px;
+  height: 255px;
   overflow-y: auto;
   overflow-x: hidden;
-
 }
