@@ -6,4 +6,5 @@ flash_error("<%= e %>");
 <% if flash[:success].present? %>
 flash_success("<%= flash[:success] %>");
 <% end %>
-$('.data_on_slick_customer').html("<%=j render 'company/companies/partials/import_customer_list',customer_list:@customers_list %>");
+
+$('.data_on_slick_<%=params[:file_type]%>').html("<%=j render 'company/customer_vendor/partials/import_list',customer_list:@list %>");

@@ -1110,8 +1110,6 @@ function upload_file_ajax(callback_function, id=false) {
         } else {
             callback_function(upload.url, upload.type);
         }
-        console.log(upload.url);
-        // jQuery("<input>", { type: "text", name: "url", value: upload.url}).insertBefore("#submit");
         $("#resume_on_slick").html('<img class= "progress_img" src="<%= asset_path 'progress.gif' %>"  style="" alt="Image result for progress bar circle gif">')
 
     }

@@ -143,40 +143,14 @@ class Company::CompaniesController < Company::BaseController
     @location = current_company.locations.build
     @location.build_address
     @slick_pop_up = current_user.sign_in_count==1 ? '' : 'display_none'
-    @customers_list = current_company.import_company_customer_vendors.where(file_type: 'customer')
-    @vendors_list = current_company.import_company_customer_vendors.where(file_type: 'vendor')
+    @customers_list = current_company.company_customer_vendors.customer
+    @vendors_list = current_company.company_customer_vendors.vendor
 
 
     #pagination
     # @company_docs = current_company.company_docs.paginate(:page => params[:page], :per_page => 15)
   end
-  def import_customers_list
-    file = current_company.import_company_customer_vendors.new(file: params[:file],file_type: 'customer')
-    if file.save
-      @customers_list ||= current_company.import_company_customer_vendors.where(file_type: 'customer')
-      flash[:success]="Customer List has been import successfully"
-      respond_to do |format|
-        format.js{}
-      end
-    else
-      flash[:error]=file.errors
-      redirect_to company_path(current_company.id)
-    end
-  end
 
-  def import_vendors_list
-    file = current_company.import_company_customer_vendors.new(file: params[:file],file_type: 'vendor')
-    if file.save
-      @vendors_list = current_company.import_company_customer_vendors.where(file_type: 'vendor')
-      flash[:success]="Customer List has been import successfully"
-      respond_to do |format|
-        format.js{}
-      end
-    else
-      flash[:error]=file.errors
-      redirect_to company_path(current_company.id)
-    end
-  end
 
   def company_phone_page
     add_breadcrumb 'Phone Page'

@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema.define(version: 20191214085802) do
+ActiveRecord::Schema.define(version: 20191215061518) do
 
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
@@ -651,6 +651,15 @@ ActiveRecord::Schema.define(version: 20191214085802) do
     t.string "is_require"
   end
 
+  create_table "company_customer_vendors", force: :cascade do |t|
+    t.bigint "company_id"
+    t.string "file"
+    t.integer "file_type"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["company_id"], name: "index_company_customer_vendors_on_company_id"
+  end
+
   create_table "company_departments", force: :cascade do |t|
     t.bigint "company_id"
     t.bigint "department_id"
@@ -1202,15 +1211,6 @@ ActiveRecord::Schema.define(version: 20191214085802) do
     t.datetime "updated_at", null: false
     t.string "member_type"
     t.index ["company_id"], name: "index_groups_on_company_id"
-  end
-
-  create_table "import_company_customer_vendors", force: :cascade do |t|
-    t.bigint "company_id"
-    t.string "file"
-    t.string "file_type"
-    t.datetime "created_at", null: false
-    t.datetime "updated_at", null: false
-    t.index ["company_id"], name: "index_import_company_customer_vendors_on_company_id"
   end
 
   create_table "integrations", force: :cascade do |t|
@@ -2030,6 +2030,6 @@ ActiveRecord::Schema.define(version: 20191214085802) do
     t.date "start_date"
   end
 
+  add_foreign_key "company_customer_vendors", "companies"
   add_foreign_key "expense_accounts", "expenses"
-  add_foreign_key "import_company_customer_vendors", "companies"
 end

@@ -3,9 +3,9 @@
 one:
   company: one
   file: MyString
-  file_type: MyString
+  file_type: 1
 
 two:
   company: two
   file: MyString
-  file_type: MyString
+  file_type: 1

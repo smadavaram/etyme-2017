@@ -1,5 +1,8 @@
 Rails.application.routes.draw do
 
+  namespace :company do
+    get 'customer_vendor/import'
+  end
 
   namespace :company do
     get 'activities/index'
@@ -721,9 +724,6 @@ Rails.application.routes.draw do
         get :company_phone_page
         get :company_profile_page
         get :company_user_profile_page
-
-        get :import_customers_list
-        get :import_vendors_list
       end
     end
 

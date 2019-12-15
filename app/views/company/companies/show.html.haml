@@ -1,5 +1,6 @@
 %div{class: "#{@slick_pop_up} popup-backgroud"}
 %div{class: "#{@slick_pop_up} popup-container"}
+  -#@slick_pop_up
   #slideshow.sliders.mt-4
 
     .active-slide.slide.mb-5
@@ -11,7 +12,7 @@
           = button_tag "Import List" , class: 'm-0 resume btn btn-primary btn-lg', onclick: "company_customer_file()"
 
           .data_on_slick_customer.scrole
-            = render 'company/companies/partials/import_customer_list',customer_list:@customers_list
+            = render 'company/customer_vendor/partials/import_list',customer_list:@customers_list
 
 
     .slide
@@ -23,7 +24,7 @@
           = button_tag "Import List" , class: 'm-0 resume btn btn-primary btn-lg', onclick: "company_vendor_file()"
 
           .data_on_slick_vendor.scrole
-            = render 'company/companies/partials/import_customer_list',customer_list: @vendors_list
+            = render 'company/customer_vendor/partials/import_list',customer_list: @vendors_list
 .content-box
   .element-wrapper
     .element-box
