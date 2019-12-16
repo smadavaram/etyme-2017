@@ -1,14 +1,23 @@
 - current_candidate.addresses.build unless current_candidate.addresses.present?
 = form_for current_candidate, url: candidate_candidate_path(current_candidate.id, tab: "basic_info"),method: :put, remote: true do |f|
   .row
-    .col-sm-12
+    .col-sm-6
       %label First Name
       .form-group
         = f.text_field :first_name  ,:placeholder => "Enter First Name",class:'form-control input'
-    .col-sm-12
+    .col-sm-6
       %label Last Name
       .form-group
         = f.text_field :last_name  ,:placeholder => "Enter last Name",class:'form-control input'
+    .col-sm-6
+      %label Date Of birth
+      .form-group
+        = f.text_field :dob  ,:placeholder => "Date Of Birth",class:'form-control input p_date'
+    .col-sm-6
+      %label SSN
+      .form-group
+        = f.text_field :ssn  ,:placeholder => "SSN Number",class:'form-control input'
+        .help-block.form-text.text-muted.form-control-feedback We will not share without permission
     -#.col-sm-6
     -#  %label Passport Number
     -#  .form-group

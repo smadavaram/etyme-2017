@@ -72,7 +72,7 @@
                       .bar-label-left
                         %span Email
                       .bar-label-right
-                        %span=do_ellipsis(candidate.email,15)
+                        %span=do_ellipsis(candidate.email.downcase,15)
                         %span.text-success
                           = is_verify(!!candidate.confirmed_at)
                 .os-progress-bar.primary
@@ -80,7 +80,7 @@
                     .bar-label-left
                       %span Date of Birth
                     .bar-label-right
-                      %span=do_ellipsis(candidate.dob,15)
+                      %span= pluralize((Date.today.to_s(:number).to_i - candidate.dob.to_s(:number).to_i) / 10000,'year') rescue 'N/A'
                       %span.text-success
                 .os-progress-bar.primary
                   .bar-labels
@@ -111,7 +111,7 @@
                     .bar-label-left
                       %span SSN(YES / NO)
                     .bar-label-right
-                      %span=do_ellipsis(candidate.ssn,15)
+                      %span= candidate.ssn.present? ? 'Yes' : 'No'
 
         .element-wrapper
           .element-box
@@ -197,7 +197,7 @@
                             %p
                               %strong Phone
                               ="#{c.refrence_phone}"
-                            %p
+                            -#%p
                               %label Note(s)
                               = text_area_tag :notes, nil,class: "w-100 form-control"
                               %span.fa.fa-star.rattings
@@ -217,7 +217,7 @@
                             %p
                               %strong Phone
                               ="#{c.refrence_two_phone}"
-                            %p
+                            -#%p
                               %label Note(s)
                               = text_area_tag :notes, nil,class: "w-100 form-control", rows: '3'
                               %span.fa.fa-star.rattings

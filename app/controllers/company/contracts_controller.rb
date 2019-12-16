@@ -420,7 +420,7 @@ class Company::ContractsController < Company::BaseController
                            .where(params[:candidate_id].present? ?
                                       {contract: current_company.contracts.where(candidate_id: params[:candidate_id])} :
                                       {contract: @contract})
-                           .where(contract: @contract).cycle_type(params[:cycle_type])
+                           .where(contract: @contract).cycle_type(params[:note])
   end
 
   def get_cyclable
