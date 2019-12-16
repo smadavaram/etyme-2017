@@ -144,3 +144,5 @@
 //= require company/sale_invoices
 //= require mobile_responsive
 //= require loader
+//= require company/companies
+

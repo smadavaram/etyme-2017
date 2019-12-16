@@ -3,11 +3,11 @@
   #slideshow.sliders.mt-4
 
     .active-slide.slide
-      .slick_header.container.d-flex.mb-4
+      .slick_header.container.d-flex
         %h5 Edit Profile
         %span.os-icon.os-icon-close.close_slick
       .slider-data-text
-        .container
+        .container.mt-5
           = form_for current_candidate, url: candidate_candidate_path(current_candidate.id, tab: "fln_basic_info"),method: :put, remote: true do |f|
             .row
               .col-sm-12
@@ -18,10 +18,10 @@
                 %label Last Name
                 .form-group
                   = f.text_field :last_name  ,:placeholder => "Enter last Name",class:'form-control input'
-                =f.submit :Submit, :class => "pull-right btn btn-primary btn-xs"
+                =f.submit :Submit, :class => "mt-3 pull-right btn btn-primary btn-xs"
 
     .slide
-      .slick_header.container.d-flex.mb-2
+      .slick_header.container.d-flex.mb-3
         %h5 Edit Profile
         %span.os-icon.os-icon-close.close_slick
       .slider-data-text
@@ -30,7 +30,7 @@
             .col-sm-12.col-md-12.col-lg-2
               %div.profile-hover
                 %div.pictureContainer
-                  = button_tag "Upload CV" , class: 'm-0 resume btn btn-primary btn-rounded btn-lg', onclick: "upload_resume_file()"
+                  = button_tag "Upload CV" , class: 'm-0 resume btn btn-primary  btn-lg', onclick: "upload_resume_file_in_slick()"
                   -#= link_to "Upload CV" ,"#",class: 'm-0 resume btn btn-primary btn-rounded btn-lg', style: "margin-bottom: 10px"
           #resume_on_slick
             = render 'candidate/candidates/partials/resumes_on_slick'

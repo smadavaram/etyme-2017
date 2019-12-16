@@ -103,6 +103,7 @@ class Company < ApplicationRecord
   has_many :plugins
   has_many :document_signs
   has_many :approvals
+  has_many :company_customer_vendors
   # validates           :company_type, inclusion: { in: [0, 1] } , presence: true
   # validates           :company_type, inclusion: {in: %w(0 , 1)}
   # validates           :name,  presence:   true
