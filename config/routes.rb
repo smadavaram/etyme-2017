@@ -1,13 +1,13 @@
 Rails.application.routes.draw do
 
-  namespace :company do
-    get 'customer_vendor/import'
-  end
+  #namespace :company do
+  #  get 'customer_vendor/import'
+  #end
 
-  namespace :company do
-    get 'activities/index'
-  end
-
+  #namespace :company do
+  #  get 'activities/index'
+  #  resources :customer_vendor
+  #end
   concern :commentable do
     resources :comments
   end
@@ -258,7 +258,8 @@ Rails.application.routes.draw do
 
   # COMPANY ROUTES
   namespace :company do
-
+    get 'activities/index'
+    resources :customer_vendor, only: [:create]
     resources :plugins, only: [:create]
     resources :document_signs, only: [] do
       post :e_sign_completed, on: :collection

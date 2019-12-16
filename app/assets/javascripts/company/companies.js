@@ -1,8 +1,8 @@
 function import_company_customers_file(url,type){
     file_url = url
     $.ajax({
-        type: 'GET',
-        url: "/company/customer_vendor/import.js",
+        type: 'POST',
+        url: "/company/customer_vendor.js",
         data: { file_type: 'customer',file: file_url,authenticity_token: window._token },
     });
 }
@@ -12,8 +12,8 @@ function company_customer_file(){
 function import_vendor_customers_file(url,type){
     file_url = url
     $.ajax({
-        type: 'GET',
-        url: "/company/customer_vendor/import.js",
+        type: 'POST',
+        url: "/company/customer_vendor.js",
         data: { file_type: 'vendor',file: file_url,authenticity_token: window._token },
     });
 }

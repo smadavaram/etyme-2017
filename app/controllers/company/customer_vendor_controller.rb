@@ -1,5 +1,5 @@
 class Company::CustomerVendorController < ApplicationController
-  def import
+  def create
     file = current_company.company_customer_vendors.new(file: params[:file],file_type: params[:file_type])
     if file.save
       @list= current_company.company_customer_vendors.send(params[:file_type])
