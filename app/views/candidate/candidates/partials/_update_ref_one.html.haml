@@ -1,0 +1,16 @@
+= form_for client,url: client_path(client),method: :put  do |f|
+  .row
+    .col-sm-3
+      .form-group
+        %label Manager name
+        = f.text_field :refrence_name,placeholder: "Jhon Doe",class: 'form-control input'
+    .col-sm-3
+      .form-group
+        %label  Phone
+        = f.text_field :refrence_phone, class: 'form-control input'
+    .col-sm-4
+      .form-group
+        %label  Email
+        = f.text_field :refrence_email,placeholder: "example@domain.com",class: 'form-control input'
+    .col-sm-2.mt-4
+      = f.submit 'Update', class: "btn btn-primary mt-1 pull-right"

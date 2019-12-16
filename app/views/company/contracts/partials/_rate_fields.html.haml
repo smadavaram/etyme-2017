@@ -10,7 +10,7 @@
       %label.control-label
         Expected Hrs
       .col-sm-12.pl-0
-        = f.number_field :working_hrs,class: "form-control",placeholder: "i.e 2.5 or 3"
+        = f.number_field :working_hrs,class: "form-control",placeholder: "i.e 2.5 or 3", max: 24, min: 1
   - if usics
     .col-md-2
       .form-group
@@ -29,10 +29,10 @@
       %label.control-label
         From Date
       .col-sm-12.pl-0
-        = f.text_field :from_date, class: "form-control date_1", placeholder: "Pick From Date"
+        = f.text_field :from_date, class: "form-control contract_rate_start_date", placeholder: "Pick From Date"
   .col-md-2  
     .form-group
       %label.control-label
         To Date
       .col-sm-12.pl-0
-        = f.text_field :to_date, class: "form-control date_1", placeholder: "Pick To Date"
+        = f.text_field :to_date, class: "form-control contract_rate_end_date", placeholder: "Pick To Date"

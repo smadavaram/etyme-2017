@@ -37,7 +37,7 @@ class ContractCycle < ApplicationRecord
   scope :cycle_type, ->(type) { (type == 'All' or type.nil?) ? where(cycle_type: ContractCycle::CYCLETYPES) : where(cycle_type: type) }
   scope :completed, -> { where(status: 'completed') }
   scope :overdue, -> { where('DATE(contract_cycles.end_date) < ?', DateTime.now.end_of_day.to_date) }
-  scope :todo, -> { where('DATE(contract_cycles.end_date) BETWEEN ? AND ?', Date.today, 365.days.from_now.to_date) }
+  scope :todo, -> { where('DATE(contract_cycles.end_date) BETWEEN ? AND ?', Date.today.beginning_of_day,Date.today.end_of_day ) }
   
   def next_action=(new_next_action)
     write_attribute(:next_action, new_next_action)

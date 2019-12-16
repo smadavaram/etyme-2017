@@ -15,7 +15,6 @@ ActiveRecord::Schema.define(version: 20191215061518) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
   enable_extension "hstore"
-  enable_extension "adminpack"
 
   create_table "active_admin_comments", id: :serial, force: :cascade do |t|
     t.string "namespace"
@@ -433,8 +432,8 @@ ActiveRecord::Schema.define(version: 20191215061518) do
     t.integer "company_id"
     t.integer "status", default: 0
     t.integer "candidate_status", default: 0
-    t.datetime "created_at", default: "2019-11-29 03:35:47"
-    t.datetime "updated_at", default: "2019-11-29 03:35:47"
+    t.datetime "created_at", default: "2019-11-29 12:33:24"
+    t.datetime "updated_at", default: "2019-11-29 12:33:24"
   end
 
   create_table "candidates_groups", id: false, force: :cascade do |t|

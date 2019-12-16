@@ -19,12 +19,10 @@
             %table
               %tr
                 %td
-                  %h3= "Hi, #{@candidate} added you as reference at #{link_to "Etyme", "https://etyme.com"}".html_safe
-                  %p.lead If you know this person then you can accept the referral by clicking the link below."
-                  / Callout Panel
+                  %h3= "Please endorse #{@candidate} and their roles and responsibilities for the project"
                   %p.callout
-                    = "If you don't want to accept the invitation, please ignore this email"
-                    =link_to 'Click it!', acknowledge_refrence_static_index_url(@id,@slug)
+                    =link_to 'Click to endorse', acknowledge_refrence_static_index_url(@id,@slug)
+                    = "If you don't want to endorse #{@candidate}, please ignore this email"
                   / /Callout Panel
                   / social & contact
                   = render 'user_mailer/partials/social_contact'

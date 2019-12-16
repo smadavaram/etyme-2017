@@ -151,7 +151,7 @@ class Candidate < ApplicationRecord
     Rails.env.development? ? "#{ENV['domain']}" : "#{ENV['domain']}"
   end
   def full_name
-    self.first_name + " " + self.last_name
+    self.first_name.capitalize + " " + self.last_name.capitalize
   end
 
   def get_blacklist_status(black_list_company_id)

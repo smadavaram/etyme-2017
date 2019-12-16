@@ -79,6 +79,7 @@ Rails.application.routes.draw do
 
   scope module: :candidate do
 
+    resources :clients
     resources :candidates, path: :candidate, only: [:update] do
       resources :notifications do
         member do

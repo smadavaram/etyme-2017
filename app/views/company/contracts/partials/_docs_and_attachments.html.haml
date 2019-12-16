@@ -408,13 +408,13 @@
             .col-md-12.contract-attachment
               %ul#myTab2.nav.nav-tabs.smaller{style: "border-bottom: 0px;"}
                 %li.nav-item.active.primary-nav.mr-0
-                  %a{"data-toggle" => "tab", :href => "#buy_send_documents", class: "nav-link cumstom_nav-tab"}
-                    %span.badge.bg-color-blue.txt-color-white
-                    Submit Documents
-                %li.nav-item.primary-nav.mr-0
                   %a{"data-toggle" => "tab", :href => "#buy_emp_req_docs", class: "nav-link cumstom_nav-tab"}
                     %span.badge.bg-color-blue.txt-color-white
                     Request Documents
+                %li.nav-item.primary-nav.mr-0
+                  %a{"data-toggle" => "tab", :href => "#buy_send_documents", class: "nav-link cumstom_nav-tab"}
+                    %span.badge.bg-color-blue.txt-color-white
+                    Submit Documents
                 - if @contract.buy_contract.company.present?
                   %li.nav-item.primary-nav.mr-0
                     %a{"data-toggle" => "tab", :href => "#buy_ven_req_docs", class: "nav-link cumstom_nav-tab"}
@@ -422,7 +422,7 @@
                       Vendor Request Documents
               .col-md-12.pl-0
                 .tab-content
-                  #buy_send_documents.tab-pane.padding-top-15.active.in
+                  #buy_send_documents.tab-pane.padding-top-15
                     .row
                       .col-md-12
                         .form-group
@@ -449,7 +449,7 @@
                                       = do_ellipsis(docusign.envelope_id.present? ? docusign.envelope_id : "Document Not Submitted",10)
                                     %td
                                       = link_to content_tag(:i,'',class:'fa fa-paperclip fa-lg').html_safe, docusign.signed_file if docusign.is_sign_done
-                  #buy_emp_req_docs.tab-pane.padding-top-15
+                  #buy_emp_req_docs.tab-pane.padding-top-15.active.in
                     .row
                       .col-md-12
                         .form-group

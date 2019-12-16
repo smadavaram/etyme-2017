@@ -185,46 +185,21 @@
                           %P
                             %strong Role(s)
                             = c.role
-                        - if c.refrence_email.present?
-                          %strong Reference
+                        %strong Reference
+                        - if c.candidate == current_candidate and !c.refrence_one.present?
+                          = render 'candidate/candidates/partials/update_ref_one', client: c
+                        - else
                           .element-inner-desc.pl-2
                             %p.m-0
-                              %strong Name
-                              ="#{c.refrence_name}"
-                            %p.m-0
-                              %strong Email
-                              ="#{c.refrence_email}"
-                            %p
-                              %strong Phone
-                              ="#{c.refrence_phone}"
-                            -#%p
-                              %label Note(s)
-                              = text_area_tag :notes, nil,class: "w-100 form-control"
-                              %span.fa.fa-star.rattings
-                              %span.fa.fa-star.rattings
-                              %span.fa.fa-star.rattings
-                              %span.fa.fa-star-o.rattings
-                              %span.fa.fa-star-o.rattings
-                        - if c.refrence_two_email.present?
-                          %strong Reference
+                              = "<strong>#{c.refrence_name.capitalize}</strong> endorse <strong>#{c.candidate.full_name}</strong> and their roles and responsibilities for the PROJECT".html_safe
+                        %strong Reference
+                        - if c.candidate == current_candidate and !c.refrence_two.present?
+                          = render 'candidate/candidates/partials/update_ref_two', client: c
+                        - else
                           .element-inner-desc.pl-2
                             %p.m-0
-                              %strong Name
-                              ="#{c.refrence_two_name}"
-                            %p.m-0
-                              %strong Email
-                              ="#{c.refrence_two_email}"
-                            %p
-                              %strong Phone
-                              ="#{c.refrence_two_phone}"
-                            -#%p
-                              %label Note(s)
-                              = text_area_tag :notes, nil,class: "w-100 form-control", rows: '3'
-                              %span.fa.fa-star.rattings
-                              %span.fa.fa-star.rattings
-                              %span.fa.fa-star.rattings
-                              %span.fa.fa-star-o.rattings
-                              %span.fa.fa-star-o.rattings
+                              = "<strong>#{c.refrence_two_name.capitalize}</strong> endorse <strong>#{c.candidate.full_name}</strong> and their roles and responsibilities for the PROJECT".html_safe
+
               - else
                 .element-info
                   .element-info-text
