@@ -1,13 +1,5 @@
 Rails.application.routes.draw do
-
-  #namespace :company do
-  #  get 'customer_vendor/import'
-  #end
-
-  #namespace :company do
-  #  get 'activities/index'
-  #  resources :customer_vendor
-  #end
+  
   concern :commentable do
     resources :comments
   end
