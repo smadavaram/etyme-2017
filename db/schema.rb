@@ -10,11 +10,12 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema.define(version: 20191209091411) do
+ActiveRecord::Schema.define(version: 20191215061518) do
 
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
   enable_extension "hstore"
+  enable_extension "adminpack"
 
   create_table "active_admin_comments", id: :serial, force: :cascade do |t|
     t.string "namespace"
@@ -648,6 +649,15 @@ ActiveRecord::Schema.define(version: 20191209091411) do
     t.datetime "updated_at", null: false
     t.string "title_type"
     t.string "is_require"
+  end
+
+  create_table "company_customer_vendors", force: :cascade do |t|
+    t.bigint "company_id"
+    t.string "file"
+    t.integer "file_type"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["company_id"], name: "index_company_customer_vendors_on_company_id"
   end
 
   create_table "company_departments", force: :cascade do |t|
@@ -2020,5 +2030,6 @@ ActiveRecord::Schema.define(version: 20191209091411) do
     t.date "start_date"
   end
 
+  add_foreign_key "company_customer_vendors", "companies"
   add_foreign_key "expense_accounts", "expenses"
 end

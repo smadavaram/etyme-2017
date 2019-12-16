@@ -9,9 +9,24 @@ $(document).ready(function()
         infinite: false,
         autoplaySpeed: 2000,
         arrows: true,
-        prevArrow:"<span class='next'><i class='icon-feather-arrow-left'>Previous</i></span>",
-        nextArrow:"<span class='pre'>Next<i class='icon-feather-arrow-right'></i></span>"
+        prevArrow:"<span class='next'><i class='icon-feather-arrow-left'>Edit Profile</i></span>",
+        nextArrow:"<span class='pre'>Upload CV<i class='icon-feather-arrow-right'></i></span>"
         // autoplay: true,
+    });
+    $('#slideshow').on('afterChange', function (event, slick, currentSlide) {
+        if(currentSlide === 1) {
+            $('.slick-next').addClass('display_none');
+        }
+        else {
+            $('.slick-next').removeClass('display_none');
+        }
+
+        if(currentSlide === 0) {
+            $('.slick-prev').addClass('display_none');
+        }
+        else {
+            $('.slick-prev').removeClass('display_none');
+        }
     });
 
     $('.jobs_pagination_links a').attr('data-remote','true');
