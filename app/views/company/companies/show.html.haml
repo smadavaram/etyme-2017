@@ -8,9 +8,10 @@
         %h5 Import Customers
         %span.os-icon.os-icon-close.close_slick{style: 'left:190px !important;'}
       .slider-data-text
-        .container
-          = button_tag "Import List" , class: 'm-0 resume btn btn-primary btn-lg', onclick: "company_customer_file()"
-
+        .container{style: 'text-align:center; margin-top:30px'}
+          = button_tag "Import Customers" , class: 'm-0 resume btn btn-primary btn-lg', onclick: "company_customer_file()"
+          %br
+          %span.text-muted  csv, xxls or pdf
           .data_on_slick_customer.scrole
             = render 'company/customer_vendor/partials/import_list',customer_list:@customers_list
 
@@ -20,9 +21,10 @@
         %h5 Import Vendors
         %span.os-icon.os-icon-close.close_slick{style: 'left:200px !important;'}
       .slider-data-text
-        .container
-          = button_tag "Import List" , class: 'm-0 resume btn btn-primary btn-lg', onclick: "company_vendor_file()"
-
+        .container{style: 'text-align:center; margin-top:30px'}
+          = button_tag "Import Vendors" , class: 'mr-2 mb-2 btn btn-primary', onclick: "company_vendor_file()"
+          %br
+          %span.text-muted  csv, xxls or pdf
           .data_on_slick_vendor.scrole
             = render 'company/customer_vendor/partials/import_list',customer_list: @vendors_list
 .content-box
