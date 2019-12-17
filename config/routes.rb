@@ -623,6 +623,7 @@ Rails.application.routes.draw do
         get :received_contract
         patch :update_contract_status
         get :generate_cycles
+        post :extend_contract
       end
 
       post :change_invoice_date

@@ -296,6 +296,26 @@ class Contract < ApplicationRecord
     end
   end
 
+  def extend_cycles(extended_date = nil)
+    ActiveRecord::Base.transaction do
+      if buy_contract.present?
+        buy_contract_time_sheet_cycles(extended_date)
+        buy_contract_time_sheet_aprove_cycle(extended_date)
+        buy_contract_salary_calculation_cycle(extended_date)
+        buy_contract_salary_process_cycle(extended_date)
+        buy_contract_salary_clear_cycle(extended_date)
+      end
+      if sell_contract.present?
+        sell_contract_time_sheet_cycles(extended_date)
+        sell_contract_time_sheet_aprove_cycle(extended_date)
+        sell_contract_invoice_cycle(extended_date)
+        sell_contract_client_expense_cycle(extended_date)
+        sell_contract_client_expense_approve_cycle(extended_date)
+        sell_contract_client_expense_invoice_cycle(extended_date)
+      end
+    end
+  end
+
   def create_cycles
     ActiveRecord::Base.transaction do
       if buy_contract.present?
@@ -697,7 +717,28 @@ class Contract < ApplicationRecord
     notify_buy_side if buy_contract.present?
   end
 
+  def extended_contract_notification
+    ex_notify_sell_side if sell_contract.present?
+    ex_notify_buy_side if buy_contract.present?
+  end
+
+
   private
+
+  def ex_notify_sell_side
+    Notification.unread.contract.create(notifiable: sell_contract.team_admin,
+                                        createable: created_by,
+                                        title: "Extended Contract",
+                                        message: "#{company.full_name.capitalize} has extended the contract '#{project_name}'"
+    )
+  end
+
+  def ex_notify_buy_side
+    candidate.notifications.unread.contract.create(createable: created_by,
+                                                   title: "Extended Contract",
+                                                   message: "#{company.full_name.capitalize} has extended the contract '#{project_name}'"
+    )
+  end
 
   def notify_sell_side
     Notification.unread.contract.create(notifiable: sell_contract.team_admin,
