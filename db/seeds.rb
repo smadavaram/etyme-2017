@@ -33,3 +33,4 @@ Currency.create(name:"USD")
 # Package.create(id: 4, name: "Platinum", price: 60.0,  duration: 30)
 # Package.create(id: 5, name: "Monthly",                duration: 30)
 #
+AdminUser.create!(email: 'admin@example.com', password: 'password', password_confirmation: 'password') if Rails.env.development?

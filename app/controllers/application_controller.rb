@@ -35,7 +35,9 @@ class ApplicationController < ActionController::Base
 
   def after_sign_in_path_for(resource)
     class_name = resource.class.name
+    unless resource.class.name == 'AdminUser'
     get_new_notification_flash(resource)
+    end
     prepare_exception_notifier
     set_permissions
     if session[:previous_url]
@@ -57,10 +59,13 @@ class ApplicationController < ActionController::Base
     end
 
   end
+
   def get_new_notification_flash(resource)
-    notifications_count = resource.notifications.unread.where("created_at >= ?", resource.last_sign_in_at).count
-    messages_count = ConversationMessage.where(conversation_id: resource.conversations.pluck(:id)).where("created_at >= ?", resource.last_sign_in_at).count
-    flash[:success] = (notifications_count.zero? and messages_count.zero?) ? "Wellcome back, You do not have any new notification or message" : "Wellcome back, You have #{notifications_count} new notification(s) and #{messages_count} message(s)"
+    unless admin_user?
+      notifications_count = resource.notifications.unread.where("created_at >= ?", resource.last_sign_in_at).count
+      messages_count = ConversationMessage.where(conversation_id: resource.conversations.pluck(:id)).where("created_at >= ?", resource.last_sign_in_at).count
+      flash[:success] = (notifications_count.zero? and messages_count.zero?) ? "Wellcome back, You do not have any new notification or message" : "Wellcome back, You have #{notifications_count} new notification(s) and #{messages_count} message(s)"
+    end
   end
 
   def render_exception(status = 500, message = 'An Error Occurred', exception)
