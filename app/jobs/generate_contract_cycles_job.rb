@@ -18,12 +18,14 @@ class GenerateContractCyclesJob < ApplicationJob
 
   private
 
-    def job_start
-      self.arguments.first.update(cc_job: :started)
-    end
+  def job_start
+    self.arguments.first.update(cc_job: :started)
+  end
 
-    def job_complete
-      self.arguments.first.update(cc_job: :finished, status: :in_progress)
+  def job_complete
+    if self.arguments.first.update(cc_job: :finished, status: :in_progress)
+      self.arguments.first.notify_contract_companies
     end
+  end
 
 end

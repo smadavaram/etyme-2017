@@ -11,7 +11,7 @@ class Contract < ApplicationRecord
   enum time_sheet_frequency: [:daily, :weekly, :biweekly, "twice a month", :monthly]
   enum commission_type: [:perhour, :fixed]
   enum contract_type: [:W2, "1099", :C2C, :contract_independent, :contract_w2, :contract_C2H_independent, :contract_C2H_w2, :third_party_crop_to_crop, :third_party_C2H_crop_to_crop]
-  enum cc_job: [:remaining,:started,:finished, :errored]
+  enum cc_job: [:remaining, :started, :finished, :errored]
   CONTRACTABLE = [:company, :candidate]
 
   attr_accessor :company_doc_ids
@@ -52,6 +52,7 @@ class Contract < ApplicationRecord
   has_many :contract_cycles, dependent: :destroy
   has_many :contract_expense, dependent: :destroy
   has_many :contract_books
+
 
   # has_many :contract_buy_business_details
   # has_many :contract_sell_business_details
@@ -691,7 +692,27 @@ class Contract < ApplicationRecord
     contract_admins&.first&.user || company.users.joins(:roles).where('roles.name': "HR admin").limit(1)
   end
 
+  def notify_contract_companies
+    notify_sell_side if sell_contract.present?
+    notify_buy_side if buy_contract.present?
+  end
+
   private
+
+  def notify_sell_side
+    Notification.unread.contract.create(notifiable: sell_contract.team_admin,
+                                        createable: created_by,
+                                        title: "New Contract",
+                                        message: "#{company.full_name.capitalize} has started a new contract '#{project_name}' with your company"
+    )
+  end
+
+  def notify_buy_side
+    candidate.notifications.unread.contract.create(createable: created_by,
+                                                   title: "New Contract",
+                                                   message: "#{company.full_name.capitalize} has started a new contract '#{project_name}' with you"
+    )
+  end
 
   def appraiser
     Contracts::Cycle.new(self)

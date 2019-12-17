@@ -167,7 +167,7 @@ class Company::UsersController < Company::BaseController
 
   def notify_notifications
     add_breadcrumb "#{params[:status]} NOTIFICATIONS", '#'
-    @notifications = current_user.notifications.where(status: (params[:status] || 0), notification_type: (params[:notification_type] || 0)).page(params[:page]).per_page(10)
+    @notifications = current_user.notifications.send(params[:notification_type] || "all_notifications").where(status: (params[:status] || 0)).page(params[:page]).per_page(10)
   end
 
   def notification

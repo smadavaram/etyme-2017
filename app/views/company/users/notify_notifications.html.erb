@@ -1,15 +1,9 @@
 <div class="content-w">
   <div class="content-i">
     <div class="content-box">
-      <!-- Example single danger button -->
-
-
       <div class="support-index">
         <div class="support-tickets">
           <div class="support-tickets-header">
-            <!--            <div class="tickets-control"><h5>Notifications</h5>-->
-            <!--              <div class="element-search"><input placeholder="Type to filter tickets..." type="text"></div>-->
-            <!--            </div>-->
             <div class="tickets-filter">
               <div class="form-group mr-3">
                 <label class="d-none d-md-inline-block mr-2">Status</label>
@@ -31,7 +25,7 @@
                     <%= snake_to_words(params[:notification_type]) %>
                   </button>
                   <div id="type-menu" class='custom_drop'>
-                    <% Notification.notification_types.keys.each do |name| %>
+                    <% Notification.notification_types.keys.append("all_notifications").each do |name| %>
                       <%= link_to(snake_to_words(name), notify_notifications_company_users_path(status: params[:status], notification_type: name), class: "dropdown-item") %>
                     <% end %>
                   </div>

@@ -18,7 +18,7 @@
                     <%= snake_to_words(params[:status]) %>
                   </button>
                   <div class="custom_drop" id="status-menue">
-                    <% Notification.statuses.keys.each do |name| %>
+                    <% Notification.statuses.keys.append("all_notifications").each do |name| %>
                       <%= link_to(snake_to_words(name), notify_notifications_candidates_path(status: name, notification_type: params[:notification_type]), class: "dropdown-item") %>
                     <% end %>
                   </div>
@@ -31,7 +31,7 @@
                     <%= snake_to_words(params[:notification_type]) %>
                   </button>
                   <div id="type-menu" class='custom_drop'>
-                    <% Notification.notification_types.keys.each do |name| %>
+                    <% Notification.notification_types.keys.append("all_notifications").each do |name| %>
                       <%= link_to(snake_to_words(name), notify_notifications_candidates_path(status: params[:status], notification_type: name), class: "dropdown-item") %>
                     <% end %>
                   </div>

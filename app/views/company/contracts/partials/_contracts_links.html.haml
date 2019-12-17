@@ -1,10 +1,8 @@
-/ =link_to_if contract.accepted?, "Pause Contract", update_contract_status_contract_path(contract, status: "paused"),method: :patch, class: "btn btn-primary" do; end
 =link_to "Timeline", timeline_contracts_path(contract_id: contract.id), class: "btn btn-primary"
 =link_to "Tree View", tree_view_contract_path(contract.number), class: "btn btn-primary"
 =link_to 'Download', download_contract_path(contract), class: 'btn btn-primary'
 =link_to 'Edit', new_contract_path(contract_id: contract.id), class: "btn btn-primary #{contract.in_progress? ? 'disabled' : ''}"
-=link_to 'Generate Timeline Cycle',  generate_cycles_contract_path(contract), class: 'btn btn-success' unless (contract.in_progress? || contract.finished?)
--#=link_to 'Generate Salary Cycle', generate_salary_cycles_company_accountings_path(contract_id: contract.id), class: 'btn btn-primary'
+=link_to 'Generate Timeline Cycle',  generate_cycles_contract_path(contract), class: 'btn btn-success' if contract.pending?
 =link_to_if (contract.pending? and contract.finished?),"Activate" , update_contract_status_contract_path(contract, status: "in_progress"), method: :patch, class: "btn btn-outline-success" do; end
 =link_to_if contract.is_ended?, "Re-Activate Now", update_contract_status_contract_path(contract, status: "accepted"), method: :patch, class: "btn btn-success" do; end
 =link_to_if contract.accepted? || contract.in_progress? , "End Contract", update_contract_status_contract_path(contract, status: "is_ended"),method: :patch, class: "btn btn-danger" do; end

@@ -4,9 +4,9 @@ class Notification < ApplicationRecord
   belongs_to :createable, polymorphic: true
   enum status: [:unread, :read]
   enum notification_type: [:chat, :new_application, :invitation, :application_status,:contract,:document_request]
-  default_scope { order(created_at: :desc) }
-
   after_create :send_notification_email
+  default_scope { order(created_at: :desc) }
+  scope :all_notifications,->{where(notification_type: notification_types.keys)}
 
   private
 
