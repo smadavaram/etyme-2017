@@ -17,6 +17,8 @@ class SellContract < ApplicationRecord
   has_one :conversation
   has_many :change_rates, as: :rateable, dependent: :destroy
   has_many :contract_cycles, as: :cycle_of
+  has_many :contract_admins,as: :hradminable
+
 
   # include NumberGenerator.new({prefix: 'SC', length: 7})
   before_create :set_number
@@ -44,7 +46,7 @@ class SellContract < ApplicationRecord
     group = nil
     Group.transaction do
       group = contract.company.groups.create(group_name: number, member_type: 'Chat')
-      groupies = User.where(id: contract.contract_admins.pluck(:user_id)).to_a + User.where(id: CompanyContact.joins(:contract_sell_business_details).pluck(:user_id)).to_a
+      groupies = User.where(id: contract.contract_admins.pluck(:user_id)).to_a + User.where(id: self.contract_sell_business_details.pluck(:user_id)).to_a
       groupies << contract.created_by
       groupies.uniq.each do |user|
         group.groupables.create(groupable: user)

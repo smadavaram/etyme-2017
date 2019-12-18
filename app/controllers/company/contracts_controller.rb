@@ -90,7 +90,6 @@ class Company::ContractsController < Company::BaseController
       find_contract
       @have_admin = @contract.sell_contract ? @contract.sell_contract.contract_sell_business_details.admin.count != 0 : 'false'
 
-
     end
     @company = Company.new
     @candidate = Candidate.new
@@ -199,14 +198,14 @@ class Company::ContractsController < Company::BaseController
         @have_admin = @contract.sell_contract ? @contract.sell_contract.contract_sell_business_details.admin.count != 0 : 'false'
         @sc = @contract.sell_contract
         params[:contract][:reporting_manager_ids]&.each do |id|
-          @contract.sell_contract.contract_sell_business_details.create(company_contact_id: id)
+          @contract.sell_contract.contract_sell_business_details.find_or_create_by(user_id: id)
         end
 
         params[:contract][:hr_admins_ids]&.each do |id|
           if params[:tab].to_i ==2
-            @contract.contract_admins.create(user_id: id, company_id: current_company.id, contract_admin: 'own')
+            @contract.contract_admins.create(user_id:id,company_id:current_company.id,contract_id:@contract.id)
           elsif params[:tab].to_i == 3
-            @contract.contract_admins.create(user_id: id, company_id: @contract.sell_contract.company.id, contract_admin: 'sell_contract')
+            @contract.sell_contract.contract_admins.create(user_id: id, contract_id: @contract.id,company_id: @contract.sell_contract.company.id)
           else
             @contract.contract_admins.create(user_id: id, company_id: current_company.id)
           end
@@ -250,6 +249,7 @@ class Company::ContractsController < Company::BaseController
     @contract.status = :draft
     @signature_templates = current_company.customer_contract_templates("signature")
     @documents_templates = current_company.customer_contract_templates("Document")
+    @sc = @contract.sell_contract
 
     if @contract.sell_contract
       @signature_documents = @contract.send("sell_contract").document_signs.where(part_of: @contract.sell_contract, signable: @contract.sell_contract.company.owner, documentable: @signature_templates.ids)
@@ -260,14 +260,26 @@ class Company::ContractsController < Company::BaseController
       if @contract.save
         if @contract.sell_contract
           params[:contract][:reporting_manager_ids]&.each do |id|
-            @contract.sell_contract.contract_sell_business_details.create(company_contact_id: id)
+            @contract.sell_contract.contract_sell_business_details.create(user_id: id)
           end
         end
+
+
+
         params[:contract][:hr_admins_ids]&.each do |id|
-          @contract.contract_admins.create(user_id: id, company_id: current_company.id)
+          if params[:tab].to_i ==2
+            @contract.contract_admins.create(user_id:id,company_id:current_company.id,contract_id:@contract.id)
+          elsif params[:tab].to_i == 3
+            @contract.sell_contract.contract_admins.create(user_id: id, contract_id: @contract.id,company_id: @contract.sell_contract.company.id)
+          else
+            @contract.contract_admins.create(user_id: id, company_id: current_company.id)
+          end
         end
 
-        create_custom_activity(@contract, 'contracts.create', create_contract_params, @contract)
+
+
+
+          create_custom_activity(@contract, 'contracts.create', create_contract_params, @contract)
         format.html {
           flash[:success] = "successfully Send."
           redirect_to contract_path(@contract)
@@ -464,18 +476,21 @@ class Company::ContractsController < Company::BaseController
   end
 
   def get_hr_admins
-    @users = current_company.users.where(id: params[:user_ids]).to_a
+    @users =  User.where(id: params[:user_ids]).to_a
+
     if params[:contract_id].present?
-      @users = @users + Contract.find_by(id: params[:contract_id]).contract_admins.where(contract_admin: 'own').to_a
+      @users = @users+Contract.find_by(id: params[:contract_id]).contract_admins.to_a
+    else
+      #@users = current_company.contract_admins.to_a
     end
     respond_to do |format|
       format.js {}
     end
   end
   def get_hr_admins_sell_company
-    @users =  User.where(id: params[:user_ids]).to_a
+    @sell_users =  User.where(id: params[:user_ids]).to_a
     if params[:contract_id].present?
-      @users = @users +  Contract.find(params[:contract_id]).sell_contract.company.contract_admins.to_a
+      @sell_users = @sell_users +  Contract.find(params[:contract_id]).sell_contract.contract_admins.to_a
     end
     respond_to do |format|
       format.js {}
@@ -483,9 +498,12 @@ class Company::ContractsController < Company::BaseController
   end
 
   def get_reporting_managers
-    @contract_sell_business_details = current_company.company_contacts.where(id: params[:company_contacts_ids]).to_a
+    @users = User.where(id: params[:company_contacts_ids]).to_a
+    #@users = current_company.company_contacts.where(id: params[:company_contacts_ids]).to_a
     if params[:contract_id].present?
-      @contract_sell_business_details = @contract_sell_business_details + Contract.find_by(id: params[:contract_id])&.sell_contract&.contract_sell_business_details.to_a
+       Contract.find_by(id: params[:contract_id])&.sell_contract&.contract_sell_business_details.each do |csb|
+         @users = @users + [csb.user]
+      end
     end
     respond_to do |format|
       format.js {}
@@ -500,7 +518,8 @@ class Company::ContractsController < Company::BaseController
     else
       flash.now[:errors] = @contract_sell_business_detail.errors.full_messages
     end
-    @contract_sell_business_details = @contract.sell_contract.contract_sell_business_details.includes(:company_contact)
+    @contract_sell_business_details = @contract.sell_contract.contract_sell_business_details.includes(:user)
+
   end
 
   def remove_role

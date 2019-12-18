@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema.define(version: 20191215061518) do
+ActiveRecord::Schema.define(version: 20191218102301) do
 
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
@@ -744,6 +744,10 @@ ActiveRecord::Schema.define(version: 20191215061518) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.string "contract_admin"
+    t.string "hradminable_type"
+    t.bigint "hradminable_id"
+    t.integer "role"
+    t.index ["hradminable_type", "hradminable_id"], name: "index_contract_admins_on_hradminable_type_and_hradminable_id"
   end
 
   create_table "contract_books", force: :cascade do |t|
@@ -863,7 +867,7 @@ ActiveRecord::Schema.define(version: 20191215061518) do
     t.bigint "sell_contract_id"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
-    t.integer "company_contact_id"
+    t.integer "user_id"
     t.integer "role", default: 0
     t.index ["sell_contract_id"], name: "index_contract_sell_business_details_on_sell_contract_id"
   end

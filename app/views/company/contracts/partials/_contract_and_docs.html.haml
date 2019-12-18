@@ -30,7 +30,7 @@
               .form-group
                 %label.control-label  Customer Company
             .col-md-6
-              %button.btn.btn-primary.btn-sm.pull-right{"data-target" => "#contract-admin-team-sell-company", "data-toggle" => "modal", :type => "button"} Add Admin
+              %button.btn.btn-primary.btn-sm.pull-right.sell_users{"data-target" => "#contract-admin-team-sell-company", "data-toggle" => "modal", :type => "button"} Add Admin
 
           - headers =  %w(domain name contact role(s) reminder action(s))
           .table-responsive.p-4
@@ -40,7 +40,7 @@
                 - headers.each do |header|
                   %th= header.capitalize
               %tbody.hr_admins_table_body
-                - @contract.contract_admins&.where(company_id: @contract.sell_contract.company.id).each do |admin|
+                - @contract.sell_contract.contract_admins.each do |admin|
                   - user = admin.user
                   %tr
                     %td= user.company.domain
@@ -525,7 +525,6 @@
   = render 'company/contracts/submit_document_modal', contract: @contract
   = render 'company/contracts/partials/collaborator_modal',contract: @contract, contractable_type: @contract.sell_contract.class.name, contractable_id: @contract.sell_contract.id
 
-
 :javascript
    $('.contract-attachment').on('cocoon:after-insert', function(e, insertedItem) {
       insertedItem.find('.filepicker-attach').each(function(i,e){
@@ -555,5 +554,13 @@
      set_user_select(".whois_sign:not([class*='added']", "Select User who is sign document");
      $(".whois_sign:not([class*='added']").addClass('added');
    });
+
+    alert("hlo");
+
+    $(".sell_users").click(function(){
+      set_sell_company_contract_admins(".sell_company_contract_admins","Select Admin-#{@sc&.company&.id}");
+    });
+
+
 
 

@@ -28,6 +28,7 @@ class User < ApplicationRecord
 
   attr_accessor :temp_working_hours
   attr_accessor :invitation_as_contact
+  has_many :contract_sell_business_details
 
   belongs_to :company, optional: true
   belongs_to :address, foreign_key: :primary_address_id, optional: true
