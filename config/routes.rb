@@ -772,6 +772,7 @@ Rails.application.routes.draw do
       get :find_commission_candidates, on: :collection
       get :find_company_admin, on: :collection
       get :find_hr_admins, on: :collection
+      get :find_sell_company_hr_admins, on: :collection
     end
 
     namespace :candidate do

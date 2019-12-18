@@ -15,6 +15,7 @@ ActiveRecord::Schema.define(version: 20191224084722) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
   enable_extension "hstore"
+  enable_extension "adminpack"
 
   create_table "active_admin_comments", id: :serial, force: :cascade do |t|
     t.string "namespace"
@@ -744,6 +745,10 @@ ActiveRecord::Schema.define(version: 20191224084722) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.string "contract_admin"
+    t.string "hradminable_type"
+    t.bigint "hradminable_id"
+    t.integer "role"
+    t.index ["hradminable_type", "hradminable_id"], name: "index_contract_admins_on_hradminable_type_and_hradminable_id"
   end
 
   create_table "contract_books", force: :cascade do |t|
@@ -863,7 +868,7 @@ ActiveRecord::Schema.define(version: 20191224084722) do
     t.bigint "sell_contract_id"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
-    t.integer "company_contact_id"
+    t.integer "user_id"
     t.integer "role", default: 0
     t.index ["sell_contract_id"], name: "index_contract_sell_business_details_on_sell_contract_id"
   end

@@ -40,7 +40,7 @@
             - headers.each do |header|
               %th= header.capitalize
           %tbody.hr_admins_table_body
-            - @contract.contract_admins&.where(contract_admin: 'own').each do |admin|
+            - @contract.contract_admins.each do |admin|
               - user = admin.user
               %tr
                 %td= user.company.domain
@@ -54,6 +54,15 @@
                 %td
                   = link_to(content_tag(:i, nil, class: 'picons-thin-icon-thin-0014_notebook_paper_todo').html_safe, add_reminder_company_users_path(user_id: user.id), remote: :true, title: "Remind Me", class: 'data-table-icons')
                   = link_to(content_tag(:i, nil, class: 'os-icon os-icon-ui-15').html_safe, delete_hr_admin_contracts_path(contract_id: @contract.id,contract_admin_id: admin.id), method: :delete,remote: :true, title: "Delete #{user.full_name}", class: 'data-table-icons')
+                  - if @have_admin
+                    %strong{:id => "response_#{admin.id}"}
+                    = link_to(content_tag(:i, nil, class: 'picons-thin-icon-thin-0710_business_tie_user_profile_avatar_man_male').html_safe, update_role_contracts_path(contract_id: @contract.id,contract_admin:admin.id), remote: :true, title: "Make Admin", class: 'data-table-icons remove_admin_link')
+                  -#- else
+                  -#  - if bussiness_detail.admin?
+                  -#    = link_to(content_tag(:i, nil, class: 'picons-thin-icon-thin-0699_user_profile_avatar_man_male').html_safe, remove_role_contracts_path(bussiness_detail: bussiness_detail.id,status:'remove admin'), remote: :true, title: "Remove Admin", class: 'data-table-icons',style: "color:red")
+                  -#  -else
+                  -#    %i.picons-thin-icon-thin-0710_business_tie_user_profile_avatar_man_male{:title => "Member"}
+                  -#= link_to(content_tag(:i, nil, class: 'os-icon os-icon-ui-15').html_safe, delete_reporting_manager_contracts_path(contract_id: @contract.id,reporting_manager_id: bussiness_detail.id), method: :delete,remote: :true, title: "Delete #{user.full_name}", class: 'data-table-icons')
 
 
     .mt-4.p-4
@@ -153,6 +162,7 @@
                       = sc.select :company_id, {}, {}, id: "sell_contract_company", required: true
                   - else
                     = text_field_tag :customer_name, @contract.sell_contract.company.name.capitalize, disabled: "disabled"
+                    = hidden_field_tag :sell_contract_company, @contract.sell_contract.company.id
           .col-md-6
             .form-group
               %label.control-label Work location
@@ -160,24 +170,25 @@
                 = f.text_field :work_location, class: "form-control", placeholder: "Contract Work location"
 
           .col-md-12
-            .form-group.mb-3.mt-3
-              %label.control-label.mr-4
-                %b Is End Client different from your Customer ?
-              %span.is_client_customer_radio
-                =f.radio_button  :is_client_customer, true, checked: f.object.is_client_customer == true
-                %label.control-label.mr-4 Yes
-                =f.radio_button  :is_client_customer, false, checked: f.object.is_client_customer == false || f.object.is_client_customer.nil?
-                %labe.control-label No
-          .col-md-6
-            .form-group.contract_client.hidden
-              %label.control-label Client Company
-              .contract-fild
-                .plain-select
-                  = f.select :client_id, [[f.object.client&.full_name,f.object.client_id]], {}, id: 'select_clients'
+            - if @contract.new_record?
+              .form-group.mb-3.mt-3
+                %label.control-label.mr-4
+                  %b Add End Client different from your Customer ?
+                %span.is_client_customer_radio
+                  =f.radio_button  :is_client_customer, true, checked: f.object.is_client_customer == true
+                  %label.control-label.mr-4 Yes
+                  =f.radio_button  :is_client_customer, false, checked: f.object.is_client_customer == false || f.object.is_client_customer.nil?
+                  %labe.control-label No
+              .col-md-6
+                .form-group.contract_client
+                  %label.control-label Client Company
+                  .contract-fild
+                    .plain-select
+                      = f.select :client_id, [[f.object.client&.full_name,f.object.client_id]], {}, id: 'select_clients'
       .contract-fields_wrapper.mt-4.toggle_sell_contract
         %h5.mb-4.d-inline-block End Client(s)/Reporting Manager(s)
         %h5.mb-4.d-inline-block.pull-right
-          %button.btn.btn-primary.btn-sm{"data-target" => "#manager-team", "data-toggle" => "modal", :type => "button"} Add Manager
+          %button.btn.btn-primary.btn-sm.manager_team{"data-target" => "#manager-team", "data-toggle" => "modal", :type => "button"} Add Manager
         - headers =  %w(domain name contact role(s) reminder action(s))
         .table-responsive.p-4
           %table.table.text-center.table-bordered.table-lg.table-v2.table-striped.data-table-font#contract_manager_table
@@ -194,3 +205,19 @@
     =render 'company/contracts/partials/admin_team_modal',contract: @contract || nil
     =render 'company/contracts/partials/admin_team_modal_sell_company',contract: @contract || nil
     =render 'company/contracts/partials/manager_modal',contract: @contract || nil
+- content_for :scripts do
+  :javascript
+    $(document).ready(function () {
+      $(".manager_team").click(function(e){
+        var endclientid = $('#select_clients').val();
+       if (endclientid) {
+          set_company_contacts_select('#select_sell_company_contacts', "Please Select Or Add new Contacts-"+endclientid, "#sell_contract_company");
+        }
+        else{
+          var sell_contract_company = $('#sell_contract_company').val();
+          if (sell_contract_company){
+            set_company_contacts_select('#select_sell_company_contacts', "Please Select Or Add new Contacts-"+sell_contract_company, "#sell_contract_company");
+          }
+        }
+      });
+     });
