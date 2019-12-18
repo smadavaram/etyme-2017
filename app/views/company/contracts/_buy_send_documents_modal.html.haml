@@ -22,7 +22,7 @@
                   %th Expiry Date
                   %th Is Require
                   %th Attachments
-                %tbody
+                %tbody{"data-type": "Contract", "data-for": "Candidate", "data-require": "signature"}
                   - @signature_templates_candidate.each do |doc|
                     %tr.even{:role => "row"}
                       %td
@@ -36,7 +36,6 @@
                         -if !doc.file.blank?
                           -index = 1
                           - doc.file.split(",").each do |file_path|
-                            %br
                             %a{:download => "", :href => file_path, :target=>"_blank"}
                               = "#{index}: #{file_path.split('/').last}"
                               - index = index +1
