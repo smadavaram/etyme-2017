@@ -66,9 +66,12 @@ class SellContract < ApplicationRecord
   def count_contract_bussiness_details
     self.contract_sell_business_details.count
   end
+  def count_contract_admin
+    self.contract_admins.admin.count
+  end
   
   def team_admin
-    contract_sell_business_details.admin&.first&.company_contact&.user || company.owner
+    contract_admins.admin&.user || company.owner
   end
 
   

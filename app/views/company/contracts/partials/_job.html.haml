@@ -54,15 +54,14 @@
                 %td
                   = link_to(content_tag(:i, nil, class: 'picons-thin-icon-thin-0014_notebook_paper_todo').html_safe, add_reminder_company_users_path(user_id: user.id), remote: :true, title: "Remind Me", class: 'data-table-icons')
                   = link_to(content_tag(:i, nil, class: 'os-icon os-icon-ui-15').html_safe, delete_hr_admin_contracts_path(contract_id: @contract.id,contract_admin_id: admin.id), method: :delete,remote: :true, title: "Delete #{user.full_name}", class: 'data-table-icons')
-                  - if @have_admin
+                  - unless @hr_have_admin
                     %strong{:id => "response_#{admin.id}"}
-                    = link_to(content_tag(:i, nil, class: 'picons-thin-icon-thin-0710_business_tie_user_profile_avatar_man_male').html_safe, update_role_contracts_path(contract_id: @contract.id,contract_admin:admin.id), remote: :true, title: "Make Admin", class: 'data-table-icons remove_admin_link')
-                  -#- else
-                  -#  - if bussiness_detail.admin?
-                  -#    = link_to(content_tag(:i, nil, class: 'picons-thin-icon-thin-0699_user_profile_avatar_man_male').html_safe, remove_role_contracts_path(bussiness_detail: bussiness_detail.id,status:'remove admin'), remote: :true, title: "Remove Admin", class: 'data-table-icons',style: "color:red")
-                  -#  -else
-                  -#    %i.picons-thin-icon-thin-0710_business_tie_user_profile_avatar_man_male{:title => "Member"}
-                  -#= link_to(content_tag(:i, nil, class: 'os-icon os-icon-ui-15').html_safe, delete_reporting_manager_contracts_path(contract_id: @contract.id,reporting_manager_id: bussiness_detail.id), method: :delete,remote: :true, title: "Delete #{user.full_name}", class: 'data-table-icons')
+                    = link_to(content_tag(:i, nil, class: 'picons-thin-icon-thin-0710_business_tie_user_profile_avatar_man_male').html_safe, hr_to_admin_contracts_path(contract_id: @contract.id,contract_admin:admin.id), remote: :true, title: "Make Admin", class: 'data-table-icons remove_admin_link')
+                  - else
+                    - if admin.admin?
+                      = link_to(content_tag(:i, nil, class: 'picons-thin-icon-thin-0699_user_profile_avatar_man_male').html_safe, hr_to_member_contracts_path(contract_id:@contract.id,contract_admin: admin.id), remote: :true, title: "Remove Admin", class: 'data-table-icons',style: "color:red")
+                    -else
+                      %i.picons-thin-icon-thin-0710_business_tie_user_profile_avatar_man_male{:title => "Member"}
 
 
     .mt-4.p-4
@@ -208,23 +207,13 @@
 - content_for :scripts do
   :javascript
     $(document).ready(function () {
-
-
-      // $("#select_clients").change(function(e){
-      //   alert("end client changing"+e.target.value);
-      //   $(".hr_reporting_admins_table_body").empty();
-      // });
-
       $(".manager_team").click(function(e){
         var endclientid = $('#select_clients').val();
        if (endclientid) {
-
-          alert("Already selected end client="+endclientid)
-          set_company_contacts_select('#select_sell_company_contacts', "Please Select Or Add new Contacts-"+endclientid, "#sell_contract_company");
+           set_company_contacts_select('#select_sell_company_contacts', "Please Select Or Add new Contacts-"+endclientid, "#sell_contract_company");
         }
         else{
           var sell_contract_company = $('#sell_contract_company').val();
-          alert("sell side copnay="+sell_contract_company)
           if (sell_contract_company){
             set_company_contacts_select('#select_sell_company_contacts', "Please Select Or Add new Contacts-"+sell_contract_company, "#sell_contract_company");
           }
@@ -233,8 +222,4 @@
 
       });
 
-
-
-
-
-     });
+    });
