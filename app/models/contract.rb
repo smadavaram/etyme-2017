@@ -204,7 +204,9 @@ class Contract < ApplicationRecord
     # self.contract_terms.active.first.terms_condition
     "[CHANGE IT terms_and_conditions]"
   end
-
+  def count_contract_admin
+    self.contract_admins.admin.count
+  end
   # private
 
   def set_contractable
