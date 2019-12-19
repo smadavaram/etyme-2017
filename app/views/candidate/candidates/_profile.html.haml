@@ -26,9 +26,9 @@
             .row
               .col-sm-6{style: "display: flex;justify-content: space-evenly;"}
                 - if current_user.present?
-                  = contact_widget(candidate.email,candidate.phone,nil,color: '#3b75e3 !important',chat_link: chat_link(candidate))
+                  = contact_widget(candidate.email,candidate.phone,nil,color: '#3E4B5B; !important',chat_link: chat_link(candidate))
                 - else
-                  = contact_widget(candidate.email,candidate.phone,nil,color: '#3b75e3 !important',chat_link: register_path,remote_false: true)
+                  = contact_widget(candidate.email,candidate.phone,nil,color: '#3E4B5B; !important',chat_link: register_path,remote_false: true)
               .col-sm-6.text-right
                 - if candidate.candidates_resumes.present?
                   -#%a.btn.btn-primary.btn-sm{:href => ""}

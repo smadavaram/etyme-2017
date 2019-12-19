@@ -7,7 +7,7 @@
       - if ["User","Admin"].include?(admin.class.to_s)
         %input{id: user.id,:name => "contract[hr_admins_ids][]", :value => user.id,hidden: "hidden"}/
     %td.no-wrap 
-      = contact_widget(user.email,user.phone,user,chat_link: chat_link(user))
+      = contact_widget(user.email,user.phone,user,chat_link: chat_link(user),color: '#3E4B5B; !important')
     %td= do_ellipsis(user.roles.pluck(:name).join(', '),40)
     %td= content_tag(:span, do_ellipsis(current_user.reminders.where(reminderable_id: user.id, reminderable_type: 'Admin')&.last&.title), class: 'bg-info badge mr-1').html_safe
     %td

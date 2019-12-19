@@ -34,7 +34,7 @@
                       %td= "#{d.start_date} - #{d.end_date}"
                       %td= link_to "TimeSheet", new_candidate_timesheet_path if d.accepted?
                       %td= snake_to_words(d.status)
-                      %td= contact_widget(d.created_by.email,d.created_by.phone,nil,color: "#047bf8",chat_link: candidate_conversations_path(d.buy_contract.conversation.present? ? {conversation: d.buy_contract.conversation} : {}))
+                      %td= contact_widget(d.created_by.email,d.created_by.phone,nil,color: '#3E4B5B; !important',chat_link: candidate_conversations_path(d.buy_contract.conversation.present? ? {conversation: d.buy_contract.conversation} : {}))
 
 
 - content_for :modals do
