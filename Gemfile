@@ -6,7 +6,7 @@ gem 'paper_trail'
 #****************************
 # Configuration
 #****************************
-ruby '2.3.1'
+ruby '2.4.2'
 source 'https://rubygems.org'
 gem 'rails', '5.1.2'
 gem 'best_in_place'
