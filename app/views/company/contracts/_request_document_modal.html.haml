@@ -22,7 +22,7 @@
                     %th Document For
                     %th Expiry Date
                     %th Is Require
-                  %tbody
+                  %tbody{"data-type": "Contract", "data-for": "Customer", "data-require": "Document"}
                     - @documents_templates.each do |doc|
                       %tr.even{:role => "row"}
                         %td

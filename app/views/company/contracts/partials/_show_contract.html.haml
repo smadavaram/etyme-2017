@@ -11,12 +11,15 @@
       .col-sm-6.col-md-6.col-lg-6
         = render 'company/contracts/partials/buy_side',editable: @contract.company == current_company
 
+- if @contract.in_progress?
+  - content_for :modals do
+    = render 'company/contracts/partials/extend_contract_modal', contract: @contract
+
 - if @contract.pending? && !@contract.is_sent?(current_company)
   - content_for :modals do
     #ajax-modal
     = render 'company/contracts/partials/accept_contract_modal' , contract: @contract , status: 'accept'
     = render 'company/contracts/partials/accept_contract_modal' , contract: @contract , status: 'reject'
-
   - content_for :scripts do
     :javascript
       function openAccept(){

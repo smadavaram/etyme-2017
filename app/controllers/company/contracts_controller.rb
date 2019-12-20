@@ -2,7 +2,7 @@ class Company::ContractsController < Company::BaseController
 
   before_action :find_job, only: [:create]
   before_action :find_receive_contract, only: [:open_contract, :update_contract_response, :create_sub_contract]
-  before_action :find_contract, only: [:company_sell_contract, :company_buy_contract, :show, :generate_cycles, :download, :update_attachable_doc, :change_invoice_date, :update, :edit, :update_contract_status]
+  before_action :find_contract, only: [:company_sell_contract, :company_buy_contract, :show, :generate_cycles, :download, :update_attachable_doc, :change_invoice_date, :update, :edit, :update_contract_status, :extend_contract]
   before_action :set_contracts, only: [:index]
   before_action :find_attachable_doc, only: [:update_attachable_doc]
   before_action :authorize_user_for_new_contract, only: :new
@@ -203,7 +203,7 @@ class Company::ContractsController < Company::BaseController
         end
 
         params[:contract][:hr_admins_ids]&.each do |id|
-          if params[:tab].to_i ==2
+          if params[:tab].to_i == 2
             @contract.contract_admins.create(user_id: id, company_id: current_company.id, contract_admin: 'own')
           elsif params[:tab].to_i == 3
             @contract.contract_admins.create(user_id: id, company_id: @contract.sell_contract.company.id, contract_admin: 'sell_contract')
@@ -472,10 +472,11 @@ class Company::ContractsController < Company::BaseController
       format.js {}
     end
   end
+
   def get_hr_admins_sell_company
-    @users =  User.where(id: params[:user_ids]).to_a
+    @users = User.where(id: params[:user_ids]).to_a
     if params[:contract_id].present?
-      @users = @users +  Contract.find(params[:contract_id]).sell_contract.company.contract_admins.to_a
+      @users = @users + Contract.find(params[:contract_id]).sell_contract.company.contract_admins.to_a
     end
     respond_to do |format|
       format.js {}
@@ -550,6 +551,22 @@ class Company::ContractsController < Company::BaseController
       flash.now[:errors] = @contract_admin.errors.full_messages
     end
     @users = @contract.contract_admins.includes(:user)
+  end
+
+  def extend_contract
+    extended_date = Date.parse(params[:contract][:end_date])
+    respond_to do |format|
+      if @contract.end_date < extended_date
+        if ExtendContractCyclesJob.perform_later(@contract, params[:contract][:end_date])
+          flash[:success] = "Request is added for processing"
+        else
+          flash[:errors] = ["Something wrong, job has't been added"]
+        end
+      else
+        flash[:errors] = ["Extended date must be greater then contract end data"]
+      end
+      format.js {}
+    end
   end
 
   private

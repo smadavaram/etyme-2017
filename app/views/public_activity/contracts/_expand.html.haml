@@ -1,0 +1,5 @@
+.ta-record.bg_white.pt-2.pl-2
+  .ta-timestamp
+    %strong #{a.try(:created_at).strftime('%I:%M %P')}
+  .ta-activity
+    ="#{a.owner.full_name.titleize} Expanded the contract #{a.trackable&.number}"

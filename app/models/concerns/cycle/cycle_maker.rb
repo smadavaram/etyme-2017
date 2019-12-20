@@ -1,10 +1,10 @@
 module Cycle::CycleMaker
   extend ActiveSupport::Concern
-  
+
   # Buy Contract Cycles
-  
-  def buy_contract_time_sheet_cycles
-    date_groups = get_date_groups(self.buy_contract, "ts", 'time_sheet')
+
+  def buy_contract_time_sheet_cycles(extended_date = nil)
+    date_groups = get_date_groups(self.buy_contract, "ts", 'time_sheet', extended_date)
     date_groups.each do |date_group|
       # contract_cycles.build(company)
       start_date = date_group.first
@@ -27,9 +27,9 @@ module Cycle::CycleMaker
       end
     end
   end
-  
-  def buy_contract_time_sheet_aprove_cycle
-    date_groups = get_date_groups(self.buy_contract, 'ta', 'ts_approve')
+
+  def buy_contract_time_sheet_aprove_cycle(extended_date = nil)
+    date_groups = get_date_groups(self.buy_contract, 'ta', 'ts_approve', extended_date)
     date_groups.each do |date_group|
       start_date = date_group.first
       end_date = date_group.last
@@ -44,9 +44,9 @@ module Cycle::CycleMaker
       )
     end
   end
-  
-  def buy_contract_salary_process_cycle
-    date_groups = get_date_groups(self.buy_contract, 'sp', 'salary_calculation')
+
+  def buy_contract_salary_process_cycle(extended_date = nil)
+    date_groups = get_date_groups(self.buy_contract, 'sp', 'salary_calculation', extended_date)
     date_groups.each do |date_group|
       start_date = date_group.first
       end_date = date_group.last
@@ -62,9 +62,9 @@ module Cycle::CycleMaker
       )
     end
   end
-  
-  def buy_contract_salary_clear_cycle
-    date_groups = get_date_groups(self.buy_contract, 'sclr', 'salary_calculation')
+
+  def buy_contract_salary_clear_cycle(extended_date = nil)
+    date_groups = get_date_groups(self.buy_contract, 'sclr', 'salary_calculation', extended_date)
     date_groups.each do |date_group|
       start_date = date_group.first
       end_date = date_group.last
@@ -80,9 +80,9 @@ module Cycle::CycleMaker
       )
     end
   end
-  
-  def buy_contract_salary_calculation_cycle
-    date_groups = get_date_groups(self.buy_contract, 'sc', 'salary_calculation')
+
+  def buy_contract_salary_calculation_cycle(extended_date = nil)
+    date_groups = get_date_groups(self.buy_contract, 'sc', 'salary_calculation', extended_date)
     date_groups.each do |date_group|
       start_date = date_group.first
       end_date = date_group.last
@@ -102,11 +102,11 @@ module Cycle::CycleMaker
       end
     end
   end
-  
+
   # Sell Contract Cycles
-  
-  def sell_contract_time_sheet_cycles
-    date_groups = get_date_groups(self.sell_contract, "ts", 'time_sheet')
+
+  def sell_contract_time_sheet_cycles(extended_date = nil)
+    date_groups = get_date_groups(self.sell_contract, "ts", 'time_sheet', extended_date)
     date_groups.each do |date_group|
       # contract_cycles.build(company)
       start_date = date_group.first
@@ -129,9 +129,9 @@ module Cycle::CycleMaker
       end
     end
   end
-  
-  def sell_contract_time_sheet_aprove_cycle
-    date_groups = get_date_groups(self.sell_contract, 'ta', 'ts_approve')
+
+  def sell_contract_time_sheet_aprove_cycle(extended_date = nil)
+    date_groups = get_date_groups(self.sell_contract, 'ta', 'ts_approve', extended_date)
     date_groups.each do |date_group|
       start_date = date_group.first
       end_date = date_group.last
@@ -146,9 +146,9 @@ module Cycle::CycleMaker
       )
     end
   end
-  
-  def sell_contract_invoice_cycle
-    date_groups = get_date_groups(self.sell_contract, 'invoice', 'invoice_terms_period')
+
+  def sell_contract_invoice_cycle(extended_date = nil)
+    date_groups = get_date_groups(self.sell_contract, 'invoice', 'invoice_terms_period', extended_date)
     date_groups.each do |date_group|
       start_date = date_group.first
       end_date = date_group.last
@@ -165,9 +165,9 @@ module Cycle::CycleMaker
       )
     end
   end
-  
-  def sell_contract_client_expense_cycle
-    date_groups = get_date_groups(self.sell_contract, 'ce', 'client_expense')
+
+  def sell_contract_client_expense_cycle(extended_date = nil)
+    date_groups = get_date_groups(self.sell_contract, 'ce', 'client_expense', extended_date)
     date_groups.each do |date_group|
       start_date = date_group.first
       end_date = date_group.last
@@ -186,9 +186,9 @@ module Cycle::CycleMaker
       end
     end
   end
-  
-  def sell_contract_client_expense_approve_cycle
-    date_groups = get_date_groups(self.sell_contract, 'ce_ap', 'ce_approve')
+
+  def sell_contract_client_expense_approve_cycle(extended_date = nil)
+    date_groups = get_date_groups(self.sell_contract, 'ce_ap', 'ce_approve', extended_date)
     date_groups.each do |date_group|
       start_date = date_group.first
       end_date = date_group.last
@@ -203,9 +203,9 @@ module Cycle::CycleMaker
       )
     end
   end
-  
-  def sell_contract_client_expense_invoice_cycle
-    date_groups = get_date_groups(self.sell_contract, 'ce_in', 'ce_invoice')
+
+  def sell_contract_client_expense_invoice_cycle(extended_date = nil)
+    date_groups = get_date_groups(self.sell_contract, 'ce_in', 'ce_invoice', extended_date)
     date_groups.each do |date_group|
       start_date = date_group.first
       end_date = date_group.last
@@ -222,23 +222,30 @@ module Cycle::CycleMaker
       )
     end
   end
-  
+
   private
-    
-    def get_date_groups(buy_or_sell, resource_initial, cycle_frequency_field)
-      utils = Cycle::Utils::DateUtils
-      case buy_or_sell.send(cycle_frequency_field)
-        when 'daily'
-          utils.group_by_daily(start_date, end_date)
-        when 'weekly'
-          utils.group_by_weekly(buy_or_sell.send("#{resource_initial}_day_of_week"), start_date, end_date)
-        when 'biweekly'
-          utils.group_by_biweekly(buy_or_sell.send("#{resource_initial}_day_of_week"), buy_or_sell.send("#{resource_initial}_2day_of_week"), start_date, end_date)
-        when 'monthly'
-          utils.group_by_monthly(buy_or_sell.send("#{resource_initial}_date_1").try(:day), start_date, end_date)
-        when 'twice a month'
-          utils.group_by_twice_a_month(buy_or_sell.send("#{resource_initial}_date_1").try(:day), buy_or_sell.send("#{resource_initial}_date_2").try(:day), start_date, end_date)
-      end
+
+  def get_date_groups(buy_or_sell, resource_initial, cycle_frequency_field, extended_date = nil)
+    utils = Cycle::Utils::DateUtils
+    if extended_date.present?
+      sd = end_date
+      ed = extended_date
+    else
+      sd = start_date
+      ed = end_date
     end
+    case buy_or_sell.send(cycle_frequency_field)
+    when 'daily'
+      utils.group_by_daily(sd, ed)
+    when 'weekly'
+      utils.group_by_weekly(buy_or_sell.send("#{resource_initial}_day_of_week"), sd, ed)
+    when 'biweekly'
+      utils.group_by_biweekly(buy_or_sell.send("#{resource_initial}_day_of_week"), buy_or_sell.send("#{resource_initial}_2day_of_week"), sd, ed)
+    when 'monthly'
+      utils.group_by_monthly(buy_or_sell.send("#{resource_initial}_date_1").try(:day), sd, ed)
+    when 'twice a month'
+      utils.group_by_twice_a_month(buy_or_sell.send("#{resource_initial}_date_1").try(:day), buy_or_sell.send("#{resource_initial}_date_2").try(:day), sd, ed)
+    end
+  end
 
 end

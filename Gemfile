@@ -6,12 +6,11 @@ gem 'paper_trail'
 #****************************
 # Configuration
 #****************************
-ruby '2.4.2'
+ruby '2.3.1'
 source 'https://rubygems.org'
 gem 'rails', '5.1.2'
 gem 'best_in_place'
 gem 'signature-pad-rails'
-gem  'i18n'
 gem 'mina' #,'~> 0.2.1'
 gem 'mina-multistage'#, '<= 1.0.1', require: false
 # gem 'mina-puma', :require => false
@@ -46,6 +45,7 @@ gem 'breadcrumbs_on_rails'
 gem 'public_activity'
 #ajax data tables
 gem 'ajax-datatables-rails'
+
 
 
 #****************************
@@ -136,7 +136,7 @@ gem 'roo'
 
 gem 'awesome_print'
 
-gem 'activeadmin'#, '~> 2.0'
+
 # Use ActiveModel has_secure_password
 # gem 'bcrypt', '~> 3.1.7'
 #****************************

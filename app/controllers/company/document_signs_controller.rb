@@ -58,7 +58,6 @@ class Company::DocumentSignsController < ApplicationController
 
   def notify_signers(signers_docs, document_sign)
     signer_status = get_signers(signers_docs)
-    debugger
     unless should_notify?(signer_status)
       (document_sign.signers.to_a << document_sign.signable).each do |signer|
         Notification.new(notifiable: signer, createable: document_sign.requested_by,
