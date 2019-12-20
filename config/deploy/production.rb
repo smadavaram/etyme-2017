@@ -9,6 +9,7 @@ role :web, %w{deploy@165.227.60.86}
 role :db,  %w{deploy@165.227.60.86}
 set :deploy_to, '/var/www/deploy'
 set :branch, 'update-to-ruby-2.4.1'
+set :rvm1_map_bins, %w{rake gem bundle ruby}
 
 # Extended Server Syntax
 # ======================
