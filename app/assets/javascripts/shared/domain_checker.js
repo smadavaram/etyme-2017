@@ -16,27 +16,26 @@ function DomainChecker(options, container) {
   this.flashManager          = new FlashManager();
 }
 
-DomainChecker.prototype.checkForAvailableDomain = function(emailFieldValue) {
+DomainChecker.prototype.checkForAvailableDomain = function(website) {
   var _this = this;
 
   $.ajax({
     type: 'GET',
     url: _this.url,
     dataType: 'json',
-    data: { email: emailFieldValue },
+    data: { website: website },
 
     success: function(response) {
       if(response.status == "ok"){
         _this.domainField.val(response.domain);
-        _this.websiteField.val(response.website);
+        _this.emailField.val(response.email);
         _this.nameField.val(response.name);
         _this.companyTypeField.val(response.company_type);
         _this.domainField.prop('readonly', true);
-        _this.websiteField.prop('readonly', true);
         if (response.registred_in_company == false){
           _this.phoneField.val(response.phone);
           _this.domainField.prop('readonly', false);
-          _this.websiteField.prop('readonly', false);
+          _this.emailField.prop('readonly', false);
           _this.flashManager.hide()
         }
         else{
@@ -44,11 +43,11 @@ DomainChecker.prototype.checkForAvailableDomain = function(emailFieldValue) {
         }
       }else if(response.status == "unprocessible_entity"){
         _this.domainField.val(response.slug);
-        _this.websiteField.val(response.website);
+         _this.emailField.val(response.email);
         _this.nameField.val(response.name);
         _this.companyTypeField.val(response.company_type);
         _this.domainField.prop('readonly', true);
-        _this.websiteField.prop('readonly', true);
+        _this.emailField.prop('readonly', true);
         _this.nameField.prop('readonly', true);
         _this.companyTypeField.prop('disabled', 'disabled');
         _this.flashManager.show(response.message, 'alert-danger');
@@ -67,7 +66,8 @@ DomainChecker.prototype.checkForAvailableDomain = function(emailFieldValue) {
 
 DomainChecker.prototype.bindEvents = function() {
   var _this = this;
-  this.emailField.on('change', function(){
+  this.websiteField.on('change', function(){
+      // alert(_this);
     if($(this).val()){
       _this.checkForAvailableDomain($(this).val());
     }

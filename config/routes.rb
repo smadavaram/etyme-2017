@@ -284,6 +284,7 @@ Rails.application.routes.draw do
         get 'status_update'
         get 'chat_status_update'
         get :add_reminder
+        get :import
       end
 
       match :assign_groups, via: [:get, :post]

@@ -58,19 +58,20 @@ class StaticController < ApplicationController
   end
 
   def domain_suggestion
-    @company = Company.find_by(website: @website)
-    handle_invalid_email
+    @company = Company.find_by(website: params[:website])
+    #handle_invalid_email
     respond_to do |format|
       if @company
         format.html {}
         format.json do
-          domain = get_uniq_domain(get_domain_from_email(params[:email]))
-          render json: {message: 'Looks like company already registered. Just add it as contact.', slug: @company.try(:slug), website: domain_name(params[:email]), name: @company.try(:name), company_type: @company.try(:company_type), domain: domain, status: :ok}
+          domain = get_uniq_domain(params[:website].split(".")[0])
+          company_email = @company.email.blank? ? "info@#{params[:website]}" : "#{@company.email}"
+          render json: {message: 'Looks like company already registered. Just add it as contact.',phone: @company.phone,email: company_email, slug: @company.try(:slug), name: @company.try(:name), company_type: @company.try(:company_type), domain: domain, status: :ok}
         end
       else
         format.html {}
         format.json do
-          render json: {message: 'Company domain is available.', slug: suggested_slug, website: domain_from_email(params[:email]), domain: get_domain_from_email(params[:email]), status: :ok}
+          render json: {message: 'Company domain is available.',email: "info@#{params[:webiste]}", slug: suggested_slug, domain: params[:webiste].split(".")[0], status: :ok}
         end
       end
     end
@@ -127,27 +128,26 @@ class StaticController < ApplicationController
   end
 
   def set_website
-    @website = valid_email(params[:email])
-
-    unless @website
-      respond_to do |format|
-        format.html {}
-        format.json do
-          render json: {message: 'Email is Invalid', status: :unprocessible_entity}
-        end
-      end
-    end
+    #@website = valid_email(params[:email])
+    #unless @website
+    #  respond_to do |format|
+    #    format.html {}
+    #    format.json do
+    #      render json: {message: 'Email is Invalid', status: :unprocessible_entity}
+    #    end
+    #  end
+    #end
   end
 
   def find_similar_companies
-    @similar_companies = Company.find_like(:slug, domain_name(params[:email]))
+    @similar_companies = Company.where("slug like '%?%'",params[:website].split(".")[0])
   end
 
   def suggested_slug
     if @similar_companies.size > 1
-      domain_name(params[:email]).concat((@similar_companies.size + 1).to_s)
+      domain_name(params[:website]).concat((@similar_companies.size + 1).to_s)
     else
-      domain_name(params[:email])
+      domain_name(params[:website])
     end
   end
 

@@ -1,4 +1,20 @@
 .container
+  -if status.eql?('company_customers')
+    .row
+      .document-display.col-md-12.slick_doc
+        %p{style:'float:left;'}
+          %i.fa.fa-file-text-o.fa-lg.fa-fw
+          = "File"
+        %p{style:'float:right;'}
+          =link_to '',"/doc/doc1.ods",class: 'data-table-image icon-feather-eye show_file_icon'
+  -else
+    .row
+      .document-display.col-md-12.slick_doc
+        %p{style:'float:left;'}
+          %i.fa.fa-file-text-o.fa-lg.fa-fw
+          = "File"
+        %p{style:'float:right;'}
+          =link_to '',"/doc/doc2.ods",class: 'data-table-image icon-feather-eye show_file_icon'
   -customer_list.each_with_index  do |list,index|
     .row
       .document-display.col-md-12.slick_doc

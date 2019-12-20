@@ -110,6 +110,27 @@ class Company::UsersController < Company::BaseController
   def profile
     add_breadcrumb @user.try(:full_name), "#"
   end
+  def import
+    @is_error=false
+    @emails = params[:emails].split(",")
+    ActiveRecord::Base.transaction do
+      begin
+        @emails.each do |email|
+          current_company.users.create(email: email)
+        end
+      rescue Exception => e
+        flash[:error] = e.errors
+        @is_error=true
+      end
+    end
+    unless @is_error
+      flash.now[:success]='All User has been created with Emails'
+    end
+    respond_to do |format|
+      format.js{}
+    end
+
+  end
 
   def update_photo
     render json: current_user.update_attribute(:photo, params[:photo])
