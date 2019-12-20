@@ -3,12 +3,12 @@
 # Supports bulk-adding hosts to roles, the primary server in each group
 # is considered to be the first unless any hosts have the primary
 # property set.  Don't declare `role :all`, it's a meta role.
-
-role :app, %w{deploy@157.230.90.106}
-role :web, %w{deploy@157.230.90.106}
-role :db,  %w{deploy@157.230.90.106}
+ 
+role :app, %w{deploy@165.227.60.86}
+role :web, %w{deploy@165.227.60.86}
+role :db,  %w{deploy@165.227.60.86}
 set :deploy_to, '/var/www/deploy'
-set :branch, 'dev'
+set :branch, 'update-to-ruby-2.4.1'
 
 # Extended Server Syntax
 # ======================
@@ -16,4 +16,4 @@ set :branch, 'dev'
 # server list. The second argument is a, or duck-types, Hash and is
 # used to set extended properties on the server.
 
-server '157.230.90.106', user: 'deploy',  password: 'Etyme123@', roles: %w{web app}
+server '165.227.60.86', user: 'deploy',  password: 'deploy', roles: %w{web app}
