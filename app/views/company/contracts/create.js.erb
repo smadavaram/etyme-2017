@@ -38,6 +38,7 @@ $(document).ready(function () {
     set_company_contacts_select('#select_sell_company_contacts', "Please Select Or Add new Contacts", "#sell_contract_company");
     set_company_contacts_select('#select_sell_company_contacts', "Please Select Or Add new Contacts", "#sell_contract_company_1");
     set_company_contacts_select('#select_buy_company_contacts', "Please Select Or Add new Contacts", "#buy_contract_company");
+    payroll_title('.pr_titles', "Select Payroll Title");
     <%if @contract.sell_contract %>
     company_contract_signers('#select_sell_company_signers',"<%=@contract.sell_contract.company.id %>")
     <%end %>
@@ -51,6 +52,13 @@ $(document).ready(function () {
 $(document).ready(function () {
     $(".multi-select2-role").select2({placeholder: "Select a Role(s)"});
     $(".multi-select2-company-docs").select2({placeholder: "Select Document(s)"});
+    $('#pr_title').change(function(e){
+        var title = $(this).val();
+        $.ajax({url: "/company/buy_contracts/payrolls?title="+title, success: function(result){
+                // $("#div1").html(result);
+            }});
+
+    });
 });
 
 $(document).ready(function () {

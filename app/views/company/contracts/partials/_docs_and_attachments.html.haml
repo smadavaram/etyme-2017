@@ -203,6 +203,37 @@
                   #tab-buy-sc.tab-pane.padding-top-15
                     .row
                       .col-md-12
+                        %label Payroll Title
+                        .form-group
+                          -#= select_tag "pr_title", [] ,class:"pr_titles w-100"
+                          =text_field_tag 'pr_title'
+
+
+                        .col-md-12.pl-0
+                          .tab-content
+                            #doc-request.tab-pane.padding-top-15.active.in
+                              .row
+                                .col-md-12
+                                  .form-group
+                                    .table-responsive
+                                      %table.table.text-center.table-bordered.table-lg.table-v2.table-striped.data-table-font
+                                        %thead
+                                          %tr{:role => "row"}
+                                            %th Frequency
+                                            %th Calculation
+                                            %th process
+                                            %th Date
+                                            %th term
+                                            %th action
+                                        %tbody#payroll
+                                          =render "company/contracts/partials/payroll_tbody",buy_contract:BuyContract.all
+
+
+
+
+
+
+                      .col-md-12
                         .form-group
                           .row
                             .col-md-4

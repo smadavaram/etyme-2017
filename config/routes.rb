@@ -381,6 +381,9 @@ Rails.application.routes.draw do
 
     resources :sell_contracts
     resources :buy_contracts do
+      get :payrolls, on: :collection
+      get :view_payroll
+      get :edit_payroll
       resources :contract_sale_commissions, only: [:new, :create]
     end
 
@@ -774,6 +777,8 @@ Rails.application.routes.draw do
       get :find_company_admin, on: :collection
       get :find_hr_admins, on: :collection
       get :find_sell_company_hr_admins, on: :collection
+      get :find_payroll_titles, on: :collection
+
     end
 
     namespace :candidate do

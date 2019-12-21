@@ -1,4 +1,5 @@
 class PayrollInfo < ApplicationRecord
+  validates :title, uniqueness: true
   belongs_to :company
   has_many :tax_infos
 

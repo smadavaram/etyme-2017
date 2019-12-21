@@ -27,9 +27,20 @@
                                   = f.fields_for :tax_infos, f.object.tax_infos do |b|
                                     = render 'company/payroll_term_infos/tax_info_fields', f: b
                                     %strong
-                                = link_to_add_association '+ Add Tax', f, :tax_infos, class: 'btn btn-success', partial: 'company/payroll_term_infos/tax_info_fields'
+                                = link_to_add_association '+ Add Tax', f, :tax_infos, class: 'btn btn-primary', partial: 'company/payroll_term_infos/tax_info_fields'
 
+                        %hr
+                        .row
+                          .col-md-4
+                            %label.control-label
+                              Title
 
+                          .col-md-4
+                            .select
+                              .plain-select
+                                = f.text_field :title, class: "form-control", placeholder: "PayRoll Title"
+
+                        %br
                         .row
                           .col-md-4
                             %label.control-label

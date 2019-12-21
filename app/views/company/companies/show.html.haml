@@ -5,25 +5,29 @@
 
     .active-slide.slide
       .slick_header.container.d-flex
-        %h5 Import Team Mates
+        %h5 Invite Your Team
         %span.os-icon.os-icon-close.close_slick{style: 'left:190px !important;'}
       .slider-data-text.pt-5
         .container
           =form_tag import_company_users_path, method: :get, id: "",remote: 'true'
           =text_area_tag 'emails'
-          %span.email_hint "Hnt: Eamil with COMMA spliting"
+          %span.email_hint Hint: Eamil with COMMA spliting
           %br
           = button_tag "submit" , class: ' btn btn-primary'
 
           .data_on_slick_customer.scrole
-            -#= render 'company/customer_vendor/partials/import_list',status:'company_customers',customer_list:@customers_list
     .slide
       .slick_header.container.d-flex
         %h5 Import Customers
         %span.os-icon.os-icon-close.close_slick{style: 'left:190px !important;'}
       .slider-data-text
+        .container{style: 'text-align:center; margin-top:30px'}
+          = button_tag "Import Customers" , class: 'mr-2 mb-2 btn btn-primary', onclick: "company_customer_file()"
+          %br
+          %span.text-muted
+            =link_to 'csv, xxls or pdf',"/doc/doc1.csv",class: 'data-table-font'
+
         .container
-          = button_tag "Import List" , class: 'm-0 resume btn btn-primary btn-lg', onclick: "company_customer_file()"
 
           .data_on_slick_customer.scrole
             = render 'company/customer_vendor/partials/import_list',status:'company_customers',customer_list:@customers_list
@@ -33,8 +37,12 @@
         %h5 Import Vendors
         %span.os-icon.os-icon-close.close_slick{style: 'left:200px !important;'}
       .slider-data-text
+        .container{style: 'text-align:center; margin-top:30px'}
+          = button_tag "Import Vendors" , class: 'mr-2 mb-2 btn btn-primary', onclick: "company_vendor_file()"
+          %br
+          %span.text-muted
+            =link_to 'csv, xxls or pdf',"/doc/doc2.csv",class: 'data-table-font'
         .container
-          = button_tag "Import List" , class: 'm-0 resume btn btn-primary btn-lg', onclick: "company_vendor_file()"
 
           .data_on_slick_vendor.scrole
             = render 'company/customer_vendor/partials/import_list',status:'company_vendors',customer_list: @vendors_list
@@ -340,5 +348,5 @@
       float: right;
     }
     .email_hint{
-    font-size: 12px;
+    font-size: 13px;
     }

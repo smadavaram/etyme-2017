@@ -1,6 +1,8 @@
 class BuyContract < ApplicationRecord
 
   belongs_to :contract, optional: true
+  belongs_to :payroll_info, optional: true
+
   belongs_to :candidate, optional: true
   belongs_to :company, optional: true
 

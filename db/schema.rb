@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema.define(version: 20191218102301) do
+ActiveRecord::Schema.define(version: 20191221114104) do
 
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
@@ -273,8 +273,10 @@ ActiveRecord::Schema.define(version: 20191218102301) do
     t.string "sc_2day_of_week"
     t.string "sp_2day_of_week"
     t.string "sclr_2day_of_week"
+    t.bigint "payroll_info_id"
     t.index ["candidate_id"], name: "index_buy_contracts_on_candidate_id"
     t.index ["contract_id"], name: "index_buy_contracts_on_contract_id"
+    t.index ["payroll_info_id"], name: "index_buy_contracts_on_payroll_info_id"
   end
 
   create_table "buy_emp_req_docs", force: :cascade do |t|
@@ -1553,6 +1555,7 @@ ActiveRecord::Schema.define(version: 20191218102301) do
     t.string "ven_bill_day_of_week"
     t.string "ven_pay_day_of_week"
     t.string "ven_clr_day_of_week"
+    t.string "title"
     t.index ["company_id"], name: "index_payroll_infos_on_company_id"
   end
 
@@ -2034,6 +2037,7 @@ ActiveRecord::Schema.define(version: 20191218102301) do
     t.date "start_date"
   end
 
+  add_foreign_key "buy_contracts", "payroll_infos"
   add_foreign_key "company_customer_vendors", "companies"
   add_foreign_key "expense_accounts", "expenses"
 end

@@ -590,6 +590,50 @@ var set_sell_company_contract_admins = function (selector, place_holder) {
 }
 
 
+// get payroll titles list and insert in buy side contract salary calculation
+
+
+var payroll_title = function (selector, place_holder) {
+    if ($(selector).length > 0) {
+        $(selector).select2({
+            ajax: {
+                url: '/api/select_searches/find_payroll_titles',
+                dataType: 'json',
+                delay: 250,
+                data: function (params) {
+                    return {
+                        per_page: 10,
+                        q: params.term, // search term
+                        page: params.page
+                    };
+                },
+                processResults: function (data, params) {
+                    params.page = params.page || 1;
+                    return {
+                        results: data.users,
+                        pagination: {
+                            more: (params.page * 10) < data.total_count
+                        }
+                    };
+                },
+                cache: true
+            },
+            placeholder: place_holder,
+            language: {
+                noResults: function () {
+                    return "No results <a class='pull-right header-btn hidden-mobile' target='_blank' href='/admins'>Add Admin</a>";
+                }
+            },
+            multiple: true,
+            escapeMarkup: function (markup) {
+                return markup;
+            },
+            templateResult: formatHrAdmins,
+            templateSelection: formatHrAdminsSelection
+        });
+    }
+}
+
 
 var set_company_contacts_select = function (selector, place_holder, company_type) {
     var company = place_holder.split("-");

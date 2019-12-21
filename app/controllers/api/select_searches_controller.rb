@@ -103,6 +103,14 @@ class Api::SelectSearchesController < ApplicationController
     #@users = current_company.users.all.like_any([:first_name], params[:q].to_s.split).paginate(:page => params[:page], :per_page => params[:per_page])
     respond_with @users
   end
+  def find_payroll_titles
+    #raise
+    #@titles = PayrollInfo.all
+    #respond_with @titles
+    @users = current_company.users.all.like_any([:first_name], params[:q].to_s.split).paginate(:page => params[:page], :per_page => params[:per_page])
+    respond_with @users
+
+  end
 
   def find_commission_candidates
     @commission_candidates = current_company.candidates.like_any([:first_name], params[:q].to_s.split).paginate(:page => params[:page], :per_page => params[:per_page])

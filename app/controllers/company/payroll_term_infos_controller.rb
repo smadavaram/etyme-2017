@@ -16,14 +16,18 @@ class Company::PayrollTermInfosController < Company::BaseController
   end
 
   def create
-    
       # @payroll_detail = current_company.payroll_infos.last
       # @payroll_detail.update_attributes(:payroll_term=>params[:payroll_info][:payroll_term] , :payroll_type =>params[:payroll_info][:payroll_type], :weekend_sch =>params[:payroll_info][:weekend_sch], :sal_cal_date =>params[:payroll_info][:sal_cal_date], :payroll_date => params[:payroll_info][:payroll_date])
       if current_company.payroll_infos.present?
         @payroll = current_company.payroll_infos.last
-        @payroll.update(payroll_params)
+        if @payroll.update(payroll_params)
+          flash[:success]="payroll Updated Successfully"
+        else
+          flash[:error] = @payroll.errors
+        end
       else
         current_company.payroll_infos.create(payroll_params)
+        flash[:success]="Payroll has been created successfully"
       end
     #   if params[:payroll_info][:tax_infos_attributes] && !params[:payroll_info][:tax_infos_attributes].blank? 
     #     params[:payroll_info][:tax_infos_attributes].each do |key, val|
@@ -39,7 +43,12 @@ class Company::PayrollTermInfosController < Company::BaseController
 
   def update
     @payroll = current_company.payroll_infos.last
-    @payroll.update(payroll_params)
+    if @payroll.update(payroll_params)
+      flash[:success]="payroll updated successfully"
+    else
+      flash[:error]=@payroll.errors
+    end
+
     redirect_back fallback_location: root_path
   end
 
@@ -170,7 +179,7 @@ class Company::PayrollTermInfosController < Company::BaseController
   end
 
   def payroll_params
-    params.require(:payroll_info).permit(:id, :payroll_term, :term_no, :term_no_2, :payroll_term_2, :payroll_type,:sal_cal_date, :payroll_date,
+    params.require(:payroll_info).permit(:id,:title, :payroll_term, :term_no, :term_no_2, :payroll_term_2, :payroll_type,:sal_cal_date, :payroll_date,
       :weekend_sch,
       :scal_day_time, :scal_date_1, :scal_date_2, :scal_day_of_week, :scal_end_of_month,
       :sp_day_time, :sp_date_1, :sp_date_2, :sp_day_of_week, :sp_end_of_month,

@@ -1,0 +1,65 @@
+- buy_contract.each do |pr|
+  -if pr.salary_calculation.eql?('daily')
+    %tr
+      %td= pr.salary_calculation
+      %td= pr.sc_day_time||sc_day_of_week
+      %td= pr.sp_day_time||sp_day_of_week
+      %td= pr.sclr_day_time||sclr_day_of_week
+      %td= pr.term_no
+      %td
+        =link_to 'view', company_buy_contract_view_payroll_path(pr) ,remote:'true'
+        =link_to 'edit', company_buy_contract_edit_payroll_path(pr),remote:'true'
+  -elsif pr.salary_calculation.eql?('weekly')
+    %tr
+      %td= pr.salary_calculation
+      %td= pr.sc_day_of_week
+      %td= pr.sp_day_of_week
+      %td= pr.sclr_day_of_week
+      %td= pr.term_no
+      %td
+        %span.pr_view view
+        %span.pr_edit Edit
+  -elsif pr.salary_calculation.eql?('biweekly')
+    %tr
+      %td= pr.salary_calculation
+      %td
+        = pr.sc_day_of_week
+        =pr.sc_2day_of_week
+      %td
+        = pr.sp_day_of_week
+        =pr.sp_2day_of_week
+      %td
+        = pr.sclr_day_of_week
+        =pr.sclr_2day_of_week
+      %td= pr.term_no
+      %td
+        %span.pr_view view
+        %span.pr_edit Edit
+  -elsif pr.salary_calculation.eql?('twice a month')
+    %tr
+      %td= pr.salary_calculation
+      %td
+        = pr.sc_date_1
+        =pr.sc_date_2
+      %td
+        =pr.sp_date_1
+        =pr.sp_date_2
+      %td
+        = pr.sclr_date_1
+        =pr.sclr_date_2
+      %td
+        = pr.term_no
+        =pr.term_no_2
+      %td
+        %span.pr_view view
+        %span.pr_edit Edit
+  -else
+    %tr
+      %td= pr.salary_calculation
+      %td= pr.sc_date_1
+      %td= pr.sp_date_1
+      %td= pr.sclr_date_1
+      %td= pr.term_no
+      %td
+        %span.pr_view view
+        %span.pr_edit Edit
