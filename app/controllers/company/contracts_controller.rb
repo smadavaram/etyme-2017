@@ -88,10 +88,8 @@ class Company::ContractsController < Company::BaseController
       # @contract.contract_sale_commisions.build
     else
       find_contract
-      @have_admin = @contract.sell_contract ? @contract.sell_contract.contract_sell_business_details.admin.count != 0 : 'false'
-      @hr_have_admin = @contract.contract_admins.present? ? @contract.contract_admins.admin.count != 0 : 'false'
-
-
+      @have_admin = @contract.sell_contract ? @contract.sell_contract.contract_sell_business_details.admin.count != 0 : false
+      @contract_have_admin = @contract.contract_admins.present? ? @contract.contract_admins.admin.count != 0 : false
     end
     @company = Company.new
     @candidate = Candidate.new
@@ -197,10 +195,10 @@ class Company::ContractsController < Company::BaseController
     set_docusign_documents
     respond_to do |format|
       if @contract.update(contract_params)
-        @have_admin = @contract.sell_contract ? @contract.sell_contract.contract_sell_business_details.admin.count != 0 : 'false'
-        @hr_have_admin = @contract.contract_admins.present? ? @contract.sell_contract.contract_admins.admin.count != 0 : 'false'
-        @sell_hr_have_admin = @contract.sell_contract.contract_admins.present? ? @contract.sell_contract.contract_admins.admin.count != 0 : 'false'
-        @sc = @contract.sell_contract
+        @have_admin = @contract.sell_contract ? @contract.sell_contract.contract_sell_business_details.admin.count != 0 : false
+        @contract_have_admin = @contract.contract_admins.present? ? @contract.sell_contract.contract_admins.admin.count != 0 : false
+        @sell_contract_have_admin = @contract.sell_contract.contract_admins.present? ? @contract.sell_contract.contract_admins.admin.count != 0 : false
+        @sell_contract = @contract.sell_contract
         params[:contract][:reporting_manager_ids]&.each do |id|
           @contract.sell_contract.contract_sell_business_details.find_or_create_by(user_id: id)
         end
@@ -249,7 +247,7 @@ class Company::ContractsController < Company::BaseController
     @contract.status = :draft
     @signature_templates = current_company.customer_contract_templates("signature")
     @documents_templates = current_company.customer_contract_templates("Document")
-    @sc = @contract.sell_contract
+    @sell_contract = @contract.sell_contract
 
     if @contract.sell_contract
       @signature_documents = @contract.send("sell_contract").document_signs.where(part_of: @contract.sell_contract, signable: @contract.sell_contract.company.owner, documentable: @signature_templates.ids)
@@ -260,7 +258,7 @@ class Company::ContractsController < Company::BaseController
       if @contract.save
         if @contract.sell_contract
           params[:contract][:reporting_manager_ids]&.each do |id|
-            @contract.sell_contract.contract_sell_business_details.create(user_id: id)
+            @contract.sell_contract.contract_sell_business_details.find_or_create_by(user_id: id)
           end
         end
         params[:contract][:hr_admins_ids]&.each do |id|
@@ -465,43 +463,24 @@ class Company::ContractsController < Company::BaseController
                    ((@dates.end_of_week + 56.day).strftime("%m/%d/%Y") + " - " + (@dates.end_of_week + 62.day).strftime("%m/%d/%Y"))]
 
   end
-  def hr_to_admin
+  def change_admin_status
     @status = params[:status]
+    @tab = params[:tab]
     @contract = Contract.find(params[:contract_id])
     @contract_admin = ContractAdmin.find(params[:contract_admin])
-    @contract_admin.admin!
-    if @status.eql?('sell_side')
+    @contract_admin.role= @status
+    if @contract_admin.save
+      flash.now[:success] = "Role updated to  #{@status} successfully"
+    else
+      flash.now[:errors] = @contract_admin.errors
+    end
+    if @tab.to_i == 2
       @contract_admins = @contract.sell_contract.contract_admins
-      @hr_have_admin = @contract.sell_contract.contract_admins.present? ? @contract.sell_contract.contract_admins.admin.count != 0 : 'false'
+      @contract_have_admin = @contract.sell_contract.contract_admins.present? ? @contract.sell_contract.contract_admins.admin.count != 0 : false
     else
       @contract_admins = @contract.contract_admins
-      @hr_have_admin = @contract.contract_admins.present? ? @contract.contract_admins.admin.count != 0 : 'false'
-    end
-    if @contract_admin.save
-      flash.now[:success] = ["Role updated to  Admin successfully"]
-    else
-      flash.now[:errors] = @contract_admin.errors.full_messages
-    end
-    respond_to do |format|
-      format.js {}
-    end
-  end
-  def hr_to_member
-    @status = params[:status]
-    @contract = Contract.find(params[:contract_id])
-    @contract_admin = ContractAdmin.find(params[:contract_admin])
-    @contract_admin.member!
-    if @status.eql?('sell_side')
-      @contract_admins = @contract.sell_contract.contract_admins
-      @hr_have_admin = @contract.sell_contract.contract_admins.present? ? @contract.sell_contract.contract_admins.admin.count != 0 : 'false'
-    else
-      @contract_admins = @contract.contract_admins
-      @hr_have_admin = @contract.contract_admins.present? ? @contract.contract_admins.admin.count != 0 : 'false'
-    end
-    if @contract_admin.save
-      flash.now[:success] = ["Role updated to  Member successfully"]
-    else
-      flash.now[:errors] = @contract_admin.errors.full_messages
+      @contract_have_admin = @contract.contract_admins.present? ? @contract.contract_admins.admin.count != 0 : false
+
     end
     respond_to do |format|
       format.js {}
@@ -511,12 +490,14 @@ class Company::ContractsController < Company::BaseController
     @users =  User.where(id: params[:user_ids]).to_a
     if params[:contract_id].present?
       @users = @users+Contract.find_by(id: params[:contract_id]).contract_admins.to_a
+    else
     end
     respond_to do |format|
       format.js {}
     end
   end
   def get_hr_admins_sell_company
+    @tab=2
     @sell_users =  User.where(id: params[:user_ids]).to_a
     if params[:contract_id].present?
       @sell_users = @sell_users +  Contract.find(params[:contract_id]).sell_contract.contract_admins.to_a
@@ -529,9 +510,7 @@ class Company::ContractsController < Company::BaseController
   def get_reporting_managers
     @users = User.where(id: params[:company_contacts_ids]).to_a
     if params[:contract_id].present?
-       Contract.find_by(id: params[:contract_id])&.sell_contract&.contract_sell_business_details.each do |csb|
-         @users = @users + [csb.user]
-      end
+      @users = @users + User.where(id:Contract.find_by(id: params[:contract_id])&.sell_contract&.contract_sell_business_details.pluck('user_id')).to_a
     end
     respond_to do |format|
       format.js {}
@@ -541,6 +520,7 @@ class Company::ContractsController < Company::BaseController
   def delete_reporting_manager
     @contract = Contract.find_by(id: params[:contract_id])
     @contract_sell_business_detail = @contract.sell_contract.contract_sell_business_details.find_by(id: params[:reporting_manager_id])
+    @have_admin = @contract.sell_contract ? @contract.sell_contract.contract_sell_business_details.admin.count != 0 : false
     if @contract_sell_business_detail.destroy
       flash.now[:success] = "Successfully Removed"
     else

@@ -611,6 +611,7 @@ Rails.application.routes.draw do
         post :get_hr_admins
         get :hr_to_admin
         get :hr_to_member
+        get :change_admin_status
         post :get_hr_admins_sell_company
         post :get_reporting_managers
         delete :delete_hr_admin
@@ -775,6 +776,7 @@ Rails.application.routes.draw do
       get :find_company_admin, on: :collection
       get :find_hr_admins, on: :collection
       get :find_sell_company_hr_admins, on: :collection
+      get :find_reporting_manger,on: :collection
     end
 
     namespace :candidate do

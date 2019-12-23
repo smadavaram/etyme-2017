@@ -47,7 +47,7 @@ class Contract < ApplicationRecord
   has_many :contract_salary_histories, dependent: :destroy
   has_many :expenses, dependent: :destroy
   has_many :csc_accounts
-  has_many :contract_admins,as: :hradminable
+  has_many :contract_admins,as: :admin_able
 
   has_many :contract_cycles, dependent: :destroy
   has_many :contract_expense, dependent: :destroy

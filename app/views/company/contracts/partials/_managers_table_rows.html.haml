@@ -1,10 +1,8 @@
 - contract_sell_business_details.each do |user|
-  -#- user = ["CompanyContact"].include?(can_be_admin.class.to_s) ? can_be_admin.user : can_be_admin.company_contact.user
   %tr
     %td= user.company.domain
     %td
       = do_ellipsis(user.full_name,7)
-      -#- if ["CompanyContact"].include?(can_be_admin.class.to_s)
       %input{id: user.id,:name => "contract[reporting_manager_ids][]", :value => user.id,hidden: "hidden"}/
     %td.no-wrap 
       = contact_widget(user.email,user.phone,user,chat_link: chat_link(user))
@@ -12,9 +10,4 @@
     %td= content_tag(:span, do_ellipsis(user.reminders.where(reminderable_id: user.id, reminderable_type: 'Admin')&.last&.title), class: 'bg-info badge mr-1').html_safe
     %td
       = link_to(content_tag(:i, nil, class: 'picons-thin-icon-thin-0014_notebook_paper_todo').html_safe, add_reminder_company_users_path(user_id: user.id), remote: :true, title: "Remind Me", class: 'data-table-icons')
-      -#- unless ["CompanyContact"].include?(can_be_admin.class.to_s)
-      -#  = link_to(content_tag(:i, nil, class: 'os-icon os-icon-ui-15').html_safe, delete_reporting_manager_contracts_path(contract_id: can_be_admin.sell_contract.contract_id,reporting_manager_id: can_be_admin&.id), method: :delete,remote: :true, title: "Delete #{user.full_name}", class: 'data-table-icons')
-      -#  - if can_be_admin.admin?
-      -#    = link_to(content_tag(:i, nil, class: 'picons-thin-icon-thin-0699_user_profile_avatar_man_male').html_safe, remove_role_contracts_path(bussiness_detail: can_be_admin.id,status:'remove admin'), remote: :true, title: "Remove Admin", class: 'data-table-icons',style: "color:red")
-      -#  -else
-      -#    %i.picons-thin-icon-thin-0710_business_tie_user_profile_avatar_man_male{:title => "Member"}
+

@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema.define(version: 20191224084722) do
+ActiveRecord::Schema.define(version: 20191221114104) do
 
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
@@ -273,9 +273,11 @@ ActiveRecord::Schema.define(version: 20191224084722) do
     t.string "sc_2day_of_week"
     t.string "sp_2day_of_week"
     t.string "sclr_2day_of_week"
+    t.bigint "payroll_info_id"
     t.string "integration"
     t.index ["candidate_id"], name: "index_buy_contracts_on_candidate_id"
     t.index ["contract_id"], name: "index_buy_contracts_on_contract_id"
+    t.index ["payroll_info_id"], name: "index_buy_contracts_on_payroll_info_id"
   end
 
   create_table "buy_emp_req_docs", force: :cascade do |t|
@@ -745,10 +747,10 @@ ActiveRecord::Schema.define(version: 20191224084722) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.string "contract_admin"
-    t.string "hradminable_type"
-    t.bigint "hradminable_id"
+    t.string "admin_able_type"
+    t.bigint "admin_able_id"
     t.integer "role"
-    t.index ["hradminable_type", "hradminable_id"], name: "index_contract_admins_on_hradminable_type_and_hradminable_id"
+    t.index ["admin_able_type", "admin_able_id"], name: "index_contract_admins_on_admin_able_type_and_admin_able_id"
   end
 
   create_table "contract_books", force: :cascade do |t|
@@ -1554,6 +1556,7 @@ ActiveRecord::Schema.define(version: 20191224084722) do
     t.string "ven_bill_day_of_week"
     t.string "ven_pay_day_of_week"
     t.string "ven_clr_day_of_week"
+    t.string "title"
     t.index ["company_id"], name: "index_payroll_infos_on_company_id"
   end
 
@@ -2036,6 +2039,7 @@ ActiveRecord::Schema.define(version: 20191224084722) do
     t.date "start_date"
   end
 
+  add_foreign_key "buy_contracts", "payroll_infos"
   add_foreign_key "company_customer_vendors", "companies"
   add_foreign_key "expense_accounts", "expenses"
 end

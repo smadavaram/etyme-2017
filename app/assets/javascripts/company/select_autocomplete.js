@@ -505,49 +505,9 @@ var set_company_users_select = function (selector, place_holder, company_type) {
         });
     }
 };
-var set_contract_admins = function (selector, place_holder) {
-    if ($(selector).length > 0) {
-        $(selector).select2({
-            ajax: {
-                url: '/api/select_searches/find_hr_admins',
-                dataType: 'json',
-                delay: 250,
-                data: function (params) {
-                    return {
-                        per_page: 10,
-                        q: params.term, // search term
-                        page: params.page
-                    };
-                },
-                processResults: function (data, params) {
-                    params.page = params.page || 1;
-                    return {
-                        results: data.users,
-                        pagination: {
-                            more: (params.page * 10) < data.total_count
-                        }
-                    };
-                },
-                cache: true
-            },
-            placeholder: place_holder,
-            language: {
-                noResults: function () {
-                    return "No results <a class='pull-right header-btn hidden-mobile' target='_blank' href='/admins'>Add Admin</a>";
-                }
-            },
-            multiple: true,
-            escapeMarkup: function (markup) {
-                return markup;
-            },
-            templateResult: formatHrAdmins,
-            templateSelection: formatHrAdminsSelection
-        });
-    }
-}
 
-// sell side  company contract admins fatch
-var set_sell_company_contract_admins = function (selector, place_holder) {
+// sell side  company contract admins fatch     set_sell_company_contract_admins
+var set_contract_admins = function (selector, place_holder) {
     var company = place_holder.split("-");
     if ($(selector).length > 0) {
         $(selector).select2({
@@ -576,7 +536,6 @@ var set_sell_company_contract_admins = function (selector, place_holder) {
             placeholder: place_holder,
             language: {
                 noResults: function () {
-                    return "No results <a class='pull-right header-btn hidden-mobile' target='_blank' href='/admins'>Add Admin</a>";
                 }
             },
             multiple: true,
@@ -633,6 +592,54 @@ var set_company_contacts_select = function (selector, place_holder, company_type
         });
     }
 }
+
+
+
+
+var set_company_reporting_manger = function (selector, place_holder, company_type) {
+    var company = place_holder.split("-");
+
+    if ($(selector).length > 0) {
+        $(selector).select2({
+            ajax: {
+                url: '/api/select_searches/find_reporting_manger?company='+company[1],
+                dataType: 'json',
+                delay: 250,
+                data: function (params) {
+                    return {
+                        per_page: 10,
+                        q: params.term, // search term
+                        page: params.page
+                    };
+                },
+                processResults: function (data, params) {
+                    params.page = params.page || 1;
+                    return {
+                        results: data.contacts,
+                        pagination: {
+                            more: (params.page * 10) < data.total_count
+                        }
+                    };
+                },
+                cache: true
+            },
+            placeholder: place_holder.split("-")[0],
+            language: {
+                noResults: function () {
+                    return "No results <a class='pull-right header-btn hidden-mobile' data-toggle='modal' data-target='#new-company-contacts-modal' href='#'>Add New</a>";
+                }
+            },
+            multiple: true,
+            escapeMarkup: function (markup) {
+                return markup;
+            },
+            templateResult: formatCompanyContact,
+            templateSelection: formatCompanyContactSelection
+        });
+    }
+}
+
+
 
 var set_candidate_select = function (selector, place_holder) {
     if ($(selector).length > 0) {

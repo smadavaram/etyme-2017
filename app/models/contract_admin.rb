@@ -3,11 +3,11 @@ class ContractAdmin < ApplicationRecord
   belongs_to :contract
   belongs_to :user
   belongs_to :company
-  belongs_to :hradminable, polymorphic: true
+  belongs_to :admin_able, polymorphic: true
 
   before_save :enforce_admin
   def enforce_admin
-    self.role = :admin  if self.hradminable.count_contract_admin == 0
+    self.role = :admin  if self.admin_able.count_contract_admin == 0
   end
 
 end

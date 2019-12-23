@@ -17,7 +17,7 @@ class SellContract < ApplicationRecord
   has_one :conversation
   has_many :change_rates, as: :rateable, dependent: :destroy
   has_many :contract_cycles, as: :cycle_of
-  has_many :contract_admins,as: :hradminable
+  has_many :contract_admins,as: :admin_able
 
 
   # include NumberGenerator.new({prefix: 'SC', length: 7})

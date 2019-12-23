@@ -5,7 +5,7 @@ flash_error("<%= e %>");
 <% end %>
 <% if flash[:success].present? %>
 flash_success("<%= flash[:success] %>");
-$('.hr_reporting_admins_table_body').html("<%= j render 'company/contracts/partials/managers_table_rows' ,contract: @contract,contract_sell_business_details: @contract_sell_business_details.pluck(:user_id) %>");
+$('.hr_reporting_admins_table_body').html("<%= j render 'company/contracts/partials/add_manager' ,contract: @contract,business_detail_objs: @contract_sell_business_details %>");
 
 addeventatc.refresh();
 <% end %>
