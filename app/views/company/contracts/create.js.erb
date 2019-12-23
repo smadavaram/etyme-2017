@@ -1,11 +1,28 @@
+$('.tab-pane').html('')
 <% if flash[:errors].present? %>
 <% flash[:errors].each do |e| %>
 flash_error("<%= e %>");
 <% end %>
+<% if @tab_number == 3 %>
+$('.tab-pane.active').html("<%= j render 'company/contracts/partials/contract_and_docs' , contract: @contract %>");
+$("li").removeClass('active')
+$("li").removeClass('complete')
+$("li[data-target='#step2']").addClass('active')
+$("li[data-target='#step1']").addClass('complete')
+$('.next').removeClass('hidden')
+<% end %>
+<% if @tab_number == 4 %>
+$('.tab-pane.active').html("<%= j render 'company/contracts/partials/docs_and_attachments' , contract: @contract %>");
+$("li").removeClass('active')
+$("li").removeClass('complete')
+$("li[data-target='#step3']").addClass('active')
+$("li[data-target='#step2']").addClass('complete')
+$("li[data-target='#step1']").addClass('complete')
+$('.next').removeClass('hidden')
+<% end %>
 <% end %>
 <% if flash[:success].present? %>
 flash_success("<%= flash[:success] %>");
-<% end %>
 $('#contract_header_title').text("Updating Contract")
 $('.new_contract').remove();
 <% if @tab_number == 2 %>
@@ -13,11 +30,21 @@ $('.tab-pane.active').html("<%= j render 'company/contracts/partials/contract_an
 <% end %>
 <% if @tab_number == 3 %>
 $('.tab-pane.active').html("<%= j render 'company/contracts/partials/docs_and_attachments' , contract: @contract %>");
+$("li").removeClass('active')
+$("li").removeClass('complete')
+$("li[data-target='#step3']").addClass('active')
+$("li[data-target='#step1']").addClass('complete')
+$("li[data-target='#step2']").addClass('complete')
+$('.next').removeClass('hidden')
 <% end %>
 <% if @tab_number == 4 %>
 $('.tab-pane.active').html("<%= j render 'company/contracts/partials/show_contract' , contract: @contract %>");
+$("li[data-target='#step3']").removeClass('active')
+$("li[data-target='#step3']").addClass('complete')
+$('.next').addClass('hidden')
 <% end %>
-window.history.pushState('newTab', 'contract partial', '?contract_id=<%= @contract.id %>');
+<% end %>
+
 $('.previous').find('a').attr('href',"<%= new_contract_path(contract_id: @contract.id) %>")
 
 $(document).ready(function () {
@@ -78,14 +105,6 @@ $(document).ready(function () {
         $($(this).closest('.contract_box')[0]).find('.accountable_user').addClass('active_row')
     })
 
-
-    // $(document).on('change','#select_jobs', function(){
-    //   $.get('/api/company/companies/get_owner?job_id='+$( "#select_jobs" ).val(),function (data, textStatus, jqXHR) {
-    //     console.log('status: ' + textStatus + ', data:' + data);
-    //     $('#contract_admins_table').find('tbody:last').append(`<tr><td>${data.domain}</td><td>${data.name}</td><td>TBD</td><td><a title='chat' class='data-table-icons' href='#'><i class='fa fa-comment-o'></i></a><a title='${data.email}' class='data-table-icons' href='mailto:${data.email}'><i class='os-icon os-icon-email-2-at2'></i></a><a title='${data.phone}' class='data-table-icons' href='#'><i class='os-icon os-icon-phone '></i></a><div title='' class='addeventatc' id='addeventatc1' style='visibility: visible;' aria-haspopup='true' aria-expanded='false' tabindex='0' translate='no'><span class="os-icon os-icon-calendar  atc_node notranslate"></span></div><td>${data.role}</td><td>${data.reminders}</td><td>TBD</td></tr>`);
-    //     addeventatc.refresh();
-    //   });
-    // });
 
     $(document).on('change', '.commission_user', function () {
         $($('.active_row')[0]).find('input')[0].value = $('#select2-commission_user-container').text();
@@ -485,23 +504,6 @@ $(document).on("change", ".is-require-sign", function (event) {
 $(document).on("change", '#select_candidates', function (event) {
     $('#contract_buy_contracts_attributes_0_candidate_id').val($('#select_candidates').select2('data')[0]['name'])
 })
-
-//$(document).on("select2:unselect", ".select_company_contacts", function (e) {
-//    $(this).closest('.company_contacts').find('div.contact-nested-fields').find(':input.contact-id[value=' + e.params.data.id + ']').closest('div.contact-nested-fields').remove();
-//});
-
-//$(document).on("select2:select", ".select_company_contacts", function (e) {
-//    var sign_btn = $(this).closest('.company_contacts').find("a.link-company-contacts");
-//    var obj = $(sign_btn.attr('data-form-prepend'));
-//    var time_stamp = (new Date()).getTime();
-//    obj.find('input').each(function () {
-//        $(this).attr('name', function () {
-//            return $(this).attr('name').replace('new_record', time_stamp);
-//        });
-//    });
-//    obj.insertBefore(sign_btn);
-//    $(this).closest('.company_contacts').find('div.contact-nested-fields:last').find("input.contact-id").val(e.params.data.id);
-//});
 
 
 $(document).on("select2:unselect", ".whois_sign", function (e) {

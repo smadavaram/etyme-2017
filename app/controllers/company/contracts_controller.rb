@@ -210,7 +210,6 @@ class Company::ContractsController < Company::BaseController
           else
             @contract.contract_admins.create(user_id: id, company_id: current_company.id)
           end
-
         end
         create_custom_activity(@contract, 'contracts.update', contract_params, @contract)
         format.html {
@@ -235,8 +234,7 @@ class Company::ContractsController < Company::BaseController
           edirect_back fallback_location: root_path
         }
         format.js {
-          @tab_number = 2
-          flash[:errors] = @contract.errors.full_messages
+          flash.now[:errors] = @contract.errors.full_messages
           render 'create.js'
         }
       end
@@ -781,13 +779,13 @@ class Company::ContractsController < Company::BaseController
     @signature_templates_candidate = []
     @signature_templates_vendor = []
     @documents_templates_candidate = []
-    if [2, 4].include?(@tab_number) && @contract&.sell_contract&.persisted?
+    if @contract&.sell_contract&.persisted?
       @signature_templates = current_company.company_candidate_docs.where(is_require: "signature", document_for: "Customer")
       @documents_templates = current_company.company_candidate_docs.where(is_require: "Document", document_for: "Customer")
       @signature_documents = @contract.send("sell_contract").document_signs.where(part_of: @contract.sell_contract, documentable: @signature_templates.ids)
       @request_documents = @contract.send("sell_contract").document_signs.where(part_of: @contract.sell_contract, documentable: @documents_templates.ids)
     end
-    if [3, 4].include?(@tab_number) && @contract&.buy_contract&.persisted?
+    if @contract&.buy_contract&.persisted?
       @signature_templates_candidate = current_company.company_candidate_docs.where(is_require: "signature", document_for: "Candidate", title_type: "Contract")
       @signature_templates_vendor = current_company.company_candidate_docs.where(is_require: "signature", document_for: "Vendor", title_type: "Contract")
       @documents_templates_candidate = current_company.company_candidate_docs.where(is_require: "Document", document_for: "Candidate", title_type: "Contract")
