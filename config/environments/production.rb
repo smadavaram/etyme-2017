@@ -107,8 +107,8 @@ Rails.application.configure do
   # Do not dump schema after migrations.
   config.active_record.dump_schema_after_migration = false
 
-  HOSTNAME='http://etyme.com'
-  COMPANY_URL = 'etyme.com'
+  HOSTNAME='http://demoetyme.com'
+  COMPANY_URL = 'demoetyme.com'
   Rails.application.routes.default_url_options[:host] = HOSTNAME
   config.action_mailer.default_url_options = {host: HOSTNAME}
 

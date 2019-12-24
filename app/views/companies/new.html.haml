@@ -4,9 +4,9 @@
   .os-container
     .fade2
     .call-to-action
-      .h3.cta-header
+      .h4.cta-header
         %i.fa.fa-coffee
-        Register
+        Just a few more steps to your 14-day trial
       .h3.cta-header
         %p New to eTyme? Create an account now.
 
@@ -58,7 +58,7 @@
                   .form-actions
                     %input.form-btn{:type => "submit", :value => "Register"}/
                   .form-head
-                    = link_to "Already have Account?",signin_path ,class: "more-link"
+                    = link_to "Already have Account?",signin_path ,class: "more-link", style: 'color: #334152'
 
 - content_for :scripts do
   :javascript

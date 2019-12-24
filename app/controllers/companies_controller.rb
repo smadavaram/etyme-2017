@@ -3,6 +3,7 @@ class CompaniesController < ApplicationController
   skip_before_action :authenticate_user!  ,          only:[:new , :create , :signup_success], raise: false
   before_action :find_company             ,          only: :profile
   before_action :set_domain, only: %i[create]
+  before_action :redirect_to_main_domain, only: [:new]
 
   include DomainExtractor
 
@@ -45,6 +46,12 @@ class CompaniesController < ApplicationController
     render layout: 'company'
   end
   private
+
+  def  redirect_to_main_domain
+    if request.subdomain.present? 
+      return redirect_to "#{HOSTNAME}/register"
+   end
+  end
 
     def find_company
       @company = Company.find(params[:id]);

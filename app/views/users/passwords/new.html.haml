@@ -1,35 +1,33 @@
-%body
-  %header.header-login
-    .container
-      .content
-        .row
-          %h1.revealOnScroll{"data-animation" => "fadeInDown"}
-            %i.fa.fa-coffee
-            Forgot Password
-          %p Log in and get to work.
-  %section.banner-login
-    .container
-      .row
-        %main.main.main-signup.col-lg-12
-          .col-lg-6.col-lg-offset-3.text-center
-            .form-sign
-              = form_for(resource, as: resource_name, url: password_path(resource_name), html: {id: 'forgot-password-form', class: 'lockscreen animated flipInY',method: :post }) do |f|
-                = devise_error_messages!
+- provide(:body_class, 'full-screen')
+
+#sectionIntro.intro-w.layout-v1
+  .os-container
+    .fade2
+    .call-to-action.p-0
+      .h3.cta-header
+        %i.fa.fa-coffee
+          Forgot Password
+        %p Log in and get to work.
+%section.banner-login
+  .container
+    .row
+      %main.main.main-signup.col-lg-12
+        .col-lg-6.offset-lg-3.text-center
+          .form-sign
+            = form_for(resource, as: resource_name, url: password_path(resource_name), html: {id: 'forgot-password-form', class: 'lockscreen animated flipInY',method: :post }) do |f|
+              = devise_error_messages!
+              / /.form-head
+              .form-body
+                - flash.each do |key, value|
+                  = flash_message(key,value)
+                .form-row
+                  = f.email_field :email, autofocus: true,class:'field', placeholder: "Enter Email", required: true
+              .form-foot
+                .form-actions
+                  = f.submit 'Reset Password',class:'form-btn'
+                / /.form-actions
                 .form-head
-                  %h3 Forgot Password
-                / /.form-head
-                .form-body
-                  - flash.each do |key, value|
-                    = flash_message(key,value)
-                  .form-row
-                    .form-controls
-                      = f.email_field :email, autofocus: true,class:' field',placeholder:"Enter Email",required: true
-                .form-foot
-                  .form-actions
-                    = f.submit 'Reset Password',class:'form-btn'
-                  / /.form-actions
-                  .form-head
-                    = link_to 'Remember password?', new_user_session_path ,class: "more-link"
+                  = link_to 'Remember password?', new_user_session_path ,class: "more-link", style: 'color: #334152'
 
 -content_for :scripts do
   :javascript
