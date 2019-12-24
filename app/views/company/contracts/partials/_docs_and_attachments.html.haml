@@ -397,11 +397,8 @@
                     .row.integration
                       .col-md-6
                         %label.control-label.w-100
-                          Transaction Reference
-                        = select_tag 'assign_to', options_from_collection_for_select(current_company&.company_contacts, "id", 'full_name'), include_blank: 'Please select',class: 'form-control height-45'
-                      .col-md-6.button_main
-                        %a.btn.btn-sm.btn-secondary.float-right{href: '#', title: 'Add More'} Add More
-
+                          Integration
+                          = bc.text_field :integration, class: 'form-control'
         %label.control-label.font-weight-bold.mt-2  Employee/Vender Documents
         .contract-fields_wrapper.mt-2
           .row
