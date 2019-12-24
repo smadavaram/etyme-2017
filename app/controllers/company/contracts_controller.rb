@@ -704,6 +704,7 @@ class Company::ContractsController < Company::BaseController
              :sc_2day_of_week,
              :sp_2day_of_week,
              :sclr_2day_of_week,
+             :payroll_info_id,
              :id,
              :integration,
              :vendor_bill, :vb_day_time, :vb_date_1, :vb_date_2, :vb_day_of_week, :vb_end_of_month,
