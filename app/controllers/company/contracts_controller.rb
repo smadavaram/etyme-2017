@@ -634,6 +634,7 @@ class Company::ContractsController < Company::BaseController
              :ce_in_2day_of_week,
              :pr_2day_of_week,
              :expected_hour,
+             :integration,
              :ce_ap_2day_of_week,
              :id,
              :is_performance_review, :performance_review, :pr_day_time, :pr_date_1, :pr_date_2, :pr_day_of_week, :pr_end_of_month,
@@ -677,6 +678,7 @@ class Company::ContractsController < Company::BaseController
              :sp_2day_of_week,
              :sclr_2day_of_week,
              :id,
+             :integration,
              :vendor_bill, :vb_day_time, :vb_date_1, :vb_date_2, :vb_day_of_week, :vb_end_of_month,
 
              :client_bill, :cb_day_time, :cb_date_1, :cb_date_2, :cb_day_of_week, :cb_end_of_month,
