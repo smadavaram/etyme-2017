@@ -10,12 +10,11 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema.define(version: 20191221114104) do
+ActiveRecord::Schema.define(version: 20191224123202) do
 
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
   enable_extension "hstore"
-  enable_extension "adminpack"
 
   create_table "active_admin_comments", id: :serial, force: :cascade do |t|
     t.string "namespace"
@@ -273,11 +272,9 @@ ActiveRecord::Schema.define(version: 20191221114104) do
     t.string "sc_2day_of_week"
     t.string "sp_2day_of_week"
     t.string "sclr_2day_of_week"
-    t.bigint "payroll_info_id"
     t.string "integration"
     t.index ["candidate_id"], name: "index_buy_contracts_on_candidate_id"
     t.index ["contract_id"], name: "index_buy_contracts_on_contract_id"
-    t.index ["payroll_info_id"], name: "index_buy_contracts_on_payroll_info_id"
   end
 
   create_table "buy_emp_req_docs", force: :cascade do |t|
@@ -1516,11 +1513,11 @@ ActiveRecord::Schema.define(version: 20191221114104) do
     t.string "weekend_sch"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
-    t.time "scal_day_time"
-    t.date "scal_date_1"
-    t.date "scal_date_2"
-    t.string "scal_day_of_week"
-    t.boolean "scal_end_of_month", default: false
+    t.time "sc_day_time"
+    t.date "sc_date_1"
+    t.date "sc_date_2"
+    t.string "sc_day_of_week"
+    t.boolean "sc_end_of_month", default: false
     t.time "sp_day_time"
     t.date "sp_date_1"
     t.date "sp_date_2"
@@ -1556,6 +1553,12 @@ ActiveRecord::Schema.define(version: 20191221114104) do
     t.string "ven_bill_day_of_week"
     t.string "ven_pay_day_of_week"
     t.string "ven_clr_day_of_week"
+    t.string "sc_2day_of_week"
+    t.string "sp_2day_of_week"
+    t.string "sclr_2day_of_week"
+    t.string "ven_bill_2day_of_week"
+    t.string "ven_pay_2day_of_week"
+    t.string "ven_clr_2day_of_week"
     t.string "title"
     t.index ["company_id"], name: "index_payroll_infos_on_company_id"
   end
@@ -2039,7 +2042,6 @@ ActiveRecord::Schema.define(version: 20191221114104) do
     t.date "start_date"
   end
 
-  add_foreign_key "buy_contracts", "payroll_infos"
   add_foreign_key "company_customer_vendors", "companies"
   add_foreign_key "expense_accounts", "expenses"
 end
