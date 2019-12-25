@@ -48,9 +48,10 @@ $('.next').addClass('hidden')
 $('.previous').find('a').attr('href',"<%= new_contract_path(contract_id: @contract.id) %>")
 
 $(document).ready(function () {
+    $(".buy_disabled_salary :input").prop("disabled", true);
     $(".add_contacts").click(function () {
-        approval_approvable_type.value = this.id;
-        buy_approval_type.value = this.id;
+//        approval_approvable_type.value = this.id;
+        $("#buy_approval_type").val(this.id);
     })
     addeventatc.refresh();
     //company_contract_signers('#select_sell_company_signers',<%#= @contract.sell_contract.company.id %>);

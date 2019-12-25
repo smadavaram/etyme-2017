@@ -291,6 +291,11 @@ $(document).ready(function () {
         $('#candidate_documents_datatable').DataTable().search($(this).val()).draw();
     });
 
+    $('#payroll-datatable').dataTable();
+    $('#payroll-datatable-search').keyup(function () {
+        $('#payroll-datatable').DataTable().search($(this).val()).draw();
+    });
+
 
 
 

@@ -1,5 +1,5 @@
 <% business_detail_objs.each do |bussiness_detail| %>
-  <% user = bussiness_detail.company_contact&.user %>
+  <% user = bussiness_detail.user %>
   <tr>
     <td>
       <%= user.company.domain %>

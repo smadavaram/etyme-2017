@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema.define(version: 20191224084722) do
+ActiveRecord::Schema.define(version: 20191224151546) do
 
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
@@ -273,6 +273,7 @@ ActiveRecord::Schema.define(version: 20191224084722) do
     t.string "sp_2day_of_week"
     t.string "sclr_2day_of_week"
     t.string "integration"
+    t.bigint "payroll_info_id"
     t.index ["candidate_id"], name: "index_buy_contracts_on_candidate_id"
     t.index ["contract_id"], name: "index_buy_contracts_on_contract_id"
   end
@@ -744,6 +745,10 @@ ActiveRecord::Schema.define(version: 20191224084722) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.string "contract_admin"
+    t.string "admin_able_type"
+    t.bigint "admin_able_id"
+    t.integer "role"
+    t.index ["admin_able_type", "admin_able_id"], name: "index_contract_admins_on_admin_able_type_and_admin_able_id"
   end
 
   create_table "contract_books", force: :cascade do |t|
@@ -863,7 +868,7 @@ ActiveRecord::Schema.define(version: 20191224084722) do
     t.bigint "sell_contract_id"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
-    t.integer "company_contact_id"
+    t.integer "user_id"
     t.integer "role", default: 0
     t.index ["sell_contract_id"], name: "index_contract_sell_business_details_on_sell_contract_id"
   end
@@ -1509,11 +1514,11 @@ ActiveRecord::Schema.define(version: 20191224084722) do
     t.string "weekend_sch"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
-    t.time "scal_day_time"
-    t.date "scal_date_1"
-    t.date "scal_date_2"
-    t.string "scal_day_of_week"
-    t.boolean "scal_end_of_month", default: false
+    t.time "sc_day_time"
+    t.date "sc_date_1"
+    t.date "sc_date_2"
+    t.string "sc_day_of_week"
+    t.boolean "sc_end_of_month", default: false
     t.time "sp_day_time"
     t.date "sp_date_1"
     t.date "sp_date_2"
@@ -1549,6 +1554,13 @@ ActiveRecord::Schema.define(version: 20191224084722) do
     t.string "ven_bill_day_of_week"
     t.string "ven_pay_day_of_week"
     t.string "ven_clr_day_of_week"
+    t.string "sc_2day_of_week"
+    t.string "sp_2day_of_week"
+    t.string "sclr_2day_of_week"
+    t.string "ven_bill_2day_of_week"
+    t.string "ven_pay_2day_of_week"
+    t.string "ven_clr_2day_of_week"
+    t.string "title"
     t.index ["company_id"], name: "index_payroll_infos_on_company_id"
   end
 

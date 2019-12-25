@@ -20,7 +20,7 @@ class BuyContract < ApplicationRecord
   has_many :change_rates, as: :rateable,dependent: :destroy
   has_many :contract_cycles, as: :cycle_of
   has_many :commission_queues
-  
+  belongs_to :payroll_info, optional: true
   include DateCalculation
 
   before_create :set_number

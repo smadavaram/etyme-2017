@@ -1866,3 +1866,7 @@ flex: 0 0 220px;
 .email_hint{
     font-size: 13px;
 }
+
+.radius_unset{
+    border-radius: unset !important;
+}
