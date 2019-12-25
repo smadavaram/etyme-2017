@@ -4,13 +4,10 @@
   <div class="menu-top-i os-container">
     <ul class="main-menu">
       <li>
-        <%= link_to image_tag(image_path('etyme-logo-dark.png'),  style:"width:62px ;height:30px"), root_path %>
+        <%= link_to image_tag(image_path('etyme-logo-dark.png'), style: "width:62px ;height:30px"), root_path %>
       </li>
     </ul>
     <ul class="small-menu">
-      <li>
-        <%= link_to "Home", root_path %>
-      </li>
       <li>
         <%= link_to "Jobs", static_jobs_path %>
       </li>
@@ -23,7 +20,7 @@
           <div class="dropdown-menu" aria-labelledby="dropdownMenuLink" style="z-index: 9999;">
             <a class="dropdown-item" href="<%= signin_path %>">Company</a>
             <% if candidate_signed_in? %>
-              <%= link_to  current_candidate.full_name.present?  ? current_candidate.full_name : 'Dashboard',candidate_candidate_dashboard_path ,class: 'dropdown-item'%>
+              <%= link_to current_candidate.full_name.present? ? current_candidate.full_name : 'Dashboard', candidate_candidate_dashboard_path, class: 'dropdown-item' %>
             <% else %>
               <a class="dropdown-item" href="<%= new_candidate_session_path %>">Candidate</a>
             <% end %>
@@ -31,8 +28,8 @@
         </div>
       </li>
       <li>
-        <div class="dropdown">
-          <a class="dropdown-toggle" href="#" id="dropdownMenuLink" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+        <div class="dropdown oval">
+          <a class="dropdown-toggle highlight" href="#" id="dropdownMenuLink" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
             Register
           </a>
 
@@ -60,7 +57,7 @@
       </li>
       <li>
         <% if candidate_signed_in? %>
-          <%= link_to  current_candidate.full_name.present?  ? current_candidate.full_name : 'Dashboard', candidate_candidate_dashboard_path %>
+          <%= link_to current_candidate.full_name.present? ? current_candidate.full_name : 'Dashboard', candidate_candidate_dashboard_path %>
         <% else %>
           <%= link_to "Login as Candidate", new_candidate_session_path %>
         <% end %>

@@ -23,7 +23,7 @@ class Company::UsersController < Company::BaseController
             @data += apply_scopes(current_company.invited_companies_contacts)
             @data += apply_scopes(current_company.candidates)
           end
-          @data = @data.sort {|y, z| z.created_at <=> y.created_at}
+          @data = @data.sort { |y, z| z.created_at <=> y.created_at }
 
         }
         format.html {
@@ -31,9 +31,9 @@ class Company::UsersController < Company::BaseController
           @data += apply_scopes(Job.where(company_id: current_company.prefer_vendor_companies.map(&:id)))
           @data += apply_scopes(current_company.invited_companies_contacts)
           @data += apply_scopes(current_company.candidates)
-          @data = @data.sort {|y, z| z.created_at <=> y.created_at}
+          @data = @data.sort { |y, z| z.created_at <=> y.created_at }
           @jobs_count = current_company.jobs.count
-          @job_types = {"Training"=>0, "Job"=>0, "Blog"=>0, "Product"=>0, "Service"=>0}.merge(current_company.jobs.group(:listing_type).count)
+          @job_types = {"Training" => 0, "Job" => 0, "Blog" => 0, "Product" => 0, "Service" => 0}.merge(current_company.jobs.group(:listing_type).count)
           @applications_count = JobApplication.joins(job: :company).where("jobs.company": current_company)
         }
       end
@@ -41,14 +41,11 @@ class Company::UsersController < Company::BaseController
     # @activities = PublicActivity::Activity.order("created_at desc")
 
 
-
     @activities = PublicActivity::Activity.where(owner_type: 'Company',
                                                  owner_id: current_company.prefer_vendors.accepted.pluck(:vendor_id))
                       .or(PublicActivity::Activity.where(owner_type: 'User',
                                                          owner_id: User.where(company_id: current_company.prefer_vendors.accepted.pluck(:vendor_id))))
                       .paginate(page: params[:page], per_page: 15)
-
-
 
 
   end
@@ -65,18 +62,18 @@ class Company::UsersController < Company::BaseController
 
   def get_cards
     @cards = {}
-    @current_user_cards={}
+    @current_user_cards = {}
     start_date = get_start_date
     end_date = get_end_date
     @cards["JOB"] = current_company.jobs.where(created_at: start_date...end_date).count
     @cards["BENCH JOB"] = current_company.jobs.where(status: 'Bench').where(created_at: start_date...end_date).count
     @cards["BENCH"] = current_company.candidates_companies.hot_candidate.joins(:candidate).where('candidates.created_at': start_date...end_date).count
     @cards["APPLICATION"] = current_company.received_job_applications.where(created_at: start_date...end_date).count
-    @cards["STATUS"] = Company.status_count(current_company,start_date,end_date)
+    @cards["STATUS"] = Company.status_count(current_company, start_date, end_date)
     @cards["ACTIVE"] = params[:filter]
-    @current_user_cards["JOB"] = Job.where(created_by_id: current_user,created_at: start_date...end_date).count
-    @current_user_cards["BENCH JOB"] = Job.where(created_by_id: current_user,status: 'Bench').where(created_at: start_date...end_date).count
-    @current_user_cards["APPLICATION"]=JobApplication.joins(:job).where("jobs.created_by_id= ?",current_user)
+    @current_user_cards["JOB"] = Job.where(created_by_id: current_user, created_at: start_date...end_date).count
+    @current_user_cards["BENCH JOB"] = Job.where(created_by_id: current_user, status: 'Bench').where(created_at: start_date...end_date).count
+    @current_user_cards["APPLICATION"] = JobApplication.joins(:job).where("jobs.created_by_id= ?", current_user)
     @current_user_cards["BENCH"] = current_user.company.candidates_companies.hot_candidate.where('created_at': start_date...end_date).count
 
   end
@@ -111,6 +108,27 @@ class Company::UsersController < Company::BaseController
     add_breadcrumb @user.try(:full_name), "#"
   end
 
+  def import
+    @is_error = false
+    @emails = params[:emails].split(",")
+    ActiveRecord::Base.transaction do
+      begin
+        @emails.each do |email|
+          current_company.users.create(email: email)
+        end
+      rescue Exception => e
+        flash[:error] = e.errors
+        @is_error = true
+      end
+    end
+    unless @is_error
+      flash.now[:success] = 'All User has been created with Emails'
+    end
+    respond_to do |format|
+      format.js { }
+    end
+  end
+
   def update_photo
     render json: current_user.update_attribute(:photo, params[:photo])
     flash.now[:success] = "Photo Successfully Updated"
@@ -126,7 +144,7 @@ class Company::UsersController < Company::BaseController
     @user = current_company.users.find(params[:user_id])
     if request.post?
       groups = params[:user][:group_ids]
-      groups = groups.reject {|t| t.empty?}
+      groups = groups.reject { |t| t.empty? }
       groups_id = groups.map(&:to_i)
       @user.update_attribute(:group_ids, groups_id)
       if @user.save
@@ -148,7 +166,7 @@ class Company::UsersController < Company::BaseController
     if current_user.update_attributes!(user_params)
       if params[:user][:branches_attributes].present?
         params[:user][:branches_attributes].each_key do |mul_field|
-          unless params[:user][:branches_attributes][mul_field].reject {|p| p == "id"}.present?
+          unless params[:user][:branches_attributes][mul_field].reject { |p| p == "id" }.present?
             Branch.where(id: params[:user][:branches_attributes][mul_field]["id"]).destroy_all
           end
         end

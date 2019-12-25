@@ -1,30 +1,43 @@
 %div{class: "#{@slick_pop_up} popup-backgroud"}
 %div{class: "#{@slick_pop_up} popup-container"}
-  -#@slick_pop_up
   #slideshow.sliders.mt-4
-
-    .active-slide.slide.mb-5
+    .active-slide.slide
+      .slick_header.container.d-flex
+        %h5 Invite Your Team
+        %span.os-icon.os-icon-close.close_slick{style: 'left:190px !important;'}
+      .slider-data-text.pt-5
+        .container
+          =form_tag import_company_users_path, method: :get, id: "",remote: 'true' do
+            = text_area_tag 'emails'
+            %span.email_hint Hint: Eamil with comma seprator
+            %br
+            = button_tag "submit" , class: ' btn btn-primary'
+          .data_on_slick_customer.scrole
+    .slide
       .slick_header.container.d-flex
         %h5 Import Customers
         %span.os-icon.os-icon-close.close_slick{style: 'left:190px !important;'}
       .slider-data-text
+        .container{style: 'text-align:center; margin-top:30px'}
+          = button_tag "Import Customers" , class: 'mr-2 mb-2 btn btn-primary', onclick: "company_customer_file()"
+          %br
+          %span.text-muted.data-table-font Download Sample #{link_to 'csv, xxls or pdf',"/doc/customer.csv"}
         .container
-          = button_tag "Import List" , class: 'm-0 resume btn btn-primary btn-lg', onclick: "company_customer_file()"
-
           .data_on_slick_customer.scrole
-            = render 'company/customer_vendor/partials/import_list',customer_list:@customers_list
-
-
+            = render 'company/customer_vendor/partials/import_list',status:'company_customers',customer_list:@customers_list
     .slide
       .slick_header.container.d-flex.mb-2
         %h5 Import Vendors
         %span.os-icon.os-icon-close.close_slick{style: 'left:200px !important;'}
       .slider-data-text
+        .container{style: 'text-align:center; margin-top:30px'}
+          = button_tag "Import Vendors" , class: 'mr-2 mb-2 btn btn-primary', onclick: "company_vendor_file()"
+          %br
+          %span.text-muted
+            =link_to 'csv, xxls or pdf',"/doc/doc2.csv",class: 'data-table-font'
         .container
-          = button_tag "Import List" , class: 'm-0 resume btn btn-primary btn-lg', onclick: "company_vendor_file()"
-
           .data_on_slick_vendor.scrole
-            = render 'company/customer_vendor/partials/import_list',customer_list: @vendors_list
+            = render 'company/customer_vendor/partials/import_list',status:'company_vendors',customer_list: @vendors_list
 .content-box
   .element-wrapper
     .element-box
@@ -67,20 +80,16 @@
 
           .col-sm-12.col-md-12.col-lg-9
             #wid-id-7.jarviswidget{"data-widget-attstyle" => "jarviswidget-color-teal", "data-widget-custombutton" => "false", "data-widget-editbutton" => "false", "data-widget-fullscreenbutton" => "false", "data-widget-sortable" => "false", :role => "widget", :style => ""}
-
               %div{:role => "content",style: 'border:2px solid #dde2ec !important;'}
                 .jarviswidget-editbox
-
                 .widget-body
                   .tab-content
-
                     #hr1.tab-pane.active
                       .tabbable.tabs-below
                       = render partial: 'company/companies/partials/company_form_html'
 
     #embedModal.modal{:role => "dialog"}
       .modal-dialog
-        / Modal content
         .modal-content
           .modal-body
             .card
@@ -130,14 +139,6 @@
               No
               = radio_button_tag :is_owner, "false", checked:true
               %span.radio-checkmark
-        / .col-md-2
-        /   .form-group
-        /     = radio_button_tag 'is_owner', 'true', false
-        /     = label_tag 'is_owner', 'Yes'
-        / .col-md-2
-        /   .form-group
-        /     = radio_button_tag 'is_owner', 'false', true
-        /     = label_tag 'is_owner', 'No'
         .not_owner
           = form_for @admin,as: "admin",method: :post, remote: true do |f|
             .row
@@ -162,34 +163,18 @@
                   Saved
         .row.owner_doc
           .col-lg-12
-            .form-group{ style: "margin: 0"}
-            / = filepicker_field_tag "" ,class: "hidden domain_file", onchange:"uploadDomainfile(event)"
-            / = link_to "Upload File" ,"#",class: 'col-lg-12 domain btn btn-md btn-primary', style: "margin-bottom: 10px"
-            / %a{:href => "#{Rails.root}/assets/verify.html"} Click here to download
-
-            %p
-              Steps To verify your Domain
-            %p
-              1) Please click Download button.
+            %p Steps To verify your Domain
+            %p 1) Please click Download button.
             .col-lg-12.mr-bottom-10
               = link_to "Download File" , company_company_download_template_path(:company_id=>current_company.id), class: 'col-lg-3 btn btn-md btn-primary mr-bottom-10'
-              / %a{:download => "", :href => "http://cloudepa.etymedev.com:3000/assets/verify.html", class: 'col-lg-3 btn btn-md btn-primary'} Download File
-            %p.mr-top-10
-              2) Put the downloded file to your hosted site public folder.
-
-
+            %p.mr-top-10 2) Put the downloded file to your hosted site public folder.
             = form_for current_company,url: "/company/companies/#{current_company.id}/verify_website",method: :post do |f|
-
-              %p
-              3) Add your site name in input box.
-
+              %p 3) Add your site name in input box.
               .row
                 .col-md-12.mr-bottom-10
                   .form-group
                     = text_field_tag :url, current_company.website , :placeholder => "https://www.etyme.com",class: "form-control mr-top-10"
-              %p
-                4) Press Verify button.
-
+              %p 4) Press Verify button.
               -if current_company.owner_verified == false
                 .row
                   .col-lg-12
@@ -200,10 +185,6 @@
                   .col-lg-12
                     .btn.btn-primary{:type => "submit"}
                       Your Domain is already verified
-
-
-              / = link_to "Verify", company_company_verify_website_path
-
 
 
 

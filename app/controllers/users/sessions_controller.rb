@@ -55,8 +55,8 @@ class Users::SessionsController < Devise::SessionsController
                                     password_confirmation: "passpass#{rand(999)}"
                                   )
       u = User.where(email: params[:user][:email]).first
-      flash[:error] = "Please check your email."
       u.send_reset_password_instructions()
+      flash[:error] = "Looks like Team #{current_company.domain.capitalize} is registered with us but you are missing all the action. Check your email to activate the account and get started"
     else
       false
     end
