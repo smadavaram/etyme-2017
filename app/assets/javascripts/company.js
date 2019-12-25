@@ -138,11 +138,12 @@
 //= require shared/uploader
 
 //= require trix
+//= require company/companies
 //= require company/contracts
 //= require company/timesheets
 //= require company/salaries
 //= require company/sale_invoices
 //= require mobile_responsive
 //= require loader
-//= require company/companies
+
 

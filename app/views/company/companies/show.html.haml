@@ -9,7 +9,7 @@
         .container
           =form_tag import_company_users_path, method: :get, id: "",remote: 'true' do
             = text_area_tag 'emails'
-            %span.email_hint Hint: Eamil with comma seprator
+            %span.email_hint hint: add comma separated emails
             %br
             = button_tag "submit" , class: ' btn btn-primary'
           .data_on_slick_customer.scrole
@@ -19,9 +19,9 @@
         %span.os-icon.os-icon-close.close_slick{style: 'left:190px !important;'}
       .slider-data-text
         .container{style: 'text-align:center; margin-top:30px'}
-          = button_tag "Import Customers" , class: 'mr-2 mb-2 btn btn-primary', onclick: "company_customer_file()"
+          = button_tag "Import customers" , class: 'mr-2 mb-2 btn btn-primary', onclick: "company_customer_file()"
           %br
-          %span.text-muted.data-table-font Download Sample #{link_to 'csv, xxls or pdf',"/doc/customer.csv"}
+          %span.text-muted.data-table-font  #{link_to 'download sample csv file',"/doc/customer.csv"}
         .container
           .data_on_slick_customer.scrole
             = render 'company/customer_vendor/partials/import_list',status:'company_customers',customer_list:@customers_list
@@ -31,10 +31,9 @@
         %span.os-icon.os-icon-close.close_slick{style: 'left:200px !important;'}
       .slider-data-text
         .container{style: 'text-align:center; margin-top:30px'}
-          = button_tag "Import Vendors" , class: 'mr-2 mb-2 btn btn-primary', onclick: "company_vendor_file()"
+          = button_tag "Import vendors" , class: 'mr-2 mb-2 btn btn-primary', onclick: "company_vendor_file()"
           %br
-          %span.text-muted
-            =link_to 'csv, xxls or pdf',"/doc/doc2.csv",class: 'data-table-font'
+          %span.text-muted.data-table-font  #{link_to 'download sample csv file',"/doc/customer.csv"}
         .container
           .data_on_slick_vendor.scrole
             = render 'company/customer_vendor/partials/import_list',status:'company_vendors',customer_list: @vendors_list

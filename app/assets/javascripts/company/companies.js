@@ -25,10 +25,10 @@ $(".close_slick").click(function() {
     $('.popup-container').hide()
 });
 $("#slideshow").slick({
-    infinite: false,
-    autoplaySpeed: 2000,
-    arrows: true,
-    prevArrow:"<span class='next'><i class='icon-feather-arrow-left'>Customers</i></span>",
-    nextArrow:"<span class='pre'>&nbsp;&nbsp;&nbsp;Vendors<i class='icon-feather-arrow-right'></i></span>"
+     infinite: false,
+    // autoplaySpeed: 2000,
+     arrows: true,
+    prevArrow:"<span class='next'><i class='icon-feather-arrow-left'> Previous</i></span>",
+    nextArrow:"<span class='pre'>&nbsp; Next<i class='icon-feather-arrow-right'></i></span>"
     // autoplay: true,
 });
