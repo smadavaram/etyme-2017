@@ -1850,3 +1850,7 @@ flex: 0 0 220px;
     font-size: 25px !important;
     margin-top: 10px;
 }
+
+.radius_unset{
+    border-radius: unset !important;
+}
