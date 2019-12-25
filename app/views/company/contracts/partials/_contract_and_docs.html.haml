@@ -30,7 +30,7 @@
               .form-group
                 %label.control-label  Customer Company
             .col-md-6
-              %button.btn.btn-primary.btn-sm.pull-right{"data-target" => "#contract-admin-team-sell-company", "data-toggle" => "modal", :type => "button"} Add Admin
+              %button.btn.btn-primary.btn-sm.pull-right.sell_users{"data-target" => "#contract-admin-team-sell-company", "data-toggle" => "modal", :type => "button"} Add Admin
 
           - headers =  %w(domain name contact role(s) reminder action(s))
           .table-responsive.p-4
@@ -40,7 +40,7 @@
                 - headers.each do |header|
                   %th= header.capitalize
               %tbody.hr_admins_table_body
-                - @contract.contract_admins&.where(company_id: @contract.sell_contract.company.id).each do |admin|
+                - @contract.sell_contract.contract_admins.each do |admin|
                   - user = admin.user
                   %tr
                     %td= user.company.domain
@@ -54,7 +54,14 @@
                     %td
                       = link_to(content_tag(:i, nil, class: 'picons-thin-icon-thin-0014_notebook_paper_todo').html_safe, add_reminder_company_users_path(user_id: user.id), remote: :true, title: "Remind Me", class: 'data-table-icons')
                       = link_to(content_tag(:i, nil, class: 'os-icon os-icon-ui-15').html_safe, delete_hr_admin_contracts_path(contract_id: @contract.id,contract_admin_id: admin.id), method: :delete,remote: :true, title: "Delete #{user.full_name}", class: 'data-table-icons')
-
+                      - unless @sell_contract_have_admin
+                        %strong{:id => "response_#{admin.id}"}
+                        = link_to(content_tag(:i, nil, class: 'picons-thin-icon-thin-0710_business_tie_user_profile_avatar_man_male').html_safe, change_admin_status_contracts_path(contract_id: @contract.id,contract_admin:admin.id,status:'admin',tab: 2), remote: :true, title: "Make Admin", class: 'data-table-icons remove_admin_link')
+                      - else
+                        - if admin.admin?
+                          = link_to(content_tag(:i, nil, class: 'picons-thin-icon-thin-0699_user_profile_avatar_man_male').html_safe, change_admin_status_contracts_path(contract_id:@contract.id,contract_admin: admin.id,status:'member',tab: 2), remote: :true, title: "Remove Admin", class: 'data-table-icons',style: "color:red")
+                        -else
+                          %i.picons-thin-icon-thin-0710_business_tie_user_profile_avatar_man_male{:title => "Member"}
 
 
 
@@ -453,10 +460,8 @@
                     .row.integration
                       .col-md-6
                         %label.control-label.w-100
-                          Transaction Reference
-                        = select_tag 'assign_to', options_from_collection_for_select(current_company&.company_contacts, "id", 'full_name'), include_blank: 'Please select',class: 'form-control height-45'
-                      .col-md-6.button_main
-                        %a.btn.btn-sm.btn-secondary.float-right{href: '#', title: 'Add More'} Add More
+                          Integration
+                        = sc.text_field :integration, class: 'form-control'
         %label.control-label.font-weight-bold.mt-2 Document Management
         .contract-fields_wrapper.mt-2
           .row
@@ -525,7 +530,6 @@
   = render 'company/contracts/submit_document_modal', contract: @contract
   = render 'company/contracts/partials/collaborator_modal',contract: @contract, contractable_type: @contract.sell_contract.class.name, contractable_id: @contract.sell_contract.id
 
-
 :javascript
    $('.contract-attachment').on('cocoon:after-insert', function(e, insertedItem) {
       insertedItem.find('.filepicker-attach').each(function(i,e){
@@ -555,5 +559,12 @@
      set_user_select(".whois_sign:not([class*='added']", "Select User who is sign document");
      $(".whois_sign:not([class*='added']").addClass('added');
    });
+
+
+    $(".sell_users").click(function(){
+      set_contract_admins(".sell_company_contract_admins","Select Admin-#{@sell_contract&.company&.id}");
+    });
+
+
 
 

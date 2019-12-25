@@ -47,7 +47,7 @@ class Contract < ApplicationRecord
   has_many :contract_salary_histories, dependent: :destroy
   has_many :expenses, dependent: :destroy
   has_many :csc_accounts
-  has_many :contract_admins
+  has_many :contract_admins,as: :admin_able
 
   has_many :contract_cycles, dependent: :destroy
   has_many :contract_expense, dependent: :destroy
@@ -204,7 +204,9 @@ class Contract < ApplicationRecord
     # self.contract_terms.active.first.terms_condition
     "[CHANGE IT terms_and_conditions]"
   end
-
+  def count_contract_admin
+    self.contract_admins.admin.count
+  end
   # private
 
   def set_contractable

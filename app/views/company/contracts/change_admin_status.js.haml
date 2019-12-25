@@ -1,0 +1,8 @@
+$('#contract-admin-team').modal("hide");
+$('.hr_admins_table_body').html("#{ j render 'company/contracts/partials/hr_admins_table_rows' , tab: @tab,users: @contract_admins}");
+addeventatc.refresh();
+-if flash[:errors].present?
+  - flash[:errors].each do |e|
+    flash_error("#{e}");
+- if flash[:success].present?
+  flash_success("#{flash[:success]}");

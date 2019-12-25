@@ -53,8 +53,9 @@
         .w-100
           %strong.pull-left Business Contacts
         .contract_users_team
+
           -@contract.sell_contract.contract_sell_business_details.each do |sell_business_detail|
-            - user = sell_business_detail.company_contact.user
+            - user = sell_business_detail.user
             .logged-user-w.no_border_bottom{style: "width: 120px;"}
               .avatar-w
                 =user_image(user, style: 'width: 35px; height: 35px;', class: 'data-table-image mr-1',title: "#{user.full_name}" )
