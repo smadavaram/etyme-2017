@@ -28,6 +28,7 @@ class User < ApplicationRecord
 
   attr_accessor :temp_working_hours
   attr_accessor :invitation_as_contact
+  has_many :contract_sell_business_details
 
   belongs_to :company, optional: true
   belongs_to :address, foreign_key: :primary_address_id, optional: true
@@ -70,6 +71,7 @@ class User < ApplicationRecord
   has_many :favourableds, as: :favourabled, class_name: "FavouriteChat", dependent: :destroy
   has_many :created_notifications, as: :createable
   has_many :contract_cycles
+  has_many :contract_admins
   
   accepts_nested_attributes_for :attachable_docs, reject_if: :all_blank
   accepts_nested_attributes_for :custom_fields, reject_if: :all_blank

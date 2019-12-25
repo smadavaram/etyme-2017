@@ -18,8 +18,12 @@ class Api::SelectSearchesController < ApplicationController
   end
 
   def find_contacts
-    @contacts = current_company.company_contacts.like_any([:first_name, :last_name], params[:q].to_s.split).paginate(:page => params[:page], :per_page => params[:per_page])
-    respond_with @contacts
+    if params[:company].blank?
+      @contacts = current_company.users.like_any([:first_name, :last_name], params[:q].to_s.split).paginate(:page => params[:page], :per_page => params[:per_page])
+    else
+      @contacts = Company.find(params[:company].to_i).users.like_any([:first_name, :last_name], params[:q].to_s.split).paginate(:page => params[:page], :per_page => params[:per_page])
+    end
+      respond_with @contacts
   end
 
   def find_users
@@ -75,9 +79,23 @@ class Api::SelectSearchesController < ApplicationController
   end
 
   def find_hr_admins
+
     # @users = current_company.users.joins(:roles).where('roles.name': "HR admin").like_any([:first_name], params[:q].to_s.split).paginate(:page => params[:page], :per_page => params[:per_page])
-    @users = current_company.users.all.like_any([:first_name], params[:q].to_s.split).paginate(:page => params[:page], :per_page => params[:per_page])
+    if params[:company].blank? || params[:company].eql?('undefined')
+      @users = current_company.users.all.like_any([:first_name], params[:q].to_s.split).paginate(:page => params[:page], :per_page => params[:per_page])
+    else
+      @users = Company.find(params[:company]).users.all.like_any([:first_name], params[:q].to_s.split).paginate(:page => params[:page], :per_page => params[:per_page])
+    end
+
     respond_with @users
+  end
+  def find_reporting_manger
+    if params[:company].blank?
+      @contacts = current_company.users.like_any([:first_name, :last_name], params[:q].to_s.split).paginate(:page => params[:page], :per_page => params[:per_page])
+    else
+      @contacts = Company.find(params[:company].to_i).users.like_any([:first_name, :last_name], params[:q].to_s.split).paginate(:page => params[:page], :per_page => params[:per_page])
+    end
+    respond_with @contacts
   end
 
   def find_commission_candidates

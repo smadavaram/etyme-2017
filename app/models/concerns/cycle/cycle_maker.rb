@@ -46,7 +46,7 @@ module Cycle::CycleMaker
   end
 
   def buy_contract_salary_process_cycle(extended_date = nil)
-    date_groups = get_date_groups(self.buy_contract, 'sp', 'salary_calculation', extended_date)
+    date_groups = get_date_groups(self.buy_contract.payroll_info, 'sp', 'payroll_type', extended_date)
     date_groups.each do |date_group|
       start_date = date_group.first
       end_date = date_group.last
@@ -64,7 +64,7 @@ module Cycle::CycleMaker
   end
 
   def buy_contract_salary_clear_cycle(extended_date = nil)
-    date_groups = get_date_groups(self.buy_contract, 'sclr', 'salary_calculation', extended_date)
+    date_groups = get_date_groups(self.buy_contract.payroll_info, 'sclr', 'payroll_type', extended_date)
     date_groups.each do |date_group|
       start_date = date_group.first
       end_date = date_group.last
@@ -82,7 +82,7 @@ module Cycle::CycleMaker
   end
 
   def buy_contract_salary_calculation_cycle(extended_date = nil)
-    date_groups = get_date_groups(self.buy_contract, 'sc', 'salary_calculation', extended_date)
+    date_groups = get_date_groups(self.buy_contract.payroll_info, 'sc', 'payroll_type', extended_date)
     date_groups.each do |date_group|
       start_date = date_group.first
       end_date = date_group.last
