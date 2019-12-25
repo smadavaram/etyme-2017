@@ -21,7 +21,7 @@
           .up-controls
             .row
               .col-sm-6{style: "display: flex;justify-content: space-evenly;"}
-                = contact_widget(candidate.email,candidate.phone)
+                = contact_widget(candidate.email,candidate.phone,color: '#3E4B5B; !important')
               .col-sm-6.text-right
                 - if candidate.candidates_resumes.present?
                   = link_to candidate.candidates_resumes.primary_resume.resume, class: "btn btn-primary btn-sm", target: "_blank" do

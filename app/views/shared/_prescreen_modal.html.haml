@@ -10,7 +10,7 @@
         .divider.pb-3.mb-2
           .big-links_widget
             - candidate = job_application.applicationable
-            = contact_widget(candidate.email, candidate.phone, candidate, remote_false: 'toggle_big_chat')
+            = contact_widget(candidate.email, candidate.phone, candidate, remote_false: 'toggle_big_chat',color: '#3E4B5B; !important')
         %ul.tasks-list
           - current_user.reminders.where(reminderable: candidate).order(created_at: :desc).each do |reminder|
             %li.draggable-task.danger

@@ -61,7 +61,7 @@
                 =user_image(user, style: 'width: 35px; height: 35px;', class: 'data-table-image mr-1',title: "#{user.full_name}" )
               .logged-user-name.no-wrap= do_ellipsis(user.full_name,12)
               .logged-user-role= user.roles.first.try(:name).try(:capitalize)
-              .logged-user-role= contact_widget(user.email, user.phone,user,chat_link: chat_link(user),color: '#BFBFC7')
+              .logged-user-role= contact_widget(user.email, user.phone,user,chat_link: chat_link(user),color: '#3E4B5B; !important')
   %div
     %h3.mt-2.mb-2
       Accounting & Work hours terms

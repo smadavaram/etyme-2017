@@ -1360,7 +1360,7 @@ module ApplicationHelper
     end
 end
 def contact_widget_user(user)
-  contact_widget(user.email,user.phone,nil,color: '#3b75e3 !important',chat_link: chat_link(user))
+  contact_widget(user.email,user.phone,nil,color: '#3E4B5B; !important',chat_link: chat_link(user))
 end
 
 

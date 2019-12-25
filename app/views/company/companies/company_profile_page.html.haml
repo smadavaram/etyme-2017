@@ -225,7 +225,7 @@
                   .pt-avatar-w
                     .pt-user-name= user_image(d, style: 'width: 35px; height: 35px;', class: 'data-table-image mr-1',title: "#{d.full_name}" )
                   .pt-user-name= d.full_name
-                .profile-tile-meta= contact_widget(d.email, d.phone, d, chat_link: chat_link(d))
+                .profile-tile-meta= contact_widget(d.email, d.phone, d, color: '#3E4B5B; !important', chat_link: chat_link(d))
         - else
         .d-flex.justify-content-between.align-items-center.mb-3.element-header
           %h6.mb-0 Office Directory
@@ -246,7 +246,7 @@
                     .user-avatar= image_tag show_recipient_picture(company.try(:logo))
                   .user-name
                     %h6.user-title= company.full_name rescue ""
-                    .data-table-icons= contact_widget(company.owner.email, company.owner.phone, company.owner, chat_link: chat_link(company.owner))
+                    .data-table-icons= contact_widget(company.owner.email, company.owner.phone, company.owner, chat_link: chat_link(company.owner),color: '#3E4B5B; !important')
 
         - else
           %h6.mb-0 Clients

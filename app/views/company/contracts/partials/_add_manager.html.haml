@@ -5,7 +5,7 @@
     %td.no-wrap
       =user_image(user, style: 'width: 35px; height: 35px;', class: 'data-table-image mr-1',title: "#{user.full_name}" )
       = do_ellipsis(user.full_name,10)
-    %td= contact_widget(user.email,user.phone,user,chat_link: chat_link(user))
+    %td= contact_widget(user.email,user.phone,user,chat_link: chat_link(user),color: '#3E4B5B; !important')
     %td= do_ellipsis(user.roles.pluck(:name).join(', '),40)
     %td= content_tag(:span, do_ellipsis(current_user.reminders.where(reminderable_id: user.id, reminderable_type: 'Admin')&.last&.title), class: 'bg-info badge mr-1').html_safe
     %td
