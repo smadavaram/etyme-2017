@@ -38,20 +38,36 @@ class StaticController < ApplicationController
     redirect_to root_path
   end
 
+  def check_user
+    user = @company.users.find_by(email: params[:email].downcase)
+    unless user.present?
+      user = @company.users.create(
+          email: params[:email].downcase,
+          company_id: current_company.id,
+          password: "passpass#{rand(999)}",
+          password_confirmation: "passpass#{rand(999)}"
+      )
+      user.send_reset_password_instructions()
+      flash[:error] = "Looks like Team #{current_company.domain.capitalize} is registered with us but you are missing all the action. Check your email to activate the account and get started"
+    else
+      if user.sign_in_count.to_i.zero?
+        flash[:error] = "Looks like a lot of people want you on etyme. You are welcome. Better late than never. Check your email and get started"
+      end
+    end
+  end
+
   def signin
     if request.post?
       if params[:email].present?
         if @company.present?
-          if Rails.env.production?
-            redirect_to "https://#{@company.etyme_url}/?email=#{params[:email]}"
-          else
-            redirect_to "http://#{@company.etyme_url}/?email=#{params[:email]}"
-          end
+          check_user
+          redirect_to "#{Rails.env.production? ? 'https' : 'http'}://#{@company.etyme_url}/?email=#{params[:email]}"
         else
-          flash.now[:error] = 'No such domain in the system'
+          flash.now[:errors] = ['No such domain in the system']
+          redirect_to register_path(email: params[:email])
         end
       else
-        flash.now[:error] = 'Please enter your email or domain'
+        flash.now[:errors] = ['Please enter your email or domain']
       end
     end
 
@@ -155,11 +171,9 @@ class StaticController < ApplicationController
     if params[:email].present?
       domain = domain_from_email(params[:email])
       @company = Company.find_by(website: domain)
-
       unless @company
-        # respond_to do |format|
-        redirect_to signin_path, error: 'Company Not Found'
-        # end
+        find_similar_companies
+        redirect_to register_path(email: params[:email], register: true, show_selector: true, show_input: true, site: suggested_slug), notice: 'Add More information to continue.'
       end
     end
   end

@@ -16,15 +16,12 @@
       %main.main.main-signup.col-lg-12
         .col-lg-6.offset-lg-3.text-center
           .form-sign
-            %form.lockscreen.animated.flipInY{method: 'post' , url: signin_path}
+            = form_tag signin_path, method: :post do
               .form-body
-                - flash.each do |key, value|
-                  = flash_message(key,value)
                 .form-row
-                  %input.field{:name => "email", :placeholder => "Enter Your Email", :type => "email", required: true }/
-              .form-foot
+                  = email_field_tag :email,nil ,placeholder: "Enter Your Email", required: true,class: 'field'
+                  .help-block.form-text.with-errors.form-control-feedback
+                    = link_to 'Are Already Signup there?', new_candidate_password_path ,class: "more-link", style: "color: #334152;"
+              .form-foot.pt-0
                 .form-actions
-                  %input.form-btn{:type => "submit", :value => "Continue"}/
-                / /.form-actions
-                .form-head
-                  = link_to 'Are Already Signup there?', new_candidate_password_path ,class: "more-link", style: 'color: #334152'
+                  = submit_tag :continue, class: "form-btn"

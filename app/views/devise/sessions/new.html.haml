@@ -4,7 +4,7 @@
 #sectionIntro.intro-w.layout-v1.p-0
   .os-container
     .fade2
-    .call-to-action
+    .call-to-action.pb-0
       .h3.cta-header
         %i.fa.fa-coffee
         Login
@@ -18,8 +18,6 @@
           .form-sign
             = form_for(resource, as: resource_name, url: session_path(resource_name), html: {id: 'login-form', class: 'client-form',role:'form'}) do |f|
               .form-body
-                - flash.each do |key, value|
-                  = flash_message(key,value)
                 .form-row
                   = f.email_field :email, autofocus: !email_present, value: params[:email], class:' field',placeholder:"Enter Email" ,required: true
                 .form-row

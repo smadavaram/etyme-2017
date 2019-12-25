@@ -24,7 +24,7 @@ class CompaniesController < ApplicationController
     @company = Company.new(company_params.merge(website: domain_from_email(owner_params[:email])))
     @company.owner.confirmed_at = DateTime.now
     if @company.save
-      render 'companies/signup_success' , layout: 'login'
+      render 'companies/signup_success' , layout: 'static'
     else
       flash.now[:errors] = @company.errors.full_messages
       render :new

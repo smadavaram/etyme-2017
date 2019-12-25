@@ -3,8 +3,8 @@
 #sectionIntro.intro-w.layout-v1.p-0
   .os-container
     .fade2
-    .call-to-action
-      .h4.cta-header
+    .call-to-action.pb-0
+      .h4.cta-header.font-2_rem
         %i.fa.fa-coffee
         Just a few more steps to your 14-day trial
       .h3.cta-header
@@ -13,7 +13,7 @@
 %section.banner-login
   .container
     .row
-      %main.main.main-signup.col-lg-12
+      %main.main.main-signup.col-lg-12.pt-0
         .col-lg-6.offset-lg-3.text-center
           .form-sign
             = form_for @company , html: {id: 'smart-form-register' , class: 'vertical-form lockscreen animated flipInY' }  do |f|
@@ -21,16 +21,12 @@
                 = hidden_field_tag 'register_company', true
               = f.fields_for :owner, @user do |u|
                 .form-body
-                  - flash.each do |key, value|
-                    = flash_message(key,value)
-
                   - if params[:show_selector].present?
                     .form-row.hide
                       = f.text_field :name, placeholder: 'Company Name', required: true,minlength: "3", class: 'field'
                     .form-row
-                      .plain-select
-                        = f.select :company_type , [["Staffing/Training/Vendors", 'vendor'], ["Client/Implementation Patner", 'hiring_manager']],{include_blank: '-- Select Type --'} ,:class => 'form-control company_type', required: true ,onchange: "showNote();"
-                      .note#company_type{style: "float:left !important ;color: antiquewhite"}
+                      = f.select :company_type , [["Staffing/Training/Vendors", 'vendor'], ["Client/Implementation Patner", 'hiring_manager']],{include_blank: '-- Select Type --'} ,:class => 'field company_type', required: true ,onchange: "showNote();"
+                      .note#company_type{style: "float:left !important ;color: #334152"}
                   -#.form-row
                     -#.form-controls
                     -#  .plain-select
@@ -40,7 +36,6 @@
                   - if params[:show_input].present?
                     .form-row
                       = u.text_field :first_name, :placeholder => "Firstname", required: true,class: 'field'
-
                     .form-row
                       = u.text_field :last_name, :placeholder => "Lastname", required: true,class: 'field'
 

@@ -1850,3 +1850,19 @@ flex: 0 0 220px;
     font-size: 25px !important;
     margin-top: 10px;
 }
+
+.font-2_rem{
+    font-size: 2.00rem !important;
+}
+.font-180_rem{
+    font-size: 1.80rem !important;
+}
+#emails{
+    width: 100%;
+}
+#emails ~ button{
+    float: right;
+}
+.email_hint{
+    font-size: 13px;
+}
