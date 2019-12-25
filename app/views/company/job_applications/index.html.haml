@@ -42,7 +42,7 @@
 
                       %td.no-wrap= colorfull_text( snake_to_words(application.status),application.status=='applied' ? 'orange' : 'green')
                       %td= application.job_invitation_id ? "Invited/#{application.application_type}" : "Direct/#{snake_to_words(application.application_type)}"
-                      %td.no-wrap= contact_widget(candidate.email, candidate.phone, candidate, chat_link: chat_link(candidate,application&.conversation&.id))
+                      %td.no-wrap= contact_widget(candidate.email, candidate.phone, candidate, chat_link: chat_link(candidate,application&.conversation&.id),color: '#3E4B5B; !important')
                       %td.no-wrap
                         = link_to(content_tag(:i, nil, class: 'fa fa-eye').html_safe, job_application_path(application), title: 'View Detail', class: 'data-table-icons')
                         = link_to(content_tag(:i, nil, class: 'picons-thin-icon-thin-0014_notebook_paper_todo').html_safe, candidate_add_reminder_path(application.applicationable_id), remote: :true, title: "Remind Me", class: 'data-table-icons')
