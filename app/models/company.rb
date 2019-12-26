@@ -109,7 +109,7 @@ class Company < ApplicationRecord
   # validates           :name,  presence:   true
   # validates           :domain, uniqueness:   true
   has_many :activities, as: :trackable, class_name: 'PublicActivity::Activity', dependent: :destroy
-  
+  has_many :holidays
   # validates_uniqueness_of   :name, message: "This company is already registered on etyme. You can connect with its Admin and he can allow you to be added into the company"
   # validates_length_of :name,  minimum:    3   , message: "must be atleat 3 characters"
   validates :name, presence: true

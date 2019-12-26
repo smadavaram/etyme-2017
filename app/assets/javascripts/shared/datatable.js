@@ -296,7 +296,29 @@ $(document).ready(function () {
         $('#payroll-datatable').DataTable().search($(this).val()).draw();
     });
 
+    $('#holidays-datatable').editableTableWidget({ editor: $('<input>'), preventColumns: [ 4 ]})
+        .on('change', function(evt, newValue) {
+            var row = evt.target.parentElement;
+            var id =  row.getAttribute("data-id");
+            var date = row.children[1].textContent;
+            var name = row.children[2].textContent;
+            var success = true;
 
+            $.ajax({
+                url: `/holidays/${id}`,
+                data: {holiday: {name: name, date: date}},
+                method: "PUT",
+                async: false,
+                dataType: 'json'
+            }).success(function (e) {
+                flash_success('Updated Successfully');
+                $(`#holidays-datatable tr[data-id='${e.id}'] td`)[0].innerText = moment(e.date).year();
+            }).error(function (e) {
+                flash_error(e.responseJSON.errors.toString());
+                success = false
+            });
+            return success
+        });
 
 
 

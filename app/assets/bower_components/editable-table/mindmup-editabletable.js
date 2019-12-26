@@ -15,6 +15,10 @@ $.fn.editableTableWidget = function (options) {
 			showEditor = function (select) {
 				active = element.find('td:focus');
 				if (active.length) {
+                    if ($.inArray(active.index() + 1, activeOptions.preventColumns) != -1) {
+                        active.blur();
+                        return;
+                    }
 					editor.val(active.text())
 						.removeClass('error')
 						.show()
