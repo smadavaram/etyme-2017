@@ -29,8 +29,5 @@
 -content_for :scripts do
   :javascript
     $(document).ready(function(){
-      $('#company-candidates-datatable-search').keyup(function(){
-        $('#company-candidates-datatable').DataTable().search( $(this).val() ).draw();
-      });
       default_active_nav('.ln-3');
     });

@@ -74,14 +74,10 @@
   = render 'company/candidates/partials/share_hot_candidates'
   = render 'company/bench_jobs/candidate_bench_invite_modal'
 
-- content_for :scripts do
-  :javascript
+
 -content_for :scripts do
   :javascript
      $(document).ready(function(){
-      $('#my_bench_datatable-search').keyup(function(){
-        $('#my_bench_datatable').DataTable().search( $(this).val() ).draw();
-      });
       default_active_nav('.ln-5');
     });
 
@@ -100,13 +96,6 @@
         height: 250,
         focus: false,
         tabsize: 2
-    });
-
-    $('#share-candidates').on('shown.bs.modal', function() {
-      $(".select2").select2({
-        placeholder: "Groups/Contact/Email",
-        tags: true
-      });
     });
 
     $(document).ready(function() {
@@ -134,48 +123,6 @@
           .search( this.value )
           .draw();
     } );
-
-
-    // share hide and show on base of checked checkboxes
-    // $('.share').hide();
-    $( "input[type=checkbox]" ).on( "click", function() {
-        //if($( "input:checked" ).length> 0)
-        //{
-        //  $('.share').show();
-        //}else
-        //{
-         // $('.share').hide();
-        //}
-     });
-
-     // for share of checked rows
-    var checkedRows = new Array();
-      $(".share" ).on( "click", function() {
-        $("input[name='ids[]']:checked").each(function(){
-        checkedRows.push($(this).val());
-        });
-        if(checkedRows.length>0)
-        {
-          $('#candidates_ids').val(checkedRows);
-          $('#share-candidates').modal('toggle');
-        }
-        else{
-          alert("Please select atleast one candidate to proceed before.");
-        }
-      });
-
-      $("#select_all_" ).on( "click", function() {
-        $("input[name='ids[]']").prop('checked', this.checked);
-      });
-
-      // for popover on link
-      $('a[rel=hover]').popover({
-        html: true,
-        trigger: 'hover',
-        placement: 'top',
-
-      });
-
     });
 
 

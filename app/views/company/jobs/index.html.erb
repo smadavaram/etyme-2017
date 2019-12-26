@@ -25,7 +25,7 @@
                 <thead>
                 <tr>
                   <th>
-                    <%= check_box_tag "select_all[]", "" %>
+                    <%= check_box_tag "select_all[]", "aaa" %>
                   </th>
                   <th>Title</th>
                   <th>Category</th>
@@ -90,33 +90,6 @@
 
 <%= javascript_tag do %>
   $(function() {
-  $('#jobs_datatable-search').keyup(function(){
-  $('#jobs_datatable').DataTable().search( $(this).val() ).draw();
-  });
-  
-  $("#select_all_" ).on( "click", function() {
-  $("input[name='ids[]']").prop('checked', this.checked);
-  });
   default_active_nav('.ln-6');
-  var checkedRows = new Array();
-  $(".share" ).on( "click", function() {
-  $("input[name='ids[]']:checked").each(function(){
-  checkedRows.push($(this).val());
-  });
-  if(checkedRows.length>0){
-  $('#jobs_ids').val(checkedRows);
-  $('#share-jobs').modal('show');
-  }
-  else{
-  alert("Please select atleast one job to proceed before.");
-  }
-  });
-  $('#share-jobs').on('shown.bs.modal', function() {
-  $(".select2").select2({
-  placeholder: "Groups/Contact/Email",
-  tags: true
-  });
-  });
-
   })
 <% end %>
