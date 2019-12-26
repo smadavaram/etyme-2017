@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema.define(version: 20191224151546) do
+ActiveRecord::Schema.define(version: 20191226100809) do
 
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
@@ -434,8 +434,8 @@ ActiveRecord::Schema.define(version: 20191224151546) do
     t.integer "company_id"
     t.integer "status", default: 0
     t.integer "candidate_status", default: 0
-    t.datetime "created_at", default: "2019-12-12 10:33:49"
-    t.datetime "updated_at", default: "2019-12-12 10:33:49"
+    t.datetime "created_at", default: "2019-11-29 12:33:24"
+    t.datetime "updated_at", default: "2019-11-29 12:33:24"
   end
 
   create_table "candidates_groups", id: false, force: :cascade do |t|
@@ -1216,6 +1216,14 @@ ActiveRecord::Schema.define(version: 20191224151546) do
     t.datetime "updated_at", null: false
     t.string "member_type"
     t.index ["company_id"], name: "index_groups_on_company_id"
+  end
+
+  create_table "holidays", force: :cascade do |t|
+    t.datetime "date"
+    t.string "name"
+    t.bigint "company_id"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
   end
 
   create_table "integrations", force: :cascade do |t|

@@ -421,6 +421,7 @@ Rails.application.routes.draw do
     resources :locations
     resources :departments
     resources :company_docs
+    resources :holidays
     resources :roles
     resources :groups, concerns: :paginatable do
       member do

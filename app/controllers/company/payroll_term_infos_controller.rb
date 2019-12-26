@@ -7,6 +7,7 @@ class Company::PayrollTermInfosController < Company::BaseController
 
   def index
     @payrolls = current_company.payroll_infos
+    @holidays = current_company.holidays
   end
 
   def new

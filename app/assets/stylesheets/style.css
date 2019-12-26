@@ -1870,3 +1870,7 @@ flex: 0 0 220px;
 .radius_unset{
     border-radius: unset !important;
 }
+
+.fa-trash{
+    color: red;
+}
