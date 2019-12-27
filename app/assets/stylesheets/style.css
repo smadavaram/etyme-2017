@@ -1874,3 +1874,6 @@ flex: 0 0 220px;
 .fa-trash{
     color: red;
 }
+.wrap_text{
+    max-width:150px;
+}

@@ -175,12 +175,15 @@ class Company::PayrollTermInfosController < Company::BaseController
   def payroll_params
     params.require(:payroll_info).permit(:id, :payroll_term, :term_no, :term_no_2, :payroll_term_2, :payroll_type, :sal_cal_date, :payroll_date, :title,
                                          :weekend_sch,
+                                         :pay_period_weekly,:pay_period_biweekly,:pay_period_monthly,:pay_period_twice_a_month,:pay_period_daily,
+                                         :payroll_term_weekly,:payroll_term_biweekly,:payroll_term_monthly,:payroll_term_twice_a_month,:payroll_term_daily,
+                                         :term_no_weekly,:term_no_biweekly,:term_no_monthly,:term_no_twice_a_month,:term_no_daily,
+                                         :weekend_sch_weekly,:weekend_sch_biweekly,:weekend_sch_monthly,:weekend_sch_twice_a_month,:weekend_sch_daily,
                                          :sc_day_time, :sc_date_1, :sc_date_2, :sc_day_of_week, :sc_end_of_month,
                                          :sp_day_time, :sp_date_1, :sp_date_2, :sp_day_of_week, :sp_end_of_month, :sc_2day_of_week, :sp_2day_of_week, :sclr_2day_of_week, :ven_bill_2day_of_week,
-
                                          :sclr_day_time, :sclr_date_1, :sclr_date_2, :sclr_day_of_week, :sclr_2day_of_week, :sclr_end_of_month, :ven_pay_2day_of_week, :ven_clr_2day_of_week,
-
-                                         :ven_term_no_1, :ven_term_no_2, :ven_bill_date_1, :ven_bill_date_2, :ven_pay_date_1, :ven_pay_date_2, :ven_clr_date_1, :ven_clr_date_2, :ven_bill_day_time, :ven_pay_day_time, :ven_clr_day_time, :ven_bill_end_of_month, :ven_pay_end_of_month, :ven_clr_end_of_month, :ven_payroll_type, :ven_term_num_1, :ven_term_num_2, :ven_term_1, :ven_term_2,
+                                         :ven_term_no_1, :ven_term_no_2, :ven_bill_date_1, :ven_bill_date_2, :ven_pay_date_1, :ven_pay_date_2, :ven_clr_date_1, :ven_clr_date_2, :ven_bill_day_time,
+                                         :ven_pay_day_time, :ven_clr_day_time, :ven_bill_end_of_month, :ven_pay_end_of_month, :ven_clr_end_of_month, :ven_payroll_type, :ven_term_num_1, :ven_term_num_2, :ven_term_1, :ven_term_2,
                                          tax_infos_attributes: [:id, :tax_term, :_destroy])
   end
 end

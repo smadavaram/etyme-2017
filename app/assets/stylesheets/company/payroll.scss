@@ -1,0 +1,21 @@
+.payroll_users_wraper{
+  height: 150px;
+  padding: 10px 20px;
+  .users{
+    padding: 10px 20px;
+    height: 100%;
+    border: 2px solid #dde2ec;
+    overflow: auto;
+  }
+}
+
+#payroll_table{
+  .form-control{
+    height: 3.5rem;
+    border: white;
+  }
+}
+
+.overflow_h{
+  overflow: hidden;
+}
