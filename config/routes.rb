@@ -1,5 +1,5 @@
 Rails.application.routes.draw do
-  
+
   concern :commentable do
     resources :comments
   end
@@ -173,7 +173,7 @@ Rails.application.routes.draw do
       get :accept_bench
       get :reject_bench
       get :remove_bench
-      post :bench_company_invitation,on: :collection
+      post :bench_company_invitation, on: :collection
     end
     # resources :contracts        , only: [:index]
     resources :candidates, only: [:show, :update, :create] do
@@ -476,8 +476,9 @@ Rails.application.routes.draw do
     end
     resources :invoice_term_infos
     resources :payroll_term_infos do
-      collection do
+      member do
         get :generate_payroll_dates
+        get :get_cycles
       end
     end
     resources :prefer_vendors, concerns: :paginatable do
@@ -778,7 +779,7 @@ Rails.application.routes.draw do
       get :find_company_admin, on: :collection
       get :find_hr_admins, on: :collection
       get :find_sell_company_hr_admins, on: :collection
-      get :find_reporting_manger,on: :collection
+      get :find_reporting_manger, on: :collection
     end
 
     namespace :candidate do

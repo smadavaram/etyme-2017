@@ -1,5 +1,6 @@
 class PayrollInfo < ApplicationRecord
   belongs_to :company
+  has_many :contract_cycles, as: :cycle_of
   validates_presence_of :title
 
   has_many :tax_infos

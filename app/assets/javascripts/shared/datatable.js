@@ -296,6 +296,8 @@ $(document).ready(function () {
         $('#payroll-datatable').DataTable().search($(this).val()).draw();
     });
 
+
+
     $('#holidays-datatable').editableTableWidget({ editor: $('<input>'), preventColumns: [ 4 ]})
         .on('change', function(evt, newValue) {
             var row = evt.target.parentElement;

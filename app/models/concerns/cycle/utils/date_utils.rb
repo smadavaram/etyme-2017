@@ -2,6 +2,7 @@ module Cycle::Utils::DateUtils
   class << self
     DayTranslation = {"sun": "sunday?", "mon": "monday?", "tue": "tuesday?", "wed": "wednesday?",
                       "thu": "thursday?", "fri": "friday?", "sat": "saturday?"}.freeze
+
     def range(start_date, end_date)
       (start_date...end_date).to_a
     end
@@ -70,5 +71,19 @@ module Cycle::Utils::DateUtils
       tmp.empty? ? groups : groups << tmp
     end
 
+    def get_date(value, frequency,start_date,end_date)
+      case (frequency)
+      when 'daily'
+        return start_date
+      when 'twice a month'
+        (start_date..end_date).to_a.select{|date| [Date.parse(value.first).day,Date.parse(value.second).day].include?(date.day)}.first
+      when 'biweekly'
+        (start_date..end_date).to_a.select{|date| date.send(DayTranslation[value.first.to_sym]) || date.send(DayTranslation[value.second.to_sym]) }.first
+      when 'monthly'
+        (start_date..end_date).to_a.select{|date| Date.parse(value).day == date.day}.first
+      when 'weekly'
+        (start_date..end_date).to_a.select{|date| date.send(DayTranslation[value.to_sym])}.first
+      end
+    end
   end
 end

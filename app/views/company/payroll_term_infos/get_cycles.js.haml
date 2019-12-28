@@ -1,0 +1,5 @@
+$('.cycles').html("#{j render 'cycles', payroll: @payroll}")
+$('#payroll-cycles-datatable').dataTable();
+$('#payroll-cycles-datatable-search').keyup(function () {
+$('#payroll-cycles-datatable').DataTable().search($(this).val()).draw();
+});

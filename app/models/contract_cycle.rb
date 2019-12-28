@@ -65,7 +65,11 @@ class ContractCycle < ApplicationRecord
         ""
     end
   end
-  
+
+  def self.get_post_date(value,frequency,start_date,end_date)
+    Cycle::Utils::DateUtils.get_date(value, frequency,start_date,end_date)
+  end
+
   def get_next_invoice_generate_date
     ig = self.contract.contract_cycles.where(cycle_type: "InvoiceGenerate").where("cycle_date >= ?", self.end_date).order(:cycle_date).first
     if ig.present?
@@ -75,5 +79,4 @@ class ContractCycle < ApplicationRecord
       self.contract.find_next_date(sell_contract.invoice_terms_period, sell_contract.invoice_date_1, sell_contract.invoice_date_2, sell_contract.invoice_end_of_month, sell_contract.invoice_day_of_week, self.cycle_date)
     end
   end
-
 end
