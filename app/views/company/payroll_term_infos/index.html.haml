@@ -59,4 +59,11 @@
                           = link_to 'Generate Cycles', generate_payroll_dates_payroll_term_info_path(payroll) unless payroll.contract_cycles.present?
                           = link_to 'View Cycles', get_cycles_payroll_term_info_path(payroll), remote: true  if payroll.contract_cycles.present?
                           = link_to content_tag(:i,nil,class: "fa fa-edit"), edit_payroll_term_info_path(payroll), class: "data-table-icons btn btn-link btn-sm"
+      .col-md-6
+        .will-add.payroll-loop-to-display-each-payroll-on-calendar      
       .row.cycles
+- content_for :scripts do
+  :javascript
+    $(document).on('ready',function() {
+          $('.will-add.payroll-loop-to-display-each-payroll-on-calendar').calendar();
+    })

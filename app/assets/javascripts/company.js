@@ -146,4 +146,6 @@
 //= require mobile_responsive
 //= require loader
 //= require company/holiday
+//= require shared/bootstrap-year-calendar.js
+
 
