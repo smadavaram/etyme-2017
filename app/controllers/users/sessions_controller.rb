@@ -3,7 +3,7 @@ class Users::SessionsController < Devise::SessionsController
 
   include DomainExtractor
 
-  layout 'static'
+  layout 'company_account'
   add_breadcrumb "Home",'/'
   add_breadcrumb "Company",""
   add_breadcrumb "Sign In",''

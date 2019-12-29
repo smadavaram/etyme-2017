@@ -1,0 +1,34 @@
+!!!
+%html{:id => "#{yield :html_id}"}
+  %head
+    %meta{:content=> "width=device-width, initial-scale=1", :name=>"viewport" }/
+    %meta{:content => "text/html; charset=UTF-8", "http-equiv" => "Content-Type"}/
+    %meta{:content => "#{user_signed_in? ? current_user.id : ''}", :name => "user-id"}
+    %meta{:content => "#{user_signed_in? ? current_user.class.to_s == "Candidate" ? "Candidate" : "User" : ''}", :name => "user-type"}
+    %title Etyme
+    = stylesheet_link_tag    'company_account'
+    = action_cable_meta_tag
+    = javascript_include_tag 'http://platform-api.sharethis.com/js/sharethis.js#property=5899b27937570f0011ac3636&product=inline-share-buttons'
+    = javascript_include_tag 'application'
+
+    = csrf_meta_tags
+    = yield :head
+
+  %body.p-0.body-background{class: "#{yield :body_class}"}
+
+    .all-wrapper
+      .modals
+      #modals
+      = yield
+    = javascript_include_tag 'static'
+    -#= tinymce_assets
+  = render 'shared/flash_messages'
+
+:css
+
+:javascript
+  $(document).ready(function(){
+    $(window).scrollTop(0);
+  });
+
+

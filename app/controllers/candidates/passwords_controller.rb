@@ -1,6 +1,6 @@
 class Candidates::PasswordsController < Devise::PasswordsController
 
-  layout 'static'
+  layout 'company_account'
 
   # GET /resource/password/new
    def new

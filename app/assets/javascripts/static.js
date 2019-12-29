@@ -28,6 +28,7 @@
 //= require custom
 //= require trix
 //= require mobile_responsive
+//= require static/companies_accounts
 
 function display_file_name(event) {
     // alert(event.fpfile.filename );

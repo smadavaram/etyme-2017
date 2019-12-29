@@ -29,7 +29,11 @@ class ApplicationController < ActionController::Base
   end
 
   def set_devise_layout
-    'static' if devise_controller?
+    if devise_controller? && action_name.eql?('new')
+      'company_account'
+    else
+      'static'
+    end
   end
 
 

@@ -1,7 +1,7 @@
 class Candidates::SessionsController < Devise::SessionsController
   # before_action :configure_sign_in_params, only: [:create]
 
-   layout 'static'
+   layout 'company_account'
    add_breadcrumb "Home",'/'
    add_breadcrumb "Candidate",""
    add_breadcrumb "Sign In",''

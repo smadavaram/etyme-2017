@@ -9,6 +9,8 @@ class StaticController < ApplicationController
 
   layout 'static', except: [:home]
   layout 'homepage', only: [:index]
+  layout 'company_account', only: [:signin, :signup]
+
 
   add_breadcrumb "Home", '/'
 

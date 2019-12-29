@@ -25,6 +25,7 @@ Rails.application.config.assets.precompile += %w( static.js )
 Rails.application.config.assets.precompile += %w( libs/jquery-2.1.1.min.js )
 Rails.application.config.assets.precompile += %w( home.scss )
 Rails.application.config.assets.precompile += %w( home.js )
+Rails.application.config.assets.precompile += %w( company_account.css )
 
 # Needed for BulletTrain, since it uses helpers in scss.erb files
 Rails.application.config.assets.configure do |env|
