@@ -41,7 +41,7 @@
             = succeed "I agree with the " do
               %i
             %a{"data-target" => "#myModal", "data-toggle" => "modal", :href => "#"} Terms and Conditions
-        %input.btn.btn-primary{"data-disable-with" => "Sign Up", :name => "commit", :type => "submit", :value => "Sign In"}/
+        %input.btn.btn-primary{"data-disable-with" => "Sign Up", :name => "commit", :type => "submit", :value => "Sign Up"}/
         .buttons-w.mt-4
           %a#sign_in_with_twitter.minumum-width.btn.btn-primary.mt-2{:href => "#{user_google_oauth2_omniauth_authorize_path}"}
             %i.ti-google
