@@ -115,7 +115,7 @@
               %td.p-0{"data-type": "sp_date_2"}= f.text_field :sp_date_2, class: "p_date form-control sp_payroll init_period", placeholder: "DD/MM/YYYY"
               %td.p-0{"data-type": "payroll_term"}= f.select :payroll_term_twice_a_month, months , {}, {class: "form-control init_period payroll_term" }
               %td.p-0{"data-type": "term_no"}= f.select :term_no_twice_a_month, days , {}, {class: "form-control init_period term_no" }
-              %td.p-0{"data-type": "pay_period"}= f.text_field :pay_period_twice_a_month, class: "form-control pay_period", readonly: true
+              %td.p-0{"data-type": "pay_period"}= f.text_field :pay_period_twice_a_monthly, class: "form-control pay_period", readonly: true
               %td.p-0{"data-type": "sclr_date_2"}= f.text_field :sclr_date_2, class: "p_date form-control", placeholder: "DD/MM/YYYY"
               %td.no-wrap{"data-type": "event"}
                 = f.radio_button :weekend_sch_twice_a_month,true,checked: payroll.weekend_sch_twice_a_month ? true : false, class: 'set-checkbox payroll-schedule-btn'
@@ -146,12 +146,22 @@
         var tr = $(this.parentElement.parentElement);
         var value = tr.find(".sp_payroll").val();
         var day = Number(tr.find('.term_no option:selected').val());
-        var month = Number(tr.find('.payroll_term option:selected').val());
+        var month = Number(tr.find('.payroll_term option:selected').val())-1;
         var frequency = tr.data('frequency');
         var date = get_date(value,frequency);
-        var period = moment(date).subtract(month,'months').subtract(day,'days').format("YYYY-MM-DD");
-        period = adjust_holiday(period);
+        if( day == 32){
+          var period = moment(date).subtract(month,'months').endOf('month').format("YYYY-MM-DD");
+        }else{
+          var period = moment(date).subtract(month,'months').subtract(day,'days').format("YYYY-MM-DD");
+        }
         tr.find(".pay_period").val(period)
+        if(frequency == 'monthly' || frequency == 'twice a month'){
+          if( (month == 0 && moment(date).date() < day) ||  period > date ){
+            tr.find(".pay_period").css('border', 'solid 2px red');
+            }else{
+              tr.find(".pay_period").css('border', 'solid 2px green');
+            }
+        }
       });
     });
 

@@ -66,4 +66,7 @@
  *= require slick-carousel/slick/slick
  *= require candidate/dashboard
  *= require company/payroll
+ *= require shared/bootstrap-year-calendar
+
+            
  */
