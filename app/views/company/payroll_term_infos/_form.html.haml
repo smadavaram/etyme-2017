@@ -105,7 +105,8 @@
                 %br
                 = f.radio_button :weekend_sch_twice_a_month,false,checked: payroll.weekend_sch_twice_a_month == false ? true : false, class: 'set-checkbox payroll-schedule-btn'
                 %label.m-0 After Holiday
-      = f.submit 'Generate cycles', class: 'btn btn-primary pull-right mb-3 btn-sm'
+      = f.submit 'Generate cycles', class: 'btn btn-primary pull-right mb-3 m-3 btn-sm'
+      = f.submit 'Save cycles', class: 'btn btn-primary pull-right mb-3 m-3 btn-sm'
 
   .content-box
     .element-box

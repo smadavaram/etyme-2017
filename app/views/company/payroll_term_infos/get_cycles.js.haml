@@ -1,4 +1,4 @@
-- events = @payroll.contract_cycles.map{|cc| {id: cc.id, name: cc.note, startDate: cc.start_date, endDate: cc.end_date, postDate: cc.post_date} }
+- events = @payroll.contract_cycles.map{|cc| {id: cc.id, name: cc.note, startDate: cc.start_date, endDate: cc.start_date, postDate: cc.post_date} }
 var data_src=JSON.parse("#{ escape_javascript(render(inline: events.to_json)) }").map(e=>({...e,startDate: new Date(e.startDate),endDate: new Date(e.endDate)}))
 var currentYear = new Date().getFullYear();
 console.log(data_src)
