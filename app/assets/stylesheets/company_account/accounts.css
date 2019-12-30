@@ -1,0 +1,25 @@
+.float{
+    float: right;
+}
+.box{
+    min-height: 635px;
+    /*margin-top: 54px !important;*/
+}
+.body-background{
+    background-image: linear-gradient(to bottom right, #D7BBEA, #65A8F1);
+}
+.error{
+    color: red;
+    float: left;
+}
+.alert-error{
+    color: #1D2026;
+    background-color: #F76523;
+    border-color: #bce8f1;
+}
+.icon_color{
+    color: #334152 !important;
+}
+.minumum-width{
+    min-width: -webkit-fill-available;
+}

@@ -1,27 +1,17 @@
-- provide(:body_class, 'full-screen')
+.page-padding
+  .all-wrapper.menu-side.with-pattern
+    .auth-box-w.box
+      .logo-w
+        %a{:href => "/"}
+          %img{:alt => "", :height => "54", :src => "#{image_path('etyme-logo-dark.png')}", :width => "image_width_for_height('logo/logo-big.png', 54)"}/
+      %h4.auth-header Sign In
+      = form_tag signin_path,id: 'new_user',class: 'new_user', method: :post do
+        .form-group
+          %label{:for => "user_email"} Email
+          = email_field_tag :email,nil ,placeholder: "Enter Your Email", required: true,class: 'form-control',id: 'user_email'
+          .help-block.form-text.with-errors.form-control-feedback
+          %a{:href => "/register"} Don't have an account?
+          .pre-icon.os-icon.os-icon-email-2-at2
+        = submit_tag :continue, class: "float btn btn-primary form-btn"
 
-#sectionIntro.intro-w.layout-v1
-  .os-container
-    .fade2
-    .call-to-action.p-0
-      .h3.cta-header
-        %i.fa.fa-coffee
-        Company Login
-      .h3.cta-header
-        %p Log in and get to work.
-
-%section.banner-login
-  .container
-    .row
-      %main.main.main-signup.col-lg-12
-        .col-lg-6.offset-lg-3.text-center
-          .form-sign
-            = form_tag signin_path, method: :post do
-              .form-body
-                .form-row
-                  = email_field_tag :email,nil ,placeholder: "Enter Your Email", required: true,class: 'field'
-                  .help-block.form-text.with-errors.form-control-feedback
-                    = link_to 'Are Already Signup there?', new_candidate_password_path ,class: "more-link", style: "color: #334152;"
-              .form-foot.pt-0
-                .form-actions
-                  = submit_tag :continue, class: "form-btn"
+:css

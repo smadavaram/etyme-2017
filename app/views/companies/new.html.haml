@@ -1,88 +1,58 @@
-- provide(:body_class, 'full-screen')
+.page-padding
+  .all-wrapper.menu-side.with-pattern
+    .auth-box-w
+      .logo-w
+        %a{:href => "/"}
+          %img{:alt => "", :height => "54", :src => "#{image_path('etyme-logo-dark')}", :width => "image_width_for_height('logo/logo-big.png', 54)"}
+        %center Just a few more steps to your 14-day trial
 
-#sectionIntro.intro-w.layout-v1.p-0
-  .os-container
-    .fade2
-    .call-to-action.pb-0
-      .h4.cta-header.font-2_rem
-        %i.fa.fa-coffee
-        Just a few more steps to your 14-day trial
-      .h3.cta-header
-        %p New to eTyme? Create an account now.
+      %h4.auth-header Sign Up
+      = form_for @company , html: {id: 'new_user smart-form-register' , class: 'new_user' }  do |f|
+        - if params[:register].present?
+          = hidden_field_tag 'register_company', true
 
-%section.banner-login
-  .container
-    .row
-      %main.main.main-signup.col-lg-12.pt-0
-        .col-lg-6.offset-lg-3.text-center
-          .form-sign
-            = form_for @company , html: {id: 'smart-form-register' , class: 'vertical-form lockscreen animated flipInY' }  do |f|
-              - if params[:register].present?
-                = hidden_field_tag 'register_company', true
-              = f.fields_for :owner, @user do |u|
-                .form-body
-                  - if params[:show_selector].present?
-                    .form-row.hide
-                      = f.text_field :name, placeholder: 'Company Name', required: true,minlength: "3", class: 'field'
-                    .form-row
-                      = f.select :company_type , [["Staffing/Training/Vendors", 'vendor'], ["Client/Implementation Patner", 'hiring_manager']],{include_blank: '-- Select Type --'} ,:class => 'field company_type', required: true ,onchange: "showNote();"
-                      .note#company_type{style: "float:left !important ;color: #334152"}
-                  -#.form-row
-                    -#.form-controls
-                    -#  .plain-select
-                        #= f.select :company_sub_type , ["Client","Implementation Patner"],{include_blank: '-- Select Type --'} ,:class => 'form-control company_type', required: true ,onchange: "showNote();"
-                  .form-row
-                    = u.email_field :email, :placeholder => "Your Email", required: true, email: true, class: 'field', value: params[:email]
-                  - if params[:show_input].present?
-                    .form-row
-                      = u.text_field :first_name, :placeholder => "Firstname", required: true,class: 'field'
-                    .form-row
-                      = u.text_field :last_name, :placeholder => "Lastname", required: true,class: 'field'
+        = f.fields_for :owner, @user do |u|
+          - if params[:show_selector].present?
+            .form-group.hide
+              %label Name
+              = f.text_field :name, placeholder: 'Company Name', required: true,minlength: "3", class: 'form-control field'
+              .help-block.form-text.with-errors.form-control-feedback
+              .icon_color.pre-icon.fa.fa-building
+            .form-group
+              %label Company Type
+              = f.select :company_type , [["Staffing/Training/Vendors", 'vendor'], ["Client/Implementation Patner", 'hiring_manager']],{include_blank: '-- Select Type --'} ,:class => 'form-control field company_type', required: true ,onchange: "showNote();"
+              .note#company_type{style: "float:left !important ;color: #334152"}
+              .help-block.form-text.with-errors.form-control-feedback
+              .icon_color.pre-icon.fa.fa-file
+            %br
+          .form-group
+            %label{:for => "user_email"} Email
+            = u.email_field :email, :placeholder => "Your Email", required: true, id: 'user_email', email: true, class: ' user_email form-control field', value: params[:email]
+            .help-block.form-text.with-errors.form-control-feedback
+              .icon_color.pre-icon.os-icon.os-icon-email-2-at2
 
-                    .form-row
-                      = f.text_field :domain  ,:placeholder => "Domain", required: true,minlength: "3",class:'field', id: "domain-field", value: params[:site], readonly: true
-                      .note.text-muted.errors.text-danger
+          - if params[:show_input].present?
+            .form-group
+              %label{:for => "user_fistname"} First Name
+              = u.text_field :first_name, :placeholder => "Firstname", required: true,class: 'form-control field'
+              .help-block.form-text.with-errors.form-control-feedback
+              .icon_color.pre-icon.fa.fa-user
+            .form-group
+              %label{:for => "user_last_name"} Last Name
+              = u.text_field :last_name, :placeholder => "Lastname", required: true,class: 'form-control field'
+              .help-block.form-text.with-errors.form-control-feedback
+              .icon_color.pre-icon.fa.fa-user
 
-                  -#.form-row
-                    .form-controls
-                      %input#terms{:name => "terms",class:"field", :type => "checkbox" ,required: true}/
-                      = succeed "I agree with the " do
-                        %i
-                      %a{"data-target" => "#myModal", "data-toggle" => "modal", :href => "#"} Terms and Conditions
-                .form-foot
-                  .form-actions
-                    %input.form-btn{:type => "submit", :value => "Register"}/
-                  .form-head
-                    = link_to "Already have Account?",signin_path ,class: "more-link", style: 'color: #334152'
+            .form-group
+              %label Domain
+              = f.text_field :domain  ,:placeholder => "Domain", required: true,minlength: "3",class:'form-control field', id: "domain-field", value: params[:site], readonly: true
+              .note.text-muted.errors.text-danger
+              .help-block.form-text.with-errors.form-control-feedback
+              .icon_color.pre-icon.fa.fa-globe
 
+
+        = link_to "Already have Account?",signin_path ,class: "icon_color more-link"
+
+        %input.btn.btn-primary.float{"data-disable-with" => "Register", :name => "commit", :type => "submit", :value => "Register"}/
 - content_for :scripts do
   :javascript
-    jQuery.validator.addMethod("checkurl", function(value, element) {
-      // now check if valid url
-      return /^(www\.)[A-Za-z0-9_-]+\.+[A-Za-z0-9.\/%&=\?_:;-]+$/.test(value);
-      }, "Please enter a valid URL."
-      );
-      jQuery.validator.addClassRules({
-      checkurl : { checkurl : true }
-        });
-      $( "#myform" ).validate({
-        rules: {
-          field: {
-            checkurl: true
-          }
-        }
-      });
-
-    function showNote() {
-      text=$('.company_type').val();
-      if(text=="vendor")
-      {
-        $('#company_type').text("Corp-corp/1099/Self-Employed");
-      }else if (text=="hiring_manager")
-      {
-        $('#company_type').text("Hiring mananger/implementation partner/Client ")
-      }else
-      {
-        $('#company_type').text("");
-      }
-    }

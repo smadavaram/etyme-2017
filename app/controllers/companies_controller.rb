@@ -9,7 +9,7 @@ class CompaniesController < ApplicationController
 
   respond_to :html,:json
 
-  layout 'static'
+  layout 'company_account'
 
   add_breadcrumb "Home",'/'
 

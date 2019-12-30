@@ -51,18 +51,8 @@
     // DO NOT REMOVE : GLOBAL FUNCTIONS!
 
     $(document).ready(function() {
-
-
-    // $('#myTab1 a[href="' + localStorage.getItem('mainActiveTab') + '"]').tab('show');
-
     $('.sub-tab a[href="' + localStorage.getItem('subActiveTab') + '"]').tab('show');
-
-
     });
-    // $('#myTab1').on('show.bs.tab', function(e) {
-    //   localStorage.setItem('mainActiveTab', $(e.target).attr('href'));
-    // });
-
     $('.sub-tab').on('show.bs.tab', function(e) {
       localStorage.setItem('subActiveTab', $(e.target).attr('href'));
     });

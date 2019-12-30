@@ -31,8 +31,5 @@
 -content_for :scripts do
   :javascript
     $(document).ready(function(){
-      $('#group-datatable-search').keyup(function(){
-        $('#group-datatable').DataTable().search( $(this).val() ).draw();
-      });
       default_active_nav('.ln-3');
     })

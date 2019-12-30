@@ -1,5 +1,3 @@
-$( ".file-pick" ).on('click',function() {
-    $('.fp__overlay').css({'z-index':'99999'})});
 var responsiveHelper_dt_basic = undefined;
 var responsiveHelper_datatable_fixed_column = undefined;
 var responsiveHelper_datatable_col_reorder = undefined;
