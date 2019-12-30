@@ -28,24 +28,6 @@
             =entity_image("hello","world")
             =entity_image("hello","world")
             =entity_image("hello","world")
-            =entity_image("hello","world")
-            =entity_image("hello","world")
-            =entity_image("hello","world")
-            =entity_image("hello","world")
-            =entity_image("hello","world")
-            =entity_image("hello","world")
-            =entity_image("hello","world")
-            =entity_image("hello","world")
-            =entity_image("hello","world")
-            =entity_image("hello","world")
-            =entity_image("hello","world")
-            =entity_image("hello","world")
-            =entity_image("hello","world")
-            =entity_image("hello","world")
-            =entity_image("hello","world")
-            =entity_image("hello","world")
-            =entity_image("hello","world")
-            =entity_image("hello","world")
       .table-responsive
         %table#payroll_table.table.text-center.table-bordered.table-lg.table-v2.table-striped.data-table-font
           %thead
@@ -115,7 +97,7 @@
               %td.p-0{"data-type": "sp_date_2"}= f.text_field :sp_date_2, class: "p_date form-control sp_payroll init_period", placeholder: "DD/MM/YYYY"
               %td.p-0{"data-type": "payroll_term"}= f.select :payroll_term_twice_a_month, months , {}, {class: "form-control init_period payroll_term" }
               %td.p-0{"data-type": "term_no"}= f.select :term_no_twice_a_month, days , {}, {class: "form-control init_period term_no" }
-              %td.p-0{"data-type": "pay_period"}= f.text_field :pay_period_twice_a_month, class: "form-control pay_period", readonly: true
+              %td.p-0{"data-type": "pay_period"}= f.text_field :pay_period_twice_a_monthly, class: "form-control pay_period", readonly: true
               %td.p-0{"data-type": "sclr_date_2"}= f.text_field :sclr_date_2, class: "p_date form-control", placeholder: "DD/MM/YYYY"
               %td.no-wrap{"data-type": "event"}
                 = f.radio_button :weekend_sch_twice_a_month,true,checked: payroll.weekend_sch_twice_a_month ? true : false, class: 'set-checkbox payroll-schedule-btn'
@@ -165,7 +147,7 @@
             }
         }
       });
-      var data_src=JSON.parse("#{ escape_javascript(render(inline: payroll.contract_cycles.map{|cc| {id: cc.id, name: cc.note, startDate: cc.start_date, endDate: cc.end_date, postDate: cc.post_date} }.to_json)) }").map(e=>({...e,startDate: new Date(e.startDate),endDate: new Date(e.endDate)}))
+      var data_src=JSON.parse("#{ escape_javascript(render(inline: payroll.contract_cycles.map{|cc| {id: cc.id, name: cc.note, startDate: cc.start_date, endDate: cc.start_date, postDate: cc.post_date} }.to_json)) }").map(e=>({...e,startDate: new Date(e.startDate),endDate: new Date(e.endDate)}))
       console.log(data_src)
       if (data_src.length > 0){
         $('.cycle_calendar').calendar({
