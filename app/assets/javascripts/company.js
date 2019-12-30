@@ -145,6 +145,7 @@
 //= require company/sale_invoices
 //= require mobile_responsive
 //= require loader
+//= require company/job_applications
 //= require company/holiday
 //= require shared/bootstrap-year-calendar.js
 

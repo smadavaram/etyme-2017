@@ -1,3 +1,6 @@
+<% content_for :google_address_search_api do %>
+  <script src="https://maps.googleapis.com/maps/api/js?key=<%= ENV['google_search_location_api_key'] %>&libraries=places" type="text/javascript"></script>
+<% end %>
 <div class="no-border" id="content">
   <div class="all-wrapper no-padding-content solid-bg-all">
     <div class="layout-w">
@@ -30,6 +33,7 @@
       $('.toggle_big_chat').on('click', function (e) {
           $("#show-candidate-<%=@job_application.applicationable_id%>").modal('hide');
           $("#application_chat").trigger('click');
-      })
+      });
+
   </script>
 <% end %>
