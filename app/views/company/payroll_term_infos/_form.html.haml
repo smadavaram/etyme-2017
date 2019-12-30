@@ -124,6 +124,12 @@
                 = f.radio_button :weekend_sch_twice_a_month,false,checked: payroll.weekend_sch_twice_a_month == false ? true : false, class: 'set-checkbox payroll-schedule-btn'
                 %label.m-0 After Holiday
       = f.submit :save, class: 'btn btn-primary pull-right mb-3'
+
+  .content-box
+    .element-box
+      .row.cycles
+        = render 'company/payroll_term_infos/cycles', payroll: payroll if payroll.contract_cycles.exists?
+
 - content_for :scripts do
   :javascript
     $(document).on('ready',function() {

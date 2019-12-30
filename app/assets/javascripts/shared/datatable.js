@@ -296,7 +296,10 @@ $(document).ready(function () {
         $('#payroll-datatable').DataTable().search($(this).val()).draw();
     });
 
-
+    $('#payroll-cycles-datatable').dataTable();
+    $('#payroll-cycles-datatable-search').keyup(function () {
+        $('#payroll-cycles-datatable').DataTable().search($(this).val()).draw();
+    });
 
     $('#holidays-datatable').editableTableWidget({ editor: $('<input>'), preventColumns: [ 4 ]})
         .on('change', function(evt, newValue) {

@@ -23,7 +23,8 @@ class Company::PayrollTermInfosController < Company::BaseController
   def update
     if @payroll.update(payroll_params)
       flash[:success] = 'Payroll has been updated'
-      redirect_to payroll_term_infos_path
+      create_update_payroll
+      redirect_to edit_payroll_term_info_path(@payroll), success: 'Cycles has been generated'
     else
       flash[:errors] = @payroll.errors.full_messages
       redirect_to edit_payroll_term_info(@payroll)
@@ -34,7 +35,8 @@ class Company::PayrollTermInfosController < Company::BaseController
     @payroll = current_company.payroll_infos.build(payroll_params)
     if @payroll.save
       flash[:success] = 'Payroll has been created'
-      redirect_to payroll_term_infos_path
+      create_update_payroll
+      redirect_to edit_payroll_term_info_path(@payroll), success: 'Cycles has been generated'
     else
       flash[:errors] = @payroll.errors.full_messages
       redirect_back fallback_location: root_path
@@ -59,11 +61,26 @@ class Company::PayrollTermInfosController < Company::BaseController
     end
   end
 
+  def create_update_payroll
+    if @payroll.contract_cycles.present?
+      if @payroll.contract_cycles.destroy_all
+        create_sp
+        create_sc
+        create_sclr
+      end
+    else
+      create_sp
+      create_sc
+      create_sclr
+    end
+  end
+
   def generate_payroll_dates
-    create_sp
-    create_sc
-    create_sclr
-    redirect_to payroll_term_infos_path, success: 'Cycles Generated'
+    if create_update_payroll
+      redirect_to payroll_term_infos_path, success: 'Cycles Generated'
+    else
+      redirect_to payroll_term_infos_path, errors: ['Something went wrong while generating the cycles']
+    end
   end
 
 

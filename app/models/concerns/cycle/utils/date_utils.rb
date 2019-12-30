@@ -76,11 +76,11 @@ module Cycle::Utils::DateUtils
       when 'daily'
         return start_date
       when 'twice a month'
-        (start_date..end_date).to_a.select{|date| [Date.parse(value.first).day,Date.parse(value.second).day].include?(date.day)}.first
+        (start_date..end_date).to_a.select{|date| [value.first.day,value.second.day].include?(date.day)}.first
       when 'biweekly'
         (start_date..end_date).to_a.select{|date| date.send(DayTranslation[value.first.to_sym]) || date.send(DayTranslation[value.second.to_sym]) }.first
       when 'monthly'
-        (start_date..end_date).to_a.select{|date| Date.parse(value).day == date.day}.first
+        (start_date..end_date).to_a.select{|date| value.day == date.day}.first
       when 'weekly'
         (start_date..end_date).to_a.select{|date| date.send(DayTranslation[value.to_sym])}.first
       end
