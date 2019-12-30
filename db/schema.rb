@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema.define(version: 20191226100809) do
+ActiveRecord::Schema.define(version: 20191227164352) do
 
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
@@ -434,8 +434,8 @@ ActiveRecord::Schema.define(version: 20191226100809) do
     t.integer "company_id"
     t.integer "status", default: 0
     t.integer "candidate_status", default: 0
-    t.datetime "created_at", default: "2019-11-29 12:33:24"
-    t.datetime "updated_at", default: "2019-11-29 12:33:24"
+    t.datetime "created_at", default: "2019-12-12 10:33:49"
+    t.datetime "updated_at", default: "2019-12-12 10:33:49"
   end
 
   create_table "candidates_groups", id: false, force: :cascade do |t|
@@ -1569,6 +1569,26 @@ ActiveRecord::Schema.define(version: 20191226100809) do
     t.string "ven_pay_2day_of_week"
     t.string "ven_clr_2day_of_week"
     t.string "title"
+    t.date "pay_period_daily"
+    t.date "pay_period_weekly"
+    t.date "pay_period_monthly"
+    t.date "pay_period_twice_a_monthly"
+    t.date "pay_period_biweekly"
+    t.boolean "weekend_sch_daily", default: true
+    t.boolean "weekend_sch_weekly", default: true
+    t.boolean "weekend_sch_monthly", default: true
+    t.boolean "weekend_sch_twice_a_month", default: true
+    t.boolean "weekend_sch_biweekly", default: true
+    t.integer "payroll_term_daily"
+    t.integer "payroll_term_weekly"
+    t.integer "payroll_term_monthly"
+    t.integer "payroll_term_twice_a_month"
+    t.integer "payroll_term_biweekly"
+    t.integer "term_no_daily"
+    t.integer "term_no_weekly"
+    t.integer "term_no_monthly"
+    t.integer "term_no_twice_a_month"
+    t.integer "term_no_biweekly"
     t.index ["company_id"], name: "index_payroll_infos_on_company_id"
   end
 

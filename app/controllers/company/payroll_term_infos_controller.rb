@@ -2,7 +2,7 @@ class Company::PayrollTermInfosController < Company::BaseController
   add_breadcrumb "Dashboard", :dashboard_path
   add_breadcrumb "Payroll terms", :payroll_term_infos_path
   before_action :set_department, only: [:create]
-  before_action :set_payroll, only: [:update, :edit]
+  before_action :set_payroll, only: [:update, :edit, :generate_payroll_dates, :get_cycles, :destroy]
   respond_to :html, :json
 
   def index
@@ -20,13 +20,22 @@ class Company::PayrollTermInfosController < Company::BaseController
     add_breadcrumb "Edit Payroll term", '#'
   end
 
+  def destroy
+    if @payroll.destroy
+      redirect_to payroll_term_infos_path, success: 'Successfully Deleted Payroll'
+    else
+      redirect_to payroll_term_infos_path, errors: @payroll.errors.full_messages
+    end
+  end
+
   def update
     if @payroll.update(payroll_params)
       flash[:success] = 'Payroll has been updated'
-      redirect_to payroll_term_infos_path
+      create_update_payroll
+      redirect_to edit_payroll_term_info_path(@payroll), success: 'Cycles has been generated'
     else
-      flash[:errors] = @payroll.errors.full_messages
-      redirect_to edit_payroll_term_info(@payroll)
+      #flash[:errors] = @payroll.errors.full_messages
+      redirect_to edit_payroll_term_info_path(@payroll), errors: @payroll.errors.full_messages
     end
   end
 
@@ -34,29 +43,132 @@ class Company::PayrollTermInfosController < Company::BaseController
     @payroll = current_company.payroll_infos.build(payroll_params)
     if @payroll.save
       flash[:success] = 'Payroll has been created'
-      redirect_to payroll_term_infos_path
+      create_update_payroll
+      redirect_to edit_payroll_term_info_path(@payroll), success: 'Cycles has been generated'
     else
       flash[:errors] = @payroll.errors.full_messages
       redirect_back fallback_location: root_path
     end
   end
 
-
-  def generate_payroll_dates
-    @payroll = current_company.payroll_infos.first
-    @dates = Hash.new
-    if @payroll.payroll_type == 'monthly'
-      month_cycle
-    elsif @payroll.payroll_type == 'weekly'
-      week_cycle
-    elsif @payroll.payroll_type == 'biweekly'
-      biweek_cycle
-    elsif @payroll.payroll_type == 'twice a month'
-      twice_month_cycle
-    else
-      daily_cycle
+  def get_date_groups(buy_or_sell, resource_initial, cycle_frequency_field)
+    sd = Date.today.beginning_of_year
+    ed = Date.today.end_of_year
+    utils = Cycle::Utils::DateUtils
+    case buy_or_sell.send(cycle_frequency_field)
+    when 'daily'
+      utils.group_by_daily(sd, ed)
+    when 'weekly'
+      utils.group_by_weekly(buy_or_sell.send("#{resource_initial}_day_of_week"), sd, ed)
+    when 'biweekly'
+      utils.group_by_biweekly(buy_or_sell.send("#{resource_initial}_day_of_week"), buy_or_sell.send("#{resource_initial}_2day_of_week"), sd, ed)
+    when 'monthly'
+      utils.group_by_monthly(buy_or_sell.send("#{resource_initial}_date_1").try(:day), sd, ed)
+    when 'twice a month'
+      utils.group_by_twice_a_month(buy_or_sell.send("#{resource_initial}_date_1").try(:day), buy_or_sell.send("#{resource_initial}_date_2").try(:day), sd, ed)
     end
   end
+
+  def create_update_payroll
+    if @payroll.contract_cycles.present?
+      if @payroll.contract_cycles.destroy_all
+        create_sp
+        create_sc
+        create_sclr
+      end
+    else
+      create_sp
+      create_sc
+      create_sclr
+    end
+  end
+
+  def generate_payroll_dates
+    if create_update_payroll
+      redirect_to payroll_term_infos_path, success: 'Cycles Generated'
+    else
+      redirect_to payroll_term_infos_path, errors: ['Something went wrong while generating the cycles']
+    end
+  end
+
+
+  def get_cycles
+
+  end
+
+  def create_sp
+    sp_date_groups = get_date_groups(@payroll, 'sp', 'payroll_type')
+    sp_date_groups.each do |date|
+      ContractCycle.create(
+          cycle_type: 'SalaryProcess',
+          start_date: date.first,
+          end_date: date.last,
+          post_date: holidat_shift(ContractCycle.get_post_date(get_selected_field('sp'), @payroll.payroll_type, date.first, date.last)),
+          cycle_of: @payroll,
+          cycle_frequency: @payroll.payroll_type,
+          note: "Salary Process"
+      )
+    end
+  end
+
+  def create_sc
+    sc_date_groups = get_date_groups(@payroll, 'sc', 'payroll_type')
+    sc_date_groups.each do |date|
+      ContractCycle.create(
+          cycle_type: 'SalaryCalculation',
+          start_date: date.first,
+          end_date: date.last,
+          post_date: holidat_shift(ContractCycle.get_post_date(get_selected_field('sc'), @payroll.payroll_type, date.first, date.last)),
+          cycle_of: @payroll,
+          cycle_frequency: @payroll.payroll_type,
+          note: "Salary Calculation"
+      )
+    end
+  end
+
+  def create_sclr
+    sclr_date_groups = get_date_groups(@payroll, 'sclr', 'payroll_type')
+    sclr_date_groups.each do |date|
+      ContractCycle.create(
+          cycle_type: 'SalaryClear',
+          start_date: date.first,
+          end_date: date.last,
+          post_date: holidat_shift(ContractCycle.get_post_date(get_selected_field('sclr'), @payroll.payroll_type, date.first, date.last)),
+          cycle_of: @payroll,
+          cycle_frequency: @payroll.payroll_type,
+          note: "Salary Clear"
+      )
+    end
+  end
+
+  def get_selected_field(resource_initial)
+    case @payroll.payroll_type
+    when 'daily'
+      Date.today.to_s
+    when 'weekly'
+      @payroll.send("#{resource_initial}_day_of_week")
+    when 'biweekly'
+      [@payroll.send("#{resource_initial}_day_of_week"), @payroll.send("#{resource_initial}_2day_of_week")]
+    when 'monthly'
+      @payroll.send("#{resource_initial}_date_1")
+    when 'twice a month'
+      [@payroll.send("#{resource_initial}_date_1"), @payroll.send("#{resource_initial}_date_2")]
+    end
+  end
+
+  def holidat_shift(date)
+    return nil if date.nil?
+    date = (date - (@payroll.send("payroll_term_#{@payroll.payroll_type.split(' ').join('_')}")&.months || 0.months)) - (@payroll.send("term_no_#{@payroll.payroll_type.split(' ').join('_')}")&.days || 0.days)
+    if date.sunday?
+      @payroll.send("pay_period_#{@payroll.payroll_type.split(' ').join('_')}").present? ? date - 2.days : date + 1.day
+    elsif date.saturday?
+      @payroll.send("pay_period_#{@payroll.payroll_type.split(' ').join('_')}").present? ? date - 1.days : date + 2.day
+    elsif current_company.holidays.where("Date(date) = '#{date.to_s}'").present?
+      @payroll.send("pay_period_#{@payroll.payroll_type.split(' ').join('_')}").present? ? date - 1.days : date + 1.day
+    end
+    date
+  end
+
 
   def month_cycle
     12.times do |i|
@@ -175,12 +287,15 @@ class Company::PayrollTermInfosController < Company::BaseController
   def payroll_params
     params.require(:payroll_info).permit(:id, :payroll_term, :term_no, :term_no_2, :payroll_term_2, :payroll_type, :sal_cal_date, :payroll_date, :title,
                                          :weekend_sch,
+                                         :pay_period_weekly, :pay_period_biweekly, :pay_period_monthly, :pay_period_twice_a_month, :pay_period_daily,
+                                         :payroll_term_weekly, :payroll_term_biweekly, :payroll_term_monthly, :payroll_term_twice_a_month, :payroll_term_daily,
+                                         :term_no_weekly, :term_no_biweekly, :term_no_monthly, :term_no_twice_a_month, :term_no_daily,
+                                         :weekend_sch_weekly, :weekend_sch_biweekly, :weekend_sch_monthly, :weekend_sch_twice_a_month, :weekend_sch_daily,
                                          :sc_day_time, :sc_date_1, :sc_date_2, :sc_day_of_week, :sc_end_of_month,
                                          :sp_day_time, :sp_date_1, :sp_date_2, :sp_day_of_week, :sp_end_of_month, :sc_2day_of_week, :sp_2day_of_week, :sclr_2day_of_week, :ven_bill_2day_of_week,
-
                                          :sclr_day_time, :sclr_date_1, :sclr_date_2, :sclr_day_of_week, :sclr_2day_of_week, :sclr_end_of_month, :ven_pay_2day_of_week, :ven_clr_2day_of_week,
-
-                                         :ven_term_no_1, :ven_term_no_2, :ven_bill_date_1, :ven_bill_date_2, :ven_pay_date_1, :ven_pay_date_2, :ven_clr_date_1, :ven_clr_date_2, :ven_bill_day_time, :ven_pay_day_time, :ven_clr_day_time, :ven_bill_end_of_month, :ven_pay_end_of_month, :ven_clr_end_of_month, :ven_payroll_type, :ven_term_num_1, :ven_term_num_2, :ven_term_1, :ven_term_2,
+                                         :ven_term_no_1, :ven_term_no_2, :ven_bill_date_1, :ven_bill_date_2, :ven_pay_date_1, :ven_pay_date_2, :ven_clr_date_1, :ven_clr_date_2, :ven_bill_day_time,
+                                         :ven_pay_day_time, :ven_clr_day_time, :ven_bill_end_of_month, :ven_pay_end_of_month, :ven_clr_end_of_month, :ven_payroll_type, :ven_term_num_1, :ven_term_num_2, :ven_term_1, :ven_term_2,
                                          tax_infos_attributes: [:id, :tax_term, :_destroy])
   end
 end

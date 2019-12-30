@@ -14,6 +14,7 @@
  * require bootstrap
  *= require company/salaries
  *= require trix
+ *= require shared/bootstrap-year-calendar
  *= require bootstarp-year-calendar
  *= require font-awesome
  *
@@ -65,4 +66,7 @@
  *= require company/prefer_vendors
  *= require slick-carousel/slick/slick
  *= require candidate/dashboard
+ *= require company/payroll
+
+            
  */
