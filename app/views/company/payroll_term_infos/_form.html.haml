@@ -51,7 +51,7 @@
           %thead
             %tr
               %th Payroll-Calculation
-              %th Payroll Date *processing
+              %th Payroll Date
               %th Payterm-Months
               %th Payterm Days
               %th Pay Period - Till day
@@ -115,7 +115,7 @@
               %td.p-0{"data-type": "sp_date_2"}= f.text_field :sp_date_2, class: "p_date form-control sp_payroll init_period", placeholder: "DD/MM/YYYY"
               %td.p-0{"data-type": "payroll_term"}= f.select :payroll_term_twice_a_month, months , {}, {class: "form-control init_period payroll_term" }
               %td.p-0{"data-type": "term_no"}= f.select :term_no_twice_a_month, days , {}, {class: "form-control init_period term_no" }
-              %td.p-0{"data-type": "pay_period"}= f.text_field :pay_period_twice_a_monthly, class: "form-control pay_period", readonly: true
+              %td.p-0{"data-type": "pay_period"}= f.text_field :pay_period_twice_a_month, class: "form-control pay_period", readonly: true
               %td.p-0{"data-type": "sclr_date_2"}= f.text_field :sclr_date_2, class: "p_date form-control", placeholder: "DD/MM/YYYY"
               %td.no-wrap{"data-type": "event"}
                 = f.radio_button :weekend_sch_twice_a_month,true,checked: payroll.weekend_sch_twice_a_month ? true : false, class: 'set-checkbox payroll-schedule-btn'
@@ -123,18 +123,20 @@
                 %br
                 = f.radio_button :weekend_sch_twice_a_month,false,checked: payroll.weekend_sch_twice_a_month == false ? true : false, class: 'set-checkbox payroll-schedule-btn'
                 %label.m-0 After Holiday
-      = f.submit :save, class: 'btn btn-primary pull-right mb-3'
+      = f.submit 'Generate cycles', class: 'btn btn-primary pull-right mb-3 btn-sm'
 
   .content-box
     .element-box
-      .row.cycles
-        = render 'company/payroll_term_infos/cycles', payroll: payroll if payroll.contract_cycles.exists?
+      .row
+        .col-sm-4.cycle_calendar.payroll-calendar_container
+        .col-sm-8.cycles
+          = render 'company/payroll_term_infos/cycles', payroll: payroll if payroll.contract_cycles.exists?
 
 - content_for :scripts do
   :javascript
     $(document).on('ready',function() {
       $(document).on('click','.payroll_frequency',function(){
-        $("tbody tr").hide();
+        $("#payroll_table tbody tr").hide();
         $(`tr[data-frequency='${this.value}']`).show();
         if(this.value == 'twice a month'){
           $(`tr[data-frequency='monthly']`).show();
@@ -163,8 +165,37 @@
             }
         }
       });
+      var data_src=JSON.parse("#{ escape_javascript(render(inline: payroll.contract_cycles.map{|cc| {id: cc.id, name: cc.note, startDate: cc.start_date, endDate: cc.end_date, postDate: cc.post_date} }.to_json)) }").map(e=>({...e,startDate: new Date(e.startDate),endDate: new Date(e.endDate)}))
+      console.log(data_src)
+      if (data_src.length > 0){
+        $('.cycle_calendar').calendar({
+          enableContextMenu: false,
+          enableRangeSelection: false,
+          displayHeader: false,
+          mouseOnDay: function(e) {
+          if(e.events.length > 0) {
+          var content = '';
+          for(var i in e.events) {
+          content += '<div class="event-tooltip-content">'
+          + '<div class="event-name" style="color:' + e.events[i].color + '">' + e.events[i].name + '</div>'
+          + '<div class="event-location">Processed On: '  + e.events[i].postDate + '</div>'
+          + '</div>';
+          }
+          $(e.element).popover({
+          trigger: 'manual',
+          container: 'body',
+          html:true,
+          content: content
+          });
+          $(e.element).popover('show');
+          }},
+          mouseOutDay: function(e) {
+          if(e.events.length > 0) {$(e.element).popover('hide');}},
+          dayContextMenu: function(e) {$(e.element).popover('hide');},
+          dataSource: data_src
+        });
+      }
     });
-
     function adjust_holiday(date){
       switch (moment(date).day()){
         case 6:

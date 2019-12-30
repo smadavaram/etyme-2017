@@ -2,7 +2,7 @@ class Company::PayrollTermInfosController < Company::BaseController
   add_breadcrumb "Dashboard", :dashboard_path
   add_breadcrumb "Payroll terms", :payroll_term_infos_path
   before_action :set_department, only: [:create]
-  before_action :set_payroll, only: [:update, :edit, :generate_payroll_dates, :get_cycles]
+  before_action :set_payroll, only: [:update, :edit, :generate_payroll_dates, :get_cycles, :destroy]
   respond_to :html, :json
 
   def index
@@ -20,14 +20,22 @@ class Company::PayrollTermInfosController < Company::BaseController
     add_breadcrumb "Edit Payroll term", '#'
   end
 
+  def destroy
+    if @payroll.destroy
+      redirect_to payroll_term_infos_path, success: 'Successfully Deleted Payroll'
+    else
+      redirect_to payroll_term_infos_path, errors: @payroll.errors.full_messages
+    end
+  end
+
   def update
     if @payroll.update(payroll_params)
       flash[:success] = 'Payroll has been updated'
       create_update_payroll
       redirect_to edit_payroll_term_info_path(@payroll), success: 'Cycles has been generated'
     else
-      flash[:errors] = @payroll.errors.full_messages
-      redirect_to edit_payroll_term_info(@payroll)
+      #flash[:errors] = @payroll.errors.full_messages
+      redirect_to edit_payroll_term_info_path(@payroll), errors: @payroll.errors.full_messages
     end
   end
 

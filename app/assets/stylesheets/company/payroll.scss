@@ -1,7 +1,8 @@
-.payroll_users_wraper{
+.payroll_users_wraper {
   height: 150px;
   padding: 10px 20px;
-  .users{
+
+  .users {
     padding: 10px 20px;
     height: 100%;
     border: 2px solid #dde2ec;
@@ -9,13 +10,20 @@
   }
 }
 
-#payroll_table{
-  .form-control{
+#payroll_table {
+  .form-control {
     height: 3.5rem;
     border: white;
   }
 }
 
-.overflow_h{
+.overflow_h {
   overflow: hidden;
+}
+
+.payroll-calendar_container{
+  padding-top: 50px;
+  height: 520px;
+  overflow-y: auto;
+  overflow-x: hidden;
 }

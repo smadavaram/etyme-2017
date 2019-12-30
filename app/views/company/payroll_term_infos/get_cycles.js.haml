@@ -1,5 +1,31 @@
-$('.cycles').html("#{j render 'cycles', payroll: @payroll}")
-$('#payroll-cycles-datatable').dataTable();
-$('#payroll-cycles-datatable-search').keyup(function () {
-$('#payroll-cycles-datatable').DataTable().search($(this).val()).draw();
+- events = @payroll.contract_cycles.map{|cc| {id: cc.id, name: cc.note, startDate: cc.start_date, endDate: cc.end_date, postDate: cc.post_date} }
+var data_src=JSON.parse("#{ escape_javascript(render(inline: events.to_json)) }").map(e=>({...e,startDate: new Date(e.startDate),endDate: new Date(e.endDate)}))
+var currentYear = new Date().getFullYear();
+console.log(data_src)
+
+$('.cycle_calendar').calendar({
+enableContextMenu: false,
+enableRangeSelection: false,
+mouseOnDay: function(e) {
+if(e.events.length > 0) {
+var content = '';
+for(var i in e.events) {
+content += '<div class="event-tooltip-content">'
++ '<div class="event-name" style="color:' + e.events[i].color + '">' + e.events[i].name + '</div>'
++ '<div class="event-location">Processed On: '  + e.events[i].postDate + '</div>'
++ '</div>';
+}
+$(e.element).popover({
+trigger: 'manual',
+container: 'body',
+html:true,
+content: content
 });
+$(e.element).popover('show');
+}},
+mouseOutDay: function(e) {
+if(e.events.length > 0) {$(e.element).popover('hide');}},
+dayContextMenu: function(e) {$(e.element).popover('hide');},
+dataSource: data_src
+});
+
