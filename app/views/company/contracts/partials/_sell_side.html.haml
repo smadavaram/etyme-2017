@@ -2,7 +2,7 @@
   - if @contract.sell_contract
     %h3= "sell-  #{@contract.sell_contract.number}"
     - if local_assigns[:editable] and editable
-      .text-right
+      .text-right.d-none
         =link_to 'Add', '#', class: 'btn btn-primary'
         =link_to 'Remove', '#', class: 'btn btn-danger'
 - if @contract.sell_contract.present?
