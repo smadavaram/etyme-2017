@@ -187,7 +187,7 @@
       .contract-fields_wrapper.mt-4.toggle_sell_contract
         %h5.mb-4.d-inline-block End Client(s)/Reporting Manager(s)
         %h5.mb-4.d-inline-block.pull-right
-          %button.btn.btn-primary.btn-sm.manager_team{"data-target" => "#manager-team", "data-toggle" => "modal", :type => "button"} Add Manager
+          %button.btn.btn-primary.btn-sm.manager_team{type: "button"} Add Manager
         - headers =  %w(domain name contact role(s) reminder action(s))
         .table-responsive.p-4
           %table.table.text-center.table-bordered.table-lg.table-v2.table-striped.data-table-font#contract_manager_table
@@ -207,7 +207,8 @@
 - content_for :scripts do
   :javascript
     $(document).ready(function () {
-      $(".manager_team").click(function(e){
+      $(document).on('click','.manager_team',function(e){
+        $('#manager-team').modal('show')
         var endclientid = $('#select_clients').val();
        if (endclientid) {
            set_company_reporting_manger('#select_sell_company_contacts', "Please Select Or Add new Contacts-"+endclientid, "#sell_contract_company");
@@ -219,5 +220,4 @@
           }
         }
       });
-     });
     });
