@@ -174,9 +174,9 @@ class Company::JobApplicationsController < Company::BaseController
   def interview
     @interview = params[:interview][:id].present? ?
                      @job_application.interviews.find_by(id: params[:interview][:id])
-                     : @job_application.interviews.new(interview_params)
+                     : @job_application.interviews.new(interview_params.merge(accepted_by_company: true))
     respond_to do |format|
-      if @interview.new_record? ? @interview.save : @interview.update(interview_params.merge({accept: false, accepted_by_recruiter: false, accepted_by_company: false}))
+      if @interview.new_record? ? @interview.save : @interview.update(interview_params.merge({accept: false, accepted_by_recruiter: false, accepted_by_company: true}))
         @conversation = @job_application.conversation
         @conversation.conversation_messages.schedule_interview.update_all(message_type: :job_conversation)
         body = current_user.full_name + " has schedule an interview on #{@interview.date} at #{@interview.date} <a href='http://#{@job_application.job.created_by.company.etyme_url + job_application_path(@job_application)}'> with reference to the job </a>#{@job_application.job.title}."

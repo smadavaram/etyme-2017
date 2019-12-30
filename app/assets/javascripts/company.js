@@ -145,4 +145,5 @@
 //= require mobile_responsive
 //= require loader
 //= require company/companies
+//= require company/job_applications
 

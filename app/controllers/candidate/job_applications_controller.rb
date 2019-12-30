@@ -58,7 +58,7 @@ class Candidate::JobApplicationsController < Candidate::BaseController
   def interview
     @interview = @job_application.interviews.find_by(id: params[:interview][:id])
     respond_to do |format|
-      if @interview.update(interview_params.merge({accept: false, accepted_by_recruiter: false, accepted_by_company: false}))
+      if @interview.update(interview_params.merge({accept: true, accepted_by_recruiter: false, accepted_by_company: false}))
         @conversation = @job_application.conversation
         @conversation.conversation_messages.schedule_interview.update_all(message_type: :job_conversation)
         body = current_candidate.full_name + " has schedule an interview on #{@interview.date} at #{@interview.date} <a href='http://#{@job_application.job.created_by.company.etyme_url + job_application_path(@job_application)}'> with reference to the job </a>#{@job_application.job.title}."
@@ -75,6 +75,9 @@ class Candidate::JobApplicationsController < Candidate::BaseController
     @interview = @job_application.interviews.find_by(id: params[:interview_id])
     unless @interview.accept
       if @interview.update(accept: true)
+        if @interview.is_accepted?
+          @job_application.interviewing!
+        end
         @conversation = @job_application.conversation
         @conversation.conversation_messages.schedule_interview.update_all(message_type: :job_conversation) if @interview.is_accepted?
         body = current_candidate.full_name + " has accepted the interview on #{@interview.date} at #{@interview.date} <a href='http://#{@job_application.job.created_by.company.etyme_url + job_application_path(@job_application)}'> with reference to the job </a>#{@job_application.job.title}."
