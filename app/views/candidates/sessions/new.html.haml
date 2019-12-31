@@ -1,38 +1,33 @@
-.page-padding
-  .all-wrapper.menu-side.with-pattern
-    .auth-box-w
-      .logo-w
-        %a{:href => "/"}
-          %img{:alt => "", :height => "54", :src => "#{image_path('etyme-logo-dark')}", :width => "image_width_for_height('logo/logo-big.png', 54)"}/
-      %h4.auth-header Sign In
-      = form_for(resource, as: resource_name, url: session_path(resource_name), html: {id: 'login-form', class: '',role:'form'}) do |f|
-        - flash.each do |key, value|
-          = flash_message(key,value)
-        .form-group
-          %label{:for => "user_email"} Email
-          = f.email_field :email, autofocus: true,class:'form-control field',placeholder:"Enter Email" ,required: true
-          .help-block.form-text.with-errors.form-control-feedback
-            %a{:href => "#{new_candidate_registration_path}"} Don't have an account?
-          .pre-icon.os-icon.os-icon-email-2-at2
-        .form-group
-          %label{:for => "user_password"} Password
-          = f.password_field :password, autocomplete: "off",class:'form-control field',placeholder:"Enter password" , required: true
-          .help-block.form-text.with-errors.form-control-feedback
-            = link_to 'Forgot password?', new_candidate_password_path ,class: "more-link", style: "color: black"
-          .pre-icon.os-icon.os-icon-fingerprint
-        %input.btn.btn-primary{"data-disable-with" => "Sign In", :name => "commit", :type => "submit", :value => "Sign In"}/
-        .form-check-inline
-          %label.form-check-label
-        .buttons-w.mt-4
-          %a#sign_in_with_twitter.minumum-width.btn.btn-primary.mt-2{:href => "#{user_google_oauth2_omniauth_authorize_path}"}
-            %i.ti-google
-            Sign in with Google
-          %a#sign_in_with_facebook.minumum-width.btn.btn-primary.mt-2{:href => "#{user_facebook_omniauth_authorize_path}"}
-            %i.ti-facebook
-            Sign in with Facebook
-          %a#sign_in_with_stripe.minumum-width.btn.btn-primary.mt-2{:href => "#{user_linkedin_omniauth_authorize_path}"}
-            %i.ti-linkedin
-            Sign in with Linkedin
+%h4.auth-header Sign In
+= form_for(resource, as: resource_name, url: session_path(resource_name), html: {id: 'login-form', class: '',role:'form'}) do |f|
+  - flash.each do |key, value|
+    = flash_message(key,value)
+  .form-group.field-group
+    %label{:for => "user_email"} Email
+    = f.email_field :email, autofocus: true,class:'form-control field',placeholder:"Enter Email" ,required: true
+    .help-block.form-text.with-errors.form-control-feedback
+      %a{:href => "#{new_candidate_registration_path}"} Don't have an account?
+    .pre-icon.os-icon.os-icon-email-2-at2
+  .form-group.field-group
+    %label{:for => "user_password"} Password
+    = f.password_field :password, autocomplete: "off",class:'form-control field',placeholder:"Enter password" , required: true
+    .help-block.form-text.with-errors.form-control-feedback
+      = link_to 'Forgot password?', new_candidate_password_path ,class: "more-link"
+    .pre-icon.os-icon.os-icon-fingerprint
+  .field-group
+    %input.btn.btn-primary.float{"data-disable-with" => "Sign In", :name => "commit", :type => "submit", :value => "Sign In"}/
+    .form-check-inline
+      %label.form-check-label
+    .buttons-w.mt-4
+      %a#sign_in_with_twitter.minumum-width.btn.btn-primary.mt-2{:href => "#{user_google_oauth2_omniauth_authorize_path}"}
+        %i.ti-google
+        Sign in with Google
+      %a#sign_in_with_facebook.minumum-width.btn.btn-primary.mt-2{:href => "#{user_facebook_omniauth_authorize_path}"}
+        %i.ti-facebook
+        Sign in with Facebook
+      %a#sign_in_with_stripe.minumum-width.btn.btn-primary.mt-2{:href => "#{user_linkedin_omniauth_authorize_path}"}
+        %i.ti-linkedin
+        Sign in with Linkedin
 
 - content_for :scripts do
   :javascript

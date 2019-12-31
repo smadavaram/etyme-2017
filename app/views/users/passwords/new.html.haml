@@ -1,18 +1,12 @@
-.page-padding
-  .all-wrapper.menu-side.with-pattern
-    .auth-box-w.box
-      .logo-w
-        %a{:href => "/"}
-          %img{:alt => "", :height => "54", :src => "#{image_path('etyme-logo-dark')}", :width => "image_width_for_height('logo/logo-big.png', 54)"}/
-      %h4.auth-header Forget Password
-      = form_for(resource, as: resource_name, url: password_path(resource_name), html: {id: 'new_user forgot-password-form', class: 'new_user',method: :post }) do |f|
-        .form-group
-          %label{:for => "user_email"} Email
-          = f.email_field :email, autofocus: true,id: 'user_email', class:'form-control field', placeholder: "Enter Email", required: true
-          .help-block.form-text.with-errors.form-control-feedback
-            %a{:href => "/register"} Don't have an account?
-          .pre-icon.os-icon.os-icon-email-2-at2
-        = f.submit 'Reset Password',class:'float form-btn btn btn-primary'
+%h4.auth-header Forget Password
+= form_for(resource, as: resource_name, url: password_path(resource_name), html: {id: 'new_user forgot-password-form', class: 'new_user',method: :post }) do |f|
+  .form-group.field-group
+    %label{:for => "user_email"} Email
+    = f.email_field :email, autofocus: true,id: 'user_email', class:'form-control field', placeholder: "Enter Email", required: true
+    .help-block.form-text.with-errors.form-control-feedback
+      %a{:href => "/register"} Don't have an account?
+    .pre-icon.os-icon.os-icon-email-2-at2
+  = f.submit 'Reset Password',class:'float form-btn btn btn-primary'
 
 -content_for :scripts do
   :javascript

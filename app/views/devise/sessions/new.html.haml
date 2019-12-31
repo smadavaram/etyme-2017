@@ -1,24 +1,18 @@
-.page-padding
-  - email_present = params[:email].present?
-  .all-wrapper.menu-side.with-pattern
-    .auth-box-w.box
-      .logo-w
-        %a{:href => "/"}
-          %img{:alt => "", :height => "54", :src => "#{image_path('etyme-logo-dark')}", :width => "image_width_for_height('logo/logo-big.png', 54)"}/
-      %h4.auth-header Sign In
-      = form_for(resource, as: resource_name, url: session_path(resource_name), html: {id: 'new_user login-form', class: 'new_user client-form',role:'form'}) do |f|
-        .form-group
-          %label{:for => "user_email"} Email
-          = f.email_field :email, autofocus: !email_present, value: params[:email],id: 'user_email', class:'form-control field',placeholder:"Enter Email" ,required: true
-          .help-block.form-text.with-errors.form-control-feedback
-          .pre-icon.os-icon.os-icon-email-2-at2
-        .form-group
-          %label{:for => "user_password"} Password
-          = f.password_field :password, autofocus: email_present, autocomplete: "off", id: 'user_password', class:'form-control field',placeholder:"Enter password" ,required: true
-          .help-block.form-text.with-errors.form-control-feedback
-            = link_to 'Forgot password?', new_user_password_path ,class: "more-link", style: 'color: #334152'
-          .pre-icon.os-icon.os-icon-fingerprint
-        %input.btn.btn-primary.float{"data-disable-with" => "Sign In", :name => "commit", :type => "submit", :value => "Sign In"}/
+- email_present = params[:email].present?
+%h4.auth-header Sign In
+= form_for(resource, as: resource_name, url: session_path(resource_name), html: {id: 'new_user login-form', class: 'new_user client-form',role:'form'}) do |f|
+  .form-group.field-group
+    %label{:for => "user_email"} Email
+    = f.email_field :email, autofocus: !email_present, value: params[:email],id: 'user_email', class:'form-control field',placeholder:"Enter Email" ,required: true
+    .help-block.form-text.with-errors.form-control-feedback
+    .pre-icon.os-icon.os-icon-email-2-at2
+  .form-group.field-group
+    %label{:for => "user_password"} Password
+    = f.password_field :password, autofocus: email_present, autocomplete: "off", id: 'user_password', class:'form-control field',placeholder:"Enter password" ,required: true
+    .help-block.form-text.with-errors.form-control-feedback
+      = link_to 'Forgot password?', new_user_password_path ,class: "more-link"
+    .pre-icon.os-icon.os-icon-fingerprint
+  %input.btn.btn-primary.float{"data-disable-with" => "Sign In", :name => "commit", :type => "submit", :value => "Sign In"}/
 
 :css
 
