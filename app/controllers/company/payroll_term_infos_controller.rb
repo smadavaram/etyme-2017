@@ -103,7 +103,7 @@ class Company::PayrollTermInfosController < Company::BaseController
           cycle_type: 'SalaryProcess',
           start_date: date.first,
           end_date: date.last,
-          post_date: holidat_shift(ContractCycle.get_post_date(get_selected_field('sp'), @payroll.payroll_type, date.first, date.last)),
+          post_date: check_for_shift(ContractCycle.get_post_date(get_selected_field('sp'), @payroll.payroll_type, date.first, date.last) || date.first),
           cycle_of: @payroll,
           cycle_frequency: @payroll.payroll_type,
           note: "Salary Process"
@@ -118,7 +118,7 @@ class Company::PayrollTermInfosController < Company::BaseController
           cycle_type: 'SalaryCalculation',
           start_date: date.first,
           end_date: date.last,
-          post_date: holidat_shift(ContractCycle.get_post_date(get_selected_field('sc'), @payroll.payroll_type, date.first, date.last)),
+          post_date: check_for_shift(ContractCycle.get_post_date(get_selected_field('sc'), @payroll.payroll_type, date.first, date.last) || date.first),
           cycle_of: @payroll,
           cycle_frequency: @payroll.payroll_type,
           note: "Salary Calculation"
@@ -133,7 +133,7 @@ class Company::PayrollTermInfosController < Company::BaseController
           cycle_type: 'SalaryClear',
           start_date: date.first,
           end_date: date.last,
-          post_date: holidat_shift(ContractCycle.get_post_date(get_selected_field('sclr'), @payroll.payroll_type, date.first, date.last)),
+          post_date: check_for_shift(ContractCycle.get_post_date(get_selected_field('sclr'), @payroll.payroll_type, date.first, date.last) || date.first),
           cycle_of: @payroll,
           cycle_frequency: @payroll.payroll_type,
           note: "Salary Clear"
@@ -156,17 +156,22 @@ class Company::PayrollTermInfosController < Company::BaseController
     end
   end
 
-  def holidat_shift(date)
+  def check_for_shift(date)
     return nil if date.nil?
-    date = (date - (@payroll.send("payroll_term_#{@payroll.payroll_type.split(' ').join('_')}")&.months || 0.months)) - (@payroll.send("term_no_#{@payroll.payroll_type.split(' ').join('_')}")&.days || 0.days)
-    if date.sunday?
-      @payroll.send("pay_period_#{@payroll.payroll_type.split(' ').join('_')}").present? ? date - 2.days : date + 1.day
-    elsif date.saturday?
-      @payroll.send("pay_period_#{@payroll.payroll_type.split(' ').join('_')}").present? ? date - 1.days : date + 2.day
-    elsif current_company.holidays.where("Date(date) = '#{date.to_s}'").present?
-      @payroll.send("pay_period_#{@payroll.payroll_type.split(' ').join('_')}").present? ? date - 1.days : date + 1.day
+    while (date.sunday? || date.saturday? || current_company.holidays.where("Date(date) = '#{date.to_s}'").present?)
+      date = shift_day(date)
     end
     date
+  end
+
+  def shift_day(date)
+    if date.sunday?
+      @payroll.send("weekend_sch_#{@payroll.payroll_type.split(' ').join('_')}").present? ? date - 2.days : date + 1.day
+    elsif date.saturday?
+      @payroll.send("weekend_sch_#{@payroll.payroll_type.split(' ').join('_')}").present? ? date - 1.days : date + 2.day
+    elsif current_company.holidays.where("Date(date) = '#{date.to_s}'").present?
+      @payroll.send("weekend_sch_#{@payroll.payroll_type.split(' ').join('_')}").present? ? date - 1.days : date + 1.day
+    end
   end
 
 
