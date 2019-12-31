@@ -22,7 +22,7 @@
               %tr
                 %td= payroll.title
                 %td= payroll.payroll_type
-                %td= cc.note
+                %td{style: "color: #{cc.color}"}= cc.note
                 %td.no-wrap= cc.start_date.strftime("%Y-%m-%d")
                 %td.no-wrap= cc.end_date&.strftime("%Y-%m-%d")
                 %td.no-wrap= cc.post_date

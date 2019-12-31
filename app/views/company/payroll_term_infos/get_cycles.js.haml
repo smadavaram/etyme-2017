@@ -1,11 +1,11 @@
-- events = @payroll.contract_cycles.map{|cc| {id: cc.id, name: cc.note, startDate: cc.start_date, endDate: cc.start_date, postDate: cc.post_date} }
-var data_src=JSON.parse("#{ escape_javascript(render(inline: events.to_json)) }").map(e=>({...e,startDate: new Date(e.startDate),endDate: new Date(e.endDate)}))
+- events = @payroll.contract_cycles.map{|cc| {id: cc.id, name: cc.note, startDate: cc.post_date, endDate: cc.post_date, postDate: cc.post_date} }
+var data_src=JSON.parse("#{ escape_javascript(render(inline: events.to_json)) }").map(e=>({...e,startDate: new Date(e.startDate),endDate: new Date(e.endDate),color: cc_color(e.name)}))
+var disableDays = JSON.parse("#{escape_javascript(render(inline: current_company.holidays.pluck(:date).to_json)) }").map(e=>(new Date(e)))
 var currentYear = new Date().getFullYear();
-console.log(data_src)
-
 $('.cycle_calendar').calendar({
 enableContextMenu: false,
 enableRangeSelection: false,
+disabledDays: disableDays,
 mouseOnDay: function(e) {
 if(e.events.length > 0) {
 var content = '';

@@ -42,3 +42,14 @@ $(document).ready(function () {
         }
     });
 });
+
+function cc_color(note){
+    switch(note){
+        case 'Salary Process':
+            return 'red';
+        case 'Salary Calculation':
+            return 'green';
+        case 'Salary Clear':
+            return 'blue';
+    }
+}

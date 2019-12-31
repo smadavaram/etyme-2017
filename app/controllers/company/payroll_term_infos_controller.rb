@@ -34,7 +34,6 @@ class Company::PayrollTermInfosController < Company::BaseController
       create_update_payroll
       redirect_to edit_payroll_term_info_path(@payroll), success: 'Cycles has been generated'
     else
-      #flash[:errors] = @payroll.errors.full_messages
       redirect_to edit_payroll_term_info_path(@payroll), errors: @payroll.errors.full_messages
     end
   end
