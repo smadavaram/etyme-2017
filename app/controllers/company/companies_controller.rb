@@ -135,9 +135,28 @@ class Company::CompaniesController < Company::BaseController
     add_breadcrumb "#{current_company.name} Info"
     @admin = current_company.admins.new
     @company = Company.find(params[:id] || params[:company_id])
-    @company.billing_infos.build unless @company.billing_infos.present?
-    @company.branches.build unless @company.branches.present?
-    @company.addresses.build unless @company.addresses.present?
+    @company_details_obj = GooglePlaces::Client.new(ENV['google_business_place_api_key'])
+    @company_details = @company_details_obj.spots_by_query('viral square')
+    if @company_details.present?
+      if @company.billing_infos.present?
+        @company.billing_infos.build
+      else
+        @company.billing_infos.build(address: @company_details.first.formatted_address, city: nil, country: nil, zip: nil)
+      end
+      @company_business_logo = @company_details.first.icon
+      @company.branches.build unless @company.branches.present?
+      if @company.addresses.present?
+        @company.addresses.build
+      else
+        @company.addresses.build(address_1: @company_details.first.formatted_address)
+      end
+      @company.phone = @company_details.first.formatted_phone_number  if @company.phone.blank?
+    else
+      @company.billing_infos.build unless @company.billing_infos.present?
+      @company.branches.build unless @company.branches.present?
+      @company.addresses.build unless @company.addresses.present?
+    end
+
     @company_doc = current_company.company_docs.new
     @company_doc.build_attachment
     @location = current_company.locations.build
@@ -145,6 +164,10 @@ class Company::CompaniesController < Company::BaseController
     @slick_pop_up = current_user.sign_in_count==1 ? '' : 'display_none'
     @customers_list = current_company.company_customer_vendors.customer
     @vendors_list = current_company.company_customer_vendors.vendor
+
+
+
+
 
 
     #pagination

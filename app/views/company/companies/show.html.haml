@@ -44,19 +44,16 @@
       #content
         .row
           .col-sm-12.col-md-12.col-lg-3
-            .panel{style: 'background: #FFF!important;border: 1px solid #ccc;display: flex;align-items: center;flex-direction: column;'}
+            .panel.pb-3{style: 'background: #FFF!important;border: 1px solid #ccc;display: flex;align-items: center;flex-direction: column;'}
               -if(current_company.logo.present?)
                 = image_tag current_company.logo,  style:"width:100px;height:100px;border-radius: 50%;", fit: 'clip',:class =>"profile-pic   "
               -else
-                = image_tag image_path('default-lcom-ogo.png'),  style: "width:100px;height:100px;border-radius: 50%;", fit: 'clip',:class =>"profile-pic circle_img"
+                -if @company_business_logo.present?
+                  %img.profile-pic{:alt => "#{@company.name}", :fit => "clip", :src => "#{@company_business_logo}", :style => "width:100px;height:100px;border-radius: 50%;"}/
+                -else
+                  = image_tag image_path('default-lcom-ogo.png'),  style: "width:100px;height:100px;border-radius: 50%;", fit: 'clip',:class =>"profile-pic circle_img"
 
-              .d-inline
-                %i.fa.fa-user.fa-2x.text-muted{style: 'font-size:20px;'}
-                  5
-                %i.fa.fa-file-pdf-o.fa-2x.text-muted{style: 'font-size:20px;'}
-                  5
-                %i.fa.fa-user.fa-2x.text-muted{style: 'font-size:20px;'}
-                  5
+
 
             %br
             .panel-body.status.profile-margin

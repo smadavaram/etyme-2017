@@ -141,6 +141,7 @@ gem 'awesome_print'
 # gem 'bcrypt', '~> 3.1.7'
 #****************************
 # Featureing Files
+gem 'google_places'
 #****************************
 
 gem "paranoia"#, "~> 2.2"

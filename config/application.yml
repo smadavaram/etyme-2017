@@ -39,6 +39,7 @@ development:
   # google api
   google_search_location_api_key: 'AIzaSyAdf6df60vd1qmUPN7A8kwNDRc9qWx7CF4'
   global_url: 'https://www.cloudepa.com'
+  google_business_place_api_key: 'AIzaSyDplyJQu2eS1qNVdoBsGL4FGmJwMWFDDUQ'
 
 production:
   mailgun_gun_api:  "key-65deee3bd721c9bba966ff557d3fc79b"
