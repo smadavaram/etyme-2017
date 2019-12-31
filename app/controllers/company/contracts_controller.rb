@@ -205,9 +205,9 @@ class Company::ContractsController < Company::BaseController
 
         params[:contract][:hr_admins_ids]&.each do |id|
           if params[:tab].to_i ==2
-            @contract.contract_admins.create(user_id:id,company_id:current_company.id,contract_id:@contract.id)
+            @contract.contract_admins.find_or_create_by(user_id:id,company_id:current_company.id,contract_id:@contract.id)
           elsif params[:tab].to_i == 3
-            @contract.sell_contract.contract_admins.create(user_id: id, contract_id: @contract.id,company_id: @contract.sell_contract.company.id)
+            @contract.sell_contract.contract_admins.find_or_create_by(user_id: id, contract_id: @contract.id,company_id: @contract.sell_contract.company.id)
           end
         end
         create_custom_activity(@contract, 'contracts.update', contract_params, @contract)
@@ -263,9 +263,9 @@ class Company::ContractsController < Company::BaseController
         end
         params[:contract][:hr_admins_ids]&.each do |id|
           if params[:tab].to_i ==2
-            @contract.contract_admins.create(user_id:id,company_id:current_company.id,contract_id:@contract.id)
+            @contract.contract_admins.find_or_create_by(user_id:id,company_id:current_company.id,contract_id:@contract.id)
           elsif params[:tab].to_i == 3
-            @contract.sell_contract.contract_admins.create(user_id: id, contract_id: @contract.id,company_id: @contract.sell_contract.company.id)
+            @contract.sell_contract.contract_admins.find_or_create_by(user_id: id, contract_id: @contract.id,company_id: @contract.sell_contract.company.id)
           end
         end
         create_custom_activity(@contract, 'contracts.create', create_contract_params, @contract)
