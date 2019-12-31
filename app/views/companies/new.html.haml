@@ -1,6 +1,6 @@
 .page-padding
   .all-wrapper.menu-side.with-pattern
-    .auth-box-w
+    .auth-box-w.box
       .logo-w
         %a{:href => "/"}
           %img{:alt => "", :height => "54", :src => "#{image_path('etyme-logo-dark')}", :width => "image_width_for_height('logo/logo-big.png', 54)"}
@@ -13,46 +13,46 @@
 
         = f.fields_for :owner, @user do |u|
           - if params[:show_selector].present?
-            .form-group.hide
+            .form-group.field-group.hide
               %label Name
               = f.text_field :name, placeholder: 'Company Name', required: true,minlength: "3", class: 'form-control field'
               .help-block.form-text.with-errors.form-control-feedback
               .icon_color.pre-icon.fa.fa-building
-            .form-group
+            .form-group.field-group
               %label Company Type
               = f.select :company_type , [["Staffing/Training/Vendors", 'vendor'], ["Client/Implementation Patner", 'hiring_manager']],{include_blank: '-- Select Type --'} ,:class => 'form-control field company_type', required: true ,onchange: "showNote();"
               .note#company_type{style: "float:left !important ;color: #334152"}
               .help-block.form-text.with-errors.form-control-feedback
               .icon_color.pre-icon.fa.fa-file
             %br
-          .form-group
+          .form-group.field-group
             %label{:for => "user_email"} Email
             = u.email_field :email, :placeholder => "Your Email", required: true, id: 'user_email', email: true, class: ' user_email form-control field', value: params[:email]
             .help-block.form-text.with-errors.form-control-feedback
               .icon_color.pre-icon.os-icon.os-icon-email-2-at2
 
           - if params[:show_input].present?
-            .form-group
+            .form-group.field-group
               %label{:for => "user_fistname"} First Name
               = u.text_field :first_name, :placeholder => "Firstname", required: true,class: 'form-control field'
               .help-block.form-text.with-errors.form-control-feedback
               .icon_color.pre-icon.fa.fa-user
-            .form-group
+            .form-group.field-group
               %label{:for => "user_last_name"} Last Name
               = u.text_field :last_name, :placeholder => "Lastname", required: true,class: 'form-control field'
               .help-block.form-text.with-errors.form-control-feedback
               .icon_color.pre-icon.fa.fa-user
 
-            .form-group
+            .form-group.field-group
               %label Domain
               = f.text_field :domain  ,:placeholder => "Domain", required: true,minlength: "3",class:'form-control field', id: "domain-field", value: params[:site], readonly: true
               .note.text-muted.errors.text-danger
               .help-block.form-text.with-errors.form-control-feedback
               .icon_color.pre-icon.fa.fa-globe
 
+        .field-group
 
-        = link_to "Already have Account?",signin_path ,class: "icon_color more-link"
-
-        %input.btn.btn-primary.float{"data-disable-with" => "Register", :name => "commit", :type => "submit", :value => "Register"}/
+          = link_to "Alredy Have Account?",signin_path ,class: " more-link"
+          %input.btn.btn-primary.float{"data-disable-with" => "Register", :name => "commit", :type => "submit", :value => "Register"}/
 - content_for :scripts do
   :javascript

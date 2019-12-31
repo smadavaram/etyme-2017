@@ -2,8 +2,8 @@
     float: right;
 }
 .box{
-    min-height: 635px;
-    /*margin-top: 54px !important;*/
+    /*min-height: 635px;*/
+    margin-top: 25px !important;
 }
 .body-background{
     background-image: linear-gradient(to bottom right, #D7BBEA, #65A8F1);
@@ -22,4 +22,10 @@
 }
 .minumum-width{
     min-width: -webkit-fill-available;
+}
+.field-group{
+    width: 122%;
+}
+.field-group input{
+    border-radius: 4px !important;
 }
