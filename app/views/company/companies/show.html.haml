@@ -5,38 +5,83 @@
       .slick_header.container.d-flex
         %h5 Invite Your Team
         %span.os-icon.os-icon-close.close_slick{style: 'left:190px !important;'}
-      .slider-data-text.pt-5
+      .slider-data-text.mt-2
+        .container
+          %h5.text-justify
+            %small.text-muted You are Rockstar! Colloborate better by Inviting your team and welcome them to Doing less and getting more.
+        .container.mt-4
+          .help-block.form-text.text-muted.form-control-feedback (Copy their emails with comma separation)
         .container
           =form_tag import_company_users_path, method: :get, id: "",remote: 'true' do
-            = text_area_tag 'emails'
-            %span.email_hint hint: add comma separated emails
-            %br
-            = button_tag "submit" , class: ' btn btn-primary'
+            = text_area_tag 'emails',nil ,class: 'form-control radius_10'
           .data_on_slick_customer.scrole
     .slide
       .slick_header.container.d-flex
-        %h5 Import Customers
+        %h5 Business Owner
         %span.os-icon.os-icon-close.close_slick{style: 'left:190px !important;'}
-      .slider-data-text
-        .container{style: 'text-align:center; margin-top:30px'}
-          = button_tag "Import customers" , class: 'mr-2 mb-2 btn btn-primary', onclick: "company_customer_file()"
-          %br
-          %span.text-muted.data-table-font  #{link_to 'download sample csv file',"/doc/customer.csv"}
+      .slider-data-text.mt-2
         .container
+          %h5.text-justify
+            %small.text-muted Designate your Business owner/Enterprise Administrator
+        .container
+          =form_tag change_owner_company_users_path, method: :post, id: "",remote: 'true' do
+            .row.mt-3
+              .col-sm-6
+                %label.text-muted First Name
+                = text_field_tag :first_name, nil,class: 'form-control', placeholder: 'Jhon'
+              .col-sm-6
+                %label.text-muted Last Name
+                = text_field_tag :last_name, nil, class: 'form-control', placeholder: 'Doe'
+            .row
+              .col-sm-12.mt-1
+                %label.text-muted Phone
+                = email_field_tag :phone, nil, class: 'form-control', placeholder: '555-555-555'
+              .col-sm-12.mt-1
+                %label.text-muted Email
+                = email_field_tag :email, nil, class: 'form-control', placeholder: 'example@domain.com'
+            -#= button_tag "submit" , class: ' btn btn-primary'
           .data_on_slick_customer.scrole
-            = render 'company/customer_vendor/partials/import_list',status:'company_customers',customer_list:@customers_list
     .slide
-      .slick_header.container.d-flex.mb-2
-        %h5 Import Vendors
-        %span.os-icon.os-icon-close.close_slick{style: 'left:200px !important;'}
-      .slider-data-text
-        .container{style: 'text-align:center; margin-top:30px'}
-          = button_tag "Import vendors" , class: 'mr-2 mb-2 btn btn-primary', onclick: "company_vendor_file()"
-          %br
-          %span.text-muted.data-table-font  #{link_to 'download sample csv file',"/doc/customer.csv"}
+      .slick_header.container.d-flex
+        %h5 Invite Candidates
+        %span.os-icon.os-icon-close.close_slick{style: 'left:190px !important;'}
+      .slider-data-text.mt-2
         .container
-          .data_on_slick_vendor.scrole
-            = render 'company/customer_vendor/partials/import_list',status:'company_vendors',customer_list: @vendors_list
+          %h5.text-justify
+            %small.text-muted Invite your candidate to work with you in real time. They will share the information with you real time.
+        .container.mt-4
+          .help-block.form-text.text-muted.form-control-feedback (Copy their emails with comma separation)
+        .container
+          =form_tag add_candidates_company_users_path, method: :post, id: "",remote: 'true' do
+            = text_area_tag 'emails',nil ,class: 'form-control radius_10'
+            -#= button_tag "submit" , class: ' btn btn-primary'
+          .data_on_slick_customer.scrole
+    .slide
+      .slick_header.container.d-flex
+        %h5 Invite Contacts
+        %span.os-icon.os-icon-close.close_slick{style: 'left:190px !important;'}
+      .slider-data-text.mt-2
+        .container
+          %h5.text-justify
+            %small.text-muted Invite your Contacts to work with you in real time. They will share the information with you real time.
+        .container.mt-4
+          .help-block.form-text.text-muted.form-control-feedback (Copy their emails with comma separation)
+        .container
+          =form_tag add_contacts_company_users_path, method: :post, id: "",remote: 'true' do
+            = text_area_tag 'emails',nil ,class: 'form-control radius_10'
+            -#= button_tag "submit" , class: ' btn btn-primary'
+          .data_on_slick_customer.scrole
+    .slide
+      .slick_header.container.d-flex
+        %h5 Company Settings
+        %span.os-icon.os-icon-close.close_slick{style: 'left:190px !important;'}
+      .slider-data-text.mt-2
+        .container
+          %h5.text-justify
+            %small.text-muted 2 more minutes.....setup your profile, phone, social, skype, watsapp, locations and get started.
+        .container.text-center.margin-top-100
+          %h3 Settings
+          .data_on_slick_customer.scrole
 .content-box
   .element-wrapper
     .element-box

@@ -1886,3 +1886,10 @@ flex: 0 0 220px;
 .new_feature .two_columns:hover{
     cursor: not-allowed;
 }
+
+.radius_10{
+    border-radius: 10px !important;
+}
+.margin-top-100{
+    margin-top: 100px;
+}

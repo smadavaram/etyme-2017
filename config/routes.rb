@@ -286,6 +286,9 @@ Rails.application.routes.draw do
         get 'chat_status_update'
         get :add_reminder
         get :import
+        post :add_contacts
+        post :add_candidates
+        post :change_owner
       end
 
       match :assign_groups, via: [:get, :post]

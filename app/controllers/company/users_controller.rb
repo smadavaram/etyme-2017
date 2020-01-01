@@ -111,22 +111,25 @@ class Company::UsersController < Company::BaseController
   def import
     @is_error = false
     @emails = params[:emails].split(",")
-    ActiveRecord::Base.transaction do
-      begin
-        @emails.each do |email|
-          current_company.users.create(email: email)
-        end
-      rescue Exception => e
-        flash[:error] = e.errors
-        @is_error = true
+    User.transaction do
+      @emails.each do |email|
+        current_company.users.create(email: email.downcase)
       end
     end
-    unless @is_error
-      flash.now[:success] = 'All User has been created with Emails'
-    end
     respond_to do |format|
-      format.js { }
+      flash.now[:success] = 'Team members has been added'
+      format.js {}
     end
+  end
+
+  def add_contacts
+
+  end
+  def add_candidates
+
+  end
+  def change_owner
+
   end
 
   def update_photo
@@ -184,64 +187,64 @@ class Company::UsersController < Company::BaseController
   end
 
   def notify_notifications
-    add_breadcrumb "#{params[:status]} NOTIFICATIONS", '#'
-    @notifications = current_user.notifications.send(params[:notification_type] || "all_notifications").where(status: (params[:status] || 0)).page(params[:page]).per_page(10)
-  end
-
-  def notification
-    @notification = current_user.notifications.find_by(id: params[:id])
-    @notification.read!
-    @unread_notifications = current_user.notifications.unread.count
-  end
-
-  def current_status
-    @user = current_user
-    respond_with @user
-  end
-
-  def status_update
-    @user = current_user
-    if @user.chat_status == "available"
-      @user.go_unavailable
-    else
-      @user.go_available
+    add_breadcrumb "#{params[:status]} NOTIFICATIONS", ' #'
+      @notifications = current_user.notifications.send(params[:notification_type] || "all_notifications").where(status: (params[:status] || 0)).page(params[:page]).per_page(10)
     end
-    respond_with @user
-  end
 
-  def chat_status_update
-    @user = current_user
-    if @user.chat_status == "available"
-      @user.go_unavailable
-    else
-      @user.go_available
+    def notification
+      @notification = current_user.notifications.find_by(id: params[:id])
+      @notification.read!
+      @unread_notifications = current_user.notifications.unread.count
     end
-    render :json => @user
-  end
 
-  def destroy
-    user = User.find(params["id"]) rescue nil
-    if !user.blank?
-      user.delete
+    def current_status
+      @user = current_user
+      respond_with @user
     end
-    redirect_to admins_path
+
+    def status_update
+      @user = current_user
+      if @user.chat_status == "available"
+        @user.go_unavailable
+      else
+        @user.go_available
+      end
+      respond_with @user
+    end
+
+    def chat_status_update
+      @user = current_user
+      if @user.chat_status == "available"
+        @user.go_unavailable
+      else
+        @user.go_available
+      end
+      render :json => @user
+    end
+
+    def destroy
+      user = User.find(params["id"]) rescue nil
+      if !user.blank?
+        user.delete
+      end
+      redirect_to admins_path
+    end
+
+    private
+
+    def find_user
+      @user = User.find_by(id: params[:user_id] || params[:user_id]) || []
+    end
+
+    def user_params
+      params.require(:user).permit(:first_name, :last_name, :dob, :email, :age, :phone, :skills, :primary_address_id, :tag_list, :resume, :skill_list, group_ids: [],
+                                   address_attributes: [:id, :address_1, :address_2, :country, :city, :state, :zip_code],
+                                   user_educations_attributes: [:id, :degree_level, :institute, :degree_title, :cgpa_grade, :start_year, :completion_year, :_destroy],
+                                   user_certificates_attributes: [:id, :title, :institute, :start_date, :end_date, :_destroy],
+                                   user_work_clients_attributes: [:id, :name, :industry, :start_date, :end_date, :reference_name, :reference_phone, :reference_email, :project_description, :role, :_destroy]
+      )
+
+
+    end
+
   end
-
-  private
-
-  def find_user
-    @user = User.find_by(id: params[:user_id] || params[:user_id]) || []
-  end
-
-  def user_params
-    params.require(:user).permit(:first_name, :last_name, :dob, :email, :age, :phone, :skills, :primary_address_id, :tag_list, :resume, :skill_list, group_ids: [],
-                                 address_attributes: [:id, :address_1, :address_2, :country, :city, :state, :zip_code],
-                                 user_educations_attributes: [:id, :degree_level, :institute, :degree_title, :cgpa_grade, :start_year, :completion_year, :_destroy],
-                                 user_certificates_attributes: [:id, :title, :institute, :start_date, :end_date, :_destroy],
-                                 user_work_clients_attributes: [:id, :name, :industry, :start_date, :end_date, :reference_name, :reference_phone, :reference_email, :project_description, :role, :_destroy]
-    )
-
-
-  end
-
-end

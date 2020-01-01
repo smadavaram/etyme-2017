@@ -158,5 +158,3 @@
 //= require company/sell_contracts
 //= require company/buy_contracts
 //= require company/invoices
-
-
