@@ -139,7 +139,6 @@
 
 //= require trix
 //= require company/companies
-//= require company/contracts
 //= require company/timesheets
 //= require company/salaries
 //= require company/sale_invoices
@@ -158,3 +157,4 @@
 //= require company/jobs
 //= require company/job_invitations
 //= require company/job_applications
+//= require company/contracts
