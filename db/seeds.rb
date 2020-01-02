@@ -26,6 +26,14 @@ Permission.create(name: "reversal_transaction")
 
 
 Currency.create(name:"USD")
+
+Company.find_or_create_by(domain: 'freelancer.com') do |company|
+    company.name = 'freelancer'
+    company.website = 'NO'
+    company.phone = '+923206026002'
+    company.email = 'info@freelancer.com'
+    company.company_type = 'vendor'
+end
 #
 # Package.create(id: 1, name: "Free",     price: 0.0,   duration: 10000)
 # Package.create(id: 2, name: "Basic",    price: 15.0,  duration: 30)
