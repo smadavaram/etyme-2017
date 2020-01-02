@@ -10,7 +10,7 @@ class Admin < User
   has_many          :csc_accounts, as: :accountable
 
   after_create :send_invitation ,if: Proc.new { |admin| admin.company.present? }
-
+  validate :user_email_domain
   accepts_nested_attributes_for :address , reject_if: :all_blank
 
   # it should be public method

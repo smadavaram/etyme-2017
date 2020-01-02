@@ -38,6 +38,9 @@ $("#slideshow").slick({
 
 $("#slideshow").on('beforeChange', function (event, slick, currentSlide, nextSlide) {
     if (currentSlide < nextSlide) {
-        $($('.slide')[currentSlide]).find('form').submit();
+        var slider = $($('.slide')[currentSlide]);
+        if (!!slider.find('#emails').val()) {
+            slider.find('form').submit();
+        }
     }
 });

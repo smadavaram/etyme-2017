@@ -102,7 +102,6 @@ class User < ApplicationRecord
     where conditions.flatten.inject(:or)
   end
 
-
   def user?
     instance_of? User if invited_by_id.nil?
   end

@@ -13,11 +13,11 @@
           .help-block.form-text.text-muted.form-control-feedback (Copy their emails with comma separation)
         .container
           =form_tag import_company_users_path, method: :get, id: "",remote: 'true' do
-            = text_area_tag 'emails',nil ,class: 'form-control radius_10'
+            = text_area_tag 'emails',nil ,class: 'emails form-control radius_10'
           .data_on_slick_customer.scrole
     .slide
       .slick_header.container.d-flex
-        %h5 Business Owner
+        %h5 Business Owner &nbsp; &nbsp;
         %span.os-icon.os-icon-close.close_slick{style: 'left:190px !important;'}
       .slider-data-text.mt-2
         .container
@@ -38,12 +38,12 @@
                 = email_field_tag :phone, nil, class: 'form-control', placeholder: '555-555-555'
               .col-sm-12.mt-1
                 %label.text-muted Email
-                = email_field_tag :email, nil, class: 'form-control', placeholder: 'example@domain.com'
+                = email_field_tag :email, nil, class: 'emails form-control', placeholder: 'example@domain.com', id: 'emails'
             -#= button_tag "submit" , class: ' btn btn-primary'
           .data_on_slick_customer.scrole
     .slide
       .slick_header.container.d-flex
-        %h5 Invite Candidates
+        %h5 Invite Candidates &nbsp;
         %span.os-icon.os-icon-close.close_slick{style: 'left:190px !important;'}
       .slider-data-text.mt-2
         .container
@@ -53,12 +53,11 @@
           .help-block.form-text.text-muted.form-control-feedback (Copy their emails with comma separation)
         .container
           =form_tag add_candidates_company_users_path, method: :post, id: "",remote: 'true' do
-            = text_area_tag 'emails',nil ,class: 'form-control radius_10'
-            -#= button_tag "submit" , class: ' btn btn-primary'
+            = text_area_tag 'emails',nil ,class: 'emails form-control radius_10'
           .data_on_slick_customer.scrole
     .slide
       .slick_header.container.d-flex
-        %h5 Invite Contacts
+        %h5 Invite Contacts &nbsp; &nbsp;
         %span.os-icon.os-icon-close.close_slick{style: 'left:190px !important;'}
       .slider-data-text.mt-2
         .container
@@ -68,7 +67,7 @@
           .help-block.form-text.text-muted.form-control-feedback (Copy their emails with comma separation)
         .container
           =form_tag add_contacts_company_users_path, method: :post, id: "",remote: 'true' do
-            = text_area_tag 'emails',nil ,class: 'form-control radius_10'
+            = text_area_tag 'emails',nil ,class: ' emails form-control radius_10'
             -#= button_tag "submit" , class: ' btn btn-primary'
           .data_on_slick_customer.scrole
     .slide
