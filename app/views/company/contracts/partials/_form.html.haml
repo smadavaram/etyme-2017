@@ -223,7 +223,6 @@
         } else if($(this).val() == "monthly"){
           $(".s-ts-apv-set").find('.month').removeClass("hidden");
         }
-
         $(".b-ts-apv-set").children().addClass("hidden");
         if($(this).val() == "daily"){
           $(".b-ts-apv-set").find('.daily').removeClass("hidden");
@@ -438,7 +437,7 @@
         }
       });
 
-      $(".is_client_customer_radio input[type='radio']").on("change", function(){
+      $(".end_client").on("change", function(){
         if($(this).val() == "true"){
           $('.contract_client').show()
         } else {
@@ -527,9 +526,6 @@
       $(this).closest('.assign_signable').find('div.sign-nested-fields:last').find("input.signable-id").val(e.params.data.id.split("_")[0]);
       $(this).closest('.assign_signable').find('div.sign-nested-fields:last').find("input.signable-type").val(e.params.data.id.split("_")[1]);
     });
-
-
-
 
     $( document ).on( "select2:unselect", ".commission-user", function( e ) {
       $(this).closest('.assign_commission_user').find('div.account-nested-fields').find(':input.accountable-id[value=' + e.params.data.id.split("_")[0] + ']').closest('div.account-nested-fields').remove();

@@ -172,14 +172,14 @@
             - if @contract.new_record?
               .form-group.mb-3.mt-3
                 %label.control-label.mr-4
-                  %b Add End Client different from your Customer ?
+                  %b Is End Client different from your Customer ?
                 %span.is_client_customer_radio
-                  =f.radio_button  :is_client_customer, true, checked: f.object.is_client_customer == true
+                  =f.radio_button  :is_client_customer, true, checked: f.object.is_client_customer == true,class: 'end_client'
                   %label.control-label.mr-4 Yes
-                  =f.radio_button  :is_client_customer, false, checked: f.object.is_client_customer == false || f.object.is_client_customer.nil?
+                  =f.radio_button  :is_client_customer, false, checked: f.object.is_client_customer == false || f.object.is_client_customer.nil?,class: 'end_client'
                   %labe.control-label No
               .col-md-6
-                .form-group.contract_client
+                .form-group.contract_client{style: "display: none;"}
                   %label.control-label Client Company
                   .contract-fild
                     .plain-select
