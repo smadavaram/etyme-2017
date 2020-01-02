@@ -7,6 +7,7 @@ class Company::UsersController < Company::BaseController
 
   def dashboard
     get_cards
+    @job_types = {"Training" => 0, "Job" => 0, "Blog" => 0, "Product" => 0, "Service" => 0}.merge(current_company.jobs.group(:listing_type).count)
     if current_company&.vendor?
       @data = []
       respond_to do |format|
@@ -32,20 +33,13 @@ class Company::UsersController < Company::BaseController
           @data += apply_scopes(current_company.candidates)
           @data = @data.sort { |y, z| z.created_at <=> y.created_at }
           @jobs_count = current_company.jobs.count
-          @job_types = {"Training" => 0, "Job" => 0, "Blog" => 0, "Product" => 0, "Service" => 0}.merge(current_company.jobs.group(:listing_type).count)
           @applications_count = JobApplication.joins(job: :company).where("jobs.company": current_company)
         }
       end
     end
-    # @activities = PublicActivity::Activity.order("created_at desc")
-
-
-    @activities = PublicActivity::Activity.where(owner_type: 'Company',
-                                                 owner_id: current_company.prefer_vendors.accepted.pluck(:vendor_id))
-                      .or(PublicActivity::Activity.where(owner_type: 'User',
-                                                         owner_id: User.where(company_id: current_company.prefer_vendors.accepted.pluck(:vendor_id))))
+    @activities = PublicActivity::Activity.where(owner_type: 'Company', owner_id: current_company.prefer_vendors.accepted.pluck(:vendor_id))
+                      .or(PublicActivity::Activity.where(owner_type: 'User', owner_id: User.where(company_id: current_company.prefer_vendors.accepted.pluck(:vendor_id))))
                       .paginate(page: params[:page], per_page: 15)
-
 
   end
 

@@ -71,7 +71,7 @@ class SellContract < ApplicationRecord
   end
   
   def team_admin
-    contract_admins.admin&.user || company.owner
+    contract_admins.admin.first&.user || company.owner
   end
 
   

@@ -11,7 +11,6 @@ class Company::JobApplicationsController < Company::BaseController
   add_breadcrumb "Dashboard", :dashboard_path
 
 
-
   def applicant
     @job_application = current_company.received_job_applications.find_by(id: params[:id])
     @candidate = @job_application.applicationable
@@ -70,11 +69,13 @@ class Company::JobApplicationsController < Company::BaseController
     response = (Time.current - @plugin.updated_at).to_i.abs / 3600 <= 5 ? true : RefreshToken.new(@plugin).refresh_docusign_token
     if response.present?
       result = DocusignEnvelope.new(@document_sign, @plugin).create_envelope
-      if (result&.status == "sent")
+      if (!result.is_a?(Hash) and result.status == "sent")
         @document_sign.update(envelope_id: result.envelope_id, envelope_uri: result.uri)
         flash[:success] = 'Document is submitted to the candidate for signature'
       else
-        flash[:errors] = result.error_message
+        @document_sign.destroy
+        error = eval(result[:error_message])
+        flash[:errors] = ["#{error[:errorCode]}: #{error[:message]}"]
       end
     else
       flash[:errors] = ["Docusign token request failed, please regenerate the token from integrations"]

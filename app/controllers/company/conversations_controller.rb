@@ -47,10 +47,13 @@ class Company::ConversationsController < Company::BaseController
             signers_ids: co_signers.to_s.gsub('[', '{').gsub(']', '}')
         )
         result = DocusignEnvelope.new(@document_sign, @plugin).create_envelope
-        if (result.status == "sent")
+        if (!result.is_a?(Hash) and result.status == "sent")
           @document_sign.update(envelope_id: result.envelope_id, envelope_uri: result.uri)
+          flash.now[:success] = 'Document is submitted to the candidate for signature'
         else
-          flash[:errors] = result.error_message
+          @document_sign.destroy
+          error = eval(result[:error_message])
+          flash.now[:errors] = ["#{error[:errorCode]}: #{error[:message]}"]
         end
       end
       flash[:success] = 'Document is submitted to the candidate for signature'

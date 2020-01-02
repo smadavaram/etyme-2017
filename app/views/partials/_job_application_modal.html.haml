@@ -13,13 +13,15 @@
 
 
           %fieldset.mt-0
+            - pr = current_candidate.candidates_resumes.primary_resume.present?
             .row{style: "padding: 14px;"}
-              .col-sm-5.margin-auto.pt-4
-                %label.radio-container
-                  Use Primary Resume
-                  %input{onchange: "$('#resume_field').addClass('d-none')", :name => "primary_resume", :type => "radio", :value => "yes"}/
-                  %span.radio-checkmark
-              .col-sm-7
+              - if pr
+                .col-sm-5.margin-auto.pt-4
+                  %label.radio-container
+                    Use Primary Resume
+                    %input{onchange: "$('#resume_field').addClass('d-none')", :name => "primary_resume", :type => "radio", :value => "yes"}/
+                    %span.radio-checkmark
+              %div{class: "col-sm-#{pr ? '7': '12'}"}
                 #resume_field
                   %label.d-block Resume
                   .file_selector{style: "display: flex;"}
