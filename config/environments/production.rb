@@ -107,14 +107,14 @@ Rails.application.configure do
   # Do not dump schema after migrations.
   config.active_record.dump_schema_after_migration = false
 
-  HOSTNAME='http://demoetyme.com'
-  COMPANY_URL = 'demoetyme.com'
+  HOSTNAME= ENV['HOSTNAME']#, 'http://demoetyme.com'
+  COMPANY_URL = ENV['COMPANY_URL']#, 'demoetyme.com'
   Rails.application.routes.default_url_options[:host] = HOSTNAME
   config.action_mailer.default_url_options = {host: HOSTNAME}
 
   Rails.application.config.middleware.use ExceptionNotification::Rack,
                                           email: {
-                                              email_prefix: '[Production] ',
+                                              email_prefix: "[#{HOSTNAME}] ",
                                               sender_address: %{"notifier" <error@etyme.com>},
                                               exception_recipients: ['umair.raza101@gmail.com', 'smadavaram@gmail.com', 'we.ror.devs@gmail.com']
                                           }
