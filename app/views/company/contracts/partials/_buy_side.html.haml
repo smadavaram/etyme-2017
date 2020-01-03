@@ -31,7 +31,7 @@
               - if local_assigns[:editable] and editable
                 %span.btn.btn-primary.sell-change-rate{"data-toggle": "modal","data-target": "#freelancer_rate_change"} Add Rate
           .rate_info.text-center.d-inline-block.p-0
-            %strong.rate_label USICS
+            %strong.rate_label USCIS
             %span
               %br
               =  number_to_currency(@contract.buy_contract.today_rate.try(:uscis)||0)
@@ -128,7 +128,7 @@
                 %span.btn.btn-primary.sell-change-rate{"data-toggle": "modal","data-target": "#freelancer_rate_change"} Add Rate
         .col-sm-4.col-md-4.col-lg-4.p-1
           .rate_info.text-center.p-0
-            %strong USICS
+            %strong USCIS
             %span
               %br
               =  number_to_currency(@contract.buy_contract.today_rate.try(:uscis)||0)

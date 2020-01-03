@@ -78,7 +78,7 @@
                 .os-progress-bar.primary
                   .bar-labels
                     .bar-label-left
-                      %span Date of Birth
+                      %span Age
                     .bar-label-right
                       %span= pluralize((Date.today.to_s(:number).to_i - candidate.dob.to_s(:number).to_i) / 10000,'year') rescue 'N/A'
                       %span.text-success

@@ -711,7 +711,7 @@ class Contract < ApplicationRecord
   end
 
   def admin_user
-    contract_admins&.first&.user || company.users.joins(:roles).where('roles.name': "HR admin").limit(1)
+    contract_admins&.first&.user || company.users.joins(:roles).where('roles.name': "HR admin").limit(1).first
   end
 
   def notify_contract_companies

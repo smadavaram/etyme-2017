@@ -49,13 +49,55 @@ class ContractCycle < ApplicationRecord
   end
 
   def color
-    case note
-    when 'Salary Process'
+    ContractCycle.color(cycle_type)
+  end
+
+  def self.color(type)
+    case type
+    when 'SalaryProcess'
       'red'
-    when 'Salary Calculation'
+    when 'SalaryCalculation'
       'green'
-    when 'Salary Clear'
+    when 'SalaryClear'
       'blue'
+    when "TimesheetSubmit"
+      '#FF7F50'
+    when "TimesheetApprove"
+      '#CD5C5C'
+    when "InvoiceGenerate"
+      '#F08080'
+    when "SalaryCalculation"
+      '#E9967A'
+    when 'SalaryProcess'
+      '#FFA07A'
+    when 'SalaryClear'
+      '#FFA500'
+    when 'CommissionCalculation'
+      '#EEE8AA'
+    when 'CommissionProcess'
+      '#ADFF2F'
+    when 'CommissionClear'
+      '#00FF7F'
+    when 'VendorBillCalculation'
+      '#00FFFF'
+    when 'ClientBillCalculation'
+      '#8A2BE2'
+    when 'VendorPaymentProcess'
+      '#DDA0DD'
+    when 'VendorBillClear'
+      '#FFC0CB'
+    when 'ClientPaymentProcess'
+      '#DEB887'
+    when 'ClientBillClear'
+      '#B0C4DE'
+    when 'ClientExpenseCalculation'
+      '#F0FFFF'
+    when 'ClientExpenseApprove'
+      '#808080'
+    when 'ClientExpenseInvoice'
+      '#CD853F'
+    when 'ClientExpenseSubmission'
+      '#FF1493'
     end
   end
 
