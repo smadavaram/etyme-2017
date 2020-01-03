@@ -2118,7 +2118,7 @@
 
 
   &.menu-with-image {
-    background-image: linear-gradient(to bottom, rgba(21, 32, 70, 0.1) 0%, rgba(16, 20, 41, 0.2) 75%, rgba(14, 21, 53, 0.65) 100%), url(../img/menu_bg.jpg) !important;
+    //background-image: linear-gradient(to bottom, rgba(21, 32, 70, 0.1) 0%, rgba(16, 20, 41, 0.2) 75%, rgba(14, 21, 53, 0.65) 100%), asset_url(../img/menu_bg.jpg) !important;
     background-color: transparent;
     background-size: cover;
     background-position: center center;
@@ -2170,7 +2170,7 @@
       font-size: $h1-font-size * 1.3;
     }
     &.color-scheme-light {
-      background-image: linear-gradient(to bottom, rgba(255,255,255, 0.1) 0%, rgba(255,255,255, 0.2) 75%, rgba(255,255,255, 0.85) 100%), url(../img/menu_bg.jpg) !important;
+      //background-image: linear-gradient(to bottom, rgba(255,255,255, 0.1) 0%, rgba(255,255,255, 0.2) 75%, rgba(255,255,255, 0.85) 100%), url(../img/menu_bg.jpg) !important;
       .top-icon,
       .messages-notifications {
         > .os-icon {
