@@ -139,22 +139,22 @@
 
 //= require trix
 //= require company/companies
-//= require company/contracts
 //= require company/timesheets
 //= require company/salaries
 //= require company/sale_invoices
 //= require mobile_responsive
 //= require loader
-//= require company/job_applications
 //= require company/holiday
 //= require shared/bootstrap-year-calendar.js
 
 //= require company/user
 //= require company/prefer_vendors
+//= require company/sell_contracts
+//= require company/buy_contracts
+//= require company/invoices
 //= require company/bench_jobs
 //= require company/job_receives
 //= require company/jobs
 //= require company/job_invitations
-//= require company/sell_contracts
-//= require company/buy_contracts
-//= require company/invoices
+//= require company/job_applications
+//= require company/contracts
