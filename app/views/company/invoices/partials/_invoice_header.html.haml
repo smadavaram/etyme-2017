@@ -6,7 +6,7 @@
         %p= invoice.contract.title
       .col-sm-12
         %b Sent Date - Due Date
-        %p{style: 'color: #1AAE9F;'}= "#{invoice.contract.start_date.strftime('%d/%m/%Y')} - #{invoice.contract.end_date.strftime('%d/%m/%Y')}"
+        %p{style: 'color: #1AAE9F;'}= "#{invoice.contract.start_date.strftime('%d/%m/%Y')} - #{invoice.due_date}"
 
     .col-sm-6
       .col-sm-12.ts_header
@@ -82,3 +82,11 @@
                 %td= snake_to_words(ce.status)
                 %td= "#{ce.start_date} - #{ce.end_date}"
                 %td= ce.amount
+
+
+
+  .row
+    .col-sm-12.pr-4.text-right
+      ="#{content_tag(:strong, 'Total Approve Time:', nil)} #{invoice.total_approve_time}".html_safe
+      %br
+      ="#{content_tag(:strong, 'Total payable:', nil)} #{invoice.total_amount}".html_safe

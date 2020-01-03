@@ -68,6 +68,7 @@ class Company::InvoicesController < Company::BaseController
   def submit_invoice
     @invoice = Invoice.where(id: params[:id]).first
     if @invoice.submitted!
+      @invoice.contract_cycle.completed!
       flash[:success] = "Successfully Submitted"
     else
       flash[:errors] = ["Unable to submit this Invoice."]
@@ -136,16 +137,14 @@ class Company::InvoicesController < Company::BaseController
   end
   
   def show
-    @timesheet_logs = find_child_invoice_timesheet_logs(@invoice)
     respond_to do |format|
       format.html
       format.pdf do
-        render pdf: @contract.title,
-               file: Rails.root.join('app/views/company/invoices/show.html.haml'),
-               orientation: 'Landscape', encoding: 'UTF-8',
-               disposition: 'attachment',
-               layout: 'company',
-               title: @contract.title
+        render pdf: @invoice.contract.title,
+               template: 'company/invoices/show.html.haml',
+               layout: 'pdf',
+               title: @invoice.contract.title,
+               show_as_html: false
       end
     end
   end
@@ -193,7 +192,7 @@ class Company::InvoicesController < Company::BaseController
       @invoice.open! if @invoice.pending_invoice?
     end
     flash[:success] = 'Updated Successfully'
-    redirect_to invoices_path(tab: "sent_invoices")
+    redirect_to sale_invoices_path
   end
   
   private
@@ -225,7 +224,7 @@ class Company::InvoicesController < Company::BaseController
     end
     
     def find_invoice
-      @invoice = @contract.invoices.includes(timesheets: [timesheet_logs: [:transactions, :contract_term]]).find(params[:id])
+      @invoice = Invoice.includes(timesheets: :transactions).find(params[:id])
       # if  !@contract.is_sent?(current_company)
       #
       # elsif  not (@invoice.submitted? && @contract.is_sent?(current_company))

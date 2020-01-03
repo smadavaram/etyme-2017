@@ -175,7 +175,11 @@ class Invoice < ApplicationRecord
     self.contract.next_invoice_date = temp_date > self.contract.end_date ? self.contract.end_date : temp_date
     self.contract.save
   end
-  
+
+  def due_date
+    (contract_cycle.start_date + contract.sell_contract.payment_term.days).strftime('%d/%m/%Y')
+  end
+
   def update_timesheet_status_to_invoiced
     timesheets = self.contract.timesheets.approved.not_invoiced || []
     timesheets.each do |t|
