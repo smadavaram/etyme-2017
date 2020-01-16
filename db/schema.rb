@@ -434,8 +434,8 @@ ActiveRecord::Schema.define(version: 20191227164352) do
     t.integer "company_id"
     t.integer "status", default: 0
     t.integer "candidate_status", default: 0
-    t.datetime "created_at", default: "2019-11-29 12:33:24"
-    t.datetime "updated_at", default: "2019-11-29 12:33:24"
+    t.datetime "created_at", default: "2020-01-16 00:10:30"
+    t.datetime "updated_at", default: "2020-01-16 00:10:30"
   end
 
   create_table "candidates_groups", id: false, force: :cascade do |t|
@@ -468,7 +468,7 @@ ActiveRecord::Schema.define(version: 20191227164352) do
     t.integer "rateable_id"
     t.date "from_date"
     t.date "to_date"
-    t.integer "rate_type", default: 0
+    t.string "rate_type"
     t.float "rate"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
@@ -1474,20 +1474,6 @@ ActiveRecord::Schema.define(version: 20191227164352) do
     t.integer "company_doc_id"
     t.integer "file_status", default: 0
     t.index ["messageable_type", "messageable_id"], name: "index_messages_on_messageable_type_and_messageable_id"
-  end
-
-  create_table "money_transactions", force: :cascade do |t|
-    t.string "part_of_type"
-    t.bigint "part_of_id"
-    t.string "payable_type"
-    t.bigint "payable_id"
-    t.bigint "company_id"
-    t.decimal "previous"
-    t.decimal "total"
-    t.decimal "paid"
-    t.decimal "remaining"
-    t.index ["part_of_type", "part_of_id"], name: "index_money_transactions_on_part_of_type_and_part_of_id"
-    t.index ["payable_type", "payable_id"], name: "index_money_transactions_on_payable_type_and_payable_id"
   end
 
   create_table "notifications", id: :serial, force: :cascade do |t|

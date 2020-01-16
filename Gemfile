@@ -6,7 +6,7 @@ gem 'paper_trail'
 #****************************
 # Configuration
 #****************************
-ruby '2.4.2'
+ruby '2.5.1'
 source 'https://rubygems.org'
 gem 'rails', '5.1.2'
 gem 'best_in_place'
@@ -153,8 +153,8 @@ gem "googleauth"
 gem "geocoder"
 group :development, :test do
 # Gem rbnacl-libsodium should be placed before then gem rbnacl else sodium pkg error may occour
-  gem 'rbnacl-libsodium'  
-  gem 'rbnacl','< 5.0' 
+  gem 'rbnacl-libsodium'
+  gem 'rbnacl','< 5.0'
   gem 'bcrypt_pbkdf', '< 2.0'
   gem 'ed25519', '< 2.0'
   gem 'better_errors'#, '~> 1.1.0'
@@ -183,7 +183,7 @@ group :development, :test do
   gem 'capistrano-rails'
 
   # Remove the following if your server does not use RVM
-  
+
 end
 
 gem 'redis', '~> 3.3.3'
