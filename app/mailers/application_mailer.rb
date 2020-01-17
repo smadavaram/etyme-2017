@@ -1,5 +1,5 @@
 class ApplicationMailer < ActionMailer::Base
-  default from: "Etyme <notify@no-reply.etyme.com>"
+  default from: "Etyme <notify@etyme.com>"
 
   # layout 'mailer'
 end
