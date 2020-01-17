@@ -73,7 +73,7 @@ gem 'rails_12factor', group: :production
 #****************************
 # Mailer
 #****************************
-gem 'mailgun_rails'
+gem 'mailgun-ruby', '~>1.1.6'
 
 #****************************
 # Pagination

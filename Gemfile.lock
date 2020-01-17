@@ -905,7 +905,7 @@ GEM
       json (~> 1.8, >= 1.8.3)
       jwt (~> 1.0, >= 1.5.2)
       typhoeus (~> 1.0, >= 1.0.1)
-    domain_name (0.5.20180417)
+    domain_name (0.5.20190701)
       unf (>= 0.0.5, < 1.0.0)
     ed25519 (1.2.4)
     erubi (1.8.0)
@@ -996,10 +996,8 @@ GEM
       nokogiri (>= 1.5.9)
     mail (2.7.1)
       mini_mime (>= 0.1.1)
-    mailgun_rails (0.9.0)
-      actionmailer (>= 3.2.13)
-      json (>= 1.7.7)
-      rest-client (>= 1.6.7)
+    mailgun-ruby (1.1.11)
+      rest-client (~> 2.0.2)
     markio (0.1)
       nokogiri
     memoist (0.16.0)
@@ -1298,7 +1296,7 @@ DEPENDENCIES
   jquery-ui-rails
   letter_opener (= 1.4.1)
   listen (>= 3.0.5, < 3.2)
-  mailgun_rails
+  mailgun-ruby (~> 1.1.6)
   markio
   mina
   mina-multistage
