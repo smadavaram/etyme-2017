@@ -116,6 +116,6 @@ Rails.application.configure do
                                           email: {
                                               email_prefix: "[#{HOSTNAME}] ",
                                               sender_address: %{"notifier" <error@etyme.com>},
-                                              exception_recipients: ['we.ror.devs@gmail.com']
+                                              exception_recipients: %w[lalusaud@gmail.com]
                                           }
 end
