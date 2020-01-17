@@ -1,11 +1,10 @@
 class UserMailer < ApplicationMailer
-  default from: "no-reply@etyme.com"
 
   def exception_notify(name,exception,params)
     @params = params
     @name = name
     @exception = exception
-    mail(:to => UserMailer.exception_admins, :subject => "Etyme - Exception")
+    mail(to: UserMailer.exception_admins, subject: "Etyme - Exception")
   end
 
   def confirmation_instructions(user, token, opts = {})
@@ -14,31 +13,29 @@ class UserMailer < ApplicationMailer
       @company = user.company rescue nil
       if @owner && @owner.etyme_url
         @link = @company.present? ? "http://#{@company.etyme_url}/users/confirmation?confirmation_token=#{token}" : "http://#{@owner.etyme_url}/candidates/confirmation?confirmation_token=#{token}"
-        @email = "Etyme <no-reply@etyme.com>"
-        mail(:to => @owner.email, :subject => "Welcome to Etyme", :from => @email)
+        mail(:to => @owner.email, :subject => "Welcome to Etyme")
       end
     end
   end
 
   def reset_password_instructions(user, token, opts={})
-    @user           = user
-    @email          = "Etyme <no-reply@etyme.com>"
-    @link           = @user.class.name!='Candidate' ?
-                          "http://#{@user.company.etyme_url}/users/password/edit?reset_password_token=#{token}" :
-                          "http://#{@user.etyme_url}/candidates/password/edit?reset_password_token=#{token}"
-    mail(:to => user.email,  :subject => 'Reset password instructions',:from => @email)
+    @user = user
+    @link = @user.class.name!='Candidate' ?
+              "http://#{@user.company.etyme_url}/users/password/edit?reset_password_token=#{token}" :
+              "http://#{@user.etyme_url}/candidates/password/edit?reset_password_token=#{token}"
+    mail(to: user.email, subject: 'Reset password instructions')
   end
 
   def password_changed(id)
     @user = User.find(id)
-    mail to: @user.email, subject: "Your password has changed"
+    mail(to: @user.email, subject: "Your password has changed")
   end
 
   def invite_user(user)
     @user   = user
     @name         = @user.full_name
     @link         = "http://#{@user.company.etyme_url}/users/invitation/accept?invitation_token=#{@user.raw_invitation_token}"
-    mail(to: user.email,  subject: "#{@user.company.name.titleize} Invited You to Etyme",from: "Etyme <no-reply@etyme.com>")
+    mail(to: user.email, subject: "#{@user.company.name.titleize} Invited You to Etyme")
   end
 
   def welcome_email_to_owner(company)
@@ -47,7 +44,7 @@ class UserMailer < ApplicationMailer
     if !@owner.blank?
       @company   = company
       @name      = @owner.full_name
-      mail(to: @owner.email,  subject: "#{@company.name.titleize} welcome to Etyme",from: "Etyme <no-reply@etyme.com>")
+      mail(to: @owner.email,  subject: "#{@company.name.titleize} welcome to Etyme")
     end
   end
 
@@ -55,7 +52,7 @@ class UserMailer < ApplicationMailer
   def share_message_email(message,to_email , note)
     @message = message
     @note = note
-    mail(to: to_email ,subject: "Etyme Share Message With You" ,from: "Etyme <no-reply@etyme.com>")
+    mail(to: to_email ,subject: "Etyme Share Message With You")
   end
 
   # method for sharing of Hot Candidates
@@ -77,16 +74,14 @@ class UserMailer < ApplicationMailer
     end
     @candidates_ids = candidates_ids
     @company = current_company
-    # mail(to: to,bcc: to_emails, subject: "#{current_company.name.titleize} Shared Hot Candidates Link",from: "Etyme <no-reply@etyme.com>")
-    mail(to: to,bcc: to_emails, subject: "#{current_company.name.titleize} #{subject}",from: "Etyme <no-reply@etyme.com>")
-
+    mail(to: to, bcc: to_emails, subject: "#{current_company.name.titleize} #{subject}")
   end
 
-  def send_message_to_candidate(name,subject,message,to ,sender_email)
+  def send_message_to_candidate(name, subject, message, to, sender_email)
     @message = message
     @name = name
     @to = to
-    mail(to:@to.email ,subject: subject ,from: sender_email)
+    mail(to: @to.email, subject: subject, from: sender_email)
   end
 
   private
@@ -94,7 +89,5 @@ class UserMailer < ApplicationMailer
   def self.exception_admins
     ['umair.raza101@gmail.com', 'smadavaram@gmail.com', 'we.ror.devs@gmail.com']
   end
-
-
 
 end

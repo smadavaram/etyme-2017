@@ -1,18 +1,16 @@
 class JobMailer < ApplicationMailer
-  #Default Email
-  default from: "no-reply@etyme.com"
 
   def send_job_invitation(job_invitation)
     @company   = job_invitation.company
     @job       = job_invitation.job
     @vendor    = job_invitation.recipient
     @created_by= job_invitation.created_by
-    mail(to: @vendor.email,  subject: "Job Invitation" , from: "Etyme <no-reply@etyme.com>")
+    mail(to: @vendor.email,  subject: "Job Invitation")
   end
 
   def send_confirmation_receipt(job)
     @job = job
-    mail(to: @job.created_by.email,  subject: "Job Creation Reciept Through Email" , from: "Etyme <no-reply@etyme.com>")
+    mail(to: @job.created_by.email,  subject: "Job Creation Reciept Through Email")
   end
 
   def share_jobs(to, to_emails, job_ids, current_company, message, subject)
@@ -32,7 +30,7 @@ class JobMailer < ApplicationMailer
                       })
     end
     @company = current_company
-    mail(to: to,bcc: to_emails, subject: "#{current_company.name.titleize} #{subject}", from: "Etyme <no-reply@etyme.com>")
+    mail(to: to,bcc: to_emails, subject: "#{current_company.name.titleize} #{subject}")
   end
 
 end

@@ -16,7 +16,7 @@ Devise.setup do |config|
   # note that it will be overwritten if you use your own mailer class
   # with default "from" parameter.
   # config.mailer_sender = 'please-change-me-at-config-initializers-devise@example.com'
-  config.mailer_sender = 'no-reply@etyme.com'
+  config.mailer_sender = 'notify@no-reply.etyme.com'
   config.mailer = "UserMailer"
 
   # Configure the class responsible to send e-mails.
