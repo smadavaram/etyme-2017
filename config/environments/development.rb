@@ -63,14 +63,5 @@ Rails.application.configure do
   Rails.application.routes.default_url_options[:host] = HOSTNAME
   config.action_mailer.default_url_options = { host: 'lvh.me:3000' }
 
-  # HOSTNAME='http://localhost:3000'
-  # COMPANY_URL = 'localhost:3000'
-  Rails.application.config.middleware.use ExceptionNotification::Rack,
-                                          email: {
-                                              email_prefix: "[#{HOSTNAME}] ",
-                                              sender_address: %{"notifier" <error@etyme.com>},
-                                              exception_recipients: %w[lalusaud@gmail.com]
-                                          }
-  # config.action_mailer.default_url_options = {host: 'localhost:3000'}
   config.action_mailer.delivery_method = :letter_opener
 end
