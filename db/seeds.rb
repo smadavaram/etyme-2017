@@ -23,21 +23,30 @@ Permission.create(name: "manage_timesheets")
 Permission.create(name: "manage_leaves")
 Permission.create(name: "reversal_transaction")
 
+Currency.create(name: "USD")
 
-
-Currency.create(name:"USD")
-
-Company.find_or_create_by(domain: 'freelancer.com') do |company|
-    company.name = 'freelancer'
-    company.website = 'NO'
-    company.phone = '+923206026002'
-    company.email = 'info@freelancer.com'
-    company.company_type = 'vendor'
+# Default Users
+user = User.find_by(email: 'hradmin@cloudepa.com')
+unless user.present?
+  user = User.create(
+    first_name: 'Haritha', last_name: 'Lokineni',
+    email: 'hradmin@cloudepa.com', type: 'Admin',
+    password: 'testing1234', password_confirmation: 'testing1234',
+    confirmed_at: DateTime.current
+  )
 end
-#
+
+company = Company.find_by(domain: 'cloudepa')
+unless company.present?
+  company = Company.create(
+    name: 'Cloudepa', website: 'cloudepa.com', domain: 'cloudepa', slug: 'cloudepa',
+    logo: 'https://etyme-cdn.sfo2.digitaloceanspaces.com/21-Aug-2019/image_2019_08_21T15_00_47_497Z.png',
+    phone: '6097893890', email: 'info@cloudepa.com', company_type: 'vendor', owner: user
+  )
+end
+
 # Package.create(id: 1, name: "Free",     price: 0.0,   duration: 10000)
 # Package.create(id: 2, name: "Basic",    price: 15.0,  duration: 30)
 # Package.create(id: 3, name: "Premium",  price: 30.0,  duration: 30)
 # Package.create(id: 4, name: "Platinum", price: 60.0,  duration: 30)
 # Package.create(id: 5, name: "Monthly",                duration: 30)
-#

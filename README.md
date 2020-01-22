@@ -1,25 +1,28 @@
-
 # **ETyme** #
 ### Ruby version ###
-     * 2.3.1
+     * 2.4.2
+
 ###  Rails version ###
-     * 4.2.0
-###  System dependencies ###
-    * Ruby 2.3.1
+     * 5.1.2
+
 ###  Configuration ###
      Super Admin: ActiveAdmin
      Authentication: Devise
      Database: postgresql
      Markup Language: HAML
+
 ###  Database ###
      * postgresql
 
-###  Setup ###
+###  Development Environment Setup ###
+Copy config/database.yml.example to config/database.yml file. Make necessary changes if required to setup your local environment. Create database, run the migrations and load seed data, then start rails server, with following commands:
 
-* How to run the test suite
+    $> rails db:create && rails db:migrate && rails db:seed
+    $> rails s
 
-* Services (job queues, cache servers, search engines, etc.)
+Open application in browser ```http://lvh.me:3000``` and login as a company.
 
-* Deployment instructions
+**Test Company User:**
 
-* ...
+    User: hradmin@cloudepa.com
+    Pass: testing1234
