@@ -5,7 +5,7 @@ class StaticController < ApplicationController
   skip_before_action :authenticate_user!, raise: false
   before_action :set_jobs, only: :index
   before_action :set_company, :set_slug, only: :signin
-  before_action :find_user, :set_website, :find_similar_companies, only: :domain_suggestion
+  before_action :handle_invalid_email, :find_user, :set_website, :find_similar_companies, only: :domain_suggestion
 
   layout 'static', except: [:home]
   layout 'homepage', only: [:index]
@@ -77,14 +77,23 @@ class StaticController < ApplicationController
 
   def domain_suggestion
     @company = Company.find_by(website: @website)
-    handle_invalid_email
+
     respond_to do |format|
-      if @company
+      if @company.present?
         format.html {}
         format.json do
           domain = get_uniq_domain(get_domain_from_email(params[:email]))
-          render json: {message: 'Looks like company already registered. Just add it as contact.', slug: @company.try(:slug), website: domain_name(params[:email]), name: @company.try(:name), company_type: @company.try(:company_type), domain: domain, status: :ok}
+          render json: {
+            message: 'Looks like company already registered. Just add it as contact.',
+            slug: @company.slug,
+            website: @company.website,
+            name: @company.name,
+            company_type: @company.company_type,
+            domain: @company.domain,
+            status: :ok
+          }
         end
+
       else
         format.html {}
         format.json do
