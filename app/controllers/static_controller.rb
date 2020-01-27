@@ -4,7 +4,7 @@ class StaticController < ApplicationController
 
   skip_before_action :authenticate_user!, raise: false
   before_action :set_jobs, only: :index
-  before_action :set_company, :set_slug, only: :signin
+  before_action :check_domain, :set_company, :set_slug, only: :signin
   before_action :handle_invalid_email, :find_user, :set_website, :find_similar_companies, only: :domain_suggestion
 
   layout 'static', except: [:home]
@@ -45,14 +45,15 @@ class StaticController < ApplicationController
     unless user.present?
       user = @company.users.create(
           email: params[:email].downcase,
-          company_id: current_company.id,
+          company_id: @company.id,
           password: "passpass#{rand(999)}",
           password_confirmation: "passpass#{rand(999)}"
       )
-      user.send_reset_password_instructions()
-      flash[:error] = "Looks like Team #{current_company.domain.capitalize} is registered with us but you are missing all the action. Check your email to activate the account and get started"
+      user.send_reset_password_instructions
+      flash[:error] = "Looks like Team #{@company.domain.capitalize} is registered with us but you are missing all the action. Check your email to activate the account and get started"
     else
       if user.sign_in_count.to_i.zero?
+        user.send_reset_password_instructions
         flash[:error] = "Looks like a lot of people want you on etyme. You are welcome. Better late than never. Check your email and get started"
       end
     end
@@ -63,7 +64,11 @@ class StaticController < ApplicationController
       if params[:email].present?
         if @company.present?
           check_user
-          redirect_to "#{Rails.env.production? ? 'https' : 'http'}://#{@company.etyme_url}/?email=#{params[:email]}"
+          if flash.present?
+            redirect_to signin_path
+          else
+            redirect_to "#{Rails.env.production? ? 'https' : 'http'}://#{@company.etyme_url}/?email=#{params[:email]}"
+          end
         else
           flash.now[:errors] = ['No such domain in the system']
           redirect_to register_path(email: params[:email])
@@ -72,7 +77,6 @@ class StaticController < ApplicationController
         flash.now[:errors] = ['Please enter your email or domain']
       end
     end
-
   end
 
   def domain_suggestion
@@ -82,7 +86,6 @@ class StaticController < ApplicationController
       if @company.present?
         format.html {}
         format.json do
-          domain = get_uniq_domain(get_domain_from_email(params[:email]))
           render json: {
             message: 'Looks like company already registered. Just add it as contact.',
             slug: @company.slug,
@@ -199,6 +202,13 @@ class StaticController < ApplicationController
     @search = Job.is_public.active.search(params[:q])
     @count = @search.result(distinct: true).count
     @jobs = @search.result.group_by(&:job_category)
+  end
+
+  def check_domain
+    if email_public_domain?(params[:email])
+      msg = 'You need your own domain to run your business. Google Apps/0365 are Amazing platforms to have your email, calendar, tasks, documents and everything in one place. Register your domain here. https://developers.google.com/admin-sdk/reseller/v1/get-start/getting-started'
+      redirect_to signin_path, notice: msg
+    end
   end
 
 end

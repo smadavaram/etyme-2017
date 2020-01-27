@@ -16,6 +16,7 @@ class CompaniesController < ApplicationController
   def new
     add_breadcrumb "Company",""
     add_breadcrumb "Sign Up",''
+
     @company = Company.new
     @company.build_owner(type: 'Admin')
   end
@@ -24,7 +25,7 @@ class CompaniesController < ApplicationController
     @company = Company.new(company_params.merge(website: domain_from_email(owner_params[:email])))
     @company.owner.confirmed_at = DateTime.now
     if @company.save
-      render 'companies/signup_success' , layout: 'static'
+      render 'companies/signup_success', layout: 'static'
     else
       flash.now[:errors] = @company.errors.full_messages
       render :new
@@ -48,7 +49,7 @@ class CompaniesController < ApplicationController
   private
 
   def  redirect_to_main_domain
-    if request.subdomain.present? 
+    if request.subdomain.present?
       return redirect_to "#{HOSTNAME}/register"
    end
   end
@@ -73,21 +74,19 @@ class CompaniesController < ApplicationController
     end
 
     def set_domain
-
       company_domain = domain_from_email(owner_params[:email])
-
       @company = Company.find_by(website: company_domain)
 
       return if params[:register_company]
 
-        if company_exist_with_contact?
-          send_activation_email
-        elsif company_exist_without_contact?
-          create_user
-          # handle_user_creation_flow
-        else
-          redirect_to register_path(email: owner_params[:email], register: true, show_selector: true, show_input: true, site: suggested_slug), notice: "Please fill in the following details."
-        end
+      if company_exist_with_contact?
+        send_activation_email
+      elsif company_exist_without_contact?
+        create_user
+        # handle_user_creation_flow
+      else
+        redirect_to register_path(email: owner_params[:email], register: true, show_selector: true, show_input: true, site: suggested_slug), notice: "Please fill in the following details."
+      end
     end
 
     def company_exist_with_contact?
@@ -99,11 +98,13 @@ class CompaniesController < ApplicationController
     end
 
     def send_activation_email
-      if @user.send_reset_password_instructions
-        redirect_to register_path, notice: 'We have sent you password reset instructions.'
-      else
-        redirect_to register_path, error: 'Something went wrong. Please try again later.'
-      end
+      redirect_to register_path, error: 'Looks like you already have an account with us. Click on Already have Account? link to Sign In. If you forgot your password, you can request to reset your password.'
+
+      # if @user.send_reset_password_instructions
+      #   redirect_to register_path, notice: 'We have sent you password reset instructions.'
+      # else
+      #   redirect_to register_path, error: 'Something went wrong. Please try again later.'
+      # end
     end
 
     def associated_contact_exists?

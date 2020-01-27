@@ -1,16 +1,16 @@
 class Company < ApplicationRecord
-  
+
   EXCLUDED_SUBDOMAINS = %w(admin www administrator admins owner etyme mail ftp)
   EXCLUDED_DOMAINS = %w(gmail.com facebook.com reddit.com yahoo.com rediff.com facebookmail.com fb.com)
   include PublicActivity::Model
   include QuerySelector
-  
+
   tracked owner: ->(controller, model) { controller && controller.current_user }
-  
+
   acts_as_taggable_on :skills
-  
+
   enum company_type: [:hiring_manager, :vendor]
-  
+
   #Note: Do not change the through association order.
   belongs_to :owner, class_name: 'Admin', foreign_key: "owner_id", optional: true
   belongs_to :currency, optional: true
@@ -48,11 +48,11 @@ class Company < ApplicationRecord
 
   # has_many :sent_invoices             , through:   :received_contracts ,source:  :invoices
   # has_many :received_invoices         , through:   :sent_contracts ,source:  :invoices
-  
+
   has_many :sent_invoices, class_name: 'Invoice', foreign_key: 'sender_company_id'
   has_many :receive_invoices, class_name: 'Invoice', foreign_key: 'receiver_company_id'
-  
-  
+
+
   has_many :groups
   # has_many :invoices                  , through:   :timesheets
   has_one :package, through: :subscription
@@ -71,19 +71,19 @@ class Company < ApplicationRecord
   has_many :billing_infos
   has_many :company_departments
   has_many :addresses, through: :locations
-  
+
   # company have many band resources through banned
   has_many :banned_list, foreign_key: "company_id", class_name: 'BlackLister'
   # company can check the black listed status through black_listers
   has_many :black_listers, as: :blacklister
-  
+
   has_many :statuses, as: :statusable
-  
+
   has_many :active_relationships, class_name: "SharedCandidate",
            foreign_key: "shared_by_id", dependent: :destroy
   has_many :passive_relationships, class_name: "SharedCandidate",
            foreign_key: "shared_to_id", dependent: :destroy
-  
+
   has_many :share_by, through: :active_relationships, source: :shared_by
   has_many :share_to, through: :passive_relationships, source: :shared_to
   has_many :document_signs, as: :signable
@@ -119,7 +119,7 @@ class Company < ApplicationRecord
   validates_exclusion_of :slug, in: EXCLUDED_SUBDOMAINS, message: "is not allowed. Please choose another subdomain"
   validates_format_of :slug, with: /\A[\w\-]+\Z/i, allow_blank: true, message: "is not allowed. Please choose another subdomain."
   validates_exclusion_of :domain, in: EXCLUDED_DOMAINS, message: "is not allowed. Please use comapany email"
-  
+
   accepts_nested_attributes_for :owner, allow_destroy: true
   accepts_nested_attributes_for :company_contacts, allow_destroy: true
   accepts_nested_attributes_for :locations, allow_destroy: true, reject_if: :all_blank
@@ -141,7 +141,7 @@ class Company < ApplicationRecord
 
   before_validation :create_slug
   after_create :set_owner_company_id, if: Proc.new { |com| com.owner.present? }
-  after_create :welcome_email_to_owner, if: Proc.new { |comp| !comp.invited_by.present? }
+  # after_create :welcome_email_to_owner, if: Proc.new { |comp| !comp.invited_by.present? }
   after_create :create_defult_roles
   after_create :create_associated_roles
   after_create :send_owner_password_reset_email, if: Proc.new { |com| com.owner.present? }
@@ -156,106 +156,106 @@ class Company < ApplicationRecord
                                                                .where(created_at: start_date...end_date)
                                                                .where(status: [:applied, :prescreen, :rate_confirmation, :client_submission, :interviewing, :hired])
                                                                .group(:status) }
-  
+
   scope :vendor_contracts, ->(company) { Contract.join(:buy_contract).where("buy_contracts.company_id": company.id) }
-  
+
   attr_accessor :send_email
-  
+
   def self.like_any(fields, values)
     conditions = fields.product(values).map do |(field, value)|
       [arel_table[field].matches("#{value}%"), arel_table[field].matches("% #{value}%")]
     end
     where conditions.flatten.inject(:or)
   end
-  
+
   def invited_companies_contacts
     CompanyContact.where(company_id: self.invited_companies.map(&:invited_company_id))
   end
-  
+
   def get_blacklist_status(black_list_company_id)
     self.black_listers.find_by(company_id: black_list_company_id)&.status || 'unbanned'
   end
-  
+
   def full_name
     self.name
   end
-  
+
   def all_admins_has_permission? permission
     self.admins.joins(:permissions).where('permissions.name = ?', permission).group('users.id') || []
-  
+
   end
-  
+
   def etyme_url
     Rails.env.development? ? "#{self.slug}.#{ENV['domain']}" : "#{self.slug}.#{ENV['domain']}"
   end
-  
+
   def find_sent_or_received_invitation(invitation_id)
     JobInvitation.where("job_invitations.id = :i_id and (job_invitations.company_id = :c_id or (job_invitations.recipient_id in (:admins_id) and job_invitations.recipient_type = :obj_type))", {c_id: self.id, admins_id: self.admins.ids, obj_type: 'User', i_id: invitation_id}).limit(1)
   end
-  
+
   def send_or_received_network
     PreferVendor.where('(prefer_vendors.vendor_id= :c_id OR prefer_vendors.company_id= :c_id) AND prefer_vendors.status = 1', {c_id: self.id})
   end
-  
+
   def not_invited
     PreferVendor.where('(prefer_vendors.vendor_id= :c_id OR prefer_vendors.company_id= :c_id) AND prefer_vendors.status = 0', {c_id: self.id})
   end
-  
+
   def hot_candidates
     CandidatesCompany.hot_candidate.where(company_id: self.id)
   end
-  
+
   def prefer_vendor_companies
     Company.find((self.send_or_received_network.map(&:vendor_id) + self.send_or_received_network.map(&:company_id)).uniq)
   end
-  
+
   def logo
     super.present? ? super : ActionController::Base.helpers.asset_path('default_logo.png')
   end
-  
+
   def photo
     logo
   end
-  
+
   def is_freelancer?
     name == "freelancer"
   end
-  
+
   def self.get_freelancer_company
     Company.find_by_domain('freelancer.com')
   end
-  
+
   # def already_prefered(c)
   #   Company.where.not(:id=>PreferVendor.select(:vendor_id).where(company_id=c.id))
   # end
-  
-  
+
+
   def candidate_job_templates
     company_candidate_docs.where(document_for: "Candidate", title_type: "Job", is_require: "signature")
   end
-  
+
   def customer_job_templates
     company_candidate_docs.where(document_for: "Customer", title_type: "Contract", is_require: "signature")
   end
-  
+
   def candidate_contract_templates(is_require)
     company_candidate_docs.where(document_for: "Candidate", title_type: "Contract", is_require: is_require)
   end
-  
+
   def customer_contract_templates(is_require)
     company_candidate_docs.where(document_for: "Customer", title_type: "Contract", is_require: is_require)
   end
-  
+
   def is_vendor?(company)
     prefer_vendors.find_by_vendor_id(company.id)
   end
-  
+
   private
-    
+
     def send_owner_password_reset_email
       owner.send_password_reset_email
     end
-    
+
     def create_slug
       if domain.present? && slug.blank?
         total_slug = Company.where("slug like ?", "#{domain.split('.')[0].gsub(/[^0-9A-Za-z.]/, '').downcase}_").count
@@ -266,16 +266,16 @@ class Company < ApplicationRecord
         end
       end
     end
-    
+
     def set_owner_company_id
       self.owner.update_column(:company_id, id)
     end
-  
+
   # Call after create
     def welcome_email_to_owner
       UserMailer.welcome_email_to_owner(self).deliver_now
     end
-    
+
     def create_defult_roles
       self.roles.create(name: 'Recruiter', permissions: Permission.where(name: ["manage_consultants", "manage_jobs", "manage_vendors", "send_job_invitations", "manage_job_invitations", "manage_job_applications", "create_new_contracts", "show_contracts_details", "edit_contracts_terms"]))
       self.roles.create(name: 'Sales - client requirement', permissions: Permission.where(name: ["show_invoices"]))
@@ -284,18 +284,18 @@ class Company < ApplicationRecord
       self.roles.create(name: 'Sales - bench marketing', permissions: Permission.where(name: ["manage_timesheets", "show_invoices"]))
       self.roles.create(name: 'Timesheet admin', permissions: Permission.where(name: ["manage_timesheets", "show_invoices"]))
     end
-    
+
     def set_account_on_seq
       ledger = Sequence::Client.new(
           ledger_name: ENV['seq_ledgers'],
           credential: ENV['seq_token']
       )
-      
+
       key = ledger.keys.query({aliases: ['company']}).first
       unless key.present?
         key = ledger.keys.create(id: "company")
       end
-      
+
       account = ledger.accounts.create({
                                            alias: "comp_#{self.id}",
                                            keys: [key],
@@ -307,9 +307,9 @@ class Company < ApplicationRecord
                                                phone: self.owner.phone
                                            }
                                        })
-    
+
     end
-    
+
     def create_associated_roles
       self.roles.create(name: "Manager")
     end

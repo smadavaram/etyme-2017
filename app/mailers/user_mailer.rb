@@ -23,7 +23,8 @@ class UserMailer < ApplicationMailer
     @link = @user.class.name!='Candidate' ?
               "http://#{@user.company.etyme_url}/users/password/edit?reset_password_token=#{token}" :
               "http://#{@user.etyme_url}/candidates/password/edit?reset_password_token=#{token}"
-    mail(to: user.email, subject: 'Reset password instructions')
+    subject = @user.encrypted_password? ? '' : 'Confirm email and '
+    mail(to: user.email, subject: subject + 'Reset password instructions')
   end
 
   def password_changed(id)
