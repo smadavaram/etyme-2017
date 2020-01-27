@@ -174,7 +174,7 @@ group :development, :test do
   gem 'spring-watcher-listen', '~> 2.0.0'
   gem 'bullet'
   #Capistrano Deployment
-  gem 'capistrano', ' 3.11.0'
+  gem 'capistrano', '3.11.2'
   gem 'capistrano-bundler'
   gem 'capistrano-rvm'
   gem 'capistrano-passenger', '>= 0.1.1'
