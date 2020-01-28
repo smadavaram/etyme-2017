@@ -15,7 +15,7 @@
       flex-wrap: nowrap;
     }
     .nav-link i {
-      margin-bottom: 10px;
+      margin-bottom: 0px;
     }
     .chat-search {
       padding: 20px 20px;
@@ -169,7 +169,7 @@
         vertical-align: middle;
         margin-right: 5px;
       }
-      a { 
+      a {
         display: inline-block;
         vertical-align: middle;
         border-bottom: 1px dotted $primary;
@@ -378,7 +378,7 @@
     .ci-content {
       padding: 20px;
       .ci-file-list {
-        
+
         ul {
           list-style-type: square;
           color: lighten($primary, 30%);
