@@ -1,21 +1,22 @@
 span.pre.slick-arrow  {
-position:absolute;
-top:350px;
-left: 334px;
- font-family: 'feather' !important;
+  position: absolute;
+  top: 346px;
+  left: 285px;
+  font-weight: bold;
+  font-family: 'feather' !important;
 }
 span.next.slick-arrow  {
-position:absolute;
-top:350px;
-left:7px;
-z-index: 999;
+  position:absolute;
+  top:350px;
+  left:7px;
+  z-index: 999;
 }
 span.icon-feather-x-circle{
 }
 .close_slick{
-position: relative;
-left: 256px;
-font-size: 13px;
+  position: relative;
+  left: 256px;
+  font-size: 13px;
   top:4px;
 }
 .popup-backgroud{

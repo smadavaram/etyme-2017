@@ -9,8 +9,8 @@ $(document).ready(function()
         infinite: false,
         autoplaySpeed: 2000,
         arrows: true,
-        prevArrow:"<span class='next'><i class='icon-feather-arrow-left'>Edit Profile</i></span>",
-        nextArrow:"<span class='pre'>Upload CV<i class='icon-feather-arrow-right'></i></span>"
+        prevArrow:"<span class='next btn-sm btn btn-primary'><i class='icon-feather-arrow-left'>Edit Profile</i></span>",
+        nextArrow:"<span class='pre btn-sm btn btn-primary'>Upload CV<i class='icon-feather-arrow-right'></i></span>"
         // autoplay: true,
     });
     $('#slideshow').on('afterChange', function (event, slick, currentSlide) {
