@@ -1896,3 +1896,13 @@ flex: 0 0 220px;
 .m-10 {
     margin: 10px !important;
 }
+
+.rotate-45 {
+    -ms-transform: rotate(125deg);
+    -webkit-transform: rotate(125deg);
+    transform: rotate(125deg);
+}
+
+.no-hover:hover{
+    text-decoration: none !important;
+}
