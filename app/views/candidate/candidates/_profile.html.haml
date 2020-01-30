@@ -87,13 +87,13 @@
                     .bar-label-left
                       %span Visa Status
                     .bar-label-right
-                      %span=do_ellipsis(candidate.visa,15)
+                      %span=do_ellipsis(candidate.visas.first.status,15)
                 .os-progress-bar.primary
                   .bar-labels
                     .bar-label-left
                       %span Current Location
                     .bar-label-right
-                      %span=do_ellipsis(candidate.location,15)
+                      %span=do_ellipsis(candidate.address,15)
                 .os-progress-bar.primary
                   .bar-labels
                     .bar-label-left
