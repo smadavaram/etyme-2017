@@ -2,7 +2,7 @@
 = form_tag signin_path,id: 'new_user',class: 'new_user', method: :post do
   .form-group.field-group
     %label{:for => "user_email"} Email
-    = email_field_tag :email,nil ,placeholder: "Enter Your Email", required: true,class: 'form-control',id: 'user_email'
+    = email_field_tag :email,nil ,placeholder: 'Enter Work Email', required: true,class: 'form-control',id: 'user_email'
     .help-block.form-text.with-errors.form-control-feedback
       %a{:href => "/register"} Don't have an account?
     .pre-icon.os-icon.os-icon-email-2-at2
