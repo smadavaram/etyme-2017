@@ -131,6 +131,7 @@ class Candidate < ApplicationRecord
     days = (client_exp + designation_exp)
     days < 365 ? "<div class='value'>#{days }</div> <div class='label'>day(s) experience</div>" : "<div class='value'>#{days/365}</div><div class='label'>year(s) experience</div>"
   end
+
   def client_exp
     clients.map{|c| (c.end_date - c.start_date).to_i if c.start_date and c.end_date }.compact.sum
   end
@@ -164,13 +165,6 @@ class Candidate < ApplicationRecord
     end
     where conditions.flatten.inject(:or)
   end
-
-  # protected
-  #   def password_required?
-  #     return false if skip_password_validation
-  #     super
-  #   end
-
 
   def send_invitation_email
     invite! do |u|
@@ -266,10 +260,7 @@ class Candidate < ApplicationRecord
     ) unless la.present?
   end
 
-
-
   def set_freelancer_company
     self.company_id = Company.find_by(company_type: :vendor, domain: 'freelancer.com')&.id if self.company_id.nil?
   end
-
 end
