@@ -1,9 +1,10 @@
+# frozen_string_literal: true
+
 class Package < ApplicationRecord
-
   has_many :subscriptions
-  has_many :companies , through: :subscriptions
+  has_many :companies, through: :subscriptions
 
-  validates :name , :slug , presence: true , uniqueness: true
+  validates :name, :slug, presence: true, uniqueness: true
 
   before_create :set_slug
 
@@ -23,12 +24,10 @@ class Package < ApplicationRecord
     find_by_slug('paid')
   end
 
-
   private
 
   # Call before create
   def set_slug
     self.slug = name.parameterize('-')
   end
-
 end

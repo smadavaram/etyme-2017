@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 require_relative 'boot'
 
 require 'rails/all'
@@ -10,8 +12,6 @@ module Etyme
   class Application < Rails::Application
     # Initialize configuration defaults for originally generated Rails version.
     config.load_defaults 5.1
-
-
 
     config.app_url = ENV['docusign_app_url']
 
@@ -36,11 +36,11 @@ module Etyme
     config.filepicker_rails.api_key = ENV['filepicker_api_key'] # "AR0LrQ7ZBRbaL4HN6BMTDz"
     # config.filepicker_rails.api_key = ENV['filepicker_api_key'] || "AR0LrQ7ZBRbaL4HN6BMTDz"
 
-    #cors configuration
+    # cors configuration
     config.middleware.insert_before 0, Rack::Cors do
       allow do
         origins '*'
-        resource '*', :headers => :any, :methods => [:get, :post, :put, :options]
+        resource '*', headers: :any, methods: %i[get post put options]
       end
     end
   end

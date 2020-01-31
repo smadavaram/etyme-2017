@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 class Candidate::ConversationsController < Candidate::BaseController
   add_breadcrumb 'DashBoard', :candidate_candidate_dashboard_path
 
@@ -25,9 +27,9 @@ class Candidate::ConversationsController < Candidate::BaseController
     @favourites = current_candidate.favourables
     # @unread_message_count = Conversation.joins(:conversation_messages).where("(senderable_type = ? AND senderable_id = ? ) OR (recipientable_type = ? AND recipientable_id = ?)", current_user.class.to_s, current_user.id, current_user.class.to_s, current_user.id).where.not(conversation_messages: {is_read: true, userable: current_user}).uniq.count
     respond_to do |format|
-      format.html {
+      format.html do
         render 'index'
-      }
+      end
       format.js
     end
   end
@@ -72,41 +74,39 @@ class Candidate::ConversationsController < Candidate::BaseController
   # end
 
   def set_conversation(user, chat_topic, chatable_id, chatable_type)
-    if chat_topic == "Group"
+    if chat_topic == 'Group'
       GroupMsgNotify.where(group_id: user.id, member_type: current_candidate.class.to_s, member_id: current_candidate.id).update_all(is_read: true)
-      if Conversation.where(chatable: user, topic: "GroupChat").present?
-        @conversation = Conversation.where(chatable: user, topic: "GroupChat").first
-      else
-        @conversation = Conversation.create!({chatable: user, topic: "GroupChat"})
-      end
+      @conversation = if Conversation.where(chatable: user, topic: 'GroupChat').present?
+                        Conversation.where(chatable: user, topic: 'GroupChat').first
+                      else
+                        Conversation.create!(chatable: user, topic: 'GroupChat')
+                      end
     else
-      ConversationMessage.unread_messages(user, current_candidate).where(conversations: {chatable_id: chatable_id, chatable_type: chatable_type}).update_all(is_read: true)
-      if Conversation.between(current_candidate, user).where(chatable_id: chatable_id, chatable_type: chatable_type).present?
-        @conversation = Conversation.between(current_candidate, user).where(chatable_id: chatable_id, chatable_type: chatable_type).first
-      else
-        @conversation = Conversation.find_by(recipientable_id: current_candidate.id, senderable_id: user.id)
-        # @conversation ||= Conversation.create!({senderable: current_candidate, recipientable: user, chatable_id: chatable_id, chatable_type: chatable_type})
-      end
+      ConversationMessage.unread_messages(user, current_candidate).where(conversations: { chatable_id: chatable_id, chatable_type: chatable_type }).update_all(is_read: true)
+      @conversation = if Conversation.between(current_candidate, user).where(chatable_id: chatable_id, chatable_type: chatable_type).present?
+                        Conversation.between(current_candidate, user).where(chatable_id: chatable_id, chatable_type: chatable_type).first
+                      else
+                        Conversation.find_by(recipientable_id: current_candidate.id, senderable_id: user.id)
+                        # @conversation ||= Conversation.create!({senderable: current_candidate, recipientable: user, chatable_id: chatable_id, chatable_type: chatable_type})
+                      end
     end
   end
 
   def get_conversation_users
     user_ids = Conversation.where("(senderable_type = ? AND senderable_id = ? AND recipientable_type = 'Candidate') OR (recipientable_type = ? AND recipientable_id = ? AND senderable_type = 'Candidate')", current_candidate.class.to_s, current_candidate.id, current_candidate.class.to_s, current_candidate.id).pluck(:senderable_id, :recipientable_id).flatten
-    @candidates = Candidate.where.not(id: current_candidate.id).where(id: user_ids).order("created_at DESC").paginate(:page => params[:page], :per_page => 10)
+    @candidates = Candidate.where.not(id: current_candidate.id).where(id: user_ids).order('created_at DESC').paginate(page: params[:page], per_page: 10)
 
     user_ids = Conversation.where("(senderable_type = ? AND senderable_id = ? AND recipientable_type != 'Candidate') OR (recipientable_type = ? AND recipientable_id = ? AND senderable_type != 'Candidate')", current_candidate.class.to_s, current_candidate.id, current_candidate.class.to_s, current_candidate.id).pluck(:senderable_id, :recipientable_id).flatten
-    @companies = User.where(id: user_ids).order("created_at DESC").paginate(:page => params[:page], :per_page => 10)
+    @companies = User.where(id: user_ids).order('created_at DESC').paginate(page: params[:page], per_page: 10)
 
     @favourites = current_candidate.favourables
 
     @groups = current_candidate.groups
   end
 
-
   def set_activity_for_job_application
     @activities = @conversation&.job_application.present? ?
-                      PublicActivity::Activity.where(recipient: @conversation.job_application).order("created_at desc") :
+                      PublicActivity::Activity.where(recipient: @conversation.job_application).order('created_at desc') :
                       []
   end
-
 end

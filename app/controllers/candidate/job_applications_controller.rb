@@ -1,25 +1,25 @@
-class Candidate::JobApplicationsController < Candidate::BaseController
+# frozen_string_literal: true
 
-  before_action :find_job, only: [:create, :accept_rate, :rate_negotiation]
+class Candidate::JobApplicationsController < Candidate::BaseController
+  before_action :find_job, only: %i[create accept_rate rate_negotiation]
   before_action :job_applications, only: :index
-  before_action :find_job_application, only: [:show, :accept_rate, :accept_interview, :interview, :rate_negotiation]
+  before_action :find_job_application, only: %i[show accept_rate accept_interview interview rate_negotiation]
   add_breadcrumb 'DashBoard', :candidate_candidate_dashboard_path
 
-
   def create
-    @job_application = current_candidate.job_applications.new(job_application_params.merge({job_id: @job.id, application_type: :candidate_direct}))
+    @job_application = current_candidate.job_applications.new(job_application_params.merge(job_id: @job.id, application_type: :candidate_direct))
     respond_to do |format|
       if @job_application.save
-        format.html {
-          flash[:success] = "Successfully Applied."
+        format.html do
+          flash[:success] = 'Successfully Applied.'
           redirect_back(fallback_location: candidate_job_invitations_path)
-        }
-        format.js { flash.now[:success] = "Successfully Applied." }
+        end
+        format.js { flash.now[:success] = 'Successfully Applied.' }
       else
-        format.html {
+        format.html do
           flash[:errors] = @job_application.errors.full_messages
           redirect_back(fallback_location: candidate_job_invitations_path)
-        }
+        end
         format.js { flash.now[:errors] = @job_application.errors.full_messages }
       end
     end
@@ -31,7 +31,7 @@ class Candidate::JobApplicationsController < Candidate::BaseController
       @conversation.conversation_messages.rate_confirmation.update_all(message_type: :job_conversation) if @job_application.is_rate_accepted?
       body = current_candidate.full_name + " has accepted #{@job_application.rate_per_hour}/hr with reference to #{@job_application.job.title} job."
       current_candidate.conversation_messages.create(conversation_id: @conversation.id, body: body, message_type: :job_conversation)
-      flash[:success] = "Rate is Confirmed"
+      flash[:success] = 'Rate is Confirmed'
     else
       flash[:errors] = @job_application.errors.full_messages
     end
@@ -47,7 +47,7 @@ class Candidate::JobApplicationsController < Candidate::BaseController
         @conversation.conversation_messages.rate_confirmation.update_all(message_type: :job_conversation)
         body = current_candidate.full_name + " has Countered #{@job_application.rate_per_hour}/hr with reference to #{@job_application.job.title} job."
         current_candidate.conversation_messages.create(conversation_id: @conversation.id, body: body, message_type: :rate_confirmation)
-        flash[:success] = "Rate is set for company confirmation"
+        flash[:success] = 'Rate is set for company confirmation'
       else
         flash[:errors] = @job_application.errors.full_messages
       end
@@ -58,12 +58,12 @@ class Candidate::JobApplicationsController < Candidate::BaseController
   def interview
     @interview = @job_application.interviews.find_by(id: params[:interview][:id])
     respond_to do |format|
-      if @interview.update(interview_params.merge({accept: true, accepted_by_recruiter: false, accepted_by_company: false}))
+      if @interview.update(interview_params.merge(accept: true, accepted_by_recruiter: false, accepted_by_company: false))
         @conversation = @job_application.conversation
         @conversation.conversation_messages.schedule_interview.update_all(message_type: :job_conversation)
         body = current_candidate.full_name + " has schedule an interview on #{@interview.date} at #{@interview.date} <a href='http://#{@job_application.job.created_by.company.etyme_url + job_application_path(@job_application)}'> with reference to the job </a>#{@job_application.job.title}."
         current_candidate.conversation_messages.create(conversation_id: @conversation.id, body: body, message_type: :schedule_interview, resource_id: @interview.id)
-        format.html { flash[:success] = "Interview details updated, pending confirmation" }
+        format.html { flash[:success] = 'Interview details updated, pending confirmation' }
       else
         format.html { flash[:errors] = @job_application.errors.full_messages }
       end
@@ -73,11 +73,11 @@ class Candidate::JobApplicationsController < Candidate::BaseController
 
   def accept_interview
     @interview = @job_application.interviews.find_by(id: params[:interview_id])
-    unless @interview.accept
+    if @interview.accept
+      flash[:errors] = ['Already Accepted by you.']
+    else
       if @interview.update(accept: true)
-        if @interview.is_accepted?
-          @job_application.interviewing!
-        end
+        @job_application.interviewing! if @interview.is_accepted?
         @conversation = @job_application.conversation
         @conversation.conversation_messages.schedule_interview.update_all(message_type: :job_conversation) if @interview.is_accepted?
         body = current_candidate.full_name + " has accepted the interview on #{@interview.date} at #{@interview.date} <a href='http://#{@job_application.job.created_by.company.etyme_url + job_application_path(@job_application)}'> with reference to the job </a>#{@job_application.job.title}."
@@ -86,16 +86,12 @@ class Candidate::JobApplicationsController < Candidate::BaseController
       else
         flash[:errors] = @interview.errors.full_messages
       end
-    else
-      flash[:errors] = ['Already Accepted by you.']
     end
     redirect_back(fallback_location: root_path)
   end
 
-
   def index
-    add_breadcrumb "JobApplications", candidate_job_applications_path
-
+    add_breadcrumb 'JobApplications', candidate_job_applications_path
   end
 
   def show
@@ -123,11 +119,10 @@ class Candidate::JobApplicationsController < Candidate::BaseController
 
   def job_application_params
     params.require(:job_application).permit([:message, :cover_letter, :applicant_resume, :job_invitation_id, :status, custom_fields_attributes:
-        [
-            :id,
-            :name,
-            :value
-
+        %i[
+          id
+          name
+          value
         ]])
   end
 

@@ -1,21 +1,23 @@
+# frozen_string_literal: true
+
 class Candidates::SessionsController < Devise::SessionsController
   # before_action :configure_sign_in_params, only: [:create]
 
-   layout 'company_account'
-   add_breadcrumb "Home",'/'
-   add_breadcrumb "Candidate",""
-   add_breadcrumb "Sign In",''
+  layout 'company_account'
+  add_breadcrumb 'Home', '/'
+  add_breadcrumb 'Candidate', ''
+  add_breadcrumb 'Sign In', ''
 
   # GET /resource/sign_in
-   def new
-     super
-   end
+  def new
+    super
+  end
 
   # POST /resource/sign_in
-   def create
-     super
-     cookies.permanent.signed[:candidateid] = resource.id if resource.present?
-   end
+  def create
+    super
+    cookies.permanent.signed[:candidateid] = resource.id if resource.present?
+  end
 
   # DELETE /resource/sign_out
   # def destroy

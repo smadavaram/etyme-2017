@@ -1,5 +1,6 @@
-class SeqTimesheet
+# frozen_string_literal: true
 
+class SeqTimesheet
   include ActiveModel::Validations
   include ActiveModel::Conversion
   extend ActiveModel::Naming
@@ -16,25 +17,25 @@ class SeqTimesheet
 
   def create
     ledger = Sequence::Client.new(
-        ledger_name: ENV['seq_ledgers'],
-        credential: ENV['seq_token']
+      ledger_name: ENV['seq_ledgers'],
+      credential: ENV['seq_token']
     )
-    key = ledger.keys.query({ids: ["timesheet"]}).first
+    key = ledger.keys.query(ids: ['timesheet']).first
 
-    ledger.accounts.create({
-                             alias: "tmsht1001_#{Time.now.to_i}",
-                             keys: [key],
-                             quorum: 1,
-                             tags: {
-                                 contract_id: self.contract_id,
-                                 company_id: self.company_id,
-                                 candidate_id: self.candidate_id,
-                                 time: self.time,
-                                 date: self.date,
-                                 amount: self.amount,
-                                 created_at: Time.now
-                             }
-                         })
+    ledger.accounts.create(
+      alias: "tmsht1001_#{Time.now.to_i}",
+      keys: [key],
+      quorum: 1,
+      tags: {
+        contract_id: contract_id,
+        company_id: company_id,
+        candidate_id: candidate_id,
+        time: time,
+        date: date,
+        amount: amount,
+        created_at: Time.now
+      }
+    )
 
     # tx = ledger.transactions.transact do |builder|
     #   builder.issue(
@@ -47,23 +48,19 @@ class SeqTimesheet
     #                  destination_account_id: 'company1'
     #   )
     # end
-
-
   end
 
   def get_all
     ledger = Sequence::Client.new(
-        ledger_name: ENV['seq_ledgers'],
-        credential: ENV['seq_token']
+      ledger_name: ENV['seq_ledgers'],
+      credential: ENV['seq_token']
     )
-    key = ledger.keys.query({ids: ["timesheet"]}).first
+    key = ledger.keys.query(ids: ['timesheet']).first
 
     timesheets = []
-    ledger.accounts.query({filter: "key_ids=['timesheet']"}).each do |t|
+    ledger.accounts.query(filter: "key_ids=['timesheet']").each do |t|
       timesheets.push(t.to_json)
     end
     timesheets
   end
-
-
 end

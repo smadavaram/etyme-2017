@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 Rails.application.configure do
   # Settings specified here will take precedence over those in config/application.rb.
 
@@ -57,7 +59,7 @@ Rails.application.configure do
   # Raises helpful error messages.
   # config.assets.raise_runtime_errors = true
 
-  HOSTNAME='http://lvh.me:3000'
+  HOSTNAME = 'http://lvh.me:3000'
   COMPANY_URL = 'lvh.me:3000'
 
   Rails.application.routes.default_url_options[:host] = HOSTNAME

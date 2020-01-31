@@ -1,26 +1,23 @@
-class PreferVendor < ApplicationRecord
+# frozen_string_literal: true
 
+class PreferVendor < ApplicationRecord
   include PublicActivity::Model
-  enum status: [:pending, :accepted ,:rejected]
+  enum status: %i[pending accepted rejected]
 
   belongs_to :company, optional: true
-  belongs_to :prefer_vendor, class_name: "Company",foreign_key: 'vendor_id', optional: true
+  belongs_to :prefer_vendor, class_name: 'Company', foreign_key: 'vendor_id', optional: true
   has_many :activities, as: :trackable, class_name: 'PublicActivity::Activity', dependent: :destroy
 
   attr_accessor :company_ids
 
   after_create  :send_notifcation_to_vendor
-  after_update  :send_notifcation_to_companies ,if: Proc.new{ |vendor| vendor.status_changed?}
-
+  after_update  :send_notifcation_to_companies, if: proc { |vendor| vendor.status_changed? }
 
   def send_notifcation_to_vendor
-   self.prefer_vendor.owner.notifications.create(title:"Company Network Request",message:self.company.name + " has requested to add you in his company network") if prefer_vendor.owner.present?
+    prefer_vendor.owner.notifications.create(title: 'Company Network Request', message: company.name + ' has requested to add you in his company network') if prefer_vendor.owner.present?
   end
 
   def send_notifcation_to_companies
-    self.company.owner.notifications.create(title:"Status on Network Request",message:self.prefer_vendor.name + " has #{self.status} to your request for Company Network")
+    company.owner.notifications.create(title: 'Status on Network Request', message: prefer_vendor.name + " has #{status} to your request for Company Network")
   end
-
-
-
 end

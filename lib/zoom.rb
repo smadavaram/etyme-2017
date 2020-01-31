@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 require 'omniauth-oauth2'
 
 module OmniAuth
@@ -12,14 +14,14 @@ module OmniAuth
         super
       end
 
-      uid {raw_info['id']}
+      uid { raw_info['id'] }
 
       info do
-        {user: user}
+        { user: user }
       end
 
       extra do
-        {raw_info: raw_info, user: user}
+        { raw_info: raw_info, user: user }
       end
 
       def raw_info
@@ -28,9 +30,9 @@ module OmniAuth
 
       def user
         @user ||= {
-            first_name: raw_info['first_name'],
-            last_name: raw_info['last_name'],
-            email: raw_info['email'],
+          first_name: raw_info['first_name'],
+          last_name: raw_info['last_name'],
+          email: raw_info['email']
         }
       end
     end

@@ -1,5 +1,6 @@
-class User < ApplicationRecord
+# frozen_string_literal: true
 
+class User < ApplicationRecord
   include DomainExtractor
   include ApplicationHelper
 
@@ -11,7 +12,7 @@ class User < ApplicationRecord
   devise :invitable, :database_authenticatable, :registerable,
          :recoverable, :rememberable, :trackable, :omniauthable, :confirmable
 
-  #Serializers
+  # Serializers
   # serialize :signature, JSON
 
   # Validations
@@ -24,7 +25,6 @@ class User < ApplicationRecord
   after_create_commit :send_confirmation_email, if: -> { user? || is_admin? }
 
   after_create :create_address
-
 
   attr_accessor :temp_working_hours
   attr_accessor :invitation_as_contact
@@ -42,7 +42,7 @@ class User < ApplicationRecord
   has_many :custom_fields, as: :customizable, dependent: :destroy
   has_many :attachable_docs, as: :documentable, dependent: :destroy
   has_many :company_docs, through: :attachable_docs
-  has_many :job_applications, foreign_key: "applicationable_id", dependent: :destroy
+  has_many :job_applications, foreign_key: 'applicationable_id', dependent: :destroy
   has_many :timesheets, dependent: :destroy
   has_many :timesheet_approvers, dependent: :destroy
   has_many :attachments, as: :attachable
@@ -58,7 +58,6 @@ class User < ApplicationRecord
   has_many :company_contacts
   has_many :created_company_contacts, class_name: 'CompanyContact', foreign_key: :created_by_id
 
-
   has_many :conversation_messages, as: :userable
   has_many :document_signs, as: :signable
   has_many :document_signs, as: :requested_by
@@ -67,8 +66,8 @@ class User < ApplicationRecord
   has_many :user_educations, dependent: :destroy
   has_many :user_work_clients, dependent: :destroy
 
-  has_many :favourables, as: :favourable, class_name: "FavouriteChat", dependent: :destroy
-  has_many :favourableds, as: :favourabled, class_name: "FavouriteChat", dependent: :destroy
+  has_many :favourables, as: :favourable, class_name: 'FavouriteChat', dependent: :destroy
+  has_many :favourableds, as: :favourabled, class_name: 'FavouriteChat', dependent: :destroy
   has_many :created_notifications, as: :createable
   has_many :contract_cycles
   has_many :contract_admins
@@ -82,10 +81,10 @@ class User < ApplicationRecord
   accepts_nested_attributes_for :user_educations, reject_if: :all_blank, allow_destroy: true
   accepts_nested_attributes_for :user_work_clients, reject_if: :all_blank, allow_destroy: true
 
-  #Tags Input
+  # Tags Input
   acts_as_taggable_on :skills
 
-  validates :email, uniqueness: {case_sensitive: false}, format: {with: ::EMAIL_REGEX}, presence: true
+  validates :email, uniqueness: { case_sensitive: false }, format: { with: ::EMAIL_REGEX }, presence: true
   validate :user_email_domain
   # validates_inclusion_of :time_zone, in: ActiveSupport::TimeZone.all.map { |tz| tz.tzinfo.name }
 
@@ -107,13 +106,12 @@ class User < ApplicationRecord
   end
 
   def max_skill_size
-    errors[:skill_list] << "8 skills maximum" if skill_list.count > 8
+    errors[:skill_list] << '8 skills maximum' if skill_list.count > 8
   end
 
   def time_zone_now
-    self.time_zone.present? ? Time.now.in_time_zone(self.time_zone) : Time.now
+    time_zone.present? ? Time.now.in_time_zone(time_zone) : Time.now
   end
-
 
   def etyme_url
     company&.etyme_url
@@ -127,28 +125,29 @@ class User < ApplicationRecord
     self == user
   end
 
-  def has_permission (permission)
-    self.permissions.where(name: permission).exists?
+  def has_permission(permission)
+    permissions.where(name: permission).exists?
   end
 
   def is_admin?
-    self.class.name == "Admin" if invited_by_id.nil?
+    self.class.name == 'Admin' if invited_by_id.nil?
   end
 
   def is_consultant?
-    self.class.name == "Consultant"
+    self.class.name == 'Consultant'
   end
 
   def is_owner?
-    self == self.company.owner
+    self == company.owner
   end
+
   def full_name
     if first_name.present? || first_name.present?
-      self.first_name + " " + self.last_name
+      first_name + ' ' + last_name
     elsif company
       company.name
     else
-      ""
+      ''
     end
   end
 
@@ -156,7 +155,7 @@ class User < ApplicationRecord
     address = Address.new
     address.save(validate: false)
     self.primary_address_id = address.try(:id)
-    self.save
+    save
   end
 
   def self.share_candidates(to, to_emails, c_ids, current_company, message, subject)
@@ -164,13 +163,13 @@ class User < ApplicationRecord
   end
 
   def go_available
-    self.chat_status = "available"
-    self.save!
+    self.chat_status = 'available'
+    save!
   end
 
   def go_unavailable
-    self.chat_status = "unavailable"
-    self.save!
+    self.chat_status = 'unavailable'
+    save!
   end
 
   def send_password_reset_email
@@ -185,9 +184,6 @@ class User < ApplicationRecord
 
   def user_email_domain
     email_domain = domain_name(email)
-    if email_domain.in?(EXCLUDED_EMAIL_DOMAINS)
-      errors.add(:email, "cannot be your #{email_domain} id.")
-    end
+    errors.add(:email, "cannot be your #{email_domain} id.") if email_domain.in?(EXCLUDED_EMAIL_DOMAINS)
   end
-
 end
