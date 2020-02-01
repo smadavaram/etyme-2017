@@ -1,5 +1,6 @@
-class BuyContract < ApplicationRecord
+# frozen_string_literal: true
 
+class BuyContract < ApplicationRecord
   belongs_to :contract, optional: true
   belongs_to :candidate, optional: true
   belongs_to :company, optional: true
@@ -17,7 +18,7 @@ class BuyContract < ApplicationRecord
   has_many :approvals, as: :contractable, dependent: :destroy
   # include DateCalculation.new({prefix: 'BC', length: 7})
   has_one :conversation
-  has_many :change_rates, as: :rateable,dependent: :destroy
+  has_many :change_rates, as: :rateable, dependent: :destroy
   has_many :contract_cycles, as: :cycle_of
   has_many :commission_queues
   belongs_to :payroll_info, optional: true
@@ -35,45 +36,45 @@ class BuyContract < ApplicationRecord
   accepts_nested_attributes_for :buy_send_documents, allow_destroy: true, reject_if: :all_blank
   accepts_nested_attributes_for :buy_emp_req_docs, allow_destroy: true, reject_if: :all_blank
   accepts_nested_attributes_for :buy_ven_req_docs, allow_destroy: true, reject_if: :all_blank
-  accepts_nested_attributes_for :change_rates, allow_destroy: true,reject_if:proc { |attributes|attributes['rate'].blank? || attributes['working_hrs'].blank? ||attributes['working_hrs'].blank? ||attributes['rate_type'].blank? || attributes['from_date'].blank? || attributes['to_date'].blank? ||  attributes['uscis'].blank? }
-  
-  validates_presence_of :ts_date_1, if: Proc.new { |b_con| b_con.time_sheet == "twice a month" }, :message => "Please select first date for timesheet"
-  validates_presence_of :ts_date_1, if: Proc.new { |b_con| b_con.time_sheet == "month" && !b_con.ts_end_of_month }, :message => "Please select first date for timesheet"
-  validates_presence_of :ts_date_2, if: Proc.new { |b_con| b_con.time_sheet == "twice a month" && !b_con.ts_end_of_month }, :message => "Please select second date or end of month"
-  validates_presence_of :ts_day_of_week, if: Proc.new { |b_con| b_con.time_sheet == "weekly" || b_con.time_sheet == "biweekly" }, :message => "Please select day of week"
+  accepts_nested_attributes_for :change_rates, allow_destroy: true, reject_if: proc { |attributes| attributes['rate'].blank? || attributes['working_hrs'].blank? || attributes['working_hrs'].blank? || attributes['rate_type'].blank? || attributes['from_date'].blank? || attributes['to_date'].blank? || attributes['uscis'].blank? }
+
+  validates_presence_of :ts_date_1, if: proc { |b_con| b_con.time_sheet == 'twice a month' }, message: 'Please select first date for timesheet'
+  validates_presence_of :ts_date_1, if: proc { |b_con| b_con.time_sheet == 'month' && !b_con.ts_end_of_month }, message: 'Please select first date for timesheet'
+  validates_presence_of :ts_date_2, if: proc { |b_con| b_con.time_sheet == 'twice a month' && !b_con.ts_end_of_month }, message: 'Please select second date or end of month'
+  validates_presence_of :ts_day_of_week, if: proc { |b_con| b_con.time_sheet == 'weekly' || b_con.time_sheet == 'biweekly' }, message: 'Please select day of week'
 
   attr_accessor :ssn
 
   def set_number
-    self.number = "BC_" + self.contract.number.split("_")[1].to_s
+    self.number = 'BC_' + contract.number.split('_')[1].to_s
   end
 
   def set_first_timesheet_date
-    if self.time_sheet == "daily"
-      time_sheet_date = self.contract.start_date
-    elsif self.time_sheet == "weekly" || self.time_sheet == "biweekly"
-      time_sheet_date = date_of_next(self.ts_day_of_week, self.contract.start_date)
-    elsif self.time_sheet == "twice a month"
-      time_sheet_date = self.ts_date_1
-    elsif self.time_sheet == "monthly"
-      if self.ts_end_of_month
-        time_sheet_date = self.contract.start_date.end_of_month
-      else
-        time_sheet_date = self.ts_date_1
-      end
+    if time_sheet == 'daily'
+      time_sheet_date = contract.start_date
+    elsif time_sheet == 'weekly' || time_sheet == 'biweekly'
+      time_sheet_date = date_of_next(ts_day_of_week, contract.start_date)
+    elsif time_sheet == 'twice a month'
+      time_sheet_date = ts_date_1
+    elsif time_sheet == 'monthly'
+      time_sheet_date = if ts_end_of_month
+                          contract.start_date.end_of_month
+                        else
+                          ts_date_1
+                        end
     end
     self.first_date_of_timesheet = time_sheet_date
   end
 
   def set_salary_frequency
-    self.salary_process = self.salary_calculation
-    self.salary_clear = self.salary_calculation
-    self.save
+    self.salary_process = salary_calculation
+    self.salary_clear = salary_calculation
+    save
   end
 
   def set_candidate
-    self.candidate = self.contract.candidate
-    self.save
+    self.candidate = contract.candidate
+    save
   end
 
   # def display_number
@@ -89,25 +90,24 @@ class BuyContract < ApplicationRecord
   end
 
   def get_contract_type_label
-    {"W2":"W2 (Fulltime)", "1099":"1099 (Freelancers)","C2C":"Corp-Corp (Third Party)"}[contract_type.to_sym]
+    { "W2": 'W2 (Fulltime)', "1099": '1099 (Freelancers)', "C2C": 'Corp-Corp (Third Party)' }[contract_type.to_sym]
   end
 
   def get_rate(date)
     rate_on(date)
   end
-  
+
   def today_rate
     rate_on(Date.today)
   end
 
-  
   private
 
-    def rate_on(date)
-      rate = change_rates.where("? between from_date and to_date",date).order(:from_date).first
-      rate.present? ? rate : change_rates.all.order(:from_date).first
-    end
-    
+  def rate_on(date)
+    rate = change_rates.where('? between from_date and to_date', date).order(:from_date).first
+    rate.present? ? rate : change_rates.all.order(:from_date).first
+  end
+
   def create_buy_contract_conversation
     group = nil
     Group.transaction do
@@ -118,16 +118,18 @@ class BuyContract < ApplicationRecord
         group.groupables.create(groupable: user)
       end
     end
-    self.build_conversation({chatable: group, topic: :BuyContract}).save if group
+    build_conversation(chatable: group, topic: :BuyContract).save if group
   end
 
   def legacy_ssn
     return unless encrypted_ssn.present?
+
     SsnEncryption.decrypt(encrypted_ssn)
   end
 
   def legacy_ssn=(origin_ssn)
     return unless origin_ssn.present?
+
     self.encrypted_ssn = SsnEncryption.encrypt(origin_ssn)
   end
 
@@ -139,7 +141,7 @@ class BuyContract < ApplicationRecord
     end
 
     def key
-      ActiveSupport::KeyGenerator.new("dsfdsguisd").generate_key(salt)
+      ActiveSupport::KeyGenerator.new('dsfdsguisd').generate_key(salt)
     end
 
     def encrypt(value)
@@ -152,5 +154,4 @@ class BuyContract < ApplicationRecord
       crypt.decrypt_and_verify(value)
     end
   end
-
 end

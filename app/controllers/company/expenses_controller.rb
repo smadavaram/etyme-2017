@@ -1,8 +1,10 @@
+# frozen_string_literal: true
+
 class Company::ExpensesController < Company::BaseController
-  add_breadcrumb "Dashboard", :dashboard_path
+  add_breadcrumb 'Dashboard', :dashboard_path
 
   def new
-    add_breadcrumb "New Expense"
+    add_breadcrumb 'New Expense'
     @expense = Expense.new
     @expense_type = ExpenseType.new
     @salary_cycles = []
@@ -33,19 +35,19 @@ class Company::ExpensesController < Company::BaseController
     respond_to do |format|
       if @expense_type.save
         format.html { redirect_to @expense_type, success: 'Expense type was successfully created.' }
-        format.js{ flash.now[:success] = "successfully Created." }
+        format.js { flash.now[:success] = 'successfully Created.' }
       else
-        format.html { flash[:errors] = @expense_type.errors.full_messages; render :new}
-        format.js{ flash.now[:errors] =  @expense_type.errors.full_messages }
+        format.html { flash[:errors] = @expense_type.errors.full_messages; render :new }
+        format.js { flash.now[:errors] = @expense_type.errors.full_messages }
       end
     end
   end
 
   def pay_expense
-    add_breadcrumb "Pay Expense(s)"
+    add_breadcrumb 'Pay Expense(s)'
 
     @banks = BankDetail.where(company_id: current_company.id)
-    @expense_accounts = ExpenseAccount.joins(:expense).where("expenses.contract_id in (?)", current_company&.in_progress_contracts&.ids)
+    @expense_accounts = ExpenseAccount.joins(:expense).where('expenses.contract_id in (?)', current_company&.in_progress_contracts&.ids)
     @client_expenses_invoice = Expense.where(bill_type: 'client_expense', status: 'invoice_generated').where(contract_id: current_company&.in_progress_contracts&.ids)
   end
 
@@ -76,7 +78,6 @@ class Company::ExpensesController < Company::BaseController
   end
 
   def client_expense_generate_invoice
-
     expense = Expense.find_by(id: params[:ex_id])
     expense.set_ce_invoice_on_seq(expense)
     expense.update(status: 'invoice_generated')
@@ -86,21 +87,21 @@ class Company::ExpensesController < Company::BaseController
   end
 
   def client_expense_invoices
-    add_breadcrumb "Client Expense(s)", client_expense_invoices_expenses_path
+    add_breadcrumb 'Client Expense(s)', client_expense_invoices_expenses_path
     @client_expenses = Expense.where(bill_type: 'client_expense', status: 'bill_generated').where(contract_id: current_company&.in_progress_contracts&.ids)
   end
 
   def client_expense_bill
-    add_breadcrumb "Client Expense Bill", client_expense_bill_expenses_path
+    add_breadcrumb 'Client Expense Bill', client_expense_bill_expenses_path
     @expense = Expense.new
   end
 
   def filter_approved_client_expense
     @client_expenses = current_company.client_expenses.joins(contract: [:client, [buy_contract: :candidate]])
-                           .approved_client_expenses.where(contract_id: params[:contract_id])
-                           .select("DISTINCT(client_expenses.ce_ap_cycle_id), contracts.number, companies.name, buy_contracts.contract_type, candidates.first_name, candidates.last_name, sum(amount) as total_amount")
-                           .group('client_expenses.ce_ap_cycle_id', 'contracts.number', 'companies.name', 'buy_contracts.contract_type', 'candidates.first_name', 'candidates.last_name')
-                           .map(&:attributes)
+                                      .approved_client_expenses.where(contract_id: params[:contract_id])
+                                      .select('DISTINCT(client_expenses.ce_ap_cycle_id), contracts.number, companies.name, buy_contracts.contract_type, candidates.first_name, candidates.last_name, sum(amount) as total_amount')
+                                      .group('client_expenses.ce_ap_cycle_id', 'contracts.number', 'companies.name', 'buy_contracts.contract_type', 'candidates.first_name', 'candidates.last_name')
+                                      .map(&:attributes)
   end
 
   def get_bank_balance
@@ -110,7 +111,7 @@ class Company::ExpensesController < Company::BaseController
 
   def invoice_payment
     expense = Expense.find_by(id: params[:ex_id])
-    expense.update(status: 'paid', attachment: params[:expense][:attachment] )
+    expense.update(status: 'paid', attachment: params[:expense][:attachment])
     ClientExpense.where(ce_ap_cycle_id: expense.ce_ap_cycle_id, status: 'invoice_generated').update_all(status: 'paid')
     expense.set_ce_invoice_payment_on_seq(expense)
     flash[:success] = 'Payment done successfully'
@@ -124,11 +125,10 @@ class Company::ExpensesController < Company::BaseController
   private
 
   def expense_params
-    params.require(:expense).permit( :contract_id, :account_id, :mailing_address, :terms, :bill_date, :due_date, :bill_no, :total_amount, :ce_ap_cycle_id, :status, :attachment, :bill_type, {:salary_ids => []}, expense_accounts_attributes: [:id, :expense_type_id, :description, :status, :amount, :_destroy])
+    params.require(:expense).permit(:contract_id, :account_id, :mailing_address, :terms, :bill_date, :due_date, :bill_no, :total_amount, :ce_ap_cycle_id, :status, :attachment, :bill_type, { salary_ids: [] }, expense_accounts_attributes: %i[id expense_type_id description status amount _destroy])
   end
 
   def expense_type_params
     params.require(:expense_type).permit(:name)
   end
-
 end

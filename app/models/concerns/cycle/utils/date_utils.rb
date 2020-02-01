@@ -1,7 +1,9 @@
+# frozen_string_literal: true
+
 module Cycle::Utils::DateUtils
   class << self
-    DayTranslation = {"sun": "sunday?", "mon": "monday?", "tue": "tuesday?", "wed": "wednesday?",
-                      "thu": "thursday?", "fri": "friday?", "sat": "saturday?"}.freeze
+    DayTranslation = { "sun": 'sunday?', "mon": 'monday?', "tue": 'tuesday?', "wed": 'wednesday?',
+                       "thu": 'thursday?', "fri": 'friday?', "sat": 'saturday?' }.freeze
 
     def range(start_date, end_date)
       (start_date...end_date).to_a
@@ -71,18 +73,18 @@ module Cycle::Utils::DateUtils
       tmp.empty? ? groups : groups << tmp
     end
 
-    def get_date(value, frequency,start_date,end_date)
-      case (frequency)
+    def get_date(value, frequency, start_date, end_date)
+      case frequency
       when 'daily'
-        return start_date
+        start_date
       when 'twice a month'
-        (start_date..end_date).to_a.select{|date| [value.first.day,value.second.day].include?(date.day)}.first
+        (start_date..end_date).to_a.find { |date| [value.first.day, value.second.day].include?(date.day) }
       when 'biweekly'
-        (start_date..end_date).to_a.select{|date| date.send(DayTranslation[value.first.to_sym]) || date.send(DayTranslation[value.second.to_sym]) }.first
+        (start_date..end_date).to_a.find { |date| date.send(DayTranslation[value.first.to_sym]) || date.send(DayTranslation[value.second.to_sym]) }
       when 'monthly'
-        (start_date..end_date).to_a.select{|date| value.day == date.day}.first
+        (start_date..end_date).to_a.find { |date| value.day == date.day }
       when 'weekly'
-        (start_date..end_date).to_a.select{|date| date.send(DayTranslation[value.to_sym])}.first
+        (start_date..end_date).to_a.find { |date| date.send(DayTranslation[value.to_sym]) }
       end
     end
   end

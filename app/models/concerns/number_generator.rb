@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 class NumberGenerator < Module
   BASE           = 10
   DEFAULT_LENGTH = 9

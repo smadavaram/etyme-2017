@@ -1,5 +1,6 @@
-module Company::ActivitiesHelper
+# frozen_string_literal: true
 
+module Company::ActivitiesHelper
   def company_activities
     @activities.where("activities.owner_id = #{current_company.id} or activities.recipient_id = #{current_company.id} ")
   end
@@ -35,5 +36,4 @@ module Company::ActivitiesHelper
     end
     activity_h
   end
-
 end

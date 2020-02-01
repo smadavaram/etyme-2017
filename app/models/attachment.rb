@@ -1,9 +1,10 @@
-class Attachment < ApplicationRecord
+# frozen_string_literal: true
 
+class Attachment < ApplicationRecord
   belongs_to :attachable, polymorphic: true, optional: true
   belongs_to :company, optional: true
 
-  validates :file, presence: {message: ' cannot be blank.'}
+  validates :file, presence: { message: ' cannot be blank.' }
 
   # self.per_page = 10
   # validate :file_size_validation

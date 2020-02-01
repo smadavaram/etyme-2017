@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 class Certificate < ActiveRecord::Base
   belongs_to :candidate
   has_many :candidate_certificate_documents

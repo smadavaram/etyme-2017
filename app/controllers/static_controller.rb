@@ -1,5 +1,6 @@
-class StaticController < ApplicationController
+# frozen_string_literal: true
 
+class StaticController < ApplicationController
   include DomainExtractor
 
   skip_before_action :authenticate_user!, raise: false
@@ -9,26 +10,19 @@ class StaticController < ApplicationController
 
   layout 'static', except: [:home]
   layout 'homepage', only: [:index]
-  layout 'company_account', only: [:signin, :signup]
+  layout 'company_account', only: %i[signin signup]
 
+  add_breadcrumb 'Home', '/'
 
-  add_breadcrumb "Home", '/'
+  def index; end
 
+  def contact_us; end
 
-  def index
-  end
+  def privacy_policy; end
 
-  def contact_us
-  end
+  def terms_of_use; end
 
-  def privacy_policy
-  end
-
-  def terms_of_use
-  end
-
-  def signup
-  end
+  def signup; end
 
   def acknowledge_refrence
     @client = Client.find_by(id: params[:id])
@@ -42,20 +36,20 @@ class StaticController < ApplicationController
 
   def check_user
     user = @company.users.find_by(email: params[:email].downcase)
-    unless user.present?
+    if user.present?
+      if user.sign_in_count.to_i.zero?
+        user.send_reset_password_instructions
+        flash[:error] = 'Looks like a lot of people want you on etyme. You are welcome. Better late than never. Check your email and get started'
+      end
+    else
       user = @company.users.create(
-          email: params[:email].downcase,
-          company_id: @company.id,
-          password: "passpass#{rand(999)}",
-          password_confirmation: "passpass#{rand(999)}"
+        email: params[:email].downcase,
+        company_id: @company.id,
+        password: "passpass#{rand(999)}",
+        password_confirmation: "passpass#{rand(999)}"
       )
       user.send_reset_password_instructions
       flash[:error] = "Looks like Team #{@company.domain.capitalize} is registered with us but you are missing all the action. Check your email to activate the account and get started"
-    else
-      if user.sign_in_count.to_i.zero?
-        user.send_reset_password_instructions
-        flash[:error] = "Looks like a lot of people want you on etyme. You are welcome. Better late than never. Check your email and get started"
-      end
     end
   end
 
@@ -100,7 +94,7 @@ class StaticController < ApplicationController
       else
         format.html {}
         format.json do
-          render json: {message: 'Company domain is available.', slug: suggested_slug, website: domain_from_email(params[:email]), domain: get_domain_from_email(params[:email]), status: :ok}
+          render json: { message: 'Company domain is available.', slug: suggested_slug, website: domain_from_email(params[:email]), domain: get_domain_from_email(params[:email]), status: :ok }
         end
       end
     end
@@ -110,16 +104,16 @@ class StaticController < ApplicationController
 
   def get_uniq_domain(domain)
     if domain.present?
-      total_domain = Company.where("domain like ?", "#{domain.gsub(/[^0-9A-Za-z.]/, '').downcase}%").count
+      total_domain = Company.where('domain like ?', "#{domain.gsub(/[^0-9A-Za-z.]/, '').downcase}%").count
       if total_domain == 0
-        domain = "#{domain.gsub(/[^0-9A-Za-z.]/, '').downcase}"
+        domain = domain.gsub(/[^0-9A-Za-z.]/, '').downcase.to_s
       else
         l = 1
-        domain = "#{domain.gsub(/[^0-9A-Za-z.]/, '').downcase}#{total_domain + l }"
+        domain = "#{domain.gsub(/[^0-9A-Za-z.]/, '').downcase}#{total_domain + l}"
         collision = Company.find_by_domain(domain)
         until collision.nil?
-          l = l + 1
-          domain = "#{domain.gsub(/[^0-9A-Za-z.]/, '').downcase}#{total_domain +l}"
+          l += 1
+          domain = "#{domain.gsub(/[^0-9A-Za-z.]/, '').downcase}#{total_domain + l}"
           collision = Company.find_by_domain(domain)
         end
       end
@@ -128,10 +122,10 @@ class StaticController < ApplicationController
   end
 
   def handle_invalid_email
-    unless ::EMAIL_REGEX =~ params[:email]
+    unless ::EMAIL_REGEX.match?(params[:email])
       respond_to do |format|
         format.json do
-          render json: {message: 'Invalid email entered.', status: :unprocessible_entity}
+          render json: { message: 'Invalid email entered.', status: :unprocessible_entity }
         end
       end
     end
@@ -146,11 +140,10 @@ class StaticController < ApplicationController
         format.html {}
         format.json do
           if @user.company.domain != current_user.company.domain
-            render json: {status: :ok, slug: @find_company.try(:slug), website: domain_from_email(params[:email]), name: @find_company.try(:name), company_type: @find_company.try(:company_type), registred_in_company: false}
+            render json: { status: :ok, slug: @find_company.try(:slug), website: domain_from_email(params[:email]), name: @find_company.try(:name), company_type: @find_company.try(:company_type), registred_in_company: false }
           else
-            render json: {message: 'User already registered.', status: :unprocessible_entity, slug: @find_company.try(:slug), website: domain_from_email(params[:email]), name: @find_company.try(:name), company_type: @find_company.try(:company_type)}
+            render json: { message: 'User already registered.', status: :unprocessible_entity, slug: @find_company.try(:slug), website: domain_from_email(params[:email]), name: @find_company.try(:name), company_type: @find_company.try(:company_type) }
           end
-
         end
       end
     end
@@ -163,7 +156,7 @@ class StaticController < ApplicationController
       respond_to do |format|
         format.html {}
         format.json do
-          render json: {message: 'Email is Invalid', status: :unprocessible_entity}
+          render json: { message: 'Email is Invalid', status: :unprocessible_entity }
         end
       end
     end
@@ -193,9 +186,7 @@ class StaticController < ApplicationController
   end
 
   def set_slug
-    if @company
-      @slug = @company.slug
-    end
+    @slug = @company.slug if @company
   end
 
   def set_jobs
@@ -210,5 +201,4 @@ class StaticController < ApplicationController
       redirect_to signin_path, notice: msg
     end
   end
-
 end

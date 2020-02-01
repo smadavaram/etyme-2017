@@ -6,7 +6,7 @@ class ConversationMessage < ApplicationRecord
   enum message_type: %i[job_conversation rate_confirmation schedule_interview DocumentRequest]
   # after_create :create_notification
   after_create :set_conversation_updated_at
-  scope :unread_messages, lambda { |sender, recipient|
+  scope :unread_messages, -> (sender, recipient) do
     joins(:conversation).where("(
                                   ( senderable_type = ? AND senderable_id = ? )
                                     OR
@@ -20,7 +20,7 @@ class ConversationMessage < ApplicationRecord
                                 )",
                                recipient.class.to_s, recipient.id, recipient.class.to_s, recipient.id,
                                sender.class.to_s, sender.id, sender.class.to_s, sender.id).where.not(is_read: true, userable: recipient)
-  }
+  end
 
   def create_notification
     senderable_name = "#{userable.first_name} #{userable.last_name}"

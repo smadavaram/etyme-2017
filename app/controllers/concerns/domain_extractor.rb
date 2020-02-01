@@ -1,9 +1,9 @@
-module DomainExtractor
+# frozen_string_literal: true
 
+module DomainExtractor
   extend ActiveSupport::Concern
 
   included do
-
     private
 
     def domain_from_email(email = nil)
@@ -15,15 +15,11 @@ module DomainExtractor
     end
 
     def domain_name(email)
-      if email
-        domain_from_email(email).split(".").first
-      end
+      domain_from_email(email).split('.').first if email
     end
 
     def valid_email(email)
-      if valid_email?(email)
-        domain_from_email(email)
-      end
+      domain_from_email(email) if valid_email?(email)
     end
 
     def valid_email?(email)
@@ -31,8 +27,7 @@ module DomainExtractor
     end
 
     def email_public_domain?(email)
-      email.present? && Company::EXCLUDED_DOMAINS.include?(domain_from_email email)
+      email.present? && Company::EXCLUDED_DOMAINS.include?(domain_from_email(email))
     end
   end
-
 end
