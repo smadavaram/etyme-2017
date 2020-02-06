@@ -1,18 +1,20 @@
+# frozen_string_literal: true
+
 class Users::SessionsController < Devise::SessionsController
-# before_action :configure_sign_in_params, only: [:create]
+  # before_action :configure_sign_in_params, only: [:create]
 
   include DomainExtractor
 
   layout 'company_account'
-  add_breadcrumb "Home",'/'
-  add_breadcrumb "Company",""
-  add_breadcrumb "Sign In",''
+  add_breadcrumb 'Home', '/'
+  add_breadcrumb 'Company', ''
+  add_breadcrumb 'Sign In', ''
   before_action :set_company, only: %i[create]
 
   # GET /resource/sign_in
   def new
     if request.subdomain.present?
-     super
+      super
     else
       flash[:error] = "You can't sign in without your company Domain"
       redirect_to '/'
@@ -20,20 +22,20 @@ class Users::SessionsController < Devise::SessionsController
    end
 
   # POST /resource/sign_in
-   def create
-     if check_company_user
+  def create
+    if check_company_user
       super
       cookies.permanent.signed[:userid] = resource.id if resource.present?
-     else
-       flash[:error] = "User is not registerd on this domain"
-       redirect_back fallback_location: root_path
-     end
-   end
+    else
+      flash[:error] = 'User is not registerd on this domain'
+      redirect_back fallback_location: root_path
+    end
+  end
 
   # DELETE /resource/sign_out
-   def destroy
-     super
-   end
+  def destroy
+    super
+  end
 
   # protected
 
@@ -46,27 +48,23 @@ class Users::SessionsController < Devise::SessionsController
 
   def check_company_user
     if current_company.users.find_by(email: (params[:user][:email]).downcase).present?
-      return true
+      true
     elsif params[:user][:email].match(/@([a-zA-Z]+)./)[1].eql?(current_company.slug)
       current_company.users.create(
-                                    email: params[:user][:email],
-                                    company_id: current_company.id,
-                                    password: "passpass#{rand(999)}",
-                                    password_confirmation: "passpass#{rand(999)}"
-                                  )
+        email: params[:user][:email],
+        company_id: current_company.id,
+        password: "passpass#{rand(999)}",
+        password_confirmation: "passpass#{rand(999)}"
+      )
       u = User.where(email: params[:user][:email]).first
-      u.send_reset_password_instructions()
+      u.send_reset_password_instructions
       flash[:error] = "Looks like Team #{current_company.domain.capitalize} is registered with us but you are missing all the action. Check your email to activate the account and get started"
     else
       false
     end
   end
 
-
   def set_company
-    unless current_company
-      redirect_to new_user_session_path, error: "Company Not Found"
-    end
+    redirect_to new_user_session_path, error: 'Company Not Found' unless current_company
   end
-
 end

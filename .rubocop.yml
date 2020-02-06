@@ -1,0 +1,96 @@
+require:
+  - rubocop-performance
+
+
+AllCops:
+  TargetRubyVersion: 2.6.0
+  DisplayCopNames: true
+  DisplayStyleGuide: true
+  Exclude:
+    - 'db/schema.rb'
+    - 'db/migrate/*'
+
+Style/Documentation:
+  Enabled: false
+
+Style/ClassAndModuleChildren:
+  EnforcedStyle: compact
+  SupportedStyles:
+    - nested
+    - compact
+  Exclude:
+    - 'app/channels/application_cable/connection.rb'
+    - 'app/channels/application_cable/channel.rb'
+    - 'config/application.rb'
+
+Style/StringLiterals:
+  Exclude:
+    - 'db/schema.rb'
+
+Style/WordArray:
+  Exclude:
+    - 'db/schema.rb'
+
+Metrics/AbcSize:
+  Enabled: false
+
+Metrics/ClassLength:
+  Enabled: false
+
+Metrics/CyclomaticComplexity:
+  Enabled: false
+
+Layout/LineLength:
+  Enabled: false
+
+Metrics/MethodLength:
+  Enabled: false
+
+Metrics/ParameterLists:
+  Enabled: false
+
+Metrics/PerceivedComplexity:
+  Enabled: false
+
+Metrics/ModuleLength:
+  Enabled: false
+
+Metrics/BlockLength:
+  Enabled: false
+
+Performance/InefficientHashSearch:
+  Exclude:
+    # - 'app/controllers/api/v1/transactions_controller.rb'
+
+Performance/RangeInclude:
+  Exclude:
+    # - 'lib/tasks/filter_percentage_from_milestone.rake'
+
+Performance/RedundantMatch:
+  Exclude:
+    # - 'app/models/attachment.rb'
+
+Performance/RedundantMerge:
+  Exclude:
+
+
+Performance/RegexpMatch:
+  Exclude:
+    # - 'lib/tasks/preserve_project_table.rake'
+
+Performance/ReverseEach:
+  Exclude:
+    # - 'app/helpers/finance_helper.rb'
+
+Performance/StringReplacement:
+  Exclude:
+    # - 'app/models/question.rb'
+
+Performance/TimesMap:
+  Exclude:
+    # - 'app/models/milestone.rb'
+    # - 'app/models/project.rb'
+
+Security/YAMLLoad:
+  Exclude:
+    # - 'config/initializers/custom_initilizer.rb'

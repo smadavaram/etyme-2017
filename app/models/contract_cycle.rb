@@ -1,12 +1,14 @@
-class ContractCycle < ApplicationRecord
-  CYCLETYPES = ["TimesheetSubmit", "TimesheetApprove", "InvoiceGenerate",
-                "SalaryCalculation", 'SalaryProcess', 'SalaryClear', 'CommissionCalculation',
-                'CommissionProcess', 'CommissionClear', 'VendorBillCalculation', 'ClientBillCalculation',
-                'VendorPaymentProcess', 'VendorBillClear', 'ClientPaymentProcess', 'ClientBillClear',
-                'ClientExpenseCalculation', 'ClientExpenseApprove', 'ClientExpenseInvoice', 'ClientExpenseSubmission']
+# frozen_string_literal: true
 
-  enum cycle_frequency: ["daily", "weekly", "biweekly", "monthly", "twice a month"]
-  enum status: [:pending, :completed, :rejected]
+class ContractCycle < ApplicationRecord
+  CYCLETYPES = %w[TimesheetSubmit TimesheetApprove InvoiceGenerate
+                  SalaryCalculation SalaryProcess SalaryClear CommissionCalculation
+                  CommissionProcess CommissionClear VendorBillCalculation ClientBillCalculation
+                  VendorPaymentProcess VendorBillClear ClientPaymentProcess ClientBillClear
+                  ClientExpenseCalculation ClientExpenseApprove ClientExpenseInvoice ClientExpenseSubmission].freeze
+
+  enum cycle_frequency: ['daily', 'weekly', 'biweekly', 'monthly', 'twice a month']
+  enum status: %i[pending completed rejected]
 
   CYCLETYPES.each do |method_name|
     define_singleton_method method_name do |id|
@@ -24,24 +26,24 @@ class ContractCycle < ApplicationRecord
   has_many :ts_submitteds, foreign_key: :ts_cycle_id, class_name: 'Timesheet'
   has_many :ta_approveds, foreign_key: :ta_cycle_id, class_name: 'Timesheet'
 
-  validates :cycle_type, uniqueness: {scope: [:cyclable_type, :cyclable_id]}, if: Proc.new { |cc| cc.cyclable_type.present? }
+  validates :cycle_type, uniqueness: { scope: %i[cyclable_type cyclable_id] }, if: proc { |cc| cc.cyclable_type.present? }
   validates :cycle_type,
             presence: true,
-            inclusion: {in: CYCLETYPES}
+            inclusion: { in: CYCLETYPES }
 
   scope :pending, -> { where(status: 'pending') }
 
-  scope :candidate_id, -> (candidate_id) { where candidate_id: candidate_id }
-  scope :contract_id, -> (contract_id) { where contract_id: contract_id }
-  scope :note, -> (note) { where cycle_type: note }
-  scope :cycle_type, ->(type) { (type == 'All' or type.nil?) ? where(cycle_type: ContractCycle::CYCLETYPES) : where(cycle_type: type) }
+  scope :candidate_id, ->(candidate_id) { where candidate_id: candidate_id }
+  scope :contract_id, ->(contract_id) { where contract_id: contract_id }
+  scope :note, ->(note) { where cycle_type: note }
+  scope :cycle_type, ->(type) { (type == 'All') || type.nil? ? where(cycle_type: ContractCycle::CYCLETYPES) : where(cycle_type: type) }
   scope :completed, -> { where(status: 'completed') }
   scope :overdue, -> { where('DATE(contract_cycles.end_date) < ?', DateTime.now.end_of_day.to_date) }
   scope :todo, -> { where('DATE(contract_cycles.end_date) BETWEEN ? AND ?', Date.today.beginning_of_day, Date.today.end_of_day) }
 
   def next_action=(new_next_action)
     write_attribute(:next_action, new_next_action)
-    self.next_action_date = get_next_action_date(new_next_action) unless self.next_action_date.present?
+    self.next_action_date = get_next_action_date(new_next_action) unless next_action_date.present?
   end
 
   def self.get_cycle_types
@@ -60,13 +62,13 @@ class ContractCycle < ApplicationRecord
       'green'
     when 'SalaryClear'
       'blue'
-    when "TimesheetSubmit"
+    when 'TimesheetSubmit'
       '#FF7F50'
-    when "TimesheetApprove"
+    when 'TimesheetApprove'
       '#CD5C5C'
-    when "InvoiceGenerate"
+    when 'InvoiceGenerate'
       '#F08080'
-    when "SalaryCalculation"
+    when 'SalaryCalculation'
       '#E9967A'
     when 'SalaryProcess'
       '#FFA07A'
@@ -102,21 +104,21 @@ class ContractCycle < ApplicationRecord
   end
 
   def sell_contract?
-    cycle_of_type == "SellContract"
+    cycle_of_type == 'SellContract'
   end
 
   def buy_contract?
-    cycle_of_type == "BuyContract"
+    cycle_of_type == 'BuyContract'
   end
 
   def get_next_action_date(new_next_action)
     case new_next_action
     when 'TimesheetApprove'
-      ""
+      ''
     when 'InvoiceGenerate'
       get_next_invoice_generate_date
     else
-      ""
+      ''
     end
   end
 
@@ -125,12 +127,12 @@ class ContractCycle < ApplicationRecord
   end
 
   def get_next_invoice_generate_date
-    ig = self.contract.contract_cycles.where(cycle_type: "InvoiceGenerate").where("cycle_date >= ?", self.end_date).order(:cycle_date).first
+    ig = contract.contract_cycles.where(cycle_type: 'InvoiceGenerate').where('cycle_date >= ?', end_date).order(:cycle_date).first
     if ig.present?
       ig.cycle_date
     else
-      sell_contract = self.contract.sell_contract
-      self.contract.find_next_date(sell_contract.invoice_terms_period, sell_contract.invoice_date_1, sell_contract.invoice_date_2, sell_contract.invoice_end_of_month, sell_contract.invoice_day_of_week, self.cycle_date)
+      sell_contract = contract.sell_contract
+      contract.find_next_date(sell_contract.invoice_terms_period, sell_contract.invoice_date_1, sell_contract.invoice_date_2, sell_contract.invoice_end_of_month, sell_contract.invoice_day_of_week, cycle_date)
     end
   end
 end

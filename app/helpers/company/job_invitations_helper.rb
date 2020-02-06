@@ -1,6 +1,7 @@
-module Company::JobInvitationsHelper
+# frozen_string_literal: true
 
-  def invitation_status_color status
+module Company::JobInvitationsHelper
+  def invitation_status_color(status)
     color = "<span class ='span label label-"
     if status == 'accepted'
       color += "success'>#{status.to_s.titleize}</span>"
@@ -11,6 +12,4 @@ module Company::JobInvitationsHelper
     end
     raw(color)
   end
-
-
 end

@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 require 'facebook/account_kit'
 
 Facebook::AccountKit.config do |c|

@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 json.id @admin.id
 json.domain @admin.company.domain
 json.role @admin.roles.pluck(:name).join(', ')

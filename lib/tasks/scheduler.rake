@@ -1,24 +1,26 @@
-desc "This task is called by the Heroku scheduler add-on"
+# frozen_string_literal: true
+
+desc 'This task is called by the Heroku scheduler add-on'
 task end_contracts: :environment do
-  puts "Ending contracts..."
+  puts 'Ending contracts...'
   Contract.end_contracts
-  puts "done."
+  puts 'done.'
 end
 
 task start_contracts: :environment do
-  puts "Starting contracts..."
+  puts 'Starting contracts...'
   Contract.start_contracts
-  puts "done."
+  puts 'done.'
 end
 
 task invoiced_contracts: :environment do
-  puts "Timesheet contracts..."
+  puts 'Timesheet contracts...'
   Contract.invoiced_timesheets
-  puts "done."
+  puts 'done.'
 end
 
 task cycle: :environement do
-  puts "Cycle contracts..."
+  puts 'Cycle contracts...'
   Contract.set_cycle
-  puts "done."
+  puts 'done.'
 end

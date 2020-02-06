@@ -1,5 +1,6 @@
-class Job < ApplicationRecord
+# frozen_string_literal: true
 
+class Job < ApplicationRecord
   # validates :end_date , presence: true , if: Proc.new{ |job| !job.is_system_generated }
   validates :title, presence: true
   # validates :start_date, presence: true, date: { after_or_equal_to: Proc.new { Date.today }, message: "must be at least #{(Date.today + 1).to_s}" }, on: :create
@@ -7,7 +8,7 @@ class Job < ApplicationRecord
   # validates :start_date,:end_date, date: { allow_blank: false, message:"Date must be present" }
   validate :file_size
 
-  belongs_to :created_by, class_name: "User", foreign_key: :created_by_id, optional: true
+  belongs_to :created_by, class_name: 'User', foreign_key: :created_by_id, optional: true
   belongs_to :company, optional: true
   # belongs_to   :location
   has_many :contracts, dependent: :destroy
@@ -38,18 +39,15 @@ class Job < ApplicationRecord
   after_create :create_job_conversation
   before_save :set_parent_job
 
-  scope :active, -> {where('end_date>=? AND status = ?', Date.today, "Published")}
-  scope :expired, -> {where('end_date<?', Date.today)}
-  scope :is_public, -> {where(is_public: true)}
-  scope :not_system_generated, -> {where(is_system_generated: false)}
+  scope :active, -> { where('end_date>=? AND status = ?', Date.today, 'Published') }
+  scope :expired, -> { where('end_date<?', Date.today) }
+  scope :is_public, -> { where(is_public: true) }
+  scope :not_system_generated, -> { where(is_system_generated: false) }
 
-  scope :search_by, ->term,search_scop { Job.joins(:tags).where('lower(tags.name) like :term or lower(title) like :term or lower(description) like :term or lower(location) like :term or lower(job_category) like :term', {term: "#{term&.downcase}%"})}
+  scope :search_by, ->(term, _search_scop) { Job.joins(:tags).where('lower(tags.name) like :term or lower(title) like :term or lower(description) like :term or lower(location) like :term or lower(job_category) like :term', term: "#{term&.downcase}%") }
 
   geocoded_by :location
   after_validation :geocode
-
-
-
 
   # def self.ransackable_attributes(auth_object = nil)
   #   if auth_object == :admin
@@ -64,7 +62,7 @@ class Job < ApplicationRecord
   # private_class_method :ransackable_attributes
 
   def set_parent_job
-    if source.present? and source.match(/^[\s]*http/)
+    if source.present? && source.match(/^[\s]*http/)
       id = source.match(/([0-9]+)$/)[1].to_i
       self.parent_job_id = id if Job.exists?(id)
     end
@@ -78,17 +76,15 @@ class Job < ApplicationRecord
   end
 
   def file_size
-    if video_file.present? && video_file.file.size.to_f / (1000 * 1000) > 2
-      errors.add(:video_file, "You cannot upload a file greater than 2MB")
-    end
+    errors.add(:video_file, 'You cannot upload a file greater than 2MB') if video_file.present? && video_file.file.size.to_f / (1000 * 1000) > 2
   end
 
   def is_published?
-    status == "Published"
+    status == 'Published'
   end
-  
+
   def is_active?
-    self.end_date.nil? ? true : self.end_date >= Date.today
+    end_date.nil? ? true : end_date >= Date.today
   end
 
   def self.find_or_create_sub_job(company, user, j)
@@ -106,7 +102,7 @@ class Job < ApplicationRecord
   end
 
   def is_child?
-    self.parent_job_id.present?
+    parent_job_id.present?
   end
 
   def self.share_jobs(to, to_emails, c_ids, current_company, message, subject)
@@ -117,18 +113,18 @@ class Job < ApplicationRecord
     group = nil
     Group.transaction do
       group = company.groups.create(group_name: "J-#{id} #{title}", member_type: 'Chat')
-      company.users.joins(:permissions).where("permissions.name": "manage_jobs").each do |user|
+      company.users.joins(:permissions).where("permissions.name": 'manage_jobs').each do |user|
         group.groupables.create(groupable: user)
       end
     end
-    self.build_conversation({chatable: group, topic: :Job, job_id: id}).save if group
+    build_conversation(chatable: group, topic: :Job, job_id: id).save if group
   end
 
   private
-  def create_job_chat
-    self.create_chat(company: self.company)
-    self.try(:chat).try(:chat_users).create(userable: self.try(:created_by))
-    self.try(:chat).try(:messages).create(messageable: self.try(:created_by), body: "#{self.created_by.full_name} created Job #{self.title.humanize}")
-  end
 
+  def create_job_chat
+    create_chat(company: company)
+    try(:chat).try(:chat_users).create(userable: try(:created_by))
+    try(:chat).try(:messages).create(messageable: try(:created_by), body: "#{created_by.full_name} created Job #{title.humanize}")
+  end
 end

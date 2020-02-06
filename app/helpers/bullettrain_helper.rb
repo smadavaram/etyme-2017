@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module BullettrainHelper
   def markdown(string)
     @markdown ||= Redcarpet::Markdown.new(Redcarpet::Render::HTML, extensions = {})
@@ -10,16 +12,17 @@ module BullettrainHelper
 
   # e.g. October 11, 2018
   def display_date(timestamp)
-    local_time(timestamp).strftime("%B %d, %Y")
+    local_time(timestamp).strftime('%B %d, %Y')
   end
 
   # e.g. October 11, 2018 at 4:22 PM
   def display_date_and_time(timestamp)
-    local_time(timestamp).strftime("%B %d, %Y at %l:%M %p")
+    local_time(timestamp).strftime('%B %d, %Y at %l:%M %p')
   end
 
   def local_time(time)
     return time if current_user.time_zone.nil?
+
     time.in_time_zone(current_user.time_zone)
   end
 
@@ -30,30 +33,29 @@ module BullettrainHelper
   end
 
   def gravatar(user)
-    return "https://www.gravatar.com/avatar/#{Digest::MD5.hexdigest(user.email)}?d=mm"
+    "https://www.gravatar.com/avatar/#{Digest::MD5.hexdigest(user.email)}?d=mm"
   end
 
   def demo
-    ENV['DEMO'] ? " <small>Demo</small>".html_safe : ""
+    ENV['DEMO'] ? ' <small>Demo</small>'.html_safe : ''
   end
 
   def first_btn_primary
-
     # the first time we hit this method, @first will be true.
     # the second time, it'll already be defined and should remain false.
     @first ||= 'first'
 
     if @first == 'first'
       @first = 'not-first'
-      return 'btn-primary'
+      'btn-primary'
     else
-      return 'btn-link'
+      'btn-link'
     end
-
   end
 
   def possessive_string(string)
     return string.possessive if [:en].include? I18n.locale
+
     string
   end
 
@@ -68,5 +70,4 @@ module BullettrainHelper
   def current_membership
     current_user.memberships.where(team: current_team).first
   end
-
 end

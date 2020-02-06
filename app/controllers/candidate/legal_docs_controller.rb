@@ -1,5 +1,6 @@
-class Candidate::LegalDocsController < Candidate::BaseController
+# frozen_string_literal: true
 
+class Candidate::LegalDocsController < Candidate::BaseController
   def index
     @legal_docs = current_candidate.legal_documents
   end
@@ -14,7 +15,6 @@ class Candidate::LegalDocsController < Candidate::BaseController
     @legal_docs = current_candidate.legal_documents
     render :index
   end
-
 
   def delete
     doc = current_candidate.legal_documents.find_by(id: params[:id])
