@@ -40,12 +40,14 @@ class CompanyCandidateDatatable < ApplicationDatatable
   end
 
   def get_recruiter_email(record)
-    do_ellipsis(record.associated_company.owner ? record.associated_company.owner.email : record.email, 15)
+    company = record.companies.find_by(id: current_company.id)
+    do_ellipsis(company.owner ? company.owner.email : record.email, 15)
   end
 
   def company_profile(record)
-    image_tag(record.associated_company.photo, title: record.associated_company.name.to_s, class: 'data-table-image mr-1').html_safe +
-      link_to(do_ellipsis(record.associated_company.name), profile_company_path(record.associated_company), class: 'data-table-font')
+    company = record.companies.find_by(id: current_company.id)
+    image_tag(company&.photo, title: "#{company&.name}", class: 'data-table-image mr-1').html_safe +
+    link_to(do_ellipsis(company&.name), profile_company_path(company), class: 'data-table-font')
   end
 
   def candidate_profile(user)
@@ -54,7 +56,7 @@ class CompanyCandidateDatatable < ApplicationDatatable
   end
 
   def get_raw_records
-    current_company.candidates.includes(:companies, :candidates_companies).joins(:associated_company)
+    current_company.candidates.includes(:companies, :candidates_companies)
   end
 
   def contact_icon(record)

@@ -167,12 +167,6 @@ class Candidate < ApplicationRecord
     where conditions.flatten.inject(:or)
   end
 
-  # protected
-  #   def password_required?
-  #     return false if skip_password_validation
-  #     super
-  #   end
-
   def send_invitation_email
     invite! do |u|
       u.skip_invitation = true
