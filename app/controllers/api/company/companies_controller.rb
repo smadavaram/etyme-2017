@@ -13,7 +13,7 @@ class Api::Company::CompaniesController < ApplicationController
 
   add_breadcrumb 'Companies', :companies_path, title: ''
 
-  def get_owner
+  def fetch_owner
     @admin = Job.find_by(id: params[:job_id]).company.owner
     render 'get_owner', admin: @admin, status: :ok
   end
@@ -40,7 +40,7 @@ class Api::Company::CompaniesController < ApplicationController
 
   def company_contacts
     @search = current_company.invited_companies.joins(:invited_company).includes(:invited_company).search(params[:q])
-    company_ids = @search.result.map{ |data| data.invited_company_id }.uniq
+    company_ids = @search.result.map(&:invited_company_id).uniq
     @company_contacts = CompanyContact.where('company_id IN (?)', company_ids).order('created_at DESC')
     # @invited_companies = @search.result.order("companies.created_at DESC")#.paginate(page: params[:page], per_page: 10)
     @new_company = Company.new
@@ -69,7 +69,7 @@ class Api::Company::CompaniesController < ApplicationController
   end
 
   def create
-    pass = get_uniq_identifier
+    pass = make_uniq_identifier
     # @company = Company.new(create_params)
 
     if params['company']['domain'] && !params['company']['domain'].blank?
@@ -274,19 +274,16 @@ class Api::Company::CompaniesController < ApplicationController
         if current_company.verification_code == doc.css('a')[0].text
           current_company.update_attributes(owner_verified: true)
           flash[:success] = 'Veriy Successfully'
-          redirect_back fallback_location: root_path
         else
           flash[:success] = 'Verification code dose not match.'
-          redirect_back fallback_location: root_path
         end
       else
         flash[:success] = 'File not found.'
-        redirect_back fallback_location: root_path
       end
     rescue StandardError
       flash[:success] = 'File not found.'
-      redirect_back fallback_location: root_path
     end
+    redirect_back fallback_location: root_path
   end
 
   def authorized_user
@@ -296,14 +293,12 @@ class Api::Company::CompaniesController < ApplicationController
   def add_to_network
     @add_to_network = Candidate.signup.find_by(email: params[:email])
     @candidate = CandidatesCompany.new(company_id: current_company.id, candidate_id: @add_to_network.id)
-    if @candidate.save
-      flash[:success] = 'Added To Your Company Network'
-      respond_to do |format|
+    respond_to do |format|
+      if @candidate.save
+        flash[:success] = 'Added To Your Company Network'
         format.js { render inline: 'location.reload();' }
-      end
-    else
-      flash[:notice] = @candidate.errors.full_messages
-      respond_to do |format|
+      else
+        flash[:notice] = @candidate.errors.full_messages
         format.js { render inline: 'location.reload();' }
       end
     end
@@ -314,19 +309,19 @@ class Api::Company::CompaniesController < ApplicationController
   def assign_status; end
 
   def create_chat
-    if request.post?
-      @chat = @company.chats.find_by(chatable: current_company)
-      @chat = current_company.chats.find_or_initialize_by(chatable: @company) unless @chat.present?
-      if @chat.new_record?
-        @chat.save
-        @chat.chat_users.create(userable: current_user)
-        @chat.chat_users.create(userable: @user)
-      else
-        @chat.chat_users.find_or_create_by(userable: current_user)
-        @chat.chat_users.find_or_create_by(userable: @user)
-      end
-      redirect_to company_chat_path(@chat)
+    return unless request.post?
+
+    @chat = @company.chats.find_by(chatable: current_company)
+    @chat = current_company.chats.find_or_initialize_by(chatable: @company) unless @chat.present?
+    if @chat.new_record?
+      @chat.save
+      @chat.chat_users.create(userable: current_user)
+      @chat.chat_users.create(userable: @user)
+    else
+      @chat.chat_users.find_or_create_by(userable: current_user)
+      @chat.chat_users.find_or_create_by(userable: @user)
     end
+    redirect_to company_chat_path(@chat)
   end
 
   def update_mobile_number
@@ -363,21 +358,16 @@ class Api::Company::CompaniesController < ApplicationController
 
   def create_params
     params.require(:company).permit([:name, :email, :domain, :currency_id, :phone, :fax_number, :send_email, :slug, :website, group_ids: [],
-                                                                                                                              company_contacts_attributes: %i[id type first_name last_name email company_id phone title _destroy],
-                                                                                                                              invited_by_attributes: %i[invited_by_company_id user_id],
-                                                                                                                              custom_fields_attributes: %i[
-                                                                                                                                id
-                                                                                                                                name
-                                                                                                                                value
-                                                                                                                                _destroy
-                                                                                                                              ]],
+                                      company_contacts_attributes: %i[id type first_name last_name email company_id phone title _destroy],
+                                      invited_by_attributes: %i[invited_by_company_id user_id],
+                                      custom_fields_attributes: %i[id name value _destroy]],
                                     addresses_attributes: %i[id address_1 address_2 country city state zip_code],
                                     billing_infos_attributes: %i[id address country city zip],
                                     branches_attributes: %i[id branch_name address country city zip],
                                     departments_attributes: %i[id name])
   end
 
-  def get_uniq_identifier
+  def make_uniq_identifier
     o = [('a'..'z'), ('A'..'Z'), (0..9)].map(&:to_a).flatten
     string = (0...15).map { o[rand(o.length)] }.join
     Digest::MD5.hexdigest(string)

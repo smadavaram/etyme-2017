@@ -4,7 +4,7 @@
       %header.panel-heading
         -#%a.pull-right.btn.btn-primary.right.mt-12{href:"#",}  Apply Now
         - if @job.is_active?
-          = link_to 'Apply Now' , apply_candidate_job_path(@job) , method: :post , remote: true ,  class: "btn btn-md  btn-success pull-right #{current_candidate.is_already_applied?(@job.id) ? "disabled " : ""} "
+          = link_to 'Apply Now' , apply_candidate_job_path(@job) , method: :post , remote: true ,  class: "btn btn-md  btn-success pull-right #{current_candidate.already_applied?(@job.id) ? "disabled " : ""} "
         = render partial: 'partials/job_show',locals: {job: @job}
 
 

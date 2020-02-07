@@ -5,7 +5,7 @@ class Company::DocumentSignsController < ApplicationController
     xml_doc = Nokogiri::XML(request.body.read)
     envelope_id = xml_doc.search('EnvelopeStatus > EnvelopeID').text
     @document_sign = DocumentSign.find_by_envelope_id(envelope_id)
-    documents = get_documents(xml_doc)
+    documents = fetch_documents(xml_doc)
     file_urls = upload_signed_files_to_s3(documents, xml_doc)
     notify_signers(xml_doc.search('RecipientStatuses > RecipientStatus'), @document_sign) if @document_sign.update(is_sign_done: true, signed_file: file_urls.join(','))
     render json: { status: 'ok' }, status: :ok
@@ -32,7 +32,7 @@ class Company::DocumentSignsController < ApplicationController
 
   private
 
-  def get_documents(xml_doc)
+  def fetch_documents(xml_doc)
     documents = []
     xml_doc.search('DocumentStatuses > DocumentStatus').each do |element|
       documents << { id: element.search('ID').text, name: element.search('Name').text }
@@ -61,7 +61,7 @@ class Company::DocumentSignsController < ApplicationController
       (document_sign.signers.to_a << document_sign.signable).each do |signer|
         Notification.new(notifiable: signer, createable: document_sign.requested_by,
                          status: :unread, notification_type: :document_request, title: 'Document Request',
-                         message: "#{signer_status.map { |signer| signer[:user_name] }.join(',')} have signed the document sent through docusign").save
+                         message: "#{signer_status.map { |signee| signee[:user_name] }.join(',')} have signed the document sent through docusign").save
       end
     end
   end

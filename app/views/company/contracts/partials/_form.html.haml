@@ -128,7 +128,7 @@
 
 
       // $(document).on('change','#select_jobs', function(){
-      //   $.get('/api/company/companies/get_owner?job_id='+$( "#select_jobs" ).val(),function (data, textStatus, jqXHR) {
+      //   $.get('/api/company/companies/fetch_owner?job_id='+$( "#select_jobs" ).val(),function (data, textStatus, jqXHR) {
       //     console.log('status: ' + textStatus + ', data:' + data);
       //     $('#contract_admins_table').find('tbody:last').append(`<tr><td>${data.domain}</td><td>${data.name}</td><td>TBD</td><td><a title='chat' class='data-table-icons' href='#'><i class='fa fa-comment-o'></i></a><a title='${data.email}' class='data-table-icons' href='mailto:${data.email}'><i class='os-icon os-icon-email-2-at2'></i></a><a title='${data.phone}' class='data-table-icons' href='#'><i class='os-icon os-icon-phone '></i></a><div title='' class='addeventatc' id='addeventatc1' style='visibility: visible;' aria-haspopup='true' aria-expanded='false' tabindex='0' translate='no'><span class="os-icon os-icon-calendar  atc_node notranslate"></span></div><td>${data.role}</td><td>${data.reminders}</td><td>TBD</td></tr>`);
       //     addeventatc.refresh();

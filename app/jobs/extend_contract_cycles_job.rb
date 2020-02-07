@@ -23,9 +23,9 @@ class ExtendContractCyclesJob < ApplicationJob
 
   def job_complete
     contract = arguments.first
-    if contract.update(cc_job: :finished, status: :in_progress, end_date: arguments.second)
-      contract.extended_contract_notification
-      contract.create_activity(key: 'contracts.expand', owner: contract.created_by, params: arguments.second)
-    end
+    return unless contract.update(cc_job: :finished, status: :in_progress, end_date: arguments.second)
+
+    contract.extended_contract_notification
+    contract.create_activity(key: 'contracts.expand', owner: contract.created_by, params: arguments.second)
   end
 end

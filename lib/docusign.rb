@@ -44,8 +44,6 @@ module OmniAuth
         @raw_info
       end
 
-      private
-
       def fetch_account(items)
         @account = if options.target_account_id
                      items.find { |item| item['is_default'] == options.target_account_id }

@@ -12,7 +12,7 @@ class Chat < ApplicationRecord
     'message-' + id.to_s
   end
 
-  def is_chat_user?(user)
+  def chat_user?(user)
     chat_users.find_by(userable: user).present?
   end
 

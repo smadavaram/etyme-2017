@@ -89,7 +89,8 @@ class Candidate::CandidatesController < Candidate::BaseController
   end
 
   def get_start_date
-    case params[:filter] || 'year'
+    filter = params[:filter] || 'year'
+    case filter
     when 'period'
       DateTime.parse(params[:start_date]).beginning_of_day
     when 'month'
@@ -102,7 +103,8 @@ class Candidate::CandidatesController < Candidate::BaseController
   end
 
   def get_end_date
-    case params[:filter] || 'year'
+    filter = params[:filter] || 'year'
+    case filter
     when 'period'
       DateTime.parse(params[:end_date]).end_of_day
     when 'month'
@@ -196,7 +198,7 @@ class Candidate::CandidatesController < Candidate::BaseController
     new_resume = current_candidate.candidates_resumes.new
     new_resume.resume = params[:resume]
     new_resume.candidate_id = current_candidate.id
-    new_resume.is_primary = current_candidate.candidates_resumes.size == 0 ? true : false
+    new_resume.is_primary = current_candidate.candidates_resumes.empty?
     if new_resume.save
       flash[:success] = 'Resume uploaded successfully.'
     else
@@ -214,11 +216,11 @@ class Candidate::CandidatesController < Candidate::BaseController
         resumes = CandidatesResume.where(candidate_id: resume.candidate_id).map(&:id)
         resumes.delete(resume.id)
         resume.destroy
-        if resumes.size > 0
+        unless resumes.empty?
           primary_resume = CandidatesResume.find_by(id: resumes[0])
           primary_resume.update_attributes(is_primary: true)
         end
-        flash.now[:success] = resumes.size > 0 ? 'Selected Resume has been destroy and First Resume status mark as primary' : 'Resume Destroy Successfully'
+        flash.now[:success] = !resumes.empty? ? 'Selected Resume has been destroy and First Resume status mark as primary' : 'Resume Destroy Successfully'
 
       else
         resume.destroy
@@ -230,13 +232,13 @@ class Candidate::CandidatesController < Candidate::BaseController
   end
 
   def make_primary_resume
-    if params[:id].present?
-      resume = CandidatesResume.find_by(id: params['id'])
-      resumes = CandidatesResume.where(candidate_id: resume.candidate_id)
-      resumes.update_all(is_primary: false)
-      resume.update_attributes(is_primary: true)
-      render 'upload_resume'
-    end
+    return unless params[:id].present?
+
+    resume = CandidatesResume.find_by(id: params['id'])
+    resumes = CandidatesResume.where(candidate_id: resume.candidate_id)
+    resumes.update_all(is_primary: false)
+    resume.update_attributes(is_primary: true)
+    render 'upload_resume'
   end
 
   def update_photo

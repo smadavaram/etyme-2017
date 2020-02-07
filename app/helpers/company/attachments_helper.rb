@@ -3,7 +3,7 @@
 module Company::AttachmentsHelper
   def image_type(attachable)
     type = attachable.file_type
-    if type == 'image/jpeg' || type == 'image/png'
+    if %w[image/jpeg image/png].include?(type)
       attachable.file
     elsif type == 'text/plain'
       'text_image.jpg'

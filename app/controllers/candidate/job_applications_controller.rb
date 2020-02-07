@@ -119,7 +119,7 @@ class Candidate::JobApplicationsController < Candidate::BaseController
 
   def job_application_params
     params.require(:job_application).permit([:message, :cover_letter, :applicant_resume, :job_invitation_id, :status,
-                                             custom_fields_attributes: %i[ id name value ]])
+                                             custom_fields_attributes: %i[id name value]])
   end
 
   def interview_params

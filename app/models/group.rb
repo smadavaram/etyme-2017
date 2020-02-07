@@ -20,19 +20,19 @@ class Group < ApplicationRecord
   scope :chat_groups, -> { where(member_type: 'Chat') }
   scope :contact_groups, -> { where("member_type IN('Candidate', 'Contact')") }
 
-  scope :user_chat_groups, -> (user, company) do
+  scope :user_chat_groups, lambda { |user, company|
     company.present? ?
         where(member_type: 'Chat', company_id: company.id).joins(:groupables).where('groupables.groupable_id = ? and groupables.groupable_type = ?', user.id, 'User')
         :
         where(member_type: 'Chat').joins(:groupables).where('groupables.groupable_id = ? and groupables.groupable_type = ?', user.id, 'Candidate')
-  end
+  }
 
-  scope :candidate_or_user_admin_groupable, -> (user) do
+  scope :candidate_or_user_admin_groupable, lambda { |user|
     user.class.to_s == 'Candidate' ?
         where('groupables.groupable_id = ? and groupables.groupable_type = ?', user.id, 'Candidate')
         :
         where('groupables.groupable_id = ? and groupables.groupable_type IN (?)', user.id, %w[User Admin])
-  end
+  }
 
   def create_group_conversation
     create_conversation(topic: 'GroupChat')

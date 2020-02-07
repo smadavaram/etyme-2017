@@ -55,7 +55,7 @@ namespace :import_data do
     puts "done.#{Time.now}"
   end
 
-  def get_uniq_identifier
+  def make_uniq_identifier
     o = [('a'..'z'), ('A'..'Z'), (0..9)].map(&:to_a).flatten
     string = (0...15).map { o[rand(o.length)] }.join
     Digest::MD5.hexdigest(string)

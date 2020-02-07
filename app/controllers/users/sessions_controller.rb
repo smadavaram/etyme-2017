@@ -19,7 +19,7 @@ class Users::SessionsController < Devise::SessionsController
       flash[:error] = "You can't sign in without your company Domain"
       redirect_to '/'
     end
-   end
+  end
 
   # POST /resource/sign_in
   def create

@@ -19,7 +19,7 @@ class Company::BankDetailsController < Company::BaseController
       flash[:success] = 'Bank Detail has been Added successfully'
     else
       flash[:errors] = @bank_detail.errors.full_messages
-   end
+    end
     respond_to do |format|
       format.js {}
     end

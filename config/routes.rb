@@ -182,14 +182,14 @@ Rails.application.routes.draw do
       #   member do
       #     post :open_contract , as: :open_contract
       #     post :update_contract_response        , as: :update_contract_response
-      #   end # End of member
-      # end # End of :contracts
+      #   end
+      # end
 
       resources :job_applications
       member do
         post :apply
-      end # end of member
-    end # End of jobs
+      end
+    end
 
     resources :conversations do
       get :search, on: :collection
@@ -513,7 +513,7 @@ Rails.application.routes.draw do
         post :hire
         post :prescreen
         get :templates
-      end # End of member
+      end
       collection do
         post :send_templates
       end
@@ -640,7 +640,7 @@ Rails.application.routes.draw do
           post :update_contract_response, as: :update_contract_response
           post :create_sub_contract, as: :create_sub_contract
         end
-      end # End of :contracts
+      end
 
       resources :job_invitations, except: [:index] do
         collection do
@@ -651,8 +651,8 @@ Rails.application.routes.draw do
         member do
           post :accept
           post :reject
-        end # End of member
-      end # End of :job_invitations
+        end
+      end
 
       member do
         post :send_invitation, as: :send_invitation
@@ -712,7 +712,7 @@ Rails.application.routes.draw do
         get :company_user_profile_page
       end
     end
-  end # End of module company
+  end
 
   resources :companies, only: %i[create update] do
     member do
@@ -775,7 +775,7 @@ Rails.application.routes.draw do
     namespace :company do
       resources :companies, only: %i[index create] do
         post :add_company, on: :collection
-        get :get_owner, on: :collection
+        get :fetch_owner, on: :collection
       end
     end
 

@@ -2,7 +2,7 @@
 
 json.count @contacts.count
 json.total_count @contacts.total_entries
-json.current_page (params[:page] ? params[:page].to_i : 1)
+json.current_page params[:page] ? params[:page].to_i : 1
 json.pages @contacts.total_pages
 
 json.contacts(@contacts) do |contact|

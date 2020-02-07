@@ -13,7 +13,8 @@ class Candidate::TimesheetsController < Candidate::BaseController
     respond_to do |format|
       @timesheets = Timesheet.timesheet_by_frequency(
         params[:cycle_frequency].present? ? params[:cycle_frequency] : 'weekly',
-        current_candidate).send(params[:tab].present? ? params[:tab] : 'open_timesheets')
+        current_candidate
+      ).send(params[:tab].present? ? params[:tab] : 'open_timesheets')
       format.html do
         @tab = params[:tab].present? ? params[:tab] : 'open_timesheets'
       end

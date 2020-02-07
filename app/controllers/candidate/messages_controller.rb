@@ -46,11 +46,11 @@ class Candidate::MessagesController < Candidate::BaseController
   end
 
   def share_message
-    if request.post?
-      UserMailer.share_message_email(@message, params[:email], params[:note]).deliver
-      flash[:success] = 'Message Shared Successfully.'
-      redirect_back fallback_location: root_path
-    end
+    return unless request.post?
+
+    UserMailer.share_message_email(@message, params[:email], params[:note]).deliver
+    flash[:success] = 'Message Shared Successfully.'
+    redirect_back fallback_location: root_path
   end
 
   private

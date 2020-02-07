@@ -80,12 +80,12 @@ class Static::JobsController < ApplicationController
   end
 
   def find_or_create_company(from)
-    company = Company.find_or_create_by(domain: from.domain.split('@')[0].split('.').first) do |company|
-      company.name = from.domain.split('@')[0].split('.').first
-      company.website = from.domain
-      company.phone = '123456789'
-      company.email = from.address.to_s
-      company.company_type = 'hiring_manager'
+    company = Company.find_or_create_by(domain: from.domain.split('@')[0].split('.').first) do |compny|
+      compnyp.name = from.domain.split('@')[0].split('.').first
+      compny.website = from.domain
+      compny.phone = '123456789'
+      compny.email = from.address.to_s
+      compny.company_type = 'hiring_manager'
     end
   end
 

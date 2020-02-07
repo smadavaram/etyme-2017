@@ -35,7 +35,7 @@ class Company::CompanyContactsController < Company::BaseController
   private
 
   def set_comoany_contact
-    unless @company_contact = current_company.company_contacts.find_by(id: params[:id])
+    unless @company_contact == current_company.company_contacts.find_by(id: params[:id])
       flash[:errors] = 'Please Send a Valid Company Contact Id'
       redirect_back(fallback_location: root_path)
     end

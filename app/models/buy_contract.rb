@@ -89,7 +89,7 @@ class BuyContract < ApplicationRecord
     self.legacy_ssn = number
   end
 
-  def get_contract_type_label
+  def fetch_contract_type_label
     { "W2": 'W2 (Fulltime)', "1099": '1099 (Freelancers)', "C2C": 'Corp-Corp (Third Party)' }[contract_type.to_sym]
   end
 
@@ -134,7 +134,7 @@ class BuyContract < ApplicationRecord
   end
 
   module SsnEncryption
-    extend self
+    module_function
 
     def salt
       "*I\xC6\xEF\xD3/\xF5\xC6&\xD8+\xB6\x98G\xEE\xFD\xE6&kK\xFC\xB3\xEE\x04^\xD1\xCC\v\xCC\x16h:Q\x84\xB2 \xEA\xD7i \x1E3\xEF\xDFG6@\x03\xC4\xD4\x8C\xA7\x90\x95\xF6\rB\xA4\xCF\xE8y\xD2\xC9\x89"

@@ -49,8 +49,6 @@ class Consultant < User
     salaried? ? consultant_profile.salary / ((max_working_hours / 3600.0) * 20) : consultant_profile.salary
   end
 
-  private
-
   def self.open_spreadsheet(file)
     case File.extname(file.original_filename)
     when '.csv' then Roo::Csv.new(file.path, packed: nil, file_warning: :ignore)

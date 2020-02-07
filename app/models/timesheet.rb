@@ -233,7 +233,7 @@ class Timesheet < ApplicationRecord
                                   DateTime.now.end_of_month
                                 else
                                   montly_approval_date(con_cycle)
-                                                          end
+                                end
                               when 'twice a month'
                                 twice_a_month_approval_date(con_cycle)
                               else
@@ -243,7 +243,6 @@ class Timesheet < ApplicationRecord
   end
 
   def self.date_of_next(day_of_week, con_cycle)
-    # binding.pry
     day_of_week = DateTime.parse(day_of_week).wday
     ts_day_of_week = DateTime.parse(con_cycle&.contract&.buy_contract.ts_day_of_week).wday if con_cycle.contract.buy_contract.time_sheet == 'weekly'
     date = con_cycle.start_date.to_date + ((day_of_week - con_cycle.start_date.to_date.wday) % 7)

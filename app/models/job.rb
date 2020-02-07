@@ -62,10 +62,10 @@ class Job < ApplicationRecord
   # private_class_method :ransackable_attributes
 
   def set_parent_job
-    if source.present? && source.match(/^[\s]*http/)
-      id = source.match(/([0-9]+)$/)[1].to_i
-      self.parent_job_id = id if Job.exists?(id)
-    end
+    return unless source.present? && source.match(/^[\s]*http/)
+
+    id = source.match(/([0-9]+)$/)[1].to_i
+    self.parent_job_id = id if Job.exists?(id)
   end
 
   def self.like_any(fields, values)
@@ -87,14 +87,14 @@ class Job < ApplicationRecord
     end_date.nil? ? true : end_date >= Date.today
   end
 
-  def self.find_or_create_sub_job(company, user, j)
-    company.jobs.find_or_create_by(parent_job_id: j.id) do |job|
-      job.title = 'Sub Job ' + j.title
-      job.description = j.description
-      job.job_category = j.job_category
-      job.start_date = j.start_date
-      job.end_date = j.end_date
-      job.parent_job_id = j.id
+  def self.find_or_create_sub_job(company, user, job_object)
+    company.jobs.find_or_create_by(parent_job_id: job_object.id) do |job|
+      job.title = 'Sub Job ' + job_object.title
+      job.description = job_object.description
+      job.job_category = job_object.job_category
+      job.start_date = job_object.start_date
+      job.end_date = job_object.end_date
+      job.parent_job_id = job_object.id
       job.created_by_id = user.id
       job.is_public = false
       job.is_system_generated = false

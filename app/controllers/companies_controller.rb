@@ -64,7 +64,7 @@ class CompaniesController < ApplicationController
     params.require(:company).permit(:name, :company_type, :domain, :company_sub_type, :website, :logo, :description, :phone, :email, :linkedin_url, :facebook_url, :twitter_url, :google_url, :is_activated, :status, :tag_line,
                                     owner_attributes: %i[id type first_name last_name email password password_confirmation],
                                     locations_attributes: [:id, :name, :status,
-                                    address_attributes: %i[id address_1 country city state zip_code]])
+                                                           address_attributes: %i[id address_1 country city state zip_code]])
   end
 
   def owner_params

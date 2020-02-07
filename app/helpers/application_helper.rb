@@ -39,7 +39,7 @@ module ApplicationHelper
     end
   end
 
-  def contact_widget(email, phone, user_id = nil, options = {})
+  def contact_widget(email, phone, _user_id = nil, options = {})
     chat_remote_link(options) +
       mail_to(email, content_tag(:i, nil, class: 'os-icon os-icon-email-2-at2').html_safe, title: email, class: 'data-table-icons') +
       link_to(content_tag(:i, nil, class: 'os-icon os-icon-phone ').html_safe, "skype:#{phone.present? ? phone : ''}?call", title: phone, class: 'data-table-icons') +
@@ -54,7 +54,7 @@ module ApplicationHelper
       </div >".html_safe
   end
 
-  def mini_chat_contact_widget(email, phone, user_id = nil, options = {})
+  def mini_chat_contact_widget(email, phone, _user_id = nil, _options = {})
     mail_to(email, content_tag(:i, nil, class: 'os-icon os-icon-email-2-at2 mini_chat_widget pt-3').html_safe, title: email, class: 'data-table-icons') +
       link_to(content_tag(:i, nil, class: 'os-icon os-icon-phone mini_chat_widget').html_safe, '#', title: phone, class: 'data-table-icons') +
       "<div title = 'Add to Calendar' class = 'addeventatc z-100'>
@@ -160,7 +160,7 @@ module ApplicationHelper
           'open'
         elsif entry_selected
           'active'
-          end
+        end
       output +=
         content_tag(:li, class: li_class) do
           subentry = ''
@@ -424,14 +424,14 @@ module ApplicationHelper
                   title: 'Open Invoices',
                   content: "<span class='menu-item-parent'>Open Invoices </span>"
                 }
-                  end,
+              end,
               if has_permission?('show_invoices') || has_permission?('manage_contracts')
                 {
                   href: cleared_invoice_invoices_path,
                   title: 'Cleared Invoices',
                   content: "<span class='menu-item-parent'> Cleared Invoices </span>"
                 }
-                end,
+              end,
               {
                 href: recieved_payment_company_accountings_path,
                 title: 'Payment',
@@ -1055,12 +1055,12 @@ module ApplicationHelper
   #   ]
   # end
 
-  def time_format(s)
-    return '--' if s.nil?
+  def time_format(sec)
+    return '--' if sec.nil?
 
-    seconds = s % 60
-    minutes = (s / 60) % 60
-    hours = s / (60 * 60)
+    seconds = sec % 60
+    minutes = (sec / 60) % 60
+    hours = sec / (60 * 60)
     format('%02d:%02d:%02d', hours, minutes, seconds)
   end
 
@@ -1122,18 +1122,18 @@ module ApplicationHelper
   end
 
   def job_status
-    %w[ Draft Bench Published Cancelled Suspended Archived]
+    %w[Draft Bench Published Cancelled Suspended Archived]
   end
 
-  def link_to_add_fields(name = nil, f = nil, association = nil, options = nil, html_options = nil, &block)
+  def link_to_add_fields(name = nil, field = nil, association = nil, options = nil, html_options = nil, &block)
     # If a block is provided there is no name attribute and the arguments are
     # shifted with one position to the left. This re-assigns those values.
     if block_given?
       html_options = options
       options = association
-      association = f
-      f = name
-      end
+      association = field
+      field = name
+    end
 
     options = {} if options.nil?
     html_options = {} if html_options.nil?
@@ -1151,8 +1151,8 @@ module ApplicationHelper
               end
 
     # Render the form fields from a file with the association name provided
-    new_object = f.object.class.reflect_on_association(association).klass.new
-    fields = f.fields_for(association, new_object, child_index: 'new_record') do |builder|
+    new_object = field.object.class.reflect_on_association(association).klass.new
+    fields = field.fields_for(association, new_object, child_index: 'new_record') do |builder|
       render(partial, locals.merge!(f: builder))
     end
 

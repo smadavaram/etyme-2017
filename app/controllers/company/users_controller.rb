@@ -70,7 +70,8 @@ class Company::UsersController < Company::BaseController
   end
 
   def get_start_date
-    case params[:filter] || 'year'
+    filter = params[:filter] || 'year'
+    case filter
     when 'period'
       DateTime.parse(params[:start_date]).beginning_of_day
     when 'month'
@@ -83,7 +84,8 @@ class Company::UsersController < Company::BaseController
   end
 
   def get_end_date
-    case params[:filter] || 'year'
+    filter = params[:filter] || 'year'
+    case filter
     when 'period'
       DateTime.parse(params[:end_date]).end_of_day
     when 'month'
@@ -322,9 +324,9 @@ class Company::UsersController < Company::BaseController
 
   def user_params
     params.require(:user).permit(:first_name, :last_name, :dob, :email, :age, :phone, :skills, :primary_address_id, :tag_list, :resume, :skill_list, group_ids: [],
-                                  address_attributes: %i[id address_1 address_2 country city state zip_code],
-                                  user_educations_attributes: %i[id degree_level institute degree_title cgpa_grade start_year completion_year _destroy],
-                                  user_certificates_attributes: %i[id title institute start_date end_date _destroy],
-                                  user_work_clients_attributes: %i[id name industry start_date end_date reference_name reference_phone reference_email project_description role _destroy])
+                                                                                                                                                     address_attributes: %i[id address_1 address_2 country city state zip_code],
+                                                                                                                                                     user_educations_attributes: %i[id degree_level institute degree_title cgpa_grade start_year completion_year _destroy],
+                                                                                                                                                     user_certificates_attributes: %i[id title institute start_date end_date _destroy],
+                                                                                                                                                     user_work_clients_attributes: %i[id name industry start_date end_date reference_name reference_phone reference_email project_description role _destroy])
   end
 end
