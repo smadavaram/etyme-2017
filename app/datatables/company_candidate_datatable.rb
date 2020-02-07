@@ -46,8 +46,8 @@ class CompanyCandidateDatatable < ApplicationDatatable
 
   def company_profile(record)
     company = record.companies.find_by(id: current_company.id)
-    image_tag(company&.photo, title: "#{company&.name}", class: 'data-table-image mr-1').html_safe +
-    link_to(do_ellipsis(company&.name), profile_company_path(company), class: 'data-table-font')
+    image_tag(company&.photo, title: company&.name.to_s, class: 'data-table-image mr-1').html_safe +
+      link_to(do_ellipsis(company&.name), profile_company_path(company), class: 'data-table-font')
   end
 
   def candidate_profile(user)

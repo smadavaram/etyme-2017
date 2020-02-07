@@ -211,39 +211,38 @@ class Salary < ApplicationRecord
       receiver = 'vendor_' + contract.buy_contract.company_id.to_s
       receiver_advance = 'vendor_' + contract.buy_contract.company_id.to_s + '_advance'
       receiver_settlement = 'vendor_' + contract.buy_contract.company_id.to_s + '_settlement'
-    elsif receiver = 'cons_' + candidate_id.to_s
+    elsif receiver == 'cons_' + candidate_id.to_s
       receiver_advance = 'cons_' + candidate_id.to_s + '_advance'
       receiver_settlement = 'cons_' + candidate_id.to_s + '_settlement'
     end
-    if approved_amount > 0 && total_amount > 0
+    return unless approved_amount > 0 && total_amount > 0
 
-      tx = ledger.transactions.transact do |builder|
+    tx = ledger.transactions.transact do |builder|
+      builder.retire(
+        flavor_id: 'usd',
+        amount: (approved_amount.to_i * 100),
+        source_account_id: receiver,
+        action_tags: { type: 'approved amount' }
+      )
+
+      if salary_advance > 0
         builder.retire(
           flavor_id: 'usd',
-          amount: (approved_amount.to_i * 100),
-          source_account_id: receiver,
-          action_tags: { type: 'approved amount' }
-        )
-
-        if salary_advance > 0
-          builder.retire(
-            flavor_id: 'usd',
-            amount: (salary_advance.to_i * 100),
-            source_account_id: receiver_advance,
-            action_tags: { type: 'salary advance' }
-          )
-        end
-        builder.issue(
-          flavor_id: 'usd',
-          amount: (self&.total_amount.to_i * 100),
-          destination_account_id: receiver_settlement,
-          action_tags: {
-            type: 'issue',
-            contract: contract_id,
-            salary_id: id
-          }
+          amount: (salary_advance.to_i * 100),
+          source_account_id: receiver_advance,
+          action_tags: { type: 'salary advance' }
         )
       end
+      builder.issue(
+        flavor_id: 'usd',
+        amount: (self&.total_amount.to_i * 100),
+        destination_account_id: receiver_settlement,
+        action_tags: {
+          type: 'issue',
+          contract: contract_id,
+          salary_id: id
+        }
+      )
     end
   end
 
@@ -260,27 +259,27 @@ class Salary < ApplicationRecord
       destination = "cons_#{contract.buy_contract.candidate.id}_process"
     end
     # self.contract.set_on_seq
-    if total_amount > 0
-      tx = ledger.transactions.transact do |builder|
-        builder.transfer(
-          flavor_id: 'usd',
-          amount: total_amount.to_i * 100,
-          source_account_id: source,
-          destination_account_id: destination,
-          action_tags: {
-            type: 'transfer',
-            contract: contract_id,
-            salary_id: id,
-            'TransactionType' => contract.buy_contract.contract_type
-          }
-        )
-        # builder.retire(
-        #   flavor_id: 'usd',
-        #   amount: self.salary_advance.to_i,
-        #   source_account_id: "comp_"+self.contract.company_id.to_s+"_treasury",
-        #   action_tags: {type: 'processed amount'}
-        # )
-      end
+    return unless total_amount > 0
+
+    tx = ledger.transactions.transact do |builder|
+      builder.transfer(
+        flavor_id: 'usd',
+        amount: total_amount.to_i * 100,
+        source_account_id: source,
+        destination_account_id: destination,
+        action_tags: {
+          type: 'transfer',
+          contract: contract_id,
+          salary_id: id,
+          'TransactionType' => contract.buy_contract.contract_type
+        }
+      )
+      # builder.retire(
+      #   flavor_id: 'usd',
+      #   amount: self.salary_advance.to_i,
+      #   source_account_id: "comp_"+self.contract.company_id.to_s+"_treasury",
+      #   action_tags: {type: 'processed amount'}
+      # )
     end
   end
 

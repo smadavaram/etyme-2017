@@ -8,5 +8,5 @@ class Feed::JobRssontroller < ApplicationController
     respond_to do |format|
       format.rss { render layout: false }
     end
-   end
+  end
 end

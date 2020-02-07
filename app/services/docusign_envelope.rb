@@ -9,7 +9,7 @@ class DocusignEnvelope
     @plugin = plugin
   end
 
-  def get_documents
+  def fetch_documents
     docx = []
     @document_sign.documentable.file.split(',').each do |file_url|
       file_name = File.basename(file_url)
@@ -77,7 +77,7 @@ class DocusignEnvelope
     envelope_definition = DocuSign_eSign::EnvelopeDefinition.new
     envelope_definition.email_subject = 'Please sign this document sent from Etyme'
 
-    envelope_definition.documents = get_documents
+    envelope_definition.documents = fetch_documents
     recipients = DocuSign_eSign::Recipients.new(signers: get_signers(envelope_definition.documents))
     envelope_definition.recipients = recipients
     envelope_definition.event_notification = DocuSign_eSign::EventNotification.new(build_event_notification)

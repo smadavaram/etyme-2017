@@ -7,7 +7,7 @@ module CandidateHelper
     if end_date < last_date
       last_date
     else
-      if time_sheet_frequency == 'daily' || time_sheet_frequency == 'immediately'
+      if %w[immediately daily].include?(time_sheet_frequency)
         time_sheet_date = last_date + 1.days
       elsif time_sheet_frequency == 'weekly'
         time_sheet_date = date_of_next(day_of_week, last_date)

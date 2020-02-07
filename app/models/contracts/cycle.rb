@@ -88,7 +88,7 @@ module Contracts
                        twice_a_month_submit_date(sclr_date_1, sclr_date_2, contract.start_date + @count)
                      else
                        contract_cycle_sclr.start_date + 1.day
-                                  end
+                     end
                    else
                      if sclr_frequency == 'daily'
                        contract.start_date
@@ -102,7 +102,7 @@ module Contracts
                        twice_a_month_submit_date(sclr_date_1, sclr_date_2, contract.start_date)
                      else
                        contract.start_date
-                                  end
+                     end
                    end
 
       start_date
@@ -121,7 +121,7 @@ module Contracts
                        twice_a_month_submit_date(com_cal_date_1, com_cal_date_2, contract.start_date + @count)
                      else
                        contract_cycle_com_cal.start_date + 1.day
-                                  end
+                     end
                    else
                      if com_cal_frequency == 'daily'
                        contract.start_date
@@ -133,7 +133,7 @@ module Contracts
                        twice_a_month_submit_date(com_cal_date_1, com_cal_date_2, contract.start_date)
                      else
                        contract.start_date
-                                  end
+                     end
                    end
       start_date
     end
@@ -151,7 +151,7 @@ module Contracts
                        twice_a_month_submit_date(vb_date_1, vb_date_2, contract.start_date + @count)
                      else
                        contract_cycle_vendor_bill_cal.start_date + 1.day
-                                  end
+                     end
                    else
                      if vendor_bill_frequency == 'daily'
                        contract.start_date
@@ -163,7 +163,7 @@ module Contracts
                        twice_a_month_submit_date(vb_date_1, vb_date_2, contract.start_date)
                      else
                        contract.start_date
-                                  end
+                     end
                    end
       start_date
     end
@@ -180,7 +180,7 @@ module Contracts
                        twice_a_month_submit_date(cb_date_1, cb_date_2, contract.start_date + @count)
                      else
                        contract_cycle_client_bill_cal.start_date + 1.day
-                                  end
+                     end
                    else
                      if client_bill_frequency == 'daily'
                        contract.start_date
@@ -192,7 +192,7 @@ module Contracts
                        twice_a_month_submit_date(cb_date_1, cb_date_2, contract.start_date)
                      else
                        contract.start_date
-                                  end
+                     end
                    end
       start_date
     end
@@ -210,7 +210,7 @@ module Contracts
                        twice_a_month_submit_date(ce_date_1, ce_date_2, contract.start_date + @count)
                      else
                        contract_cycle_client_expense_cal.start_date +  1.day
-                                  end
+                     end
                    else
                      if client_expense_frequency == 'daily'
                        contract.start_date
@@ -222,7 +222,7 @@ module Contracts
                        twice_a_month_submit_date(ce_date_1, ce_date_2, contract.start_date)
                      else
                        contract.start_date
-                                  end
+                     end
                    end
       start_date
     end
@@ -510,16 +510,16 @@ module Contracts
         ig_cycle_id: cycle_id,
         invoice_type: type
       )
-      unless invoice
-        Invoice.create(
-          contract_id: contract_id,
-          start_date: start_date,
-          end_date: end_date,
-          ig_cycle_id: cycle_id,
-          rate: sell_payrate,
-          invoice_type: type
-        )
-      end
+      return if invoice
+
+      Invoice.create(
+        contract_id: contract_id,
+        start_date: start_date,
+        end_date: end_date,
+        ig_cycle_id: cycle_id,
+        rate: sell_payrate,
+        invoice_type: type
+      )
     end
 
     def add_salary_cycle
@@ -710,20 +710,20 @@ module Contracts
         sc_cycle_id: sc_cycle_id,
         rate: buy_contract.payrate
       )
-      unless salary
-        Salary.create(
-          contract_id: contract_id,
-          start_date: sclr_cycle.start_date,
-          end_date: sclr_cycle.end_date,
-          candidate_id: buy_contract.candidate_id,
-          company_id: sell_contract.company_id,
-          status: 'open',
-          sclr_cycle_id: sclr_cycle.id,
-          sp_cycle_id: sp_cycle_id,
-          sc_cycle_id: sc_cycle_id,
-          rate: buy_contract.payrate
-        )
-      end
+      return if salary
+
+      Salary.create(
+        contract_id: contract_id,
+        start_date: sclr_cycle.start_date,
+        end_date: sclr_cycle.end_date,
+        candidate_id: buy_contract.candidate_id,
+        company_id: sell_contract.company_id,
+        status: 'open',
+        sclr_cycle_id: sclr_cycle.id,
+        sp_cycle_id: sp_cycle_id,
+        sc_cycle_id: sc_cycle_id,
+        rate: buy_contract.payrate
+      )
     end
 
     def contract_id

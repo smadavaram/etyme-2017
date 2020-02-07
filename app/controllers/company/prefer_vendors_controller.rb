@@ -99,7 +99,8 @@ class Company::PreferVendorsController < Company::BaseController
   end
 
   def get_start_date
-    case params[:filter] || 'year'
+    filter = params[:filter] || 'year'
+    case filter
     when 'period'
       DateTime.parse(params[:start_date]).beginning_of_day
     when 'month'
@@ -112,7 +113,8 @@ class Company::PreferVendorsController < Company::BaseController
   end
 
   def get_end_date
-    case params[:filter] || 'year'
+    filter = params[:filter] || 'year'
+    case filter
     when 'period'
       DateTime.parse(params[:end_date]).end_of_day
     when 'month'

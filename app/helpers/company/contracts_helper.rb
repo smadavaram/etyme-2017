@@ -14,14 +14,12 @@ module Company::ContractsHelper
   def show_recipient_picture(contractable)
     return 'default_user.png' if contractable.nil?
 
-    if contractable.class.name == 'Candidate'
-      contractable.try(:photo)
+    contractable.try(:photo) if contractable.class.name == 'Candidate'
+
+    if contractable.try(:logo).nil?
+      'default_user.png'
     else
-      if contractable.try(:logo).nil?
-        'default_user.png'
-      else
-        contractable.try(:logo)
-      end
+      contractable.try(:logo)
     end
   end
 

@@ -13,13 +13,13 @@ class Education < ActiveRecord::Base
   private
 
   def completion_year_is_greater_than_start_year
-    if completion_year.present?
-      if completion_year < start_year
-        errors.add(:completion_year, ' should be greater than start year')
-        false
-      else
-        true
-      end
+    return unless completion_year.present?
+
+    if completion_year < start_year
+      errors.add(:completion_year, ' should be greater than start year')
+      false
+    else
+      true
     end
   end
 end

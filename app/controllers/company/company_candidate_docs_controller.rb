@@ -79,7 +79,7 @@ class Company::CompanyCandidateDocsController < Company::BaseController
         company_candidate_docs.title = data['title']
         company_candidate_docs.exp_date = data['exp_date']
         company_candidate_docs.file = data['file']
-        company_candidate_docs.is_required_signature = data['is_required_signature'] == '1' ? true : false
+        company_candidate_docs.is_required_signature = data['is_required_signature'] == '1'
         company_candidate_docs.company_id = current_company.id
         company_candidate_docs.title_type = data['title_type']
         company_candidate_docs.is_require = data['is_require']

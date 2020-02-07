@@ -34,8 +34,8 @@ class Leave < ApplicationRecord
         return true
       elsif till_date.between?(t.from_date, t.till_date)
         return true
-      end # end of if
-    end # end of each
+      end
+    end
     false
   end
 end

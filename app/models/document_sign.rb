@@ -42,19 +42,19 @@ class DocumentSign < ApplicationRecord
   end
 
   def notify_creator
-    if signed_file.present?
-      notification = Notification.new(notifiable: requested_by,
-                                      createable: signable,
-                                      status: :unread, notification_type: :document_request)
-      if documentable.is_require == 'signature'
-        notification.title = 'Document Signatured'
-        notification.message = "#{signable.full_name.capitalize} has signed the document received through docusign"
-      else
-        notification.title = 'Document Submitted'
-        notification.message = "#{signable.full_name.capitalize} has uploaded a #{documentable.is_require} #{"titled '#{documentable.title.capitalize}'" if documentable.title.present?}"
-      end
-      signable.conversation_messages.create(conversation_id: conversation_id, body: notification.message, message_type: :DocumentRequest) if notification.save
+    return unless signed_file.present?
+
+    notification = Notification.new(notifiable: requested_by,
+                                    createable: signable,
+                                    status: :unread, notification_type: :document_request)
+    if documentable.is_require == 'signature'
+      notification.title = 'Document Signatured'
+      notification.message = "#{signable.full_name.capitalize} has signed the document received through docusign"
+    else
+      notification.title = 'Document Submitted'
+      notification.message = "#{signable.full_name.capitalize} has uploaded a #{documentable.is_require} #{"titled '#{documentable.title.capitalize}'" if documentable.title.present?}"
     end
+    signable.conversation_messages.create(conversation_id: conversation_id, body: notification.message, message_type: :DocumentRequest) if notification.save
   end
 
   def conversation_id

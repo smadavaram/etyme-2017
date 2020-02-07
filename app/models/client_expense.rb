@@ -45,26 +45,26 @@ class ClientExpense < ApplicationRecord
 
   def set_ce_on_seq
     contract.set_on_seq
-    if self&.amount.to_i > 0 && status == 'submitted'
-      ledger = Sequence::Client.new(
-        ledger_name: 'company-dev',
-        credential: 'OUUY4ZFYQO4P3YNC5JC3GMY7ZQJCSNTH'
+    return unless self&.amount.to_i > 0 && status == 'submitted'
+
+    ledger = Sequence::Client.new(
+      ledger_name: 'company-dev',
+      credential: 'OUUY4ZFYQO4P3YNC5JC3GMY7ZQJCSNTH'
+    )
+    ce_issue = ledger.transactions.transact do |builder|
+      builder.issue(
+        flavor_id: 'usd',
+        amount: self&.amount.to_i,
+        destination_account_id: 'cons_' + self&.contract.buy_contract.candidate_id.to_s,
+        action_tags: {
+          type: 'issue',
+          contract: contract_id,
+          candidate: contract.buy_contract.candidate_id.to_s,
+          cycle_id: ce_cycle_id,
+          start_date: start_date,
+          end_date: end_date
+        }
       )
-      ce_issue = ledger.transactions.transact do |builder|
-        builder.issue(
-          flavor_id: 'usd',
-          amount: self&.amount.to_i,
-          destination_account_id: 'cons_' + self&.contract.buy_contract.candidate_id.to_s,
-          action_tags: {
-            type: 'issue',
-            contract: contract_id,
-            candidate: contract.buy_contract.candidate_id.to_s,
-            cycle_id: ce_cycle_id,
-            start_date: start_date,
-            end_date: end_date
-          }
-        )
-      end
     end
   end
 
@@ -136,7 +136,7 @@ class ClientExpense < ApplicationRecord
                                   DateTime.now.end_of_month
                                 else
                                   montly_approval_date(con_cycle)
-                                                          end
+                                end
                               when 'twice a month'
                                 twice_a_month_approval_date(con_cycle)
                               else
@@ -166,7 +166,7 @@ class ClientExpense < ApplicationRecord
                                   DateTime.now.end_of_month
                                 else
                                   montly_approval_date(con_cycle)
-                                                          end
+                                end
                               when 'twice a month'
                                 twice_a_month_approval_date(con_cycle)
                               else

@@ -266,9 +266,11 @@ class Company::PayrollTermInfosController < Company::BaseController
 
   def daily_cycle
     25.times do |i|
-      @dates[i] = {'doc_date': Date.new(Date.today.year, Date.today.month, i + 1)}
-      @dates[i][:end_date], @dates[i][:start_date] = @dates[i][:doc_date] - @payroll.payroll_term.to_i, @dates[i][:doc_date] - @payroll.payroll_term.to_i
-      @dates[i][:cal_date], @dates[i][:pro_date] = @dates[i][:doc_date], @dates[i][:doc_date]
+      @dates[i] = { 'doc_date': Date.new(Date.today.year, Date.today.month, i + 1) }
+      @dates[i][:end_date] = @dates[i][:doc_date] - @payroll.payroll_term.to_i
+      @dates[i][:start_date] = @dates[i][:doc_date] - @payroll.payroll_term.to_i
+      @dates[i][:cal_date] = @dates[i][:doc_date]
+      @dates[i][:pro_date] = @dates[i][:doc_date]
     end
   end
 

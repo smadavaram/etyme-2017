@@ -9,18 +9,18 @@ class UserMailer < ApplicationMailer
   end
 
   def confirmation_instructions(user, token, _opts = {})
-    unless user.invitation_as_contact.blank?
-      @owner = user
-      @company = begin
-                   user.company
-                 rescue StandardError
-                   nil
-                 end
-      if @owner&.etyme_url
-        @link = @company.present? ? "http://#{@company.etyme_url}/users/confirmation?confirmation_token=#{token}" : "http://#{@owner.etyme_url}/candidates/confirmation?confirmation_token=#{token}"
-        mail(to: @owner.email, subject: 'Welcome to Etyme')
-      end
-    end
+    return if user.invitation_as_contact.blank?
+
+    @owner = user
+    @company = begin
+                 user.company
+               rescue StandardError
+                 nil
+               end
+    return unless @owner&.etyme_url
+
+    @link = @company.present? ? "http://#{@company.etyme_url}/users/confirmation?confirmation_token=#{token}" : "http://#{@owner.etyme_url}/candidates/confirmation?confirmation_token=#{token}"
+    mail(to: @owner.email, subject: 'Welcome to Etyme')
   end
 
   def reset_password_instructions(user, token, _opts = {})
@@ -47,11 +47,11 @@ class UserMailer < ApplicationMailer
   def welcome_email_to_owner(company)
     @owner = company.owner.present? ? company.owner : company.company_contacts
 
-    unless @owner.blank?
-      @company   = company
-      @name      = @owner.full_name
-      mail(to: @owner.email, subject: "#{@company.name.titleize} welcome to Etyme")
-    end
+    return if @owner.blank?
+
+    @company   = company
+    @name      = @owner.full_name
+    mail(to: @owner.email, subject: "#{@company.name.titleize} welcome to Etyme")
   end
 
   # method for sharing of message
@@ -89,8 +89,6 @@ class UserMailer < ApplicationMailer
     @to = to
     mail(to: @to.email, subject: subject, from: sender_email)
   end
-
-  private
 
   def self.exception_admins
     ['lalusaud@gmail.com']

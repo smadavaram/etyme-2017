@@ -8,11 +8,11 @@ class SalaryItem < ApplicationRecord
   scope :expenses, -> { where(salaryable_type: 'Expense') }
 
   def update_salary_timesheet
-    if salaryable.salaried!
-      salary.update_attributes(approved_amount: salary.approved_amount.to_f + salaryable.amount.to_f,
-                               total_approve_time: salary.total_approve_time + salaryable.total_time.to_f,
-                               status: :open)
-    end
+    return unless salaryable.salaried!
+
+    salary.update_attributes(approved_amount: salary.approved_amount.to_f + salaryable.amount.to_f,
+                             total_approve_time: salary.total_approve_time + salaryable.total_time.to_f,
+                             status: :open)
   end
 
   def update_salary_expenses

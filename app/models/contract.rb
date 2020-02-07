@@ -118,6 +118,7 @@ class Contract < ApplicationRecord
 
   def set_number
     c = Contract.order('created_at DESC').first
+
     self.number = if c.present?
                     'c_' + (c.number.split('_')[1].to_i + 1).to_s.rjust(3, '0')
                   else
@@ -210,10 +211,10 @@ class Contract < ApplicationRecord
 
   def set_contractable
     self.contractable = job_application.company unless job_application.is_candidate_applicant?
-    if job_application.present? && job_application.is_candidate_applicant? && assignee.present?
-      self.contractable = company
-      self.status = Contract.statuses['accepted']
-    end
+    return unless job_application.present? && job_application.is_candidate_applicant? && assignee.present?
+
+    self.contractable = company
+    self.status = Contract.statuses['accepted']
   end
 
   def set_sub_contract_attributes
@@ -246,11 +247,11 @@ class Contract < ApplicationRecord
   end
 
   def notify_companies_admins_on_status_change
-    if status == 'in_progress' || status == 'is_ended' || status == 'cancelled' || status == 'paused'
-      assignee.notifications.create(message: "Your contract for <a href='http://#{respond_by.etyme_url + contract_path(self)}'>#{job.title}</a> now #{status.titleize}", title: title)
-      respond_by.notifications.create(message: "Your contract for <a href='http://#{respond_by.etyme_url + contract_path(self)}'>#{job.title}</a> now #{status.titleize}", title: title)
-      created_by.notifications.create(message: "Your contract for <a href='http://#{created_by.etyme_url + contract_path(self)}'>#{job.title}</a> now #{status.titleize}", title: title)
-    end
+    return unless status == 'in_progress' || status == 'is_ended' || status == 'cancelled' || status == 'paused'
+
+    assignee.notifications.create(message: "Your contract for <a href='http://#{respond_by.etyme_url + contract_path(self)}'>#{job.title}</a> now #{status.titleize}", title: title)
+    respond_by.notifications.create(message: "Your contract for <a href='http://#{respond_by.etyme_url + contract_path(self)}'>#{job.title}</a> now #{status.titleize}", title: title)
+    created_by.notifications.create(message: "Your contract for <a href='http://#{created_by.etyme_url + contract_path(self)}'>#{job.title}</a> now #{status.titleize}", title: title)
 
     # admins.each  do |admin|
     #     admin.notifications.create(message: self.applicationable.company.name + " has <a href='http://#{admin.etyme_url + contract_path(self)}'>apply</a> your Job Application - #{self.job.title}",title:"Job Application")
@@ -720,28 +721,28 @@ class Contract < ApplicationRecord
       filter: 'id=$1',
       filter_params: ["cont_#{id}" + '_expense']
     ).first
-    unless la.present?
-      ledger.accounts.create(
-        id: "cont_#{id}" + '_expense',
-        key_ids: [comp_key],
-        quorum: 1,
-        tags: {
-          contract_id: id,
-          customer_id: sell_contract.company.id,
-          company_id: company.id,
-          vendor_id: self&.buy_contract.company&.id,
-          contract_type: self&.buy_contract.contract_type,
-          consulant_id: candidate.id
-        }
-      )
-    end
+    return if la.present?
+
+    ledger.accounts.create(
+      id: "cont_#{id}" + '_expense',
+      key_ids: [comp_key],
+      quorum: 1,
+      tags: {
+        contract_id: id,
+        customer_id: sell_contract.company.id,
+        company_id: company.id,
+        vendor_id: self&.buy_contract.company&.id,
+        contract_type: self&.buy_contract.contract_type,
+        consulant_id: candidate.id
+      }
+    )
   end
 
   def contract_progress
     if (Date.today > start_date && Date.today <= end_date) || (Date.today == start_date && Date.today == end_date)
-      (((Date.today - start_date) + 1).to_f * 100).to_f / ((end_date - start_date) + 1).to_f
+      (((Date.today - start_date) + 1).to_f * 100).to_f / ((end_date - start_date) + 1)
     elsif Date.today == start_date && Date.today <= end_date
-      ((Date.today - start_date).to_f * 100).to_f / ((end_date - start_date) + 1).to_f
+      ((Date.today - start_date).to_f * 100).to_f / ((end_date - start_date) + 1)
     elsif Date.today > start_date && Date.today >= end_date
       100.00
     end

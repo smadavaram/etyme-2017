@@ -50,7 +50,7 @@
           -@job.tags.each do |tag|
             %span.label.label-success= tag.name
         %br/
-        = link_to raw("<i class= 'fa fa-align-left'> Apply</i>") ,static_job_apply_path(@job,status: candidate_signed_in?)   , method: :post , remote: true  ,class: " btn btn-success full-width   #{current_candidate.present? ? (current_candidate.is_already_applied?(@job.id) ? "disabled " : "" ) : "" } "
+        = link_to raw("<i class= 'fa fa-align-left'> Apply</i>") ,static_job_apply_path(@job,status: candidate_signed_in?)   , method: :post , remote: true  ,class: " btn btn-success full-width   #{current_candidate.present? ? (current_candidate.already_applied?(@job.id) ? "disabled " : "" ) : "" } "
       .col-lg-2
         -#.panel.user.revealOnScroll{"data-animation" => "slideInUp", "data-timeout" => "200"}
           .row.text-center

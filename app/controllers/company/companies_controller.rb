@@ -480,15 +480,15 @@ class Company::CompaniesController < Company::BaseController
 
   def company_params
     params.require(:company).permit(:name, :company_type, :domain, :skill_list, :website, :logo, :description, :phone, :email, :linkedin_url, :facebook_url, :twitter_url, :google_url, :is_activated, :status, :time_zone, :tag_line, group_ids: [],
-                                    owner_attributes: %i[id type first_name last_name email password password_confirmation], locations_attributes: [:id, :name, :status, address_attributes: %i[id address_1 country city state zip_code]],
-                                    invited_by_attributes: %i[invited_by_company_id user_id])
+                                                                                                                                                                                                                                       owner_attributes: %i[id type first_name last_name email password password_confirmation], locations_attributes: [:id, :name, :status, address_attributes: %i[id address_1 country city state zip_code]],
+                                                                                                                                                                                                                                       invited_by_attributes: %i[invited_by_company_id user_id])
   end
 
   def create_params
     params.require(:company).permit([:name, :email, :domain, :company_type, :currency_id, :phone, :fax_number, :send_email, :slug, :website, group_ids: [],
-                                    company_contacts_attributes: %i[id type first_name last_name email company_id phone title _destroy],
-                                    invited_by_attributes: %i[invited_by_company_id user_id],
-                                    custom_fields_attributes: %i[id name value _destroy]],
+                                                                                                                                             company_contacts_attributes: %i[id type first_name last_name email company_id phone title _destroy],
+                                                                                                                                             invited_by_attributes: %i[invited_by_company_id user_id],
+                                                                                                                                             custom_fields_attributes: %i[id name value _destroy]],
                                     addresses_attributes: %i[id address_1 address_2 country city state zip_code],
                                     billing_infos_attributes: %i[id address country city zip],
                                     branches_attributes: %i[id branch_name address country city zip],

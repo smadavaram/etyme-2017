@@ -46,6 +46,7 @@ end
 gem 'fastimage'
 
 gem 'ancestry'
+gem 'awesome_print'
 gem 'pg', '~> 0.18'
 gem 'rails-jquery-autocomplete'
 gem 'rails_12factor', group: :production
@@ -58,6 +59,7 @@ gem 'bootstrap_form'
 gem 'date_validator'
 gem 'devise'
 gem 'devise_invitable' # , '~> 1.7.0'
+gem 'geocoder'
 gem 'ruby-duration' # , '~> 3.2', '>= 3.2.1'
 gem 'validates_timeliness' # , '~> 4.0'
 
@@ -66,19 +68,17 @@ gem 'daemons'
 gem 'delayed_job_active_record' # , '4.0.3'
 gem 'figaro'
 gem 'filepicker-rails'
+gem 'googleauth'
 gem 'has_scope'
 gem 'mini_magick'
 gem 'omniauth'
 gem 'omniauth-facebook'
 gem 'omniauth-google-oauth2'
 gem 'omniauth-linkedin-oauth2'
+gem 'paranoia' # , "~> 2.2"
 gem 'ransack' # , '~> 1.7'
 gem 'roo'
 gem 'whenever', require: false
-gem 'awesome_print'
-gem 'paranoia' # , "~> 2.2"
-gem 'geocoder'
-gem 'googleauth'
 
 group :development do
   gem 'rubocop', '~> 0.78.0', require: false
@@ -97,9 +97,9 @@ group :development, :test do
   gem 'listen', '>= 3.0.5', '< 3.2'
   gem 'pry'
   gem 'rails-erd'
-# Gem rbnacl-libsodium should be placed before then gem rbnacl else sodium pkg error may occour
+  # Gem rbnacl-libsodium should be placed before then gem rbnacl else sodium pkg error may occour
   gem 'rbnacl-libsodium'
-  gem 'rbnacl','< 5.0'
+  gem 'rbnacl', '< 5.0'
   gem 'test-unit'
   # Access an IRB console on exception pages or by using <%= console %> in views
   gem 'bullet'

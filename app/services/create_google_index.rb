@@ -15,13 +15,9 @@ class CreateGoogleIndex
   end
 
   def index_job
-    response = initiate_request(get_authorizer['access_token'])
-    if response.code.to_i == 200
-      @job.update(is_indexed: true)
-      puts(response.body)
-    else
-      puts(response.body)
-    end
+    response = initiate_request(authorizer['access_token'])
+    @job.update(is_indexed: true) if response.code.to_i == 200
+    puts(response.body)
   end
 
   private
@@ -40,7 +36,7 @@ class CreateGoogleIndex
     http.request(req)
   end
 
-  def get_authorizer
+  def authorizer
     authorizer = Google::Auth::ServiceAccountCredentials.make_creds(
       json_key_io: File.open(PRIVATE_KEY),
       scope: SCOPE

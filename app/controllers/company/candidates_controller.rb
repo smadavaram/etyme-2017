@@ -55,28 +55,27 @@ class Company::CandidatesController < Company::BaseController
   def company_candidate
     if current_company.candidates_companies.exists?(candidate_id: params[:id])
       flash[:notice] = 'Candidate already exists in the company'
-      redirect_to job_applications_path
     else
       current_company.candidates_companies.create(candidate_id: params[:id])
       flash[:success] = 'Candidate is added successfully'
-      redirect_to job_applications_path
     end
+    redirect_to job_applications_path
   end
 
   def manage_groups
     @manage_candidate = current_company.candidates.find(params[:candidate_id])
-    if request.patch?
-      groups = params[:candidate][:group_ids]
-      groups = groups.reject(&:empty?)
-      groups_id = groups.map(&:to_i)
-      @manage_candidate.update_attribute(:group_ids, groups_id)
-      if @manage_candidate.save
-        flash[:success] = 'Groups has been Updated'
-      else
-        flash[:errors] = @manage_candidate.errors.full_messages
-      end
-      redirect_back fallback_location: root_path
+    return unless request.patch?
+
+    groups = params[:candidate][:group_ids]
+    groups = groups.reject(&:empty?)
+    groups_id = groups.map(&:to_i)
+    @manage_candidate.update_attribute(:group_ids, groups_id)
+    if @manage_candidate.save
+      flash[:success] = 'Groups has been Updated'
+    else
+      flash[:errors] = @manage_candidate.errors.full_messages
     end
+    redirect_back fallback_location: root_path
   end
 
   def get_or_create_bench_candidate
@@ -124,15 +123,13 @@ class Company::CandidatesController < Company::BaseController
   def make_hot
     @candidate = Candidate.find_by_id(params[:candidate_id])
     @company_candidate = CandidatesCompany.normal.where(candidate_id: @candidate.id, company_id: current_company.id)
-    if @company_candidate.update_all(status: 1)
-      current_company.sent_job_invitations.bench.create(recipient: @candidate, created_by: current_user, invitation_type: :candidate, expiry: Date.today + 1.year)
-      flash[:success] = 'Candidate is now Hot Candidate.'
-      respond_to do |format|
+    respond_to do |format|
+      if @company_candidate.update_all(status: 1)
+        current_company.sent_job_invitations.bench.create(recipient: @candidate, created_by: current_user, invitation_type: :candidate, expiry: Date.today + 1.year)
+        flash[:success] = 'Candidate is now Hot Candidate.'
         format.js { render inline: 'location.reload();' }
-      end
-    else
-      flash[:errors] = @company_candidate.errors.full_messages
-      respond_to do |format|
+      else
+        flash[:errors] = @company_candidate.errors.full_messages
         format.js { render inline: 'location.reload();' }
       end
     end
@@ -141,15 +138,13 @@ class Company::CandidatesController < Company::BaseController
   def make_normal
     @candidate = Candidate.find_by_id(params[:candidate_id])
     @company_candidate = CandidatesCompany.hot_candidate.where(candidate_id: params[:candidate_id], company_id: current_company.id)
-    if @company_candidate.update_all(status: 0)
-      @candidate.update(associated_company: Company.get_freelancer_company)
-      flash[:success] = 'Candidate is now Normal Candidate.'
-      respond_to do |format|
+    respond_to do |format|
+      if @company_candidate.update_all(status: 0)
+        @candidate.update(associated_company: Company.get_freelancer_company)
+        flash[:success] = 'Candidate is now Normal Candidate.'
         format.js { render inline: 'location.reload();' }
-      end
-    else
-      flash[:errors] = @company_candidate.errors.full_messages
-      respond_to do |format|
+      else
+        flash[:errors] = @company_candidate.errors.full_messages
         format.js { render inline: 'location.reload();' }
       end
     end

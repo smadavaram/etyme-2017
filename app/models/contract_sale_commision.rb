@@ -33,7 +33,7 @@ class ContractSaleCommision < ApplicationRecord
                                        DateTime.now.end_of_month
                                      else
                                        montly_approval_date(con_cycle)
-                                                                    end
+                                     end
                                    when 'twice a month'
                                      twice_a_month_approval_date(con_cycle)
                                    else

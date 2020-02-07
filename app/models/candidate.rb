@@ -149,7 +149,7 @@ class Candidate < ApplicationRecord
   end
 
   def etyme_url
-    Rails.env.development? ? (ENV['domain']).to_s : (ENV['domain']).to_s
+    (ENV['domain']).to_s if Rails.env.development?
   end
 
   def full_name
@@ -174,7 +174,7 @@ class Candidate < ApplicationRecord
     CandidateMailer.invite_user(self, invited_by).deliver_now
   end
 
-  def is_already_applied?(job_id)
+  def already_applied?(job_id)
     job_applications.find_by_job_id(job_id).present?
   end
 
@@ -226,9 +226,9 @@ class Candidate < ApplicationRecord
   end
 
   def email_uniquenes
-    if status == 'campany_candidate'
-      errors.add(:base, "Candidate with same email exist's in your Company") if invited_by.company.candidates.where(email: email).present?
-    end
+    return unless status == 'campany_candidate'
+
+    errors.add(:base, "Candidate with same email exist's in your Company") if invited_by.company.candidates.where(email: email).present?
   end
 
   def set_on_seq
@@ -247,15 +247,16 @@ class Candidate < ApplicationRecord
       filter: 'id=$1',
       filter_params: ["sal_set_#{id}"]
     ).first
-    unless la.present?
-      ledger.accounts.create(
-        id: "sal_set_#{id}",
-        key_ids: [candidate_key],
-        quorum: 1,
-        tags: {
-        }
-      )
-    end
+
+    return if la.present?
+
+    ledger.accounts.create(
+      id: "sal_set_#{id}",
+      key_ids: [candidate_key],
+      quorum: 1,
+      tags: {
+      }
+    )
   end
 
   def set_freelancer_company

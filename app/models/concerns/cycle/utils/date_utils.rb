@@ -2,8 +2,8 @@
 
 module Cycle::Utils::DateUtils
   class << self
-    DayTranslation = { "sun": 'sunday?', "mon": 'monday?', "tue": 'tuesday?', "wed": 'wednesday?',
-                       "thu": 'thursday?', "fri": 'friday?', "sat": 'saturday?' }.freeze
+    DAY_TRANSLATION = { "sun": 'sunday?', "mon": 'monday?', "tue": 'tuesday?', "wed": 'wednesday?',
+                        "thu": 'thursday?', "fri": 'friday?', "sat": 'saturday?' }.freeze
 
     def range(start_date, end_date)
       (start_date...end_date).to_a
@@ -17,7 +17,7 @@ module Cycle::Utils::DateUtils
       groups = []
       tmp = []
       range(start_date, end_date).each do |date|
-        if date.send(DayTranslation[day.to_sym])
+        if date.send(DAY_TRANSLATION[day.to_sym])
           tmp << date
           groups << tmp
           tmp = []
@@ -32,7 +32,7 @@ module Cycle::Utils::DateUtils
       groups = []
       tmp = []
       range(start_date, end_date).each do |date|
-        if date.send(DayTranslation[day_one.to_sym]) || date.send(DayTranslation[day_two.to_sym])
+        if date.send(DAY_TRANSLATION[day_one.to_sym]) || date.send(DAY_TRANSLATION[day_two.to_sym])
           tmp << date
           groups << tmp
           tmp = []
@@ -80,11 +80,11 @@ module Cycle::Utils::DateUtils
       when 'twice a month'
         (start_date..end_date).to_a.find { |date| [value.first.day, value.second.day].include?(date.day) }
       when 'biweekly'
-        (start_date..end_date).to_a.find { |date| date.send(DayTranslation[value.first.to_sym]) || date.send(DayTranslation[value.second.to_sym]) }
+        (start_date..end_date).to_a.find { |date| date.send(DAY_TRANSLATION[value.first.to_sym]) || date.send(DAY_TRANSLATION[value.second.to_sym]) }
       when 'monthly'
         (start_date..end_date).to_a.find { |date| value.day == date.day }
       when 'weekly'
-        (start_date..end_date).to_a.find { |date| date.send(DayTranslation[value.to_sym]) }
+        (start_date..end_date).to_a.find { |date| date.send(DAY_TRANSLATION[value.to_sym]) }
       end
     end
   end

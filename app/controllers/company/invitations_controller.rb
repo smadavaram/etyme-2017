@@ -38,7 +38,7 @@ class Company::InvitationsController < Devise::InvitationsController
     else
       flash[:notice] = 'Password Does not match'
       redirect_to accept_user_invitation_path(invitation_token: update_resource_params[:invitation_token])
-  end
+    end
   end
 
   private

@@ -70,7 +70,7 @@ class Candidate::JobInvitationsController < Candidate::BaseController
       @job_application.job_applicant_reqs.build
       @job_application.custom_fields.build
     end
-    @state = params[:status] == 'accept' ? true : false
+    @state = params[:status] == 'accept'
     @url = "candidate/job_invitations/partials/#{params[:status]}"
   end
 
