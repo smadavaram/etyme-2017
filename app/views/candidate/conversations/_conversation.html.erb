@@ -38,7 +38,7 @@
         <span>To:</span>
         <a class="d-inline" href="#"><%= opt_obj.full_name if opt_obj.present? %></a>
       </div>
-      
+
     </div>
   </div>
 
@@ -113,7 +113,7 @@
               <%= mini_chat_contact_widget(current_candidate.email, current_candidate.phone,color: '#3E4B5B; !important') %>
             </div>
           <% end %>
-      
+
         </div>
         <div class="chat-btn">
           <%= button_tag(type: "submit", class: "btn p-0",id:"send-message", style: "background: transparent;box-shadow: none;") do %>
@@ -121,7 +121,7 @@
           <% end %>
         </div>
       </div>
-      
+
 
     <% end if @conversation.present? %>
   </div>
