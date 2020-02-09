@@ -1,5 +1,18 @@
 ActiveAdmin.register CompanyContact, as: 'Contacts' do
 
+  index do
+    id_column
+    column :company
+    column :first_name
+    column :last_name
+    column :email
+    column :phone
+    column :status
+    column :created_at
+    column :updated_at
+    actions
+  end
+
   # See permitted parameters documentation:
   # https://github.com/activeadmin/activeadmin/blob/master/docs/2-resource-customization.md#setting-up-strong-parameters
   #
