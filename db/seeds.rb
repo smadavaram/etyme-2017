@@ -52,3 +52,5 @@ end
 # Package.create(id: 3, name: "Premium",  price: 30.0,  duration: 30)
 # Package.create(id: 4, name: "Platinum", price: 60.0,  duration: 30)
 # Package.create(id: 5, name: "Monthly",                duration: 30)
+
+AdminUser.create!(email: 'sharath@demoetyme.com', password: 'testing1234', password_confirmation: 'testing1234') if Rails.env.development?
