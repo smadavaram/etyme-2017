@@ -36,6 +36,8 @@ class ApplicationController < ActionController::Base
   end
 
   def after_sign_in_path_for(resource)
+    return sadmin_dashboard_path if resource.is_a? AdminUser
+
     class_name = resource.class.name
     get_new_notification_flash(resource)
     prepare_exception_notifier
@@ -56,9 +58,12 @@ class ApplicationController < ActionController::Base
   end
 
   def after_sign_out_path_for(resource_or_scope)
-    if resource_or_scope.eql?(:user)
+    url = request.protocol + request.domain + ":#{request.port}"
 
-      request.protocol + request.domain + ":#{request.port}/signin"
+    return url if resource_or_scope.eql?(:admin_user)
+
+    if resource_or_scope.eql?(:user)
+      "#{url}/signin"
     elsif resource_or_scope.eql?(:candidate)
       super
     end

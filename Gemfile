@@ -141,3 +141,5 @@ gem 'hashie'
 gem 'capistrano3-delayed-job', '~> 1.0'
 gem 'exception_notification'
 gem 'trix-rails', '~> 2.2', require: 'trix'
+
+gem 'activeadmin'
