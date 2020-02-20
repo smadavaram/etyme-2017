@@ -1,14 +1,16 @@
-class Company::DepartmentsController < Company::BaseController
-  before_action :set_department , only: [:create]
-  before_action :find_department,only:[:edit,:update, :destroy]
-  respond_to :html,:json
-  add_breadcrumb "Dashboard", :dashboard_path
+# frozen_string_literal: true
 
+class Company::DepartmentsController < Company::BaseController
+  before_action :set_department, only: [:create]
+  before_action :find_department, only: %i[edit update destroy]
+  respond_to :html, :json
+  add_breadcrumb 'Dashboard', :dashboard_path
 
   def index
-    add_breadcrumb "Department(s)"
+    add_breadcrumb 'Department(s)'
     @department = current_company.company_departments
   end
+
   def create
     @department = current_company.company_departments.create!(dept_params)
     redirect_back fallback_location: root_path
@@ -32,14 +34,14 @@ class Company::DepartmentsController < Company::BaseController
   private
 
   def find_department
-    @department=current_company.company_departments.find(params[:id])
+    @department = current_company.company_departments.find(params[:id])
   end
+
   def set_department
-    @location=current_company.company_departments.new(dept_params)
+    @location = current_company.company_departments.new(dept_params)
   end
 
   def dept_params
-    params.require(:company_department).permit(:id, department_attributes:[:id,:name] )
+    params.require(:company_department).permit(:id, department_attributes: %i[id name])
   end
-
 end

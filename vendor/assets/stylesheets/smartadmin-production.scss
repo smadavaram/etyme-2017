@@ -1,6 +1,6 @@
 /*!
  * SmartAdmin v1.8.2 ()
- * Copyright 2011-2016 
+ * Copyright 2011-2016
  */
 /*!
  * SmartAdmin - Responsive WebApp
@@ -7247,7 +7247,7 @@ div.wijmo-wijmenu .wijmo-wijmenu-child .wijmo-wijmenu-text {
 }
 /*
  * JS SLIDER
- * Copied from: js/plugin/noUiSlider/jquery.nouislider.css 
+ * Copied from: js/plugin/noUiSlider/jquery.nouislider.css
  */
 /*	General CSS resets;
  *		The target itself is not affected, allowing
@@ -7521,7 +7521,7 @@ div.wijmo-wijmenu .wijmo-wijmenu-child .wijmo-wijmenu-text {
   font-size: 21px;
   color: #999;
 }
-/* 
+/*
  * RIBBON
  */
 .ribbon {
@@ -8930,7 +8930,7 @@ textarea.clone {
 }
 /*
 		 * date picker
-		
+
 		.ui-datepicker {
 			display: none;
 			padding: 10px 12px;
@@ -8985,19 +8985,19 @@ textarea.clone {
 			text-align:center;
 		}
 		.ui-datepicker-unselectable.ui-state-disabled {
-			
+
 		}
 		.ui-datepicker-unselectable.ui-state-disabled > span {
 			color:#bfbfbf;
 			background-color: #FAFCFD;
 		}
-		
+
 		.ui-datepicker-calendar a:hover {
 			background: #3276B1;
 			color:#fff;
 		}
 		.ui-datepicker-calendar span {
-			
+
 		}
 		.ui-datepicker-today a {
 			font-weight: 700;
@@ -9607,7 +9607,7 @@ td.fc-other-month,
   display: block;
   opacity: 1 !important;
 }
-/* 
+/*
 	* Drag and drop events
 	*/
 #external-events > li {
@@ -11354,7 +11354,7 @@ aside {
 #ribbon .breadcrumb a,
 #ribbon .breadcrumb {
   color: #BBB !important;
-  text-decoration: none !Important;
+  text-decoration: none !important;
 }
 #ribbon .breadcrumb > .active,
 #ribbon .breadcrumb li:last-child {
@@ -11481,7 +11481,7 @@ nav ul li.active.open > a:before {
 nav > ul > li:last-child.open {
   border-bottom: 1px solid rgba(255, 255, 255, 0.15);
 }
-/* All levels 
+/* All levels
 nav ul li {
 	overflow: hidden;
 }*/
@@ -15386,10 +15386,10 @@ hr.simple {
  * SHORT CUTS
  */
 .pull-right {
-  float: right !Important;
+  float: right !important;
 }
 .pull-left {
-  float: left !Important;
+  float: left !important;
 }
 /*
  * Air fields
@@ -15759,7 +15759,7 @@ label:hover input[type="checkbox"][disabled].checkbox:checked + span:before {
 /*
  * ANIMATED
  */
-/* Navigation icon first level 
+/* Navigation icon first level
 .desktop-detected nav > ul > li > a:hover i {
 	-webkit-animation-name: wobble;
 	-moz-animation-name: wobble;
@@ -15951,10 +15951,10 @@ label:hover input[type="checkbox"][disabled].checkbox:checked + span:before {
 }
 /*
  * SmartAdmin Colorblind CSS
- * Description: This is an experimental CSS based on 
+ * Description: This is an experimental CSS based on
  * several design factors and pointers derived from
  * http://blog.templatemonster.com/2012/03/21/designing-colorblind-friendly-website/
- * 
+ *
  * While this may not be 100% accurate, but makes
  * SmartAdmin's components much more accessable
  * for the colorblind
@@ -16084,7 +16084,7 @@ label:hover input[type="checkbox"][disabled].checkbox:checked + span:before {
     padding-left: 30px;
     padding-right: 30px;
   }
-  /* added new class per version 1.3 
+  /* added new class per version 1.3
 	html, body {
 		overflow-x: hidden !important;
 	}*/
@@ -16861,7 +16861,7 @@ label:hover input[type="checkbox"][disabled].checkbox:checked + span:before {
   }
 }
 @-ms-viewport {
-  
+
 }
 #extr-page #main {
   margin-top: 0px !important;
@@ -17252,7 +17252,7 @@ body.menu-on-top.fixed-header.fixed-navigation.fixed-ribbon #ribbon {
 }
 /*
  * Menu on top invisible
- * applying this class will make these elements invisible 
+ * applying this class will make these elements invisible
  * when menu on top is enabled
  */
 .menu-on-top .top-menu-invisible {

@@ -1,5 +1,8 @@
-Rails.application.routes.draw do
+# frozen_string_literal: true
 
+Rails.application.routes.draw do
+  devise_for :admin_users, ActiveAdmin::Devise.config
+  ActiveAdmin.routes(self)
   concern :commentable do
     resources :comments
   end
@@ -9,7 +12,7 @@ Rails.application.routes.draw do
   end
 
   resources :messages, concerns: :commentable
-  resources :articles, concerns: [:commentable, :image_attachable]
+  resources :articles, concerns: %i[commentable image_attachable]
 
   get '/states/:country', to: 'application#states'
   get '/cities/:state/:country', to: 'application#cities'
@@ -37,27 +40,25 @@ Rails.application.routes.draw do
     get ':company_id/training_feed' => 'rss_jobs#training_feed', format: 'json'
     get ':company_id/bench_feed' => 'rss_jobs#bench_feed', format: 'json'
     get ':company_id/blog_feed' => 'rss_jobs#blog_feed', format: 'json'
-
   end
-
 
   concern :paginatable do
     get '(page/:page)', action: :index, on: :collection, as: ''
-    match :search, action: :index, via: [:get, :post], on: :collection
+    match :search, action: :index, via: %i[get post], on: :collection
   end
 
   resources :static, only: [:index] do
     collection do
-      get '/client/:id/acknowledge/:slug', to: "static#acknowledge_refrence", as: :acknowledge_refrence
+      get '/client/:id/acknowledge/:slug', to: 'static#acknowledge_refrence', as: :acknowledge_refrence
     end
   end
   namespace :static do
-    resources :jobs, only: [:index, :show] do
+    resources :jobs, only: %i[index show] do
       post 'job_request', on: :collection
       get '(page/:page)', action: :index, on: :collection, as: ''
-      match :search, action: :index, via: [:get, :post], on: :collection
+      match :search, action: :index, via: %i[get post], on: :collection
       post :apply
-      get "/job_application", to: "jobs#iframe_apply"
+      get '/job_application', to: 'jobs#iframe_apply'
       resources :job_applications, only: [:create]
       # get 'job_appication_without_registeration' ,to: 'job_applications#job_appication_without_registeration'
       post :job_appication_without_registeration
@@ -76,9 +77,7 @@ Rails.application.routes.draw do
     end
   end
 
-
   scope module: :candidate do
-
     resources :clients
     resources :candidates, path: :candidate, only: [:update] do
       resources :notifications do
@@ -93,7 +92,7 @@ Rails.application.routes.draw do
         get :expenses
         get :salaries
         get :notify_notifications
-        get "notification/:id", to: 'candidates#notification', as: "get_notification"
+        get 'notification/:id', to: 'candidates#notification', as: 'get_notification'
         post :upload_resume
         post :update_video
         post :get_sub_category
@@ -103,7 +102,7 @@ Rails.application.routes.draw do
         get :edit_designate
       end
     end
-    resources :portfolios, only: [:create, :update]
+    resources :portfolios, only: %i[create update]
     resources :benchs, only: [:index] do
       get :accept_bench, on: :member
       get :job, on: :member
@@ -120,20 +119,16 @@ Rails.application.routes.draw do
         end
 
         # match :share_message ,via: [:get , :post]
-
       end
     end
     get '/profile', to: 'candidates#show'
 
     get '/my_profile', to: 'candidates#my_profile'
     get '/onboarding_profile', to: 'candidates#onboarding_profile'
-
-
   end
 
-
   namespace :candidate do
-    resources :document_signs, only: [:index, :update, :show] do
+    resources :document_signs, only: %i[index update show] do
       get :documents
       get :upload_document
     end
@@ -144,7 +139,7 @@ Rails.application.routes.draw do
 
     resources :legal_docs
 
-    resources :public_jobs, only: [:index, :destroy] do
+    resources :public_jobs, only: %i[index destroy] do
       get :job, on: :member
       get :apply_job_candidate, on: :member
       post :create_batch_job, on: :member
@@ -152,22 +147,22 @@ Rails.application.routes.draw do
       post :apply, on: :member
     end
 
-    resources :educations, only: [:create, :update]
-    resources :experiences, only: [:create, :update]
+    resources :educations, only: %i[create update]
+    resources :experiences, only: %i[create update]
     get '/', to: 'candidates#dashboard', as: :candidate_dashboard
     get 'filter_data/:filter', to: 'candidates#filter_cards', as: :filter_cards_data
     resources :addresses, only: [:update]
 
-    resources :job_applications, only: [:index, :show] do
+    resources :job_applications, only: %i[index show] do
       member do
-        post "rate_negotiation/:conversation_id", to: "job_applications#rate_negotiation", as: :rate_negotiation_for
-        post "accept_rate/:conversation_id", to: "job_applications#accept_rate", as: :accept_rate
-        post "interview/:conversation_id", to: "job_applications#interview", as: :interview
-        post "accept_interview/:interview_id", to: "job_applications#accept_interview", as: :accept_interview
+        post 'rate_negotiation/:conversation_id', to: 'job_applications#rate_negotiation', as: :rate_negotiation_for
+        post 'accept_rate/:conversation_id', to: 'job_applications#accept_rate', as: :accept_rate
+        post 'interview/:conversation_id', to: 'job_applications#interview', as: :interview
+        post 'accept_interview/:interview_id', to: 'job_applications#accept_interview', as: :accept_interview
       end
     end
-    get '/invitations/bench', to: "job_invitations#bench_invitations"
-    resources :job_invitations, only: [:index, :show] do
+    get '/invitations/bench', to: 'job_invitations#bench_invitations'
+    resources :job_invitations, only: %i[index show] do
       post :reject
       get :show_invitation
       get :accept_bench
@@ -176,27 +171,27 @@ Rails.application.routes.draw do
       post :bench_company_invitation, on: :collection
     end
     # resources :contracts        , only: [:index]
-    resources :candidates, only: [:show, :update, :create] do
+    resources :candidates, only: %i[show update create] do
       get 'current_status', on: :collection
       get 'status_update', on: :collection
       get 'chat_status_update', on: :collection
       get 'move_to_employer', on: :collection
-      get 'job/:id', to: "candidates#get_job", on: :collection, as: :fetch_job
-      get 'build_profile/:id/resume', to: "candidates#build_profile", on: :collection, as: :resume_profile
+      get 'job/:id', to: 'candidates#get_job', on: :collection, as: :fetch_job
+      get 'build_profile/:id/resume', to: 'candidates#build_profile', on: :collection, as: :resume_profile
     end
     resources :jobs do
       # resources :contracts , except: [:index] do
       #   member do
       #     post :open_contract , as: :open_contract
       #     post :update_contract_response        , as: :update_contract_response
-      #   end # End of member
-      # end # End of :contracts
+      #   end
+      # end
 
       resources :job_applications
       member do
         post :apply
-      end #end of member
-    end # End of jobs
+      end
+    end
 
     resources :conversations do
       get :search, on: :collection
@@ -208,23 +203,23 @@ Rails.application.routes.draw do
       resources :conversation_messages
     end
 
-    resources :contracts, only: [:index, :show] do
+    resources :contracts, only: %i[index show] do
       collection do
         get :timeline
         post :request_document
         get :submit_timesheet
       end
     end
-    resources :timesheets, only: [:index, :new, :create, :update] do
+    resources :timesheets, only: %i[index new create update] do
       post :get_timesheets, on: :collection
       get :submitted_timesheets, on: :collection
       get :approve_timesheets, on: :collection
       get :submit_timesheet
-      post "/:id/transaction/:transaction_id/update", on: :collection, to: "timesheets#add_hrs", as: :add_hrs
+      post '/:id/transaction/:transaction_id/update', on: :collection, to: 'timesheets#add_hrs', as: :add_hrs
       # post "/:id", to: "timesheets#update", on: :collection, as: :update
     end
-    resources :expenses, only: [:new, :create]
-    resources :client_expenses, only: [:index, :update] do
+    resources :expenses, only: %i[new create]
+    resources :client_expenses, only: %i[index update] do
       post :get_client_expenses, on: :collection
       get :submitted_client_expenses, on: :collection
       get :approve_client_expense, on: :collection
@@ -236,10 +231,9 @@ Rails.application.routes.draw do
     end
   end
 
-
   class NakedEtymeDomain
     def self.matches?(request)
-      (request.subdomain.blank? || request.subdomain == 'www') #&& request.domain == ENV['domain']
+      (request.subdomain.blank? || request.subdomain == 'www') # && request.domain == ENV['domain']
     end
   end
 
@@ -259,12 +253,12 @@ Rails.application.routes.draw do
       get :documents
       get :upload_document
     end
-    resources :departments, only: [:create, :update]
+    resources :departments, only: %i[create update]
     resources :black_listers, only: [] do
       post 'ban/:black_lister_id/type/:black_lister_type', to: 'black_listers#ban', as: :ban, on: :collection
       post 'unban/:black_lister_id/type/:black_lister_type', to: 'black_listers#unban', as: :unban, on: :collection
     end
-    resources :statuses, only: [:create, :index] do
+    resources :statuses, only: %i[create index] do
       collection do
         post :create_bulk_candidates
         post :create_bulk_companies
@@ -274,7 +268,7 @@ Rails.application.routes.draw do
     post 'update_mobile_number', to: 'companies#update_mobile_number'
 
     get 'companies/edit'
-    resources :users, only: [:show, :update, :destroy] do
+    resources :users, only: %i[show update destroy] do
       resources :notifications do
         member do
           get 'read'
@@ -291,24 +285,24 @@ Rails.application.routes.draw do
         post :change_owner
       end
 
-      match :assign_groups, via: [:get, :post]
+      match :assign_groups, via: %i[get post]
       get :profile
       post :update_video
       collection do
         get :notify_notifications
-        get "notification/:id", to: 'users#notification', as: "get_notification"
+        get 'notification/:id', to: 'users#notification', as: 'get_notification'
       end
     end
 
-    resources :company_contacts, only: [:index, :new, :create, :destroy]
+    resources :company_contacts, only: %i[index new create destroy]
 
-    resources :companies, only: [:new, :create, :update] do
+    resources :companies, only: %i[new create update] do
       member do
-        get "plugin/:plugin_type", to: "companies#plugin", as: :plugin
+        get 'plugin/:plugin_type', to: 'companies#plugin', as: :plugin
       end
       get :add_reminder
-      match :assign_groups, via: [:get, :post]
-      match :assign_groups_to_contact, via: [:get, :post]
+      match :assign_groups, via: %i[get post]
+      match :assign_groups_to_contact, via: %i[get post]
 
       post :verify_website
       get :download_template
@@ -317,7 +311,7 @@ Rails.application.routes.draw do
       get :network_contacts, on: :collection
       get :company_contacts, on: :collection
       get :hot_index
-      match :create_chat, via: [:get, :post]
+      match :create_chat, via: %i[get post]
     end
     resources :candidates do
       member do
@@ -329,7 +323,6 @@ Rails.application.routes.draw do
     get 'new_candidate_to_bench', to: 'candidates#new_candidate_to_bench'
     # get :new_candidate_to_banch
 
-
     resources :chats, only: [:show] do
       post :add_users
       resources :messages, only: [:create] do
@@ -337,29 +330,27 @@ Rails.application.routes.draw do
           post :render_message
           post :file_message
         end
-        match :share_message, via: [:get, :post]
+        match :share_message, via: %i[get post]
       end
     end
 
-    get "import_job", to: "jobs#import_job"
-    post "upload_job", to: "jobs#upload_job"
-    post "upload_candidate", to: "jobs#upload_candidate"
-    post "upload_company", to: "jobs#upload_company"
-    post "upload_contacts", to: "jobs#upload_contacts"
+    get 'import_job', to: 'jobs#import_job'
+    post 'upload_job', to: 'jobs#upload_job'
+    post 'upload_candidate', to: 'jobs#upload_candidate'
+    post 'upload_company', to: 'jobs#upload_company'
+    post 'upload_contacts', to: 'jobs#upload_contacts'
 
+    get 'download_job_template', to: 'jobs#download_job_template'
+    get 'download_product_template', to: 'jobs#download_product_template'
+    get 'download_service_template', to: 'jobs#download_service_template'
+    get 'download_training_template', to: 'jobs#download_training_template'
+    get 'download_candidate_template', to: 'jobs#download_candidate_template'
+    get 'download_company_template', to: 'jobs#download_company_template'
+    get 'download_contacts_template', to: 'jobs#download_contacts_template'
 
-    get "download_job_template", to: "jobs#download_job_template"
-    get "download_product_template", to: "jobs#download_product_template"
-    get "download_service_template", to: "jobs#download_service_template"
-    get "download_training_template", to: "jobs#download_training_template"
-    get "download_candidate_template", to: "jobs#download_candidate_template"
-    get "download_company_template", to: "jobs#download_company_template"
-    get "download_contacts_template", to: "jobs#download_contacts_template"
-
-
-    resources :bench_jobs, only: [:index, :destroy]
-    resources :job_receives, only: [:index, :destroy]
-    resources :public_jobs, only: [:index, :destroy] do
+    resources :bench_jobs, only: %i[index destroy]
+    resources :job_receives, only: %i[index destroy]
+    resources :public_jobs, only: %i[index destroy] do
       get :job, on: :member
       get :apply_job_candidate, on: :member
       post :create_batch_job, on: :member
@@ -385,7 +376,7 @@ Rails.application.routes.draw do
 
     resources :sell_contracts
     resources :buy_contracts do
-      resources :contract_sale_commissions, only: [:new, :create]
+      resources :contract_sale_commissions, only: %i[new create]
     end
 
     resources :accountings do
@@ -400,11 +391,9 @@ Rails.application.routes.draw do
       get :check_salary, on: :collection
       get :generate_salary_cycles, on: :collection
     end
-
   end
 
   scope module: :company do
-
     resources :activities, only: [:index]
 
     post 'reject_vendor', to: 'prefer_vendors#reject'
@@ -441,7 +430,7 @@ Rails.application.routes.draw do
       end
     end
     resources :admins, concerns: :paginatable do
-      get :autocomplete_user_email, :on => :collection
+      get :autocomplete_user_email, on: :collection
       get :add_member
       get 'add_as_child/:id', to: 'admins#add_as_child', as: :add_as_child
     end
@@ -458,7 +447,7 @@ Rails.application.routes.draw do
     delete 'delete_company_vendor_docs', to: 'company_candidate_docs#delete_company_vendor_docs'
     delete 'delete_company_employee_docs', to: 'company_candidate_docs#delete_company_employee_docs'
 
-    resources :invoices, concerns: :paginatable, only: [:index, :edit, :update] do
+    resources :invoices, concerns: :paginatable, only: %i[index edit update] do
       member do
         get :client_expense_invoice
         post :update_expense_invoice
@@ -487,13 +476,13 @@ Rails.application.routes.draw do
     resources :prefer_vendors, concerns: :paginatable do
       get :vendor_activity, on: :collection
     end
-    resources :job_invitations, concerns: :paginatable, only: [:index, :show] do
+    resources :job_invitations, concerns: :paginatable, only: %i[index show] do
       post :bench_candidate_invitation, on: :collection
       get :accept_bench
       get :reject_bench
     end
     resources :candidates, concerns: :paginatable, only: [:index] do
-      match :manage_groups, via: [:get, :patch]
+      match :manage_groups, via: %i[get patch]
       post :make_hot
       post :make_normal
       get :add_reminder
@@ -506,13 +495,12 @@ Rails.application.routes.draw do
       collection do
         get :share_candidates, as: :share_hot_candidates
       end
-
     end
-    resources :job_applications, concerns: :paginatable, only: [:index, :show] do
-      resources :consultants, only: [:new, :create]
+    resources :job_applications, concerns: :paginatable, only: %i[index show] do
+      resources :consultants, only: %i[new create]
       member do
-        post "rate_negotiation/:conversation_id", to: "job_applications#rate_negotiation", as: :rate_negotiation_for
-        post "accept_rate/:conversation_id", to: "job_applications#accept_rate", as: :accept_rate
+        post 'rate_negotiation/:conversation_id', to: 'job_applications#rate_negotiation', as: :rate_negotiation_for
+        post 'accept_rate/:conversation_id', to: 'job_applications#accept_rate', as: :accept_rate
         get :client_submission, as: :submit
         get :applicant, as: :applicant
         get :share
@@ -522,12 +510,12 @@ Rails.application.routes.draw do
         post :reject
         post :short_list
         get :open_inbox_conversation
-        post "interview/:conversation_id", to: "job_applications#interview", as: :interview
-        post "accept_interview/:interview_id", to: "job_applications#accept_interview", as: :accept_interview
+        post 'interview/:conversation_id', to: 'job_applications#interview', as: :interview
+        post 'accept_interview/:interview_id', to: 'job_applications#accept_interview', as: :accept_interview
         post :hire
         post :prescreen
         get :templates
-      end # End of member
+      end
       collection do
         post :send_templates
       end
@@ -578,14 +566,12 @@ Rails.application.routes.draw do
 
     resources :bank_details, only: [] do
       collection do
-
-        get "index/:company_id", to: "bank_details#index", as: :add
+        get 'index/:company_id', to: 'bank_details#index', as: :add
         get :acc_info
         get :bank_reconciliation
         post :update_acc_info
         get :new
         post :create
-
       end
     end
     resources :contracts, concerns: :paginatable, except: [:destroy] do
@@ -636,7 +622,7 @@ Rails.application.routes.draw do
       end
 
       post :change_invoice_date
-      resources :invoices, only: [:index, :show] do
+      resources :invoices, only: %i[index show] do
         member do
           get :download
           post :accept_invoice
@@ -648,16 +634,15 @@ Rails.application.routes.draw do
     end
 
     resources :jobs, concerns: :paginatable do
+      match 'create_multiple_for_candidate', to: 'job_applications#create_multiple_For_candidate', via: %i[get post]
 
-      match 'create_multiple_for_candidate', to: 'job_applications#create_multiple_For_candidate', via: [:get, :post]
-
-      resources :contracts, except: [:index, :show] do
+      resources :contracts, except: %i[index show] do
         member do
           post :open_contract, as: :open_contract
           post :update_contract_response, as: :update_contract_response
           post :create_sub_contract, as: :create_sub_contract
         end
-      end # End of :contracts
+      end
 
       resources :job_invitations, except: [:index] do
         collection do
@@ -668,8 +653,8 @@ Rails.application.routes.draw do
         member do
           post :accept
           post :reject
-        end # End of member
-      end # End of :job_invitations
+        end
+      end
 
       member do
         post :send_invitation, as: :send_invitation
@@ -682,16 +667,16 @@ Rails.application.routes.draw do
       end
     end
 
-    #leaves path for owner of company
+    # leaves path for owner of company
     get 'leaves', to: 'leaves#employees_leaves', as: :employees_leaves
     # get 'attachment/documents_list',to: 'attachments#document_list'
     get 'dashboard', to: 'users#dashboard', as: :dashboard
     get 'filter_data/:filter', to: 'users#filter_cards', as: :filter_cards_data
     post 'update_photo', to: 'users#update_photo'
-    resources :timesheets, concerns: :paginatable, only: [:show, :index, :new, :create, :edit, :update] do
+    resources :timesheets, concerns: :paginatable, only: %i[show index new create edit update] do
       get 'client_timesheets', on: :collection
       get 'submit_timesheet'
-      post "/:id/transaction/:transaction_id/update", on: :collection, to: "timesheets#add_hrs", as: :add_hrs
+      post '/:id/transaction/:transaction_id/update', on: :collection, to: 'timesheets#add_hrs', as: :add_hrs
       get 'approved', on: :collection
       get 'generate_invoice'
       get 'check_invoice'
@@ -705,16 +690,15 @@ Rails.application.routes.draw do
           post 'reject'
         end
       end
-
     end
 
-    resources :client_expenses, only: [:edit, :update, :show, :index] do
+    resources :client_expenses, only: %i[edit update show index] do
       get :approve
       get :reject
       get :submit
     end
     # get 'configuration' ,   to: 'companies#edit' ,              as: :configuration
-    resources :companies, concerns: :paginatable, only: [:update, :show, :index, :edit, :destroy] do
+    resources :companies, concerns: :paginatable, only: %i[update show index edit destroy] do
       get :contacts
       get :assign_status
       collection do
@@ -730,37 +714,35 @@ Rails.application.routes.draw do
         get :company_user_profile_page
       end
     end
+  end
 
-  end # End of module company
-
-  resources :companies, only: [:create, :update] do
+  resources :companies, only: %i[create update] do
     member do
       get :profile
     end
   end
 
-
   # Devise Routes
-  devise_for :users, controllers: {invitations: 'company/invitations', passwords: 'users/passwords', sessions: 'users/sessions', confirmations: 'users/confirmations', omniauth_callbacks: 'candidates/omniauth_callbacks'}, path_names: {sign_in: 'login', sign_out: 'logout'}
+  devise_for :users, controllers: { invitations: 'company/invitations', passwords: 'users/passwords', sessions: 'users/sessions', confirmations: 'users/confirmations', omniauth_callbacks: 'candidates/omniauth_callbacks' }, path_names: { sign_in: 'login', sign_out: 'logout' }
 
   # devise_for :candidates
   devise_for :candidates, controllers: {
-      sessions: 'candidates/sessions',
-      registrations: 'candidates/registrations',
-      passwords: 'candidates/passwords',
-      confirmations: 'candidates/confirmations',
-      invitations: 'candidate/invitations'
+    sessions: 'candidates/sessions',
+    registrations: 'candidates/registrations',
+    passwords: 'candidates/passwords',
+    confirmations: 'candidates/confirmations',
+    invitations: 'candidate/invitations'
   }
   # Route set when subdomain present?
   constraints(Subdomain) do
     devise_scope :user do
-      match '/' => 'devise/sessions#new', via: [:get, :post]
+      match '/' => 'devise/sessions#new', via: %i[get post]
     end
   end
 
   # Route set when subdomain is not present
   constraints(NakedEtymeDomain) do
-    match '/' => "static#index", via: [:get, :post]
+    match '/' => 'static#index', via: %i[get post]
   end
 
   namespace :api do
@@ -793,19 +775,19 @@ Rails.application.routes.draw do
     end
 
     namespace :company do
-      resources :companies, only: [:index, :create] do
+      resources :companies, only: %i[index create] do
         post :add_company, on: :collection
-        get :get_owner, on: :collection
+        get :fetch_owner, on: :collection
       end
     end
 
     namespace :company do
-      resources :jobs, only: [:index, :create] do
+      resources :jobs, only: %i[index create] do
         post :add_job, on: :collection
       end
     end
 
-    resources :job_applications, only: [:index, :create] do
+    resources :job_applications, only: %i[index create] do
       post :job_applications, on: :collection
     end
 
@@ -827,5 +809,4 @@ Rails.application.routes.draw do
     end
   end
   root 'static#index'
-
 end

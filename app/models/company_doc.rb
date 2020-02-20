@@ -1,8 +1,9 @@
-class CompanyDoc < ApplicationRecord
+# frozen_string_literal: true
 
+class CompanyDoc < ApplicationRecord
   self.per_page = 15
 
-  has_one :attachment , as: :attachable
+  has_one :attachment, as: :attachable
   belongs_to :company, optional: true
   belongs_to :user, foreign_key: :created_by, optional: true
   has_many :attachable_docs, dependent: :destroy
@@ -10,11 +11,9 @@ class CompanyDoc < ApplicationRecord
   has_one  :message
   # has_and_belongs_to_many :users,join_table: :attachable_docs
 
-  validates_presence_of :name,:company,:created_by, on: :create
+  validates_presence_of :name, :company, :created_by, on: :create
 
-  accepts_nested_attributes_for :attachment , reject_if: :all_blank
+  accepts_nested_attributes_for :attachment, reject_if: :all_blank
 
   acts_as_taggable
-
-
 end

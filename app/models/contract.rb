@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 class Contract < ApplicationRecord
   require 'sequence'
   include PublicActivity::Model
@@ -6,13 +8,13 @@ class Contract < ApplicationRecord
 
   include CandidateHelper
 
-  enum status: [:pending, :accepted, :rejected, :is_ended, :cancelled, :paused, :in_progress, :draft]
-  enum billing_frequency: [:weekly_invoice, :monthly_invoice]
-  enum time_sheet_frequency: [:daily, :weekly, :biweekly, "twice a month", :monthly]
-  enum commission_type: [:perhour, :fixed]
-  enum contract_type: [:W2, "1099", :C2C, :contract_independent, :contract_w2, :contract_C2H_independent, :contract_C2H_w2, :third_party_crop_to_crop, :third_party_C2H_crop_to_crop]
-  enum cc_job: [:remaining, :started, :finished, :errored]
-  CONTRACTABLE = [:company, :candidate]
+  enum status: %i[pending accepted rejected is_ended cancelled paused in_progress draft]
+  enum billing_frequency: %i[weekly_invoice monthly_invoice]
+  enum time_sheet_frequency: [:daily, :weekly, :biweekly, 'twice a month', :monthly]
+  enum commission_type: %i[perhour fixed]
+  enum contract_type: [:W2, '1099', :C2C, :contract_independent, :contract_w2, :contract_C2H_independent, :contract_C2H_w2, :third_party_crop_to_crop, :third_party_C2H_crop_to_crop]
+  enum cc_job: %i[remaining started finished errored]
+  CONTRACTABLE = %i[company candidate].freeze
 
   attr_accessor :company_doc_ids
 
@@ -24,13 +26,13 @@ class Contract < ApplicationRecord
   belongs_to :location, optional: true
   belongs_to :user, optional: true
   belongs_to :company, optional: true
-  belongs_to :parent_contract, class_name: "Contract", foreign_key: :parent_contract_id, optional: true
+  belongs_to :parent_contract, class_name: 'Contract', foreign_key: :parent_contract_id, optional: true
   belongs_to :contractable, polymorphic: true, optional: true
-  belongs_to :client, optional: true, foreign_key: :client_id, class_name: "Company"
+  belongs_to :client, optional: true, foreign_key: :client_id, class_name: 'Company'
   belongs_to :candidate, optional: true
   # belongs_to :buy_company, foreign_key: :buy_company_id, class_name: "Company"
 
-  has_one :child_contract, class_name: "Contract", foreign_key: :parent_contract_id
+  has_one :child_contract, class_name: 'Contract', foreign_key: :parent_contract_id
   has_one :job_invitation, through: :job_application
   has_many :contract_terms, dependent: :destroy
   has_many :timesheets, dependent: :destroy
@@ -47,12 +49,11 @@ class Contract < ApplicationRecord
   has_many :contract_salary_histories, dependent: :destroy
   has_many :expenses, dependent: :destroy
   has_many :csc_accounts
-  has_many :contract_admins,as: :admin_able
+  has_many :contract_admins, as: :admin_able
 
   has_many :contract_cycles, dependent: :destroy
   has_many :contract_expense, dependent: :destroy
   has_many :contract_books
-
 
   # has_many :contract_buy_business_details
   # has_many :contract_sell_business_details
@@ -60,34 +61,33 @@ class Contract < ApplicationRecord
 
   has_many :activities, as: :trackable, class_name: 'PublicActivity::Activity', dependent: :destroy
 
-
   # after_create :set_on_seq
-  after_create :insert_attachable_docs, unless: Proc.new { |contract| contract.draft? }
+  after_create :insert_attachable_docs, unless: proc { |contract| contract.draft? }
   # after_create :set_next_invoice_date, unless: Proc.new {|contract| contract.draft?}
   # after_create :create_rate_change, unless: Proc.new {|contract| contract.draft?}
   # after_create :notify_recipient, if: Proc.new {|contract| contract.draft? and contract.not_system_generated?}
   # after_create :notify_company_about_contract, if: Proc.new{|contract|contract.parent_contract?}
-  after_update :notify_assignee_on_status_change, if: Proc.new { |contract| contract.draft? and contract.status_changed? && contract.not_system_generated? && contract.assignee? && contract.respond_by.present? && contract.accepted? }
-  after_update :notify_companies_admins_on_status_change, if: Proc.new { |contract| contract.draft? and contract.status_changed? && contract.respond_by.present? && contract.not_system_generated? }
+  after_update :notify_assignee_on_status_change, if: proc { |contract| contract.draft? && contract.status_changed? && contract.not_system_generated? && contract.assignee? && contract.respond_by.present? && contract.accepted? }
+  after_update :notify_companies_admins_on_status_change, if: proc { |contract| contract.draft? && contract.status_changed? && contract.respond_by.present? && contract.not_system_generated? }
   # after_create :update_contract_application_status
-  after_save :create_timesheet, if: Proc.new { |contract| contract.draft? and !contract.has_child? && contract.status_changed? && contract.is_not_ended? && !contract.timesheets.present? && contract.in_progress? && contract.next_invoice_date.nil? }
-  before_create :set_contractable, if: Proc.new { |contract| contract.not_system_generated? }
-  before_create :set_sub_contract_attributes, if: Proc.new { |contract| contract.parent_contract? }
+  after_save :create_timesheet, if: proc { |contract| contract.draft? && !contract.has_child? && contract.status_changed? && contract.is_not_ended? && !contract.timesheets.present? && contract.in_progress? && contract.next_invoice_date.nil? }
+  before_create :set_contractable, if: proc { |contract| contract.not_system_generated? }
+  before_create :set_sub_contract_attributes, if: proc { |contract| contract.parent_contract? }
 
   before_create :set_number
   after_create :set_name
   validate :start_date_cannot_be_less_than_end_date, on: :create
   validate :start_date_cannot_be_in_the_past, :next_invoice_date_should_be_in_future, on: :create
-  validates :status, inclusion: {in: statuses.keys}
+  validates :status, inclusion: { in: statuses.keys }
   # validates :billing_frequency ,  inclusion: {in: billing_frequencies.keys}
   # validates :time_sheet_frequency,inclusion: {in: time_sheet_frequencies.keys}
-  validates :commission_type, inclusion: {in: commission_types.keys}, on: :update, if: Proc.new { |contract| contract.is_commission }
+  validates :commission_type, inclusion: { in: commission_types.keys }, on: :update, if: proc { |contract| contract.is_commission }
   # validates :contract_type ,      inclusion: {in: contract_types.keys}
-  validates :is_commission, inclusion: {in: [true, false]}
+  validates :is_commission, inclusion: { in: [true, false] }
   validates :start_date, :end_date, presence: true
-  validates :commission_amount, numericality: true, presence: true, if: Proc.new { |contract| contract.is_commission }
-  validates :max_commission, numericality: true, presence: true, if: Proc.new { |contract| contract.is_commission && contract.percentage? }
-  validates_uniqueness_of :job_id, scope: :job_application_id, message: "You have already applied for this Job.", if: Proc.new { |contract| contract.job_application.present? }
+  validates :commission_amount, numericality: true, presence: true, if: proc { |contract| contract.is_commission }
+  validates :max_commission, numericality: true, presence: true, if: proc { |contract| contract.is_commission && contract.percentage? }
+  validates_uniqueness_of :job_id, scope: :job_application_id, message: 'You have already applied for this Job.', if: proc { |contract| contract.job_application.present? }
 
   accepts_nested_attributes_for :contract_terms, allow_destroy: true, reject_if: :all_blank
   accepts_nested_attributes_for :attachments, allow_destroy: true, reject_if: :all_blank
@@ -97,7 +97,6 @@ class Contract < ApplicationRecord
   accepts_nested_attributes_for :sell_contract, allow_destroy: true, reject_if: :all_blank
   accepts_nested_attributes_for :buy_contract, allow_destroy: true, reject_if: :all_blank
 
-
   # accepts_nested_attributes_for :contract_buy_business_details, allow_destroy: true,reject_if: :all_blank
   # accepts_nested_attributes_for :contract_sell_business_details, allow_destroy: true,reject_if: :all_blank
   # accepts_nested_attributes_for :contract_sale_commisions, allow_destroy: true,reject_if: :all_blank
@@ -105,78 +104,78 @@ class Contract < ApplicationRecord
   # include NumberGenerator.new({prefix: 'C', length: 7})
   default_scope -> { order(created_at: :desc) }
 
-  delegate :set_timesheet_submit, :invoice_generate, :find_next_date, :to => :appraiser
-
+  delegate :set_timesheet_submit, :invoice_generate, :find_next_date, to: :appraiser
 
   def set_name
-    self.update(project_name: "#{id}-#{job.title[0..20]}#{ client.present? ? "-#{client.full_name.capitalize}" : '' }")
+    update(project_name: "#{id}-#{job.title[0..20]}#{client.present? ? "-#{client.full_name.capitalize}" : ''}")
   end
 
   def after_create_callbacks
     set_next_invoice_date
     create_rate_change
-    notify_recipient if self.not_system_generated?
+    notify_recipient if not_system_generated?
   end
 
   def set_number
-    c = Contract.order("created_at DESC").first
-    if c.present?
-      self.number = "c_" + (c.number.split("_")[1].to_i + 1).to_s.rjust(3, "0")
-    else
-      self.number = "c_001"
-    end
+    c = Contract.order('created_at DESC').first
+
+    self.number = if c.present?
+                    'c_' + (c.number.split('_')[1].to_i + 1).to_s.rjust(3, '0')
+                  else
+                    'c_001'
+                  end
   end
 
   def only_number
-    self.number.split("_")[1]
+    number.split('_')[1]
   end
 
   def is_not_ended?
-    self.end_date >= Date.today
+    end_date >= Date.today
   end
 
   def self.find_sent_or_received(contract_id, obj)
-    where("contracts.id = :c_id and (contracts.company_id = :obj_id or (contracts.contractable_id = :obj_id and contracts.contractable_type = :obj_type))", {obj_id: obj.id, obj_type: obj.class.name, c_id: contract_id})
+    where('contracts.id = :c_id and (contracts.company_id = :obj_id or (contracts.contractable_id = :obj_id and contracts.contractable_type = :obj_type))', obj_id: obj.id, obj_type: obj.class.name, c_id: contract_id)
   end
 
   def timesheet_logs_total_time_array
-    self.timesheet_logs.map(&:total_time)
+    timesheet_logs.map(&:total_time)
   end
 
   def invoices?
-    self.invoices.present?
+    invoices.present?
   end
 
   def parent_contract?
-    self.parent_contract.present?
+    parent_contract.present?
   end
 
   def has_child?
-    self.child_contract.present?
+    child_contract.present?
   end
 
   def is_system_generated?
-    self.job_application.present? && self.job.is_system_generated
+    job_application.present? && job.is_system_generated
   end
 
   def not_system_generated?
-    self.job_application.present? && !self.job.is_system_generated
+    job_application.present? && !job.is_system_generated
   end
 
   def attachable_docs?
-    self.attachable_docs.present?
+    attachable_docs.present?
   end
 
   def signature_required_docs?
-    self.attachable_docs.where(file: nil).joins(:company_doc).where('company_docs.is_required_signature = ?', true).present?
+    attachable_docs.where(file: nil).joins(:company_doc).where('company_docs.is_required_signature = ?', true).present?
   end
 
   def is_sent?(current_company)
-    self.company == current_company
+    company == current_company
   end
 
-  def is_received? obj
-    self.contractable_id == obj.id && self.contractable_type == obj.class.name && self.contractable_id.present?
+  def is_received?(obj)
+    contractable_id == obj.id && contractable_type == obj.class.name && contractable_id.present?
   end
 
   def assignee?
@@ -184,74 +183,75 @@ class Contract < ApplicationRecord
   end
 
   def is_child?
-    self.parent_contract.present?
+    parent_contract.present?
   end
 
   def title
-    self.job.title + " Job - Contract # " + self.id.to_s
+    job.title + ' Job - Contract # ' + id.to_s
   end
 
   def rate
     # self.contract_terms.active.first.rate
-    self.sell_contract&.customer_rate
+    sell_contract&.customer_rate
   end
 
   def note
-    self.contract_terms.active.first.note
+    contract_terms.active.first.note
   end
 
   def terms_and_conditions
     # self.contract_terms.active.first.terms_condition
-    "[CHANGE IT terms_and_conditions]"
+    '[CHANGE IT terms_and_conditions]'
   end
+
   def count_contract_admin
-    self.contract_admins.admin.count
+    contract_admins.admin.count
   end
   # private
 
   def set_contractable
-    self.contractable = self.job_application.company if not self.job_application.is_candidate_applicant?
-    if self.job_application.present? && self.job_application.is_candidate_applicant? && self.assignee.present?
-      self.contractable = self.company
-      self.status = Contract.statuses["accepted"]
-    end
+    self.contractable = job_application.company unless job_application.is_candidate_applicant?
+    return unless job_application.present? && job_application.is_candidate_applicant? && assignee.present?
+
+    self.contractable = company
+    self.status = Contract.statuses['accepted']
   end
 
   def set_sub_contract_attributes
-    self.start_date = self.parent_contract.start_date
-    self.end_date = self.parent_contract.end_date
-    self.parent_contract.accepted!
+    self.start_date = parent_contract.start_date
+    self.end_date = parent_contract.end_date
+    parent_contract.accepted!
   end
 
   def insert_attachable_docs
-    company_docs = self.company.company_docs.where(id: company_doc_ids).includes(:attachment) || []
+    company_docs = company.company_docs.where(id: company_doc_ids).includes(:attachment) || []
     company_docs.each do |company_doc|
-      self.attachable_docs.create(company_doc_id: company_doc.id, orignal_file: company_doc.attachment.try(:file))
+      attachable_docs.create(company_doc_id: company_doc.id, orignal_file: company_doc.attachment.try(:file))
     end
   end
 
   def notify_recipient
-    self.job_application.user.notifications.create(message: self.company.name + " has send you Contract <a href='http://#{self.contractable.etyme_url + contract_path(self)}'>#{self.job.title}</a>", title: self.title) if self.job_application.present?
+    job_application.user.notifications.create(message: company.name + " has send you Contract <a href='http://#{contractable.etyme_url + contract_path(self)}'>#{job.title}</a>", title: title) if job_application.present?
   end
 
   def notify_company_about_contract
-    self.contractable.owner.notifications.create(message: self.company.name + " has send you Contract <a href='http://#{self.contractable.etyme_url + contract_path(self)}'>#{self.job.title}</a>", title: self.title)
+    contractable.owner.notifications.create(message: company.name + " has send you Contract <a href='http://#{contractable.etyme_url + contract_path(self)}'>#{job.title}</a>", title: title)
   end
 
   def notify_assignee_on_status_change
-    if self.accepted?
-      self.assignee.notifications.create(message: self.respond_by.full_name + " assigned you a contract for <a href='http://#{self.respond_by.etyme_url + contract_path(self)}'>#{self.job.title}</a>", title: self.title)
+    if accepted?
+      assignee.notifications.create(message: respond_by.full_name + " assigned you a contract for <a href='http://#{respond_by.etyme_url + contract_path(self)}'>#{job.title}</a>", title: title)
     else
-      self.assignee.notifications.create(message: "Your contract for <a href='http://#{self.respond_by.etyme_url + contract_path(self)}'>#{self.job.title}</a> now #{self.status.titleize}", title: self.title)
+      assignee.notifications.create(message: "Your contract for <a href='http://#{respond_by.etyme_url + contract_path(self)}'>#{job.title}</a> now #{status.titleize}", title: title)
     end
   end
 
   def notify_companies_admins_on_status_change
-    if self.status == "in_progress" || self.status == "is_ended" || self.status == "cancelled" || self.status == "paused"
-      self.assignee.notifications.create(message: "Your contract for <a href='http://#{self.respond_by.etyme_url + contract_path(self)}'>#{self.job.title}</a> now #{self.status.titleize}", title: self.title)
-      self.respond_by.notifications.create(message: "Your contract for <a href='http://#{self.respond_by.etyme_url + contract_path(self)}'>#{self.job.title}</a> now #{self.status.titleize}", title: self.title)
-      self.created_by.notifications.create(message: "Your contract for <a href='http://#{self.created_by.etyme_url + contract_path(self)}'>#{self.job.title}</a> now #{self.status.titleize}", title: self.title)
-    end
+    return unless status == 'in_progress' || status == 'is_ended' || status == 'cancelled' || status == 'paused'
+
+    assignee.notifications.create(message: "Your contract for <a href='http://#{respond_by.etyme_url + contract_path(self)}'>#{job.title}</a> now #{status.titleize}", title: title)
+    respond_by.notifications.create(message: "Your contract for <a href='http://#{respond_by.etyme_url + contract_path(self)}'>#{job.title}</a> now #{status.titleize}", title: title)
+    created_by.notifications.create(message: "Your contract for <a href='http://#{created_by.etyme_url + contract_path(self)}'>#{job.title}</a> now #{status.titleize}", title: title)
 
     # admins.each  do |admin|
     #     admin.notifications.create(message: self.applicationable.company.name + " has <a href='http://#{admin.etyme_url + contract_path(self)}'>apply</a> your Job Application - #{self.job.title}",title:"Job Application")
@@ -260,11 +260,11 @@ class Contract < ApplicationRecord
   end
 
   def next_invoice_date_should_be_in_future
-    errors.add(:next_invoice_date, ' should be in future') if self.next_invoice_date.present? && self.next_invoice_date < Date.today
+    errors.add(:next_invoice_date, ' should be in future') if next_invoice_date.present? && next_invoice_date < Date.today
   end
 
   def start_date_cannot_be_less_than_end_date
-    errors.add(:start_date, ' cannot be less than end date.') if self.end_date.blank? || self.end_date < self.start_date
+    errors.add(:start_date, ' cannot be less than end date.') if end_date.blank? || end_date < start_date
   end
 
   def start_date_cannot_be_in_the_past
@@ -272,29 +272,25 @@ class Contract < ApplicationRecord
   end
 
   def schedule_timesheet
-    self.timesheets.create!(user_id: self.assignee.id, job_id: self.job.id, start_date: self.start_date, company_id: self.contractable.id, status: 'open')
+    timesheets.create!(user_id: assignee.id, job_id: job.id, start_date: start_date, company_id: contractable.id, status: 'open')
   end
 
   def create_timesheet
-    self.update_column(:next_invoice_date, self.start_date + TIMESHEET_FREQUENCY[self.time_sheet_frequency].days + 2.days)
-    self.delay(run_at: self.start_date.to_time).schedule_timesheet
+    update_column(:next_invoice_date, start_date + TIMESHEET_FREQUENCY[time_sheet_frequency].days + 2.days)
+    delay(run_at: start_date.to_time).schedule_timesheet
   end
 
   def self.end_contracts
-    Contract.where(end_date: Date.today).each do |contract|
-      contract.is_ended!
-    end
+    Contract.where(end_date: Date.today).each(&:is_ended!)
   end
 
   def self.start_contracts
-    Contract.where(" start_date <='#{Date.today.to_s}' ").accepted.each do |contract|
-      contract.in_progress!
-    end
+    Contract.where(" start_date <='#{Date.today}' ").accepted.each(&:in_progress!)
   end
 
   def self.invoiced_timesheets
-    self.in_progress.where({next_invoice_date: Date.today}).each do |contract|
-      contract.invoices.create! if !contract.has_child?
+    in_progress.where(next_invoice_date: Date.today).each do |contract|
+      contract.invoices.create! unless contract.has_child?
     end
   end
 
@@ -340,12 +336,11 @@ class Contract < ApplicationRecord
 
   def self.set_cycle
     count = 0
-    self.in_progress.each do |contract|
-      begin
-        contract.set_timesheet_submit(count)
-      rescue NoMethodError, RuntimeError, KeyError, ArgumentError
-        next
-      end
+    in_progress.each do |contract|
+      contract.set_timesheet_submit(count)
+    rescue NoMethodError, RuntimeError, KeyError, ArgumentError
+      next
+
       # contract.contract_cycles.where('end_date > ?', contract.end_date).where.not(cycle_type: ['SalaryClear', 'ClientExpenseApprove', 'ClientExpenseInvoice']).update_all(end_date: contract.end_date)
       # contract.invoice_generate
     end
@@ -368,10 +363,8 @@ class Contract < ApplicationRecord
   # end
 
   def set_next_invoice_date
-    self.update(next_invoice_date: (self.start_date + self.sell_contract.invoice_terms_period.to_i.days))
+    update(next_invoice_date: (start_date + sell_contract.invoice_terms_period.to_i.days))
   end
-
-  #
 
   # tx = ledger.transactions.transact do |builder|
   #   builder.issue(
@@ -407,311 +400,356 @@ class Contract < ApplicationRecord
     # end
   end
 
-
   def set_on_seq
     ledger = Sequence::Client.new(
-        ledger_name: 'company-dev',
-        credential: 'OUUY4ZFYQO4P3YNC5JC3GMY7ZQJCSNTH'
+      ledger_name: 'company-dev',
+      credential: 'OUUY4ZFYQO4P3YNC5JC3GMY7ZQJCSNTH'
     )
-    company_name = self.company&.name
-    ledger.keys.create(id: company_name) if !ledger.keys.list.map(&:id).include? company_name
+    company_name = company&.name
+    ledger.keys.create(id: company_name) unless ledger.keys.list.map(&:id).include? company_name
     comp_key = company_name
     # comp_key = ledger.keys.query({aliases: [company_name]}).first
     # unless comp_key.present?
     #   comp_key = ledger.keys.create(id: company_name)
     # end
 
-
     # Consultant Expense
     la = ledger.accounts.list(
-        filter: 'id=$1',
-        filter_params: ["cons_#{self.candidate.id}_expense"]).first
+      filter: 'id=$1',
+      filter_params: ["cons_#{candidate.id}_expense"]
+    ).first
 
-    ledger.accounts.create(
-        id: "cons_#{self.candidate.id}_expense",
+    unless la.present?
+      ledger.accounts.create(
+        id: "cons_#{candidate.id}_expense",
         key_ids: [comp_key],
         quorum: 1
-    ) unless la.present?
-
+      )
+    end
 
     # Consultant Salary Advance
     la = ledger.accounts.list(
-        filter: 'id=$1',
-        filter_params: ["cons_#{self.candidate.id}_advance"]).first
+      filter: 'id=$1',
+      filter_params: ["cons_#{candidate.id}_advance"]
+    ).first
 
-    ledger.accounts.create(
-        id: "cons_#{self.candidate.id}_advance",
+    unless la.present?
+      ledger.accounts.create(
+        id: "cons_#{candidate.id}_advance",
         key_ids: [comp_key],
         quorum: 1
-    ) unless la.present?
+      )
+    end
 
     # Consultant Salary Settlement
     la = ledger.accounts.list(
-        filter: 'id=$1',
-        filter_params: ["cons_#{self.candidate.id}_settlement"]).first
+      filter: 'id=$1',
+      filter_params: ["cons_#{candidate.id}_settlement"]
+    ).first
 
-    ledger.accounts.create(
-        id: "cons_#{self.candidate.id}_settlement",
+    unless la.present?
+      ledger.accounts.create(
+        id: "cons_#{candidate.id}_settlement",
         key_ids: [comp_key],
         quorum: 1
-    ) unless la.present?
+      )
+    end
 
     # Consultant Salary Process
     la = ledger.accounts.list(
-        filter: 'id=$1',
-        filter_params: ["cons_#{self.candidate.id}_process"]).first
+      filter: 'id=$1',
+      filter_params: ["cons_#{candidate.id}_process"]
+    ).first
 
-    ledger.accounts.create(
-        id: "cons_#{self.candidate.id}_process",
+    unless la.present?
+      ledger.accounts.create(
+        id: "cons_#{candidate.id}_process",
         key_ids: [comp_key],
         quorum: 1
-    ) unless la.present?
-
+      )
+    end
 
     # Create Consultant Account
     la = ledger.accounts.list(
-        filter: 'id=$1',
-        filter_params: ["cons_#{self.candidate.id}"]).first
+      filter: 'id=$1',
+      filter_params: ["cons_#{candidate.id}"]
+    ).first
 
-    ledger.accounts.create(
-        id: "cons_#{self.candidate.id}",
+    unless la.present?
+      ledger.accounts.create(
+        id: "cons_#{candidate.id}",
         key_ids: [comp_key],
-        quorum: 1,
-    # tags: {
-    #   contract_id: self.id
-    # }
-    ) unless la.present?
+        quorum: 1
+        # tags: {
+        #   contract_id: self.id
+        # }
+      )
+    end
 
-
-    #Create Company/Client
+    # Create Company/Client
     # company_key = ledger.keys.query({aliases: [company_name.split(',').first.gsub(' ',"_")]}).first
-    # unless company_key 
-    company_key = company_name.split(',').first.gsub(' ', "_")
-    ledger.keys.create(id: company_name.split(',').first.gsub(' ', "_")) if !ledger.keys.list.map(&:id).include? company_key
+    # unless company_key
+    company_key = company_name.split(',').first.tr(' ', '_')
+    ledger.keys.create(id: company_name.split(',').first.tr(' ', '_')) unless ledger.keys.list.map(&:id).include? company_key
     # end
 
-
     ta = ledger.accounts.list(
-        filter: 'id=$1',
-        filter_params: ["comp_#{self.company.id}_treasury"]).first
+      filter: 'id=$1',
+      filter_params: ["comp_#{company.id}_treasury"]
+    ).first
 
-    treasury_account = ledger.accounts.create({
-                                                  key_ids: [company_key],
-                                                  quorum: 1,
-                                                  id: "comp_#{self.company.id}_treasury",
-                                                  tags: {
-                                                      name: company_name.gsub(' ', '_') + '_treasury'
-                                                  }
-                                              }) unless ta.present?
+    unless ta.present?
+      treasury_account = ledger.accounts.create(
+        key_ids: [company_key],
+        quorum: 1,
+        id: "comp_#{company.id}_treasury",
+        tags: {
+          name: company_name.tr(' ', '_') + '_treasury'
+        }
+      )
+    end
 
     ea = ledger.accounts.list(
-        filter: 'id=$1',
-        filter_params: ["comp_#{self.company.id}_expense"]).first
+      filter: 'id=$1',
+      filter_params: ["comp_#{company.id}_expense"]
+    ).first
 
-    expense_account = ledger.accounts.create({
-                                                 key_ids: [company_key],
-                                                 quorum: 1,
-                                                 id: "comp_#{self.company.id}_expense",
-                                                 tags: {
-                                                     name: company_name.gsub(' ', '_') + '_expense'
-                                                 }
-                                             }) unless ea.present?
+    unless ea.present?
+      expense_account = ledger.accounts.create(
+        key_ids: [company_key],
+        quorum: 1,
+        id: "comp_#{company.id}_expense",
+        tags: {
+          name: company_name.tr(' ', '_') + '_expense'
+        }
+      )
+    end
 
     ue = ledger.accounts.list(
-        filter: 'id=$1',
-        filter_params: ["comp_#{self.company.id}_unidentified_expense"]).first
+      filter: 'id=$1',
+      filter_params: ["comp_#{company.id}_unidentified_expense"]
+    ).first
 
-    unidentified_account = ledger.accounts.create({
-                                                      key_ids: [company_key],
-                                                      quorum: 1,
-                                                      id: "comp_#{self.company.id}_unidentified_expense",
-                                                      tags: {
-                                                          name: company_name.gsub(' ', '_') + '_unidentified_expense'
-                                                      }
-                                                  }) unless ue.present?
+    unless ue.present?
+      unidentified_account = ledger.accounts.create(
+        key_ids: [company_key],
+        quorum: 1,
+        id: "comp_#{company.id}_unidentified_expense",
+        tags: {
+          name: company_name.tr(' ', '_') + '_unidentified_expense'
+        }
+      )
+    end
 
     # Create Customer Account
 
-    cust_key = self.sell_contract.company.name.split(',').first.gsub(' ', "_")
-    # unless cust_key 
-    ledger.keys.create(id: self.sell_contract.company.name.split(',').first.gsub(' ', "_")) if !ledger.keys.list.map(&:id).include? cust_key
+    cust_key = sell_contract.company.name.split(',').first.tr(' ', '_')
+    # unless cust_key
+    ledger.keys.create(id: sell_contract.company.name.split(',').first.tr(' ', '_')) unless ledger.keys.list.map(&:id).include? cust_key
     # end
     ta = ledger.accounts.list(
-        filter: 'id=$1',
-        filter_params: ["cust_#{self.sell_contract.company.id}_treasury"]).first
+      filter: 'id=$1',
+      filter_params: ["cust_#{sell_contract.company.id}_treasury"]
+    ).first
 
-    treasury_account = ledger.accounts.create({
-                                                  key_ids: [cust_key],
-                                                  quorum: 1,
-                                                  id: "cust_#{self.sell_contract.company.id}_treasury",
-                                                  tags: {
-                                                      name: self.sell_contract.company&.name.gsub(' ', '_') + '_treasury'
-                                                  }
-                                              }) unless ta.present?
+    unless ta.present?
+      treasury_account = ledger.accounts.create(
+        key_ids: [cust_key],
+        quorum: 1,
+        id: "cust_#{sell_contract.company.id}_treasury",
+        tags: {
+          name: sell_contract.company&.name.tr(' ', '_') + '_treasury'
+        }
+      )
+    end
 
     ea = ledger.accounts.list(
-        filter: 'id=$1',
-        filter_params: ["cust_#{self.sell_contract.company.id}_expense"]).first
+      filter: 'id=$1',
+      filter_params: ["cust_#{sell_contract.company.id}_expense"]
+    ).first
 
-    expense_account = ledger.accounts.create({
-                                                 key_ids: [cust_key],
-                                                 quorum: 1,
-                                                 id: "cust_#{self.sell_contract.company.id}_expense",
-                                                 tags: {
-                                                     name: self.sell_contract.company&.name.gsub(' ', '_') + '_expense'
-                                                 }
-                                             }) unless ea.present?
+    unless ea.present?
+      expense_account = ledger.accounts.create(
+        key_ids: [cust_key],
+        quorum: 1,
+        id: "cust_#{sell_contract.company.id}_expense",
+        tags: {
+          name: sell_contract.company&.name.tr(' ', '_') + '_expense'
+        }
+      )
+    end
 
     ue = ledger.accounts.list(
-        filter: 'id=$1',
-        filter_params: ["cust_#{self.sell_contract.company.id}_unidentified_expense"]).first
+      filter: 'id=$1',
+      filter_params: ["cust_#{sell_contract.company.id}_unidentified_expense"]
+    ).first
 
-    unidentified_account = ledger.accounts.create({
-                                                      key_ids: [cust_key],
-                                                      quorum: 1,
-                                                      id: "cust_#{self.sell_contract.company.id}_unidentified_expense",
-                                                      tags: {
-                                                          name: self.sell_contract.company&.name.gsub(' ', '_') + '_unidentified_expense'
-                                                      }
-                                                  }) unless ue.present?
-
+    unless ue.present?
+      unidentified_account = ledger.accounts.create(
+        key_ids: [cust_key],
+        quorum: 1,
+        id: "cust_#{sell_contract.company.id}_unidentified_expense",
+        tags: {
+          name: sell_contract.company&.name.tr(' ', '_') + '_unidentified_expense'
+        }
+      )
+    end
 
     # Create Vendor Account
-    if self.buy_contract.contract_type == 'C2C'
-      vendor_key = self.buy_contract.company.name.split(',').first.gsub(' ', "_")
-      ledger.keys.create(id: self&.buy_contract.company.name.split(',').first.gsub(' ', "_")) if !ledger.keys.list.map(&:id).include? vendor_key
+    if buy_contract.contract_type == 'C2C'
+      vendor_key = buy_contract.company.name.split(',').first.tr(' ', '_')
+      ledger.keys.create(id: self&.buy_contract.company.name.split(',').first.tr(' ', '_')) unless ledger.keys.list.map(&:id).include? vendor_key
 
       la = ledger.accounts.list(
-          filter: 'id=$1',
-          filter_params: ["vendor_#{self.buy_contract.company_id}"]).first
+        filter: 'id=$1',
+        filter_params: ["vendor_#{buy_contract.company_id}"]
+      ).first
 
-      ledger.accounts.create(
-          id: "vendor_#{self.buy_contract.company_id}",
+      unless la.present?
+        ledger.accounts.create(
+          id: "vendor_#{buy_contract.company_id}",
           key_ids: [vendor_key],
           quorum: 1
-      ) unless la.present?
+        )
+      end
 
       # create vendor expense
 
       la = ledger.accounts.list(
-          filter: 'id=$1',
-          filter_params: ["vendor_#{self.buy_contract.company_id}_expense"]).first
+        filter: 'id=$1',
+        filter_params: ["vendor_#{buy_contract.company_id}_expense"]
+      ).first
 
-      ledger.accounts.create(
-          id: "vendor_#{self.buy_contract.company_id}_expense",
+      unless la.present?
+        ledger.accounts.create(
+          id: "vendor_#{buy_contract.company_id}_expense",
           key_ids: [vendor_key],
           quorum: 1
-      ) unless la.present?
+        )
+      end
 
       # create vendor settlement
 
       la = ledger.accounts.list(
-          filter: 'id=$1',
-          filter_params: ["vendor_#{self.buy_contract.company_id}_settlement"]).first
+        filter: 'id=$1',
+        filter_params: ["vendor_#{buy_contract.company_id}_settlement"]
+      ).first
 
-      ledger.accounts.create(
-          id: "vendor_#{self.buy_contract.company_id}_settlement",
+      unless la.present?
+        ledger.accounts.create(
+          id: "vendor_#{buy_contract.company_id}_settlement",
           key_ids: [vendor_key],
           quorum: 1
-      ) unless la.present?
+        )
+      end
 
       # create vendor advance
       la = ledger.accounts.list(
-          filter: 'id=$1',
-          filter_params: ["vendor_#{self.buy_contract.company_id}_advance"]).first
+        filter: 'id=$1',
+        filter_params: ["vendor_#{buy_contract.company_id}_advance"]
+      ).first
 
-      ledger.accounts.create(
-          id: "vendor_#{self.buy_contract.company_id}_advance",
+      unless la.present?
+        ledger.accounts.create(
+          id: "vendor_#{buy_contract.company_id}_advance",
           key_ids: [vendor_key],
           quorum: 1
-      ) unless la.present?
+        )
+      end
 
       # create vendor process
       la = ledger.accounts.list(
-          filter: 'id=$1',
-          filter_params: ["vendor_#{self.buy_contract.company_id}_process"]).first
+        filter: 'id=$1',
+        filter_params: ["vendor_#{buy_contract.company_id}_process"]
+      ).first
 
-      ledger.accounts.create(
-          id: "vendor_#{self.buy_contract.company_id}_process",
+      unless la.present?
+        ledger.accounts.create(
+          id: "vendor_#{buy_contract.company_id}_process",
           key_ids: [vendor_key],
           quorum: 1
-      ) unless la.present?
-
+        )
+      end
 
     end
-
 
     # Create Commission Account
-    self.csc_accounts.each do |csc|
-
+    csc_accounts.each do |csc|
       la = ledger.accounts.list(
-          filter: 'id=$1',
-          filter_params: ["comm_#{csc.id}"]).first
+        filter: 'id=$1',
+        filter_params: ["comm_#{csc.id}"]
+      ).first
+
+      next if la.present?
 
       ledger.accounts.create(
-          id: "comm_#{csc.id}",
-          key_ids: [comp_key],
-          quorum: 1,
-          tags: {
-              contract_id: self.id,
-              accountable_type: csc.accountable_type,
-              accountable_id: csc.accountable_id
-          }
-      ) unless la.present?
-    end
-
-    #Create Contract Account
-    la = ledger.accounts.list(
-        filter: 'id=$1',
-        filter_params: ["cont_#{self.id}"]).first
-
-    ledger.accounts.create(
-        id: "cont_#{self.id}",
+        id: "comm_#{csc.id}",
         key_ids: [comp_key],
         quorum: 1,
         tags: {
-            contract_id: self.id,
-            customer_id: self.sell_contract.company.id,
-            company_id: self.company.id,
-            vendor_id: self&.buy_contract.company&.id,
-            contract_type: self&.buy_contract.contract_type,
-            consulant_id: self.candidate.id
+          contract_id: id,
+          accountable_type: csc.accountable_type,
+          accountable_id: csc.accountable_id
         }
-    ) unless la.present?
+      )
+    end
+
+    # Create Contract Account
+    la = ledger.accounts.list(
+      filter: 'id=$1',
+      filter_params: ["cont_#{id}"]
+    ).first
+
+    unless la.present?
+      ledger.accounts.create(
+        id: "cont_#{id}",
+        key_ids: [comp_key],
+        quorum: 1,
+        tags: {
+          contract_id: id,
+          customer_id: sell_contract.company.id,
+          company_id: company.id,
+          vendor_id: self&.buy_contract.company&.id,
+          contract_type: self&.buy_contract.contract_type,
+          consulant_id: candidate.id
+        }
+      )
+    end
 
     # Create Contract Expense Account
     la = ledger.accounts.list(
-        filter: 'id=$1',
-        filter_params: ["cont_#{self.id}" + '_expense']).first
+      filter: 'id=$1',
+      filter_params: ["cont_#{id}" + '_expense']
+    ).first
+    return if la.present?
+
     ledger.accounts.create(
-        id: "cont_#{self.id}" + '_expense',
-        key_ids: [comp_key],
-        quorum: 1,
-        tags: {
-            contract_id: self.id,
-            customer_id: self.sell_contract.company.id,
-            company_id: self.company.id,
-            vendor_id: self&.buy_contract.company&.id,
-            contract_type: self&.buy_contract.contract_type,
-            consulant_id: self.candidate.id
-        }
-    ) unless la.present?
-
-
+      id: "cont_#{id}" + '_expense',
+      key_ids: [comp_key],
+      quorum: 1,
+      tags: {
+        contract_id: id,
+        customer_id: sell_contract.company.id,
+        company_id: company.id,
+        vendor_id: self&.buy_contract.company&.id,
+        contract_type: self&.buy_contract.contract_type,
+        consulant_id: candidate.id
+      }
+    )
   end
 
   def contract_progress
-    if (Date.today > self.start_date && Date.today <= self.end_date) || (Date.today == self.start_date && Date.today == self.end_date)
-      (((Date.today - self.start_date) + 1).to_f * 100).to_f / ((self.end_date - self.start_date) + 1).to_f
-    elsif Date.today == self.start_date && Date.today <= self.end_date
-      ((Date.today - self.start_date).to_f * 100).to_f / ((self.end_date - self.start_date) + 1).to_f
-    elsif Date.today > self.start_date && Date.today >= end_date
+    if (Date.today > start_date && Date.today <= end_date) || (Date.today == start_date && Date.today == end_date)
+      (((Date.today - start_date) + 1).to_f * 100).to_f / ((end_date - start_date) + 1)
+    elsif Date.today == start_date && Date.today <= end_date
+      ((Date.today - start_date).to_f * 100).to_f / ((end_date - start_date) + 1)
+    elsif Date.today > start_date && Date.today >= end_date
       100.00
     end
   end
 
   def admin_user
-    contract_admins&.first&.user || company.users.joins(:roles).where('roles.name': "HR admin").limit(1).first
+    contract_admins&.first&.user || company.users.joins(:roles).where('roles.name': 'HR admin').limit(1).first
   end
 
   def notify_contract_companies
@@ -724,37 +762,32 @@ class Contract < ApplicationRecord
     ex_notify_buy_side if buy_contract.present?
   end
 
-
   private
 
   def ex_notify_sell_side
     Notification.unread.contract.create(notifiable: sell_contract.team_admin,
                                         createable: created_by,
-                                        title: "Extended Contract",
-                                        message: "#{company.full_name.capitalize} has extended the contract '#{project_name}'"
-    )
+                                        title: 'Extended Contract',
+                                        message: "#{company.full_name.capitalize} has extended the contract '#{project_name}'")
   end
 
   def ex_notify_buy_side
     candidate.notifications.unread.contract.create(createable: created_by,
-                                                   title: "Extended Contract",
-                                                   message: "#{company.full_name.capitalize} has extended the contract '#{project_name}'"
-    )
+                                                   title: 'Extended Contract',
+                                                   message: "#{company.full_name.capitalize} has extended the contract '#{project_name}'")
   end
 
   def notify_sell_side
     Notification.unread.contract.create(notifiable: sell_contract.team_admin,
                                         createable: created_by,
-                                        title: "New Contract",
-                                        message: "#{company.full_name.capitalize} has started a new contract '#{project_name}' with your company"
-    )
+                                        title: 'New Contract',
+                                        message: "#{company.full_name.capitalize} has started a new contract '#{project_name}' with your company")
   end
 
   def notify_buy_side
     candidate.notifications.unread.contract.create(createable: created_by,
-                                                   title: "New Contract",
-                                                   message: "#{company.full_name.capitalize} has started a new contract '#{project_name}' with you"
-    )
+                                                   title: 'New Contract',
+                                                   message: "#{company.full_name.capitalize} has started a new contract '#{project_name}' with you")
   end
 
   def appraiser

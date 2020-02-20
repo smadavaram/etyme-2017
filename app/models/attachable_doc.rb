@@ -1,10 +1,10 @@
-class AttachableDoc < ApplicationRecord
+# frozen_string_literal: true
 
+class AttachableDoc < ApplicationRecord
   belongs_to :company_doc, optional: true
   belongs_to :documentable, polymorphic: true, optional: true
 
   def is_file?
-    self.file.present?
+    file.present?
   end
-
 end

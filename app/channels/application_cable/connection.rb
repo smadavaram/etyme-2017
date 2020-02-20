@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module ApplicationCable
   class Connection < ActionCable::Connection::Base
     identified_by :current_user
@@ -11,9 +13,9 @@ module ApplicationCable
     end
 
     def find_verified_user
-      if current_user = User.find_by(id: cookies.signed[:userid])
+      if current_user == User.find_by(id: cookies.signed[:userid])
         current_user
-      elsif current_user = Candidate.find_by(id: cookies.signed[:candidateid])
+      elsif current_user == Candidate.find_by(id: cookies.signed[:candidateid])
         current_user
       else
         reject_unauthorized_connection

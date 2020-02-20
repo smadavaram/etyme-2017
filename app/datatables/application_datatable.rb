@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 class ApplicationDatatable < AjaxDatatablesRails::ActiveRecord
   extend Forwardable
 
@@ -26,13 +28,12 @@ class ApplicationDatatable < AjaxDatatablesRails::ActiveRecord
   def_delegator :@view, :image_alt
   def_delegator :@view, :entity_image
 
-
   def initialize(params, opts = {})
     @view = opts[:view_context]
     super
   end
 
-  def company_logo_and_name company
-    image_tag(company.logo, class: "data-table-image").html_safe + " " + company.name
+  def company_logo_and_name(company)
+    image_tag(company.logo, class: 'data-table-image').html_safe + ' ' + company.name
   end
 end

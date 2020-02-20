@@ -1,10 +1,12 @@
+# frozen_string_literal: true
+
 class Company::InvoiceTermInfosController < Company::BaseController
-  add_breadcrumb "Dashboard", :dashboard_path
-  before_action :set_department , only: [:create]
-  respond_to :html,:json
+  add_breadcrumb 'Dashboard', :dashboard_path
+  before_action :set_department, only: [:create]
+  respond_to :html, :json
 
   def index
-    add_breadcrumb "Invoice Term Info"
+    add_breadcrumb 'Invoice Term Info'
     @invoice = current_company.invoice_infos
   end
 
@@ -16,11 +18,10 @@ class Company::InvoiceTermInfosController < Company::BaseController
   private
 
   def set_department
-    @invoice=current_company.invoice_infos.new(invoice_params)
+    @invoice = current_company.invoice_infos.new(invoice_params)
   end
 
   def invoice_params
-    params.require(:invoice_info).permit(:id, :invoice_term )
+    params.require(:invoice_info).permit(:id, :invoice_term)
   end
-
 end

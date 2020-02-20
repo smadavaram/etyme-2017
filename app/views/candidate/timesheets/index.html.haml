@@ -88,7 +88,6 @@
       $.get(`/candidate/timesheets.js?cycle_id=${cycle}&&contract_id=${contract}&&tab=${tab}`);
     }
     function show_popup(event){
-
       let transaction_id = event.getAttribute('data-transaction');
       let timesheet_id = event.getAttribute('data-timesheet');
       let time = event.getAttribute('data-time');
@@ -96,7 +95,9 @@
       $('#transaction_id').val(transaction_id);
       $('#timesheet_id').val(timesheet_id);
       $('#t_total_time').val(time);
-      $('#t_memo').val(memo);
+      if(memo !== "null"){
+        $('#t_memo').val(memo);
+      }
       $('#timesheet_submit_modal').modal('show');
     }
 

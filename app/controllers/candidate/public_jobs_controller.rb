@@ -1,24 +1,27 @@
-class Candidate::PublicJobsController < Candidate::BaseController
+# frozen_string_literal: true
 
+class Candidate::PublicJobsController < Candidate::BaseController
   require 'will_paginate/array'
 
   def index
     # @jobs = Job.joins("INNER JOIN experiences on jobs.industry = experiences.industry AND jobs.department = experiences.department INNER JOIN candidates on experiences.user_id = candidates.id").where("candidates.id in (?)", current_company.candidates.pluck(:id)).order("id DESC").uniq.paginate(page: params[:page], per_page: 10) || []
-  
-    # @jobs = Job.joins("INNER JOIN experiences on jobs.industry = experiences.industry AND jobs.department = experiences.department INNER JOIN candidates on experiences.user_id = candidates.id").order("id DESC").uniq.paginate(page: params[:page], per_page: 10) || []
-    @jobs = Job.order("id DESC").uniq.paginate(page: params[:page], per_page: 10) || []
 
+    # @jobs = Job.joins("INNER JOIN experiences on jobs.industry = experiences.industry AND jobs.department = experiences.department INNER JOIN candidates on experiences.user_id = candidates.id").order("id DESC").uniq.paginate(page: params[:page], per_page: 10) || []
+    @jobs = Job.order('id DESC').uniq.paginate(page: params[:page], per_page: 10) || []
   end
 
   def job
-
     @job = Job.find(params[:id])
-    @jobs = Job.order("id DESC").uniq.paginate(page: params[:page], per_page: 10) || []
-    @company = Company.find(@job.company_id) rescue nil
+    @jobs = Job.order('id DESC').uniq.paginate(page: params[:page], per_page: 10) || []
+    @company = begin
+                 Company.find(@job.company_id)
+               rescue StandardError
+                 nil
+               end
     # @jobs = Job.joins("INNER JOIN experiences on jobs.industry = experiences.industry AND jobs.department = experiences.department INNER JOIN candidates on experiences.user_id = candidates.id").where("candidates.id in (?)", current_company.candidates.pluck(:id)).order("id DESC").uniq.paginate(page: params[:page], per_page: 10) || []
     respond_to do |format|
       format.js
-      format.html {redirect_to candidate_public_jobs_path }
+      format.html { redirect_to candidate_public_jobs_path }
     end
   end
 
@@ -36,7 +39,7 @@ class Candidate::PublicJobsController < Candidate::BaseController
 
   def create_own_job
     @job = Job.find(params[:id])
-    current_company.jobs.create(@job.attributes.except("id","created_by_id").merge!(created_by_id: current_user.id, tag_list: @job.tag_list, education_list: @job.education_list, ref_job_id: @job.id))
+    current_company.jobs.create(@job.attributes.except('id', 'created_by_id').merge!(created_by_id: current_user.id, tag_list: @job.tag_list, education_list: @job.education_list, ref_job_id: @job.id))
     redirect_to company_public_jobs_path, success: 'Job was successfully created.'
   end
 
@@ -46,7 +49,7 @@ class Candidate::PublicJobsController < Candidate::BaseController
     @job_application = @job.job_applications.new
     @job_application.job_applicant_reqs.build
     @job.custom_fields.each do |cf|
-      @job_application.custom_fields.new(name: cf.name,required: cf.required)
+      @job_application.custom_fields.new(name: cf.name, required: cf.required)
     end
   end
 end

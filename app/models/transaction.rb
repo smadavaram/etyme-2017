@@ -1,6 +1,7 @@
-class Transaction < ApplicationRecord
+# frozen_string_literal: true
 
-  enum status: [:pending, :accepted, :rejected]
+class Transaction < ApplicationRecord
+  enum status: %i[pending accepted rejected]
 
   # before_validation   :set_time_date
   # before_validation   :set_total_time
@@ -28,21 +29,19 @@ class Transaction < ApplicationRecord
   private
 
   def timesheet_open
-    errors.add(:base, "Timesheet is closed!") if !self.timesheet.open?
+    errors.add(:base, 'Timesheet is closed!') unless timesheet.open?
   end
 
   def max_hours_limit
-    errors.add(:base, "Max Working Hour limit reached!") if (self.total_time + self.timesheet_log.total_time) > self.timesheet.user.max_working_hours
+    errors.add(:base, 'Max Working Hour limit reached!') if (total_time + timesheet_log.total_time) > timesheet.user.max_working_hours
   end
 
   def end_time_is_not_in_future
-    if self.end_time > DateTime.now
-      errors.add(:base, 'Time can not be in future!')
-    end
+    errors.add(:base, 'Time can not be in future!') if end_time > DateTime.now
   end
 
   def start_time_less_than_end_time
-    errors.add(:base, "Start time should be less than end time!") if self.start_time >= self.end_time
+    errors.add(:base, 'Start time should be less than end time!') if start_time >= end_time
   end
 
   def time_overlap
@@ -54,21 +53,18 @@ class Transaction < ApplicationRecord
   end
 
   def set_time_date
-    self.start_time = DateTime.new(self.timesheet_log.transaction_day.year, self.timesheet_log.transaction_day.month, self.timesheet_log.transaction_day.day, self.start_time.hour, self.start_time.min, self.start_time.sec, DateTime.now.zone)
-    self.end_time = DateTime.new(self.timesheet_log.transaction_day.year, self.timesheet_log.transaction_day.month, self.timesheet_log.transaction_day.day, self.end_time.hour, self.end_time.min, self.end_time.sec, DateTime.now.zone)
+    self.start_time = DateTime.new(timesheet_log.transaction_day.year, timesheet_log.transaction_day.month, timesheet_log.transaction_day.day, start_time.hour, start_time.min, start_time.sec, DateTime.now.zone)
+    self.end_time = DateTime.new(timesheet_log.transaction_day.year, timesheet_log.transaction_day.month, timesheet_log.transaction_day.day, end_time.hour, end_time.min, end_time.sec, DateTime.now.zone)
   end
-
 
   def check_dates_overlap?
-    self.timesheet_log.transactions.not_rejected.all.each do |t|
-      if self.start_time.between?(t.start_time, t.end_time)
+    timesheet_log.transactions.not_rejected.all.each do |t|
+      if start_time.between?(t.start_time, t.end_time)
         return true
-      elsif self.end_time.between?(t.start_time, t.end_time)
+      elsif end_time.between?(t.start_time, t.end_time)
         return true
-      end #end of if
-    end #end of each
-    return false
+      end
+    end
+    false
   end
-
-
 end

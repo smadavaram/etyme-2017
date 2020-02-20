@@ -1,16 +1,17 @@
-module Company::LeavesHelper
-  def set_background_status_color status
-    if status == 'accepted'
-      return 'success'
-    elsif status == 'rejected'
-      return 'danger'
-    elsif status == 'pending'
-      return 'primary'
-    end
+# frozen_string_literal: true
 
+module Company::LeavesHelper
+  def set_background_status_color(status)
+    if status == 'accepted'
+      'success'
+    elsif status == 'rejected'
+      'danger'
+    elsif status == 'pending'
+      'primary'
+    end
   end
 
-  def leave_status_color status
+  def leave_status_color(status)
     color = "<span class ='span label label-"
     if status == 'accepted'
       color += "success'>#{status.to_s.titleize}</span>"

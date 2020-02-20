@@ -1,38 +1,41 @@
-class Leave < ApplicationRecord
-  enum status: [ :pending, :accepted  ,:rejected]
+# frozen_string_literal: true
 
-  validates :status ,             inclusion: {in: statuses.keys}
-  validates :from_date ,:till_date,presence: true
-  validates :leave_type ,presence:  true
+class Leave < ApplicationRecord
+  enum status: %i[pending accepted rejected]
+
+  validates :status, inclusion: { in: statuses.keys }
+  validates :from_date, :till_date, presence: true
+  validates :leave_type, presence: true
   # validates :from_date, date: { after_or_equal_to: Proc.new{Date.today}, message: 'Start date can not be before today'}
-  validates :till_date, date: { after_or_equal_to: :from_date, message: 'End date should be greater then start date'}
-  validate  :date_overlap , on: :create
+  validates :till_date, date: { after_or_equal_to: :from_date, message: 'End date should be greater then start date' }
+  validate  :date_overlap, on: :create
 
   belongs_to :user, optional: true
-  has_one :company , through: :user
+  has_one :company, through: :user
 
   def is_leave_owner?
-    self.user == self.user.is_consultant?
+    user == user.is_consultant?
   end
 
   private
 
   def date_overlap
     if check_dates_overlap?
-      errors.add(:base,"Leave already present in that time span!")
-      return false
+      errors.add(:base, 'Leave already present in that time span!')
+      false
     else
-      return true
+      true
     end
   end
+
   def check_dates_overlap?
-    self.user.leaves.all.each do |t|
-      if self.from_date.between?(t.from_date,t.till_date)
+    user.leaves.all.each do |t|
+      if from_date.between?(t.from_date, t.till_date)
         return true
-      elsif  self.till_date.between?(t.from_date,t.till_date)
+      elsif till_date.between?(t.from_date, t.till_date)
         return true
-      end #end of if
-    end #end of each
-    return false
+      end
+    end
+    false
   end
 end

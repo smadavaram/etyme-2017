@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 require 'docusign'
 require 'zoom'
 # Use this hook to configure devise mailer, warden hooks and so forth.
@@ -17,7 +19,7 @@ Devise.setup do |config|
   # with default "from" parameter.
   # config.mailer_sender = 'please-change-me-at-config-initializers-devise@example.com'
   config.mailer_sender = 'notify@no-reply.etyme.com'
-  config.mailer = "UserMailer"
+  config.mailer = 'UserMailer'
 
   # Configure the class responsible to send e-mails.
   # config.mailer = 'Devise::Mailer'
@@ -31,20 +33,20 @@ Devise.setup do |config|
   # available as additional gems.
   require 'devise/orm/active_record'
 
-  config.omniauth :google_oauth2, ENV['google_people_key'], ENV['google_secret_key'],:image_size => 'large', skip_jwt: true
-  config.omniauth :facebook, ENV['facebook_public_key'], ENV['facebook_secret_key'], scope: 'email', info_fields: 'email,name,first_name,last_name,gender',:image_size => 'large'
+  config.omniauth :google_oauth2, ENV['google_people_key'], ENV['google_secret_key'], image_size: 'large', skip_jwt: true
+  config.omniauth :facebook, ENV['facebook_public_key'], ENV['facebook_secret_key'], scope: 'email', info_fields: 'email,name,first_name,last_name,gender', image_size: 'large'
   config.omniauth :linkedin, ENV['linked_in_public_key'], ENV['linked_in_secret_key']
-  config.omniauth :docusign, Rails.application.config.client_id, Rails.application.config.client_secret,:provider_ignores_state => true,
-           :setup => lambda{|env|
-             strategy = env['omniauth.strategy']
-             strategy.options[:client_options].site = Rails.application.config.app_url
-             strategy.options[:prompt] = 'login'
-             strategy.options[:oauth_base_uri] = Rails.application.config.authorization_server
-             strategy.options[:target_account_id] = Rails.application.config.target_account_id
-             strategy.options[:allow_silent_authentication] = Rails.application.config.allow_silent_authentication
-           }
+  config.omniauth :docusign, Rails.application.config.client_id, Rails.application.config.client_secret, provider_ignores_state: true,
+                                                                                                         setup: lambda { |env|
+                                                                                                                  strategy = env['omniauth.strategy']
+                                                                                                                  strategy.options[:client_options].site = Rails.application.config.app_url
+                                                                                                                  strategy.options[:prompt] = 'login'
+                                                                                                                  strategy.options[:oauth_base_uri] = Rails.application.config.authorization_server
+                                                                                                                  strategy.options[:target_account_id] = Rails.application.config.target_account_id
+                                                                                                                  strategy.options[:allow_silent_authentication] = Rails.application.config.allow_silent_authentication
+                                                                                                                }
   config.omniauth :zoom, Rails.application.config.zoom_client_id, Rails.application.config.zoom_client_secret,
-                  :setup => lambda{|env|
+                  setup: lambda { |env|
                     strategy = env['omniauth.strategy']
                     strategy.options[:client_options].site = Rails.application.config.app_url
                     # strategy.options[:prompt] = 'login'
@@ -52,9 +54,6 @@ Devise.setup do |config|
                     # strategy.options[:target_account_id] = Rails.application.config.target_account_id
                     strategy.options[:allow_silent_authentication] = Rails.application.config.allow_silent_authentication
                   }
-
-
-
 
   # config.app_url = 'http://localhost:3000' # The public url of the application.
   # Note that the setting which controls the host/port for your app
@@ -86,8 +85,6 @@ Devise.setup do |config|
   # config.gateway_display_name = "Stripe"
   # config.github_example_url = 'https://github.com/docusign/eg-03-ruby-auth-code-grant/tree/master/app/controllers/'
   # config.documentation = false
-
-
 
   # ==> Configuration for any authentication mechanism
   # Configure which keys are used when authenticating a user. The default is

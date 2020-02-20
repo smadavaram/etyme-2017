@@ -201,7 +201,7 @@ module Cycle::CycleMaker
                              start_date: start_date.to_datetime,
                              end_date: end_date.to_datetime,
                              cyclable: invoice,
-                             cycle_of: self.sell_contract,
+                             cycle_of: sell_contract,
                              cycle_frequency: sell_contract.invoice_terms_period,
                              note: "Invoice generate"
       )
@@ -245,7 +245,7 @@ module Cycle::CycleMaker
       end
       end_date = cycle_end_date(sell_contract.ce_approve, start_date)
       contract_cycles.create(cycle_type: 'ClientExpenseApprove',
-                             user: self.admin_user,
+                             user: admin_user,
                              contract: self,
                              start_date: start_date.to_datetime,
                              end_date: end_date.to_datetime,
@@ -268,7 +268,7 @@ module Cycle::CycleMaker
       end_date = cycle_end_date(sell_contract.ce_invoice, start_date)
       invoice = invoices.client_expense_invoice.pending_invoice.build(sender_company_id: company.id, receiver_company_id: sell_contract.company.id, start_date: start_date, end_date: end_date)
       contract_cycles.create(cycle_type: 'ClientExpenseInvoice',
-                             user: self.admin_user,
+                             user: admin_user,
                              cyclable: invoice,
                              contract: self,
                              start_date: start_date.to_datetime,

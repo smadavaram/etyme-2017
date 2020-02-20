@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module StaticHelper
   def resource_name
     :candidate
@@ -10,13 +12,14 @@ module StaticHelper
   def resource_class
     Candidate
   end
+
   def flash_class(level)
     case level
-      when :notice then 'alert alert-info alert-dismissible'
-      when :success then 'alert alert-success alert-dismissible'
-      when :error then 'alert alert-error alert-dismissible'
-      when :alert then 'alert alert-error alert-dismissible'
-      when :errors then 'alert alert-error alert-dismissible'
+    when :notice then 'alert alert-info alert-dismissible'
+    when :success then 'alert alert-success alert-dismissible'
+    when :error then 'alert alert-error alert-dismissible'
+    when :alert then 'alert alert-error alert-dismissible'
+    when :errors then 'alert alert-error alert-dismissible'
     end
   end
 
@@ -26,5 +29,4 @@ module StaticHelper
   </button> #{value.is_a?(String) ? value : value.first} </div>"
     data.html_safe
   end
-
 end

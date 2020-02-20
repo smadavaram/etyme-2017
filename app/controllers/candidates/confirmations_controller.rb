@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 class Candidates::ConfirmationsController < Devise::ConfirmationsController
   # GET /resource/confirmation/new
   # def new
