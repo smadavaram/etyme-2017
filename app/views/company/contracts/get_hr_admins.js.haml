@@ -1,3 +1,3 @@
 $('#contract-admin-team').modal("hide");
-$('.hr_admins_table_body').html("#{ j render 'company/contracts/partials/hr_admins_table_rows' , contract: nil,users: @users}");
+$('.profile-section').html("#{ j render 'company/contracts/partials/hr_admins_table_rows' , contract: nil,users: @users}");
 addeventatc.refresh();

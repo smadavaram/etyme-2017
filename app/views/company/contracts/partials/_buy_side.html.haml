@@ -51,11 +51,11 @@
               %th To
           %tbody
             - @contract.buy_contract.change_rates.each do |change_rate|
-              - if change_rate.persisted?
+              - if change_rate.persisted? && change_rate.present?
                 %tr
                   %td= change_rate.rate
                   %td= change_rate.working_hrs
-                  %td= colorfull_text(change_rate.rate_type.upcase,'#1AAE9F')
+                  %td= colorfull_text(change_rate.rate_type,'#1AAE9F')
                   %td= change_rate.uscis
                   %td= colorfull_text(change_rate.from_date,'orange')
                   %td= colorfull_text(change_rate.to_date,'red')

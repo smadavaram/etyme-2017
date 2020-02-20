@@ -28,40 +28,81 @@
             %sup.text-danger *
           .contract-fild
             = f.text_field :end_date ,class: "form-control" , required: 'true' #, placeholder: "Contract End Date"
-    .mt-4
-      %h5.mb-4.d-inline-block Contract Admin Team
-      %h5.mb-4.d-inline-block.pull-right
-        %button.btn.btn-primary.btn-sm{"data-target" => "#contract-admin-team", "data-toggle" => "modal", :type => "button"} Add Admin
-      - headers =  %w(domain name contact role(s) reminder action(s))
-      .table-responsive.p-4
-        %table.table.text-center.table-bordered.table-lg.table-v2.table-striped.data-table-font#contract_admins_table
-          %thead
-            %tr
-            - headers.each do |header|
-              %th= header.capitalize
-          %tbody.hr_admins_table_body
-            - @contract.contract_admins.each do |admin|
-              - user = admin.user
-              %tr
-                %td= user.company.domain
-                %td.no-wrap
-                  =user_image(user, style: 'width: 35px; height: 35px;', class: 'data-table-image mr-1',title: "#{user.full_name}" )
-                  = do_ellipsis(user.full_name,7)
-                %td.no-wrap.d-flex
-                  = contact_widget(user.email,user.phone,user,chat_link: chat_link(user),color: '#3E4B5B; !important')
-                %td= do_ellipsis(user.roles.pluck(:name).join(', '),40)
-                %td= content_tag(:span, do_ellipsis(current_user.reminders.where(reminderable_id: user.id, reminderable_type: 'Admin')&.last&.title), class: 'bg-info badge mr-1').html_safe
-                %td
-                  = link_to(content_tag(:i, nil, class: 'picons-thin-icon-thin-0014_notebook_paper_todo').html_safe, add_reminder_company_users_path(user_id: user.id), remote: :true, title: "Remind Me", class: 'data-table-icons')
-                  = link_to(content_tag(:i, nil, class: 'os-icon os-icon-ui-15').html_safe, delete_hr_admin_contracts_path(contract_id: @contract.id,contract_admin_id: admin.id), method: :delete,remote: :true, title: "Delete #{user.full_name}", class: 'data-table-icons')
-                  - unless @contract_have_admin
-                    %strong{:id => "response_#{admin.id}"}
-                    = link_to(content_tag(:i, nil, class: 'picons-thin-icon-thin-0710_business_tie_user_profile_avatar_man_male').html_safe, change_admin_status_contracts_path(contract_id: @contract.id,contract_admin:admin.id,status:'admin',tab:1), remote: :true, title: "Make Admin", class: 'data-table-icons remove_admin_link')
-                  - else
-                    - if admin.admin?
-                      = link_to(content_tag(:i, nil, class: 'picons-thin-icon-thin-0699_user_profile_avatar_man_male').html_safe, change_admin_status_contracts_path(contract_id:@contract.id,contract_admin: admin.id,status:'member',tab:1), remote: :true, title: "Remove Admin", class: 'data-table-icons',style: "color:red")
-                    -else
-                      %i.picons-thin-icon-thin-0710_business_tie_user_profile_avatar_man_male{:title => "Member"}
+    -#.mt-4
+    -#  .row
+    -#    .col-md-12
+    -#      .form-group
+            -#%h5.mb-4.d-inline-block Contract Admin Team
+            -#%h5.mb-4.d-inline-block.pull-right
+            -#  %button.btn.btn-primary.btn-sm{"data-target" => "#contract-admin-team", "data-toggle" => "modal", :type => "button"} Add Admin
+            -#  - headers =  %w(domain name contact role(s) reminder action(s))
+
+
+
+
+    .mt-4.p-4
+      .row
+        .col-md-12
+          .form-group
+            %h5.mb-4.d-inline-block Contract Admin Team
+            %input{name: "contract_id", id: 'contract_id', value: @contract.id,hidden: "hidden"}
+            .form-group
+              %label.control-label Hr Admins
+              .contract-fild
+                .plain-select
+                  = select_tag "user_ids[]", [] ,class:"form-control contract_admins", id: 'admin-user'
+                  %button.btn.btn-secondary.btn-sm{type: "submit", class: 'add_admin', onclick: 'save_hr_admins(event)'} Save
+
+
+    %br/
+    .row.profile-section
+      - @contract.contract_admins.each do |admin|
+        -user = admin.user
+        .col{style: 'padding-left: 4%'}
+          .profile-tile{style: 'border-bottom: unset'}
+            .profile-tile-box{style: 'background-color: #f2f4f8'}
+              .pt-avatar-w
+                =image_tag 'avatars/male.png'
+              .pt-user-name
+                = do_ellipsis(user.full_name,10)
+                %br/
+                %br/
+                - if ["User","Admin"].include?(admin.class.to_s)
+                  %input{id: user.id,:name => "contract[hr_admins_ids][]", :value => user.id,hidden: "hidden"}/
+                = contact_widget(user.email,user.phone,user,chat_link: chat_link(user))
+                = link_to(content_tag(:i, nil, class: 'os-icon os-icon-ui-15').html_safe, delete_hr_admin_contracts_path(contract_id: @contract.id,contract_admin_id: admin.id), method: :delete,remote: :true, title: "Delete #{user.full_name}", class: 'data-table-icons')
+
+
+      -#.table-responsive.p-4
+      -#  %table.table.text-center.table-bordered.table-lg.table-v2.table-striped.data-table-font#contract_admins_table
+      -#    %thead
+      -#      %tr
+      -#      - headers.each do |header|
+      -#        %th= header.capitalize
+      -#    %tbody.hr_admins_table_body
+      -#      - @contract.contract_admins.each do |admin|
+      -#        - admin.user.inspect
+      -#        - user = admin.user
+      -#        %tr
+      -#          %td= user.company.domain
+      -#          %td.no-wrap
+      -#            =user_image(user, style: 'width: 35px; height: 35px;', class: 'data-table-image mr-1',title: "#{user.full_name}" )
+      -#            = do_ellipsis(user.full_name,7)
+      -#          %td.no-wrap.d-flex
+      -#            = contact_widget(user.email,user.phone,user,chat_link: chat_link(user),color: '#3E4B5B; !important')
+      -#          %td= do_ellipsis(user.roles.pluck(:name).join(', '),40)
+      -#          %td= content_tag(:span, do_ellipsis(current_user.reminders.where(reminderable_id: user.id, reminderable_type: 'Admin')&.last&.title), class: 'bg-info badge mr-1').html_safe
+      -#          %td
+      -#            = link_to(content_tag(:i, nil, class: 'picons-thin-icon-thin-0014_notebook_paper_todo').html_safe, add_reminder_company_users_path(user_id: user.id), remote: :true, title: "Remind Me", class: 'data-table-icons')
+      -#            = link_to(content_tag(:i, nil, class: 'os-icon os-icon-ui-15').html_safe, delete_hr_admin_contracts_path(contract_id: @contract.id,contract_admin_id: admin.id), method: :delete,remote: :true, title: "Delete #{user.full_name}", class: 'data-table-icons')
+      -#            - unless @contract_have_admin
+      -#              %strong{:id => "response_#{admin.id}"}
+      -#              = link_to(content_tag(:i, nil, class: 'picons-thin-icon-thin-0710_business_tie_user_profile_avatar_man_male').html_safe, change_admin_status_contracts_path(contract_id: @contract.id,contract_admin:admin.id,status:'admin',tab:1), remote: :true, title: "Make Admin", class: 'data-table-icons remove_admin_link')
+      -#            - else
+      -#              - if admin.admin?
+      -#                = link_to(content_tag(:i, nil, class: 'picons-thin-icon-thin-0699_user_profile_avatar_man_male').html_safe, change_admin_status_contracts_path(contract_id:@contract.id,contract_admin: admin.id,status:'member',tab:1), remote: :true, title: "Remove Admin", class: 'data-table-icons',style: "color:red")
+      -#              -else
+      -#                %i.picons-thin-icon-thin-0710_business_tie_user_profile_avatar_man_male{:title => "Member"}
 
 
     .mt-4.p-4
@@ -83,17 +124,17 @@
 
     .contract-fields_wrapper.mt-4
       .row
-      .col-md-12
-        %h5.pt-1
-          %b Do you want to onboard consultant?
-          %label.ml-3.radio-container.d-inline-block
-            Yes
-            %input{:checked => "checked" ,onchange: "toogle_consultant(this,'.consultant_toggle')",name: "toogle_consultant_contract", :type => "radio", :value => "yes"}/
-            %span.radio-checkmark
-          %label.radio-container.d-inline-block
-            No
-            %input{onchange: "toogle_consultant(this,'.consultant_toggle')", :type => "radio",name: "toogle_consultant_contract", :value => "no"}/
-            %span.radio-checkmark
+        .col-md-12
+          %h5.pt-1
+            %b Do you want to onboard consultant?
+            %label.ml-3.radio-container.d-inline-block
+              Yes
+              %input{:checked => "checked" ,onchange: "toogle_consultant(this,'.consultant_toggle')",name: "toogle_consultant_contract", :type => "radio", :value => "yes"}/
+              %span.radio-checkmark
+            %label.radio-container.d-inline-block
+              No
+              %input{onchange: "toogle_consultant(this,'.consultant_toggle')", :type => "radio",name: "toogle_consultant_contract", :value => "no"}/
+              %span.radio-checkmark
       .row.consultant_toggle
         .col-md-5
           .form-group
@@ -185,22 +226,63 @@
                     .plain-select
                       = f.select :client_id, [[f.object.client&.full_name,f.object.client_id]], {}, id: 'select_clients'
       .contract-fields_wrapper.mt-4.toggle_sell_contract
-        %h5.mb-4.d-inline-block End Client(s)/Reporting Manager(s)
-        %h5.mb-4.d-inline-block.pull-right
-          %button.btn.btn-primary.btn-sm.manager_team{type: "button"} Add Manager
-        - headers =  %w(domain name contact role(s) reminder action(s))
-        .table-responsive.p-4
-          %table.table.text-center.table-bordered.table-lg.table-v2.table-striped.data-table-font#contract_manager_table
-            %thead
-              %tr
-              - headers.each do |header|
-                %th= header.capitalize
-            %tbody.hr_reporting_admins_table_body
-              - unless @contract.new_record?
-                = render 'company/contracts/partials/add_manager', business_detail_objs: @contract.sell_contract&.contract_sell_business_details
+        -#%h5.mb-4.d-inline-block End Client(s)/Reporting Manager(s)
+        -#%h5.mb-4.d-inline-block.pull-right
+        -#%button.btn.btn-primary.btn-sm.manager_team{type: "button"} Add Manager
+        -# - headers =  %w(domain name contact role(s) reminder action(s))
+            .row
+        .col-md-12
+          .form-group
+            %h5.mb-4.d-inline-block End Client(s)/Reporting Manager(s)
+            %input{name: "contract_id", id: 'contract_id', value: @contract.id,hidden: "hidden"}
+            .form-group
+              %label.control-label Hr Admins
+              .contract-fild
+                .plain-select
+                  = select_tag "company_contacts_ids[]", [] ,class:"sell_company_contract_admins w-100 form-control", id: 'select_sell_company_contacts'
+                  %button.btn.btn-secondary.btn-sm{type: "submit", class: 'add_admin', onclick: 'save_hr_admins_manager(event)'} Save
+
+
+        %br/
+        .row.hr_reporting_admins_table_body
+          - unless @contract.new_record?
+            = render 'company/contracts/partials/add_manager', business_detail_objs: @contract.sell_contract&.contract_sell_business_details
+
+
+
+
+
 
 - content_for :modals do
   .hr_admins
     =render 'company/contracts/partials/admin_team_modal',contract: @contract || nil
     =render 'company/contracts/partials/admin_team_modal_sell_company',contract: @contract || nil
     =render 'company/contracts/partials/manager_modal',contract: @contract || nil
+
+
+- content_for :scripts do
+  :javascript
+    function save_hr_admins(e){
+      e.preventDefault();
+      let contract_id = $('#contract_id').val();
+      let user_ids = $('#admin-user').val();
+      let url = `/contracts/get_hr_admins`;
+      $.post(url, {contract_id: contract_id, user_ids: user_ids}).done(function (data) {
+          flash_success("HR Admin updated successfully!")
+      }).fail(function (data) {
+          flash_error(data.status)
+      });
+    }
+    function save_hr_admins_manager(e){
+      e.preventDefault();
+      let contract_id = $('#contract_id').val();
+      let user_ids = $('#select_sell_company_contacts').val();
+      let url = `/contracts//get_reporting_managers`;
+      $.post(url, {contract_id: contract_id, company_contacts_ids: user_ids}).done(function (data) {
+          flash_success("End Client Reporting Manager updated Successfully!")
+      }).fail(function (data) {
+          flash_error(data.status)
+      });
+    }
+
+

@@ -42,7 +42,7 @@
                         %td{style: "border-top: none !important"}
                           - if transaction
                             %input{id: "timesheet_transactions_attributes_#{index}_total_time",:name => "timesheet[transactions_attributes][#{index}][total_time]", :style => "width: 100%", disabled: transaction.start_time <= DateTime.now ? false : true,:type => "number", :value => "#{transaction.total_time}"}/
-                            %input{id: "timesheet_transactions_attributes_#{index}_id",:name => "timesheet[transactions_attributes][#{index}][id]", :type => "hidden", :value => "#{transaction.id}"}/
+                            %input{id: "timesheet_transactions_attributes_#{index}_memo",:name => "timesheet[transactions_attributes][#{index}][memo]", :style => "width: 100%", disabled: transaction.start_time <= DateTime.now ? false : true,:type => "number", :value => "#{transaction.total_time}"}/
                           - else
                             %input{name:"no_transaction", disabled: "disabled",:style => "width: 100%",value:"0", type:"number"}
                           -#=tt.number_field :total_time, style: "width: 100%"

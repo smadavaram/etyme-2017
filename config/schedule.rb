@@ -36,4 +36,12 @@ every 1.day, :at => '12:01 am' do
   runner "Contract.set_cycle"
 end
 
+every 1.day, :at => '12:01 am' do
+  runner "Contract.set_cycle"
+end
+
+every 1.day, :at => '12:01 am' do
+  runner "Contract.create_next_timesheet"
+end
+
 # Learn more: http://github.com/javan/whenever
