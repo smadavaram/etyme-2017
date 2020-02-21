@@ -9,8 +9,8 @@
     %li{class: "nav-item #{ "active" if @tab.eql?("open_timesheets") }"}
       %a{class: "nav-link fd open_timesheets", href:'#', onclick: "time_line_filter('open_timesheets','.select-time-cycle','.select-contract.active')","data-toggle" => "tab"} Calendar
     %li.nav-item.mt-2{style: "margin-left: auto;"}
-      %select.select-time-cycle.form-control.bright.form-control-sm{disabled:"disabled"}
-        %option{value: 'all'} Select Cycle
+      -#%select.select-time-cycle.form-control.bright.form-control-sm{disabled:"disabled"}
+      -#  %option{value: 'all'} Select Cycle
       -#%select.cycle-type.form-control-sm
       -#  %option{value: false} Select Cycle Type
       -#  %option{value: 'weekly'} Weekly
@@ -37,30 +37,35 @@
         - @contracts.each do |c|
           %option{value: c.id}  #{truncate(c.project_name,length: 30) + " - " + c.created_by&.full_name }
 
-          -# - @contracts.each_with_index do |contract,index|
-          -#   = link_to '#',id: contract.id, class:"select-contract job_ticket" do
-          -#     .st-body
-          -#       .avatar
-          -#         = image_tag contract.company.logo
-          -#       .ticket-content
-          -#         %h6.ticket-title
-          -#           = truncate(contract.project_name,length: 30)
-          -#     .st-foot
-          -#       %span.label Created by:
-          -#       %span.value.with-avatar{:href => "#"}
-          -#         %span
-          -#           =contract.created_by&.full_name
-          -#       %span.label Created at:
-          -#       %span.value
-          -#         =contract.created_at.strftime("%d/%m/%Y")
+  .col-sm-5
+    .content-box
+      %select.select-time-cycle.form-control.bright.form-control-sm{disabled:"disabled"}
+        %option{value: 'all'} Select Cycle
 
-  .col-sm-7
+
+.row
+  .col-sm-7.offset-2
     #timesheet_calendar.p-4
     .timesheet_table.margin-auto.p-4
 
 
 
-
+  -# - @contracts.each_with_index do |contract,index|
+  -#   = link_to '#',id: contract.id, class:"select-contract job_ticket" do
+  -#     .st-body
+  -#       .avatar
+  -#         = image_tag contract.company.logo
+  -#       .ticket-content
+  -#         %h6.ticket-title
+  -#           = truncate(contract.project_name,length: 30)
+  -#     .st-foot
+  -#       %span.label Created by:
+  -#       %span.value.with-avatar{:href => "#"}
+  -#         %span
+  -#           =contract.created_by&.full_name
+  -#       %span.label Created at:
+  -#       %span.value
+  -#         =contract.created_at.strftime("%d/%m/%Y")
 = render 'candidate/timesheets/time_sheet_submit_modal'
 
 
@@ -72,6 +77,7 @@
   :javascript
     function select_contract(e){
         $.get(`/api/candidate/candidates/contract_cycles.json?contract_type=BuyContract&contract_id=${e.value}`).then(function(data) {
+          console.log(data);
           $('.select-time-cycle').empty().append($("<option>").val("all").text("Select Cycle"));
           data.forEach(function(cycle) {
             $('.select-time-cycle').append($("<option>").val(cycle.id).text(cycle.range))
@@ -88,6 +94,7 @@
       $.get(`/candidate/timesheets.js?cycle_id=${cycle}&&contract_id=${contract}&&tab=${tab}`);
     }
     function show_popup(event){
+      let contract_id = $('#select_contract').val();
       let transaction_id = event.getAttribute('data-transaction');
       let timesheet_id = event.getAttribute('data-timesheet');
       let time = event.getAttribute('data-time');
@@ -121,13 +128,15 @@
         eventRender: function (info, event, el, view) {
           event[0].removeChild(event[0].firstChild);
           let inputDisabled = `<input name='${info.title}' data-transaction='${info.id}'  data-timesheet='${info.timesheet_id}'  onchange="handle_input(this,'candidate')" value='+' disabled='disabled' style='width: -moz-available;width: -webkit-fill-available;' />`
-          let input = `<input name='${info.title}' data-transaction='${info.id}' data-memo='${info.memo}' data-time="${info.total_time}"  data-timesheet='${info.timesheet_id}' onclick="show_popup(this)" value='+' style='width: -moz-available;width: -webkit-fill-available;' />`
+          let input = `<input name='${info.title}' data-transaction='${info.id}' data-memo='${info.memo}' data-time="${info.total_time}"  data-timesheet='${info.timesheet_id}' onclick="show_popup(this)" value='<i class="icon-plus"></i>'.html_safe style='width: -moz-available;width: -webkit-fill-available;' />`
+          let icon = `<i class="fa fa-plus-circle" style="padding-left: 35%" data-transaction='${info.id}' data-memo='${info.memo}' data-time="${info.total_time}"  data-timesheet='${info.timesheet_id}' onclick="show_popup(this)"></i>`
           let today = moment();
           let transactionDay = moment(info.start);
           if(today < transactionDay || [ "submitted", "approved", "partially_approved", "rejected", "invoiced"].includes(info.status)){
             event.append(inputDisabled)
           }else{
-            event.append(input)
+            // event.append(input)
+            event.append(icon);
           }
         },
         selectConstraint: {

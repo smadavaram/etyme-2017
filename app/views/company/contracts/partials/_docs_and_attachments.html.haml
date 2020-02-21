@@ -74,29 +74,29 @@
                         .col-md-12.display-flex
                           =cr.hidden_field :rateable_type, value: bc.object.class.to_s
                           =cr.hidden_field :rateable_id, value: bc.object.id
-                          =render 'company/contracts/partials/rate_fields', f: cr, usics: true
-                    - if bc.object.change_rates.present?
-                      .row
-                        .table-responsive
-                          %table.table.text-center.table-bordered.table-lg.table-v2.table-striped.data-table-font
-                            %thead
-                              %tr{:role => "row"}
-                                %th Rate
-                                %th Expected Hrs
-                                %th Rate Type
-                                %th USCIS
-                                %th From
-                                %th To
-                            %tbody
-                              - bc.object.change_rates.each do |change_rate|
-                                -if change_rate.persisted?
-                                  %tr
-                                    %td= change_rate.rate
-                                    %td= change_rate.working_hrs
-                                    %td= change_rate.rate_type
-                                    %td= change_rate.uscis
-                                    %td= change_rate.from_date
-                                    %td= change_rate.to_date
+                          =render 'company/contracts/partials/rate_fields', f: cr, rates: bc.object.change_rates.first, usics: true
+                    -# - if bc.object.change_rates.present?
+                    -#   .row
+                    -#     .table-responsive
+                    -#       %table.table.text-center.table-bordered.table-lg.table-v2.table-striped.data-table-font
+                    -#         %thead
+                    -#           %tr{:role => "row"}
+                    -#             %th Rate
+                    -#             %th Expected Hrs
+                    -#             %th Rate Type
+                    -#             %th USCIS
+                    -#             %th From
+                    -#             %th To
+                    -#         %tbody
+                    -#           - bc.object.change_rates.each do |change_rate|
+                    -#             -if change_rate.persisted?
+                    -#               %tr
+                    -#                 %td= change_rate.rate
+                    -#                 %td= change_rate.working_hrs
+                    -#                 %td= change_rate.rate_type
+                    -#                 %td= change_rate.uscis
+                    -#                 %td= change_rate.from_date
+                    -#                 %td= change_rate.to_date
                   #tab-buy-ts.tab-pane.padding-top-15
                     .row
                       .col-md-12
