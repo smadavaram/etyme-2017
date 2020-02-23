@@ -40,7 +40,7 @@
                 %span.btn.btn-primary.sell-change-rate{"data-toggle": "modal","data-target": "#freelancer_rate_change"} Add Rate
         =render 'company/contracts/partials/freelancer_rate_modal'
       .table-responsive.pt-3.line-bottom
-        %table.table.text-center.table-bordered.table-lg.table-v2.table-striped.data-table-font
+        %table.table.text-center.table-bordered.table-lg.table-v2.table-striped
           %thead
             %tr{:role => "row"}
               %th Rate
@@ -68,14 +68,14 @@
           - user = @contract.candidate
           .logged-user-w.no_border_bottom{style: "width: 120px;"}
             .avatar-w
-              =user_image(user, style: 'width: 35px; height: 35px;', class: 'data-table-image mr-1',title: "#{user.full_name}" )
+              =user_image(user, style: 'width: 35px; height: 35px;', class: 'data-table-image mr-2',title: "#{user.full_name}" )
             .logged-user-name.no-wrap= do_ellipsis(user.full_name,12)
             .logged-user-role= contact_widget(user.email, user.phone,user,chat_link: chat_link(user),color: '#3E4B5B; !important')
           - if @contract.buy_contract.company.present?
             - user = @contract.company.owner
             .logged-user-w.no_border_bottom{style: "width: 120px;"}
               .avatar-w
-                =user_image(user, style: 'width: 35px; height: 35px;', class: 'data-table-image mr-1',title: "#{user.full_name}" )
+                =user_image(user, style: 'width: 35px; height: 35px;', class: 'data-table-image mr-2',title: "#{user.full_name}" )
               .logged-user-name= do_ellipsis(user.full_name,12)
               .logged-user-role= user.roles.first.try(:name).try(:capitalize)
               .logged-user-role= contact_widget(user.email, user.phone,user,chat_link: chat_link(user),color: '#3E4B5B; !important')
@@ -177,7 +177,7 @@
                   .col-md-12
                     .form-group
                       .table-responsive
-                        %table.table.text-center.table-bordered.table-lg.table-v2.table-striped.data-table-font
+                        %table.table.text-center.table-bordered.table-lg.table-v2.table-striped
                           %thead
                             %tr{:role => "row"}
                               %th Title
@@ -204,7 +204,7 @@
                   .col-md-12
                     .form-group
                       .table-responsive
-                        %table.table.text-center.table-bordered.table-lg.table-v2.table-striped.data-table-font
+                        %table.table.text-center.table-bordered.table-lg.table-v2.table-striped
                           %thead
                             %tr{:role => "row"}
                               %th Title
@@ -223,7 +223,7 @@
                   .col-md-12
                     .form-group
                       .table-responsive
-                        %table.table.text-center.table-bordered.table-lg.table-v2.table-striped.data-table-font
+                        %table.table.text-center.table-bordered.table-lg.table-v2.table-striped
                           %thead
                             %tr{:role => "row"}
                               %th Title

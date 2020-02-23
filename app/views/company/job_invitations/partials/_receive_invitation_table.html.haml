@@ -21,9 +21,9 @@
         - data.each_with_index  do |invitation,index|
           %tr.even{:role => "row"}
             %td
-              =user_image(invitation.created_by, style: 'width: 35px; height: 35px;', class: 'data-table-image mr-1',title: "#{invitation.created_by.full_name}" )
+              =user_image(invitation.created_by, style: 'width: 35px; height: 35px;', class: 'data-table-image mr-2',title: "#{invitation.created_by.full_name}" )
 
-              = link_to bind_initials(invitation.created_by.first_name,invitation.created_by.last_name),public_profile_static_candidates_path(invitation.created_by.id),class: 'data-table-font' if invitation.recipient.present?
+              = link_to bind_initials(invitation.created_by.first_name,invitation.created_by.last_name),public_profile_static_candidates_path(invitation.created_by.id) if invitation.recipient.present?
             %td= link_to invitation.created_by.full_name , '#'
             %td= link_to invitation.created_by.company.name , '#' if invitation.created_by.type!="Candidate"
             %td= link_to invitation.job.title ,invitation.job.is_public ? job_path(invitation.job) : "#"

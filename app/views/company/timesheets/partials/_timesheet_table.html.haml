@@ -22,7 +22,7 @@
           %td= ts.id
           %td= ts.contract_cycle.cycle_frequency.capitalize
           %td= ts.contract.title
-          %td= user_image(user, style: 'width: 35px; height: 35px;', class: 'data-table-image mr-1',title: "#{user.full_name}" )
+          %td= user_image(user, style: 'width: 35px; height: 35px;', class: 'data-table-image mr-2',title: "#{user.full_name}" )
           %td= "#{ts.start_date} - #{ts.end_date}"
           %td= ts.contract_cycle.cycle_of.get_rate(ts.start_date)&.working_hrs
           %td= ts.calculate_total_time

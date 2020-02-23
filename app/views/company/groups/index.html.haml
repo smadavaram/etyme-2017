@@ -12,7 +12,7 @@
                   .form-inline.justify-content-sm-end
                     %input.form-control.form-control-sm.rounded.bright{placeholder: "Search", type: "text", type: 'search', id: 'group-datatable-search'}
             .table-responsive
-              %table#group-datatable.table.text-center.table-bordered.table-lg.table-v2.table-striped.data-table-font{"data-source" => "#{groups_path(format: :json)}"}
+              %table#group-datatable.table.text-center.table-bordered.table-lg.table-v2.table-striped{"data-source" => "#{groups_path(format: :json)}"}
                 %thead
                   %tr
                     %th

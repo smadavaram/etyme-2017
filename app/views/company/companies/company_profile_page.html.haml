@@ -223,7 +223,7 @@
               .profile-tile
                 %a.profile-tile-box{:href => company_user_profile_path(d)}
                   .pt-avatar-w
-                    .pt-user-name= user_image(d, style: 'width: 35px; height: 35px;', class: 'data-table-image mr-1',title: "#{d.full_name}" )
+                    .pt-user-name= user_image(d, style: 'width: 35px; height: 35px;', class: 'data-table-image mr-2',title: "#{d.full_name}" )
                   .pt-user-name= d.full_name
                 .profile-tile-meta= contact_widget(d.email, d.phone, d, color: '#3E4B5B; !important', chat_link: chat_link(d))
         - else

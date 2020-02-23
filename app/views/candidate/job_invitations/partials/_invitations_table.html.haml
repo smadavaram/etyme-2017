@@ -25,9 +25,9 @@
                   - data.each do |invitation|
                     %tr{class: "#{set_background_status_color(invitation.status)}"}
                       %td.no-wrap
-                        =user_image(invitation.created_by, style: 'width: 35px; height: 35px;', class: 'data-table-image mr-1',title: "#{invitation.created_by.full_name}" )
+                        =user_image(invitation.created_by, style: 'width: 35px; height: 35px;', class: 'data-table-image mr-2',title: "#{invitation.created_by.full_name}" )
 
-                        = link_to(do_ellipsis(invitation.created_by.full_name), '#', class: 'data-table-font')
+                        = link_to(do_ellipsis(invitation.created_by.full_name), '#')
                       %td= link_to invitation.created_by.company.name , '#' if invitation.created_by.type!="Candidate"
                       %td= link_to  do_ellipsis(invitation.job.title) , static_job_path(invitation.job)
                       %td

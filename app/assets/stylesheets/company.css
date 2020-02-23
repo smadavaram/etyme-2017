@@ -38,7 +38,6 @@
  *= require lockscreen
 
  *= require amaran.min
- *= require custom
  *= require Job
  *= require company_override
  *= require global
@@ -67,6 +66,7 @@
  *= require slick-carousel/slick/slick
  *= require candidate/dashboard
  *= require company/payroll
+ *= require custom
 
-            
+
  */

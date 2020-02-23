@@ -36,8 +36,8 @@ class JobApplicationDatatable < ApplicationDatatable
   end
 
   def candidate_profile(record)
-    user_image(record.applicationable, style: 'width: 35px; height: 35px;', class: 'data-table-image mr-1', title: record.applicationable.full_name.to_s) +
-      link_to(do_ellipsis(record.applicationable.full_name), '#', class: 'data-table-font')
+    user_image(record.applicationable, style: 'width: 35px; height: 35px;', class: 'data-table-image mr-2', title: record.applicationable.full_name.to_s) +
+      link_to(do_ellipsis(record.applicationable.full_name), '#')
   end
 
   def get_raw_records

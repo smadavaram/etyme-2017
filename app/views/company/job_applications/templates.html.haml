@@ -5,7 +5,7 @@
       =form_tag(controller: 'company/job_applications', action: 'send_templates') do
         = hidden_field_tag 'id', @job_application.id
         .table-responsive
-          %table#dataTable.table.text-center.table-bordered.table-lg.table-v2.table-striped.data-table-font
+          %table#dataTable.table.text-center.table-bordered.table-lg.table-v2.table-striped
             %thead
               %tr{:role => "row"}
                 %th Select
@@ -42,7 +42,7 @@
       .element-box
         .element-header Documents sent to candidate
         .table-responsive
-          %table.table.text-center.table-bordered.table-lg.table-v2.table-striped.data-table-font
+          %table.table.text-center.table-bordered.table-lg.table-v2.table-striped
             %thead
               %tr{:role => "row"}
                 %th Document Title

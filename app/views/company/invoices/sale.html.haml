@@ -24,8 +24,8 @@
                 %td.no-wrap.pr-3
                   = link_to do_ellipsis(invoice.contract.title,15),  company_sell_contract_contract_path(invoice.contract)
                 %td.no-wrap.pr-5
-                  =user_image(invoice.receiver_company, style: 'width: 35px; height: 35px;', class: 'data-table-image mr-1',title: "#{invoice.receiver_company.full_name}" )
-                  =link_to(do_ellipsis(invoice.receiver_company.full_name), profile_company_path(invoice.receiver_company), class: 'data-table-font')
+                  =user_image(invoice.receiver_company, style: 'width: 35px; height: 35px;', class: 'data-table-image mr-2',title: "#{invoice.receiver_company.full_name}" )
+                  =link_to(do_ellipsis(invoice.receiver_company.full_name), profile_company_path(invoice.receiver_company))
                 %td= invoice.start_date.to_s + " - " + invoice.end_date.to_s
                 %td= invoice.total_approve_time
                 %td= snake_to_words(invoice.invoice_type)
