@@ -30,3 +30,38 @@
 .field-group input{
     border-radius: 4px !important;
 }
+
+.body-companies-new {
+  .auth-box-w {
+    max-width: 800px;
+
+    .logo-w {
+      padding: 20px;
+    }
+  }
+
+  .companies-new--header,
+  .companies-new--subheader {
+    max-width: 400px;
+    margin-left: auto;
+    margin-right: auto;
+    text-align: center;
+  }
+
+  #user_email {
+    max-width: 300px;
+  }
+
+  .companies-new--row {
+    display: flex;
+
+    @media (max-width: 600px) {
+      flex-direction: column;
+    }
+  }
+
+  .companies-new--column {
+    padding: 20px;
+    flex: 50%;
+  }
+}

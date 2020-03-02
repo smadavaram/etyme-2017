@@ -7,14 +7,14 @@
     </div>
     <div class="intro-i">
       <div class="intro-description">
-        <h1 class="intro-heading font-2_rem">Digitize your Staffing Practice for <span> Any </span> Skill</h1>
+        <h1 class="intro-heading font-2_rem">
+          Onboard
+          <span data-scrolling-text="Consultants,Contractors,Freelancers,Remote Employees">Consultants</span>
+          in 24hrs or less
+        </h1>
 
-        <div class="intro-text ">Give your customers and candidates what they need when they need. They will love you for it. </div>
+        <div class="intro-text">eTyme handles all workflow marketing, sales, hiring, managing and paying temp/contract staff. Your work will flow more quickly and smoothly.</div>
 
-        <div class="intro-buttons">
-          <a class="btn btn-primary" href="/signin"><span>Company</span></a>
-          <a class="btn btn-primary" href="/candidates/sign_in"><span>Candidate</span></a>
-        </div>
       </div>
       <div class="intro-media">
         <div class="shot shot1">
@@ -29,39 +29,58 @@
           <div class="shot-i" style="background-image: url('<%= image_path('clean_admin/front/intro_dash.jpg') %>')">
           </div>
         </div>
-
-        <div class="hidden-md-up" style="margin-bottom: 40px;"></div>
-
       </div>
     </div>
   </div>
 </div>
 
 <div class="call-to-action">
-  <h3 class="cta-header font-180_rem">Single platform for all your On-Demand contract workflows.</h3>
-  <div class="cta-desc">eTyme is a suite of tools that focuses on every step of recruiting, bidding, contracting, bench-building, vendor management, document management, timesheets, and payment workflows for the gig economy.</div>
+  <h3 class="cta-header font-180_rem">Using a complete, single workflow, manage all the HR for your contract staff.</h3>
+  <div class="cta-desc">eTyme was designed for contract/temp agencies that need to be able to handle the paperwork for dozens to hundreds of employees. It delivers a completely automated HR workflow that includes background checks, reference checks, work authorization, I-9, W-4, e-Verify, and more. Manage schedules, invoice clients, pay contractors, and much more <i>all through a single platform!</i></div>
+
+  <p class="call-to-action-btn-wrapper">
+    <a class="btn btn-primary" href="/register">Yes! I need one powerful platform!</a>
+  </p>
 </div>
 
 <% try_it_now = {icon: 'ti-desktop', label: 'Try It Now', url: '/users/sign_in'} %>
 <% features = [
-
-  # Gorgeous UI Template
-  # Pricing Page & Subscriptions
-  # User Account Management
-  #
-  # Security & Permissions
-  # Onboarding Workflows
-  # Teams
-  #
-  # Analytics Integrations
-  # Complete Test Coverage
-  # Future Updates
-  {title: 'Powerful Organization', border_classes: 'b-l', icon: 'ti-bolt', description: "Get your business organized and get a head start with setting up the master copy of information for your company and candidates."},
-  {title: 'Manage Candidates', border_classes: 'b-l b-t', icon: 'icon-diamond', description: "Keep a full bench of candidates and vendors for backup with a powerful directory, and share information and negotiate deals with them quickly."},
-  {title: 'Complete Payment Life-Cycle', border_classes: 'b-r b-l b-t', icon: 'icon-credit-card', description: "Manage your jobs and contracts through their whole lifecycle, from searching for candidates, to signing contracts, to overseeing work, all the way to payments, all in one place."},
-  {title: 'Instant Collaboration', border_classes: 'b-r b-t', icon: 'icon-mailbox', description: "Instant messaging, call automation, bulk notifications, and collaboration all integrated into one service."},
-  {title: 'Third-Party Integrations', border_classes: 'b-r', icon: 'icon-directions', description: "Connect eTyme to your favorite apps and boost productivity by connecting to various integrations."},
-  {title: 'Caring Customer Support', border_classes: 'b-l', icon: 'icon-telephone', description: "We're always here to help you, so if you have any questions, you can always contact us and we'll be happy to help you use eTyme."},
+  {
+    title: 'Organized from Day one',
+    border_classes: 'b-l',
+    icon: 'ti-bolt',
+    description: "From the moment you get someone’s application, you’re able to manage every aspect of their HR lifecycle. Onboarding to invoicing payroll - one amazing platform."
+  },
+  {
+    title: 'HR Paperwork',
+    border_classes: 'b-l b-t',
+    icon: 'icon-diamond',
+    description: "Keep a full bench of contractors in electronic files, including all required paperwork, background & reference checks, and payroll information."
+  },
+  {
+    title: 'Automated Payment Platform',
+    border_classes: 'b-r b-l b-t',
+    icon: 'icon-credit-card',
+    description: "From invoicing customers to paying contractors, your entire payment system is managed through eTyme. With a single dashboard, you manage your entire payment lifecycle."
+  },
+  {
+    title: 'Total Collaboration',
+    border_classes: 'b-r b-t',
+    icon: 'icon-mailbox',
+    description: "Instant messaging, call automation, bulk notifications, and collaboration platforms, all contained in a single space - eTyme. No need for multiple programs to manage your team."
+  },
+  {
+    title: 'Easy Integrations',
+    border_classes: 'b-r',
+    icon: 'icon-directions',
+    description: "eTyme plays perfectly with all your existing programs and apps, including Quickbooks, Salesforce, and more. Add everything you need with ease."
+  },
+  {
+    title: 'Total Customer Support',
+    border_classes: 'b-l',
+    icon: 'icon-telephone',
+    description: "Our team is available 24 hours a day to answer questions and guide you through all of the thousands of features that eTyme provides."
+  },
 ] %>
 
 <div class="section-header-w" id="sectionFeatures">
@@ -69,8 +88,8 @@
   </div>
   <div class="os-container">
     <div class="section-header">
-      <h5 class="section-sub-title">We help your business excel</h5>
-      <h2 class="section-title font-2_rem">Optimize your contract work.</h2>
+      <h5 class="section-sub-title">Moving at the speed of business</h5>
+      <h2 class="section-title font-2_rem">Automated HR Path for Contract Employees</h2>
       <div class="section-desc"></div>
     </div>
   </div>
@@ -106,6 +125,10 @@
 
 <div style="margin-top: 60px;">
 </div>
+
+<p class="features-btn-wrapper">
+  <a class="btn btn-primary" href="/register">Let's Get Your Business Growing!</a>
+</p>
 
 <div class="display-type">
 </div>
