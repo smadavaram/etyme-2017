@@ -1906,3 +1906,13 @@ flex: 0 0 220px;
 .no-hover:hover{
     text-decoration: none !important;
 }
+.fc-event .fa{
+    font-size: 21px !important;
+}
+.light_border{
+    border: 1px solid #9c9c9c !important;
+}
+.contract-border{
+    border: 1px solid #f0f2f3 !important;
+    padding: 30px !important;
+}

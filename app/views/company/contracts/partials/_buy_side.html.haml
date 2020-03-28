@@ -1,12 +1,12 @@
 .individual_contracts_headers
   - if @contract.buy_contract&.present?
-    %h3= "Buy-  #{@contract.buy_contract.number}"
+    %h6= "Buy-  #{@contract.buy_contract.number}"
     - if local_assigns[:editable] and editable
       .text-right.d-none
         =link_to 'Add', '#', class: 'btn btn-primary'
         =link_to 'Remove', '#', class: 'btn btn-danger'
 - if @contract.buy_contract.present?
-  %h3.contract_sub_heading
+  %h6.contract_sub_heading{style: "font-size: 15px"}
     Vendor Details
   .sell-side.box
     .contract-customer-details
@@ -44,7 +44,7 @@
           %thead
             %tr{:role => "row"}
               %th Rate
-              %th Expected Hrs
+              %th Expected Hrs/Day
               %th Rate Type
               %th USCIS
               %th From
@@ -64,23 +64,51 @@
           %strong.pull-left Business Contacts
           - if @contract.buy_contract.company.present?
             %pull-right= @contract.buy_contract.company.full_name
-        .contract_users_team
-          - user = @contract.candidate
-          .logged-user-w.no_border_bottom{style: "width: 120px;"}
-            .avatar-w
-              =user_image(user, style: 'width: 35px; height: 35px;', class: 'data-table-image mr-1',title: "#{user.full_name}" )
-            .logged-user-name.no-wrap= do_ellipsis(user.full_name,12)
-            .logged-user-role= contact_widget(user.email, user.phone,user,chat_link: chat_link(user),color: '#3E4B5B; !important')
+        %br/
+        %br/
+        .row.hr_admins_table_body
+          -user = @contract.candidate
+          .col{style: 'padding-left: 4%'}
+            .profile-tile{style: 'border-bottom: unset'}
+              .profile-tile-box{style: 'background-color: #f2f4f8'}
+                .pt-avatar-w
+                  =image_tag 'avatars/male.png'
+                .pt-user-name
+                  = do_ellipsis(user.full_name,12)
+                  %br/
+                  %br/
+                  = contact_widget(user.email,user.phone,user,chat_link: chat_link(user))
+
           - if @contract.buy_contract.company.present?
             - user = @contract.company.owner
-            .logged-user-w.no_border_bottom{style: "width: 120px;"}
-              .avatar-w
-                =user_image(user, style: 'width: 35px; height: 35px;', class: 'data-table-image mr-1',title: "#{user.full_name}" )
-              .logged-user-name= do_ellipsis(user.full_name,12)
-              .logged-user-role= user.roles.first.try(:name).try(:capitalize)
-              .logged-user-role= contact_widget(user.email, user.phone,user,chat_link: chat_link(user),color: '#3E4B5B; !important')
+            .col{style: 'padding-left: 4%'}
+              .profile-tile{style: 'border-bottom: unset'}
+                .profile-tile-box{style: 'background-color: #f2f4f8'}
+                  .pt-avatar-w
+                    =image_tag 'avatars/male.png'
+                  .pt-user-name
+                    = do_ellipsis(user.full_name,12)
+                    %br/
+                    %br/
+                    = contact_widget(user.email,user.phone,user,chat_link: chat_link(user))
+        -#.contract_users_team
+        -#  - user = @contract.candidate
+        -#  .logged-user-w.no_border_bottom{style: "width: 120px;"}
+        -#    .avatar-w
+        -#      =user_image(user, style: 'width: 35px; height: 35px;', class: 'data-table-image mr-1',title: "#{user.full_name}" )
+        -#    .logged-user-name.no-wrap= do_ellipsis(user.full_name,12)
+        -#    .logged-user-role= contact_widget(user.email, user.phone,user,chat_link: chat_link(user),color: '#3E4B5B; !important')
+        -#  - if @contract.buy_contract.company.present?
+        -#    - user = @contract.company.owner
+        -#    .logged-user-w.no_border_bottom{style: "width: 120px;"}
+        -#      .avatar-w
+        -#        =user_image(user, style: 'width: 35px; height: 35px;', class: 'data-table-image mr-1',title: "#{user.full_name}" )
+        -#      .logged-user-name= do_ellipsis(user.full_name,12)
+        -#      .logged-user-role= user.roles.first.try(:name).try(:capitalize)
+        -#      .logged-user-role= contact_widget(user.email, user.phone,user,chat_link: chat_link(user),color: '#3E4B5B; !important')
+
   %div
-    %h3.mt-2.mb-2
+    %h6.mt-2.mb-2
       Accounting & Work hours terms
     .contract-custome-details.box
       .row
@@ -151,7 +179,7 @@
             %b
               = "Salary Date: #{@contract&.company&.payroll_infos&.first&.sal_cal_date.try(:strftime, '%d')} of each month"
   %div
-    %h3.mt-2.mb-2
+    %h6.mt-2.mb-2
       Documents
     .contract-custome-details.box
       .row
@@ -243,7 +271,7 @@
                                 %td= link_to content_tag(:i,'',class:'fa fa-paperclip fa-lg').html_safe, docusign.signed_file if docusign.is_sign_done
 
   %div
-    %h3.mt-2.mb-2
+    %h6.mt-2.mb-2
       Commission
     %div.contract-custome-details.box
       .table-responsive
@@ -264,6 +292,7 @@
                   =csc.frequency
                 %td
                   =csc.limit
+      %br/
       %div.contract-custome-details
         %strong
           Payroll date:

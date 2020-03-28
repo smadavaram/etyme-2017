@@ -159,7 +159,8 @@ class Company::InvoicesController < Company::BaseController
 
   def edit
     @invoice = Invoice.find(params[:id])
-    @timesheets = current_user.timesheets.approved.where.not(id: @invoice.timesheets)
+    # @timesheets = current_user.timesheets.approved.where.not(id: @invoice.timesheets)
+    @timesheets = @invoice.contract.timesheets.approved_timesheets.where(invoice_id: nil)
   end
 
   def client_expense_invoice

@@ -5,7 +5,7 @@
   - if params.has_key?('id')
     =contract.hidden_field :parent_contract_id , value: params[:id]
 
-  .contract-fields_wrapper
+  .contract-fields_wrapper.contract-border
     .row
       .col-md-6
         .form-group
@@ -51,7 +51,7 @@
               .contract-fild
                 .plain-select
                   = select_tag "user_ids[]", [] ,class:"form-control contract_admins", id: 'admin-user'
-                  %button.btn.btn-secondary.btn-sm{type: "submit", class: 'add_admin', onclick: 'save_hr_admins(event)'} Save
+                  -#%button.btn.btn-secondary.btn-sm{type: "submit", class: 'add_admin', onclick: 'save_hr_admins(event)'} Save
 
 
     %br/
@@ -122,7 +122,7 @@
   - if true #@contract.new_record? or @contract.buy_contract&.persisted?
     
 
-    .contract-fields_wrapper.mt-4
+    .contract-fields_wrapper.mt-4.contract-border
       .row
         .col-md-12
           %h5.pt-1
@@ -177,7 +177,7 @@
     .a
       
     
-      .contract-fields_wrapper.mt-2
+      .contract-fields_wrapper.mt-2.contract-border
         .col-md-12
         %h5.pt-1
           %b Do you want to onboard customer?
@@ -225,7 +225,7 @@
                   .contract-fild
                     .plain-select
                       = f.select :client_id, [[f.object.client&.full_name,f.object.client_id]], {}, id: 'select_clients'
-      .contract-fields_wrapper.mt-4.toggle_sell_contract
+      .contract-fields_wrapper.mt-4.toggle_sell_contract.contract-border
         -#%h5.mb-4.d-inline-block End Client(s)/Reporting Manager(s)
         -#%h5.mb-4.d-inline-block.pull-right
         -#%button.btn.btn-primary.btn-sm.manager_team{type: "button"} Add Manager
@@ -240,7 +240,7 @@
               .contract-fild
                 .plain-select
                   = select_tag "company_contacts_ids[]", [] ,class:"sell_company_contract_admins w-100 form-control", id: 'select_sell_company_contacts'
-                  %button.btn.btn-secondary.btn-sm{type: "submit", class: 'add_admin', onclick: 'save_hr_admins_manager(event)'} Save
+                  -#%button.btn.btn-secondary.btn-sm{type: "submit", class: 'add_admin', onclick: 'save_hr_admins_manager(event)'} Save
 
 
         %br/
@@ -263,7 +263,7 @@
 - content_for :scripts do
   :javascript
     function save_hr_admins(e){
-      e.preventDefault();
+      // e.preventDefault();
       let contract_id = $('#contract_id').val();
       let user_ids = $('#admin-user').val();
       let url = `/contracts/get_hr_admins`;
@@ -273,8 +273,15 @@
           flash_error(data.status)
       });
     }
+
+    $('#admin-user').change( function() {
+      save_hr_admins(null);
+    });
+    $('#select_sell_company_contacts').change( function() {
+      save_hr_admins_manager(null);
+    });
     function save_hr_admins_manager(e){
-      e.preventDefault();
+      // e.preventDefault();
       let contract_id = $('#contract_id').val();
       let user_ids = $('#select_sell_company_contacts').val();
       let url = `/contracts//get_reporting_managers`;

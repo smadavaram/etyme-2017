@@ -1,15 +1,47 @@
 
-.w-100.p-4.bg_white
-  .contract-fields_wrapper.mb-4.bg-shade
-    =render 'company/contracts/partials/contract_header',contract: @contract
-  .contract_links.col-sm-12.mt-2.mb-2
-    = render 'company/contracts/partials/contracts_links', contract: @contract
-  .row
-    .col-sm-6.col-md-6.col-lg-6
-      = render 'company/contracts/partials/sell_side',editable: @contract.company == current_company
-    - if current_company == @contract.company
-      .col-sm-6.col-md-6.col-lg-6
-        = render 'company/contracts/partials/buy_side',editable: @contract.company == current_company
+.content-box
+  .element-wrapper
+    .h6.element-header
+      Contract Details
+    .padded-lg
+      .row
+        .col-lg-8
+          .element-box.element-box-show
+            =render 'company/contracts/partials/contract_header',contract: @contract
+            %br/
+            %br/
+        .col-lg-4
+          .element-box.element-box-show
+            .h5.form-header
+              Quick Actions
+            %div{style: "display: flex;flex-direction: column;"}
+              = render 'company/contracts/partials/contracts_links', contract: @contract
+      %hr
+      .row
+        .col-lg-12
+          .element-box.element-box-show
+            =render 'company/contracts/partials/sell_side',editable: @contract.company == current_company
+      - if current_company == @contract.company
+        %hr
+        .row
+          .col-lg-12
+            .element-box.element-box-show
+              =render 'company/contracts/partials/buy_side',editable: @contract.company == current_company
+
+
+
+
+-#.w-100.p-4.bg_white
+-#  .contract-fields_wrapper.mb-4.bg-shade
+-#    =render 'company/contracts/partials/contract_header',contract: @contract
+-#  .contract_links.col-sm-12.mt-2.mb-2
+-#    = render 'company/contracts/partials/contracts_links', contract: @contract
+-#  .row
+-#    .col-sm-6.col-md-6.col-lg-6
+-#      = render 'company/contracts/partials/sell_side',editable: @contract.company == current_company
+-#    - if current_company == @contract.company
+-#      .col-sm-6.col-md-6.col-lg-6
+-#        = render 'company/contracts/partials/buy_side',editable: @contract.company == current_company
 
 - if @contract.in_progress?
   - content_for :modals do
@@ -33,9 +65,29 @@
           $(file).parent().submit();
         });
       });
+
+- if @contract.sell_contract&.persisted?
+  %fieldset
+    .contract-fields_wrapper.mt-4.contract-border
+      .row
+        .col-md-6
+          .form-group
+            %h3.control-label.pull-right.text-muted
+              = @contract.sell_contract.number
+              - if @contract&.sell_contract&.conversation.present?
+                .floated-chat-btn
+                  %i.os-icon.os-icon-mail-07
+                  %span
+                  = link_to 'Conversation', mini_chat_company_conversations_path(conversation_id: @contract.sell_contract.conversation.id), onclick: "open_chat(#{@contract.sell_contract.conversation.id})",class: 'ChatBtn',id: 'ChatBtn', remote: true
+
+
+
+
 - content_for :scripts do
   :javascript
-
+    function open_chat(id){
+      $.get(`/company/conversations/mini_chat?conversation_id=${id}`)
+    }
     $('.contract_progress').attr('data-content','0%');
     $('.contract_progress').css('left', '#{(((@contract.contract_progress.to_f*54)/100).to_f+21).round}%');
     $('.contract_progress').attr('data-content','#{@contract.contract_progress.to_f.round}%');

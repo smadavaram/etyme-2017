@@ -75,7 +75,7 @@
                     %td= ts.contract.title
                     %td= user_image(company, class: 'data-table-image mr-1', title: company.full_name)
                     %td= "#{ts.start_date} - #{ts.end_date}"
-                    %td= ts.contract_cycle.cycle_of.get_rate(ts.start_date)&.working_hrs * frequency_to_num(ts.contract_cycle.cycle_frequency)
+                    %td= ts.contract_cycle.cycle_of.get_rate(ts.start_date)&.working_hrs.nil? ? '-' : ts.contract_cycle.cycle_of.get_rate(ts.start_date)&.working_hrs * frequency_to_num(ts.contract_cycle.cycle_frequency)
                     %td= ts.calculate_total_time
                     %td= 'TBD'
                     %td= 'TBD'
